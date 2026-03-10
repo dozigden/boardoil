@@ -1,0 +1,31 @@
+{
+  "name": "BoardOil Dev",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/dotnet:2": {
+      "version": "10.0"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+  "postCreateCommand": "dotnet restore BoardOil.Api/BoardOil.Api.csproj && cd BoardOil.Web && npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "Vue.volar",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+  "forwardPorts": [5000, 5173],
+  "portsAttributes": {
+    "5000": {
+      "label": "BoardOil API"
+    },
+    "5173": {
+      "label": "BoardOil Frontend"
+    }
+  }
+}
