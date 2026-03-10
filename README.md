@@ -10,6 +10,7 @@ Project planning is complete for v1. Implementation is next.
 - .NET backend + Vue (TypeScript) frontend
 - Realtime updates and typing indicators
 - SQLite persistence via EF Core
+- Dev Container-based local development workflow
 - Single Docker container deployment
 
 ## Safety Default
