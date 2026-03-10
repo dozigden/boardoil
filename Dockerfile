@@ -8,6 +8,8 @@ RUN npm run build
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
 WORKDIR /src
 COPY BoardOil.Api/ BoardOil.Api/
+COPY BoardOil.Services/ BoardOil.Services/
+COPY BoardOil.Ef/ BoardOil.Ef/
 RUN dotnet restore BoardOil.Api/BoardOil.Api.csproj
 RUN dotnet publish BoardOil.Api/BoardOil.Api.csproj -c Release -o /app/publish
 

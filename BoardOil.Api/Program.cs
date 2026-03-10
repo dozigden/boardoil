@@ -1,6 +1,15 @@
+using BoardOil.Services.DependencyInjection;
+
 var builder = WebApplication.CreateBuilder(args);
 
+var connectionString = builder.Configuration.GetConnectionString("BoardOil")
+    ?? "Data Source=/data/boardoil.db";
+
+builder.Services.AddBoardOilServices(connectionString);
+
 var app = builder.Build();
+
+await app.Services.InitializeBoardOilAsync();
 
 // API health endpoint used for container/dev smoke checks.
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));

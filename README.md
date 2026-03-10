@@ -12,6 +12,8 @@ BoardOil is a lightweight self-hosted Kanban board for small trusted teams.
 
 ## Repository Layout
 - `BoardOil.Api`: ASP.NET Core API (v1 scaffold)
+- `BoardOil.Services`: service layer and business logic
+- `BoardOil.Ef`: EF Core SQLite data access and entities
 - `BoardOil.Web`: Vue + TypeScript (Vite) app (v1 scaffold)
 - `.devcontainer`: development container configuration
 - `Dockerfile`: single-image production build (frontend + backend)
