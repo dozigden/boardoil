@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddDbContext<BoardOilDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
+        services.AddScoped<IColumnService, ColumnService>();
 
         return services;
     }
