@@ -1,13 +1,11 @@
-using BoardOil.Ef;
 using BoardOil.Ef.Entities;
 using BoardOil.Services.Abstractions;
 using BoardOil.Services.Contracts;
 using BoardOil.Services.Mappings;
-using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Services.Implementations;
 
-public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator validator) : IColumnService
+public sealed class ColumnService(IBoardRepository boardRepository, IColumnRepository columnRepository, IColumnValidator validator) : IColumnService
 {
     public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync()
     {
@@ -17,11 +15,9 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
         }
 
-        var columns = await dbContext.Columns
-            .Where(x => x.BoardId == boardId.Value)
-            .OrderBy(x => x.Position)
+        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value))
             .Select(x => x.ToColumnDto())
-            .ToListAsync();
+            .ToList();
 
         return columns;
     }
@@ -40,10 +36,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
         }
 
-        var columns = await dbContext.Columns
-            .Where(x => x.BoardId == boardId.Value)
-            .OrderBy(x => x.Position)
-            .ToListAsync();
+        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
 
         var insertIndex = request.Position is null
             ? columns.Count
@@ -59,7 +52,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             UpdatedAtUtc = now
         };
 
-        dbContext.Columns.Add(column);
+        columnRepository.Add(column);
         columns.Insert(insertIndex, column);
 
         await PersistColumnOrderAsync(columns);
@@ -75,10 +68,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
         }
 
-        var columns = await dbContext.Columns
-            .Where(x => x.BoardId == boardId.Value)
-            .OrderBy(x => x.Position)
-            .ToListAsync();
+        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
 
         var target = columns.FirstOrDefault(x => x.Id == id);
         if (target is null)
@@ -123,7 +113,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
         }
         else if (titleChanged)
         {
-            await dbContext.SaveChangesAsync();
+            await columnRepository.SaveChangesAsync();
         }
 
         return target.ToColumnDto();
@@ -137,10 +127,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
         }
 
-        var columns = await dbContext.Columns
-            .Where(x => x.BoardId == boardId.Value)
-            .OrderBy(x => x.Position)
-            .ToListAsync();
+        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
 
         var target = columns.FirstOrDefault(x => x.Id == id);
         if (target is null)
@@ -148,8 +135,8 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             return ApiErrors.NotFound("Column not found.");
         }
 
-        dbContext.Columns.Remove(target);
-        await dbContext.SaveChangesAsync();
+        columnRepository.Remove(target);
+        await columnRepository.SaveChangesAsync();
 
         var remaining = columns.Where(x => x.Id != id).ToList();
         await PersistColumnOrderAsync(remaining, DateTime.UtcNow);
@@ -159,10 +146,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
 
     private async Task<int?> GetBoardIdAsync()
     {
-        return await dbContext.Boards
-            .OrderBy(x => x.Id)
-            .Select(x => (int?)x.Id)
-            .FirstOrDefaultAsync();
+        return await boardRepository.GetPrimaryBoardIdAsync();
     }
 
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
@@ -179,7 +163,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             orderedColumns[index].Position = -1 - index;
         }
 
-        await dbContext.SaveChangesAsync();
+        await columnRepository.SaveChangesAsync();
 
         for (var index = 0; index < orderedColumns.Count; index++)
         {
@@ -192,7 +176,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             column.Position = index;
         }
 
-        await dbContext.SaveChangesAsync();
+        await columnRepository.SaveChangesAsync();
     }
 
 }

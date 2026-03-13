@@ -1,28 +1,26 @@
-using BoardOil.Ef;
 using BoardOil.Ef.Entities;
 using BoardOil.Services.Abstractions;
-using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Services.Implementations;
 
-public sealed class BoardBootstrapService(BoardOilDbContext dbContext) : IBoardBootstrapService
+public sealed class BoardBootstrapService(IBoardRepository boardRepository) : IBoardBootstrapService
 {
     public async Task EnsureDefaultBoardAsync()
     {
-        var existingBoard = await dbContext.Boards.AnyAsync();
+        var existingBoard = await boardRepository.AnyBoardAsync();
         if (existingBoard)
         {
             return;
         }
 
         var now = DateTime.UtcNow;
-        dbContext.Boards.Add(new Board
+        boardRepository.Add(new Board
         {
             Name = "BoardOil",
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         });
 
-        await dbContext.SaveChangesAsync();
+        await boardRepository.SaveChangesAsync();
     }
 }

@@ -13,6 +13,8 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<BoardOilDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<IColumnValidator, ColumnValidator>();
         services.AddScoped<ICardValidator, CardValidator>();
+        services.AddScoped<IBoardRepository, BoardRepository>();
+        services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
         services.AddScoped<IBoardService, BoardService>();
