@@ -30,8 +30,9 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
 
         var card = modelBuilder.Entity<BoardCard>();
         card.HasKey(x => x.Id);
-        card.Property(x => x.Title).HasMaxLength(160).IsRequired();
+        card.Property(x => x.Title).HasMaxLength(200).IsRequired();
         card.Property(x => x.Description).HasMaxLength(5000).IsRequired();
-        card.HasIndex(x => new { x.BoardColumnId, x.Position }).IsUnique();
+        card.Property(x => x.SortKey).HasMaxLength(20).IsRequired();
+        card.HasIndex(x => new { x.BoardColumnId, x.SortKey }).IsUnique();
     }
 }
