@@ -9,9 +9,9 @@ namespace BoardOil.Services.Implementations;
 
 public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator validator) : IColumnService
 {
-    public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync(CancellationToken cancellationToken = default)
+    public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync()
     {
-        var boardId = await GetBoardIdAsync(cancellationToken);
+        var boardId = await GetBoardIdAsync();
         if (boardId is null)
         {
             return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
@@ -21,12 +21,12 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             .Where(x => x.BoardId == boardId.Value)
             .OrderBy(x => x.Position)
             .Select(x => x.ToColumnDto())
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         return columns;
     }
 
-    public async Task<ApiResult<ColumnDto>> CreateColumnAsync(CreateColumnRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResult<ColumnDto>> CreateColumnAsync(CreateColumnRequest request)
     {
         var validationErrors = validator.ValidateCreate(request);
         if (validationErrors.Count > 0)
@@ -34,7 +34,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             return ValidationFail(validationErrors);
         }
 
-        var boardId = await GetBoardIdAsync(cancellationToken);
+        var boardId = await GetBoardIdAsync();
         if (boardId is null)
         {
             return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
@@ -43,7 +43,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
         var columns = await dbContext.Columns
             .Where(x => x.BoardId == boardId.Value)
             .OrderBy(x => x.Position)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var insertIndex = request.Position is null
             ? columns.Count
@@ -62,14 +62,14 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
         dbContext.Columns.Add(column);
         columns.Insert(insertIndex, column);
 
-        await PersistColumnOrderAsync(columns, cancellationToken);
+        await PersistColumnOrderAsync(columns);
 
         return ApiResults.Created(column.ToColumnDto());
     }
 
-    public async Task<ApiResult<ColumnDto>> UpdateColumnAsync(int id, UpdateColumnRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResult<ColumnDto>> UpdateColumnAsync(int id, UpdateColumnRequest request)
     {
-        var boardId = await GetBoardIdAsync(cancellationToken);
+        var boardId = await GetBoardIdAsync();
         if (boardId is null)
         {
             return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
@@ -78,7 +78,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
         var columns = await dbContext.Columns
             .Where(x => x.BoardId == boardId.Value)
             .OrderBy(x => x.Position)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var target = columns.FirstOrDefault(x => x.Id == id);
         if (target is null)
@@ -119,19 +119,19 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
 
         if (targetIndex != currentIndex)
         {
-            await PersistColumnOrderAsync(columns, cancellationToken, now);
+            await PersistColumnOrderAsync(columns, now);
         }
         else if (titleChanged)
         {
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await dbContext.SaveChangesAsync();
         }
 
         return target.ToColumnDto();
     }
 
-    public async Task<ApiResult> DeleteColumnAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<ApiResult> DeleteColumnAsync(int id)
     {
-        var boardId = await GetBoardIdAsync(cancellationToken);
+        var boardId = await GetBoardIdAsync();
         if (boardId is null)
         {
             return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
@@ -140,7 +140,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
         var columns = await dbContext.Columns
             .Where(x => x.BoardId == boardId.Value)
             .OrderBy(x => x.Position)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var target = columns.FirstOrDefault(x => x.Id == id);
         if (target is null)
@@ -149,20 +149,20 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
         }
 
         dbContext.Columns.Remove(target);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await dbContext.SaveChangesAsync();
 
         var remaining = columns.Where(x => x.Id != id).ToList();
-        await PersistColumnOrderAsync(remaining, cancellationToken, DateTime.UtcNow);
+        await PersistColumnOrderAsync(remaining, DateTime.UtcNow);
 
         return ApiResults.Ok();
     }
 
-    private async Task<int?> GetBoardIdAsync(CancellationToken cancellationToken)
+    private async Task<int?> GetBoardIdAsync()
     {
         return await dbContext.Boards
             .OrderBy(x => x.Id)
             .Select(x => (int?)x.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync();
     }
 
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
@@ -172,14 +172,14 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
                 .GroupBy(x => string.IsNullOrWhiteSpace(x.Property) ? string.Empty : x.Property)
                 .ToDictionary(x => x.Key, x => x.Select(y => y.Message).ToArray()));
 
-    private async Task PersistColumnOrderAsync(List<BoardColumn> orderedColumns, CancellationToken cancellationToken, DateTime? touchedAt = null)
+    private async Task PersistColumnOrderAsync(List<BoardColumn> orderedColumns, DateTime? touchedAt = null)
     {
         for (var index = 0; index < orderedColumns.Count; index++)
         {
             orderedColumns[index].Position = -1 - index;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await dbContext.SaveChangesAsync();
 
         for (var index = 0; index < orderedColumns.Count; index++)
         {
@@ -192,7 +192,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator 
             column.Position = index;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await dbContext.SaveChangesAsync();
     }
 
 }

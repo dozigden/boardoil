@@ -1,5 +1,6 @@
 using BoardOil.Ef;
 using BoardOil.Ef.Entities;
+using BoardOil.Services.Abstractions;
 using BoardOil.Services.Implementations;
 using BoardOil.Services.Contracts;
 using Microsoft.Data.Sqlite;
@@ -23,7 +24,8 @@ public sealed class CardServiceTests
         var cardToMoveId = await SeedBoardAsync(options);
 
         await using var dbContext = new BoardOilDbContext(options);
-        var service = new CardService(dbContext, new CardValidator());
+        ICardRepository repository = new CardRepository(dbContext);
+        var service = new CardService(repository, new CardValidator());
 
         var destinationColumnId = await dbContext.Columns
             .Where(c => c.Title == "Doing")

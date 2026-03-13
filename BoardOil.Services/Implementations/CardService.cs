@@ -1,16 +1,14 @@
-using BoardOil.Ef;
 using BoardOil.Ef.Entities;
 using BoardOil.Services.Abstractions;
 using BoardOil.Services.Contracts;
 using BoardOil.Services.Mappings;
 using BoardOil.Services.Ordering;
-using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Services.Implementations;
 
-public sealed class CardService(BoardOilDbContext dbContext, ICardValidator validator) : ICardService
+public sealed class CardService(ICardRepository repository, ICardValidator validator) : ICardService
 {
-    public async Task<ApiResult<CardDto>> CreateCardAsync(CreateCardRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResult<CardDto>> CreateCardAsync(CreateCardRequest request)
     {
         var validationErrors = validator.ValidateCreate(request);
         if (validationErrors.Count > 0)
@@ -18,18 +16,13 @@ public sealed class CardService(BoardOilDbContext dbContext, ICardValidator vali
             return ValidationFail(validationErrors);
         }
 
-        var column = await dbContext.Columns
-            .FirstOrDefaultAsync(x => x.Id == request.BoardColumnId, cancellationToken);
-
-        if (column is null)
+        var columnExists = await repository.ColumnExistsAsync(request.BoardColumnId);
+        if (!columnExists)
         {
             return ApiErrors.NotFound("Column not found.");
         }
 
-        var cards = await dbContext.Cards
-            .Where(x => x.BoardColumnId == column.Id)
-            .OrderBy(x => x.SortKey)
-            .ToListAsync(cancellationToken);
+        var cards = (await repository.GetCardsInColumnOrderedAsync(request.BoardColumnId)).ToList();
 
         var insertIndex = request.Position is null
             ? cards.Count
@@ -45,7 +38,7 @@ public sealed class CardService(BoardOilDbContext dbContext, ICardValidator vali
         var now = DateTime.UtcNow;
         var card = new BoardCard
         {
-            BoardColumnId = column.Id,
+            BoardColumnId = request.BoardColumnId,
             Title = request.Title.Trim(),
             Description = request.Description,
             SortKey = sortKey!,
@@ -53,16 +46,15 @@ public sealed class CardService(BoardOilDbContext dbContext, ICardValidator vali
             UpdatedAtUtc = now
         };
 
-        dbContext.Cards.Add(card);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        repository.Add(card);
+        await repository.SaveChangesAsync();
 
         return ApiResults.Created(card.ToCardDto(insertIndex));
     }
 
-    public async Task<ApiResult<CardDto>> UpdateCardAsync(int id, UpdateCardRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResult<CardDto>> UpdateCardAsync(int id, UpdateCardRequest request)
     {
-        var card = await dbContext.Cards
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var card = await repository.GetByIdAsync(id);
 
         if (card is null)
         {
@@ -94,8 +86,7 @@ public sealed class CardService(BoardOilDbContext dbContext, ICardValidator vali
         var targetColumnId = request.BoardColumnId ?? sourceColumnId;
         if (targetColumnId != sourceColumnId)
         {
-            var targetColumnExists = await dbContext.Columns
-                .AnyAsync(x => x.Id == targetColumnId, cancellationToken);
+            var targetColumnExists = await repository.ColumnExistsAsync(targetColumnId);
 
             if (!targetColumnExists)
             {
@@ -103,10 +94,7 @@ public sealed class CardService(BoardOilDbContext dbContext, ICardValidator vali
             }
         }
 
-        var sourceCards = await dbContext.Cards
-            .Where(x => x.BoardColumnId == sourceColumnId)
-            .OrderBy(x => x.SortKey)
-            .ToListAsync(cancellationToken);
+        var sourceCards = (await repository.GetCardsInColumnOrderedAsync(sourceColumnId)).ToList();
 
         var sourceIndex = sourceCards.FindIndex(x => x.Id == id);
         if (sourceIndex < 0)
@@ -134,20 +122,17 @@ public sealed class CardService(BoardOilDbContext dbContext, ICardValidator vali
             {
                 card.SortKey = sortKey!;
                 card.UpdatedAtUtc = now;
-                await dbContext.SaveChangesAsync(cancellationToken);
+                await repository.SaveChangesAsync();
             }
             else if (titleChanged || descriptionChanged)
             {
                 card.UpdatedAtUtc = now;
-                await dbContext.SaveChangesAsync(cancellationToken);
+                await repository.SaveChangesAsync();
             }
         }
         else
         {
-            var targetCards = await dbContext.Cards
-                .Where(x => x.BoardColumnId == targetColumnId)
-                .OrderBy(x => x.SortKey)
-                .ToListAsync(cancellationToken);
+            var targetCards = (await repository.GetCardsInColumnOrderedAsync(targetColumnId)).ToList();
 
             sourceCards.RemoveAt(sourceIndex);
 
@@ -166,31 +151,34 @@ public sealed class CardService(BoardOilDbContext dbContext, ICardValidator vali
             card.SortKey = sortKey!;
             card.UpdatedAtUtc = now;
 
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await repository.SaveChangesAsync();
         }
 
-        var finalCards = await dbContext.Cards
-            .Where(x => x.BoardColumnId == card.BoardColumnId)
-            .OrderBy(x => x.SortKey)
-            .Select(x => x.Id)
-            .ToListAsync(cancellationToken);
+        var finalCards = await repository.GetCardIdsInColumnOrderedAsync(card.BoardColumnId);
 
-        var finalPosition = finalCards.FindIndex(cardId => cardId == card.Id);
+        var finalPosition = -1;
+        for (var i = 0; i < finalCards.Count; i++)
+        {
+            if (finalCards[i] == card.Id)
+            {
+                finalPosition = i;
+                break;
+            }
+        }
         return card.ToCardDto(finalPosition < 0 ? 0 : finalPosition);
     }
 
-    public async Task<ApiResult> DeleteCardAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<ApiResult> DeleteCardAsync(int id)
     {
-        var card = await dbContext.Cards
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var card = await repository.GetByIdAsync(id);
 
         if (card is null)
         {
             return ApiErrors.NotFound("Card not found.");
         }
 
-        dbContext.Cards.Remove(card);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        repository.Remove(card);
+        await repository.SaveChangesAsync();
 
         return ApiResults.Ok();
     }
