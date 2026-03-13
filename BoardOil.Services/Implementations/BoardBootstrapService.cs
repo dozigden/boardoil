@@ -7,9 +7,9 @@ namespace BoardOil.Services.Implementations;
 
 public sealed class BoardBootstrapService(BoardOilDbContext dbContext) : IBoardBootstrapService
 {
-    public async Task EnsureDefaultBoardAsync(CancellationToken cancellationToken = default)
+    public async Task EnsureDefaultBoardAsync()
     {
-        var existingBoard = await dbContext.Boards.AnyAsync(cancellationToken);
+        var existingBoard = await dbContext.Boards.AnyAsync();
         if (existingBoard)
         {
             return;
@@ -23,6 +23,6 @@ public sealed class BoardBootstrapService(BoardOilDbContext dbContext) : IBoardB
             UpdatedAtUtc = now
         });
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await dbContext.SaveChangesAsync();
     }
 }

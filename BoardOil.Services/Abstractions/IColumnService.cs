@@ -4,8 +4,8 @@ namespace BoardOil.Services.Abstractions;
 
 public interface IColumnService
 {
-    Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync(CancellationToken cancellationToken = default);
-    Task<ApiResult<ColumnDto>> CreateColumnAsync(CreateColumnRequest request, CancellationToken cancellationToken = default);
-    Task<ApiResult<ColumnDto>> UpdateColumnAsync(int id, UpdateColumnRequest request, CancellationToken cancellationToken = default);
-    Task<ApiResult> DeleteColumnAsync(int id, CancellationToken cancellationToken = default);
+    Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync();
+    Task<ApiResult<ColumnDto>> CreateColumnAsync(CreateColumnRequest request);
+    Task<ApiResult<ColumnDto>> UpdateColumnAsync(int id, UpdateColumnRequest request);
+    Task<ApiResult> DeleteColumnAsync(int id);
 }

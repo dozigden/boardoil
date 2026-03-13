@@ -13,6 +13,7 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<BoardOilDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<IColumnValidator, ColumnValidator>();
         services.AddScoped<ICardValidator, CardValidator>();
+        services.AddScoped<ICardRepository, CardRepository>();
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
         services.AddScoped<IBoardService, BoardService>();
         services.AddScoped<IColumnService, ColumnService>();
@@ -21,13 +22,13 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static async Task InitializeBoardOilAsync(this IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
+    public static async Task InitializeBoardOilAsync(this IServiceProvider serviceProvider)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<BoardOilDbContext>();
-        await dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        await dbContext.Database.EnsureCreatedAsync();
 
         var bootstrapper = scope.ServiceProvider.GetRequiredService<IBoardBootstrapService>();
-        await bootstrapper.EnsureDefaultBoardAsync(cancellationToken);
+        await bootstrapper.EnsureDefaultBoardAsync();
     }
 }

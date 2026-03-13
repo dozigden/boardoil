@@ -8,11 +8,11 @@ namespace BoardOil.Services.Implementations;
 
 public sealed class BoardService(BoardOilDbContext dbContext) : IBoardService
 {
-    public async Task<ApiResult<BoardDto>> GetBoardAsync(CancellationToken cancellationToken = default)
+    public async Task<ApiResult<BoardDto>> GetBoardAsync()
     {
         var board = await dbContext.Boards
             .OrderBy(x => x.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync();
 
         if (board is null)
         {
@@ -22,13 +22,13 @@ public sealed class BoardService(BoardOilDbContext dbContext) : IBoardService
         var columns = await dbContext.Columns
             .Where(x => x.BoardId == board.Id)
             .OrderBy(x => x.Position)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var columnIds = columns.Select(x => x.Id).ToList();
         var cards = await dbContext.Cards
             .Where(x => columnIds.Contains(x.BoardColumnId))
             .OrderBy(x => x.SortKey)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var cardsByColumnId = cards
             .GroupBy(x => x.BoardColumnId)
