@@ -4,15 +4,11 @@ using BoardOil.Services.Abstractions;
 using BoardOil.Services.Contracts;
 using BoardOil.Services.Mappings;
 using Microsoft.EntityFrameworkCore;
-using System.Text.RegularExpressions;
 
 namespace BoardOil.Services.Implementations;
 
-public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
+public sealed class ColumnService(BoardOilDbContext dbContext, IColumnValidator validator) : IColumnService
 {
-    private static readonly Regex AllowedColumnTitleRegex =
-        new("^[A-Za-z0-9][A-Za-z0-9 \\-._&'(),!?:/]*$", RegexOptions.Compiled);
-
     public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync(CancellationToken cancellationToken = default)
     {
         var boardId = await GetBoardIdAsync(cancellationToken);
@@ -32,9 +28,10 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
 
     public async Task<ApiResult<ColumnDto>> CreateColumnAsync(CreateColumnRequest request, CancellationToken cancellationToken = default)
     {
-        if (!TryNormalizeTitle(request.Title, out var title, out var titleError))
+        var validationErrors = validator.ValidateCreate(request);
+        if (validationErrors.Count > 0)
         {
-            return ValidationFail(titleError!);
+            return ValidationFail(validationErrors);
         }
 
         var boardId = await GetBoardIdAsync(cancellationToken);
@@ -56,7 +53,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
         var column = new BoardColumn
         {
             BoardId = boardId.Value,
-            Title = title!,
+            Title = request.Title.Trim(),
             Position = insertIndex,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
@@ -97,13 +94,15 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
         var titleChanged = false;
         if (request.Title is not null)
         {
-            if (!TryNormalizeTitle(request.Title, out var title, out var titleError))
+            var updateValidationErrors = validator.ValidateUpdate(request);
+            if (updateValidationErrors.Count > 0)
             {
-                return ValidationFail(titleError!);
+                return ValidationFail(updateValidationErrors);
             }
 
-            titleChanged = target.Title != title;
-            target.Title = title!;
+            var normalizedTitle = request.Title.Trim();
+            titleChanged = target.Title != normalizedTitle;
+            target.Title = normalizedTitle;
         }
 
         if (targetIndex != currentIndex)
@@ -166,42 +165,12 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    private static bool TryNormalizeTitle(string title, out string? normalizedTitle, out string? error)
-    {
-        var normalized = title.Trim();
-        if (string.IsNullOrWhiteSpace(normalized))
-        {
-            normalizedTitle = null;
-            error = "Column title is required.";
-            return false;
-        }
-
-        if (normalized.Length > 200)
-        {
-            normalizedTitle = null;
-            error = "Column title must be 200 characters or fewer.";
-            return false;
-        }
-
-        if (!AllowedColumnTitleRegex.IsMatch(normalized))
-        {
-            normalizedTitle = null;
-            error = "Column title can only contain letters, numbers, spaces, and . , - _ & ' ( ) ! ? : /";
-            return false;
-        }
-
-        normalizedTitle = normalized;
-        error = null;
-        return true;
-    }
-
-    private static ApiError ValidationFail(string errorMessage) =>
+    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
         ApiErrors.BadRequest(
             "Validation failed.",
-            new Dictionary<string, string[]>
-            {
-                ["general"] = [errorMessage]
-            });
+            validationErrors
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.Property) ? string.Empty : x.Property)
+                .ToDictionary(x => x.Key, x => x.Select(y => y.Message).ToArray()));
 
     private async Task PersistColumnOrderAsync(List<BoardColumn> orderedColumns, CancellationToken cancellationToken, DateTime? touchedAt = null)
     {
