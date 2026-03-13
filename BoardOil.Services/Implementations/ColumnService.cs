@@ -2,40 +2,45 @@ using BoardOil.Ef;
 using BoardOil.Ef.Entities;
 using BoardOil.Services.Abstractions;
 using BoardOil.Services.Contracts;
+using BoardOil.Services.Mappings;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace BoardOil.Services.Implementations;
 
 public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
 {
+    private static readonly Regex AllowedColumnTitleRegex =
+        new("^[A-Za-z0-9][A-Za-z0-9 \\-._&'(),!?:/]*$", RegexOptions.Compiled);
+
     public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync(CancellationToken cancellationToken = default)
     {
         var boardId = await GetBoardIdAsync(cancellationToken);
         if (boardId is null)
         {
-            return ApiResult.InternalError<IReadOnlyList<ColumnDto>>("No board exists. Bootstrap has not run.");
+            return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
         }
 
         var columns = await dbContext.Columns
             .Where(x => x.BoardId == boardId.Value)
             .OrderBy(x => x.Position)
-            .Select(x => MapColumn(x))
+            .Select(x => x.ToColumnDto())
             .ToListAsync(cancellationToken);
 
-        return ApiResult.Ok<IReadOnlyList<ColumnDto>>(columns);
+        return columns;
     }
 
     public async Task<ApiResult<ColumnDto>> CreateColumnAsync(CreateColumnRequest request, CancellationToken cancellationToken = default)
     {
         if (!TryNormalizeTitle(request.Title, out var title, out var titleError))
         {
-            return ValidationFail<ColumnDto>(titleError!);
+            return ValidationFail(titleError!);
         }
 
         var boardId = await GetBoardIdAsync(cancellationToken);
         if (boardId is null)
         {
-            return ApiResult.InternalError<ColumnDto>("No board exists. Bootstrap has not run.");
+            return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
         }
 
         var columns = await dbContext.Columns
@@ -62,7 +67,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
 
         await PersistColumnOrderAsync(columns, cancellationToken);
 
-        return ApiResult.Created(MapColumn(column));
+        return ApiResults.Created(column.ToColumnDto());
     }
 
     public async Task<ApiResult<ColumnDto>> UpdateColumnAsync(int id, UpdateColumnRequest request, CancellationToken cancellationToken = default)
@@ -70,7 +75,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
         var boardId = await GetBoardIdAsync(cancellationToken);
         if (boardId is null)
         {
-            return ApiResult.InternalError<ColumnDto>("No board exists. Bootstrap has not run.");
+            return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
         }
 
         var columns = await dbContext.Columns
@@ -81,7 +86,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
         var target = columns.FirstOrDefault(x => x.Id == id);
         if (target is null)
         {
-            return ApiResult.NotFound<ColumnDto>("Column not found.");
+            return ApiErrors.NotFound("Column not found.");
         }
 
         var currentIndex = columns.FindIndex(x => x.Id == id);
@@ -94,7 +99,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
         {
             if (!TryNormalizeTitle(request.Title, out var title, out var titleError))
             {
-                return ValidationFail<ColumnDto>(titleError!);
+                return ValidationFail(titleError!);
             }
 
             titleChanged = target.Title != title;
@@ -122,15 +127,15 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        return ApiResult.Ok(MapColumn(target));
+        return target.ToColumnDto();
     }
 
-    public async Task<ApiResult<object>> DeleteColumnAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<ApiResult> DeleteColumnAsync(int id, CancellationToken cancellationToken = default)
     {
         var boardId = await GetBoardIdAsync(cancellationToken);
         if (boardId is null)
         {
-            return ApiResult.InternalError<object>("No board exists. Bootstrap has not run.");
+            return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
         }
 
         var columns = await dbContext.Columns
@@ -141,7 +146,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
         var target = columns.FirstOrDefault(x => x.Id == id);
         if (target is null)
         {
-            return ApiResult.NotFound<object>("Column not found.");
+            return ApiErrors.NotFound("Column not found.");
         }
 
         dbContext.Columns.Remove(target);
@@ -150,7 +155,7 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
         var remaining = columns.Where(x => x.Id != id).ToList();
         await PersistColumnOrderAsync(remaining, cancellationToken, DateTime.UtcNow);
 
-        return ApiResult.Ok<object>(new { deleted = true });
+        return ApiResults.Ok();
     }
 
     private async Task<int?> GetBoardIdAsync(CancellationToken cancellationToken)
@@ -171,13 +176,27 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
             return false;
         }
 
+        if (normalized.Length > 200)
+        {
+            normalizedTitle = null;
+            error = "Column title must be 200 characters or fewer.";
+            return false;
+        }
+
+        if (!AllowedColumnTitleRegex.IsMatch(normalized))
+        {
+            normalizedTitle = null;
+            error = "Column title can only contain letters, numbers, spaces, and . , - _ & ' ( ) ! ? : /";
+            return false;
+        }
+
         normalizedTitle = normalized;
         error = null;
         return true;
     }
 
-    private static ApiResult<T> ValidationFail<T>(string errorMessage) =>
-        ApiResult.BadRequest<T>(
+    private static ApiError ValidationFail(string errorMessage) =>
+        ApiErrors.BadRequest(
             "Validation failed.",
             new Dictionary<string, string[]>
             {
@@ -207,11 +226,4 @@ public sealed class ColumnService(BoardOilDbContext dbContext) : IColumnService
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private static ColumnDto MapColumn(BoardColumn column) =>
-        new(
-            column.Id,
-            column.Title,
-            column.Position,
-            column.CreatedAtUtc,
-            column.UpdatedAtUtc);
 }

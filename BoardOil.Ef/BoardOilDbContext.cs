@@ -21,7 +21,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
 
         var column = modelBuilder.Entity<BoardColumn>();
         column.HasKey(x => x.Id);
-        column.Property(x => x.Title).HasMaxLength(120).IsRequired();
+        column.Property(x => x.Title).HasMaxLength(200).IsRequired();
         column.HasIndex(x => new { x.BoardId, x.Position }).IsUnique();
         column.HasMany(x => x.Cards)
             .WithOne(x => x.BoardColumn)
