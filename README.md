@@ -7,7 +7,6 @@ BoardOil is a lightweight self-hosted Kanban board for small trusted teams.
 - .NET backend + Vue (TypeScript) frontend
 - Realtime updates and typing indicators
 - SQLite persistence via EF Core
-- Dev Container-based local development workflow
 - Single Docker container deployment
 
 ## Repository Layout
@@ -15,22 +14,24 @@ BoardOil is a lightweight self-hosted Kanban board for small trusted teams.
 - `BoardOil.Services`: service layer and business logic
 - `BoardOil.Ef`: EF Core SQLite data access and entities
 - `BoardOil.Web`: Vue + TypeScript (Vite) app (v1 scaffold)
-- `.devcontainer`: development container configuration
 - `Dockerfile`: single-image production build (frontend + backend)
 
-## Development (Dev Container)
-1. Open the repository in a Dev Container.
-2. The container runs `dotnet restore` and `npm install` automatically.
-3. Start backend:
+## Development
+1. Restore dependencies:
+```bash
+dotnet restore BoardOil.slnx
+cd BoardOil.Web && npm install
+```
+2. Start backend:
 ```bash
 dotnet run --project BoardOil.Api/BoardOil.Api.csproj --urls http://0.0.0.0:5000
 ```
-4. Start frontend (new terminal):
+3. Start frontend (new terminal):
 ```bash
 cd BoardOil.Web
 npm run dev
 ```
-5. Open:
+4. Open:
 - frontend: `http://localhost:5173`
 - API health: `http://localhost:5000/api/health`
 

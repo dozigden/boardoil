@@ -12,7 +12,7 @@ v1 will be a single-board product with realtime collaboration (board updates + t
 - Persistence: SQLite via EF Core
 - Realtime scope: card/column changes + typing indicators
 - Conflict model: last write wins
-- Development workflow: Dev Containers for local development
+- Development workflow: local host development
 - Packaging: single Docker image
 - Network safety default: bind localhost (`127.0.0.1`) unless explicitly overridden
 - Title validation policy: all title fields use the same validation rules (trimmed required value, max length 200, allowed chars limited to alphanumeric plus spaces and `. , - _ & ' ( ) ! ? : /`)
@@ -50,10 +50,9 @@ v1 will be a single-board product with realtime collaboration (board updates + t
 - Document safe exposure defaults and override behavior.
 
 ### 6) Development Environment
-- Standardize local development using a Dev Container.
-- Include tooling for .NET SDK, Node.js, and package managers used by backend/frontend.
-- Ensure frontend and backend can run inside the Dev Container during development.
-- Keep runtime production image and dev container concerns separated.
+- Standardize local development with host tooling for .NET SDK and Node.js.
+- Ensure frontend and backend can run together in local development.
+- Keep runtime production image concerns separated from local development setup.
 
 ## API and Event Surface (v1)
 ### REST API
