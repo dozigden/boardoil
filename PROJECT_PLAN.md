@@ -15,6 +15,7 @@ v1 will be a single-board product with realtime collaboration (board updates + t
 - Development workflow: Dev Containers for local development
 - Packaging: single Docker image
 - Network safety default: bind localhost (`127.0.0.1`) unless explicitly overridden
+- Title validation policy: all title fields use the same validation rules (trimmed required value, max length 200, allowed chars limited to alphanumeric plus spaces and `. , - _ & ' ( ) ! ? : /`)
 
 ## Implementation Plan
 ### 1) Backend (.NET)
