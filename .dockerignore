@@ -4,5 +4,4 @@
 **/obj
 BoardOil.Web/node_modules
 BoardOil.Web/dist
-.devcontainer
 .dotnet
