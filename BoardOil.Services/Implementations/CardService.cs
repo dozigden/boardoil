@@ -55,7 +55,6 @@ public sealed class CardService(ICardRepository repository, ICardValidator valid
     public async Task<ApiResult<CardDto>> UpdateCardAsync(int id, UpdateCardRequest request)
     {
         var card = await repository.GetByIdAsync(id);
-
         if (card is null)
         {
             return ApiErrors.NotFound("Card not found.");
@@ -67,104 +66,39 @@ public sealed class CardService(ICardRepository repository, ICardValidator valid
             return ValidationFail(updateValidationErrors);
         }
 
-        var titleChanged = false;
-        if (request.Title is not null)
-        {
-            var normalizedTitle = request.Title.Trim();
-            titleChanged = card.Title != normalizedTitle;
-            card.Title = normalizedTitle;
-        }
-
-        var descriptionChanged = false;
-        if (request.Description is not null)
-        {
-            descriptionChanged = card.Description != request.Description;
-            card.Description = request.Description;
-        }
+        var metadataChanged = ApplyMetadataUpdates(card, request);
 
         var sourceColumnId = card.BoardColumnId;
         var targetColumnId = request.BoardColumnId ?? sourceColumnId;
-        if (targetColumnId != sourceColumnId)
+        var targetExists = await EnsureTargetColumnExistsAsync(sourceColumnId, targetColumnId);
+        if (!targetExists)
         {
-            var targetColumnExists = await repository.ColumnExistsAsync(targetColumnId);
-
-            if (!targetColumnExists)
-            {
-                return ApiErrors.NotFound("Column not found.");
-            }
+            return ApiErrors.NotFound("Column not found.");
         }
 
         var sourceCards = (await repository.GetCardsInColumnOrderedAsync(sourceColumnId)).ToList();
-
-        var sourceIndex = sourceCards.FindIndex(x => x.Id == id);
+        var sourceIndex = FindCardIndex(sourceCards, id);
         if (sourceIndex < 0)
         {
             return ApiErrors.NotFound("Card not found.");
         }
 
-        var now = DateTime.UtcNow;
+        ApiError? operationError;
         if (targetColumnId == sourceColumnId)
         {
-            sourceCards.RemoveAt(sourceIndex);
-
-            var targetIndex = request.Position is null
-                ? sourceIndex
-                : Math.Clamp(request.Position.Value, 0, sourceCards.Count);
-
-            var previousKey = targetIndex > 0 ? sourceCards[targetIndex - 1].SortKey : null;
-            var nextKey = targetIndex < sourceCards.Count ? sourceCards[targetIndex].SortKey : null;
-            if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
-            {
-                return allocationError!;
-            }
-
-            if (targetIndex != sourceIndex)
-            {
-                card.SortKey = sortKey!;
-                card.UpdatedAtUtc = now;
-                await repository.SaveChangesAsync();
-            }
-            else if (titleChanged || descriptionChanged)
-            {
-                card.UpdatedAtUtc = now;
-                await repository.SaveChangesAsync();
-            }
+            operationError = await UpdateWithinColumnAsync(card, request.Position, sourceCards, sourceIndex, metadataChanged);
         }
         else
         {
-            var targetCards = (await repository.GetCardsInColumnOrderedAsync(targetColumnId)).ToList();
-
-            sourceCards.RemoveAt(sourceIndex);
-
-            var insertIndex = request.Position is null
-                ? targetCards.Count
-                : Math.Clamp(request.Position.Value, 0, targetCards.Count);
-
-            var previousKey = insertIndex > 0 ? targetCards[insertIndex - 1].SortKey : null;
-            var nextKey = insertIndex < targetCards.Count ? targetCards[insertIndex].SortKey : null;
-            if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
-            {
-                return allocationError!;
-            }
-
-            card.BoardColumnId = targetColumnId;
-            card.SortKey = sortKey!;
-            card.UpdatedAtUtc = now;
-
-            await repository.SaveChangesAsync();
+            operationError = await MoveAcrossColumnsAsync(card, targetColumnId, request.Position, sourceCards, sourceIndex);
         }
 
-        var finalCards = await repository.GetCardIdsInColumnOrderedAsync(card.BoardColumnId);
-
-        var finalPosition = -1;
-        for (var i = 0; i < finalCards.Count; i++)
+        if (operationError is not null)
         {
-            if (finalCards[i] == card.Id)
-            {
-                finalPosition = i;
-                break;
-            }
+            return operationError;
         }
+
+        var finalPosition = await GetCardPositionAsync(card.BoardColumnId, card.Id);
         return card.ToCardDto(finalPosition < 0 ? 0 : finalPosition);
     }
 
@@ -189,6 +123,132 @@ public sealed class CardService(ICardRepository repository, ICardValidator valid
             validationErrors
                 .GroupBy(x => string.IsNullOrWhiteSpace(x.Property) ? string.Empty : x.Property)
                 .ToDictionary(x => x.Key, x => x.Select(y => y.Message).ToArray()));
+
+    private static bool ApplyMetadataUpdates(BoardCard card, UpdateCardRequest request)
+    {
+        var changed = false;
+        if (request.Title is not null)
+        {
+            var normalizedTitle = request.Title.Trim();
+            changed = changed || card.Title != normalizedTitle;
+            card.Title = normalizedTitle;
+        }
+
+        if (request.Description is not null)
+        {
+            changed = changed || card.Description != request.Description;
+            card.Description = request.Description;
+        }
+
+        return changed;
+    }
+
+    private async Task<bool> EnsureTargetColumnExistsAsync(int sourceColumnId, int targetColumnId)
+    {
+        if (targetColumnId == sourceColumnId)
+        {
+            return true;
+        }
+
+        return await repository.ColumnExistsAsync(targetColumnId);
+    }
+
+    private async Task<ApiError?> UpdateWithinColumnAsync(
+        BoardCard card,
+        int? requestedPosition,
+        List<BoardCard> sourceCards,
+        int sourceIndex,
+        bool metadataChanged)
+    {
+        sourceCards.RemoveAt(sourceIndex);
+        var targetIndex = requestedPosition is null
+            ? sourceIndex
+            : Math.Clamp(requestedPosition.Value, 0, sourceCards.Count);
+
+        if (targetIndex == sourceIndex)
+        {
+            if (!metadataChanged)
+            {
+                return null;
+            }
+
+            card.UpdatedAtUtc = DateTime.UtcNow;
+            await repository.SaveChangesAsync();
+            return null;
+        }
+
+        var previousKey = targetIndex > 0 ? sourceCards[targetIndex - 1].SortKey : null;
+        var nextKey = targetIndex < sourceCards.Count ? sourceCards[targetIndex].SortKey : null;
+        if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
+        {
+            return allocationError;
+        }
+
+        card.SortKey = sortKey!;
+        card.UpdatedAtUtc = DateTime.UtcNow;
+        await repository.SaveChangesAsync();
+        return null;
+    }
+
+    private async Task<ApiError?> MoveAcrossColumnsAsync(
+        BoardCard card,
+        int targetColumnId,
+        int? requestedPosition,
+        List<BoardCard> sourceCards,
+        int sourceIndex)
+    {
+        var targetCards = (await repository.GetCardsInColumnOrderedAsync(targetColumnId)).ToList();
+        sourceCards.RemoveAt(sourceIndex);
+
+        var insertIndex = requestedPosition is null
+            ? targetCards.Count
+            : Math.Clamp(requestedPosition.Value, 0, targetCards.Count);
+
+        var previousKey = insertIndex > 0 ? targetCards[insertIndex - 1].SortKey : null;
+        var nextKey = insertIndex < targetCards.Count ? targetCards[insertIndex].SortKey : null;
+        if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
+        {
+            return allocationError;
+        }
+
+        card.BoardColumnId = targetColumnId;
+        card.SortKey = sortKey!;
+        card.UpdatedAtUtc = DateTime.UtcNow;
+        await repository.SaveChangesAsync();
+        return null;
+    }
+
+    private async Task<int> GetCardPositionAsync(int columnId, int cardId)
+    {
+        var finalCards = await repository.GetCardIdsInColumnOrderedAsync(columnId);
+        return FindCardIndex(finalCards, cardId);
+    }
+
+    private static int FindCardIndex(IReadOnlyList<int> cardIds, int targetId)
+    {
+        for (var i = 0; i < cardIds.Count; i++)
+        {
+            if (cardIds[i] == targetId)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int FindCardIndex(IReadOnlyList<BoardCard> cards, int targetId)
+    {
+        for (var i = 0; i < cards.Count; i++)
+        {
+            if (cards[i].Id == targetId)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     private static bool TryGenerateSortKey(string? previous, string? next, out string? sortKey, out ApiError? error)
     {

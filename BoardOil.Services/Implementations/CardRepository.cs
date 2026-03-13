@@ -19,6 +19,19 @@ public sealed class CardRepository(BoardOilDbContext dbContext) : ICardRepositor
             .OrderBy(x => x.SortKey)
             .ToListAsync();
 
+    public async Task<IReadOnlyList<BoardCard>> GetCardsForColumnsOrderedAsync(IReadOnlyList<int> columnIds)
+    {
+        if (columnIds.Count == 0)
+        {
+            return Array.Empty<BoardCard>();
+        }
+
+        return await dbContext.Cards
+            .Where(x => columnIds.Contains(x.BoardColumnId))
+            .OrderBy(x => x.SortKey)
+            .ToListAsync();
+    }
+
     public async Task<IReadOnlyList<int>> GetCardIdsInColumnOrderedAsync(int columnId) =>
         await dbContext.Cards
             .Where(x => x.BoardColumnId == columnId)
