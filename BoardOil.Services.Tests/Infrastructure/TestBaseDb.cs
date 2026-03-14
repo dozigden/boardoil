@@ -25,6 +25,9 @@ public abstract class TestBaseDb : IAsyncLifetime
         return dbContext;
     }
 
+    protected FluentBoardBuilder CreateBoard(string name = "BoardOil") =>
+        new(DbContextForArrange, name, TestSeedData.FixedNow);
+
     private SqliteTestHarness Harness =>
         _harness ?? throw new InvalidOperationException("Test harness has not been initialized.");
 
@@ -58,9 +61,11 @@ public abstract class TestBaseDb : IAsyncLifetime
 
     protected async Task<(int TodoColumnId, int DoingColumnId)> SeedTwoColumnBoardAsync()
     {
-        var board = await SeedDefaultBoardAsync();
-        var columns = await SeedColumnsAsync(board.Id, "Todo", "Doing");
-        return (columns[0].Id, columns[1].Id);
+        var board = CreateBoard()
+            .AddColumn("Todo")
+            .AddColumn("Doing");
+
+        return (board.GetColumn("Todo").Id, board.GetColumn("Doing").Id);
     }
 
     protected async Task<int> SeedSingleCardAsync(int columnId, string title, string description)
