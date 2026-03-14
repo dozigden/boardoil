@@ -15,7 +15,8 @@ public sealed class CardServiceTests : TestBaseDb
         // Arrange
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
@@ -46,7 +47,8 @@ public sealed class CardServiceTests : TestBaseDb
             .AddColumn("Todo")
             .AddCard("A", "1")
             .AddCard("B", "2")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
@@ -69,7 +71,8 @@ public sealed class CardServiceTests : TestBaseDb
             .AddColumn("Todo")
             .AddCard("A", "1")
             .AddCard("B", "2")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
@@ -92,7 +95,8 @@ public sealed class CardServiceTests : TestBaseDb
             .AddColumn("Todo")
             .AddCard("A", "1")
             .AddCard("B", "2")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
@@ -113,7 +117,8 @@ public sealed class CardServiceTests : TestBaseDb
         // Arrange
         CreateBoard("BoardOil")
             .AddColumn("Todo")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
 
         // Act
         var service = CreateService();
@@ -133,7 +138,8 @@ public sealed class CardServiceTests : TestBaseDb
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .AddCard("Old", "Desc")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var cardId = board.GetCard("Todo", "Old").Id;
 
         // Act
@@ -156,7 +162,8 @@ public sealed class CardServiceTests : TestBaseDb
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .AddCard("Title", "Old")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var cardId = board.GetCard("Todo", "Title").Id;
 
         // Act
@@ -181,7 +188,8 @@ public sealed class CardServiceTests : TestBaseDb
             .AddCard("A", "1")
             .AddCard("B", "2")
             .AddCard("C", "3")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
         var movingCardId = board.GetCard("Todo", "C").Id;
 
@@ -205,7 +213,8 @@ public sealed class CardServiceTests : TestBaseDb
             .AddColumn("Todo")
             .AddCard("Move me", "source")
             .AddColumn("Doing")
-            .AddCard("Existing", "target");
+            .AddCard("Existing", "target")
+            .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
         var doingColumnId = board.GetColumn("Doing").Id;
         var cardToMoveId = board.GetCard("Todo", "Move me").Id;
@@ -241,7 +250,8 @@ public sealed class CardServiceTests : TestBaseDb
             .AddCard("Move me", "source")
             .AddColumn("Doing")
             .AddCard("A", "1")
-            .AddCard("B", "2");
+            .AddCard("B", "2")
+            .Build();
         var doingColumnId = board.GetColumn("Doing").Id;
         var movingCardId = board.GetCard("Todo", "Move me").Id;
 
@@ -269,7 +279,8 @@ public sealed class CardServiceTests : TestBaseDb
         // Arrange
         CreateBoard("BoardOil")
             .AddColumn("Todo")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
 
         // Act
         var service = CreateService();
@@ -289,7 +300,8 @@ public sealed class CardServiceTests : TestBaseDb
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .AddCard("Card", "Desc")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var cardId = board.GetCard("Todo", "Card").Id;
 
         // Act
@@ -309,7 +321,8 @@ public sealed class CardServiceTests : TestBaseDb
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .AddCard("Delete me", "Desc")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var cardId = board.GetCard("Todo", "Delete me").Id;
 
         // Act
@@ -330,7 +343,8 @@ public sealed class CardServiceTests : TestBaseDb
         // Arrange
         CreateBoard("BoardOil")
             .AddColumn("Todo")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
 
         // Act
         var service = CreateService();
@@ -348,7 +362,8 @@ public sealed class CardServiceTests : TestBaseDb
         // Arrange
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
@@ -368,7 +383,8 @@ public sealed class CardServiceTests : TestBaseDb
         // Arrange
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
 
         var longTitle = new string('A', 201);
@@ -390,7 +406,8 @@ public sealed class CardServiceTests : TestBaseDb
         // Arrange
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
@@ -410,7 +427,8 @@ public sealed class CardServiceTests : TestBaseDb
         // Arrange
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
-            .AddColumn("Doing");
+            .AddColumn("Doing")
+            .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
 
         var longDescription = new string('D', 5001);
