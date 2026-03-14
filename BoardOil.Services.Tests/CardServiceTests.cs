@@ -1,4 +1,5 @@
 using BoardOil.Services.Contracts;
+using BoardOil.Services.Abstractions;
 using BoardOil.Services.Implementations;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -428,6 +429,7 @@ public sealed class CardServiceTests : TestBaseDb
     private CardService CreateService()
     {
         var dbContext = CreateDbContextForAct();
-        return TestServiceFactory.CreateCardService(dbContext);
+        ICardRepository repository = new CardRepository(dbContext);
+        return new CardService(repository, new CardValidator());
     }
 }
