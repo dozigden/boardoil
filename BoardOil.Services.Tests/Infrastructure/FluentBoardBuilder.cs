@@ -1,7 +1,6 @@
 using System.Numerics;
 using BoardOil.Ef;
 using BoardOil.Ef.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Services.Tests.Infrastructure;
 
@@ -15,9 +14,11 @@ public sealed class FluentBoardBuilder
     private readonly BoardOilDbContext _db;
     private readonly DateTime _nowUtc;
     private readonly Board _board;
-    private readonly List<BoardColumn> _columns = [];
     private readonly Dictionary<string, BoardColumn> _columnsByTitle = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<BoardCard>> _cardsByColumnTitle = new(StringComparer.Ordinal);
     private BoardColumn? _currentColumn;
+    private string? _currentColumnTitle;
+    private bool _isBuilt;
 
     internal FluentBoardBuilder(BoardOilDbContext db, string boardName, DateTime nowUtc)
     {
@@ -32,41 +33,44 @@ public sealed class FluentBoardBuilder
         };
 
         _db.Boards.Add(_board);
-        _db.SaveChanges();
     }
 
     public int BoardId => _board.Id;
 
     public FluentBoardBuilder AddColumn(string title)
     {
+        EnsureNotBuilt();
+
         var column = new BoardColumn
         {
-            BoardId = _board.Id,
             Title = title,
-            Position = _columns.Count,
+            Position = _columnsByTitle.Count,
             CreatedAtUtc = _nowUtc,
-            UpdatedAtUtc = _nowUtc
+            UpdatedAtUtc = _nowUtc,
+            Board = _board
         };
 
         _db.Columns.Add(column);
-        _db.SaveChanges();
 
-        _columns.Add(column);
         _columnsByTitle[title] = column;
+        _cardsByColumnTitle[title] = [];
         _currentColumn = column;
+        _currentColumnTitle = title;
 
         return this;
     }
 
-    public FluentBoardBuilder AddCard(string title, string description, int? position = null)
+    public FluentBoardBuilder AddCard(string title, string description = "", int? position = null)
     {
+        EnsureNotBuilt();
+
         if (_currentColumn is null)
         {
             throw new InvalidOperationException("Cannot add a card before adding a column.");
         }
 
-        var cards = _db.Cards
-            .Where(x => x.BoardColumnId == _currentColumn.Id)
+        var currentColumnTitle = _currentColumnTitle!;
+        var cards = _cardsByColumnTitle[currentColumnTitle]
             .OrderBy(x => x.SortKey)
             .ToList();
 
@@ -80,16 +84,16 @@ public sealed class FluentBoardBuilder
 
         var card = new BoardCard
         {
-            BoardColumnId = _currentColumn.Id,
             Title = title,
             Description = description,
             SortKey = sortKey,
             CreatedAtUtc = _nowUtc,
-            UpdatedAtUtc = _nowUtc
+            UpdatedAtUtc = _nowUtc,
+            BoardColumn = _currentColumn
         };
 
         _db.Cards.Add(card);
-        _db.SaveChanges();
+        _cardsByColumnTitle[currentColumnTitle].Add(card);
 
         return this;
     }
@@ -104,11 +108,25 @@ public sealed class FluentBoardBuilder
         throw new InvalidOperationException($"Column '{title}' was not found in the fluent test builder.");
     }
 
+    public BoardCard GetCard(string cardTitle)
+    {
+        if (_currentColumnTitle is null)
+        {
+            throw new InvalidOperationException("Cannot get a card before adding a column.");
+        }
+
+        return GetCard(_currentColumnTitle, cardTitle);
+    }
+
     public BoardCard GetCard(string columnTitle, string cardTitle)
     {
-        var column = GetColumn(columnTitle);
-        var card = _db.Cards
-            .Where(x => x.BoardColumnId == column.Id && x.Title == cardTitle)
+        if (!_cardsByColumnTitle.TryGetValue(columnTitle, out var cards))
+        {
+            throw new InvalidOperationException($"Column '{columnTitle}' was not found in the fluent test builder.");
+        }
+
+        var card = cards
+            .Where(x => x.Title == cardTitle)
             .OrderBy(x => x.SortKey)
             .FirstOrDefault();
 
@@ -119,6 +137,26 @@ public sealed class FluentBoardBuilder
 
         throw new InvalidOperationException(
             $"Card '{cardTitle}' was not found in column '{columnTitle}' in the fluent test builder.");
+    }
+
+    public FluentBoardBuilder Build()
+    {
+        if (_isBuilt)
+        {
+            return this;
+        }
+
+        _db.SaveChanges();
+        _isBuilt = true;
+        return this;
+    }
+
+    private void EnsureNotBuilt()
+    {
+        if (_isBuilt)
+        {
+            throw new InvalidOperationException("Cannot mutate fluent board builder after Build() has been called.");
+        }
     }
 
     private static string GenerateBetween(string? previous, string? next)
