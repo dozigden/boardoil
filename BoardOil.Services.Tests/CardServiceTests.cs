@@ -12,7 +12,10 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenColumnEmpty_ShouldCreateCardAtPositionZero()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing");
+        var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
         var service = CreateService();
@@ -38,11 +41,12 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenPositionIsZero_ShouldInsertAtStart()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
-
-        await SeedCardsAsync(todoColumnId,
-            ("A", "1", TestSeedData.OrderedSortKeys[1]),
-            ("B", "2", TestSeedData.OrderedSortKeys[2]));
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .AddColumn("Doing");
+        var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
         var service = CreateService();
@@ -60,11 +64,12 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenPositionIsMiddle_ShouldInsertInMiddle()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
-
-        await SeedCardsAsync(todoColumnId,
-            ("A", "1", TestSeedData.OrderedSortKeys[0]),
-            ("B", "2", TestSeedData.OrderedSortKeys[2]));
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .AddColumn("Doing");
+        var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
         var service = CreateService();
@@ -82,11 +87,12 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenPositionIsNull_ShouldAppendToEnd()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
-
-        await SeedCardsAsync(todoColumnId,
-            ("A", "1", TestSeedData.OrderedSortKeys[0]),
-            ("B", "2", TestSeedData.OrderedSortKeys[1]));
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .AddColumn("Doing");
+        var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
         var service = CreateService();
@@ -104,7 +110,9 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenColumnMissing_ShouldReturnNotFound()
     {
         // Arrange
-        await SeedTwoColumnBoardAsync();
+        CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing");
 
         // Act
         var service = CreateService();
@@ -121,8 +129,11 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task UpdateCardAsync_WhenUpdatingTitleOnly_ShouldPersistTitle()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
-        var cardId = await SeedSingleCardAsync(todoColumnId, "Old", "Desc");
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Old", "Desc")
+            .AddColumn("Doing");
+        var cardId = board.GetCard("Todo", "Old").Id;
 
         // Act
         var service = CreateService();
@@ -141,8 +152,11 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task UpdateCardAsync_WhenUpdatingDescriptionOnly_ShouldPersistDescription()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
-        var cardId = await SeedSingleCardAsync(todoColumnId, "Title", "Old");
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Title", "Old")
+            .AddColumn("Doing");
+        var cardId = board.GetCard("Todo", "Title").Id;
 
         // Act
         var service = CreateService();
@@ -161,15 +175,14 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task UpdateCardAsync_WhenReorderingWithinSameColumn_ShouldReorder()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
-        int movingCardId;
-        {
-            var cards = await SeedCardsAsync(todoColumnId,
-                ("A", "1", TestSeedData.OrderedSortKeys[0]),
-                ("B", "2", TestSeedData.OrderedSortKeys[1]),
-                ("C", "3", TestSeedData.OrderedSortKeys[2]));
-            movingCardId = cards[2].Id;
-        }
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .AddCard("C", "3")
+            .AddColumn("Doing");
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var movingCardId = board.GetCard("Todo", "C").Id;
 
         // Act
         var service = CreateService();
@@ -187,16 +200,14 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task UpdateCardAsync_WhenMovingCardToDifferentColumnWithOccupiedPosition_ShouldSucceed()
     {
         // Arrange
-        var (todoColumnId, doingColumnId) = await SeedTwoColumnBoardAsync();
-        int cardToMoveId;
-        {
-            var sourceCards = await SeedCardsAsync(todoColumnId,
-                ("Move me", "source", TestSeedData.OrderedSortKeys[2]));
-            cardToMoveId = sourceCards[0].Id;
-
-            await SeedCardsAsync(doingColumnId,
-                ("Existing", "target", TestSeedData.OrderedSortKeys[2]));
-        }
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("Existing", "target");
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var cardToMoveId = board.GetCard("Todo", "Move me").Id;
 
         // Act
         var service = CreateService();
@@ -224,17 +235,14 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task UpdateCardAsync_WhenMovingCardToDifferentColumnWithNullPosition_ShouldAppendToEnd()
     {
         // Arrange
-        var (todoColumnId, doingColumnId) = await SeedTwoColumnBoardAsync();
-        int movingCardId;
-        {
-            var sourceCards = await SeedCardsAsync(todoColumnId,
-                ("Move me", "source", TestSeedData.OrderedSortKeys[0]));
-            movingCardId = sourceCards[0].Id;
-
-            await SeedCardsAsync(doingColumnId,
-                ("A", "1", TestSeedData.OrderedSortKeys[0]),
-                ("B", "2", TestSeedData.OrderedSortKeys[1]));
-        }
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("A", "1")
+            .AddCard("B", "2");
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
 
         // Act
         var service = CreateService();
@@ -258,7 +266,9 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task UpdateCardAsync_WhenCardMissing_ShouldReturnNotFound()
     {
         // Arrange
-        await SeedTwoColumnBoardAsync();
+        CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing");
 
         // Act
         var service = CreateService();
@@ -275,8 +285,11 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task UpdateCardAsync_WhenTargetColumnMissing_ShouldReturnNotFound()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
-        var cardId = await SeedSingleCardAsync(todoColumnId, "Card", "Desc");
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Card", "Desc")
+            .AddColumn("Doing");
+        var cardId = board.GetCard("Todo", "Card").Id;
 
         // Act
         var service = CreateService();
@@ -292,8 +305,11 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task DeleteCardAsync_WhenCardExists_ShouldRemoveCard()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
-        var cardId = await SeedSingleCardAsync(todoColumnId, "Delete me", "Desc");
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Delete me", "Desc")
+            .AddColumn("Doing");
+        var cardId = board.GetCard("Todo", "Delete me").Id;
 
         // Act
         var service = CreateService();
@@ -311,7 +327,9 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task DeleteCardAsync_WhenCardMissing_ShouldReturnNotFound()
     {
         // Arrange
-        await SeedTwoColumnBoardAsync();
+        CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing");
 
         // Act
         var service = CreateService();
@@ -327,7 +345,10 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenTitleHasInvalidCharacters_ShouldReturnValidationErrorForTitle()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing");
+        var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
         var service = CreateService();
@@ -344,7 +365,10 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenTitleTooLong_ShouldReturnValidationErrorForTitle()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing");
+        var todoColumnId = board.GetColumn("Todo").Id;
 
         var longTitle = new string('A', 201);
 
@@ -363,7 +387,10 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenTitleIsWhitespace_ShouldReturnValidationErrorForTitle()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing");
+        var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
         var service = CreateService();
@@ -380,7 +407,10 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenDescriptionTooLong_ShouldReturnValidationErrorForDescription()
     {
         // Arrange
-        var (todoColumnId, _) = await SeedTwoColumnBoardAsync();
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing");
+        var todoColumnId = board.GetColumn("Todo").Id;
 
         var longDescription = new string('D', 5001);
 
