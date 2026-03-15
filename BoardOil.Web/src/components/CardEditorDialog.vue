@@ -1,10 +1,6 @@
 <template>
-  <dialog v-if="editingCard" ref="dialogRef" class="card-modal" @cancel.prevent="closeCardEditor" @click="onDialogClick">
-    <form class="editor card-modal-content" @submit.prevent="saveCard">
-      <button type="button" class="ghost card-modal-close" aria-label="Cancel editing" title="Cancel" @click="closeCardEditor">
-        <X :size="18" aria-hidden="true" />
-      </button>
-      <h3 class="card-modal-title">{{ editingCard.id }}</h3>
+  <ModalDialog :open="editingCard !== null" :title="dialogTitle" close-label="Cancel editing" @close="closeCardEditor" @submit="saveCard">
+    <template v-if="editingCard">
       <label>
         Title
         <input
@@ -26,8 +22,9 @@
           @input="updateEditingCardDraft('description', ($event.target as HTMLTextAreaElement).value)"
         />
       </label>
-
-      <div class="editor-actions card-modal-actions">
+    </template>
+    <template #actions>
+      <div v-if="editingCard" class="editor-actions card-modal-actions">
         <button type="button" class="danger card-modal-delete" aria-label="Delete card" title="Delete card" @click="deleteEditingCard">
           <Trash2 :size="16" aria-hidden="true" />
         </button>
@@ -42,18 +39,18 @@
           </button>
         </div>
       </div>
-    </form>
-  </dialog>
+    </template>
+  </ModalDialog>
 </template>
 
 <script setup lang="ts">
 import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import ModalDialog from './ModalDialog.vue';
 import { useBoardStore } from '../stores/boardStore';
 
-const dialogRef = ref<HTMLDialogElement | null>(null);
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
@@ -68,22 +65,7 @@ const routeCardId = computed<number | null>(() => {
 });
 
 const editingCard = computed(() => boardStore.getCardById(routeCardId.value));
-
-function onDialogClick(event: MouseEvent) {
-  if (event.target === dialogRef.value) {
-    void closeCardEditor();
-  }
-}
-
-async function syncDialogState() {
-  await nextTick();
-  const dialog = dialogRef.value;
-  if (!dialog || dialog.open) {
-    return;
-  }
-
-  dialog.showModal();
-}
+const dialogTitle = computed(() => (editingCard.value ? String(editingCard.value.id) : 'Edit Card'));
 
 function stopTypingForCard(cardId: number) {
   stopTyping(cardId, 'title');
@@ -181,27 +163,10 @@ watch(
   { immediate: true }
 );
 
-watch(
-  [routeCardId, editingCard, dialogRef],
-  ([nextCardId, nextCard]) => {
-    if (nextCardId === null || !nextCard) {
-      return;
-    }
-
-    void syncDialogState();
-  },
-  { immediate: true, flush: 'post' }
-);
-
 onBeforeUnmount(() => {
   const cardId = routeCardId.value;
   if (cardId !== null) {
     stopTypingForCard(cardId);
-  }
-
-  const dialog = dialogRef.value;
-  if (dialog?.open) {
-    dialog.close();
   }
 });
 </script>
