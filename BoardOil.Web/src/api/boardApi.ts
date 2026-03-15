@@ -27,8 +27,15 @@ export function createBoardApi() {
     return postData<Column>('/api/columns', { title, position: null });
   }
 
-  async function saveColumn(columnId: number, title: string): Promise<Result<Column, AppError>> {
+  async function saveColumn(
+    columnId: number,
+    title: string
+  ): Promise<Result<Column, AppError>> {
     return patchData<Column>(`/api/columns/${columnId}`, { title, position: null });
+  }
+
+  async function moveColumn(columnId: number, position: number): Promise<Result<Column, AppError>> {
+    return patchData<Column>(`/api/columns/${columnId}`, { title: null, position });
   }
 
   async function deleteColumn(columnId: number): Promise<Result<void, AppError>> {
@@ -78,6 +85,7 @@ export function createBoardApi() {
     getBoard,
     createColumn,
     saveColumn,
+    moveColumn,
     deleteColumn,
     createCard,
     saveCard,

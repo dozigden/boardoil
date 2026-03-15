@@ -87,6 +87,15 @@ export const useBoardStore = defineStore('board', () => {
     upsertColumn(result.data);
   }
 
+  async function moveColumn(columnId: number, position: number) {
+    const result = await runBusy(() => api.moveColumn(columnId, position));
+    if (!result.ok) {
+      return;
+    }
+
+    upsertColumn(result.data);
+  }
+
   async function deleteColumn(columnId: number) {
     const result = await runBusy(() => api.deleteColumn(columnId));
     if (!result.ok) {
@@ -180,13 +189,15 @@ export const useBoardStore = defineStore('board', () => {
       };
 
       if (existingIndex >= 0) {
-        draft.columns[existingIndex] = nextColumn;
-      } else {
-        const insertAt = clampIndex(column.position, draft.columns.length);
-        draft.columns.splice(insertAt, 0, nextColumn);
+        draft.columns.splice(existingIndex, 1);
       }
 
-      draft.columns.sort((a, b) => a.position - b.position);
+      const insertAt = clampIndex(column.position, draft.columns.length);
+      draft.columns.splice(insertAt, 0, nextColumn);
+
+      for (let i = 0; i < draft.columns.length; i++) {
+        draft.columns[i].position = i;
+      }
     });
   }
 
@@ -279,6 +290,7 @@ export const useBoardStore = defineStore('board', () => {
     dispose,
     createColumn,
     saveColumn,
+    moveColumn,
     deleteColumn,
     createCard,
     saveCard,

@@ -171,8 +171,9 @@ body {
 .column-manager {
   margin-top: 1rem;
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 0.75rem;
-  max-width: 720px;
+  max-width: 1200px;
 }
 
 .column-manager-item {
@@ -182,6 +183,29 @@ body {
   padding: 0.75rem;
   display: grid;
   gap: 0.5rem;
+}
+
+.column-manager-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.column-drag-handle {
+  width: auto;
+  padding: 0.15rem 0.45rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: grab;
+}
+
+.column-drag-handle:active {
+  cursor: grabbing;
+}
+
+.draggable-column.drag-over {
+  border-color: #2f69a8;
+  box-shadow: 0 0 0 2px rgba(47, 105, 168, 0.2);
 }
 
 .column-manager-item label {

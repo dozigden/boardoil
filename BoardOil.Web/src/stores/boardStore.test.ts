@@ -11,6 +11,7 @@ const api = {
   getBoard: vi.fn(),
   createColumn: vi.fn(),
   saveColumn: vi.fn(),
+  moveColumn: vi.fn(),
   deleteColumn: vi.fn(),
   createCard: vi.fn(),
   saveCard: vi.fn(),
@@ -71,6 +72,25 @@ describe('boardStore', () => {
 
     expect(api.getBoard).toHaveBeenCalledTimes(1);
     expect(store.board?.columns.map(x => x.title)).toEqual(['Backlog', 'Doing', 'Done']);
+  });
+
+  it('reorders a column incrementally when updated position is returned', async () => {
+    const store = useBoardStore();
+    await store.initialize();
+
+    const moved: Column = {
+      id: 2,
+      title: 'Doing',
+      position: 0,
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:03:00Z'
+    };
+    api.moveColumn.mockResolvedValue(ok(moved));
+
+    await store.moveColumn(2, 0);
+
+    expect(store.board?.columns.map(x => x.title)).toEqual(['Doing', 'Backlog']);
+    expect(store.board?.columns.map(x => x.position)).toEqual([0, 1]);
   });
 
   it('moves card across columns incrementally', async () => {
