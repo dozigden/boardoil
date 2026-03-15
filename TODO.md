@@ -1,7 +1,6 @@
 # TODO
 
 ## Next Up
-- [ ] Make card edit activation less narrow (open editor from whole card click, not title-only) (`dev card #10`).
 - [ ] Show card ID in card UI/details (`dev card #13`: "Id is missing in card").
 
 ## Soon
