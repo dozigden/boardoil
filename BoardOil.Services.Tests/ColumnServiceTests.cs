@@ -299,6 +299,6 @@ public sealed class ColumnServiceTests : TestBaseDb
         IBoardRepository boardRepository = new BoardRepository(dbContext);
         IColumnRepository columnRepository = new ColumnRepository(dbContext);
         IColumnValidator validator = new ColumnValidator();
-        return new ColumnService(boardRepository, columnRepository, validator);
+        return new ColumnService(boardRepository, columnRepository, validator, new TestBoardEvents());
     }
 }

@@ -5,8 +5,14 @@ using BoardOil.Services.Mappings;
 
 namespace BoardOil.Services.Implementations;
 
-public sealed class ColumnService(IBoardRepository boardRepository, IColumnRepository columnRepository, IColumnValidator validator) : IColumnService
+public sealed class ColumnService(
+    IBoardRepository boardRepository,
+    IColumnRepository columnRepository,
+    IColumnValidator validator,
+    IBoardEvents boardEvents) : IColumnService
 {
+    private readonly IBoardEvents _boardEvents = boardEvents;
+
     public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync()
     {
         var boardId = await GetBoardIdAsync();
@@ -56,6 +62,7 @@ public sealed class ColumnService(IBoardRepository boardRepository, IColumnRepos
         columns.Insert(insertIndex, column);
 
         await PersistColumnOrderAsync(columns);
+        await _boardEvents.ColumnCreatedAsync(column.ToColumnDto());
 
         return ApiResults.Created(column.ToColumnDto());
     }
@@ -116,7 +123,9 @@ public sealed class ColumnService(IBoardRepository boardRepository, IColumnRepos
             await columnRepository.SaveChangesAsync();
         }
 
-        return target.ToColumnDto();
+        var dto = target.ToColumnDto();
+        await _boardEvents.ColumnUpdatedAsync(dto);
+        return dto;
     }
 
     public async Task<ApiResult> DeleteColumnAsync(int id)
@@ -141,6 +150,7 @@ public sealed class ColumnService(IBoardRepository boardRepository, IColumnRepos
         var remaining = columns.Where(x => x.Id != id).ToList();
         await PersistColumnOrderAsync(remaining, DateTime.UtcNow);
 
+        await _boardEvents.ColumnDeletedAsync(id);
         return ApiResults.Ok();
     }
 
@@ -178,5 +188,4 @@ public sealed class ColumnService(IBoardRepository boardRepository, IColumnRepos
 
         await columnRepository.SaveChangesAsync();
     }
-
 }

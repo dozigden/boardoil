@@ -7,6 +7,12 @@ BoardOil.Web/dist/
 # Local tool state
 .dotnet/
 
+# SQLite runtime/test artifacts
+*.db
+*.db-wal
+*.db-shm
+.test-data/
+
 # Editor/OS
 .vscode/
 .DS_Store

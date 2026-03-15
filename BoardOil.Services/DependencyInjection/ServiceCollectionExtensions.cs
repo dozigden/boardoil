@@ -28,7 +28,15 @@ public static class ServiceCollectionExtensions
     {
         await using var scope = serviceProvider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<BoardOilDbContext>();
-        await dbContext.Database.EnsureCreatedAsync();
+        var hasMigrations = dbContext.Database.GetMigrations().Any();
+        if (hasMigrations)
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+        else
+        {
+            await dbContext.Database.EnsureCreatedAsync();
+        }
 
         var bootstrapper = scope.ServiceProvider.GetRequiredService<IBoardBootstrapService>();
         await bootstrapper.EnsureDefaultBoardAsync();
