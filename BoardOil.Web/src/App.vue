@@ -3,6 +3,7 @@
     <AppHeader />
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     <RouterView />
+    <RouterView name="dialog" />
   </main>
 </template>
 

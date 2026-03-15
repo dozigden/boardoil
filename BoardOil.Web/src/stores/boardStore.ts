@@ -237,6 +237,21 @@ export const useBoardStore = defineStore('board', () => {
     });
   }
 
+  function getCardById(cardId: number | null) {
+    if (!board.value || cardId === null) {
+      return null;
+    }
+
+    for (const column of board.value.columns) {
+      const card = column.cards.find(x => x.id === cardId);
+      if (card) {
+        return card;
+      }
+    }
+
+    return null;
+  }
+
   function mutateBoard(mutator: (draft: Board) => void) {
     if (!board.value) {
       return;
@@ -259,6 +274,7 @@ export const useBoardStore = defineStore('board', () => {
     createCard,
     saveCard,
     deleteCard,
+    getCardById,
     startDrag,
     dropCard,
     announceTyping: realtime.announceTyping,
