@@ -16,11 +16,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
     public async Task CardCreated_ShouldBroadcastToTwoConnectedClients()
     {
         // Arrange
-        var createColumnResponse = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Todo", null));
-        createColumnResponse.EnsureSuccessStatusCode();
-        var createColumnEnvelope = await createColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
-        Assert.NotNull(createColumnEnvelope);
-        Assert.NotNull(createColumnEnvelope!.Data);
+        var column = await CreateColumnAsync("Todo");
 
         await using var connectionA = CreateHubConnection();
         await using var connectionB = CreateHubConnection();
@@ -31,13 +27,12 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
         connectionA.On<CardDto>("CardCreated", card => eventA.TrySetResult(card));
         connectionB.On<CardDto>("CardCreated", card => eventB.TrySetResult(card));
 
-        await connectionA.StartAsync();
-        await connectionB.StartAsync();
+        await StartConnectionsAsync(connectionA, connectionB);
 
         // Act
         var createCardResponse = await Client.PostAsJsonAsync(
             "/api/cards",
-            new CreateCardRequest(createColumnEnvelope.Data!.Id, "Realtime Task", "Desc", null));
+            new CreateCardRequest(column.Id, "Realtime Task", "Desc", null));
         createCardResponse.EnsureSuccessStatusCode();
 
         // Assert
@@ -52,17 +47,8 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
     public async Task TypingEvents_ShouldBroadcastStartAndExpiry()
     {
         // Arrange
-        var createColumnResponse = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Todo", null));
-        createColumnResponse.EnsureSuccessStatusCode();
-        var createColumnEnvelope = await createColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
-        Assert.NotNull(createColumnEnvelope);
-
-        var createCardResponse = await Client.PostAsJsonAsync(
-            "/api/cards",
-            new CreateCardRequest(createColumnEnvelope!.Data!.Id, "Typing Task", "Desc", null));
-        createCardResponse.EnsureSuccessStatusCode();
-        var createCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>();
-        Assert.NotNull(createCardEnvelope);
+        var column = await CreateColumnAsync("Todo");
+        var card = await CreateCardAsync(column.Id, "Typing Task", "Desc");
 
         await using var connectionA = CreateHubConnection();
         await using var connectionB = CreateHubConnection();
@@ -72,7 +58,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
 
         connectionB.On<TypingChangedEvent>("TypingChanged", evt =>
         {
-            if (evt.CardId != createCardEnvelope!.Data!.Id || evt.UserLabel != "UserA")
+            if (evt.CardId != card.Id || evt.UserLabel != "UserA")
             {
                 return;
             }
@@ -86,11 +72,10 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
             expired.TrySetResult(evt);
         });
 
-        await connectionA.StartAsync();
-        await connectionB.StartAsync();
+        await StartConnectionsAsync(connectionA, connectionB);
 
         // Act
-        await connectionA.InvokeAsync("TypingStarted", createCardEnvelope!.Data!.Id, "title", "UserA");
+        await connectionA.InvokeAsync("TypingStarted", card.Id, "title", "UserA");
 
         // Assert
         var startedEvent = await WaitAsync(started.Task);
@@ -98,6 +83,38 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
 
         var expiredEvent = await WaitAsync(expired.Task, TimeSpan.FromSeconds(5));
         Assert.False(expiredEvent.IsTyping);
+    }
+
+    private async Task<ColumnDto> CreateColumnAsync(string title)
+    {
+        var response = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest(title, null));
+        response.EnsureSuccessStatusCode();
+
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        return envelope.Data!;
+    }
+
+    private async Task<CardDto> CreateCardAsync(int columnId, string title, string description)
+    {
+        var response = await Client.PostAsJsonAsync(
+            "/api/cards",
+            new CreateCardRequest(columnId, title, description, null));
+        response.EnsureSuccessStatusCode();
+
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>();
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        return envelope.Data!;
+    }
+
+    private static async Task StartConnectionsAsync(params HubConnection[] connections)
+    {
+        foreach (var connection in connections)
+        {
+            await connection.StartAsync();
+        }
     }
 
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
