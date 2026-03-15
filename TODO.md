@@ -1,7 +1,6 @@
 # TODO
 
 ## Next Up
-- [ ] Collapse `BoardEventsDecorator` into `BoardRealtimeNotifier` (single `IBoardEvents` implementation, keep current behavior).
 - [ ] Fix typing TTL race in `TypingPresenceService.SweepExpiredAsync` so refreshed entries are not removed incorrectly.
 - [ ] Reduce duplicate board refreshes in frontend after local mutations (avoid REST-triggered `loadBoard()` + SignalR-triggered `loadBoard()` double fetch).
 - [ ] Refactor realtime tests to improve readability.
