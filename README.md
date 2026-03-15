@@ -2,6 +2,8 @@
 
 BoardOil is a lightweight self-hosted Kanban board for small trusted teams.
 
+See [`TODO.md`](TODO.md) for the current implementation backlog.
+
 ## v1 Direction
 - Single board Kanban workflow
 - .NET backend + Vue (TypeScript) frontend
@@ -34,6 +36,19 @@ npm run dev
 4. Open:
 - frontend: `http://localhost:5173`
 - API health: `http://localhost:5000/api/health`
+- Frontend uses same-origin `/api` + `/hubs` by default (Vite proxy in dev). Set `VITE_API_BASE` only when overriding API host.
+
+## Realtime Surface
+- Hub endpoint: `/hubs/board`
+- Server events: `ColumnCreated`, `ColumnUpdated`, `ColumnDeleted`, `CardCreated`, `CardUpdated`, `CardDeleted`, `CardMoved`, `TypingChanged`
+- Client events: `TypingStarted(cardId, field, userLabel)`, `TypingStopped(cardId, field, userLabel)`
+
+## Runtime Configuration
+- `BoardOil:DataPath` (default `/data/boardoil.db`)
+- `BoardOil:ExposeLan` (default `false`)
+- `BoardOil:Port` (default `5000`)
+- `BoardOil:TypingTtlSeconds` (default `5`)
+- `ASPNETCORE_URLS` still overrides listen URL when set explicitly.
 
 ## Production Container Baseline
 Build:

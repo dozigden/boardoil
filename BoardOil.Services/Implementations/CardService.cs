@@ -6,8 +6,13 @@ using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Implementations;
 
-public sealed class CardService(ICardRepository repository, ICardValidator validator) : ICardService
+public sealed class CardService(
+    ICardRepository repository,
+    ICardValidator validator,
+    IBoardEvents boardEvents) : ICardService
 {
+    private readonly IBoardEvents _boardEvents = boardEvents;
+
     public async Task<ApiResult<CardDto>> CreateCardAsync(CreateCardRequest request)
     {
         var validationErrors = validator.ValidateCreate(request);
@@ -49,7 +54,9 @@ public sealed class CardService(ICardRepository repository, ICardValidator valid
         repository.Add(card);
         await repository.SaveChangesAsync();
 
-        return ApiResults.Created(card.ToCardDto(insertIndex));
+        var created = card.ToCardDto(insertIndex);
+        await _boardEvents.CardCreatedAsync(created);
+        return ApiResults.Created(created);
     }
 
     public async Task<ApiResult<CardDto>> UpdateCardAsync(int id, UpdateCardRequest request)
@@ -99,7 +106,19 @@ public sealed class CardService(ICardRepository repository, ICardValidator valid
         }
 
         var finalPosition = await GetCardPositionAsync(card.BoardColumnId, card.Id);
-        return card.ToCardDto(finalPosition < 0 ? 0 : finalPosition);
+        var dto = card.ToCardDto(finalPosition < 0 ? 0 : finalPosition);
+
+        var movementRequested = request.BoardColumnId is not null || request.Position is not null;
+        if (movementRequested)
+        {
+            await _boardEvents.CardMovedAsync(dto);
+        }
+        else
+        {
+            await _boardEvents.CardUpdatedAsync(dto);
+        }
+
+        return dto;
     }
 
     public async Task<ApiResult> DeleteCardAsync(int id)
@@ -113,6 +132,7 @@ public sealed class CardService(ICardRepository repository, ICardValidator valid
 
         repository.Remove(card);
         await repository.SaveChangesAsync();
+        await _boardEvents.CardDeletedAsync(id);
 
         return ApiResults.Ok();
     }
@@ -271,5 +291,4 @@ public sealed class CardService(ICardRepository repository, ICardValidator valid
             return false;
         }
     }
-
 }

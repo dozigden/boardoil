@@ -1,18 +1,37 @@
+using BoardOil.Api.Configuration;
 using BoardOil.Api.Extensions;
-using BoardOil.Services.DependencyInjection;
-using BoardOil.Services.Contracts;
+using BoardOil.Api.Realtime;
 using BoardOil.Services.Abstractions;
+using BoardOil.Services.Contracts;
+using BoardOil.Services.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
+var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configuration);
 
-var connectionString = builder.Configuration.GetConnectionString("BoardOil")
-    ?? "Data Source=/data/boardoil.db";
+builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
+var connectionString = runtimeOptions.ResolveConnectionString(builder.Configuration);
 builder.Services.AddBoardOilServices(connectionString);
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("BoardOilDevClient", policy =>
+        policy
+            .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
+});
+builder.Services.AddSignalR();
+builder.Services.AddSingleton(runtimeOptions);
+builder.Services.AddSingleton<BoardRealtimeNotifier>();
+builder.Services.AddSingleton<IBoardEvents, BoardEventsDecorator>();
+builder.Services.AddSingleton<ITypingPresenceService, TypingPresenceService>();
+builder.Services.AddHostedService<TypingPresenceExpiryService>();
 
 var app = builder.Build();
 
 await app.Services.InitializeBoardOilAsync();
+app.UseCors("BoardOilDevClient");
 
 // API health endpoint used for container/dev smoke checks.
 app.MapGet("/api/health", () => ApiResults.Ok(new { status = "ok" }).ToHttpResult());
@@ -41,6 +60,8 @@ app.MapPatch("/api/cards/{id:int}", (int id, UpdateCardRequest request, ICardSer
 app.MapDelete("/api/cards/{id:int}", (int id, ICardService cardService) =>
     cardService.DeleteCardAsync(id).ToHttpResult());
 
+app.MapHub<BoardHub>("/hubs/board");
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
@@ -48,3 +69,5 @@ app.UseStaticFiles();
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+public partial class Program;

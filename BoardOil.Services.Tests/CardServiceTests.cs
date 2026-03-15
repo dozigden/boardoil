@@ -448,6 +448,6 @@ public sealed class CardServiceTests : TestBaseDb
     {
         var dbContext = CreateDbContextForAct();
         ICardRepository repository = new CardRepository(dbContext);
-        return new CardService(repository, new CardValidator());
+        return new CardService(repository, new CardValidator(), new TestBoardEvents());
     }
 }
