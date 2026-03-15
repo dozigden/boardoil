@@ -1,7 +1,10 @@
 # TODO
 
 ## Next Up
-- [ ] Reduce duplicate board refreshes in frontend after local mutations (avoid REST-triggered `loadBoard()` + SignalR-triggered `loadBoard()` double fetch).
+- [ ] Fix missing tags feature in card workflow (`dev card #8`: "Where's the tags").
+- [ ] Add column reorder support (`dev card #11`: "Reorder columns").
+- [ ] Make card edit activation less narrow (open editor from whole card click, not title-only) (`dev card #10`).
+- [ ] Show card ID in card UI/details (`dev card #13`: "Id is missing in card").
 
 ## Soon
 - [ ] Add one lightweight frontend unit test for API base resolution (same-origin default + `VITE_API_BASE` override normalization).
