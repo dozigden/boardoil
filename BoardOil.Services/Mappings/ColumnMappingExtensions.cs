@@ -5,11 +5,11 @@ namespace BoardOil.Services.Mappings;
 
 public static class ColumnMappingExtensions
 {
-    public static ColumnDto ToColumnDto(this BoardColumn column) =>
+    public static ColumnDto ToColumnDto(this BoardColumn column, int position) =>
         new(
             column.Id,
             column.Title,
-            column.Position,
+            position,
             column.CreatedAtUtc,
             column.UpdatedAtUtc);
 }

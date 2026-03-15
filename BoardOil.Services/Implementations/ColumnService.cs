@@ -2,6 +2,7 @@ using BoardOil.Ef.Entities;
 using BoardOil.Services.Abstractions;
 using BoardOil.Services.Contracts;
 using BoardOil.Services.Mappings;
+using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Implementations;
 
@@ -22,7 +23,7 @@ public sealed class ColumnService(
         }
 
         var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value))
-            .Select(x => x.ToColumnDto())
+            .Select((x, index) => x.ToColumnDto(index))
             .ToList();
 
         return columns;
@@ -49,22 +50,28 @@ public sealed class ColumnService(
             : Math.Clamp(request.Position.Value, 0, columns.Count);
 
         var now = DateTime.UtcNow;
+        var previousKey = insertIndex > 0 ? columns[insertIndex - 1].SortKey : null;
+        var nextKey = insertIndex < columns.Count ? columns[insertIndex].SortKey : null;
+        if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
+        {
+            return allocationError!;
+        }
+
         var column = new BoardColumn
         {
             BoardId = boardId.Value,
             Title = request.Title.Trim(),
-            Position = insertIndex,
+            SortKey = sortKey!,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
 
         columnRepository.Add(column);
-        columns.Insert(insertIndex, column);
+        await columnRepository.SaveChangesAsync();
 
-        await PersistColumnOrderAsync(columns);
-        await _boardEvents.ColumnCreatedAsync(column.ToColumnDto());
-
-        return ApiResults.Created(column.ToColumnDto());
+        var created = column.ToColumnDto(insertIndex);
+        await _boardEvents.ColumnCreatedAsync(created);
+        return ApiResults.Created(created);
     }
 
     public async Task<ApiResult<ColumnDto>> UpdateColumnAsync(int id, UpdateColumnRequest request)
@@ -102,10 +109,20 @@ public sealed class ColumnService(
             target.Title = normalizedTitle;
         }
 
-        if (targetIndex != currentIndex)
+        var positionChanged = targetIndex != currentIndex;
+        if (positionChanged)
         {
             columns.RemoveAt(currentIndex);
             columns.Insert(targetIndex, target);
+
+            var previousKey = targetIndex > 0 ? columns[targetIndex - 1].SortKey : null;
+            var nextKey = targetIndex < columns.Count - 1 ? columns[targetIndex + 1].SortKey : null;
+            if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
+            {
+                return allocationError!;
+            }
+
+            target.SortKey = sortKey!;
         }
 
         var now = DateTime.UtcNow;
@@ -114,16 +131,17 @@ public sealed class ColumnService(
             target.UpdatedAtUtc = now;
         }
 
-        if (targetIndex != currentIndex)
+        if (positionChanged)
         {
-            await PersistColumnOrderAsync(columns, now);
+            target.UpdatedAtUtc = now;
+            await columnRepository.SaveChangesAsync();
         }
         else if (titleChanged)
         {
             await columnRepository.SaveChangesAsync();
         }
 
-        var dto = target.ToColumnDto();
+        var dto = target.ToColumnDto(positionChanged ? targetIndex : currentIndex);
         await _boardEvents.ColumnUpdatedAsync(dto);
         return dto;
     }
@@ -147,9 +165,6 @@ public sealed class ColumnService(
         columnRepository.Remove(target);
         await columnRepository.SaveChangesAsync();
 
-        var remaining = columns.Where(x => x.Id != id).ToList();
-        await PersistColumnOrderAsync(remaining, DateTime.UtcNow);
-
         await _boardEvents.ColumnDeletedAsync(id);
         return ApiResults.Ok();
     }
@@ -166,26 +181,25 @@ public sealed class ColumnService(
                 .GroupBy(x => string.IsNullOrWhiteSpace(x.Property) ? string.Empty : x.Property)
                 .ToDictionary(x => x.Key, x => x.Select(y => y.Message).ToArray()));
 
-    private async Task PersistColumnOrderAsync(List<BoardColumn> orderedColumns, DateTime? touchedAt = null)
+    private static bool TryGenerateSortKey(string? previous, string? next, out string? sortKey, out ApiError? error)
     {
-        for (var index = 0; index < orderedColumns.Count; index++)
+        try
         {
-            orderedColumns[index].Position = -1 - index;
+            sortKey = SortKeyGenerator.Between(previous, next);
+            error = null;
+            return true;
         }
-
-        await columnRepository.SaveChangesAsync();
-
-        for (var index = 0; index < orderedColumns.Count; index++)
+        catch (InvalidOperationException)
         {
-            var column = orderedColumns[index];
-            if (touchedAt is not null)
-            {
-                column.UpdatedAtUtc = touchedAt.Value;
-            }
-
-            column.Position = index;
+            sortKey = null;
+            error = ApiErrors.InternalError("Unable to assign column order key.");
+            return false;
         }
-
-        await columnRepository.SaveChangesAsync();
+        catch (ArgumentException)
+        {
+            sortKey = null;
+            error = ApiErrors.InternalError("Unable to assign column order key.");
+            return false;
+        }
     }
 }

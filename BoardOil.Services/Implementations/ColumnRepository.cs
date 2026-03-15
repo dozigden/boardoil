@@ -10,7 +10,7 @@ public sealed class ColumnRepository(BoardOilDbContext dbContext) : IColumnRepos
     public async Task<IReadOnlyList<BoardColumn>> GetColumnsInBoardOrderedAsync(int boardId) =>
         await dbContext.Columns
             .Where(x => x.BoardId == boardId)
-            .OrderBy(x => x.Position)
+            .OrderBy(x => x.SortKey)
             .ToListAsync();
 
     public void Add(BoardColumn column) =>
