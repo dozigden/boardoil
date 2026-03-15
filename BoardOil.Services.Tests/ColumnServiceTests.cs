@@ -262,7 +262,7 @@ public sealed class ColumnServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task DeleteColumnAsync_WhenColumnMissing_ShouldReturnNotFound()
+    public async Task DeleteColumnAsync_WhenColumnMissing_ShouldReturnOk()
     {
         CreateBoard("BoardOil")
             .AddColumn("Todo")
@@ -271,9 +271,9 @@ public sealed class ColumnServiceTests : TestBaseDb
         var service = CreateService();
         var result = await service.DeleteColumnAsync(999_999);
 
-        Assert.False(result.Success);
-        Assert.Equal(404, result.StatusCode);
-        Assert.Equal("Column not found.", result.Message);
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Null(result.Message);
     }
 
     [Fact]

@@ -127,7 +127,7 @@ public sealed class CardService(
 
         if (card is null)
         {
-            return ApiErrors.NotFound("Card not found.");
+            return ApiResults.Ok();
         }
 
         repository.Remove(card);
