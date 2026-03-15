@@ -112,6 +112,13 @@ body {
   gap: 0.5rem;
 }
 
+.column-add-button {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .board {
   --column-min-width: 280px;
   --column-max-width: 360px;
@@ -185,9 +192,15 @@ body {
   gap: 0.5rem;
 }
 
+.create-column-inline {
+  border-style: dashed;
+}
+
 .column-manager-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .column-drag-handle {
@@ -197,6 +210,15 @@ body {
   font-size: 1rem;
   line-height: 1;
   cursor: grab;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.column-drag-handle:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .column-drag-handle:active {

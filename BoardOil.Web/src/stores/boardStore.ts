@@ -272,6 +272,14 @@ export const useBoardStore = defineStore('board', () => {
     return null;
   }
 
+  function getColumnById(columnId: number | null) {
+    if (!board.value || columnId === null) {
+      return null;
+    }
+
+    return board.value.columns.find(x => x.id === columnId) ?? null;
+  }
+
   function mutateBoard(mutator: (draft: Board) => void) {
     if (!board.value) {
       return;
@@ -296,6 +304,7 @@ export const useBoardStore = defineStore('board', () => {
     saveCard,
     deleteCard,
     getCardById,
+    getColumnById,
     startDrag,
     dropCard,
     announceTyping: realtime.announceTyping,

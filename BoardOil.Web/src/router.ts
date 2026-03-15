@@ -21,6 +21,14 @@ const routes: RouteRecordRaw[] = [
     component: () => import('./views/ColumnsManagerView.vue')
   },
   {
+    path: '/columns/:columnId(\\d+)',
+    name: 'columns-column',
+    components: {
+      default: () => import('./views/ColumnsManagerView.vue'),
+      dialog: () => import('./components/ColumnEditorDialog.vue')
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }
