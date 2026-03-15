@@ -1,10 +1,6 @@
 <template>
-  <dialog ref="dialogRef" class="card-modal" @cancel.prevent="closeColumnEditor" @click="onDialogClick">
-    <form v-if="editingColumn" class="editor card-modal-content" @submit.prevent="saveColumn">
-      <button type="button" class="ghost card-modal-close" aria-label="Cancel editing" title="Cancel" @click="closeColumnEditor">
-        <X :size="18" aria-hidden="true" />
-      </button>
-      <h3 class="card-modal-title">Edit Column</h3>
+  <ModalDialog :open="editingColumn !== null" title="Edit Column" close-label="Cancel editing" @close="closeColumnEditor" @submit="saveColumn">
+    <template v-if="editingColumn">
       <label>
         Title
         <input
@@ -13,8 +9,9 @@
           @input="updateColumnDraft(($event.target as HTMLInputElement).value)"
         />
       </label>
-
-      <div class="editor-actions card-modal-actions">
+    </template>
+    <template #actions>
+      <div v-if="editingColumn" class="editor-actions card-modal-actions">
         <button type="button" class="danger card-modal-delete" aria-label="Delete column" title="Delete column" @click="deleteEditingColumn">
           <Trash2 :size="16" aria-hidden="true" />
         </button>
@@ -29,18 +26,18 @@
           </button>
         </div>
       </div>
-    </form>
-  </dialog>
+    </template>
+  </ModalDialog>
 </template>
 
 <script setup lang="ts">
 import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import ModalDialog from './ModalDialog.vue';
 import { useBoardStore } from '../stores/boardStore';
 
-const dialogRef = ref<HTMLDialogElement | null>(null);
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
@@ -55,12 +52,6 @@ const routeColumnId = computed<number | null>(() => {
 });
 
 const editingColumn = computed(() => boardStore.getColumnById(routeColumnId.value));
-
-function onDialogClick(event: MouseEvent) {
-  if (event.target === dialogRef.value) {
-    void closeColumnEditor();
-  }
-}
 
 async function closeColumnEditor() {
   await router.push({ name: 'columns' });
@@ -114,34 +105,4 @@ watch(
   },
   { immediate: true }
 );
-
-watch(
-  [editingColumn, dialogRef],
-  async ([nextColumn]) => {
-    await nextTick();
-    const dialog = dialogRef.value;
-    if (!dialog) {
-      return;
-    }
-
-    if (nextColumn) {
-      if (!dialog.open) {
-        dialog.showModal();
-      }
-      return;
-    }
-
-    if (dialog.open) {
-      dialog.close();
-    }
-  },
-  { immediate: true, flush: 'post' }
-);
-
-onBeforeUnmount(() => {
-  const dialog = dialogRef.value;
-  if (dialog?.open) {
-    dialog.close();
-  }
-});
 </script>
