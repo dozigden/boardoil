@@ -23,6 +23,7 @@ builder.Services.AddCors(options =>
 });
 builder.Services.AddSignalR();
 builder.Services.AddSingleton(runtimeOptions);
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
 builder.Services.AddSingleton<ITypingPresenceService, TypingPresenceService>();
 builder.Services.AddHostedService<TypingPresenceExpiryService>();

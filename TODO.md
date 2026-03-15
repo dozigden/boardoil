@@ -1,7 +1,7 @@
 # TODO
 
 ## Next Up
-- [ ] Fix typing TTL race in `TypingPresenceService.SweepExpiredAsync` so refreshed entries are not removed incorrectly.
+- [x] Fix typing TTL race in `TypingPresenceService.SweepExpiredAsync` so refreshed entries are not removed incorrectly.
 - [ ] Reduce duplicate board refreshes in frontend after local mutations (avoid REST-triggered `loadBoard()` + SignalR-triggered `loadBoard()` double fetch).
 - [x] Refactor realtime tests to improve readability.
 

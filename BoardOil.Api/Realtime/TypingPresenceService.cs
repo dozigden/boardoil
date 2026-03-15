@@ -5,7 +5,8 @@ namespace BoardOil.Api.Realtime;
 
 public sealed class TypingPresenceService(
     IHubContext<BoardHub> hubContext,
-    BoardOil.Api.Configuration.BoardOilRuntimeOptions runtimeOptions) : ITypingPresenceService
+    BoardOil.Api.Configuration.BoardOilRuntimeOptions runtimeOptions,
+    TimeProvider timeProvider) : ITypingPresenceService
 {
     private readonly ConcurrentDictionary<string, TypingPresenceEntry> _entries = new();
 
@@ -17,7 +18,7 @@ public sealed class TypingPresenceService(
             return;
         }
 
-        var expiresAtUtc = DateTime.UtcNow.AddSeconds(runtimeOptions.TypingTtlSeconds);
+        var expiresAtUtc = timeProvider.GetUtcNow().AddSeconds(runtimeOptions.TypingTtlSeconds).UtcDateTime;
         var entry = new TypingPresenceEntry(normalized.Value.CardId, normalized.Value.Field, normalized.Value.UserLabel, expiresAtUtc);
         _entries[ComposeKey(entry)] = entry;
 
@@ -35,23 +36,29 @@ public sealed class TypingPresenceService(
             return;
         }
 
-        var entry = new TypingPresenceEntry(normalized.Value.CardId, normalized.Value.Field, normalized.Value.UserLabel, DateTime.UtcNow);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var entry = new TypingPresenceEntry(normalized.Value.CardId, normalized.Value.Field, normalized.Value.UserLabel, now);
         _entries.TryRemove(ComposeKey(entry), out _);
 
         await hubContext.Clients.All.SendAsync(
             "TypingChanged",
-            new TypingChangedEvent(entry.CardId, entry.Field, entry.UserLabel, false, DateTime.UtcNow),
+            new TypingChangedEvent(entry.CardId, entry.Field, entry.UserLabel, false, now),
             cancellationToken);
     }
 
     public async Task SweepExpiredAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
         var expired = _entries.Values.Where(x => x.ExpiresAtUtc <= now).ToList();
 
         foreach (var entry in expired)
         {
-            _entries.TryRemove(ComposeKey(entry), out _);
+            var removed = _entries.TryRemove(new KeyValuePair<string, TypingPresenceEntry>(ComposeKey(entry), entry));
+            if (!removed)
+            {
+                continue;
+            }
+
             await hubContext.Clients.All.SendAsync(
                 "TypingChanged",
                 new TypingChangedEvent(entry.CardId, entry.Field, entry.UserLabel, false, now),
@@ -61,7 +68,7 @@ public sealed class TypingPresenceService(
 
     public IReadOnlyList<TypingPresenceEntry> GetActiveEntries()
     {
-        var now = DateTime.UtcNow;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
         return _entries.Values
             .Where(x => x.ExpiresAtUtc > now)
             .OrderBy(x => x.CardId)
