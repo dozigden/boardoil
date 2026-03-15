@@ -1,19 +1,36 @@
 <template>
   <template v-if="board">
     <section class="toolbar">
-      <form class="create-column" @submit.prevent="createColumn">
-        <input
-          :value="newColumnTitle"
-          type="text"
-          maxlength="200"
-          placeholder="New column title"
-          @input="updateNewColumnTitle(($event.target as HTMLInputElement).value)"
-        />
-        <button type="submit" :disabled="busy">Add Column</button>
-      </form>
+      <button type="button" class="ghost column-add-button" aria-label="Add column" title="Add column" @click="openNewColumnDraft">
+        <Plus :size="16" aria-hidden="true" />
+        <span>Add Column</span>
+      </button>
     </section>
 
     <section class="column-manager">
+      <article v-if="newColumnDraftTitle !== null" class="column-manager-item create-column-inline">
+        <label class="create-card-inline-label">
+          Column title
+          <input
+            ref="newColumnDraftInput"
+            :value="newColumnDraftTitle"
+            maxlength="200"
+            placeholder="New column title"
+            @input="updateNewColumnDraft(($event.target as HTMLInputElement).value)"
+            @keydown.enter.prevent="saveNewColumnDraft"
+            @keydown.esc.prevent="closeNewColumnDraft"
+          />
+        </label>
+        <div class="editor-actions create-card-inline-actions">
+          <button type="button" class="create-card-save" aria-label="Save new column" title="Save new column" @click="saveNewColumnDraft">
+            <Check :size="16" aria-hidden="true" />
+          </button>
+          <button type="button" class="ghost create-card-cancel" aria-label="Cancel new column" title="Cancel" @click="closeNewColumnDraft">
+            <X :size="16" aria-hidden="true" />
+          </button>
+        </div>
+      </article>
+
       <article
         v-for="column in board.columns"
         :key="column.id"
@@ -24,6 +41,9 @@
         @drop="onColumnDrop(column.id, $event)"
       >
         <div class="column-manager-header">
+          <button type="button" class="card-title-trigger column-title-trigger" @click="openColumnEditor(column.id)">
+            <strong>{{ column.title }}</strong>
+          </button>
           <button
             type="button"
             class="ghost column-drag-handle"
@@ -33,21 +53,8 @@
             @dragstart="onColumnDragStart(column.id, $event)"
             @dragend="onColumnDragEnd"
           >
-            <span aria-hidden="true">::</span>
+            <GripVertical :size="16" aria-hidden="true" />
           </button>
-        </div>
-        <label>
-          Column title
-          <input
-            class="column-title"
-            :value="columnTitleDrafts[column.id] ?? column.title"
-            maxlength="200"
-            @input="updateColumnDraft(column.id, ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-        <div class="column-actions">
-          <button @click="saveColumn(column.id)" :disabled="busy">Save</button>
-          <button class="danger" @click="deleteColumn(column.id)">Delete</button>
         </div>
       </article>
     </section>
@@ -55,39 +62,58 @@
 </template>
 
 <script setup lang="ts">
+import { Check, GripVertical, Plus, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 
-const newColumnTitle = ref('');
-const columnTitleDrafts = ref<Record<number, string>>({});
+const newColumnDraftTitle = ref<string | null>(null);
+const newColumnDraftInput = ref<HTMLInputElement | null>(null);
 const draggingColumnId = ref<number | null>(null);
 const dragOverColumnId = ref<number | null>(null);
 
+const router = useRouter();
 const boardStore = useBoardStore();
 const { board, busy } = storeToRefs(boardStore);
-const { createColumn: createColumnAction, saveColumn: saveColumnAction, moveColumn: moveColumnAction, deleteColumn } = boardStore;
+const { createColumn: createColumnAction, moveColumn: moveColumnAction } = boardStore;
 
-function updateNewColumnTitle(value: string) {
-  newColumnTitle.value = value;
-}
-
-async function createColumn() {
-  await createColumnAction(newColumnTitle.value);
-  newColumnTitle.value = '';
-}
-
-function updateColumnDraft(columnId: number, value: string) {
-  columnTitleDrafts.value[columnId] = value;
-}
-
-async function saveColumn(columnId: number) {
-  const title = columnTitleDrafts.value[columnId];
-  if (title === undefined) {
+async function openNewColumnDraft() {
+  if (newColumnDraftTitle.value !== null) {
+    newColumnDraftInput.value?.focus();
     return;
   }
 
-  await saveColumnAction(columnId, title);
+  newColumnDraftTitle.value = '';
+  await nextTick();
+  newColumnDraftInput.value?.focus();
+}
+
+function updateNewColumnDraft(value: string) {
+  if (newColumnDraftTitle.value === null) {
+    return;
+  }
+
+  newColumnDraftTitle.value = value;
+}
+
+function closeNewColumnDraft() {
+  newColumnDraftTitle.value = null;
+  newColumnDraftInput.value = null;
+}
+
+async function saveNewColumnDraft() {
+  const title = newColumnDraftTitle.value ?? '';
+  if (!title.trim()) {
+    return;
+  }
+
+  await createColumnAction(title);
+  closeNewColumnDraft();
+}
+
+async function openColumnEditor(columnId: number) {
+  await router.push({ name: 'columns-column', params: { columnId } });
 }
 
 function onColumnDragStart(columnId: number, event: DragEvent) {
@@ -95,6 +121,12 @@ function onColumnDragStart(columnId: number, event: DragEvent) {
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', String(columnId));
+
+    const handle = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    const columnCard = handle?.closest('.column-manager-item');
+    if (columnCard instanceof HTMLElement) {
+      event.dataTransfer.setDragImage(columnCard, Math.floor(columnCard.clientWidth / 2), 20);
+    }
   }
 }
 
