@@ -17,17 +17,10 @@
         :card="card"
         :column-id="column.id"
         :index="index"
-        :is-editing="editingCardId === card.id"
-        :draft="cardDrafts[card.id]"
         :typing-summary="typingSummary"
         @start-drag="startDrag"
         @drop-card="dropCard"
-        @toggle-card-editor="toggleCardEditor"
-        @announce-typing="announceTyping"
-        @stop-typing="stopTyping"
-        @update-card-draft="updateCardDraft"
-        @save-card="saveCard"
-        @delete-card="deleteCard"
+        @edit-card="openCardEditor"
       />
 
       <form class="create-card" @submit.prevent="createCardForColumn(column.id)">
@@ -42,12 +35,25 @@
       </form>
     </article>
   </section>
+
+  <CardEditorDialog
+    :open="editingCardId !== null"
+    :card="editingCard"
+    :draft="editingCardDraft"
+    @close="closeCardEditor"
+    @save="saveCard"
+    @delete="deleteEditingCard"
+    @announce-typing="announceEditingCardTyping"
+    @stop-typing="stopEditingCardTyping"
+    @update-draft="updateEditingCardDraft"
+  />
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import Card from '../components/Card.vue';
+import CardEditorDialog from '../components/CardEditorDialog.vue';
 import { useBoardStore } from '../stores/boardStore';
 import type { Card as BoardCard } from '../types/boardTypes';
 
@@ -59,6 +65,12 @@ const boardStore = useBoardStore();
 const { board, busy, typingSummary } = storeToRefs(boardStore);
 const { createCard, saveCard: saveCardAction, deleteCard, startDrag, dropCard, announceTyping, stopTyping } =
   boardStore;
+const editingCard = computed(() =>
+  editingCardId.value === null ? null : board.value?.columns.flatMap(x => x.cards).find(x => x.id === editingCardId.value) ?? null
+);
+const editingCardDraft = computed(() =>
+  editingCardId.value === null ? null : cardDrafts.value[editingCardId.value] ?? null
+);
 
 function updateNewCardTitle(columnId: number, value: string) {
   newCardTitles.value[columnId] = value;
@@ -70,9 +82,8 @@ async function createCardForColumn(columnId: number) {
   newCardTitles.value[columnId] = '';
 }
 
-function toggleCardEditor(cardId: number) {
+function openCardEditor(cardId: number) {
   if (editingCardId.value === cardId) {
-    editingCardId.value = null;
     return;
   }
 
@@ -85,23 +96,80 @@ function toggleCardEditor(cardId: number) {
   editingCardId.value = cardId;
 }
 
+function closeCardEditor() {
+  const cardId = editingCardId.value;
+  if (cardId !== null) {
+    stopTyping(cardId, 'title');
+    stopTyping(cardId, 'description');
+  }
+
+  editingCardId.value = null;
+}
+
 function updateCardDraft(cardId: number, field: 'title' | 'description', value: string) {
   const existing = cardDrafts.value[cardId] ?? { title: '', description: '' };
   cardDrafts.value[cardId] = { ...existing, [field]: value };
+}
+
+function updateEditingCardDraft(field: 'title' | 'description', value: string) {
+  const cardId = editingCardId.value;
+  if (cardId === null) {
+    return;
+  }
+
+  updateCardDraft(cardId, field, value);
+}
+
+function announceEditingCardTyping(field: 'title' | 'description') {
+  const cardId = editingCardId.value;
+  if (cardId === null) {
+    return;
+  }
+
   announceTyping(cardId, field);
 }
 
-async function saveCard(cardId: number) {
+function stopEditingCardTyping(field: 'title' | 'description') {
+  const cardId = editingCardId.value;
+  if (cardId === null) {
+    return;
+  }
+
+  stopTyping(cardId, field);
+}
+
+async function saveCard() {
+  const cardId = editingCardId.value;
+  if (cardId === null) {
+    return;
+  }
+
   const draft = cardDrafts.value[cardId];
   if (!draft) {
     return;
   }
 
   await saveCardAction(cardId, draft.title, draft.description);
-  editingCardId.value = null;
+  closeCardEditor();
+}
+
+async function deleteEditingCard() {
+  const cardId = editingCardId.value;
+  if (cardId === null) {
+    return;
+  }
+
+  await deleteCard(cardId);
+  closeCardEditor();
 }
 
 function findCard(cardId: number): BoardCard | null {
   return board.value?.columns.flatMap(x => x.cards).find(x => x.id === cardId) ?? null;
 }
+
+watch(editingCard, card => {
+  if (editingCardId.value !== null && !card) {
+    closeCardEditor();
+  }
+});
 </script>
