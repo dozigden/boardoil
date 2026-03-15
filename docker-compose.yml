@@ -1,0 +1,18 @@
+services:
+  boardoil:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: boardoil:dev
+    container_name: boardoil
+    ports:
+      - "5000:5000"
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      ConnectionStrings__BoardOil: Data Source=/data/boardoil.db
+    volumes:
+      - boardoil-data:/data
+    restart: unless-stopped
+
+volumes:
+  boardoil-data:

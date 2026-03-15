@@ -16,7 +16,9 @@ See [`TODO.md`](TODO.md) for the current implementation backlog.
 - `BoardOil.Services`: service layer and business logic
 - `BoardOil.Ef`: EF Core SQLite data access and entities
 - `BoardOil.Web`: Vue + TypeScript (Vite) app (v1 scaffold)
+- `dev-startall.sh`: local dev launcher (API + frontend)
 - `Dockerfile`: single-image production build (frontend + backend)
+- `docker-compose.yml`: default local/prod-like container runtime
 
 ## Development
 1. Restore dependencies:
@@ -24,12 +26,13 @@ See [`TODO.md`](TODO.md) for the current implementation backlog.
 dotnet restore BoardOil.slnx
 cd BoardOil.Web && npm install
 ```
-2. Start backend:
+2. Start backend + frontend together:
 ```bash
-dotnet run --project BoardOil.Api/BoardOil.Api.csproj --urls http://0.0.0.0:5000
+./dev-startall.sh
 ```
-3. Start frontend (new terminal):
+3. Or start each process manually:
 ```bash
+dotnet run --project BoardOil.Api/BoardOil.Api.csproj --urls http://127.0.0.1:5000
 cd BoardOil.Web
 npm run dev
 ```
@@ -50,19 +53,45 @@ npm run dev
 - `BoardOil:TypingTtlSeconds` (default `5`)
 - `ASPNETCORE_URLS` still overrides listen URL when set explicitly.
 
-## Production Container Baseline
-Build:
+## Docker (First-Class Path)
+Build + run with persistent SQLite storage (Compose v2):
+```bash
+docker compose up --build -d
+```
+
+If your machine uses legacy Compose:
+```bash
+docker-compose up --build -d
+```
+
+Open:
+- app + API: `http://localhost:5000`
+- health: `http://localhost:5000/api/health`
+
+Stop (Compose v2):
+```bash
+docker compose down
+```
+
+Stop (legacy Compose):
+```bash
+docker-compose down
+```
+
+Logs (Compose v2):
+```bash
+docker compose logs -f boardoil
+```
+
+Logs (legacy Compose):
+```bash
+docker-compose logs -f boardoil
+```
+
+Named volume (`boardoil-data`) persists data at `/data/boardoil.db` between restarts.
+
+### Raw `docker run` Alternative
 ```bash
 docker build -t boardoil:dev .
-```
-
-Run (safe default, bound to `127.0.0.1` inside container):
-```bash
-docker run --rm -p 5000:5000 boardoil:dev
-```
-Use this mode only for locked-down behavior checks.
-
-Run with explicit LAN/public bind override:
-```bash
-docker run --rm -p 5000:5000 -e ASPNETCORE_URLS=http://0.0.0.0:5000 boardoil:dev
+docker run --rm -p 5000:5000 -v boardoil-data:/data boardoil:dev
 ```
