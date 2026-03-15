@@ -14,7 +14,16 @@ export const useBoardStore = defineStore('board', () => {
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
 
-  const realtime = createBoardRealtime(loadBoard);
+  const realtime = createBoardRealtime({
+    onColumnCreated: upsertColumn,
+    onColumnUpdated: upsertColumn,
+    onColumnDeleted: removeColumn,
+    onCardCreated: upsertCard,
+    onCardUpdated: upsertCard,
+    onCardDeleted: removeCard,
+    onCardMoved: upsertCard,
+    onResync: loadBoard
+  });
   let dragState: { cardId: number; fromColumnId: number } | null = null;
   let initialized = false;
 

@@ -1,25 +1,24 @@
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { computed, ref } from 'vue';
 import { boardHubUrl } from '../api/config';
-import type { TypingChangedEvent } from '../types/boardTypes';
+import type { Card, Column, TypingChangedEvent } from '../types/boardTypes';
 
-type BoardChangeHandler = () => Promise<unknown>;
+type RealtimeHandlers = {
+  onColumnCreated: (column: Column) => Promise<unknown> | unknown;
+  onColumnUpdated: (column: Column) => Promise<unknown> | unknown;
+  onColumnDeleted: (columnId: number) => Promise<unknown> | unknown;
+  onCardCreated: (card: Card) => Promise<unknown> | unknown;
+  onCardUpdated: (card: Card) => Promise<unknown> | unknown;
+  onCardDeleted: (cardId: number) => Promise<unknown> | unknown;
+  onCardMoved: (card: Card) => Promise<unknown> | unknown;
+  onResync: () => Promise<unknown> | unknown;
+};
 
-export function createBoardRealtime(onBoardChanged: BoardChangeHandler) {
+export function createBoardRealtime(handlers: RealtimeHandlers) {
   const typingByCard = ref<Record<number, Record<string, Set<string>>>>({});
   const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const localUserLabel = resolveLocalUserLabel();
   let hubConnection: HubConnection | null = null;
-
-  const eventNames = [
-    'ColumnCreated',
-    'ColumnUpdated',
-    'ColumnDeleted',
-    'CardCreated',
-    'CardUpdated',
-    'CardDeleted',
-    'CardMoved'
-  ] as const;
 
   async function connect() {
     if (hubConnection) {
@@ -32,11 +31,27 @@ export function createBoardRealtime(onBoardChanged: BoardChangeHandler) {
       .configureLogging(LogLevel.Warning)
       .build();
 
-    for (const eventName of eventNames) {
-      hubConnection.on(eventName, async () => {
-        await onBoardChanged();
-      });
-    }
+    hubConnection.on('ColumnCreated', async (column: Column) => {
+      await handlers.onColumnCreated(column);
+    });
+    hubConnection.on('ColumnUpdated', async (column: Column) => {
+      await handlers.onColumnUpdated(column);
+    });
+    hubConnection.on('ColumnDeleted', async (columnId: number) => {
+      await handlers.onColumnDeleted(columnId);
+    });
+    hubConnection.on('CardCreated', async (card: Card) => {
+      await handlers.onCardCreated(card);
+    });
+    hubConnection.on('CardUpdated', async (card: Card) => {
+      await handlers.onCardUpdated(card);
+    });
+    hubConnection.on('CardDeleted', async (cardId: number) => {
+      await handlers.onCardDeleted(cardId);
+    });
+    hubConnection.on('CardMoved', async (card: Card) => {
+      await handlers.onCardMoved(card);
+    });
 
     hubConnection.on('TypingChanged', (event: TypingChangedEvent) => {
       const cardTyping = typingByCard.value[event.cardId] ?? {};
@@ -53,7 +68,7 @@ export function createBoardRealtime(onBoardChanged: BoardChangeHandler) {
     });
 
     hubConnection.onreconnected(async () => {
-      await onBoardChanged();
+      await handlers.onResync();
     });
 
     await hubConnection.start();
