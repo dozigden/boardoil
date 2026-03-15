@@ -30,14 +30,14 @@ v1 will be a single-board product with realtime collaboration (board updates + t
 
 ### 2) Data Model (v1)
 - `Board`: single seeded record
-- `Column`: board-linked, ordered by `position`
+- `Column`: board-linked, ordered by sort key (position is computed in API DTOs)
 - `Card`: column-linked, ordered by sort key (position is computed in API DTOs), includes title/description
 - No create/delete board UI or API in v1.
 
 ### Position Handling (Current Backend Rules)
 - `position = null` means append to end for creates and cross-column card moves.
 - Provided positions are clamped into valid range (`0..count` for inserts, `0..count-1` for reorders).
-- Column ordering is persisted with stable integer `position` values and reindexed after inserts/deletes/reorders.
+- Column ordering is persisted via sortable keys; API responses expose zero-based computed `position` values from that order.
 - Card ordering is persisted via sortable keys; API responses expose zero-based computed `position` values from that order.
 
 ### 3) Frontend (Vue + TypeScript)

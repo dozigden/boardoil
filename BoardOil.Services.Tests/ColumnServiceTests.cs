@@ -196,7 +196,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var stored = await DbContextForAssert.Columns.SingleAsync(x => x.Id == columnId);
 
         Assert.Equal("New Title", stored.Title);
-        Assert.Equal(0, stored.Position);
+        Assert.False(string.IsNullOrWhiteSpace(stored.SortKey));
     }
 
     [Fact]
@@ -254,11 +254,12 @@ public sealed class ColumnServiceTests : TestBaseDb
         var titles = await GetOrderedColumnTitlesAsync();
 
         Assert.Equal(["A", "C"], titles);
-        var positions = await DbContextForAssert.Columns
-            .OrderBy(x => x.Position)
-            .Select(x => x.Position)
+        var sortKeys = await DbContextForAssert.Columns
+            .OrderBy(x => x.SortKey)
+            .Select(x => x.SortKey)
             .ToListAsync();
-        Assert.Equal([0, 1], positions);
+        Assert.Equal(2, sortKeys.Count);
+        Assert.All(sortKeys, key => Assert.False(string.IsNullOrWhiteSpace(key)));
     }
 
     [Fact]
@@ -289,7 +290,7 @@ public sealed class ColumnServiceTests : TestBaseDb
 
     private async Task<List<string>> GetOrderedColumnTitlesAsync() =>
         await DbContextForAssert.Columns
-            .OrderBy(x => x.Position)
+            .OrderBy(x => x.SortKey)
             .Select(x => x.Title)
             .ToListAsync();
 

@@ -41,10 +41,15 @@ public sealed class FluentBoardBuilder
     {
         EnsureNotBuilt();
 
+        var orderedColumns = _columnsByTitle.Values
+            .OrderBy(x => x.SortKey)
+            .ToList();
+        var previousKey = orderedColumns.Count > 0 ? orderedColumns[^1].SortKey : null;
+
         var column = new BoardColumn
         {
             Title = title,
-            Position = _columnsByTitle.Count,
+            SortKey = GenerateBetween(previousKey, null),
             CreatedAtUtc = _nowUtc,
             UpdatedAtUtc = _nowUtc,
             Board = _board

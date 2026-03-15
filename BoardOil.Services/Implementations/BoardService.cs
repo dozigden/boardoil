@@ -29,10 +29,10 @@ public sealed class BoardService(IBoardRepository boardRepository, IColumnReposi
                     .ToList());
 
         var columnDtos = columns
-            .Select(x => new BoardColumnDto(
+            .Select((x, index) => new BoardColumnDto(
                 x.Id,
                 x.Title,
-                x.Position,
+                index,
                 x.CreatedAtUtc,
                 x.UpdatedAtUtc,
                 cardsByColumnId.GetValueOrDefault(x.Id, Array.Empty<CardDto>())))
