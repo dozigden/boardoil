@@ -16,7 +16,18 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("BoardOilDevClient", policy =>
         policy
-            .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+            .SetIsOriginAllowed(origin =>
+            {
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    return false;
+                }
+
+                var isHttp = uri.Scheme is "http" or "https";
+                var isLoopbackHost = uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                    || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+                return isHttp && isLoopbackHost;
+            })
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
