@@ -3,17 +3,34 @@
     <header class="app-header">
       <h1>BoardOil</h1>
       <p>Live board for small trusted teams.</p>
+      <nav class="view-switch">
+        <button
+          :class="{ active: currentView === 'board' }"
+          type="button"
+          @click="goToView('board')"
+        >
+          Board
+        </button>
+        <button
+          :class="{ active: currentView === 'columns' }"
+          type="button"
+          @click="goToView('columns')"
+        >
+          Manage Columns
+        </button>
+      </nav>
     </header>
 
-    <section class="toolbar">
+    <section v-if="currentView === 'columns'" class="toolbar">
       <form class="create-column" @submit.prevent="createColumn">
         <input v-model="newColumnTitle" type="text" maxlength="200" placeholder="New column title" />
         <button type="submit" :disabled="busy">Add Column</button>
       </form>
-      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     </section>
 
-    <section class="board" v-if="board">
+    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+
+    <section v-if="board && currentView === 'board'" class="board">
       <article
         v-for="column in board.columns"
         :key="column.id"
@@ -22,16 +39,7 @@
         @drop="dropCard(column.id, column.cards.length)"
       >
         <header class="column-header">
-          <input
-            class="column-title"
-            :value="columnTitleDrafts[column.id] ?? column.title"
-            maxlength="200"
-            @input="updateColumnDraft(column.id, ($event.target as HTMLInputElement).value)"
-          />
-          <div class="column-actions">
-            <button @click="saveColumn(column.id)">Save</button>
-            <button class="danger" @click="deleteColumn(column.id)">Delete</button>
-          </div>
+          <h2 class="column-name">{{ column.title }}</h2>
         </header>
 
         <div
@@ -98,6 +106,24 @@
         </form>
       </article>
     </section>
+
+    <section v-if="board && currentView === 'columns'" class="column-manager">
+      <article v-for="column in board.columns" :key="column.id" class="column-manager-item">
+        <label>
+          Column title
+          <input
+            class="column-title"
+            :value="columnTitleDrafts[column.id] ?? column.title"
+            maxlength="200"
+            @input="updateColumnDraft(column.id, ($event.target as HTMLInputElement).value)"
+          />
+        </label>
+        <div class="column-actions">
+          <button @click="saveColumn(column.id)">Save</button>
+          <button class="danger" @click="deleteColumn(column.id)">Delete</button>
+        </div>
+      </article>
+    </section>
   </main>
 </template>
 
@@ -147,11 +173,14 @@ type TypingChangedEvent = {
   expiresAtUtc: string;
 };
 
+type ViewMode = 'board' | 'columns';
+
 const configuredApiBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() ?? '';
 const apiBase = configuredApiBase
   ? configuredApiBase.replace(/\/+$/, '')
   : window.location.origin;
 const board = ref<Board | null>(null);
+const currentView = ref<ViewMode>(parseViewFromHash(window.location.hash));
 const busy = ref(false);
 const errorMessage = ref('');
 const newColumnTitle = ref('');
@@ -188,6 +217,8 @@ const eventNames = [
 ] as const;
 
 onMounted(async () => {
+  window.addEventListener('hashchange', syncViewFromHash);
+
   try {
     await loadBoard();
     await connectHub();
@@ -197,6 +228,8 @@ onMounted(async () => {
 });
 
 onUnmounted(async () => {
+  window.removeEventListener('hashchange', syncViewFromHash);
+
   for (const timeout of typingTimers.values()) {
     clearTimeout(timeout);
   }
@@ -206,6 +239,23 @@ onUnmounted(async () => {
     await hubConnection.stop();
   }
 });
+
+function parseViewFromHash(hash: string): ViewMode {
+  return hash === '#columns' ? 'columns' : 'board';
+}
+
+function syncViewFromHash() {
+  currentView.value = parseViewFromHash(window.location.hash);
+}
+
+function goToView(view: ViewMode) {
+  const hash = view === 'columns' ? '#columns' : '#board';
+  if (window.location.hash !== hash) {
+    window.location.hash = hash;
+  } else {
+    currentView.value = view;
+  }
+}
 
 async function loadBoard() {
   try {
