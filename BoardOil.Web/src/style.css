@@ -138,6 +138,7 @@ body {
 
 .column-header {
   display: flex;
+  justify-content: space-between;
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 0.75rem;
@@ -148,8 +149,17 @@ body {
 }
 
 .column-name {
+  flex: 1;
   margin: 0;
   font-size: 1rem;
+}
+
+.column-add-card {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
 }
 
 .column-actions,
@@ -187,6 +197,30 @@ body {
   padding: 0.6rem;
   background: #fff;
   margin-bottom: 0.5rem;
+}
+
+.create-card-inline {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.create-card-inline-label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.create-card-inline-actions {
+  justify-content: flex-end;
+}
+
+.create-card-save,
+.create-card-cancel {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
 }
 
 .card-header {
@@ -296,12 +330,6 @@ body {
   padding: 0.5rem;
 }
 
-.create-card {
-  margin-top: auto;
-  display: flex;
-  gap: 0.4rem;
-}
-
 input,
 textarea,
 button {
@@ -340,9 +368,7 @@ button.danger {
 }
 
 @media (max-width: 720px) {
-  .create-column,
-  .create-card,
-  .column-header {
+  .create-column {
     flex-direction: column;
     align-items: stretch;
   }
