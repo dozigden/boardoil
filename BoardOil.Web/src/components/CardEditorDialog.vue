@@ -76,15 +76,13 @@ function onDialogClick(event: MouseEvent) {
 }
 
 async function syncDialogState() {
+  await nextTick();
   const dialog = dialogRef.value;
-  if (!dialog) {
+  if (!dialog || dialog.open) {
     return;
   }
 
-  if (!dialog.open) {
-    await nextTick();
-    dialog.showModal();
-  }
+  dialog.showModal();
 }
 
 function stopTypingForCard(cardId: number) {
@@ -184,13 +182,15 @@ watch(
 );
 
 watch(
-  () => editingCard.value?.id,
-  cardId => {
-    if (cardId !== undefined) {
-      void syncDialogState();
+  [routeCardId, editingCard, dialogRef],
+  ([nextCardId, nextCard]) => {
+    if (nextCardId === null || !nextCard) {
+      return;
     }
+
+    void syncDialogState();
   },
-  { immediate: true }
+  { immediate: true, flush: 'post' }
 );
 
 onBeforeUnmount(() => {
