@@ -118,6 +118,15 @@ describe('boardStore', () => {
     expect(realtime.stopTyping).toHaveBeenCalledWith(101, 'description');
   });
 
+  it('finds card by id from board state', async () => {
+    const store = useBoardStore();
+    await store.initialize();
+
+    expect(store.getCardById(101)?.title).toBe('Task A');
+    expect(store.getCardById(999)).toBeNull();
+    expect(store.getCardById(null)).toBeNull();
+  });
+
   it('sets feedback error when API returns failure', async () => {
     const store = useBoardStore();
     const feedback = useUiFeedbackStore();
