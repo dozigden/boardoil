@@ -4,7 +4,7 @@ import { createBoardApi } from '../api/boardApi';
 import { sortBoard } from '../mappers/sortBoard';
 import { createBoardRealtime } from '../realtime/boardRealtime';
 import { useUiFeedbackStore } from './uiFeedbackStore';
-import type { Board } from '../types/boardTypes';
+import type { Board, BoardColumn, Card, Column } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 
@@ -58,19 +58,24 @@ export const useBoardStore = defineStore('board', () => {
   async function createColumn(title: string) {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      return false;
+      return;
     }
 
     const result = await runBusy(() => api.createColumn(trimmedTitle));
     if (!result.ok) {
-      return false;
+      return;
     }
 
-    return loadBoard();
+    upsertColumn(result.data);
   }
 
   async function saveColumn(columnId: number, title: string) {
-    await runBusy(() => api.saveColumn(columnId, title));
+    const result = await runBusy(() => api.saveColumn(columnId, title));
+    if (!result.ok) {
+      return;
+    }
+
+    upsertColumn(result.data);
   }
 
   async function deleteColumn(columnId: number) {
@@ -79,21 +84,21 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    await loadBoard();
+    removeColumn(columnId);
   }
 
   async function createCard(columnId: number, title: string) {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      return false;
+      return;
     }
 
     const result = await runBusy(() => api.createCard(columnId, trimmedTitle));
     if (!result.ok) {
-      return false;
+      return;
     }
 
-    return loadBoard();
+    upsertCard(result.data);
   }
 
   async function saveCard(cardId: number, title: string, description: string) {
@@ -101,6 +106,8 @@ export const useBoardStore = defineStore('board', () => {
     if (!result.ok) {
       return;
     }
+
+    upsertCard(result.data);
 
     await realtime.stopTyping(cardId, 'title');
     await realtime.stopTyping(cardId, 'description');
@@ -112,7 +119,7 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    await loadBoard();
+    removeCard(cardId);
   }
 
   function startDrag(cardId: number, fromColumnId: number) {
@@ -131,6 +138,8 @@ export const useBoardStore = defineStore('board', () => {
     if (!result.ok) {
       return;
     }
+
+    upsertCard(result.data);
   }
 
   async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
@@ -153,6 +162,91 @@ export const useBoardStore = defineStore('board', () => {
     feedback.setError(error.message);
   }
 
+  function upsertColumn(column: Column) {
+    mutateBoard(draft => {
+      const existingIndex = draft.columns.findIndex(x => x.id === column.id);
+      const nextColumn: BoardColumn = {
+        ...column,
+        cards: existingIndex >= 0 ? draft.columns[existingIndex].cards : []
+      };
+
+      if (existingIndex >= 0) {
+        draft.columns[existingIndex] = nextColumn;
+      } else {
+        const insertAt = clampIndex(column.position, draft.columns.length);
+        draft.columns.splice(insertAt, 0, nextColumn);
+      }
+
+      draft.columns.sort((a, b) => a.position - b.position);
+    });
+  }
+
+  function removeColumn(columnId: number) {
+    mutateBoard(draft => {
+      const index = draft.columns.findIndex(x => x.id === columnId);
+      if (index < 0) {
+        return;
+      }
+
+      draft.columns.splice(index, 1);
+      for (let i = 0; i < draft.columns.length; i++) {
+        draft.columns[i].position = i;
+      }
+    });
+  }
+
+  function upsertCard(card: Card) {
+    mutateBoard(draft => {
+      let existingColumn: BoardColumn | null = null;
+      let existingIndex = -1;
+      for (const column of draft.columns) {
+        const cardIndex = column.cards.findIndex(x => x.id === card.id);
+        if (cardIndex >= 0) {
+          existingColumn = column;
+          existingIndex = cardIndex;
+          break;
+        }
+      }
+
+      if (existingColumn) {
+        existingColumn.cards.splice(existingIndex, 1);
+      }
+
+      const targetColumn = draft.columns.find(x => x.id === card.boardColumnId);
+      if (!targetColumn) {
+        return;
+      }
+
+      const insertAt = clampIndex(card.position, targetColumn.cards.length);
+      targetColumn.cards.splice(insertAt, 0, card);
+      sortCardsInColumns(draft.columns);
+    });
+  }
+
+  function removeCard(cardId: number) {
+    mutateBoard(draft => {
+      for (const column of draft.columns) {
+        const index = column.cards.findIndex(x => x.id === cardId);
+        if (index < 0) {
+          continue;
+        }
+
+        column.cards.splice(index, 1);
+        return;
+      }
+    });
+  }
+
+  function mutateBoard(mutator: (draft: Board) => void) {
+    if (!board.value) {
+      return;
+    }
+
+    const draft = cloneBoard(board.value);
+    mutator(draft);
+    board.value = draft;
+  }
+
   return {
     board,
     busy,
@@ -171,3 +265,23 @@ export const useBoardStore = defineStore('board', () => {
     stopTyping: realtime.stopTyping
   };
 });
+
+function cloneBoard(source: Board): Board {
+  return {
+    ...source,
+    columns: source.columns.map(column => ({
+      ...column,
+      cards: column.cards.map(card => ({ ...card }))
+    }))
+  };
+}
+
+function sortCardsInColumns(columns: BoardColumn[]) {
+  for (const column of columns) {
+    column.cards.sort((a, b) => a.position - b.position);
+  }
+}
+
+function clampIndex(index: number, max: number) {
+  return Math.max(0, Math.min(index, max));
+}

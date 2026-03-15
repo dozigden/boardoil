@@ -188,10 +188,8 @@ function goToView(view: ViewMode) {
 }
 
 async function createColumn() {
-  const created = await createColumnAction(newColumnTitle.value);
-  if (created) {
-    newColumnTitle.value = '';
-  }
+  await createColumnAction(newColumnTitle.value);
+  newColumnTitle.value = '';
 }
 
 function updateColumnDraft(columnId: number, value: string) {
@@ -213,10 +211,8 @@ function updateNewCardTitle(columnId: number, value: string) {
 
 async function createCard(columnId: number) {
   const title = newCardTitles.value[columnId] ?? '';
-  const created = await createCardAction(columnId, title);
-  if (created) {
-    newCardTitles.value[columnId] = '';
-  }
+  await createCardAction(columnId, title);
+  newCardTitles.value[columnId] = '';
 }
 
 function toggleCardEditor(cardId: number) {
