@@ -12,6 +12,7 @@ v1 will be a single-board product with realtime collaboration (board updates + t
 - Persistence: SQLite via EF Core
 - Realtime scope: card/column changes + typing indicators
 - Conflict model: last write wins
+- Delete semantics: idempotent across the solution (repeating deletes, including missing target IDs, returns success)
 - Development workflow: local host development
 - Packaging: single Docker image
 - Network safety default: bind localhost (`127.0.0.1`) unless explicitly overridden

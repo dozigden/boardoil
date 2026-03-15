@@ -338,7 +338,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task DeleteCardAsync_WhenCardMissing_ShouldReturnNotFound()
+    public async Task DeleteCardAsync_WhenCardMissing_ShouldReturnOk()
     {
         // Arrange
         CreateBoard("BoardOil")
@@ -351,9 +351,9 @@ public sealed class CardServiceTests : TestBaseDb
         var result = await service.DeleteCardAsync(999_999);
 
         // Assert
-        Assert.False(result.Success);
-        Assert.Equal(404, result.StatusCode);
-        Assert.Equal("Card not found.", result.Message);
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Null(result.Message);
     }
 
     [Fact]

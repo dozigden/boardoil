@@ -121,16 +121,29 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
-    public async Task DeleteCard_WhenMissing_ShouldReturnErrorContract()
+    public async Task DeleteCard_WhenMissing_ShouldReturnOkContract()
     {
         var response = await Client.DeleteAsync("/api/cards/999999");
         var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
 
-        Assert.Equal(404, (int)response.StatusCode);
+        Assert.Equal(200, (int)response.StatusCode);
         Assert.NotNull(payload);
-        Assert.False(payload!.Success);
-        Assert.Equal(404, payload.StatusCode);
-        Assert.Equal("Card not found.", payload.Message);
+        Assert.True(payload!.Success);
+        Assert.Equal(200, payload.StatusCode);
+        Assert.Null(payload.Message);
+    }
+
+    [Fact]
+    public async Task DeleteColumn_WhenMissing_ShouldReturnOkContract()
+    {
+        var response = await Client.DeleteAsync("/api/columns/999999");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
+
+        Assert.Equal(200, (int)response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.True(payload!.Success);
+        Assert.Equal(200, payload.StatusCode);
+        Assert.Null(payload.Message);
     }
 
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);

@@ -141,7 +141,7 @@ public sealed class ColumnService(
         var target = columns.FirstOrDefault(x => x.Id == id);
         if (target is null)
         {
-            return ApiErrors.NotFound("Column not found.");
+            return ApiResults.Ok();
         }
 
         columnRepository.Remove(target);
