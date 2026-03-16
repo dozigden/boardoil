@@ -52,6 +52,24 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task StateChangingEndpoint_WhenCsrfHeaderMissing_ShouldReturnForbidden()
+    {
+        // Arrange
+        Client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Todo", null));
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(403, (int)response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal(403, payload.StatusCode);
+        Assert.Equal("CSRF validation failed.", payload.Message);
+    }
+
+    [Fact]
     public async Task CardEndpoints_ShouldCreateUpdateAndDeleteCard()
     {
         // Arrange

@@ -40,10 +40,24 @@ public abstract class TestBaseIntegration : IAsyncLifetime
         {
             var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", "Password1234!"));
             login.EnsureSuccessStatusCode();
+            var loginEnvelope = await login.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
+            Assert.NotNull(loginEnvelope);
+            Assert.NotNull(loginEnvelope!.Data);
+            SetCsrfHeader(client, loginEnvelope.Data!.CsrfToken);
             return;
         }
 
         register.EnsureSuccessStatusCode();
+        var registerEnvelope = await register.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
+        Assert.NotNull(registerEnvelope);
+        Assert.NotNull(registerEnvelope!.Data);
+        SetCsrfHeader(client, registerEnvelope.Data!.CsrfToken);
+    }
+
+    private static void SetCsrfHeader(HttpClient client, string csrfToken)
+    {
+        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", csrfToken);
     }
 
     protected HubConnection CreateHubConnection()
@@ -78,4 +92,6 @@ public abstract class TestBaseIntegration : IAsyncLifetime
 
     private sealed record RegisterInitialAdminRequest(string UserName, string Password);
     private sealed record LoginRequest(string UserName, string Password);
+    private sealed record AuthSessionEnvelope(string CsrfToken);
+    private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

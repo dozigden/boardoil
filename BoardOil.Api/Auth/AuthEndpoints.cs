@@ -42,6 +42,7 @@ public static class AuthEndpoints
         BoardOilDbContext dbContext,
         IPasswordHashService passwordHashService,
         JwtAuthOptions jwtOptions,
+        CsrfOptions csrfOptions,
         TimeProvider timeProvider,
         HttpResponse response)
     {
@@ -72,6 +73,7 @@ public static class AuthEndpoints
 
         var session = await CreateSessionAsync(dbContext, user, jwtOptions, timeProvider);
         WriteAuthCookies(response, jwtOptions, session.AccessToken, session.AccessTokenExpiresAtUtc, session.RefreshToken, session.RefreshTokenExpiresAtUtc);
+        WriteCsrfCookie(response, csrfOptions, session.CsrfToken, session.RefreshTokenExpiresAtUtc);
         return ApiResults.Created(session.ToDto()).ToHttpResult();
     }
 
@@ -80,6 +82,7 @@ public static class AuthEndpoints
         BoardOilDbContext dbContext,
         IPasswordHashService passwordHashService,
         JwtAuthOptions jwtOptions,
+        CsrfOptions csrfOptions,
         TimeProvider timeProvider,
         HttpResponse response)
     {
@@ -97,12 +100,14 @@ public static class AuthEndpoints
 
         var session = await CreateSessionAsync(dbContext, user, jwtOptions, timeProvider);
         WriteAuthCookies(response, jwtOptions, session.AccessToken, session.AccessTokenExpiresAtUtc, session.RefreshToken, session.RefreshTokenExpiresAtUtc);
+        WriteCsrfCookie(response, csrfOptions, session.CsrfToken, session.RefreshTokenExpiresAtUtc);
         return ApiResults.Ok(session.ToDto()).ToHttpResult();
     }
 
     private static async Task<IResult> RefreshAsync(
         BoardOilDbContext dbContext,
         JwtAuthOptions jwtOptions,
+        CsrfOptions csrfOptions,
         TimeProvider timeProvider,
         HttpRequest request,
         HttpResponse response)
@@ -124,7 +129,7 @@ public static class AuthEndpoints
             || existingToken.ExpiresAtUtc <= now
             || !existingToken.User.IsActive)
         {
-            ClearAuthCookies(response, jwtOptions);
+            ClearAuthCookies(response, jwtOptions, csrfOptions);
             return ApiResults.Unauthorized<AuthSessionDto>("Refresh token is invalid or expired.").ToHttpResult();
         }
 
@@ -134,12 +139,14 @@ public static class AuthEndpoints
         await dbContext.SaveChangesAsync();
 
         WriteAuthCookies(response, jwtOptions, newSession.AccessToken, newSession.AccessTokenExpiresAtUtc, newSession.RefreshToken, newSession.RefreshTokenExpiresAtUtc);
+        WriteCsrfCookie(response, csrfOptions, newSession.CsrfToken, newSession.RefreshTokenExpiresAtUtc);
         return ApiResults.Ok(newSession.ToDto()).ToHttpResult();
     }
 
     private static async Task<IResult> LogoutAsync(
         BoardOilDbContext dbContext,
         JwtAuthOptions jwtOptions,
+        CsrfOptions csrfOptions,
         TimeProvider timeProvider,
         HttpRequest request,
         HttpResponse response)
@@ -156,7 +163,7 @@ public static class AuthEndpoints
             }
         }
 
-        ClearAuthCookies(response, jwtOptions);
+        ClearAuthCookies(response, jwtOptions, csrfOptions);
         return ApiResults.Ok().ToHttpResult();
     }
 
@@ -321,6 +328,7 @@ public static class AuthEndpoints
             accessTokenExpiresAtUtc,
             refreshToken,
             refreshTokenExpiresAtUtc,
+            CreateCsrfToken(),
             new AuthUserDto(user.Id, user.UserName, user.Role.ToString()));
     }
 
@@ -346,6 +354,9 @@ public static class AuthEndpoints
 
     private static string CreateRefreshToken() =>
         Convert.ToHexString(RandomNumberGenerator.GetBytes(64));
+
+    private static string CreateCsrfToken() =>
+        Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 
     private static string HashRefreshToken(string refreshToken) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
@@ -411,10 +422,31 @@ public static class AuthEndpoints
             CreateCookieOptions(refreshTokenExpiresAtUtc));
     }
 
-    private static void ClearAuthCookies(HttpResponse response, JwtAuthOptions jwtOptions)
+    private static void WriteCsrfCookie(
+        HttpResponse response,
+        CsrfOptions csrfOptions,
+        string csrfToken,
+        DateTime expiresAtUtc)
+    {
+        response.Cookies.Append(
+            csrfOptions.CookieName,
+            csrfToken,
+            new CookieOptions
+            {
+                HttpOnly = false,
+                IsEssential = true,
+                SameSite = SameSiteMode.Strict,
+                Secure = false,
+                Expires = expiresAtUtc,
+                Path = "/"
+            });
+    }
+
+    private static void ClearAuthCookies(HttpResponse response, JwtAuthOptions jwtOptions, CsrfOptions csrfOptions)
     {
         response.Cookies.Delete(jwtOptions.AccessTokenCookieName);
         response.Cookies.Delete(jwtOptions.RefreshTokenCookieName);
+        response.Cookies.Delete(csrfOptions.CookieName);
     }
 
     private static CookieOptions CreateCookieOptions(DateTime expiresAtUtc) =>
@@ -432,7 +464,7 @@ public static class AuthEndpoints
 public sealed record RegisterInitialAdminRequest(string UserName, string Password);
 public sealed record LoginRequest(string UserName, string Password);
 public sealed record AuthUserDto(int Id, string UserName, string Role);
-public sealed record AuthSessionDto(AuthUserDto User, DateTime AccessTokenExpiresAtUtc, DateTime RefreshTokenExpiresAtUtc);
+public sealed record AuthSessionDto(AuthUserDto User, DateTime AccessTokenExpiresAtUtc, DateTime RefreshTokenExpiresAtUtc, string CsrfToken);
 public sealed record CreateUserRequest(string UserName, string Password, string Role);
 public sealed record UpdateUserRoleRequest(string Role);
 public sealed record UpdateUserStatusRequest(bool IsActive);
@@ -443,8 +475,9 @@ internal sealed record AuthSession(
     DateTime AccessTokenExpiresAtUtc,
     string RefreshToken,
     DateTime RefreshTokenExpiresAtUtc,
+    string CsrfToken,
     AuthUserDto User)
 {
     public AuthSessionDto ToDto() =>
-        new(User, AccessTokenExpiresAtUtc, RefreshTokenExpiresAtUtc);
+        new(User, AccessTokenExpiresAtUtc, RefreshTokenExpiresAtUtc, CsrfToken);
 }

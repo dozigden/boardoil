@@ -13,6 +13,7 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configuration);
 var jwtOptions = JwtAuthOptions.FromConfiguration(builder.Configuration);
+var csrfOptions = CsrfOptions.FromConfiguration(builder.Configuration);
 
 builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
@@ -41,6 +42,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddSignalR();
 builder.Services.AddSingleton(runtimeOptions);
 builder.Services.AddSingleton(jwtOptions);
+builder.Services.AddSingleton(csrfOptions);
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
 builder.Services.AddSingleton<ITypingPresenceService, TypingPresenceService>();
@@ -88,6 +90,46 @@ var app = builder.Build();
 
 await app.Services.InitializeBoardOilAsync();
 app.UseCors("BoardOilDevClient");
+app.Use(async (context, next) =>
+{
+    if (!HttpMethods.IsPost(context.Request.Method)
+        && !HttpMethods.IsPut(context.Request.Method)
+        && !HttpMethods.IsPatch(context.Request.Method)
+        && !HttpMethods.IsDelete(context.Request.Method))
+    {
+        await next();
+        return;
+    }
+
+    if (!context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
+
+    if (!context.Request.Cookies.TryGetValue(jwtOptions.AccessTokenCookieName, out var accessToken)
+        || string.IsNullOrWhiteSpace(accessToken))
+    {
+        await next();
+        return;
+    }
+
+    var hasCookie = context.Request.Cookies.TryGetValue(csrfOptions.CookieName, out var csrfCookie);
+    var hasHeader = context.Request.Headers.TryGetValue(csrfOptions.HeaderName, out var csrfHeader);
+    if (!hasCookie
+        || !hasHeader
+        || string.IsNullOrWhiteSpace(csrfCookie)
+        || string.IsNullOrWhiteSpace(csrfHeader)
+        || !string.Equals(csrfCookie, csrfHeader.ToString(), StringComparison.Ordinal))
+    {
+        var payload = new ApiResult(false, 403, "CSRF validation failed.");
+        context.Response.StatusCode = 403;
+        await context.Response.WriteAsJsonAsync(payload);
+        return;
+    }
+
+    await next();
+});
 app.UseAuthentication();
 app.UseAuthorization();
 
