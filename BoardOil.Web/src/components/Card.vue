@@ -13,15 +13,14 @@
     @dragend="onDragEnd"
   >
     <div class="card-header">
-      <strong>{{ card.title }}</strong>
+      <div class="card-title-with-pill">
+        <strong>{{ card.title }}</strong>
+        <span v-if="typingSummary(card.id)" class="typing-pill" aria-label="Someone is typing">...</span>
+      </div>
       <span class="card-id">#{{ card.id }}</span>
     </div>
 
     <p class="description">{{ card.description }}</p>
-
-    <div v-if="typingSummary(card.id).length > 0" class="typing">
-      Typing: {{ typingSummary(card.id).join(', ') }}
-    </div>
   </div>
 </template>
 
@@ -33,7 +32,7 @@ const props = defineProps<{
   card: BoardCard;
   columnId: number;
   index: number;
-  typingSummary: (cardId: number) => string[];
+  typingSummary: (cardId: number) => boolean;
 }>();
 
 const emit = defineEmits<{

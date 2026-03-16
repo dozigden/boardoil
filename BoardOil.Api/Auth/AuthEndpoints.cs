@@ -23,6 +23,8 @@ public static class AuthEndpoints
         app.MapPost("/api/auth/login", LoginAsync);
         app.MapPost("/api/auth/refresh", RefreshAsync);
         app.MapPost("/api/auth/logout", LogoutAsync);
+        app.MapGet("/api/auth/csrf", GetCsrfAsync)
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
         app.MapGet("/api/auth/me", GetMeAsync)
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
         app.MapGet("/api/users", GetUsersAsync)
@@ -165,6 +167,21 @@ public static class AuthEndpoints
 
         ClearAuthCookies(response, jwtOptions, csrfOptions);
         return ApiResults.Ok().ToHttpResult();
+    }
+
+    private static IResult GetCsrfAsync(
+        CsrfOptions csrfOptions,
+        HttpRequest request,
+        HttpResponse response)
+    {
+        if (!request.Cookies.TryGetValue(csrfOptions.CookieName, out var csrfToken)
+            || string.IsNullOrWhiteSpace(csrfToken))
+        {
+            csrfToken = CreateCsrfToken();
+            WriteCsrfCookie(response, csrfOptions, csrfToken, DateTime.UtcNow.AddDays(1));
+        }
+
+        return ApiResults.Ok(new CsrfTokenDto(csrfToken)).ToHttpResult();
     }
 
     [Authorize(Policy = BoardOilPolicies.AuthenticatedUser)]
@@ -465,6 +482,7 @@ public sealed record RegisterInitialAdminRequest(string UserName, string Passwor
 public sealed record LoginRequest(string UserName, string Password);
 public sealed record AuthUserDto(int Id, string UserName, string Role);
 public sealed record AuthSessionDto(AuthUserDto User, DateTime AccessTokenExpiresAtUtc, DateTime RefreshTokenExpiresAtUtc, string CsrfToken);
+public sealed record CsrfTokenDto(string CsrfToken);
 public sealed record CreateUserRequest(string UserName, string Password, string Role);
 public sealed record UpdateUserRoleRequest(string Role);
 public sealed record UpdateUserStatusRequest(bool IsActive);

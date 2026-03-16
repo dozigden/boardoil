@@ -24,7 +24,7 @@ const realtime = {
   disconnect: vi.fn(),
   announceTyping: vi.fn(),
   stopTyping: vi.fn(),
-  typingSummary: computed(() => () => [] as string[])
+  typingSummary: computed(() => () => false)
 };
 
 vi.mock('../api/boardApi', () => ({
@@ -134,8 +134,8 @@ describe('boardStore', () => {
     await store.saveCard(101, 'Task A+', 'Updated');
 
     expect(store.board?.columns[0].cards[0].title).toBe('Task A+');
-    expect(realtime.stopTyping).toHaveBeenCalledWith(101, 'title');
-    expect(realtime.stopTyping).toHaveBeenCalledWith(101, 'description');
+    expect(realtime.stopTyping).toHaveBeenCalledTimes(1);
+    expect(realtime.stopTyping).toHaveBeenCalledWith(101);
   });
 
   it('finds card by id from board state', async () => {

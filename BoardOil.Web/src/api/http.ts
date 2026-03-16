@@ -4,6 +4,12 @@ import type { AppError } from '../types/appError';
 import type { ApiEnvelope } from '../types/boardTypes';
 import type { Result } from '../types/result';
 
+let csrfToken: string | null = null;
+
+export function setCsrfToken(token: string | null) {
+  csrfToken = token;
+}
+
 export async function getEnvelope<T>(path: string): Promise<Result<ApiEnvelope<T>, AppError>> {
   const responseResult = await request(path, { method: 'GET' });
   if (!responseResult.ok) {
@@ -129,11 +135,23 @@ async function sendJsonForData<T>(
 
 async function request(path: string, init: RequestInit): Promise<Result<Response, AppError>> {
   try {
-    const response = await fetch(buildApiUrl(path), init);
+    const headers = new Headers(init.headers ?? undefined);
+    const method = (init.method ?? 'GET').toUpperCase();
+    const isStateChanging = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+    if (isStateChanging && csrfToken && !headers.has('X-BoardOil-CSRF')) {
+      headers.set('X-BoardOil-CSRF', csrfToken);
+    }
+
+    const response = await fetch(buildApiUrl(path), {
+      ...init,
+      headers,
+      credentials: 'include'
+    });
     if (!response.ok) {
+      const envelope = (await response.clone().json().catch(() => null)) as ApiEnvelope<unknown> | null;
       return err({
         kind: 'http',
-        message: `Request failed with status ${response.status}`
+        message: envelope?.message ?? `Request failed with status ${response.status}`
       });
     }
 
