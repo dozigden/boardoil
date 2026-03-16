@@ -4,14 +4,14 @@ namespace BoardOil.Api.Realtime;
 
 public sealed class BoardHub(ITypingPresenceService typingPresenceService) : Hub
 {
-    public async Task TypingStarted(int cardId, string field, string userLabel)
+    public async Task TypingStarted(int cardId, string userLabel)
     {
-        await typingPresenceService.StartTypingAsync(cardId, field, userLabel, Context.ConnectionAborted);
+        await typingPresenceService.StartTypingAsync(cardId, userLabel, Context.ConnectionAborted);
     }
 
-    public async Task TypingStopped(int cardId, string field, string userLabel)
+    public async Task TypingStopped(int cardId, string userLabel)
     {
-        await typingPresenceService.StopTypingAsync(cardId, field, userLabel, Context.ConnectionAborted);
+        await typingPresenceService.StopTypingAsync(cardId, userLabel, Context.ConnectionAborted);
     }
 
     public override async Task OnConnectedAsync()
@@ -21,7 +21,7 @@ public sealed class BoardHub(ITypingPresenceService typingPresenceService) : Hub
         {
             await Clients.Caller.SendAsync(
                 "TypingChanged",
-                new TypingChangedEvent(entry.CardId, entry.Field, entry.UserLabel, true, entry.ExpiresAtUtc),
+                new TypingChangedEvent(entry.CardId, entry.UserLabel, true, entry.ExpiresAtUtc),
                 Context.ConnectionAborted);
         }
 

@@ -29,8 +29,8 @@
 - [x] Enforce self-protection rules (e.g., prevent removing last admin).
 
 7. Realtime typing contract update  
-- [ ] Change hub payload to card-level typing events (remove `field`).  
-- [ ] Keep TTL/reconnect behavior.
+- [x] Change hub payload to card-level typing events (remove `field`).  
+- [x] Keep TTL/reconnect behavior.
 
 8. Frontend auth integration  
 - [ ] Add login/logout/session restore flow.  

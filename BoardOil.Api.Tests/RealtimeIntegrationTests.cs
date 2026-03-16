@@ -75,7 +75,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
         await StartConnectionsAsync(connectionA, connectionB);
 
         // Act
-        await connectionA.InvokeAsync("TypingStarted", card.Id, "title", "UserA");
+        await connectionA.InvokeAsync("TypingStarted", card.Id, "UserA");
 
         // Assert
         var startedEvent = await WaitAsync(started.Task);
