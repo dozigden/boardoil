@@ -44,7 +44,7 @@
 10. Tests and hardening  
 - [x] Backend: auth flows, bootstrap guard, authorization matrix.  
 - [x] Realtime: card-level typing lifecycle + reconnect.  
-- [ ] Frontend: auth gating + forbidden handling + typing placement.
+- [x] Frontend: auth gating + forbidden handling + typing placement.
 
 11. Docs and wrap-up  
 - [x] Update README for JWT env config + bootstrap flow.  

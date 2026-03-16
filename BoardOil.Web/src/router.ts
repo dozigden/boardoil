@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
+import { resolveAuthNavigation } from './auth/navigationGuard';
 import { useAuthStore } from './stores/authStore';
 
 const routes: RouteRecordRaw[] = [
@@ -58,23 +59,5 @@ export const router = createRouter({
 
 router.beforeEach(async to => {
   const authStore = useAuthStore();
-  if (!authStore.initialized) {
-    await authStore.initialize();
-  }
-
-  if (to.name === 'login' && authStore.isAuthenticated) {
-    return { name: 'board' };
-  }
-
-  const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false);
-  if (requiresAuth && !authStore.isAuthenticated) {
-    return { name: 'login' };
-  }
-
-  const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin === true);
-  if (requiresAdmin && !authStore.isAdmin) {
-    return { name: 'board' };
-  }
-
-  return true;
+  return resolveAuthNavigation(to, authStore);
 });
