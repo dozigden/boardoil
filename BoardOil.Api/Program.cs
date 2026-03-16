@@ -1,3 +1,4 @@
+using BoardOil.Api.Auth;
 using BoardOil.Api.Configuration;
 using BoardOil.Api.Extensions;
 using BoardOil.Api.Realtime;
@@ -116,6 +117,8 @@ app.MapPatch("/api/cards/{id:int}", (int id, UpdateCardRequest request, ICardSer
 
 app.MapDelete("/api/cards/{id:int}", (int id, ICardService cardService) =>
     cardService.DeleteCardAsync(id).ToHttpResult());
+
+app.MapAuthEndpoints();
 
 app.MapHub<BoardHub>("/hubs/board");
 
