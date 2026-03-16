@@ -2,11 +2,16 @@ using BoardOil.Api.Configuration;
 using BoardOil.Api.Extensions;
 using BoardOil.Api.Realtime;
 using BoardOil.Services.Abstractions;
+using BoardOil.Services.Auth;
 using BoardOil.Services.Contracts;
 using BoardOil.Services.DependencyInjection;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configuration);
+var jwtOptions = JwtAuthOptions.FromConfiguration(builder.Configuration);
 
 builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
@@ -34,15 +39,56 @@ builder.Services.AddCors(options =>
 });
 builder.Services.AddSignalR();
 builder.Services.AddSingleton(runtimeOptions);
+builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
 builder.Services.AddSingleton<ITypingPresenceService, TypingPresenceService>();
 builder.Services.AddHostedService<TypingPresenceExpiryService>();
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (string.IsNullOrWhiteSpace(context.Token)
+                    && context.Request.Cookies.TryGetValue(jwtOptions.AccessTokenCookieName, out var cookieToken))
+                {
+                    context.Token = cookieToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
+    });
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(BoardOilPolicies.AuthenticatedUser, policy =>
+        policy.RequireAuthenticatedUser());
+    options.AddPolicy(BoardOilPolicies.AdminOnly, policy =>
+        policy.RequireRole(BoardOilRoles.Admin));
+    options.AddPolicy(BoardOilPolicies.CardEditor, policy =>
+        policy.RequireRole(BoardOilRoles.Admin, BoardOilRoles.Standard));
+});
 
 var app = builder.Build();
 
 await app.Services.InitializeBoardOilAsync();
 app.UseCors("BoardOilDevClient");
+app.UseAuthentication();
+app.UseAuthorization();
 
 // API health endpoint used for container/dev smoke checks.
 app.MapGet("/api/health", () => ApiResults.Ok(new { status = "ok" }).ToHttpResult());
