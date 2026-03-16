@@ -8,6 +8,8 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<BoardColumn> Columns => Set<BoardColumn>();
     public DbSet<BoardCard> Cards => Set<BoardCard>();
+    public DbSet<BoardUser> Users => Set<BoardUser>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,5 +37,26 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         card.Property(x => x.Description).HasMaxLength(5000).IsRequired();
         card.Property(x => x.SortKey).HasMaxLength(20).IsRequired();
         card.HasIndex(x => new { x.BoardColumnId, x.SortKey }).IsUnique();
+
+        var user = modelBuilder.Entity<BoardUser>();
+        user.HasKey(x => x.Id);
+        user.Property(x => x.UserName).HasMaxLength(64).IsRequired();
+        user.Property(x => x.PasswordHash).HasMaxLength(512).IsRequired();
+        user.Property(x => x.Role).IsRequired();
+        user.Property(x => x.IsActive).IsRequired();
+        user.HasIndex(x => x.UserName).IsUnique();
+        user.HasMany(x => x.RefreshTokens)
+            .WithOne(x => x.User)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var refreshToken = modelBuilder.Entity<RefreshToken>();
+        refreshToken.HasKey(x => x.Id);
+        refreshToken.Property(x => x.TokenHash).HasMaxLength(200).IsRequired();
+        refreshToken.Property(x => x.ExpiresAtUtc).IsRequired();
+        refreshToken.Property(x => x.CreatedAtUtc).IsRequired();
+        refreshToken.Property(x => x.RevokedAtUtc).IsRequired(false);
+        refreshToken.Property(x => x.ReplacedByTokenHash).HasMaxLength(200).IsRequired(false);
+        refreshToken.HasIndex(x => x.TokenHash).IsUnique();
     }
 }

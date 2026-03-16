@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.4" />
     <ProjectReference Include="..\BoardOil.Ef\BoardOil.Ef.csproj" />
   </ItemGroup>
 
