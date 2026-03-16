@@ -13,6 +13,7 @@
         </summary>
         <nav class="menu-panel" aria-label="Site menu">
           <RouterLink v-if="isAdmin" to="/columns" class="menu-item" @click="closeMenu">Manage Columns</RouterLink>
+          <RouterLink v-if="isAdmin" to="/users" class="menu-item" @click="closeMenu">Manage Users</RouterLink>
           <button v-if="isAuthenticated" type="button" class="menu-item menu-button" @click="handleLogout">Logout</button>
         </nav>
       </details>
