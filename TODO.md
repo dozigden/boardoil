@@ -3,30 +3,30 @@
 ## Prioritized Execution Order
 
 1. Backend auth data model  
-- [ ] Add `User` + refresh-token persistence model and EF migration.  
-- [ ] Add password hashing utilities and role enum/policies.
+- [x] Add `User` + refresh-token persistence model and EF migration.  
+- [x] Add password hashing utilities and role enum/policies.
 
 2. JWT plumbing  
-- [ ] Configure JWT issuing/validation and cookie transport.  
-- [ ] Add auth middleware + authorization policy registration.
+- [x] Configure JWT issuing/validation and cookie transport.  
+- [x] Add auth middleware + authorization policy registration.
 - [ ] Add CSRF protection strategy for cookie-authenticated state-changing requests.
 
 3. Bootstrap path  
-- [ ] Implement `register-initial-admin` with guard: only when user count is `0`.  
-- [ ] Lock first registered account to `admin`.
+- [x] Implement `register-initial-admin` with guard: only when user count is `0`.  
+- [x] Lock first registered account to `admin`.
 
 4. Core auth APIs  
-- [ ] Implement `login`, `refresh`, `logout`, `me`.  
-- [ ] Define consistent error contract for `401`/`403`.
+- [x] Implement `login`, `refresh`, `logout`, `me`.  
+- [x] Define consistent error contract for `401`/`403`.
 
 5. Authorization on existing APIs  
-- [ ] Require authentication for `GET /api/board`.
-- [ ] Apply admin-only policy to column config routes.  
-- [ ] Apply admin/standard policy to card routes.  
+- [x] Require authentication for `GET /api/board`.
+- [x] Apply admin-only policy to column config routes.  
+- [x] Apply admin/standard policy to card routes.  
 
 6. Admin user-management APIs  
-- [ ] Add list/create/change-role/activate-deactivate endpoints.  
-- [ ] Enforce self-protection rules (e.g., prevent removing last admin).
+- [x] Add list/create/change-role/activate-deactivate endpoints.  
+- [x] Enforce self-protection rules (e.g., prevent removing last admin).
 
 7. Realtime typing contract update  
 - [ ] Change hub payload to card-level typing events (remove `field`).  
