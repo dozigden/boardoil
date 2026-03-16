@@ -37,7 +37,6 @@ export type ApiEnvelope<T> = {
 
 export type TypingChangedEvent = {
   cardId: number;
-  field: string;
   userLabel: string;
   isTyping: boolean;
   expiresAtUtc: string;

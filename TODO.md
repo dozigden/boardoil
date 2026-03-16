@@ -33,13 +33,13 @@
 - [x] Keep TTL/reconnect behavior.
 
 8. Frontend auth integration  
-- [ ] Add login/logout/session restore flow.  
-- [ ] Attach auth state to API calls and handle `401`/`403`.  
-- [ ] Add role-based UI gating for admin-only areas.
+- [x] Add login/logout/session restore flow.  
+- [x] Attach auth state to API calls and handle `401`/`403`.  
+- [x] Add role-based UI gating for admin-only areas.
 
 9. Frontend typing UI alignment  
-- [ ] Keep typing pill only in board card title and card dialog title.  
-- [ ] Remove other typing indicator render paths.
+- [x] Keep typing pill only in board card title and card dialog title.  
+- [x] Remove other typing indicator render paths.
 
 10. Tests and hardening  
 - [ ] Backend: auth flows, bootstrap guard, authorization matrix.  

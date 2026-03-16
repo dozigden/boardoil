@@ -4,7 +4,9 @@
       <button type="button" class="ghost card-modal-close" :aria-label="closeLabel" :title="closeLabel" @click="emit('close')">
         <X :size="18" aria-hidden="true" />
       </button>
-      <h3 class="card-modal-title">{{ title }}</h3>
+      <h3 class="card-modal-title">
+        <slot name="title">{{ title }}</slot>
+      </h3>
       <slot />
       <slot name="actions" />
     </form>

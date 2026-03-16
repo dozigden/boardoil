@@ -1,13 +1,19 @@
 <template>
   <ModalDialog :open="editingCard !== null" :title="dialogTitle" close-label="Cancel editing" @close="closeCardEditor" @submit="saveCard">
+    <template #title>
+      <span class="dialog-title-with-pill">
+        <span>{{ dialogTitle }}</span>
+        <span v-if="isEditingCardTyping" class="typing-pill" aria-label="Someone is typing">...</span>
+      </span>
+    </template>
     <template v-if="editingCard">
       <label>
         Title
         <input
           :value="cardDraft?.title ?? editingCard.title"
           maxlength="200"
-          @focus="announceEditingCardTyping('title')"
-          @blur="stopEditingCardTyping('title')"
+          @focus="announceEditingCardTyping"
+          @blur="stopEditingCardTyping"
           @input="updateEditingCardDraft('title', ($event.target as HTMLInputElement).value)"
         />
       </label>
@@ -17,8 +23,8 @@
         <textarea
           :value="cardDraft?.description ?? editingCard.description"
           maxlength="5000"
-          @focus="announceEditingCardTyping('description')"
-          @blur="stopEditingCardTyping('description')"
+          @focus="announceEditingCardTyping"
+          @blur="stopEditingCardTyping"
           @input="updateEditingCardDraft('description', ($event.target as HTMLTextAreaElement).value)"
         />
       </label>
@@ -54,7 +60,7 @@ import { useBoardStore } from '../stores/boardStore';
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
-const { board } = storeToRefs(boardStore);
+const { board, typingSummary } = storeToRefs(boardStore);
 const { saveCard: saveCardAction, deleteCard, announceTyping, stopTyping } = boardStore;
 const cardDraft = ref<{ title: string; description: string } | null>(null);
 
@@ -66,10 +72,10 @@ const routeCardId = computed<number | null>(() => {
 
 const editingCard = computed(() => boardStore.getCardById(routeCardId.value));
 const dialogTitle = computed(() => (editingCard.value ? `Edit Card #${editingCard.value.id}` : 'Edit Card'));
+const isEditingCardTyping = computed(() => (routeCardId.value === null ? false : typingSummary.value(routeCardId.value)));
 
 function stopTypingForCard(cardId: number) {
-  stopTyping(cardId, 'title');
-  stopTyping(cardId, 'description');
+  stopTyping(cardId);
 }
 
 async function closeCardEditor() {
@@ -89,22 +95,22 @@ function updateEditingCardDraft(field: 'title' | 'description', value: string) {
   cardDraft.value = { ...cardDraft.value, [field]: value };
 }
 
-function announceEditingCardTyping(field: 'title' | 'description') {
+function announceEditingCardTyping() {
   const cardId = routeCardId.value;
   if (cardId === null) {
     return;
   }
 
-  announceTyping(cardId, field);
+  announceTyping(cardId);
 }
 
-function stopEditingCardTyping(field: 'title' | 'description') {
+function stopEditingCardTyping() {
   const cardId = routeCardId.value;
   if (cardId === null) {
     return;
   }
 
-  stopTyping(cardId, field);
+  stopTyping(cardId);
 }
 
 async function saveCard() {

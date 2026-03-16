@@ -54,6 +54,12 @@ body {
   color: #324965;
 }
 
+.user-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: #355779;
+}
+
 .header-menu {
   position: relative;
 }
@@ -96,6 +102,15 @@ body {
   color: #284565;
   border-radius: 6px;
   padding: 0.45rem 0.55rem;
+}
+
+.menu-button {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
 }
 
 .menu-item:hover,
@@ -281,6 +296,12 @@ body {
   align-items: center;
 }
 
+.card-title-with-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .card-id {
   font-size: 0.75rem;
   color: #36557a;
@@ -317,6 +338,21 @@ body {
   font-size: 0.75rem;
   color: #375580;
   margin-bottom: 0.4rem;
+}
+
+.typing-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.8rem;
+  height: 1.1rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  border: 1px solid #cad8ea;
+  background: #edf3fc;
+  color: #36557a;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
 }
 
 .editor {
@@ -366,6 +402,12 @@ body {
 .card-modal-title {
   margin: 0 0 0.75rem;
   color: #1d3b63;
+}
+
+.dialog-title-with-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .card-modal-actions {
@@ -427,6 +469,32 @@ button.danger {
 .error {
   color: #9a1f31;
   margin: 0.5rem 0 0;
+}
+
+.auth-view {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.auth-card {
+  width: min(420px, 92vw);
+  background: rgba(255, 255, 255, 0.93);
+  border: 1px solid #c9d3e3;
+  border-radius: 14px;
+  padding: 1rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.auth-card h2 {
+  margin: 0;
+}
+
+.auth-card label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 720px) {

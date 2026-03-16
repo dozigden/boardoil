@@ -127,8 +127,7 @@ export const useBoardStore = defineStore('board', () => {
 
     upsertCard(result.data);
 
-    await realtime.stopTyping(cardId, 'title');
-    await realtime.stopTyping(cardId, 'description');
+    await realtime.stopTyping(cardId);
   }
 
   async function deleteCard(cardId: number) {

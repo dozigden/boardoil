@@ -15,8 +15,8 @@ type RealtimeHandlers = {
 };
 
 export function createBoardRealtime(handlers: RealtimeHandlers) {
-  const typingByCard = ref<Record<number, Record<string, Set<string>>>>({});
-  const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const typingByCard = ref<Record<number, Set<string>>>({});
+  const typingTimers = new Map<number, ReturnType<typeof setTimeout>>();
   const localUserLabel = resolveLocalUserLabel();
   let hubConnection: HubConnection | null = null;
 
@@ -54,17 +54,15 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     });
 
     hubConnection.on('TypingChanged', (event: TypingChangedEvent) => {
-      const cardTyping = typingByCard.value[event.cardId] ?? {};
-      const fieldSet = cardTyping[event.field] ?? new Set<string>();
+      const labels = typingByCard.value[event.cardId] ?? new Set<string>();
 
       if (event.isTyping) {
-        fieldSet.add(event.userLabel);
+        labels.add(event.userLabel);
       } else {
-        fieldSet.delete(event.userLabel);
+        labels.delete(event.userLabel);
       }
 
-      cardTyping[event.field] = fieldSet;
-      typingByCard.value[event.cardId] = cardTyping;
+      typingByCard.value[event.cardId] = labels;
     });
 
     hubConnection.onreconnected(async () => {
@@ -86,53 +84,45 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     }
   }
 
-  function announceTyping(cardId: number, field: string) {
+  function announceTyping(cardId: number) {
     if (!hubConnection) {
       return;
     }
 
-    const key = `${cardId}:${field}`;
-    void hubConnection.invoke('TypingStarted', cardId, field, localUserLabel);
+    void hubConnection.invoke('TypingStarted', cardId, localUserLabel);
 
-    if (typingTimers.has(key)) {
-      clearTimeout(typingTimers.get(key));
+    if (typingTimers.has(cardId)) {
+      clearTimeout(typingTimers.get(cardId));
     }
 
     const timeout = setTimeout(() => {
-      void stopTyping(cardId, field);
+      void stopTyping(cardId);
     }, 1400);
 
-    typingTimers.set(key, timeout);
+    typingTimers.set(cardId, timeout);
   }
 
-  async function stopTyping(cardId: number, field: string) {
+  async function stopTyping(cardId: number) {
     if (!hubConnection) {
       return;
     }
 
-    const key = `${cardId}:${field}`;
-    if (typingTimers.has(key)) {
-      clearTimeout(typingTimers.get(key));
-      typingTimers.delete(key);
+    if (typingTimers.has(cardId)) {
+      clearTimeout(typingTimers.get(cardId));
+      typingTimers.delete(cardId);
     }
 
-    await hubConnection.invoke('TypingStopped', cardId, field, localUserLabel);
+    await hubConnection.invoke('TypingStopped', cardId, localUserLabel);
   }
 
   const typingSummary = computed(() => {
     return (cardId: number) => {
       const cardTyping = typingByCard.value[cardId];
       if (!cardTyping) {
-        return [] as string[];
+        return false;
       }
 
-      return Object.entries(cardTyping)
-        .flatMap(([field, labels]) =>
-          Array.from(labels)
-            .filter(label => label !== localUserLabel)
-            .map(label => `${label} (${field})`)
-        )
-        .sort((a, b) => a.localeCompare(b));
+      return Array.from(cardTyping).some(label => label !== localUserLabel);
     };
   });
 
