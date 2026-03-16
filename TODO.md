@@ -56,5 +56,5 @@
 - [ ] Add lightweight frontend tests for shared modal lifecycle (open/close via route state, backdrop close, ESC close).
 - [x] Add one lightweight frontend unit test for API base resolution (same-origin default + `VITE_API_BASE` override normalization).
 - [ ] Add reconnect/typing churn test coverage for realtime edge cases.
-- [ ] Document JWT configuration and bootstrap-first-admin flow in README.
-- [ ] Document event-delivery semantics explicitly in README (`realtime updates are best-effort`).
+- [x] Document JWT configuration and bootstrap-first-admin flow in README.
+- [x] Document event-delivery semantics explicitly in README (`realtime updates are best-effort`).

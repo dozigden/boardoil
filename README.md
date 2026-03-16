@@ -63,6 +63,7 @@ npm run dev
 - Hub endpoint: `/hubs/board`
 - Server events: `ColumnCreated`, `ColumnUpdated`, `ColumnDeleted`, `CardCreated`, `CardUpdated`, `CardDeleted`, `CardMoved`, `TypingChanged`
 - Client events: `TypingStarted(cardId, userLabel)`, `TypingStopped(cardId, userLabel)`
+- Delivery semantics: realtime messages are best-effort; clients should treat hub events as incremental hints and rely on reconnect/resync for eventual consistency.
 
 ## Runtime Configuration
 - `BoardOil:DataPath` (default `/data/boardoil.db`)
