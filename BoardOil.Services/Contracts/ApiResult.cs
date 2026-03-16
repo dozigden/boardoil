@@ -44,6 +44,12 @@ public static class ApiResults
     public static ApiResult<T> BadRequest<T>(string message, Dictionary<string, string[]>? validationErrors = null) =>
         new(false, default, 400, message, validationErrors);
 
+    public static ApiResult<T> Unauthorized<T>(string message) =>
+        new(false, default, 401, message);
+
+    public static ApiResult<T> Forbidden<T>(string message) =>
+        new(false, default, 403, message);
+
     public static ApiResult<T> NotFound<T>(string message) =>
         new(false, default, 404, message);
 
@@ -55,6 +61,12 @@ public static class ApiErrors
 {
     public static ApiError BadRequest(string message, Dictionary<string, string[]>? validationErrors = null) =>
         new(400, message, validationErrors);
+
+    public static ApiError Unauthorized(string message) =>
+        new(401, message);
+
+    public static ApiError Forbidden(string message) =>
+        new(403, message);
 
     public static ApiError NotFound(string message) =>
         new(404, message);
