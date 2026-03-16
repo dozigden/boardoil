@@ -18,8 +18,8 @@ public sealed class TypingPresenceServiceTests
             new BoardOilRuntimeOptions { TypingTtlSeconds = 1 },
             time);
 
-        await service.StartTypingAsync(1, "title", "UserA");
-        await service.StartTypingAsync(2, "title", "UserB");
+        await service.StartTypingAsync(1, "UserA");
+        await service.StartTypingAsync(2, "UserB");
         time.Advance(TimeSpan.FromMilliseconds(1100));
 
         proxy.BlockNextSend();
@@ -28,8 +28,8 @@ public sealed class TypingPresenceServiceTests
         var sweepTask = service.SweepExpiredAsync();
         await proxy.WaitForBlockedSendAsync();
 
-        await service.StartTypingAsync(1, "title", "UserA");
-        await service.StartTypingAsync(2, "title", "UserB");
+        await service.StartTypingAsync(1, "UserA");
+        await service.StartTypingAsync(2, "UserB");
 
         proxy.ReleaseBlockedSend();
         await sweepTask;
