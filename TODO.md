@@ -9,7 +9,7 @@
 2. JWT plumbing  
 - [x] Configure JWT issuing/validation and cookie transport.  
 - [x] Add auth middleware + authorization policy registration.
-- [ ] Add CSRF protection strategy for cookie-authenticated state-changing requests.
+- [x] Add CSRF protection strategy for cookie-authenticated state-changing requests.
 
 3. Bootstrap path  
 - [x] Implement `register-initial-admin` with guard: only when user count is `0`.  
