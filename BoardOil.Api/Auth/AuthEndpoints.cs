@@ -27,13 +27,17 @@ public static class AuthEndpoints
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
         app.MapGet("/api/auth/me", GetMeAsync)
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
-        app.MapGet("/api/users", GetUsersAsync)
+        app.MapGet("/api/users", (IUserAdminService userAdminService) =>
+                userAdminService.GetUsersAsync().ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
-        app.MapPost("/api/users", CreateUserAsync)
+        app.MapPost("/api/users", (CreateUserRequest request, IUserAdminService userAdminService) =>
+                userAdminService.CreateUserAsync(request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
-        app.MapPatch("/api/users/{id:int}/role", UpdateUserRoleAsync)
+        app.MapPatch("/api/users/{id:int}/role", (int id, UpdateUserRoleRequest request, IUserAdminService userAdminService) =>
+                userAdminService.UpdateUserRoleAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
-        app.MapPatch("/api/users/{id:int}/status", UpdateUserStatusAsync)
+        app.MapPatch("/api/users/{id:int}/status", (int id, UpdateUserStatusRequest request, IUserAdminService userAdminService) =>
+                userAdminService.UpdateUserStatusAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
         return app;
@@ -204,121 +208,6 @@ public static class AuthEndpoints
         return ApiResults.Ok(new AuthUserDto(user.Id, user.UserName, user.Role.ToString())).ToHttpResult();
     }
 
-    private static async Task<IResult> GetUsersAsync(BoardOilDbContext dbContext)
-    {
-        var users = await dbContext.Users
-            .OrderBy(x => x.UserName)
-            .Select(x => new ManagedUserDto(x.Id, x.UserName, x.Role.ToString(), x.IsActive, x.CreatedAtUtc, x.UpdatedAtUtc))
-            .ToListAsync();
-
-        return ApiResults.Ok<IReadOnlyList<ManagedUserDto>>(users).ToHttpResult();
-    }
-
-    private static async Task<IResult> CreateUserAsync(
-        CreateUserRequest request,
-        BoardOilDbContext dbContext,
-        IPasswordHashService passwordHashService,
-        TimeProvider timeProvider)
-    {
-        var validation = ValidateCredentials(request.UserName, request.Password);
-        if (validation is not null)
-        {
-            return ApiResults.BadRequest<ManagedUserDto>("Validation failed.", validation).ToHttpResult();
-        }
-
-        if (!TryParseRole(request.Role, out var role))
-        {
-            return ApiResults.BadRequest<ManagedUserDto>("Role must be 'Admin' or 'Standard'.").ToHttpResult();
-        }
-
-        var userName = request.UserName.Trim();
-        var exists = await dbContext.Users.AnyAsync(x => x.UserName == userName);
-        if (exists)
-        {
-            return ApiResults.BadRequest<ManagedUserDto>("Username already exists.").ToHttpResult();
-        }
-
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        var user = new BoardUser
-        {
-            UserName = userName,
-            PasswordHash = passwordHashService.HashPassword(request.Password),
-            Role = role,
-            IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
-        };
-
-        dbContext.Users.Add(user);
-        await dbContext.SaveChangesAsync();
-
-        return ApiResults.Created(new ManagedUserDto(user.Id, user.UserName, user.Role.ToString(), user.IsActive, user.CreatedAtUtc, user.UpdatedAtUtc))
-            .ToHttpResult();
-    }
-
-    private static async Task<IResult> UpdateUserRoleAsync(
-        int id,
-        UpdateUserRoleRequest request,
-        BoardOilDbContext dbContext,
-        TimeProvider timeProvider)
-    {
-        if (!TryParseRole(request.Role, out var role))
-        {
-            return ApiResults.BadRequest<ManagedUserDto>("Role must be 'Admin' or 'Standard'.").ToHttpResult();
-        }
-
-        var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == id);
-        if (user is null)
-        {
-            return ApiResults.NotFound<ManagedUserDto>("User not found.").ToHttpResult();
-        }
-
-        if (user.Role == UserRole.Admin && role != UserRole.Admin)
-        {
-            var activeAdminCount = await dbContext.Users.CountAsync(x => x.IsActive && x.Role == UserRole.Admin);
-            if (activeAdminCount <= 1)
-            {
-                return ApiResults.BadRequest<ManagedUserDto>("Cannot remove the last active admin.").ToHttpResult();
-            }
-        }
-
-        user.Role = role;
-        user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
-        await dbContext.SaveChangesAsync();
-
-        return ApiResults.Ok(new ManagedUserDto(user.Id, user.UserName, user.Role.ToString(), user.IsActive, user.CreatedAtUtc, user.UpdatedAtUtc))
-            .ToHttpResult();
-    }
-
-    private static async Task<IResult> UpdateUserStatusAsync(
-        int id,
-        UpdateUserStatusRequest request,
-        BoardOilDbContext dbContext,
-        TimeProvider timeProvider)
-    {
-        var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == id);
-        if (user is null)
-        {
-            return ApiResults.NotFound<ManagedUserDto>("User not found.").ToHttpResult();
-        }
-
-        if (!request.IsActive && user.IsActive && user.Role == UserRole.Admin)
-        {
-            var activeAdminCount = await dbContext.Users.CountAsync(x => x.IsActive && x.Role == UserRole.Admin);
-            if (activeAdminCount <= 1)
-            {
-                return ApiResults.BadRequest<ManagedUserDto>("Cannot deactivate the last active admin.").ToHttpResult();
-            }
-        }
-
-        user.IsActive = request.IsActive;
-        user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
-        await dbContext.SaveChangesAsync();
-
-        return ApiResults.Ok(new ManagedUserDto(user.Id, user.UserName, user.Role.ToString(), user.IsActive, user.CreatedAtUtc, user.UpdatedAtUtc))
-            .ToHttpResult();
-    }
-
     private static async Task<AuthSession> CreateSessionAsync(
         BoardOilDbContext dbContext,
         BoardUser user,
@@ -403,24 +292,6 @@ public static class AuthEndpoints
         return errors.Count == 0 ? null : errors;
     }
 
-    private static bool TryParseRole(string roleValue, out UserRole role)
-    {
-        if (string.Equals(roleValue, BoardOilRoles.Admin, StringComparison.OrdinalIgnoreCase))
-        {
-            role = UserRole.Admin;
-            return true;
-        }
-
-        if (string.Equals(roleValue, BoardOilRoles.Standard, StringComparison.OrdinalIgnoreCase))
-        {
-            role = UserRole.Standard;
-            return true;
-        }
-
-        role = default;
-        return false;
-    }
-
     private static void WriteAuthCookies(
         HttpResponse response,
         JwtAuthOptions jwtOptions,
@@ -483,10 +354,6 @@ public sealed record LoginRequest(string UserName, string Password);
 public sealed record AuthUserDto(int Id, string UserName, string Role);
 public sealed record AuthSessionDto(AuthUserDto User, DateTime AccessTokenExpiresAtUtc, DateTime RefreshTokenExpiresAtUtc, string CsrfToken);
 public sealed record CsrfTokenDto(string CsrfToken);
-public sealed record CreateUserRequest(string UserName, string Password, string Role);
-public sealed record UpdateUserRoleRequest(string Role);
-public sealed record UpdateUserStatusRequest(bool IsActive);
-public sealed record ManagedUserDto(int Id, string UserName, string Role, bool IsActive, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 
 internal sealed record AuthSession(
     string AccessToken,

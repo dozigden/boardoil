@@ -18,10 +18,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBoardRepository, BoardRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
         services.AddScoped<IBoardService, BoardService>();
         services.AddScoped<IColumnService, ColumnService>();
         services.AddScoped<ICardService, CardService>();
+        services.AddScoped<IUserAdminService, UserAdminService>();
 
         return services;
     }
