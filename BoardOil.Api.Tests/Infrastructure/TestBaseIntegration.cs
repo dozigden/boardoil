@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using Xunit;
@@ -18,7 +20,7 @@ public abstract class TestBaseIntegration : IAsyncLifetime
         DatabasePath = BuildDbPath(DbNamePrefix);
         Factory = new BoardOilApiFactory(DatabasePath, TypingTtlSeconds);
         Client = Factory.CreateClient();
-        return Task.CompletedTask;
+        return AuthenticateAsInitialAdminAsync(Client);
     }
 
     public async Task DisposeAsync()
@@ -30,6 +32,19 @@ public abstract class TestBaseIntegration : IAsyncLifetime
     }
 
     protected static string CreateDbPath(string dbNamePrefix) => BuildDbPath(dbNamePrefix);
+
+    protected static async Task AuthenticateAsInitialAdminAsync(HttpClient client)
+    {
+        var register = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new RegisterInitialAdminRequest("admin", "Password1234!"));
+        if (register.StatusCode == HttpStatusCode.Conflict)
+        {
+            var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", "Password1234!"));
+            login.EnsureSuccessStatusCode();
+            return;
+        }
+
+        register.EnsureSuccessStatusCode();
+    }
 
     protected HubConnection CreateHubConnection()
     {
@@ -60,4 +75,7 @@ public abstract class TestBaseIntegration : IAsyncLifetime
         Directory.CreateDirectory(root);
         return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
     }
+
+    private sealed record RegisterInitialAdminRequest(string UserName, string Password);
+    private sealed record LoginRequest(string UserName, string Password);
 }
