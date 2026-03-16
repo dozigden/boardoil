@@ -42,14 +42,14 @@
 - [x] Remove other typing indicator render paths.
 
 10. Tests and hardening  
-- [ ] Backend: auth flows, bootstrap guard, authorization matrix.  
-- [ ] Realtime: card-level typing lifecycle + reconnect.  
+- [x] Backend: auth flows, bootstrap guard, authorization matrix.  
+- [x] Realtime: card-level typing lifecycle + reconnect.  
 - [ ] Frontend: auth gating + forbidden handling + typing placement.
 
 11. Docs and wrap-up  
-- [ ] Update README for JWT env config + bootstrap flow.  
-- [ ] Document CSRF behavior and client requirements in README.
-- [ ] Update TODO status and keep `BoardOil.Web` check gate (`npm run check`) as pre-commit validation.
+- [x] Update README for JWT env config + bootstrap flow.  
+- [x] Document CSRF behavior and client requirements in README.
+- [x] Update TODO status and keep `BoardOil.Web` check gate (`npm run check`) as pre-commit validation.
 
 ## Deferred Backlog
 - [ ] Fix missing tags feature in card workflow (`dev card #8`: "Where's the tags").
