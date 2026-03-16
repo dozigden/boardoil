@@ -281,6 +281,16 @@ body {
   align-items: center;
 }
 
+.card-id {
+  font-size: 0.75rem;
+  color: #36557a;
+  background: #edf3fc;
+  border: 1px solid #cad8ea;
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  line-height: 1.2;
+}
+
 .card-title-trigger {
   width: auto;
   margin: 0;

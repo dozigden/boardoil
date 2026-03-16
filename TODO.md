@@ -1,7 +1,7 @@
 # TODO
 
 ## Next Up
-- [ ] Show card ID in card UI/details (`dev card #13`: "Id is missing in card").
+- [x] Show card ID in card UI/details (`dev card #13`: "Id is missing in card").
 
 ## Soon
 - [ ] Fix missing tags feature in card workflow (`dev card #8`: "Where's the tags").

@@ -14,6 +14,7 @@
   >
     <div class="card-header">
       <strong>{{ card.title }}</strong>
+      <span class="card-id">#{{ card.id }}</span>
     </div>
 
     <p class="description">{{ card.description }}</p>

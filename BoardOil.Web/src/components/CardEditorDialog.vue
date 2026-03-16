@@ -65,7 +65,7 @@ const routeCardId = computed<number | null>(() => {
 });
 
 const editingCard = computed(() => boardStore.getCardById(routeCardId.value));
-const dialogTitle = computed(() => (editingCard.value ? String(editingCard.value.id) : 'Edit Card'));
+const dialogTitle = computed(() => (editingCard.value ? `Edit Card #${editingCard.value.id}` : 'Edit Card'));
 
 function stopTypingForCard(cardId: number) {
   stopTyping(cardId, 'title');
