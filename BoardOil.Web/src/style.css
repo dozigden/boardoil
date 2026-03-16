@@ -497,6 +497,77 @@ button.danger {
   font-size: 0.9rem;
 }
 
+.users-manager {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+  max-width: 760px;
+}
+
+.users-header h2 {
+  margin: 0;
+}
+
+.users-header p {
+  margin: 0.2rem 0 0;
+  color: #335373;
+}
+
+.users-create {
+  display: grid;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #c9d3e3;
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.users-create h3 {
+  margin: 0;
+}
+
+.users-create label {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.users-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.users-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #c9d3e3;
+  border-radius: 12px;
+  padding: 0.7rem;
+}
+
+.users-item-meta {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.users-badges {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.users-item-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.success {
+  color: #17613d;
+  margin: 0;
+}
+
 @media (max-width: 720px) {
   .create-column {
     flex-direction: column;

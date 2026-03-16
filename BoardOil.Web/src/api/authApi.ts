@@ -1,8 +1,8 @@
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
-import type { AuthSession, AuthUser, CsrfTokenDto } from '../types/authTypes';
-import { getEnvelope, postData, postJson } from './http';
+import type { AuthSession, AuthUser, CsrfTokenDto, ManagedUser } from '../types/authTypes';
+import { getEnvelope, patchData, postData, postJson } from './http';
 
 export type AuthApi = ReturnType<typeof createAuthApi>;
 
@@ -44,11 +44,36 @@ export function createAuthApi() {
     return ok(envelopeResult.data.data.csrfToken);
   }
 
+  async function getUsers(): Promise<Result<ManagedUser[], AppError>> {
+    const envelopeResult = await getEnvelope<ManagedUser[]>('/api/users');
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function createUser(userName: string, password: string, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
+    return postData<ManagedUser>('/api/users', { userName, password, role });
+  }
+
+  async function updateUserRole(userId: number, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
+    return patchData<ManagedUser>(`/api/users/${userId}/role`, { role });
+  }
+
+  async function updateUserStatus(userId: number, isActive: boolean): Promise<Result<ManagedUser, AppError>> {
+    return patchData<ManagedUser>(`/api/users/${userId}/status`, { isActive });
+  }
+
   return {
     login,
     logout,
     getMe,
-    getCsrfToken
+    getCsrfToken,
+    getUsers,
+    createUser,
+    updateUserRole,
+    updateUserStatus
   };
 }
 
