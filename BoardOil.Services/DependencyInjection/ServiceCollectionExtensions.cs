@@ -16,10 +16,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICardValidator, CardValidator>();
         services.AddSingleton<IPasswordHashService, PasswordHashService>();
         services.AddScoped<IBoardRepository, BoardRepository>();
+        services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
+        services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBoardService, BoardService>();
         services.AddScoped<IColumnService, ColumnService>();
         services.AddScoped<ICardService, CardService>();
