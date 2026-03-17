@@ -8,14 +8,17 @@ This file captures the intended structure of BoardOil so future work follows con
   - HTTP transport and routing only.
   - Authn/authz policy wiring.
   - Endpoint handlers should stay thin and delegate business rules.
+- `BoardOil.Abstractions`
+  - Cross-project auth abstractions and shared auth/user entity types.
+  - Keep this focused; do not turn it into a generic dumping ground.
 - `BoardOil.Services`
   - Business logic and invariants.
-  - Service interfaces in `Abstractions/`.
-  - Service implementations in `Implementations/`.
-  - DTO/request contracts in `Contracts/`.
-  - Entity-to-contract mapping in `Mappings/`.
+  - Organize by top-level feature folder (for example `Auth/`, `Board/`, `Column/`, `Card/`).
+  - Prefer flat feature folders (avoid extra `Abstractions/Contracts/Implementations/Mappings` nesting inside each feature).
+  - Keep service-layer abstractions that depend on service contracts in `BoardOil.Services` (example: `IAuthService`).
 - `BoardOil.Ef`
-  - EF Core entities, DbContext, migrations.
+  - EF Core DbContext, migrations, and repository implementations.
+  - Concrete repositories that use EF should live here (example: `AuthRepository` in `Repositories/`).
 
 ## Established Backend Pattern
 
@@ -30,6 +33,20 @@ Use this flow for domain features:
 Current examples:
 - Columns/Cards already follow this pattern.
 - User admin now follows this pattern.
+
+## Desired Structure Baseline (Before Next Refactors)
+
+Use Auth as the template for upcoming feature refactors:
+
+- `BoardOil.Services/Auth` is the model feature folder shape (flat files, single feature namespace).
+- `BoardOil.Abstractions/Auth` holds reusable auth interfaces used across projects:
+  - `IAuthRepository`
+  - `IAccessTokenIssuer`
+  - `IPasswordHashService`
+- `BoardOil.Services/Auth/IAuthService` remains in Services for now because it depends on service contracts and `ApiResult`.
+- `BoardOil.Ef/Repositories` contains EF-backed repository implementations (currently `AuthRepository`).
+
+When refactoring board/column/card, follow this same structure direction unless we explicitly revise it first.
 
 ## Auth Boundary Split
 

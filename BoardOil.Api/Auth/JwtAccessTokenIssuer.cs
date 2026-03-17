@@ -1,6 +1,6 @@
 using BoardOil.Api.Configuration;
-using BoardOil.Ef.Entities;
-using BoardOil.Services.Abstractions;
+using BoardOil.Abstractions.Entities;
+using BoardOil.Abstractions.Auth;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;

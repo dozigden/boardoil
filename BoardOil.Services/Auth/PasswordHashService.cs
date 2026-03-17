@@ -1,7 +1,7 @@
-using BoardOil.Services.Abstractions;
+using BoardOil.Abstractions.Auth;
 using Microsoft.AspNetCore.Identity;
 
-namespace BoardOil.Services.Implementations;
+namespace BoardOil.Services.Auth;
 
 public sealed class PasswordHashService : IPasswordHashService
 {

@@ -1,4 +1,4 @@
-using BoardOil.Ef.Entities;
+using BoardOil.Abstractions.Entities;
 
 namespace BoardOil.Services.Abstractions;
 

@@ -1,4 +1,4 @@
-using BoardOil.Services.Implementations;
+using BoardOil.Services.Auth;
 using Xunit;
 
 namespace BoardOil.Services.Tests;

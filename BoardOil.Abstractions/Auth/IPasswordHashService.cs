@@ -1,4 +1,4 @@
-namespace BoardOil.Services.Abstractions;
+namespace BoardOil.Abstractions.Auth;
 
 public interface IPasswordHashService
 {
