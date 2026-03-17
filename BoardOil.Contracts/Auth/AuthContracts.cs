@@ -1,4 +1,4 @@
-namespace BoardOil.Services.Auth;
+namespace BoardOil.Contracts.Auth;
 
 public sealed record RegisterInitialAdminRequest(string UserName, string Password);
 
