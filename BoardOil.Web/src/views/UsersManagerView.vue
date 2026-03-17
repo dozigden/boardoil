@@ -1,29 +1,12 @@
 <template>
   <section class="users-manager">
     <header class="users-header">
-      <h2>User Management</h2>
-      <p>Create and manage local BoardOil accounts.</p>
+      <div>
+        <h2>User Management</h2>
+        <p>Create and manage local BoardOil accounts.</p>
+      </div>
+      <button type="button" :disabled="busy" @click="openCreateDialog">Create user</button>
     </header>
-
-    <form class="users-create" @submit.prevent="createUser">
-      <h3>Create User</h3>
-      <label>
-        Username
-        <input v-model="newUserName" maxlength="64" required />
-      </label>
-      <label>
-        Password
-        <input v-model="newPassword" type="password" required />
-      </label>
-      <label>
-        Role
-        <select v-model="newRole">
-          <option value="Standard">Standard</option>
-          <option value="Admin">Admin</option>
-        </select>
-      </label>
-      <button type="submit" :disabled="busy">Create user</button>
-    </form>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="success">{{ successMessage }}</p>
@@ -48,12 +31,15 @@
         </div>
       </article>
     </section>
+
+    <UserCreateDialog :open="isCreateDialogOpen" :busy="busy" @close="closeCreateDialog" @submit="createUser" />
   </section>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { createAuthApi } from '../api/authApi';
+import UserCreateDialog from '../components/UserCreateDialog.vue';
 import type { ManagedUser } from '../types/authTypes';
 
 const authApi = createAuthApi();
@@ -61,9 +47,7 @@ const users = ref<ManagedUser[]>([]);
 const busy = ref(false);
 const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
-const newUserName = ref('');
-const newPassword = ref('');
-const newRole = ref<'Admin' | 'Standard'>('Standard');
+const isCreateDialogOpen = ref(false);
 
 async function loadUsers() {
   busy.value = true;
@@ -81,21 +65,27 @@ async function loadUsers() {
   }
 }
 
-async function createUser() {
+function openCreateDialog() {
+  isCreateDialogOpen.value = true;
+}
+
+function closeCreateDialog() {
+  isCreateDialogOpen.value = false;
+}
+
+async function createUser(payload: { userName: string; password: string; role: 'Admin' | 'Standard' }) {
   busy.value = true;
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await authApi.createUser(newUserName.value, newPassword.value, newRole.value);
+    const result = await authApi.createUser(payload.userName, payload.password, payload.role);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
     }
 
     users.value = [...users.value, result.data].sort((a, b) => a.userName.localeCompare(b.userName));
-    newUserName.value = '';
-    newPassword.value = '';
-    newRole.value = 'Standard';
+    isCreateDialogOpen.value = false;
     successMessage.value = `Created user ${result.data.userName}.`;
   } finally {
     busy.value = false;
