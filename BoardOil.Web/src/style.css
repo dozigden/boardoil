@@ -513,6 +513,16 @@ button.danger {
   color: #335373;
 }
 
+.users-header {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.users-header > button {
+  width: auto;
+  justify-self: start;
+}
+
 .users-create {
   display: grid;
   gap: 0.5rem;
