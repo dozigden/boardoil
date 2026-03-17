@@ -43,7 +43,14 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton(runtimeOptions);
 builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton(csrfOptions);
+builder.Services.AddSingleton(new AuthSessionOptions
+{
+    AccessTokenMinutes = jwtOptions.AccessTokenMinutes,
+    RefreshTokenDays = jwtOptions.RefreshTokenDays
+});
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
+builder.Services.AddScoped<IAuthHttpSessionService, AuthHttpSessionService>();
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
 builder.Services.AddSingleton<ITypingPresenceService, TypingPresenceService>();
 builder.Services.AddHostedService<TypingPresenceExpiryService>();

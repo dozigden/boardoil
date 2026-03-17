@@ -7,5 +7,6 @@
 - [ ] Improve frontend auth failure handling: preserve HTTP status in API errors, clear session on `401`, and route to `/login` predictably.
 
 ## Deferred Backlog
+- [ ] Extract remaining endpoint route mapping from `Program.cs` into dedicated endpoint modules (board/columns/cards) to match `AuthEndpoints` structure.
 - [ ] Fix missing tags feature in card workflow (`dev card #8`: "Where's the tags").
 - [ ] Add lightweight frontend tests for shared modal lifecycle (open/close via route state, backdrop close, ESC close).
