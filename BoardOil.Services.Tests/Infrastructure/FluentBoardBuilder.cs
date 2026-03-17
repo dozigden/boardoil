@@ -1,6 +1,7 @@
 using System.Numerics;
 using BoardOil.Ef;
 using BoardOil.Ef.Entities;
+using BoardEntity = BoardOil.Ef.Entities.Board;
 
 namespace BoardOil.Services.Tests.Infrastructure;
 
@@ -13,7 +14,7 @@ public sealed class FluentBoardBuilder
 
     private readonly BoardOilDbContext _db;
     private readonly DateTime _nowUtc;
-    private readonly Board _board;
+    private readonly BoardEntity _board;
     private readonly Dictionary<string, BoardColumn> _columnsByTitle = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<BoardCard>> _cardsByColumnTitle = new(StringComparer.Ordinal);
     private BoardColumn? _currentColumn;
@@ -25,7 +26,7 @@ public sealed class FluentBoardBuilder
         _db = db;
         _nowUtc = nowUtc;
 
-        _board = new Board
+        _board = new BoardEntity
         {
             Name = boardName,
             CreatedAtUtc = _nowUtc,

@@ -1,5 +1,6 @@
-using BoardOil.Services.Abstractions;
-using BoardOil.Services.Implementations;
+using BoardOil.Services.Board;
+using BoardOil.Services.Card;
+using BoardOil.Services.Column;
 using BoardOil.Services.Tests.Infrastructure;
 using Xunit;
 

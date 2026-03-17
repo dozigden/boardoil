@@ -1,7 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using BoardOil.Api.Tests.Infrastructure;
-using BoardOil.Services.Contracts;
+using BoardOil.Services.Card;
+using BoardOil.Services.Column;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
