@@ -1,10 +1,10 @@
-using BoardOil.Ef.Entities;
+using BoardOil.Contracts.Card;
 
 namespace BoardOil.Services.Card;
 
 public static class CardMappingExtensions
 {
-    public static CardDto ToCardDto(this BoardCard card, int position) =>
+    public static CardDto ToCardDto(this CardRecord card, int position) =>
         new(
             card.Id,
             card.BoardColumnId,

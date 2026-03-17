@@ -1,6 +1,6 @@
-using BoardOil.Services.Card;
+using BoardOil.Contracts.Card;
 
-namespace BoardOil.Services.Board;
+namespace BoardOil.Contracts.Board;
 
 public sealed record BoardDto(
     int Id,

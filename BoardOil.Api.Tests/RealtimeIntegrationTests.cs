@@ -1,8 +1,8 @@
 using System.Net.Http.Json;
 using BoardOil.Api.Realtime;
 using BoardOil.Api.Tests.Infrastructure;
-using BoardOil.Services.Card;
-using BoardOil.Services.Column;
+using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Column;
 using Microsoft.AspNetCore.SignalR.Client;
 using Xunit;
 

@@ -1,6 +1,6 @@
 using BoardOil.Abstractions.Entities;
 
-namespace BoardOil.Services.Users;
+namespace BoardOil.Abstractions.Users;
 
 public interface IUserRepository
 {

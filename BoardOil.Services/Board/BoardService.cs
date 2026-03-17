@@ -1,6 +1,11 @@
+using BoardOil.Abstractions;
+using BoardOil.Abstractions.Board;
+using BoardOil.Abstractions.Card;
+using BoardOil.Abstractions.Column;
+using BoardOil.Contracts.Board;
+using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Contracts;
 using BoardOil.Services.Card;
-using BoardOil.Services.Column;
-using BoardOil.Services.Contracts;
 
 namespace BoardOil.Services.Board;
 

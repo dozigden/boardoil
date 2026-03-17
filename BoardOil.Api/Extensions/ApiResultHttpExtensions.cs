@@ -1,4 +1,4 @@
-using BoardOil.Services.Contracts;
+using BoardOil.Contracts.Contracts;
 using Microsoft.AspNetCore.Http;
 
 namespace BoardOil.Api.Extensions;

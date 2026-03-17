@@ -1,6 +1,7 @@
-using BoardOil.Ef.Entities;
-using BoardOil.Services.Abstractions;
-using BoardOil.Services.Contracts;
+using BoardOil.Abstractions;
+using BoardOil.Abstractions.Card;
+using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Contracts;
 using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Card;
@@ -40,28 +41,23 @@ public sealed class CardService(
         }
 
         var now = DateTime.UtcNow;
-        var card = new BoardCard
-        {
-            BoardColumnId = request.BoardColumnId,
-            Title = request.Title.Trim(),
-            Description = request.Description,
-            SortKey = sortKey!,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
-        };
+        var createdRecord = await repository.CreateAsync(new CreateCardRecord(
+            BoardColumnId: request.BoardColumnId,
+            Title: request.Title.Trim(),
+            Description: request.Description,
+            SortKey: sortKey!,
+            CreatedAtUtc: now,
+            UpdatedAtUtc: now));
 
-        repository.Add(card);
-        await repository.SaveChangesAsync();
-
-        var created = card.ToCardDto(insertIndex);
+        var created = createdRecord.ToCardDto(insertIndex);
         await _boardEvents.CardCreatedAsync(created);
         return ApiResults.Created(created);
     }
 
     public async Task<ApiResult<CardDto>> UpdateCardAsync(int id, UpdateCardRequest request)
     {
-        var card = await repository.GetByIdAsync(id);
-        if (card is null)
+        var existingCard = await repository.GetByIdAsync(id);
+        if (existingCard is null)
         {
             return ApiErrors.NotFound("Card not found.");
         }
@@ -72,9 +68,11 @@ public sealed class CardService(
             return ValidationFail(updateValidationErrors);
         }
 
-        var metadataChanged = ApplyMetadataUpdates(card, request);
+        var updatedTitle = request.Title is null ? existingCard.Title : request.Title.Trim();
+        var updatedDescription = request.Description ?? existingCard.Description;
+        var metadataChanged = updatedTitle != existingCard.Title || updatedDescription != existingCard.Description;
 
-        var sourceColumnId = card.BoardColumnId;
+        var sourceColumnId = existingCard.BoardColumnId;
         var targetColumnId = request.BoardColumnId ?? sourceColumnId;
         var targetExists = await EnsureTargetColumnExistsAsync(sourceColumnId, targetColumnId);
         if (!targetExists)
@@ -90,13 +88,23 @@ public sealed class CardService(
         }
 
         ApiError? operationError;
+        string targetSortKey;
         if (targetColumnId == sourceColumnId)
         {
-            operationError = await UpdateWithinColumnAsync(card, request.Position, sourceCards, sourceIndex, metadataChanged);
+            operationError = UpdateSortKeyWithinColumn(
+                request.Position,
+                sourceCards,
+                sourceIndex,
+                existingCard.SortKey,
+                out targetSortKey);
         }
         else
         {
-            operationError = await MoveAcrossColumnsAsync(card, targetColumnId, request.Position, sourceCards, sourceIndex);
+            var moveResult = await CalculateSortKeyAcrossColumnsAsync(
+                targetColumnId,
+                request.Position);
+            operationError = moveResult.Error;
+            targetSortKey = moveResult.SortKey;
         }
 
         if (operationError is not null)
@@ -104,10 +112,33 @@ public sealed class CardService(
             return operationError;
         }
 
-        var finalPosition = await GetCardPositionAsync(card.BoardColumnId, card.Id);
-        var dto = card.ToCardDto(finalPosition < 0 ? 0 : finalPosition);
-
         var movementRequested = request.BoardColumnId is not null || request.Position is not null;
+        var changed = metadataChanged
+            || targetColumnId != existingCard.BoardColumnId
+            || targetSortKey != existingCard.SortKey;
+
+        var updatedCard = existingCard with
+        {
+            BoardColumnId = targetColumnId,
+            Title = updatedTitle,
+            Description = updatedDescription,
+            SortKey = targetSortKey,
+            UpdatedAtUtc = changed ? DateTime.UtcNow : existingCard.UpdatedAtUtc
+        };
+
+        if (changed)
+        {
+            await repository.UpdateAsync(new UpdateCardRecord(
+                Id: updatedCard.Id,
+                BoardColumnId: updatedCard.BoardColumnId,
+                Title: updatedCard.Title,
+                Description: updatedCard.Description,
+                SortKey: updatedCard.SortKey,
+                UpdatedAtUtc: updatedCard.UpdatedAtUtc));
+        }
+
+        var finalPosition = await GetCardPositionAsync(updatedCard.BoardColumnId, updatedCard.Id);
+        var dto = updatedCard.ToCardDto(finalPosition < 0 ? 0 : finalPosition);
         if (movementRequested)
         {
             await _boardEvents.CardMovedAsync(dto);
@@ -123,14 +154,12 @@ public sealed class CardService(
     public async Task<ApiResult> DeleteCardAsync(int id)
     {
         var card = await repository.GetByIdAsync(id);
-
         if (card is null)
         {
             return ApiResults.Ok();
         }
 
-        repository.Remove(card);
-        await repository.SaveChangesAsync();
+        await repository.DeleteAsync(id);
         await _boardEvents.CardDeletedAsync(id);
 
         return ApiResults.Ok();
@@ -143,25 +172,6 @@ public sealed class CardService(
                 .GroupBy(x => string.IsNullOrWhiteSpace(x.Property) ? string.Empty : x.Property)
                 .ToDictionary(x => x.Key, x => x.Select(y => y.Message).ToArray()));
 
-    private static bool ApplyMetadataUpdates(BoardCard card, UpdateCardRequest request)
-    {
-        var changed = false;
-        if (request.Title is not null)
-        {
-            var normalizedTitle = request.Title.Trim();
-            changed = changed || card.Title != normalizedTitle;
-            card.Title = normalizedTitle;
-        }
-
-        if (request.Description is not null)
-        {
-            changed = changed || card.Description != request.Description;
-            card.Description = request.Description;
-        }
-
-        return changed;
-    }
-
     private async Task<bool> EnsureTargetColumnExistsAsync(int sourceColumnId, int targetColumnId)
     {
         if (targetColumnId == sourceColumnId)
@@ -172,12 +182,12 @@ public sealed class CardService(
         return await repository.ColumnExistsAsync(targetColumnId);
     }
 
-    private async Task<ApiError?> UpdateWithinColumnAsync(
-        BoardCard card,
+    private static ApiError? UpdateSortKeyWithinColumn(
         int? requestedPosition,
-        List<BoardCard> sourceCards,
+        List<CardRecord> sourceCards,
         int sourceIndex,
-        bool metadataChanged)
+        string currentSortKey,
+        out string targetSortKey)
     {
         sourceCards.RemoveAt(sourceIndex);
         var targetIndex = requestedPosition is null
@@ -186,13 +196,7 @@ public sealed class CardService(
 
         if (targetIndex == sourceIndex)
         {
-            if (!metadataChanged)
-            {
-                return null;
-            }
-
-            card.UpdatedAtUtc = DateTime.UtcNow;
-            await repository.SaveChangesAsync();
+            targetSortKey = currentSortKey;
             return null;
         }
 
@@ -200,24 +204,19 @@ public sealed class CardService(
         var nextKey = targetIndex < sourceCards.Count ? sourceCards[targetIndex].SortKey : null;
         if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
         {
+            targetSortKey = currentSortKey;
             return allocationError;
         }
 
-        card.SortKey = sortKey!;
-        card.UpdatedAtUtc = DateTime.UtcNow;
-        await repository.SaveChangesAsync();
+        targetSortKey = sortKey!;
         return null;
     }
 
-    private async Task<ApiError?> MoveAcrossColumnsAsync(
-        BoardCard card,
+    private async Task<(ApiError? Error, string SortKey)> CalculateSortKeyAcrossColumnsAsync(
         int targetColumnId,
-        int? requestedPosition,
-        List<BoardCard> sourceCards,
-        int sourceIndex)
+        int? requestedPosition)
     {
         var targetCards = (await repository.GetCardsInColumnOrderedAsync(targetColumnId)).ToList();
-        sourceCards.RemoveAt(sourceIndex);
 
         var insertIndex = requestedPosition is null
             ? targetCards.Count
@@ -227,14 +226,10 @@ public sealed class CardService(
         var nextKey = insertIndex < targetCards.Count ? targetCards[insertIndex].SortKey : null;
         if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
         {
-            return allocationError;
+            return (allocationError, string.Empty);
         }
 
-        card.BoardColumnId = targetColumnId;
-        card.SortKey = sortKey!;
-        card.UpdatedAtUtc = DateTime.UtcNow;
-        await repository.SaveChangesAsync();
-        return null;
+        return (null, sortKey!);
     }
 
     private async Task<int> GetCardPositionAsync(int columnId, int cardId)
@@ -256,7 +251,7 @@ public sealed class CardService(
         return -1;
     }
 
-    private static int FindCardIndex(IReadOnlyList<BoardCard> cards, int targetId)
+    private static int FindCardIndex(IReadOnlyList<CardRecord> cards, int targetId)
     {
         for (var i = 0; i < cards.Count; i++)
         {

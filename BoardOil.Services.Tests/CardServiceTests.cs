@@ -1,6 +1,8 @@
-using BoardOil.Services.Abstractions;
+using BoardOil.Abstractions;
+using BoardOil.Abstractions.Card;
+using BoardOil.Contracts.Card;
+using BoardOil.Ef.Repositories;
 using BoardOil.Services.Card;
-using BoardOil.Services.Column;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;

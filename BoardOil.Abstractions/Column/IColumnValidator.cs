@@ -1,6 +1,7 @@
-using BoardOil.Services.Contracts;
+using BoardOil.Contracts.Column;
+using BoardOil.Contracts.Contracts;
 
-namespace BoardOil.Services.Column;
+namespace BoardOil.Abstractions.Column;
 
 public interface IColumnValidator
 {

@@ -1,4 +1,8 @@
-using BoardOil.Services.Abstractions;
+using BoardOil.Abstractions;
+using BoardOil.Abstractions.Board;
+using BoardOil.Abstractions.Column;
+using BoardOil.Contracts.Column;
+using BoardOil.Ef.Repositories;
 using BoardOil.Services.Board;
 using BoardOil.Services.Column;
 using BoardOil.Services.Tests.Infrastructure;
