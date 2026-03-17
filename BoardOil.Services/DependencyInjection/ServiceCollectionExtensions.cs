@@ -1,6 +1,11 @@
 using BoardOil.Ef;
 using BoardOil.Ef.Repositories;
+using BoardOil.Abstractions;
 using BoardOil.Abstractions.Auth;
+using BoardOil.Abstractions.Board;
+using BoardOil.Abstractions.Card;
+using BoardOil.Abstractions.Column;
+using BoardOil.Abstractions.Users;
 using BoardOil.Services.Auth;
 using BoardOil.Services.Board;
 using BoardOil.Services.Card;

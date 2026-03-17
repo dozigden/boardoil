@@ -1,4 +1,4 @@
-namespace BoardOil.Services.Users;
+namespace BoardOil.Contracts.Users;
 
 public sealed record ManagedUserDto(
     int Id,

@@ -2,6 +2,7 @@
   <Project Path="BoardOil.Abstractions/BoardOil.Abstractions.csproj" />
   <Project Path="BoardOil.Api/BoardOil.Api.csproj" />
   <Project Path="BoardOil.Api.Tests/BoardOil.Api.Tests.csproj" />
+  <Project Path="BoardOil.Contracts/BoardOil.Contracts.csproj" />
   <Project Path="BoardOil.Ef/BoardOil.Ef.csproj" />
   <Project Path="BoardOil.Services/BoardOil.Services.csproj" />
   <Project Path="BoardOil.Services.Tests/BoardOil.Services.Tests.csproj" />

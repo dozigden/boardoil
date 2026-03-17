@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.Entities;
+using BoardOil.Contracts.Users;
 
 namespace BoardOil.Services.Users;
 

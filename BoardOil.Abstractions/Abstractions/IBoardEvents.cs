@@ -1,7 +1,7 @@
-using BoardOil.Services.Card;
-using BoardOil.Services.Column;
+using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Column;
 
-namespace BoardOil.Services.Abstractions;
+namespace BoardOil.Abstractions;
 
 public interface IBoardEvents
 {

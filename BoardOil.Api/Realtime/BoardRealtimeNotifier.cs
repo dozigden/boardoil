@@ -1,6 +1,6 @@
-using BoardOil.Services.Abstractions;
-using BoardOil.Services.Card;
-using BoardOil.Services.Column;
+using BoardOil.Abstractions;
+using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Column;
 using Microsoft.AspNetCore.SignalR;
 
 namespace BoardOil.Api.Realtime;

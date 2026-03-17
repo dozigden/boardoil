@@ -1,8 +1,9 @@
 using BoardOil.Ef;
 using BoardOil.Abstractions.Entities;
+using BoardOil.Abstractions.Users;
 using Microsoft.EntityFrameworkCore;
 
-namespace BoardOil.Services.Users;
+namespace BoardOil.Ef.Repositories;
 
 public sealed class UserRepository(BoardOilDbContext dbContext) : IUserRepository
 {

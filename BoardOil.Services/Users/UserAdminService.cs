@@ -1,5 +1,7 @@
 using BoardOil.Abstractions.Entities;
-using BoardOil.Services.Contracts;
+using BoardOil.Abstractions.Users;
+using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
 using BoardOil.Abstractions.Auth;
 

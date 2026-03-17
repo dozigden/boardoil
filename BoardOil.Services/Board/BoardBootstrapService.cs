@@ -1,5 +1,5 @@
-using BoardOil.Ef.Entities;
-using BoardEntity = BoardOil.Ef.Entities.Board;
+using BoardOil.Abstractions.Board;
+using BoardOil.Contracts.Board;
 
 namespace BoardOil.Services.Board;
 
@@ -14,12 +14,10 @@ public sealed class BoardBootstrapService(IBoardRepository boardRepository) : IB
         }
 
         var now = DateTime.UtcNow;
-        boardRepository.Add(new BoardEntity
-        {
-            Name = "BoardOil",
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
-        });
+        boardRepository.Add(new BoardCreateRecord(
+            Name: "BoardOil",
+            CreatedAtUtc: now,
+            UpdatedAtUtc: now));
 
         await boardRepository.SaveChangesAsync();
     }

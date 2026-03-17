@@ -1,6 +1,7 @@
-using BoardOil.Services.Contracts;
+using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Users;
 
-namespace BoardOil.Services.Users;
+namespace BoardOil.Abstractions.Users;
 
 public interface IUserAdminService
 {

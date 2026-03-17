@@ -1,6 +1,7 @@
-using BoardOil.Services.Contracts;
+using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Contracts;
 
-namespace BoardOil.Services.Card;
+namespace BoardOil.Abstractions.Card;
 
 public interface ICardValidator
 {

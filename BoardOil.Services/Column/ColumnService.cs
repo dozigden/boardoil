@@ -1,7 +1,8 @@
-using BoardOil.Ef.Entities;
-using BoardOil.Services.Abstractions;
-using BoardOil.Services.Board;
-using BoardOil.Services.Contracts;
+using BoardOil.Abstractions;
+using BoardOil.Abstractions.Board;
+using BoardOil.Abstractions.Column;
+using BoardOil.Contracts.Column;
+using BoardOil.Contracts.Contracts;
 using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Column;
@@ -57,19 +58,14 @@ public sealed class ColumnService(
             return allocationError!;
         }
 
-        var column = new BoardColumn
-        {
-            BoardId = boardId.Value,
-            Title = request.Title.Trim(),
-            SortKey = sortKey!,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
-        };
+        var createdColumn = await columnRepository.CreateAsync(new CreateColumnRecord(
+            BoardId: boardId.Value,
+            Title: request.Title.Trim(),
+            SortKey: sortKey!,
+            CreatedAtUtc: now,
+            UpdatedAtUtc: now));
 
-        columnRepository.Add(column);
-        await columnRepository.SaveChangesAsync();
-
-        var created = column.ToColumnDto(insertIndex);
+        var created = createdColumn.ToColumnDto(insertIndex);
         await _boardEvents.ColumnCreatedAsync(created);
         return ApiResults.Created(created);
     }
@@ -95,7 +91,7 @@ public sealed class ColumnService(
             ? currentIndex
             : Math.Clamp(request.Position.Value, 0, columns.Count - 1);
 
-        var titleChanged = false;
+        var updatedTitle = target.Title;
         if (request.Title is not null)
         {
             var updateValidationErrors = validator.ValidateUpdate(request);
@@ -105,11 +101,12 @@ public sealed class ColumnService(
             }
 
             var normalizedTitle = request.Title.Trim();
-            titleChanged = target.Title != normalizedTitle;
-            target.Title = normalizedTitle;
+            updatedTitle = normalizedTitle;
         }
+        var titleChanged = updatedTitle != target.Title;
 
         var positionChanged = targetIndex != currentIndex;
+        var updatedSortKey = target.SortKey;
         if (positionChanged)
         {
             columns.RemoveAt(currentIndex);
@@ -122,26 +119,27 @@ public sealed class ColumnService(
                 return allocationError!;
             }
 
-            target.SortKey = sortKey!;
+            updatedSortKey = sortKey!;
         }
 
-        var now = DateTime.UtcNow;
-        if (titleChanged)
+        var changed = titleChanged || positionChanged;
+        var updated = target with
         {
-            target.UpdatedAtUtc = now;
+            Title = updatedTitle,
+            SortKey = updatedSortKey,
+            UpdatedAtUtc = changed ? DateTime.UtcNow : target.UpdatedAtUtc
+        };
+
+        if (changed)
+        {
+            await columnRepository.UpdateAsync(new UpdateColumnRecord(
+                Id: updated.Id,
+                Title: updated.Title,
+                SortKey: updated.SortKey,
+                UpdatedAtUtc: updated.UpdatedAtUtc));
         }
 
-        if (positionChanged)
-        {
-            target.UpdatedAtUtc = now;
-            await columnRepository.SaveChangesAsync();
-        }
-        else if (titleChanged)
-        {
-            await columnRepository.SaveChangesAsync();
-        }
-
-        var dto = target.ToColumnDto(positionChanged ? targetIndex : currentIndex);
+        var dto = updated.ToColumnDto(positionChanged ? targetIndex : currentIndex);
         await _boardEvents.ColumnUpdatedAsync(dto);
         return dto;
     }
@@ -162,8 +160,7 @@ public sealed class ColumnService(
             return ApiResults.Ok();
         }
 
-        columnRepository.Remove(target);
-        await columnRepository.SaveChangesAsync();
+        await columnRepository.DeleteAsync(id);
 
         await _boardEvents.ColumnDeletedAsync(id);
         return ApiResults.Ok();

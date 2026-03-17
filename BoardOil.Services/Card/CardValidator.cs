@@ -1,4 +1,6 @@
-using BoardOil.Services.Contracts;
+using BoardOil.Abstractions.Card;
+using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Contracts;
 using System.Text.RegularExpressions;
 
 namespace BoardOil.Services.Card;

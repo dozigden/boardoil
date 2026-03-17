@@ -1,4 +1,4 @@
-namespace BoardOil.Services.Board;
+namespace BoardOil.Abstractions.Board;
 
 public interface IBoardBootstrapService
 {
