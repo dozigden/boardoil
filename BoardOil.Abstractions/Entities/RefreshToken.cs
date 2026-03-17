@@ -1,4 +1,4 @@
-namespace BoardOil.Ef.Entities;
+namespace BoardOil.Abstractions.Entities;
 
 public sealed class RefreshToken
 {

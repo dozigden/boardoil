@@ -1,13 +1,11 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using BoardOil.Ef.Entities;
-using BoardOil.Services.Abstractions;
-using BoardOil.Services.Auth;
+using BoardOil.Abstractions.Auth;
+using BoardOil.Abstractions.Entities;
 using BoardOil.Services.Contracts;
-using BoardOil.Services.Mappings;
 
-namespace BoardOil.Services.Implementations;
+namespace BoardOil.Services.Auth;
 
 public sealed class AuthService(
     IAuthRepository authRepository,

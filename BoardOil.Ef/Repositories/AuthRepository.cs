@@ -1,9 +1,9 @@
 using BoardOil.Ef;
-using BoardOil.Ef.Entities;
-using BoardOil.Services.Abstractions;
+using BoardOil.Abstractions.Entities;
+using BoardOil.Abstractions.Auth;
 using Microsoft.EntityFrameworkCore;
 
-namespace BoardOil.Services.Implementations;
+namespace BoardOil.Ef.Repositories;
 
 public sealed class AuthRepository(BoardOilDbContext dbContext) : IAuthRepository
 {

@@ -110,7 +110,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Columns");
                 });
 
-            modelBuilder.Entity("BoardOil.Ef.Entities.BoardUser", b =>
+            modelBuilder.Entity("BoardOil.Abstractions.Entities.BoardUser", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -146,7 +146,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("BoardOil.Ef.Entities.RefreshToken", b =>
+            modelBuilder.Entity("BoardOil.Abstractions.Entities.RefreshToken", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -205,9 +205,9 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Board");
                 });
 
-            modelBuilder.Entity("BoardOil.Ef.Entities.RefreshToken", b =>
+            modelBuilder.Entity("BoardOil.Abstractions.Entities.RefreshToken", b =>
                 {
-                    b.HasOne("BoardOil.Ef.Entities.BoardUser", "User")
+                    b.HasOne("BoardOil.Abstractions.Entities.BoardUser", "User")
                         .WithMany("RefreshTokens")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -226,7 +226,7 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Cards");
                 });
 
-            modelBuilder.Entity("BoardOil.Ef.Entities.BoardUser", b =>
+            modelBuilder.Entity("BoardOil.Abstractions.Entities.BoardUser", b =>
                 {
                     b.Navigation("RefreshTokens");
                 });

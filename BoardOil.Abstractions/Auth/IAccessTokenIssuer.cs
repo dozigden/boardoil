@@ -1,6 +1,6 @@
-using BoardOil.Ef.Entities;
+using BoardOil.Abstractions.Entities;
 
-namespace BoardOil.Services.Abstractions;
+namespace BoardOil.Abstractions.Auth;
 
 public interface IAccessTokenIssuer
 {

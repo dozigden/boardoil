@@ -1,7 +1,8 @@
-using BoardOil.Ef.Entities;
+using BoardOil.Abstractions.Entities;
 using BoardOil.Services.Abstractions;
-using BoardOil.Services.Auth;
 using BoardOil.Services.Contracts;
+using BoardOil.Services.Auth;
+using BoardOil.Abstractions.Auth;
 using BoardOil.Services.Mappings;
 
 namespace BoardOil.Services.Implementations;

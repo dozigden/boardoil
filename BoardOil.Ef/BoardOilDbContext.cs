@@ -1,3 +1,4 @@
+using BoardOil.Abstractions.Entities;
 using BoardOil.Ef.Entities;
 using Microsoft.EntityFrameworkCore;
 

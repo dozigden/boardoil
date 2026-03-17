@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using BoardOil.Services.Contracts;
 
-namespace BoardOil.Services.Abstractions;
+namespace BoardOil.Services.Auth;
 
 public interface IAuthService
 {

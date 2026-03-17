@@ -1,7 +1,6 @@
-using BoardOil.Ef.Entities;
-using BoardOil.Services.Contracts;
+using BoardOil.Abstractions.Entities;
 
-namespace BoardOil.Services.Mappings;
+namespace BoardOil.Services.Auth;
 
 public static class AuthMappingExtensions
 {
