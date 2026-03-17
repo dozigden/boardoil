@@ -1,6 +1,6 @@
 using BoardOil.Services.Abstractions;
-using BoardOil.Services.Contracts;
-using BoardOil.Services.Implementations;
+using BoardOil.Services.Board;
+using BoardOil.Services.Column;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
