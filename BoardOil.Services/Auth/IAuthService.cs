@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
 
 namespace BoardOil.Services.Auth;

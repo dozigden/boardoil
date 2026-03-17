@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.Entities;
+using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
 
 namespace BoardOil.Services.Auth;
