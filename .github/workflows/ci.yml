@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+  checks: write
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -15,10 +19,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
           cache: true
@@ -32,10 +36,19 @@ jobs:
         run: dotnet build BoardOil.slnx --configuration Release --no-restore -maxcpucount:1 -nodeReuse:false
 
       - name: Test API
-        run: dotnet test BoardOil.Api.Tests/BoardOil.Api.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false
+        run: dotnet test BoardOil.Api.Tests/BoardOil.Api.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false --logger "trx;LogFileName=BoardOil.Api.Tests.trx" --results-directory TestResults
 
       - name: Test Services
-        run: dotnet test BoardOil.Services.Tests/BoardOil.Services.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false
+        if: always()
+        run: dotnet test BoardOil.Services.Tests/BoardOil.Services.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false --logger "trx;LogFileName=BoardOil.Services.Tests.trx" --results-directory TestResults
+
+      - name: Publish .NET test report
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: .NET Tests
+          path: TestResults/*.trx
+          reporter: dotnet-trx
 
   frontend:
     name: Frontend (Vue)
@@ -47,10 +60,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
