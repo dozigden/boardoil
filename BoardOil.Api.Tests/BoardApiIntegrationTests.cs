@@ -14,7 +14,7 @@ public sealed class BoardApiIntegrationTests
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [Fact]
-    public async Task GetBoard_ShouldReturnBootstrappedSingleBoard()
+    public async Task GetBoard_ShouldReturnBootstrappedBoardWithDefaultColumns()
     {
         var result = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/board", JsonOptions);
 
@@ -22,7 +22,10 @@ public sealed class BoardApiIntegrationTests
         Assert.True(result!.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("BoardOil", result.Data!.Name);
-        Assert.Empty(result.Data.Columns);
+        Assert.Equal(3, result.Data.Columns.Count);
+        Assert.Equal("Todo", result.Data.Columns[0].Title);
+        Assert.Equal("In Progress", result.Data.Columns[1].Title);
+        Assert.Equal("Done", result.Data.Columns[2].Title);
     }
 
     [Fact]
@@ -39,8 +42,8 @@ public sealed class BoardApiIntegrationTests
         var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/board", JsonOptions);
         Assert.NotNull(board);
         Assert.NotNull(board!.Data);
-        Assert.Single(board.Data!.Columns);
-        Assert.Equal("Todo", board.Data.Columns[0].Title);
+        Assert.Equal(4, board.Data!.Columns.Count);
+        Assert.Contains(board.Data.Columns, column => column.Id == createdColumn.Data.Id && column.Title == "Todo");
 
         // Act
         var deleteColumnResponse = await Client.DeleteAsync($"/api/columns/{createdColumn.Data.Id}");
@@ -50,7 +53,8 @@ public sealed class BoardApiIntegrationTests
         var afterDelete = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/board", JsonOptions);
         Assert.NotNull(afterDelete);
         Assert.NotNull(afterDelete!.Data);
-        Assert.Empty(afterDelete.Data!.Columns);
+        Assert.Equal(3, afterDelete.Data!.Columns.Count);
+        Assert.Equal(["Todo", "In Progress", "Done"], afterDelete.Data.Columns.Select(x => x.Title).ToArray());
     }
 
     [Fact]
@@ -100,9 +104,10 @@ public sealed class BoardApiIntegrationTests
         var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/board", JsonOptions);
         Assert.NotNull(board);
         Assert.NotNull(board!.Data);
-        Assert.Single(board.Data!.Columns);
-        Assert.Single(board.Data.Columns[0].Cards);
-        Assert.Equal("Task B", board.Data.Columns[0].Cards[0].Title);
+        var createdColumnState = board.Data.Columns.FirstOrDefault(x => x.Id == createdColumn.Data.Id);
+        Assert.NotNull(createdColumnState);
+        Assert.Single(createdColumnState!.Cards);
+        Assert.Equal("Task B", createdColumnState.Cards[0].Title);
 
         // Act delete
         var deleteCardResponse = await Client.DeleteAsync($"/api/cards/{createdCard.Data.Id}");
@@ -112,8 +117,9 @@ public sealed class BoardApiIntegrationTests
         var afterDelete = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/board", JsonOptions);
         Assert.NotNull(afterDelete);
         Assert.NotNull(afterDelete!.Data);
-        Assert.Single(afterDelete.Data!.Columns);
-        Assert.Empty(afterDelete.Data.Columns[0].Cards);
+        var columnAfterDelete = afterDelete.Data!.Columns.FirstOrDefault(x => x.Id == createdColumn.Data.Id);
+        Assert.NotNull(columnAfterDelete);
+        Assert.Empty(columnAfterDelete!.Cards);
     }
 
     [Fact]
@@ -137,8 +143,8 @@ public sealed class BoardApiIntegrationTests
 
             Assert.NotNull(board);
             Assert.NotNull(board!.Data);
-            Assert.Single(board.Data!.Columns);
-            Assert.Equal("Persisted", board.Data.Columns[0].Title);
+            Assert.Equal(4, board.Data!.Columns.Count);
+            Assert.Contains(board.Data.Columns, x => x.Title == "Persisted");
         }
     }
 

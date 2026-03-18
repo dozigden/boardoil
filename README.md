@@ -12,6 +12,8 @@ See [`TODO.md`](TODO.md) for the current implementation backlog.
 - SQLite persistence via EF Core
 - Single Docker container deployment
 
+Default bootstrap columns: `Todo`, `In Progress`, `Done`.
+
 ## Repository Layout
 - `BoardOil.Api`: ASP.NET Core API (v1 scaffold)
 - `BoardOil.Services`: service layer and business logic
