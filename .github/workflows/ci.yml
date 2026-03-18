@@ -24,7 +24,7 @@ jobs:
           cache: true
 
       - name: Restore
-        run: dotnet restore BoardOil.slnx -maxcpucount:1 -nodeReuse:false
+        run: dotnet restore BoardOil.slnx --locked-mode -maxcpucount:1 -nodeReuse:false
 
       - name: Build
         run: dotnet build BoardOil.slnx --configuration Release --no-restore -maxcpucount:1 -nodeReuse:false
