@@ -1,24 +1,53 @@
 using BoardOil.Abstractions.Board;
+using BoardOil.Abstractions.Column;
 using BoardOil.Contracts.Board;
+using BoardOil.Contracts.Column;
+using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Board;
 
-public sealed class BoardBootstrapService(IBoardRepository boardRepository) : IBoardBootstrapService
+public sealed class BoardBootstrapService(
+    IBoardRepository boardRepository,
+    IColumnRepository columnRepository) : IBoardBootstrapService
 {
     public async Task EnsureDefaultBoardAsync()
     {
-        var existingBoard = await boardRepository.AnyBoardAsync();
-        if (existingBoard)
+        var now = DateTime.UtcNow;
+        var boardId = await boardRepository.GetPrimaryBoardIdAsync();
+        if (boardId is null)
+        {
+            boardRepository.Add(new BoardCreateRecord(
+                Name: "BoardOil",
+                CreatedAtUtc: now,
+                UpdatedAtUtc: now));
+
+            await boardRepository.SaveChangesAsync();
+            boardId = await boardRepository.GetPrimaryBoardIdAsync();
+        }
+
+        if (boardId is null)
         {
             return;
         }
 
-        var now = DateTime.UtcNow;
-        boardRepository.Add(new BoardCreateRecord(
-            Name: "BoardOil",
-            CreatedAtUtc: now,
-            UpdatedAtUtc: now));
+        var existingColumns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value);
+        if (existingColumns.Count > 0)
+        {
+            return;
+        }
 
-        await boardRepository.SaveChangesAsync();
+        var seedTitles = new[] { "Todo", "In Progress", "Done" };
+        string? previousSortKey = null;
+        foreach (var title in seedTitles)
+        {
+            var sortKey = SortKeyGenerator.Between(previousSortKey, null);
+            await columnRepository.CreateAsync(new CreateColumnRecord(
+                BoardId: boardId.Value,
+                Title: title,
+                SortKey: sortKey,
+                CreatedAtUtc: now,
+                UpdatedAtUtc: now));
+            previousSortKey = sortKey;
+        }
     }
 }
