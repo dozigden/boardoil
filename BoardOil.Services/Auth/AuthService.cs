@@ -124,6 +124,12 @@ public sealed class AuthService(
         return user.ToAuthUserDto();
     }
 
+    public async Task<ApiResult<BootstrapStatusDto>> GetBootstrapStatusAsync()
+    {
+        var hasUsers = await authRepository.AnyUsersAsync();
+        return new BootstrapStatusDto(!hasUsers);
+    }
+
     public string CreateCsrfToken() =>
         Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 

@@ -15,6 +15,10 @@ export type CsrfTokenDto = {
   csrfToken: string;
 };
 
+export type BootstrapStatusDto = {
+  requiresInitialAdminSetup: boolean;
+};
+
 export type ManagedUser = {
   id: number;
   userName: string;

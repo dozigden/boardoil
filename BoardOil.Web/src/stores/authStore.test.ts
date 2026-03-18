@@ -6,10 +6,12 @@ import type { AppError } from '../types/appError';
 import type { AuthSession, AuthUser } from '../types/authTypes';
 
 const authApi = {
+  registerInitialAdmin: vi.fn(),
   login: vi.fn(),
   logout: vi.fn(),
   getMe: vi.fn(),
-  getCsrfToken: vi.fn()
+  getCsrfToken: vi.fn(),
+  getBootstrapStatus: vi.fn()
 };
 
 const setCsrfToken = vi.fn();
@@ -28,6 +30,7 @@ describe('authStore', () => {
     vi.clearAllMocks();
     authApi.getMe.mockResolvedValue(ok<AuthUser | null>(null));
     authApi.getCsrfToken.mockResolvedValue(ok('csrf-token'));
+    authApi.getBootstrapStatus.mockResolvedValue(ok(false));
     authApi.logout.mockResolvedValue(ok(undefined));
   });
 
@@ -37,7 +40,19 @@ describe('authStore', () => {
 
     expect(store.initialized).toBe(true);
     expect(store.isAuthenticated).toBe(false);
+    expect(store.requiresInitialAdminSetup).toBe(false);
     expect(setCsrfToken).toHaveBeenCalledWith(null);
+  });
+
+  it('initialize flags initial admin setup when bootstrap status requires it', async () => {
+    const store = useAuthStore();
+    authApi.getBootstrapStatus.mockResolvedValue(ok(true));
+
+    await store.initialize();
+
+    expect(store.initialized).toBe(true);
+    expect(store.isAuthenticated).toBe(false);
+    expect(store.requiresInitialAdminSetup).toBe(true);
   });
 
   it('initialize restores session and csrf when /me returns a user', async () => {
@@ -49,6 +64,7 @@ describe('authStore', () => {
     expect(store.initialized).toBe(true);
     expect(store.isAuthenticated).toBe(true);
     expect(store.isAdmin).toBe(true);
+    expect(store.requiresInitialAdminSetup).toBe(false);
     expect(setCsrfToken).toHaveBeenCalledWith('csrf-token');
   });
 
@@ -67,7 +83,28 @@ describe('authStore', () => {
     expect(success).toBe(true);
     expect(store.user?.userName).toBe('member');
     expect(store.isAuthenticated).toBe(true);
+    expect(store.requiresInitialAdminSetup).toBe(false);
     expect(setCsrfToken).toHaveBeenCalledWith('csrf-login');
+  });
+
+  it('registerInitialAdmin stores user and csrf token on success', async () => {
+    const store = useAuthStore();
+    const session: AuthSession = {
+      user: { id: 1, userName: 'admin', role: 'Admin' },
+      accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
+      refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
+      csrfToken: 'csrf-bootstrap'
+    };
+    authApi.registerInitialAdmin.mockResolvedValue(ok(session));
+
+    const success = await store.registerInitialAdmin('admin', 'Password1234!');
+
+    expect(success).toBe(true);
+    expect(store.user?.userName).toBe('admin');
+    expect(store.isAuthenticated).toBe(true);
+    expect(store.isAdmin).toBe(true);
+    expect(store.requiresInitialAdminSetup).toBe(false);
+    expect(setCsrfToken).toHaveBeenCalledWith('csrf-bootstrap');
   });
 
   it('login exposes API error message on failure', async () => {
@@ -79,6 +116,18 @@ describe('authStore', () => {
 
     expect(success).toBe(false);
     expect(store.errorMessage).toBe('Invalid username or password.');
+    expect(store.isAuthenticated).toBe(false);
+  });
+
+  it('registerInitialAdmin exposes API error message on failure', async () => {
+    const store = useAuthStore();
+    const apiError: AppError = { kind: 'api', message: 'Initial admin already exists.' };
+    authApi.registerInitialAdmin.mockResolvedValue(err(apiError));
+
+    const success = await store.registerInitialAdmin('admin', 'Password1234!');
+
+    expect(success).toBe(false);
+    expect(store.errorMessage).toBe('Initial admin already exists.');
     expect(store.isAuthenticated).toBe(false);
   });
 

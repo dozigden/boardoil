@@ -26,6 +26,8 @@ public static class AuthEndpoints
         app.MapGet("/api/auth/me", (IAuthHttpSessionService authHttpService, ClaimsPrincipal claimsPrincipal) =>
                 authHttpService.GetMeAsync(claimsPrincipal))
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
+        app.MapGet("/api/auth/bootstrap-status", (IAuthHttpSessionService authHttpService) =>
+                authHttpService.GetBootstrapStatusAsync());
 
         app.MapGet("/api/users", (IUserAdminService userAdminService) =>
                 userAdminService.GetUsersAsync().ToHttpResult())

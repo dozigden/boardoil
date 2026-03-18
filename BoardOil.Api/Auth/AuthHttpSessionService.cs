@@ -84,6 +84,12 @@ public sealed class AuthHttpSessionService(
         return result.ToHttpResult();
     }
 
+    public async Task<IResult> GetBootstrapStatusAsync()
+    {
+        var result = await authService.GetBootstrapStatusAsync();
+        return result.ToHttpResult();
+    }
+
     private void WriteAuthCookies(
         HttpResponse response,
         string accessToken,

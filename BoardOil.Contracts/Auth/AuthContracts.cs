@@ -14,6 +14,8 @@ public sealed record AuthSessionDto(
 
 public sealed record CsrfTokenDto(string CsrfToken);
 
+public sealed record BootstrapStatusDto(bool RequiresInitialAdminSetup);
+
 public sealed record AuthSessionTokens(
     string AccessToken,
     DateTime AccessTokenExpiresAtUtc,

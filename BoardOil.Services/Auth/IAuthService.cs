@@ -11,5 +11,6 @@ public interface IAuthService
     Task<ApiResult<AuthSessionTokens>> RefreshAsync(string? refreshToken);
     Task<ApiResult> LogoutAsync(string? refreshToken);
     Task<ApiResult<AuthUserDto>> GetMeAsync(ClaimsPrincipal claimsPrincipal);
+    Task<ApiResult<BootstrapStatusDto>> GetBootstrapStatusAsync();
     string CreateCsrfToken();
 }

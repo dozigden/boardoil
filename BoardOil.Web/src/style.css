@@ -497,6 +497,20 @@ button.danger {
   font-size: 0.9rem;
 }
 
+.auth-help {
+  margin: 0;
+  color: #335373;
+  font-size: 0.9rem;
+}
+
+.auth-link {
+  color: #1f4f8a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  justify-self: start;
+  font-size: 0.9rem;
+}
+
 .users-manager {
   margin-top: 1rem;
   display: grid;

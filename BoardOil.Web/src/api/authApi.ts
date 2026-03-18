@@ -1,12 +1,16 @@
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
-import type { AuthSession, AuthUser, CsrfTokenDto, ManagedUser } from '../types/authTypes';
+import type { AuthSession, AuthUser, BootstrapStatusDto, CsrfTokenDto, ManagedUser } from '../types/authTypes';
 import { getEnvelope, patchData, postData, postJson } from './http';
 
 export type AuthApi = ReturnType<typeof createAuthApi>;
 
 export function createAuthApi() {
+  async function registerInitialAdmin(userName: string, password: string): Promise<Result<AuthSession, AppError>> {
+    return postData<AuthSession>('/api/auth/register-initial-admin', { userName, password });
+  }
+
   async function login(userName: string, password: string): Promise<Result<AuthSession, AppError>> {
     return postData<AuthSession>('/api/auth/login', { userName, password });
   }
@@ -44,6 +48,15 @@ export function createAuthApi() {
     return ok(envelopeResult.data.data.csrfToken);
   }
 
+  async function getBootstrapStatus(): Promise<Result<boolean, AppError>> {
+    const envelopeResult = await getEnvelope<BootstrapStatusDto>('/api/auth/bootstrap-status');
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data?.requiresInitialAdminSetup === true);
+  }
+
   async function getUsers(): Promise<Result<ManagedUser[], AppError>> {
     const envelopeResult = await getEnvelope<ManagedUser[]>('/api/users');
     if (!envelopeResult.ok) {
@@ -66,10 +79,12 @@ export function createAuthApi() {
   }
 
   return {
+    registerInitialAdmin,
     login,
     logout,
     getMe,
     getCsrfToken,
+    getBootstrapStatus,
     getUsers,
     createUser,
     updateUserRole,
