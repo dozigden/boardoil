@@ -19,12 +19,14 @@ function makeAuthStore(overrides?: Partial<{
   initialized: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  requiresInitialAdminSetup: boolean;
   initialize: () => Promise<void>;
 }>) {
   return {
     initialized: true,
     isAuthenticated: false,
     isAdmin: false,
+    requiresInitialAdminSetup: false,
     initialize: vi.fn(async () => undefined),
     ...overrides
   };
@@ -50,9 +52,36 @@ describe('resolveAuthNavigation', () => {
     expect(result).toEqual({ name: 'board' });
   });
 
+  it('redirects authenticated users away from initial admin setup', async () => {
+    const authStore = makeAuthStore({ isAuthenticated: true });
+    const to = makeTarget({ name: 'setup-initial-admin', requiresAuth: false });
+
+    const result = await resolveAuthNavigation(to, authStore);
+
+    expect(result).toEqual({ name: 'board' });
+  });
+
   it('redirects anonymous users from protected routes to login', async () => {
     const authStore = makeAuthStore({ isAuthenticated: false });
     const to = makeTarget({ name: 'board', requiresAuth: true });
+
+    const result = await resolveAuthNavigation(to, authStore);
+
+    expect(result).toEqual({ name: 'login' });
+  });
+
+  it('redirects anonymous users to setup when initial admin setup is required', async () => {
+    const authStore = makeAuthStore({ isAuthenticated: false, requiresInitialAdminSetup: true });
+    const to = makeTarget({ name: 'board', requiresAuth: true });
+
+    const result = await resolveAuthNavigation(to, authStore);
+
+    expect(result).toEqual({ name: 'setup-initial-admin' });
+  });
+
+  it('redirects anonymous users away from setup when setup is not required', async () => {
+    const authStore = makeAuthStore({ isAuthenticated: false, requiresInitialAdminSetup: false });
+    const to = makeTarget({ name: 'setup-initial-admin', requiresAuth: false });
 
     const result = await resolveAuthNavigation(to, authStore);
 

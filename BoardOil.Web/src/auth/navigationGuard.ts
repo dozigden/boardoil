@@ -7,6 +7,7 @@ export type GuardAuthStore = {
   initialized: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  requiresInitialAdminSetup: boolean;
   initialize: () => Promise<void>;
 };
 
@@ -15,8 +16,17 @@ export async function resolveAuthNavigation(to: GuardTarget, authStore: GuardAut
     await authStore.initialize();
   }
 
-  if (to.name === 'login' && authStore.isAuthenticated) {
+  if ((to.name === 'login' || to.name === 'setup-initial-admin') && authStore.isAuthenticated) {
     return { name: 'board' };
+  }
+
+  const isSetupRoute = to.name === 'setup-initial-admin';
+  if (!authStore.isAuthenticated && authStore.requiresInitialAdminSetup && !isSetupRoute) {
+    return { name: 'setup-initial-admin' };
+  }
+
+  if (!authStore.isAuthenticated && !authStore.requiresInitialAdminSetup && isSetupRoute) {
+    return { name: 'login' };
   }
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false);

@@ -11,6 +11,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/setup-initial-admin',
+    name: 'setup-initial-admin',
+    component: () => import('./views/SetupInitialAdminView.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/',
     name: 'board',
     component: () => import('./views/BoardView.vue'),

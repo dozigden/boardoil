@@ -10,6 +10,7 @@ export const useAuthStore = defineStore('auth', () => {
   const busy = ref(false);
   const initialized = ref(false);
   const errorMessage = ref<string | null>(null);
+  const requiresInitialAdminSetup = ref(false);
 
   const isAuthenticated = computed(() => user.value !== null);
   const isAdmin = computed(() => user.value?.role === 'Admin');
@@ -23,12 +24,15 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const meResult = await api.getMe();
       if (!meResult.ok || !meResult.data) {
+        const bootstrapStatusResult = await api.getBootstrapStatus();
+        requiresInitialAdminSetup.value = bootstrapStatusResult.ok && bootstrapStatusResult.data;
         clearSession();
         initialized.value = true;
         return;
       }
 
       user.value = meResult.data;
+      requiresInitialAdminSetup.value = false;
       const csrfResult = await api.getCsrfToken();
       if (csrfResult.ok) {
         setCsrfToken(csrfResult.data);
@@ -50,6 +54,27 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       user.value = result.data.user;
+      requiresInitialAdminSetup.value = false;
+      setCsrfToken(result.data.csrfToken);
+      initialized.value = true;
+      return true;
+    } finally {
+      busy.value = false;
+    }
+  }
+
+  async function registerInitialAdmin(userName: string, password: string) {
+    busy.value = true;
+    errorMessage.value = null;
+    try {
+      const result = await api.registerInitialAdmin(userName, password);
+      if (!result.ok) {
+        errorMessage.value = result.error.message;
+        return false;
+      }
+
+      user.value = result.data.user;
+      requiresInitialAdminSetup.value = false;
       setCsrfToken(result.data.csrfToken);
       initialized.value = true;
       return true;
@@ -78,10 +103,12 @@ export const useAuthStore = defineStore('auth', () => {
     busy,
     initialized,
     errorMessage,
+    requiresInitialAdminSetup,
     isAuthenticated,
     isAdmin,
     initialize,
     login,
+    registerInitialAdmin,
     logout
   };
 });

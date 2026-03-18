@@ -45,10 +45,12 @@ npm run dev
 ## Authentication and Roles
 - Initial bootstrap: create the first admin with `POST /api/auth/register-initial-admin` (only available when there are zero users).
 - Login/logout/refresh: `/api/auth/login`, `/api/auth/logout`, `/api/auth/refresh`.
+- Bootstrap status: `/api/auth/bootstrap-status` (indicates whether initial admin setup is still required).
 - Session profile: `/api/auth/me`.
 - User management (admin-only): `/api/users`, `/api/users/{id}/role`, `/api/users/{id}/status`.
 - UI:
   - `/login` for sign-in.
+  - `/setup-initial-admin` to create the first admin account when no users exist; anonymous users are redirected there automatically while bootstrap is required.
   - `/columns` and `/users` are admin-only.
   - standard users can read board data and create/edit/move/delete cards.
 

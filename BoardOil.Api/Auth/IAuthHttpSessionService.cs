@@ -11,4 +11,5 @@ public interface IAuthHttpSessionService
     Task<IResult> LogoutAsync(HttpRequest request, HttpResponse response);
     IResult GetCsrf(HttpRequest request, HttpResponse response);
     Task<IResult> GetMeAsync(ClaimsPrincipal claimsPrincipal);
+    Task<IResult> GetBootstrapStatusAsync();
 }

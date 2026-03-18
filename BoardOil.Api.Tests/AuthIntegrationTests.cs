@@ -43,6 +43,35 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task BootstrapStatus_WhenNoUsers_ShouldRequireInitialAdminSetup()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/api/auth/bootstrap-status");
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BootstrapStatusEnvelope>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        Assert.True(envelope.Data!.RequiresInitialAdminSetup);
+    }
+
+    [Fact]
+    public async Task BootstrapStatus_AfterInitialAdminRegistration_ShouldNotRequireInitialAdminSetup()
+    {
+        var client = _factory.CreateClient();
+        await RegisterInitialAdminAsync(client);
+
+        var response = await client.GetAsync("/api/auth/bootstrap-status");
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BootstrapStatusEnvelope>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        Assert.False(envelope.Data!.RequiresInitialAdminSetup);
+    }
+
+    [Fact]
     public async Task Login_WithInvalidPassword_ShouldReturnUnauthorized()
     {
         var client = _factory.CreateClient();
@@ -140,5 +169,6 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record CreateUserRequest(string UserName, string Password, string Role);
     private sealed record AuthSessionEnvelope(string CsrfToken);
+    private sealed record BootstrapStatusEnvelope(bool RequiresInitialAdminSetup);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }
