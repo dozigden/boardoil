@@ -43,6 +43,17 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RegisterInitialAdmin_WithStaleAccessCookieAndNoCsrfHeader_ShouldSucceed()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("Cookie", "boardoil_access=stale-token");
+
+        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
     public async Task BootstrapStatus_WhenNoUsers_ShouldRequireInitialAdminSetup()
     {
         var client = _factory.CreateClient();

@@ -103,6 +103,7 @@ var app = builder.Build();
 
 await app.Services.InitializeBoardOilAsync();
 app.UseCors("BoardOilDevClient");
+app.UseAuthentication();
 app.Use(async (context, next) =>
 {
     if (!HttpMethods.IsPost(context.Request.Method)
@@ -120,8 +121,7 @@ app.Use(async (context, next) =>
         return;
     }
 
-    if (!context.Request.Cookies.TryGetValue(jwtOptions.AccessTokenCookieName, out var accessToken)
-        || string.IsNullOrWhiteSpace(accessToken))
+    if (context.User.Identity?.IsAuthenticated != true)
     {
         await next();
         return;
@@ -143,7 +143,6 @@ app.Use(async (context, next) =>
 
     await next();
 });
-app.UseAuthentication();
 app.UseAuthorization();
 
 // API health endpoint used for container/dev smoke checks.
