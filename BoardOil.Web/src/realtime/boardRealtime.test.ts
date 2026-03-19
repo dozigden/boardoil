@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type TypingChangedHandler = (event: { cardId: number; isTyping: boolean; userLabel: string }) => void;
 
@@ -71,7 +71,7 @@ function makeLocalStorage(userLabel = 'Me') {
 
 describe('boardRealtime', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useRealTimers();
     vi.clearAllMocks();
     vi.resetModules();
     vi.stubGlobal('window', {
@@ -102,7 +102,13 @@ describe('boardRealtime', () => {
     expect(onResync).toHaveBeenCalledTimes(1);
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
   it('resets typing timeout during churn and sends one stop for latest timer', async () => {
+    vi.useFakeTimers();
     const { createBoardRealtime } = await import('./boardRealtime');
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
