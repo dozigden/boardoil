@@ -14,6 +14,21 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
     protected override int TypingTtlSeconds => 1;
 
     [Fact]
+    public async Task HubConnection_AnonymousClient_ShouldBeRejected()
+    {
+        await using var anonymousConnection = CreateHubConnection(authenticated: false);
+
+        var ex = await Assert.ThrowsAnyAsync<Exception>(() => anonymousConnection.StartAsync());
+        var statusCode = (ex as HttpRequestException)?.StatusCode;
+        var messageHasAuthCode = ex.Message.Contains("401", StringComparison.Ordinal)
+            || ex.Message.Contains("403", StringComparison.Ordinal);
+
+        Assert.True(
+            statusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden || messageHasAuthCode,
+            $"Expected unauthorized/forbidden negotiate failure but got: {ex.GetType().Name} - {ex.Message}");
+    }
+
+    [Fact]
     public async Task CardCreated_ShouldBroadcastToTwoConnectedClients()
     {
         // Arrange

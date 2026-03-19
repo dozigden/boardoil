@@ -182,7 +182,8 @@ app.MapDelete("/api/cards/{id:int}", (int id, ICardService cardService) =>
 
 app.MapAuthEndpoints();
 
-app.MapHub<BoardHub>("/hubs/board");
+app.MapHub<BoardHub>("/hubs/board")
+    .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
