@@ -17,6 +17,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/unauthorized',
+    name: 'unauthorized',
+    component: () => import('./views/UnauthorizedView.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/',
     name: 'board',
     component: () => import('./views/BoardView.vue'),

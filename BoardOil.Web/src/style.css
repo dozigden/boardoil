@@ -511,6 +511,18 @@ button.danger {
   font-size: 0.9rem;
 }
 
+.unauthorized-view {
+  margin-top: 1rem;
+  max-width: 640px;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.unauthorized-view h2,
+.unauthorized-view p {
+  margin: 0;
+}
+
 .users-manager {
   margin-top: 1rem;
   display: grid;
