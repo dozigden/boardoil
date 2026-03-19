@@ -57,18 +57,6 @@ vi.mock('@microsoft/signalr', () => {
   };
 });
 
-function makeLocalStorage(userLabel = 'Me') {
-  let stored = userLabel;
-  return {
-    getItem: vi.fn((key: string) => (key === 'boardoil.userLabel' ? stored : null)),
-    setItem: vi.fn((key: string, value: string) => {
-      if (key === 'boardoil.userLabel') {
-        stored = value;
-      }
-    })
-  };
-}
-
 describe('boardRealtime', () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -79,7 +67,6 @@ describe('boardRealtime', () => {
         origin: 'http://localhost:5173'
       }
     });
-    vi.stubGlobal('localStorage', makeLocalStorage('Me'));
   });
 
   it('resyncs on reconnect callback', async () => {
@@ -128,14 +115,14 @@ describe('boardRealtime', () => {
     realtime.announceTyping(42);
 
     vi.advanceTimersByTime(1399);
-    expect(connection.invoke).toHaveBeenCalledWith('TypingStarted', 42, 'Me');
-    expect(connection.invoke).not.toHaveBeenCalledWith('TypingStopped', 42, 'Me');
+    expect(connection.invoke).toHaveBeenCalledWith('TypingStarted', 42);
+    expect(connection.invoke).not.toHaveBeenCalledWith('TypingStopped', 42);
 
     vi.advanceTimersByTime(1);
     await vi.runOnlyPendingTimersAsync();
 
     const stopCalls = connection.invoke.mock.calls.filter(
-      args => args[0] === 'TypingStopped' && args[1] === 42 && args[2] === 'Me'
+      args => args[0] === 'TypingStopped' && args[1] === 42
     );
     expect(stopCalls).toHaveLength(1);
   });
@@ -151,6 +138,8 @@ describe('boardRealtime', () => {
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
       onResync: vi.fn()
+    }, {
+      getCurrentUserLabel: () => 'Me'
     });
 
     await realtime.connect();

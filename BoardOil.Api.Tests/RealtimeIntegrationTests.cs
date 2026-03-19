@@ -74,7 +74,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
 
         connectionB.On<TypingChangedEvent>("TypingChanged", evt =>
         {
-            if (evt.CardId != card.Id || evt.UserLabel != "UserA")
+            if (evt.CardId != card.Id || evt.UserLabel != "admin")
             {
                 return;
             }
@@ -91,7 +91,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
         await StartConnectionsAsync(connectionA, connectionB);
 
         // Act
-        await connectionA.InvokeAsync("TypingStarted", card.Id, "UserA");
+        await connectionA.InvokeAsync("TypingStarted", card.Id);
 
         // Assert
         var startedEvent = await WaitAsync(started.Task);

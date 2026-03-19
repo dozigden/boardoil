@@ -4,7 +4,7 @@
 - [x] Require authentication on `/hubs/board` and ensure realtime board/card events are not delivered to unauthenticated clients.
 - [x] Set auth cookies (`boardoil_access`, `boardoil_refresh`) to `Secure=true` in production (configurable for local HTTP dev).
 - [x] Skip CSRF enforcement for auth session/bootstrap endpoints (`/api/auth/register-initial-admin`, `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`) to prevent stale-cookie setup/login failures.
-- [ ] Stop accepting client-supplied typing labels; derive typing identity from authenticated user claims server-side.
+- [x] Stop accepting client-supplied typing labels; derive typing identity from authenticated user claims server-side.
 - [ ] Improve frontend auth failure handling: preserve HTTP status in API errors, clear session on `401`, and route to `/login` predictably.
 
 ## Deferred Backlog
