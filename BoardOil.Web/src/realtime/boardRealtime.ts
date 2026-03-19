@@ -14,10 +14,13 @@ type RealtimeHandlers = {
   onResync: () => Promise<unknown> | unknown;
 };
 
-export function createBoardRealtime(handlers: RealtimeHandlers) {
+type RealtimeOptions = {
+  getCurrentUserLabel?: () => string | null;
+};
+
+export function createBoardRealtime(handlers: RealtimeHandlers, options?: RealtimeOptions) {
   const typingByCard = ref<Record<number, Set<string>>>({});
   const typingTimers = new Map<number, ReturnType<typeof setTimeout>>();
-  const localUserLabel = resolveLocalUserLabel();
   let hubConnection: HubConnection | null = null;
 
   async function connect() {
@@ -89,7 +92,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
       return;
     }
 
-    void hubConnection.invoke('TypingStarted', cardId, localUserLabel);
+    void hubConnection.invoke('TypingStarted', cardId);
 
     if (typingTimers.has(cardId)) {
       clearTimeout(typingTimers.get(cardId));
@@ -112,7 +115,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
       typingTimers.delete(cardId);
     }
 
-    await hubConnection.invoke('TypingStopped', cardId, localUserLabel);
+    await hubConnection.invoke('TypingStopped', cardId);
   }
 
   const typingSummary = computed(() => {
@@ -122,7 +125,8 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         return false;
       }
 
-      return Array.from(cardTyping).some(label => label !== localUserLabel);
+      const currentUserLabel = options?.getCurrentUserLabel?.();
+      return Array.from(cardTyping).some(label => label !== currentUserLabel);
     };
   });
 
@@ -133,15 +137,4 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     stopTyping,
     typingSummary
   };
-}
-
-function resolveLocalUserLabel() {
-  const existing = localStorage.getItem('boardoil.userLabel');
-  if (existing) {
-    return existing;
-  }
-
-  const generated = `User-${Math.floor(1000 + Math.random() * 9000)}`;
-  localStorage.setItem('boardoil.userLabel', generated);
-  return generated;
 }

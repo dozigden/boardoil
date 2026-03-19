@@ -67,7 +67,7 @@ npm run dev
 ## Realtime Surface
 - Hub endpoint: `/hubs/board`
 - Server events: `ColumnCreated`, `ColumnUpdated`, `ColumnDeleted`, `CardCreated`, `CardUpdated`, `CardDeleted`, `CardMoved`, `TypingChanged`
-- Client events: `TypingStarted(cardId, userLabel)`, `TypingStopped(cardId, userLabel)`
+- Client events: `TypingStarted(cardId)`, `TypingStopped(cardId)` (user label is derived from authenticated server identity)
 - Delivery semantics: realtime messages are best-effort; clients should treat hub events as incremental hints and rely on reconnect/resync for eventual consistency.
 
 ## Runtime Configuration
