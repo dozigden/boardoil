@@ -9,6 +9,7 @@ public sealed class JwtAuthOptions
     public int RefreshTokenDays { get; init; } = 14;
     public string AccessTokenCookieName { get; init; } = "boardoil_access";
     public string RefreshTokenCookieName { get; init; } = "boardoil_refresh";
+    public bool AllowInsecureCookies { get; init; }
 
     public static JwtAuthOptions FromConfiguration(IConfiguration configuration)
     {
@@ -21,7 +22,8 @@ public sealed class JwtAuthOptions
             AccessTokenMinutes = Math.Max(1, section.GetValue<int?>("AccessTokenMinutes") ?? 15),
             RefreshTokenDays = Math.Max(1, section.GetValue<int?>("RefreshTokenDays") ?? 14),
             AccessTokenCookieName = section["AccessTokenCookieName"] ?? "boardoil_access",
-            RefreshTokenCookieName = section["RefreshTokenCookieName"] ?? "boardoil_refresh"
+            RefreshTokenCookieName = section["RefreshTokenCookieName"] ?? "boardoil_refresh",
+            AllowInsecureCookies = section.GetValue<bool?>("AllowInsecureCookies") ?? false
         };
 
         if (options.SigningKey.Length < 32)

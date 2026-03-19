@@ -58,6 +58,7 @@ npm run dev
 
 ## CSRF (Cookie Auth)
 - API auth uses cookies (`boardoil_access`, `boardoil_refresh`) and enforces CSRF checks for state-changing `/api` requests.
+- Auth cookies are `Secure` by default. For HTTP-only local/home-lab setups, set `BoardOilAuth:AllowInsecureCookies=true`.
 - Clients must send a header matching the CSRF cookie value:
   - cookie: `boardoil_csrf`
   - header: `X-BoardOil-CSRF`
@@ -77,6 +78,7 @@ npm run dev
 - `BoardOilAuth:Issuer`, `BoardOilAuth:Audience`, `BoardOilAuth:SigningKey`
 - `BoardOilAuth:AccessTokenMinutes`, `BoardOilAuth:RefreshTokenDays`
 - `BoardOilAuth:AccessTokenCookieName`, `BoardOilAuth:RefreshTokenCookieName`
+- `BoardOilAuth:AllowInsecureCookies` (default `false`; set `true` only for HTTP local/home-lab usage)
 - `BoardOilCsrf:CookieName`, `BoardOilCsrf:HeaderName`
 - `ASPNETCORE_URLS` still overrides listen URL when set explicitly.
 

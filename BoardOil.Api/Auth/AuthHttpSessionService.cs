@@ -117,7 +117,7 @@ public sealed class AuthHttpSessionService(
                 HttpOnly = false,
                 IsEssential = true,
                 SameSite = SameSiteMode.Strict,
-                Secure = false,
+                Secure = UseSecureCookies,
                 Expires = expiresAtUtc,
                 Path = "/"
             });
@@ -130,14 +130,16 @@ public sealed class AuthHttpSessionService(
         response.Cookies.Delete(csrfOptions.CookieName);
     }
 
-    private static CookieOptions CreateCookieOptions(DateTime expiresAtUtc) =>
+    private CookieOptions CreateCookieOptions(DateTime expiresAtUtc) =>
         new()
         {
             HttpOnly = true,
             IsEssential = true,
             SameSite = SameSiteMode.Strict,
-            Secure = false,
+            Secure = UseSecureCookies,
             Expires = expiresAtUtc,
             Path = "/"
         };
+
+    private bool UseSecureCookies => !jwtOptions.AllowInsecureCookies;
 }

@@ -518,6 +518,48 @@ button.danger {
   max-width: 760px;
 }
 
+.configuration-view {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+  max-width: 760px;
+}
+
+.configuration-header h2 {
+  margin: 0;
+}
+
+.configuration-header p {
+  margin: 0.2rem 0 0;
+  color: #335373;
+}
+
+.configuration-card {
+  display: grid;
+  gap: 0.7rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #c9d3e3;
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.configuration-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.configuration-label {
+  font-weight: 600;
+  color: #1f3653;
+}
+
+.configuration-hint {
+  margin: 0;
+  color: #335373;
+}
+
 .users-header h2 {
   margin: 0;
 }
