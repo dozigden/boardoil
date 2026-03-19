@@ -1,7 +1,8 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { createAuthApi } from '../api/authApi';
-import { setCsrfToken } from '../api/http';
+import { setCsrfToken, setUnauthorizedHandler } from '../api/http';
+import { router } from '../router';
 import type { AuthUser } from '../types/authTypes';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -14,6 +15,15 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => user.value !== null);
   const isAdmin = computed(() => user.value?.role === 'Admin');
+
+  setUnauthorizedHandler(async () => {
+    handleUnauthorized();
+
+    const routeName = router.currentRoute.value.name;
+    if (routeName !== 'unauthorized' && routeName !== 'setup-initial-admin') {
+      await router.replace({ name: 'unauthorized' });
+    }
+  });
 
   async function initialize() {
     if (initialized.value) {
@@ -93,6 +103,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function handleUnauthorized() {
+    clearSession();
+  }
+
   function clearSession() {
     user.value = null;
     setCsrfToken(null);
@@ -109,6 +123,7 @@ export const useAuthStore = defineStore('auth', () => {
     initialize,
     login,
     registerInitialAdmin,
-    logout
+    logout,
+    handleUnauthorized
   };
 });

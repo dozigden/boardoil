@@ -5,9 +5,15 @@ import type { ApiEnvelope } from '../types/boardTypes';
 import type { Result } from '../types/result';
 
 let csrfToken: string | null = null;
+let unauthorizedHandler: (() => void | Promise<void>) | null = null;
+let handlingUnauthorized = false;
 
 export function setCsrfToken(token: string | null) {
   csrfToken = token;
+}
+
+export function setUnauthorizedHandler(handler: (() => void | Promise<void>) | null) {
+  unauthorizedHandler = handler;
 }
 
 export async function getEnvelope<T>(path: string): Promise<Result<ApiEnvelope<T>, AppError>> {
@@ -149,9 +155,14 @@ async function request(path: string, init: RequestInit): Promise<Result<Response
     });
     if (!response.ok) {
       const envelope = (await response.clone().json().catch(() => null)) as ApiEnvelope<unknown> | null;
+      if (response.status === 401) {
+        void handleUnauthorized();
+      }
+
       return err({
         kind: 'http',
-        message: envelope?.message ?? `Request failed with status ${response.status}`
+        message: envelope?.message ?? `Request failed with status ${response.status}`,
+        statusCode: response.status
       });
     }
 
@@ -161,6 +172,19 @@ async function request(path: string, init: RequestInit): Promise<Result<Response
       kind: 'network',
       message: `Cannot reach API at ${apiBase}. Start backend there or set VITE_API_BASE.`
     });
+  }
+}
+
+async function handleUnauthorized() {
+  if (!unauthorizedHandler || handlingUnauthorized) {
+    return;
+  }
+
+  handlingUnauthorized = true;
+  try {
+    await unauthorizedHandler();
+  } finally {
+    handlingUnauthorized = false;
   }
 }
 

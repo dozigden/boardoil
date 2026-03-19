@@ -27,6 +27,12 @@ const realtime = {
   typingSummary: computed(() => () => false)
 };
 
+const { authStore } = vi.hoisted(() => ({
+  authStore: {
+    user: { userName: 'Me', role: 'Admin' as const }
+  }
+}));
+
 vi.mock('../api/boardApi', () => ({
   createBoardApi: () => api
 }));
@@ -36,9 +42,7 @@ vi.mock('../realtime/boardRealtime', () => ({
 }));
 
 vi.mock('./authStore', () => ({
-  useAuthStore: () => ({
-    user: { userName: 'Me', role: 'Admin' }
-  })
+  useAuthStore: () => authStore
 }));
 
 describe('boardStore', () => {
@@ -168,6 +172,7 @@ describe('boardStore', () => {
 
     expect(feedback.errorMessage).toBe('Column create failed.');
   });
+
 });
 
 function makeBoard(): Board {

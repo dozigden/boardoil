@@ -15,13 +15,25 @@ const authApi = {
 };
 
 const setCsrfToken = vi.fn();
+const setUnauthorizedHandler = vi.fn();
+const { router } = vi.hoisted(() => ({
+  router: {
+    currentRoute: { value: { name: 'board' as string | null } },
+    replace: vi.fn(async () => undefined)
+  }
+}));
 
 vi.mock('../api/authApi', () => ({
   createAuthApi: () => authApi
 }));
 
 vi.mock('../api/http', () => ({
-  setCsrfToken: (token: string | null) => setCsrfToken(token)
+  setCsrfToken: (token: string | null) => setCsrfToken(token),
+  setUnauthorizedHandler: (handler: (() => void | Promise<void>) | null) => setUnauthorizedHandler(handler)
+}));
+
+vi.mock('../router', () => ({
+  router
 }));
 
 describe('authStore', () => {
@@ -32,6 +44,9 @@ describe('authStore', () => {
     authApi.getCsrfToken.mockResolvedValue(ok('csrf-token'));
     authApi.getBootstrapStatus.mockResolvedValue(ok(false));
     authApi.logout.mockResolvedValue(ok(undefined));
+    setUnauthorizedHandler.mockClear();
+    router.replace.mockClear();
+    router.currentRoute.value.name = 'board';
   });
 
   it('initialize keeps anonymous state when /me returns no user', async () => {
@@ -148,5 +163,48 @@ describe('authStore', () => {
     expect(store.user).toBeNull();
     expect(store.isAuthenticated).toBe(false);
     expect(setCsrfToken).toHaveBeenLastCalledWith(null);
+  });
+
+  it('handleUnauthorized clears local session immediately', async () => {
+    const store = useAuthStore();
+    authApi.login.mockResolvedValue(
+      ok<AuthSession>({
+        user: { id: 1, userName: 'admin', role: 'Admin' },
+        accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
+        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
+        csrfToken: 'csrf-login'
+      })
+    );
+    await store.login('admin', 'Password1234!');
+
+    store.handleUnauthorized();
+
+    expect(store.user).toBeNull();
+    expect(store.isAuthenticated).toBe(false);
+    expect(setCsrfToken).toHaveBeenLastCalledWith(null);
+  });
+
+  it('registers unauthorized handler that clears session and routes to unauthorized page', async () => {
+    const store = useAuthStore();
+    authApi.login.mockResolvedValue(
+      ok<AuthSession>({
+        user: { id: 1, userName: 'admin', role: 'Admin' },
+        accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
+        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
+        csrfToken: 'csrf-login'
+      })
+    );
+
+    await store.login('admin', 'Password1234!');
+    const registered = setUnauthorizedHandler.mock.calls[setUnauthorizedHandler.mock.calls.length - 1]?.[0] as
+      | (() => Promise<void>)
+      | undefined;
+    expect(typeof registered).toBe('function');
+
+    await registered?.();
+
+    expect(store.user).toBeNull();
+    expect(store.isAuthenticated).toBe(false);
+    expect(router.replace).toHaveBeenCalledWith({ name: 'unauthorized' });
   });
 });
