@@ -8,11 +8,13 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _databasePath;
     private readonly int _typingTtlSeconds;
+    private readonly bool _allowInsecureCookies;
 
-    public BoardOilApiFactory(string databasePath, int typingTtlSeconds = 2)
+    public BoardOilApiFactory(string databasePath, int typingTtlSeconds = 2, bool allowInsecureCookies = true)
     {
         _databasePath = databasePath;
         _typingTtlSeconds = typingTtlSeconds;
+        _allowInsecureCookies = allowInsecureCookies;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -30,6 +32,7 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("BoardOil:ExposeLan", "false");
         builder.UseSetting("BoardOil:Port", "5000");
         builder.UseSetting("BoardOil:TypingTtlSeconds", _typingTtlSeconds.ToString());
+        builder.UseSetting("BoardOilAuth:AllowInsecureCookies", _allowInsecureCookies.ToString().ToLowerInvariant());
 
         builder.ConfigureAppConfiguration((_, configBuilder) =>
         {
@@ -39,7 +42,8 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
                 ["BoardOil:DataPath"] = _databasePath,
                 ["BoardOil:ExposeLan"] = "false",
                 ["BoardOil:Port"] = "5000",
-                ["BoardOil:TypingTtlSeconds"] = _typingTtlSeconds.ToString()
+                ["BoardOil:TypingTtlSeconds"] = _typingTtlSeconds.ToString(),
+                ["BoardOilAuth:AllowInsecureCookies"] = _allowInsecureCookies.ToString().ToLowerInvariant()
             };
             configBuilder.AddInMemoryCollection(settings);
         });

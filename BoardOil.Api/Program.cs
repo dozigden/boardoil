@@ -57,6 +57,7 @@ builder.Services.AddSingleton(new AuthSessionOptions
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
 builder.Services.AddScoped<IAuthHttpSessionService, AuthHttpSessionService>();
+builder.Services.AddSingleton<IConfigurationService, ConfigurationService>();
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
 builder.Services.AddSingleton<ITypingPresenceService, TypingPresenceService>();
 builder.Services.AddHostedService<TypingPresenceExpiryService>();
@@ -101,6 +102,11 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
+if (jwtOptions.AllowInsecureCookies)
+{
+    app.Logger.LogWarning("Auth cookies are configured with Secure=false. This should only be used for local/home-lab HTTP setups.");
+}
+
 await app.Services.InitializeBoardOilAsync();
 app.UseCors("BoardOilDevClient");
 app.UseAuthentication();
@@ -116,6 +122,12 @@ app.Use(async (context, next) =>
     }
 
     if (!context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
+
+    if (IsCsrfExemptAuthPath(context.Request.Path))
     {
         await next();
         return;
@@ -192,5 +204,11 @@ app.UseStaticFiles();
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+static bool IsCsrfExemptAuthPath(PathString path) =>
+    path.StartsWithSegments("/api/auth/register-initial-admin", StringComparison.OrdinalIgnoreCase)
+    || path.StartsWithSegments("/api/auth/login", StringComparison.OrdinalIgnoreCase)
+    || path.StartsWithSegments("/api/auth/refresh", StringComparison.OrdinalIgnoreCase)
+    || path.StartsWithSegments("/api/auth/logout", StringComparison.OrdinalIgnoreCase);
 
 public partial class Program;
