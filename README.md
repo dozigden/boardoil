@@ -1,126 +1,61 @@
 # BoardOil
 
-BoardOil is a lightweight self-hosted Kanban board for small trusted teams.
+BoardOil is a self-hosted Kanban board.
 
-See [`TODO.md`](TODO.md) for the current implementation backlog.
+> Warning
+> This project is a work in progress and unfinished. Use at your own risk.
 
-## v1 Direction
-- Single board Kanban workflow
-- .NET backend + Vue (TypeScript) frontend
-- Realtime updates and card-level typing indicators
-- Local-account auth (JWT cookies) with admin/standard roles
-- SQLite persistence via EF Core
+## Highlights
+- Local account auth with Admin/Standard roles
+- Realtime board updates and typing presence
+- SQLite persistence (single-file data store)
 - Single Docker container deployment
 
-Default bootstrap columns: `Todo`, `In Progress`, `Done`.
+## Quick Start (Docker)
+Run from repository root:
 
-## Repository Layout
-- `BoardOil.Api`: ASP.NET Core API (v1 scaffold)
-- `BoardOil.Services`: service layer and business logic
-- `BoardOil.Ef`: EF Core SQLite data access and entities
-- `BoardOil.Web`: Vue + TypeScript (Vite) app (v1 scaffold)
-- `dev-startall.sh`: local dev launcher (API + frontend)
-- `Dockerfile`: single-image production build (frontend + backend)
-- `docker-compose.yml`: default local/prod-like container runtime
-
-## Development
-1. Restore dependencies:
-```bash
-dotnet restore BoardOil.slnx
-cd BoardOil.Web && npm install
-```
-2. Start backend + frontend together:
-```bash
-./dev-startall.sh
-```
-3. Or start each process manually:
-```bash
-dotnet run --project BoardOil.Api/BoardOil.Api.csproj --urls http://127.0.0.1:5000
-cd BoardOil.Web
-npm run dev
-```
-4. Open:
-- frontend: `http://localhost:5173`
-- API health: `http://localhost:5000/api/health`
-- Frontend uses same-origin `/api` + `/hubs` by default (Vite proxy in dev). Set `VITE_API_BASE` only when overriding API host.
-
-## Authentication and Roles
-- Initial bootstrap: create the first admin with `POST /api/auth/register-initial-admin` (only available when there are zero users).
-- Login/logout/refresh: `/api/auth/login`, `/api/auth/logout`, `/api/auth/refresh`.
-- Bootstrap status: `/api/auth/bootstrap-status` (indicates whether initial admin setup is still required).
-- Session profile: `/api/auth/me`.
-- User management (admin-only): `/api/users`, `/api/users/{id}/role`, `/api/users/{id}/status`.
-- UI:
-  - `/login` for sign-in.
-  - `/setup-initial-admin` to create the first admin account when no users exist; anonymous users are redirected there automatically while bootstrap is required.
-  - `/columns` and `/users` are admin-only.
-  - standard users can read board data and create/edit/move/delete cards.
-
-## CSRF (Cookie Auth)
-- API auth uses cookies (`boardoil_access`, `boardoil_refresh`) and enforces CSRF checks for state-changing `/api` requests.
-- Auth cookies are `Secure` by default. For HTTP-only local/home-lab setups, set `BoardOilAuth:AllowInsecureCookies=true`.
-- Clients must send a header matching the CSRF cookie value:
-  - cookie: `boardoil_csrf`
-  - header: `X-BoardOil-CSRF`
-- CSRF value is returned from auth responses and from `GET /api/auth/csrf`.
-
-## Realtime Surface
-- Hub endpoint: `/hubs/board`
-- Server events: `ColumnCreated`, `ColumnUpdated`, `ColumnDeleted`, `CardCreated`, `CardUpdated`, `CardDeleted`, `CardMoved`, `TypingChanged`
-- Client events: `TypingStarted(cardId)`, `TypingStopped(cardId)` (user label is derived from authenticated server identity)
-- Delivery semantics: realtime messages are best-effort; clients should treat hub events as incremental hints and rely on reconnect/resync for eventual consistency.
-
-## Runtime Configuration
-- `BoardOil:DataPath` (default `/data/boardoil.db`)
-- `BoardOil:ExposeLan` (default `false`)
-- `BoardOil:Port` (default `5000`)
-- `BoardOil:TypingTtlSeconds` (default `5`)
-- `BoardOilAuth:Issuer`, `BoardOilAuth:Audience`, `BoardOilAuth:SigningKey`
-- `BoardOilAuth:AccessTokenMinutes`, `BoardOilAuth:RefreshTokenDays`
-- `BoardOilAuth:AccessTokenCookieName`, `BoardOilAuth:RefreshTokenCookieName`
-- `BoardOilAuth:AllowInsecureCookies` (default `false`; set `true` only for HTTP local/home-lab usage)
-- `BoardOilCsrf:CookieName`, `BoardOilCsrf:HeaderName`
-- `ASPNETCORE_URLS` still overrides listen URL when set explicitly.
-
-## Docker (First-Class Path)
-Build + run with persistent SQLite storage (Compose v2):
 ```bash
 docker compose up --build -d
 ```
 
-If your machine uses legacy Compose:
-```bash
-docker-compose up --build -d
-```
+Open: `http://localhost:5000`
 
-Open:
-- app + API: `http://localhost:5000`
-- health: `http://localhost:5000/api/health`
+Stop:
 
-Stop (Compose v2):
 ```bash
 docker compose down
 ```
 
-Stop (legacy Compose):
+## Required Production Setup
+Before real deployment, set a strong signing key:
+- `BoardOilAuth__SigningKey` must be at least 32 characters.
+- Set `BoardOilAuth__AllowInsecureCookies: "false"` and configure https.
+
+## Data & Persistence
+Docker compose uses a named volume:
+- `boardoil-data` mounted at `/data`
+- SQLite file: `/data/boardoil.db`
+
+Back up by copying the SQLite file while the app is stopped.
+
+## Troubleshooting
+`401` right after login (especially from another device):
+- If running plain HTTP with secure cookies, session cookies will not be sent.
+- Enable `BoardOilAuth__AllowInsecureCookies=true` for HTTP mode.
+
+`CSRF validation failed` during setup/login flow:
+- Clear `boardoil_access`, `boardoil_refresh`, `boardoil_csrf` cookies and retry.
+
+## Development
+Restore/install:
+
 ```bash
-docker-compose down
+dotnet restore BoardOil.slnx
+cd BoardOil.Web && npm install
 ```
 
-Logs (Compose v2):
-```bash
-docker compose logs -f boardoil
-```
+Run backend + frontend:
 
-Logs (legacy Compose):
 ```bash
-docker-compose logs -f boardoil
-```
-
-Named volume (`boardoil-data`) persists data at `/data/boardoil.db` between restarts.
-
-### Raw `docker run` Alternative
-```bash
-docker build -t boardoil:dev .
-docker run --rm -p 5000:5000 -v boardoil-data:/data boardoil:dev
+./dev-startall.sh
 ```
