@@ -1,9 +1,9 @@
 using System.Security.Claims;
+using BoardOil.Abstractions.Auth;
 using BoardOil.Api.Configuration;
 using BoardOil.Api.Extensions;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
-using BoardOil.Services.Auth;
 
 namespace BoardOil.Api.Auth;
 
