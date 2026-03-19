@@ -35,6 +35,12 @@ vi.mock('../realtime/boardRealtime', () => ({
   createBoardRealtime: vi.fn(() => realtime)
 }));
 
+vi.mock('./authStore', () => ({
+  useAuthStore: () => ({
+    user: { userName: 'Me', role: 'Admin' }
+  })
+}));
+
 describe('boardStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
