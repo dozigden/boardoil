@@ -1,14 +1,10 @@
 using BoardOil.Api.Auth;
 using BoardOil.Api.Configuration;
+using BoardOil.Api.Endpoints;
 using BoardOil.Api.Extensions;
 using BoardOil.Api.Realtime;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Auth;
-using BoardOil.Abstractions.Board;
-using BoardOil.Abstractions.Card;
-using BoardOil.Abstractions.Column;
-using BoardOil.Contracts.Card;
-using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Auth;
@@ -157,40 +153,10 @@ app.Use(async (context, next) =>
 });
 app.UseAuthorization();
 
-// API health endpoint used for container/dev smoke checks.
-app.MapGet("/api/health", () => ApiResults.Ok(new { status = "ok" }).ToHttpResult());
-
-app.MapGet("/api/board", (IBoardService boardService) =>
-    boardService.GetBoardAsync().ToHttpResult())
-    .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
-
-app.MapGet("/api/columns", (IColumnService columnService) =>
-    columnService.GetColumnsAsync().ToHttpResult())
-    .RequireAuthorization(BoardOilPolicies.AdminOnly);
-
-app.MapPost("/api/columns", (CreateColumnRequest request, IColumnService columnService) =>
-    columnService.CreateColumnAsync(request).ToHttpResult())
-    .RequireAuthorization(BoardOilPolicies.AdminOnly);
-
-app.MapPatch("/api/columns/{id:int}", (int id, UpdateColumnRequest request, IColumnService columnService) =>
-    columnService.UpdateColumnAsync(id, request).ToHttpResult())
-    .RequireAuthorization(BoardOilPolicies.AdminOnly);
-
-app.MapDelete("/api/columns/{id:int}", (int id, IColumnService columnService) =>
-    columnService.DeleteColumnAsync(id).ToHttpResult())
-    .RequireAuthorization(BoardOilPolicies.AdminOnly);
-
-app.MapPost("/api/cards", (CreateCardRequest request, ICardService cardService) =>
-    cardService.CreateCardAsync(request).ToHttpResult())
-    .RequireAuthorization(BoardOilPolicies.CardEditor);
-
-app.MapPatch("/api/cards/{id:int}", (int id, UpdateCardRequest request, ICardService cardService) =>
-    cardService.UpdateCardAsync(id, request).ToHttpResult())
-    .RequireAuthorization(BoardOilPolicies.CardEditor);
-
-app.MapDelete("/api/cards/{id:int}", (int id, ICardService cardService) =>
-    cardService.DeleteCardAsync(id).ToHttpResult())
-    .RequireAuthorization(BoardOilPolicies.CardEditor);
+app.MapHealthEndpoints();
+app.MapBoardEndpoints();
+app.MapColumnEndpoints();
+app.MapCardEndpoints();
 
 app.MapAuthEndpoints();
 

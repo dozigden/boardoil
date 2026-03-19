@@ -8,7 +8,7 @@
 - [x] Improve frontend auth failure handling: preserve HTTP status in API errors, clear session on `401`, and route to an unauthorized page with a clear login path.
 
 ## Deferred Backlog
-- [ ] Extract remaining endpoint route mapping from `Program.cs` into dedicated endpoint modules (board/columns/cards) to match `AuthEndpoints` structure.
+- [x] Extract remaining endpoint route mapping from `Program.cs` into dedicated endpoint modules (board/columns/cards) to match `AuthEndpoints` structure.
 - [ ] Revisit `IAuthService` placement after auth result/contracts are moved or shared; target is `BoardOil.Abstractions/Auth` once dependencies allow.
 - [ ] Fix missing tags feature in card workflow (`dev card #8`: "Where's the tags").
 - [ ] Add lightweight frontend tests for shared modal lifecycle (open/close via route state, backdrop close, ESC close).
