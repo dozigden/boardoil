@@ -113,6 +113,7 @@ describe('boardStore', () => {
       title: 'Task A',
       description: 'Seed',
       position: 0,
+      tagNames: [],
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:01:00Z'
     };
@@ -136,14 +137,16 @@ describe('boardStore', () => {
       title: 'Task A+',
       description: 'Updated',
       position: 0,
+      tagNames: ['Bug'],
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:02:00Z'
     };
     api.saveCard.mockResolvedValue(ok(updated));
 
-    await store.saveCard(101, 'Task A+', 'Updated');
+    await store.saveCard(101, 'Task A+', 'Updated', ['Bug']);
 
     expect(store.board?.columns[0].cards[0].title).toBe('Task A+');
+    expect(store.board?.columns[0].cards[0].tagNames).toEqual(['Bug']);
     expect(realtime.stopTyping).toHaveBeenCalledTimes(1);
     expect(realtime.stopTyping).toHaveBeenCalledWith(101);
   });
@@ -195,6 +198,7 @@ function makeBoard(): Board {
             title: 'Task A',
             description: 'Seed',
             position: 0,
+            tagNames: [],
             createdAtUtc: '2026-03-15T00:00:00Z',
             updatedAtUtc: '2026-03-15T00:00:00Z'
           }

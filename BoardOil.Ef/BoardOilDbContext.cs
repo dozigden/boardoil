@@ -9,6 +9,8 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<BoardColumn> Columns => Set<BoardColumn>();
     public DbSet<BoardCard> Cards => Set<BoardCard>();
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<CardTag> CardTags => Set<CardTag>();
     public DbSet<BoardUser> Users => Set<BoardUser>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
@@ -38,6 +40,23 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         card.Property(x => x.Description).HasMaxLength(5000).IsRequired();
         card.Property(x => x.SortKey).HasMaxLength(20).IsRequired();
         card.HasIndex(x => new { x.BoardColumnId, x.SortKey }).IsUnique();
+        card.HasMany(x => x.CardTags)
+            .WithOne(x => x.Card)
+            .HasForeignKey(x => x.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var cardTag = modelBuilder.Entity<CardTag>();
+        cardTag.HasKey(x => new { x.CardId, x.TagName });
+        cardTag.Property(x => x.TagName).HasMaxLength(40).IsRequired();
+        cardTag.HasIndex(x => x.TagName);
+
+        var tag = modelBuilder.Entity<Tag>();
+        tag.HasKey(x => x.Id);
+        tag.Property(x => x.Name).HasMaxLength(40).IsRequired();
+        tag.Property(x => x.NormalisedName).HasMaxLength(40).IsRequired();
+        tag.Property(x => x.StyleName).HasMaxLength(32).IsRequired();
+        tag.Property(x => x.StylePropertiesJson).IsRequired();
+        tag.HasIndex(x => x.NormalisedName).IsUnique();
 
         var user = modelBuilder.Entity<BoardUser>();
         user.HasKey(x => x.Id);

@@ -6,6 +6,7 @@ using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+using TagEntity = BoardOil.Ef.Entities.Tag;
 
 namespace BoardOil.Services.Tests;
 
@@ -24,7 +25,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "New Card", "Desc", null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "New Card", "Desc", null, null));
 
         // Assert
         Assert.True(result.Success);
@@ -39,6 +40,45 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.Equal(todoColumnId, stored.BoardColumnId);
         Assert.Equal("New Card", stored.Title);
         Assert.Equal("Desc", stored.Description);
+        Assert.Empty(result.Data.TagNames);
+    }
+
+    [Fact]
+    public async Task CreateCardAsync_WhenTagsProvided_ShouldAssignTagsUsingExistingTagCatalogueEntries()
+    {
+        // Arrange
+        await SeedTagsForArrangeAsync("Bug", "Needs Triage", "Sprint 1");
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+
+        // Act
+        var service = CreateService();
+        var result = await service.CreateCardAsync(new CreateCardRequest(
+            BoardColumnId: todoColumnId,
+            Title: "Tagged",
+            Description: "Desc",
+            Position: null,
+            TagNames: ["Bug", "Needs Triage", "Bug", "Sprint 1"]));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(["Bug", "Needs Triage", "Sprint 1"], result.Data!.TagNames);
+
+        var storedTags = await DbContextForAssert.Tags
+            .OrderBy(x => x.Name)
+            .Select(x => x.Name)
+            .ToListAsync();
+        Assert.Equal(["Bug", "Needs Triage", "Sprint 1"], storedTags);
+
+        var storedCardTags = await DbContextForAssert.CardTags
+            .OrderBy(x => x.TagName)
+            .Select(x => x.TagName)
+            .ToListAsync();
+        Assert.Equal(["Bug", "Needs Triage", "Sprint 1"], storedCardTags);
     }
 
     [Fact]
@@ -55,7 +95,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "Start", "X", 0));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "Start", "X", 0, null));
 
         // Assert
         Assert.True(result.Success);
@@ -79,7 +119,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "Middle", "X", 1));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "Middle", "X", 1, null));
 
         // Assert
         Assert.True(result.Success);
@@ -103,7 +143,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "End", "X", null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "End", "X", null, null));
 
         // Assert
         Assert.True(result.Success);
@@ -125,7 +165,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.CreateCardAsync(new CreateCardRequest(999_999, "New", "Desc", null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(999_999, "New", "Desc", null, null));
 
         // Assert
         Assert.False(result.Success);
@@ -146,7 +186,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(null, "  New Title  ", null, null));
+        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(null, "  New Title  ", null, null, null));
 
         // Assert
         Assert.True(result.Success);
@@ -170,7 +210,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(null, null, "New Description", null));
+        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(null, null, "New Description", null, null));
 
         // Assert
         Assert.True(result.Success);
@@ -179,6 +219,49 @@ public sealed class CardServiceTests : TestBaseDb
 
         Assert.Equal("Title", stored.Title);
         Assert.Equal("New Description", stored.Description);
+    }
+
+    [Fact]
+    public async Task UpdateCardAsync_WhenTagNamesProvided_ShouldReplaceAssignedTags()
+    {
+        // Arrange
+        await SeedTagsForArrangeAsync("Bug", "Urgent", "Ops");
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Title", "Old")
+            .AddColumn("Doing")
+            .Build();
+        var cardId = board.GetCard("Todo", "Title").Id;
+
+        var setupService = CreateService();
+        var seedResult = await setupService.UpdateCardAsync(cardId, new UpdateCardRequest(
+            BoardColumnId: null,
+            Title: null,
+            Description: null,
+            Position: null,
+            TagNames: ["Bug", "Urgent"]));
+        Assert.True(seedResult.Success);
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(
+            BoardColumnId: null,
+            Title: null,
+            Description: null,
+            Position: null,
+            TagNames: ["Urgent", "Ops"]));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(["Urgent", "Ops"], result.Data!.TagNames);
+
+        var storedCardTags = await DbContextForAssert.CardTags
+            .Where(x => x.CardId == cardId)
+            .OrderBy(x => x.TagName)
+            .Select(x => x.TagName)
+            .ToListAsync();
+        Assert.Equal(["Ops", "Urgent"], storedCardTags);
     }
 
     [Fact]
@@ -197,7 +280,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(movingCardId, new UpdateCardRequest(null, null, null, 0));
+        var result = await service.UpdateCardAsync(movingCardId, new UpdateCardRequest(null, null, null, 0, null));
 
         // Assert
         Assert.True(result.Success);
@@ -229,7 +312,8 @@ public sealed class CardServiceTests : TestBaseDb
                 BoardColumnId: doingColumnId,
                 Title: null,
                 Description: null,
-                Position: 1));
+                Position: 1,
+                TagNames: null));
 
         // Assert
         Assert.True(result.Success);
@@ -265,7 +349,8 @@ public sealed class CardServiceTests : TestBaseDb
                 BoardColumnId: doingColumnId,
                 Title: null,
                 Description: null,
-                Position: null));
+                Position: null,
+                TagNames: null));
 
         // Assert
         Assert.True(result.Success);
@@ -287,7 +372,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.UpdateCardAsync(999_999, new UpdateCardRequest(null, "X", null, null));
+        var result = await service.UpdateCardAsync(999_999, new UpdateCardRequest(null, "X", null, null, null));
 
         // Assert
         Assert.False(result.Success);
@@ -308,7 +393,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(999_999, null, null, 0));
+        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(999_999, null, null, 0, null));
 
         // Assert
         Assert.False(result.Success);
@@ -370,7 +455,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "bad@title", "Desc", null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "bad@title", "Desc", null, null));
 
         // Assert
         Assert.False(result.Success);
@@ -393,7 +478,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, longTitle, "Desc", null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, longTitle, "Desc", null, null));
 
         // Assert
         Assert.False(result.Success);
@@ -414,7 +499,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "   ", "Desc", null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "   ", "Desc", null, null));
 
         // Assert
         Assert.False(result.Success);
@@ -437,7 +522,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", longDescription, null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", longDescription, null, null));
 
         // Assert
         Assert.False(result.Success);
@@ -446,10 +531,69 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.True(result.ValidationErrors!.ContainsKey("description"));
     }
 
+    [Fact]
+    public async Task CreateCardAsync_WhenTagMissing_ShouldReturnValidationErrorForTagNames()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var missingTag = "MissingTag";
+
+        // Act
+        var service = CreateService();
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", null, [missingTag]));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("tagNames"));
+    }
+
+    [Fact]
+    public async Task CreateCardAsync_WhenTagExistsWithComma_ShouldAssignTag()
+    {
+        // Arrange
+        await SeedTagsForArrangeAsync("Bug,Urgent");
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+
+        // Act
+        var service = CreateService();
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", null, ["Bug,Urgent"]));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(["Bug,Urgent"], result.Data!.TagNames);
+    }
+
     private CardService CreateService()
     {
         var dbContext = CreateDbContextForAct();
         ICardRepository repository = new CardRepository(dbContext);
-        return new CardService(repository, new CardValidator(), new TestBoardEvents());
+        var tagRepository = new TagRepository(dbContext);
+        return new CardService(repository, new CardValidator(), tagRepository, new TestBoardEvents());
+    }
+
+    private async Task SeedTagsForArrangeAsync(params string[] tagNames)
+    {
+        var now = DateTime.UtcNow;
+        DbContextForArrange.Tags.AddRange(tagNames.Select(tagName => new TagEntity
+        {
+            Name = tagName,
+            NormalisedName = tagName.ToUpperInvariant(),
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        }));
+        await DbContextForArrange.SaveChangesAsync();
     }
 }

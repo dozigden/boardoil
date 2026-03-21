@@ -48,7 +48,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
         // Act
         var createCardResponse = await Client.PostAsJsonAsync(
             "/api/cards",
-            new CreateCardRequest(column.Id, "Realtime Task", "Desc", null));
+            new CreateCardRequest(column.Id, "Realtime Task", "Desc", null, null));
         createCardResponse.EnsureSuccessStatusCode();
 
         // Assert
@@ -116,7 +116,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
     {
         var response = await Client.PostAsJsonAsync(
             "/api/cards",
-            new CreateCardRequest(columnId, title, description, null));
+            new CreateCardRequest(columnId, title, description, null, null));
         response.EnsureSuccessStatusCode();
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>();

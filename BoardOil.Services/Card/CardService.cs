@@ -1,7 +1,9 @@
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Card;
+using BoardOil.Abstractions.Tag;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Tag;
 using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Card;
@@ -9,8 +11,10 @@ namespace BoardOil.Services.Card;
 public sealed class CardService(
     ICardRepository repository,
     ICardValidator validator,
+    ITagRepository tagRepository,
     IBoardEvents boardEvents) : ICardService
 {
+    private readonly ITagRepository _tagRepository = tagRepository;
     private readonly IBoardEvents _boardEvents = boardEvents;
 
     public async Task<ApiResult<CardDto>> CreateCardAsync(CreateCardRequest request)
@@ -25,6 +29,12 @@ public sealed class CardService(
         if (!columnExists)
         {
             return ApiErrors.NotFound("Column not found.");
+        }
+
+        var createTagErrors = await ValidateTagNamesExistAsync(request.TagNames);
+        if (createTagErrors.Count > 0)
+        {
+            return ValidationFail(createTagErrors);
         }
 
         var cards = (await repository.GetCardsInColumnOrderedAsync(request.BoardColumnId)).ToList();
@@ -46,6 +56,7 @@ public sealed class CardService(
             Title: request.Title.Trim(),
             Description: request.Description,
             SortKey: sortKey!,
+            TagNames: request.TagNames ?? Array.Empty<string>(),
             CreatedAtUtc: now,
             UpdatedAtUtc: now));
 
@@ -70,7 +81,23 @@ public sealed class CardService(
 
         var updatedTitle = request.Title is null ? existingCard.Title : request.Title.Trim();
         var updatedDescription = request.Description ?? existingCard.Description;
-        var metadataChanged = updatedTitle != existingCard.Title || updatedDescription != existingCard.Description;
+        IReadOnlyList<string>? updatedTagNames = null;
+        if (request.TagNames is not null)
+        {
+            var updateTagErrors = await ValidateTagNamesExistAsync(request.TagNames);
+            if (updateTagErrors.Count > 0)
+            {
+                return ValidationFail(updateTagErrors);
+            }
+
+            updatedTagNames = request.TagNames;
+        }
+
+        var tagsChanged = updatedTagNames is not null
+            && !existingCard.TagNames.SequenceEqual(updatedTagNames, StringComparer.Ordinal);
+        var metadataChanged = updatedTitle != existingCard.Title
+            || updatedDescription != existingCard.Description
+            || tagsChanged;
 
         var sourceColumnId = existingCard.BoardColumnId;
         var targetColumnId = request.BoardColumnId ?? sourceColumnId;
@@ -123,6 +150,7 @@ public sealed class CardService(
             Title = updatedTitle,
             Description = updatedDescription,
             SortKey = targetSortKey,
+            TagNames = updatedTagNames ?? existingCard.TagNames,
             UpdatedAtUtc = changed ? DateTime.UtcNow : existingCard.UpdatedAtUtc
         };
 
@@ -134,6 +162,7 @@ public sealed class CardService(
                 Title: updatedCard.Title,
                 Description: updatedCard.Description,
                 SortKey: updatedCard.SortKey,
+                TagNames: updatedTagNames,
                 UpdatedAtUtc: updatedCard.UpdatedAtUtc));
         }
 
@@ -284,5 +313,25 @@ public sealed class CardService(
             error = ApiErrors.InternalError("Unable to assign card order key.");
             return false;
         }
+    }
+
+    private async Task<IReadOnlyList<ValidationError>> ValidateTagNamesExistAsync(IReadOnlyList<string>? tagNames)
+    {
+        if (tagNames is null || tagNames.Count == 0)
+        {
+            return Array.Empty<ValidationError>();
+        }
+
+        var missingTagErrors = new List<ValidationError>();
+        foreach (var tagName in tagNames)
+        {
+            var existingTag = await _tagRepository.GetByNormalisedNameAsync(tagName.ToUpperInvariant());
+            if (existingTag is null)
+            {
+                missingTagErrors.Add(new ValidationError("tagNames", $"Tag '{tagName}' does not exist."));
+            }
+        }
+
+        return missingTagErrors.Count == 0 ? Array.Empty<ValidationError>() : missingTagErrors;
     }
 }

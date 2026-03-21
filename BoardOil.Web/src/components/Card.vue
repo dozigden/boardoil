@@ -21,12 +21,22 @@
     </div>
 
     <p class="description">{{ card.description }}</p>
+
+    <div v-if="card.tagNames.length > 0" class="card-tags" aria-label="Card tags">
+      <Tag
+        v-for="tagName in card.tagNames"
+        :key="tagName"
+        :tag-name="tagName"
+      >
+      </Tag>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import type { Card as BoardCard } from '../types/boardTypes';
+import Tag from './Tag.vue';
 
 const props = defineProps<{
   card: BoardCard;

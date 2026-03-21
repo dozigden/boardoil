@@ -11,6 +11,7 @@ public static class CardMappingExtensions
             card.Title,
             card.Description,
             position,
+            card.TagNames,
             card.CreatedAtUtc,
             card.UpdatedAtUtc);
 }

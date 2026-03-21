@@ -334,6 +334,43 @@ body {
   white-space: pre-wrap;
 }
 
+.card-tags,
+.tag-editor-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.card-tags {
+  margin-top: 0.2rem;
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid #bfd1e6;
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.tag-pill-editable {
+  padding-right: 0.18rem;
+}
+
+.tag-pill-remove {
+  width: auto;
+  min-width: 1.1rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  color: inherit;
+  padding: 0.02rem 0.26rem;
+  line-height: 1;
+}
+
 .typing {
   font-size: 0.75rem;
   color: #375580;
@@ -436,6 +473,7 @@ body {
 
 input,
 textarea,
+select,
 button {
   width: 100%;
   border-radius: 8px;
@@ -528,6 +566,73 @@ button.danger {
   display: grid;
   gap: 0.9rem;
   max-width: 760px;
+}
+
+.tags-manager {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+  max-width: 860px;
+}
+
+.tags-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tags-header h2 {
+  margin: 0;
+}
+
+.tags-refresh {
+  width: auto;
+}
+
+.tags-hint {
+  margin: 0;
+  color: #335373;
+}
+
+.tags-empty {
+  margin: 0;
+  color: #335373;
+}
+
+.tags-item {
+  display: grid;
+  gap: 0.65rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #c9d3e3;
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.tags-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tags-item-header h3 {
+  margin: 0;
+}
+
+.tags-item label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.88rem;
+}
+
+.tags-item-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tags-save {
+  width: auto;
 }
 
 .configuration-view {
