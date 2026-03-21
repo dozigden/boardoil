@@ -196,11 +196,7 @@ public sealed class ColumnService(
     }
 
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest(
-            "Validation failed.",
-            validationErrors
-                .GroupBy(x => string.IsNullOrWhiteSpace(x.Property) ? string.Empty : x.Property)
-                .ToDictionary(x => x.Key, x => x.Select(y => y.Message).ToArray()));
+        ApiErrors.BadRequest("Validation failed.", validationErrors);
 
     private static bool TryGenerateSortKey(string? previous, string? next, out string? sortKey, out ApiError? error)
     {

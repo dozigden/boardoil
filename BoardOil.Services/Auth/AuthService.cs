@@ -10,7 +10,8 @@ using BoardOil.Contracts.Contracts;
 namespace BoardOil.Services.Auth;
 
 public sealed class AuthService(
-    IAuthRepository authRepository,
+    IAuthUserRepository authUserRepository,
+    IRefreshTokenRepository refreshTokenRepository,
     IPasswordHashService passwordHashService,
     IAccessTokenIssuer accessTokenIssuer,
     AuthSessionOptions sessionOptions,
@@ -22,12 +23,12 @@ public sealed class AuthService(
         using var scope = scopeFactory.Create();
 
         var validation = ValidateCredentials(request.UserName, request.Password);
-        if (validation is not null)
+        if (validation.Count > 0)
         {
             return ApiErrors.BadRequest("Validation failed.", validation);
         }
 
-        if (await authRepository.AnyUsersAsync())
+        if (await authUserRepository.AnyAsync())
         {
             return new ApiError(409, "Initial admin already exists.");
         }
@@ -47,7 +48,7 @@ public sealed class AuthService(
 
         await scope.Transaction(async (transactionScope, transaction) =>
         {
-            authRepository.AddUser(user);
+            authUserRepository.Add(user);
             await transactionScope.SaveChangesAsync();
 
             createdSession = CreateSession(user);
@@ -69,7 +70,7 @@ public sealed class AuthService(
             return ApiErrors.Unauthorized("Invalid username or password.");
         }
 
-        var user = await authRepository.GetUserByUserNameAsync(normalizedUserName);
+        var user = await authUserRepository.GetByUserNameAsync(normalizedUserName);
         if (user is null || !user.IsActive || !passwordHashService.VerifyPassword(request.Password, user.PasswordHash))
         {
             return ApiErrors.Unauthorized("Invalid username or password.");
@@ -90,7 +91,7 @@ public sealed class AuthService(
         }
 
         var hash = HashRefreshToken(refreshToken);
-        var existingToken = await authRepository.GetRefreshTokenWithUserByHashAsync(hash);
+        var existingToken = await refreshTokenRepository.GetWithUserByHashAsync(hash);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         if (existingToken is null
@@ -116,7 +117,7 @@ public sealed class AuthService(
         if (!string.IsNullOrWhiteSpace(refreshToken))
         {
             var hash = HashRefreshToken(refreshToken);
-            var existingToken = await authRepository.GetRefreshTokenByHashAsync(hash);
+            var existingToken = await refreshTokenRepository.GetByHashAsync(hash);
             if (existingToken is not null && existingToken.RevokedAtUtc is null)
             {
                 existingToken.RevokedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
@@ -137,7 +138,7 @@ public sealed class AuthService(
             return ApiErrors.Unauthorized("Invalid identity context.");
         }
 
-        var user = await authRepository.GetActiveUserByIdAsync(userId);
+        var user = await authUserRepository.GetActiveByIdAsync(userId);
         if (user is null)
         {
             return ApiErrors.Unauthorized("User is not active.");
@@ -150,7 +151,7 @@ public sealed class AuthService(
     {
         using var scope = scopeFactory.CreateReadOnly();
 
-        var hasUsers = await authRepository.AnyUsersAsync();
+        var hasUsers = await authUserRepository.AnyAsync();
         return new BootstrapStatusDto(!hasUsers);
     }
 
@@ -165,7 +166,7 @@ public sealed class AuthService(
 
         var accessToken = accessTokenIssuer.CreateAccessToken(user, now, accessTokenExpiresAtUtc);
         var refreshToken = CreateRefreshToken();
-        authRepository.AddRefreshToken(new RefreshToken
+        refreshTokenRepository.Add(new RefreshToken
         {
             UserId = user.Id,
             TokenHash = HashRefreshToken(refreshToken),
@@ -188,28 +189,28 @@ public sealed class AuthService(
     private static string HashRefreshToken(string refreshToken) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
 
-    private static Dictionary<string, string[]>? ValidateCredentials(string userName, string password)
+    private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string password)
     {
-        var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        var errors = new List<ValidationError>();
 
         if (string.IsNullOrWhiteSpace(userName))
         {
-            errors["userName"] = ["Username is required."];
+            errors.Add(new ValidationError("userName", "Username is required."));
         }
         else if (userName.Trim().Length is < 3 or > 64)
         {
-            errors["userName"] = ["Username must be between 3 and 64 characters."];
+            errors.Add(new ValidationError("userName", "Username must be between 3 and 64 characters."));
         }
 
         if (string.IsNullOrWhiteSpace(password))
         {
-            errors["password"] = ["Password is required."];
+            errors.Add(new ValidationError("password", "Password is required."));
         }
         else if (password.Length < 10)
         {
-            errors["password"] = ["Password must be at least 10 characters."];
+            errors.Add(new ValidationError("password", "Password must be at least 10 characters."));
         }
 
-        return errors.Count == 0 ? null : errors;
+        return errors;
     }
 }

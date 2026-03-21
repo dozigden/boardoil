@@ -30,7 +30,7 @@ public sealed class UserAdminService(
         using var scope = scopeFactory.Create();
 
         var validation = ValidateCredentials(request.UserName, request.Password);
-        if (validation is not null)
+        if (validation.Count > 0)
         {
             return ApiErrors.BadRequest("Validation failed.", validation);
         }
@@ -121,29 +121,29 @@ public sealed class UserAdminService(
         return user.ToManagedUserDto();
     }
 
-    private static Dictionary<string, string[]>? ValidateCredentials(string userName, string password)
+    private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string password)
     {
-        var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        var errors = new List<ValidationError>();
 
         if (string.IsNullOrWhiteSpace(userName))
         {
-            errors["userName"] = ["Username is required."];
+            errors.Add(new ValidationError("userName", "Username is required."));
         }
         else if (userName.Trim().Length is < 3 or > 64)
         {
-            errors["userName"] = ["Username must be between 3 and 64 characters."];
+            errors.Add(new ValidationError("userName", "Username must be between 3 and 64 characters."));
         }
 
         if (string.IsNullOrWhiteSpace(password))
         {
-            errors["password"] = ["Password is required."];
+            errors.Add(new ValidationError("password", "Password is required."));
         }
         else if (password.Length < 10)
         {
-            errors["password"] = ["Password must be at least 10 characters."];
+            errors.Add(new ValidationError("password", "Password must be at least 10 characters."));
         }
 
-        return errors.Count == 0 ? null : errors;
+        return errors;
     }
 
     private static bool TryParseRole(string roleValue, out UserRole role)
