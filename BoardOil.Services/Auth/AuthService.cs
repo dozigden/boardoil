@@ -35,6 +35,9 @@ public sealed class AuthService(
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        var accessTokenExpiresAtUtc = now.AddMinutes(sessionOptions.AccessTokenMinutes);
+        var refreshTokenExpiresAtUtc = now.AddDays(sessionOptions.RefreshTokenDays);
+        var refreshToken = CreateRefreshToken();
         var user = new EntityUser
         {
             UserName = request.UserName.Trim(),
@@ -42,23 +45,29 @@ public sealed class AuthService(
             Role = UserRole.Admin,
             IsActive = true,
             CreatedAtUtc = now,
-            UpdatedAtUtc = now
+            UpdatedAtUtc = now,
+            RefreshTokens =
+            [
+                new EntityRefreshToken
+                {
+                    TokenHash = HashRefreshToken(refreshToken),
+                    CreatedAtUtc = now,
+                    ExpiresAtUtc = refreshTokenExpiresAtUtc
+                }
+            ]
         };
 
-        AuthSessionTokens? createdSession = null;
+        authUserRepository.Add(user);
+        await scope.SaveChangesAsync();
 
-        await scope.Transaction(async (transactionScope, transaction) =>
-        {
-            authUserRepository.Add(user);
-            await transactionScope.SaveChangesAsync();
-
-            createdSession = CreateSession(user);
-            await transactionScope.SaveChangesAsync();
-
-            await transaction.CommitAsync();
-        });
-
-        return createdSession!;
+        var accessToken = accessTokenIssuer.CreateAccessToken(user.Id, user.UserName, user.Role.ToString(), now, accessTokenExpiresAtUtc);
+        return new AuthSessionTokens(
+            accessToken,
+            accessTokenExpiresAtUtc,
+            refreshToken,
+            refreshTokenExpiresAtUtc,
+            CreateCsrfToken(),
+            user.ToAuthUserDto());
     }
 
     public async Task<ApiResult<AuthSessionTokens>> LoginAsync(LoginRequest request)
