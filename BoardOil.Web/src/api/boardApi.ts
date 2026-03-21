@@ -1,4 +1,4 @@
-import type { Board, Card, Column } from '../types/boardTypes';
+import type { Board, Card, Column, Tag, TagStyleName } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
@@ -47,20 +47,23 @@ export function createBoardApi() {
       boardColumnId: columnId,
       title,
       description: '',
-      position: null
+      position: null,
+      tagNames: []
     });
   }
 
   async function saveCard(
     cardId: number,
     title: string,
-    description: string
+    description: string,
+    tagNames: string[]
   ): Promise<Result<Card, AppError>> {
     return patchData<Card>(`/api/cards/${cardId}`, {
       boardColumnId: null,
       title,
       description,
-      position: null
+      position: null,
+      tagNames
     });
   }
 
@@ -73,12 +76,38 @@ export function createBoardApi() {
       boardColumnId,
       title: null,
       description: null,
-      position
+      position,
+      tagNames: null
     });
   }
 
   async function deleteCard(cardId: number): Promise<Result<void, AppError>> {
     return deleteJson(`/api/cards/${cardId}`);
+  }
+
+  async function getTags(): Promise<Result<Tag[], AppError>> {
+    const envelopeResult = await getEnvelope<Tag[]>('/api/tags');
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function createTag(name: string): Promise<Result<Tag, AppError>> {
+    return postData<Tag>('/api/tags', { name });
+  }
+
+  async function updateTagStyle(
+    tagName: string,
+    styleName: TagStyleName,
+    stylePropertiesJson: string
+  ): Promise<Result<Tag, AppError>> {
+    const encodedTagName = encodeURIComponent(tagName);
+    return patchData<Tag>(`/api/tags/${encodedTagName}`, {
+      styleName,
+      stylePropertiesJson
+    });
   }
 
   return {
@@ -90,7 +119,10 @@ export function createBoardApi() {
     createCard,
     saveCard,
     moveCard,
-    deleteCard
+    deleteCard,
+    getTags,
+    createTag,
+    updateTagStyle
   };
 }
 

@@ -6,6 +6,7 @@ public sealed record CardDto(
     string Title,
     string Description,
     int Position,
+    IReadOnlyList<string> TagNames,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
@@ -13,13 +14,15 @@ public sealed record CreateCardRequest(
     int BoardColumnId,
     string Title,
     string Description,
-    int? Position);
+    int? Position,
+    IReadOnlyList<string>? TagNames);
 
 public sealed record UpdateCardRequest(
     int? BoardColumnId,
     string? Title,
     string? Description,
-    int? Position);
+    int? Position,
+    IReadOnlyList<string>? TagNames);
 
 public sealed record CardRecord(
     int Id,
@@ -27,6 +30,7 @@ public sealed record CardRecord(
     string Title,
     string Description,
     string SortKey,
+    IReadOnlyList<string> TagNames,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
@@ -35,6 +39,7 @@ public sealed record CreateCardRecord(
     string Title,
     string Description,
     string SortKey,
+    IReadOnlyList<string> TagNames,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
@@ -44,4 +49,5 @@ public sealed record UpdateCardRecord(
     string Title,
     string Description,
     string SortKey,
+    IReadOnlyList<string>? TagNames,
     DateTime UpdatedAtUtc);

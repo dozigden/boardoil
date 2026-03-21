@@ -4,6 +4,17 @@ export type Card = {
   title: string;
   description: string;
   position: number;
+  tagNames: string[];
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
+export type TagStyleName = 'solid' | 'gradient';
+
+export type Tag = {
+  name: string;
+  styleName: TagStyleName;
+  stylePropertiesJson: string;
   createdAtUtc: string;
   updatedAtUtc: string;
 };

@@ -123,14 +123,13 @@ export const useBoardStore = defineStore('board', () => {
     upsertCard(result.data);
   }
 
-  async function saveCard(cardId: number, title: string, description: string) {
-    const result = await runBusy(() => api.saveCard(cardId, title, description));
+  async function saveCard(cardId: number, title: string, description: string, tagNames: string[]) {
+    const result = await runBusy(() => api.saveCard(cardId, title, description, tagNames));
     if (!result.ok) {
       return;
     }
 
     upsertCard(result.data);
-
     await realtime.stopTyping(cardId);
   }
 
@@ -320,7 +319,7 @@ function cloneBoard(source: Board): Board {
     ...source,
     columns: source.columns.map(column => ({
       ...column,
-      cards: column.cards.map(card => ({ ...card }))
+      cards: column.cards.map(card => ({ ...card, tagNames: [...card.tagNames] }))
     }))
   };
 }

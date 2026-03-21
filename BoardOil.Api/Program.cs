@@ -157,6 +157,7 @@ app.MapHealthEndpoints();
 app.MapBoardEndpoints();
 app.MapColumnEndpoints();
 app.MapCardEndpoints();
+app.MapTagEndpoints();
 
 app.MapAuthEndpoints();
 

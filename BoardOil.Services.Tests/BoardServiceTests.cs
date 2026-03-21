@@ -90,6 +90,34 @@ public sealed class BoardServiceTests : TestBaseDb
         Assert.Equal(1, doing.Cards[1].Position);
     }
 
+    [Fact]
+    public async Task GetBoardAsync_WhenCardsHaveTags_ShouldIncludeTagNames()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A")
+            .AddColumn("Doing")
+            .Build();
+        var cardId = board.GetCard("Todo", "A").Id;
+        DbContextForArrange.CardTags.Add(new BoardOil.Ef.Entities.CardTag
+        {
+            CardId = cardId,
+            TagName = "Bug"
+        });
+        await DbContextForArrange.SaveChangesAsync();
+
+        // Act
+        var service = CreateService();
+        var result = await service.GetBoardAsync();
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var todoCard = result.Data!.Columns[0].Cards[0];
+        Assert.Equal(["Bug"], todoCard.TagNames);
+    }
+
     private BoardService CreateService()
     {
         var dbContext = CreateDbContextForAct();

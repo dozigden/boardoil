@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Column;
+using BoardOil.Contracts.Tag;
+using Microsoft.Data.Sqlite;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -25,42 +27,57 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RegisterInitialAdmin_ShouldSucceedOnce_ThenConflict()
+    public async Task RegisterInitialAdmin_FirstAttempt_ShouldReturnCreated()
     {
+        // Arrange
         var client = _factory.CreateClient();
 
-        var first = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
-        var firstEnvelope = await first.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
-        Assert.NotNull(firstEnvelope);
-        Assert.NotNull(firstEnvelope!.Data);
-        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
-        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", firstEnvelope.Data!.CsrfToken);
+        // Act
+        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
 
-        var second = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin2", "Password1234!"));
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
 
-        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+    [Fact]
+    public async Task RegisterInitialAdmin_WhenAdminAlreadyExists_ShouldReturnConflict()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        await RegisterInitialAdminAsync(client);
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin2", "Password1234!"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
     public async Task RegisterInitialAdmin_WithStaleAccessCookieAndNoCsrfHeader_ShouldSucceed()
     {
+        // Arrange
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("Cookie", "boardoil_access=stale-token");
 
+        // Act
         var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
 
+        // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
     [Fact]
     public async Task BootstrapStatus_WhenNoUsers_ShouldRequireInitialAdminSetup()
     {
+        // Arrange
         var client = _factory.CreateClient();
 
+        // Act
         var response = await client.GetAsync("/api/auth/bootstrap-status");
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BootstrapStatusEnvelope>>();
 
+        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(envelope);
         Assert.NotNull(envelope!.Data);
@@ -70,12 +87,15 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task BootstrapStatus_AfterInitialAdminRegistration_ShouldNotRequireInitialAdminSetup()
     {
+        // Arrange
         var client = _factory.CreateClient();
         await RegisterInitialAdminAsync(client);
 
+        // Act
         var response = await client.GetAsync("/api/auth/bootstrap-status");
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BootstrapStatusEnvelope>>();
 
+        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(envelope);
         Assert.NotNull(envelope!.Data);
@@ -85,12 +105,15 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Login_WithInvalidPassword_ShouldReturnUnauthorized()
     {
+        // Arrange
         var client = _factory.CreateClient();
         await RegisterInitialAdminAsync(client);
 
+        // Act
         var response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", "wrong-password"));
         var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
 
+        // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.NotNull(payload);
         Assert.False(payload!.Success);
@@ -100,23 +123,29 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Login_WithExistingAuthCookieAndNoCsrfHeader_ShouldSucceed()
     {
+        // Arrange
         var client = _factory.CreateClient();
         await RegisterInitialAdminAsync(client);
         client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
 
+        // Act
         var response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", "Password1234!"));
 
+        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
     public async Task Refresh_WithoutCookie_ShouldReturnUnauthorized()
     {
+        // Arrange
         var client = _factory.CreateClient();
 
+        // Act
         var response = await client.PostAsJsonAsync("/api/auth/refresh", new { });
         var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
 
+        // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.NotNull(payload);
         Assert.False(payload!.Success);
@@ -126,12 +155,15 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task RegisterInitialAdmin_WhenInsecureCookiesDisabled_ShouldSetSecureFlagOnAuthCookies()
     {
+        // Arrange
         var dbPath = BuildDbPath("boardoil-auth-secure-cookie-tests");
         await using var factory = new BoardOilApiFactory(dbPath, allowInsecureCookies: false);
         var client = factory.CreateClient();
 
+        // Act
         var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
 
+        // Assert
         response.EnsureSuccessStatusCode();
         Assert.True(ResponseHasCookieAttribute(response, "boardoil_access", "secure"));
         Assert.True(ResponseHasCookieAttribute(response, "boardoil_refresh", "secure"));
@@ -140,69 +172,214 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task RegisterInitialAdmin_WhenInsecureCookiesEnabled_ShouldNotSetSecureFlagOnAuthCookies()
     {
+        // Arrange
         var client = _factory.CreateClient();
+
+        // Act
         var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
 
+        // Assert
         response.EnsureSuccessStatusCode();
         Assert.False(ResponseHasCookieAttribute(response, "boardoil_access", "secure"));
         Assert.False(ResponseHasCookieAttribute(response, "boardoil_refresh", "secure"));
     }
 
     [Fact]
-    public async Task AuthorizationMatrix_AnonymousAndStandardUser_ShouldRespectPolicies()
+    public async Task AnonymousUser_GetBoard_ShouldReturnUnauthorized()
     {
-        var anonymousClient = _factory.CreateClient();
+        // Arrange
+        var client = _factory.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/api/board");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_GetBoard_ShouldReturnOk()
+    {
+        // Arrange
         var adminClient = _factory.CreateClient();
         var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
 
+        // Act
+        var response = await standardClient.GetAsync("/api/board");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_CreateCard_ShouldReturnCreated()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        var columnId = await CreateColumnAsAdminAsync(adminClient, "Todo");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+        var createTagResponse = await standardClient.PostAsJsonAsync("/api/tags", new CreateTagRequest("member"));
+        createTagResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await standardClient.PostAsJsonAsync(
+            "/api/cards",
+            new CreateCardRequest(columnId, "Standard card", "Allowed", null, ["member"]));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_CreateTag_ShouldReturnCreated()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.PostAsJsonAsync(
+            "/api/tags",
+            new CreateTagRequest("member"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_GetTags_ShouldReturnOk()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.GetAsync("/api/tags");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_PatchTagStyle_ShouldReturnOk()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await SeedTagAsync("member", "MEMBER", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.PatchAsJsonAsync(
+            "/api/tags/member",
+            new UpdateTagStyleRequest(
+                StyleName: "solid",
+                StylePropertiesJson: """{"backgroundColor":"#113355","textColorMode":"auto"}"""));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_CreateColumn_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Not allowed", null));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_GetUsers_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.GetAsync("/api/users");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_GetConfiguration_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.GetAsync("/api/configuration");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminUser_GetConfiguration_ShouldReturnOk()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
 
-        // Anonymous requests must be rejected for protected routes.
-        var anonymousBoard = await anonymousClient.GetAsync("/api/board");
-        Assert.Equal(HttpStatusCode.Unauthorized, anonymousBoard.StatusCode);
+        // Act
+        var response = await adminClient.GetAsync("/api/configuration");
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
 
-        // Admin can create a standard user and a column.
-        var createUser = await adminClient.PostAsJsonAsync("/api/users", new CreateUserRequest("member", "Password1234!", "Standard"));
-        createUser.EnsureSuccessStatusCode();
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        Assert.True(envelope.Data!.AllowInsecureCookies);
+    }
 
-        var createColumn = await adminClient.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Todo", null));
-        createColumn.EnsureSuccessStatusCode();
-        var createdColumnEnvelope = await createColumn.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
-        Assert.NotNull(createdColumnEnvelope);
-        Assert.NotNull(createdColumnEnvelope!.Data);
-        var columnId = createdColumnEnvelope.Data!.Id;
-
-        // Standard user logs in and receives csrf token.
-        var login = await standardClient.PostAsJsonAsync("/api/auth/login", new LoginRequest("member", "Password1234!"));
-        login.EnsureSuccessStatusCode();
-        var loginEnvelope = await login.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
-        Assert.NotNull(loginEnvelope);
-        Assert.NotNull(loginEnvelope!.Data);
-        standardClient.DefaultRequestHeaders.Add("X-BoardOil-CSRF", loginEnvelope.Data!.CsrfToken);
-
-        var standardBoard = await standardClient.GetAsync("/api/board");
-        Assert.Equal(HttpStatusCode.OK, standardBoard.StatusCode);
-
-        var standardCreateCard = await standardClient.PostAsJsonAsync(
-            "/api/cards",
-            new CreateCardRequest(columnId, "Standard card", "Allowed", null));
-        Assert.Equal(HttpStatusCode.Created, standardCreateCard.StatusCode);
-
-        var standardCreateColumn = await standardClient.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Not allowed", null));
-        Assert.Equal(HttpStatusCode.Forbidden, standardCreateColumn.StatusCode);
-
-        var standardGetUsers = await standardClient.GetAsync("/api/users");
-        Assert.Equal(HttpStatusCode.Forbidden, standardGetUsers.StatusCode);
-
-        var adminConfiguration = await adminClient.GetAsync("/api/configuration");
-        var adminConfigurationEnvelope = await adminConfiguration.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
-        Assert.Equal(HttpStatusCode.OK, adminConfiguration.StatusCode);
-        Assert.NotNull(adminConfigurationEnvelope);
-        Assert.NotNull(adminConfigurationEnvelope!.Data);
-        Assert.True(adminConfigurationEnvelope.Data!.AllowInsecureCookies);
-
-        var standardConfiguration = await standardClient.GetAsync("/api/configuration");
-        Assert.Equal(HttpStatusCode.Forbidden, standardConfiguration.StatusCode);
+    private async Task SeedTagAsync(string name, string normalisedName, string styleName, string stylePropertiesJson)
+    {
+        await using var connection = new SqliteConnection($"Data Source={_databasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO "Tags" ("Name", "NormalisedName", "StyleName", "StylePropertiesJson", "CreatedAtUtc", "UpdatedAtUtc")
+            VALUES ($name, $normalisedName, $styleName, $stylePropertiesJson, $createdAtUtc, $updatedAtUtc);
+            """;
+        command.Parameters.AddWithValue("$name", name);
+        command.Parameters.AddWithValue("$normalisedName", normalisedName);
+        command.Parameters.AddWithValue("$styleName", styleName);
+        command.Parameters.AddWithValue("$stylePropertiesJson", stylePropertiesJson);
+        var now = DateTime.UtcNow;
+        command.Parameters.AddWithValue("$createdAtUtc", now);
+        command.Parameters.AddWithValue("$updatedAtUtc", now);
+        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task RegisterInitialAdminAsync(HttpClient client)
@@ -210,6 +387,33 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
         response.EnsureSuccessStatusCode();
 
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
+    }
+
+    private static async Task CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
+    {
+        var response = await adminClient.PostAsJsonAsync("/api/users", new CreateUserRequest(userName, password, role));
+        response.EnsureSuccessStatusCode();
+    }
+
+    private static async Task<int> CreateColumnAsAdminAsync(HttpClient adminClient, string title)
+    {
+        var response = await adminClient.PostAsJsonAsync("/api/columns", new CreateColumnRequest(title, null));
+        response.EnsureSuccessStatusCode();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        return envelope.Data!.Id;
+    }
+
+    private static async Task LoginAsAsync(HttpClient client, string userName, string password)
+    {
+        var response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(userName, password));
+        response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
         Assert.NotNull(envelope);
         Assert.NotNull(envelope!.Data);

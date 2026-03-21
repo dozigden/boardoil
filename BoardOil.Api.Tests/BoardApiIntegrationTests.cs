@@ -4,6 +4,8 @@ using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Column;
+using BoardOil.Contracts.Tag;
+using Microsoft.Data.Sqlite;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -76,7 +78,7 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
-    public async Task CardEndpoints_ShouldCreateUpdateAndDeleteCard()
+    public async Task CardEndpoints_ShouldCreateCard_WithTagNames()
     {
         // Arrange
         var createdColumnResponse = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Todo", null));
@@ -84,23 +86,54 @@ public sealed class BoardApiIntegrationTests
         var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
         Assert.NotNull(createdColumn);
         Assert.NotNull(createdColumn!.Data);
+        var createBugTagResponse = await Client.PostAsJsonAsync("/api/tags", new CreateTagRequest("Bug"));
+        createBugTagResponse.EnsureSuccessStatusCode();
+        var createUrgentTagResponse = await Client.PostAsJsonAsync("/api/tags", new CreateTagRequest("Urgent"));
+        createUrgentTagResponse.EnsureSuccessStatusCode();
 
-        // Act create
+        // Act
         var createdCardResponse = await Client.PostAsJsonAsync(
             "/api/cards",
-            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", null));
+            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", null, ["Bug", "Urgent"]));
+        createdCardResponse.EnsureSuccessStatusCode();
+        var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+
+        // Assert
+        Assert.NotNull(createdCard);
+        Assert.NotNull(createdCard!.Data);
+        Assert.Equal("Task A", createdCard.Data!.Title);
+        Assert.Equal(["Bug", "Urgent"], createdCard.Data.TagNames);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_ShouldUpdateCard_TitleAndTagNames()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Todo", null));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+        var createBugTagResponse = await Client.PostAsJsonAsync("/api/tags", new CreateTagRequest("Bug"));
+        createBugTagResponse.EnsureSuccessStatusCode();
+        var createUrgentTagResponse = await Client.PostAsJsonAsync("/api/tags", new CreateTagRequest("Urgent"));
+        createUrgentTagResponse.EnsureSuccessStatusCode();
+
+        var createdCardResponse = await Client.PostAsJsonAsync(
+            "/api/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", null, ["Bug", "Urgent"]));
         createdCardResponse.EnsureSuccessStatusCode();
         var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
         Assert.NotNull(createdCard);
         Assert.NotNull(createdCard!.Data);
 
-        // Act update
+        // Act
         var updatedCardResponse = await Client.PatchAsJsonAsync(
             $"/api/cards/{createdCard.Data!.Id}",
-            new UpdateCardRequest(createdColumn.Data.Id, "Task B", null, 0));
+            new UpdateCardRequest(createdColumn.Data.Id, "Task B", null, 0, ["Urgent"]));
         updatedCardResponse.EnsureSuccessStatusCode();
 
-        // Assert updated
+        // Assert
         var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/board", JsonOptions);
         Assert.NotNull(board);
         Assert.NotNull(board!.Data);
@@ -108,12 +141,34 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(createdColumnState);
         Assert.Single(createdColumnState!.Cards);
         Assert.Equal("Task B", createdColumnState.Cards[0].Title);
+        Assert.Equal(["Urgent"], createdColumnState.Cards[0].TagNames);
+    }
 
-        // Act delete
+    [Fact]
+    public async Task CardEndpoints_ShouldDeleteCard()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Todo", null));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+        var createBugTagResponse = await Client.PostAsJsonAsync("/api/tags", new CreateTagRequest("Bug"));
+        createBugTagResponse.EnsureSuccessStatusCode();
+
+        var createdCardResponse = await Client.PostAsJsonAsync(
+            "/api/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", null, ["Bug"]));
+        createdCardResponse.EnsureSuccessStatusCode();
+        var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdCard);
+        Assert.NotNull(createdCard!.Data);
+
+        // Act
         var deleteCardResponse = await Client.DeleteAsync($"/api/cards/{createdCard.Data.Id}");
         deleteCardResponse.EnsureSuccessStatusCode();
 
-        // Assert deleted
+        // Assert
         var afterDelete = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/board", JsonOptions);
         Assert.NotNull(afterDelete);
         Assert.NotNull(afterDelete!.Data);
@@ -172,6 +227,97 @@ public sealed class BoardApiIntegrationTests
         Assert.True(payload!.Success);
         Assert.Equal(200, payload.StatusCode);
         Assert.Null(payload.Message);
+    }
+
+    [Fact]
+    public async Task TagEndpoints_ShouldCreateTag()
+    {
+        // Arrange
+        var request = new CreateTagRequest("Bug");
+
+        // Act
+        var createResponse = await Client.PostAsJsonAsync("/api/tags", request);
+        createResponse.EnsureSuccessStatusCode();
+        var createdTagEnvelope = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
+
+        // Assert
+        Assert.NotNull(createdTagEnvelope);
+        Assert.NotNull(createdTagEnvelope!.Data);
+        Assert.Equal("Bug", createdTagEnvelope.Data!.Name);
+        Assert.Equal(201, createdTagEnvelope.StatusCode);
+    }
+
+    [Fact]
+    public async Task TagEndpoints_ShouldListTags()
+    {
+        // Arrange
+        await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
+
+        // Act
+        var initialTagsResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/tags", JsonOptions);
+
+        // Assert
+        Assert.NotNull(initialTagsResponse);
+        Assert.NotNull(initialTagsResponse!.Data);
+        Assert.Contains(initialTagsResponse.Data!, x => x.Name == "Bug");
+    }
+
+    [Fact]
+    public async Task TagEndpoints_ShouldPatchTagStyles()
+    {
+        // Arrange
+        await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
+        var request = new UpdateTagStyleRequest("gradient", """{"leftColor":"#223344","rightColor":"#446688","textColorMode":"auto"}""");
+
+        // Act
+        var patchResponse = await Client.PatchAsJsonAsync(
+            "/api/tags/Bug",
+            request);
+        patchResponse.EnsureSuccessStatusCode();
+
+        // Assert
+        var patchedTagEnvelope = await patchResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
+        Assert.NotNull(patchedTagEnvelope);
+        Assert.NotNull(patchedTagEnvelope!.Data);
+        Assert.Equal("gradient", patchedTagEnvelope.Data!.StyleName);
+    }
+
+    [Fact]
+    public async Task TagEndpoints_WhenNameDoesNotMatchCanonicalTag_ShouldReturnNotFound()
+    {
+        // Arrange
+        await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
+        var request = new UpdateTagStyleRequest("solid", """{"backgroundColor":"#223344","textColorMode":"auto"}""");
+
+        // Act
+        var response = await Client.PatchAsJsonAsync("/api/tags/bug", request);
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(404, (int)response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal(404, payload.StatusCode);
+        Assert.Equal("Tag not found.", payload.Message);
+    }
+
+    private async Task SeedTagAsync(string name, string normalisedName, string styleName, string stylePropertiesJson)
+    {
+        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO "Tags" ("Name", "NormalisedName", "StyleName", "StylePropertiesJson", "CreatedAtUtc", "UpdatedAtUtc")
+            VALUES ($name, $normalisedName, $styleName, $stylePropertiesJson, $createdAtUtc, $updatedAtUtc);
+            """;
+        command.Parameters.AddWithValue("$name", name);
+        command.Parameters.AddWithValue("$normalisedName", normalisedName);
+        command.Parameters.AddWithValue("$styleName", styleName);
+        command.Parameters.AddWithValue("$stylePropertiesJson", stylePropertiesJson);
+        var now = DateTime.UtcNow;
+        command.Parameters.AddWithValue("$createdAtUtc", now);
+        command.Parameters.AddWithValue("$updatedAtUtc", now);
+        await command.ExecuteNonQueryAsync();
     }
 
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);

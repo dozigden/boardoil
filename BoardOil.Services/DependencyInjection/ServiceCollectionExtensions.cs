@@ -5,11 +5,13 @@ using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.Column;
+using BoardOil.Abstractions.Tag;
 using BoardOil.Abstractions.Users;
 using BoardOil.Services.Auth;
 using BoardOil.Services.Board;
 using BoardOil.Services.Card;
 using BoardOil.Services.Column;
+using BoardOil.Services.Tag;
 using BoardOil.Services.Users;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -29,12 +31,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
+        services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBoardService, BoardService>();
         services.AddScoped<IColumnService, ColumnService>();
         services.AddScoped<ICardService, CardService>();
+        services.AddScoped<ITagService, TagService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
 
         return services;

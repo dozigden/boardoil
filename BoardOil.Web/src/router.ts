@@ -44,6 +44,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
+    path: '/tags',
+    name: 'tags',
+    component: () => import('./views/TagsManagerView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/columns/:columnId(\\d+)',
     name: 'columns-column',
     components: {

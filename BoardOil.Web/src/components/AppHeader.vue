@@ -12,6 +12,7 @@
           <Settings :size="18" aria-hidden="true" />
         </summary>
         <nav class="menu-panel" aria-label="Site menu">
+          <RouterLink v-if="isAuthenticated" to="/tags" class="menu-item" @click="closeMenu">Manage Tags</RouterLink>
           <RouterLink v-if="isAdmin" to="/columns" class="menu-item" @click="closeMenu">Manage Columns</RouterLink>
           <RouterLink v-if="isAdmin" to="/users" class="menu-item" @click="closeMenu">Manage Users</RouterLink>
           <RouterLink v-if="isAdmin" to="/configuration" class="menu-item" @click="closeMenu">Configuration</RouterLink>

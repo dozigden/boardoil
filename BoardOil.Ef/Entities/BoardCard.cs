@@ -11,4 +11,5 @@ public sealed class BoardCard
     public DateTime UpdatedAtUtc { get; set; }
 
     public BoardColumn BoardColumn { get; set; } = null!;
+    public ICollection<CardTag> CardTags { get; set; } = new List<CardTag>();
 }
