@@ -1,12 +1,12 @@
 using BoardOil.Abstractions.Entities;
+using BoardOil.Abstractions.DataAccess;
 
 namespace BoardOil.Abstractions.Users;
 
-public interface IUserRepository
+public interface IUserRepository : IRepositoryBase<BoardUser>
 {
     Task<IReadOnlyList<BoardUser>> GetUsersOrderedAsync();
     Task<bool> UserNameExistsAsync(string userName);
-    void Add(BoardUser user);
     Task<BoardUser?> GetByIdAsync(int id);
     Task<int> CountActiveAdminsAsync();
 }

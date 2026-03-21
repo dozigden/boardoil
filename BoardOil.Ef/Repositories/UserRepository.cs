@@ -6,22 +6,19 @@ using Microsoft.EntityFrameworkCore;
 namespace BoardOil.Ef.Repositories;
 
 public sealed class UserRepository(IAmbientDbContextLocator ambientDbContextLocator)
-    : RepositoryBase(ambientDbContextLocator), IUserRepository
+    : RepositoryBase<BoardUser>(ambientDbContextLocator), IUserRepository
 {
     public async Task<IReadOnlyList<BoardUser>> GetUsersOrderedAsync() =>
-        await DbContext.Users
+        await DbSet
             .OrderBy(x => x.UserName)
             .ToListAsync();
 
     public Task<bool> UserNameExistsAsync(string userName) =>
-        DbContext.Users.AnyAsync(x => x.UserName == userName);
-
-    public void Add(BoardUser user) =>
-        DbContext.Users.Add(user);
+        DbSet.AnyAsync(x => x.UserName == userName);
 
     public Task<BoardUser?> GetByIdAsync(int id) =>
-        DbContext.Users.FirstOrDefaultAsync(x => x.Id == id);
+        DbSet.FirstOrDefaultAsync(x => x.Id == id);
 
     public Task<int> CountActiveAdminsAsync() =>
-        DbContext.Users.CountAsync(x => x.IsActive && x.Role == UserRole.Admin);
+        DbSet.CountAsync(x => x.IsActive && x.Role == UserRole.Admin);
 }
