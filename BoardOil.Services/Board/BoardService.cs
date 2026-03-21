@@ -2,6 +2,7 @@ using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.Column;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
@@ -9,10 +10,16 @@ using BoardOil.Services.Card;
 
 namespace BoardOil.Services.Board;
 
-public sealed class BoardService(IBoardRepository boardRepository, IColumnRepository columnRepository, ICardRepository cardRepository) : IBoardService
+public sealed class BoardService(
+    IBoardRepository boardRepository,
+    IColumnRepository columnRepository,
+    ICardRepository cardRepository,
+    IDbContextScopeFactory scopeFactory) : IBoardService
 {
     public async Task<ApiResult<BoardDto>> GetBoardAsync()
     {
+        using var scope = scopeFactory.CreateReadOnly();
+
         var board = await boardRepository.GetPrimaryBoardAsync();
 
         if (board is null)

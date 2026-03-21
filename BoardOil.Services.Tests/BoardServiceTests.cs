@@ -120,10 +120,6 @@ public sealed class BoardServiceTests : TestBaseDb
 
     private BoardService CreateService()
     {
-        var dbContext = CreateDbContextForAct();
-        IBoardRepository boardRepository = new BoardRepository(dbContext);
-        IColumnRepository columnRepository = new ColumnRepository(dbContext);
-        ICardRepository cardRepository = new CardRepository(dbContext);
-        return new BoardService(boardRepository, columnRepository, cardRepository);
+        return ResolveService<BoardService>();
     }
 }

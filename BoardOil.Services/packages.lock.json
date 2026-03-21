@@ -252,7 +252,8 @@
       "boardoil.abstractions": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Contracts": "[1.0.0, )"
+          "BoardOil.Contracts": "[1.0.0, )",
+          "Microsoft.EntityFrameworkCore": "[10.0.4, )"
         }
       },
       "boardoil.contracts": {

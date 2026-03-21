@@ -196,8 +196,6 @@ public sealed class TagServiceTests : TestBaseDb
 
     private TagService CreateService()
     {
-        var dbContext = CreateDbContextForAct();
-        ITagRepository repository = new TagRepository(dbContext);
-        return new TagService(repository);
+        return ResolveService<TagService>();
     }
 }

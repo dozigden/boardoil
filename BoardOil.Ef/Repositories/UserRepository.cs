@@ -1,29 +1,27 @@
-using BoardOil.Ef;
 using BoardOil.Abstractions.Entities;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Users;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Repositories;
 
-public sealed class UserRepository(BoardOilDbContext dbContext) : IUserRepository
+public sealed class UserRepository(IAmbientDbContextLocator ambientDbContextLocator)
+    : RepositoryBase(ambientDbContextLocator), IUserRepository
 {
     public async Task<IReadOnlyList<BoardUser>> GetUsersOrderedAsync() =>
-        await dbContext.Users
+        await DbContext.Users
             .OrderBy(x => x.UserName)
             .ToListAsync();
 
     public Task<bool> UserNameExistsAsync(string userName) =>
-        dbContext.Users.AnyAsync(x => x.UserName == userName);
+        DbContext.Users.AnyAsync(x => x.UserName == userName);
 
     public void Add(BoardUser user) =>
-        dbContext.Users.Add(user);
+        DbContext.Users.Add(user);
 
     public Task<BoardUser?> GetByIdAsync(int id) =>
-        dbContext.Users.FirstOrDefaultAsync(x => x.Id == id);
+        DbContext.Users.FirstOrDefaultAsync(x => x.Id == id);
 
     public Task<int> CountActiveAdminsAsync() =>
-        dbContext.Users.CountAsync(x => x.IsActive && x.Role == UserRole.Admin);
-
-    public Task SaveChangesAsync() =>
-        dbContext.SaveChangesAsync();
+        DbContext.Users.CountAsync(x => x.IsActive && x.Role == UserRole.Admin);
 }

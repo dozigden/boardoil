@@ -8,5 +8,4 @@ public interface IBoardRepository
     Task<int?> GetPrimaryBoardIdAsync();
     Task<bool> AnyBoardAsync();
     void Add(BoardCreateRecord board);
-    Task SaveChangesAsync();
 }

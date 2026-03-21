@@ -1,4 +1,12 @@
+using BoardOil.Abstractions;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Ef;
+using BoardOil.Services.Board;
+using BoardOil.Services.Card;
+using BoardOil.Services.Column;
+using BoardOil.Services.DependencyInjection;
+using BoardOil.Services.Tag;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -11,6 +19,8 @@ public abstract class TestBaseDb : IAsyncLifetime
     private BoardOilDbContext? _dbContextForArrange;
     private BoardOilDbContext? _dbContextForAssert;
     private readonly List<BoardOilDbContext> _actDbContexts = [];
+    private ServiceProvider? _serviceProvider;
+    private readonly List<IServiceScope> _serviceScopes = [];
 
     protected BoardOilDbContext DbContextForArrange =>
         _dbContextForArrange ??= Harness.CreateDbContext();
@@ -28,16 +38,46 @@ public abstract class TestBaseDb : IAsyncLifetime
     protected FluentBoardBuilder CreateBoard(string name = "BoardOil") =>
         new(DbContextForArrange, name, FixedNow);
 
+    protected T ResolveService<T>() where T : notnull
+    {
+        var scope = ServiceProvider.CreateScope();
+        _serviceScopes.Add(scope);
+        return scope.ServiceProvider.GetRequiredService<T>();
+    }
+
     private SqliteTestHarness Harness =>
         _harness ?? throw new InvalidOperationException("Test harness has not been initialized.");
+
+    private ServiceProvider ServiceProvider =>
+        _serviceProvider ?? throw new InvalidOperationException("Service provider has not been initialized.");
 
     public async Task InitializeAsync()
     {
         _harness = await SqliteTestHarness.CreateAsync();
+
+        var services = new ServiceCollection();
+        services.AddBoardOilServices("DataSource=:memory:");
+        services.AddScoped<BoardService>();
+        services.AddScoped<ColumnService>();
+        services.AddScoped<CardService>();
+        services.AddScoped<TagService>();
+        services.AddSingleton<IBoardEvents, TestBoardEvents>();
+        services.AddSingleton<IDbContextFactory>(_ => new TestDbContextFactory(Harness.Options));
+        _serviceProvider = services.BuildServiceProvider();
     }
 
     public async Task DisposeAsync()
     {
+        foreach (var serviceScope in _serviceScopes)
+        {
+            serviceScope.Dispose();
+        }
+
+        if (_serviceProvider is not null)
+        {
+            await _serviceProvider.DisposeAsync();
+        }
+
         foreach (var actDbContext in _actDbContexts)
         {
             await actDbContext.DisposeAsync();

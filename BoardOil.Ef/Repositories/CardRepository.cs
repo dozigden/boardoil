@@ -1,16 +1,17 @@
 using BoardOil.Abstractions.Card;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
-using BoardOil.Ef;
 using BoardOil.Ef.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Repositories;
 
-public sealed class CardRepository(BoardOilDbContext dbContext) : ICardRepository
+public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLocator)
+    : RepositoryBase(ambientDbContextLocator), ICardRepository
 {
     public async Task<CardRecord?> GetByIdAsync(int id)
     {
-        var card = await dbContext.Cards
+        var card = await DbContext.Cards
             .Where(x => x.Id == id)
             .Select(x => new CardRow(
                 x.Id,
@@ -31,11 +32,11 @@ public sealed class CardRepository(BoardOilDbContext dbContext) : ICardRepositor
     }
 
     public Task<bool> ColumnExistsAsync(int columnId) =>
-        dbContext.Columns.AnyAsync(x => x.Id == columnId);
+        DbContext.Columns.AnyAsync(x => x.Id == columnId);
 
     public async Task<IReadOnlyList<CardRecord>> GetCardsInColumnOrderedAsync(int columnId)
     {
-        var rows = await dbContext.Cards
+        var rows = await DbContext.Cards
             .Where(x => x.BoardColumnId == columnId)
             .OrderBy(x => x.SortKey)
             .Select(x => new CardRow(
@@ -58,7 +59,7 @@ public sealed class CardRepository(BoardOilDbContext dbContext) : ICardRepositor
             return Array.Empty<CardRecord>();
         }
 
-        var rows = await dbContext.Cards
+        var rows = await DbContext.Cards
             .Where(x => columnIds.Contains(x.BoardColumnId))
             .OrderBy(x => x.SortKey)
             .Select(x => new CardRow(
@@ -75,15 +76,15 @@ public sealed class CardRepository(BoardOilDbContext dbContext) : ICardRepositor
     }
 
     public async Task<IReadOnlyList<int>> GetCardIdsInColumnOrderedAsync(int columnId) =>
-        await dbContext.Cards
+        await DbContext.Cards
             .Where(x => x.BoardColumnId == columnId)
             .OrderBy(x => x.SortKey)
             .Select(x => x.Id)
             .ToListAsync();
 
-    public async Task<CardRecord> CreateAsync(CreateCardRecord card)
+    public void Add(CreateCardRecord card)
     {
-        var entity = dbContext.Cards.Add(new BoardOil.Ef.Entities.BoardCard
+        var entity = DbContext.Cards.Add(new BoardCard
         {
             BoardColumnId = card.BoardColumnId,
             Title = card.Title,
@@ -94,22 +95,11 @@ public sealed class CardRepository(BoardOilDbContext dbContext) : ICardRepositor
         }).Entity;
 
         AddCardTags(entity, card.TagNames);
-        await dbContext.SaveChangesAsync();
-
-        return new CardRecord(
-            entity.Id,
-            entity.BoardColumnId,
-            entity.Title,
-            entity.Description,
-            entity.SortKey,
-            NormalizeTags(card.TagNames),
-            entity.CreatedAtUtc,
-            entity.UpdatedAtUtc);
     }
 
     public async Task UpdateAsync(UpdateCardRecord card)
     {
-        var entity = await dbContext.Cards.FirstOrDefaultAsync(x => x.Id == card.Id);
+        var entity = await DbContext.Cards.FirstOrDefaultAsync(x => x.Id == card.Id);
         if (entity is null)
         {
             return;
@@ -123,38 +113,35 @@ public sealed class CardRepository(BoardOilDbContext dbContext) : ICardRepositor
 
         if (card.TagNames is not null)
         {
-            var existingTags = await dbContext.CardTags
+            var existingTags = await DbContext.CardTags
                 .Where(x => x.CardId == card.Id)
                 .ToListAsync();
             if (existingTags.Count > 0)
             {
-                dbContext.CardTags.RemoveRange(existingTags);
+                DbContext.CardTags.RemoveRange(existingTags);
             }
 
             var normalizedTagNames = NormalizeTags(card.TagNames);
             if (normalizedTagNames.Count > 0)
             {
-                dbContext.CardTags.AddRange(normalizedTagNames.Select(tagName => new CardTag
+                DbContext.CardTags.AddRange(normalizedTagNames.Select(tagName => new CardTag
                 {
                     CardId = card.Id,
                     TagName = tagName
                 }));
             }
         }
-
-        await dbContext.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(int id)
     {
-        var entity = await dbContext.Cards.FirstOrDefaultAsync(x => x.Id == id);
+        var entity = await DbContext.Cards.FirstOrDefaultAsync(x => x.Id == id);
         if (entity is null)
         {
             return;
         }
 
-        dbContext.Cards.Remove(entity);
-        await dbContext.SaveChangesAsync();
+        DbContext.Cards.Remove(entity);
     }
 
     private void AddCardTags(BoardCard card, IReadOnlyList<string> tagNames)
@@ -180,7 +167,7 @@ public sealed class CardRepository(BoardOilDbContext dbContext) : ICardRepositor
             return new Dictionary<int, IReadOnlyList<string>>();
         }
 
-        var flatRows = await dbContext.CardTags
+        var flatRows = await DbContext.CardTags
             .Where(x => cardIds.Contains(x.CardId))
             .OrderBy(x => x.TagName)
             .Select(x => new

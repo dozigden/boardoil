@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Abstractions.Auth;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Entities;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
@@ -13,10 +14,13 @@ public sealed class AuthService(
     IPasswordHashService passwordHashService,
     IAccessTokenIssuer accessTokenIssuer,
     AuthSessionOptions sessionOptions,
-    TimeProvider timeProvider) : IAuthService
+    TimeProvider timeProvider,
+    IDbContextScopeFactory scopeFactory) : IAuthService
 {
     public async Task<ApiResult<AuthSessionTokens>> RegisterInitialAdminAsync(RegisterInitialAdminRequest request)
     {
+        using var scope = scopeFactory.Create();
+
         var validation = ValidateCredentials(request.UserName, request.Password);
         if (validation is not null)
         {
@@ -39,15 +43,26 @@ public sealed class AuthService(
             UpdatedAtUtc = now
         };
 
-        authRepository.AddUser(user);
-        await authRepository.SaveChangesAsync();
+        AuthSessionTokens? createdSession = null;
 
-        var session = await CreateSessionAsync(user);
-        return session;
+        await scope.Transaction(async (transactionScope, transaction) =>
+        {
+            authRepository.AddUser(user);
+            await transactionScope.SaveChangesAsync();
+
+            createdSession = CreateSession(user);
+            await transactionScope.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+        });
+
+        return createdSession!;
     }
 
     public async Task<ApiResult<AuthSessionTokens>> LoginAsync(LoginRequest request)
     {
+        using var scope = scopeFactory.Create();
+
         var normalizedUserName = request.UserName.Trim();
         if (string.IsNullOrWhiteSpace(normalizedUserName) || string.IsNullOrWhiteSpace(request.Password))
         {
@@ -60,12 +75,15 @@ public sealed class AuthService(
             return ApiErrors.Unauthorized("Invalid username or password.");
         }
 
-        var session = await CreateSessionAsync(user);
+        var session = CreateSession(user);
+        await scope.SaveChangesAsync();
         return session;
     }
 
     public async Task<ApiResult<AuthSessionTokens>> RefreshAsync(string? refreshToken)
     {
+        using var scope = scopeFactory.Create();
+
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
             return ApiErrors.Unauthorized("Refresh token is missing.");
@@ -83,16 +101,18 @@ public sealed class AuthService(
             return ApiErrors.Unauthorized("Refresh token is invalid or expired.");
         }
 
-        var newSession = await CreateSessionAsync(existingToken.User);
+        var newSession = CreateSession(existingToken.User);
         existingToken.RevokedAtUtc = now;
         existingToken.ReplacedByTokenHash = HashRefreshToken(newSession.RefreshToken);
-        await authRepository.SaveChangesAsync();
+        await scope.SaveChangesAsync();
 
         return newSession;
     }
 
     public async Task<ApiResult> LogoutAsync(string? refreshToken)
     {
+        using var scope = scopeFactory.Create();
+
         if (!string.IsNullOrWhiteSpace(refreshToken))
         {
             var hash = HashRefreshToken(refreshToken);
@@ -100,7 +120,7 @@ public sealed class AuthService(
             if (existingToken is not null && existingToken.RevokedAtUtc is null)
             {
                 existingToken.RevokedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
-                await authRepository.SaveChangesAsync();
+                await scope.SaveChangesAsync();
             }
         }
 
@@ -109,6 +129,8 @@ public sealed class AuthService(
 
     public async Task<ApiResult<AuthUserDto>> GetMeAsync(ClaimsPrincipal claimsPrincipal)
     {
+        using var scope = scopeFactory.CreateReadOnly();
+
         var userIdClaim = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!int.TryParse(userIdClaim, out var userId))
         {
@@ -126,6 +148,8 @@ public sealed class AuthService(
 
     public async Task<ApiResult<BootstrapStatusDto>> GetBootstrapStatusAsync()
     {
+        using var scope = scopeFactory.CreateReadOnly();
+
         var hasUsers = await authRepository.AnyUsersAsync();
         return new BootstrapStatusDto(!hasUsers);
     }
@@ -133,7 +157,7 @@ public sealed class AuthService(
     public string CreateCsrfToken() =>
         Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 
-    private async Task<AuthSessionTokens> CreateSessionAsync(BoardUser user)
+    private AuthSessionTokens CreateSession(BoardUser user)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var accessTokenExpiresAtUtc = now.AddMinutes(sessionOptions.AccessTokenMinutes);
@@ -148,7 +172,6 @@ public sealed class AuthService(
             CreatedAtUtc = now,
             ExpiresAtUtc = refreshTokenExpiresAtUtc
         });
-        await authRepository.SaveChangesAsync();
 
         return new AuthSessionTokens(
             accessToken,

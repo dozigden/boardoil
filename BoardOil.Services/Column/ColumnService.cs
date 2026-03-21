@@ -1,6 +1,7 @@
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Column;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Services.Ordering;
@@ -11,12 +12,16 @@ public sealed class ColumnService(
     IBoardRepository boardRepository,
     IColumnRepository columnRepository,
     IColumnValidator validator,
-    IBoardEvents boardEvents) : IColumnService
+    IBoardEvents boardEvents,
+    IDbContextScopeFactory scopeFactory) : IColumnService
 {
     private readonly IBoardEvents _boardEvents = boardEvents;
+    private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
     public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync()
     {
+        using var scope = _scopeFactory.CreateReadOnly();
+
         var boardId = await GetBoardIdAsync();
         if (boardId is null)
         {
@@ -32,6 +37,8 @@ public sealed class ColumnService(
 
     public async Task<ApiResult<ColumnDto>> CreateColumnAsync(CreateColumnRequest request)
     {
+        using var scope = _scopeFactory.Create();
+
         var validationErrors = validator.ValidateCreate(request);
         if (validationErrors.Count > 0)
         {
@@ -58,20 +65,32 @@ public sealed class ColumnService(
             return allocationError!;
         }
 
-        var createdColumn = await columnRepository.CreateAsync(new CreateColumnRecord(
+        columnRepository.Add(new CreateColumnRecord(
             BoardId: boardId.Value,
             Title: request.Title.Trim(),
             SortKey: sortKey!,
             CreatedAtUtc: now,
             UpdatedAtUtc: now));
 
-        var created = createdColumn.ToColumnDto(insertIndex);
+        await scope.SaveChangesAsync();
+
+        var columnsAfterCreate = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
+        var createdColumn = columnsAfterCreate.FirstOrDefault(x => x.SortKey == sortKey);
+        if (createdColumn is null)
+        {
+            return ApiErrors.InternalError("Created column could not be reloaded.");
+        }
+
+        var createdIndex = columnsAfterCreate.FindIndex(x => x.Id == createdColumn.Id);
+        var created = createdColumn.ToColumnDto(createdIndex < 0 ? insertIndex : createdIndex);
         await _boardEvents.ColumnCreatedAsync(created);
         return ApiResults.Created(created);
     }
 
     public async Task<ApiResult<ColumnDto>> UpdateColumnAsync(int id, UpdateColumnRequest request)
     {
+        using var scope = _scopeFactory.Create();
+
         var boardId = await GetBoardIdAsync();
         if (boardId is null)
         {
@@ -137,6 +156,8 @@ public sealed class ColumnService(
                 Title: updated.Title,
                 SortKey: updated.SortKey,
                 UpdatedAtUtc: updated.UpdatedAtUtc));
+
+            await scope.SaveChangesAsync();
         }
 
         var dto = updated.ToColumnDto(positionChanged ? targetIndex : currentIndex);
@@ -146,6 +167,8 @@ public sealed class ColumnService(
 
     public async Task<ApiResult> DeleteColumnAsync(int id)
     {
+        using var scope = _scopeFactory.Create();
+
         var boardId = await GetBoardIdAsync();
         if (boardId is null)
         {
@@ -161,6 +184,7 @@ public sealed class ColumnService(
         }
 
         await columnRepository.DeleteAsync(id);
+        await scope.SaveChangesAsync();
 
         await _boardEvents.ColumnDeletedAsync(id);
         return ApiResults.Ok();

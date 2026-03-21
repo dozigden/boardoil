@@ -9,7 +9,7 @@ public interface ICardRepository
     Task<IReadOnlyList<CardRecord>> GetCardsInColumnOrderedAsync(int columnId);
     Task<IReadOnlyList<CardRecord>> GetCardsForColumnsOrderedAsync(IReadOnlyList<int> columnIds);
     Task<IReadOnlyList<int>> GetCardIdsInColumnOrderedAsync(int columnId);
-    Task<CardRecord> CreateAsync(CreateCardRecord card);
+    void Add(CreateCardRecord card);
     Task UpdateAsync(UpdateCardRecord card);
     Task DeleteAsync(int id);
 }

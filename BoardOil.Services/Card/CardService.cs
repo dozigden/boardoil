@@ -1,5 +1,6 @@
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Card;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Tag;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
@@ -12,13 +13,17 @@ public sealed class CardService(
     ICardRepository repository,
     ICardValidator validator,
     ITagRepository tagRepository,
-    IBoardEvents boardEvents) : ICardService
+    IBoardEvents boardEvents,
+    IDbContextScopeFactory scopeFactory) : ICardService
 {
     private readonly ITagRepository _tagRepository = tagRepository;
     private readonly IBoardEvents _boardEvents = boardEvents;
+    private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
     public async Task<ApiResult<CardDto>> CreateCardAsync(CreateCardRequest request)
     {
+        using var scope = _scopeFactory.Create();
+
         var validationErrors = validator.ValidateCreate(request);
         if (validationErrors.Count > 0)
         {
@@ -51,7 +56,7 @@ public sealed class CardService(
         }
 
         var now = DateTime.UtcNow;
-        var createdRecord = await repository.CreateAsync(new CreateCardRecord(
+        repository.Add(new CreateCardRecord(
             BoardColumnId: request.BoardColumnId,
             Title: request.Title.Trim(),
             Description: request.Description,
@@ -60,13 +65,30 @@ public sealed class CardService(
             CreatedAtUtc: now,
             UpdatedAtUtc: now));
 
+        await scope.SaveChangesAsync();
+
+        var cardsAfterCreate = (await repository.GetCardsInColumnOrderedAsync(request.BoardColumnId)).ToList();
+        var createdRecord = cardsAfterCreate.FirstOrDefault(x => x.SortKey == sortKey);
+        if (createdRecord is null)
+        {
+            return ApiErrors.InternalError("Created card could not be reloaded.");
+        }
+
+        var createdIndex = FindCardIndex(cardsAfterCreate, createdRecord.Id);
         var created = createdRecord.ToCardDto(insertIndex);
+        if (createdIndex >= 0)
+        {
+            created = createdRecord.ToCardDto(createdIndex);
+        }
+
         await _boardEvents.CardCreatedAsync(created);
         return ApiResults.Created(created);
     }
 
     public async Task<ApiResult<CardDto>> UpdateCardAsync(int id, UpdateCardRequest request)
     {
+        using var scope = _scopeFactory.Create();
+
         var existingCard = await repository.GetByIdAsync(id);
         if (existingCard is null)
         {
@@ -164,6 +186,8 @@ public sealed class CardService(
                 SortKey: updatedCard.SortKey,
                 TagNames: updatedTagNames,
                 UpdatedAtUtc: updatedCard.UpdatedAtUtc));
+
+            await scope.SaveChangesAsync();
         }
 
         var finalPosition = await GetCardPositionAsync(updatedCard.BoardColumnId, updatedCard.Id);
@@ -182,6 +206,8 @@ public sealed class CardService(
 
     public async Task<ApiResult> DeleteCardAsync(int id)
     {
+        using var scope = _scopeFactory.Create();
+
         var card = await repository.GetByIdAsync(id);
         if (card is null)
         {
@@ -189,6 +215,7 @@ public sealed class CardService(
         }
 
         await repository.DeleteAsync(id);
+        await scope.SaveChangesAsync();
         await _boardEvents.CardDeletedAsync(id);
 
         return ApiResults.Ok();
