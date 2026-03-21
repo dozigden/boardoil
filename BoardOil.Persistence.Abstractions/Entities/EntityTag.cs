@@ -1,4 +1,4 @@
-namespace BoardOil.Ef.Entities;
+namespace BoardOil.Persistence.Abstractions.Entities;
 
 public sealed class EntityTag
 {

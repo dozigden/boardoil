@@ -690,9 +690,13 @@
         "type": "Project",
         "dependencies": {
           "BoardOil.Abstractions": "[1.0.0, )",
+          "BoardOil.Persistence.Abstractions": "[1.0.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.4, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.4, )"
         }
+      },
+      "boardoil.persistence.abstractions": {
+        "type": "Project"
       },
       "boardoil.services": {
         "type": "Project",
@@ -700,6 +704,7 @@
           "BoardOil.Abstractions": "[1.0.0, )",
           "BoardOil.Contracts": "[1.0.0, )",
           "BoardOil.Ef": "[1.0.0, )",
+          "BoardOil.Persistence.Abstractions": "[1.0.0, )",
           "Microsoft.Extensions.Identity.Core": "[10.0.4, )"
         }
       }

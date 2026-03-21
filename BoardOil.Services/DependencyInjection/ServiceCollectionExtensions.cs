@@ -10,6 +10,7 @@ using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.Tag;
 using BoardOil.Abstractions.Users;
+using BoardOil.Persistence.Abstractions.Tag;
 using BoardOil.Services.Auth;
 using BoardOil.Services.Board;
 using BoardOil.Services.Card;

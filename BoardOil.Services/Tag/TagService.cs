@@ -1,5 +1,7 @@
-using BoardOil.Abstractions.Tag;
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Abstractions.Tag;
+using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Tag;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Tag;
 
@@ -37,13 +39,15 @@ public sealed class TagService(
         }
 
         var now = DateTime.UtcNow;
-        tagRepository.Add(new CreateTagRecord(
-            Name: tagValidation.CanonicalName,
-            NormalisedName: tagValidation.NormalisedName,
-            StyleName: TagStyleSchemaValidator.SolidStyleName,
-            StylePropertiesJson: TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(),
-            CreatedAtUtc: now,
-            UpdatedAtUtc: now));
+        tagRepository.Add(new EntityTag
+        {
+            Name = tagValidation.CanonicalName,
+            NormalisedName = tagValidation.NormalisedName,
+            StyleName = TagStyleSchemaValidator.SolidStyleName,
+            StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(),
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
 
         await scope.SaveChangesAsync();
 
@@ -85,25 +89,13 @@ public sealed class TagService(
         }
 
         var updatedAtUtc = DateTime.UtcNow;
-        var updated = await tagRepository.UpdateAsync(new UpdateTagRecord(
-            Name: existing.Name,
-            NormalisedName: existing.NormalisedName,
-            StyleName: normalisedStyleName,
-            StylePropertiesJson: request.StylePropertiesJson,
-            UpdatedAtUtc: updatedAtUtc));
-        if (!updated)
-        {
-            return ApiErrors.NotFound("Tag not found.");
-        }
+        existing.StyleName = normalisedStyleName;
+        existing.StylePropertiesJson = request.StylePropertiesJson;
+        existing.UpdatedAtUtc = updatedAtUtc;
 
         await scope.SaveChangesAsync();
 
-        return new TagDto(
-            existing.Name,
-            normalisedStyleName,
-            request.StylePropertiesJson,
-            existing.CreatedAtUtc,
-            updatedAtUtc);
+        return existing.ToTagDto();
     }
 
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>

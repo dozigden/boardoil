@@ -199,7 +199,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("CardTags");
                 });
 
-            modelBuilder.Entity("BoardOil.Ef.Entities.EntityTag", b =>
+            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityTag", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()

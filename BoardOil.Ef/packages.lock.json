@@ -352,6 +352,9 @@
       },
       "boardoil.contracts": {
         "type": "Project"
+      },
+      "boardoil.persistence.abstractions": {
+        "type": "Project"
       }
     }
   }
