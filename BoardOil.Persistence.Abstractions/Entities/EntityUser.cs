@@ -1,5 +1,3 @@
-using BoardOil.Abstractions.Entities;
-
 namespace BoardOil.Persistence.Abstractions.Entities;
 
 public sealed class EntityUser

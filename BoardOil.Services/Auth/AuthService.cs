@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.DataAccess;
-using BoardOil.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Auth;
 using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Contracts.Auth;
@@ -166,7 +165,7 @@ public sealed class AuthService(
         var accessTokenExpiresAtUtc = now.AddMinutes(sessionOptions.AccessTokenMinutes);
         var refreshTokenExpiresAtUtc = now.AddDays(sessionOptions.RefreshTokenDays);
 
-        var accessToken = accessTokenIssuer.CreateAccessToken(user.Id, user.UserName, user.Role, now, accessTokenExpiresAtUtc);
+        var accessToken = accessTokenIssuer.CreateAccessToken(user.Id, user.UserName, user.Role.ToString(), now, accessTokenExpiresAtUtc);
         var refreshToken = CreateRefreshToken();
         refreshTokenRepository.Add(new EntityRefreshToken
         {

@@ -1,5 +1,4 @@
 using BoardOil.Abstractions.DataAccess;
-using BoardOil.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Users;
 using Microsoft.EntityFrameworkCore;
