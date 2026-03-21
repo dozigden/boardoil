@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\BoardOil.Abstractions\BoardOil.Abstractions.csproj" />
+  </ItemGroup>
+
 </Project>

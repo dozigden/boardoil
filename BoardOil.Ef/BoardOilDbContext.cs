@@ -1,4 +1,3 @@
-using BoardOil.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,8 +10,8 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityBoardCard> Cards => Set<EntityBoardCard>();
     public DbSet<EntityTag> Tags => Set<EntityTag>();
     public DbSet<EntityCardTag> CardTags => Set<EntityCardTag>();
-    public DbSet<BoardUser> Users => Set<BoardUser>();
-    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<EntityUser> Users => Set<EntityUser>();
+    public DbSet<EntityRefreshToken> RefreshTokens => Set<EntityRefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,7 +62,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         tag.ToTable("Tags");
         tag.HasIndex(x => x.NormalisedName).IsUnique();
 
-        var user = modelBuilder.Entity<BoardUser>();
+        var user = modelBuilder.Entity<EntityUser>();
         user.HasKey(x => x.Id);
         user.Property(x => x.UserName).HasMaxLength(64).IsRequired();
         user.Property(x => x.PasswordHash).HasMaxLength(512).IsRequired();
@@ -75,7 +74,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        var refreshToken = modelBuilder.Entity<RefreshToken>();
+        var refreshToken = modelBuilder.Entity<EntityRefreshToken>();
         refreshToken.HasKey(x => x.Id);
         refreshToken.Property(x => x.TokenHash).HasMaxLength(200).IsRequired();
         refreshToken.Property(x => x.ExpiresAtUtc).IsRequired();

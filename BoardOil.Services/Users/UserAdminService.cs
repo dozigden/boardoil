@@ -1,6 +1,8 @@
 using BoardOil.Abstractions.Entities;
-using BoardOil.Abstractions.Users;
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Abstractions.Users;
+using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Users;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
@@ -48,7 +50,7 @@ public sealed class UserAdminService(
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var user = new BoardUser
+        var user = new EntityUser
         {
             UserName = userName,
             PasswordHash = passwordHashService.HashPassword(request.Password),

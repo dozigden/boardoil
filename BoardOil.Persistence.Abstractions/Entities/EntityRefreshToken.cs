@@ -1,6 +1,6 @@
-namespace BoardOil.Abstractions.Entities;
+namespace BoardOil.Persistence.Abstractions.Entities;
 
-public sealed class RefreshToken
+public sealed class EntityRefreshToken
 {
     public int Id { get; set; }
     public int UserId { get; set; }
@@ -10,5 +10,5 @@ public sealed class RefreshToken
     public DateTime? RevokedAtUtc { get; set; }
     public string? ReplacedByTokenHash { get; set; }
 
-    public BoardUser User { get; set; } = null!;
+    public EntityUser User { get; set; } = null!;
 }

@@ -4,5 +4,5 @@ namespace BoardOil.Abstractions.Auth;
 
 public interface IAccessTokenIssuer
 {
-    string CreateAccessToken(BoardUser user, DateTime issuedAtUtc, DateTime expiresAtUtc);
+    string CreateAccessToken(int userId, string userName, UserRole role, DateTime issuedAtUtc, DateTime expiresAtUtc);
 }

@@ -1,14 +1,15 @@
-using BoardOil.Abstractions.Entities;
 using BoardOil.Abstractions.DataAccess;
-using BoardOil.Abstractions.Users;
+using BoardOil.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Users;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Repositories;
 
 public sealed class UserRepository(IAmbientDbContextLocator ambientDbContextLocator)
-    : RepositoryBase<BoardUser>(ambientDbContextLocator), IUserRepository
+    : RepositoryBase<EntityUser>(ambientDbContextLocator), IUserRepository
 {
-    public async Task<IReadOnlyList<BoardUser>> GetUsersOrderedAsync() =>
+    public async Task<IReadOnlyList<EntityUser>> GetUsersOrderedAsync() =>
         await DbSet
             .OrderBy(x => x.UserName)
             .ToListAsync();
@@ -16,7 +17,7 @@ public sealed class UserRepository(IAmbientDbContextLocator ambientDbContextLoca
     public Task<bool> UserNameExistsAsync(string userName) =>
         DbSet.AnyAsync(x => x.UserName == userName);
 
-    public Task<BoardUser?> GetByIdAsync(int id) =>
+    public Task<EntityUser?> GetByIdAsync(int id) =>
         DbSet.FirstOrDefaultAsync(x => x.Id == id);
 
     public Task<int> CountActiveAdminsAsync() =>

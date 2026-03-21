@@ -8,6 +8,7 @@ namespace BoardOil.Services.Tests;
 public sealed class EfEntityConventionTests
 {
     private static readonly string PersistenceEntitiesNamespace = typeof(EntityTag).Namespace!;
+    private const string PersistenceEntityPrefix = "Entity";
 
     [Fact]
     public void EfEntities_ShouldUseEntityPrefix()
@@ -39,6 +40,35 @@ public sealed class EfEntityConventionTests
             Assert.False(mapping.TableName!.StartsWith("Entity", StringComparison.Ordinal));
             Assert.NotEqual(mapping.EntityTypeName, mapping.TableName);
         });
+    }
+
+    [Fact]
+    public void AllMappedTables_ShouldUseEntityTypesFromPersistenceNamespace()
+    {
+        using var context = CreateDbContext();
+
+        var tableMappings = context.Model.GetEntityTypes()
+            .Where(x => !string.IsNullOrWhiteSpace(x.GetTableName()))
+            .Select(x => new
+            {
+                ClrTypeName = x.ClrType.Name,
+                ClrTypeNamespace = x.ClrType.Namespace,
+                TableName = x.GetTableName()
+            })
+            .ToList();
+
+        Assert.NotEmpty(tableMappings);
+
+        foreach (var mapping in tableMappings)
+        {
+            Assert.True(
+                string.Equals(mapping.ClrTypeNamespace, PersistenceEntitiesNamespace, StringComparison.Ordinal),
+                $"Table '{mapping.TableName}' maps to '{mapping.ClrTypeNamespace}.{mapping.ClrTypeName}', not '{PersistenceEntitiesNamespace}'.");
+
+            Assert.True(
+                mapping.ClrTypeName.StartsWith(PersistenceEntityPrefix, StringComparison.Ordinal),
+                $"Table '{mapping.TableName}' maps to '{mapping.ClrTypeName}', which does not start with '{PersistenceEntityPrefix}'.");
+        }
     }
 
     private static IReadOnlyList<string> GetEfEntityTypeNames() =>

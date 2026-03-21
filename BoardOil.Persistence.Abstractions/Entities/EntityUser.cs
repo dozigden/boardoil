@@ -1,6 +1,8 @@
-namespace BoardOil.Abstractions.Entities;
+using BoardOil.Abstractions.Entities;
 
-public sealed class BoardUser
+namespace BoardOil.Persistence.Abstractions.Entities;
+
+public sealed class EntityUser
 {
     public int Id { get; set; }
     public string UserName { get; set; } = string.Empty;
@@ -10,5 +12,5 @@ public sealed class BoardUser
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
 
-    public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<EntityRefreshToken> RefreshTokens { get; set; } = new List<EntityRefreshToken>();
 }
