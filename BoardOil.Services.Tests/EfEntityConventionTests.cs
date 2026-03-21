@@ -1,4 +1,5 @@
 using BoardOil.Ef;
+using BoardOil.Persistence.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -6,7 +7,7 @@ namespace BoardOil.Services.Tests;
 
 public sealed class EfEntityConventionTests
 {
-    private const string EfEntitiesNamespace = "BoardOil.Ef.Entities";
+    private static readonly string PersistenceEntitiesNamespace = typeof(EntityTag).Namespace!;
 
     [Fact]
     public void EfEntities_ShouldUseEntityPrefix()
@@ -22,7 +23,7 @@ public sealed class EfEntityConventionTests
         using var context = CreateDbContext();
 
         var efEntityMappings = context.Model.GetEntityTypes()
-            .Where(x => x.ClrType.Namespace == EfEntitiesNamespace)
+            .Where(x => x.ClrType.Namespace == PersistenceEntitiesNamespace)
             .Select(x => new
             {
                 EntityTypeName = x.ClrType.Name,
@@ -41,8 +42,8 @@ public sealed class EfEntityConventionTests
     }
 
     private static IReadOnlyList<string> GetEfEntityTypeNames() =>
-        typeof(BoardOilDbContext).Assembly.GetTypes()
-            .Where(x => x.IsClass && !x.IsAbstract && x.Namespace == EfEntitiesNamespace)
+        typeof(EntityTag).Assembly.GetTypes()
+            .Where(x => x.IsClass && !x.IsAbstract && x.Namespace == PersistenceEntitiesNamespace)
             .Select(x => x.Name)
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();

@@ -1,12 +1,12 @@
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Ef;
-using BoardOil.Ef.Entities;
+using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Ef.Repositories;
 using BoardOil.Ef.Scope;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
-using BoardEntity = BoardOil.Ef.Entities.EntityBoard;
+using BoardEntity = BoardOil.Persistence.Abstractions.Entities.EntityBoard;
 
 namespace BoardOil.Services.Tests;
 
