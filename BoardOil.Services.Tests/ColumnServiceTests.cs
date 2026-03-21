@@ -300,10 +300,6 @@ public sealed class ColumnServiceTests : TestBaseDb
 
     private ColumnService CreateService()
     {
-        var dbContext = CreateDbContextForAct();
-        IBoardRepository boardRepository = new BoardRepository(dbContext);
-        IColumnRepository columnRepository = new ColumnRepository(dbContext);
-        IColumnValidator validator = new ColumnValidator();
-        return new ColumnService(boardRepository, columnRepository, validator, new TestBoardEvents());
+        return ResolveService<ColumnService>();
     }
 }

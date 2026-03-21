@@ -1,27 +1,29 @@
 using BoardOil.Abstractions.Tag;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Tag;
 using BoardOil.Ef.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Repositories;
 
-public sealed class TagRepository(BoardOilDbContext dbContext) : ITagRepository
+public sealed class TagRepository(IAmbientDbContextLocator ambientDbContextLocator)
+    : RepositoryBase(ambientDbContextLocator), ITagRepository
 {
     public async Task<IReadOnlyList<TagRecord>> GetAllAsync() =>
-        await dbContext.Tags
+        await DbContext.Tags
             .OrderBy(x => x.Name)
             .Select(x => x.ToRecord())
             .ToListAsync();
 
     public Task<TagRecord?> GetByNormalisedNameAsync(string normalisedName) =>
-        dbContext.Tags
+        DbContext.Tags
             .Where(x => x.NormalisedName == normalisedName)
             .Select(x => x.ToRecord())
             .FirstOrDefaultAsync();
 
-    public async Task<TagRecord> CreateAsync(CreateTagRecord tag)
+    public void Add(CreateTagRecord tag)
     {
-        var entity = dbContext.Tags.Add(new Tag
+        DbContext.Tags.Add(new Tag
         {
             Name = tag.Name,
             NormalisedName = tag.NormalisedName,
@@ -29,15 +31,12 @@ public sealed class TagRepository(BoardOilDbContext dbContext) : ITagRepository
             StylePropertiesJson = tag.StylePropertiesJson,
             CreatedAtUtc = tag.CreatedAtUtc,
             UpdatedAtUtc = tag.UpdatedAtUtc
-        }).Entity;
-
-        await dbContext.SaveChangesAsync();
-        return entity.ToRecord();
+        });
     }
 
     public async Task<bool> UpdateAsync(UpdateTagRecord tag)
     {
-        var entity = await dbContext.Tags.FirstOrDefaultAsync(x => x.NormalisedName == tag.NormalisedName);
+        var entity = await DbContext.Tags.FirstOrDefaultAsync(x => x.NormalisedName == tag.NormalisedName);
         if (entity is null)
         {
             return false;
@@ -47,20 +46,18 @@ public sealed class TagRepository(BoardOilDbContext dbContext) : ITagRepository
         entity.StyleName = tag.StyleName;
         entity.StylePropertiesJson = tag.StylePropertiesJson;
         entity.UpdatedAtUtc = tag.UpdatedAtUtc;
-        await dbContext.SaveChangesAsync();
         return true;
     }
 
     public async Task<bool> DeleteAsync(string normalisedName)
     {
-        var entity = await dbContext.Tags.FirstOrDefaultAsync(x => x.NormalisedName == normalisedName);
+        var entity = await DbContext.Tags.FirstOrDefaultAsync(x => x.NormalisedName == normalisedName);
         if (entity is null)
         {
             return false;
         }
 
-        dbContext.Tags.Remove(entity);
-        await dbContext.SaveChangesAsync();
+        DbContext.Tags.Remove(entity);
         return true;
     }
 }

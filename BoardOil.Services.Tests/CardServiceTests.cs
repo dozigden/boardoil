@@ -576,10 +576,7 @@ public sealed class CardServiceTests : TestBaseDb
 
     private CardService CreateService()
     {
-        var dbContext = CreateDbContextForAct();
-        ICardRepository repository = new CardRepository(dbContext);
-        var tagRepository = new TagRepository(dbContext);
-        return new CardService(repository, new CardValidator(), tagRepository, new TestBoardEvents());
+        return ResolveService<CardService>();
     }
 
     private async Task SeedTagsForArrangeAsync(params string[] tagNames)

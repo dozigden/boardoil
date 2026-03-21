@@ -53,3 +53,15 @@ Split tests that currently contain multiple independent `Act` / `Assert` phases 
 ### Repository Review
 
 Revisit `CardRow` usage in `CardRepository` and simplify the card mapping shape if possible.
+
+### Repository Structure Follow-up
+
+Refactor repositories toward one repository per entity type (or aggregate boundary), and introduce a generic `RepositoryBase<TEntity>` for shared CRUD/query patterns where it improves clarity.
+
+### Bootstrap Transaction Simplification
+
+Review `BoardBootstrapService` to determine whether default board + initial columns can be created in a single-save flow, removing the explicit transaction callback from bootstrap if equivalent behaviour can be preserved.
+
+### Transaction Scope Audit
+
+Review all `IDbContextScope.Transaction(...)` usages and confirm each one is justified versus a standard single-save scope.

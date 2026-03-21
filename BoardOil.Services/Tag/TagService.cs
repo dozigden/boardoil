@@ -1,21 +1,29 @@
 using BoardOil.Abstractions.Tag;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Tag;
 
 namespace BoardOil.Services.Tag;
 
-public sealed class TagService(ITagRepository tagRepository) : ITagService
+public sealed class TagService(
+    ITagRepository tagRepository,
+    IDbContextScopeFactory scopeFactory) : ITagService
 {
     private const int MaxTagNameLength = 40;
+    private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
     public async Task<ApiResult<IReadOnlyList<TagDto>>> GetTagsAsync()
     {
+        using var scope = _scopeFactory.CreateReadOnly();
+
         var tags = await tagRepository.GetAllAsync();
         return tags.Select(x => x.ToTagDto()).ToList();
     }
 
     public async Task<ApiResult<TagDto>> CreateTagAsync(CreateTagRequest request)
     {
+        using var scope = _scopeFactory.Create();
+
         var tagValidation = ValidateTagName(request.Name, "name");
         if (tagValidation.Error is not null)
         {
@@ -29,7 +37,7 @@ public sealed class TagService(ITagRepository tagRepository) : ITagService
         }
 
         var now = DateTime.UtcNow;
-        var created = await tagRepository.CreateAsync(new CreateTagRecord(
+        tagRepository.Add(new CreateTagRecord(
             Name: tagValidation.CanonicalName,
             NormalisedName: tagValidation.NormalisedName,
             StyleName: TagStyleSchemaValidator.SolidStyleName,
@@ -37,11 +45,21 @@ public sealed class TagService(ITagRepository tagRepository) : ITagService
             CreatedAtUtc: now,
             UpdatedAtUtc: now));
 
+        await scope.SaveChangesAsync();
+
+        var created = await tagRepository.GetByNormalisedNameAsync(tagValidation.NormalisedName);
+        if (created is null)
+        {
+            return ApiErrors.InternalError("Created tag could not be reloaded.");
+        }
+
         return ApiResults.Created(created.ToTagDto());
     }
 
     public async Task<ApiResult<TagDto>> UpdateTagStyleAsync(string name, UpdateTagStyleRequest request)
     {
+        using var scope = _scopeFactory.Create();
+
         var tagValidation = ValidateTagName(name, "name");
         if (tagValidation.Error is not null)
         {
@@ -67,12 +85,18 @@ public sealed class TagService(ITagRepository tagRepository) : ITagService
         }
 
         var updatedAtUtc = DateTime.UtcNow;
-        await tagRepository.UpdateAsync(new UpdateTagRecord(
+        var updated = await tagRepository.UpdateAsync(new UpdateTagRecord(
             Name: existing.Name,
             NormalisedName: existing.NormalisedName,
             StyleName: normalisedStyleName,
             StylePropertiesJson: request.StylePropertiesJson,
             UpdatedAtUtc: updatedAtUtc));
+        if (!updated)
+        {
+            return ApiErrors.NotFound("Tag not found.");
+        }
+
+        await scope.SaveChangesAsync();
 
         return new TagDto(
             existing.Name,

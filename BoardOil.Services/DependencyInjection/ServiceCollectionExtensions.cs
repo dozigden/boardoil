@@ -1,6 +1,9 @@
 using BoardOil.Ef;
+using BoardOil.Ef.Context;
 using BoardOil.Ef.Repositories;
+using BoardOil.Ef.Scope;
 using BoardOil.Abstractions;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
@@ -23,7 +26,9 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddBoardOilServices(this IServiceCollection services, string connectionString)
     {
-        services.AddDbContext<BoardOilDbContext>(options => options.UseSqlite(connectionString));
+        services.AddSingleton<IDbContextFactory>(_ => new BoardOilDbContextFactory(connectionString));
+        services.AddTransient<IDbContextScopeFactory, DbContextScopeFactory>();
+        services.AddTransient<IAmbientDbContextLocator, AmbientDbContextLocator>();
         services.AddScoped<IColumnValidator, ColumnValidator>();
         services.AddScoped<ICardValidator, CardValidator>();
         services.AddSingleton<IPasswordHashService, PasswordHashService>();
@@ -47,7 +52,8 @@ public static class ServiceCollectionExtensions
     public static async Task InitializeBoardOilAsync(this IServiceProvider serviceProvider)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<BoardOilDbContext>();
+        var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory>();
+        await using var dbContext = dbContextFactory.CreateDbContext<BoardOilDbContext>();
         var hasMigrations = dbContext.Database.GetMigrations().Any();
         if (hasMigrations)
         {

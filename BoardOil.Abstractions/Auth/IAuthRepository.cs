@@ -12,6 +12,4 @@ public interface IAuthRepository
     void AddRefreshToken(RefreshToken refreshToken);
     Task<RefreshToken?> GetRefreshTokenByHashAsync(string tokenHash);
     Task<RefreshToken?> GetRefreshTokenWithUserByHashAsync(string tokenHash);
-
-    Task SaveChangesAsync();
 }

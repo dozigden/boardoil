@@ -9,5 +9,4 @@ public interface IUserRepository
     void Add(BoardUser user);
     Task<BoardUser?> GetByIdAsync(int id);
     Task<int> CountActiveAdminsAsync();
-    Task SaveChangesAsync();
 }

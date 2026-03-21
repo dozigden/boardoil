@@ -1,5 +1,6 @@
 using BoardOil.Abstractions.Entities;
 using BoardOil.Abstractions.Users;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
@@ -10,10 +11,13 @@ namespace BoardOil.Services.Users;
 public sealed class UserAdminService(
     IUserRepository userRepository,
     IPasswordHashService passwordHashService,
-    TimeProvider timeProvider) : IUserAdminService
+    TimeProvider timeProvider,
+    IDbContextScopeFactory scopeFactory) : IUserAdminService
 {
     public async Task<ApiResult<IReadOnlyList<ManagedUserDto>>> GetUsersAsync()
     {
+        using var scope = scopeFactory.CreateReadOnly();
+
         var users = (await userRepository.GetUsersOrderedAsync())
             .Select(x => x.ToManagedUserDto())
             .ToList();
@@ -23,6 +27,8 @@ public sealed class UserAdminService(
 
     public async Task<ApiResult<ManagedUserDto>> CreateUserAsync(CreateUserRequest request)
     {
+        using var scope = scopeFactory.Create();
+
         var validation = ValidateCredentials(request.UserName, request.Password);
         if (validation is not null)
         {
@@ -53,13 +59,15 @@ public sealed class UserAdminService(
         };
 
         userRepository.Add(user);
-        await userRepository.SaveChangesAsync();
+        await scope.SaveChangesAsync();
 
         return user.ToManagedUserDto();
     }
 
     public async Task<ApiResult<ManagedUserDto>> UpdateUserRoleAsync(int id, UpdateUserRoleRequest request)
     {
+        using var scope = scopeFactory.Create();
+
         if (!TryParseRole(request.Role, out var role))
         {
             return ApiErrors.BadRequest("Role must be 'Admin' or 'Standard'.");
@@ -82,13 +90,15 @@ public sealed class UserAdminService(
 
         user.Role = role;
         user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
-        await userRepository.SaveChangesAsync();
+        await scope.SaveChangesAsync();
 
         return user.ToManagedUserDto();
     }
 
     public async Task<ApiResult<ManagedUserDto>> UpdateUserStatusAsync(int id, UpdateUserStatusRequest request)
     {
+        using var scope = scopeFactory.Create();
+
         var user = await userRepository.GetByIdAsync(id);
         if (user is null)
         {
@@ -106,7 +116,7 @@ public sealed class UserAdminService(
 
         user.IsActive = request.IsActive;
         user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
-        await userRepository.SaveChangesAsync();
+        await scope.SaveChangesAsync();
 
         return user.ToManagedUserDto();
     }

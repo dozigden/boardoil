@@ -1,35 +1,33 @@
-using BoardOil.Ef;
 using BoardOil.Abstractions.Entities;
 using BoardOil.Abstractions.Auth;
+using BoardOil.Abstractions.DataAccess;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Repositories;
 
-public sealed class AuthRepository(BoardOilDbContext dbContext) : IAuthRepository
+public sealed class AuthRepository(IAmbientDbContextLocator ambientDbContextLocator)
+    : RepositoryBase(ambientDbContextLocator), IAuthRepository
 {
     public Task<bool> AnyUsersAsync() =>
-        dbContext.Users.AnyAsync();
+        DbContext.Users.AnyAsync();
 
     public void AddUser(BoardUser user) =>
-        dbContext.Users.Add(user);
+        DbContext.Users.Add(user);
 
     public Task<BoardUser?> GetUserByUserNameAsync(string userName) =>
-        dbContext.Users.FirstOrDefaultAsync(x => x.UserName == userName);
+        DbContext.Users.FirstOrDefaultAsync(x => x.UserName == userName);
 
     public Task<BoardUser?> GetActiveUserByIdAsync(int id) =>
-        dbContext.Users.FirstOrDefaultAsync(x => x.Id == id && x.IsActive);
+        DbContext.Users.FirstOrDefaultAsync(x => x.Id == id && x.IsActive);
 
     public void AddRefreshToken(RefreshToken refreshToken) =>
-        dbContext.RefreshTokens.Add(refreshToken);
+        DbContext.RefreshTokens.Add(refreshToken);
 
     public Task<RefreshToken?> GetRefreshTokenByHashAsync(string tokenHash) =>
-        dbContext.RefreshTokens.FirstOrDefaultAsync(x => x.TokenHash == tokenHash);
+        DbContext.RefreshTokens.FirstOrDefaultAsync(x => x.TokenHash == tokenHash);
 
     public Task<RefreshToken?> GetRefreshTokenWithUserByHashAsync(string tokenHash) =>
-        dbContext.RefreshTokens
+        DbContext.RefreshTokens
             .Include(x => x.User)
             .FirstOrDefaultAsync(x => x.TokenHash == tokenHash);
-
-    public Task SaveChangesAsync() =>
-        dbContext.SaveChangesAsync();
 }
