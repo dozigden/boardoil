@@ -1,4 +1,4 @@
-using BoardOil.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Entities;
 
 namespace BoardOil.Services.Auth;
 

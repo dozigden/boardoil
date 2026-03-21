@@ -1,4 +1,3 @@
-using BoardOil.Abstractions.Entities;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Users;
 using BoardOil.Persistence.Abstractions.Entities;

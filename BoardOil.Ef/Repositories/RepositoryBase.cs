@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Persistence.Abstractions.DataAccess;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Repositories;

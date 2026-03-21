@@ -1,4 +1,4 @@
-namespace BoardOil.Abstractions.Entities;
+namespace BoardOil.Persistence.Abstractions.Entities;
 
 public enum UserRole
 {

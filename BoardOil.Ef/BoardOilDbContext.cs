@@ -68,6 +68,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         user.Property(x => x.PasswordHash).HasMaxLength(512).IsRequired();
         user.Property(x => x.Role).IsRequired();
         user.Property(x => x.IsActive).IsRequired();
+        user.ToTable("Users");
         user.HasIndex(x => x.UserName).IsUnique();
         user.HasMany(x => x.RefreshTokens)
             .WithOne(x => x.User)
@@ -81,6 +82,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         refreshToken.Property(x => x.CreatedAtUtc).IsRequired();
         refreshToken.Property(x => x.RevokedAtUtc).IsRequired(false);
         refreshToken.Property(x => x.ReplacedByTokenHash).HasMaxLength(200).IsRequired(false);
+        refreshToken.ToTable("RefreshTokens");
         refreshToken.HasIndex(x => x.TokenHash).IsUnique();
     }
 }
