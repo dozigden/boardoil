@@ -15,53 +15,37 @@ public sealed class BoardBootstrapService(
     public async Task EnsureDefaultBoardAsync()
     {
         using var scope = scopeFactory.Create();
-
-        await scope.Transaction(async (transactionScope, transaction) =>
+        if (await boardRepository.AnyBoardAsync())
         {
-            var now = DateTime.UtcNow;
-            var boardId = await boardRepository.GetPrimaryBoardIdAsync();
-            if (boardId is null)
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var board = new EntityBoard
+        {
+            Name = "BoardOil",
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        boardRepository.Add(board);
+
+        var seedTitles = new[] { "Todo", "In Progress", "Done" };
+        string? previousSortKey = null;
+        foreach (var title in seedTitles)
+        {
+            var sortKey = SortKeyGenerator.Between(previousSortKey, null);
+            columnRepository.Add(new EntityBoardColumn
             {
-                boardRepository.Add(new EntityBoard
-                {
-                    Name = "BoardOil",
-                    CreatedAtUtc = now,
-                    UpdatedAtUtc = now
-                });
+                Board = board,
+                Title = title,
+                SortKey = sortKey,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            });
+            previousSortKey = sortKey;
+        }
 
-                await transactionScope.SaveChangesAsync();
-                boardId = await boardRepository.GetPrimaryBoardIdAsync();
-            }
-
-            if (boardId is null)
-            {
-                await transaction.CommitAsync();
-                return;
-            }
-
-            var existingColumns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value);
-            if (existingColumns.Count == 0)
-            {
-                var seedTitles = new[] { "Todo", "In Progress", "Done" };
-                string? previousSortKey = null;
-                foreach (var title in seedTitles)
-                {
-                    var sortKey = SortKeyGenerator.Between(previousSortKey, null);
-                    columnRepository.Add(new EntityBoardColumn
-                    {
-                        BoardId = boardId.Value,
-                        Title = title,
-                        SortKey = sortKey,
-                        CreatedAtUtc = now,
-                        UpdatedAtUtc = now
-                    });
-                    previousSortKey = sortKey;
-                }
-
-                await transactionScope.SaveChangesAsync();
-            }
-
-            await transaction.CommitAsync();
-        });
+        await scope.SaveChangesAsync();
     }
 }
