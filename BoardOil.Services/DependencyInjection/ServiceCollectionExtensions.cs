@@ -11,6 +11,8 @@ using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.Tag;
 using BoardOil.Abstractions.Users;
 using BoardOil.Persistence.Abstractions.Card;
+using BoardOil.Persistence.Abstractions.Board;
+using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Tag;
 using BoardOil.Services.Auth;
 using BoardOil.Services.Board;
