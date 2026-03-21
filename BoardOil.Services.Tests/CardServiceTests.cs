@@ -154,7 +154,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task CreateCardAsync_WhenColumnMissing_ShouldReturnNotFound()
+    public async Task CreateCardAsync_WhenColumnMissing_ShouldReturnValidationErrorForBoardColumnId()
     {
         // Arrange
         CreateBoard("BoardOil")
@@ -169,8 +169,9 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Assert
         Assert.False(result.Success);
-        Assert.Equal(404, result.StatusCode);
-        Assert.Equal("Column not found.", result.Message);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("boardColumnId"));
     }
 
     [Fact]
@@ -381,7 +382,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task UpdateCardAsync_WhenTargetColumnMissing_ShouldReturnNotFound()
+    public async Task UpdateCardAsync_WhenTargetColumnMissing_ShouldReturnValidationErrorForBoardColumnId()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -397,8 +398,9 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Assert
         Assert.False(result.Success);
-        Assert.Equal(404, result.StatusCode);
-        Assert.Equal("Column not found.", result.Message);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("boardColumnId"));
     }
 
     [Fact]

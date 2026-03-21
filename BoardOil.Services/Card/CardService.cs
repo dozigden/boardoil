@@ -6,7 +6,6 @@ using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Tag;
 using BoardOil.Persistence.Abstractions.Card;
 using BoardOil.Persistence.Abstractions.Entities;
-using BoardOil.Persistence.Abstractions.Tag;
 using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Card;
@@ -14,11 +13,9 @@ namespace BoardOil.Services.Card;
 public sealed class CardService(
     ICardRepository repository,
     ICardValidator validator,
-    ITagRepository tagRepository,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardService
 {
-    private readonly ITagRepository _tagRepository = tagRepository;
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
@@ -26,22 +23,10 @@ public sealed class CardService(
     {
         using var scope = _scopeFactory.Create();
 
-        var validationErrors = validator.ValidateCreate(request);
+        var validationErrors = await validator.ValidateCreateAsync(request);
         if (validationErrors.Count > 0)
         {
             return ValidationFail(validationErrors);
-        }
-
-        var columnExists = await repository.ColumnExistsAsync(request.BoardColumnId);
-        if (!columnExists)
-        {
-            return ApiErrors.NotFound("Column not found.");
-        }
-
-        var createTagErrors = await ValidateTagNamesExistAsync(request.TagNames);
-        if (createTagErrors.Count > 0)
-        {
-            return ValidationFail(createTagErrors);
         }
 
         var cards = (await repository.GetCardsInColumnOrderedAsync(request.BoardColumnId)).ToList();
@@ -90,7 +75,7 @@ public sealed class CardService(
             return ApiErrors.NotFound("Card not found.");
         }
 
-        var updateValidationErrors = validator.ValidateUpdate(request);
+        var updateValidationErrors = await validator.ValidateUpdateAsync(request, existingCard.BoardColumnId);
         if (updateValidationErrors.Count > 0)
         {
             return ValidationFail(updateValidationErrors);
@@ -99,19 +84,10 @@ public sealed class CardService(
         var existingTagNames = GetOrderedTagNames(existingCard);
         var updatedTitle = request.Title is null ? existingCard.Title : request.Title.Trim();
         var updatedDescription = request.Description ?? existingCard.Description;
-        IReadOnlyList<string>? requestedTagNames = null;
-        IReadOnlyList<string>? normalisedTagNames = null;
-        if (request.TagNames is not null)
-        {
-            var updateTagErrors = await ValidateTagNamesExistAsync(request.TagNames);
-            if (updateTagErrors.Count > 0)
-            {
-                return ValidationFail(updateTagErrors);
-            }
-
-            requestedTagNames = request.TagNames;
-            normalisedTagNames = NormalizeTags(request.TagNames);
-        }
+        IReadOnlyList<string>? requestedTagNames = request.TagNames;
+        IReadOnlyList<string>? normalisedTagNames = request.TagNames is null
+            ? null
+            : NormalizeTags(request.TagNames);
 
         var tagsChanged = requestedTagNames is not null
             && !existingTagNames.SequenceEqual(requestedTagNames, StringComparer.Ordinal);
@@ -121,11 +97,6 @@ public sealed class CardService(
 
         var sourceColumnId = existingCard.BoardColumnId;
         var targetColumnId = request.BoardColumnId ?? sourceColumnId;
-        var targetExists = await EnsureTargetColumnExistsAsync(sourceColumnId, targetColumnId);
-        if (!targetExists)
-        {
-            return ApiErrors.NotFound("Column not found.");
-        }
 
         var sourceCards = (await repository.GetCardsInColumnOrderedAsync(sourceColumnId)).ToList();
         var sourceIndex = FindCardIndex(sourceCards, id);
@@ -218,16 +189,6 @@ public sealed class CardService(
 
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
         ApiErrors.BadRequest("Validation failed.", validationErrors);
-
-    private async Task<bool> EnsureTargetColumnExistsAsync(int sourceColumnId, int targetColumnId)
-    {
-        if (targetColumnId == sourceColumnId)
-        {
-            return true;
-        }
-
-        return await repository.ColumnExistsAsync(targetColumnId);
-    }
 
     private static ApiError? UpdateSortKeyWithinColumn(
         int? requestedPosition,
@@ -331,26 +292,6 @@ public sealed class CardService(
             error = ApiErrors.InternalError("Unable to assign card order key.");
             return false;
         }
-    }
-
-    private async Task<IReadOnlyList<ValidationError>> ValidateTagNamesExistAsync(IReadOnlyList<string>? tagNames)
-    {
-        if (tagNames is null || tagNames.Count == 0)
-        {
-            return Array.Empty<ValidationError>();
-        }
-
-        var missingTagErrors = new List<ValidationError>();
-        foreach (var tagName in tagNames)
-        {
-            var existingTag = await _tagRepository.GetByNormalisedNameAsync(tagName.ToUpperInvariant());
-            if (existingTag is null)
-            {
-                missingTagErrors.Add(new ValidationError("tagNames", $"Tag '{tagName}' does not exist."));
-            }
-        }
-
-        return missingTagErrors.Count == 0 ? Array.Empty<ValidationError>() : missingTagErrors;
     }
 
     private static IReadOnlyList<string> GetOrderedTagNames(EntityBoardCard card) =>
