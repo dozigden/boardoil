@@ -6,56 +6,61 @@ namespace BoardOil.Ef;
 
 public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> options) : DbContext(options)
 {
-    public DbSet<Board> Boards => Set<Board>();
-    public DbSet<BoardColumn> Columns => Set<BoardColumn>();
-    public DbSet<BoardCard> Cards => Set<BoardCard>();
-    public DbSet<Tag> Tags => Set<Tag>();
-    public DbSet<CardTag> CardTags => Set<CardTag>();
+    public DbSet<EntityBoard> Boards => Set<EntityBoard>();
+    public DbSet<EntityBoardColumn> Columns => Set<EntityBoardColumn>();
+    public DbSet<EntityBoardCard> Cards => Set<EntityBoardCard>();
+    public DbSet<EntityTag> Tags => Set<EntityTag>();
+    public DbSet<EntityCardTag> CardTags => Set<EntityCardTag>();
     public DbSet<BoardUser> Users => Set<BoardUser>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        var board = modelBuilder.Entity<Board>();
+        var board = modelBuilder.Entity<EntityBoard>();
         board.HasKey(x => x.Id);
         board.Property(x => x.Name).HasMaxLength(120).IsRequired();
+        board.ToTable("Boards");
         board.HasMany(x => x.Columns)
             .WithOne(x => x.Board)
             .HasForeignKey(x => x.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        var column = modelBuilder.Entity<BoardColumn>();
+        var column = modelBuilder.Entity<EntityBoardColumn>();
         column.HasKey(x => x.Id);
         column.Property(x => x.Title).HasMaxLength(200).IsRequired();
         column.Property(x => x.SortKey).HasMaxLength(20).IsRequired();
+        column.ToTable("Columns");
         column.HasIndex(x => new { x.BoardId, x.SortKey }).IsUnique();
         column.HasMany(x => x.Cards)
             .WithOne(x => x.BoardColumn)
             .HasForeignKey(x => x.BoardColumnId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        var card = modelBuilder.Entity<BoardCard>();
+        var card = modelBuilder.Entity<EntityBoardCard>();
         card.HasKey(x => x.Id);
         card.Property(x => x.Title).HasMaxLength(200).IsRequired();
         card.Property(x => x.Description).HasMaxLength(5000).IsRequired();
         card.Property(x => x.SortKey).HasMaxLength(20).IsRequired();
+        card.ToTable("Cards");
         card.HasIndex(x => new { x.BoardColumnId, x.SortKey }).IsUnique();
         card.HasMany(x => x.CardTags)
             .WithOne(x => x.Card)
             .HasForeignKey(x => x.CardId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        var cardTag = modelBuilder.Entity<CardTag>();
+        var cardTag = modelBuilder.Entity<EntityCardTag>();
         cardTag.HasKey(x => new { x.CardId, x.TagName });
         cardTag.Property(x => x.TagName).HasMaxLength(40).IsRequired();
+        cardTag.ToTable("CardTags");
         cardTag.HasIndex(x => x.TagName);
 
-        var tag = modelBuilder.Entity<Tag>();
+        var tag = modelBuilder.Entity<EntityTag>();
         tag.HasKey(x => x.Id);
         tag.Property(x => x.Name).HasMaxLength(40).IsRequired();
         tag.Property(x => x.NormalisedName).HasMaxLength(40).IsRequired();
         tag.Property(x => x.StyleName).HasMaxLength(32).IsRequired();
         tag.Property(x => x.StylePropertiesJson).IsRequired();
+        tag.ToTable("Tags");
         tag.HasIndex(x => x.NormalisedName).IsUnique();
 
         var user = modelBuilder.Entity<BoardUser>();

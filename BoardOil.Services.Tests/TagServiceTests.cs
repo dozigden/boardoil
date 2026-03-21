@@ -5,7 +5,7 @@ using BoardOil.Services.Tag;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
-using TagEntity = BoardOil.Ef.Entities.Tag;
+using TagEntity = BoardOil.Ef.Entities.EntityTag;
 
 namespace BoardOil.Services.Tests;
 

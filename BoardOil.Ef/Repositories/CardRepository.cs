@@ -84,7 +84,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
 
     public void Add(CreateCardRecord card)
     {
-        var entity = DbContext.Cards.Add(new BoardCard
+        var entity = DbContext.Cards.Add(new EntityBoardCard
         {
             BoardColumnId = card.BoardColumnId,
             Title = card.Title,
@@ -124,7 +124,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             var normalizedTagNames = NormalizeTags(card.TagNames);
             if (normalizedTagNames.Count > 0)
             {
-                DbContext.CardTags.AddRange(normalizedTagNames.Select(tagName => new CardTag
+                DbContext.CardTags.AddRange(normalizedTagNames.Select(tagName => new EntityCardTag
                 {
                     CardId = card.Id,
                     TagName = tagName
@@ -144,11 +144,11 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
         DbContext.Cards.Remove(entity);
     }
 
-    private void AddCardTags(BoardCard card, IReadOnlyList<string> tagNames)
+    private void AddCardTags(EntityBoardCard card, IReadOnlyList<string> tagNames)
     {
         foreach (var tagName in NormalizeTags(tagNames))
         {
-            card.CardTags.Add(new CardTag { TagName = tagName });
+            card.CardTags.Add(new EntityCardTag { TagName = tagName });
         }
     }
 

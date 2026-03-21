@@ -6,7 +6,7 @@ using BoardOil.Ef.Scope;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
-using BoardEntity = BoardOil.Ef.Entities.Board;
+using BoardEntity = BoardOil.Ef.Entities.EntityBoard;
 
 namespace BoardOil.Services.Tests;
 

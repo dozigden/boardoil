@@ -23,7 +23,7 @@ public sealed class TagRepository(IAmbientDbContextLocator ambientDbContextLocat
 
     public void Add(CreateTagRecord tag)
     {
-        DbContext.Tags.Add(new Tag
+        DbContext.Tags.Add(new EntityTag
         {
             Name = tag.Name,
             NormalisedName = tag.NormalisedName,
@@ -64,7 +64,7 @@ public sealed class TagRepository(IAmbientDbContextLocator ambientDbContextLocat
 
 file static class TagRepositoryMappings
 {
-    public static TagRecord ToRecord(this Tag tag) =>
+    public static TagRecord ToRecord(this EntityTag tag) =>
         new(
             tag.Name,
             tag.NormalisedName,

@@ -1,7 +1,7 @@
 using System.Numerics;
 using BoardOil.Ef;
 using BoardOil.Ef.Entities;
-using BoardEntity = BoardOil.Ef.Entities.Board;
+using BoardEntity = BoardOil.Ef.Entities.EntityBoard;
 
 namespace BoardOil.Services.Tests.Infrastructure;
 
@@ -15,9 +15,9 @@ public sealed class FluentBoardBuilder
     private readonly BoardOilDbContext _db;
     private readonly DateTime _nowUtc;
     private readonly BoardEntity _board;
-    private readonly Dictionary<string, BoardColumn> _columnsByTitle = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, List<BoardCard>> _cardsByColumnTitle = new(StringComparer.Ordinal);
-    private BoardColumn? _currentColumn;
+    private readonly Dictionary<string, EntityBoardColumn> _columnsByTitle = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<EntityBoardCard>> _cardsByColumnTitle = new(StringComparer.Ordinal);
+    private EntityBoardColumn? _currentColumn;
     private string? _currentColumnTitle;
     private bool _isBuilt;
 
@@ -47,7 +47,7 @@ public sealed class FluentBoardBuilder
             .ToList();
         var previousKey = orderedColumns.Count > 0 ? orderedColumns[^1].SortKey : null;
 
-        var column = new BoardColumn
+        var column = new EntityBoardColumn
         {
             Title = title,
             SortKey = GenerateBetween(previousKey, null),
@@ -88,7 +88,7 @@ public sealed class FluentBoardBuilder
         var nextKey = insertIndex < cards.Count ? cards[insertIndex].SortKey : null;
         var sortKey = GenerateBetween(previousKey, nextKey);
 
-        var card = new BoardCard
+        var card = new EntityBoardCard
         {
             Title = title,
             Description = description,
@@ -104,7 +104,7 @@ public sealed class FluentBoardBuilder
         return this;
     }
 
-    public BoardColumn GetColumn(string title)
+    public EntityBoardColumn GetColumn(string title)
     {
         if (_columnsByTitle.TryGetValue(title, out var column))
         {
@@ -114,7 +114,7 @@ public sealed class FluentBoardBuilder
         throw new InvalidOperationException($"Column '{title}' was not found in the fluent test builder.");
     }
 
-    public BoardCard GetCard(string cardTitle)
+    public EntityBoardCard GetCard(string cardTitle)
     {
         if (_currentColumnTitle is null)
         {
@@ -124,7 +124,7 @@ public sealed class FluentBoardBuilder
         return GetCard(_currentColumnTitle, cardTitle);
     }
 
-    public BoardCard GetCard(string columnTitle, string cardTitle)
+    public EntityBoardCard GetCard(string columnTitle, string cardTitle)
     {
         if (!_cardsByColumnTitle.TryGetValue(columnTitle, out var cards))
         {

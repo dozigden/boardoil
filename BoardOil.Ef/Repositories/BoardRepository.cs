@@ -3,7 +3,7 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Board;
 using BoardOil.Ef.Entities;
 using Microsoft.EntityFrameworkCore;
-using BoardEntity = BoardOil.Ef.Entities.Board;
+using BoardEntity = BoardOil.Ef.Entities.EntityBoard;
 
 namespace BoardOil.Ef.Repositories;
 
