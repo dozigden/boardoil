@@ -1,6 +1,6 @@
 using BoardOil.Api.Configuration;
-using BoardOil.Abstractions.Entities;
 using BoardOil.Abstractions.Auth;
+using BoardOil.Abstractions.Entities;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -10,7 +10,7 @@ namespace BoardOil.Api.Auth;
 
 public sealed class JwtAccessTokenIssuer(JwtAuthOptions jwtOptions) : IAccessTokenIssuer
 {
-    public string CreateAccessToken(BoardUser user, DateTime issuedAtUtc, DateTime expiresAtUtc)
+    public string CreateAccessToken(int userId, string userName, UserRole role, DateTime issuedAtUtc, DateTime expiresAtUtc)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -19,9 +19,9 @@ public sealed class JwtAccessTokenIssuer(JwtAuthOptions jwtOptions) : IAccessTok
             audience: jwtOptions.Audience,
             claims:
             [
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Role, user.Role.ToString())
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(ClaimTypes.Name, userName),
+                new Claim(ClaimTypes.Role, role.ToString())
             ],
             notBefore: issuedAtUtc,
             expires: expiresAtUtc,

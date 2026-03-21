@@ -360,7 +360,10 @@
         }
       },
       "boardoil.persistence.abstractions": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "BoardOil.Abstractions": "[1.0.0, )"
+        }
       },
       "boardoil.services": {
         "type": "Project",

@@ -4,6 +4,8 @@ using System.Text;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Auth;
+using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
 
@@ -34,7 +36,7 @@ public sealed class AuthService(
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var user = new BoardUser
+        var user = new EntityUser
         {
             UserName = request.UserName.Trim(),
             PasswordHash = passwordHashService.HashPassword(request.Password),
@@ -158,15 +160,15 @@ public sealed class AuthService(
     public string CreateCsrfToken() =>
         Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 
-    private AuthSessionTokens CreateSession(BoardUser user)
+    private AuthSessionTokens CreateSession(EntityUser user)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var accessTokenExpiresAtUtc = now.AddMinutes(sessionOptions.AccessTokenMinutes);
         var refreshTokenExpiresAtUtc = now.AddDays(sessionOptions.RefreshTokenDays);
 
-        var accessToken = accessTokenIssuer.CreateAccessToken(user, now, accessTokenExpiresAtUtc);
+        var accessToken = accessTokenIssuer.CreateAccessToken(user.Id, user.UserName, user.Role, now, accessTokenExpiresAtUtc);
         var refreshToken = CreateRefreshToken();
-        refreshTokenRepository.Add(new RefreshToken
+        refreshTokenRepository.Add(new EntityRefreshToken
         {
             UserId = user.Id,
             TokenHash = HashRefreshToken(refreshToken),

@@ -1,11 +1,11 @@
-using BoardOil.Abstractions.Entities;
 using BoardOil.Contracts.Users;
+using BoardOil.Persistence.Abstractions.Entities;
 
 namespace BoardOil.Services.Users;
 
 public static class UserMappingExtensions
 {
-    public static ManagedUserDto ToManagedUserDto(this BoardUser user) =>
+    public static ManagedUserDto ToManagedUserDto(this EntityUser user) =>
         new(
             user.Id,
             user.UserName,

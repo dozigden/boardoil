@@ -1,17 +1,17 @@
-using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.DataAccess;
-using BoardOil.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Auth;
+using BoardOil.Persistence.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Repositories;
 
 public sealed class RefreshTokenRepository(IAmbientDbContextLocator ambientDbContextLocator)
-    : RepositoryBase<RefreshToken>(ambientDbContextLocator), IRefreshTokenRepository
+    : RepositoryBase<EntityRefreshToken>(ambientDbContextLocator), IRefreshTokenRepository
 {
-    public Task<RefreshToken?> GetByHashAsync(string tokenHash) =>
+    public Task<EntityRefreshToken?> GetByHashAsync(string tokenHash) =>
         DbSet.FirstOrDefaultAsync(x => x.TokenHash == tokenHash);
 
-    public Task<RefreshToken?> GetWithUserByHashAsync(string tokenHash) =>
+    public Task<EntityRefreshToken?> GetWithUserByHashAsync(string tokenHash) =>
         DbSet
             .Include(x => x.User)
             .FirstOrDefaultAsync(x => x.TokenHash == tokenHash);
