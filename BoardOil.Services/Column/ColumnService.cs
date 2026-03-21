@@ -1,9 +1,11 @@
 using BoardOil.Abstractions;
-using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Persistence.Abstractions.Board;
+using BoardOil.Persistence.Abstractions.Column;
+using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Column;
@@ -65,24 +67,21 @@ public sealed class ColumnService(
             return allocationError!;
         }
 
-        columnRepository.Add(new CreateColumnRecord(
-            BoardId: boardId.Value,
-            Title: request.Title.Trim(),
-            SortKey: sortKey!,
-            CreatedAtUtc: now,
-            UpdatedAtUtc: now));
+        var column = new EntityBoardColumn
+        {
+            BoardId = boardId.Value,
+            Title = request.Title.Trim(),
+            SortKey = sortKey!,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        columnRepository.Add(column);
 
         await scope.SaveChangesAsync();
 
         var columnsAfterCreate = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
-        var createdColumn = columnsAfterCreate.FirstOrDefault(x => x.SortKey == sortKey);
-        if (createdColumn is null)
-        {
-            return ApiErrors.InternalError("Created column could not be reloaded.");
-        }
-
-        var createdIndex = columnsAfterCreate.FindIndex(x => x.Id == createdColumn.Id);
-        var created = createdColumn.ToColumnDto(createdIndex < 0 ? insertIndex : createdIndex);
+        var createdIndex = columnsAfterCreate.FindIndex(x => x.Id == column.Id);
+        var created = column.ToColumnDto(createdIndex < 0 ? insertIndex : createdIndex);
         await _boardEvents.ColumnCreatedAsync(created);
         return ApiResults.Created(created);
     }
@@ -142,25 +141,17 @@ public sealed class ColumnService(
         }
 
         var changed = titleChanged || positionChanged;
-        var updated = target with
-        {
-            Title = updatedTitle,
-            SortKey = updatedSortKey,
-            UpdatedAtUtc = changed ? DateTime.UtcNow : target.UpdatedAtUtc
-        };
 
         if (changed)
         {
-            await columnRepository.UpdateAsync(new UpdateColumnRecord(
-                Id: updated.Id,
-                Title: updated.Title,
-                SortKey: updated.SortKey,
-                UpdatedAtUtc: updated.UpdatedAtUtc));
+            target.Title = updatedTitle;
+            target.SortKey = updatedSortKey;
+            target.UpdatedAtUtc = DateTime.UtcNow;
 
             await scope.SaveChangesAsync();
         }
 
-        var dto = updated.ToColumnDto(positionChanged ? targetIndex : currentIndex);
+        var dto = target.ToColumnDto(positionChanged ? targetIndex : currentIndex);
         await _boardEvents.ColumnUpdatedAsync(dto);
         return dto;
     }
@@ -183,7 +174,7 @@ public sealed class ColumnService(
             return ApiResults.Ok();
         }
 
-        await columnRepository.DeleteAsync(id);
+        columnRepository.Remove(target);
         await scope.SaveChangesAsync();
 
         await _boardEvents.ColumnDeletedAsync(id);

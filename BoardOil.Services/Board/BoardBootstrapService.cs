@@ -1,8 +1,8 @@
 using BoardOil.Abstractions.Board;
-using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.DataAccess;
-using BoardOil.Contracts.Board;
-using BoardOil.Contracts.Column;
+using BoardOil.Persistence.Abstractions.Board;
+using BoardOil.Persistence.Abstractions.Column;
+using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Board;
@@ -22,10 +22,12 @@ public sealed class BoardBootstrapService(
             var boardId = await boardRepository.GetPrimaryBoardIdAsync();
             if (boardId is null)
             {
-                boardRepository.Add(new BoardCreateRecord(
-                    Name: "BoardOil",
-                    CreatedAtUtc: now,
-                    UpdatedAtUtc: now));
+                boardRepository.Add(new EntityBoard
+                {
+                    Name = "BoardOil",
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                });
 
                 await transactionScope.SaveChangesAsync();
                 boardId = await boardRepository.GetPrimaryBoardIdAsync();
@@ -45,12 +47,14 @@ public sealed class BoardBootstrapService(
                 foreach (var title in seedTitles)
                 {
                     var sortKey = SortKeyGenerator.Between(previousSortKey, null);
-                    columnRepository.Add(new CreateColumnRecord(
-                        BoardId: boardId.Value,
-                        Title: title,
-                        SortKey: sortKey,
-                        CreatedAtUtc: now,
-                        UpdatedAtUtc: now));
+                    columnRepository.Add(new EntityBoardColumn
+                    {
+                        BoardId = boardId.Value,
+                        Title = title,
+                        SortKey = sortKey,
+                        CreatedAtUtc = now,
+                        UpdatedAtUtc = now
+                    });
                     previousSortKey = sortKey;
                 }
 

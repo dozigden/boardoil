@@ -1,11 +1,12 @@
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
-using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Persistence.Abstractions.Card;
+using BoardOil.Persistence.Abstractions.Board;
+using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Services.Card;
 
 namespace BoardOil.Services.Board;
