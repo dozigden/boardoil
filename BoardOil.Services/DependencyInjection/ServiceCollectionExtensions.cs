@@ -33,7 +33,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICardValidator, CardValidator>();
         services.AddSingleton<IPasswordHashService, PasswordHashService>();
         services.AddScoped<IBoardRepository, BoardRepository>();
-        services.AddScoped<IAuthRepository, AuthRepository>();
+        services.AddScoped<IAuthUserRepository, AuthUserRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
         services.AddScoped<ITagRepository, TagRepository>();

@@ -107,11 +107,7 @@ public sealed class TagService(
     }
 
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest(
-            "Validation failed.",
-            validationErrors
-                .GroupBy(x => string.IsNullOrWhiteSpace(x.Property) ? string.Empty : x.Property)
-                .ToDictionary(x => x.Key, x => x.Select(y => y.Message).ToArray()));
+        ApiErrors.BadRequest("Validation failed.", validationErrors);
 
     private static TagNameValidationResult ValidateTagName(string? rawName, string propertyName)
     {

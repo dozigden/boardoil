@@ -59,8 +59,11 @@ public static class ApiResults
 
 public static class ApiErrors
 {
-    public static ApiError BadRequest(string message, Dictionary<string, string[]>? validationErrors = null) =>
-        new(400, message, validationErrors);
+    public static ApiError BadRequest(string message) =>
+        new(400, message);
+
+    public static ApiError BadRequest(string message, IReadOnlyList<ValidationError> validationErrors) =>
+        new(400, message, ToValidationDictionary(validationErrors));
 
     public static ApiError Unauthorized(string message) =>
         new(401, message);
@@ -73,4 +76,9 @@ public static class ApiErrors
 
     public static ApiError InternalError(string message) =>
         new(500, message);
+
+    private static Dictionary<string, string[]> ToValidationDictionary(IReadOnlyList<ValidationError> validationErrors) =>
+        validationErrors
+            .GroupBy(x => string.IsNullOrWhiteSpace(x.Property) ? string.Empty : x.Property)
+            .ToDictionary(x => x.Key, x => x.Select(y => y.Message).ToArray());
 }
