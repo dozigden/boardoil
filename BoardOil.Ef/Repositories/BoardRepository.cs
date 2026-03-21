@@ -1,9 +1,9 @@
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Board;
-using BoardOil.Ef.Entities;
+using BoardOil.Persistence.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
-using BoardEntity = BoardOil.Ef.Entities.EntityBoard;
+using BoardEntity = BoardOil.Persistence.Abstractions.Entities.EntityBoard;
 
 namespace BoardOil.Ef.Repositories;
 

@@ -1,7 +1,7 @@
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
-using BoardOil.Ef.Entities;
+using BoardOil.Persistence.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Repositories;
