@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BoardOil.Abstractions\BoardOil.Abstractions.csproj" />
+    <ProjectReference Include="..\BoardOil.Persistence.Abstractions\BoardOil.Persistence.Abstractions.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4">
       <PrivateAssets>all</PrivateAssets>

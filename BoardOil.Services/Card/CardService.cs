@@ -1,10 +1,10 @@
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
-using BoardOil.Abstractions.Tag;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Tag;
+using BoardOil.Persistence.Abstractions.Tag;
 using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Card;
