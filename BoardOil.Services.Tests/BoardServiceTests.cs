@@ -100,7 +100,7 @@ public sealed class BoardServiceTests : TestBaseDb
             .AddColumn("Doing")
             .Build();
         var cardId = board.GetCard("Todo", "A").Id;
-        DbContextForArrange.CardTags.Add(new BoardOil.Ef.Entities.CardTag
+        DbContextForArrange.CardTags.Add(new BoardOil.Ef.Entities.EntityCardTag
         {
             CardId = cardId,
             TagName = "Bug"

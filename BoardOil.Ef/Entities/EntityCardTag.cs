@@ -1,9 +1,9 @@
 namespace BoardOil.Ef.Entities;
 
-public sealed class CardTag
+public sealed class EntityCardTag
 {
     public int CardId { get; set; }
     public string TagName { get; set; } = string.Empty;
 
-    public BoardCard Card { get; set; } = null!;
+    public EntityBoardCard Card { get; set; } = null!;
 }

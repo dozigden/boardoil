@@ -1,6 +1,6 @@
 namespace BoardOil.Ef.Entities;
 
-public sealed class BoardColumn
+public sealed class EntityBoardColumn
 {
     public int Id { get; set; }
     public int BoardId { get; set; }
@@ -9,6 +9,6 @@ public sealed class BoardColumn
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
 
-    public Board Board { get; set; } = null!;
-    public ICollection<BoardCard> Cards { get; set; } = new List<BoardCard>();
+    public EntityBoard Board { get; set; } = null!;
+    public ICollection<EntityBoardCard> Cards { get; set; } = new List<EntityBoardCard>();
 }

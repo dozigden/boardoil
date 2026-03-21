@@ -2,7 +2,7 @@ using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Column;
 using Microsoft.EntityFrameworkCore;
-using ColumnEntity = BoardOil.Ef.Entities.BoardColumn;
+using ColumnEntity = BoardOil.Ef.Entities.EntityBoardColumn;
 
 namespace BoardOil.Ef.Repositories;
 
