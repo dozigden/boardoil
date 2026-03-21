@@ -24,3 +24,8 @@ Review `BoardBootstrapService` to determine whether default board + initial colu
 ### Transaction Scope Audit
 
 Review all `IDbContextScope.Transaction(...)` usages and confirm each one is justified versus a standard single-save scope.
+
+### Card Tag Handling Improvements
+
+Review `CardService` tag handling to reduce duplication and ambiguity between request-order tags and stored normalised tags.
+Consider a single shared helper for tag normalisation/ordering and a batched repository lookup to avoid per-tag existence queries.
