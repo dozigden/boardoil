@@ -146,7 +146,7 @@ export const useBoardStore = defineStore('board', () => {
     dragState = { cardId, fromColumnId };
   }
 
-  async function dropCard(targetColumnId: number, position: number) {
+  async function dropCard(targetColumnId: number, targetCardId: number | null) {
     if (!dragState) {
       return;
     }
@@ -154,7 +154,17 @@ export const useBoardStore = defineStore('board', () => {
     const movingCardId = dragState.cardId;
     dragState = null;
 
-    const result = await runBusy(() => api.moveCard(movingCardId, targetColumnId, position));
+    const positionAfterCardId = resolvePositionAfterCardId(
+      board.value,
+      movingCardId,
+      targetColumnId,
+      targetCardId
+    );
+    if (positionAfterCardId === undefined) {
+      return;
+    }
+
+    const result = await runBusy(() => api.moveCard(movingCardId, targetColumnId, positionAfterCardId));
     if (!result.ok) {
       return;
     }
@@ -239,8 +249,7 @@ export const useBoardStore = defineStore('board', () => {
         return;
       }
 
-      const insertAt = clampIndex(card.position, targetColumn.cards.length);
-      targetColumn.cards.splice(insertAt, 0, card);
+      targetColumn.cards.push(card);
       sortCardsInColumns(draft.columns);
     });
   }
@@ -326,10 +335,54 @@ function cloneBoard(source: Board): Board {
 
 function sortCardsInColumns(columns: BoardColumn[]) {
   for (const column of columns) {
-    column.cards.sort((a, b) => a.position - b.position);
+    column.cards.sort((a, b) => compareSortKey(a.sortKey, b.sortKey));
   }
 }
 
 function clampIndex(index: number, max: number) {
   return Math.max(0, Math.min(index, max));
+}
+
+function compareSortKey(left: string, right: string) {
+  if (left < right) {
+    return -1;
+  }
+
+  if (left > right) {
+    return 1;
+  }
+
+  return 0;
+}
+
+function resolvePositionAfterCardId(
+  board: Board | null,
+  movingCardId: number,
+  targetColumnId: number,
+  targetCardId: number | null
+): number | null | undefined {
+  if (!board) {
+    return undefined;
+  }
+
+  const targetColumn = board.columns.find(x => x.id === targetColumnId);
+  if (!targetColumn) {
+    return undefined;
+  }
+
+  if (targetCardId === movingCardId) {
+    return undefined;
+  }
+
+  const targetCards = targetColumn.cards.filter(x => x.id !== movingCardId);
+  if (targetCardId === null) {
+    return targetCards.length === 0 ? null : targetCards[targetCards.length - 1].id;
+  }
+
+  const targetIndex = targetCards.findIndex(x => x.id === targetCardId);
+  if (targetIndex < 0) {
+    return undefined;
+  }
+
+  return targetIndex === 0 ? null : targetCards[targetIndex - 1].id;
 }

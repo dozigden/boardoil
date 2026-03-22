@@ -13,7 +13,7 @@ namespace BoardOil.Services.Tests;
 public sealed class CardServiceTests : TestBaseDb
 {
     [Fact]
-    public async Task CreateCardAsync_WhenColumnEmpty_ShouldCreateCardAtPositionZero()
+    public async Task CreateCardAsync_WhenColumnEmpty_ShouldCreateCardWithSortKey()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -25,13 +25,13 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "New Card", "Desc", null, null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "New Card", "Desc", null));
 
         // Assert
         Assert.True(result.Success);
         Assert.Equal(201, result.StatusCode);
         Assert.NotNull(result.Data);
-        Assert.Equal(0, result.Data!.Position);
+        Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
         Assert.Equal(todoColumnId, result.Data.BoardColumnId);
         Assert.Equal("New Card", result.Data.Title);
         Assert.Equal("Desc", result.Data.Description);
@@ -60,7 +60,6 @@ public sealed class CardServiceTests : TestBaseDb
             BoardColumnId: todoColumnId,
             Title: "Tagged",
             Description: "Desc",
-            Position: null,
             TagNames: ["Bug", "Needs Triage", "Bug", "Sprint 1"]));
 
         // Assert
@@ -82,7 +81,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task CreateCardAsync_WhenPositionIsZero_ShouldInsertAtStart()
+    public async Task CreateCardAsync_WhenColumnHasCards_ShouldAppendToEnd()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -95,59 +94,11 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "Start", "X", 0, null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "End", "X", null));
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal(0, result.Data!.Position);
-        var titles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
-
-        Assert.Equal(["Start", "A", "B"], titles);
-    }
-
-    [Fact]
-    public async Task CreateCardAsync_WhenPositionIsMiddle_ShouldInsertInMiddle()
-    {
-        // Arrange
-        var board = CreateBoard("BoardOil")
-            .AddColumn("Todo")
-            .AddCard("A", "1")
-            .AddCard("B", "2")
-            .AddColumn("Doing")
-            .Build();
-        var todoColumnId = board.GetColumn("Todo").Id;
-
-        // Act
-        var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "Middle", "X", 1, null));
-
-        // Assert
-        Assert.True(result.Success);
-        Assert.Equal(1, result.Data!.Position);
-        var titles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
-
-        Assert.Equal(["A", "Middle", "B"], titles);
-    }
-
-    [Fact]
-    public async Task CreateCardAsync_WhenPositionIsNull_ShouldAppendToEnd()
-    {
-        // Arrange
-        var board = CreateBoard("BoardOil")
-            .AddColumn("Todo")
-            .AddCard("A", "1")
-            .AddCard("B", "2")
-            .AddColumn("Doing")
-            .Build();
-        var todoColumnId = board.GetColumn("Todo").Id;
-
-        // Act
-        var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "End", "X", null, null));
-
-        // Assert
-        Assert.True(result.Success);
-        Assert.Equal(2, result.Data!.Position);
+        Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
         var titles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
 
         Assert.Equal(["A", "B", "End"], titles);
@@ -165,7 +116,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.CreateCardAsync(new CreateCardRequest(999_999, "New", "Desc", null, null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(999_999, "New", "Desc", null));
 
         // Assert
         Assert.False(result.Success);
@@ -277,18 +228,18 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.MoveCardAsync(movingCardId, new MoveCardRequest(todoColumnId, 0));
+        var result = await service.MoveCardAsync(movingCardId, new MoveCardRequest(todoColumnId, null));
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal(0, result.Data!.Position);
+        Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
         var titles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
 
         Assert.Equal(["C", "A", "B"], titles);
     }
 
     [Fact]
-    public async Task MoveCardAsync_WhenMovingCardToDifferentColumnWithOccupiedPosition_ShouldSucceed()
+    public async Task MoveCardAsync_WhenMovingCardToDifferentColumnAfterAnchor_ShouldSucceed()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -300,6 +251,7 @@ public sealed class CardServiceTests : TestBaseDb
         var todoColumnId = board.GetColumn("Todo").Id;
         var doingColumnId = board.GetColumn("Doing").Id;
         var cardToMoveId = board.GetCard("Todo", "Move me").Id;
+        var existingCardId = board.GetCard("Doing", "Existing").Id;
 
         // Act
         var service = CreateService();
@@ -307,13 +259,13 @@ public sealed class CardServiceTests : TestBaseDb
             cardToMoveId,
             new MoveCardRequest(
                 BoardColumnId: doingColumnId,
-                Position: 1));
+                PositionAfterCardId: existingCardId));
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(doingColumnId, result.Data!.BoardColumnId);
-        Assert.Equal(1, result.Data.Position);
+        Assert.False(string.IsNullOrWhiteSpace(result.Data.SortKey));
         var todoTitles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
         var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
 
@@ -322,7 +274,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task MoveCardAsync_WhenMovingCardToDifferentColumnWithNullPosition_ShouldAppendToEnd()
+    public async Task MoveCardAsync_WhenMovingCardToDifferentColumnWithNullPositionAfterCardId_ShouldMoveToStart()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -341,14 +293,14 @@ public sealed class CardServiceTests : TestBaseDb
             movingCardId,
             new MoveCardRequest(
                 BoardColumnId: doingColumnId,
-                Position: null));
+                PositionAfterCardId: null));
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal(2, result.Data!.Position);
+        Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
         var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
 
-        Assert.Equal(["A", "B", "Move me"], doingTitles);
+        Assert.Equal(["Move me", "A", "B"], doingTitles);
     }
 
     [Fact]
@@ -384,13 +336,70 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.MoveCardAsync(cardId, new MoveCardRequest(999_999, 0));
+        var result = await service.MoveCardAsync(cardId, new MoveCardRequest(999_999, null));
 
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
         Assert.NotNull(result.ValidationErrors);
         Assert.True(result.ValidationErrors!.ContainsKey("boardColumnId"));
+    }
+
+    [Fact]
+    public async Task MoveCardAsync_WhenPositionAfterCardIdMatchesMovingCard_ShouldReturnValidationError()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Card", "Desc")
+            .Build();
+        var cardId = board.GetCard("Todo", "Card").Id;
+        var todoColumnId = board.GetColumn("Todo").Id;
+
+        // Act
+        var service = CreateService();
+        var result = await service.MoveCardAsync(
+            cardId,
+            new MoveCardRequest(
+                BoardColumnId: todoColumnId,
+                PositionAfterCardId: cardId));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("positionAfterCardId"));
+    }
+
+    [Fact]
+    public async Task MoveCardAsync_WhenPositionAfterCardIdNotInTargetColumn_ShouldReturnValidationError()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "Desc")
+            .AddColumn("Doing")
+            .AddCard("Target", "Desc")
+            .AddColumn("Done")
+            .AddCard("Foreign", "Desc")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var foreignCardId = board.GetCard("Done", "Foreign").Id;
+
+        // Act
+        var service = CreateService();
+        var result = await service.MoveCardAsync(
+            movingCardId,
+            new MoveCardRequest(
+                BoardColumnId: doingColumnId,
+                PositionAfterCardId: foreignCardId));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("positionAfterCardId"));
     }
 
     [Fact]
@@ -447,7 +456,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "bad@title", "Desc", null, null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "bad@title", "Desc", null));
 
         // Assert
         Assert.False(result.Success);
@@ -470,7 +479,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, longTitle, "Desc", null, null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, longTitle, "Desc", null));
 
         // Assert
         Assert.False(result.Success);
@@ -491,7 +500,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "   ", "Desc", null, null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "   ", "Desc", null));
 
         // Assert
         Assert.False(result.Success);
@@ -514,7 +523,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", longDescription, null, null));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", longDescription, null));
 
         // Assert
         Assert.False(result.Success);
@@ -536,7 +545,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", null, [missingTag]));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", [missingTag]));
 
         // Assert
         Assert.False(result.Success);
@@ -558,7 +567,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", null, ["Bug,Urgent"]));
+        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", ["Bug,Urgent"]));
 
         // Assert
         Assert.True(result.Success);

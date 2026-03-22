@@ -33,12 +33,8 @@ public sealed class CardService(
 
         var cards = (await cardRepository.GetCardsInColumnOrderedAsync(request.BoardColumnId)).ToList();
 
-        var insertIndex = request.Position is null
-            ? cards.Count
-            : Math.Clamp(request.Position.Value, 0, cards.Count);
-
-        var previousKey = insertIndex > 0 ? cards[insertIndex - 1].SortKey : null;
-        var nextKey = insertIndex < cards.Count ? cards[insertIndex].SortKey : null;
+        var previousKey = cards.Count > 0 ? cards[^1].SortKey : null;
+        var nextKey = (string?)null;
         if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
         {
             return allocationError!;
@@ -60,8 +56,7 @@ public sealed class CardService(
 
         await scope.SaveChangesAsync();
 
-        var createdIndex = await GetCardPositionAsync(card.BoardColumnId, card.Id);
-        var created = card.ToCardDto(createdIndex >= 0 ? createdIndex : insertIndex);
+        var created = card.ToCardDto();
 
         await _boardEvents.CardCreatedAsync(created);
         return ApiResults.Created(created);
@@ -111,8 +106,7 @@ public sealed class CardService(
             await scope.SaveChangesAsync();
         }
 
-        var finalPosition = await GetCardPositionAsync(existingCard.BoardColumnId, existingCard.Id);
-        var dto = existingCard.ToCardDto(finalPosition < 0 ? 0 : finalPosition);
+        var dto = existingCard.ToCardDto();
         if (requestedTagNames is not null)
         {
             dto = dto with { TagNames = requestedTagNames };
@@ -140,6 +134,11 @@ public sealed class CardService(
             return ValidationFail([new ValidationError("boardColumnId", "Column does not exist.")]);
         }
 
+        if (request.PositionAfterCardId == id)
+        {
+            return ValidationFail([new ValidationError("positionAfterCardId", "Card cannot be positioned after itself.")]);
+        }
+
         var sourceCards = (await cardRepository.GetCardsInColumnOrderedAsync(sourceColumnId)).ToList();
         var sourceIndex = FindCardIndex(sourceCards, id);
         if (sourceIndex < 0)
@@ -147,30 +146,45 @@ public sealed class CardService(
             return ApiErrors.NotFound("Card not found.");
         }
 
-        ApiError? operationError;
-        string targetSortKey;
+        var currentPositionAfterCardId = sourceIndex > 0 ? sourceCards[sourceIndex - 1].Id : (int?)null;
+        if (targetColumn.Id == sourceColumnId
+            && request.PositionAfterCardId == currentPositionAfterCardId)
+        {
+            var unchangedDto = existingCard.ToCardDto();
+            await _boardEvents.CardMovedAsync(unchangedDto);
+            return unchangedDto;
+        }
+
+        List<EntityBoardCard> targetCards;
         if (targetColumn.Id == sourceColumnId)
         {
-            operationError = UpdateSortKeyWithinColumn(
-                request.Position,
-                sourceCards,
-                sourceIndex,
-                existingCard.SortKey,
-                out targetSortKey);
+            targetCards = sourceCards
+                .Where(x => x.Id != id)
+                .ToList();
         }
         else
         {
-            var moveResult = await CalculateSortKeyAcrossColumnsAsync(
-                targetColumn.Id,
-                request.Position);
-            operationError = moveResult.Error;
-            targetSortKey = moveResult.SortKey;
+            targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id))
+                .Where(x => x.Id != id)
+                .ToList();
         }
 
-        if (operationError is not null)
+        var anchorResolution = ResolveAnchor(request.PositionAfterCardId, targetCards);
+        if (anchorResolution.Error is not null)
         {
-            return operationError;
+            return anchorResolution.Error;
         }
+
+        if (!TryGenerateSortKey(
+                anchorResolution.PreviousKey,
+                anchorResolution.NextKey,
+                out var targetSortKeyValue,
+                out var allocationError))
+        {
+            return allocationError!;
+        }
+
+        var targetSortKey = targetSortKeyValue!;
 
         var movementChanged = targetColumn.Id != existingCard.BoardColumnId
             || targetSortKey != existingCard.SortKey;
@@ -183,8 +197,7 @@ public sealed class CardService(
             await scope.SaveChangesAsync();
         }
 
-        var finalPosition = await GetCardPositionAsync(existingCard.BoardColumnId, existingCard.Id);
-        var dto = existingCard.ToCardDto(finalPosition < 0 ? 0 : finalPosition);
+        var dto = existingCard.ToCardDto();
         await _boardEvents.CardMovedAsync(dto);
 
         return dto;
@@ -210,73 +223,27 @@ public sealed class CardService(
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
         ApiErrors.BadRequest("Validation failed.", validationErrors);
 
-    private static ApiError? UpdateSortKeyWithinColumn(
-        int? requestedPosition,
-        List<EntityBoardCard> sourceCards,
-        int sourceIndex,
-        string currentSortKey,
-        out string targetSortKey)
+    private static (ApiError? Error, string? PreviousKey, string? NextKey) ResolveAnchor(
+        int? positionAfterCardId,
+        IReadOnlyList<EntityBoardCard> targetCards)
     {
-        sourceCards.RemoveAt(sourceIndex);
-        var targetIndex = requestedPosition is null
-            ? sourceIndex
-            : Math.Clamp(requestedPosition.Value, 0, sourceCards.Count);
-
-        if (targetIndex == sourceIndex)
+        if (positionAfterCardId is null)
         {
-            targetSortKey = currentSortKey;
-            return null;
+            var firstSortKey = targetCards.Count > 0 ? targetCards[0].SortKey : null;
+            return (null, null, firstSortKey);
         }
 
-        var previousKey = targetIndex > 0 ? sourceCards[targetIndex - 1].SortKey : null;
-        var nextKey = targetIndex < sourceCards.Count ? sourceCards[targetIndex].SortKey : null;
-        if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
+        var anchorIndex = FindCardIndex(targetCards, positionAfterCardId.Value);
+        if (anchorIndex < 0)
         {
-            targetSortKey = currentSortKey;
-            return allocationError;
+            return (ValidationFail([new ValidationError("positionAfterCardId", "Card does not exist in target column.")]), null, null);
         }
 
-        targetSortKey = sortKey!;
-        return null;
-    }
-
-    private async Task<(ApiError? Error, string SortKey)> CalculateSortKeyAcrossColumnsAsync(
-        int targetColumnId,
-        int? requestedPosition)
-    {
-        var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumnId)).ToList();
-
-        var insertIndex = requestedPosition is null
-            ? targetCards.Count
-            : Math.Clamp(requestedPosition.Value, 0, targetCards.Count);
-
-        var previousKey = insertIndex > 0 ? targetCards[insertIndex - 1].SortKey : null;
-        var nextKey = insertIndex < targetCards.Count ? targetCards[insertIndex].SortKey : null;
-        if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
-        {
-            return (allocationError, string.Empty);
-        }
-
-        return (null, sortKey!);
-    }
-
-    private async Task<int> GetCardPositionAsync(int columnId, int cardId)
-    {
-        var finalCards = await cardRepository.GetCardIdsInColumnOrderedAsync(columnId);
-        return FindCardIndex(finalCards, cardId);
-    }
-
-    private static int FindCardIndex(IReadOnlyList<int> cardIds, int targetId)
-    {
-        for (var i = 0; i < cardIds.Count; i++)
-        {
-            if (cardIds[i] == targetId)
-            {
-                return i;
-            }
-        }
-
-        return -1;
+        var previousKey = targetCards[anchorIndex].SortKey;
+        var nextKey = anchorIndex < targetCards.Count - 1
+            ? targetCards[anchorIndex + 1].SortKey
+            : null;
+        return (null, previousKey, nextKey);
     }
 
     private static int FindCardIndex(IReadOnlyList<EntityBoardCard> cards, int targetId)

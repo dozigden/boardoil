@@ -9,7 +9,7 @@
     @keydown.space.prevent="openEditor"
     @dragstart="onDragStart"
     @dragover.prevent
-    @drop="emit('drop-card', columnId, index)"
+    @drop="emit('drop-card', columnId, card.id)"
     @dragend="onDragEnd"
   >
     <div class="card-header">
@@ -41,13 +41,12 @@ import Tag from './Tag.vue';
 const props = defineProps<{
   card: BoardCard;
   columnId: number;
-  index: number;
   typingSummary: (cardId: number) => boolean;
 }>();
 
 const emit = defineEmits<{
   'start-drag': [cardId: number, fromColumnId: number];
-  'drop-card': [targetColumnId: number, position: number];
+  'drop-card': [targetColumnId: number, targetCardId: number];
   'edit-card': [cardId: number];
 }>();
 

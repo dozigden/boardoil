@@ -5,24 +5,24 @@ namespace BoardOil.Services.Card;
 
 public static class CardMappingExtensions
 {
-    public static CardDto ToCardDto(this CardRecord card, int position) =>
+    public static CardDto ToCardDto(this CardRecord card) =>
         new(
             card.Id,
             card.BoardColumnId,
             card.Title,
             card.Description,
-            position,
+            card.SortKey,
             card.TagNames,
             card.CreatedAtUtc,
             card.UpdatedAtUtc);
 
-    public static CardDto ToCardDto(this EntityBoardCard card, int position) =>
+    public static CardDto ToCardDto(this EntityBoardCard card) =>
         new(
             card.Id,
             card.BoardColumnId,
             card.Title,
             card.Description,
-            position,
+            card.SortKey,
             card.CardTags
                 .Select(x => x.TagName)
                 .OrderBy(x => x, StringComparer.Ordinal)

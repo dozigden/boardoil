@@ -3,7 +3,7 @@ export type Card = {
   boardColumnId: number;
   title: string;
   description: string;
-  position: number;
+  sortKey: string;
   tagNames: string[];
   createdAtUtc: string;
   updatedAtUtc: string;

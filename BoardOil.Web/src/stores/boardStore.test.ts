@@ -112,7 +112,7 @@ describe('boardStore', () => {
       boardColumnId: 2,
       title: 'Task A',
       description: 'Seed',
-      position: 0,
+      sortKey: '00000000000000000001',
       tagNames: [],
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:01:00Z'
@@ -120,11 +120,116 @@ describe('boardStore', () => {
     api.moveCard.mockResolvedValue(ok(moved));
 
     store.startDrag(101, 1);
-    await store.dropCard(2, 0);
+    await store.dropCard(2, null);
 
     expect(store.board?.columns[0].cards).toHaveLength(0);
     expect(store.board?.columns[1].cards[0].id).toBe(101);
+    expect(api.moveCard).toHaveBeenCalledWith(101, 2, null);
     expect(api.getBoard).toHaveBeenCalledTimes(1);
+  });
+
+  it('translates drop-before-card into predecessor anchor', async () => {
+    const store = useBoardStore();
+    await store.initialize();
+
+    store.board = {
+      ...store.board!,
+      columns: [
+        {
+          ...store.board!.columns[0],
+          cards: [store.board!.columns[0].cards[0]]
+        },
+        {
+          ...store.board!.columns[1],
+          cards: [
+            {
+              id: 201,
+              boardColumnId: 2,
+              title: 'Task B',
+              description: 'Seed',
+              sortKey: '00000000000000000010',
+              tagNames: [],
+              createdAtUtc: '2026-03-15T00:00:00Z',
+              updatedAtUtc: '2026-03-15T00:00:00Z'
+            },
+            {
+              id: 202,
+              boardColumnId: 2,
+              title: 'Task C',
+              description: 'Seed',
+              sortKey: '00000000000000000020',
+              tagNames: [],
+              createdAtUtc: '2026-03-15T00:00:00Z',
+              updatedAtUtc: '2026-03-15T00:00:00Z'
+            }
+          ]
+        }
+      ]
+    };
+
+    const moved: Card = {
+      id: 101,
+      boardColumnId: 2,
+      title: 'Task A',
+      description: 'Seed',
+      sortKey: '00000000000000000015',
+      tagNames: [],
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:01:00Z'
+    };
+    api.moveCard.mockResolvedValue(ok(moved));
+
+    store.startDrag(101, 1);
+    await store.dropCard(2, 202);
+
+    expect(api.moveCard).toHaveBeenCalledWith(101, 2, 201);
+  });
+
+  it('uses null anchor when dropping before first card', async () => {
+    const store = useBoardStore();
+    await store.initialize();
+
+    store.board = {
+      ...store.board!,
+      columns: [
+        {
+          ...store.board!.columns[0],
+          cards: [store.board!.columns[0].cards[0]]
+        },
+        {
+          ...store.board!.columns[1],
+          cards: [
+            {
+              id: 201,
+              boardColumnId: 2,
+              title: 'Task B',
+              description: 'Seed',
+              sortKey: '00000000000000000010',
+              tagNames: [],
+              createdAtUtc: '2026-03-15T00:00:00Z',
+              updatedAtUtc: '2026-03-15T00:00:00Z'
+            }
+          ]
+        }
+      ]
+    };
+
+    const moved: Card = {
+      id: 101,
+      boardColumnId: 2,
+      title: 'Task A',
+      description: 'Seed',
+      sortKey: '00000000000000000005',
+      tagNames: [],
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:01:00Z'
+    };
+    api.moveCard.mockResolvedValue(ok(moved));
+
+    store.startDrag(101, 1);
+    await store.dropCard(2, 201);
+
+    expect(api.moveCard).toHaveBeenCalledWith(101, 2, null);
   });
 
   it('saveCard updates card and stops typing signals', async () => {
@@ -136,7 +241,7 @@ describe('boardStore', () => {
       boardColumnId: 1,
       title: 'Task A+',
       description: 'Updated',
-      position: 0,
+      sortKey: '00000000000000000001',
       tagNames: ['Bug'],
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:02:00Z'
@@ -197,7 +302,7 @@ function makeBoard(): Board {
             boardColumnId: 1,
             title: 'Task A',
             description: 'Seed',
-            position: 0,
+            sortKey: '00000000000000000001',
             tagNames: [],
             createdAtUtc: '2026-03-15T00:00:00Z',
             updatedAtUtc: '2026-03-15T00:00:00Z'

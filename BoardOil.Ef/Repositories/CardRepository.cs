@@ -37,10 +37,4 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             .ToListAsync();
     }
 
-    public async Task<IReadOnlyList<int>> GetCardIdsInColumnOrderedAsync(int columnId) =>
-        await DbSet
-            .Where(x => x.BoardColumnId == columnId)
-            .OrderBy(x => x.SortKey)
-            .Select(x => x.Id)
-            .ToListAsync();
 }

@@ -230,7 +230,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         // Act
         var response = await standardClient.PostAsJsonAsync(
             "/api/cards",
-            new CreateCardRequest(columnId, "Standard card", "Allowed", null, ["member"]));
+            new CreateCardRequest(columnId, "Standard card", "Allowed", ["member"]));
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
