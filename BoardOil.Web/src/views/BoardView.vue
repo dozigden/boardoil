@@ -5,7 +5,7 @@
       :key="column.id"
       class="column"
       @dragover.prevent
-      @drop="dropCard(column.id, column.cards.length)"
+      @drop="dropCard(column.id, null)"
     >
       <header class="column-header">
         <h2 class="column-name">{{ column.title }}</h2>
@@ -51,11 +51,10 @@
       </article>
 
       <Card
-        v-for="(card, index) in column.cards"
+        v-for="card in column.cards"
         :key="card.id"
         :card="card"
         :column-id="column.id"
-        :index="index"
         :typing-summary="typingSummary"
         @start-drag="startDrag"
         @drop-card="dropCard"

@@ -5,7 +5,7 @@ public sealed record CardDto(
     int BoardColumnId,
     string Title,
     string Description,
-    int Position,
+    string SortKey,
     IReadOnlyList<string> TagNames,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
@@ -14,7 +14,6 @@ public sealed record CreateCardRequest(
     int BoardColumnId,
     string Title,
     string Description,
-    int? Position,
     IReadOnlyList<string>? TagNames);
 
 public sealed record UpdateCardRequest(
@@ -24,7 +23,7 @@ public sealed record UpdateCardRequest(
 
 public sealed record MoveCardRequest(
     int BoardColumnId,
-    int? Position);
+    int? PositionAfterCardId);
 
 public sealed record CardRecord(
     int Id,

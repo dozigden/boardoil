@@ -74,20 +74,20 @@ public sealed class BoardServiceTests : TestBaseDb
         Assert.Equal(0, todo.Position);
         Assert.Equal(3, todo.Cards.Count);
         Assert.Equal("A", todo.Cards[0].Title);
-        Assert.Equal(0, todo.Cards[0].Position);
         Assert.Equal("B", todo.Cards[1].Title);
-        Assert.Equal(1, todo.Cards[1].Position);
         Assert.Equal("C", todo.Cards[2].Title);
-        Assert.Equal(2, todo.Cards[2].Position);
+        Assert.False(string.IsNullOrWhiteSpace(todo.Cards[0].SortKey));
+        Assert.False(string.IsNullOrWhiteSpace(todo.Cards[1].SortKey));
+        Assert.False(string.IsNullOrWhiteSpace(todo.Cards[2].SortKey));
 
         var doing = result.Data.Columns[1];
         Assert.Equal("Doing", doing.Title);
         Assert.Equal(1, doing.Position);
         Assert.Equal(2, doing.Cards.Count);
         Assert.Equal("In Progress", doing.Cards[0].Title);
-        Assert.Equal(0, doing.Cards[0].Position);
         Assert.Equal("Done", doing.Cards[1].Title);
-        Assert.Equal(1, doing.Cards[1].Position);
+        Assert.False(string.IsNullOrWhiteSpace(doing.Cards[0].SortKey));
+        Assert.False(string.IsNullOrWhiteSpace(doing.Cards[1].SortKey));
     }
 
     [Fact]

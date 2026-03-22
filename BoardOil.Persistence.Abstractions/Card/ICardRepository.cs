@@ -9,5 +9,4 @@ public interface ICardRepository : IRepositoryBase<EntityBoardCard>
     Task<bool> ColumnExistsAsync(int columnId);
     Task<IReadOnlyList<EntityBoardCard>> GetCardsInColumnOrderedAsync(int columnId);
     Task<IReadOnlyList<EntityBoardCard>> GetCardsForColumnsOrderedAsync(IReadOnlyList<int> columnIds);
-    Task<IReadOnlyList<int>> GetCardIdsInColumnOrderedAsync(int columnId);
 }

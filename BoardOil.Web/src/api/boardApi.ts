@@ -47,7 +47,6 @@ export function createBoardApi() {
       boardColumnId: columnId,
       title,
       description: '',
-      position: null,
       tagNames: []
     });
   }
@@ -68,11 +67,11 @@ export function createBoardApi() {
   async function moveCard(
     cardId: number,
     boardColumnId: number,
-    position: number
+    positionAfterCardId: number | null
   ): Promise<Result<Card, AppError>> {
     return patchData<Card>(`/api/cards/${cardId}/move`, {
       boardColumnId,
-      position
+      positionAfterCardId
     });
   }
 

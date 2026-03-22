@@ -94,7 +94,7 @@ public sealed class BoardApiIntegrationTests
         // Act
         var createdCardResponse = await Client.PostAsJsonAsync(
             "/api/cards",
-            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", null, ["Bug", "Urgent"]));
+            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", ["Bug", "Urgent"]));
         createdCardResponse.EnsureSuccessStatusCode();
         var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
 
@@ -121,7 +121,7 @@ public sealed class BoardApiIntegrationTests
 
         var createdCardResponse = await Client.PostAsJsonAsync(
             "/api/cards",
-            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", null, ["Bug", "Urgent"]));
+            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", ["Bug", "Urgent"]));
         createdCardResponse.EnsureSuccessStatusCode();
         var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
         Assert.NotNull(createdCard);
@@ -162,7 +162,7 @@ public sealed class BoardApiIntegrationTests
 
         var createdCardResponse = await Client.PostAsJsonAsync(
             "/api/cards",
-            new CreateCardRequest(createdTodoColumn.Data!.Id, "Task A", "Desc", null, null));
+            new CreateCardRequest(createdTodoColumn.Data!.Id, "Task A", "Desc", null));
         createdCardResponse.EnsureSuccessStatusCode();
         var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
         Assert.NotNull(createdCard);
@@ -171,7 +171,7 @@ public sealed class BoardApiIntegrationTests
         // Act
         var movedCardResponse = await Client.PatchAsJsonAsync(
             $"/api/cards/{createdCard.Data!.Id}/move",
-            new MoveCardRequest(createdDoingColumn.Data!.Id, 0));
+            new MoveCardRequest(createdDoingColumn.Data!.Id, null));
         movedCardResponse.EnsureSuccessStatusCode();
 
         // Assert
@@ -190,6 +190,60 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_ShouldMoveCardToStart_WhenPositionAfterCardIdIsNullAndTargetHasCards()
+    {
+        // Arrange
+        var createdTodoColumnResponse = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Todo", null));
+        createdTodoColumnResponse.EnsureSuccessStatusCode();
+        var createdTodoColumn = await createdTodoColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdTodoColumn);
+        Assert.NotNull(createdTodoColumn!.Data);
+
+        var createdDoingColumnResponse = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Doing", null));
+        createdDoingColumnResponse.EnsureSuccessStatusCode();
+        var createdDoingColumn = await createdDoingColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdDoingColumn);
+        Assert.NotNull(createdDoingColumn!.Data);
+
+        var createdSourceCardResponse = await Client.PostAsJsonAsync(
+            "/api/cards",
+            new CreateCardRequest(createdTodoColumn.Data!.Id, "Move me", "Desc", null));
+        createdSourceCardResponse.EnsureSuccessStatusCode();
+        var createdSourceCard = await createdSourceCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdSourceCard);
+        Assert.NotNull(createdSourceCard!.Data);
+
+        var existingFirstCardResponse = await Client.PostAsJsonAsync(
+            "/api/cards",
+            new CreateCardRequest(createdDoingColumn.Data!.Id, "Existing A", "Desc", null));
+        existingFirstCardResponse.EnsureSuccessStatusCode();
+
+        var existingSecondCardResponse = await Client.PostAsJsonAsync(
+            "/api/cards",
+            new CreateCardRequest(createdDoingColumn.Data!.Id, "Existing B", "Desc", null));
+        existingSecondCardResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var movedCardResponse = await Client.PatchAsJsonAsync(
+            $"/api/cards/{createdSourceCard.Data!.Id}/move",
+            new MoveCardRequest(createdDoingColumn.Data!.Id, null));
+        movedCardResponse.EnsureSuccessStatusCode();
+
+        // Assert
+        var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/board", JsonOptions);
+        Assert.NotNull(board);
+        Assert.NotNull(board!.Data);
+
+        var todoState = board.Data.Columns.FirstOrDefault(x => x.Id == createdTodoColumn.Data.Id);
+        var doingState = board.Data.Columns.FirstOrDefault(x => x.Id == createdDoingColumn.Data.Id);
+
+        Assert.NotNull(todoState);
+        Assert.NotNull(doingState);
+        Assert.Empty(todoState!.Cards);
+        Assert.Equal(["Move me", "Existing A", "Existing B"], doingState!.Cards.Select(x => x.Title).ToArray());
+    }
+
+    [Fact]
     public async Task CardEndpoints_ShouldDeleteCard()
     {
         // Arrange
@@ -203,7 +257,7 @@ public sealed class BoardApiIntegrationTests
 
         var createdCardResponse = await Client.PostAsJsonAsync(
             "/api/cards",
-            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", null, ["Bug"]));
+            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", ["Bug"]));
         createdCardResponse.EnsureSuccessStatusCode();
         var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
         Assert.NotNull(createdCard);

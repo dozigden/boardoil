@@ -38,7 +38,7 @@ public sealed class BoardService(
             .ToDictionary(
                 x => x.Key,
                 x => (IReadOnlyList<CardDto>)x
-                    .Select((card, index) => card.ToCardDto(index))
+                    .Select(card => card.ToCardDto())
                     .ToList());
 
         var columnDtos = columns

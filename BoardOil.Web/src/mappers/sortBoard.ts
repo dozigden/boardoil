@@ -7,7 +7,19 @@ export function sortBoard(source: Board): Board {
       .sort((a, b) => a.position - b.position)
       .map(column => ({
         ...column,
-        cards: [...column.cards].sort((a, b) => a.position - b.position)
+        cards: [...column.cards].sort((a, b) => compareSortKey(a.sortKey, b.sortKey))
       }))
   };
+}
+
+function compareSortKey(left: string, right: string) {
+  if (left < right) {
+    return -1;
+  }
+
+  if (left > right) {
+    return 1;
+  }
+
+  return 0;
 }
