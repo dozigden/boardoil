@@ -59,10 +59,8 @@ export function createBoardApi() {
     tagNames: string[]
   ): Promise<Result<Card, AppError>> {
     return patchData<Card>(`/api/cards/${cardId}`, {
-      boardColumnId: null,
       title,
       description,
-      position: null,
       tagNames
     });
   }
@@ -72,12 +70,9 @@ export function createBoardApi() {
     boardColumnId: number,
     position: number
   ): Promise<Result<Card, AppError>> {
-    return patchData<Card>(`/api/cards/${cardId}`, {
+    return patchData<Card>(`/api/cards/${cardId}/move`, {
       boardColumnId,
-      title: null,
-      description: null,
-      position,
-      tagNames: null
+      position
     });
   }
 

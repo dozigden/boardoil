@@ -6,5 +6,5 @@ namespace BoardOil.Abstractions.Card;
 public interface ICardValidator
 {
     Task<IReadOnlyList<ValidationError>> ValidateCreateAsync(CreateCardRequest request);
-    Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(UpdateCardRequest request, int sourceColumnId);
+    Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(UpdateCardRequest request);
 }
