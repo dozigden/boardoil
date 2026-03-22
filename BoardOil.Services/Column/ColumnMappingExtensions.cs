@@ -5,19 +5,19 @@ namespace BoardOil.Services.Column;
 
 public static class ColumnMappingExtensions
 {
-    public static ColumnDto ToColumnDto(this ColumnRecord column, int position) =>
+    public static ColumnDto ToColumnDto(this ColumnRecord column) =>
         new(
             column.Id,
             column.Title,
-            position,
+            column.SortKey,
             column.CreatedAtUtc,
             column.UpdatedAtUtc);
 
-    public static ColumnDto ToColumnDto(this EntityBoardColumn column, int position) =>
+    public static ColumnDto ToColumnDto(this EntityBoardColumn column) =>
         new(
             column.Id,
             column.Title,
-            position,
+            column.SortKey,
             column.CreatedAtUtc,
             column.UpdatedAtUtc);
 }

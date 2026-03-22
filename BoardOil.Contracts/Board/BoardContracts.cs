@@ -12,7 +12,7 @@ public sealed record BoardDto(
 public sealed record BoardColumnDto(
     int Id,
     string Title,
-    int Position,
+    string SortKey,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     IReadOnlyList<CardDto> Cards);

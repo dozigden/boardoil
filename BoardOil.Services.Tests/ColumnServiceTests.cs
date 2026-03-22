@@ -40,15 +40,15 @@ public sealed class ColumnServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Equal(3, result.Data!.Count);
         Assert.Equal("Todo", result.Data[0].Title);
-        Assert.Equal(0, result.Data[0].Position);
         Assert.Equal("Doing", result.Data[1].Title);
-        Assert.Equal(1, result.Data[1].Position);
         Assert.Equal("Done", result.Data[2].Title);
-        Assert.Equal(2, result.Data[2].Position);
+        Assert.False(string.IsNullOrWhiteSpace(result.Data[0].SortKey));
+        Assert.False(string.IsNullOrWhiteSpace(result.Data[1].SortKey));
+        Assert.False(string.IsNullOrWhiteSpace(result.Data[2].SortKey));
     }
 
     [Fact]
-    public async Task CreateColumnAsync_WhenPositionIsNull_ShouldAppendToEnd()
+    public async Task CreateColumnAsync_ShouldAppendToEnd()
     {
         CreateBoard("BoardOil")
             .AddColumn("Todo")
@@ -56,49 +56,13 @@ public sealed class ColumnServiceTests : TestBaseDb
             .Build();
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest("Done", null));
+        var result = await service.CreateColumnAsync(new CreateColumnRequest("Done"));
 
         Assert.True(result.Success);
         Assert.Equal(201, result.StatusCode);
         Assert.NotNull(result.Data);
         Assert.Equal("Done", result.Data!.Title);
-        Assert.Equal(2, result.Data.Position);
-        var titles = await GetOrderedColumnTitlesAsync();
-
-        Assert.Equal(["Todo", "Doing", "Done"], titles);
-    }
-
-    [Fact]
-    public async Task CreateColumnAsync_WhenPositionIsZero_ShouldInsertAtStart()
-    {
-        CreateBoard("BoardOil")
-            .AddColumn("Todo")
-            .AddColumn("Doing")
-            .Build();
-
-        var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest("Backlog", 0));
-
-        Assert.True(result.Success);
-        Assert.Equal(0, result.Data!.Position);
-        var titles = await GetOrderedColumnTitlesAsync();
-
-        Assert.Equal(["Backlog", "Todo", "Doing"], titles);
-    }
-
-    [Fact]
-    public async Task CreateColumnAsync_WhenPositionIsMiddle_ShouldInsertInMiddle()
-    {
-        CreateBoard("BoardOil")
-            .AddColumn("Todo")
-            .AddColumn("Done")
-            .Build();
-
-        var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest("Doing", 1));
-
-        Assert.True(result.Success);
-        Assert.Equal(1, result.Data!.Position);
+        Assert.False(string.IsNullOrWhiteSpace(result.Data.SortKey));
         var titles = await GetOrderedColumnTitlesAsync();
 
         Assert.Equal(["Todo", "Doing", "Done"], titles);
@@ -108,7 +72,7 @@ public sealed class ColumnServiceTests : TestBaseDb
     public async Task CreateColumnAsync_WhenNoBoardExists_ShouldReturnInternalError()
     {
         var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest("Todo", null));
+        var result = await service.CreateColumnAsync(new CreateColumnRequest("Todo"));
 
         Assert.False(result.Success);
         Assert.Equal(500, result.StatusCode);
@@ -121,7 +85,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         CreateBoard("BoardOil").Build();
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest("   ", null));
+        var result = await service.CreateColumnAsync(new CreateColumnRequest("   "));
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -136,7 +100,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var longTitle = new string('A', 201);
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest(longTitle, null));
+        var result = await service.CreateColumnAsync(new CreateColumnRequest(longTitle));
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -150,7 +114,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         CreateBoard("BoardOil").Build();
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest("bad@title", null));
+        var result = await service.CreateColumnAsync(new CreateColumnRequest("bad@title"));
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -166,7 +130,7 @@ public sealed class ColumnServiceTests : TestBaseDb
             .Build();
 
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(999_999, new UpdateColumnRequest("X", null));
+        var result = await service.UpdateColumnAsync(999_999, new UpdateColumnRequest("X"));
 
         Assert.False(result.Success);
         Assert.Equal(404, result.StatusCode);
@@ -177,7 +141,7 @@ public sealed class ColumnServiceTests : TestBaseDb
     public async Task UpdateColumnAsync_WhenNoBoardExists_ShouldReturnInternalError()
     {
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(1, new UpdateColumnRequest("X", null));
+        var result = await service.UpdateColumnAsync(1, new UpdateColumnRequest("X"));
 
         Assert.False(result.Success);
         Assert.Equal(500, result.StatusCode);
@@ -193,7 +157,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var columnId = board.GetColumn("Old").Id;
 
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(columnId, new UpdateColumnRequest("  New Title  ", null));
+        var result = await service.UpdateColumnAsync(columnId, new UpdateColumnRequest("  New Title  "));
 
         Assert.True(result.Success);
         Assert.Equal("New Title", result.Data!.Title);
@@ -204,7 +168,7 @@ public sealed class ColumnServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task UpdateColumnAsync_WhenReordering_ShouldPersistOrder()
+    public async Task MoveColumnAsync_WhenPositionAfterColumnIdIsNull_ShouldMoveToStart()
     {
         var board = CreateBoard("BoardOil")
             .AddColumn("A")
@@ -214,13 +178,74 @@ public sealed class ColumnServiceTests : TestBaseDb
         var movingColumnId = board.GetColumn("C").Id;
 
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(movingColumnId, new UpdateColumnRequest(null, 0));
+        var result = await service.MoveColumnAsync(movingColumnId, new MoveColumnRequest(null));
 
         Assert.True(result.Success);
-        Assert.Equal(0, result.Data!.Position);
+        Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
         var titles = await GetOrderedColumnTitlesAsync();
 
         Assert.Equal(["C", "A", "B"], titles);
+    }
+
+    [Fact]
+    public async Task MoveColumnAsync_WhenMovingAfterAnchor_ShouldPersistOrder()
+    {
+        var board = CreateBoard("BoardOil")
+            .AddColumn("A")
+            .AddColumn("B")
+            .AddColumn("C")
+            .Build();
+        var movingColumnId = board.GetColumn("A").Id;
+        var anchorColumnId = board.GetColumn("C").Id;
+
+        var service = CreateService();
+        var result = await service.MoveColumnAsync(
+            movingColumnId,
+            new MoveColumnRequest(anchorColumnId));
+
+        Assert.True(result.Success);
+        Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
+        var titles = await GetOrderedColumnTitlesAsync();
+        Assert.Equal(["B", "C", "A"], titles);
+    }
+
+    [Fact]
+    public async Task MoveColumnAsync_WhenPositionAfterColumnIdMatchesMovingColumn_ShouldReturnValidationError()
+    {
+        var board = CreateBoard("BoardOil")
+            .AddColumn("A")
+            .Build();
+        var movingColumnId = board.GetColumn("A").Id;
+
+        var service = CreateService();
+        var result = await service.MoveColumnAsync(
+            movingColumnId,
+            new MoveColumnRequest(movingColumnId));
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("positionAfterColumnId"));
+    }
+
+    [Fact]
+    public async Task MoveColumnAsync_WhenPositionAfterColumnIdDoesNotExist_ShouldReturnValidationError()
+    {
+        var board = CreateBoard("BoardOil")
+            .AddColumn("A")
+            .AddColumn("B")
+            .Build();
+        var movingColumnId = board.GetColumn("A").Id;
+
+        var service = CreateService();
+        var result = await service.MoveColumnAsync(
+            movingColumnId,
+            new MoveColumnRequest(999_999));
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("positionAfterColumnId"));
     }
 
     [Fact]
@@ -232,7 +257,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var columnId = board.GetColumn("Todo").Id;
 
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(columnId, new UpdateColumnRequest("bad@title", null));
+        var result = await service.UpdateColumnAsync(columnId, new UpdateColumnRequest("bad@title"));
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);

@@ -165,7 +165,13 @@ async function onColumnDrop(targetColumnId: number, event: DragEvent) {
     return;
   }
 
-  await moveColumnAction(draggingId, targetIndex);
+  const columnsWithoutDragging = columns.filter(x => x.id !== draggingId);
+  const insertIndex = targetIndex;
+  const positionAfterColumnId = insertIndex === 0
+    ? null
+    : columnsWithoutDragging[insertIndex - 1]?.id ?? null;
+
+  await moveColumnAction(draggingId, positionAfterColumnId);
 }
 
 function onColumnDragEnd() {

@@ -103,7 +103,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
 
     private async Task<ColumnDto> CreateColumnAsync(string title)
     {
-        var response = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest(title, null));
+        var response = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest(title));
         response.EnsureSuccessStatusCode();
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();

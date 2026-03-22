@@ -91,8 +91,8 @@ export const useBoardStore = defineStore('board', () => {
     upsertColumn(result.data);
   }
 
-  async function moveColumn(columnId: number, position: number) {
-    const result = await runBusy(() => api.moveColumn(columnId, position));
+  async function moveColumn(columnId: number, positionAfterColumnId: number | null) {
+    const result = await runBusy(() => api.moveColumn(columnId, positionAfterColumnId));
     if (!result.ok) {
       return;
     }
@@ -204,12 +204,8 @@ export const useBoardStore = defineStore('board', () => {
         draft.columns.splice(existingIndex, 1);
       }
 
-      const insertAt = clampIndex(column.position, draft.columns.length);
-      draft.columns.splice(insertAt, 0, nextColumn);
-
-      for (let i = 0; i < draft.columns.length; i++) {
-        draft.columns[i].position = i;
-      }
+      draft.columns.push(nextColumn);
+      sortColumns(draft.columns);
     });
   }
 
@@ -221,9 +217,6 @@ export const useBoardStore = defineStore('board', () => {
       }
 
       draft.columns.splice(index, 1);
-      for (let i = 0; i < draft.columns.length; i++) {
-        draft.columns[i].position = i;
-      }
     });
   }
 
@@ -339,8 +332,8 @@ function sortCardsInColumns(columns: BoardColumn[]) {
   }
 }
 
-function clampIndex(index: number, max: number) {
-  return Math.max(0, Math.min(index, max));
+function sortColumns(columns: BoardColumn[]) {
+  columns.sort((a, b) => compareSortKey(a.sortKey, b.sortKey));
 }
 
 function compareSortKey(left: string, right: string) {

@@ -42,10 +42,10 @@ public sealed class BoardService(
                     .ToList());
 
         var columnDtos = columns
-            .Select((x, index) => new BoardColumnDto(
+            .Select(x => new BoardColumnDto(
                 x.Id,
                 x.Title,
-                index,
+                x.SortKey,
                 x.CreatedAtUtc,
                 x.UpdatedAtUtc,
                 cardsByColumnId.GetValueOrDefault(x.Id, Array.Empty<CardDto>())))
