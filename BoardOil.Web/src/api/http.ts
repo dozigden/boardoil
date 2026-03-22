@@ -45,12 +45,20 @@ export async function patchJson(path: string, payload: unknown): Promise<Result<
   return sendJson('PATCH', path, payload);
 }
 
+export async function putJson(path: string, payload: unknown): Promise<Result<void, AppError>> {
+  return sendJson('PUT', path, payload);
+}
+
 export async function postData<T>(path: string, payload: unknown): Promise<Result<T, AppError>> {
   return sendJsonForData<T>('POST', path, payload);
 }
 
 export async function patchData<T>(path: string, payload: unknown): Promise<Result<T, AppError>> {
   return sendJsonForData<T>('PATCH', path, payload);
+}
+
+export async function putData<T>(path: string, payload: unknown): Promise<Result<T, AppError>> {
+  return sendJsonForData<T>('PUT', path, payload);
 }
 
 export async function deleteJson(path: string): Promise<Result<void, AppError>> {
@@ -75,7 +83,7 @@ export async function deleteJson(path: string): Promise<Result<void, AppError>> 
 }
 
 async function sendJson(
-  method: 'POST' | 'PATCH',
+  method: 'POST' | 'PUT' | 'PATCH',
   path: string,
   payload: unknown
 ): Promise<Result<void, AppError>> {
@@ -104,7 +112,7 @@ async function sendJson(
 }
 
 async function sendJsonForData<T>(
-  method: 'POST' | 'PATCH',
+  method: 'POST' | 'PUT' | 'PATCH',
   path: string,
   payload: unknown
 ): Promise<Result<T, AppError>> {

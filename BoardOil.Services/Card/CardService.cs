@@ -78,40 +78,28 @@ public sealed class CardService(
             return ValidationFail(updateValidationErrors);
         }
 
+        var updatedTitle = request.Title.Trim();
+        var updatedDescription = request.Description;
+        var updatedTagNames = NormalizeTags(request.TagNames);
         var existingTagNames = GetOrderedTagNames(existingCard);
-        var updatedTitle = request.Title is null ? existingCard.Title : request.Title.Trim();
-        var updatedDescription = request.Description ?? existingCard.Description;
-        IReadOnlyList<string>? requestedTagNames = request.TagNames;
-        IReadOnlyList<string>? normalisedTagNames = request.TagNames is null
-            ? null
-            : NormalizeTags(request.TagNames);
-
-        var tagsChanged = requestedTagNames is not null
-            && !existingTagNames.SequenceEqual(requestedTagNames, StringComparer.Ordinal);
+        var tagsChanged = !existingTagNames.SequenceEqual(updatedTagNames, StringComparer.Ordinal);
         var metadataChanged = updatedTitle != existingCard.Title
             || updatedDescription != existingCard.Description
             || tagsChanged;
-
         if (metadataChanged)
         {
             existingCard.Title = updatedTitle;
             existingCard.Description = updatedDescription;
-            if (normalisedTagNames is not null)
+            if (tagsChanged)
             {
-                ReplaceTagNames(existingCard, normalisedTagNames);
+                ReplaceTagNames(existingCard, updatedTagNames);
             }
 
             existingCard.UpdatedAtUtc = DateTime.UtcNow;
-
             await scope.SaveChangesAsync();
         }
 
         var dto = existingCard.ToCardDto();
-        if (requestedTagNames is not null)
-        {
-            dto = dto with { TagNames = requestedTagNames };
-        }
-
         await _boardEvents.CardUpdatedAsync(dto);
 
         return dto;
@@ -287,13 +275,15 @@ public sealed class CardService(
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
 
-    private static IReadOnlyList<string> NormalizeTags(IReadOnlyList<string> tagNames) =>
-        tagNames
+    private static IReadOnlyList<string> NormalizeTags(IReadOnlyList<string> tagNames)
+    {
+        return tagNames
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim())
             .Distinct(StringComparer.Ordinal)
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
+    }
 
     private static void ReplaceTagNames(EntityBoardCard card, IReadOnlyList<string> tagNames)
     {

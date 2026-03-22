@@ -13,7 +13,7 @@ public static class CardEndpoints
                 cardService.CreateCardAsync(request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
-        app.MapPatch("/api/cards/{id:int}", (int id, UpdateCardRequest request, ICardService cardService) =>
+        app.MapPut("/api/cards/{id:int}", (int id, UpdateCardRequest request, ICardService cardService) =>
                 cardService.UpdateCardAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 

@@ -158,9 +158,9 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(createdCard!.Data);
 
         // Act
-        var updatedCardResponse = await Client.PatchAsJsonAsync(
+        var updatedCardResponse = await Client.PutAsJsonAsync(
             $"/api/cards/{createdCard.Data!.Id}",
-            new UpdateCardRequest("Task B", null, ["Urgent"]));
+            new UpdateCardRequest("Task B", "Desc", ["Urgent"]));
         updatedCardResponse.EnsureSuccessStatusCode();
 
         // Assert
