@@ -98,18 +98,13 @@ public sealed class ColumnService(
             return ApiErrors.NotFound("Column not found.");
         }
 
-        var updatedTitle = target.Title;
-        if (request.Title is not null)
+        var updateValidationErrors = validator.ValidateUpdate(request);
+        if (updateValidationErrors.Count > 0)
         {
-            var updateValidationErrors = validator.ValidateUpdate(request);
-            if (updateValidationErrors.Count > 0)
-            {
-                return ValidationFail(updateValidationErrors);
-            }
-
-            var normalizedTitle = request.Title.Trim();
-            updatedTitle = normalizedTitle;
+            return ValidationFail(updateValidationErrors);
         }
+
+        var updatedTitle = request.Title.Trim();
         var titleChanged = updatedTitle != target.Title;
 
         if (titleChanged)

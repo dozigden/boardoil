@@ -17,7 +17,7 @@ public static class ColumnEndpoints
                 columnService.CreateColumnAsync(request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
-        app.MapPatch("/api/columns/{id:int}", (int id, UpdateColumnRequest request, IColumnService columnService) =>
+        app.MapPut("/api/columns/{id:int}", (int id, UpdateColumnRequest request, IColumnService columnService) =>
                 columnService.UpdateColumnAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
