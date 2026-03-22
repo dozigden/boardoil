@@ -1,101 +1,81 @@
 # Architecture Notes
 
-This file captures the intended structure of BoardOil so future work follows consistent patterns.
+This file captures the current structure of BoardOil after the data-tier refactor.
 
-## Layering
+## Solution Layers
 
 - `BoardOil.Api`
-  - HTTP transport and routing only.
-  - Authn/authz policy wiring.
-  - Endpoint handlers should stay thin and delegate business rules.
+  - HTTP transport, endpoint wiring, auth policies, and runtime hosting concerns.
+  - Endpoints stay thin and delegate behaviour to services.
+- `BoardOil.Contracts`
+  - API contracts (`*Request`, `*Dto`, `ApiResult`, `ValidationError`) shared across API/services/tests.
 - `BoardOil.Abstractions`
-  - Cross-project auth abstractions and shared auth/user entity types.
-  - Keep this focused; do not turn it into a generic dumping ground.
-- `BoardOil.Services`
-  - Business logic and invariants.
-  - Organize by top-level feature folder (for example `Auth/`, `Board/`, `Column/`, `Card/`).
-  - Prefer flat feature folders (avoid extra `Abstractions/Contracts/Implementations/Mappings` nesting inside each feature).
-  - Keep service-layer abstractions that depend on service contracts in `BoardOil.Services` (example: `IAuthService`).
+  - Cross-cutting service and infrastructure abstractions.
+  - Includes ambient DbContext scope contracts (`IDbContextScopeFactory`, `IAmbientDbContextLocator`, etc.) and service interfaces (`I*Service`).
+- `BoardOil.Persistence.Abstractions`
+  - Persistence-facing contracts and EF CLR entity types.
+  - Owns `Entity*` classes and repository interfaces (`IAuthUserRepository`, `ICardRepository`, `ITagRepository`, etc.).
+  - Owns persistence enums such as `UserRole`.
 - `BoardOil.Ef`
-  - EF Core DbContext, migrations, and repository implementations.
-  - Concrete repositories that use EF should live here (example: `AuthRepository` in `Repositories/`).
+  - EF Core implementation details: `BoardOilDbContext`, migrations, ambient scope implementation, and repository implementations.
+- `BoardOil.Services`
+  - Business workflows, invariants, validation orchestration, mapping to contracts, and realtime event publishing.
 
-## Established Backend Pattern
+## Request/Write Flow
 
-Use this flow for domain features:
+1. API endpoint invokes a service (`I*Service`).
+2. Service creates a DbContext scope (`Create()` for writes, `CreateReadOnly()` for reads).
+3. Service runs validation and repository operations.
+4. Service commits once with `scope.SaveChangesAsync()`.
+5. Service returns `ApiResult`/`ApiResult<T>` (or implicit success conversions).
 
-1. Endpoint maps route and auth policy.
-2. Endpoint calls service interface (`I*Service`).
-3. Service uses repository interfaces (`I*Repository`) for persistence.
-4. Service maps entities to contracts through mapping extensions (`To*Dto`).
-5. Service returns `ApiResult`/`ApiResult<T>`.
+Default rule: use a single save per service operation. The explicit `IDbContextScope.Transaction(...)` path exists for exceptional multi-save cases and should be rare.
 
-Current examples:
-- Columns/Cards already follow this pattern.
-- User admin now follows this pattern.
+## Data Access Pattern
 
-## Desired Structure Baseline (Before Next Refactors)
+- Repositories are EF implementations in `BoardOil.Ef/Repositories` and inherit `RepositoryBase<TEntity>`.
+- `RepositoryBase` resolves DbContext from the ambient scope locator and fails fast if no ambient scope exists.
+- Repositories provide entity-level persistence operations and queries only.
+- Repositories do not own commits and do not contain orchestration/policy logic.
 
-Use Auth as the template for upcoming feature refactors:
+## Entity and Table Conventions
 
-- `BoardOil.Services/Auth` is the model feature folder shape (flat files, single feature namespace).
-- `BoardOil.Abstractions/Auth` holds reusable auth interfaces used across projects:
-  - `IAuthRepository`
-  - `IAccessTokenIssuer`
-  - `IPasswordHashService`
-- `BoardOil.Services/Auth/IAuthService` remains in Services for now because it depends on service contracts and `ApiResult`.
-- `BoardOil.Ef/Repositories` contains EF-backed repository implementations (currently `AuthRepository`).
+- All EF CLR entity types are in `BoardOil.Persistence.Abstractions/Entities` and use the `Entity*` prefix.
+- Database table names remain stable and are explicitly mapped in `OnModelCreating` via `ToTable(...)`.
+- CLR naming and table naming are intentionally decoupled.
 
-When refactoring board/column/card, follow this same structure direction unless we explicitly revise it first.
+## Validation Boundaries
 
-## Auth Boundary Split
+- Validators return `ValidationError` collections.
+- Services convert validation failures to `ApiErrors.BadRequest(...)`.
+- For cards, create/update validation includes both shape rules and data-backed checks (column/tag existence) in `CardValidator`.
 
-Treat auth/session and user administration as separate domains:
+## Domain Split: Auth vs User Admin
 
-- Auth/session concerns:
-  - `register-initial-admin`, `login`, `refresh`, `logout`, `me`, `csrf`
-  - token/cookie lifecycle
-- User admin concerns:
-  - list users
-  - create user
-  - update role
-  - activate/deactivate
-  - last-admin protection rules
+- Auth/session domain: register initial admin, login, refresh, logout, `me`, CSRF/session token lifecycle.
+- User admin domain: list/create users, role changes, activation/deactivation, last-admin protection.
+- Keep these responsibilities separate even though they both touch user persistence.
 
-Reason:
-- Different responsibilities and change rates.
-- Cleaner policy and test boundaries.
-- Easier future extraction of `IAuthService` without entangling admin CRUD.
+## Startup and Bootstrap
 
-## User Admin Implementation Decisions (2026-03-16)
+- Startup initialisation uses `IDbContextFactory` directly for migration/bootstrap compatibility outside request scopes.
+- Initialisation flow:
+  - migrate/ensure-created database
+  - seed default board/columns only when no board exists
+- Bootstrap uses a single-save scope path.
 
-Implemented:
-- `IUserAdminService` + `UserAdminService`
-- `IUserRepository` + `UserRepository`
-- `UserAdminContracts` (`ManagedUserDto`, user-admin requests)
-- `ToManagedUserDto` mapping extension
-- Auth endpoints delegate `/api/users*` to `IUserAdminService`
+## Testing Strategy
 
-Conventions adopted:
-- Prefer implicit `ApiResult<T>` conversions for successful returns:
-  - `return dto;`
-  - `return list;`
-- Prefer `ApiErrors.*` for failure returns in service methods:
-  - `return ApiErrors.BadRequest(...)`
-  - `return ApiErrors.NotFound(...)`
+- Tests are wired through DI to match production registrations.
+- Data tests use SQLite in-memory with shared open connections so ambient-created contexts share one in-memory database.
+- Convention tests guard entity/table naming and mapping expectations.
 
-## Frontend Auth Notes
+## Frontend and Realtime Notes
 
-- Auth state is managed in `authStore`.
-- Router guard enforces auth/admin access.
-- HTTP layer attaches CSRF header for state-changing requests when token is present.
+- Frontend auth state is managed in `authStore`; router guards enforce auth/admin routes.
+- HTTP client attaches CSRF header for state-changing requests when token is present.
+- Realtime events are incremental and best-effort; clients should resynchronise after reconnect.
 
-## Realtime Notes
+## Follow-ups
 
-- Realtime events are incremental updates.
-- Clients should resync after reconnect.
-- Delivery is best-effort; source of truth is API state.
-
-## Open Hardening Follow-ups
-
-See `TODO.md` for active auth follow-ups (hub authorization, secure cookies, typing identity trust, 401 handling behavior).
+See `TODO.md` for current hardening and refactor follow-ups.
