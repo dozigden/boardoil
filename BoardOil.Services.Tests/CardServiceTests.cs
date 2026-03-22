@@ -138,7 +138,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest("  New Title  ", null, null));
+        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest("  New Title  ", "Desc", []));
 
         // Assert
         Assert.True(result.Success);
@@ -162,7 +162,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(null, "New Description", null));
+        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest("Title", "New Description", []));
 
         // Assert
         Assert.True(result.Success);
@@ -187,22 +187,22 @@ public sealed class CardServiceTests : TestBaseDb
 
         var setupService = CreateService();
         var seedResult = await setupService.UpdateCardAsync(cardId, new UpdateCardRequest(
-            Title: null,
-            Description: null,
+            Title: "Title",
+            Description: "Old",
             TagNames: ["Bug", "Urgent"]));
         Assert.True(seedResult.Success);
 
         // Act
         var service = CreateService();
         var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(
-            Title: null,
-            Description: null,
+            Title: "Title",
+            Description: "Old",
             TagNames: ["Urgent", "Ops"]));
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        Assert.Equal(["Urgent", "Ops"], result.Data!.TagNames);
+        Assert.Equal(["Ops", "Urgent"], result.Data!.TagNames);
 
         var storedCardTags = await DbContextForAssert.CardTags
             .Where(x => x.CardId == cardId)
@@ -315,7 +315,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.UpdateCardAsync(999_999, new UpdateCardRequest("X", null, null));
+        var result = await service.UpdateCardAsync(999_999, new UpdateCardRequest("X", string.Empty, []));
 
         // Assert
         Assert.False(result.Success);

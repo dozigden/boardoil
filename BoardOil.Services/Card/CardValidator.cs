@@ -41,14 +41,27 @@ public sealed class CardValidator(
     public async Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(UpdateCardRequest request)
     {
         var errors = new List<ValidationError>();
-        if (request.Title is not null)
+        if (request.Title.IsTrimmedNullOrEmpty())
+        {
+            errors.Add(new ValidationError("title", "Card title is required."));
+        }
+        else
         {
             ValidateTitle(request.Title, errors);
         }
 
-        if (request.Description is not null)
+        if (request.Description is null)
+        {
+            errors.Add(new ValidationError("description", "Card description is required."));
+        }
+        else
         {
             ValidateDescription(request.Description, errors);
+        }
+
+        if (request.TagNames is null)
+        {
+            errors.Add(new ValidationError("tagNames", "Tag names are required."));
         }
 
         if (errors.Count > 0)
@@ -56,7 +69,7 @@ public sealed class CardValidator(
             return errors;
         }
 
-        var tagValidationErrors = await ValidateTagNamesExistAsync(request.TagNames);
+        var tagValidationErrors = await ValidateTagNamesExistAsync(request.TagNames!);
         if (tagValidationErrors.Count > 0)
         {
             return tagValidationErrors;

@@ -17,9 +17,9 @@ public sealed record CreateCardRequest(
     IReadOnlyList<string>? TagNames);
 
 public sealed record UpdateCardRequest(
-    string? Title,
-    string? Description,
-    IReadOnlyList<string>? TagNames);
+    string Title,
+    string Description,
+    IReadOnlyList<string> TagNames);
 
 public sealed record MoveCardRequest(
     int BoardColumnId,

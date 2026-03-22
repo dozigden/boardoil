@@ -2,7 +2,7 @@ import type { Board, Card, Column, Tag, TagStyleName } from '../types/boardTypes
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
-import { deleteJson, getEnvelope, patchData, postData } from './http';
+import { deleteJson, getEnvelope, patchData, postData, putData } from './http';
 
 export type BoardApi = ReturnType<typeof createBoardApi>;
 
@@ -57,7 +57,7 @@ export function createBoardApi() {
     description: string,
     tagNames: string[]
   ): Promise<Result<Card, AppError>> {
-    return patchData<Card>(`/api/cards/${cardId}`, {
+    return putData<Card>(`/api/cards/${cardId}`, {
       title,
       description,
       tagNames
