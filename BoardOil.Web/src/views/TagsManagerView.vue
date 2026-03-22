@@ -6,102 +6,43 @@
         Refresh
       </button>
     </header>
-    <p class="tags-hint">Tag names are shared globally. Editing style here updates all cards using that tag.</p>
+    <p class="tags-hint">Tag names are shared globally. Editing style updates all cards using that tag.</p>
 
     <p v-if="tagNames.length === 0" class="tags-empty">No tags yet. Add one from any card editor.</p>
 
-    <article v-for="tagName in tagNames" :key="tagName" class="tags-item">
-      <div class="tags-item-header">
-        <h3>{{ tagName }}</h3>
-        <span class="tag-pill" :style="previewStyle(tagName)">
-          {{ tagName }}
-        </span>
-      </div>
-
-      <label>
-        Style
-        <select :value="draftFor(tagName).styleName" @change="setStyleName(tagName, ($event.target as HTMLSelectElement).value)">
-          <option value="solid">Solid</option>
-          <option value="gradient">Gradient</option>
-        </select>
-      </label>
-
-      <template v-if="draftFor(tagName).styleName === 'solid'">
-        <label>
-          Background Color
-          <input
-            :value="draftFor(tagName).backgroundColor"
-            maxlength="7"
-            placeholder="#RRGGBB"
-            @input="setDraftField(tagName, 'backgroundColor', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-      </template>
-
-      <template v-else>
-        <label>
-          Left Color
-          <input
-            :value="draftFor(tagName).leftColor"
-            maxlength="7"
-            placeholder="#RRGGBB"
-            @input="setDraftField(tagName, 'leftColor', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-        <label>
-          Right Color
-          <input
-            :value="draftFor(tagName).rightColor"
-            maxlength="7"
-            placeholder="#RRGGBB"
-            @input="setDraftField(tagName, 'rightColor', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-      </template>
-
-      <label>
-        Text Color Mode
-        <select :value="draftFor(tagName).textColorMode" @change="setTextMode(tagName, ($event.target as HTMLSelectElement).value)">
-          <option value="auto">Auto Contrast</option>
-          <option value="custom">Custom</option>
-        </select>
-      </label>
-
-      <label v-if="draftFor(tagName).textColorMode === 'custom'">
-        Text Color
-        <input
-          :value="draftFor(tagName).textColor"
-          maxlength="7"
-          placeholder="#RRGGBB"
-          @input="setDraftField(tagName, 'textColor', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
-
-      <div class="tags-item-actions">
-        <button type="button" class="tags-save" :disabled="busy" @click="saveTag(tagName)">
-          Save Style
-        </button>
-      </div>
-    </article>
+    <section v-else class="tags-list">
+      <article v-for="tagName in tagNames" :key="tagName" class="tags-item">
+        <div class="tags-item-header">
+          <div class="tags-item-meta">
+            <h3>{{ tagName }}</h3>
+            <span class="tag-pill" :style="tagStyle(tagName)">
+              {{ tagName }}
+            </span>
+          </div>
+          <button type="button" class="ghost tags-edit" :disabled="busy" @click="openEditor(tagName)">
+            Edit
+          </button>
+        </div>
+      </article>
+    </section>
   </section>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
-import { DEFAULT_TAG_STYLE_PROPERTIES_JSON, buildStylePropertiesJsonFromDraft, createTagStyleDraft, getTagPillStyle } from '../utils/tagStyles';
-import type { TagStyleDraft } from '../utils/tagStyles';
-import type { Tag, TagStyleName } from '../types/boardTypes';
+import { DEFAULT_TAG_STYLE_PROPERTIES_JSON, getTagPillStyle } from '../utils/tagStyles';
+import type { Tag } from '../types/boardTypes';
 
+const router = useRouter();
 const boardStore = useBoardStore();
 const tagStore = useTagStore();
 const { board } = storeToRefs(boardStore);
 const { tags, busy } = storeToRefs(tagStore);
-const { loadTags, updateTagStyle, getTagByName } = tagStore;
-
-const drafts = ref<Record<string, TagStyleDraft>>({});
+const { loadTags, getTagByName } = tagStore;
 
 const tagNames = computed(() => {
   const seenByNormalisedName = new Map<string, string>();
@@ -134,71 +75,26 @@ onMounted(async () => {
   await loadTags();
 });
 
-watch(
-  [tagNames, tags],
-  ([nextTagNames]) => {
-    const nextDrafts: Record<string, TagStyleDraft> = {};
-    for (const tagName of nextTagNames) {
-      nextDrafts[tagName] = createTagStyleDraft(resolveTag(tagName));
-    }
+async function openEditor(tagName: string) {
+  const existingTag = getTagByName(tagName);
+  if (!existingTag) {
+    return;
+  }
 
-    drafts.value = nextDrafts;
-  },
-  { immediate: true }
-);
-
-function draftFor(tagName: string): TagStyleDraft {
-  return drafts.value[tagName];
+  await router.push({ name: 'tags-tag', params: { tagId: existingTag.id } });
 }
 
-function setStyleName(tagName: string, value: string) {
-  const styleName: TagStyleName = value === 'gradient' ? 'gradient' : 'solid';
-  setDraft(tagName, {
-    ...draftFor(tagName),
-    styleName
-  });
+function tagStyle(tagName: string) {
+  return getTagPillStyle(resolveTag(tagName));
 }
 
-function setTextMode(tagName: string, value: string) {
-  const textColorMode = value === 'custom' ? 'custom' : 'auto';
-  setDraft(tagName, {
-    ...draftFor(tagName),
-    textColorMode
-  });
-}
+function resolveTag(tagName: string | null): Tag | null {
+  if (tagName === null) {
+    return null;
+  }
 
-function setDraftField(tagName: string, field: keyof TagStyleDraft, value: string) {
-  setDraft(tagName, {
-    ...draftFor(tagName),
-    [field]: value
-  });
-}
-
-function setDraft(tagName: string, draft: TagStyleDraft) {
-  drafts.value = {
-    ...drafts.value,
-    [tagName]: draft
-  };
-}
-
-function previewStyle(tagName: string) {
-  const draft = draftFor(tagName);
-  return getTagPillStyle({
-    name: tagName,
-    styleName: draft.styleName,
-    stylePropertiesJson: buildStylePropertiesJsonFromDraft(draft),
-    createdAtUtc: '',
-    updatedAtUtc: ''
-  });
-}
-
-async function saveTag(tagName: string) {
-  const draft = draftFor(tagName);
-  await updateTagStyle(tagName, draft.styleName, buildStylePropertiesJsonFromDraft(draft));
-}
-
-function resolveTag(tagName: string): Tag {
   return getTagByName(tagName) ?? {
+    id: -1,
     name: tagName,
     styleName: 'solid',
     stylePropertiesJson: DEFAULT_TAG_STYLE_PROPERTIES_JSON,

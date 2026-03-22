@@ -60,15 +60,9 @@ public sealed class TagService(
         return ApiResults.Created(created.ToTagDto());
     }
 
-    public async Task<ApiResult<TagDto>> UpdateTagStyleAsync(string name, UpdateTagStyleRequest request)
+    public async Task<ApiResult<TagDto>> UpdateTagStyleAsync(int tagId, UpdateTagStyleRequest request)
     {
         using var scope = _scopeFactory.Create();
-
-        var tagValidation = ValidateTagName(name, "name");
-        if (tagValidation.Error is not null)
-        {
-            return ValidationFail([tagValidation.Error]);
-        }
 
         var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(request.StyleName);
         if (normalisedStyleName is null)
@@ -82,8 +76,8 @@ public sealed class TagService(
             return ValidationFail(styleValidationErrors);
         }
 
-        var existing = await tagRepository.GetByNormalisedNameAsync(tagValidation.NormalisedName);
-        if (existing is null || !string.Equals(existing.Name, tagValidation.CanonicalName, StringComparison.Ordinal))
+        var existing = tagRepository.Get(tagId);
+        if (existing is null)
         {
             return ApiErrors.NotFound("Tag not found.");
         }

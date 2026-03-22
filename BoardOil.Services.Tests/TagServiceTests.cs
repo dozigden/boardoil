@@ -127,10 +127,11 @@ public sealed class TagServiceTests : TestBaseDb
             UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
+        var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateTagStyleAsync("Bug", new UpdateTagStyleRequest(
+        var result = await service.UpdateTagStyleAsync(tagId, new UpdateTagStyleRequest(
             StyleName: "solid",
             StylePropertiesJson: """{"backgroundColor":"blue","textColorMode":"auto"}"""));
 
@@ -155,12 +156,13 @@ public sealed class TagServiceTests : TestBaseDb
             UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
+        var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
 
         var updatedStylePropertiesJson = """{"leftColor":"#113355","rightColor":"#557799","textColorMode":"custom","textColor":"#FFFFFF"}""";
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateTagStyleAsync("Bug", new UpdateTagStyleRequest(
+        var result = await service.UpdateTagStyleAsync(tagId, new UpdateTagStyleRequest(
             StyleName: "gradient",
             StylePropertiesJson: updatedStylePropertiesJson));
 
@@ -183,7 +185,7 @@ public sealed class TagServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateTagStyleAsync("Bug", new UpdateTagStyleRequest(
+        var result = await service.UpdateTagStyleAsync(999_999, new UpdateTagStyleRequest(
             StyleName: "solid",
             StylePropertiesJson: stylePropertiesJson));
 

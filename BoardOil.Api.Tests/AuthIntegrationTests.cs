@@ -282,10 +282,14 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
         await SeedTagAsync("member", "MEMBER", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
         await LoginAsAsync(standardClient, "member", "Password1234!");
+        var tagsEnvelope = await standardClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/tags");
+        Assert.NotNull(tagsEnvelope);
+        Assert.NotNull(tagsEnvelope!.Data);
+        var memberTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "member");
 
         // Act
         var response = await standardClient.PatchAsJsonAsync(
-            "/api/tags/member",
+            $"/api/tags/{memberTag.Id}",
             new UpdateTagStyleRequest(
                 StyleName: "solid",
                 StylePropertiesJson: """{"backgroundColor":"#113355","textColorMode":"auto"}"""));

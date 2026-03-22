@@ -1,6 +1,7 @@
 namespace BoardOil.Contracts.Tag;
 
 public sealed record TagDto(
+    int Id,
     string Name,
     string StyleName,
     string StylePropertiesJson,
