@@ -187,7 +187,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(null, "  New Title  ", null, null, null));
+        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest("  New Title  ", null, null));
 
         // Assert
         Assert.True(result.Success);
@@ -211,7 +211,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(null, null, "New Description", null, null));
+        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(null, "New Description", null));
 
         // Assert
         Assert.True(result.Success);
@@ -236,20 +236,16 @@ public sealed class CardServiceTests : TestBaseDb
 
         var setupService = CreateService();
         var seedResult = await setupService.UpdateCardAsync(cardId, new UpdateCardRequest(
-            BoardColumnId: null,
             Title: null,
             Description: null,
-            Position: null,
             TagNames: ["Bug", "Urgent"]));
         Assert.True(seedResult.Success);
 
         // Act
         var service = CreateService();
         var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(
-            BoardColumnId: null,
             Title: null,
             Description: null,
-            Position: null,
             TagNames: ["Urgent", "Ops"]));
 
         // Assert
@@ -266,7 +262,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task UpdateCardAsync_WhenReorderingWithinSameColumn_ShouldReorder()
+    public async Task MoveCardAsync_WhenReorderingWithinSameColumn_ShouldReorder()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -281,7 +277,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(movingCardId, new UpdateCardRequest(null, null, null, 0, null));
+        var result = await service.MoveCardAsync(movingCardId, new MoveCardRequest(todoColumnId, 0));
 
         // Assert
         Assert.True(result.Success);
@@ -292,7 +288,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task UpdateCardAsync_WhenMovingCardToDifferentColumnWithOccupiedPosition_ShouldSucceed()
+    public async Task MoveCardAsync_WhenMovingCardToDifferentColumnWithOccupiedPosition_ShouldSucceed()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -307,14 +303,11 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(
+        var result = await service.MoveCardAsync(
             cardToMoveId,
-            new UpdateCardRequest(
+            new MoveCardRequest(
                 BoardColumnId: doingColumnId,
-                Title: null,
-                Description: null,
-                Position: 1,
-                TagNames: null));
+                Position: 1));
 
         // Assert
         Assert.True(result.Success);
@@ -329,7 +322,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task UpdateCardAsync_WhenMovingCardToDifferentColumnWithNullPosition_ShouldAppendToEnd()
+    public async Task MoveCardAsync_WhenMovingCardToDifferentColumnWithNullPosition_ShouldAppendToEnd()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -344,14 +337,11 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(
+        var result = await service.MoveCardAsync(
             movingCardId,
-            new UpdateCardRequest(
+            new MoveCardRequest(
                 BoardColumnId: doingColumnId,
-                Title: null,
-                Description: null,
-                Position: null,
-                TagNames: null));
+                Position: null));
 
         // Assert
         Assert.True(result.Success);
@@ -373,7 +363,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.UpdateCardAsync(999_999, new UpdateCardRequest(null, "X", null, null, null));
+        var result = await service.UpdateCardAsync(999_999, new UpdateCardRequest("X", null, null));
 
         // Assert
         Assert.False(result.Success);
@@ -382,7 +372,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task UpdateCardAsync_WhenTargetColumnMissing_ShouldReturnValidationErrorForBoardColumnId()
+    public async Task MoveCardAsync_WhenTargetColumnMissing_ShouldReturnValidationErrorForBoardColumnId()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -394,7 +384,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(999_999, null, null, 0, null));
+        var result = await service.MoveCardAsync(cardId, new MoveCardRequest(999_999, 0));
 
         // Assert
         Assert.False(result.Success);

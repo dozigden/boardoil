@@ -18,11 +18,13 @@ public sealed record CreateCardRequest(
     IReadOnlyList<string>? TagNames);
 
 public sealed record UpdateCardRequest(
-    int? BoardColumnId,
     string? Title,
     string? Description,
-    int? Position,
     IReadOnlyList<string>? TagNames);
+
+public sealed record MoveCardRequest(
+    int BoardColumnId,
+    int? Position);
 
 public sealed record CardRecord(
     int Id,

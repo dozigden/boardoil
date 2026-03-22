@@ -17,6 +17,10 @@ public static class CardEndpoints
                 cardService.UpdateCardAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
+        app.MapPatch("/api/cards/{id:int}/move", (int id, MoveCardRequest request, ICardService cardService) =>
+                cardService.MoveCardAsync(id, request).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.CardEditor);
+
         app.MapDelete("/api/cards/{id:int}", (int id, ICardService cardService) =>
                 cardService.DeleteCardAsync(id).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);

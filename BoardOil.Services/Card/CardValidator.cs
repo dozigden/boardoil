@@ -38,7 +38,7 @@ public sealed class CardValidator(
         return tagValidationErrors;
     }
 
-    public async Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(UpdateCardRequest request, int sourceColumnId)
+    public async Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(UpdateCardRequest request)
     {
         var errors = new List<ValidationError>();
         if (request.Title is not null)
@@ -54,16 +54,6 @@ public sealed class CardValidator(
         if (errors.Count > 0)
         {
             return errors;
-        }
-
-        if (request.BoardColumnId is not null && request.BoardColumnId.Value != sourceColumnId)
-        {
-            var columnExists = await _cardRepository.ColumnExistsAsync(request.BoardColumnId.Value);
-            if (!columnExists)
-            {
-                errors.Add(new ValidationError("boardColumnId", "Column does not exist."));
-                return errors;
-            }
         }
 
         var tagValidationErrors = await ValidateTagNamesExistAsync(request.TagNames);
