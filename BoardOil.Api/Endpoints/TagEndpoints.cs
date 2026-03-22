@@ -17,8 +17,8 @@ public static class TagEndpoints
                 tagService.CreateTagAsync(request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
-        app.MapPatch("/api/tags/{name}", (string name, UpdateTagStyleRequest request, ITagService tagService) =>
-                tagService.UpdateTagStyleAsync(name, request).ToHttpResult())
+        app.MapPatch("/api/tags/{tagId:int}", (int tagId, UpdateTagStyleRequest request, ITagService tagService) =>
+                tagService.UpdateTagStyleAsync(tagId, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
         return app;

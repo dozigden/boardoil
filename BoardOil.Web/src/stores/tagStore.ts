@@ -76,13 +76,22 @@ export const useTagStore = defineStore('tag', () => {
     return dedupeTagNames(resolvedTagNames);
   }
 
-  async function updateTagStyle(tagName: string, styleName: TagStyleName, stylePropertiesJson: string) {
-    const result = await runBusy(() => api.updateTagStyle(tagName, styleName, stylePropertiesJson));
+  async function updateTagStyle(tagId: number, styleName: TagStyleName, stylePropertiesJson: string) {
+    const result = await runBusy(() => api.updateTagStyle(tagId, styleName, stylePropertiesJson));
     if (!result.ok) {
-      return;
+      return null;
     }
 
     upsertTag(result.data);
+    return result.data;
+  }
+
+  function getTagById(tagId: number | null) {
+    if (tagId === null) {
+      return null;
+    }
+
+    return tags.value.find(x => x.id === tagId) ?? null;
   }
 
   function getTagByName(tagName: string | null) {
@@ -112,7 +121,7 @@ export const useTagStore = defineStore('tag', () => {
   }
 
   function upsertTag(tag: Tag) {
-    const existingIndex = tags.value.findIndex(x => x.name === tag.name);
+    const existingIndex = tags.value.findIndex(x => x.id === tag.id || x.name === tag.name);
     if (existingIndex < 0) {
       tags.value = [...tags.value, tag].sort((a, b) => a.name.localeCompare(b.name));
       return;
@@ -136,6 +145,7 @@ export const useTagStore = defineStore('tag', () => {
     createTag,
     ensureTagsExist,
     updateTagStyle,
+    getTagById,
     getTagByName
   };
 });

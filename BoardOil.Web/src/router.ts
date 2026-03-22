@@ -50,6 +50,15 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/tags/:tagId(\\d+)',
+    name: 'tags-tag',
+    components: {
+      default: () => import('./views/TagsManagerView.vue'),
+      dialog: () => import('./components/TagEditorDialog.vue')
+    },
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/columns/:columnId(\\d+)',
     name: 'columns-column',
     components: {

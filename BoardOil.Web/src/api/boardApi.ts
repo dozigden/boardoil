@@ -93,12 +93,11 @@ export function createBoardApi() {
   }
 
   async function updateTagStyle(
-    tagName: string,
+    tagId: number,
     styleName: TagStyleName,
     stylePropertiesJson: string
   ): Promise<Result<Tag, AppError>> {
-    const encodedTagName = encodeURIComponent(tagName);
-    return patchData<Tag>(`/api/tags/${encodedTagName}`, {
+    return patchData<Tag>(`/api/tags/${tagId}`, {
       styleName,
       stylePropertiesJson
     });

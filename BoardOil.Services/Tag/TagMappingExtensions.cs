@@ -7,6 +7,7 @@ public static class TagMappingExtensions
 {
     public static TagDto ToTagDto(this EntityTag tag) =>
         new(
+            tag.Id,
             tag.Name,
             tag.StyleName,
             tag.StylePropertiesJson,

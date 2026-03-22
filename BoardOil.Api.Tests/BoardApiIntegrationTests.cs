@@ -421,10 +421,14 @@ public sealed class BoardApiIntegrationTests
         // Arrange
         await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
         var request = new UpdateTagStyleRequest("gradient", """{"leftColor":"#223344","rightColor":"#446688","textColorMode":"auto"}""");
+        var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/tags", JsonOptions);
+        Assert.NotNull(tagsEnvelope);
+        Assert.NotNull(tagsEnvelope!.Data);
+        var bugTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "Bug");
 
         // Act
         var patchResponse = await Client.PatchAsJsonAsync(
-            "/api/tags/Bug",
+            $"/api/tags/{bugTag.Id}",
             request);
         patchResponse.EnsureSuccessStatusCode();
 
@@ -436,14 +440,13 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
-    public async Task TagEndpoints_WhenNameDoesNotMatchCanonicalTag_ShouldReturnNotFound()
+    public async Task TagEndpoints_WhenTagIdMissing_ShouldReturnNotFound()
     {
         // Arrange
-        await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
         var request = new UpdateTagStyleRequest("solid", """{"backgroundColor":"#223344","textColorMode":"auto"}""");
 
         // Act
-        var response = await Client.PatchAsJsonAsync("/api/tags/bug", request);
+        var response = await Client.PatchAsJsonAsync("/api/tags/999999", request);
         var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
 
         // Assert

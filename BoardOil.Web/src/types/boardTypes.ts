@@ -12,6 +12,7 @@ export type Card = {
 export type TagStyleName = 'solid' | 'gradient';
 
 export type Tag = {
+  id: number;
   name: string;
   styleName: TagStyleName;
   stylePropertiesJson: string;
