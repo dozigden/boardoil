@@ -66,7 +66,7 @@ public sealed class CardService(
     {
         using var scope = _scopeFactory.Create();
 
-        var existingCard = await cardRepository.GetByIdAsync(id);
+        var existingCard = await cardRepository.GetWithTagsByIdAsync(id);
         if (existingCard is null)
         {
             return ApiErrors.NotFound("Card not found.");
@@ -109,14 +109,14 @@ public sealed class CardService(
     {
         using var scope = _scopeFactory.Create();
 
-        var existingCard = await cardRepository.GetByIdAsync(id);
+        var existingCard = cardRepository.Get(id);
         if (existingCard is null)
         {
             return ApiErrors.NotFound("Card not found.");
         }
 
         var sourceColumnId = existingCard.BoardColumnId;
-        var targetColumn = await columnRepository.GetByIdAsync(request.BoardColumnId);
+        var targetColumn = columnRepository.Get(request.BoardColumnId);
         if (targetColumn is null)
         {
             return ValidationFail([new ValidationError("boardColumnId", "Column does not exist.")]);
@@ -195,7 +195,7 @@ public sealed class CardService(
     {
         using var scope = _scopeFactory.Create();
 
-        var card = await cardRepository.GetByIdAsync(id);
+        var card = cardRepository.Get(id);
         if (card is null)
         {
             return ApiResults.Ok();
