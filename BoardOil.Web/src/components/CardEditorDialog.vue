@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="editingCard !== null" :title="dialogTitle" close-label="Cancel editing" @close="closeCardEditor" @submit="saveCard">
+  <ModalDialog :open="editingCard !== null" :title="dialogTitle" size="fill" close-label="Cancel editing" @close="closeCardEditor" @submit="saveCard">
     <template #title>
       <span class="dialog-title-with-pill">
         <span>{{ dialogTitle }}</span>
@@ -7,58 +7,61 @@
       </span>
     </template>
     <template v-if="editingCard">
-      <label>
-        Title
-        <input
-          :value="cardDraft?.title ?? editingCard.title"
-          maxlength="200"
-          @focus="announceEditingCardTyping"
-          @blur="stopEditingCardTyping"
-          @input="updateEditingCardDraft('title', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
+      <div class="card-editor-fields">
+        <label>
+          Title
+          <input
+            :value="cardDraft?.title ?? editingCard.title"
+            maxlength="200"
+            @focus="announceEditingCardTyping"
+            @blur="stopEditingCardTyping"
+            @input="updateEditingCardDraft('title', ($event.target as HTMLInputElement).value)"
+          />
+        </label>
 
-      <label>
-        Description
-        <textarea
-          :value="cardDraft?.description ?? editingCard.description"
-          maxlength="5000"
-          @focus="announceEditingCardTyping"
-          @blur="stopEditingCardTyping"
-          @input="updateEditingCardDraft('description', ($event.target as HTMLTextAreaElement).value)"
-        />
-      </label>
+        <label class="card-editor-description-field">
+          Description
+          <textarea
+            class="card-editor-description-input"
+            :value="cardDraft?.description ?? editingCard.description"
+            maxlength="5000"
+            @focus="announceEditingCardTyping"
+            @blur="stopEditingCardTyping"
+            @input="updateEditingCardDraft('description', ($event.target as HTMLTextAreaElement).value)"
+          />
+        </label>
 
-      <label>
-        Tags
-        <div class="tag-editor-pills" aria-live="polite">
-          <Tag
-            v-for="tagName in cardDraft?.tagNames ?? editingCard.tagNames"
-            :key="tagName"
-            :tag-name="tagName"
-            class="tag-pill-editable"
-          >
-            <button
-              type="button"
-              class="tag-pill-remove"
-              :aria-label="`Remove ${tagName}`"
-              @click="removeTag(tagName)"
+        <label>
+          Tags
+          <div class="tag-editor-pills" aria-live="polite">
+            <Tag
+              v-for="tagName in cardDraft?.tagNames ?? editingCard.tagNames"
+              :key="tagName"
+              :tag-name="tagName"
+              class="tag-pill-editable"
             >
-              x
-            </button>
-          </Tag>
-        </div>
-        <input
-          ref="tagEntryInput"
-          :value="cardDraft?.tagEntry ?? ''"
-          maxlength="320"
-          placeholder="Add tags, separated by commas"
-          @focus="announceEditingCardTyping"
-          @blur="stopEditingCardTyping"
-          @input="updateTagEntry(($event.target as HTMLInputElement).value)"
-          @keydown.enter.prevent="assignTagEntry"
-        />
-      </label>
+              <button
+                type="button"
+                class="tag-pill-remove"
+                :aria-label="`Remove ${tagName}`"
+                @click="removeTag(tagName)"
+              >
+                x
+              </button>
+            </Tag>
+          </div>
+          <input
+            ref="tagEntryInput"
+            :value="cardDraft?.tagEntry ?? ''"
+            maxlength="320"
+            placeholder="Add tags, separated by commas"
+            @focus="announceEditingCardTyping"
+            @blur="stopEditingCardTyping"
+            @input="updateTagEntry(($event.target as HTMLInputElement).value)"
+            @keydown.enter.prevent="assignTagEntry"
+          />
+        </label>
+      </div>
     </template>
     <template #actions>
       <div v-if="editingCard" class="editor-actions card-modal-actions">
@@ -263,3 +266,26 @@ onBeforeUnmount(() => {
   }
 });
 </script>
+
+<style scoped>
+.card-editor-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.card-editor-description-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.card-editor-description-input {
+  flex: 1;
+  min-height: 12rem;
+}
+</style>
