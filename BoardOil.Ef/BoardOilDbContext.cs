@@ -48,9 +48,10 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .OnDelete(DeleteBehavior.Cascade);
 
         var cardTag = modelBuilder.Entity<EntityCardTag>();
-        cardTag.HasKey(x => new { x.CardId, x.TagName });
+        cardTag.HasKey(x => x.Id);
         cardTag.Property(x => x.TagName).HasMaxLength(40).IsRequired();
         cardTag.ToTable("CardTags");
+        cardTag.HasIndex(x => new { x.CardId, x.TagName }).IsUnique();
         cardTag.HasIndex(x => x.TagName);
 
         var tag = modelBuilder.Entity<EntityTag>();
