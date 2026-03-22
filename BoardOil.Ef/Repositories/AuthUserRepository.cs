@@ -13,7 +13,4 @@ public sealed class AuthUserRepository(IAmbientDbContextLocator ambientDbContext
 
     public Task<EntityUser?> GetByUserNameAsync(string userName) =>
         DbSet.FirstOrDefaultAsync(x => x.UserName == userName);
-
-    public Task<EntityUser?> GetActiveByIdAsync(int id) =>
-        DbSet.FirstOrDefaultAsync(x => x.Id == id && x.IsActive);
 }

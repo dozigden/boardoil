@@ -7,5 +7,4 @@ public interface IAuthUserRepository : IRepositoryBase<EntityUser>
 {
     Task<bool> AnyAsync();
     Task<EntityUser?> GetByUserNameAsync(string userName);
-    Task<EntityUser?> GetActiveByIdAsync(int id);
 }

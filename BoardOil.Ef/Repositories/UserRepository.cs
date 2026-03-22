@@ -16,9 +16,6 @@ public sealed class UserRepository(IAmbientDbContextLocator ambientDbContextLoca
     public Task<bool> UserNameExistsAsync(string userName) =>
         DbSet.AnyAsync(x => x.UserName == userName);
 
-    public Task<EntityUser?> GetByIdAsync(int id) =>
-        DbSet.FirstOrDefaultAsync(x => x.Id == id);
-
     public Task<int> CountActiveAdminsAsync() =>
         DbSet.CountAsync(x => x.IsActive && x.Role == UserRole.Admin);
 }

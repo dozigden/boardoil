@@ -32,6 +32,8 @@ public abstract class RepositoryBase<TEntity>(IAmbientDbContextLocator ambientDb
 
     public virtual IQueryable<TEntity> Query() => DbSet;
 
+    public virtual TEntity? Get(int id) => DbSet.Find(id);
+
     public virtual void Add(TEntity entity) => DbSet.Add(entity);
 
     public virtual void AddRange(IEnumerable<TEntity> entities) => DbSet.AddRange(entities);

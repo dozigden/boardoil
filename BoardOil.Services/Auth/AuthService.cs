@@ -138,23 +138,23 @@ public sealed class AuthService(
         return ApiResults.Ok();
     }
 
-    public async Task<ApiResult<AuthUserDto>> GetMeAsync(ClaimsPrincipal claimsPrincipal)
+    public Task<ApiResult<AuthUserDto>> GetMeAsync(ClaimsPrincipal claimsPrincipal)
     {
         using var scope = scopeFactory.CreateReadOnly();
 
         var userIdClaim = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!int.TryParse(userIdClaim, out var userId))
         {
-            return ApiErrors.Unauthorized("Invalid identity context.");
+            return Task.FromResult<ApiResult<AuthUserDto>>(ApiErrors.Unauthorized("Invalid identity context."));
         }
 
-        var user = await authUserRepository.GetActiveByIdAsync(userId);
-        if (user is null)
+        var user = authUserRepository.Get(userId);
+        if (user is null || !user.IsActive)
         {
-            return ApiErrors.Unauthorized("User is not active.");
+            return Task.FromResult<ApiResult<AuthUserDto>>(ApiErrors.Unauthorized("User is not active."));
         }
 
-        return user.ToAuthUserDto();
+        return Task.FromResult<ApiResult<AuthUserDto>>(user.ToAuthUserDto());
     }
 
     public async Task<ApiResult<BootstrapStatusDto>> GetBootstrapStatusAsync()

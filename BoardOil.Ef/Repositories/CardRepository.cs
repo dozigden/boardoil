@@ -8,10 +8,19 @@ namespace BoardOil.Ef.Repositories;
 public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLocator)
     : RepositoryBase<EntityBoardCard>(ambientDbContextLocator), ICardRepository
 {
-    public Task<EntityBoardCard?> GetByIdAsync(int id) =>
-        DbSet
-            .Include(x => x.CardTags)
-            .FirstOrDefaultAsync(x => x.Id == id);
+    public async Task<EntityBoardCard?> GetWithTagsByIdAsync(int id)
+    {
+        var card = Get(id);
+        if (card is null)
+        {
+            return null;
+        }
+
+        await DbContext.Entry(card)
+            .Collection(x => x.CardTags)
+            .LoadAsync();
+        return card;
+    }
 
     public Task<bool> ColumnExistsAsync(int columnId) =>
         DbContext.Columns.AnyAsync(x => x.Id == columnId);

@@ -74,7 +74,7 @@ public sealed class UserAdminService(
             return ApiErrors.BadRequest("Role must be 'Admin' or 'Standard'.");
         }
 
-        var user = await userRepository.GetByIdAsync(id);
+        var user = userRepository.Get(id);
         if (user is null)
         {
             return ApiErrors.NotFound("User not found.");
@@ -100,7 +100,7 @@ public sealed class UserAdminService(
     {
         using var scope = scopeFactory.Create();
 
-        var user = await userRepository.GetByIdAsync(id);
+        var user = userRepository.Get(id);
         if (user is null)
         {
             return ApiErrors.NotFound("User not found.");
