@@ -11,7 +11,7 @@ public sealed record CreateColumnRequest(
     string Title);
 
 public sealed record UpdateColumnRequest(
-    string? Title);
+    string Title);
 
 public sealed record MoveColumnRequest(
     int? PositionAfterColumnId);

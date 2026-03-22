@@ -31,7 +31,7 @@ export function createBoardApi() {
     columnId: number,
     title: string
   ): Promise<Result<Column, AppError>> {
-    return patchData<Column>(`/api/columns/${columnId}`, { title });
+    return putData<Column>(`/api/columns/${columnId}`, { title });
   }
 
   async function moveColumn(columnId: number, positionAfterColumnId: number | null): Promise<Result<Column, AppError>> {

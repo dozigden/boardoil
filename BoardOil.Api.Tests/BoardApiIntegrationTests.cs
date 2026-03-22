@@ -60,6 +60,30 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task ColumnEndpoints_ShouldUpdateColumnTitle_WithPut()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+
+        // Act
+        var updateResponse = await Client.PutAsJsonAsync(
+            $"/api/columns/{createdColumn.Data!.Id}",
+            new UpdateColumnRequest("  Updated Todo  "));
+        updateResponse.EnsureSuccessStatusCode();
+
+        // Assert
+        var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/board", JsonOptions);
+        Assert.NotNull(board);
+        Assert.NotNull(board!.Data);
+        var updated = board.Data!.Columns.Single(x => x.Id == createdColumn.Data.Id);
+        Assert.Equal("Updated Todo", updated.Title);
+    }
+
+    [Fact]
     public async Task ColumnEndpoints_ShouldMoveColumnToStart_WhenPositionAfterColumnIdIsNull()
     {
         // Arrange

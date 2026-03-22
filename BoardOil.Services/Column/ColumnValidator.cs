@@ -20,11 +20,13 @@ public sealed class ColumnValidator : IColumnValidator
     public IReadOnlyList<ValidationError> ValidateUpdate(UpdateColumnRequest request)
     {
         var errors = new List<ValidationError>();
-        if (request.Title is not null)
+        if (request.Title is null)
         {
-            ValidateTitle(request.Title, errors);
+            errors.Add(new ValidationError("title", "Column title is required."));
+            return errors;
         }
 
+        ValidateTitle(request.Title, errors);
         return errors;
     }
 
