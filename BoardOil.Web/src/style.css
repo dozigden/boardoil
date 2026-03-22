@@ -403,72 +403,10 @@ body {
   font-size: 0.85rem;
 }
 
-.card-modal {
-  width: min(34rem, calc(100vw - 2rem));
-  border: none;
-  border-radius: 14px;
-  padding: 0;
-  background: transparent;
-}
-
-.card-modal::backdrop {
-  background: rgba(19, 32, 49, 0.45);
-}
-
-.card-modal-content {
-  position: relative;
-  margin: 0;
-  background: #ffffff;
-  border: 1px solid #c9d3e3;
-  border-radius: 14px;
-  padding: 1rem;
-}
-
-.card-modal-close {
-  position: absolute;
-  top: 0.65rem;
-  right: 0.65rem;
-  width: auto;
-  border: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.3rem;
-}
-
-.card-modal-title {
-  margin: 0 0 0.75rem;
-  color: #1d3b63;
-}
-
 .dialog-title-with-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.card-modal-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 0.25rem;
-}
-
-.card-modal-actions-left {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.card-modal-save,
-.card-modal-cancel,
-.card-modal-delete {
-  width: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.5rem;
 }
 
 input,

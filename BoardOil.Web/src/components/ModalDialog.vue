@@ -1,5 +1,5 @@
 <template>
-  <dialog ref="dialogRef" class="card-modal" @cancel.prevent="emit('close')" @click="onDialogClick">
+  <dialog ref="dialogRef" class="card-modal" :class="`card-modal-${size}`" @cancel.prevent="emit('close')" @click="onDialogClick">
     <form v-if="open" class="editor card-modal-content" @submit.prevent="emit('submit')">
       <button type="button" class="ghost card-modal-close" :aria-label="closeLabel" :title="closeLabel" @click="emit('close')">
         <X :size="18" aria-hidden="true" />
@@ -20,8 +20,10 @@ import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 const props = withDefaults(defineProps<{
   open: boolean;
   title: string;
+  size?: 'md' | 'fill';
   closeLabel?: string;
 }>(), {
+  size: 'md',
   closeLabel: 'Cancel'
 });
 
@@ -84,3 +86,87 @@ onBeforeUnmount(() => {
   }
 });
 </script>
+
+<style>
+.card-modal {
+  border: none;
+  border-radius: 14px;
+  padding: 0;
+  background: transparent;
+}
+
+.card-modal.card-modal-md {
+  width: min(34rem, calc(100vw - 2rem));
+}
+
+.card-modal.card-modal-fill {
+  width: calc(100vw - 6rem);
+  height: calc(100vh - 6rem);
+  height: calc(100dvh - 6rem);
+  max-width: none;
+  max-height: none;
+}
+
+.card-modal.card-modal-fill .card-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 100%;
+  max-height: 100%;
+  overflow: auto;
+}
+
+.card-modal::backdrop {
+  background: rgba(19, 32, 49, 0.45);
+}
+
+.card-modal-content {
+  position: relative;
+  margin: 0;
+  background: #ffffff;
+  border: 1px solid #c9d3e3;
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.card-modal-close {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  width: auto;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+}
+
+.card-modal-title {
+  margin: 0 0 0.75rem;
+  color: #1d3b63;
+}
+
+.card-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+
+.card-modal-actions-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.card-modal-save,
+.card-modal-cancel,
+.card-modal-delete {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem;
+}
+</style>
