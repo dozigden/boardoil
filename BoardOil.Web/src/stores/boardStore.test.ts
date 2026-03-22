@@ -72,7 +72,7 @@ describe('boardStore', () => {
     const created: Column = {
       id: 3,
       title: 'Done',
-      position: 2,
+      sortKey: '00000000000000000030',
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:00:00Z'
     };
@@ -84,23 +84,23 @@ describe('boardStore', () => {
     expect(store.board?.columns.map(x => x.title)).toEqual(['Backlog', 'Doing', 'Done']);
   });
 
-  it('reorders a column incrementally when updated position is returned', async () => {
+  it('reorders a column incrementally when updated sort key is returned', async () => {
     const store = useBoardStore();
     await store.initialize();
 
     const moved: Column = {
       id: 2,
       title: 'Doing',
-      position: 0,
+      sortKey: '00000000000000000005',
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:03:00Z'
     };
     api.moveColumn.mockResolvedValue(ok(moved));
 
-    await store.moveColumn(2, 0);
+    await store.moveColumn(2, null);
 
     expect(store.board?.columns.map(x => x.title)).toEqual(['Doing', 'Backlog']);
-    expect(store.board?.columns.map(x => x.position)).toEqual([0, 1]);
+    expect(api.moveColumn).toHaveBeenCalledWith(2, null);
   });
 
   it('moves card across columns incrementally', async () => {
@@ -293,7 +293,7 @@ function makeBoard(): Board {
       {
         id: 1,
         title: 'Backlog',
-        position: 0,
+        sortKey: '00000000000000000010',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z',
         cards: [
@@ -312,7 +312,7 @@ function makeBoard(): Board {
       {
         id: 2,
         title: 'Doing',
-        position: 1,
+        sortKey: '00000000000000000020',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z',
         cards: []

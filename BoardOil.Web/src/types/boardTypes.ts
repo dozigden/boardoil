@@ -22,7 +22,7 @@ export type Tag = {
 export type Column = {
   id: number;
   title: string;
-  position: number;
+  sortKey: string;
   createdAtUtc: string;
   updatedAtUtc: string;
 };

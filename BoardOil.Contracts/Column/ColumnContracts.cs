@@ -3,17 +3,18 @@ namespace BoardOil.Contracts.Column;
 public sealed record ColumnDto(
     int Id,
     string Title,
-    int Position,
+    string SortKey,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
 public sealed record CreateColumnRequest(
-    string Title,
-    int? Position);
+    string Title);
 
 public sealed record UpdateColumnRequest(
-    string? Title,
-    int? Position);
+    string? Title);
+
+public sealed record MoveColumnRequest(
+    int? PositionAfterColumnId);
 
 public sealed record ColumnRecord(
     int Id,

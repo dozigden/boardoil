@@ -31,7 +31,7 @@ public sealed class ColumnService(
         }
 
         var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value))
-            .Select((x, index) => x.ToColumnDto(index))
+            .Select(x => x.ToColumnDto())
             .ToList();
 
         return columns;
@@ -55,13 +55,9 @@ public sealed class ColumnService(
 
         var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
 
-        var insertIndex = request.Position is null
-            ? columns.Count
-            : Math.Clamp(request.Position.Value, 0, columns.Count);
-
         var now = DateTime.UtcNow;
-        var previousKey = insertIndex > 0 ? columns[insertIndex - 1].SortKey : null;
-        var nextKey = insertIndex < columns.Count ? columns[insertIndex].SortKey : null;
+        var previousKey = columns.Count > 0 ? columns[^1].SortKey : null;
+        var nextKey = (string?)null;
         if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
         {
             return allocationError!;
@@ -79,9 +75,7 @@ public sealed class ColumnService(
 
         await scope.SaveChangesAsync();
 
-        var columnsAfterCreate = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
-        var createdIndex = columnsAfterCreate.FindIndex(x => x.Id == column.Id);
-        var created = column.ToColumnDto(createdIndex < 0 ? insertIndex : createdIndex);
+        var created = column.ToColumnDto();
         await _boardEvents.ColumnCreatedAsync(created);
         return ApiResults.Created(created);
     }
@@ -104,11 +98,6 @@ public sealed class ColumnService(
             return ApiErrors.NotFound("Column not found.");
         }
 
-        var currentIndex = columns.FindIndex(x => x.Id == id);
-        var targetIndex = request.Position is null
-            ? currentIndex
-            : Math.Clamp(request.Position.Value, 0, columns.Count - 1);
-
         var updatedTitle = target.Title;
         if (request.Title is not null)
         {
@@ -123,35 +112,78 @@ public sealed class ColumnService(
         }
         var titleChanged = updatedTitle != target.Title;
 
-        var positionChanged = targetIndex != currentIndex;
-        var updatedSortKey = target.SortKey;
-        if (positionChanged)
-        {
-            columns.RemoveAt(currentIndex);
-            columns.Insert(targetIndex, target);
-
-            var previousKey = targetIndex > 0 ? columns[targetIndex - 1].SortKey : null;
-            var nextKey = targetIndex < columns.Count - 1 ? columns[targetIndex + 1].SortKey : null;
-            if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
-            {
-                return allocationError!;
-            }
-
-            updatedSortKey = sortKey!;
-        }
-
-        var changed = titleChanged || positionChanged;
-
-        if (changed)
+        if (titleChanged)
         {
             target.Title = updatedTitle;
-            target.SortKey = updatedSortKey;
             target.UpdatedAtUtc = DateTime.UtcNow;
 
             await scope.SaveChangesAsync();
         }
 
-        var dto = target.ToColumnDto(positionChanged ? targetIndex : currentIndex);
+        var dto = target.ToColumnDto();
+        await _boardEvents.ColumnUpdatedAsync(dto);
+        return dto;
+    }
+
+    public async Task<ApiResult<ColumnDto>> MoveColumnAsync(int id, MoveColumnRequest request)
+    {
+        using var scope = _scopeFactory.Create();
+
+        var boardId = await GetBoardIdAsync();
+        if (boardId is null)
+        {
+            return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
+        }
+
+        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
+        var target = columns.FirstOrDefault(x => x.Id == id);
+        if (target is null)
+        {
+            return ApiErrors.NotFound("Column not found.");
+        }
+
+        if (request.PositionAfterColumnId == id)
+        {
+            return ValidationFail([new ValidationError("positionAfterColumnId", "Column cannot be positioned after itself.")]);
+        }
+
+        var currentIndex = FindColumnIndex(columns, id);
+        var currentPositionAfterColumnId = currentIndex > 0 ? columns[currentIndex - 1].Id : (int?)null;
+        if (request.PositionAfterColumnId == currentPositionAfterColumnId)
+        {
+            var unchangedDto = target.ToColumnDto();
+            await _boardEvents.ColumnUpdatedAsync(unchangedDto);
+            return unchangedDto;
+        }
+
+        var targetColumns = columns
+            .Where(x => x.Id != id)
+            .ToList();
+
+        var anchorResolution = ResolveAnchor(request.PositionAfterColumnId, targetColumns);
+        if (anchorResolution.Error is not null)
+        {
+            return anchorResolution.Error;
+        }
+
+        if (!TryGenerateSortKey(
+                anchorResolution.PreviousKey,
+                anchorResolution.NextKey,
+                out var targetSortKeyValue,
+                out var allocationError))
+        {
+            return allocationError!;
+        }
+
+        var targetSortKey = targetSortKeyValue!;
+        if (target.SortKey != targetSortKey)
+        {
+            target.SortKey = targetSortKey;
+            target.UpdatedAtUtc = DateTime.UtcNow;
+            await scope.SaveChangesAsync();
+        }
+
+        var dto = target.ToColumnDto();
         await _boardEvents.ColumnUpdatedAsync(dto);
         return dto;
     }
@@ -188,6 +220,42 @@ public sealed class ColumnService(
 
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
         ApiErrors.BadRequest("Validation failed.", validationErrors);
+
+    private static (ApiError? Error, string? PreviousKey, string? NextKey) ResolveAnchor(
+        int? positionAfterColumnId,
+        IReadOnlyList<EntityBoardColumn> targetColumns)
+    {
+        if (positionAfterColumnId is null)
+        {
+            var firstSortKey = targetColumns.Count > 0 ? targetColumns[0].SortKey : null;
+            return (null, null, firstSortKey);
+        }
+
+        var anchorIndex = FindColumnIndex(targetColumns, positionAfterColumnId.Value);
+        if (anchorIndex < 0)
+        {
+            return (ValidationFail([new ValidationError("positionAfterColumnId", "Column does not exist in board.")]), null, null);
+        }
+
+        var previousKey = targetColumns[anchorIndex].SortKey;
+        var nextKey = anchorIndex < targetColumns.Count - 1
+            ? targetColumns[anchorIndex + 1].SortKey
+            : null;
+        return (null, previousKey, nextKey);
+    }
+
+    private static int FindColumnIndex(IReadOnlyList<EntityBoardColumn> columns, int targetColumnId)
+    {
+        for (var i = 0; i < columns.Count; i++)
+        {
+            if (columns[i].Id == targetColumnId)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     private static bool TryGenerateSortKey(string? previous, string? next, out string? sortKey, out ApiError? error)
     {

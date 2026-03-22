@@ -4,7 +4,7 @@ export function sortBoard(source: Board): Board {
   return {
     ...source,
     columns: [...source.columns]
-      .sort((a, b) => a.position - b.position)
+      .sort((a, b) => compareSortKey(a.sortKey, b.sortKey))
       .map(column => ({
         ...column,
         cards: [...column.cards].sort((a, b) => compareSortKey(a.sortKey, b.sortKey))

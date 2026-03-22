@@ -21,6 +21,10 @@ public static class ColumnEndpoints
                 columnService.UpdateColumnAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
+        app.MapPatch("/api/columns/{id:int}/move", (int id, MoveColumnRequest request, IColumnService columnService) =>
+                columnService.MoveColumnAsync(id, request).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+
         app.MapDelete("/api/columns/{id:int}", (int id, IColumnService columnService) =>
                 columnService.DeleteColumnAsync(id).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);

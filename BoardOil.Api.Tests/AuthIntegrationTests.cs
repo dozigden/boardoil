@@ -305,7 +305,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
-        var response = await standardClient.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Not allowed", null));
+        var response = await standardClient.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Not allowed"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -402,7 +402,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
 
     private static async Task<int> CreateColumnAsAdminAsync(HttpClient adminClient, string title)
     {
-        var response = await adminClient.PostAsJsonAsync("/api/columns", new CreateColumnRequest(title, null));
+        var response = await adminClient.PostAsJsonAsync("/api/columns", new CreateColumnRequest(title));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
         Assert.NotNull(envelope);

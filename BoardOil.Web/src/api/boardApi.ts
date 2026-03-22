@@ -24,18 +24,18 @@ export function createBoardApi() {
   }
 
   async function createColumn(title: string): Promise<Result<Column, AppError>> {
-    return postData<Column>('/api/columns', { title, position: null });
+    return postData<Column>('/api/columns', { title });
   }
 
   async function saveColumn(
     columnId: number,
     title: string
   ): Promise<Result<Column, AppError>> {
-    return patchData<Column>(`/api/columns/${columnId}`, { title, position: null });
+    return patchData<Column>(`/api/columns/${columnId}`, { title });
   }
 
-  async function moveColumn(columnId: number, position: number): Promise<Result<Column, AppError>> {
-    return patchData<Column>(`/api/columns/${columnId}`, { title: null, position });
+  async function moveColumn(columnId: number, positionAfterColumnId: number | null): Promise<Result<Column, AppError>> {
+    return patchData<Column>(`/api/columns/${columnId}/move`, { positionAfterColumnId });
   }
 
   async function deleteColumn(columnId: number): Promise<Result<void, AppError>> {
