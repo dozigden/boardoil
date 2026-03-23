@@ -20,10 +20,10 @@
         <label>
           Background Color
           <input
+            type="color"
+            class="tags-colour-input"
             :value="draft.backgroundColor"
             :disabled="busy"
-            maxlength="7"
-            placeholder="#RRGGBB"
             @input="setDraftField('backgroundColor', ($event.target as HTMLInputElement).value)"
           />
         </label>
@@ -33,20 +33,20 @@
         <label>
           Left Color
           <input
+            type="color"
+            class="tags-colour-input"
             :value="draft.leftColor"
             :disabled="busy"
-            maxlength="7"
-            placeholder="#RRGGBB"
             @input="setDraftField('leftColor', ($event.target as HTMLInputElement).value)"
           />
         </label>
         <label>
           Right Color
           <input
+            type="color"
+            class="tags-colour-input"
             :value="draft.rightColor"
             :disabled="busy"
-            maxlength="7"
-            placeholder="#RRGGBB"
             @input="setDraftField('rightColor', ($event.target as HTMLInputElement).value)"
           />
         </label>
@@ -63,10 +63,10 @@
       <label v-if="draft.textColorMode === 'custom'">
         Text Color
         <input
+          type="color"
+          class="tags-colour-input"
           :value="draft.textColor"
           :disabled="busy"
-          maxlength="7"
-          placeholder="#RRGGBB"
           @input="setDraftField('textColor', ($event.target as HTMLInputElement).value)"
         />
       </label>
