@@ -3,13 +3,7 @@
 BoardOil is a self-hosted Kanban board.
 
 > Warning
-> This project is a work in progress and unfinished. Use at your own risk.
-
-## Highlights
-- Local account auth with Admin/Standard roles
-- Realtime board updates and typing presence
-- SQLite persistence (single-file data store)
-- Single Docker container deployment
+> This project is just me playing. Nothing to see here.
 
 ## Quick Start (Docker)
 Run from repository root:
