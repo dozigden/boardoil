@@ -19,17 +19,17 @@
           />
         </label>
 
-        <label class="card-editor-description-field">
-          Description
-          <textarea
-            class="card-editor-description-input"
-            :value="cardDraft?.description ?? editingCard.description"
-            maxlength="5000"
+        <div class="card-editor-description-field">
+          <span class="card-editor-field-label">Description</span>
+          <MdEditor
+            v-model="descriptionDraft"
+            aria-label="Card description"
+            :max-length="5000"
+            min-height="12rem"
             @focus="announceEditingCardTyping"
             @blur="stopEditingCardTyping"
-            @input="updateEditingCardDraft('description', ($event.target as HTMLTextAreaElement).value)"
           />
-        </label>
+        </div>
 
         <label>
           Tags
@@ -88,6 +88,7 @@ import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import MdEditor from './MdEditor.vue';
 import ModalDialog from './ModalDialog.vue';
 import Tag from './Tag.vue';
 import { useBoardStore } from '../stores/boardStore';
@@ -114,9 +115,17 @@ const editingCard = computed(() => boardStore.getCardById(routeCardId.value));
 const dialogTitle = computed(() => (editingCard.value ? `Edit Card #${editingCard.value.id}` : 'Edit Card'));
 const isEditingCardTyping = computed(() => (routeCardId.value === null ? false : typingSummary.value(routeCardId.value)));
 const hasPendingTagEntry = computed(() => (cardDraft.value?.tagEntry.trim().length ?? 0) > 0);
+const descriptionDraft = computed({
+  get: () => cardDraft.value?.description ?? '',
+  set: value => updateEditingCardDraft('description', value)
+});
 
 function stopTypingForCard(cardId: number) {
   stopTyping(cardId);
+}
+
+function normaliseDescription(value: string) {
+  return value.slice(0, 5000);
 }
 
 async function closeCardEditor() {
@@ -133,7 +142,8 @@ function updateEditingCardDraft(field: 'title' | 'description', value: string) {
     return;
   }
 
-  cardDraft.value = { ...cardDraft.value, [field]: value };
+  const nextValue = field === 'description' ? normaliseDescription(value) : value;
+  cardDraft.value = { ...cardDraft.value, [field]: nextValue };
 }
 
 function updateTagEntry(value: string) {
@@ -250,7 +260,7 @@ watch(
     if (previousCardId !== nextCardId || cardDraft.value === null) {
       cardDraft.value = {
         title: nextCard.title,
-        description: nextCard.description,
+        description: normaliseDescription(nextCard.description),
         tagNames: [...nextCard.tagNames],
         tagEntry: ''
       };
@@ -274,18 +284,19 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .card-editor-description-field {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
 }
 
-.card-editor-description-input {
-  flex: 1;
-  min-height: 12rem;
+.card-editor-field-label {
+  font-size: 0.85rem;
 }
 </style>

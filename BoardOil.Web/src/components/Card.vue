@@ -20,8 +20,6 @@
       <span class="card-id">#{{ card.id }}</span>
     </div>
 
-    <p class="description">{{ card.description }}</p>
-
     <div v-if="card.tagNames.length > 0" class="card-tags" aria-label="Card tags">
       <Tag
         v-for="tagName in card.tagNames"
