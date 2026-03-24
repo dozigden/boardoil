@@ -10,10 +10,7 @@ export type MdEditorToolbarActionId =
   | 'quote'
   | 'code-block'
   | 'link'
-  | 'unlink'
-  | 'rule'
-  | 'undo'
-  | 'redo';
+  | 'rule';
 
 export type MdEditorToolbarActionState = {
   disabled: boolean;
@@ -135,16 +132,6 @@ export const mdEditorToolbarActions: MdEditorToolbarAction[] = [
     }
   },
   {
-    id: 'unlink',
-    label: 'Unlink',
-    ariaLabel: 'Remove link',
-    title: 'Remove link',
-    canRun: editor => editor.isActive('link'),
-    run: (editor) => {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
-    }
-  },
-  {
     id: 'rule',
     label: 'Rule',
     ariaLabel: 'Horizontal rule',
@@ -152,26 +139,6 @@ export const mdEditorToolbarActions: MdEditorToolbarAction[] = [
     canRun: editor => editor.can().chain().focus().setHorizontalRule().run(),
     run: (editor) => {
       editor.chain().focus().setHorizontalRule().run();
-    }
-  },
-  {
-    id: 'undo',
-    label: 'Undo',
-    ariaLabel: 'Undo',
-    title: 'Undo',
-    canRun: editor => editor.can().chain().focus().undo().run(),
-    run: (editor) => {
-      editor.chain().focus().undo().run();
-    }
-  },
-  {
-    id: 'redo',
-    label: 'Redo',
-    ariaLabel: 'Redo',
-    title: 'Redo',
-    canRun: editor => editor.can().chain().focus().redo().run(),
-    run: (editor) => {
-      editor.chain().focus().redo().run();
     }
   }
 ];
