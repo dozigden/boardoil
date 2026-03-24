@@ -57,20 +57,34 @@
         <span class="md-editor-toolbar-sr">{{ action.label }}</span>
       </button>
     </template>
+
+    <button
+      type="button"
+      class="md-editor-toolbar-mode-button"
+      :class="{ 'is-active': isPlainTextMode }"
+      :title="isPlainTextMode ? 'Switch to rich editor' : 'Switch to markdown text editor'"
+      :aria-label="isPlainTextMode ? 'Switch to rich editor' : 'Switch to markdown text editor'"
+      @click="emitToggleMode"
+    >
+      <FileText :size="14" aria-hidden="true" />
+      <span>{{ isPlainTextMode ? 'Rich' : 'Markdown' }}</span>
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Bold, ChevronDown, Heading1, Italic, Link, List, ListOrdered, Minus, Quote, SquareCode, Strikethrough } from 'lucide-vue-next';
+import { Bold, ChevronDown, FileText, Heading1, Italic, Link, List, ListOrdered, Minus, Quote, SquareCode, Strikethrough } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, type Component } from 'vue';
 import { mdEditorToolbarActions, type MdEditorHeadingLevel, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';
 
 const props = defineProps<{
   state: Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>;
+  isPlainTextMode: boolean;
 }>();
 
 const emit = defineEmits<{
   action: [event: MdEditorToolbarActionEvent];
+  'toggle-plain-text-mode': [];
 }>();
 
 const actionIcons: Record<MdEditorToolbarActionId, Component> = {
@@ -94,7 +108,7 @@ const resolvedActions = computed(() => {
   return mdEditorToolbarActions.map(action => ({
     ...action,
     icon: actionIcons[action.id],
-    disabled: props.state[action.id]?.disabled ?? true,
+    disabled: props.isPlainTextMode || (props.state[action.id]?.disabled ?? true),
     isActive: props.state[action.id]?.isActive ?? false
   }));
 });
@@ -106,6 +120,11 @@ function emitAction(event: MdEditorToolbarActionEvent) {
 
 function toggleHeadingMenu() {
   isHeadingMenuOpen.value = !isHeadingMenuOpen.value;
+}
+
+function emitToggleMode() {
+  isHeadingMenuOpen.value = false;
+  emit('toggle-plain-text-mode');
 }
 
 function onDocumentPointerDown(event: MouseEvent) {
@@ -229,5 +248,27 @@ onBeforeUnmount(() => {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.md-editor-toolbar-mode-button {
+  margin-left: auto;
+  width: auto;
+  min-width: 0;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid #b8c8df;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d3b63;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.78rem;
+}
+
+.md-editor-toolbar-mode-button.is-active {
+  border-color: #5b7ca8;
+  background: #edf3fc;
+  color: #234264;
 }
 </style>

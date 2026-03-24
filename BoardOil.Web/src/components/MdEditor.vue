@@ -1,9 +1,24 @@
 <template>
   <div class="md-editor" :style="{ '--md-editor-min-height': minHeight }">
-    <MdEditorToolbar :state="toolbarState" @action="onToolbarAction" />
+    <MdEditorToolbar
+      :state="toolbarState"
+      :is-plain-text-mode="isPlainTextMode"
+      @action="onToolbarAction"
+      @toggle-plain-text-mode="togglePlainTextMode"
+    />
 
     <div class="md-editor-input">
-      <EditorContent v-if="tiptapEditor" :editor="tiptapEditor" class="md-editor-content" />
+      <textarea
+        v-if="isPlainTextMode"
+        class="md-editor-textarea"
+        :value="plainTextDraft"
+        :aria-label="`${props.ariaLabel} markdown`"
+        spellcheck="false"
+        @focus="emit('focus')"
+        @blur="emit('blur')"
+        @input="onPlainTextInput(($event.target as HTMLTextAreaElement).value)"
+      />
+      <EditorContent v-else-if="tiptapEditor" :editor="tiptapEditor" class="md-editor-content" />
     </div>
 
     <MdLinkDialog
@@ -48,6 +63,8 @@ const emit = defineEmits<{
 }>();
 
 const normalisedModelValue = computed(() => normaliseMarkdown(props.modelValue ?? ''));
+const isPlainTextMode = ref(false);
+const plainTextDraft = ref(normalisedModelValue.value);
 const isLinkDialogOpen = ref(false);
 const linkDraftText = ref('');
 const linkDraftUrl = ref('');
@@ -139,6 +156,10 @@ const toolbarState = computed<Partial<Record<MdEditorToolbarActionId, MdEditorTo
 });
 
 function onToolbarAction(actionEvent: MdEditorToolbarActionEvent) {
+  if (isPlainTextMode.value) {
+    return;
+  }
+
   const editor = tiptapEditor.value;
   if (!editor) {
     return;
@@ -158,6 +179,38 @@ function onToolbarAction(actionEvent: MdEditorToolbarActionEvent) {
   }
 
   action.run(editor, { openLinkDialog }, nextActionEvent);
+}
+
+function togglePlainTextMode() {
+  if (!isPlainTextMode.value) {
+    closeLinkDialog();
+    const editor = tiptapEditor.value;
+    plainTextDraft.value = normaliseMarkdown(editor ? editor.getMarkdown() : normalisedModelValue.value);
+    isPlainTextMode.value = true;
+    return;
+  }
+
+  isPlainTextMode.value = false;
+  const nextValue = normaliseMarkdown(plainTextDraft.value);
+  plainTextDraft.value = nextValue;
+  setEditorContent(nextValue);
+
+  if (nextValue === normalisedModelValue.value) {
+    return;
+  }
+
+  emit('update:modelValue', nextValue);
+}
+
+function onPlainTextInput(value: string) {
+  const nextValue = normaliseMarkdown(value);
+  plainTextDraft.value = nextValue;
+
+  if (nextValue === normalisedModelValue.value) {
+    return;
+  }
+
+  emit('update:modelValue', nextValue);
 }
 
 function openLinkDialog(editor: TiptapEditor) {
@@ -259,6 +312,10 @@ function setEditorContent(value: string) {
 watch(
   normalisedModelValue,
   nextValue => {
+    if (isPlainTextMode.value && plainTextDraft.value !== nextValue) {
+      plainTextDraft.value = nextValue;
+    }
+
     setEditorContent(nextValue);
   },
   { immediate: true }
@@ -313,6 +370,25 @@ watch(
 }
 
 .md-editor-content :deep(.tiptap:focus) {
+  outline: none;
+  border-color: #5b7ca8;
+}
+
+.md-editor-textarea {
+  flex: 1 1 0;
+  min-height: var(--md-editor-min-height);
+  max-height: 100%;
+  resize: none;
+  border: 1px solid #b8c8df;
+  border-radius: 8px;
+  padding: 0.5rem;
+  overflow-y: auto;
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  line-height: 1.35;
+}
+
+.md-editor-textarea:focus {
   outline: none;
   border-color: #5b7ca8;
 }
