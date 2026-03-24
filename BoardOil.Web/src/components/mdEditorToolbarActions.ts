@@ -12,6 +12,13 @@ export type MdEditorToolbarActionId =
   | 'link'
   | 'rule';
 
+export type MdEditorHeadingLevel = 1 | 2 | 3;
+
+export type MdEditorToolbarActionEvent = {
+  id: MdEditorToolbarActionId;
+  headingLevel?: MdEditorHeadingLevel;
+};
+
 export type MdEditorToolbarActionState = {
   disabled: boolean;
   isActive: boolean;
@@ -26,9 +33,9 @@ export type MdEditorToolbarAction = {
   label: string;
   ariaLabel: string;
   title: string;
-  canRun: (editor: TiptapEditor) => boolean;
-  run: (editor: TiptapEditor, context: MdEditorActionContext) => void;
-  isActive?: (editor: TiptapEditor) => boolean;
+  canRun: (editor: TiptapEditor, event?: MdEditorToolbarActionEvent) => boolean;
+  run: (editor: TiptapEditor, context: MdEditorActionContext, event?: MdEditorToolbarActionEvent) => void;
+  isActive?: (editor: TiptapEditor, event?: MdEditorToolbarActionEvent) => boolean;
 };
 
 export const mdEditorToolbarActions: MdEditorToolbarAction[] = [
@@ -67,13 +74,17 @@ export const mdEditorToolbarActions: MdEditorToolbarAction[] = [
   },
   {
     id: 'heading',
-    label: 'H2',
+    label: 'H1',
     ariaLabel: 'Heading',
     title: 'Heading',
-    isActive: editor => editor.isActive('heading', { level: 2 }),
-    canRun: editor => editor.can().chain().focus().toggleHeading({ level: 2 }).run(),
-    run: (editor) => {
-      editor.chain().focus().toggleHeading({ level: 2 }).run();
+    isActive: editor => editor.isActive('heading'),
+    canRun: (editor, event) => {
+      const level = event?.headingLevel ?? 1;
+      return editor.can().chain().focus().toggleHeading({ level }).run();
+    },
+    run: (editor, _context, event) => {
+      const level = event?.headingLevel ?? 1;
+      editor.chain().focus().toggleHeading({ level }).run();
     }
   },
   {

@@ -27,7 +27,7 @@ import { EditorContent, useEditor } from '@tiptap/vue-3';
 import { computed, ref, watch } from 'vue';
 import MdLinkDialog from './MdLinkDialog.vue';
 import MdEditorToolbar from './MdEditorToolbar.vue';
-import { mdEditorToolbarActions, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';
+import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';
 import { isHttpOrHttpsUrl } from '../utils/linkUrl';
 
 const props = withDefaults(defineProps<{
@@ -125,31 +125,39 @@ const toolbarState = computed<Partial<Record<MdEditorToolbarActionId, MdEditorTo
   const state: Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>> = {};
 
   for (const action of mdEditorToolbarActions) {
+    const defaultActionEvent: MdEditorToolbarActionEvent = action.id === 'heading'
+      ? { id: action.id, headingLevel: 1 }
+      : { id: action.id };
+
     state[action.id] = {
-      disabled: !editor || !action.canRun(editor),
-      isActive: editor ? (action.isActive?.(editor) ?? false) : false
+      disabled: !editor || !action.canRun(editor, defaultActionEvent),
+      isActive: editor ? (action.isActive?.(editor, defaultActionEvent) ?? false) : false
     };
   }
 
   return state;
 });
 
-function onToolbarAction(actionId: MdEditorToolbarActionId) {
+function onToolbarAction(actionEvent: MdEditorToolbarActionEvent) {
   const editor = tiptapEditor.value;
   if (!editor) {
     return;
   }
 
-  const action = mdEditorToolbarActions.find(x => x.id === actionId);
+  const nextActionEvent: MdEditorToolbarActionEvent = actionEvent.id === 'heading'
+    ? { id: actionEvent.id, headingLevel: actionEvent.headingLevel ?? 1 }
+    : { id: actionEvent.id };
+
+  const action = mdEditorToolbarActions.find(x => x.id === nextActionEvent.id);
   if (!action) {
     return;
   }
 
-  if (!action.canRun(editor)) {
+  if (!action.canRun(editor, nextActionEvent)) {
     return;
   }
 
-  action.run(editor, { openLinkDialog });
+  action.run(editor, { openLinkDialog }, nextActionEvent);
 }
 
 function openLinkDialog(editor: TiptapEditor) {
