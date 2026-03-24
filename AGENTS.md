@@ -24,3 +24,7 @@
 
 - In tests, prefer a single clear `Arrange`, `Act`, `Assert` flow per test method.
 - If a test needs multiple independent `Act`/`Assert` phases, split it into separate tests.
+
+## Documentation Scope
+
+- Do not update `README.md` unless the user explicitly asks for a README change.
