@@ -11,13 +11,15 @@
       :title="action.title"
       @click="emit('action', action.id)"
     >
-      {{ action.label }}
+      <component :is="action.icon" :size="14" aria-hidden="true" />
+      <span class="md-editor-toolbar-sr">{{ action.label }}</span>
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { Bold, Heading2, Italic, Link, List, ListOrdered, Minus, Quote, SquareCode, Strikethrough } from 'lucide-vue-next';
+import { computed, type Component } from 'vue';
 import { mdEditorToolbarActions, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';
 
 const props = defineProps<{
@@ -28,9 +30,23 @@ const emit = defineEmits<{
   action: [id: MdEditorToolbarActionId];
 }>();
 
+const actionIcons: Record<MdEditorToolbarActionId, Component> = {
+  bold: Bold,
+  italic: Italic,
+  strike: Strikethrough,
+  heading: Heading2,
+  'bullet-list': List,
+  'ordered-list': ListOrdered,
+  quote: Quote,
+  'code-block': SquareCode,
+  link: Link,
+  rule: Minus
+};
+
 const resolvedActions = computed(() => {
   return mdEditorToolbarActions.map(action => ({
     ...action,
+    icon: actionIcons[action.id],
     disabled: props.state[action.id]?.disabled ?? true,
     isActive: props.state[action.id]?.isActive ?? false
   }));
@@ -45,13 +61,18 @@ const resolvedActions = computed(() => {
 }
 
 .md-editor-toolbar-button {
-  width: auto;
+  position: relative;
+  width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #b8c8df;
   border-radius: 8px;
   background: #ffffff;
   color: #1d3b63;
-  padding: 0.3rem 0.5rem;
-  font-size: 0.76rem;
+  padding: 0.2rem;
   line-height: 1.1;
 }
 
@@ -64,5 +85,17 @@ const resolvedActions = computed(() => {
 .md-editor-toolbar-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.md-editor-toolbar-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>
