@@ -1,20 +1,34 @@
 <template>
   <div class="md-editor" :style="{ '--md-editor-min-height': minHeight }">
-    <MdEditorToolbar :editor="tiptapEditor" />
+    <MdEditorToolbar :state="toolbarState" @action="onToolbarAction" />
 
     <div class="md-editor-input">
       <EditorContent v-if="tiptapEditor" :editor="tiptapEditor" class="md-editor-content" />
     </div>
+
+    <MdLinkDialog
+      :open="isLinkDialogOpen"
+      :initial-text="linkDraftText"
+      :initial-url="linkDraftUrl"
+      :can-remove="linkDialogCanRemove"
+      @cancel="closeLinkDialog"
+      @save="saveLinkDialog"
+      @remove="removeLinkFromDialog"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import type { Editor as TiptapEditor } from '@tiptap/core';
 import Link from '@tiptap/extension-link';
 import { Markdown } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import MdLinkDialog from './MdLinkDialog.vue';
 import MdEditorToolbar from './MdEditorToolbar.vue';
+import { mdEditorToolbarActions, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';
+import { isHttpOrHttpsUrl } from '../utils/linkUrl';
 
 const props = withDefaults(defineProps<{
   modelValue: string;
@@ -34,6 +48,11 @@ const emit = defineEmits<{
 }>();
 
 const normalisedModelValue = computed(() => normaliseMarkdown(props.modelValue ?? ''));
+const isLinkDialogOpen = ref(false);
+const linkDraftText = ref('');
+const linkDraftUrl = ref('');
+const linkDialogCanRemove = ref(false);
+const linkSelectionRange = ref<{ from: number; to: number } | null>(null);
 
 const tiptapEditor = useEditor({
   content: '',
@@ -46,6 +65,7 @@ const tiptapEditor = useEditor({
       autolink: true,
       linkOnPaste: true,
       defaultProtocol: 'https',
+      isAllowedUri: url => isHttpOrHttpsUrl(url),
       HTMLAttributes: {
         target: null,
         rel: null
@@ -99,6 +119,111 @@ const tiptapEditor = useEditor({
     emit('update:modelValue', nextValue);
   }
 });
+
+const toolbarState = computed<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>(() => {
+  const editor = tiptapEditor.value;
+  const state: Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>> = {};
+
+  for (const action of mdEditorToolbarActions) {
+    state[action.id] = {
+      disabled: !editor || !action.canRun(editor),
+      isActive: editor ? (action.isActive?.(editor) ?? false) : false
+    };
+  }
+
+  return state;
+});
+
+function onToolbarAction(actionId: MdEditorToolbarActionId) {
+  const editor = tiptapEditor.value;
+  if (!editor) {
+    return;
+  }
+
+  const action = mdEditorToolbarActions.find(x => x.id === actionId);
+  if (!action) {
+    return;
+  }
+
+  if (!action.canRun(editor)) {
+    return;
+  }
+
+  action.run(editor, { openLinkDialog });
+}
+
+function openLinkDialog(editor: TiptapEditor) {
+  editor.chain().focus().run();
+  if (editor.isActive('link')) {
+    editor.chain().focus().extendMarkRange('link').run();
+  }
+
+  const from = editor.state.selection.from;
+  const to = editor.state.selection.to;
+  const selectedText = from === to ? '' : editor.state.doc.textBetween(from, to, ' ', ' ');
+  const currentUrl = (editor.getAttributes('link').href as string | undefined) ?? '';
+
+  linkSelectionRange.value = { from, to };
+  linkDraftText.value = selectedText.length > 0 ? selectedText : currentUrl;
+  linkDraftUrl.value = currentUrl;
+  linkDialogCanRemove.value = editor.isActive('link');
+  isLinkDialogOpen.value = true;
+}
+
+function closeLinkDialog() {
+  isLinkDialogOpen.value = false;
+  linkSelectionRange.value = null;
+}
+
+function saveLinkDialog(nextLink: { text: string; url: string }) {
+  const editor = tiptapEditor.value;
+  if (!editor || !linkSelectionRange.value) {
+    closeLinkDialog();
+    return;
+  }
+
+  const range = linkSelectionRange.value;
+  const href = nextLink.url;
+  const text = nextLink.text.trim().length > 0 ? nextLink.text : href;
+  const from = range.from;
+  const to = range.to;
+
+  if (from === to) {
+    editor.chain().focus().setTextSelection(from).insertContent(text).setTextSelection({
+      from,
+      to: from + text.length
+    }).setLink({ href }).run();
+    closeLinkDialog();
+    return;
+  }
+
+  editor.chain().focus().setTextSelection({ from, to }).insertContent(text).setTextSelection({
+    from,
+    to: from + text.length
+  }).setLink({ href }).run();
+  closeLinkDialog();
+}
+
+function removeLinkFromDialog() {
+  const editor = tiptapEditor.value;
+  if (!editor || !linkSelectionRange.value) {
+    closeLinkDialog();
+    return;
+  }
+
+  const range = linkSelectionRange.value;
+  if (range.from === range.to) {
+    editor.chain().focus().setTextSelection(range.from).extendMarkRange('link').unsetLink().run();
+    closeLinkDialog();
+    return;
+  }
+
+  editor.chain().focus().setTextSelection({
+    from: range.from,
+    to: range.to
+  }).extendMarkRange('link').unsetLink().run();
+  closeLinkDialog();
+}
 
 function normaliseMarkdown(value: string) {
   if (!Number.isFinite(props.maxLength) || props.maxLength <= 0) {
