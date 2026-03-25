@@ -2,6 +2,10 @@
 
 ## Features
 
+### Frontend Legal Notices
+
+Add a frontend Legal / Open Source notices view and reference `BoardOil.Web/THIRD_PARTY_NOTICES.md`.
+
 ## Quality
 
 ### Test Structure Audit
