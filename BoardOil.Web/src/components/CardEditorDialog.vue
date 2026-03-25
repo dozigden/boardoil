@@ -1,75 +1,47 @@
 <template>
-  <ModalDialog :open="editingCard !== null" :title="dialogTitle" size="fill" close-label="Cancel editing" @close="closeCardEditor" @submit="saveCard">
+  <ModalDialog :open="editingCard !== null" title="Edit Card" size="fill" close-label="Cancel editing" @close="closeCardEditor" @submit="saveCard">
     <template #title>
-      <span class="dialog-title-with-pill">
-        <span>{{ dialogTitle }}</span>
+      <div class="dialog-title-with-pill">
+        <CardTitleEditor
+          v-if="cardDraft"
+          :card-id="cardDraft.id"
+          v-model:title="cardDraft.title"
+          @focus="announceEditingCardTyping"
+          @blur="stopEditingCardTyping"
+        />
+        <span v-else>Edit Card</span>
         <span v-if="isEditingCardTyping" class="typing-pill" aria-label="Someone is typing">...</span>
-      </span>
+      </div>
     </template>
-    <template v-if="editingCard">
+    <template v-if="cardDraft">
       <div class="card-editor-fields">
-        <label>
-          Title
-          <input
-            :value="cardDraft?.title ?? editingCard.title"
-            maxlength="200"
-            @focus="announceEditingCardTyping"
-            @blur="stopEditingCardTyping"
-            @input="updateEditingCardDraft('title', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
+        <CardTagEditor
+          v-model:tag-names="cardDraft.tagNames"
+          :ensure-tags-exist="ensureTagsExist"
+          @focus="announceEditingCardTyping"
+          @blur="stopEditingCardTyping"
+        />
 
-        <label class="card-editor-description-field">
-          Description
-          <textarea
-            class="card-editor-description-input"
-            :value="cardDraft?.description ?? editingCard.description"
-            maxlength="5000"
+        <div class="card-editor-description-field">
+          <span class="card-editor-field-label">Description</span>
+          <MdEditor
+            v-model="descriptionDraft"
+            aria-label="Card description"
+            :max-length="5000"
+            min-height="12rem"
             @focus="announceEditingCardTyping"
             @blur="stopEditingCardTyping"
-            @input="updateEditingCardDraft('description', ($event.target as HTMLTextAreaElement).value)"
           />
-        </label>
-
-        <label>
-          Tags
-          <div class="tag-editor-pills" aria-live="polite">
-            <Tag
-              v-for="tagName in cardDraft?.tagNames ?? editingCard.tagNames"
-              :key="tagName"
-              :tag-name="tagName"
-              class="tag-pill-editable"
-            >
-              <button
-                type="button"
-                class="tag-pill-remove"
-                :aria-label="`Remove ${tagName}`"
-                @click="removeTag(tagName)"
-              >
-                x
-              </button>
-            </Tag>
-          </div>
-          <input
-            ref="tagEntryInput"
-            :value="cardDraft?.tagEntry ?? ''"
-            maxlength="320"
-            placeholder="Add tags, separated by commas"
-            @focus="announceEditingCardTyping"
-            @blur="stopEditingCardTyping"
-            @input="updateTagEntry(($event.target as HTMLInputElement).value)"
-            @keydown.enter.prevent="assignTagEntry"
-          />
-        </label>
+        </div>
       </div>
     </template>
     <template #actions>
-      <div v-if="editingCard" class="editor-actions card-modal-actions">
+      <div v-if="cardDraft" class="editor-actions card-modal-actions">
         <button type="button" class="danger card-modal-delete" aria-label="Delete card" title="Delete card" @click="deleteEditingCard">
           <Trash2 :size="16" aria-hidden="true" />
         </button>
         <div class="card-modal-actions-left">
-          <button type="submit" class="card-modal-save" aria-label="Save card" title="Save card" :disabled="hasPendingTagEntry">
+          <button type="submit" class="card-modal-save" aria-label="Save card" title="Save card">
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
           </button>
@@ -86,13 +58,14 @@
 <script setup lang="ts">
 import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import MdEditor from './MdEditor.vue';
+import CardTagEditor from './CardTagEditor.vue';
+import CardTitleEditor from './CardTitleEditor.vue';
 import ModalDialog from './ModalDialog.vue';
-import Tag from './Tag.vue';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
-import { mergeTagNames, parseTagInputValues } from '../utils/tagInput';
 
 const route = useRoute();
 const router = useRouter();
@@ -101,8 +74,9 @@ const tagStore = useTagStore();
 const { board, typingSummary } = storeToRefs(boardStore);
 const { saveCard: saveCardAction, deleteCard, announceTyping, stopTyping } = boardStore;
 const { ensureTagsExist } = tagStore;
-const cardDraft = ref<{ title: string; description: string; tagNames: string[]; tagEntry: string } | null>(null);
-const tagEntryInput = ref<HTMLInputElement | null>(null);
+type CardDraft = { id: number; title: string; description: string; tagNames: string[] };
+
+const cardDraft = ref<CardDraft | null>(null);
 
 const routeCardId = computed<number | null>(() => {
   const raw = route.params.cardId;
@@ -111,15 +85,29 @@ const routeCardId = computed<number | null>(() => {
 });
 
 const editingCard = computed(() => boardStore.getCardById(routeCardId.value));
-const dialogTitle = computed(() => (editingCard.value ? `Edit Card #${editingCard.value.id}` : 'Edit Card'));
 const isEditingCardTyping = computed(() => (routeCardId.value === null ? false : typingSummary.value(routeCardId.value)));
-const hasPendingTagEntry = computed(() => (cardDraft.value?.tagEntry.trim().length ?? 0) > 0);
+const descriptionDraft = computed({
+  get: () => {
+    const draft = cardDraft.value;
+    return draft === null ? '' : draft.description;
+  },
+  set: value => updateEditingCardDraft('description', value)
+});
 
 function stopTypingForCard(cardId: number) {
   stopTyping(cardId);
 }
 
+function normaliseDescription(value: string) {
+  return value.slice(0, 5000);
+}
+
+function clearDraft() {
+  cardDraft.value = null;
+}
+
 async function closeCardEditor() {
+  clearDraft();
   const cardId = routeCardId.value;
   if (cardId !== null) {
     stopTypingForCard(cardId);
@@ -133,54 +121,8 @@ function updateEditingCardDraft(field: 'title' | 'description', value: string) {
     return;
   }
 
-  cardDraft.value = { ...cardDraft.value, [field]: value };
-}
-
-function updateTagEntry(value: string) {
-  if (!cardDraft.value) {
-    return;
-  }
-
-  cardDraft.value = {
-    ...cardDraft.value,
-    tagEntry: value
-  };
-}
-
-async function assignTagEntry() {
-  if (!cardDraft.value) {
-    return;
-  }
-
-  const parsedTags = parseTagInputValues([cardDraft.value.tagEntry]);
-  if (parsedTags.length === 0) {
-    return;
-  }
-
-  const ensuredTags = await ensureTagsExist(parsedTags);
-  if (ensuredTags.length === 0) {
-    return;
-  }
-
-  cardDraft.value = {
-    ...cardDraft.value,
-    tagNames: mergeTagNames(cardDraft.value.tagNames, ensuredTags),
-    tagEntry: ''
-  };
-
-  await nextTick();
-  tagEntryInput.value?.focus();
-}
-
-function removeTag(tagName: string) {
-  if (!cardDraft.value) {
-    return;
-  }
-
-  cardDraft.value = {
-    ...cardDraft.value,
-    tagNames: cardDraft.value.tagNames.filter(x => x !== tagName)
-  };
+  const nextValue = field === 'description' ? normaliseDescription(value) : value;
+  cardDraft.value = { ...cardDraft.value, [field]: nextValue };
 }
 
 function announceEditingCardTyping() {
@@ -202,22 +144,20 @@ function stopEditingCardTyping() {
 }
 
 async function saveCard() {
-  const cardId = routeCardId.value;
-  if (cardId === null || !cardDraft.value || hasPendingTagEntry.value) {
+  if (!cardDraft.value) {
     return;
   }
 
-  await saveCardAction(cardId, cardDraft.value.title, cardDraft.value.description, cardDraft.value.tagNames);
+  await saveCardAction(cardDraft.value.id, cardDraft.value.title, cardDraft.value.description, cardDraft.value.tagNames);
   await closeCardEditor();
 }
 
 async function deleteEditingCard() {
-  const cardId = routeCardId.value;
-  if (cardId === null) {
+  if (!cardDraft.value) {
     return;
   }
 
-  await deleteCard(cardId);
+  await deleteCard(cardDraft.value.id);
   await closeCardEditor();
 }
 
@@ -232,8 +172,9 @@ watch(
 
 watch(
   [routeCardId, editingCard, board],
-  ([nextCardId, nextCard, nextBoard], [previousCardId]) => {
+  ([nextCardId, nextCard, nextBoard]) => {
     if (nextCardId === null) {
+      clearDraft();
       void router.replace({ name: 'board' });
       return;
     }
@@ -243,16 +184,17 @@ watch(
     }
 
     if (!nextCard) {
+      clearDraft();
       void router.replace({ name: 'board' });
       return;
     }
 
-    if (previousCardId !== nextCardId || cardDraft.value === null) {
+    if (cardDraft.value?.id !== nextCard.id) {
       cardDraft.value = {
+        id: nextCard.id,
         title: nextCard.title,
-        description: nextCard.description,
-        tagNames: [...nextCard.tagNames],
-        tagEntry: ''
+        description: normaliseDescription(nextCard.description),
+        tagNames: [...nextCard.tagNames]
       };
     }
   },
@@ -274,18 +216,19 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .card-editor-description-field {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
 }
 
-.card-editor-description-input {
-  flex: 1;
-  min-height: 12rem;
+.card-editor-field-label {
+  font-size: 0.85rem;
 }
 </style>
