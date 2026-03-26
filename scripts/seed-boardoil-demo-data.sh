@@ -220,11 +220,11 @@ default_tags_for_column() {
   local column="$1"
 
   case "$column" in
-    "Ideas") printf '%s\n' "Research" "Design" "Enhancement" ;;
-    "Ready") printf '%s\n' "UX" "Accessibility" "Enhancement" ;;
-    "In Progress") printf '%s\n' "API" "Performance" "Testing" ;;
+    "Ideas") printf '%s\n' "Discovery" "Product" "UX" ;;
+    "Ready") printf '%s\n' "UX" "Accessibility" "Product" ;;
+    "In Progress") printf '%s\n' "Frontend" "Backend" "API" ;;
     "Review") printf '%s\n' "Security" "Testing" "Docs" ;;
-    "Done") printf '%s\n' "Docs" "Ops" "Analytics" ;;
+    "Done") printf '%s\n' "Release" "Ops" "Docs" ;;
     *) return 1 ;;
   esac
 }
@@ -262,21 +262,21 @@ else
 fi
 
 seed_tags=(
-  "Research"
-  "Design"
-  "Enhancement"
+  "Discovery"
+  "Product"
   "UX"
-  "Accessibility"
+  "Frontend"
+  "Backend"
   "API"
-  "Performance"
-  "Testing"
+  "Data"
+  "Platform"
   "Security"
+  "Testing"
+  "Performance"
+  "Accessibility"
   "Docs"
   "Ops"
-  "Analytics"
-  "Mobile"
-  "Infra"
-  "Bug"
+  "Release"
 )
 
 log_info "Ensuring ${#seed_tags[@]} tags exist..."
@@ -294,7 +294,7 @@ columns=(
   "Done"
 )
 
-extra_tags=("Mobile" "Infra" "Bug" "UX" "Performance" "Security" "Design" "Testing")
+extra_tags=("Data" "Platform" "Performance" "API" "Frontend" "Backend" "UX" "Testing" "Release")
 
 declare -A created_column_ids
 

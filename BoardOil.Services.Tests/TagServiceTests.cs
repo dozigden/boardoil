@@ -4,6 +4,7 @@ using BoardOil.Ef.Repositories;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Xunit;
 using TagEntity = BoardOil.Persistence.Abstractions.Entities.EntityTag;
 
@@ -11,6 +12,18 @@ namespace BoardOil.Services.Tests;
 
 public sealed class TagServiceTests : TestBaseDb
 {
+    private static readonly HashSet<string> DefaultTagPalette = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "#35165A",
+        "#9D8ABF",
+        "#69C1CE",
+        "#E8C07D",
+        "#CD474E",
+        "#9BBEF8",
+        "#F17437",
+        "#32CDA0"
+    };
+
     [Fact]
     public async Task CreateTagAsync_WhenTagMissing_ShouldCreateTagWithDefaultStyle()
     {
@@ -32,6 +45,12 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal("BUG", stored.NormalisedName);
         Assert.Equal("solid", stored.StyleName);
         Assert.NotEmpty(stored.StylePropertiesJson);
+
+        using var styleProperties = JsonDocument.Parse(stored.StylePropertiesJson);
+        Assert.True(styleProperties.RootElement.TryGetProperty("backgroundColor", out var backgroundColor));
+        Assert.Contains(backgroundColor.GetString() ?? string.Empty, DefaultTagPalette);
+        Assert.True(styleProperties.RootElement.TryGetProperty("textColorMode", out var textColorMode));
+        Assert.Equal("auto", textColorMode.GetString());
     }
 
     [Fact]
