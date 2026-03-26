@@ -1,5 +1,5 @@
 <template>
-  <section v-if="board" class="board">
+  <section v-if="board" class="board board-view">
     <article
       v-for="column in board.columns"
       :key="column.id"
@@ -20,46 +20,48 @@
         </button>
       </header>
 
-      <article v-if="newCardDraftTitles[column.id] !== undefined" class="card create-card-inline">
-        <label class="create-card-inline-label">
-          Title
-          <input
-            :ref="element => setNewCardDraftInput(column.id, element)"
-            :value="newCardDraftTitles[column.id]"
-            type="text"
-            maxlength="200"
-            placeholder="New card title"
-            @input="updateNewCardDraftTitle(column.id, ($event.target as HTMLInputElement).value)"
-            @keydown.enter.prevent="saveNewCardDraft(column.id)"
-            @keydown.esc.prevent="closeNewCardDraft(column.id)"
-          />
-        </label>
-        <div class="editor-actions create-card-inline-actions">
-          <button type="button" class="create-card-save" aria-label="Save new card" title="Save new card" @click="saveNewCardDraft(column.id)">
-            <Check :size="16" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            class="ghost create-card-cancel"
-            aria-label="Cancel new card"
-            title="Cancel new card"
-            @click="closeNewCardDraft(column.id)"
-          >
-            <X :size="16" aria-hidden="true" />
-          </button>
-        </div>
-      </article>
+      <div class="column-content">
+        <article v-if="newCardDraftTitles[column.id] !== undefined" class="card create-card-inline">
+          <label class="create-card-inline-label">
+            Title
+            <input
+              :ref="element => setNewCardDraftInput(column.id, element)"
+              :value="newCardDraftTitles[column.id]"
+              type="text"
+              maxlength="200"
+              placeholder="New card title"
+              @input="updateNewCardDraftTitle(column.id, ($event.target as HTMLInputElement).value)"
+              @keydown.enter.prevent="saveNewCardDraft(column.id)"
+              @keydown.esc.prevent="closeNewCardDraft(column.id)"
+            />
+          </label>
+          <div class="editor-actions create-card-inline-actions">
+            <button type="button" class="create-card-save" aria-label="Save new card" title="Save new card" @click="saveNewCardDraft(column.id)">
+              <Check :size="16" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              class="ghost create-card-cancel"
+              aria-label="Cancel new card"
+              title="Cancel new card"
+              @click="closeNewCardDraft(column.id)"
+            >
+              <X :size="16" aria-hidden="true" />
+            </button>
+          </div>
+        </article>
 
-      <Card
-        v-for="card in column.cards"
-        :key="card.id"
-        :card="card"
-        :column-id="column.id"
-        :typing-summary="typingSummary"
-        @start-drag="startDrag"
-        @drop-card="dropCard"
-        @edit-card="openCardEditor"
-      />
+        <Card
+          v-for="card in column.cards"
+          :key="card.id"
+          :card="card"
+          :column-id="column.id"
+          :typing-summary="typingSummary"
+          @start-drag="startDrag"
+          @drop-card="dropCard"
+          @edit-card="openCardEditor"
+        />
+      </div>
     </article>
   </section>
 </template>
