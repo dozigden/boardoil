@@ -22,7 +22,7 @@ const boardOilDropMarkup = boardOilDropSvg.replace('<svg', '<svg aria-hidden="tr
 }
 
 .boardoil-drop :deep(path) {
-  fill: transparent;
+  fill: var(--bo-colour-brand-mid, #7d63ab);
   stroke: currentColor;
   stroke-width: 8;
   stroke-linecap: round;

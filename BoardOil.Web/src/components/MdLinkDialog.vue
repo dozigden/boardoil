@@ -101,7 +101,7 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(19, 32, 49, 0.45);
+  background: rgba(53, 22, 90, 0.45);
 }
 
 .md-link-dialog {
@@ -109,20 +109,20 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  border: 1px solid #c9d3e3;
+  border: 1px solid var(--bo-border-soft);
   border-radius: 12px;
   padding: 0.85rem;
-  background: #ffffff;
+  background: var(--bo-surface-base);
 }
 
 .md-link-dialog-title {
   margin: 0;
-  color: #1d3b63;
+  color: var(--bo-link);
 }
 
 .md-link-dialog-error {
   margin: 0;
-  color: #9f2b2b;
+  color: var(--bo-colour-danger-ink);
   font-size: 0.86rem;
 }
 

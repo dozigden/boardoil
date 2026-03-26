@@ -88,7 +88,7 @@ watch(
   min-width: 0;
   margin: 0;
   border: none;
-  border-radius: 0;
+  border-radius: 4px;
   padding: 0;
   background: transparent;
   color: inherit;
@@ -97,11 +97,14 @@ watch(
 }
 
 .card-title-button:hover {
-  text-decoration: underline;
+  background: var(--bo-surface-energy);
+  color: var(--bo-colour-energy);
 }
 
 .card-title-button:focus-visible {
-  outline: 2px solid #5b7ca8;
+  background: var(--bo-surface-energy);
+  color: var(--bo-colour-energy);
+  outline: 2px solid var(--bo-colour-energy);
   outline-offset: 2px;
   border-radius: 4px;
 }

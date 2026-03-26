@@ -15,7 +15,7 @@ const DEFAULT_TEXT_COLOR = '#111827';
 const AUTO_TEXT_COLOR_LIGHT = '#FFFFFF';
 const AUTO_TEXT_COLOR_DARK = '#111827';
 
-export const DEFAULT_TAG_STYLE_PROPERTIES_JSON = '{"backgroundColor":"#4C84C3","textColorMode":"auto"}';
+export const DEFAULT_TAG_STYLE_PROPERTIES_JSON = '{"backgroundColor":"#69C1CE","textColorMode":"auto"}';
 
 export function createTagStyleDraft(tag: Tag): TagStyleDraft {
   const styleName: TagStyleName = tag.styleName === 'gradient' ? 'gradient' : 'solid';
@@ -59,9 +59,9 @@ export function buildStylePropertiesJsonFromDraft(draft: TagStyleDraft): string 
 export function getTagPillStyle(tag: Tag | null): Record<string, string> {
   if (!tag) {
     return {
-      background: '#E6EEF8',
-      color: '#1F3653',
-      borderColor: '#BFD1E6'
+      background: '#F1EBFB',
+      color: '#2B1247',
+      borderColor: '#D8CDEC'
     };
   }
 

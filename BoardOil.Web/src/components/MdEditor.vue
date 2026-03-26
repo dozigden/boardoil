@@ -361,7 +361,7 @@ watch(
   height: 100%;
   min-height: var(--md-editor-min-height);
   max-height: 100%;
-  border: 1px solid #b8c8df;
+  border: 1px solid var(--bo-border-default);
   border-radius: 8px;
   padding: 0.5rem;
   white-space: pre-wrap;
@@ -371,7 +371,7 @@ watch(
 
 .md-editor-content :deep(.tiptap:focus) {
   outline: none;
-  border-color: #5b7ca8;
+  border-color: var(--bo-colour-secondary);
 }
 
 .md-editor-textarea {
@@ -379,7 +379,7 @@ watch(
   min-height: var(--md-editor-min-height);
   max-height: 100%;
   resize: none;
-  border: 1px solid #b8c8df;
+  border: 1px solid var(--bo-border-default);
   border-radius: 8px;
   padding: 0.5rem;
   overflow-y: auto;
@@ -390,6 +390,6 @@ watch(
 
 .md-editor-textarea:focus {
   outline: none;
-  border-color: #5b7ca8;
+  border-color: var(--bo-colour-secondary);
 }
 </style>
