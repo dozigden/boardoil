@@ -19,3 +19,18 @@ Copyright notice:
 The full MIT license text for these packages is included in:
 
 - `BoardOil.Web/THIRD_PARTY_LICENSES/MIT-Tiptap.txt`
+
+## Montserrat Font
+
+The frontend bundles the Montserrat font files under the SIL Open Font License 1.1:
+
+- `Montserrat-VariableFont_wght.ttf`
+- `Montserrat-Italic-VariableFont_wght.ttf`
+
+Copyright notice:
+
+`Copyright 2024 The Montserrat.Git Project Authors (https://github.com/JulietaUla/Montserrat.git)`
+
+The full SIL OFL 1.1 license text is included in:
+
+- `BoardOil.Web/THIRD_PARTY_LICENSES/OFL-Montserrat.txt`

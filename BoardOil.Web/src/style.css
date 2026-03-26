@@ -1,6 +1,22 @@
+@font-face {
+  font-family: "Montserrat";
+  src: url("./assets/fonts/montserrat/Montserrat-VariableFont_wght.ttf") format("truetype-variations");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("./assets/fonts/montserrat/Montserrat-Italic-VariableFont_wght.ttf") format("truetype-variations");
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-family: "Montserrat", "Segoe UI", sans-serif;
   --bo-colour-brand: #35165a;
   --bo-colour-brand-strong: #5b2594;
   --bo-colour-brand-mid: #9d8abf;
