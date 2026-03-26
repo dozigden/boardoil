@@ -1,0 +1,19 @@
+<svg class="kanban-icon" width="222" height="222" viewBox="0 0 222 222" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Column 1 -->
+  <rect class="card c1r2" x="16" y="84" width="56" height="56" rx="10"/>
+  <rect class="card c1r3" x="16" y="152" width="56" height="56" rx="10"/>
+
+  <!-- Column 2 -->
+  <rect class="card c2r1" x="84" y="16" width="56" height="56" rx="10"/>
+  <rect class="card c2r2" x="84" y="84" width="56" height="56" rx="10"/>
+  <rect class="card c2r3" x="84" y="152" width="56" height="56" rx="10"/>
+
+  <!-- Column 3 -->
+  <rect class="card c3r1" x="152" y="16" width="56" height="56" rx="10"/>
+  <rect class="card c3r2" x="152" y="84" width="56" height="56" rx="10"/>
+  <rect class="card c3r3" x="152" y="152" width="56" height="56" rx="10"/>
+
+  <!-- Drop -->
+  <path class="drop" d="M44 22        C38 28 24 42 24 54        C24 65 34 72 44 72        C54 72 64 65 64 54        C64 42 50 28 44 22Z"/>
+</svg>
