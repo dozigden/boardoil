@@ -31,22 +31,58 @@ body {
   gap: 0.75rem;
 }
 
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+}
+
 .brand-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  line-height: 1;
 }
 
 .brand-link {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.5rem;
+  line-height: 1;
   color: inherit;
   text-decoration: none;
 }
 
-.brand-icon {
-  color: #1f4f8a;
+.brand-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  line-height: 1;
+}
+
+.brand-wordmark > span {
+  display: block;
+  line-height: 1;
+}
+
+.brand-wordmark-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.86em;
+  height: 0.86em;
+  align-self: center;
+  flex: 0 0 auto;
+  margin-top: 0;
+  margin-right: -0.12em;
+}
+
+.brand-logo {
+  --boardoil-logo-size: 60px;
+  display: block;
+  align-self: center;
+  flex: 0 0 auto;
 }
 
 .app-header p {
@@ -54,13 +90,21 @@ body {
   color: #324965;
 }
 
-.user-meta {
-  margin: 0.35rem 0 0;
+.app-header .user-meta {
+  display: flex;
+  align-items: center;
+  height: 2rem;
+  margin: 0;
   font-size: 0.85rem;
+  line-height: 1;
   color: #355779;
+  white-space: nowrap;
 }
 
 .header-menu {
+  display: flex;
+  align-items: center;
+  height: 2rem;
   position: relative;
 }
 
