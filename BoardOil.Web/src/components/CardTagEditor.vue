@@ -140,9 +140,9 @@ function removeTag(tagName: string) {
 }
 
 .card-tag-editor-add:disabled {
-  border-color: #d4dbea;
-  background: #f3f6fb;
-  color: #91a4bf;
+  border-color: var(--bo-border-soft);
+  background: var(--bo-surface-muted);
+  color: var(--bo-ink-subtle);
   cursor: not-allowed;
 }
 </style>

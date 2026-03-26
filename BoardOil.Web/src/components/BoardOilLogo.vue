@@ -23,24 +23,24 @@ const boardOilLogoMarkup = boardOilLogoSvg.replace('<svg', '<svg aria-hidden="tr
 
 .boardoil-logo :deep(.card),
 .boardoil-logo :deep(.drop) {
-  stroke: #000;
+  stroke: var(--bo-drop);
   stroke-width: 5px;
 }
 
 .boardoil-defaults {
-  --bo-drop: #35165a;
-  --bo-c2r1: #69c1ce;
-  --bo-c3r1: #e8c07d;
-  --bo-c1r2: #e8c07d;
-  --bo-c2r2: #cd474e;
-  --bo-c3r2: #9bbef8;
-  --bo-c1r3: #f17437;
-  --bo-c2r3: #32cda0;
-  --bo-c3r3: #32cda0;
+  --bo-drop: var(--bo-colour-brand, #35165a);
+  --bo-c2r1: var(--bo-colour-secondary, #69c1ce);
+  --bo-c3r1: var(--bo-colour-warning, #e8c07d);
+  --bo-c1r2: var(--bo-colour-warning, #e8c07d);
+  --bo-c2r2: var(--bo-colour-danger, #cd474e);
+  --bo-c3r2: var(--bo-colour-info, #9bbef8);
+  --bo-c1r3: var(--bo-colour-energy, #f17437);
+  --bo-c2r3: var(--bo-colour-success, #32cda0);
+  --bo-c3r3: var(--bo-colour-success, #32cda0);
 }
 
 .boardoil-logo :deep(.drop) {
-  fill: transparent;
+  fill: var(--bo-colour-brand-mid, #7d63ab);
 }
 
 .boardoil-logo :deep(.c2r1) {

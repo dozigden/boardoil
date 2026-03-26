@@ -117,14 +117,14 @@ onBeforeUnmount(() => {
 }
 
 .card-modal::backdrop {
-  background: rgba(19, 32, 49, 0.45);
+  background: rgba(53, 22, 90, 0.45);
 }
 
 .card-modal-content {
   position: relative;
   margin: 0;
-  background: #ffffff;
-  border: 1px solid #c9d3e3;
+  background: var(--bo-surface-base);
+  border: 1px solid var(--bo-border-soft);
   border-radius: 14px;
   padding: 1rem;
 }
@@ -143,7 +143,7 @@ onBeforeUnmount(() => {
 
 .card-modal-title {
   margin: 0 0 0.75rem;
-  color: #1d3b63;
+  color: var(--bo-link);
 }
 
 .card-modal-actions {

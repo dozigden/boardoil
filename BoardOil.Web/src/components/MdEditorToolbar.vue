@@ -173,10 +173,10 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #b8c8df;
+  border: 1px solid var(--bo-border-brand);
   border-radius: 8px;
-  background: #ffffff;
-  color: #1d3b63;
+  background: transparent;
+  color: var(--bo-link);
   padding: 0.2rem;
   line-height: 1.1;
 }
@@ -195,13 +195,37 @@ onBeforeUnmount(() => {
 }
 
 .md-editor-toolbar-button.is-active {
-  border-color: #5b7ca8;
-  background: #edf3fc;
-  color: #234264;
+  border-color: var(--bo-surface-energy);
+  background: var(--bo-colour-energy);
+  color: var(--bo-surface-energy);
+}
+
+.md-editor-toolbar-button.is-active:hover:not(:disabled),
+.md-editor-toolbar-button.is-active:focus-visible:not(:disabled) {
+  background: var(--bo-colour-energy-strong);
+}
+
+.md-editor-toolbar-button:not(.is-active):hover:not(:disabled),
+.md-editor-toolbar-button:not(.is-active):focus-visible:not(:disabled) {
+  border-color: var(--bo-colour-energy);
+  background: var(--bo-surface-energy);
+  color: var(--bo-colour-energy);
+}
+
+.md-editor-toolbar-button:not(.is-active):focus-visible:not(:disabled) {
+  outline: 2px solid var(--bo-colour-energy);
+  outline-offset: 2px;
+}
+
+.md-editor-toolbar-button.is-active:focus-visible:not(:disabled) {
+  outline: 2px solid var(--bo-surface-energy);
+  outline-offset: 2px;
 }
 
 .md-editor-toolbar-button:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
+  border-color: var(--bo-border-soft);
+  color: var(--bo-ink-subtle);
   cursor: not-allowed;
 }
 
@@ -213,10 +237,10 @@ onBeforeUnmount(() => {
   flex-direction: column;
   min-width: 4rem;
   padding: 0.2rem;
-  border: 1px solid #b8c8df;
+  border: 1px solid var(--bo-border-brand);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 6px 18px rgba(19, 32, 49, 0.18);
+  background: var(--bo-surface-base);
+  box-shadow: 0 6px 18px rgba(53, 22, 90, 0.18);
   z-index: 5;
 }
 
@@ -226,7 +250,7 @@ onBeforeUnmount(() => {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: #1d3b63;
+  color: var(--bo-link);
   padding: 0.25rem 0.4rem;
   text-align: left;
   font-size: 0.78rem;
@@ -234,8 +258,9 @@ onBeforeUnmount(() => {
 
 .md-editor-toolbar-menu-item:hover:not(:disabled),
 .md-editor-toolbar-menu-item:focus-visible:not(:disabled) {
-  border-color: #b8c8df;
-  background: #edf3fc;
+  border-color: var(--bo-colour-energy);
+  background: var(--bo-surface-energy);
+  color: var(--bo-colour-energy);
 }
 
 .md-editor-toolbar-sr {
@@ -258,17 +283,39 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  border: 1px solid #b8c8df;
+  border: 1px solid var(--bo-border-brand);
   border-radius: 8px;
-  background: #ffffff;
-  color: #1d3b63;
+  background: transparent;
+  color: var(--bo-link);
   padding: 0.2rem 0.45rem;
   font-size: 0.78rem;
 }
 
 .md-editor-toolbar-mode-button.is-active {
-  border-color: #5b7ca8;
-  background: #edf3fc;
-  color: #234264;
+  border-color: var(--bo-surface-energy);
+  background: var(--bo-colour-energy);
+  color: var(--bo-surface-energy);
+}
+
+.md-editor-toolbar-mode-button.is-active:hover:not(:disabled),
+.md-editor-toolbar-mode-button.is-active:focus-visible:not(:disabled) {
+  background: var(--bo-colour-energy-strong);
+}
+
+.md-editor-toolbar-mode-button:not(.is-active):hover:not(:disabled),
+.md-editor-toolbar-mode-button:not(.is-active):focus-visible:not(:disabled) {
+  border-color: var(--bo-colour-energy);
+  background: var(--bo-surface-energy);
+  color: var(--bo-colour-energy);
+}
+
+.md-editor-toolbar-mode-button:not(.is-active):focus-visible:not(:disabled) {
+  outline: 2px solid var(--bo-colour-energy);
+  outline-offset: 2px;
+}
+
+.md-editor-toolbar-mode-button.is-active:focus-visible:not(:disabled) {
+  outline: 2px solid var(--bo-surface-energy);
+  outline-offset: 2px;
 }
 </style>
