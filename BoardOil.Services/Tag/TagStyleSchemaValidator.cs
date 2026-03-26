@@ -11,6 +11,17 @@ public static class TagStyleSchemaValidator
     public const string GradientStyleName = "gradient";
 
     private static readonly Regex HexColorRegex = new("^#[0-9A-Fa-f]{6}$", RegexOptions.Compiled);
+    private static readonly string[] DefaultTagPalette =
+    [
+        "#35165A", // Brand
+        "#9D8ABF", // Brand Mid
+        "#69C1CE", // Secondary
+        "#E8C07D", // Warning
+        "#CD474E", // Danger
+        "#9BBEF8", // Info
+        "#F17437", // Energy
+        "#32CDA0"  // Success
+    ];
 
     public static IReadOnlyList<ValidationError> Validate(string styleName, string stylePropertiesJson)
     {
@@ -58,7 +69,7 @@ public static class TagStyleSchemaValidator
     public static string BuildDefaultStylePropertiesJson() =>
         JsonSerializer.Serialize(new
         {
-            backgroundColor = GenerateRandomHexColor(),
+            backgroundColor = PickDefaultTagColor(),
             textColorMode = "auto"
         });
 
@@ -163,10 +174,6 @@ public static class TagStyleSchemaValidator
     private static bool IsHexColor(string value) =>
         HexColorRegex.IsMatch(value);
 
-    private static string GenerateRandomHexColor()
-    {
-        Span<byte> rgb = stackalloc byte[3];
-        RandomNumberGenerator.Fill(rgb);
-        return $"#{rgb[0]:X2}{rgb[1]:X2}{rgb[2]:X2}";
-    }
+    private static string PickDefaultTagColor() =>
+        DefaultTagPalette[RandomNumberGenerator.GetInt32(DefaultTagPalette.Length)];
 }
