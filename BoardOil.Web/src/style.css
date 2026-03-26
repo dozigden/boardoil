@@ -73,11 +73,30 @@ body {
 }
 
 .app-shell {
-  padding: 1.5rem;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-content > * {
+  min-height: 0;
+  min-width: 0;
 }
 
 .app-header {
-  margin: -1.5rem -1.5rem 1rem;
+  margin: 0 0 1rem;
   padding: 1rem 1.5rem;
   background: var(--bo-surface-panel-strong);
   border-bottom: 1px solid var(--bo-border-brand);
@@ -256,22 +275,37 @@ body {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(var(--column-min-width), var(--column-max-width));
+  grid-template-rows: 1fr;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 0;
   align-items: start;
+  min-height: 0;
+  height: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
-  padding-bottom: 0.25rem;
+  padding-inline: 1.5rem;
+  padding-bottom: 0;
+}
+
+.board-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: hidden;
 }
 
 .column {
   background: var(--bo-surface-panel);
   border: 1px solid var(--bo-border-soft);
   border-radius: 14px;
-  padding: 0.75rem;
+  padding: 0.75rem 0.25rem 0.75rem 0.75rem;
   display: flex;
   flex-direction: column;
-  min-height: 300px;
+  gap: 0.75rem;
+  min-height: 0;
+  height: auto;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .column-header {
@@ -279,7 +313,6 @@ body {
   justify-content: space-between;
   gap: 0.5rem;
   align-items: center;
-  margin-bottom: 0.75rem;
 }
 
 .column-title {
@@ -298,6 +331,53 @@ body {
   align-items: center;
   justify-content: center;
   padding: 0.3rem;
+}
+
+.column-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 0.5rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+}
+
+.column-content > .card {
+  margin-bottom: 0;
+}
+
+.column-content:hover,
+.column-content:focus-within {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bo-border-default) transparent;
+}
+
+.column-content::-webkit-scrollbar {
+  width: 0;
+}
+
+.column-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.column-content:hover::-webkit-scrollbar,
+.column-content:focus-within::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.column-content::-webkit-scrollbar-thumb {
+  background: transparent;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+.column-content:hover::-webkit-scrollbar-thumb,
+.column-content:focus-within::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--bo-border-default) 78%, transparent);
 }
 
 .column-actions,
@@ -410,6 +490,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 0.55rem;
 }
 
 .card-title-with-pill {
@@ -465,7 +546,7 @@ body {
 }
 
 .card-tags {
-  margin-top: 0.2rem;
+  margin-top: 0.3rem;
 }
 
 .tag-pill {

@@ -2,7 +2,9 @@
   <main class="app-shell">
     <AppHeader />
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <RouterView />
+    <section class="app-content">
+      <RouterView />
+    </section>
     <RouterView name="dialog" />
   </main>
 </template>
