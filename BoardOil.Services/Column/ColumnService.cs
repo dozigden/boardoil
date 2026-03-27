@@ -20,24 +20,23 @@ public sealed class ColumnService(
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
-    public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync()
+    public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync(int boardId)
     {
         using var scope = _scopeFactory.CreateReadOnly();
 
-        var boardId = await GetBoardIdAsync();
-        if (boardId is null)
+        if (boardRepository.Get(boardId) is null)
         {
-            return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
+            return ApiErrors.NotFound("Board not found.");
         }
 
-        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value))
+        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId))
             .Select(x => x.ToColumnDto())
             .ToList();
 
         return columns;
     }
 
-    public async Task<ApiResult<ColumnDto>> CreateColumnAsync(CreateColumnRequest request)
+    public async Task<ApiResult<ColumnDto>> CreateColumnAsync(int boardId, CreateColumnRequest request)
     {
         using var scope = _scopeFactory.Create();
 
@@ -47,13 +46,12 @@ public sealed class ColumnService(
             return ValidationFail(validationErrors);
         }
 
-        var boardId = await GetBoardIdAsync();
-        if (boardId is null)
+        if (boardRepository.Get(boardId) is null)
         {
-            return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
+            return ApiErrors.NotFound("Board not found.");
         }
 
-        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
+        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId)).ToList();
 
         var now = DateTime.UtcNow;
         var previousKey = columns.Count > 0 ? columns[^1].SortKey : null;
@@ -65,7 +63,7 @@ public sealed class ColumnService(
 
         var column = new EntityBoardColumn
         {
-            BoardId = boardId.Value,
+            BoardId = boardId,
             Title = request.Title.Trim(),
             SortKey = sortKey!,
             CreatedAtUtc = now,
@@ -76,21 +74,20 @@ public sealed class ColumnService(
         await scope.SaveChangesAsync();
 
         var created = column.ToColumnDto();
-        await _boardEvents.ColumnCreatedAsync(created);
+        await _boardEvents.ColumnCreatedAsync(boardId, created);
         return ApiResults.Created(created);
     }
 
-    public async Task<ApiResult<ColumnDto>> UpdateColumnAsync(int id, UpdateColumnRequest request)
+    public async Task<ApiResult<ColumnDto>> UpdateColumnAsync(int boardId, int id, UpdateColumnRequest request)
     {
         using var scope = _scopeFactory.Create();
 
-        var boardId = await GetBoardIdAsync();
-        if (boardId is null)
+        if (boardRepository.Get(boardId) is null)
         {
-            return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
+            return ApiErrors.NotFound("Board not found.");
         }
 
-        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
+        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId)).ToList();
 
         var target = columns.FirstOrDefault(x => x.Id == id);
         if (target is null)
@@ -116,21 +113,20 @@ public sealed class ColumnService(
         }
 
         var dto = target.ToColumnDto();
-        await _boardEvents.ColumnUpdatedAsync(dto);
+        await _boardEvents.ColumnUpdatedAsync(boardId, dto);
         return dto;
     }
 
-    public async Task<ApiResult<ColumnDto>> MoveColumnAsync(int id, MoveColumnRequest request)
+    public async Task<ApiResult<ColumnDto>> MoveColumnAsync(int boardId, int id, MoveColumnRequest request)
     {
         using var scope = _scopeFactory.Create();
 
-        var boardId = await GetBoardIdAsync();
-        if (boardId is null)
+        if (boardRepository.Get(boardId) is null)
         {
-            return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
+            return ApiErrors.NotFound("Board not found.");
         }
 
-        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
+        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId)).ToList();
         var target = columns.FirstOrDefault(x => x.Id == id);
         if (target is null)
         {
@@ -147,7 +143,7 @@ public sealed class ColumnService(
         if (request.PositionAfterColumnId == currentPositionAfterColumnId)
         {
             var unchangedDto = target.ToColumnDto();
-            await _boardEvents.ColumnUpdatedAsync(unchangedDto);
+            await _boardEvents.ColumnUpdatedAsync(boardId, unchangedDto);
             return unchangedDto;
         }
 
@@ -179,38 +175,35 @@ public sealed class ColumnService(
         }
 
         var dto = target.ToColumnDto();
-        await _boardEvents.ColumnUpdatedAsync(dto);
+        await _boardEvents.ColumnUpdatedAsync(boardId, dto);
         return dto;
     }
 
-    public async Task<ApiResult> DeleteColumnAsync(int id)
+    public async Task<ApiResult> DeleteColumnAsync(int boardId, int id)
     {
         using var scope = _scopeFactory.Create();
 
-        var boardId = await GetBoardIdAsync();
-        if (boardId is null)
+        if (boardRepository.Get(boardId) is null)
         {
-            return ApiErrors.InternalError("No board exists. Bootstrap has not run.");
+            return ApiErrors.NotFound("Board not found.");
         }
 
-        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId.Value)).ToList();
-
-        var target = columns.FirstOrDefault(x => x.Id == id);
+        var target = columnRepository.Get(id);
         if (target is null)
         {
             return ApiResults.Ok();
         }
 
+        if (target.BoardId != boardId)
+        {
+            return ApiErrors.NotFound("Column not found.");
+        }
+
         columnRepository.Remove(target);
         await scope.SaveChangesAsync();
 
-        await _boardEvents.ColumnDeletedAsync(id);
+        await _boardEvents.ColumnDeletedAsync(boardId, id);
         return ApiResults.Ok();
-    }
-
-    private async Task<int?> GetBoardIdAsync()
-    {
-        return await boardRepository.GetPrimaryBoardIdAsync();
     }
 
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>

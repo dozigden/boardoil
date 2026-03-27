@@ -8,16 +8,10 @@ namespace BoardOil.Ef.Repositories;
 public sealed class BoardRepository(IAmbientDbContextLocator ambientDbContextLocator)
     : RepositoryBase<EntityBoard>(ambientDbContextLocator), IBoardRepository
 {
-    public Task<EntityBoard?> GetPrimaryBoardAsync() =>
-        DbSet
+    public async Task<IReadOnlyList<EntityBoard>> GetBoardsOrderedAsync() =>
+        await DbSet
             .OrderBy(x => x.Id)
-            .FirstOrDefaultAsync();
-
-    public Task<int?> GetPrimaryBoardIdAsync() =>
-        DbSet
-            .OrderBy(x => x.Id)
-            .Select(x => (int?)x.Id)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
     public Task<bool> AnyBoardAsync() =>
         DbSet.AnyAsync();

@@ -30,12 +30,18 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/',
+    name: 'boards',
+    component: () => import('./views/BoardsView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/boards/:boardId(\\d+)',
     name: 'board',
     component: () => import('./views/BoardView.vue'),
     meta: { requiresAuth: true }
   },
   {
-    path: '/card/:cardId(\\d+)',
+    path: '/boards/:boardId(\\d+)/card/:cardId(\\d+)',
     name: 'board-card',
     components: {
       default: () => import('./views/BoardView.vue'),
@@ -44,7 +50,7 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/columns',
+    path: '/boards/:boardId(\\d+)/columns',
     name: 'columns',
     component: () => import('./views/ColumnsManagerView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
@@ -65,7 +71,7 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/columns/:columnId(\\d+)',
+    path: '/boards/:boardId(\\d+)/columns/:columnId(\\d+)',
     name: 'columns-column',
     components: {
       default: () => import('./views/ColumnsManagerView.vue'),

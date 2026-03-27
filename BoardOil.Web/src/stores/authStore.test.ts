@@ -18,7 +18,7 @@ const setCsrfToken = vi.fn();
 const setUnauthorizedHandler = vi.fn();
 const { router } = vi.hoisted(() => ({
   router: {
-    currentRoute: { value: { name: 'board' as string | null } },
+    currentRoute: { value: { name: 'boards' as string | null } },
     replace: vi.fn(async () => undefined)
   }
 }));
@@ -46,7 +46,7 @@ describe('authStore', () => {
     authApi.logout.mockResolvedValue(ok(undefined));
     setUnauthorizedHandler.mockClear();
     router.replace.mockClear();
-    router.currentRoute.value.name = 'board';
+    router.currentRoute.value.name = 'boards';
   });
 
   it('initialize keeps anonymous state when /me returns no user', async () => {

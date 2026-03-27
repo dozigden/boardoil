@@ -81,10 +81,35 @@ describe('boardRealtime', () => {
       onResync
     });
 
-    await realtime.connect();
+    await realtime.connect(42);
     await connection.reconnectHandler?.();
 
+    expect(connection.invoke).toHaveBeenCalledWith('SubscribeBoard', 42);
     expect(onResync).toHaveBeenCalledTimes(1);
+  });
+
+  it('still stops connection when unsubscribe fails during disconnect', async () => {
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(),
+      onColumnUpdated: vi.fn(),
+      onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(),
+      onCardUpdated: vi.fn(),
+      onCardDeleted: vi.fn(),
+      onCardMoved: vi.fn(),
+      onResync: vi.fn()
+    });
+    connection.invoke.mockImplementation(async (method: string) => {
+      if (method === 'UnsubscribeBoard') {
+        throw new Error('unsubscribe failed');
+      }
+    });
+
+    await realtime.connect(7);
+    await realtime.disconnect();
+
+    expect(connection.stop).toHaveBeenCalledTimes(1);
   });
 
   afterEach(() => {

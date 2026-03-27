@@ -9,24 +9,24 @@ public static class ColumnEndpoints
 {
     public static IEndpointRouteBuilder MapColumnEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/columns", (IColumnService columnService) =>
-                columnService.GetColumnsAsync().ToHttpResult())
+        app.MapGet("/api/boards/{boardId:int}/columns", (int boardId, IColumnService columnService) =>
+                columnService.GetColumnsAsync(boardId).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
-        app.MapPost("/api/columns", (CreateColumnRequest request, IColumnService columnService) =>
-                columnService.CreateColumnAsync(request).ToHttpResult())
+        app.MapPost("/api/boards/{boardId:int}/columns", (int boardId, CreateColumnRequest request, IColumnService columnService) =>
+                columnService.CreateColumnAsync(boardId, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
-        app.MapPut("/api/columns/{id:int}", (int id, UpdateColumnRequest request, IColumnService columnService) =>
-                columnService.UpdateColumnAsync(id, request).ToHttpResult())
+        app.MapPut("/api/boards/{boardId:int}/columns/{id:int}", (int boardId, int id, UpdateColumnRequest request, IColumnService columnService) =>
+                columnService.UpdateColumnAsync(boardId, id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
-        app.MapPatch("/api/columns/{id:int}/move", (int id, MoveColumnRequest request, IColumnService columnService) =>
-                columnService.MoveColumnAsync(id, request).ToHttpResult())
+        app.MapPatch("/api/boards/{boardId:int}/columns/{id:int}/move", (int boardId, int id, MoveColumnRequest request, IColumnService columnService) =>
+                columnService.MoveColumnAsync(boardId, id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
-        app.MapDelete("/api/columns/{id:int}", (int id, IColumnService columnService) =>
-                columnService.DeleteColumnAsync(id).ToHttpResult())
+        app.MapDelete("/api/boards/{boardId:int}/columns/{id:int}", (int boardId, int id, IColumnService columnService) =>
+                columnService.DeleteColumnAsync(boardId, id).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
         return app;

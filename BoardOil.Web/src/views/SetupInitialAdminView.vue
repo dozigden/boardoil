@@ -38,6 +38,6 @@ async function submit() {
     return;
   }
 
-  await router.replace({ name: 'board' });
+  await router.replace({ name: 'boards' });
 }
 </script>

@@ -35,7 +35,7 @@ function makeAuthStore(overrides?: Partial<{
 describe('resolveAuthNavigation', () => {
   it('initializes auth store when needed before evaluating route', async () => {
     const authStore = makeAuthStore({ initialized: false });
-    const to = makeTarget({ name: 'board', requiresAuth: true });
+    const to = makeTarget({ name: 'boards', requiresAuth: true });
 
     const result = await resolveAuthNavigation(to, authStore);
 
@@ -49,7 +49,7 @@ describe('resolveAuthNavigation', () => {
 
     const result = await resolveAuthNavigation(to, authStore);
 
-    expect(result).toEqual({ name: 'board' });
+    expect(result).toEqual({ name: 'boards' });
   });
 
   it('redirects authenticated users away from initial admin setup', async () => {
@@ -58,12 +58,12 @@ describe('resolveAuthNavigation', () => {
 
     const result = await resolveAuthNavigation(to, authStore);
 
-    expect(result).toEqual({ name: 'board' });
+    expect(result).toEqual({ name: 'boards' });
   });
 
   it('redirects anonymous users from protected routes to login', async () => {
     const authStore = makeAuthStore({ isAuthenticated: false });
-    const to = makeTarget({ name: 'board', requiresAuth: true });
+    const to = makeTarget({ name: 'boards', requiresAuth: true });
 
     const result = await resolveAuthNavigation(to, authStore);
 
@@ -72,7 +72,7 @@ describe('resolveAuthNavigation', () => {
 
   it('redirects anonymous users to setup when initial admin setup is required', async () => {
     const authStore = makeAuthStore({ isAuthenticated: false, requiresInitialAdminSetup: true });
-    const to = makeTarget({ name: 'board', requiresAuth: true });
+    const to = makeTarget({ name: 'boards', requiresAuth: true });
 
     const result = await resolveAuthNavigation(to, authStore);
 
@@ -121,7 +121,7 @@ describe('resolveAuthNavigation', () => {
 
     const result = await resolveAuthNavigation(to, authStore);
 
-    expect(result).toEqual({ name: 'board' });
+    expect(result).toEqual({ name: 'boards' });
   });
 
   it('allows admin users into admin routes', async () => {

@@ -21,7 +21,7 @@ public sealed class CardService(
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
-    public async Task<ApiResult<CardDto>> CreateCardAsync(CreateCardRequest request)
+    public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request)
     {
         using var scope = _scopeFactory.Create();
 
@@ -29,6 +29,12 @@ public sealed class CardService(
         if (validationErrors.Count > 0)
         {
             return ValidationFail(validationErrors);
+        }
+
+        var targetColumn = columnRepository.Get(request.BoardColumnId);
+        if (targetColumn is null || targetColumn.BoardId != boardId)
+        {
+            return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
         }
 
         var cards = (await cardRepository.GetCardsInColumnOrderedAsync(request.BoardColumnId)).ToList();
@@ -58,16 +64,16 @@ public sealed class CardService(
 
         var created = card.ToCardDto();
 
-        await _boardEvents.CardCreatedAsync(created);
+        await _boardEvents.CardCreatedAsync(boardId, created);
         return ApiResults.Created(created);
     }
 
-    public async Task<ApiResult<CardDto>> UpdateCardAsync(int id, UpdateCardRequest request)
+    public async Task<ApiResult<CardDto>> UpdateCardAsync(int boardId, int id, UpdateCardRequest request)
     {
         using var scope = _scopeFactory.Create();
 
-        var existingCard = await cardRepository.GetWithTagsByIdAsync(id);
-        if (existingCard is null)
+        var existingCard = await cardRepository.GetWithTagsAndBoardAsync(id);
+        if (existingCard is null || existingCard.BoardColumn.BoardId != boardId)
         {
             return ApiErrors.NotFound("Card not found.");
         }
@@ -100,26 +106,26 @@ public sealed class CardService(
         }
 
         var dto = existingCard.ToCardDto();
-        await _boardEvents.CardUpdatedAsync(dto);
+        await _boardEvents.CardUpdatedAsync(boardId, dto);
 
         return dto;
     }
 
-    public async Task<ApiResult<CardDto>> MoveCardAsync(int id, MoveCardRequest request)
+    public async Task<ApiResult<CardDto>> MoveCardAsync(int boardId, int id, MoveCardRequest request)
     {
         using var scope = _scopeFactory.Create();
 
-        var existingCard = cardRepository.Get(id);
-        if (existingCard is null)
+        var existingCard = await cardRepository.GetWithTagsAndBoardAsync(id);
+        if (existingCard is null || existingCard.BoardColumn.BoardId != boardId)
         {
             return ApiErrors.NotFound("Card not found.");
         }
 
         var sourceColumnId = existingCard.BoardColumnId;
         var targetColumn = columnRepository.Get(request.BoardColumnId);
-        if (targetColumn is null)
+        if (targetColumn is null || targetColumn.BoardId != boardId)
         {
-            return ValidationFail([new ValidationError("boardColumnId", "Column does not exist.")]);
+            return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
         }
 
         if (request.PositionAfterCardId == id)
@@ -139,7 +145,7 @@ public sealed class CardService(
             && request.PositionAfterCardId == currentPositionAfterCardId)
         {
             var unchangedDto = existingCard.ToCardDto();
-            await _boardEvents.CardMovedAsync(unchangedDto);
+            await _boardEvents.CardMovedAsync(boardId, unchangedDto);
             return unchangedDto;
         }
 
@@ -186,24 +192,29 @@ public sealed class CardService(
         }
 
         var dto = existingCard.ToCardDto();
-        await _boardEvents.CardMovedAsync(dto);
+        await _boardEvents.CardMovedAsync(boardId, dto);
 
         return dto;
     }
 
-    public async Task<ApiResult> DeleteCardAsync(int id)
+    public async Task<ApiResult> DeleteCardAsync(int boardId, int id)
     {
         using var scope = _scopeFactory.Create();
 
-        var card = cardRepository.Get(id);
+        var card = await cardRepository.GetWithTagsAndBoardAsync(id);
         if (card is null)
         {
             return ApiResults.Ok();
         }
 
+        if (card.BoardColumn.BoardId != boardId)
+        {
+            return ApiErrors.NotFound("Card not found.");
+        }
+
         cardRepository.Remove(card);
         await scope.SaveChangesAsync();
-        await _boardEvents.CardDeletedAsync(id);
+        await _boardEvents.CardDeletedAsync(boardId, id);
 
         return ApiResults.Ok();
     }

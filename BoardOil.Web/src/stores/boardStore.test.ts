@@ -5,6 +5,7 @@ import { useUiFeedbackStore } from './uiFeedbackStore';
 import type { AppError } from '../types/appError';
 import type { Board, Card, Column } from '../types/boardTypes';
 import { err, ok } from '../types/result';
+import type { Result } from '../types/result';
 
 const api = {
   getBoard: vi.fn(),
@@ -40,19 +41,62 @@ describe('boardStore', () => {
     realtime.disconnect.mockResolvedValue(undefined);
   });
 
-  it('initializes board and connects realtime once', async () => {
+  it('initializes board and connects realtime', async () => {
     const store = useBoardStore();
-    await store.initialize();
-    await store.initialize();
+    await store.initialize(1);
 
     expect(api.getBoard).toHaveBeenCalledTimes(1);
-    expect(realtime.connect).toHaveBeenCalledTimes(1);
+    expect(api.getBoard).toHaveBeenCalledWith(1);
+    expect(realtime.connect).toHaveBeenCalledWith(1);
     expect(store.board?.columns.length).toBe(2);
+  });
+
+  it('keeps loaded board when realtime connect fails', async () => {
+    const store = useBoardStore();
+    const feedback = useUiFeedbackStore();
+    realtime.connect.mockRejectedValueOnce(new Error('realtime failed'));
+
+    const initialized = await store.initialize(1);
+
+    expect(initialized).toBe(true);
+    expect(store.board?.id).toBe(1);
+    expect(feedback.errorMessage).toBe('Realtime connection failed.');
+  });
+
+  it('clears stale board state when requested board fails to load', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    api.getBoard.mockResolvedValueOnce(err({ kind: 'api', message: 'Board not found.' }));
+
+    const initialized = await store.initialize(999);
+
+    expect(initialized).toBe(false);
+    expect(store.board).toBeNull();
+    expect(store.currentBoardId).toBeNull();
+  });
+
+  it('ignores stale load response when board switches quickly', async () => {
+    const store = useBoardStore();
+    const delayed = deferred<Result<Board, AppError>>();
+    api.getBoard
+      .mockImplementationOnce(() => delayed.promise)
+      .mockResolvedValueOnce(ok(makeBoard(2, 'Board 2')));
+
+    const firstLoad = store.initialize(1);
+    const secondLoad = store.initialize(2);
+    delayed.resolve(ok(makeBoard(1, 'Board 1')));
+    await Promise.all([firstLoad, secondLoad]);
+
+    expect(store.currentBoardId).toBe(2);
+    expect(store.board?.id).toBe(2);
+    expect(store.board?.name).toBe('Board 2');
+    expect(realtime.connect).toHaveBeenCalledTimes(1);
+    expect(realtime.connect).toHaveBeenCalledWith(2);
   });
 
   it('creates a column incrementally without reloading board', async () => {
     const store = useBoardStore();
-    await store.initialize();
+    await store.initialize(1);
 
     const created: Column = {
       id: 3,
@@ -71,7 +115,7 @@ describe('boardStore', () => {
 
   it('reorders a column incrementally when updated sort key is returned', async () => {
     const store = useBoardStore();
-    await store.initialize();
+    await store.initialize(1);
 
     const moved: Column = {
       id: 2,
@@ -85,12 +129,12 @@ describe('boardStore', () => {
     await store.moveColumn(2, null);
 
     expect(store.board?.columns.map(x => x.title)).toEqual(['Doing', 'Backlog']);
-    expect(api.moveColumn).toHaveBeenCalledWith(2, null);
+    expect(api.moveColumn).toHaveBeenCalledWith(1, 2, null);
   });
 
   it('moves card across columns incrementally', async () => {
     const store = useBoardStore();
-    await store.initialize();
+    await store.initialize(1);
 
     const moved: Card = {
       id: 101,
@@ -109,13 +153,13 @@ describe('boardStore', () => {
 
     expect(store.board?.columns[0].cards).toHaveLength(0);
     expect(store.board?.columns[1].cards[0].id).toBe(101);
-    expect(api.moveCard).toHaveBeenCalledWith(101, 2, null);
+    expect(api.moveCard).toHaveBeenCalledWith(1, 101, 2, null);
     expect(api.getBoard).toHaveBeenCalledTimes(1);
   });
 
   it('translates drop-before-card into predecessor anchor', async () => {
     const store = useBoardStore();
-    await store.initialize();
+    await store.initialize(1);
 
     store.board = {
       ...store.board!,
@@ -167,12 +211,12 @@ describe('boardStore', () => {
     store.startDrag(101, 1);
     await store.dropCard(2, 202);
 
-    expect(api.moveCard).toHaveBeenCalledWith(101, 2, 201);
+    expect(api.moveCard).toHaveBeenCalledWith(1, 101, 2, 201);
   });
 
   it('uses null anchor when dropping before first card', async () => {
     const store = useBoardStore();
-    await store.initialize();
+    await store.initialize(1);
 
     store.board = {
       ...store.board!,
@@ -214,12 +258,12 @@ describe('boardStore', () => {
     store.startDrag(101, 1);
     await store.dropCard(2, 201);
 
-    expect(api.moveCard).toHaveBeenCalledWith(101, 2, null);
+    expect(api.moveCard).toHaveBeenCalledWith(1, 101, 2, null);
   });
 
   it('saveCard updates card', async () => {
     const store = useBoardStore();
-    await store.initialize();
+    await store.initialize(1);
 
     const updated: Card = {
       id: 101,
@@ -241,7 +285,7 @@ describe('boardStore', () => {
 
   it('finds card by id from board state', async () => {
     const store = useBoardStore();
-    await store.initialize();
+    await store.initialize(1);
 
     expect(store.getCardById(101)?.title).toBe('Task A');
     expect(store.getCardById(999)).toBeNull();
@@ -251,7 +295,7 @@ describe('boardStore', () => {
   it('sets feedback error when API returns failure', async () => {
     const store = useBoardStore();
     const feedback = useUiFeedbackStore();
-    await store.initialize();
+    await store.initialize(1);
 
     const apiError: AppError = {
       kind: 'api',
@@ -266,10 +310,10 @@ describe('boardStore', () => {
 
 });
 
-function makeBoard(): Board {
+function makeBoard(id = 1, name = 'Board'): Board {
   return {
-    id: 1,
-    name: 'Board',
+    id,
+    name,
     createdAtUtc: '2026-03-15T00:00:00Z',
     updatedAtUtc: '2026-03-15T00:00:00Z',
     columns: [
@@ -302,4 +346,15 @@ function makeBoard(): Board {
       }
     ]
   };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, resolve, reject };
 }

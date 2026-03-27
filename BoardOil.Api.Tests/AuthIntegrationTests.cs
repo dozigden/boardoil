@@ -191,7 +191,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/api/board");
+        var response = await client.GetAsync("/api/boards/1");
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -208,7 +208,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
-        var response = await standardClient.GetAsync("/api/board");
+        var response = await standardClient.GetAsync("/api/boards/1");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -229,7 +229,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
 
         // Act
         var response = await standardClient.PostAsJsonAsync(
-            "/api/cards",
+            "/api/boards/1/cards",
             new CreateCardRequest(columnId, "Standard card", "Allowed", ["member"]));
 
         // Assert
@@ -309,7 +309,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
-        var response = await standardClient.PostAsJsonAsync("/api/columns", new CreateColumnRequest("Not allowed"));
+        var response = await standardClient.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Not allowed"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -406,7 +406,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
 
     private static async Task<int> CreateColumnAsAdminAsync(HttpClient adminClient, string title)
     {
-        var response = await adminClient.PostAsJsonAsync("/api/columns", new CreateColumnRequest(title));
+        var response = await adminClient.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest(title));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
         Assert.NotNull(envelope);

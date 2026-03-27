@@ -68,14 +68,15 @@
 <script setup lang="ts">
 import { Check, Plus, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { nextTick, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { nextTick, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import Card from '../components/Card.vue';
 import { useBoardStore } from '../stores/boardStore';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | null>>({});
 
+const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const { board } = storeToRefs(boardStore);
@@ -120,6 +121,33 @@ async function saveNewCardDraft(columnId: number) {
 }
 
 async function openCardEditor(cardId: number) {
-  await router.push({ name: 'board-card', params: { cardId } });
+  const boardId = resolveBoardId();
+  if (boardId === null) {
+    return;
+  }
+
+  await router.push({ name: 'board-card', params: { boardId, cardId } });
 }
+
+function resolveBoardId() {
+  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+watch(
+  () => route.params.boardId,
+  async () => {
+    const boardId = resolveBoardId();
+    if (boardId === null) {
+      await router.replace({ name: 'boards' });
+      return;
+    }
+
+    const loaded = await boardStore.initialize(boardId);
+    if (!loaded && resolveBoardId() === boardId) {
+      await router.replace({ name: 'boards' });
+    }
+  },
+  { immediate: true }
+);
 </script>

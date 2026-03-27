@@ -64,8 +64,8 @@
 <script setup lang="ts">
 import { Check, GripVertical, Plus, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { nextTick, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { nextTick, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 
 const newColumnDraftTitle = ref<string | null>(null);
@@ -73,6 +73,7 @@ const newColumnDraftInput = ref<HTMLInputElement | null>(null);
 const draggingColumnId = ref<number | null>(null);
 const dragOverColumnId = ref<number | null>(null);
 
+const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const { board, busy } = storeToRefs(boardStore);
@@ -113,7 +114,12 @@ async function saveNewColumnDraft() {
 }
 
 async function openColumnEditor(columnId: number) {
-  await router.push({ name: 'columns-column', params: { columnId } });
+  const boardId = resolveBoardId();
+  if (boardId === null) {
+    return;
+  }
+
+  await router.push({ name: 'columns-column', params: { boardId, columnId } });
 }
 
 function onColumnDragStart(columnId: number, event: DragEvent) {
@@ -178,4 +184,26 @@ function onColumnDragEnd() {
   draggingColumnId.value = null;
   dragOverColumnId.value = null;
 }
+
+function resolveBoardId() {
+  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+watch(
+  () => route.params.boardId,
+  async () => {
+    const boardId = resolveBoardId();
+    if (boardId === null) {
+      await router.replace({ name: 'boards' });
+      return;
+    }
+
+    const loaded = await boardStore.initialize(boardId);
+    if (!loaded && resolveBoardId() === boardId) {
+      await router.replace({ name: 'boards' });
+    }
+  },
+  { immediate: true }
+);
 </script>

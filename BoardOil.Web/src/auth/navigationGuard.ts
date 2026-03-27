@@ -19,7 +19,7 @@ export async function resolveAuthNavigation(to: GuardTarget, authStore: GuardAut
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false);
 
   if ((to.name === 'login' || to.name === 'setup-initial-admin') && authStore.isAuthenticated) {
-    return { name: 'board' };
+    return { name: 'boards' };
   }
 
   const isSetupRoute = to.name === 'setup-initial-admin';
@@ -44,7 +44,7 @@ export async function resolveAuthNavigation(to: GuardTarget, authStore: GuardAut
 
   const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin === true);
   if (requiresAdmin && !authStore.isAdmin) {
-    return { name: 'board' };
+    return { name: 'boards' };
   }
 
   return true;

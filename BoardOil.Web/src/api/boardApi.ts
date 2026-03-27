@@ -1,4 +1,4 @@
-import type { Board, Card, Column, Tag, TagStyleName } from '../types/boardTypes';
+import type { Board, BoardSummary, Card, Column, Tag, TagStyleName } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
@@ -7,8 +7,17 @@ import { deleteJson, getEnvelope, patchData, postData, putData } from './http';
 export type BoardApi = ReturnType<typeof createBoardApi>;
 
 export function createBoardApi() {
-  async function getBoard(): Promise<Result<Board, AppError>> {
-    const envelopeResult = await getEnvelope<Board>('/api/board');
+  async function getBoards(): Promise<Result<BoardSummary[], AppError>> {
+    const envelopeResult = await getEnvelope<BoardSummary[]>('/api/boards');
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function getBoard(boardId: number): Promise<Result<Board, AppError>> {
+    const envelopeResult = await getEnvelope<Board>(`/api/boards/${boardId}`);
     if (!envelopeResult.ok) {
       return envelopeResult;
     }
@@ -23,27 +32,41 @@ export function createBoardApi() {
     return ok(envelopeResult.data.data);
   }
 
-  async function createColumn(title: string): Promise<Result<Column, AppError>> {
-    return postData<Column>('/api/columns', { title });
+  async function createBoard(name: string): Promise<Result<Board, AppError>> {
+    return postData<Board>('/api/boards', { name });
+  }
+
+  async function getColumns(boardId: number): Promise<Result<Column[], AppError>> {
+    const envelopeResult = await getEnvelope<Column[]>(`/api/boards/${boardId}/columns`);
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function createColumn(boardId: number, title: string): Promise<Result<Column, AppError>> {
+    return postData<Column>(`/api/boards/${boardId}/columns`, { title });
   }
 
   async function saveColumn(
+    boardId: number,
     columnId: number,
     title: string
   ): Promise<Result<Column, AppError>> {
-    return putData<Column>(`/api/columns/${columnId}`, { title });
+    return putData<Column>(`/api/boards/${boardId}/columns/${columnId}`, { title });
   }
 
-  async function moveColumn(columnId: number, positionAfterColumnId: number | null): Promise<Result<Column, AppError>> {
-    return patchData<Column>(`/api/columns/${columnId}/move`, { positionAfterColumnId });
+  async function moveColumn(boardId: number, columnId: number, positionAfterColumnId: number | null): Promise<Result<Column, AppError>> {
+    return patchData<Column>(`/api/boards/${boardId}/columns/${columnId}/move`, { positionAfterColumnId });
   }
 
-  async function deleteColumn(columnId: number): Promise<Result<void, AppError>> {
-    return deleteJson(`/api/columns/${columnId}`);
+  async function deleteColumn(boardId: number, columnId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/boards/${boardId}/columns/${columnId}`);
   }
 
-  async function createCard(columnId: number, title: string): Promise<Result<Card, AppError>> {
-    return postData<Card>('/api/cards', {
+  async function createCard(boardId: number, columnId: number, title: string): Promise<Result<Card, AppError>> {
+    return postData<Card>(`/api/boards/${boardId}/cards`, {
       boardColumnId: columnId,
       title,
       description: '',
@@ -52,12 +75,13 @@ export function createBoardApi() {
   }
 
   async function saveCard(
+    boardId: number,
     cardId: number,
     title: string,
     description: string,
     tagNames: string[]
   ): Promise<Result<Card, AppError>> {
-    return putData<Card>(`/api/cards/${cardId}`, {
+    return putData<Card>(`/api/boards/${boardId}/cards/${cardId}`, {
       title,
       description,
       tagNames
@@ -65,18 +89,19 @@ export function createBoardApi() {
   }
 
   async function moveCard(
+    boardId: number,
     cardId: number,
     boardColumnId: number,
     positionAfterCardId: number | null
   ): Promise<Result<Card, AppError>> {
-    return patchData<Card>(`/api/cards/${cardId}/move`, {
+    return patchData<Card>(`/api/boards/${boardId}/cards/${cardId}/move`, {
       boardColumnId,
       positionAfterCardId
     });
   }
 
-  async function deleteCard(cardId: number): Promise<Result<void, AppError>> {
-    return deleteJson(`/api/cards/${cardId}`);
+  async function deleteCard(boardId: number, cardId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/boards/${boardId}/cards/${cardId}`);
   }
 
   async function getTags(): Promise<Result<Tag[], AppError>> {
@@ -104,7 +129,10 @@ export function createBoardApi() {
   }
 
   return {
+    getBoards,
     getBoard,
+    createBoard,
+    getColumns,
     createColumn,
     saveColumn,
     moveColumn,

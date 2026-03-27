@@ -15,9 +15,11 @@ type RealtimeHandlers = {
 
 export function createBoardRealtime(handlers: RealtimeHandlers) {
   let hubConnection: HubConnection | null = null;
+  let subscribedBoardId: number | null = null;
 
-  async function connect() {
+  async function connect(boardId: number) {
     if (hubConnection) {
+      await subscribeBoard(boardId);
       return;
     }
 
@@ -50,16 +52,50 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     });
 
     hubConnection.onreconnected(async () => {
+      if (subscribedBoardId !== null) {
+        await hubConnection?.invoke('SubscribeBoard', subscribedBoardId);
+      }
+
       await handlers.onResync();
     });
 
     await hubConnection.start();
+    await subscribeBoard(boardId);
+  }
+
+  async function subscribeBoard(boardId: number) {
+    if (!hubConnection) {
+      return;
+    }
+
+    if (subscribedBoardId !== null && subscribedBoardId !== boardId) {
+      await hubConnection.invoke('UnsubscribeBoard', subscribedBoardId);
+    }
+
+    if (subscribedBoardId !== boardId) {
+      await hubConnection.invoke('SubscribeBoard', boardId);
+      subscribedBoardId = boardId;
+    }
   }
 
   async function disconnect() {
     if (hubConnection) {
-      await hubConnection.stop();
-      hubConnection = null;
+      const connection = hubConnection;
+      const boardId = subscribedBoardId;
+
+      try {
+        if (boardId !== null) {
+          await connection.invoke('UnsubscribeBoard', boardId);
+        }
+      } catch {
+        // Best-effort cleanup; continue stopping the connection.
+      } finally {
+        await connection.stop();
+        if (hubConnection === connection) {
+          hubConnection = null;
+        }
+        subscribedBoardId = null;
+      }
     }
   }
 

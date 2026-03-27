@@ -22,6 +22,12 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
         return card;
     }
 
+    public Task<EntityBoardCard?> GetWithTagsAndBoardAsync(int id) =>
+        DbSet
+            .Include(x => x.CardTags)
+            .Include(x => x.BoardColumn)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
     public Task<bool> ColumnExistsAsync(int columnId) =>
         DbContext.Columns.AnyAsync(x => x.Id == columnId);
 

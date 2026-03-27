@@ -729,6 +729,89 @@ select:focus {
   max-width: 760px;
 }
 
+.boards-view {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+  max-width: 860px;
+  padding: 0 1.5rem;
+}
+
+.boards-header h2 {
+  margin: 0;
+}
+
+.boards-header p {
+  margin: 0.2rem 0 0;
+  color: var(--bo-ink-muted);
+}
+
+.boards-create {
+  display: grid;
+  gap: 0.55rem;
+  background: var(--bo-surface-panel);
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.boards-create-label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  color: var(--bo-ink-default);
+}
+
+.boards-create > button {
+  width: auto;
+  justify-self: start;
+}
+
+.boards-empty {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+
+.boards-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.boards-item {
+  list-style: none;
+}
+
+.boards-open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--bo-border-soft);
+  background: var(--bo-surface-panel);
+  color: var(--bo-ink-strong);
+}
+
+.boards-open:hover:not(:disabled),
+.boards-open:focus-visible {
+  border-color: var(--bo-colour-energy);
+  background: var(--bo-surface-energy);
+  color: var(--bo-colour-energy);
+}
+
+.boards-name {
+  font-weight: 700;
+}
+
+.boards-meta {
+  flex: 0 0 auto;
+}
+
 .tags-manager {
   margin-top: 1rem;
   display: grid;
