@@ -127,7 +127,6 @@ async function main() {
   const manualLicencesDirectory = path.join(projectRoot, "THIRD_PARTY_LICENSES_MANUAL");
   const publicLicencesDirectory = path.join(projectRoot, "public", "third-party-licenses");
   const strictMode = process.argv.includes("--strict");
-  const generatedAtUtc = new Date().toISOString();
   const runtimeDependencies = await loadRuntimeDependencies(projectRoot);
 
   await fs.mkdir(licencesOutputDirectory, { recursive: true });
@@ -239,7 +238,6 @@ async function main() {
   }
 
   const manifest = {
-    generatedAtUtc,
     packageSource: "package.json dependencies + bundled assets",
     copiedLicences,
     unresolvedPackages

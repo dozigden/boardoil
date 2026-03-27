@@ -54,7 +54,7 @@ type UnresolvedPackage = {
 };
 
 type LicenceManifest = {
-  generatedAtUtc: string;
+  generatedAtUtc?: string;
   packageSource: string;
   copiedLicences: CopiedLicence[];
   unresolvedPackages: UnresolvedPackage[];
