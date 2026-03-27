@@ -23,6 +23,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/licences',
+    name: 'licences',
+    component: () => import('./views/LicencesView.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/',
     name: 'board',
     component: () => import('./views/BoardView.vue'),

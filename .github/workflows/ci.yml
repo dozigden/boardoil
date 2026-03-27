@@ -72,6 +72,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify third-party licence sync
+        run: |
+          npm run sync:third-party-licences -- --strict
+          if [ -n "$(git status --porcelain -- THIRD_PARTY_LICENSES public/third-party-licenses)" ]; then
+            echo "Third-party licence files are out of date. Run: npm run sync:third-party-licences"
+            git status --short -- THIRD_PARTY_LICENSES public/third-party-licenses
+            exit 1
+          fi
+
       - name: Run check
         run: npm run check
 
