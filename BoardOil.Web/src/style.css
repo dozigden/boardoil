@@ -331,6 +331,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 0.3rem;
+  margin-right: 0.5rem;
 }
 
 .column-content {
