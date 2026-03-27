@@ -1,5 +1,4 @@
 using System.Net.Http.Json;
-using BoardOil.Api.Realtime;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Column;
@@ -11,7 +10,6 @@ namespace BoardOil.Api.Tests;
 public sealed class RealtimeIntegrationTests : TestBaseIntegration
 {
     protected override string DbNamePrefix => "boardoil-realtime-tests";
-    protected override int TypingTtlSeconds => 1;
 
     [Fact]
     public async Task HubConnection_AnonymousClient_ShouldBeRejected()
@@ -59,67 +57,12 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
         Assert.Equal(cardA.Id, cardB.Id);
     }
 
-    [Fact]
-    public async Task TypingEvents_ShouldBroadcastStartAndExpiry()
-    {
-        // Arrange
-        var column = await CreateColumnAsync("Todo");
-        var card = await CreateCardAsync(column.Id, "Typing Task", "Desc");
-
-        await using var connectionA = CreateHubConnection();
-        await using var connectionB = CreateHubConnection();
-
-        var started = new TaskCompletionSource<TypingChangedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var expired = new TaskCompletionSource<TypingChangedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        connectionB.On<TypingChangedEvent>("TypingChanged", evt =>
-        {
-            if (evt.CardId != card.Id || evt.UserLabel != "admin")
-            {
-                return;
-            }
-
-            if (evt.IsTyping)
-            {
-                started.TrySetResult(evt);
-                return;
-            }
-
-            expired.TrySetResult(evt);
-        });
-
-        await StartConnectionsAsync(connectionA, connectionB);
-
-        // Act
-        await connectionA.InvokeAsync("TypingStarted", card.Id);
-
-        // Assert
-        var startedEvent = await WaitAsync(started.Task);
-        Assert.True(startedEvent.IsTyping);
-
-        var expiredEvent = await WaitAsync(expired.Task, TimeSpan.FromSeconds(5));
-        Assert.False(expiredEvent.IsTyping);
-    }
-
     private async Task<ColumnDto> CreateColumnAsync(string title)
     {
         var response = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest(title));
         response.EnsureSuccessStatusCode();
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
-        Assert.NotNull(envelope);
-        Assert.NotNull(envelope!.Data);
-        return envelope.Data!;
-    }
-
-    private async Task<CardDto> CreateCardAsync(int columnId, string title, string description)
-    {
-        var response = await Client.PostAsJsonAsync(
-            "/api/cards",
-            new CreateCardRequest(columnId, title, description, null));
-        response.EnsureSuccessStatusCode();
-
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>();
         Assert.NotNull(envelope);
         Assert.NotNull(envelope!.Data);
         return envelope.Data!;

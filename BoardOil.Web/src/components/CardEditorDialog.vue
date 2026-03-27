@@ -6,11 +6,8 @@
           v-if="cardDraft"
           :card-id="cardDraft.id"
           v-model:title="cardDraft.title"
-          @focus="announceEditingCardTyping"
-          @blur="stopEditingCardTyping"
         />
         <span v-else>Edit Card</span>
-        <span v-if="isEditingCardTyping" class="typing-pill" aria-label="Someone is typing">...</span>
       </div>
     </template>
     <template v-if="cardDraft">
@@ -18,8 +15,6 @@
         <CardTagEditor
           v-model:tag-names="cardDraft.tagNames"
           :ensure-tags-exist="ensureTagsExist"
-          @focus="announceEditingCardTyping"
-          @blur="stopEditingCardTyping"
         />
 
         <div class="card-editor-description-field">
@@ -29,8 +24,6 @@
             aria-label="Card description"
             :max-length="5000"
             min-height="12rem"
-            @focus="announceEditingCardTyping"
-            @blur="stopEditingCardTyping"
           />
         </div>
       </div>
@@ -58,7 +51,7 @@
 <script setup lang="ts">
 import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MdEditor from './MdEditor.vue';
 import CardTagEditor from './CardTagEditor.vue';
@@ -71,8 +64,8 @@ const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const tagStore = useTagStore();
-const { board, typingSummary } = storeToRefs(boardStore);
-const { saveCard: saveCardAction, deleteCard, announceTyping, stopTyping } = boardStore;
+const { board } = storeToRefs(boardStore);
+const { saveCard: saveCardAction, deleteCard } = boardStore;
 const { ensureTagsExist } = tagStore;
 type CardDraft = { id: number; title: string; description: string; tagNames: string[] };
 
@@ -85,7 +78,6 @@ const routeCardId = computed<number | null>(() => {
 });
 
 const editingCard = computed(() => boardStore.getCardById(routeCardId.value));
-const isEditingCardTyping = computed(() => (routeCardId.value === null ? false : typingSummary.value(routeCardId.value)));
 const descriptionDraft = computed({
   get: () => {
     const draft = cardDraft.value;
@@ -93,10 +85,6 @@ const descriptionDraft = computed({
   },
   set: value => updateEditingCardDraft('description', value)
 });
-
-function stopTypingForCard(cardId: number) {
-  stopTyping(cardId);
-}
 
 function normaliseDescription(value: string) {
   return value.slice(0, 5000);
@@ -108,11 +96,6 @@ function clearDraft() {
 
 async function closeCardEditor() {
   clearDraft();
-  const cardId = routeCardId.value;
-  if (cardId !== null) {
-    stopTypingForCard(cardId);
-  }
-
   await router.push({ name: 'board' });
 }
 
@@ -123,24 +106,6 @@ function updateEditingCardDraft(field: 'title' | 'description', value: string) {
 
   const nextValue = field === 'description' ? normaliseDescription(value) : value;
   cardDraft.value = { ...cardDraft.value, [field]: nextValue };
-}
-
-function announceEditingCardTyping() {
-  const cardId = routeCardId.value;
-  if (cardId === null) {
-    return;
-  }
-
-  announceTyping(cardId);
-}
-
-function stopEditingCardTyping() {
-  const cardId = routeCardId.value;
-  if (cardId === null) {
-    return;
-  }
-
-  stopTyping(cardId);
 }
 
 async function saveCard() {
@@ -160,15 +125,6 @@ async function deleteEditingCard() {
   await deleteCard(cardDraft.value.id);
   await closeCardEditor();
 }
-
-watch(
-  routeCardId,
-  (nextCardId, previousCardId) => {
-    if (previousCardId !== null && previousCardId !== nextCardId) {
-      stopTypingForCard(previousCardId);
-    }
-  }
-);
 
 watch(
   [routeCardId, editingCard, board],
@@ -200,13 +156,6 @@ watch(
   },
   { immediate: true }
 );
-
-onBeforeUnmount(() => {
-  const cardId = routeCardId.value;
-  if (cardId !== null) {
-    stopTypingForCard(cardId);
-  }
-});
 </script>
 
 <style scoped>

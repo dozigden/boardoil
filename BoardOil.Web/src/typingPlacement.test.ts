@@ -7,13 +7,13 @@ function countOccurrences(content: string, fragment: string) {
 }
 
 describe('typing indicator placement', () => {
-  it('renders card typing pill only in card title area', () => {
-    expect(countOccurrences(cardSfc, 'class="typing-pill"')).toBe(1);
-    expect(cardSfc.includes('typingSummary(card.id)')).toBe(true);
+  it('does not render typing pill in card template', () => {
+    expect(countOccurrences(cardSfc, 'class="typing-pill"')).toBe(0);
+    expect(cardSfc.includes('typingSummary(card.id)')).toBe(false);
   });
 
-  it('renders dialog typing pill only in card editor title slot', () => {
-    expect(countOccurrences(dialogSfc, 'class="typing-pill"')).toBe(1);
-    expect(dialogSfc.includes('v-if="isEditingCardTyping"')).toBe(true);
+  it('does not render typing pill in card editor dialog template', () => {
+    expect(countOccurrences(dialogSfc, 'class="typing-pill"')).toBe(0);
+    expect(dialogSfc.includes('isEditingCardTyping')).toBe(false);
   });
 });

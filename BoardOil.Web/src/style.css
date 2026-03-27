@@ -576,27 +576,6 @@ body {
   line-height: 1;
 }
 
-.typing {
-  font-size: 0.75rem;
-  color: var(--bo-ink-muted);
-  margin-bottom: 0.4rem;
-}
-
-.typing-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.8rem;
-  height: 1.1rem;
-  padding: 0 0.4rem;
-  border-radius: 999px;
-  border: 1px solid var(--bo-border-soft);
-  background: var(--bo-surface-muted);
-  color: var(--bo-ink-muted);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-}
-
 .editor {
   display: grid;
   gap: 0.5rem;
