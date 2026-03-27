@@ -55,8 +55,6 @@ builder.Services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
 builder.Services.AddScoped<IAuthHttpSessionService, AuthHttpSessionService>();
 builder.Services.AddSingleton<IConfigurationService, ConfigurationService>();
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
-builder.Services.AddSingleton<ITypingPresenceService, TypingPresenceService>();
-builder.Services.AddHostedService<TypingPresenceExpiryService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

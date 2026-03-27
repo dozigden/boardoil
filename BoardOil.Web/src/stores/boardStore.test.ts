@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { computed } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import { useBoardStore } from './boardStore';
 import { useUiFeedbackStore } from './uiFeedbackStore';
@@ -21,17 +20,8 @@ const api = {
 
 const realtime = {
   connect: vi.fn(),
-  disconnect: vi.fn(),
-  announceTyping: vi.fn(),
-  stopTyping: vi.fn(),
-  typingSummary: computed(() => () => false)
+  disconnect: vi.fn()
 };
-
-const { authStore } = vi.hoisted(() => ({
-  authStore: {
-    user: { userName: 'Me', role: 'Admin' as const }
-  }
-}));
 
 vi.mock('../api/boardApi', () => ({
   createBoardApi: () => api
@@ -41,10 +31,6 @@ vi.mock('../realtime/boardRealtime', () => ({
   createBoardRealtime: vi.fn(() => realtime)
 }));
 
-vi.mock('./authStore', () => ({
-  useAuthStore: () => authStore
-}));
-
 describe('boardStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -52,7 +38,6 @@ describe('boardStore', () => {
     api.getBoard.mockResolvedValue(ok(makeBoard()));
     realtime.connect.mockResolvedValue(undefined);
     realtime.disconnect.mockResolvedValue(undefined);
-    realtime.stopTyping.mockResolvedValue(undefined);
   });
 
   it('initializes board and connects realtime once', async () => {
@@ -232,7 +217,7 @@ describe('boardStore', () => {
     expect(api.moveCard).toHaveBeenCalledWith(101, 2, null);
   });
 
-  it('saveCard updates card and stops typing signals', async () => {
+  it('saveCard updates card', async () => {
     const store = useBoardStore();
     await store.initialize();
 
@@ -252,8 +237,6 @@ describe('boardStore', () => {
 
     expect(store.board?.columns[0].cards[0].title).toBe('Task A+');
     expect(store.board?.columns[0].cards[0].tagNames).toEqual(['Bug']);
-    expect(realtime.stopTyping).toHaveBeenCalledTimes(1);
-    expect(realtime.stopTyping).toHaveBeenCalledWith(101);
   });
 
   it('finds card by id from board state', async () => {

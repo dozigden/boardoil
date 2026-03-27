@@ -56,7 +56,6 @@
           :key="card.id"
           :card="card"
           :column-id="column.id"
-          :typing-summary="typingSummary"
           @start-drag="startDrag"
           @drop-card="dropCard"
           @edit-card="openCardEditor"
@@ -79,7 +78,7 @@ const newCardDraftInputs = ref<Record<number, HTMLInputElement | null>>({});
 
 const router = useRouter();
 const boardStore = useBoardStore();
-const { board, typingSummary } = storeToRefs(boardStore);
+const { board } = storeToRefs(boardStore);
 const { createCard, startDrag, dropCard } = boardStore;
 
 async function openNewCardDraft(columnId: number) {
