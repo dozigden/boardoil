@@ -1,5 +1,10 @@
 <template>
-  <section v-if="board" class="board board-view">
+  <section v-if="isLoadingBoard" class="board-loading" aria-live="polite">
+    <span class="board-loading-indicator" aria-hidden="true" />
+    <p class="board-loading-label">Loading board...</p>
+  </section>
+
+  <section v-else-if="board" class="board board-view">
     <article
       v-for="column in board.columns"
       :key="column.id"
@@ -79,7 +84,7 @@ const newCardDraftInputs = ref<Record<number, HTMLInputElement | null>>({});
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
-const { board } = storeToRefs(boardStore);
+const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { createCard, startDrag, dropCard } = boardStore;
 
 async function openNewCardDraft(columnId: number) {
