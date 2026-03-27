@@ -79,6 +79,15 @@ describe('resolveAuthNavigation', () => {
     expect(result).toEqual({ name: 'setup-initial-admin' });
   });
 
+  it('redirects anonymous users away from login when initial admin setup is required', async () => {
+    const authStore = makeAuthStore({ isAuthenticated: false, requiresInitialAdminSetup: true });
+    const to = makeTarget({ name: 'login', requiresAuth: false });
+
+    const result = await resolveAuthNavigation(to, authStore);
+
+    expect(result).toEqual({ name: 'setup-initial-admin' });
+  });
+
   it('redirects anonymous users away from setup when setup is not required', async () => {
     const authStore = makeAuthStore({ isAuthenticated: false, requiresInitialAdminSetup: false });
     const to = makeTarget({ name: 'setup-initial-admin', requiresAuth: false });
@@ -86,6 +95,24 @@ describe('resolveAuthNavigation', () => {
     const result = await resolveAuthNavigation(to, authStore);
 
     expect(result).toEqual({ name: 'login' });
+  });
+
+  it('allows anonymous users into public routes', async () => {
+    const authStore = makeAuthStore({ isAuthenticated: false, requiresInitialAdminSetup: false });
+    const to = makeTarget({ name: 'licences', requiresAuth: false });
+
+    const result = await resolveAuthNavigation(to, authStore);
+
+    expect(result).toBe(true);
+  });
+
+  it('allows anonymous users into public routes even when initial admin setup is required', async () => {
+    const authStore = makeAuthStore({ isAuthenticated: false, requiresInitialAdminSetup: true });
+    const to = makeTarget({ name: 'licences', requiresAuth: false });
+
+    const result = await resolveAuthNavigation(to, authStore);
+
+    expect(result).toBe(true);
   });
 
   it('redirects non-admin users away from admin routes', async () => {

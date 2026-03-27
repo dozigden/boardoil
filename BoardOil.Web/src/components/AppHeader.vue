@@ -22,6 +22,7 @@
             <RouterLink v-if="isAdmin" to="/columns" class="menu-item" @click="closeMenu">Manage Columns</RouterLink>
             <RouterLink v-if="isAdmin" to="/users" class="menu-item" @click="closeMenu">Manage Users</RouterLink>
             <RouterLink v-if="isAdmin" to="/configuration" class="menu-item" @click="closeMenu">Configuration</RouterLink>
+            <RouterLink v-if="isAuthenticated" to="/licences" class="menu-item" @click="closeMenu">Licences</RouterLink>
             <button v-if="isAuthenticated" type="button" class="menu-item menu-button" @click="handleLogout">Logout</button>
           </nav>
         </details>

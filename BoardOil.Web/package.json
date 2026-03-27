@@ -7,8 +7,9 @@
     "dev": "vite --host 0.0.0.0 --port 5173",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
+    "sync:third-party-licences": "node ./scripts/sync-third-party-licences.mjs",
     "check": "npm run typecheck && npm run build",
-    "build": "vite build",
+    "build": "npm run sync:third-party-licences && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {

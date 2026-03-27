@@ -16,12 +16,21 @@ export async function resolveAuthNavigation(to: GuardTarget, authStore: GuardAut
     await authStore.initialize();
   }
 
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false);
+
   if ((to.name === 'login' || to.name === 'setup-initial-admin') && authStore.isAuthenticated) {
     return { name: 'board' };
   }
 
   const isSetupRoute = to.name === 'setup-initial-admin';
-  if (!authStore.isAuthenticated && authStore.requiresInitialAdminSetup && !isSetupRoute) {
+  const isLoginRoute = to.name === 'login';
+  const shouldForceSetupRoute = requiresAuth || isLoginRoute;
+  if (
+    !authStore.isAuthenticated &&
+    authStore.requiresInitialAdminSetup &&
+    !isSetupRoute &&
+    shouldForceSetupRoute
+  ) {
     return { name: 'setup-initial-admin' };
   }
 
@@ -29,7 +38,6 @@ export async function resolveAuthNavigation(to: GuardTarget, authStore: GuardAut
     return { name: 'login' };
   }
 
-  const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false);
   if (requiresAuth && !authStore.isAuthenticated) {
     return { name: 'login' };
   }

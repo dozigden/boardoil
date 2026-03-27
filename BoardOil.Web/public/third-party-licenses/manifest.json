@@ -1,0 +1,95 @@
+{
+  "generatedAtUtc": "2026-03-27T19:19:06.649Z",
+  "packageSource": "package.json dependencies + bundled assets",
+  "copiedLicences": [
+    {
+      "packageName": "@microsoft/signalr",
+      "version": "10.0.0",
+      "declaredLicence": "MIT",
+      "sourceType": "manual",
+      "sourceFile": "THIRD_PARTY_LICENSES_MANUAL/npm-microsoft-signalr.txt",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-microsoft-signalr.txt"
+    },
+    {
+      "packageName": "@tiptap/extension-link",
+      "version": "3.20.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-link/LICENSE.md",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-tiptap-extension-link.txt"
+    },
+    {
+      "packageName": "@tiptap/markdown",
+      "version": "3.20.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/markdown/LICENSE.md",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-tiptap-markdown.txt"
+    },
+    {
+      "packageName": "@tiptap/pm",
+      "version": "3.20.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/pm/LICENSE.md",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-tiptap-pm.txt"
+    },
+    {
+      "packageName": "@tiptap/starter-kit",
+      "version": "3.20.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/starter-kit/LICENSE.md",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-tiptap-starter-kit.txt"
+    },
+    {
+      "packageName": "@tiptap/vue-3",
+      "version": "3.20.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/vue-3/LICENSE.md",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-tiptap-vue-3.txt"
+    },
+    {
+      "packageName": "lucide-vue-next",
+      "version": "0.577.0",
+      "declaredLicence": "ISC",
+      "sourceType": "package",
+      "sourceFile": "node_modules/lucide-vue-next/LICENSE",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-lucide-vue-next.txt"
+    },
+    {
+      "packageName": "pinia",
+      "version": "3.0.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/pinia/LICENSE",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-pinia.txt"
+    },
+    {
+      "packageName": "vue",
+      "version": "3.5.30",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/vue/LICENSE",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-vue.txt"
+    },
+    {
+      "packageName": "vue-router",
+      "version": "4.6.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/vue-router/LICENSE",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-vue-router.txt"
+    },
+    {
+      "packageName": "Montserrat Font",
+      "version": "2024",
+      "declaredLicence": "SIL Open Font License 1.1",
+      "sourceType": "asset",
+      "sourceFile": "src/assets/fonts/montserrat/OFL-1.1.txt",
+      "outputFile": "THIRD_PARTY_LICENSES/OFL-Montserrat.txt"
+    }
+  ],
+  "unresolvedPackages": []
+}
