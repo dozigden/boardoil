@@ -28,7 +28,6 @@ const { errorMessage } = storeToRefs(feedbackStore);
 onMounted(async () => {
   await authStore.initialize();
   if (authStore.isAuthenticated) {
-    await boardStore.initialize();
     await tagStore.initialize();
   }
 });
@@ -42,7 +41,6 @@ watch(
   () => authStore.isAuthenticated,
   async authenticated => {
     if (authenticated) {
-      await boardStore.initialize();
       await tagStore.initialize();
       return;
     }

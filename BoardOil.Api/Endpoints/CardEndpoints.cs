@@ -9,20 +9,20 @@ public static class CardEndpoints
 {
     public static IEndpointRouteBuilder MapCardEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/cards", (CreateCardRequest request, ICardService cardService) =>
-                cardService.CreateCardAsync(request).ToHttpResult())
+        app.MapPost("/api/boards/{boardId:int}/cards", (int boardId, CreateCardRequest request, ICardService cardService) =>
+                cardService.CreateCardAsync(boardId, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
-        app.MapPut("/api/cards/{id:int}", (int id, UpdateCardRequest request, ICardService cardService) =>
-                cardService.UpdateCardAsync(id, request).ToHttpResult())
+        app.MapPut("/api/boards/{boardId:int}/cards/{id:int}", (int boardId, int id, UpdateCardRequest request, ICardService cardService) =>
+                cardService.UpdateCardAsync(boardId, id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
-        app.MapPatch("/api/cards/{id:int}/move", (int id, MoveCardRequest request, ICardService cardService) =>
-                cardService.MoveCardAsync(id, request).ToHttpResult())
+        app.MapPatch("/api/boards/{boardId:int}/cards/{id:int}/move", (int boardId, int id, MoveCardRequest request, ICardService cardService) =>
+                cardService.MoveCardAsync(boardId, id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
-        app.MapDelete("/api/cards/{id:int}", (int id, ICardService cardService) =>
-                cardService.DeleteCardAsync(id).ToHttpResult())
+        app.MapDelete("/api/boards/{boardId:int}/cards/{id:int}", (int boardId, int id, ICardService cardService) =>
+                cardService.DeleteCardAsync(boardId, id).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
         return app;

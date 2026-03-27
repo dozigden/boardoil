@@ -5,5 +5,7 @@ namespace BoardOil.Abstractions.Board;
 
 public interface IBoardService
 {
-    Task<ApiResult<BoardDto>> GetBoardAsync();
+    Task<ApiResult<IReadOnlyList<BoardSummaryDto>>> GetBoardsAsync();
+    Task<ApiResult<BoardDto>> GetBoardAsync(int boardId);
+    Task<ApiResult<BoardDto>> CreateBoardAsync(CreateBoardRequest request);
 }

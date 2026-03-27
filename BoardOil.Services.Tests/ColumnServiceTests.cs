@@ -14,14 +14,14 @@ namespace BoardOil.Services.Tests;
 public sealed class ColumnServiceTests : TestBaseDb
 {
     [Fact]
-    public async Task GetColumnsAsync_WhenNoBoardExists_ShouldReturnInternalError()
+    public async Task GetColumnsAsync_WhenNoBoardExists_ShouldReturnNotFound()
     {
         var service = CreateService();
-        var result = await service.GetColumnsAsync();
+        var result = await service.GetColumnsAsync(1);
 
         Assert.False(result.Success);
-        Assert.Equal(500, result.StatusCode);
-        Assert.Equal("No board exists. Bootstrap has not run.", result.Message);
+        Assert.Equal(404, result.StatusCode);
+        Assert.Equal("Board not found.", result.Message);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class ColumnServiceTests : TestBaseDb
             .Build();
 
         var service = CreateService();
-        var result = await service.GetColumnsAsync();
+        var result = await service.GetColumnsAsync(1);
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
@@ -56,7 +56,7 @@ public sealed class ColumnServiceTests : TestBaseDb
             .Build();
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest("Done"));
+        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("Done"));
 
         Assert.True(result.Success);
         Assert.Equal(201, result.StatusCode);
@@ -69,14 +69,14 @@ public sealed class ColumnServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task CreateColumnAsync_WhenNoBoardExists_ShouldReturnInternalError()
+    public async Task CreateColumnAsync_WhenNoBoardExists_ShouldReturnNotFound()
     {
         var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest("Todo"));
+        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("Todo"));
 
         Assert.False(result.Success);
-        Assert.Equal(500, result.StatusCode);
-        Assert.Equal("No board exists. Bootstrap has not run.", result.Message);
+        Assert.Equal(404, result.StatusCode);
+        Assert.Equal("Board not found.", result.Message);
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         CreateBoard("BoardOil").Build();
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest("   "));
+        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("   "));
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -100,7 +100,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var longTitle = new string('A', 201);
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest(longTitle));
+        var result = await service.CreateColumnAsync(1, new CreateColumnRequest(longTitle));
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -114,7 +114,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         CreateBoard("BoardOil").Build();
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(new CreateColumnRequest("bad@title"));
+        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("bad@title"));
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -130,7 +130,7 @@ public sealed class ColumnServiceTests : TestBaseDb
             .Build();
 
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(999_999, new UpdateColumnRequest("X"));
+        var result = await service.UpdateColumnAsync(1, 999_999, new UpdateColumnRequest("X"));
 
         Assert.False(result.Success);
         Assert.Equal(404, result.StatusCode);
@@ -138,14 +138,14 @@ public sealed class ColumnServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task UpdateColumnAsync_WhenNoBoardExists_ShouldReturnInternalError()
+    public async Task UpdateColumnAsync_WhenNoBoardExists_ShouldReturnNotFound()
     {
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(1, new UpdateColumnRequest("X"));
+        var result = await service.UpdateColumnAsync(1, 1, new UpdateColumnRequest("X"));
 
         Assert.False(result.Success);
-        Assert.Equal(500, result.StatusCode);
-        Assert.Equal("No board exists. Bootstrap has not run.", result.Message);
+        Assert.Equal(404, result.StatusCode);
+        Assert.Equal("Board not found.", result.Message);
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var columnId = board.GetColumn("Old").Id;
 
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(columnId, new UpdateColumnRequest("  New Title  "));
+        var result = await service.UpdateColumnAsync(1, columnId, new UpdateColumnRequest("  New Title  "));
 
         Assert.True(result.Success);
         Assert.Equal("New Title", result.Data!.Title);
@@ -178,7 +178,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var movingColumnId = board.GetColumn("C").Id;
 
         var service = CreateService();
-        var result = await service.MoveColumnAsync(movingColumnId, new MoveColumnRequest(null));
+        var result = await service.MoveColumnAsync(1, movingColumnId, new MoveColumnRequest(null));
 
         Assert.True(result.Success);
         Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
@@ -199,7 +199,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var anchorColumnId = board.GetColumn("C").Id;
 
         var service = CreateService();
-        var result = await service.MoveColumnAsync(
+        var result = await service.MoveColumnAsync(1, 
             movingColumnId,
             new MoveColumnRequest(anchorColumnId));
 
@@ -218,7 +218,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var movingColumnId = board.GetColumn("A").Id;
 
         var service = CreateService();
-        var result = await service.MoveColumnAsync(
+        var result = await service.MoveColumnAsync(1, 
             movingColumnId,
             new MoveColumnRequest(movingColumnId));
 
@@ -238,7 +238,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var movingColumnId = board.GetColumn("A").Id;
 
         var service = CreateService();
-        var result = await service.MoveColumnAsync(
+        var result = await service.MoveColumnAsync(1, 
             movingColumnId,
             new MoveColumnRequest(999_999));
 
@@ -257,7 +257,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var columnId = board.GetColumn("Todo").Id;
 
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(columnId, new UpdateColumnRequest("bad@title"));
+        var result = await service.UpdateColumnAsync(1, columnId, new UpdateColumnRequest("bad@title"));
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -276,7 +276,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var deletingId = board.GetColumn("B").Id;
 
         var service = CreateService();
-        var result = await service.DeleteColumnAsync(deletingId);
+        var result = await service.DeleteColumnAsync(1, deletingId);
 
         Assert.True(result.Success);
         Assert.Equal(200, result.StatusCode);
@@ -299,7 +299,7 @@ public sealed class ColumnServiceTests : TestBaseDb
             .Build();
 
         var service = CreateService();
-        var result = await service.DeleteColumnAsync(999_999);
+        var result = await service.DeleteColumnAsync(1, 999_999);
 
         Assert.True(result.Success);
         Assert.Equal(200, result.StatusCode);
@@ -307,14 +307,33 @@ public sealed class ColumnServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task DeleteColumnAsync_WhenNoBoardExists_ShouldReturnInternalError()
+    public async Task DeleteColumnAsync_WhenColumnBelongsToDifferentBoard_ShouldReturnNotFound()
     {
+        var boardOne = CreateBoard("Board One")
+            .AddColumn("Todo")
+            .Build();
+        var boardTwo = CreateBoard("Board Two")
+            .AddColumn("Other")
+            .Build();
+        var boardTwoColumnId = boardTwo.GetColumn("Other").Id;
+
         var service = CreateService();
-        var result = await service.DeleteColumnAsync(1);
+        var result = await service.DeleteColumnAsync(boardOne.BoardId, boardTwoColumnId);
 
         Assert.False(result.Success);
-        Assert.Equal(500, result.StatusCode);
-        Assert.Equal("No board exists. Bootstrap has not run.", result.Message);
+        Assert.Equal(404, result.StatusCode);
+        Assert.Equal("Column not found.", result.Message);
+    }
+
+    [Fact]
+    public async Task DeleteColumnAsync_WhenNoBoardExists_ShouldReturnNotFound()
+    {
+        var service = CreateService();
+        var result = await service.DeleteColumnAsync(1, 1);
+
+        Assert.False(result.Success);
+        Assert.Equal(404, result.StatusCode);
+        Assert.Equal("Board not found.", result.Message);
     }
 
     private async Task<List<string>> GetOrderedColumnTitlesAsync() =>

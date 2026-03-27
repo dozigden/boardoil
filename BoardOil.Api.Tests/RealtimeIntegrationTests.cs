@@ -41,11 +41,11 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
         connectionA.On<CardDto>("CardCreated", card => eventA.TrySetResult(card));
         connectionB.On<CardDto>("CardCreated", card => eventB.TrySetResult(card));
 
-        await StartConnectionsAsync(connectionA, connectionB);
+        await StartConnectionsAsync(1, connectionA, connectionB);
 
         // Act
         var createCardResponse = await Client.PostAsJsonAsync(
-            "/api/cards",
+            "/api/boards/1/cards",
             new CreateCardRequest(column.Id, "Realtime Task", "Desc", null));
         createCardResponse.EnsureSuccessStatusCode();
 
@@ -59,7 +59,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
 
     private async Task<ColumnDto> CreateColumnAsync(string title)
     {
-        var response = await Client.PostAsJsonAsync("/api/columns", new CreateColumnRequest(title));
+        var response = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest(title));
         response.EnsureSuccessStatusCode();
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
@@ -68,11 +68,12 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
         return envelope.Data!;
     }
 
-    private static async Task StartConnectionsAsync(params HubConnection[] connections)
+    private static async Task StartConnectionsAsync(int boardId, params HubConnection[] connections)
     {
         foreach (var connection in connections)
         {
             await connection.StartAsync();
+            await connection.InvokeAsync("SubscribeBoard", boardId);
         }
     }
 

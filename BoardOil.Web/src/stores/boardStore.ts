@@ -11,6 +11,7 @@ import type { Result } from '../types/result';
 export const useBoardStore = defineStore('board', () => {
   const board = ref<Board | null>(null);
   const busy = ref(false);
+  const currentBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
 
@@ -22,43 +23,53 @@ export const useBoardStore = defineStore('board', () => {
     onCardUpdated: upsertCard,
     onCardDeleted: removeCard,
     onCardMoved: upsertCard,
-    onResync: loadBoard
+    onResync: async () => {
+      if (currentBoardId.value !== null) {
+        await loadBoard(currentBoardId.value);
+      }
+    }
   });
   let dragState: { cardId: number; fromColumnId: number } | null = null;
-  let initialized = false;
+  let loadRequestVersion = 0;
 
-  async function initialize() {
-    if (initialized) {
-      return;
-    }
-
-    initialized = true;
-    const loaded = await loadBoard();
+  async function initialize(boardId: number) {
+    const loaded = await loadBoard(boardId);
     if (!loaded) {
-      initialized = false;
-      return;
+      return false;
     }
 
     try {
-      await realtime.connect();
+      await realtime.connect(boardId);
+      return true;
     } catch {
       feedback.setError('Realtime connection failed.');
-      initialized = false;
+      return true;
     }
   }
 
   async function dispose() {
     await realtime.disconnect();
-    initialized = false;
+    board.value = null;
+    currentBoardId.value = null;
+    dragState = null;
   }
 
-  async function loadBoard() {
-    const result = await api.getBoard();
+  async function loadBoard(boardId: number) {
+    const requestVersion = ++loadRequestVersion;
+    const result = await api.getBoard(boardId);
+    if (requestVersion !== loadRequestVersion) {
+      return false;
+    }
+
     if (!result.ok) {
+      board.value = null;
+      currentBoardId.value = null;
+      dragState = null;
       reportError(result.error);
       return false;
     }
 
+    currentBoardId.value = boardId;
     board.value = sortBoard(result.data);
     feedback.clearError();
     return true;
@@ -70,7 +81,12 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(() => api.createColumn(trimmedTitle));
+    const boardId = getCurrentBoardIdOrReport();
+    if (boardId === null) {
+      return;
+    }
+
+    const result = await runBusy(() => api.createColumn(boardId, trimmedTitle));
     if (!result.ok) {
       return;
     }
@@ -79,7 +95,12 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   async function saveColumn(columnId: number, title: string) {
-    const result = await runBusy(() => api.saveColumn(columnId, title));
+    const boardId = getCurrentBoardIdOrReport();
+    if (boardId === null) {
+      return;
+    }
+
+    const result = await runBusy(() => api.saveColumn(boardId, columnId, title));
     if (!result.ok) {
       return;
     }
@@ -88,7 +109,12 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   async function moveColumn(columnId: number, positionAfterColumnId: number | null) {
-    const result = await runBusy(() => api.moveColumn(columnId, positionAfterColumnId));
+    const boardId = getCurrentBoardIdOrReport();
+    if (boardId === null) {
+      return;
+    }
+
+    const result = await runBusy(() => api.moveColumn(boardId, columnId, positionAfterColumnId));
     if (!result.ok) {
       return;
     }
@@ -97,7 +123,12 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   async function deleteColumn(columnId: number) {
-    const result = await runBusy(() => api.deleteColumn(columnId));
+    const boardId = getCurrentBoardIdOrReport();
+    if (boardId === null) {
+      return;
+    }
+
+    const result = await runBusy(() => api.deleteColumn(boardId, columnId));
     if (!result.ok) {
       return;
     }
@@ -111,7 +142,12 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(() => api.createCard(columnId, trimmedTitle));
+    const boardId = getCurrentBoardIdOrReport();
+    if (boardId === null) {
+      return;
+    }
+
+    const result = await runBusy(() => api.createCard(boardId, columnId, trimmedTitle));
     if (!result.ok) {
       return;
     }
@@ -120,7 +156,12 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   async function saveCard(cardId: number, title: string, description: string, tagNames: string[]) {
-    const result = await runBusy(() => api.saveCard(cardId, title, description, tagNames));
+    const boardId = getCurrentBoardIdOrReport();
+    if (boardId === null) {
+      return;
+    }
+
+    const result = await runBusy(() => api.saveCard(boardId, cardId, title, description, tagNames));
     if (!result.ok) {
       return;
     }
@@ -129,7 +170,12 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   async function deleteCard(cardId: number) {
-    const result = await runBusy(() => api.deleteCard(cardId));
+    const boardId = getCurrentBoardIdOrReport();
+    if (boardId === null) {
+      return;
+    }
+
+    const result = await runBusy(() => api.deleteCard(boardId, cardId));
     if (!result.ok) {
       return;
     }
@@ -146,6 +192,12 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
+    const boardId = getCurrentBoardIdOrReport();
+    if (boardId === null) {
+      dragState = null;
+      return;
+    }
+
     const movingCardId = dragState.cardId;
     dragState = null;
 
@@ -159,7 +211,7 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(() => api.moveCard(movingCardId, targetColumnId, positionAfterCardId));
+    const result = await runBusy(() => api.moveCard(boardId, movingCardId, targetColumnId, positionAfterCardId));
     if (!result.ok) {
       return;
     }
@@ -185,6 +237,15 @@ export const useBoardStore = defineStore('board', () => {
 
   function reportError(error: AppError) {
     feedback.setError(error.message);
+  }
+
+  function getCurrentBoardIdOrReport() {
+    if (currentBoardId.value === null) {
+      feedback.setError('No board selected.');
+      return null;
+    }
+
+    return currentBoardId.value;
   }
 
   function upsertColumn(column: Column) {
@@ -292,6 +353,7 @@ export const useBoardStore = defineStore('board', () => {
   return {
     board,
     busy,
+    currentBoardId,
     initialize,
     dispose,
     createColumn,

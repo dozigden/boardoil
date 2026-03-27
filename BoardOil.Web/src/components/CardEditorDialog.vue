@@ -77,6 +77,12 @@ const routeCardId = computed<number | null>(() => {
   return Number.isFinite(parsed) ? parsed : null;
 });
 
+const routeBoardId = computed<number | null>(() => {
+  const raw = route.params.boardId;
+  const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+});
+
 const editingCard = computed(() => boardStore.getCardById(routeCardId.value));
 const descriptionDraft = computed({
   get: () => {
@@ -96,7 +102,13 @@ function clearDraft() {
 
 async function closeCardEditor() {
   clearDraft();
-  await router.push({ name: 'board' });
+  const boardId = routeBoardId.value;
+  if (boardId === null) {
+    await router.push({ name: 'boards' });
+    return;
+  }
+
+  await router.push({ name: 'board', params: { boardId } });
 }
 
 function updateEditingCardDraft(field: 'title' | 'description', value: string) {
@@ -127,11 +139,17 @@ async function deleteEditingCard() {
 }
 
 watch(
-  [routeCardId, editingCard, board],
-  ([nextCardId, nextCard, nextBoard]) => {
+  [routeBoardId, routeCardId, editingCard, board],
+  ([nextBoardId, nextCardId, nextCard, nextBoard]) => {
+    if (nextBoardId === null) {
+      clearDraft();
+      void router.replace({ name: 'boards' });
+      return;
+    }
+
     if (nextCardId === null) {
       clearDraft();
-      void router.replace({ name: 'board' });
+      void router.replace({ name: 'board', params: { boardId: nextBoardId } });
       return;
     }
 
@@ -141,7 +159,7 @@ watch(
 
     if (!nextCard) {
       clearDraft();
-      void router.replace({ name: 'board' });
+      void router.replace({ name: 'board', params: { boardId: nextBoardId } });
       return;
     }
 

@@ -25,7 +25,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "New Card", "Desc", null));
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "New Card", "Desc", null));
 
         // Assert
         Assert.True(result.Success);
@@ -56,7 +56,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(
             BoardColumnId: todoColumnId,
             Title: "Tagged",
             Description: "Desc",
@@ -94,7 +94,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "End", "X", null));
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "End", "X", null));
 
         // Assert
         Assert.True(result.Success);
@@ -116,7 +116,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.CreateCardAsync(new CreateCardRequest(999_999, "New", "Desc", null));
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(999_999, "New", "Desc", null));
 
         // Assert
         Assert.False(result.Success);
@@ -138,7 +138,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest("  New Title  ", "Desc", []));
+        var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest("  New Title  ", "Desc", []));
 
         // Assert
         Assert.True(result.Success);
@@ -162,7 +162,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest("Title", "New Description", []));
+        var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest("Title", "New Description", []));
 
         // Assert
         Assert.True(result.Success);
@@ -186,7 +186,7 @@ public sealed class CardServiceTests : TestBaseDb
         var cardId = board.GetCard("Todo", "Title").Id;
 
         var setupService = CreateService();
-        var seedResult = await setupService.UpdateCardAsync(cardId, new UpdateCardRequest(
+        var seedResult = await setupService.UpdateCardAsync(1, cardId, new UpdateCardRequest(
             Title: "Title",
             Description: "Old",
             TagNames: ["Bug", "Urgent"]));
@@ -194,7 +194,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(cardId, new UpdateCardRequest(
+        var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest(
             Title: "Title",
             Description: "Old",
             TagNames: ["Urgent", "Ops"]));
@@ -228,7 +228,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.MoveCardAsync(movingCardId, new MoveCardRequest(todoColumnId, null));
+        var result = await service.MoveCardAsync(1, movingCardId, new MoveCardRequest(todoColumnId, null));
 
         // Assert
         Assert.True(result.Success);
@@ -255,7 +255,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.MoveCardAsync(
+        var result = await service.MoveCardAsync(1, 
             cardToMoveId,
             new MoveCardRequest(
                 BoardColumnId: doingColumnId,
@@ -289,7 +289,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.MoveCardAsync(
+        var result = await service.MoveCardAsync(1, 
             movingCardId,
             new MoveCardRequest(
                 BoardColumnId: doingColumnId,
@@ -315,7 +315,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.UpdateCardAsync(999_999, new UpdateCardRequest("X", string.Empty, []));
+        var result = await service.UpdateCardAsync(1, 999_999, new UpdateCardRequest("X", string.Empty, []));
 
         // Assert
         Assert.False(result.Success);
@@ -336,7 +336,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.MoveCardAsync(cardId, new MoveCardRequest(999_999, null));
+        var result = await service.MoveCardAsync(1, cardId, new MoveCardRequest(999_999, null));
 
         // Assert
         Assert.False(result.Success);
@@ -358,7 +358,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.MoveCardAsync(
+        var result = await service.MoveCardAsync(1, 
             cardId,
             new MoveCardRequest(
                 BoardColumnId: todoColumnId,
@@ -389,7 +389,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.MoveCardAsync(
+        var result = await service.MoveCardAsync(1, 
             movingCardId,
             new MoveCardRequest(
                 BoardColumnId: doingColumnId,
@@ -415,7 +415,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.DeleteCardAsync(cardId);
+        var result = await service.DeleteCardAsync(1, cardId);
 
         // Assert
         Assert.True(result.Success);
@@ -436,7 +436,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.DeleteCardAsync(999_999);
+        var result = await service.DeleteCardAsync(1, 999_999);
 
         // Assert
         Assert.True(result.Success);
@@ -456,7 +456,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "bad@title", "Desc", null));
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "bad@title", "Desc", null));
 
         // Assert
         Assert.False(result.Success);
@@ -479,7 +479,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, longTitle, "Desc", null));
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, longTitle, "Desc", null));
 
         // Assert
         Assert.False(result.Success);
@@ -500,7 +500,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "   ", "Desc", null));
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "   ", "Desc", null));
 
         // Assert
         Assert.False(result.Success);
@@ -523,7 +523,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", longDescription, null));
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "ValidTitle", longDescription, null));
 
         // Assert
         Assert.False(result.Success);
@@ -545,7 +545,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", [missingTag]));
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", [missingTag]));
 
         // Assert
         Assert.False(result.Success);
@@ -567,7 +567,7 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", ["Bug,Urgent"]));
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", ["Bug,Urgent"]));
 
         // Assert
         Assert.True(result.Success);

@@ -51,10 +51,22 @@ const routeColumnId = computed<number | null>(() => {
   return Number.isFinite(parsed) ? parsed : null;
 });
 
+const routeBoardId = computed<number | null>(() => {
+  const raw = route.params.boardId;
+  const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+});
+
 const editingColumn = computed(() => boardStore.getColumnById(routeColumnId.value));
 
 async function closeColumnEditor() {
-  await router.push({ name: 'columns' });
+  const boardId = routeBoardId.value;
+  if (boardId === null) {
+    await router.push({ name: 'boards' });
+    return;
+  }
+
+  await router.push({ name: 'columns', params: { boardId } });
 }
 
 function updateColumnDraft(value: string) {
@@ -83,10 +95,15 @@ async function deleteEditingColumn() {
 }
 
 watch(
-  [routeColumnId, editingColumn, board],
-  ([nextColumnId, nextColumn, nextBoard], [previousColumnId]) => {
+  [routeBoardId, routeColumnId, editingColumn, board],
+  ([nextBoardId, nextColumnId, nextColumn, nextBoard], [, previousColumnId]) => {
+    if (nextBoardId === null) {
+      void router.replace({ name: 'boards' });
+      return;
+    }
+
     if (nextColumnId === null) {
-      void router.replace({ name: 'columns' });
+      void router.replace({ name: 'columns', params: { boardId: nextBoardId } });
       return;
     }
 
@@ -95,7 +112,7 @@ watch(
     }
 
     if (!nextColumn) {
-      void router.replace({ name: 'columns' });
+      void router.replace({ name: 'columns', params: { boardId: nextBoardId } });
       return;
     }
 

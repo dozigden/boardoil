@@ -13,16 +13,16 @@ namespace BoardOil.Services.Tests;
 public sealed class BoardServiceTests : TestBaseDb
 {
     [Fact]
-    public async Task GetBoardAsync_WhenNoBoardExists_ShouldReturnInternalError()
+    public async Task GetBoardAsync_WhenNoBoardExists_ShouldReturnNotFound()
     {
         // Act
         var service = CreateService();
-        var result = await service.GetBoardAsync();
+        var result = await service.GetBoardAsync(1);
 
         // Assert
         Assert.False(result.Success);
-        Assert.Equal(500, result.StatusCode);
-        Assert.Equal("No board exists. Bootstrap has not run.", result.Message);
+        Assert.Equal(404, result.StatusCode);
+        Assert.Equal("Board not found.", result.Message);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class BoardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.GetBoardAsync();
+        var result = await service.GetBoardAsync(board.BoardId);
 
         // Assert
         Assert.True(result.Success);
@@ -48,7 +48,7 @@ public sealed class BoardServiceTests : TestBaseDb
     public async Task GetBoardAsync_WhenBoardHasColumnsAndCards_ShouldReturnOrderedHierarchy()
     {
         // Arrange
-        CreateBoard("BoardOil")
+        var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .AddCard("A")
             .AddCard("C")
@@ -60,7 +60,7 @@ public sealed class BoardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.GetBoardAsync();
+        var result = await service.GetBoardAsync(board.BoardId);
 
         // Assert
         Assert.True(result.Success);
@@ -109,7 +109,7 @@ public sealed class BoardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.GetBoardAsync();
+        var result = await service.GetBoardAsync(board.BoardId);
 
         // Assert
         Assert.True(result.Success);

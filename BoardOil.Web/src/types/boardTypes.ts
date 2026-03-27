@@ -40,6 +40,13 @@ export type Board = {
   columns: BoardColumn[];
 };
 
+export type BoardSummary = {
+  id: number;
+  name: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
 export type ApiEnvelope<T> = {
   success: boolean;
   data: T | null;

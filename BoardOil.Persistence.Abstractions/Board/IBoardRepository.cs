@@ -5,7 +5,6 @@ namespace BoardOil.Persistence.Abstractions.Board;
 
 public interface IBoardRepository : IRepositoryBase<EntityBoard>
 {
-    Task<EntityBoard?> GetPrimaryBoardAsync();
-    Task<int?> GetPrimaryBoardIdAsync();
+    Task<IReadOnlyList<EntityBoard>> GetBoardsOrderedAsync();
     Task<bool> AnyBoardAsync();
 }

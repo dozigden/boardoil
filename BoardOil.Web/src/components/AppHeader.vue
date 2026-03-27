@@ -19,7 +19,14 @@
           </summary>
           <nav class="menu-panel" aria-label="Site menu">
             <RouterLink v-if="isAuthenticated" to="/tags" class="menu-item" @click="closeMenu">Manage Tags</RouterLink>
-            <RouterLink v-if="isAdmin" to="/columns" class="menu-item" @click="closeMenu">Manage Columns</RouterLink>
+            <RouterLink
+              v-if="isAdmin && currentBoardId !== null"
+              :to="{ name: 'columns', params: { boardId: currentBoardId } }"
+              class="menu-item"
+              @click="closeMenu"
+            >
+              Manage Columns
+            </RouterLink>
             <RouterLink v-if="isAdmin" to="/users" class="menu-item" @click="closeMenu">Manage Users</RouterLink>
             <RouterLink v-if="isAdmin" to="/configuration" class="menu-item" @click="closeMenu">Configuration</RouterLink>
             <RouterLink v-if="isAuthenticated" to="/licences" class="menu-item" @click="closeMenu">Licences</RouterLink>
@@ -39,11 +46,14 @@ import { useRouter } from 'vue-router';
 import BoardOilDrop from './BoardOilDrop.vue';
 import BoardOilLogo from './BoardOilLogo.vue';
 import { useAuthStore } from '../stores/authStore';
+import { useBoardStore } from '../stores/boardStore';
 
 const menu = ref<HTMLDetailsElement | null>(null);
 const router = useRouter();
 const authStore = useAuthStore();
+const boardStore = useBoardStore();
 const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
+const { currentBoardId } = storeToRefs(boardStore);
 const userName = computed(() => user.value?.userName ?? '');
 
 function closeMenu() {
