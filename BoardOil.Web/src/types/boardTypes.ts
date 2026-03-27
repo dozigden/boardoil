@@ -46,10 +46,3 @@ export type ApiEnvelope<T> = {
   statusCode: number;
   message?: string;
 };
-
-export type TypingChangedEvent = {
-  cardId: number;
-  userLabel: string;
-  isTyping: boolean;
-  expiresAtUtc: string;
-};

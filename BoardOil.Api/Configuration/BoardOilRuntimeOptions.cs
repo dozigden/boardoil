@@ -5,7 +5,6 @@ public sealed class BoardOilRuntimeOptions
     public string? DataPath { get; init; }
     public bool ExposeLan { get; init; }
     public int Port { get; init; } = 5000;
-    public int TypingTtlSeconds { get; init; } = 5;
 
     public static BoardOilRuntimeOptions FromConfiguration(IConfiguration configuration)
     {
@@ -14,8 +13,7 @@ public sealed class BoardOilRuntimeOptions
         {
             DataPath = section["DataPath"],
             ExposeLan = section.GetValue<bool>("ExposeLan"),
-            Port = section.GetValue<int?>("Port") ?? 5000,
-            TypingTtlSeconds = Math.Max(1, section.GetValue<int?>("TypingTtlSeconds") ?? 5)
+            Port = section.GetValue<int?>("Port") ?? 5000
         };
     }
 

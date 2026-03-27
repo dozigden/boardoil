@@ -4,7 +4,6 @@ import { createBoardApi } from '../api/boardApi';
 import { sortBoard } from '../mappers/sortBoard';
 import { createBoardRealtime } from '../realtime/boardRealtime';
 import { useUiFeedbackStore } from './uiFeedbackStore';
-import { useAuthStore } from './authStore';
 import type { Board, BoardColumn, Card, Column } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
@@ -13,7 +12,6 @@ export const useBoardStore = defineStore('board', () => {
   const board = ref<Board | null>(null);
   const busy = ref(false);
   const feedback = useUiFeedbackStore();
-  const authStore = useAuthStore();
   const api = createBoardApi();
 
   const realtime = createBoardRealtime({
@@ -25,8 +23,6 @@ export const useBoardStore = defineStore('board', () => {
     onCardDeleted: removeCard,
     onCardMoved: upsertCard,
     onResync: loadBoard
-  }, {
-    getCurrentUserLabel: () => authStore.user?.userName ?? null
   });
   let dragState: { cardId: number; fromColumnId: number } | null = null;
   let initialized = false;
@@ -130,7 +126,6 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     upsertCard(result.data);
-    await realtime.stopTyping(cardId);
   }
 
   async function deleteCard(cardId: number) {
@@ -297,7 +292,6 @@ export const useBoardStore = defineStore('board', () => {
   return {
     board,
     busy,
-    typingSummary: realtime.typingSummary,
     initialize,
     dispose,
     createColumn,
@@ -310,9 +304,7 @@ export const useBoardStore = defineStore('board', () => {
     getCardById,
     getColumnById,
     startDrag,
-    dropCard,
-    announceTyping: realtime.announceTyping,
-    stopTyping: realtime.stopTyping
+    dropCard
   };
 });
 
