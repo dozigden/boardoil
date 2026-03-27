@@ -43,23 +43,26 @@ describe('boardStore', () => {
 
   it('initializes board and connects realtime', async () => {
     const store = useBoardStore();
+    expect(store.isLoadingBoard).toBe(false);
     await store.initialize(1);
 
     expect(api.getBoard).toHaveBeenCalledTimes(1);
     expect(api.getBoard).toHaveBeenCalledWith(1);
     expect(realtime.connect).toHaveBeenCalledWith(1);
+    expect(store.isLoadingBoard).toBe(false);
     expect(store.board?.columns.length).toBe(2);
   });
 
-  it('keeps loaded board when realtime connect fails', async () => {
+  it('fails initialization and disconnects when realtime connect fails', async () => {
     const store = useBoardStore();
     const feedback = useUiFeedbackStore();
     realtime.connect.mockRejectedValueOnce(new Error('realtime failed'));
 
     const initialized = await store.initialize(1);
 
-    expect(initialized).toBe(true);
+    expect(initialized).toBe(false);
     expect(store.board?.id).toBe(1);
+    expect(realtime.disconnect).toHaveBeenCalledTimes(1);
     expect(feedback.errorMessage).toBe('Realtime connection failed.');
   });
 
@@ -92,6 +95,23 @@ describe('boardStore', () => {
     expect(store.board?.name).toBe('Board 2');
     expect(realtime.connect).toHaveBeenCalledTimes(1);
     expect(realtime.connect).toHaveBeenCalledWith(2);
+  });
+
+  it('ignores in-flight load response after dispose', async () => {
+    const store = useBoardStore();
+    const delayed = deferred<Result<Board, AppError>>();
+    api.getBoard.mockImplementationOnce(() => delayed.promise);
+
+    const pendingInit = store.initialize(1);
+    expect(store.isLoadingBoard).toBe(true);
+    await store.dispose();
+    delayed.resolve(ok(makeBoard(1, 'Board 1')));
+    const initialized = await pendingInit;
+
+    expect(initialized).toBe(false);
+    expect(store.isLoadingBoard).toBe(false);
+    expect(store.board).toBeNull();
+    expect(store.currentBoardId).toBeNull();
   });
 
   it('creates a column incrementally without reloading board', async () => {

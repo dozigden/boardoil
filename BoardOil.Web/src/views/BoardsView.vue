@@ -1,22 +1,19 @@
 <template>
   <section class="boards-view">
     <header class="boards-header">
-      <h2>Boards</h2>
-      <p>Select a board to open it.</p>
+      <div>
+        <h2>Boards</h2>
+        <p>Select a board to open it.</p>
+      </div>
+      <button
+        v-if="isAdmin"
+        type="button"
+        :disabled="busy"
+        @click="openCreateDialog"
+      >
+        Create board
+      </button>
     </header>
-
-    <form v-if="isAdmin" class="boards-create" @submit.prevent="submitCreateBoard">
-      <label class="boards-create-label">
-        New board name
-        <input
-          v-model="newBoardName"
-          maxlength="120"
-          placeholder="Roadmap"
-          :disabled="busy"
-        />
-      </label>
-      <button type="submit" :disabled="busy || !newBoardName.trim()">Create Board</button>
-    </form>
 
     <p v-if="boards.length === 0" class="boards-empty">No boards yet.</p>
 
@@ -28,6 +25,13 @@
         </button>
       </li>
     </ul>
+
+    <BoardCreateDialog
+      :open="isCreateDialogOpen"
+      :busy="busy"
+      @close="closeCreateDialog"
+      @submit="submitCreateBoard"
+    />
   </section>
 </template>
 
@@ -35,6 +39,7 @@
 import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import BoardCreateDialog from '../components/BoardCreateDialog.vue';
 import { useAuthStore } from '../stores/authStore';
 import { useBoardCatalogueStore } from '../stores/boardCatalogueStore';
 
@@ -44,7 +49,7 @@ const boardCatalogueStore = useBoardCatalogueStore();
 const { isAdmin } = storeToRefs(authStore);
 const { boards, busy } = storeToRefs(boardCatalogueStore);
 
-const newBoardName = ref('');
+const isCreateDialogOpen = ref(false);
 
 onMounted(async () => {
   await boardCatalogueStore.loadBoards();
@@ -54,13 +59,21 @@ async function openBoard(boardId: number) {
   await router.push({ name: 'board', params: { boardId } });
 }
 
-async function submitCreateBoard() {
-  const created = await boardCatalogueStore.createBoard(newBoardName.value.trim());
+function openCreateDialog() {
+  isCreateDialogOpen.value = true;
+}
+
+function closeCreateDialog() {
+  isCreateDialogOpen.value = false;
+}
+
+async function submitCreateBoard(payload: { name: string }) {
+  const created = await boardCatalogueStore.createBoard(payload.name);
   if (!created) {
     return;
   }
 
-  newBoardName.value = '';
+  isCreateDialogOpen.value = false;
   await router.push({ name: 'board', params: { boardId: created.id } });
 }
 </script>

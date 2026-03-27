@@ -11,6 +11,7 @@ import type { Result } from '../types/result';
 export const useBoardStore = defineStore('board', () => {
   const board = ref<Board | null>(null);
   const busy = ref(false);
+  const isLoadingBoard = ref(false);
   const currentBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
@@ -31,27 +32,40 @@ export const useBoardStore = defineStore('board', () => {
   });
   let dragState: { cardId: number; fromColumnId: number } | null = null;
   let loadRequestVersion = 0;
+  let initializeRequestVersion = 0;
 
   async function initialize(boardId: number) {
-    const loaded = await loadBoard(boardId);
-    if (!loaded) {
-      return false;
-    }
-
+    const requestVersion = ++initializeRequestVersion;
+    isLoadingBoard.value = true;
     try {
-      await realtime.connect(boardId);
-      return true;
-    } catch {
-      feedback.setError('Realtime connection failed.');
-      return true;
+      const loaded = await loadBoard(boardId);
+      if (!loaded) {
+        return false;
+      }
+
+      try {
+        await realtime.connect(boardId);
+        return true;
+      } catch {
+        feedback.setError('Realtime connection failed.');
+        await realtime.disconnect();
+        return false;
+      }
+    } finally {
+      if (requestVersion === initializeRequestVersion) {
+        isLoadingBoard.value = false;
+      }
     }
   }
 
   async function dispose() {
+    initializeRequestVersion += 1;
+    loadRequestVersion += 1;
     await realtime.disconnect();
     board.value = null;
     currentBoardId.value = null;
     dragState = null;
+    isLoadingBoard.value = false;
   }
 
   async function loadBoard(boardId: number) {
@@ -353,6 +367,7 @@ export const useBoardStore = defineStore('board', () => {
   return {
     board,
     busy,
+    isLoadingBoard,
     currentBoardId,
     initialize,
     dispose,
