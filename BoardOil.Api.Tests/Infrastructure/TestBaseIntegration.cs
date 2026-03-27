@@ -11,7 +11,6 @@ public abstract class TestBaseIntegration : IAsyncLifetime
     private const string AccessCookieName = "boardoil_access";
 
     protected virtual string DbNamePrefix => "boardoil-api-tests";
-    protected virtual int TypingTtlSeconds => 2;
 
     protected string DatabasePath { get; private set; } = string.Empty;
     protected BoardOilApiFactory Factory { get; private set; } = null!;
@@ -21,7 +20,7 @@ public abstract class TestBaseIntegration : IAsyncLifetime
     public Task InitializeAsync()
     {
         DatabasePath = BuildDbPath(DbNamePrefix);
-        Factory = new BoardOilApiFactory(DatabasePath, TypingTtlSeconds);
+        Factory = new BoardOilApiFactory(DatabasePath);
         Client = Factory.CreateClient();
         return AuthenticateAsInitialAdminAsync();
     }

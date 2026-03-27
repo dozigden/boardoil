@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-type TypingChangedHandler = (event: { cardId: number; isTyping: boolean; userLabel: string }) => void;
-
 type FakeConnection = {
   on: ReturnType<typeof vi.fn>;
   onreconnected: ReturnType<typeof vi.fn>;
@@ -94,65 +92,4 @@ describe('boardRealtime', () => {
     vi.unstubAllGlobals();
   });
 
-  it('resets typing timeout during churn and sends one stop for latest timer', async () => {
-    vi.useFakeTimers();
-    const { createBoardRealtime } = await import('./boardRealtime');
-    const realtime = createBoardRealtime({
-      onColumnCreated: vi.fn(),
-      onColumnUpdated: vi.fn(),
-      onColumnDeleted: vi.fn(),
-      onCardCreated: vi.fn(),
-      onCardUpdated: vi.fn(),
-      onCardDeleted: vi.fn(),
-      onCardMoved: vi.fn(),
-      onResync: vi.fn()
-    });
-
-    await realtime.connect();
-
-    realtime.announceTyping(42);
-    vi.advanceTimersByTime(1000);
-    realtime.announceTyping(42);
-
-    vi.advanceTimersByTime(1399);
-    expect(connection.invoke).toHaveBeenCalledWith('TypingStarted', 42);
-    expect(connection.invoke).not.toHaveBeenCalledWith('TypingStopped', 42);
-
-    vi.advanceTimersByTime(1);
-    await vi.runOnlyPendingTimersAsync();
-
-    const stopCalls = connection.invoke.mock.calls.filter(
-      args => args[0] === 'TypingStopped' && args[1] === 42
-    );
-    expect(stopCalls).toHaveLength(1);
-  });
-
-  it('typing summary ignores local user label and tracks remote user typing', async () => {
-    const { createBoardRealtime } = await import('./boardRealtime');
-    const realtime = createBoardRealtime({
-      onColumnCreated: vi.fn(),
-      onColumnUpdated: vi.fn(),
-      onColumnDeleted: vi.fn(),
-      onCardCreated: vi.fn(),
-      onCardUpdated: vi.fn(),
-      onCardDeleted: vi.fn(),
-      onCardMoved: vi.fn(),
-      onResync: vi.fn()
-    }, {
-      getCurrentUserLabel: () => 'Me'
-    });
-
-    await realtime.connect();
-
-    const typingChanged = connection.eventHandlers['TypingChanged'] as TypingChangedHandler;
-
-    typingChanged({ cardId: 10, isTyping: true, userLabel: 'Me' });
-    expect(realtime.typingSummary.value(10)).toBe(false);
-
-    typingChanged({ cardId: 10, isTyping: true, userLabel: 'Teammate' });
-    expect(realtime.typingSummary.value(10)).toBe(true);
-
-    typingChanged({ cardId: 10, isTyping: false, userLabel: 'Teammate' });
-    expect(realtime.typingSummary.value(10)).toBe(false);
-  });
 });

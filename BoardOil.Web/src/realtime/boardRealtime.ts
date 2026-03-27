@@ -1,7 +1,6 @@
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
-import { computed, ref } from 'vue';
 import { boardHubUrl } from '../api/config';
-import type { Card, Column, TypingChangedEvent } from '../types/boardTypes';
+import type { Card, Column } from '../types/boardTypes';
 
 type RealtimeHandlers = {
   onColumnCreated: (column: Column) => Promise<unknown> | unknown;
@@ -14,13 +13,7 @@ type RealtimeHandlers = {
   onResync: () => Promise<unknown> | unknown;
 };
 
-type RealtimeOptions = {
-  getCurrentUserLabel?: () => string | null;
-};
-
-export function createBoardRealtime(handlers: RealtimeHandlers, options?: RealtimeOptions) {
-  const typingByCard = ref<Record<number, Set<string>>>({});
-  const typingTimers = new Map<number, ReturnType<typeof setTimeout>>();
+export function createBoardRealtime(handlers: RealtimeHandlers) {
   let hubConnection: HubConnection | null = null;
 
   async function connect() {
@@ -56,18 +49,6 @@ export function createBoardRealtime(handlers: RealtimeHandlers, options?: Realti
       await handlers.onCardMoved(card);
     });
 
-    hubConnection.on('TypingChanged', (event: TypingChangedEvent) => {
-      const labels = typingByCard.value[event.cardId] ?? new Set<string>();
-
-      if (event.isTyping) {
-        labels.add(event.userLabel);
-      } else {
-        labels.delete(event.userLabel);
-      }
-
-      typingByCard.value[event.cardId] = labels;
-    });
-
     hubConnection.onreconnected(async () => {
       await handlers.onResync();
     });
@@ -76,65 +57,14 @@ export function createBoardRealtime(handlers: RealtimeHandlers, options?: Realti
   }
 
   async function disconnect() {
-    for (const timeout of typingTimers.values()) {
-      clearTimeout(timeout);
-    }
-    typingTimers.clear();
-
     if (hubConnection) {
       await hubConnection.stop();
       hubConnection = null;
     }
   }
 
-  function announceTyping(cardId: number) {
-    if (!hubConnection) {
-      return;
-    }
-
-    void hubConnection.invoke('TypingStarted', cardId);
-
-    if (typingTimers.has(cardId)) {
-      clearTimeout(typingTimers.get(cardId));
-    }
-
-    const timeout = setTimeout(() => {
-      void stopTyping(cardId);
-    }, 1400);
-
-    typingTimers.set(cardId, timeout);
-  }
-
-  async function stopTyping(cardId: number) {
-    if (!hubConnection) {
-      return;
-    }
-
-    if (typingTimers.has(cardId)) {
-      clearTimeout(typingTimers.get(cardId));
-      typingTimers.delete(cardId);
-    }
-
-    await hubConnection.invoke('TypingStopped', cardId);
-  }
-
-  const typingSummary = computed(() => {
-    return (cardId: number) => {
-      const cardTyping = typingByCard.value[cardId];
-      if (!cardTyping) {
-        return false;
-      }
-
-      const currentUserLabel = options?.getCurrentUserLabel?.();
-      return Array.from(cardTyping).some(label => label !== currentUserLabel);
-    };
-  });
-
   return {
     connect,
     disconnect,
-    announceTyping,
-    stopTyping,
-    typingSummary
   };
 }

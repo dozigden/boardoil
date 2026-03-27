@@ -13,10 +13,7 @@
     @dragend="onDragEnd"
   >
     <div class="card-header">
-      <div class="card-title-with-pill">
-        <strong>{{ card.title }}</strong>
-        <span v-if="typingSummary(card.id)" class="typing-pill" aria-label="Someone is typing">...</span>
-      </div>
+      <strong>{{ card.title }}</strong>
       <span class="card-id">#{{ card.id }}</span>
     </div>
 
@@ -39,7 +36,6 @@ import Tag from './Tag.vue';
 const props = defineProps<{
   card: BoardCard;
   columnId: number;
-  typingSummary: (cardId: number) => boolean;
 }>();
 
 const emit = defineEmits<{
