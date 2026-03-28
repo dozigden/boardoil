@@ -533,7 +533,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task CreateCardAsync_WhenTagMissing_ShouldReturnValidationErrorForTagNames()
+    public async Task CreateCardAsync_WhenTagMissing_ShouldAutoCreateTagAndAssignIt()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -546,6 +546,64 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
         var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", [missingTag]));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal([missingTag], result.Data!.TagNames);
+
+        var storedTagNames = await DbContextForAssert.Tags
+            .OrderBy(x => x.Name)
+            .Select(x => x.Name)
+            .ToListAsync();
+        Assert.Equal([missingTag], storedTagNames);
+    }
+
+    [Fact]
+    public async Task UpdateCardAsync_WhenTagMissing_ShouldAutoCreateTagAndAssignIt()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Title", "Old")
+            .AddColumn("Doing")
+            .Build();
+        var cardId = board.GetCard("Todo", "Title").Id;
+        var missingTag = "AutoTag";
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest(
+            Title: "Title",
+            Description: "Old",
+            TagNames: [missingTag]));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal([missingTag], result.Data!.TagNames);
+
+        var storedTagNames = await DbContextForAssert.Tags
+            .OrderBy(x => x.Name)
+            .Select(x => x.Name)
+            .ToListAsync();
+        Assert.Equal([missingTag], storedTagNames);
+    }
+
+    [Fact]
+    public async Task CreateCardAsync_WhenTagNameTooLong_ShouldReturnValidationErrorForTagNames()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var tooLongTag = new string('T', 41);
+
+        // Act
+        var service = CreateService();
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", [tooLongTag]));
 
         // Assert
         Assert.False(result.Success);

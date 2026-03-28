@@ -2,17 +2,15 @@ using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Persistence.Abstractions.Card;
-using BoardOil.Persistence.Abstractions.Tag;
 using System.Text.RegularExpressions;
 
 namespace BoardOil.Services.Card;
 
 public sealed class CardValidator(
-    ICardRepository cardRepository,
-    ITagRepository tagRepository) : ICardValidator
+    ICardRepository cardRepository) : ICardValidator
 {
+    private const int MaxTagNameLength = 40;
     private readonly ICardRepository _cardRepository = cardRepository;
-    private readonly ITagRepository _tagRepository = tagRepository;
 
     private static readonly Regex AllowedCardTitleRegex =
         new("^[A-Za-z0-9][A-Za-z0-9 \\-._&'(),!?:/]*$", RegexOptions.Compiled);
@@ -34,11 +32,11 @@ public sealed class CardValidator(
             return errors;
         }
 
-        var tagValidationErrors = await ValidateTagNamesExistAsync(request.TagNames);
+        var tagValidationErrors = ValidateTagNames(request.TagNames);
         return tagValidationErrors;
     }
 
-    public async Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(UpdateCardRequest request)
+    public Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(UpdateCardRequest request)
     {
         var errors = new List<ValidationError>();
         if (request.Title.IsTrimmedNullOrEmpty())
@@ -66,16 +64,16 @@ public sealed class CardValidator(
 
         if (errors.Count > 0)
         {
-            return errors;
+            return Task.FromResult<IReadOnlyList<ValidationError>>(errors);
         }
 
-        var tagValidationErrors = await ValidateTagNamesExistAsync(request.TagNames!);
+        var tagValidationErrors = ValidateTagNames(request.TagNames!);
         if (tagValidationErrors.Count > 0)
         {
-            return tagValidationErrors;
+            return Task.FromResult(tagValidationErrors);
         }
 
-        return Array.Empty<ValidationError>();
+        return Task.FromResult<IReadOnlyList<ValidationError>>(Array.Empty<ValidationError>());
     }
 
     private static void ValidateTitle(string title, ICollection<ValidationError> errors)
@@ -107,23 +105,28 @@ public sealed class CardValidator(
         }
     }
 
-    private async Task<IReadOnlyList<ValidationError>> ValidateTagNamesExistAsync(IReadOnlyList<string>? tagNames)
+    private static IReadOnlyList<ValidationError> ValidateTagNames(IReadOnlyList<string>? tagNames)
     {
         if (tagNames is null || tagNames.Count == 0)
         {
             return Array.Empty<ValidationError>();
         }
 
-        var missingTagErrors = new List<ValidationError>();
+        var tagValidationErrors = new List<ValidationError>();
         foreach (var tagName in tagNames)
         {
-            var existingTag = await _tagRepository.GetByNormalisedNameAsync(tagName.ToUpperInvariant());
-            if (existingTag is null)
+            var canonicalName = tagName.Trim();
+            if (string.IsNullOrWhiteSpace(canonicalName))
             {
-                missingTagErrors.Add(new ValidationError("tagNames", $"Tag '{tagName}' does not exist."));
+                continue;
+            }
+
+            if (canonicalName.Length > MaxTagNameLength)
+            {
+                tagValidationErrors.Add(new ValidationError("tagNames", $"Tag '{canonicalName}' must be {MaxTagNameLength} characters or fewer."));
             }
         }
 
-        return missingTagErrors.Count == 0 ? Array.Empty<ValidationError>() : missingTagErrors;
+        return tagValidationErrors.Count == 0 ? Array.Empty<ValidationError>() : tagValidationErrors;
     }
 }

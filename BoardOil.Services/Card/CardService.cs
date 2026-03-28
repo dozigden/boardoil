@@ -3,23 +3,26 @@ using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
-using BoardOil.Contracts.Tag;
 using BoardOil.Persistence.Abstractions.Card;
 using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Tag;
 using BoardOil.Services.Ordering;
+using BoardOil.Services.Tag;
 
 namespace BoardOil.Services.Card;
 
 public sealed class CardService(
     ICardRepository cardRepository,
     IColumnRepository columnRepository,
+    ITagRepository tagRepository,
     ICardValidator validator,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardService
 {
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
+    private readonly ITagRepository _tagRepository = tagRepository;
 
     public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request)
     {
@@ -47,6 +50,8 @@ public sealed class CardService(
         }
 
         var now = DateTime.UtcNow;
+        var tagNames = NormalizeTags(request.TagNames ?? Array.Empty<string>());
+        await EnsureTagsExistAsync(tagNames, now);
         var card = new EntityBoardCard
         {
             BoardColumnId = request.BoardColumnId,
@@ -56,7 +61,7 @@ public sealed class CardService(
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
-        ReplaceTagNames(card, request.TagNames ?? Array.Empty<string>());
+        ReplaceTagNames(card, tagNames);
 
         cardRepository.Add(card);
 
@@ -98,6 +103,7 @@ public sealed class CardService(
             existingCard.Description = updatedDescription;
             if (tagsChanged)
             {
+                await EnsureTagsExistAsync(updatedTagNames, DateTime.UtcNow);
                 ReplaceTagNames(existingCard, updatedTagNames);
             }
 
@@ -302,6 +308,35 @@ public sealed class CardService(
         foreach (var tagName in NormalizeTags(tagNames))
         {
             card.CardTags.Add(new EntityCardTag { TagName = tagName });
+        }
+    }
+
+    private async Task EnsureTagsExistAsync(IReadOnlyList<string> tagNames, DateTime now)
+    {
+        var processedNormalisedNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var tagName in tagNames)
+        {
+            var normalisedName = tagName.ToUpperInvariant();
+            if (!processedNormalisedNames.Add(normalisedName))
+            {
+                continue;
+            }
+
+            var existingTag = await _tagRepository.GetByNormalisedNameAsync(normalisedName);
+            if (existingTag is not null)
+            {
+                continue;
+            }
+
+            _tagRepository.Add(new EntityTag
+            {
+                Name = tagName,
+                NormalisedName = normalisedName,
+                StyleName = TagStyleSchemaValidator.SolidStyleName,
+                StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(),
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            });
         }
     }
 }
