@@ -13,7 +13,11 @@
         Password
         <input v-model="password" type="password" autocomplete="new-password" minlength="8" required />
       </label>
-      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+      <label>
+        Confirm password
+        <input v-model="confirmPassword" type="password" autocomplete="new-password" minlength="8" required />
+      </label>
+      <p v-if="displayedErrorMessage" class="error">{{ displayedErrorMessage }}</p>
       <button type="submit" :disabled="busy">Create admin</button>
       <RouterLink class="auth-link" :to="{ name: 'login' }">Back to sign in</RouterLink>
     </form>
@@ -21,18 +25,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
+import { PASSWORD_CONFIRMATION_ERROR, validatePasswordConfirmation } from '../utils/passwordConfirmation';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const { busy, errorMessage } = storeToRefs(authStore);
 const userName = ref('');
 const password = ref('');
+const confirmPassword = ref('');
+const formErrorMessage = ref<string | null>(null);
+const displayedErrorMessage = computed(() => formErrorMessage.value ?? errorMessage.value);
+
+watch([password, confirmPassword], () => {
+  if (formErrorMessage.value === PASSWORD_CONFIRMATION_ERROR && validatePasswordConfirmation(password.value, confirmPassword.value) === null) {
+    formErrorMessage.value = null;
+  }
+});
 
 async function submit() {
+  formErrorMessage.value = validatePasswordConfirmation(password.value, confirmPassword.value);
+  if (formErrorMessage.value) {
+    return;
+  }
+
   const success = await authStore.registerInitialAdmin(userName.value, password.value);
   if (!success) {
     return;

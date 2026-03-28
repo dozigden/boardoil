@@ -7,7 +7,12 @@
 
     <label>
       Password
-      <input v-model="password" :disabled="busy" type="password" required />
+      <input v-model="password" :disabled="busy" type="password" autocomplete="new-password" required />
+    </label>
+
+    <label>
+      Confirm password
+      <input v-model="confirmPassword" :disabled="busy" type="password" autocomplete="new-password" required />
     </label>
 
     <label>
@@ -17,6 +22,8 @@
         <option value="Admin">Admin</option>
       </select>
     </label>
+
+    <p v-if="draftError" class="error">{{ draftError }}</p>
 
     <template #actions>
       <div class="editor-actions card-modal-actions">
@@ -39,6 +46,7 @@
 import { Check, X } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import ModalDialog from './ModalDialog.vue';
+import { PASSWORD_CONFIRMATION_ERROR, validatePasswordConfirmation } from '../utils/passwordConfirmation';
 
 const props = defineProps<{
   open: boolean;
@@ -52,15 +60,24 @@ const emit = defineEmits<{
 
 const userName = ref('');
 const password = ref('');
+const confirmPassword = ref('');
 const role = ref<'Admin' | 'Standard'>('Standard');
+const draftError = ref<string | null>(null);
 
 function resetDraft() {
   userName.value = '';
   password.value = '';
+  confirmPassword.value = '';
   role.value = 'Standard';
+  draftError.value = null;
 }
 
 function submit() {
+  draftError.value = validatePasswordConfirmation(password.value, confirmPassword.value);
+  if (draftError.value) {
+    return;
+  }
+
   emit('submit', {
     userName: userName.value,
     password: password.value,
@@ -76,4 +93,10 @@ watch(
     }
   }
 );
+
+watch([password, confirmPassword], () => {
+  if (draftError.value === PASSWORD_CONFIRMATION_ERROR && validatePasswordConfirmation(password.value, confirmPassword.value) === null) {
+    draftError.value = null;
+  }
+});
 </script>
