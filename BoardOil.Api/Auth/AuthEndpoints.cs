@@ -1,5 +1,6 @@
 using BoardOil.Api.Extensions;
 using BoardOil.Api.Configuration;
+using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.Users;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
@@ -21,6 +22,12 @@ public static class AuthEndpoints
                 authHttpService.RefreshAsync(request, response));
         app.MapPost("/api/auth/logout", (IAuthHttpSessionService authHttpService, HttpRequest request, HttpResponse response) =>
                 authHttpService.LogoutAsync(request, response));
+        app.MapPost("/api/auth/machine/login", (LoginRequest request, IAuthService authService) =>
+                LoginMachineAsync(request, authService));
+        app.MapPost("/api/auth/machine/refresh", (MachineRefreshRequest request, IAuthService authService) =>
+                RefreshMachineAsync(request, authService));
+        app.MapPost("/api/auth/machine/logout", (MachineLogoutRequest request, IAuthService authService) =>
+                LogoutMachineAsync(request, authService));
 
         app.MapGet("/api/auth/csrf", (IAuthHttpSessionService authHttpService, HttpRequest request, HttpResponse response) =>
                 authHttpService.GetCsrf(request, response))
@@ -48,5 +55,33 @@ public static class AuthEndpoints
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
         return app;
+    }
+
+    private static async Task<IResult> LoginMachineAsync(LoginRequest request, IAuthService authService)
+    {
+        var result = await authService.LoginAsync(request);
+        if (!result.Success || result.Data is null)
+        {
+            return result.ToHttpResult();
+        }
+
+        return ApiResults.Ok(result.Data.ToMachineDto()).ToHttpResult();
+    }
+
+    private static async Task<IResult> RefreshMachineAsync(MachineRefreshRequest request, IAuthService authService)
+    {
+        var result = await authService.RefreshAsync(request.RefreshToken);
+        if (!result.Success || result.Data is null)
+        {
+            return result.ToHttpResult();
+        }
+
+        return ApiResults.Ok(result.Data.ToMachineDto()).ToHttpResult();
+    }
+
+    private static async Task<IResult> LogoutMachineAsync(MachineLogoutRequest request, IAuthService authService)
+    {
+        var result = await authService.LogoutAsync(request.RefreshToken);
+        return result.ToHttpResult();
     }
 }

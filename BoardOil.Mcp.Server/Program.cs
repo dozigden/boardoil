@@ -1,74 +1,117 @@
 using BoardOil.Abstractions;
 using BoardOil.Contracts.Realtime;
+using BoardOil.Mcp.Server.Configuration;
+using BoardOil.Mcp.Server.Mcp;
 using BoardOil.Mcp.Server.Realtime;
 using BoardOil.Mcp.Server.Tools;
 using BoardOil.Services.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
-var connectionString = Environment.GetEnvironmentVariable("BOARDOIL_MCP_CONNECTION_STRING");
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    throw new InvalidOperationException("Set BOARDOIL_MCP_CONNECTION_STRING before running BoardOil.Mcp.Server.");
-}
+var builder = WebApplication.CreateBuilder(args);
+var runtimeOptions = McpRuntimeOptions.FromConfiguration(builder.Configuration);
+var jwtOptions = McpJwtAuthOptions.FromConfiguration(builder.Configuration);
+var serviceProviderAccessor = new McpServiceProviderAccessor();
 
-var services = new ServiceCollection();
-services.AddBoardOilServices(connectionString);
-ConfigureBoardEvents(services);
+builder.WebHost.UseUrls(runtimeOptions.HttpUrls);
 
-services.AddTransient<BoardGetToolHandler>();
-services.AddTransient<ColumnsListToolHandler>();
-services.AddTransient<CardCreateToolHandler>();
-services.AddTransient<CardUpdateToolHandler>();
-services.AddTransient<CardMoveToolHandler>();
-services.AddTransient<CardMoveByColumnNameToolHandler>();
-services.AddTransient<CardDeleteToolHandler>();
-services.AddSingleton<ToolRegistry>();
+builder.Services.AddBoardOilServices(runtimeOptions.ConnectionString);
+builder.Services.AddSingleton(runtimeOptions);
+builder.Services.AddSingleton(jwtOptions);
+builder.Services.AddSingleton(serviceProviderAccessor);
 
-using var provider = services.BuildServiceProvider();
+ConfigureBoardEvents(builder.Services, runtimeOptions);
 
-var registry = provider.GetRequiredService<ToolRegistry>();
-Console.WriteLine("BoardOil MCP scaffold ready. Registered tools:");
-foreach (var tool in registry.ListTools())
-{
-    Console.WriteLine($" - {tool.Name}");
-}
+builder.Services.AddScoped<BoardGetToolHandler>();
+builder.Services.AddScoped<ColumnsListToolHandler>();
+builder.Services.AddScoped<CardCreateToolHandler>();
+builder.Services.AddScoped<CardUpdateToolHandler>();
+builder.Services.AddScoped<CardMoveToolHandler>();
+builder.Services.AddScoped<CardMoveByColumnNameToolHandler>();
+builder.Services.AddScoped<CardDeleteToolHandler>();
+builder.Services.AddSingleton<ToolRegistry>();
+builder.Services.AddSingleton<McpToolDispatcher>();
 
-static void ConfigureBoardEvents(IServiceCollection services)
-{
-    var apiBaseUrl = Environment.GetEnvironmentVariable("BOARDOIL_MCP_EVENTS_API_BASE_URL");
-    var apiKey = Environment.GetEnvironmentVariable("BOARDOIL_MCP_EVENTS_API_KEY");
-
-    var hasBaseUrl = !string.IsNullOrWhiteSpace(apiBaseUrl);
-    var hasApiKey = !string.IsNullOrWhiteSpace(apiKey);
-
-    if (!hasBaseUrl)
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        if (hasApiKey)
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            throw new InvalidOperationException(
-                "BOARDOIL_MCP_EVENTS_API_KEY was set without BOARDOIL_MCP_EVENTS_API_BASE_URL.");
-        }
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+    });
 
+builder.Services.AddAuthorization();
+
+builder.Services
+    .AddMcpServer(options =>
+    {
+        options.ServerInfo = new ModelContextProtocol.Protocol.Implementation
+        {
+            Name = "BoardOil MCP Server",
+            Version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0"
+        };
+    })
+#pragma warning disable MCP9004
+    .WithHttpTransport(options =>
+    {
+        options.Stateless = true;
+        options.EnableLegacySse = false;
+    })
+#pragma warning restore MCP9004
+    .WithListToolsHandler((request, cancellationToken) =>
+        serviceProviderAccessor
+            .ServiceProvider
+            .GetRequiredService<McpToolDispatcher>()
+            .ListToolsAsync(request, cancellationToken))
+    .WithCallToolHandler((request, cancellationToken) =>
+        serviceProviderAccessor
+            .ServiceProvider
+            .GetRequiredService<McpToolDispatcher>()
+            .CallToolAsync(request, cancellationToken));
+
+var app = builder.Build();
+serviceProviderAccessor.Initialise(app.Services);
+
+await app.Services.InitializeBoardOilAsync();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapMcp("/mcp")
+    .RequireAuthorization();
+
+app.Run();
+
+static void ConfigureBoardEvents(IServiceCollection services, McpRuntimeOptions runtimeOptions)
+{
+    if (runtimeOptions.EventsApiBaseUrl is null)
+    {
         services.AddSingleton<IBoardEvents, NoOpBoardEvents>();
         Console.WriteLine("BoardOil MCP realtime forwarding disabled (no API base URL configured).");
         return;
     }
 
-    if (!Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var baseUri))
-    {
-        throw new InvalidOperationException("BOARDOIL_MCP_EVENTS_API_BASE_URL must be an absolute URI.");
-    }
-
     services.AddSingleton(new HttpClient
     {
-        BaseAddress = baseUri,
+        BaseAddress = runtimeOptions.EventsApiBaseUrl,
         Timeout = TimeSpan.FromSeconds(5)
     });
     services.AddSingleton<IBoardEvents>(_ => new ApiForwardingBoardEvents(
         _.GetRequiredService<HttpClient>(),
-        apiKey));
+        runtimeOptions.EventsApiKey));
 
-    var relayTarget = $"{baseUri.ToString().TrimEnd('/')}{BoardRealtimeRelay.EndpointPath}";
-    var authMode = hasApiKey ? "api-key" : "source-ip";
+    var relayTarget = $"{runtimeOptions.EventsApiBaseUrl.ToString().TrimEnd('/')}{BoardRealtimeRelay.EndpointPath}";
+    var authMode = string.IsNullOrWhiteSpace(runtimeOptions.EventsApiKey) ? "source-ip" : "api-key";
     Console.WriteLine($"BoardOil MCP realtime forwarding enabled ({authMode}) -> {relayTarget}");
 }
+
+public partial class Program;
