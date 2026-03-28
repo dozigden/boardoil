@@ -13,6 +13,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityUser> Users => Set<EntityUser>();
     public DbSet<EntityRefreshToken> RefreshTokens => Set<EntityRefreshToken>();
     public DbSet<EntityPersonalAccessToken> PersonalAccessTokens => Set<EntityPersonalAccessToken>();
+    public DbSet<EntityAppSetting> AppSettings => Set<EntityAppSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -106,5 +107,13 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         personalAccessToken.ToTable("PersonalAccessTokens");
         personalAccessToken.HasIndex(x => x.TokenHash).IsUnique();
         personalAccessToken.HasIndex(x => x.UserId);
+
+        var appSetting = modelBuilder.Entity<EntityAppSetting>();
+        appSetting.HasKey(x => x.Id);
+        appSetting.Property(x => x.Key).HasMaxLength(120).IsRequired();
+        appSetting.Property(x => x.Value).HasMaxLength(4000).IsRequired();
+        appSetting.Property(x => x.UpdatedAtUtc).IsRequired();
+        appSetting.ToTable("AppSettings");
+        appSetting.HasIndex(x => x.Key).IsUnique();
     }
 }

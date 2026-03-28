@@ -1,5 +1,4 @@
 using BoardOil.Api.Extensions;
-using BoardOil.Api.Configuration;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.Users;
 using BoardOil.Contracts.Auth;
@@ -41,9 +40,6 @@ public static class AuthEndpoints
         app.MapGet("/api/auth/csrf", (IAuthHttpSessionService authHttpService, HttpRequest request, HttpResponse response) =>
                 authHttpService.GetCsrf(request, response))
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
-        app.MapGet("/api/configuration", (IConfigurationService configurationService) =>
-                ApiResults.Ok(configurationService.GetConfiguration()).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
         app.MapGet("/api/auth/me", (IAuthHttpSessionService authHttpService, ClaimsPrincipal claimsPrincipal) =>
                 authHttpService.GetMeAsync(claimsPrincipal))
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
