@@ -16,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configuration);
 var jwtOptions = JwtAuthOptions.FromConfiguration(builder.Configuration);
 var csrfOptions = CsrfOptions.FromConfiguration(builder.Configuration);
+var internalOptions = BoardOilInternalOptions.FromConfiguration(builder.Configuration);
 
 builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
@@ -45,6 +46,7 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton(runtimeOptions);
 builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton(csrfOptions);
+builder.Services.AddSingleton(internalOptions);
 builder.Services.AddSingleton(new AuthSessionOptions
 {
     AccessTokenMinutes = jwtOptions.AccessTokenMinutes,
@@ -156,6 +158,7 @@ app.MapBoardEndpoints();
 app.MapColumnEndpoints();
 app.MapCardEndpoints();
 app.MapTagEndpoints();
+app.MapInternalRealtimeEndpoints();
 
 app.MapAuthEndpoints();
 

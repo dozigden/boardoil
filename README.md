@@ -99,6 +99,32 @@ Example MCP client entry:
 }
 ```
 
+### 2.1) Optional: Realtime forwarding for MCP-driven changes (non-Docker)
+
+By default, MCP uses a no-op board event publisher (tool writes still persist, but SignalR clients will not get live push updates from MCP actions).
+
+To enable realtime push from MCP:
+
+1. Start API with an internal relay key configured:
+
+```bash
+export BoardOilInternal__McpEventRelayApiKey="replace-with-a-long-random-secret"
+dotnet run --project BoardOil.Api/BoardOil.Api.csproj -maxcpucount:1 -nodeReuse:false
+```
+
+2. Start MCP with matching relay settings:
+
+```bash
+export BOARDOIL_MCP_CONNECTION_STRING="Data Source=boardoil.dev.db"
+export BOARDOIL_MCP_EVENTS_API_BASE_URL="http://127.0.0.1:5000"
+export BOARDOIL_MCP_EVENTS_API_KEY="replace-with-a-long-random-secret"
+dotnet run --project BoardOil.Mcp.Server/BoardOil.Mcp.Server.csproj -maxcpucount:1 -nodeReuse:false
+```
+
+Notes:
+- If either `BOARDOIL_MCP_EVENTS_API_BASE_URL` or `BOARDOIL_MCP_EVENTS_API_KEY` is set without the other, MCP startup will fail fast.
+- If neither is set, MCP starts normally with realtime forwarding disabled.
+
 ### 3) Verify tools exposed to the agent
 Tool names are defined in:
 - `BoardOil.Mcp.Contracts/ToolNames.cs`
