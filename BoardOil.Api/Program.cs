@@ -9,6 +9,7 @@ using BoardOil.Abstractions.Auth;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Auth;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -62,7 +63,35 @@ builder.Services.AddScoped<IAuthHttpSessionService, AuthHttpSessionService>();
 builder.Services.AddSingleton<IConfigurationService, ConfigurationService>();
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddAuthentication(options =>
+    {
+        options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddPolicyScheme(McpAuthenticationSchemes.CombinedBearer, "BoardOil MCP bearer", options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            if (!context.Request.Path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase))
+            {
+                return JwtBearerDefaults.AuthenticationScheme;
+            }
+
+            var authHeader = context.Request.Headers.Authorization.ToString();
+            if (string.IsNullOrWhiteSpace(authHeader)
+                || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                return JwtBearerDefaults.AuthenticationScheme;
+            }
+
+            var token = authHeader["Bearer ".Length..].Trim();
+            return token.StartsWith("bo_pat_", StringComparison.OrdinalIgnoreCase)
+                ? McpAuthenticationSchemes.PatBearer
+                : JwtBearerDefaults.AuthenticationScheme;
+        };
+    })
+    .AddScheme<AuthenticationSchemeOptions, McpPatAuthenticationHandler>(McpAuthenticationSchemes.PatBearer, _ => { })
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
@@ -106,6 +135,10 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(BoardOilPolicies.AuthenticatedUser, policy =>
         policy.RequireAuthenticatedUser());
+    options.AddPolicy(BoardOilPolicies.McpAuthenticated, policy =>
+        policy
+            .AddAuthenticationSchemes(McpAuthenticationSchemes.CombinedBearer)
+            .RequireAuthenticatedUser());
     options.AddPolicy(BoardOilPolicies.AdminOnly, policy =>
         policy.RequireRole(BoardOilRoles.Admin));
     options.AddPolicy(BoardOilPolicies.CardEditor, policy =>
@@ -236,7 +269,7 @@ app.MapAuthEndpoints();
 app.MapHub<BoardHub>("/hubs/board")
     .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
 app.MapMcp("/mcp")
-    .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
+    .RequireAuthorization(BoardOilPolicies.McpAuthenticated);
 app.MapGet("/.well-known/mcp", (HttpRequest request) =>
     Results.Json(CreateMcpWellKnownDocument(request)));
 
@@ -254,7 +287,6 @@ static bool IsCsrfExemptAuthPath(PathString path) =>
     || path.StartsWithSegments("/api/auth/refresh", StringComparison.OrdinalIgnoreCase)
     || path.StartsWithSegments("/api/auth/logout", StringComparison.OrdinalIgnoreCase)
     || path.StartsWithSegments("/api/auth/machine/login", StringComparison.OrdinalIgnoreCase)
-    || path.StartsWithSegments("/api/auth/machine/pat/login", StringComparison.OrdinalIgnoreCase)
     || path.StartsWithSegments("/api/auth/machine/refresh", StringComparison.OrdinalIgnoreCase)
     || path.StartsWithSegments("/api/auth/machine/logout", StringComparison.OrdinalIgnoreCase);
 

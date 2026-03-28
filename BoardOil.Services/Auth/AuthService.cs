@@ -110,38 +110,6 @@ public sealed class AuthService(
         return session;
     }
 
-    public async Task<ApiResult<AuthSessionTokens>> LoginWithPatAsync(MachinePatLoginRequest request)
-    {
-        using var scope = scopeFactory.Create();
-
-        if (string.IsNullOrWhiteSpace(request.Token))
-        {
-            return ApiErrors.Unauthorized("Personal access token is missing.");
-        }
-
-        var tokenHash = HashToken(request.Token);
-        var pat = await personalAccessTokenRepository.GetWithUserByHashAsync(tokenHash);
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        if (pat is null
-            || pat.RevokedAtUtc is not null
-            || (pat.ExpiresAtUtc is not null && pat.ExpiresAtUtc <= now)
-            || !pat.User.IsActive)
-        {
-            return ApiErrors.Unauthorized("Personal access token is invalid or expired.");
-        }
-
-        var scopes = ParseScopes(pat.ScopesCsv);
-        if (!HasAnyMcpScope(scopes))
-        {
-            return ApiErrors.Forbidden("Personal access token does not allow MCP access.");
-        }
-
-        var session = CreateSession(pat.User);
-        pat.LastUsedAtUtc = now;
-        await scope.SaveChangesAsync();
-        return session;
-    }
-
     public async Task<ApiResult<CreatedMachinePatDto>> CreateMachinePatAsync(int userId, CreateMachinePatRequest request)
     {
         using var scope = scopeFactory.Create();
