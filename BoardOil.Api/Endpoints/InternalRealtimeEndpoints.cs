@@ -3,6 +3,7 @@ using BoardOil.Api.Extensions;
 using BoardOil.Abstractions;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Realtime;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -43,18 +44,34 @@ public static class InternalRealtimeEndpoints
     }
 
     private static bool IsEndpointEnabled(BoardOilInternalOptions options) =>
-        !string.IsNullOrWhiteSpace(options.McpEventRelayApiKey);
+        !string.IsNullOrWhiteSpace(options.McpEventRelayApiKey)
+        || options.McpEventRelayAllowedSourceIps.Count > 0;
 
     private static bool IsAuthorised(HttpContext httpContext, BoardOilInternalOptions options)
     {
+        if (IsApiKeyAuthorised(httpContext, options))
+        {
+            return true;
+        }
+
+        return IsSourceIpAuthorised(httpContext, options);
+    }
+
+    private static bool IsApiKeyAuthorised(HttpContext httpContext, BoardOilInternalOptions options)
+    {
+        var expected = options.McpEventRelayApiKey;
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            return false;
+        }
+
         if (!httpContext.Request.Headers.TryGetValue(BoardRealtimeRelay.ApiKeyHeaderName, out var providedValues))
         {
             return false;
         }
 
         var provided = providedValues.FirstOrDefault();
-        var expected = options.McpEventRelayApiKey;
-        if (string.IsNullOrWhiteSpace(provided) || string.IsNullOrWhiteSpace(expected))
+        if (string.IsNullOrWhiteSpace(provided))
         {
             return false;
         }
@@ -63,6 +80,32 @@ public static class InternalRealtimeEndpoints
         var expectedBytes = Encoding.UTF8.GetBytes(expected);
         return CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes);
     }
+
+    private static bool IsSourceIpAuthorised(HttpContext httpContext, BoardOilInternalOptions options)
+    {
+        if (options.McpEventRelayAllowedSourceIps.Count == 0)
+        {
+            return false;
+        }
+
+        var remoteIp = httpContext.Connection.RemoteIpAddress;
+        if (remoteIp is null)
+        {
+            return false;
+        }
+
+        var normalisedRemoteIp = Normalise(remoteIp);
+
+        if (IPAddress.IsLoopback(normalisedRemoteIp))
+        {
+            return options.McpEventRelayAllowedSourceIps.Any(IPAddress.IsLoopback);
+        }
+
+        return options.McpEventRelayAllowedSourceIps.Any(allowedIp => allowedIp.Equals(normalisedRemoteIp));
+    }
+
+    private static IPAddress Normalise(IPAddress address) =>
+        address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
 
     private static ApiError? Validate(BoardRealtimeRelayEvent request)
     {

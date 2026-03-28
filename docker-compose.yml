@@ -3,15 +3,46 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
     image: boardoil:dev
     container_name: boardoil
     ports:
       - "5000:5000"
     environment:
       BoardOilAuth__AllowInsecureCookies: "true"
+      BoardOilInternal__McpEventRelayAllowedSourceIps: "172.31.0.3"
     volumes:
       - boardoil-data:/data
+    networks:
+      boardoil-internal:
+        ipv4_address: 172.31.0.2
     restart: unless-stopped
+
+  boardoil-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: mcp-runtime
+    image: boardoil-mcp:dev
+    container_name: boardoil-mcp
+    environment:
+      BOARDOIL_MCP_CONNECTION_STRING: "Data Source=/data/boardoil.db"
+      BOARDOIL_MCP_EVENTS_API_BASE_URL: "http://boardoil:5000"
+    volumes:
+      - boardoil-data:/data
+    networks:
+      boardoil-internal:
+        ipv4_address: 172.31.0.3
+    depends_on:
+      - boardoil
+    restart: on-failure
 
 volumes:
   boardoil-data:
+
+networks:
+  boardoil-internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
