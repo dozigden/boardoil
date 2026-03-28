@@ -2,40 +2,40 @@ namespace BoardOil.Api.Mcp;
 
 public static class McpDiscoveryMetadata
 {
-    public static object CreateWellKnownDocument(string baseUrl) =>
+    public static object CreateWellKnownDocument(string? mcpPublicBaseUrl) =>
         new
         {
             name = "BoardOil MCP",
-            endpoint = $"{baseUrl}/mcp",
+            endpoint = GetMcpEndpoint(mcpPublicBaseUrl),
             protocol = "mcp-http",
-            auth = CreateAuthMetadata(baseUrl),
-            setup = CreateSetupMetadata(baseUrl),
-            examples = CreateExamples(baseUrl)
+            auth = CreateAuthMetadata(mcpPublicBaseUrl),
+            setup = CreateSetupMetadata(mcpPublicBaseUrl),
+            examples = CreateExamples(mcpPublicBaseUrl)
         };
 
-    public static object CreateAuthMetadata(string baseUrl) =>
+    public static object CreateAuthMetadata(string? mcpPublicBaseUrl) =>
         new
         {
             scheme = "Bearer",
-            tokenEndpoint = $"{baseUrl}/api/auth/machine/login",
-            refreshEndpoint = $"{baseUrl}/api/auth/machine/refresh"
+            tokenEndpoint = ResolveUrl("/api/auth/machine/login", mcpPublicBaseUrl),
+            refreshEndpoint = ResolveUrl("/api/auth/machine/refresh", mcpPublicBaseUrl)
         };
 
-    public static object CreateSetupMetadata(string baseUrl) =>
+    public static object CreateSetupMetadata(string? mcpPublicBaseUrl) =>
         new
         {
             preferredAuth = "personal_access_token",
-            patManagementUi = $"{baseUrl}/machine-access",
-            examples = CreateExamples(baseUrl)
+            patManagementUi = ResolveUrl("/machine-access", mcpPublicBaseUrl),
+            examples = CreateExamples(mcpPublicBaseUrl)
         };
 
-    public static object CreateExamples(string baseUrl) =>
+    public static object CreateExamples(string? mcpPublicBaseUrl) =>
         new
         {
             genericMcpConfig = new
             {
                 transport = "http",
-                url = $"{baseUrl}/mcp",
+                url = GetMcpEndpoint(mcpPublicBaseUrl),
                 headers = new
                 {
                     Authorization = "Bearer <YOUR_PAT>"
@@ -44,7 +44,7 @@ public static class McpDiscoveryMetadata
             toolsListRequest = new
             {
                 method = "POST",
-                url = $"{baseUrl}/mcp",
+                url = GetMcpEndpoint(mcpPublicBaseUrl),
                 headers = new
                 {
                     Authorization = "Bearer <YOUR_PAT>",
@@ -58,4 +58,20 @@ public static class McpDiscoveryMetadata
                 }
             }
         };
+
+    public static string GetMcpEndpoint(string? mcpPublicBaseUrl) =>
+        ResolveUrl("/mcp", mcpPublicBaseUrl);
+
+    public static string GetMcpDocsEndpoint(string? mcpPublicBaseUrl) =>
+        ResolveUrl("/.well-known/mcp", mcpPublicBaseUrl);
+
+    private static string ResolveUrl(string path, string? mcpPublicBaseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(mcpPublicBaseUrl))
+        {
+            return path;
+        }
+
+        return $"{mcpPublicBaseUrl.TrimEnd('/')}{path}";
+    }
 }

@@ -365,6 +365,89 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         Assert.NotNull(envelope);
         Assert.NotNull(envelope!.Data);
         Assert.True(envelope.Data!.AllowInsecureCookies);
+        Assert.Null(envelope.Data.McpPublicBaseUrl);
+    }
+
+    [Fact]
+    public async Task StandardUser_UpdateConfiguration_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminUser_UpdateConfiguration_WithValidMcpPublicBaseUrl_ShouldPersist()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+
+        // Act
+        var patchResponse = await adminClient.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com/"));
+        var patchEnvelope = await patchResponse.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
+        var getResponse = await adminClient.GetAsync("/api/configuration");
+        var getEnvelope = await getResponse.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, patchResponse.StatusCode);
+        Assert.NotNull(patchEnvelope);
+        Assert.NotNull(patchEnvelope!.Data);
+        Assert.Equal("https://boardoil.example.com", patchEnvelope.Data!.McpPublicBaseUrl);
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.NotNull(getEnvelope);
+        Assert.NotNull(getEnvelope!.Data);
+        Assert.Equal("https://boardoil.example.com", getEnvelope.Data!.McpPublicBaseUrl);
+    }
+
+    [Fact]
+    public async Task AdminUser_UpdateConfiguration_WithNullMcpPublicBaseUrl_ShouldClearOverride()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var seedResponse = await adminClient.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
+        seedResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var clearResponse = await adminClient.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest(null));
+        var clearEnvelope = await clearResponse.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, clearResponse.StatusCode);
+        Assert.NotNull(clearEnvelope);
+        Assert.NotNull(clearEnvelope!.Data);
+        Assert.Null(clearEnvelope.Data!.McpPublicBaseUrl);
+    }
+
+    [Theory]
+    [InlineData("relative/path")]
+    [InlineData("ftp://boardoil.example.com")]
+    [InlineData("https://boardoil.example.com?x=1")]
+    [InlineData("https://boardoil.example.com#frag")]
+    public async Task AdminUser_UpdateConfiguration_WithInvalidMcpPublicBaseUrl_ShouldReturnBadRequest(string invalidValue)
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+
+        // Act
+        var response = await adminClient.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest(invalidValue));
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.False(envelope!.Success);
     }
 
     private async Task SeedTagAsync(string name, string normalisedName, string styleName, string stylePropertiesJson)
@@ -459,8 +542,9 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
 
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record CreateUserRequest(string UserName, string Password, string Role);
+    private sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);
     private sealed record AuthSessionEnvelope(string CsrfToken);
-    private sealed record ConfigurationEnvelope(bool AllowInsecureCookies);
+    private sealed record ConfigurationEnvelope(bool AllowInsecureCookies, string? McpPublicBaseUrl);
     private sealed record BootstrapStatusEnvelope(bool RequiresInitialAdminSetup);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

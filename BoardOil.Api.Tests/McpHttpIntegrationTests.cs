@@ -49,7 +49,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.True(response.Headers.Contains("WWW-Authenticate"));
         Assert.Equal("Bearer", payload.Data.GetProperty("auth").GetProperty("scheme").GetString());
         Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
-        Assert.EndsWith("/machine-access", payload.Data.GetProperty("setup").GetProperty("patManagementUi").GetString(), StringComparison.Ordinal);
+        Assert.Equal("/machine-access", payload.Data.GetProperty("setup").GetProperty("patManagementUi").GetString());
         Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
     }
 
@@ -129,17 +129,41 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("BoardOil MCP", payload.RootElement.GetProperty("name").GetString());
         Assert.Equal("mcp-http", payload.RootElement.GetProperty("protocol").GetString());
-        Assert.EndsWith("/mcp", payload.RootElement.GetProperty("endpoint").GetString(), StringComparison.Ordinal);
+        Assert.Equal("/mcp", payload.RootElement.GetProperty("endpoint").GetString());
         Assert.Equal("Bearer", payload.RootElement.GetProperty("auth").GetProperty("scheme").GetString());
         Assert.Equal("personal_access_token", payload.RootElement.GetProperty("setup").GetProperty("preferredAuth").GetString());
-        Assert.EndsWith("/machine-access", payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString(), StringComparison.Ordinal);
-        Assert.EndsWith("/mcp", payload.RootElement
+        Assert.Equal("/machine-access", payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
+        Assert.Equal("/mcp", payload.RootElement
             .GetProperty("setup")
             .GetProperty("examples")
             .GetProperty("genericMcpConfig")
             .GetProperty("url")
-            .GetString(), StringComparison.Ordinal);
+            .GetString());
         Assert.Equal("POST", payload.RootElement.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
+    }
+
+    [Fact]
+    public async Task WellKnownMcp_WithConfiguredPublicBaseUrl_ShouldReturnAbsoluteMetadataUrls()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patchResponse = await client.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com/base"));
+        patchResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await client.GetAsync("/.well-known/mcp");
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("https://boardoil.example.com/base/mcp", payload.RootElement.GetProperty("endpoint").GetString());
+        Assert.Equal(
+            "https://boardoil.example.com/base/api/auth/machine/login",
+            payload.RootElement.GetProperty("auth").GetProperty("tokenEndpoint").GetString());
+        Assert.Equal(
+            "https://boardoil.example.com/base/machine-access",
+            payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
     }
 
     [Theory]
@@ -163,7 +187,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.NotNull(payload);
         Assert.Equal(404, payload!.StatusCode);
         Assert.Equal(path, payload.Data.GetProperty("requestedPath").GetString());
-        Assert.Contains("/mcp", payload.Data.GetProperty("endpoint").GetString(), StringComparison.Ordinal);
+        Assert.Equal("/mcp", payload.Data.GetProperty("endpoint").GetString());
         Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
         Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
         Assert.Contains("PAT bearer token", payload.Data.GetProperty("nextStep").GetString(), StringComparison.OrdinalIgnoreCase);
@@ -387,6 +411,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
     }
 
     private sealed record LoginRequest(string UserName, string Password);
+    private sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);
     private sealed record CreateMachinePatRequest(
         string Name,
         int? ExpiresInDays,
