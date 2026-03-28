@@ -1112,6 +1112,120 @@ select:focus {
   gap: 0.45rem;
 }
 
+.machine-access-view {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+  max-width: 860px;
+}
+
+.machine-access-header {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.machine-access-header h2 {
+  margin: 0;
+}
+
+.machine-access-header p {
+  margin: 0.2rem 0 0;
+  color: var(--bo-ink-muted);
+}
+
+.machine-access-header > button {
+  width: auto;
+  justify-self: start;
+}
+
+.machine-pat-secret {
+  display: grid;
+  gap: 0.6rem;
+  background: var(--bo-surface-panel);
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.machine-pat-secret h3,
+.machine-pat-secret p {
+  margin: 0;
+}
+
+.machine-pat-secret-value {
+  display: block;
+  padding: 0.65rem;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 10px;
+  background: var(--bo-surface-base);
+  color: var(--bo-ink-strong);
+  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.83rem;
+  overflow-wrap: anywhere;
+}
+
+.machine-pat-secret-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.machine-pat-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.machine-pat-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.machine-pat-list-header h3 {
+  margin: 0;
+}
+
+.machine-pat-list-header > button {
+  width: auto;
+}
+
+.machine-pat-empty {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+
+.machine-pat-item {
+  display: grid;
+  gap: 0.55rem;
+  background: var(--bo-surface-panel);
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 12px;
+  padding: 0.8rem;
+}
+
+.machine-pat-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.machine-pat-item-meta {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--bo-ink-default);
+}
+
+.machine-pat-item-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.machine-pat-item-actions > button {
+  width: auto;
+}
+
 .success {
   color: var(--bo-colour-success-ink);
   margin: 0;
@@ -1121,5 +1235,23 @@ select:focus {
   .create-column {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .machine-pat-secret-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .machine-pat-item-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .machine-pat-item-actions {
+    justify-content: stretch;
+  }
+
+  .machine-pat-item-actions > button {
+    width: 100%;
   }
 }

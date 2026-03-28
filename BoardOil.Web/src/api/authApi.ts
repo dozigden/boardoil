@@ -1,8 +1,17 @@
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
-import type { AuthSession, AuthUser, BootstrapStatusDto, CsrfTokenDto, ManagedUser } from '../types/authTypes';
-import { getEnvelope, patchData, postData, postJson } from './http';
+import type {
+  AuthSession,
+  AuthUser,
+  BootstrapStatusDto,
+  CreateMachinePatRequest,
+  CreatedMachinePat,
+  CsrfTokenDto,
+  MachinePat,
+  ManagedUser
+} from '../types/authTypes';
+import { deleteJson, getEnvelope, patchData, postData, postJson } from './http';
 
 export type AuthApi = ReturnType<typeof createAuthApi>;
 
@@ -78,6 +87,23 @@ export function createAuthApi() {
     return patchData<ManagedUser>(`/api/users/${userId}/status`, { isActive });
   }
 
+  async function getMachinePats(): Promise<Result<MachinePat[], AppError>> {
+    const envelopeResult = await getEnvelope<MachinePat[]>('/api/auth/machine/pats');
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function createMachinePat(request: CreateMachinePatRequest): Promise<Result<CreatedMachinePat, AppError>> {
+    return postData<CreatedMachinePat>('/api/auth/machine/pats', request);
+  }
+
+  async function revokeMachinePat(id: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/auth/machine/pats/${id}`);
+  }
+
   return {
     registerInitialAdmin,
     login,
@@ -88,7 +114,10 @@ export function createAuthApi() {
     getUsers,
     createUser,
     updateUserRole,
-    updateUserStatus
+    updateUserStatus,
+    getMachinePats,
+    createMachinePat,
+    revokeMachinePat
   };
 }
 
