@@ -14,6 +14,7 @@ import { storeToRefs } from 'pinia';
 import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { RouterView, useRoute } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
+import { useBoardCatalogueStore } from './stores/boardCatalogueStore';
 import { useBoardStore } from './stores/boardStore';
 import { useTagStore } from './stores/tagStore';
 import { useAuthStore } from './stores/authStore';
@@ -23,6 +24,7 @@ import PageScrollLayout from './layouts/PageScrollLayout.vue';
 import { resolveAppLayout } from './layouts/appLayout';
 
 const boardStore = useBoardStore();
+const boardCatalogueStore = useBoardCatalogueStore();
 const tagStore = useTagStore();
 const authStore = useAuthStore();
 const feedbackStore = useUiFeedbackStore();
@@ -33,13 +35,11 @@ const layoutComponent = computed(() => (layoutMode.value === 'board' ? BoardWork
 
 onMounted(async () => {
   await authStore.initialize();
-  if (authStore.isAuthenticated) {
-    await tagStore.initialize();
-  }
 });
 
 onUnmounted(async () => {
   await boardStore.dispose();
+  boardCatalogueStore.dispose();
   tagStore.dispose();
 });
 
@@ -47,11 +47,12 @@ watch(
   () => authStore.isAuthenticated,
   async authenticated => {
     if (authenticated) {
-      await tagStore.initialize();
+      await Promise.all([tagStore.initialize(), boardCatalogueStore.loadBoards()]);
       return;
     }
 
     await boardStore.dispose();
+    boardCatalogueStore.dispose();
     tagStore.dispose();
   }
 );
