@@ -46,6 +46,7 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 builder.Services.AddSignalR();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton(runtimeOptions);
 builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton(csrfOptions);

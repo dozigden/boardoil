@@ -5,14 +5,18 @@ using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Auth;
 using BoardOil.Mcp.Contracts;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace BoardOil.Api.Mcp;
 
-public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProviderAccessor)
+public sealed class McpToolDispatcher(
+    McpServiceProviderAccessor serviceProviderAccessor,
+    IHttpContextAccessor httpContextAccessor)
 {
     private static readonly JsonSerializerOptions SerialiserOptions = new(JsonSerializerDefaults.Web)
     {
@@ -20,6 +24,7 @@ public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProvider
     };
 
     private readonly McpServiceProviderAccessor _serviceProviderAccessor = serviceProviderAccessor;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     public ValueTask<ListToolsResult> ListToolsAsync(RequestContext<ListToolsRequestParams> _, CancellationToken cancellationToken)
     {
@@ -54,23 +59,24 @@ public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProvider
 
         using var scope = _serviceProviderAccessor.ServiceProvider.CreateScope();
         var services = scope.ServiceProvider;
+        var patAccessContext = TryGetPatAccessContext(_httpContextAccessor.HttpContext?.User);
 
         return request.Name switch
-        {
+            {
             ToolNames.BoardGet => await InvokeAsync<BoardGetInput, McpBoardSnapshot>(request.Arguments, cancellationToken, input =>
-                HandleBoardGetAsync(services, input)),
+                HandleBoardGetAsync(services, input, patAccessContext)),
             ToolNames.ColumnsList => await InvokeAsync<ColumnsListInput, ColumnsListOutput>(request.Arguments, cancellationToken, input =>
-                HandleColumnsListAsync(services, input)),
+                HandleColumnsListAsync(services, input, patAccessContext)),
             ToolNames.CardCreate => await InvokeAsync<CardCreateInput, CardMutationOutput>(request.Arguments, cancellationToken, input =>
-                HandleCardCreateAsync(services, input)),
+                HandleCardCreateAsync(services, input, patAccessContext)),
             ToolNames.CardUpdate => await InvokeAsync<CardUpdateInput, CardMutationOutput>(request.Arguments, cancellationToken, input =>
-                HandleCardUpdateAsync(services, input)),
+                HandleCardUpdateAsync(services, input, patAccessContext)),
             ToolNames.CardMove => await InvokeAsync<CardMoveInput, CardMutationOutput>(request.Arguments, cancellationToken, input =>
-                HandleCardMoveAsync(services, input)),
+                HandleCardMoveAsync(services, input, patAccessContext)),
             ToolNames.CardMoveByColumnName => await InvokeAsync<CardMoveByColumnNameInput, CardMutationOutput>(request.Arguments, cancellationToken, input =>
-                HandleCardMoveByColumnNameAsync(services, input)),
+                HandleCardMoveByColumnNameAsync(services, input, patAccessContext)),
             ToolNames.CardDelete => await InvokeAsync<CardDeleteInput, CardMutationOutput>(request.Arguments, cancellationToken, input =>
-                HandleCardDeleteAsync(services, input)),
+                HandleCardDeleteAsync(services, input, patAccessContext)),
             _ => CreateCallToolResult(new McpToolResult<object>(
                 false,
                 null,
@@ -107,8 +113,17 @@ public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProvider
         return CreateCallToolResult(result);
     }
 
-    private static async Task<McpToolResult<McpBoardSnapshot>> HandleBoardGetAsync(IServiceProvider services, BoardGetInput input)
+    private static async Task<McpToolResult<McpBoardSnapshot>> HandleBoardGetAsync(
+        IServiceProvider services,
+        BoardGetInput input,
+        PatAccessContext? patAccessContext)
     {
+        var patAccessFailure = EnsurePatToolAccess<McpBoardSnapshot>(patAccessContext, MachinePatScopes.McpRead, input.BoardId);
+        if (patAccessFailure is not null)
+        {
+            return patAccessFailure;
+        }
+
         var boardService = services.GetRequiredService<IBoardService>();
         var result = await boardService.GetBoardAsync(input.BoardId);
         if (!result.Success || result.Data is null)
@@ -119,8 +134,17 @@ public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProvider
         return result.Data.ToMcp().ToMcpSuccess();
     }
 
-    private static async Task<McpToolResult<ColumnsListOutput>> HandleColumnsListAsync(IServiceProvider services, ColumnsListInput input)
+    private static async Task<McpToolResult<ColumnsListOutput>> HandleColumnsListAsync(
+        IServiceProvider services,
+        ColumnsListInput input,
+        PatAccessContext? patAccessContext)
     {
+        var patAccessFailure = EnsurePatToolAccess<ColumnsListOutput>(patAccessContext, MachinePatScopes.McpRead, input.BoardId);
+        if (patAccessFailure is not null)
+        {
+            return patAccessFailure;
+        }
+
         var columnService = services.GetRequiredService<IColumnService>();
         var result = await columnService.GetColumnsAsync(input.BoardId);
         if (!result.Success || result.Data is null)
@@ -137,8 +161,17 @@ public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProvider
         return output.ToMcpSuccess();
     }
 
-    private static async Task<McpToolResult<CardMutationOutput>> HandleCardCreateAsync(IServiceProvider services, CardCreateInput input)
+    private static async Task<McpToolResult<CardMutationOutput>> HandleCardCreateAsync(
+        IServiceProvider services,
+        CardCreateInput input,
+        PatAccessContext? patAccessContext)
     {
+        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, input.BoardId);
+        if (patAccessFailure is not null)
+        {
+            return patAccessFailure;
+        }
+
         var cardService = services.GetRequiredService<ICardService>();
         var request = new CreateCardRequest(input.BoardColumnId, input.Title, input.Description, input.TagNames);
         var result = await cardService.CreateCardAsync(input.BoardId, request);
@@ -150,8 +183,17 @@ public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProvider
         return new CardMutationOutput(result.Data.ToMcp(), "created").ToMcpSuccess();
     }
 
-    private static async Task<McpToolResult<CardMutationOutput>> HandleCardUpdateAsync(IServiceProvider services, CardUpdateInput input)
+    private static async Task<McpToolResult<CardMutationOutput>> HandleCardUpdateAsync(
+        IServiceProvider services,
+        CardUpdateInput input,
+        PatAccessContext? patAccessContext)
     {
+        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, input.BoardId);
+        if (patAccessFailure is not null)
+        {
+            return patAccessFailure;
+        }
+
         var cardService = services.GetRequiredService<ICardService>();
         var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames);
         var result = await cardService.UpdateCardAsync(input.BoardId, input.CardId, request);
@@ -163,8 +205,17 @@ public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProvider
         return new CardMutationOutput(result.Data.ToMcp(), "updated").ToMcpSuccess();
     }
 
-    private static async Task<McpToolResult<CardMutationOutput>> HandleCardMoveAsync(IServiceProvider services, CardMoveInput input)
+    private static async Task<McpToolResult<CardMutationOutput>> HandleCardMoveAsync(
+        IServiceProvider services,
+        CardMoveInput input,
+        PatAccessContext? patAccessContext)
     {
+        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, input.BoardId);
+        if (patAccessFailure is not null)
+        {
+            return patAccessFailure;
+        }
+
         var cardService = services.GetRequiredService<ICardService>();
         var request = new MoveCardRequest(input.BoardColumnId, input.PositionAfterCardId);
         var result = await cardService.MoveCardAsync(input.BoardId, input.CardId, request);
@@ -176,8 +227,17 @@ public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProvider
         return new CardMutationOutput(result.Data.ToMcp(), "moved").ToMcpSuccess();
     }
 
-    private static async Task<McpToolResult<CardMutationOutput>> HandleCardMoveByColumnNameAsync(IServiceProvider services, CardMoveByColumnNameInput input)
+    private static async Task<McpToolResult<CardMutationOutput>> HandleCardMoveByColumnNameAsync(
+        IServiceProvider services,
+        CardMoveByColumnNameInput input,
+        PatAccessContext? patAccessContext)
     {
+        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, input.BoardId);
+        if (patAccessFailure is not null)
+        {
+            return patAccessFailure;
+        }
+
         var boardService = services.GetRequiredService<IBoardService>();
         var cardService = services.GetRequiredService<ICardService>();
 
@@ -218,8 +278,17 @@ public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProvider
         return new CardMutationOutput(moveResult.Data.ToMcp(), "moved").ToMcpSuccess();
     }
 
-    private static async Task<McpToolResult<CardMutationOutput>> HandleCardDeleteAsync(IServiceProvider services, CardDeleteInput input)
+    private static async Task<McpToolResult<CardMutationOutput>> HandleCardDeleteAsync(
+        IServiceProvider services,
+        CardDeleteInput input,
+        PatAccessContext? patAccessContext)
     {
+        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, input.BoardId);
+        if (patAccessFailure is not null)
+        {
+            return patAccessFailure;
+        }
+
         var cardService = services.GetRequiredService<ICardService>();
         var result = await cardService.DeleteCardAsync(input.BoardId, input.CardId);
         if (!result.Success)
@@ -285,6 +354,73 @@ public sealed class McpToolDispatcher(McpServiceProviderAccessor serviceProvider
         using var document = JsonDocument.Parse(value);
         return document.RootElement.Clone();
     }
+
+    private static McpToolResult<T>? EnsurePatToolAccess<T>(PatAccessContext? patAccessContext, string requiredScope, int boardId)
+    {
+        if (patAccessContext is null)
+        {
+            return null;
+        }
+
+        if (!patAccessContext.Scopes.Contains(requiredScope))
+        {
+            return new McpToolResult<T>(
+                false,
+                default,
+                new McpToolError("forbidden", $"PAT token requires scope '{requiredScope}' for this tool.", 403));
+        }
+
+        if (!string.Equals(patAccessContext.BoardAccessMode, MachinePatBoardAccessModes.All, StringComparison.Ordinal)
+            && !patAccessContext.AllowedBoardIds.Contains(boardId))
+        {
+            return new McpToolResult<T>(
+                false,
+                default,
+                new McpToolError("forbidden", $"PAT token is not allowed to access board {boardId}.", 403));
+        }
+
+        return null;
+    }
+
+    private static PatAccessContext? TryGetPatAccessContext(ClaimsPrincipal? claimsPrincipal)
+    {
+        if (claimsPrincipal?.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        var authType = claimsPrincipal.FindFirst("boardoil_auth_type")?.Value;
+        if (!string.Equals(authType, "pat", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var scopes = claimsPrincipal
+            .FindAll("boardoil_pat_scope")
+            .Select(x => x.Value)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var boardAccessMode = claimsPrincipal.FindFirst("boardoil_pat_board_access_mode")?.Value;
+        boardAccessMode = string.IsNullOrWhiteSpace(boardAccessMode)
+            ? MachinePatBoardAccessModes.All
+            : boardAccessMode.Trim().ToLowerInvariant();
+
+        var allowedBoardIdsClaim = claimsPrincipal.FindFirst("boardoil_pat_allowed_board_ids")?.Value;
+        var allowedBoardIds = (allowedBoardIdsClaim ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(x => int.TryParse(x, out var boardId) ? boardId : (int?)null)
+            .Where(x => x is > 0)
+            .Select(x => x!.Value)
+            .ToHashSet();
+
+        return new PatAccessContext(scopes, boardAccessMode, allowedBoardIds);
+    }
+
+    private sealed record PatAccessContext(
+        ISet<string> Scopes,
+        string BoardAccessMode,
+        ISet<int> AllowedBoardIds);
 }
 
 public static class McpMappingExtensions
