@@ -7,6 +7,7 @@ import type { Result } from '../types/result';
 let csrfToken: string | null = null;
 let unauthorizedHandler: (() => void | Promise<void>) | null = null;
 let handlingUnauthorized = false;
+let refreshInFlight: Promise<boolean> | null = null;
 
 export function setCsrfToken(token: string | null) {
   csrfToken = token;
@@ -149,21 +150,31 @@ async function sendJsonForData<T>(
 
 async function request(path: string, init: RequestInit): Promise<Result<Response, AppError>> {
   try {
-    const headers = new Headers(init.headers ?? undefined);
-    const method = (init.method ?? 'GET').toUpperCase();
-    const isStateChanging = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
-    if (isStateChanging && csrfToken && !headers.has('X-BoardOil-CSRF')) {
-      headers.set('X-BoardOil-CSRF', csrfToken);
-    }
-
-    const response = await fetch(buildApiUrl(path), {
-      ...init,
-      headers,
-      credentials: 'include'
-    });
+    const response = await send(path, init);
     if (!response.ok) {
-      const envelope = (await response.clone().json().catch(() => null)) as ApiEnvelope<unknown> | null;
-      if (response.status === 401) {
+      if (response.status === 401 && shouldAttemptSessionRefresh(path)) {
+        const refreshed = await tryRefreshSession();
+        if (refreshed) {
+          const retriedResponse = await send(path, init);
+          if (retriedResponse.ok) {
+            return ok(retriedResponse);
+          }
+
+          const retriedEnvelope = await tryParseEnvelope(retriedResponse);
+          if (retriedResponse.status === 401 && shouldHandleUnauthorized(path)) {
+            void handleUnauthorized();
+          }
+
+          return err({
+            kind: 'http',
+            message: retriedEnvelope?.message ?? `Request failed with status ${retriedResponse.status}`,
+            statusCode: retriedResponse.status
+          });
+        }
+      }
+
+      const envelope = await tryParseEnvelope(response);
+      if (response.status === 401 && shouldHandleUnauthorized(path)) {
         void handleUnauthorized();
       }
 
@@ -194,6 +205,90 @@ async function handleUnauthorized() {
   } finally {
     handlingUnauthorized = false;
   }
+}
+
+async function send(path: string, init: RequestInit): Promise<Response> {
+  const headers = new Headers(init.headers ?? undefined);
+  const method = (init.method ?? 'GET').toUpperCase();
+  const isStateChanging = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+  if (isStateChanging && csrfToken && !headers.has('X-BoardOil-CSRF')) {
+    headers.set('X-BoardOil-CSRF', csrfToken);
+  }
+
+  return fetch(buildApiUrl(path), {
+    ...init,
+    headers,
+    credentials: 'include'
+  });
+}
+
+function shouldAttemptSessionRefresh(path: string) {
+  const normalisedPath = path.toLowerCase();
+  if (!normalisedPath.startsWith('/api/')) {
+    return false;
+  }
+
+  if (normalisedPath === '/api/auth/refresh') {
+    return false;
+  }
+
+  return !isUnauthenticatedAuthPath(normalisedPath);
+}
+
+function shouldHandleUnauthorized(path: string) {
+  return !isUnauthenticatedAuthPath(path.toLowerCase());
+}
+
+function isUnauthenticatedAuthPath(path: string) {
+  return path === '/api/auth/login'
+    || path === '/api/auth/register-initial-admin'
+    || path === '/api/auth/bootstrap-status'
+    || path === '/api/auth/machine/login'
+    || path === '/api/auth/machine/refresh'
+    || path === '/api/auth/machine/logout';
+}
+
+async function tryRefreshSession() {
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+
+  refreshInFlight = (async () => {
+    try {
+      const response = await fetch(buildApiUrl('/api/auth/refresh'), {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        return false;
+      }
+
+      const envelope = (await response.json().catch(() => null)) as ApiEnvelope<{ csrfToken?: string }> | null;
+      if (envelope?.success === false) {
+        return false;
+      }
+
+      const nextCsrfToken = envelope?.data?.csrfToken;
+      if (typeof nextCsrfToken !== 'string' || nextCsrfToken.length === 0) {
+        return false;
+      }
+
+      setCsrfToken(nextCsrfToken);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
+async function tryParseEnvelope(response: Response) {
+  return (await response.clone().json().catch(() => null)) as ApiEnvelope<unknown> | null;
 }
 
 async function parseEnvelope<T>(response: Response): Promise<Result<ApiEnvelope<T>, AppError>> {
