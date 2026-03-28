@@ -2,7 +2,7 @@
 set -euo pipefail
 
 API_URL="http://localhost:5000"
-MCP_URL="http://localhost:5001/mcp"
+MCP_URL="$API_URL/mcp"
 ADMIN_USER="admin"
 ADMIN_PASSWORD="Password1234!"
 CARD_TITLE="mcp-smoke-$(date +%s)"
@@ -135,17 +135,5 @@ board_verify_payload=$(curl -fsS -X POST "$MCP_URL" \
 board_verify_payload=$(normalise_mcp_json "$board_verify_payload")
 
 echo "$board_verify_payload" | jq -e --arg title "$CARD_TITLE" '.result.structuredContent.data.columns[].cards[] | select(.title==$title)' >/dev/null
-
-echo "[smoke] Validating MCP->API relay path did not report forwarding failures"
-if docker logs boardoil-mcp 2>&1 | grep -q "BoardOil MCP event forward failed"; then
-  echo "Detected MCP relay failure in boardoil-mcp logs" >&2
-  docker logs boardoil-mcp >&2 || true
-  exit 1
-fi
-if docker logs boardoil-mcp 2>&1 | grep -q "BoardOil MCP event forward threw"; then
-  echo "Detected MCP relay exception in boardoil-mcp logs" >&2
-  docker logs boardoil-mcp >&2 || true
-  exit 1
-fi
 
 echo "[smoke] Docker MCP smoke test passed"

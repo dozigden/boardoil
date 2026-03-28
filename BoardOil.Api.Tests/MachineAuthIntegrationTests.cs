@@ -44,6 +44,23 @@ public sealed class MachineAuthIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task MachineLogin_WithMissingCredentials_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        await RegisterInitialAdminAsync(client);
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/auth/machine/login", new { });
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.False(envelope!.Success);
+    }
+
+    [Fact]
     public async Task MachineRefresh_WithValidToken_ShouldReturnNewTokenPair()
     {
         // Arrange

@@ -24,10 +24,21 @@ public static class AuthEndpoints
                 authHttpService.LogoutAsync(request, response));
         app.MapPost("/api/auth/machine/login", (LoginRequest request, IAuthService authService) =>
                 LoginMachineAsync(request, authService));
+        app.MapPost("/api/auth/machine/pat/login", (MachinePatLoginRequest request, IAuthService authService) =>
+                LoginMachineWithPatAsync(request, authService));
         app.MapPost("/api/auth/machine/refresh", (MachineRefreshRequest request, IAuthService authService) =>
                 RefreshMachineAsync(request, authService));
         app.MapPost("/api/auth/machine/logout", (MachineLogoutRequest request, IAuthService authService) =>
                 LogoutMachineAsync(request, authService));
+        app.MapPost("/api/auth/machine/pats", (CreateMachinePatRequest request, IAuthService authService, ClaimsPrincipal claimsPrincipal) =>
+                CreateMachinePatAsync(request, authService, claimsPrincipal))
+            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+        app.MapGet("/api/auth/machine/pats", (IAuthService authService, ClaimsPrincipal claimsPrincipal) =>
+                ListMachinePatsAsync(authService, claimsPrincipal))
+            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+        app.MapDelete("/api/auth/machine/pats/{id:int}", (int id, IAuthService authService, ClaimsPrincipal claimsPrincipal) =>
+                RevokeMachinePatAsync(id, authService, claimsPrincipal))
+            .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
         app.MapGet("/api/auth/csrf", (IAuthHttpSessionService authHttpService, HttpRequest request, HttpResponse response) =>
                 authHttpService.GetCsrf(request, response))
@@ -83,5 +94,61 @@ public static class AuthEndpoints
     {
         var result = await authService.LogoutAsync(request.RefreshToken);
         return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> LoginMachineWithPatAsync(MachinePatLoginRequest request, IAuthService authService)
+    {
+        var result = await authService.LoginWithPatAsync(request);
+        if (!result.Success || result.Data is null)
+        {
+            return result.ToHttpResult();
+        }
+
+        return ApiResults.Ok(result.Data.ToMachineDto()).ToHttpResult();
+    }
+
+    private static async Task<IResult> CreateMachinePatAsync(
+        CreateMachinePatRequest request,
+        IAuthService authService,
+        ClaimsPrincipal claimsPrincipal)
+    {
+        if (!TryGetUserId(claimsPrincipal, out var userId))
+        {
+            return ((ApiResult)ApiErrors.Unauthorized("Invalid identity context.")).ToHttpResult();
+        }
+
+        var result = await authService.CreateMachinePatAsync(userId, request);
+        if (!result.Success || result.Data is null)
+        {
+            return result.ToHttpResult();
+        }
+
+        return ApiResults.Created(result.Data).ToHttpResult();
+    }
+
+    private static async Task<IResult> ListMachinePatsAsync(IAuthService authService, ClaimsPrincipal claimsPrincipal)
+    {
+        if (!TryGetUserId(claimsPrincipal, out var userId))
+        {
+            return ((ApiResult)ApiErrors.Unauthorized("Invalid identity context.")).ToHttpResult();
+        }
+
+        return (await authService.ListMachinePatsAsync(userId)).ToHttpResult();
+    }
+
+    private static async Task<IResult> RevokeMachinePatAsync(int id, IAuthService authService, ClaimsPrincipal claimsPrincipal)
+    {
+        if (!TryGetUserId(claimsPrincipal, out var userId))
+        {
+            return ((ApiResult)ApiErrors.Unauthorized("Invalid identity context.")).ToHttpResult();
+        }
+
+        return (await authService.RevokeMachinePatAsync(userId, id)).ToHttpResult();
+    }
+
+    private static bool TryGetUserId(ClaimsPrincipal claimsPrincipal, out int userId)
+    {
+        var userIdClaim = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(userIdClaim, out userId);
     }
 }

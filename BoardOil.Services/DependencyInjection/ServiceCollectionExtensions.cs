@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBoardRepository, BoardRepository>();
         services.AddScoped<IAuthUserRepository, AuthUserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
         services.AddScoped<ITagRepository, TagRepository>();

@@ -13,12 +13,15 @@ namespace BoardOil.Services.Auth;
 public sealed class AuthService(
     IAuthUserRepository authUserRepository,
     IRefreshTokenRepository refreshTokenRepository,
+    IPersonalAccessTokenRepository personalAccessTokenRepository,
     IPasswordHashService passwordHashService,
     IAccessTokenIssuer accessTokenIssuer,
     AuthSessionOptions sessionOptions,
     TimeProvider timeProvider,
     IDbContextScopeFactory scopeFactory) : IAuthService
 {
+    private static readonly string[] SupportedPatScopes = ["mcp"];
+
     public async Task<ApiResult<AuthSessionTokens>> RegisterInitialAdminAsync(RegisterInitialAdminRequest request)
     {
         using var scope = scopeFactory.Create();
@@ -74,13 +77,13 @@ public sealed class AuthService(
     {
         using var scope = scopeFactory.Create();
 
-        var normalizedUserName = request.UserName.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedUserName) || string.IsNullOrWhiteSpace(request.Password))
+        var normalisedUserName = request.UserName?.Trim();
+        if (string.IsNullOrWhiteSpace(normalisedUserName) || string.IsNullOrWhiteSpace(request.Password))
         {
             return ApiErrors.Unauthorized("Invalid username or password.");
         }
 
-        var user = await authUserRepository.GetByUserNameAsync(normalizedUserName);
+        var user = await authUserRepository.GetByUserNameAsync(normalisedUserName);
         if (user is null || !user.IsActive || !passwordHashService.VerifyPassword(request.Password, user.PasswordHash))
         {
             return ApiErrors.Unauthorized("Invalid username or password.");
@@ -89,6 +92,117 @@ public sealed class AuthService(
         var session = CreateSession(user);
         await scope.SaveChangesAsync();
         return session;
+    }
+
+    public async Task<ApiResult<AuthSessionTokens>> LoginWithPatAsync(MachinePatLoginRequest request)
+    {
+        using var scope = scopeFactory.Create();
+
+        if (string.IsNullOrWhiteSpace(request.Token))
+        {
+            return ApiErrors.Unauthorized("Personal access token is missing.");
+        }
+
+        var tokenHash = HashToken(request.Token);
+        var pat = await personalAccessTokenRepository.GetWithUserByHashAsync(tokenHash);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        if (pat is null
+            || pat.RevokedAtUtc is not null
+            || (pat.ExpiresAtUtc is not null && pat.ExpiresAtUtc <= now)
+            || !pat.User.IsActive)
+        {
+            return ApiErrors.Unauthorized("Personal access token is invalid or expired.");
+        }
+
+        var scopes = ParseScopes(pat.ScopesCsv);
+        if (!scopes.Contains("mcp", StringComparer.OrdinalIgnoreCase))
+        {
+            return ApiErrors.Forbidden("Personal access token does not allow MCP access.");
+        }
+
+        var session = CreateSession(pat.User);
+        pat.LastUsedAtUtc = now;
+        await scope.SaveChangesAsync();
+        return session;
+    }
+
+    public async Task<ApiResult<CreatedMachinePatDto>> CreateMachinePatAsync(int userId, CreateMachinePatRequest request)
+    {
+        using var scope = scopeFactory.Create();
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var name = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return ApiErrors.BadRequest("Token name is required.");
+        }
+
+        if (name.Length > 120)
+        {
+            return ApiErrors.BadRequest("Token name must be 120 characters or fewer.");
+        }
+
+        if (request.ExpiresInDays is <= 0 or > 3650)
+        {
+            return ApiErrors.BadRequest("expiresInDays must be between 1 and 3650 when specified.");
+        }
+
+        var scopes = NormaliseScopes(request.Scopes);
+        if (scopes.Count == 0)
+        {
+            return ApiErrors.BadRequest("At least one scope is required.");
+        }
+
+        if (scopes.Except(SupportedPatScopes, StringComparer.OrdinalIgnoreCase).Any())
+        {
+            return ApiErrors.BadRequest("Unsupported scope provided.");
+        }
+
+        var plainTextToken = CreatePersonalAccessToken();
+        var entity = new EntityPersonalAccessToken
+        {
+            UserId = userId,
+            Name = name,
+            TokenHash = HashToken(plainTextToken),
+            TokenPrefix = plainTextToken[..12],
+            ScopesCsv = string.Join(',', scopes),
+            CreatedAtUtc = now,
+            ExpiresAtUtc = request.ExpiresInDays is null ? null : now.AddDays(request.ExpiresInDays.Value)
+        };
+
+        personalAccessTokenRepository.Add(entity);
+        await scope.SaveChangesAsync();
+
+        return new CreatedMachinePatDto(
+            ToMachinePatDto(entity),
+            plainTextToken);
+    }
+
+    public async Task<ApiResult<IReadOnlyList<MachinePatDto>>> ListMachinePatsAsync(int userId)
+    {
+        using var scope = scopeFactory.CreateReadOnly();
+
+        var tokens = await personalAccessTokenRepository.GetByUserIdAsync(userId);
+        return tokens.Select(ToMachinePatDto).ToArray();
+    }
+
+    public async Task<ApiResult> RevokeMachinePatAsync(int userId, int tokenId)
+    {
+        using var scope = scopeFactory.Create();
+
+        var token = await personalAccessTokenRepository.GetByIdAsync(tokenId);
+        if (token is null || token.UserId != userId)
+        {
+            return ApiErrors.NotFound("Personal access token was not found.");
+        }
+
+        if (token.RevokedAtUtc is null)
+        {
+            token.RevokedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
+            await scope.SaveChangesAsync();
+        }
+
+        return ApiResults.Ok();
     }
 
     public async Task<ApiResult<AuthSessionTokens>> RefreshAsync(string? refreshToken)
@@ -198,6 +312,39 @@ public sealed class AuthService(
 
     private static string HashRefreshToken(string refreshToken) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
+
+    private static string CreatePersonalAccessToken() =>
+        $"bo_pat_{Convert.ToHexString(RandomNumberGenerator.GetBytes(32))}";
+
+    private static string HashToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    private static IReadOnlyList<string> ParseScopes(string scopesCsv) =>
+        scopesCsv
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToArray();
+
+    private static IReadOnlyList<string> NormaliseScopes(IEnumerable<string>? scopes)
+    {
+        var result = (scopes ?? SupportedPatScopes)
+            .Select(x => x.Trim().ToLowerInvariant())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        return result;
+    }
+
+    private static MachinePatDto ToMachinePatDto(EntityPersonalAccessToken token) =>
+        new(
+            token.Id,
+            token.Name,
+            token.TokenPrefix,
+            ParseScopes(token.ScopesCsv),
+            token.CreatedAtUtc,
+            token.ExpiresAtUtc,
+            token.LastUsedAtUtc,
+            token.RevokedAtUtc);
 
     private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string password)
     {

@@ -12,6 +12,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityCardTag> CardTags => Set<EntityCardTag>();
     public DbSet<EntityUser> Users => Set<EntityUser>();
     public DbSet<EntityRefreshToken> RefreshTokens => Set<EntityRefreshToken>();
+    public DbSet<EntityPersonalAccessToken> PersonalAccessTokens => Set<EntityPersonalAccessToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,6 +76,10 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .WithOne(x => x.User)
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+        user.HasMany(x => x.PersonalAccessTokens)
+            .WithOne(x => x.User)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         var refreshToken = modelBuilder.Entity<EntityRefreshToken>();
         refreshToken.HasKey(x => x.Id);
@@ -85,5 +90,19 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         refreshToken.Property(x => x.ReplacedByTokenHash).HasMaxLength(200).IsRequired(false);
         refreshToken.ToTable("RefreshTokens");
         refreshToken.HasIndex(x => x.TokenHash).IsUnique();
+
+        var personalAccessToken = modelBuilder.Entity<EntityPersonalAccessToken>();
+        personalAccessToken.HasKey(x => x.Id);
+        personalAccessToken.Property(x => x.Name).HasMaxLength(120).IsRequired();
+        personalAccessToken.Property(x => x.TokenHash).HasMaxLength(200).IsRequired();
+        personalAccessToken.Property(x => x.TokenPrefix).HasMaxLength(24).IsRequired();
+        personalAccessToken.Property(x => x.ScopesCsv).HasMaxLength(500).IsRequired();
+        personalAccessToken.Property(x => x.CreatedAtUtc).IsRequired();
+        personalAccessToken.Property(x => x.ExpiresAtUtc).IsRequired(false);
+        personalAccessToken.Property(x => x.LastUsedAtUtc).IsRequired(false);
+        personalAccessToken.Property(x => x.RevokedAtUtc).IsRequired(false);
+        personalAccessToken.ToTable("PersonalAccessTokens");
+        personalAccessToken.HasIndex(x => x.TokenHash).IsUnique();
+        personalAccessToken.HasIndex(x => x.UserId);
     }
 }

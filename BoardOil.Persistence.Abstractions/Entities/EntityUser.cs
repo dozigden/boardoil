@@ -11,4 +11,5 @@ public sealed class EntityUser
     public DateTime UpdatedAtUtc { get; set; }
 
     public ICollection<EntityRefreshToken> RefreshTokens { get; set; } = new List<EntityRefreshToken>();
+    public ICollection<EntityPersonalAccessToken> PersonalAccessTokens { get; set; } = new List<EntityPersonalAccessToken>();
 }
