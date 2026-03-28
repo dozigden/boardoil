@@ -143,6 +143,15 @@ body {
   gap: 0.75rem;
 }
 
+.header-primary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .header-meta {
   display: flex;
   align-items: center;
@@ -151,6 +160,7 @@ body {
   gap: 0.5rem;
   min-height: 2rem;
   margin-left: auto;
+  flex: 0 0 auto;
 }
 
 .brand-title {
@@ -158,7 +168,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   line-height: 1;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
@@ -206,6 +216,7 @@ body {
 .board-switcher {
   display: inline-flex;
   align-items: center;
+  margin-left: 1rem;
 }
 
 .board-switcher > details {
@@ -226,7 +237,7 @@ body {
   cursor: pointer;
   border: 1px solid var(--bo-border-brand);
   border-radius: 999px;
-  background: var(--bo-surface-brand);
+  background: var(--bo-surface-panel);
   color: var(--bo-link);
   user-select: none;
 }
@@ -249,14 +260,6 @@ body {
   display: none;
 }
 
-.board-switcher-label {
-  flex: 0 0 auto;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--bo-ink-subtle);
-}
-
 .board-switcher-name {
   min-width: 0;
   overflow: hidden;
@@ -268,14 +271,6 @@ body {
 .board-switcher-icon {
   flex: 0 0 auto;
   margin-left: auto;
-}
-
-.board-current-label {
-  flex: 0 0 auto;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--bo-ink-subtle);
 }
 
 .board-current-name {
@@ -403,8 +398,8 @@ body {
 
 .board-switcher-item:hover,
 .board-switcher-item:focus-visible {
-  background: var(--bo-surface-energy);
-  color: var(--bo-colour-energy);
+  background: var(--bo-surface-panel);
+  color: var(--bo-link);
 }
 
 .menu-trigger:hover,
@@ -416,9 +411,9 @@ body {
 
 .board-switcher-trigger:hover,
 .board-switcher-trigger:focus-visible {
-  background: var(--bo-surface-energy);
-  border-color: var(--bo-colour-energy);
-  color: var(--bo-colour-energy);
+  background: var(--bo-surface-brand);
+  border-color: var(--bo-border-brand);
+  color: var(--bo-link);
 }
 
 .toolbar {
@@ -1488,6 +1483,11 @@ select:focus {
 
 @media (max-width: 720px) {
   .header-top {
+    align-items: flex-start;
+  }
+
+  .header-primary {
+    width: 100%;
     align-items: flex-start;
   }
 
