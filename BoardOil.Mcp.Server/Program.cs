@@ -1,3 +1,6 @@
+using BoardOil.Abstractions;
+using BoardOil.Contracts.Realtime;
+using BoardOil.Mcp.Server.Realtime;
 using BoardOil.Mcp.Server.Tools;
 using BoardOil.Services.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +13,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 var services = new ServiceCollection();
 services.AddBoardOilServices(connectionString);
+ConfigureBoardEvents(services);
 
 services.AddTransient<BoardGetToolHandler>();
 services.AddTransient<ColumnsListToolHandler>();
@@ -27,4 +31,43 @@ Console.WriteLine("BoardOil MCP scaffold ready. Registered tools:");
 foreach (var tool in registry.ListTools())
 {
     Console.WriteLine($" - {tool.Name}");
+}
+
+static void ConfigureBoardEvents(IServiceCollection services)
+{
+    var apiBaseUrl = Environment.GetEnvironmentVariable("BOARDOIL_MCP_EVENTS_API_BASE_URL");
+    var apiKey = Environment.GetEnvironmentVariable("BOARDOIL_MCP_EVENTS_API_KEY");
+
+    var hasBaseUrl = !string.IsNullOrWhiteSpace(apiBaseUrl);
+    var hasApiKey = !string.IsNullOrWhiteSpace(apiKey);
+
+    if (hasBaseUrl ^ hasApiKey)
+    {
+        throw new InvalidOperationException(
+            "Set both BOARDOIL_MCP_EVENTS_API_BASE_URL and BOARDOIL_MCP_EVENTS_API_KEY to enable MCP realtime forwarding.");
+    }
+
+    if (!hasBaseUrl || !hasApiKey)
+    {
+        services.AddSingleton<IBoardEvents, NoOpBoardEvents>();
+        Console.WriteLine("BoardOil MCP realtime forwarding disabled (no API base URL/key configured).");
+        return;
+    }
+
+    if (!Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var baseUri))
+    {
+        throw new InvalidOperationException("BOARDOIL_MCP_EVENTS_API_BASE_URL must be an absolute URI.");
+    }
+
+    services.AddSingleton(new HttpClient
+    {
+        BaseAddress = baseUri,
+        Timeout = TimeSpan.FromSeconds(5)
+    });
+    services.AddSingleton<IBoardEvents>(_ => new ApiForwardingBoardEvents(
+        _.GetRequiredService<HttpClient>(),
+        apiKey!));
+
+    var relayTarget = $"{baseUri.ToString().TrimEnd('/')}{BoardRealtimeRelay.EndpointPath}";
+    Console.WriteLine($"BoardOil MCP realtime forwarding enabled -> {relayTarget}");
 }

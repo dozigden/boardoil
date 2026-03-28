@@ -8,11 +8,13 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _databasePath;
     private readonly bool _allowInsecureCookies;
+    private readonly string? _mcpEventRelayApiKey;
 
-    public BoardOilApiFactory(string databasePath, bool allowInsecureCookies = true)
+    public BoardOilApiFactory(string databasePath, bool allowInsecureCookies = true, string? mcpEventRelayApiKey = null)
     {
         _databasePath = databasePath;
         _allowInsecureCookies = allowInsecureCookies;
+        _mcpEventRelayApiKey = mcpEventRelayApiKey;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -30,6 +32,10 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("BoardOil:ExposeLan", "false");
         builder.UseSetting("BoardOil:Port", "5000");
         builder.UseSetting("BoardOilAuth:AllowInsecureCookies", _allowInsecureCookies.ToString().ToLowerInvariant());
+        if (!string.IsNullOrWhiteSpace(_mcpEventRelayApiKey))
+        {
+            builder.UseSetting("BoardOilInternal:McpEventRelayApiKey", _mcpEventRelayApiKey);
+        }
 
         builder.ConfigureAppConfiguration((_, configBuilder) =>
         {
@@ -41,6 +47,11 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
                 ["BoardOil:Port"] = "5000",
                 ["BoardOilAuth:AllowInsecureCookies"] = _allowInsecureCookies.ToString().ToLowerInvariant()
             };
+            if (!string.IsNullOrWhiteSpace(_mcpEventRelayApiKey))
+            {
+                settings["BoardOilInternal:McpEventRelayApiKey"] = _mcpEventRelayApiKey;
+            }
+
             configBuilder.AddInMemoryCollection(settings);
         });
     }
