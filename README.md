@@ -53,3 +53,67 @@ Run backend + frontend:
 ```bash
 ./dev-startall.sh
 ```
+
+## MCP for Agents
+
+Use the MCP server from your agent client as a local command (stdio).
+
+### 1) Build the MCP server
+
+```bash
+dotnet build BoardOil.Mcp.Server/BoardOil.Mcp.Server.csproj -maxcpucount:1 -nodeReuse:false
+```
+
+### 2) Configure your agent to start the MCP server
+
+Set the database connection string first:
+
+```bash
+export BOARDOIL_MCP_CONNECTION_STRING="Data Source=/data/boardoil.db"
+```
+
+Then configure your agent MCP client to launch:
+
+- command: `dotnet`
+- args: `run --project BoardOil.Mcp.Server/BoardOil.Mcp.Server.csproj -maxcpucount:1 -nodeReuse:false`
+
+Example MCP client entry:
+
+```json
+{
+  "mcpServers": {
+    "boardoil": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "BoardOil.Mcp.Server/BoardOil.Mcp.Server.csproj",
+        "-maxcpucount:1",
+        "-nodeReuse:false"
+      ],
+      "env": {
+        "BOARDOIL_MCP_CONNECTION_STRING": "Data Source=/data/boardoil.db"
+      }
+    }
+  }
+}
+```
+
+### 3) Verify tools exposed to the agent
+Tool names are defined in:
+- `BoardOil.Mcp.Contracts/ToolNames.cs`
+- `BoardOil.Mcp.Contracts/ToolCatalogue.cs`
+
+Schemas and payload contracts are defined in:
+- `BoardOil.Mcp.Contracts/Schemas/ToolSchemas.cs`
+- `BoardOil.Mcp.Contracts/Models.cs`
+
+## Docker Compose Status (MCP)
+`docker compose up --build` currently builds and runs only the `boardoil` API/web service.
+It does **not** run `BoardOil.Mcp.Server` yet.
+
+Current compose/runtime files:
+- `docker-compose.yml` defines only `boardoil`.
+- `Dockerfile` publishes only `BoardOil.Api` and starts `BoardOil.Api.dll`.
+
+If you want MCP in Compose, add a separate `boardoil-mcp` service and publish target for `BoardOil.Mcp.Server`.
