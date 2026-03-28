@@ -2,43 +2,44 @@ import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import { resolveAuthNavigation } from './auth/navigationGuard';
 import { useAuthStore } from './stores/authStore';
+import { APP_LAYOUT_BOARD, APP_LAYOUT_PAGE } from './layouts/appLayout';
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     name: 'login',
     component: () => import('./views/LoginView.vue'),
-    meta: { requiresAuth: false }
+    meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/setup-initial-admin',
     name: 'setup-initial-admin',
     component: () => import('./views/SetupInitialAdminView.vue'),
-    meta: { requiresAuth: false }
+    meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/unauthorized',
     name: 'unauthorized',
     component: () => import('./views/UnauthorizedView.vue'),
-    meta: { requiresAuth: false }
+    meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/licences',
     name: 'licences',
     component: () => import('./views/LicencesView.vue'),
-    meta: { requiresAuth: false }
+    meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/',
     name: 'boards',
     component: () => import('./views/BoardsView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/boards/:boardId(\\d+)',
     name: 'board',
     component: () => import('./views/BoardView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD }
   },
   {
     path: '/boards/:boardId(\\d+)/card/:cardId(\\d+)',
@@ -47,19 +48,19 @@ const routes: RouteRecordRaw[] = [
       default: () => import('./views/BoardView.vue'),
       dialog: () => import('./components/CardEditorDialog.vue')
     },
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD }
   },
   {
     path: '/boards/:boardId(\\d+)/columns',
     name: 'columns',
     component: () => import('./views/ColumnsManagerView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/tags',
     name: 'tags',
     component: () => import('./views/TagsManagerView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/tags/:tagId(\\d+)',
@@ -68,7 +69,7 @@ const routes: RouteRecordRaw[] = [
       default: () => import('./views/TagsManagerView.vue'),
       dialog: () => import('./components/TagEditorDialog.vue')
     },
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/boards/:boardId(\\d+)/columns/:columnId(\\d+)',
@@ -77,25 +78,25 @@ const routes: RouteRecordRaw[] = [
       default: () => import('./views/ColumnsManagerView.vue'),
       dialog: () => import('./components/ColumnEditorDialog.vue')
     },
-    meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/users',
     name: 'users',
     component: () => import('./views/UsersManagerView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/configuration',
     name: 'configuration',
     component: () => import('./views/ConfigurationView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/machine-access',
     name: 'machine-access',
     component: () => import('./views/MachineAccessView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/:pathMatch(.*)*',
