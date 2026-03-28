@@ -50,6 +50,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.Equal("Bearer", payload.Data.GetProperty("auth").GetProperty("scheme").GetString());
         Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
         Assert.EndsWith("/machine-access", payload.Data.GetProperty("setup").GetProperty("patManagementUi").GetString(), StringComparison.Ordinal);
+        Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
     }
 
     [Fact]
@@ -69,6 +70,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.Equal(401, payload!.StatusCode);
         Assert.Contains("Invalid or expired bearer token", payload.Message, StringComparison.OrdinalIgnoreCase);
         Assert.True(response.Headers.Contains("WWW-Authenticate"));
+        Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
     }
 
     [Fact]
@@ -92,6 +94,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.True(response.Headers.Contains("WWW-Authenticate"));
         Assert.Equal("Bearer", payload.Data.GetProperty("auth").GetProperty("scheme").GetString());
         Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
     }
 
     [Fact]
@@ -136,12 +139,16 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
             .GetProperty("genericMcpConfig")
             .GetProperty("url")
             .GetString(), StringComparison.Ordinal);
+        Assert.Equal("POST", payload.RootElement.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
     }
 
     [Theory]
     [InlineData("/sse")]
+    [InlineData("/sse/stream")]
     [InlineData("/messages")]
+    [InlineData("/messages/subscribe")]
     [InlineData("/v1/mcp")]
+    [InlineData("/v1/mcp/initialize")]
     public async Task UnsupportedMcpStylePath_ShouldReturnJsonNotFound(string path)
     {
         // Arrange
@@ -158,6 +165,8 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.Equal(path, payload.Data.GetProperty("requestedPath").GetString());
         Assert.Contains("/mcp", payload.Data.GetProperty("endpoint").GetString(), StringComparison.Ordinal);
         Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
+        Assert.Contains("PAT bearer token", payload.Data.GetProperty("nextStep").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -245,6 +254,30 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
             .SelectMany(column => column.GetProperty("cards").EnumerateArray())
             .ToArray();
         Assert.Contains(cards, card => card.GetProperty("title").GetString() == "API in-process MCP test");
+    }
+
+    [Fact]
+    public async Task WellKnownMcp_ShouldExposeTopLevelExamples()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/.well-known/mcp");
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("http", payload.RootElement
+            .GetProperty("examples")
+            .GetProperty("genericMcpConfig")
+            .GetProperty("transport")
+            .GetString());
+        Assert.Equal("POST", payload.RootElement
+            .GetProperty("examples")
+            .GetProperty("toolsListRequest")
+            .GetProperty("method")
+            .GetString());
     }
 
     private static async Task RegisterInitialAdminAsync(HttpClient client)

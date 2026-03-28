@@ -270,9 +270,9 @@ static bool IsCsrfExemptAuthPath(PathString path) =>
     || path.StartsWithSegments("/api/auth/machine/logout", StringComparison.OrdinalIgnoreCase);
 
 static bool IsUnsupportedMcpStylePath(PathString path) =>
-    path.Equals("/sse", StringComparison.OrdinalIgnoreCase)
-    || path.Equals("/messages", StringComparison.OrdinalIgnoreCase)
-    || path.Equals("/v1/mcp", StringComparison.OrdinalIgnoreCase);
+    path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase)
+    || path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase)
+    || path.StartsWithSegments("/v1/mcp", StringComparison.OrdinalIgnoreCase);
 
 static object CreateMcpAuthError(HttpRequest request, string detail) =>
     new ApiResult<object>(
@@ -282,7 +282,9 @@ static object CreateMcpAuthError(HttpRequest request, string detail) =>
             auth = McpDiscoveryMetadata.CreateAuthMetadata(GetBaseUrl(request)),
             endpoint = $"{GetBaseUrl(request)}/mcp",
             docs = $"{GetBaseUrl(request)}/.well-known/mcp",
-            setup = McpDiscoveryMetadata.CreateSetupMetadata(GetBaseUrl(request))
+            setup = McpDiscoveryMetadata.CreateSetupMetadata(GetBaseUrl(request)),
+            examples = McpDiscoveryMetadata.CreateExamples(GetBaseUrl(request)),
+            nextStep = "Create a PAT in the machine access UI, then call POST /mcp with Authorization: Bearer <YOUR_PAT>."
         },
         401,
         detail);
@@ -295,7 +297,9 @@ static object CreateUnsupportedMcpPathError(PathString path, HttpRequest request
             requestedPath = path.ToString(),
             endpoint = $"{GetBaseUrl(request)}/mcp",
             docs = $"{GetBaseUrl(request)}/.well-known/mcp",
-            setup = McpDiscoveryMetadata.CreateSetupMetadata(GetBaseUrl(request))
+            setup = McpDiscoveryMetadata.CreateSetupMetadata(GetBaseUrl(request)),
+            examples = McpDiscoveryMetadata.CreateExamples(GetBaseUrl(request)),
+            nextStep = "Use POST /mcp with a PAT bearer token. Legacy SSE-style paths are not supported."
         },
         404,
         "Unsupported MCP endpoint path.");

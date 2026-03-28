@@ -9,7 +9,8 @@ public static class McpDiscoveryMetadata
             endpoint = $"{baseUrl}/mcp",
             protocol = "mcp-http",
             auth = CreateAuthMetadata(baseUrl),
-            setup = CreateSetupMetadata(baseUrl)
+            setup = CreateSetupMetadata(baseUrl),
+            examples = CreateExamples(baseUrl)
         };
 
     public static object CreateAuthMetadata(string baseUrl) =>
@@ -25,32 +26,35 @@ public static class McpDiscoveryMetadata
         {
             preferredAuth = "personal_access_token",
             patManagementUi = $"{baseUrl}/machine-access",
-            examples = new
+            examples = CreateExamples(baseUrl)
+        };
+
+    public static object CreateExamples(string baseUrl) =>
+        new
+        {
+            genericMcpConfig = new
             {
-                genericMcpConfig = new
+                transport = "http",
+                url = $"{baseUrl}/mcp",
+                headers = new
                 {
-                    transport = "http",
-                    url = $"{baseUrl}/mcp",
-                    headers = new
-                    {
-                        Authorization = "Bearer <YOUR_PAT>"
-                    }
+                    Authorization = "Bearer <YOUR_PAT>"
+                }
+            },
+            toolsListRequest = new
+            {
+                method = "POST",
+                url = $"{baseUrl}/mcp",
+                headers = new
+                {
+                    Authorization = "Bearer <YOUR_PAT>",
+                    contentType = "application/json"
                 },
-                toolsListRequest = new
+                body = new
                 {
-                    method = "POST",
-                    url = $"{baseUrl}/mcp",
-                    headers = new
-                    {
-                        Authorization = "Bearer <YOUR_PAT>",
-                        contentType = "application/json"
-                    },
-                    body = new
-                    {
-                        jsonrpc = "2.0",
-                        id = "tools-list",
-                        method = "tools/list"
-                    }
+                    jsonrpc = "2.0",
+                    id = "tools-list",
+                    method = "tools/list"
                 }
             }
         };
