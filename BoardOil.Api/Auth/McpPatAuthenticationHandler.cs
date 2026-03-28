@@ -125,7 +125,9 @@ public sealed class McpPatAuthenticationHandler(
                 auth = McpDiscoveryMetadata.CreateAuthMetadata(GetBaseUrl()),
                 endpoint = $"{GetBaseUrl()}/mcp",
                 docs = $"{GetBaseUrl()}/.well-known/mcp",
-                setup = McpDiscoveryMetadata.CreateSetupMetadata(GetBaseUrl())
+                setup = McpDiscoveryMetadata.CreateSetupMetadata(GetBaseUrl()),
+                examples = McpDiscoveryMetadata.CreateExamples(GetBaseUrl()),
+                nextStep = "Create a PAT in the machine access UI, then call POST /mcp with Authorization: Bearer <YOUR_PAT>."
             },
             401,
             detail);
