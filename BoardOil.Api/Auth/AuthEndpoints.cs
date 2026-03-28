@@ -24,8 +24,6 @@ public static class AuthEndpoints
                 authHttpService.LogoutAsync(request, response));
         app.MapPost("/api/auth/machine/login", (LoginRequest request, IAuthService authService) =>
                 LoginMachineAsync(request, authService));
-        app.MapPost("/api/auth/machine/pat/login", (MachinePatLoginRequest request, IAuthService authService) =>
-                LoginMachineWithPatAsync(request, authService));
         app.MapPost("/api/auth/machine/refresh", (MachineRefreshRequest request, IAuthService authService) =>
                 RefreshMachineAsync(request, authService));
         app.MapPost("/api/auth/machine/logout", (MachineLogoutRequest request, IAuthService authService) =>
@@ -94,17 +92,6 @@ public static class AuthEndpoints
     {
         var result = await authService.LogoutAsync(request.RefreshToken);
         return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> LoginMachineWithPatAsync(MachinePatLoginRequest request, IAuthService authService)
-    {
-        var result = await authService.LoginWithPatAsync(request);
-        if (!result.Success || result.Data is null)
-        {
-            return result.ToHttpResult();
-        }
-
-        return ApiResults.Ok(result.Data.ToMachineDto()).ToHttpResult();
     }
 
     private static async Task<IResult> CreateMachinePatAsync(

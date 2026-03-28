@@ -8,8 +8,6 @@ public sealed record MachineRefreshRequest(string RefreshToken);
 
 public sealed record MachineLogoutRequest(string? RefreshToken);
 
-public sealed record MachinePatLoginRequest(string Token);
-
 public static class MachinePatScopes
 {
     public const string McpRead = "mcp:read";

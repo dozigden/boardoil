@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using Xunit;
 
@@ -23,7 +24,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreatePat_ThenLoginWithPat_ShouldReturnMachineSession()
+    public async Task CreatePat_ThenCallMcpWithPatBearer_ShouldSucceed()
     {
         // Arrange
         var adminClient = _factory.CreateClient();
@@ -42,18 +43,24 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         Assert.Equal("selected", created.Data.Token.BoardAccessMode);
         Assert.Equal([1], created.Data.Token.AllowedBoardIds);
 
-        var loginResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/machine/pat/login",
-            new MachinePatLoginRequest(created.Data.PlainTextToken));
-        var loginEnvelope = await loginResponse.Content.ReadFromJsonAsync<ApiEnvelope<MachineAuthEnvelope>>();
+        var toolsListResponse = await SendMcpRequestAsync(
+            adminClient,
+            created.Data.PlainTextToken,
+            "tools/list",
+            new { },
+            "tools-list");
+        using var toolsListPayload = await ParseMcpJsonAsync(toolsListResponse);
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
-        Assert.NotNull(loginEnvelope);
-        Assert.NotNull(loginEnvelope!.Data);
-        Assert.False(string.IsNullOrWhiteSpace(loginEnvelope.Data!.AccessToken));
-        Assert.False(string.IsNullOrWhiteSpace(loginEnvelope.Data.RefreshToken));
-        Assert.Equal("Bearer", loginEnvelope.Data.TokenType);
+        Assert.Equal(HttpStatusCode.OK, toolsListResponse.StatusCode);
+        var toolNames = toolsListPayload.RootElement
+            .GetProperty("result")
+            .GetProperty("tools")
+            .EnumerateArray()
+            .Select(tool => tool.GetProperty("name").GetString())
+            .ToArray();
+        Assert.Contains("board.get", toolNames);
+        Assert.Contains("card.create", toolNames);
     }
 
     [Fact]
@@ -72,13 +79,16 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
         // Act
         var revokeResponse = await adminClient.DeleteAsync($"/api/auth/machine/pats/{created.Data!.Token.Id}");
-        var loginAfterRevoke = await adminClient.PostAsJsonAsync(
-            "/api/auth/machine/pat/login",
-            new MachinePatLoginRequest(created.Data.PlainTextToken));
+        var toolsListAfterRevoke = await SendMcpRequestAsync(
+            adminClient,
+            created.Data.PlainTextToken,
+            "tools/list",
+            new { },
+            "tools-list-after-revoke");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, revokeResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, loginAfterRevoke.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, toolsListAfterRevoke.StatusCode);
     }
 
     [Fact]
@@ -130,6 +140,22 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         Assert.Empty(created.Data.Token.AllowedBoardIds);
     }
 
+    [Fact]
+    public async Task PatLoginEndpoint_ShouldReturnNotFound()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+
+        // Act
+        var response = await adminClient.PostAsJsonAsync("/api/auth/machine/pat/login", new { token = "bo_pat_test" });
+
+        // Assert
+        Assert.True(
+            response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed,
+            $"Expected 404/405 for removed PAT login endpoint, got {(int)response.StatusCode} ({response.StatusCode}).");
+    }
+
     private static async Task RegisterInitialAdminAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
@@ -156,7 +182,6 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         IReadOnlyList<string> Scopes,
         string BoardAccessMode,
         IReadOnlyList<int> AllowedBoardIds);
-    private sealed record MachinePatLoginRequest(string Token);
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
     private sealed record CreatedMachinePatEnvelope(MachinePatEnvelope Token, string PlainTextToken);
@@ -171,12 +196,45 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         DateTime? ExpiresAtUtc,
         DateTime? LastUsedAtUtc,
         DateTime? RevokedAtUtc);
-    private sealed record MachineAuthEnvelope(
-        string AccessToken,
-        DateTime AccessTokenExpiresAtUtc,
-        string RefreshToken,
-        DateTime RefreshTokenExpiresAtUtc,
-        UserEnvelope User,
-        string TokenType);
-    private sealed record UserEnvelope(int Id, string UserName, string Role);
+    private static async Task<HttpResponseMessage> SendMcpRequestAsync(HttpClient client, string bearerToken, string method, object @params, string id)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/mcp")
+        {
+            Content = JsonContent.Create(new Dictionary<string, object?>
+            {
+                ["jsonrpc"] = "2.0",
+                ["id"] = id,
+                ["method"] = method,
+                ["params"] = @params
+            })
+        };
+        request.Headers.Authorization = new("Bearer", bearerToken);
+        request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.Accept.ParseAdd("text/event-stream");
+        return await client.SendAsync(request);
+    }
+
+    private static async Task<JsonDocument> ParseMcpJsonAsync(HttpResponseMessage response)
+    {
+        var content = await response.Content.ReadAsStringAsync();
+        var trimmed = content.TrimStart();
+        if (trimmed.StartsWith('{'))
+        {
+            return JsonDocument.Parse(trimmed);
+        }
+
+        var sseJsonPayload = trimmed
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => line.StartsWith("data:", StringComparison.Ordinal))
+            .Select(line => line["data:".Length..].Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .LastOrDefault();
+        if (sseJsonPayload is not null)
+        {
+            return JsonDocument.Parse(sseJsonPayload);
+        }
+
+        throw new JsonException($"MCP response was not parseable JSON: {content}");
+    }
 }
