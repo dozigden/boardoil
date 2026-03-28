@@ -6,6 +6,7 @@ MCP_URL="$API_URL/mcp"
 ADMIN_USER="admin"
 ADMIN_PASSWORD="Password1234!"
 CARD_TITLE="mcp-smoke-$(date +%s)"
+COOKIE_JAR="$(mktemp -t boardoil-smoke-cookies.XXXXXX)"
 
 require_tool() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -37,6 +38,7 @@ normalise_mcp_json() {
 }
 
 cleanup() {
+  rm -f "$COOKIE_JAR" >/dev/null 2>&1 || true
   docker compose down --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -72,6 +74,7 @@ fi
 
 echo "[smoke] Bootstrapping initial admin"
 register_status=$(curl -s -o /tmp/boardoil-register.json -w "%{http_code}" -X POST "$API_URL/api/auth/register-initial-admin" \
+  -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
   -H "Content-Type: application/json" \
   -d "{\"userName\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}")
 if [ "$register_status" != "201" ] && [ "$register_status" != "409" ]; then
@@ -80,19 +83,37 @@ if [ "$register_status" != "201" ] && [ "$register_status" != "409" ]; then
   exit 1
 fi
 
-echo "[smoke] Requesting machine token"
-login_payload=$(curl -fsS -X POST "$API_URL/api/auth/machine/login" \
+csrf_token=$(jq -r '.data.csrfToken // empty' /tmp/boardoil-register.json)
+if [ -z "$csrf_token" ] && [ "$register_status" = "409" ]; then
+  echo "[smoke] Logging in as existing admin"
+  login_payload=$(curl -fsS -X POST "$API_URL/api/auth/login" \
+    -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+    -H "Content-Type: application/json" \
+    -d "{\"userName\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}")
+  csrf_token=$(echo "$login_payload" | jq -r '.data.csrfToken // empty')
+fi
+
+if [ -z "$csrf_token" ]; then
+  echo "Failed to obtain CSRF token for PAT creation" >&2
+  exit 1
+fi
+
+echo "[smoke] Creating machine PAT"
+create_pat_payload=$(curl -fsS -X POST "$API_URL/api/auth/machine/pats" \
+  -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+  -H "X-BoardOil-CSRF: $csrf_token" \
   -H "Content-Type: application/json" \
-  -d "{\"userName\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}")
-access_token=$(echo "$login_payload" | jq -r '.data.accessToken')
-if [ -z "$access_token" ] || [ "$access_token" = "null" ]; then
-  echo "Failed to obtain machine access token" >&2
+  -d '{"name":"mcp-smoke-token","expiresInDays":30,"scopes":["mcp:read","mcp:write"],"boardAccessMode":"all","allowedBoardIds":[]}')
+pat_token=$(echo "$create_pat_payload" | jq -r '.data.plainTextToken')
+if [ -z "$pat_token" ] || [ "$pat_token" = "null" ]; then
+  echo "Failed to create machine PAT" >&2
+  echo "$create_pat_payload" >&2
   exit 1
 fi
 
 echo "[smoke] Calling MCP tools/list"
 tools_list_payload=$(curl -fsS -X POST "$MCP_URL" \
-  -H "Authorization: Bearer $access_token" \
+  -H "Authorization: Bearer $pat_token" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list","params":{}}')
@@ -102,7 +123,7 @@ echo "$tools_list_payload" | jq -e '.result.tools[] | select(.name=="card.create
 
 echo "[smoke] Reading board snapshot via board.get"
 board_get_payload=$(curl -fsS -X POST "$MCP_URL" \
-  -H "Authorization: Bearer $access_token" \
+  -H "Authorization: Bearer $pat_token" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":"board-get","method":"tools/call","params":{"name":"board.get","arguments":{"boardId":1}}}')
@@ -121,14 +142,14 @@ create_payload=$(jq -n \
   '{jsonrpc:"2.0",id:"card-create",method:"tools/call",params:{name:"card.create",arguments:{boardId:$boardId,boardColumnId:$columnId,title:$title,description:"Created by MCP docker smoke",tagNames:[]}}}')
 
 curl -fsS -X POST "$MCP_URL" \
-  -H "Authorization: Bearer $access_token" \
+  -H "Authorization: Bearer $pat_token" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d "$create_payload" >/dev/null
 
 echo "[smoke] Verifying card exists via board.get"
 board_verify_payload=$(curl -fsS -X POST "$MCP_URL" \
-  -H "Authorization: Bearer $access_token" \
+  -H "Authorization: Bearer $pat_token" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":"board-verify","method":"tools/call","params":{"name":"board.get","arguments":{"boardId":1}}}')

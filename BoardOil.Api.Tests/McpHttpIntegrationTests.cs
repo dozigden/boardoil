@@ -159,11 +159,17 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("https://boardoil.example.com/base/mcp", payload.RootElement.GetProperty("endpoint").GetString());
         Assert.Equal(
-            "https://boardoil.example.com/base/api/auth/machine/login",
-            payload.RootElement.GetProperty("auth").GetProperty("tokenEndpoint").GetString());
+            "personal_access_token",
+            payload.RootElement.GetProperty("auth").GetProperty("tokenType").GetString());
+        Assert.Equal(
+            "bo_pat_",
+            payload.RootElement.GetProperty("auth").GetProperty("tokenPrefix").GetString());
         Assert.Equal(
             "https://boardoil.example.com/base/machine-access",
             payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
+        Assert.Equal(
+            "https://boardoil.example.com/base/machine-access",
+            payload.RootElement.GetProperty("auth").GetProperty("patManagementUi").GetString());
     }
 
     [Theory]
