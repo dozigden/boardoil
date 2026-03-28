@@ -28,3 +28,20 @@
 ## Documentation Scope
 
 - Do not update `README.md` unless the user explicitly asks for a README change.
+
+## MCP Board Workflow
+
+- When a session is board-driven, treat the board as the source of truth for execution order and progress.
+- Before starting implementation:
+  - Read the board state with MCP.
+  - Confirm the next story to work from `Todo` (unless the user explicitly reprioritises).
+- As work starts on a story:
+  - Move the story card to `In Progress` before code changes.
+  - Add a brief status line in the card description so progress is visible without opening chat history.
+- During implementation:
+  - Keep the story description updated at meaningful milestones (design decided, implementation done, tests running, etc.).
+  - Use concise, outcome-focused updates.
+- When the story is complete:
+  - Update the card description with final outcomes (what changed + validation done).
+  - Move the card to `Done`.
+- If temporary/spike/smoke cards are created during testing, move them out of `Todo` once they are no longer actionable.

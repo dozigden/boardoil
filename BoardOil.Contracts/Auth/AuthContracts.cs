@@ -8,6 +8,13 @@ public sealed record MachineRefreshRequest(string RefreshToken);
 
 public sealed record MachineLogoutRequest(string? RefreshToken);
 
+public sealed record MachinePatLoginRequest(string Token);
+
+public sealed record CreateMachinePatRequest(
+    string Name,
+    int? ExpiresInDays = null,
+    string[]? Scopes = null);
+
 public sealed record AuthUserDto(int Id, string UserName, string Role);
 
 public sealed record AuthSessionDto(
@@ -25,6 +32,20 @@ public sealed record MachineAuthSessionDto(
     DateTime RefreshTokenExpiresAtUtc,
     AuthUserDto User,
     string TokenType = "Bearer");
+
+public sealed record MachinePatDto(
+    int Id,
+    string Name,
+    string TokenPrefix,
+    IReadOnlyList<string> Scopes,
+    DateTime CreatedAtUtc,
+    DateTime? ExpiresAtUtc,
+    DateTime? LastUsedAtUtc,
+    DateTime? RevokedAtUtc);
+
+public sealed record CreatedMachinePatDto(
+    MachinePatDto Token,
+    string PlainTextToken);
 
 public sealed record BootstrapStatusDto(bool RequiresInitialAdminSetup);
 

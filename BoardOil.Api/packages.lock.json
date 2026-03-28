@@ -28,6 +28,24 @@
           "Newtonsoft.Json": "13.0.3"
         }
       },
+      "ModelContextProtocol": {
+        "type": "Direct",
+        "requested": "[1.2.0, )",
+        "resolved": "1.2.0",
+        "contentHash": "8lHIp8EY8faMFwDL+JynpFOeFZdsEE/Kxq8XMVfaA+RmQyNWjoWyvNXNQtWzVq+lDUlHLBx0ozerByNfcrciCw==",
+        "dependencies": {
+          "ModelContextProtocol.Core": "1.2.0"
+        }
+      },
+      "ModelContextProtocol.AspNetCore": {
+        "type": "Direct",
+        "requested": "[1.2.0, )",
+        "resolved": "1.2.0",
+        "contentHash": "tVDFKdRCcVz7YTApJ8SV2K5Tt3nor6RcnEkjSbC0X9y3qtp6BCYubRWJcd2ByZ+jIbJG8P34UOaIEbWyVQSLMw==",
+        "dependencies": {
+          "ModelContextProtocol": "1.2.0"
+        }
+      },
       "Humanizer.Core": {
         "type": "Transitive",
         "resolved": "2.14.1",
@@ -155,6 +173,11 @@
           "SQLitePCLRaw.core": "2.1.11"
         }
       },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.4.1",
+        "contentHash": "ZxhU/wg9BOc3ohibhLl18toPLWm96ysQoE+3OhCgrZ0TUPZd7bsUmGteeatz08yweyuPIEhtyUzEZTF+3bMWEQ=="
+      },
       "Microsoft.Extensions.DependencyModel": {
         "type": "Transitive",
         "resolved": "10.0.4",
@@ -210,6 +233,14 @@
         "type": "Transitive",
         "resolved": "1.0.52",
         "contentHash": "oNv2JtYXhpdJrX63nibx1JT3uCESOBQ1LAk7Dtz/sr0+laW0KRM6eKp4CZ3MHDR2siIkKsY8MmUkeP5DKkQQ5w=="
+      },
+      "ModelContextProtocol.Core": {
+        "type": "Transitive",
+        "resolved": "1.2.0",
+        "contentHash": "x0eQqFKtV30nWP6yVy0d/3RnAKwM14ay1CHnUNb7EpwZEXJJJqjPENYvpzwqi8+8LNMMK/g33WnnLYIf1JGMOg==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.4.1"
+        }
       },
       "Mono.TextTemplating": {
         "type": "Transitive",
@@ -332,11 +363,11 @@
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.4, )"
         }
       },
+      "boardoil.mcp.contracts": {
+        "type": "Project"
+      },
       "boardoil.persistence.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "BoardOil.Abstractions": "[1.0.0, )"
-        }
+        "type": "Project"
       },
       "boardoil.services": {
         "type": "Project",

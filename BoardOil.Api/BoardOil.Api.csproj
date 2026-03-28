@@ -6,6 +6,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
+    <ProjectReference Include="..\BoardOil.Mcp.Contracts\BoardOil.Mcp.Contracts.csproj" />
     <ProjectReference Include="..\BoardOil.Services\BoardOil.Services.csproj" />
   </ItemGroup>
 
