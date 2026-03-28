@@ -41,16 +41,16 @@ static void ConfigureBoardEvents(IServiceCollection services)
     var hasBaseUrl = !string.IsNullOrWhiteSpace(apiBaseUrl);
     var hasApiKey = !string.IsNullOrWhiteSpace(apiKey);
 
-    if (hasBaseUrl ^ hasApiKey)
+    if (!hasBaseUrl)
     {
-        throw new InvalidOperationException(
-            "Set both BOARDOIL_MCP_EVENTS_API_BASE_URL and BOARDOIL_MCP_EVENTS_API_KEY to enable MCP realtime forwarding.");
-    }
+        if (hasApiKey)
+        {
+            throw new InvalidOperationException(
+                "BOARDOIL_MCP_EVENTS_API_KEY was set without BOARDOIL_MCP_EVENTS_API_BASE_URL.");
+        }
 
-    if (!hasBaseUrl || !hasApiKey)
-    {
         services.AddSingleton<IBoardEvents, NoOpBoardEvents>();
-        Console.WriteLine("BoardOil MCP realtime forwarding disabled (no API base URL/key configured).");
+        Console.WriteLine("BoardOil MCP realtime forwarding disabled (no API base URL configured).");
         return;
     }
 
@@ -66,8 +66,9 @@ static void ConfigureBoardEvents(IServiceCollection services)
     });
     services.AddSingleton<IBoardEvents>(_ => new ApiForwardingBoardEvents(
         _.GetRequiredService<HttpClient>(),
-        apiKey!));
+        apiKey));
 
     var relayTarget = $"{baseUri.ToString().TrimEnd('/')}{BoardRealtimeRelay.EndpointPath}";
-    Console.WriteLine($"BoardOil MCP realtime forwarding enabled -> {relayTarget}");
+    var authMode = hasApiKey ? "api-key" : "source-ip";
+    Console.WriteLine($"BoardOil MCP realtime forwarding enabled ({authMode}) -> {relayTarget}");
 }

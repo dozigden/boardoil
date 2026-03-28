@@ -8,10 +8,10 @@ namespace BoardOil.Mcp.Server.Realtime;
 
 public sealed class ApiForwardingBoardEvents(
     HttpClient httpClient,
-    string apiKey) : IBoardEvents
+    string? apiKey) : IBoardEvents
 {
     private readonly HttpClient _httpClient = httpClient;
-    private readonly string _apiKey = apiKey;
+    private readonly string? _apiKey = apiKey;
 
     public Task ColumnCreatedAsync(int boardId, ColumnDto column) =>
         ForwardAsync(new BoardRealtimeRelayEvent(BoardRealtimeEventTypes.ColumnCreated, boardId, Column: column));
@@ -39,7 +39,11 @@ public sealed class ApiForwardingBoardEvents(
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, BoardRealtimeRelay.EndpointPath);
-            request.Headers.TryAddWithoutValidation(BoardRealtimeRelay.ApiKeyHeaderName, _apiKey);
+            if (!string.IsNullOrWhiteSpace(_apiKey))
+            {
+                request.Headers.TryAddWithoutValidation(BoardRealtimeRelay.ApiKeyHeaderName, _apiKey);
+            }
+
             request.Content = JsonContent.Create(relayEvent);
 
             using var response = await _httpClient.SendAsync(request);

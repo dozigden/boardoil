@@ -9,12 +9,18 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
     private readonly string _databasePath;
     private readonly bool _allowInsecureCookies;
     private readonly string? _mcpEventRelayApiKey;
+    private readonly string? _mcpEventRelayAllowedSourceIps;
 
-    public BoardOilApiFactory(string databasePath, bool allowInsecureCookies = true, string? mcpEventRelayApiKey = null)
+    public BoardOilApiFactory(
+        string databasePath,
+        bool allowInsecureCookies = true,
+        string? mcpEventRelayApiKey = null,
+        string? mcpEventRelayAllowedSourceIps = null)
     {
         _databasePath = databasePath;
         _allowInsecureCookies = allowInsecureCookies;
         _mcpEventRelayApiKey = mcpEventRelayApiKey;
+        _mcpEventRelayAllowedSourceIps = mcpEventRelayAllowedSourceIps;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -36,6 +42,10 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         {
             builder.UseSetting("BoardOilInternal:McpEventRelayApiKey", _mcpEventRelayApiKey);
         }
+        if (!string.IsNullOrWhiteSpace(_mcpEventRelayAllowedSourceIps))
+        {
+            builder.UseSetting("BoardOilInternal:McpEventRelayAllowedSourceIps", _mcpEventRelayAllowedSourceIps);
+        }
 
         builder.ConfigureAppConfiguration((_, configBuilder) =>
         {
@@ -50,6 +60,10 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
             if (!string.IsNullOrWhiteSpace(_mcpEventRelayApiKey))
             {
                 settings["BoardOilInternal:McpEventRelayApiKey"] = _mcpEventRelayApiKey;
+            }
+            if (!string.IsNullOrWhiteSpace(_mcpEventRelayAllowedSourceIps))
+            {
+                settings["BoardOilInternal:McpEventRelayAllowedSourceIps"] = _mcpEventRelayAllowedSourceIps;
             }
 
             configBuilder.AddInMemoryCollection(settings);
