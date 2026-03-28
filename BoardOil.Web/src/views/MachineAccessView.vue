@@ -11,6 +11,51 @@
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
+    <section class="machine-pat-setup">
+      <h3>Agent setup helper</h3>
+      <ol class="machine-pat-setup-steps">
+        <li>Create a PAT using the Create token button.</li>
+        <li>Configure your external agent with the MCP endpoint and bearer PAT header.</li>
+        <li>Run the tools/list test call to verify connectivity.</li>
+      </ol>
+
+      <div class="machine-pat-setup-grid">
+        <article class="machine-pat-setup-item">
+          <h4>MCP endpoint</h4>
+          <code class="machine-pat-setup-code machine-pat-inline-code">{{ mcpEndpoint }}</code>
+          <button type="button" class="ghost" :disabled="isBusy" @click="copySnippet(mcpEndpoint, 'MCP endpoint')">Copy endpoint</button>
+        </article>
+
+        <article class="machine-pat-setup-item">
+          <h4>Discovery metadata</h4>
+          <code class="machine-pat-setup-code machine-pat-inline-code">{{ mcpDiscoveryEndpoint }}</code>
+          <button type="button" class="ghost" :disabled="isBusy" @click="copySnippet(mcpDiscoveryEndpoint, 'discovery endpoint')">
+            Copy metadata URL
+          </button>
+        </article>
+      </div>
+
+      <article class="machine-pat-setup-item">
+        <h4>Generic MCP config snippet</h4>
+        <pre class="machine-pat-setup-code">{{ genericConfigSnippet }}</pre>
+        <button type="button" class="ghost" :disabled="isBusy" @click="copySnippet(genericConfigSnippet, 'MCP config snippet')">
+          Copy config
+        </button>
+      </article>
+
+      <article class="machine-pat-setup-item">
+        <h4>tools/list smoke call</h4>
+        <pre class="machine-pat-setup-code">{{ toolsListCurlSnippet }}</pre>
+        <button type="button" class="ghost" :disabled="isBusy" @click="copySnippet(toolsListCurlSnippet, 'tools/list curl command')">
+          Copy curl command
+        </button>
+      </article>
+
+      <p class="machine-pat-setup-note">
+        Use PAT as the direct bearer token for MCP calls. PATs do not use refresh-token login.
+      </p>
+    </section>
+
     <section v-if="plainTextPat" class="machine-pat-secret">
       <h3>Copy token now</h3>
       <p>This value is only shown once for <strong>{{ plainTextPatName }}</strong>.</p>
@@ -96,6 +141,27 @@ const plainTextPatName = ref<string>('');
 const copiedPat = ref(false);
 
 const isBusy = computed(() => loading.value || createBusy.value || revokeBusyTokenId.value !== null);
+const mcpEndpoint = computed(() => `${window.location.origin}/mcp`);
+const mcpDiscoveryEndpoint = computed(() => `${window.location.origin}/.well-known/mcp`);
+const genericConfigSnippet = computed(() =>
+  `{
+  "mcpServers": {
+    "boardoil": {
+      "transport": "http",
+      "url": "${mcpEndpoint.value}",
+      "headers": {
+        "Authorization": "Bearer <YOUR_PAT>"
+      }
+    }
+  }
+}`
+);
+const toolsListCurlSnippet = computed(() =>
+  `curl -sS -X POST ${mcpEndpoint.value} \\
+  -H "Authorization: Bearer <YOUR_PAT>" \\
+  -H "Content-Type: application/json" \\
+  --data '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list"}'`
+);
 
 onMounted(async () => {
   await loadInitialData();
@@ -200,12 +266,25 @@ async function copyPlainTextPat() {
     return;
   }
 
-  try {
-    await navigator.clipboard.writeText(plainTextPat.value);
+  const copied = await copyToClipboard(plainTextPat.value, `token ${plainTextPatName.value}`);
+  if (copied) {
     copiedPat.value = true;
-    successMessage.value = `Copied token ${plainTextPatName.value} to clipboard.`;
+  }
+}
+
+async function copySnippet(text: string, label: string) {
+  await copyToClipboard(text, label);
+}
+
+async function copyToClipboard(text: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    successMessage.value = `Copied ${label} to clipboard.`;
+    errorMessage.value = null;
+    return true;
   } catch {
-    errorMessage.value = 'Could not copy token to clipboard automatically.';
+    errorMessage.value = 'Could not copy to clipboard automatically.';
+    return false;
   }
 }
 
