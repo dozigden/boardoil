@@ -1,0 +1,77 @@
+import { describe, expect, it } from 'vitest';
+import { getBrandTarget, getCurrentBoardName, getOtherBoards } from './appHeaderNavigation';
+import type { Board, BoardSummary } from '../types/boardTypes';
+
+describe('appHeaderNavigation', () => {
+  it('routes the brand link to the only board when exactly one board exists', () => {
+    const boards: BoardSummary[] = [
+      {
+        id: 7,
+        name: 'Solo board',
+        createdAtUtc: '2026-03-15T00:00:00Z',
+        updatedAtUtc: '2026-03-15T00:00:00Z'
+      }
+    ];
+
+    expect(getBrandTarget(boards)).toEqual({ name: 'board', params: { boardId: 7 } });
+  });
+
+  it('routes the brand link to board management when multiple boards exist', () => {
+    const boards: BoardSummary[] = [
+      {
+        id: 7,
+        name: 'Solo board',
+        createdAtUtc: '2026-03-15T00:00:00Z',
+        updatedAtUtc: '2026-03-15T00:00:00Z'
+      },
+      {
+        id: 8,
+        name: 'Second board',
+        createdAtUtc: '2026-03-15T00:00:00Z',
+        updatedAtUtc: '2026-03-15T00:00:00Z'
+      }
+    ];
+
+    expect(getBrandTarget(boards)).toEqual({ name: 'boards' });
+  });
+
+  it('filters the current board out of the switcher list', () => {
+    const boards: BoardSummary[] = [
+      {
+        id: 7,
+        name: 'Solo board',
+        createdAtUtc: '2026-03-15T00:00:00Z',
+        updatedAtUtc: '2026-03-15T00:00:00Z'
+      },
+      {
+        id: 8,
+        name: 'Second board',
+        createdAtUtc: '2026-03-15T00:00:00Z',
+        updatedAtUtc: '2026-03-15T00:00:00Z'
+      }
+    ];
+
+    expect(getOtherBoards(boards, 7).map(board => board.id)).toEqual([8]);
+  });
+
+  it('prefers the loaded board name and falls back to the catalogue list', () => {
+    const board: Board = {
+      id: 7,
+      name: 'Loaded board',
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:00:00Z',
+      columns: []
+    };
+    const boards: BoardSummary[] = [
+      {
+        id: 7,
+        name: 'Catalogue board',
+        createdAtUtc: '2026-03-15T00:00:00Z',
+        updatedAtUtc: '2026-03-15T00:00:00Z'
+      }
+    ];
+
+    expect(getCurrentBoardName(board, boards, 7)).toBe('Loaded board');
+    expect(getCurrentBoardName(null, boards, 7)).toBe('Catalogue board');
+  });
+});
