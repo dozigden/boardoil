@@ -17,8 +17,11 @@ public static class McpDiscoveryMetadata
         new
         {
             scheme = "Bearer",
-            tokenEndpoint = ResolveUrl("/api/auth/machine/login", mcpPublicBaseUrl),
-            refreshEndpoint = ResolveUrl("/api/auth/machine/refresh", mcpPublicBaseUrl)
+            headerName = "Authorization",
+            tokenType = "personal_access_token",
+            tokenPrefix = "bo_pat_",
+            format = "Bearer <YOUR_PAT>",
+            patManagementUi = ResolveUrl("/machine-access", mcpPublicBaseUrl)
         };
 
     public static object CreateSetupMetadata(string? mcpPublicBaseUrl) =>
