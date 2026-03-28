@@ -92,6 +92,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
+    path: '/machine-access',
+    name: 'machine-access',
+    component: () => import('./views/MachineAccessView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }
