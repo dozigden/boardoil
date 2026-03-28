@@ -32,13 +32,15 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         // Act
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/machine/pats",
-            new CreateMachinePatRequest("agent-token", 30, ["mcp"]));
+            new CreateMachinePatRequest("agent-token", 30, ["mcp:write"], "selected", [1]));
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
 
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.NotNull(created);
         Assert.NotNull(created!.Data);
         Assert.False(string.IsNullOrWhiteSpace(created.Data!.PlainTextToken));
+        Assert.Equal("selected", created.Data.Token.BoardAccessMode);
+        Assert.Equal([1], created.Data.Token.AllowedBoardIds);
 
         var loginResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/machine/pat/login",
@@ -62,7 +64,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/machine/pats",
-            new CreateMachinePatRequest("agent-token", 30, ["mcp"]));
+            new CreateMachinePatRequest("agent-token", 30, ["mcp:write"], "selected", [1]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
         Assert.NotNull(created);
@@ -87,7 +89,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/machine/pats",
-            new CreateMachinePatRequest("agent-token", 30, ["mcp"]));
+            new CreateMachinePatRequest("agent-token", 30, ["mcp:write"], "selected", [1]));
         createResponse.EnsureSuccessStatusCode();
 
         // Act
@@ -99,8 +101,33 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         Assert.NotNull(listEnvelope);
         Assert.NotNull(listEnvelope!.Data);
         var token = Assert.Single(listEnvelope.Data!, x => x.Name == "agent-token");
-        Assert.Contains("mcp", token.Scopes);
+        Assert.Contains("mcp:write", token.Scopes);
         Assert.False(string.IsNullOrWhiteSpace(token.TokenPrefix));
+        Assert.Equal("selected", token.BoardAccessMode);
+        Assert.Equal([1], token.AllowedBoardIds);
+    }
+
+    [Fact]
+    public async Task CreatePat_WithLegacyMcpScope_ShouldNormaliseToReadAndWriteScopes()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+
+        // Act
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/auth/machine/pats",
+            new CreateMachinePatRequest("legacy-scope-token", 30, ["mcp"], "all", []));
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.NotNull(created);
+        Assert.NotNull(created!.Data);
+        Assert.Contains("mcp:read", created.Data!.Token.Scopes);
+        Assert.Contains("mcp:write", created.Data.Token.Scopes);
+        Assert.Equal("all", created.Data.Token.BoardAccessMode);
+        Assert.Empty(created.Data.Token.AllowedBoardIds);
     }
 
     private static async Task RegisterInitialAdminAsync(HttpClient client)
@@ -123,7 +150,12 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     private sealed record LoginRequest(string UserName, string Password);
-    private sealed record CreateMachinePatRequest(string Name, int? ExpiresInDays, IReadOnlyList<string> Scopes);
+    private sealed record CreateMachinePatRequest(
+        string Name,
+        int? ExpiresInDays,
+        IReadOnlyList<string> Scopes,
+        string BoardAccessMode,
+        IReadOnlyList<int> AllowedBoardIds);
     private sealed record MachinePatLoginRequest(string Token);
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
@@ -133,6 +165,8 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         string Name,
         string TokenPrefix,
         IReadOnlyList<string> Scopes,
+        string BoardAccessMode,
+        IReadOnlyList<int> AllowedBoardIds,
         DateTime CreatedAtUtc,
         DateTime? ExpiresAtUtc,
         DateTime? LastUsedAtUtc,

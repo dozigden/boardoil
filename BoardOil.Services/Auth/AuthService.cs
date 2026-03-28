@@ -20,7 +20,23 @@ public sealed class AuthService(
     TimeProvider timeProvider,
     IDbContextScopeFactory scopeFactory) : IAuthService
 {
-    private static readonly string[] SupportedPatScopes = ["mcp"];
+    private static readonly string[] SupportedPatScopes =
+    [
+        MachinePatScopes.McpRead,
+        MachinePatScopes.McpWrite
+    ];
+
+    private static readonly string[] DefaultPatScopes =
+    [
+        MachinePatScopes.McpRead,
+        MachinePatScopes.McpWrite
+    ];
+
+    private static readonly string[] SupportedBoardAccessModes =
+    [
+        MachinePatBoardAccessModes.All,
+        MachinePatBoardAccessModes.Selected
+    ];
 
     public async Task<ApiResult<AuthSessionTokens>> RegisterInitialAdminAsync(RegisterInitialAdminRequest request)
     {
@@ -115,7 +131,7 @@ public sealed class AuthService(
         }
 
         var scopes = ParseScopes(pat.ScopesCsv);
-        if (!scopes.Contains("mcp", StringComparer.OrdinalIgnoreCase))
+        if (!HasAnyMcpScope(scopes))
         {
             return ApiErrors.Forbidden("Personal access token does not allow MCP access.");
         }
@@ -158,6 +174,23 @@ public sealed class AuthService(
             return ApiErrors.BadRequest("Unsupported scope provided.");
         }
 
+        var boardAccessMode = NormaliseBoardAccessMode(request.BoardAccessMode);
+        if (!SupportedBoardAccessModes.Contains(boardAccessMode, StringComparer.Ordinal))
+        {
+            return ApiErrors.BadRequest("Unsupported boardAccessMode provided.");
+        }
+
+        var allowedBoardIds = NormaliseAllowedBoardIds(request.AllowedBoardIds);
+        if (boardAccessMode == MachinePatBoardAccessModes.All && allowedBoardIds.Count > 0)
+        {
+            return ApiErrors.BadRequest("allowedBoardIds must be empty when boardAccessMode is 'all'.");
+        }
+
+        if (boardAccessMode == MachinePatBoardAccessModes.Selected && allowedBoardIds.Count == 0)
+        {
+            return ApiErrors.BadRequest("allowedBoardIds is required when boardAccessMode is 'selected'.");
+        }
+
         var plainTextToken = CreatePersonalAccessToken();
         var entity = new EntityPersonalAccessToken
         {
@@ -166,6 +199,8 @@ public sealed class AuthService(
             TokenHash = HashToken(plainTextToken),
             TokenPrefix = plainTextToken[..12],
             ScopesCsv = string.Join(',', scopes),
+            BoardAccessMode = boardAccessMode,
+            AllowedBoardIdsCsv = string.Join(',', allowedBoardIds),
             CreatedAtUtc = now,
             ExpiresAtUtc = request.ExpiresInDays is null ? null : now.AddDays(request.ExpiresInDays.Value)
         };
@@ -319,32 +354,99 @@ public sealed class AuthService(
     private static string HashToken(string token) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
-    private static IReadOnlyList<string> ParseScopes(string scopesCsv) =>
-        scopesCsv
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToArray();
-
-    private static IReadOnlyList<string> NormaliseScopes(IEnumerable<string>? scopes)
+    private static IReadOnlyList<string> ParseScopes(string scopesCsv)
     {
-        var result = (scopes ?? SupportedPatScopes)
+        var rawScopes = scopesCsv
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(x => x.Trim().ToLowerInvariant())
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.Ordinal)
             .ToArray();
-        return result;
+
+        var hasLegacyMcp = rawScopes.Contains(MachinePatScopes.LegacyMcp, StringComparer.Ordinal);
+        var scopes = new List<string>();
+        if (hasLegacyMcp || rawScopes.Contains(MachinePatScopes.McpRead, StringComparer.Ordinal))
+        {
+            scopes.Add(MachinePatScopes.McpRead);
+        }
+
+        if (hasLegacyMcp || rawScopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal))
+        {
+            scopes.Add(MachinePatScopes.McpWrite);
+        }
+
+        return scopes;
     }
 
-    private static MachinePatDto ToMachinePatDto(EntityPersonalAccessToken token) =>
-        new(
+    private static IReadOnlyList<string> NormaliseScopes(IEnumerable<string>? scopes)
+    {
+        var rawScopes = (scopes ?? DefaultPatScopes)
+            .Select(x => x.Trim().ToLowerInvariant())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (rawScopes.Remove(MachinePatScopes.LegacyMcp))
+        {
+            rawScopes.Add(MachinePatScopes.McpRead);
+            rawScopes.Add(MachinePatScopes.McpWrite);
+        }
+
+        return rawScopes
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static string NormaliseBoardAccessMode(string? boardAccessMode)
+    {
+        if (string.IsNullOrWhiteSpace(boardAccessMode))
+        {
+            return MachinePatBoardAccessModes.All;
+        }
+
+        return boardAccessMode.Trim().ToLowerInvariant();
+    }
+
+    private static IReadOnlyList<int> ParseAllowedBoardIds(string allowedBoardIdsCsv) =>
+        allowedBoardIdsCsv
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(x => int.TryParse(x, out var boardId) ? boardId : (int?)null)
+            .Where(x => x is > 0)
+            .Select(x => x!.Value)
+            .Distinct()
+            .Order()
+            .ToArray();
+
+    private static IReadOnlyList<int> NormaliseAllowedBoardIds(IEnumerable<int>? allowedBoardIds) =>
+        (allowedBoardIds ?? [])
+            .Where(x => x > 0)
+            .Distinct()
+            .Order()
+            .ToArray();
+
+    private static bool HasAnyMcpScope(IEnumerable<string> scopes) =>
+        scopes.Contains(MachinePatScopes.McpRead, StringComparer.Ordinal)
+        || scopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal);
+
+    private static MachinePatDto ToMachinePatDto(EntityPersonalAccessToken token)
+    {
+        var boardAccessMode = NormaliseBoardAccessMode(token.BoardAccessMode);
+        var allowedBoardIds = boardAccessMode == MachinePatBoardAccessModes.All
+            ? Array.Empty<int>()
+            : ParseAllowedBoardIds(token.AllowedBoardIdsCsv);
+
+        return new MachinePatDto(
             token.Id,
             token.Name,
             token.TokenPrefix,
             ParseScopes(token.ScopesCsv),
+            boardAccessMode,
+            allowedBoardIds,
             token.CreatedAtUtc,
             token.ExpiresAtUtc,
             token.LastUsedAtUtc,
             token.RevokedAtUtc);
+    }
 
     private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string password)
     {

@@ -8,6 +8,8 @@ public sealed class EntityPersonalAccessToken
     public string TokenHash { get; set; } = string.Empty;
     public string TokenPrefix { get; set; } = string.Empty;
     public string ScopesCsv { get; set; } = string.Empty;
+    public string BoardAccessMode { get; set; } = string.Empty;
+    public string AllowedBoardIdsCsv { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? ExpiresAtUtc { get; set; }
     public DateTime? LastUsedAtUtc { get; set; }
