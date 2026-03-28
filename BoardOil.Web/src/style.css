@@ -119,6 +119,10 @@ body {
   min-width: 0;
 }
 
+.app-layout--page {
+  padding-inline-start: 2rem;
+}
+
 .app-header {
   margin: 0 0 1rem;
   padding: 1rem 1.5rem;
