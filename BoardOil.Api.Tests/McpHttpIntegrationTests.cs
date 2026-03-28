@@ -48,6 +48,8 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.Contains("Missing bearer token", payload.Message, StringComparison.OrdinalIgnoreCase);
         Assert.True(response.Headers.Contains("WWW-Authenticate"));
         Assert.Equal("Bearer", payload.Data.GetProperty("auth").GetProperty("scheme").GetString());
+        Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.EndsWith("/machine-access", payload.Data.GetProperty("setup").GetProperty("patManagementUi").GetString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -103,6 +105,14 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.Equal("mcp-http", payload.RootElement.GetProperty("protocol").GetString());
         Assert.EndsWith("/mcp", payload.RootElement.GetProperty("endpoint").GetString(), StringComparison.Ordinal);
         Assert.Equal("Bearer", payload.RootElement.GetProperty("auth").GetProperty("scheme").GetString());
+        Assert.Equal("personal_access_token", payload.RootElement.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.EndsWith("/machine-access", payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString(), StringComparison.Ordinal);
+        Assert.EndsWith("/mcp", payload.RootElement
+            .GetProperty("setup")
+            .GetProperty("examples")
+            .GetProperty("genericMcpConfig")
+            .GetProperty("url")
+            .GetString(), StringComparison.Ordinal);
     }
 
     [Theory]
@@ -124,6 +134,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         Assert.Equal(404, payload!.StatusCode);
         Assert.Equal(path, payload.Data.GetProperty("requestedPath").GetString());
         Assert.Contains("/mcp", payload.Data.GetProperty("endpoint").GetString(), StringComparison.Ordinal);
+        Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
     }
 
     [Fact]

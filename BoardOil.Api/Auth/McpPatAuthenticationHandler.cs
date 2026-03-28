@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Api.Mcp;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Persistence.Abstractions.Auth;
@@ -121,14 +122,10 @@ public sealed class McpPatAuthenticationHandler(
             false,
             new
             {
-                auth = new
-                {
-                    scheme = "Bearer",
-                    tokenEndpoint = $"{GetBaseUrl()}/api/auth/machine/login",
-                    refreshEndpoint = $"{GetBaseUrl()}/api/auth/machine/refresh"
-                },
+                auth = McpDiscoveryMetadata.CreateAuthMetadata(GetBaseUrl()),
                 endpoint = $"{GetBaseUrl()}/mcp",
-                docs = $"{GetBaseUrl()}/.well-known/mcp"
+                docs = $"{GetBaseUrl()}/.well-known/mcp",
+                setup = McpDiscoveryMetadata.CreateSetupMetadata(GetBaseUrl())
             },
             401,
             detail);

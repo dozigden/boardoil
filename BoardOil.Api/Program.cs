@@ -301,14 +301,10 @@ static object CreateMcpAuthError(HttpRequest request, string detail) =>
         false,
         new
         {
-            auth = new
-            {
-                scheme = "Bearer",
-                tokenEndpoint = $"{GetBaseUrl(request)}/api/auth/machine/login",
-                refreshEndpoint = $"{GetBaseUrl(request)}/api/auth/machine/refresh"
-            },
+            auth = McpDiscoveryMetadata.CreateAuthMetadata(GetBaseUrl(request)),
             endpoint = $"{GetBaseUrl(request)}/mcp",
-            docs = $"{GetBaseUrl(request)}/.well-known/mcp"
+            docs = $"{GetBaseUrl(request)}/.well-known/mcp",
+            setup = McpDiscoveryMetadata.CreateSetupMetadata(GetBaseUrl(request))
         },
         401,
         detail);
@@ -320,24 +316,14 @@ static object CreateUnsupportedMcpPathError(PathString path, HttpRequest request
         {
             requestedPath = path.ToString(),
             endpoint = $"{GetBaseUrl(request)}/mcp",
-            docs = $"{GetBaseUrl(request)}/.well-known/mcp"
+            docs = $"{GetBaseUrl(request)}/.well-known/mcp",
+            setup = McpDiscoveryMetadata.CreateSetupMetadata(GetBaseUrl(request))
         },
         404,
         "Unsupported MCP endpoint path.");
 
 static object CreateMcpWellKnownDocument(HttpRequest request) =>
-    new
-    {
-        name = "BoardOil MCP",
-        endpoint = $"{GetBaseUrl(request)}/mcp",
-        protocol = "mcp-http",
-        auth = new
-        {
-            scheme = "Bearer",
-            tokenEndpoint = $"{GetBaseUrl(request)}/api/auth/machine/login",
-            refreshEndpoint = $"{GetBaseUrl(request)}/api/auth/machine/refresh"
-        }
-    };
+    McpDiscoveryMetadata.CreateWellKnownDocument(GetBaseUrl(request));
 
 static string GetBaseUrl(HttpRequest request) =>
     $"{request.Scheme}://{request.Host}";
