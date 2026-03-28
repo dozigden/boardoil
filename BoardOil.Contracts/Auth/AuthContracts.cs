@@ -4,6 +4,10 @@ public sealed record RegisterInitialAdminRequest(string UserName, string Passwor
 
 public sealed record LoginRequest(string UserName, string Password);
 
+public sealed record MachineRefreshRequest(string RefreshToken);
+
+public sealed record MachineLogoutRequest(string? RefreshToken);
+
 public sealed record AuthUserDto(int Id, string UserName, string Role);
 
 public sealed record AuthSessionDto(
@@ -13,6 +17,14 @@ public sealed record AuthSessionDto(
     string CsrfToken);
 
 public sealed record CsrfTokenDto(string CsrfToken);
+
+public sealed record MachineAuthSessionDto(
+    string AccessToken,
+    DateTime AccessTokenExpiresAtUtc,
+    string RefreshToken,
+    DateTime RefreshTokenExpiresAtUtc,
+    AuthUserDto User,
+    string TokenType = "Bearer");
 
 public sealed record BootstrapStatusDto(bool RequiresInitialAdminSetup);
 
@@ -26,4 +38,7 @@ public sealed record AuthSessionTokens(
 {
     public AuthSessionDto ToDto() =>
         new(User, AccessTokenExpiresAtUtc, RefreshTokenExpiresAtUtc, CsrfToken);
+
+    public MachineAuthSessionDto ToMachineDto() =>
+        new(AccessToken, AccessTokenExpiresAtUtc, RefreshToken, RefreshTokenExpiresAtUtc, User);
 }

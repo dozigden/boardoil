@@ -30,9 +30,11 @@ ENV ASPNETCORE_URLS=http://0.0.0.0:5000
 EXPOSE 5000
 ENTRYPOINT ["dotnet", "BoardOil.Api.dll"]
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0 AS mcp-runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS mcp-runtime
 WORKDIR /app
 COPY --from=backend-build /app/publish-mcp ./
 RUN mkdir -p /data
 VOLUME ["/data"]
+ENV BOARDOIL_MCP_HTTP_URLS=http://0.0.0.0:5001
+EXPOSE 5001
 ENTRYPOINT ["dotnet", "BoardOil.Mcp.Server.dll"]

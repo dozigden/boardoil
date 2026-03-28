@@ -25,7 +25,10 @@ services:
       target: mcp-runtime
     image: boardoil-mcp:dev
     container_name: boardoil-mcp
+    ports:
+      - "5001:5001"
     environment:
+      BOARDOIL_MCP_HTTP_URLS: "http://0.0.0.0:5001"
       BOARDOIL_MCP_CONNECTION_STRING: "Data Source=/data/boardoil.db"
       BOARDOIL_MCP_EVENTS_API_BASE_URL: "http://boardoil:5000"
     volumes:
@@ -35,7 +38,7 @@ services:
         ipv4_address: 172.31.0.3
     depends_on:
       - boardoil
-    restart: on-failure
+    restart: unless-stopped
 
 volumes:
   boardoil-data:

@@ -177,6 +177,9 @@ static bool IsCsrfExemptAuthPath(PathString path) =>
     path.StartsWithSegments("/api/auth/register-initial-admin", StringComparison.OrdinalIgnoreCase)
     || path.StartsWithSegments("/api/auth/login", StringComparison.OrdinalIgnoreCase)
     || path.StartsWithSegments("/api/auth/refresh", StringComparison.OrdinalIgnoreCase)
-    || path.StartsWithSegments("/api/auth/logout", StringComparison.OrdinalIgnoreCase);
+    || path.StartsWithSegments("/api/auth/logout", StringComparison.OrdinalIgnoreCase)
+    || path.StartsWithSegments("/api/auth/machine/login", StringComparison.OrdinalIgnoreCase)
+    || path.StartsWithSegments("/api/auth/machine/refresh", StringComparison.OrdinalIgnoreCase)
+    || path.StartsWithSegments("/api/auth/machine/logout", StringComparison.OrdinalIgnoreCase);
 
 public partial class Program;
