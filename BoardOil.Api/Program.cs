@@ -70,28 +70,6 @@ builder.Services
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
-    .AddPolicyScheme(McpAuthenticationSchemes.CombinedBearer, "BoardOil MCP bearer", options =>
-    {
-        options.ForwardDefaultSelector = context =>
-        {
-            if (!context.Request.Path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase))
-            {
-                return JwtBearerDefaults.AuthenticationScheme;
-            }
-
-            var authHeader = context.Request.Headers.Authorization.ToString();
-            if (string.IsNullOrWhiteSpace(authHeader)
-                || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                return JwtBearerDefaults.AuthenticationScheme;
-            }
-
-            var token = authHeader["Bearer ".Length..].Trim();
-            return token.StartsWith("bo_pat_", StringComparison.OrdinalIgnoreCase)
-                ? McpAuthenticationSchemes.PatBearer
-                : JwtBearerDefaults.AuthenticationScheme;
-        };
-    })
     .AddScheme<AuthenticationSchemeOptions, McpPatAuthenticationHandler>(McpAuthenticationSchemes.PatBearer, _ => { })
     .AddJwtBearer(options =>
     {
@@ -138,7 +116,7 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser());
     options.AddPolicy(BoardOilPolicies.McpAuthenticated, policy =>
         policy
-            .AddAuthenticationSchemes(McpAuthenticationSchemes.CombinedBearer)
+            .AddAuthenticationSchemes(McpAuthenticationSchemes.PatBearer)
             .RequireAuthenticatedUser());
     options.AddPolicy(BoardOilPolicies.AdminOnly, policy =>
         policy.RequireRole(BoardOilRoles.Admin));

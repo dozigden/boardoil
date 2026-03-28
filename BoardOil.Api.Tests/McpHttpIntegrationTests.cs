@@ -72,6 +72,29 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ToolsList_WithMachineJwtBearer_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var accessToken = await LoginMachineAsync(client);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", accessToken);
+
+        // Act
+        var response = await SendMcpRequestAsync(client, "tools/list", new { }, "machine-jwt");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<JsonElement>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.Equal(401, payload!.StatusCode);
+        Assert.Contains("Invalid or expired bearer token", payload.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(response.Headers.Contains("WWW-Authenticate"));
+        Assert.Equal("Bearer", payload.Data.GetProperty("auth").GetProperty("scheme").GetString());
+        Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
+    }
+
+    [Fact]
     public async Task ToolsList_WithExpiredBearerToken_ShouldReturnUnauthorized()
     {
         // Arrange
@@ -138,12 +161,13 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ToolsAndMutations_WithValidBearerToken_ShouldSucceed()
+    public async Task ToolsAndMutations_WithValidPatBearerToken_ShouldSucceed()
     {
         // Arrange
         var client = _factory.CreateClient();
         await RegisterInitialAdminAsync(client);
-        await LoginMachineAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", patToken);
 
         // Act
         var toolsListResponse = await SendMcpRequestAsync(client, "tools/list", new { }, "tools-list");
@@ -227,16 +251,36 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
     {
         var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
         response.EnsureSuccessStatusCode();
+
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
     }
 
-    private static async Task LoginMachineAsync(HttpClient client)
+    private static async Task<string> LoginMachineAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync("/api/auth/machine/login", new LoginRequest("admin", "Password1234!"));
         response.EnsureSuccessStatusCode();
         var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<MachineSessionEnvelope>>();
         Assert.NotNull(payload);
         Assert.NotNull(payload!.Data);
-        client.DefaultRequestHeaders.Authorization = new("Bearer", payload.Data!.AccessToken);
+        return payload.Data!.AccessToken;
+    }
+
+    private static async Task<string> CreateMachinePatAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/machine/pats",
+            new CreateMachinePatRequest("api-mcp-test-token", 30, ["mcp:read", "mcp:write"], "selected", [1]));
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
+        Assert.NotNull(payload);
+        Assert.NotNull(payload!.Data);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Data!.PlainTextToken));
+        return payload.Data.PlainTextToken;
     }
 
     private static async Task<HttpResponseMessage> SendMcpRequestAsync(HttpClient client, string method, object @params, string id)
@@ -310,6 +354,25 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
     }
 
     private sealed record LoginRequest(string UserName, string Password);
+    private sealed record CreateMachinePatRequest(
+        string Name,
+        int? ExpiresInDays,
+        IReadOnlyList<string> Scopes,
+        string BoardAccessMode,
+        IReadOnlyList<int> AllowedBoardIds);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
+    private sealed record AuthSessionEnvelope(string CsrfToken);
+    private sealed record CreatedMachinePatEnvelope(MachinePatEnvelope Token, string PlainTextToken);
     private sealed record MachineSessionEnvelope(string AccessToken);
+    private sealed record MachinePatEnvelope(
+        int Id,
+        string Name,
+        string TokenPrefix,
+        IReadOnlyList<string> Scopes,
+        string BoardAccessMode,
+        IReadOnlyList<int> AllowedBoardIds,
+        DateTime CreatedAtUtc,
+        DateTime? ExpiresAtUtc,
+        DateTime? LastUsedAtUtc,
+        DateTime? RevokedAtUtc);
 }
