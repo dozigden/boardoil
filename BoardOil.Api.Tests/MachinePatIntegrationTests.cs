@@ -64,6 +64,78 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PatWithReadOnlyScope_CardCreate_ShouldReturnForbiddenToolError()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/auth/machine/pats",
+            new CreateMachinePatRequest("read-only-token", 30, ["mcp:read"], "selected", [1]));
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
+        Assert.NotNull(created);
+        Assert.NotNull(created!.Data);
+
+        // Act
+        var createCardResponse = await SendMcpRequestAsync(
+            adminClient,
+            created.Data!.PlainTextToken,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    boardColumnId = 1,
+                    title = "Blocked by scope",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-forbidden");
+        using var payload = await ParseMcpJsonAsync(createCardResponse);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, createCardResponse.StatusCode);
+        AssertMcpForbidden(payload);
+    }
+
+    [Fact]
+    public async Task PatWithSelectedBoardAccess_BoardGetOutsideAllowlist_ShouldReturnForbiddenToolError()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/auth/machine/pats",
+            new CreateMachinePatRequest("single-board-token", 30, ["mcp:read"], "selected", [1]));
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
+        Assert.NotNull(created);
+        Assert.NotNull(created!.Data);
+
+        // Act
+        var boardGetResponse = await SendMcpRequestAsync(
+            adminClient,
+            created.Data!.PlainTextToken,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { boardId = 2 }
+            },
+            "board-get-forbidden");
+        using var payload = await ParseMcpJsonAsync(boardGetResponse);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
+        AssertMcpForbidden(payload);
+    }
+
+    [Fact]
     public async Task RevokePat_ShouldBlockFuturePatLogin()
     {
         // Arrange
@@ -236,5 +308,36 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         }
 
         throw new JsonException($"MCP response was not parseable JSON: {content}");
+    }
+
+    private static void AssertMcpForbidden(JsonDocument payload)
+    {
+        var root = payload.RootElement;
+        if (root.TryGetProperty("result", out var result)
+            && result.TryGetProperty("structuredContent", out var structuredContent)
+            && structuredContent.TryGetProperty("error", out var error)
+            && error.ValueKind == JsonValueKind.Object
+            && error.TryGetProperty("statusCode", out var statusProperty)
+            && statusProperty.TryGetInt32(out var statusCode))
+        {
+            Assert.Equal(403, statusCode);
+            if (error.TryGetProperty("code", out var codeProperty))
+            {
+                Assert.Equal("forbidden", codeProperty.GetString());
+            }
+
+            return;
+        }
+
+        if (root.TryGetProperty("error", out var rpcError)
+            && rpcError.TryGetProperty("data", out var rpcErrorData)
+            && rpcErrorData.TryGetProperty("statusCode", out var rpcStatusProperty)
+            && rpcStatusProperty.TryGetInt32(out var rpcStatusCode))
+        {
+            Assert.Equal(403, rpcStatusCode);
+            return;
+        }
+
+        Assert.Fail($"Expected MCP forbidden tool error payload, got: {root.GetRawText()}");
     }
 }
