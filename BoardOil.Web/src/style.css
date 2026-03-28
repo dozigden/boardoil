@@ -1170,6 +1170,75 @@ select:focus {
   gap: 0.45rem;
 }
 
+.machine-pat-setup {
+  display: grid;
+  gap: 0.6rem;
+  background: var(--bo-surface-panel);
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.machine-pat-setup h3 {
+  margin: 0;
+}
+
+.machine-pat-setup-steps {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--bo-ink-default);
+  display: grid;
+  gap: 0.3rem;
+}
+
+.machine-pat-setup-grid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.machine-pat-setup-item {
+  display: grid;
+  gap: 0.45rem;
+  background: var(--bo-surface-base);
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 10px;
+  padding: 0.65rem;
+}
+
+.machine-pat-setup-item h4 {
+  margin: 0;
+}
+
+.machine-pat-setup-code {
+  margin: 0;
+  padding: 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--bo-border-soft);
+  background: var(--bo-surface-muted);
+  color: var(--bo-ink-strong);
+  overflow-x: auto;
+  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.machine-pat-inline-code {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.machine-pat-setup-item > button {
+  width: auto;
+  justify-self: start;
+}
+
+.machine-pat-setup-note {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+
 .machine-pat-list {
   display: grid;
   gap: 0.55rem;
@@ -1240,6 +1309,10 @@ select:focus {
   .machine-pat-secret-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .machine-pat-setup-grid {
+    grid-template-columns: 1fr;
   }
 
   .machine-pat-item-header {
