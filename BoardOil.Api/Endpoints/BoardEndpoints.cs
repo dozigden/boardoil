@@ -21,6 +21,14 @@ public static class BoardEndpoints
                 boardService.CreateBoardAsync(request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
+        app.MapPut("/api/boards/{boardId:int}", (int boardId, UpdateBoardRequest request, IBoardService boardService) =>
+                boardService.UpdateBoardAsync(boardId, request).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+
+        app.MapDelete("/api/boards/{boardId:int}", (int boardId, IBoardService boardService) =>
+                boardService.DeleteBoardAsync(boardId).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+
         return app;
     }
 }

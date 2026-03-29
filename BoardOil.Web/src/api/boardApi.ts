@@ -36,6 +36,14 @@ export function createBoardApi() {
     return postData<Board>('/api/boards', { name });
   }
 
+  async function saveBoard(boardId: number, name: string): Promise<Result<BoardSummary, AppError>> {
+    return putData<BoardSummary>(`/api/boards/${boardId}`, { name });
+  }
+
+  async function deleteBoard(boardId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/boards/${boardId}`);
+  }
+
   async function getColumns(boardId: number): Promise<Result<Column[], AppError>> {
     const envelopeResult = await getEnvelope<Column[]>(`/api/boards/${boardId}/columns`);
     if (!envelopeResult.ok) {
@@ -136,6 +144,8 @@ export function createBoardApi() {
     getBoards,
     getBoard,
     createBoard,
+    saveBoard,
+    deleteBoard,
     getColumns,
     createColumn,
     saveColumn,

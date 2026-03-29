@@ -40,6 +40,28 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     return created;
   }
 
+  async function saveBoard(boardId: number, name: string) {
+    const result = await runBusy(() => api.saveBoard(boardId, name));
+    if (!result.ok) {
+      return null;
+    }
+
+    boards.value = boards.value
+      .map(board => (board.id === boardId ? result.data : board))
+      .sort((left, right) => left.id - right.id);
+    return result.data;
+  }
+
+  async function deleteBoard(boardId: number) {
+    const result = await runBusy(() => api.deleteBoard(boardId));
+    if (!result.ok) {
+      return false;
+    }
+
+    boards.value = boards.value.filter(board => board.id !== boardId);
+    return true;
+  }
+
   function dispose() {
     boards.value = [];
     busy.value = false;
@@ -70,6 +92,8 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     busy,
     loadBoards,
     createBoard,
+    saveBoard,
+    deleteBoard,
     dispose
   };
 });
