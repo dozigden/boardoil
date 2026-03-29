@@ -31,6 +31,10 @@
 
 ## MCP Board Workflow
 
+- For MCP board actions, prefer `./scripts/board-mcp.sh` instead of ad-hoc `curl` one-liners.
+- To avoid repeated elevation prompts, request one persistent approval prefix rule for:
+  - `["./scripts/board-mcp.sh"]`
+- Prefer script subcommands (`board-get`, `board-cards`, `card-move`, `card-description-set`) for routine board updates.
 - When a session is board-driven, treat the board as the source of truth for execution order and progress.
 - Before starting implementation:
   - Read the board state with MCP.
