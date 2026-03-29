@@ -183,7 +183,7 @@ watch(
   gap: 0.5rem;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .card-editor-description-field {
