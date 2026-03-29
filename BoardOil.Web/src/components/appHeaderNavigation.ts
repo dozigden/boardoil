@@ -13,6 +13,17 @@ export function getCurrentBoardName(board: Board | null, boards: BoardSummary[],
   return board?.name ?? boards.find(entry => entry.id === currentBoardId)?.name ?? '';
 }
 
+export function getPageTitle(
+  board: Board | null,
+  boards: BoardSummary[],
+  currentBoardId: number | null,
+  routeBoardId: number | null
+) {
+  const activeBoardId = currentBoardId ?? routeBoardId;
+  const currentBoardName = getCurrentBoardName(board, boards, activeBoardId);
+  return currentBoardName === '' ? 'BoardOil' : currentBoardName;
+}
+
 export function getOtherBoards(boards: BoardSummary[], currentBoardId: number | null) {
   return boards.filter(board => board.id !== currentBoardId);
 }
