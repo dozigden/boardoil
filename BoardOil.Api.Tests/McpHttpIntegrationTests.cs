@@ -219,7 +219,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
             new
             {
                 name = "board.get",
-                arguments = new { boardId = 1 }
+                arguments = new { id = 1 }
             },
             "board-get");
         Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
@@ -232,7 +232,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
             .GetProperty("columns")
             .EnumerateArray()
             .Single(column => column.GetProperty("title").GetString() == "Todo")
-            .GetProperty("columnId")
+            .GetProperty("id")
             .GetInt32();
 
         var createResponse = await SendMcpRequestAsync(
@@ -244,7 +244,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
                 arguments = new
                 {
                     boardId = 1,
-                    boardColumnId = todoColumnId,
+                    columnId = todoColumnId,
                     title = "API in-process MCP test",
                     description = "",
                     tagNames = Array.Empty<string>()
@@ -259,7 +259,7 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
             new
             {
                 name = "board.get",
-                arguments = new { boardId = 1 }
+                arguments = new { id = 1 }
             },
             "board-verify");
         Assert.Equal(HttpStatusCode.OK, verifyResponse.StatusCode);
@@ -284,6 +284,311 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
             .SelectMany(column => column.GetProperty("cards").EnumerateArray())
             .ToArray();
         Assert.Contains(cards, card => card.GetProperty("title").GetString() == "API in-process MCP test");
+    }
+
+    [Fact]
+    public async Task ToolsList_ShouldAdvertiseCanonicalIdFieldsInSchemas()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", patToken);
+
+        // Act
+        var toolsListResponse = await SendMcpRequestAsync(client, "tools/list", new { }, "tools-list-schemas");
+        Assert.Equal(HttpStatusCode.OK, toolsListResponse.StatusCode);
+        using var toolsListPayload = await ParseMcpJsonAsync(toolsListResponse);
+
+        // Assert
+        var boardGetTool = GetToolByName(toolsListPayload, "board.get");
+        var boardGetProperties = boardGetTool.GetProperty("inputSchema").GetProperty("properties");
+        Assert.True(boardGetProperties.TryGetProperty("id", out _));
+        Assert.False(boardGetProperties.TryGetProperty("boardId", out _));
+
+        var cardMoveTool = GetToolByName(toolsListPayload, "card.move");
+        var cardMoveProperties = cardMoveTool.GetProperty("inputSchema").GetProperty("properties");
+        Assert.True(cardMoveProperties.TryGetProperty("id", out _));
+        Assert.True(cardMoveProperties.TryGetProperty("columnId", out _));
+        Assert.True(cardMoveProperties.TryGetProperty("afterId", out _));
+        Assert.False(cardMoveProperties.TryGetProperty("cardId", out _));
+        Assert.False(cardMoveProperties.TryGetProperty("boardColumnId", out _));
+        Assert.False(cardMoveProperties.TryGetProperty("positionAfterCardId", out _));
+    }
+
+    [Fact]
+    public async Task BoardSnapshotsAndMutations_ShouldExposeCanonicalIdFields()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", patToken);
+
+        // Act
+        var boardGetResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-compat-output");
+        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
+        using var boardGetPayload = await ParseMcpJsonAsync(boardGetResponse);
+
+        var boardData = GetStructuredContentData(boardGetPayload);
+        Assert.True(boardData.TryGetProperty("id", out _));
+        Assert.False(boardData.TryGetProperty("boardId", out _));
+
+        var todoColumn = boardData
+            .GetProperty("columns")
+            .EnumerateArray()
+            .Single(column => column.GetProperty("title").GetString() == "Todo");
+        Assert.True(todoColumn.TryGetProperty("id", out _));
+        Assert.False(todoColumn.TryGetProperty("columnId", out _));
+
+        var createResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = todoColumn.GetProperty("id").GetInt32(),
+                    title = "Compat output MCP card",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-compat-output");
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        using var createPayload = await ParseMcpJsonAsync(createResponse);
+
+        var createdCard = GetStructuredContentData(createPayload).GetProperty("card");
+        Assert.True(createdCard.TryGetProperty("id", out _));
+        Assert.True(createdCard.TryGetProperty("columnId", out _));
+        Assert.False(createdCard.TryGetProperty("cardId", out _));
+        Assert.False(createdCard.TryGetProperty("boardColumnId", out _));
+
+        var verifyResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-verify-compat-output");
+        Assert.Equal(HttpStatusCode.OK, verifyResponse.StatusCode);
+        using var verifyPayload = await ParseMcpJsonAsync(verifyResponse);
+
+        var boardCard = GetStructuredContentData(verifyPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .SelectMany(column => column.GetProperty("cards").EnumerateArray())
+            .Single(card => card.GetProperty("title").GetString() == "Compat output MCP card");
+
+        // Assert
+        Assert.True(boardCard.TryGetProperty("id", out _));
+        Assert.True(boardCard.TryGetProperty("columnId", out _));
+        Assert.False(boardCard.TryGetProperty("cardId", out _));
+        Assert.False(boardCard.TryGetProperty("boardColumnId", out _));
+    }
+
+    [Fact]
+    public async Task ToolsAndMutations_WithCanonicalIds_ShouldSucceed()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", patToken);
+
+        // Act
+        var boardGetResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-canonical-id");
+        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
+        using var boardGetPayload = await ParseMcpJsonAsync(boardGetResponse);
+
+        var todoColumnId = GetStructuredContentData(boardGetPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .Single(column => column.GetProperty("title").GetString() == "Todo")
+            .GetProperty("id")
+            .GetInt32();
+
+        var createResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = todoColumnId,
+                    title = "Canonical MCP card",
+                    description = "created with canonical ids",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-canonical-id");
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        using var createPayload = await ParseMcpJsonAsync(createResponse);
+
+        var createdCardId = GetStructuredContentData(createPayload)
+            .GetProperty("card")
+            .GetProperty("id")
+            .GetInt32();
+
+        var updateResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.update",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = createdCardId,
+                    title = "Canonical MCP card updated",
+                    description = "updated with canonical ids",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-update-canonical-id");
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var deleteResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.delete",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = createdCardId
+                }
+            },
+            "card-delete-canonical-id");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task LegacyMutationInputs_ShouldBeRejected()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", patToken);
+
+        // Act
+        var boardGetLegacyResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { boardId = 1 }
+            },
+            "board-get-legacy-rejected");
+        Assert.Equal(HttpStatusCode.OK, boardGetLegacyResponse.StatusCode);
+        using var boardGetLegacyPayload = await ParseMcpJsonAsync(boardGetLegacyResponse);
+
+        var createLegacyResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    boardColumnId = 1,
+                    title = "Legacy MCP card",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-legacy-rejected");
+        Assert.Equal(HttpStatusCode.OK, createLegacyResponse.StatusCode);
+        using var createLegacyPayload = await ParseMcpJsonAsync(createLegacyResponse);
+
+        var updateLegacyResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.update",
+                arguments = new
+                {
+                    boardId = 1,
+                    cardId = 1,
+                    title = "Legacy MCP card updated",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-update-legacy-rejected");
+        Assert.Equal(HttpStatusCode.OK, updateLegacyResponse.StatusCode);
+        using var updateLegacyPayload = await ParseMcpJsonAsync(updateLegacyResponse);
+
+        var deleteLegacyResponse = await SendMcpRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.delete",
+                arguments = new
+                {
+                    boardId = 1,
+                    cardId = 1
+                }
+            },
+            "card-delete-legacy-rejected");
+        Assert.Equal(HttpStatusCode.OK, deleteLegacyResponse.StatusCode);
+        using var deleteLegacyPayload = await ParseMcpJsonAsync(deleteLegacyResponse);
+
+        // Assert
+        Assert.Equal("validation_failed", boardGetLegacyPayload.RootElement
+            .GetProperty("result")
+            .GetProperty("structuredContent")
+            .GetProperty("error")
+            .GetProperty("code")
+            .GetString());
+        Assert.Equal("validation_failed", createLegacyPayload.RootElement
+            .GetProperty("result")
+            .GetProperty("structuredContent")
+            .GetProperty("error")
+            .GetProperty("code")
+            .GetString());
+        Assert.Equal("validation_failed", updateLegacyPayload.RootElement
+            .GetProperty("result")
+            .GetProperty("structuredContent")
+            .GetProperty("error")
+            .GetProperty("code")
+            .GetString());
+        Assert.Equal("validation_failed", deleteLegacyPayload.RootElement
+            .GetProperty("result")
+            .GetProperty("structuredContent")
+            .GetProperty("error")
+            .GetProperty("code")
+            .GetString());
     }
 
     [Fact]
@@ -387,6 +692,19 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
 
         throw new JsonException($"MCP response was not parseable JSON: {content}");
     }
+
+    private static JsonElement GetStructuredContentData(JsonDocument payload) =>
+        payload.RootElement
+            .GetProperty("result")
+            .GetProperty("structuredContent")
+            .GetProperty("data");
+
+    private static JsonElement GetToolByName(JsonDocument payload, string toolName) =>
+        payload.RootElement
+            .GetProperty("result")
+            .GetProperty("tools")
+            .EnumerateArray()
+            .Single(tool => string.Equals(tool.GetProperty("name").GetString(), toolName, StringComparison.Ordinal));
 
     private static string CreateToken(DateTime expiresAtUtc)
     {

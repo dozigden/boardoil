@@ -89,7 +89,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
                 arguments = new
                 {
                     boardId = 1,
-                    boardColumnId = 1,
+                    columnId = 1,
                     title = "Blocked by scope",
                     description = "",
                     tagNames = Array.Empty<string>()
@@ -125,7 +125,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
             new
             {
                 name = "board.get",
-                arguments = new { boardId = 2 }
+                arguments = new { id = 2 }
             },
             "board-get-forbidden");
         using var payload = await ParseMcpJsonAsync(boardGetResponse);

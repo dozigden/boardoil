@@ -6,9 +6,9 @@ public static class ToolSchemas
     {
       "type": "object",
       "properties": {
-        "boardId": { "type": "integer", "minimum": 1 }
+        "id": { "type": "integer", "minimum": 1 }
       },
-      "required": ["boardId"],
+      "required": ["id"],
       "additionalProperties": false
     }
     """;
@@ -20,7 +20,7 @@ public static class ToolSchemas
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "boardColumnId": { "type": "integer", "minimum": 1 },
+        "columnId": { "type": "integer", "minimum": 1 },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
         "description": { "type": "string", "maxLength": 20000 },
         "tagNames": {
@@ -29,7 +29,7 @@ public static class ToolSchemas
           "maxItems": 20
         }
       },
-      "required": ["boardId", "boardColumnId", "title", "description"],
+      "required": ["boardId", "columnId", "title", "description"],
       "additionalProperties": false
     }
     """;
@@ -39,7 +39,7 @@ public static class ToolSchemas
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "cardId": { "type": "integer", "minimum": 1 },
+        "id": { "type": "integer", "minimum": 1 },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
         "description": { "type": "string", "maxLength": 20000 },
         "tagNames": {
@@ -48,7 +48,7 @@ public static class ToolSchemas
           "maxItems": 20
         }
       },
-      "required": ["boardId", "cardId", "title", "description", "tagNames"],
+      "required": ["boardId", "id", "title", "description", "tagNames"],
       "additionalProperties": false
     }
     """;
@@ -58,11 +58,11 @@ public static class ToolSchemas
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "cardId": { "type": "integer", "minimum": 1 },
-        "boardColumnId": { "type": "integer", "minimum": 1 },
-        "positionAfterCardId": { "type": ["integer", "null"], "minimum": 1 }
+        "id": { "type": "integer", "minimum": 1 },
+        "columnId": { "type": "integer", "minimum": 1 },
+        "afterId": { "type": ["integer", "null"], "minimum": 1 }
       },
-      "required": ["boardId", "cardId", "boardColumnId"],
+      "required": ["boardId", "id", "columnId"],
       "additionalProperties": false
     }
     """;
@@ -72,11 +72,11 @@ public static class ToolSchemas
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "cardId": { "type": "integer", "minimum": 1 },
+        "id": { "type": "integer", "minimum": 1 },
         "columnTitle": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "positionAfterCardId": { "type": ["integer", "null"], "minimum": 1 }
+        "afterId": { "type": ["integer", "null"], "minimum": 1 }
       },
-      "required": ["boardId", "cardId", "columnTitle"],
+      "required": ["boardId", "id", "columnTitle"],
       "additionalProperties": false
     }
     """;
@@ -86,9 +86,9 @@ public static class ToolSchemas
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "cardId": { "type": "integer", "minimum": 1 }
+        "id": { "type": "integer", "minimum": 1 }
       },
-      "required": ["boardId", "cardId"],
+      "required": ["boardId", "id"],
       "additionalProperties": false
     }
     """;
