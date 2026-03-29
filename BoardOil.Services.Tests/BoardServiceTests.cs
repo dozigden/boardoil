@@ -2,6 +2,7 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.Column;
 using BoardOil.Ef.Repositories;
+using BoardOil.Contracts.Board;
 using BoardOil.Services.Board;
 using BoardOil.Services.Card;
 using BoardOil.Services.Column;
@@ -13,6 +14,74 @@ namespace BoardOil.Services.Tests;
 
 public sealed class BoardServiceTests : TestBaseDb
 {
+    [Fact]
+    public async Task UpdateBoardAsync_WhenBoardDoesNotExist_ShouldReturnNotFound()
+    {
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateBoardAsync(999, new UpdateBoardRequest("Renamed"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(404, result.StatusCode);
+        Assert.Equal("Board not found.", result.Message);
+    }
+
+    [Fact]
+    public async Task UpdateBoardAsync_ShouldTrimAndPersistName()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .Build();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateBoardAsync(board.BoardId, new UpdateBoardRequest("  Roadmap  "));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(board.BoardId, result.Data!.Id);
+        Assert.Equal("Roadmap", result.Data.Name);
+
+        var persisted = DbContextForAssert.Boards.Single(x => x.Id == board.BoardId);
+        Assert.Equal("Roadmap", persisted.Name);
+    }
+
+    [Fact]
+    public async Task DeleteBoardAsync_ShouldRemoveBoardColumnsAndCards()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Card A")
+            .Build();
+        var columnId = board.GetColumn("Todo").Id;
+        var cardId = board.GetCard("Todo", "Card A").Id;
+        var service = CreateService();
+
+        // Act
+        var result = await service.DeleteBoardAsync(board.BoardId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Null(DbContextForAssert.Boards.SingleOrDefault(x => x.Id == board.BoardId));
+        Assert.Null(DbContextForAssert.Columns.SingleOrDefault(x => x.Id == columnId));
+        Assert.Null(DbContextForAssert.Cards.SingleOrDefault(x => x.Id == cardId));
+    }
+
+    [Fact]
+    public async Task DeleteBoardAsync_WhenBoardDoesNotExist_ShouldReturnOk()
+    {
+        // Act
+        var service = CreateService();
+        var result = await service.DeleteBoardAsync(999);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+    }
+
     [Fact]
     public async Task GetBoardAsync_WhenNoBoardExists_ShouldReturnNotFound()
     {

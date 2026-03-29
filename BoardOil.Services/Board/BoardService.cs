@@ -76,18 +76,10 @@ public sealed class BoardService(
         using var scope = scopeFactory.Create();
 
         var name = request.Name.Trim();
-        if (string.IsNullOrWhiteSpace(name))
+        var validationError = ValidateBoardName(name);
+        if (validationError is not null)
         {
-            return ApiErrors.BadRequest(
-                "Validation failed.",
-                [new ValidationError("name", "Board name is required.")]);
-        }
-
-        if (name.Length > 120)
-        {
-            return ApiErrors.BadRequest(
-                "Validation failed.",
-                [new ValidationError("name", "Board name must be 120 characters or fewer.")]);
+            return validationError;
         }
 
         var now = DateTime.UtcNow;
@@ -137,5 +129,66 @@ public sealed class BoardService(
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             columnDtos));
+    }
+
+    public async Task<ApiResult<BoardSummaryDto>> UpdateBoardAsync(int boardId, UpdateBoardRequest request)
+    {
+        using var scope = scopeFactory.Create();
+
+        var board = boardRepository.Get(boardId);
+        if (board is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
+
+        var updatedName = request.Name.Trim();
+        var validationError = ValidateBoardName(updatedName);
+        if (validationError is not null)
+        {
+            return validationError;
+        }
+
+        if (!string.Equals(board.Name, updatedName, StringComparison.Ordinal))
+        {
+            board.Name = updatedName;
+            board.UpdatedAtUtc = DateTime.UtcNow;
+            await scope.SaveChangesAsync();
+        }
+
+        return new BoardSummaryDto(board.Id, board.Name, board.CreatedAtUtc, board.UpdatedAtUtc);
+    }
+
+    public async Task<ApiResult> DeleteBoardAsync(int boardId)
+    {
+        using var scope = scopeFactory.Create();
+
+        var board = boardRepository.Get(boardId);
+        if (board is null)
+        {
+            return ApiResults.Ok();
+        }
+
+        boardRepository.Remove(board);
+        await scope.SaveChangesAsync();
+        return ApiResults.Ok();
+    }
+
+    private static ApiError? ValidateBoardName(string boardName)
+    {
+        if (string.IsNullOrWhiteSpace(boardName))
+        {
+            return ApiErrors.BadRequest(
+                "Validation failed.",
+                [new ValidationError("name", "Board name is required.")]);
+        }
+
+        if (boardName.Length > 120)
+        {
+            return ApiErrors.BadRequest(
+                "Validation failed.",
+                [new ValidationError("name", "Board name must be 120 characters or fewer.")]);
+        }
+
+        return null;
     }
 }

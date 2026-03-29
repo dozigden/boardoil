@@ -8,4 +8,6 @@ public interface IBoardService
     Task<ApiResult<IReadOnlyList<BoardSummaryDto>>> GetBoardsAsync();
     Task<ApiResult<BoardDto>> GetBoardAsync(int boardId);
     Task<ApiResult<BoardDto>> CreateBoardAsync(CreateBoardRequest request);
+    Task<ApiResult<BoardSummaryDto>> UpdateBoardAsync(int boardId, UpdateBoardRequest request);
+    Task<ApiResult> DeleteBoardAsync(int boardId);
 }

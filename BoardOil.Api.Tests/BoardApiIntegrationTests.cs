@@ -63,6 +63,83 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task UpdateBoard_ShouldRenameBoard()
+    {
+        // Arrange
+        var createResponse = await Client.PostAsJsonAsync("/api/boards", new CreateBoardRequest("Roadmap"));
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        Assert.NotNull(created);
+        Assert.NotNull(created!.Data);
+
+        // Act
+        var updateResponse = await Client.PutAsJsonAsync($"/api/boards/{created.Data!.Id}", new UpdateBoardRequest("  Product Roadmap  "));
+        updateResponse.EnsureSuccessStatusCode();
+        var updated = await updateResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardSummaryDto>>(JsonOptions);
+
+        // Assert
+        Assert.NotNull(updated);
+        Assert.NotNull(updated!.Data);
+        Assert.Equal(created.Data.Id, updated.Data!.Id);
+        Assert.Equal("Product Roadmap", updated.Data.Name);
+
+        var boardList = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardSummaryDto>>>("/api/boards", JsonOptions);
+        Assert.NotNull(boardList);
+        Assert.NotNull(boardList!.Data);
+        Assert.Contains(boardList.Data!, x => x.Id == created.Data.Id && x.Name == "Product Roadmap");
+    }
+
+    [Fact]
+    public async Task DeleteBoard_ShouldRemoveBoardAndChildren()
+    {
+        // Arrange
+        var createBoardResponse = await Client.PostAsJsonAsync("/api/boards", new CreateBoardRequest("Disposable"));
+        createBoardResponse.EnsureSuccessStatusCode();
+        var createdBoard = await createBoardResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        Assert.NotNull(createdBoard);
+        Assert.NotNull(createdBoard!.Data);
+        var boardId = createdBoard.Data!.Id;
+        var todoColumnId = createdBoard.Data.Columns[0].Id;
+
+        var createCardResponse = await Client.PostAsJsonAsync(
+            $"/api/boards/{boardId}/cards",
+            new CreateCardRequest(todoColumnId, "Card A", "Desc", null));
+        createCardResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var deleteBoardResponse = await Client.DeleteAsync($"/api/boards/{boardId}");
+        deleteBoardResponse.EnsureSuccessStatusCode();
+
+        // Assert
+        var boardResponse = await Client.GetAsync($"/api/boards/{boardId}");
+        var boardPayload = await boardResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
+        Assert.Equal(404, (int)boardResponse.StatusCode);
+        Assert.NotNull(boardPayload);
+        Assert.False(boardPayload!.Success);
+        Assert.Equal("Board not found.", boardPayload.Message);
+
+        var boardList = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardSummaryDto>>>("/api/boards", JsonOptions);
+        Assert.NotNull(boardList);
+        Assert.NotNull(boardList!.Data);
+        Assert.DoesNotContain(boardList.Data!, x => x.Id == boardId);
+    }
+
+    [Fact]
+    public async Task DeleteBoard_WhenMissing_ShouldReturnOkContract()
+    {
+        // Act
+        var response = await Client.DeleteAsync("/api/boards/999999");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(200, (int)response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.True(payload!.Success);
+        Assert.Equal(200, payload.StatusCode);
+        Assert.Null(payload.Message);
+    }
+
+    [Fact]
     public async Task ColumnEndpoints_ShouldCreateAndDeleteColumn()
     {
         // Arrange

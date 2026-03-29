@@ -18,6 +18,9 @@ public sealed record BoardDto(
 public sealed record CreateBoardRequest(
     string Name);
 
+public sealed record UpdateBoardRequest(
+    string Name);
+
 public sealed record BoardColumnDto(
     int Id,
     string Title,

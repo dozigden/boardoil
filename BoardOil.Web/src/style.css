@@ -929,19 +929,16 @@ select:focus {
   margin: 0;
 }
 
-.boards-header p {
-  margin: 0.2rem 0 0;
-  color: var(--bo-ink-muted);
-}
-
 .boards-header {
-  display: grid;
-  gap: 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .boards-header > button {
   width: auto;
-  justify-self: start;
+  flex: 0 0 auto;
 }
 
 .boards-empty {
@@ -961,17 +958,24 @@ select:focus {
   list-style: none;
 }
 
+.boards-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .boards-open {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  justify-content: flex-start;
+  gap: 0.6rem;
   text-align: left;
   padding: 0.85rem 1rem;
   border-radius: 12px;
   border: 1px solid var(--bo-border-soft);
   background: var(--bo-surface-panel);
   color: var(--bo-ink-strong);
+  flex: 1 1 auto;
 }
 
 .boards-open:hover:not(:disabled),
@@ -987,6 +991,36 @@ select:focus {
 
 .boards-meta {
   flex: 0 0 auto;
+}
+
+.boards-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.boards-action {
+  width: auto;
+}
+
+.boards-action-icon {
+  min-width: 2.35rem;
+  min-height: 2.35rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.boards-action-danger {
+  border-color: color-mix(in oklab, var(--bo-colour-danger) 30%, var(--bo-border-soft));
+  color: var(--bo-colour-danger);
+}
+
+.boards-action-danger:hover:not(:disabled),
+.boards-action-danger:focus-visible {
+  border-color: var(--bo-colour-danger);
+  background: color-mix(in oklab, var(--bo-colour-danger) 14%, transparent);
 }
 
 .tags-manager {
