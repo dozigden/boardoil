@@ -9,4 +9,6 @@ public sealed class EntityTag
     public string StylePropertiesJson { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
+
+    public ICollection<EntityCardTag> CardTags { get; set; } = new List<EntityCardTag>();
 }

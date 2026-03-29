@@ -4,7 +4,8 @@ public sealed class EntityCardTag
 {
     public int Id { get; set; }
     public int CardId { get; set; }
-    public string TagName { get; set; } = string.Empty;
+    public int TagId { get; set; }
 
     public EntityBoardCard Card { get; set; } = null!;
+    public EntityTag Tag { get; set; } = null!;
 }

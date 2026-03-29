@@ -51,10 +51,10 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
 
         var cardTag = modelBuilder.Entity<EntityCardTag>();
         cardTag.HasKey(x => x.Id);
-        cardTag.Property(x => x.TagName).HasMaxLength(40).IsRequired();
+        cardTag.Property(x => x.TagId).IsRequired();
         cardTag.ToTable("CardTags");
-        cardTag.HasIndex(x => new { x.CardId, x.TagName }).IsUnique();
-        cardTag.HasIndex(x => x.TagName);
+        cardTag.HasIndex(x => new { x.CardId, x.TagId }).IsUnique();
+        cardTag.HasIndex(x => x.TagId);
 
         var tag = modelBuilder.Entity<EntityTag>();
         tag.HasKey(x => x.Id);
@@ -64,6 +64,10 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         tag.Property(x => x.StylePropertiesJson).IsRequired();
         tag.ToTable("Tags");
         tag.HasIndex(x => x.NormalisedName).IsUnique();
+        tag.HasMany(x => x.CardTags)
+            .WithOne(x => x.Tag)
+            .HasForeignKey(x => x.TagId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         var user = modelBuilder.Entity<EntityUser>();
         user.HasKey(x => x.Id);

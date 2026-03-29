@@ -92,6 +92,22 @@ public sealed class TagService(
         return existing.ToTagDto();
     }
 
+    public async Task<ApiResult> DeleteTagAsync(int tagId)
+    {
+        using var scope = _scopeFactory.Create();
+
+        var existing = tagRepository.Get(tagId);
+        if (existing is null)
+        {
+            return ApiResults.Ok();
+        }
+
+        tagRepository.Remove(existing);
+        await scope.SaveChangesAsync();
+
+        return ApiResults.Ok();
+    }
+
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
         ApiErrors.BadRequest("Validation failed.", validationErrors);
 

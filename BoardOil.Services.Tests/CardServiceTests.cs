@@ -74,8 +74,9 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.Equal(["Bug", "Needs Triage", "Sprint 1"], storedTags);
 
         var storedCardTags = await DbContextForAssert.CardTags
-            .OrderBy(x => x.TagName)
-            .Select(x => x.TagName)
+            .Include(x => x.Tag)
+            .OrderBy(x => x.Tag.Name)
+            .Select(x => x.Tag.Name)
             .ToListAsync();
         Assert.Equal(["Bug", "Needs Triage", "Sprint 1"], storedCardTags);
     }
@@ -206,8 +207,9 @@ public sealed class CardServiceTests : TestBaseDb
 
         var storedCardTags = await DbContextForAssert.CardTags
             .Where(x => x.CardId == cardId)
-            .OrderBy(x => x.TagName)
-            .Select(x => x.TagName)
+            .Include(x => x.Tag)
+            .OrderBy(x => x.Tag.Name)
+            .Select(x => x.Tag.Name)
             .ToListAsync();
         Assert.Equal(["Ops", "Urgent"], storedCardTags);
     }

@@ -86,6 +86,16 @@ export const useTagStore = defineStore('tag', () => {
     return result.data;
   }
 
+  async function deleteTag(tagId: number) {
+    const result = await runBusy(() => api.deleteTag(tagId));
+    if (!result.ok) {
+      return false;
+    }
+
+    removeTag(tagId);
+    return true;
+  }
+
   function getTagById(tagId: number | null) {
     if (tagId === null) {
       return null;
@@ -132,6 +142,10 @@ export const useTagStore = defineStore('tag', () => {
     tags.value = next.sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  function removeTag(tagId: number) {
+    tags.value = tags.value.filter(tag => tag.id !== tagId);
+  }
+
   function reportError(error: AppError) {
     feedback.setError(error.message);
   }
@@ -145,6 +159,7 @@ export const useTagStore = defineStore('tag', () => {
     createTag,
     ensureTagsExist,
     updateTagStyle,
+    deleteTag,
     getTagById,
     getTagByName
   };
