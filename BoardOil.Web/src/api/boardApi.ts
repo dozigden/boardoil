@@ -128,6 +128,10 @@ export function createBoardApi() {
     });
   }
 
+  async function deleteTag(tagId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/tags/${tagId}`);
+  }
+
   return {
     getBoards,
     getBoard,
@@ -143,7 +147,8 @@ export function createBoardApi() {
     deleteCard,
     getTags,
     createTag,
-    updateTagStyle
+    updateTagStyle,
+    deleteTag
   };
 }
 

@@ -303,6 +303,30 @@ describe('boardStore', () => {
     expect(store.board?.columns[0].cards[0].tagNames).toEqual(['Bug']);
   });
 
+  it('removeTagFromCards strips matching tags case-insensitively', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    store.board = {
+      ...store.board!,
+      columns: [
+        {
+          ...store.board!.columns[0],
+          cards: [
+            {
+              ...store.board!.columns[0].cards[0],
+              tagNames: ['Bug', 'urgent']
+            }
+          ]
+        },
+        ...store.board!.columns.slice(1)
+      ]
+    };
+
+    store.removeTagFromCards(' bug ');
+
+    expect(store.board?.columns[0].cards[0].tagNames).toEqual(['urgent']);
+  });
+
   it('finds card by id from board state', async () => {
     const store = useBoardStore();
     await store.initialize(1);

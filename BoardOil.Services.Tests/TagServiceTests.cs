@@ -6,6 +6,7 @@ using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Xunit;
+using CardTagEntity = BoardOil.Persistence.Abstractions.Entities.EntityCardTag;
 using TagEntity = BoardOil.Persistence.Abstractions.Entities.EntityTag;
 
 namespace BoardOil.Services.Tests;
@@ -213,6 +214,63 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal(404, result.StatusCode);
         Assert.Equal("Tag not found.", result.Message);
         Assert.Empty(await DbContextForAssert.Tags.ToListAsync());
+    }
+
+    [Fact]
+    public async Task DeleteTagAsync_WhenTagExists_ShouldRemoveTagAndCardTagLinksOnly()
+    {
+        // Arrange
+        var board = CreateBoard()
+            .AddColumn("Todo")
+            .AddCard("Task A")
+            .Build();
+        var cardId = board.GetCard("Todo", "Task A").Id;
+
+        var now = DateTime.UtcNow;
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
+
+        DbContextForArrange.CardTags.Add(new CardTagEntity
+        {
+            CardId = cardId,
+            TagId = tagId
+        });
+        await DbContextForArrange.SaveChangesAsync();
+
+        var service = CreateService();
+
+        // Act
+        var result = await service.DeleteTagAsync(tagId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Empty(await DbContextForAssert.Tags.ToListAsync());
+        Assert.Empty(await DbContextForAssert.CardTags.ToListAsync());
+        Assert.Single(await DbContextForAssert.Cards.ToListAsync());
+    }
+
+    [Fact]
+    public async Task DeleteTagAsync_WhenTagMissing_ShouldReturnOk()
+    {
+        // Arrange
+        var service = CreateService();
+
+        // Act
+        var result = await service.DeleteTagAsync(999_999);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
     }
 
     private TagService CreateService()

@@ -21,6 +21,10 @@ public static class TagEndpoints
                 tagService.UpdateTagStyleAsync(tagId, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
+        app.MapDelete("/api/tags/{tagId:int}", (int tagId, ITagService tagService) =>
+                tagService.DeleteTagAsync(tagId).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.CardEditor);
+
         return app;
     }
 }

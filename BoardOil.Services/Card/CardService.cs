@@ -50,8 +50,7 @@ public sealed class CardService(
         }
 
         var now = DateTime.UtcNow;
-        var tagNames = NormalizeTags(request.TagNames ?? Array.Empty<string>());
-        await EnsureTagsExistAsync(tagNames, now);
+        var tags = await ResolveTagsAsync(request.TagNames ?? Array.Empty<string>(), now);
         var card = new EntityBoardCard
         {
             BoardColumnId = request.BoardColumnId,
@@ -61,7 +60,7 @@ public sealed class CardService(
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
-        ReplaceTagNames(card, tagNames);
+        ReplaceTags(card, tags);
 
         cardRepository.Add(card);
 
@@ -91,7 +90,12 @@ public sealed class CardService(
 
         var updatedTitle = request.Title.Trim();
         var updatedDescription = request.Description;
-        var updatedTagNames = NormalizeTags(request.TagNames);
+        var now = DateTime.UtcNow;
+        var updatedTags = await ResolveTagsAsync(request.TagNames, now);
+        var updatedTagNames = updatedTags
+            .Select(x => x.Name)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
         var existingTagNames = GetOrderedTagNames(existingCard);
         var tagsChanged = !existingTagNames.SequenceEqual(updatedTagNames, StringComparer.Ordinal);
         var metadataChanged = updatedTitle != existingCard.Title
@@ -103,11 +107,10 @@ public sealed class CardService(
             existingCard.Description = updatedDescription;
             if (tagsChanged)
             {
-                await EnsureTagsExistAsync(updatedTagNames, DateTime.UtcNow);
-                ReplaceTagNames(existingCard, updatedTagNames);
+                ReplaceTags(existingCard, updatedTags);
             }
 
-            existingCard.UpdatedAtUtc = DateTime.UtcNow;
+            existingCard.UpdatedAtUtc = now;
             await scope.SaveChangesAsync();
         }
 
@@ -288,35 +291,26 @@ public sealed class CardService(
 
     private static IReadOnlyList<string> GetOrderedTagNames(EntityBoardCard card) =>
         card.CardTags
-            .Select(x => x.TagName)
+            .Select(x => x.Tag.Name)
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
 
-    private static IReadOnlyList<string> NormalizeTags(IReadOnlyList<string> tagNames)
-    {
-        return tagNames
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x.Trim())
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(x => x, StringComparer.Ordinal)
-            .ToList();
-    }
-
-    private static void ReplaceTagNames(EntityBoardCard card, IReadOnlyList<string> tagNames)
+    private static void ReplaceTags(EntityBoardCard card, IReadOnlyList<EntityTag> tags)
     {
         card.CardTags.Clear();
-        foreach (var tagName in NormalizeTags(tagNames))
+        foreach (var tag in tags.OrderBy(x => x.Name, StringComparer.Ordinal))
         {
-            card.CardTags.Add(new EntityCardTag { TagName = tagName });
+            card.CardTags.Add(new EntityCardTag { Tag = tag });
         }
     }
 
-    private async Task EnsureTagsExistAsync(IReadOnlyList<string> tagNames, DateTime now)
+    private async Task<IReadOnlyList<EntityTag>> ResolveTagsAsync(IReadOnlyList<string> tagNames, DateTime now)
     {
+        var resolvedTags = new List<EntityTag>();
         var processedNormalisedNames = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var tagName in tagNames)
+        foreach (var tagName in NormalizeTags(tagNames))
         {
-            var normalisedName = tagName.ToUpperInvariant();
+            var normalisedName = NormaliseTagName(tagName);
             if (!processedNormalisedNames.Add(normalisedName))
             {
                 continue;
@@ -325,10 +319,11 @@ public sealed class CardService(
             var existingTag = await _tagRepository.GetByNormalisedNameAsync(normalisedName);
             if (existingTag is not null)
             {
+                resolvedTags.Add(existingTag);
                 continue;
             }
 
-            _tagRepository.Add(new EntityTag
+            var createdTag = new EntityTag
             {
                 Name = tagName,
                 NormalisedName = normalisedName,
@@ -336,7 +331,25 @@ public sealed class CardService(
                 StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(),
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
-            });
+            };
+            _tagRepository.Add(createdTag);
+            resolvedTags.Add(createdTag);
         }
+
+        return resolvedTags
+            .OrderBy(x => x.Name, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static string NormaliseTagName(string tagName) =>
+        tagName.ToUpperInvariant();
+
+    private static IReadOnlyList<string> NormalizeTags(IReadOnlyList<string> tagNames)
+    {
+        return tagNames
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
     }
 }

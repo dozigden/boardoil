@@ -489,6 +489,64 @@ public sealed class BoardApiIntegrationTests
         Assert.Equal("Tag not found.", payload.Message);
     }
 
+    [Fact]
+    public async Task TagEndpoints_ShouldDeleteTag_AndRemoveTagFromExistingCards()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+
+        var createdCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", ["Bug", "Urgent"]));
+        createdCardResponse.EnsureSuccessStatusCode();
+        var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdCard);
+        Assert.NotNull(createdCard!.Data);
+
+        var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/tags", JsonOptions);
+        Assert.NotNull(tagsEnvelope);
+        Assert.NotNull(tagsEnvelope!.Data);
+        var bugTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "Bug");
+
+        // Act
+        var deleteResponse = await Client.DeleteAsync($"/api/tags/{bugTag.Id}");
+        deleteResponse.EnsureSuccessStatusCode();
+
+        // Assert
+        var tagsAfterDelete = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/tags", JsonOptions);
+        Assert.NotNull(tagsAfterDelete);
+        Assert.NotNull(tagsAfterDelete!.Data);
+        Assert.DoesNotContain(tagsAfterDelete.Data!, x => x.Name == "Bug");
+        Assert.Contains(tagsAfterDelete.Data!, x => x.Name == "Urgent");
+
+        var boardAfterDelete = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.NotNull(boardAfterDelete);
+        Assert.NotNull(boardAfterDelete!.Data);
+        var columnState = boardAfterDelete.Data!.Columns.Single(x => x.Id == createdColumn.Data.Id);
+        var cardState = columnState.Cards.Single(x => x.Id == createdCard.Data!.Id);
+        Assert.Equal("Task A", cardState.Title);
+        Assert.Equal(["Urgent"], cardState.TagNames);
+    }
+
+    [Fact]
+    public async Task DeleteTag_WhenMissing_ShouldReturnOkContract()
+    {
+        // Act
+        var response = await Client.DeleteAsync("/api/tags/999999");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(200, (int)response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.True(payload!.Success);
+        Assert.Equal(200, payload.StatusCode);
+        Assert.Null(payload.Message);
+    }
+
     private async Task SeedTagAsync(string name, string normalisedName, string styleName, string stylePropertiesJson)
     {
         await using var connection = new SqliteConnection($"Data Source={DatabasePath}");

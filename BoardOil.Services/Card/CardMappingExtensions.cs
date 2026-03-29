@@ -24,7 +24,7 @@ public static class CardMappingExtensions
             card.Description,
             card.SortKey,
             card.CardTags
-                .Select(x => x.TagName)
+                .Select(x => x.Tag.Name)
                 .OrderBy(x => x, StringComparer.Ordinal)
                 .ToList(),
             card.CreatedAtUtc,

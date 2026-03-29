@@ -354,6 +354,21 @@ export const useBoardStore = defineStore('board', () => {
     return board.value.columns.find(x => x.id === columnId) ?? null;
   }
 
+  function removeTagFromCards(tagName: string) {
+    const normalisedTagName = tagName.trim().toUpperCase();
+    if (!normalisedTagName) {
+      return;
+    }
+
+    mutateBoard(draft => {
+      for (const column of draft.columns) {
+        for (const card of column.cards) {
+          card.tagNames = card.tagNames.filter(existingTagName => existingTagName.trim().toUpperCase() !== normalisedTagName);
+        }
+      }
+    });
+  }
+
   function mutateBoard(mutator: (draft: Board) => void) {
     if (!board.value) {
       return;
@@ -378,6 +393,7 @@ export const useBoardStore = defineStore('board', () => {
     createCard,
     saveCard,
     deleteCard,
+    removeTagFromCards,
     getCardById,
     getColumnById,
     startDrag,

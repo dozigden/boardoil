@@ -74,6 +74,9 @@
 
     <template #actions>
       <div v-if="editingTag" class="editor-actions card-modal-actions">
+        <button type="button" class="danger card-modal-delete" :disabled="busy" aria-label="Delete tag" title="Delete tag" @click="deleteEditingTag">
+          <Trash2 :size="16" aria-hidden="true" />
+        </button>
         <div class="card-modal-actions-left">
           <button type="submit" class="card-modal-save" :disabled="busy" aria-label="Save tag style" title="Save tag style">
             <Check :size="16" aria-hidden="true" />
@@ -90,10 +93,11 @@
 </template>
 
 <script setup lang="ts">
-import { Check, X } from 'lucide-vue-next';
+import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
 import type { TagStyleName } from '../types/boardTypes';
 import { buildStylePropertiesJsonFromDraft, createTagStyleDraft, getTagPillStyle } from '../utils/tagStyles';
@@ -102,9 +106,10 @@ import ModalDialog from './ModalDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
+const boardStore = useBoardStore();
 const tagStore = useTagStore();
 const { busy } = storeToRefs(tagStore);
-const { updateTagStyle, getTagById, loadTags } = tagStore;
+const { updateTagStyle, deleteTag, getTagById, loadTags } = tagStore;
 const draft = ref<TagStyleDraft | null>(null);
 const attemptedLoad = ref(false);
 
@@ -190,6 +195,25 @@ async function saveTag() {
     return;
   }
 
+  await closeTagEditor();
+}
+
+async function deleteEditingTag() {
+  if (!editingTag.value) {
+    return;
+  }
+
+  const confirmed = window.confirm(`Delete tag "${editingTag.value.name}"?\n\nThis removes the tag from all cards and cannot be undone.`);
+  if (!confirmed) {
+    return;
+  }
+
+  const deleted = await deleteTag(editingTag.value.id);
+  if (!deleted) {
+    return;
+  }
+
+  boardStore.removeTagFromCards(editingTag.value.name);
   await closeTagEditor();
 }
 

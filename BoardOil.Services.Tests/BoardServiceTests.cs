@@ -6,6 +6,7 @@ using BoardOil.Services.Board;
 using BoardOil.Services.Card;
 using BoardOil.Services.Column;
 using BoardOil.Services.Tests.Infrastructure;
+using BoardOil.Persistence.Abstractions.Entities;
 using Xunit;
 
 namespace BoardOil.Services.Tests;
@@ -100,10 +101,22 @@ public sealed class BoardServiceTests : TestBaseDb
             .AddColumn("Doing")
             .Build();
         var cardId = board.GetCard("Todo", "A").Id;
-        DbContextForArrange.CardTags.Add(new BoardOil.Persistence.Abstractions.Entities.EntityCardTag
+        var now = DateTime.UtcNow;
+        var tag = new EntityTag
+        {
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.Tags.Add(tag);
+        await DbContextForArrange.SaveChangesAsync();
+        DbContextForArrange.CardTags.Add(new EntityCardTag
         {
             CardId = cardId,
-            TagName = "Bug"
+            TagId = tag.Id
         });
         await DbContextForArrange.SaveChangesAsync();
 
