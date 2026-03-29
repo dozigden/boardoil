@@ -125,6 +125,18 @@ const routeTagId = computed<number | null>(() => {
   return parsedTagId;
 });
 
+const routeBoardId = computed<number | null>(() => {
+  const rawBoardId = route.params.boardId;
+  const parsedBoardId = typeof rawBoardId === 'string'
+    ? Number.parseInt(rawBoardId, 10)
+    : Number.NaN;
+  if (!Number.isFinite(parsedBoardId)) {
+    return null;
+  }
+
+  return parsedBoardId;
+});
+
 const editingTag = computed(() => getTagById(routeTagId.value));
 const dialogTitle = computed(() => (editingTag.value ? `Edit Tag: ${editingTag.value.name}` : 'Edit Tag'));
 
@@ -144,7 +156,13 @@ const previewStyle = computed(() => {
 });
 
 async function closeTagEditor() {
-  await router.push({ name: 'tags' });
+  const boardId = routeBoardId.value;
+  if (boardId === null) {
+    await router.push({ name: 'boards' });
+    return;
+  }
+
+  await router.push({ name: 'tags', params: { boardId } });
 }
 
 function setStyleName(value: string) {
@@ -226,18 +244,24 @@ onMounted(async () => {
 });
 
 watch(
-  [routeTagId, editingTag, attemptedLoad],
-  ([nextTagId, nextTag, hasAttemptedLoad], [previousTagId]) => {
+  [routeBoardId, routeTagId, editingTag, attemptedLoad],
+  ([nextBoardId, nextTagId, nextTag, hasAttemptedLoad], [, previousTagId]) => {
+    if (nextBoardId === null) {
+      draft.value = null;
+      void router.replace({ name: 'boards' });
+      return;
+    }
+
     if (nextTagId === null) {
       draft.value = null;
-      void router.replace({ name: 'tags' });
+      void router.replace({ name: 'tags', params: { boardId: nextBoardId } });
       return;
     }
 
     if (!nextTag) {
       draft.value = null;
       if (hasAttemptedLoad) {
-        void router.replace({ name: 'tags' });
+        void router.replace({ name: 'tags', params: { boardId: nextBoardId } });
       }
       return;
     }

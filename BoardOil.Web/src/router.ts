@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import { resolveAuthNavigation } from './auth/navigationGuard';
 import { useAuthStore } from './stores/authStore';
-import { APP_LAYOUT_BOARD, APP_LAYOUT_PAGE } from './layouts/appLayout';
+import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, APP_LAYOUT_PAGE } from './layouts/appLayout';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -51,52 +51,100 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD }
   },
   {
+    path: '/boards/:boardId(\\d+)/admin',
+    component: () => import('./views/BoardAdminView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_ADMIN },
+    children: [
+      {
+        path: '',
+        redirect: to => ({ name: 'columns', params: { boardId: to.params.boardId } })
+      },
+      {
+        path: 'columns',
+        name: 'columns',
+        component: () => import('./views/ColumnsManagerView.vue')
+      },
+      {
+        path: 'columns/:columnId(\\d+)',
+        name: 'columns-column',
+        components: {
+          default: () => import('./views/ColumnsManagerView.vue'),
+          dialog: () => import('./components/ColumnEditorDialog.vue')
+        }
+      },
+      {
+        path: 'tags',
+        name: 'tags',
+        component: () => import('./views/TagsManagerView.vue')
+      },
+      {
+        path: 'tags/:tagId(\\d+)',
+        name: 'tags-tag',
+        components: {
+          default: () => import('./views/TagsManagerView.vue'),
+          dialog: () => import('./components/TagEditorDialog.vue')
+        }
+      }
+    ]
+  },
+  {
+    path: '/admin/system',
+    component: () => import('./views/SystemAdminView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_ADMIN },
+    children: [
+      {
+        path: '',
+        redirect: { name: 'system-admin-boards' }
+      },
+      {
+        path: 'boards',
+        name: 'system-admin-boards',
+        component: () => import('./views/BoardsView.vue')
+      },
+      {
+        path: 'users',
+        name: 'users',
+        component: () => import('./views/UsersManagerView.vue')
+      },
+      {
+        path: 'machine-access',
+        name: 'machine-access',
+        component: () => import('./views/MachineAccessView.vue')
+      },
+      {
+        path: 'configuration',
+        name: 'configuration',
+        component: () => import('./views/ConfigurationView.vue')
+      }
+    ]
+  },
+  {
     path: '/boards/:boardId(\\d+)/columns',
-    name: 'columns',
-    component: () => import('./views/ColumnsManagerView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_PAGE }
-  },
-  {
-    path: '/tags',
-    name: 'tags',
-    component: () => import('./views/TagsManagerView.vue'),
-    meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
-  },
-  {
-    path: '/tags/:tagId(\\d+)',
-    name: 'tags-tag',
-    components: {
-      default: () => import('./views/TagsManagerView.vue'),
-      dialog: () => import('./components/TagEditorDialog.vue')
-    },
-    meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
+    redirect: to => ({ name: 'columns', params: { boardId: to.params.boardId } })
   },
   {
     path: '/boards/:boardId(\\d+)/columns/:columnId(\\d+)',
-    name: 'columns-column',
-    components: {
-      default: () => import('./views/ColumnsManagerView.vue'),
-      dialog: () => import('./components/ColumnEditorDialog.vue')
-    },
-    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_PAGE }
+    redirect: to => ({ name: 'columns-column', params: { boardId: to.params.boardId, columnId: to.params.columnId } })
   },
   {
     path: '/users',
-    name: 'users',
-    component: () => import('./views/UsersManagerView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_PAGE }
-  },
-  {
-    path: '/configuration',
-    name: 'configuration',
-    component: () => import('./views/ConfigurationView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_PAGE }
+    redirect: { name: 'users' }
   },
   {
     path: '/machine-access',
-    name: 'machine-access',
-    component: () => import('./views/MachineAccessView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_PAGE }
+    redirect: { name: 'machine-access' }
+  },
+  {
+    path: '/configuration',
+    redirect: { name: 'configuration' }
+  },
+  {
+    path: '/tags',
+    redirect: { name: 'boards' }
+  },
+  {
+    path: '/tags/:tagId(\\d+)',
+    redirect: { name: 'boards' }
   },
   {
     path: '/:pathMatch(.*)*',

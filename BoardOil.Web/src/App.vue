@@ -20,8 +20,9 @@ import { useTagStore } from './stores/tagStore';
 import { useAuthStore } from './stores/authStore';
 import { useUiFeedbackStore } from './stores/uiFeedbackStore';
 import BoardWorkspaceLayout from './layouts/BoardWorkspaceLayout.vue';
+import AdminWorkspaceLayout from './layouts/AdminWorkspaceLayout.vue';
 import PageScrollLayout from './layouts/PageScrollLayout.vue';
-import { resolveAppLayout } from './layouts/appLayout';
+import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, resolveAppLayout } from './layouts/appLayout';
 import { getPageTitle } from './components/appHeaderNavigation';
 
 const boardStore = useBoardStore();
@@ -34,7 +35,17 @@ const { errorMessage } = storeToRefs(feedbackStore);
 const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId } = storeToRefs(boardStore);
 const layoutMode = computed(() => resolveAppLayout(route.meta.layout));
-const layoutComponent = computed(() => (layoutMode.value === 'board' ? BoardWorkspaceLayout : PageScrollLayout));
+const layoutComponent = computed(() => {
+  if (layoutMode.value === APP_LAYOUT_BOARD) {
+    return BoardWorkspaceLayout;
+  }
+
+  if (layoutMode.value === APP_LAYOUT_ADMIN) {
+    return AdminWorkspaceLayout;
+  }
+
+  return PageScrollLayout;
+});
 const routeBoardId = computed(() => {
   const boardId = Number.parseInt(String(route.params.boardId ?? ''), 10);
   return Number.isFinite(boardId) ? boardId : null;

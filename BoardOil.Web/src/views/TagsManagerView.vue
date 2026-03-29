@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
@@ -38,6 +39,7 @@ import { DEFAULT_TAG_STYLE_PROPERTIES_JSON, getTagPillStyle } from '../utils/tag
 import type { Tag } from '../types/boardTypes';
 
 const router = useRouter();
+const route = useRoute();
 const boardStore = useBoardStore();
 const tagStore = useTagStore();
 const { board } = storeToRefs(boardStore);
@@ -81,7 +83,12 @@ async function openEditor(tagName: string) {
     return;
   }
 
-  await router.push({ name: 'tags-tag', params: { tagId: existingTag.id } });
+  const boardId = resolveBoardId();
+  if (boardId === null) {
+    return;
+  }
+
+  await router.push({ name: 'tags-tag', params: { boardId, tagId: existingTag.id } });
 }
 
 function tagStyle(tagName: string) {
@@ -105,5 +112,10 @@ function resolveTag(tagName: string | null): Tag | null {
 
 function normaliseTagNameKey(tagName: string) {
   return tagName.trim().toUpperCase();
+}
+
+function resolveBoardId() {
+  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 </script>
