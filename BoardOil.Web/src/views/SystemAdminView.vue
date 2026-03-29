@@ -1,0 +1,29 @@
+<template>
+  <AdminSplitLayout title="System Admin" :items="navItems">
+    <RouterView />
+  </AdminSplitLayout>
+</template>
+
+<script setup lang="ts">
+import { RouterView } from 'vue-router';
+import AdminSplitLayout from '../components/AdminSplitLayout.vue';
+
+const navItems = [
+  {
+    label: 'Boards',
+    to: { name: 'system-admin-boards' }
+  },
+  {
+    label: 'Users',
+    to: { name: 'users' }
+  },
+  {
+    label: 'Machine Access',
+    to: { name: 'machine-access' }
+  },
+  {
+    label: 'Configuration',
+    to: { name: 'configuration' }
+  }
+];
+</script>

@@ -18,27 +18,34 @@
           :boards="boards"
           :current-board-id="currentBoardId"
         />
+        <RouterLink
+          v-if="boardAdminTarget"
+          :to="boardAdminTarget"
+          class="menu-trigger header-board-admin-link"
+          aria-label="Open board admin"
+          title="Board admin"
+          @click="closeMenus"
+        >
+          <SlidersHorizontal :size="18" aria-hidden="true" />
+        </RouterLink>
       </div>
       <div class="header-meta">
         <p v-if="isAuthenticated && userName" class="user-meta">Signed in as {{ userName }}</p>
-        <details v-if="isAuthenticated" ref="menu" class="header-menu">
-          <summary class="menu-trigger" aria-label="Open menu">
+        <RouterLink
+          v-if="isAdmin"
+          :to="{ name: 'system-admin-boards' }"
+          class="menu-trigger"
+          aria-label="Open system admin"
+          title="System admin"
+          @click="closeMenus"
+        >
             <Settings :size="18" aria-hidden="true" />
+        </RouterLink>
+        <details v-if="isAuthenticated" ref="userMenu" class="header-menu">
+          <summary class="menu-trigger" aria-label="Open user menu" title="User menu">
+            <CircleUserRound :size="18" aria-hidden="true" />
           </summary>
-          <nav class="menu-panel" aria-label="Site menu">
-            <RouterLink to="/" class="menu-item" @click="closeMenus">Manage Boards</RouterLink>
-            <RouterLink v-if="isAuthenticated" to="/tags" class="menu-item" @click="closeMenus">Manage Tags</RouterLink>
-            <RouterLink
-              v-if="isAdmin && currentBoardId !== null"
-              :to="{ name: 'columns', params: { boardId: currentBoardId } }"
-              class="menu-item"
-              @click="closeMenus"
-            >
-              Manage Columns
-            </RouterLink>
-            <RouterLink v-if="isAdmin" to="/users" class="menu-item" @click="closeMenus">Manage Users</RouterLink>
-            <RouterLink v-if="isAdmin" to="/machine-access" class="menu-item" @click="closeMenus">Machine Access</RouterLink>
-            <RouterLink v-if="isAdmin" to="/configuration" class="menu-item" @click="closeMenus">Configuration</RouterLink>
+          <nav class="menu-panel" aria-label="User menu">
             <RouterLink v-if="isAuthenticated" to="/licences" class="menu-item" @click="closeMenus">Licences</RouterLink>
             <button v-if="isAuthenticated" type="button" class="menu-item menu-button" @click="handleLogout">Logout</button>
           </nav>
@@ -49,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { Settings } from 'lucide-vue-next';
+import { CircleUserRound, Settings, SlidersHorizontal } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -61,7 +68,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useBoardCatalogueStore } from '../stores/boardCatalogueStore';
 import { useBoardStore } from '../stores/boardStore';
 
-const menu = ref<HTMLDetailsElement | null>(null);
+const userMenu = ref<HTMLDetailsElement | null>(null);
 const router = useRouter();
 const authStore = useAuthStore();
 const boardCatalogueStore = useBoardCatalogueStore();
@@ -71,10 +78,15 @@ const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId } = storeToRefs(boardStore);
 const userName = computed(() => user.value?.userName ?? '');
 const brandTarget = computed(() => getBrandTarget(boards.value));
+const boardAdminTarget = computed(() =>
+  isAdmin.value && currentBoardId.value !== null
+    ? { name: 'columns', params: { boardId: currentBoardId.value } }
+    : null
+);
 
 function closeMenu() {
-  if (menu.value) {
-    menu.value.open = false;
+  if (userMenu.value) {
+    userMenu.value.open = false;
   }
 }
 

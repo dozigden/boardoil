@@ -93,6 +93,12 @@ body {
   overflow: hidden;
 }
 
+.app-shell--admin {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .app-shell--page {
   overflow-x: hidden;
 }
@@ -110,6 +116,10 @@ body {
   overflow: hidden;
 }
 
+.app-shell--admin .app-content {
+  overflow: hidden;
+}
+
 .app-shell--page .app-content {
   overflow: visible;
 }
@@ -121,6 +131,12 @@ body {
 
 .app-layout--page {
   padding-inline-start: 2rem;
+}
+
+.app-layout--admin {
+  flex: 1;
+  min-height: 0;
+  padding: 0 1rem 1rem 1rem;
 }
 
 .app-header {
@@ -217,6 +233,10 @@ body {
   display: inline-flex;
   align-items: center;
   margin-left: 1rem;
+}
+
+.header-board-admin-link {
+  margin-left: 0.25rem;
 }
 
 .board-switcher > details {
@@ -354,6 +374,7 @@ body {
   border: 1px solid var(--bo-border-brand);
   border-radius: 8px;
   user-select: none;
+  text-decoration: none;
 }
 
 .menu-trigger::-webkit-details-marker {
@@ -418,6 +439,70 @@ body {
 
 .toolbar {
   margin-top: 1rem;
+}
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 1rem;
+  min-height: 0;
+  height: 100%;
+}
+
+.admin-nav {
+  background: var(--bo-surface-panel);
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 14px;
+  padding: 0.75rem;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  overflow-y: auto;
+}
+
+.admin-nav-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.admin-nav-links {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-nav-link {
+  display: block;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--bo-ink-default);
+  text-decoration: none;
+}
+
+.admin-nav-link:hover,
+.admin-nav-link:focus-visible {
+  background: var(--bo-surface-energy);
+  color: var(--bo-colour-energy);
+}
+
+.admin-nav-link--active {
+  background: var(--bo-surface-brand);
+  color: var(--bo-link);
+  border-color: var(--bo-border-brand);
+  font-weight: 700;
+}
+
+.admin-content {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bo-border-default) transparent;
+}
+
+.app-layout--admin .admin-content > * {
+  margin-top: 0;
+  max-width: none;
 }
 
 .create-column {
@@ -1560,6 +1645,24 @@ select:focus {
 
   .header-menu {
     margin-left: auto;
+  }
+
+  .header-board-admin-link {
+    margin-left: 0.5rem;
+  }
+
+  .admin-shell {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .admin-nav {
+    overflow: visible;
+  }
+
+  .admin-content {
+    overflow: visible;
+    padding-right: 0;
   }
 
   .create-column {
