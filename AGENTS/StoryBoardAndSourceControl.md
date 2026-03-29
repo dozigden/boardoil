@@ -30,7 +30,8 @@ This file defines how agents should manage work tracking and source control in t
 - During implementation:
   - Keep story description updated at meaningful milestones.
 - Completion gate:
-  - A story should only move to `Done` once the last piece of work is committed.
+  - Do not commit or push until the user has reviewed the proposed changes and explicitly approved commit/sync.
+  - A story should only move to `Done` once the last approved commit is pushed.
   - Work should be manually reviewed after completion and before final closure.
   - Update the story description with outcomes and validation commands before moving to `Done`.
 
