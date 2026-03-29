@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getBrandTarget, getCurrentBoardName, getOtherBoards } from './appHeaderNavigation';
+import { getBrandTarget, getCurrentBoardName, getOtherBoards, getPageTitle } from './appHeaderNavigation';
 import type { Board, BoardSummary } from '../types/boardTypes';
 
 describe('appHeaderNavigation', () => {
@@ -73,5 +73,30 @@ describe('appHeaderNavigation', () => {
 
     expect(getCurrentBoardName(board, boards, 7)).toBe('Loaded board');
     expect(getCurrentBoardName(null, boards, 7)).toBe('Catalogue board');
+  });
+
+  it('uses the active board name as the page title', () => {
+    const board: Board = {
+      id: 7,
+      name: 'Loaded board',
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:00:00Z',
+      columns: []
+    };
+    const boards: BoardSummary[] = [
+      {
+        id: 7,
+        name: 'Catalogue board',
+        createdAtUtc: '2026-03-15T00:00:00Z',
+        updatedAtUtc: '2026-03-15T00:00:00Z'
+      }
+    ];
+
+    expect(getPageTitle(board, boards, 7, null)).toBe('Loaded board');
+    expect(getPageTitle(null, boards, null, 7)).toBe('Catalogue board');
+  });
+
+  it('falls back to the product name when no active board can be resolved', () => {
+    expect(getPageTitle(null, [], null, null)).toBe('BoardOil');
   });
 });

@@ -22,6 +22,7 @@ import { useUiFeedbackStore } from './stores/uiFeedbackStore';
 import BoardWorkspaceLayout from './layouts/BoardWorkspaceLayout.vue';
 import PageScrollLayout from './layouts/PageScrollLayout.vue';
 import { resolveAppLayout } from './layouts/appLayout';
+import { getPageTitle } from './components/appHeaderNavigation';
 
 const boardStore = useBoardStore();
 const boardCatalogueStore = useBoardCatalogueStore();
@@ -30,8 +31,15 @@ const authStore = useAuthStore();
 const feedbackStore = useUiFeedbackStore();
 const route = useRoute();
 const { errorMessage } = storeToRefs(feedbackStore);
+const { boards } = storeToRefs(boardCatalogueStore);
+const { board, currentBoardId } = storeToRefs(boardStore);
 const layoutMode = computed(() => resolveAppLayout(route.meta.layout));
 const layoutComponent = computed(() => (layoutMode.value === 'board' ? BoardWorkspaceLayout : PageScrollLayout));
+const routeBoardId = computed(() => {
+  const boardId = Number.parseInt(String(route.params.boardId ?? ''), 10);
+  return Number.isFinite(boardId) ? boardId : null;
+});
+const pageTitle = computed(() => getPageTitle(board.value, boards.value, currentBoardId.value, routeBoardId.value));
 
 onMounted(async () => {
   await authStore.initialize();
@@ -55,5 +63,13 @@ watch(
     boardCatalogueStore.dispose();
     tagStore.dispose();
   }
+);
+
+watch(
+  pageTitle,
+  nextTitle => {
+    document.title = nextTitle;
+  },
+  { immediate: true }
 );
 </script>

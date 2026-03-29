@@ -32,6 +32,9 @@
 ## MCP Board Workflow
 
 - For MCP board actions, prefer `./scripts/board-mcp.sh` instead of ad-hoc `curl` one-liners.
+- Production board auth lives in global Codex config, not this repo:
+  - Read `~/.codex/config.toml` under `[mcp_servers.boardoil]` for the MCP `url` and PAT value.
+  - Pass both explicitly to `board-mcp.sh` (for example `--mcp-url ... --token ...`) when `BOARDOIL_MCP_TOKEN` is not set.
 - To avoid repeated elevation prompts, request one persistent approval prefix rule for:
   - `["./scripts/board-mcp.sh"]`
 - Prefer script subcommands (`board-get`, `board-cards`, `card-move`, `card-description-set`) for routine board updates.
