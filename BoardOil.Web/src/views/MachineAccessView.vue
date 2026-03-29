@@ -5,107 +5,185 @@
         <h2>Machine Access Tokens</h2>
         <p>Create and manage Personal Access Tokens (PATs) for MCP clients.</p>
       </div>
-      <button type="button" :disabled="isBusy" @click="openCreateDialog">Create token</button>
     </header>
 
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="success">{{ successMessage }}</p>
-
-    <section class="machine-pat-setup">
-      <h3>Agent setup helper</h3>
-      <ol class="machine-pat-setup-steps">
-        <li>Create a PAT using the Create token button.</li>
-        <li>Configure your external agent with the MCP endpoint and bearer PAT header.</li>
-        <li>Run the tools/list test call to verify connectivity.</li>
-      </ol>
-
-      <div class="machine-pat-setup-grid">
-        <article class="machine-pat-setup-item">
-          <h4>MCP endpoint</h4>
-          <code class="machine-pat-setup-code machine-pat-inline-code">{{ mcpEndpoint }}</code>
-          <button type="button" class="ghost" :disabled="isBusy" @click="copySnippet(mcpEndpoint, 'MCP endpoint')">Copy endpoint</button>
-        </article>
-
-        <article class="machine-pat-setup-item">
-          <h4>Discovery metadata</h4>
-          <code class="machine-pat-setup-code machine-pat-inline-code">{{ mcpDiscoveryEndpoint }}</code>
-          <button type="button" class="ghost" :disabled="isBusy" @click="copySnippet(mcpDiscoveryEndpoint, 'discovery endpoint')">
-            Copy metadata URL
-          </button>
-        </article>
-      </div>
-
-      <article class="machine-pat-setup-item">
-        <h4>Generic MCP config snippet</h4>
-        <pre class="machine-pat-setup-code">{{ genericConfigSnippet }}</pre>
-        <button type="button" class="ghost" :disabled="isBusy" @click="copySnippet(genericConfigSnippet, 'MCP config snippet')">
-          Copy config
-        </button>
-      </article>
-
-      <article class="machine-pat-setup-item">
-        <h4>tools/list smoke call</h4>
-        <pre class="machine-pat-setup-code">{{ toolsListCurlSnippet }}</pre>
-        <button type="button" class="ghost" :disabled="isBusy" @click="copySnippet(toolsListCurlSnippet, 'tools/list curl command')">
-          Copy curl command
-        </button>
-      </article>
-
-      <p class="machine-pat-setup-note">
-        Use PAT as the direct bearer token for MCP calls. PATs do not use refresh-token login.
-      </p>
-    </section>
-
-    <section v-if="plainTextPat" class="machine-pat-secret">
-      <h3>Copy token now</h3>
-      <p>This value is only shown once for <strong>{{ plainTextPatName }}</strong>.</p>
-      <code class="machine-pat-secret-value">{{ plainTextPat }}</code>
-      <div class="machine-pat-secret-actions">
-        <button type="button" :disabled="isBusy" @click="copyPlainTextPat">
-          {{ copiedPat ? 'Copied' : 'Copy token' }}
-        </button>
-        <button type="button" class="ghost" :disabled="isBusy" @click="dismissPlainTextPat">Hide token</button>
-      </div>
-    </section>
-
-    <section class="machine-pat-list">
-      <header class="machine-pat-list-header">
-        <h3>Existing tokens</h3>
-        <button type="button" class="ghost" :disabled="isBusy" @click="refreshTokens">Refresh</button>
-      </header>
-
-      <p v-if="tokens.length === 0" class="machine-pat-empty">No machine tokens have been created yet.</p>
-
-      <article v-for="token in tokens" :key="token.id" class="machine-pat-item">
-        <div class="machine-pat-item-header">
-          <strong>{{ token.name }}</strong>
-          <span class="users-badges">
-            <span class="card-id">{{ tokenStatus(token) }}</span>
-            <span class="card-id">{{ token.tokenPrefix }}</span>
-          </span>
+    <div class="machine-access-layout">
+      <section class="machine-access-column machine-access-column--tokens">
+        <div class="machine-access-actions">
+          <button type="button" :disabled="isBusy" @click="openCreateDialog">Create token</button>
         </div>
+        <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+        <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
-        <div class="machine-pat-item-meta">
-          <span><strong>Scopes:</strong> {{ token.scopes.join(', ') || 'None' }}</span>
-          <span><strong>Boards:</strong> {{ describeBoardAccess(token) }}</span>
-          <span><strong>Created:</strong> {{ formatDate(token.createdAtUtc) }}</span>
-          <span><strong>Expires:</strong> {{ formatDate(token.expiresAtUtc) }}</span>
-          <span><strong>Last used:</strong> {{ formatDate(token.lastUsedAtUtc) }}</span>
-          <span><strong>Revoked:</strong> {{ formatDate(token.revokedAtUtc) }}</span>
-        </div>
+        <section v-if="plainTextPat" class="machine-pat-secret machine-pat-secret--danger">
+          <h3>Copy token now</h3>
+          <p>This value is only shown once for <strong>{{ plainTextPatName }}</strong>.</p>
+          <div class="machine-pat-code-block">
+            <code class="machine-pat-secret-value">{{ plainTextPat }}</code>
+            <button
+              type="button"
+              class="ghost machine-pat-copy-icon"
+              :disabled="isBusy"
+              aria-label="Copy token"
+              title="Copy token"
+              @click="copyPlainTextPat"
+            >
+              <Copy :size="14" aria-hidden="true" />
+            </button>
+          </div>
+          <div class="machine-pat-secret-actions">
+            <button type="button" class="ghost" :disabled="isBusy" @click="dismissPlainTextPat">Hide token</button>
+          </div>
+        </section>
 
-        <div class="machine-pat-item-actions">
-          <button
-            type="button"
-            class="ghost"
-            :disabled="isBusy || token.revokedAtUtc !== null"
-            @click="revokeToken(token)"
-          >
-            {{ token.revokedAtUtc ? 'Revoked' : 'Revoke token' }}
-          </button>
-        </div>
-      </article>
-    </section>
+        <section class="machine-pat-list">
+          <header class="machine-pat-list-header">
+            <h3>Existing tokens</h3>
+          </header>
+
+          <p v-if="tokens.length === 0" class="machine-pat-empty">No machine tokens have been created yet.</p>
+
+          <article v-for="token in tokens" :key="token.id" class="machine-pat-item">
+            <div class="machine-pat-item-header">
+              <strong>{{ token.name }}</strong>
+              <span class="users-badges">
+                <span class="card-id">{{ tokenStatus(token) }}</span>
+                <span class="card-id">{{ token.tokenPrefix }}</span>
+              </span>
+            </div>
+
+            <div class="machine-pat-item-meta">
+              <span><strong>Scopes:</strong> {{ token.scopes.join(', ') || 'None' }}</span>
+              <span><strong>Boards:</strong> {{ describeBoardAccess(token) }}</span>
+              <span><strong>Created:</strong> {{ formatDate(token.createdAtUtc) }}</span>
+              <span><strong>Expires:</strong> {{ formatDate(token.expiresAtUtc) }}</span>
+              <span><strong>Last used:</strong> {{ formatDate(token.lastUsedAtUtc) }}</span>
+              <span><strong>Revoked:</strong> {{ formatDate(token.revokedAtUtc) }}</span>
+            </div>
+
+            <div class="machine-pat-item-actions">
+              <button
+                type="button"
+                class="ghost"
+                :disabled="isBusy || token.revokedAtUtc !== null"
+                @click="revokeToken(token)"
+              >
+                {{ token.revokedAtUtc ? 'Revoked' : 'Revoke token' }}
+              </button>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <aside class="machine-access-column machine-access-column--guide">
+        <section class="machine-pat-setup">
+          <h3>Setup snippets</h3>
+
+          <article class="machine-pat-setup-item">
+            <h4>MCP endpoint</h4>
+            <div class="machine-pat-code-block machine-pat-code-block--endpoint">
+              <code class="machine-pat-setup-code machine-pat-inline-code">{{ mcpEndpoint }}</code>
+              <button
+                type="button"
+                class="ghost machine-pat-copy-icon"
+                :disabled="isBusy"
+                aria-label="Copy endpoint"
+                title="Copy endpoint"
+                @click="copySnippet(mcpEndpoint, 'MCP endpoint')"
+              >
+                <Copy :size="14" aria-hidden="true" />
+              </button>
+            </div>
+          </article>
+
+          <article class="machine-pat-setup-item">
+            <header class="machine-pat-setup-item-header">
+              <h4>Generic MCP config snippet</h4>
+              <div class="machine-pat-tab-list" role="tablist" aria-label="Generic MCP config formats">
+                <button
+                  type="button"
+                  class="machine-pat-tab"
+                  :class="{ 'machine-pat-tab--active': configSnippetTab === 'json' }"
+                  role="tab"
+                  :aria-selected="configSnippetTab === 'json'"
+                  @click="configSnippetTab = 'json'"
+                >
+                  JSON (Copilot)
+                </button>
+                <button
+                  type="button"
+                  class="machine-pat-tab"
+                  :class="{ 'machine-pat-tab--active': configSnippetTab === 'toml' }"
+                  role="tab"
+                  :aria-selected="configSnippetTab === 'toml'"
+                  @click="configSnippetTab = 'toml'"
+                >
+                  TOML (Codex)
+                </button>
+              </div>
+            </header>
+            <div class="machine-pat-code-block">
+              <pre class="machine-pat-setup-code">{{ selectedConfigSnippet }}</pre>
+              <button
+                type="button"
+                class="ghost machine-pat-copy-icon"
+                :disabled="isBusy"
+                :aria-label="`Copy ${selectedConfigSnippetLabel} config`"
+                :title="`Copy ${selectedConfigSnippetLabel} config`"
+                @click="copySnippet(selectedConfigSnippet, `${selectedConfigSnippetLabel} config snippet`)"
+              >
+                <Copy :size="14" aria-hidden="true" />
+              </button>
+            </div>
+          </article>
+
+          <article class="machine-pat-setup-item">
+            <header class="machine-pat-setup-item-header">
+              <h4>Manual test</h4>
+              <div class="machine-pat-tab-list" role="tablist" aria-label="Manual test examples">
+                <button
+                  type="button"
+                  class="machine-pat-tab"
+                  :class="{ 'machine-pat-tab--active': manualTestTab === 'curl' }"
+                  role="tab"
+                  :aria-selected="manualTestTab === 'curl'"
+                  @click="manualTestTab = 'curl'"
+                >
+                  Curl
+                </button>
+                <button
+                  type="button"
+                  class="machine-pat-tab"
+                  :class="{ 'machine-pat-tab--active': manualTestTab === 'powershell' }"
+                  role="tab"
+                  :aria-selected="manualTestTab === 'powershell'"
+                  @click="manualTestTab = 'powershell'"
+                >
+                  PowerShell
+                </button>
+              </div>
+            </header>
+            <div class="machine-pat-code-block">
+              <pre class="machine-pat-setup-code">{{ selectedManualTestSnippet }}</pre>
+              <button
+                type="button"
+                class="ghost machine-pat-copy-icon"
+                :disabled="isBusy"
+                :aria-label="`Copy ${selectedManualTestSnippetLabel} example`"
+                :title="`Copy ${selectedManualTestSnippetLabel} example`"
+                @click="copySnippet(selectedManualTestSnippet, `${selectedManualTestSnippetLabel} manual test command`)"
+              >
+                <Copy :size="14" aria-hidden="true" />
+              </button>
+            </div>
+          </article>
+
+          <p class="machine-pat-setup-note">
+            Use PAT as the direct bearer token for MCP calls. PATs do not use refresh-token login.
+          </p>
+        </section>
+      </aside>
+    </div>
 
     <MachinePatCreateDialog
       :open="isCreateDialogOpen"
@@ -118,6 +196,7 @@
 </template>
 
 <script setup lang="ts">
+import { Copy } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { createAuthApi } from '../api/authApi';
 import { createBoardApi } from '../api/boardApi';
@@ -138,12 +217,12 @@ const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const plainTextPat = ref<string | null>(null);
 const plainTextPatName = ref<string>('');
-const copiedPat = ref(false);
+const configSnippetTab = ref<'json' | 'toml'>('json');
+const manualTestTab = ref<'curl' | 'powershell'>('curl');
 
 const isBusy = computed(() => loading.value || createBusy.value || revokeBusyTokenId.value !== null);
 const mcpEndpoint = computed(() => `${window.location.origin}/mcp`);
-const mcpDiscoveryEndpoint = computed(() => `${window.location.origin}/.well-known/mcp`);
-const genericConfigSnippet = computed(() =>
+const genericConfigSnippetJson = computed(() =>
   `{
   "mcpServers": {
     "boardoil": {
@@ -156,12 +235,30 @@ const genericConfigSnippet = computed(() =>
   }
 }`
 );
-const toolsListCurlSnippet = computed(() =>
+const genericConfigSnippetToml = computed(() =>
+  `[mcp_servers.boardoil]
+url = "${mcpEndpoint.value}"
+bearer_token_env_var = "<YOUR_PAT>"`
+);
+const selectedConfigSnippet = computed(() => (configSnippetTab.value === 'json' ? genericConfigSnippetJson.value : genericConfigSnippetToml.value));
+const selectedConfigSnippetLabel = computed(() => (configSnippetTab.value === 'json' ? 'JSON' : 'TOML'));
+const manualTestCurlSnippet = computed(() =>
   `curl -sS -X POST ${mcpEndpoint.value} \\
   -H "Authorization: Bearer <YOUR_PAT>" \\
   -H "Content-Type: application/json" \\
   --data '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list"}'`
 );
+const manualTestPowerShellSnippet = computed(() =>
+  `$endpoint = "${mcpEndpoint.value}"
+$headers = @{
+  Authorization = "Bearer <YOUR_PAT>"
+  "Content-Type" = "application/json"
+}
+$body = '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list"}'
+Invoke-RestMethod -Method Post -Uri $endpoint -Headers $headers -Body $body`
+);
+const selectedManualTestSnippet = computed(() => (manualTestTab.value === 'curl' ? manualTestCurlSnippet.value : manualTestPowerShellSnippet.value));
+const selectedManualTestSnippetLabel = computed(() => (manualTestTab.value === 'curl' ? 'Curl' : 'PowerShell'));
 
 onMounted(async () => {
   await loadInitialData();
@@ -227,7 +324,6 @@ async function createToken(payload: CreateMachinePatRequest) {
     tokens.value = sortTokens([result.data.token, ...tokens.value.filter(token => token.id !== result.data.token.id)]);
     plainTextPat.value = result.data.plainTextToken;
     plainTextPatName.value = result.data.token.name;
-    copiedPat.value = false;
     isCreateDialogOpen.value = false;
     successMessage.value = `Created token ${result.data.token.name}. Copy it now; it will not be shown again.`;
   } finally {
@@ -267,8 +363,8 @@ async function copyPlainTextPat() {
   }
 
   const copied = await copyToClipboard(plainTextPat.value, `token ${plainTextPatName.value}`);
-  if (copied) {
-    copiedPat.value = true;
+  if (!copied) {
+    return;
   }
 }
 
@@ -291,7 +387,6 @@ async function copyToClipboard(text: string, label: string) {
 function dismissPlainTextPat() {
   plainTextPat.value = null;
   plainTextPatName.value = '';
-  copiedPat.value = false;
 }
 
 function formatDate(value: string | null) {

@@ -67,7 +67,7 @@
     <p v-if="draftError" class="error">{{ draftError }}</p>
 
     <template #actions>
-      <div class="editor-actions card-modal-actions">
+      <div class="editor-actions card-modal-actions machine-pat-dialog-actions">
         <div class="card-modal-actions-left">
           <button type="submit" class="card-modal-save" :disabled="busy" aria-label="Create token" title="Create token">
             <Check :size="16" aria-hidden="true" />
@@ -198,15 +198,28 @@ watch(
 .machine-pat-dialog-hint {
   margin: 0;
   color: var(--bo-ink-muted);
+  line-height: 1.4;
+}
+
+.machine-pat-dialog-group > label:not(.machine-pat-dialog-check) {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.machine-pat-dialog-group input[type="number"],
+.machine-pat-dialog-group input[type="text"] {
+  width: 100%;
 }
 
 .machine-pat-dialog-group {
   display: grid;
   gap: 0.45rem;
   margin: 0;
+  min-inline-size: 0;
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--bo-border-soft);
   border-radius: 10px;
+  background: var(--bo-surface-base);
 }
 
 .machine-pat-dialog-group > legend {
@@ -217,15 +230,26 @@ watch(
 
 .machine-pat-dialog-check {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
+  align-items: flex-start;
+  gap: 0.5rem;
   color: var(--bo-ink-default);
+  line-height: 1.35;
+}
+
+.machine-pat-dialog-check > input {
+  width: auto;
+  padding: 0;
+  margin-top: 0.15rem;
+  flex: 0 0 auto;
 }
 
 .machine-pat-board-list {
   display: grid;
   gap: 0.35rem;
   padding-top: 0.1rem;
+  border-top: 1px dashed var(--bo-border-soft);
+  margin-top: 0.15rem;
+  padding-top: 0.55rem;
 }
 
 .machine-pat-board-empty {
@@ -245,5 +269,9 @@ watch(
 .machine-pat-warning > p {
   margin: 0;
   color: var(--bo-ink-strong);
+}
+
+.machine-pat-dialog-actions {
+  margin-top: 0.35rem;
 }
 </style>

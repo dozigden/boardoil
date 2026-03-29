@@ -1416,12 +1416,27 @@ select:focus {
   margin-top: 1rem;
   display: grid;
   gap: 0.9rem;
-  max-width: 860px;
+}
+
+.machine-access-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 1.25fr) minmax(320px, 1fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.machine-access-column {
+  min-width: 0;
+  display: grid;
+  gap: 0.9rem;
 }
 
 .machine-access-header {
-  display: grid;
-  gap: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .machine-access-header h2 {
@@ -1433,9 +1448,14 @@ select:focus {
   color: var(--bo-ink-muted);
 }
 
-.machine-access-header > button {
+.machine-access-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.machine-access-actions > button {
   width: auto;
-  justify-self: start;
 }
 
 .machine-pat-secret {
@@ -1452,6 +1472,15 @@ select:focus {
   margin: 0;
 }
 
+.machine-pat-secret--danger {
+  border-color: color-mix(in oklab, var(--bo-colour-danger) 50%, var(--bo-border-soft));
+  background: color-mix(in oklab, var(--bo-colour-danger) 10%, var(--bo-surface-base));
+}
+
+.machine-pat-secret--danger h3 {
+  color: var(--bo-colour-danger-ink);
+}
+
 .machine-pat-secret-value {
   display: block;
   padding: 0.65rem;
@@ -1462,6 +1491,86 @@ select:focus {
   font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
   font-size: 0.83rem;
   overflow-wrap: anywhere;
+}
+
+.machine-pat-secret--danger .machine-pat-secret-value {
+  border-color: color-mix(in oklab, var(--bo-colour-danger) 45%, var(--bo-border-soft));
+  background: color-mix(in oklab, var(--bo-colour-danger) 6%, var(--bo-surface-base));
+  color: var(--bo-colour-danger-ink);
+}
+
+.machine-pat-code-block {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.machine-pat-code-block--endpoint {
+  display: inline-block;
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.machine-pat-code-block--endpoint > .machine-pat-setup-code {
+  display: block;
+  max-width: 100%;
+}
+
+.machine-pat-code-block--endpoint .machine-pat-copy-icon {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.machine-pat-code-block > .machine-pat-setup-code,
+.machine-pat-code-block > .machine-pat-secret-value {
+  max-width: 100%;
+  padding-right: 2.4rem;
+}
+
+.machine-pat-copy-icon {
+  position: absolute;
+  top: 0.42rem;
+  right: 0.42rem;
+  width: 1.75rem;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: color-mix(in oklab, var(--bo-colour-energy) 45%, var(--bo-border-soft));
+  background: color-mix(in oklab, var(--bo-colour-energy) 16%, var(--bo-surface-base));
+  color: color-mix(in oklab, var(--bo-colour-energy) 84%, var(--bo-ink-strong));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease-in-out, background 120ms ease-in-out, border-color 120ms ease-in-out, color 120ms ease-in-out;
+}
+
+.machine-pat-code-block:hover .machine-pat-copy-icon,
+.machine-pat-code-block:focus-within .machine-pat-copy-icon {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.machine-pat-copy-icon:hover:not(:disabled),
+.machine-pat-copy-icon:focus-visible {
+  border-color: var(--bo-colour-energy-strong);
+  background: color-mix(in oklab, var(--bo-colour-energy) 26%, var(--bo-surface-base));
+  color: color-mix(in oklab, var(--bo-colour-energy-strong) 82%, var(--bo-colour-brand));
+}
+
+.machine-pat-secret--danger .machine-pat-copy-icon {
+  border-color: color-mix(in oklab, var(--bo-colour-danger) 50%, var(--bo-border-soft));
+  background: color-mix(in oklab, var(--bo-colour-danger) 15%, var(--bo-surface-base));
+  color: var(--bo-colour-danger-ink);
+}
+
+.machine-pat-secret--danger .machine-pat-copy-icon:hover:not(:disabled),
+.machine-pat-secret--danger .machine-pat-copy-icon:focus-visible {
+  border-color: var(--bo-colour-danger);
+  background: var(--bo-colour-danger);
+  color: var(--bo-surface-base);
 }
 
 .machine-pat-secret-actions {
@@ -1491,12 +1600,6 @@ select:focus {
   gap: 0.3rem;
 }
 
-.machine-pat-setup-grid {
-  display: grid;
-  gap: 0.55rem;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-
 .machine-pat-setup-item {
   display: grid;
   gap: 0.45rem;
@@ -1508,6 +1611,50 @@ select:focus {
 
 .machine-pat-setup-item h4 {
   margin: 0;
+}
+
+.machine-pat-setup-item-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.machine-pat-tab-list {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid color-mix(in oklab, var(--bo-colour-energy) 45%, var(--bo-border-soft));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bo-colour-energy) 14%, var(--bo-surface-base));
+}
+
+.machine-pat-tab {
+  width: auto;
+  border: 1px solid transparent;
+  background: transparent;
+  color: color-mix(in oklab, var(--bo-colour-energy) 84%, var(--bo-ink-strong));
+  border-radius: 999px;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.machine-pat-tab:hover:not(:disabled),
+.machine-pat-tab:focus-visible {
+  border-color: color-mix(in oklab, var(--bo-colour-energy) 78%, var(--bo-border-soft));
+  background: color-mix(in oklab, var(--bo-colour-energy) 22%, var(--bo-surface-base));
+  color: color-mix(in oklab, var(--bo-colour-energy-strong) 82%, var(--bo-colour-brand));
+}
+
+.machine-pat-tab--active,
+.machine-pat-tab--active:hover:not(:disabled),
+.machine-pat-tab--active:focus-visible {
+  border-color: color-mix(in oklab, var(--bo-colour-energy-strong) 78%, var(--bo-colour-energy));
+  background: var(--bo-colour-energy-strong);
+  color: var(--bo-ink-on-brand);
 }
 
 .machine-pat-setup-code {
@@ -1545,18 +1692,11 @@ select:focus {
 }
 
 .machine-pat-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  display: block;
 }
 
 .machine-pat-list-header h3 {
   margin: 0;
-}
-
-.machine-pat-list-header > button {
-  width: auto;
 }
 
 .machine-pat-empty {
@@ -1598,6 +1738,12 @@ select:focus {
 .success {
   color: var(--bo-colour-success-ink);
   margin: 0;
+}
+
+@media (max-width: 1040px) {
+  .machine-access-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1675,8 +1821,9 @@ select:focus {
     align-items: stretch;
   }
 
-  .machine-pat-setup-grid {
-    grid-template-columns: 1fr;
+  .machine-pat-copy-icon {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .machine-pat-item-header {
