@@ -118,14 +118,22 @@ public sealed class McpToolDispatcher(
         BoardGetInput input,
         PatAccessContext? patAccessContext)
     {
-        var patAccessFailure = EnsurePatToolAccess<McpBoardSnapshot>(patAccessContext, MachinePatScopes.McpRead, input.BoardId);
+        var boardIdValidation = ValidateRequiredIdentifier(input.Id, "id");
+        if (boardIdValidation is not null)
+        {
+            return boardIdValidation.ToMcpFailure<McpBoardSnapshot>();
+        }
+
+        var boardId = input.Id!.Value;
+
+        var patAccessFailure = EnsurePatToolAccess<McpBoardSnapshot>(patAccessContext, MachinePatScopes.McpRead, boardId);
         if (patAccessFailure is not null)
         {
             return patAccessFailure;
         }
 
         var boardService = services.GetRequiredService<IBoardService>();
-        var result = await boardService.GetBoardAsync(input.BoardId);
+        var result = await boardService.GetBoardAsync(boardId);
         if (!result.Success || result.Data is null)
         {
             return result.ToMcpFailure<McpBoardSnapshot>();
@@ -139,21 +147,29 @@ public sealed class McpToolDispatcher(
         ColumnsListInput input,
         PatAccessContext? patAccessContext)
     {
-        var patAccessFailure = EnsurePatToolAccess<ColumnsListOutput>(patAccessContext, MachinePatScopes.McpRead, input.BoardId);
+        var boardIdValidation = ValidateRequiredIdentifier(input.Id, "id");
+        if (boardIdValidation is not null)
+        {
+            return boardIdValidation.ToMcpFailure<ColumnsListOutput>();
+        }
+
+        var boardId = input.Id!.Value;
+
+        var patAccessFailure = EnsurePatToolAccess<ColumnsListOutput>(patAccessContext, MachinePatScopes.McpRead, boardId);
         if (patAccessFailure is not null)
         {
             return patAccessFailure;
         }
 
         var columnService = services.GetRequiredService<IColumnService>();
-        var result = await columnService.GetColumnsAsync(input.BoardId);
+        var result = await columnService.GetColumnsAsync(boardId);
         if (!result.Success || result.Data is null)
         {
             return result.ToMcpFailure<ColumnsListOutput>();
         }
 
         var output = new ColumnsListOutput(
-            input.BoardId,
+            boardId,
             result.Data
                 .Select(column => new McpColumnReference(column.Id, column.Title, column.SortKey))
                 .ToArray());
@@ -166,15 +182,30 @@ public sealed class McpToolDispatcher(
         CardCreateInput input,
         PatAccessContext? patAccessContext)
     {
-        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, input.BoardId);
+        var boardIdValidation = ValidateRequiredIdentifier(input.BoardId, "boardId");
+        if (boardIdValidation is not null)
+        {
+            return boardIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var columnIdValidation = ValidateRequiredIdentifier(input.ColumnId, "columnId");
+        if (columnIdValidation is not null)
+        {
+            return columnIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var boardId = input.BoardId!.Value;
+        var columnId = input.ColumnId!.Value;
+
+        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, boardId);
         if (patAccessFailure is not null)
         {
             return patAccessFailure;
         }
 
         var cardService = services.GetRequiredService<ICardService>();
-        var request = new CreateCardRequest(input.BoardColumnId, input.Title, input.Description, input.TagNames);
-        var result = await cardService.CreateCardAsync(input.BoardId, request);
+        var request = new CreateCardRequest(columnId, input.Title, input.Description, input.TagNames);
+        var result = await cardService.CreateCardAsync(boardId, request);
         if (!result.Success || result.Data is null)
         {
             return result.ToMcpFailure<CardMutationOutput>();
@@ -188,7 +219,22 @@ public sealed class McpToolDispatcher(
         CardUpdateInput input,
         PatAccessContext? patAccessContext)
     {
-        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, input.BoardId);
+        var boardIdValidation = ValidateRequiredIdentifier(input.BoardId, "boardId");
+        if (boardIdValidation is not null)
+        {
+            return boardIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var cardIdValidation = ValidateRequiredIdentifier(input.Id, "id");
+        if (cardIdValidation is not null)
+        {
+            return cardIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var boardId = input.BoardId!.Value;
+        var cardId = input.Id!.Value;
+
+        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, boardId);
         if (patAccessFailure is not null)
         {
             return patAccessFailure;
@@ -196,7 +242,7 @@ public sealed class McpToolDispatcher(
 
         var cardService = services.GetRequiredService<ICardService>();
         var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames);
-        var result = await cardService.UpdateCardAsync(input.BoardId, input.CardId, request);
+        var result = await cardService.UpdateCardAsync(boardId, cardId, request);
         if (!result.Success || result.Data is null)
         {
             return result.ToMcpFailure<CardMutationOutput>();
@@ -210,15 +256,44 @@ public sealed class McpToolDispatcher(
         CardMoveInput input,
         PatAccessContext? patAccessContext)
     {
-        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, input.BoardId);
+        var boardIdValidation = ValidateRequiredIdentifier(input.BoardId, "boardId");
+        if (boardIdValidation is not null)
+        {
+            return boardIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var cardIdValidation = ValidateRequiredIdentifier(input.Id, "id");
+        if (cardIdValidation is not null)
+        {
+            return cardIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var columnIdValidation = ValidateRequiredIdentifier(input.ColumnId, "columnId");
+        if (columnIdValidation is not null)
+        {
+            return columnIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var afterIdValidation = ValidateOptionalIdentifier(input.AfterId, "afterId");
+        if (afterIdValidation is not null)
+        {
+            return afterIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var boardId = input.BoardId!.Value;
+        var cardId = input.Id!.Value;
+        var columnId = input.ColumnId!.Value;
+        var afterId = input.AfterId;
+
+        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, boardId);
         if (patAccessFailure is not null)
         {
             return patAccessFailure;
         }
 
         var cardService = services.GetRequiredService<ICardService>();
-        var request = new MoveCardRequest(input.BoardColumnId, input.PositionAfterCardId);
-        var result = await cardService.MoveCardAsync(input.BoardId, input.CardId, request);
+        var request = new MoveCardRequest(columnId, afterId);
+        var result = await cardService.MoveCardAsync(boardId, cardId, request);
         if (!result.Success || result.Data is null)
         {
             return result.ToMcpFailure<CardMutationOutput>();
@@ -232,7 +307,29 @@ public sealed class McpToolDispatcher(
         CardMoveByColumnNameInput input,
         PatAccessContext? patAccessContext)
     {
-        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, input.BoardId);
+        var boardIdValidation = ValidateRequiredIdentifier(input.BoardId, "boardId");
+        if (boardIdValidation is not null)
+        {
+            return boardIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var cardIdValidation = ValidateRequiredIdentifier(input.Id, "id");
+        if (cardIdValidation is not null)
+        {
+            return cardIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var afterIdValidation = ValidateOptionalIdentifier(input.AfterId, "afterId");
+        if (afterIdValidation is not null)
+        {
+            return afterIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var boardId = input.BoardId!.Value;
+        var cardId = input.Id!.Value;
+        var afterId = input.AfterId;
+
+        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, boardId);
         if (patAccessFailure is not null)
         {
             return patAccessFailure;
@@ -241,7 +338,7 @@ public sealed class McpToolDispatcher(
         var boardService = services.GetRequiredService<IBoardService>();
         var cardService = services.GetRequiredService<ICardService>();
 
-        var boardResult = await boardService.GetBoardAsync(input.BoardId);
+        var boardResult = await boardService.GetBoardAsync(boardId);
         if (!boardResult.Success || boardResult.Data is null)
         {
             return boardResult.ToMcpFailure<CardMutationOutput>();
@@ -258,7 +355,7 @@ public sealed class McpToolDispatcher(
             return new McpToolResult<CardMutationOutput>(
                 false,
                 null,
-                new McpToolError("column_not_found", $"No column named '{input.ColumnTitle}' exists on board {input.BoardId}.", 404));
+                new McpToolError("column_not_found", $"No column named '{input.ColumnTitle}' exists on board {boardId}.", 404));
         }
 
         if (matches.Length > 1)
@@ -266,10 +363,10 @@ public sealed class McpToolDispatcher(
             return new McpToolResult<CardMutationOutput>(
                 false,
                 null,
-                new McpToolError("column_ambiguous", $"Multiple columns named '{input.ColumnTitle}' exist on board {input.BoardId}. Move by column id instead.", 400));
+                new McpToolError("column_ambiguous", $"Multiple columns named '{input.ColumnTitle}' exist on board {boardId}. Move by column id instead.", 400));
         }
 
-        var moveResult = await cardService.MoveCardAsync(input.BoardId, input.CardId, new MoveCardRequest(matches[0], input.PositionAfterCardId));
+        var moveResult = await cardService.MoveCardAsync(boardId, cardId, new MoveCardRequest(matches[0], afterId));
         if (!moveResult.Success || moveResult.Data is null)
         {
             return moveResult.ToMcpFailure<CardMutationOutput>();
@@ -283,14 +380,29 @@ public sealed class McpToolDispatcher(
         CardDeleteInput input,
         PatAccessContext? patAccessContext)
     {
-        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, input.BoardId);
+        var boardIdValidation = ValidateRequiredIdentifier(input.BoardId, "boardId");
+        if (boardIdValidation is not null)
+        {
+            return boardIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var cardIdValidation = ValidateRequiredIdentifier(input.Id, "id");
+        if (cardIdValidation is not null)
+        {
+            return cardIdValidation.ToMcpFailure<CardMutationOutput>();
+        }
+
+        var boardId = input.BoardId!.Value;
+        var cardId = input.Id!.Value;
+
+        var patAccessFailure = EnsurePatToolAccess<CardMutationOutput>(patAccessContext, MachinePatScopes.McpWrite, boardId);
         if (patAccessFailure is not null)
         {
             return patAccessFailure;
         }
 
         var cardService = services.GetRequiredService<ICardService>();
-        var result = await cardService.DeleteCardAsync(input.BoardId, input.CardId);
+        var result = await cardService.DeleteCardAsync(boardId, cardId);
         if (!result.Success)
         {
             return result.ToMcpFailure<CardMutationOutput>();
@@ -353,6 +465,30 @@ public sealed class McpToolDispatcher(
     {
         using var document = JsonDocument.Parse(value);
         return document.RootElement.Clone();
+    }
+
+    private static ApiError? ValidateRequiredIdentifier(int? value, string fieldName)
+    {
+        if (value is > 0)
+        {
+            return null;
+        }
+
+        return ApiErrors.BadRequest(
+            "Validation failed.",
+            [new ValidationError(fieldName, $"'{fieldName}' is required and must be greater than zero.")]);
+    }
+
+    private static ApiError? ValidateOptionalIdentifier(int? value, string fieldName)
+    {
+        if (value is null || value > 0)
+        {
+            return null;
+        }
+
+        return ApiErrors.BadRequest(
+            "Validation failed.",
+            [new ValidationError(fieldName, $"'{fieldName}' must be greater than zero when provided.")]);
     }
 
     private static McpToolResult<T>? EnsurePatToolAccess<T>(PatAccessContext? patAccessContext, string requiredScope, int boardId)
@@ -476,6 +612,9 @@ public static class McpMappingExtensions
                 apiResult.StatusCode,
                 validation));
     }
+
+    public static McpToolResult<T> ToMcpFailure<T>(this ApiError apiError) =>
+        ((ApiResult)apiError).ToMcpFailure<T>();
 
     public static McpToolResult<T> ToMcpSuccess<T>(this T payload) =>
         new(true, payload, null);

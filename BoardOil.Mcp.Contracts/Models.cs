@@ -18,68 +18,84 @@ public sealed record McpToolResult<T>(
     McpToolError? Error);
 
 public sealed record McpBoardSnapshot(
-    int BoardId,
+    int Id,
     string BoardName,
     DateTime UpdatedAtUtc,
     IReadOnlyList<McpColumnSnapshot> Columns);
 
 public sealed record McpColumnSnapshot(
-    int ColumnId,
+    int Id,
     string Title,
     string SortKey,
     IReadOnlyList<McpCardSnapshot> Cards);
 
 public sealed record McpCardSnapshot(
-    int CardId,
-    int BoardColumnId,
+    int Id,
+    int ColumnId,
     string Title,
     string Description,
     string SortKey,
     IReadOnlyList<string> TagNames,
     DateTime UpdatedAtUtc);
 
-public sealed record BoardGetInput(int BoardId);
+public sealed record BoardGetInput
+{
+    public int? Id { get; init; }
+}
 
-public sealed record ColumnsListInput(int BoardId);
+public sealed record ColumnsListInput
+{
+    public int? Id { get; init; }
+}
 
 public sealed record ColumnsListOutput(
-    int BoardId,
+    int Id,
     IReadOnlyList<McpColumnReference> Columns);
 
 public sealed record McpColumnReference(
-    int ColumnId,
+    int Id,
     string Title,
     string SortKey);
 
-public sealed record CardCreateInput(
-    int BoardId,
-    int BoardColumnId,
-    string Title,
-    string Description,
-    IReadOnlyList<string>? TagNames);
+public sealed record CardCreateInput
+{
+    public int? BoardId { get; init; }
+    public int? ColumnId { get; init; }
+    public string Title { get; init; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
+    public IReadOnlyList<string>? TagNames { get; init; }
+}
 
-public sealed record CardUpdateInput(
-    int BoardId,
-    int CardId,
-    string Title,
-    string Description,
-    IReadOnlyList<string> TagNames);
+public sealed record CardUpdateInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+    public string Title { get; init; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
+    public IReadOnlyList<string> TagNames { get; init; } = [];
+}
 
-public sealed record CardMoveInput(
-    int BoardId,
-    int CardId,
-    int BoardColumnId,
-    int? PositionAfterCardId);
+public sealed record CardMoveInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+    public int? ColumnId { get; init; }
+    public int? AfterId { get; init; }
+}
 
-public sealed record CardMoveByColumnNameInput(
-    int BoardId,
-    int CardId,
-    string ColumnTitle,
-    int? PositionAfterCardId);
+public sealed record CardMoveByColumnNameInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+    public string ColumnTitle { get; init; } = string.Empty;
+    public int? AfterId { get; init; }
+}
 
-public sealed record CardDeleteInput(
-    int BoardId,
-    int CardId);
+public sealed record CardDeleteInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+}
 
 public sealed record CardMutationOutput(
     McpCardSnapshot? Card,
