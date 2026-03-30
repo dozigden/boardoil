@@ -404,15 +404,6 @@ body {
   padding: 0.45rem 0.55rem;
 }
 
-.menu-button {
-  width: 100%;
-  border: none;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-}
-
 .menu-item:hover,
 .menu-item:focus-visible {
   background: var(--bo-surface-energy);
@@ -928,12 +919,6 @@ select:focus {
   outline: none;
   border-color: var(--bo-focus-ring);
   box-shadow: 0 0 0 2px rgba(105, 193, 206, 0.24);
-}
-
-.menu-panel .menu-button {
-  border-color: transparent;
-  color: var(--bo-ink-default);
-  box-shadow: none;
 }
 
 .error {
@@ -1610,32 +1595,6 @@ select:focus {
   border: 1px solid color-mix(in oklab, var(--bo-colour-energy) 45%, var(--bo-border-soft));
   border-radius: 999px;
   background: color-mix(in oklab, var(--bo-colour-energy) 14%, var(--bo-surface-base));
-}
-
-.machine-pat-tab {
-  width: auto;
-  border: 1px solid transparent;
-  background: transparent;
-  color: color-mix(in oklab, var(--bo-colour-energy) 84%, var(--bo-ink-strong));
-  border-radius: 999px;
-  padding: 0.28rem 0.6rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.machine-pat-tab:hover:not(:disabled),
-.machine-pat-tab:focus-visible {
-  border-color: color-mix(in oklab, var(--bo-colour-energy) 78%, var(--bo-border-soft));
-  background: color-mix(in oklab, var(--bo-colour-energy) 22%, var(--bo-surface-base));
-  color: color-mix(in oklab, var(--bo-colour-energy-strong) 82%, var(--bo-colour-brand));
-}
-
-.machine-pat-tab--active,
-.machine-pat-tab--active:hover:not(:disabled),
-.machine-pat-tab--active:focus-visible {
-  border-color: color-mix(in oklab, var(--bo-colour-energy-strong) 78%, var(--bo-colour-energy));
-  background: var(--bo-colour-energy-strong);
-  color: var(--bo-ink-on-brand);
 }
 
 .machine-pat-setup-code {
