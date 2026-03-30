@@ -249,9 +249,9 @@ public sealed class BoardApiIntegrationTests
         var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
         Assert.NotNull(createdColumn);
         Assert.NotNull(createdColumn!.Data);
-        var createBugTagResponse = await Client.PostAsJsonAsync("/api/tags", new CreateTagRequest("Bug"));
+        var createBugTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("Bug"));
         createBugTagResponse.EnsureSuccessStatusCode();
-        var createUrgentTagResponse = await Client.PostAsJsonAsync("/api/tags", new CreateTagRequest("Urgent"));
+        var createUrgentTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("Urgent"));
         createUrgentTagResponse.EnsureSuccessStatusCode();
 
         // Act
@@ -277,9 +277,9 @@ public sealed class BoardApiIntegrationTests
         var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
         Assert.NotNull(createdColumn);
         Assert.NotNull(createdColumn!.Data);
-        var createBugTagResponse = await Client.PostAsJsonAsync("/api/tags", new CreateTagRequest("Bug"));
+        var createBugTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("Bug"));
         createBugTagResponse.EnsureSuccessStatusCode();
-        var createUrgentTagResponse = await Client.PostAsJsonAsync("/api/tags", new CreateTagRequest("Urgent"));
+        var createUrgentTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("Urgent"));
         createUrgentTagResponse.EnsureSuccessStatusCode();
 
         var createdCardResponse = await Client.PostAsJsonAsync(
@@ -415,7 +415,7 @@ public sealed class BoardApiIntegrationTests
         var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
         Assert.NotNull(createdColumn);
         Assert.NotNull(createdColumn!.Data);
-        var createBugTagResponse = await Client.PostAsJsonAsync("/api/tags", new CreateTagRequest("Bug"));
+        var createBugTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("Bug"));
         createBugTagResponse.EnsureSuccessStatusCode();
 
         var createdCardResponse = await Client.PostAsJsonAsync(
@@ -498,7 +498,7 @@ public sealed class BoardApiIntegrationTests
         var request = new CreateTagRequest("Bug");
 
         // Act
-        var createResponse = await Client.PostAsJsonAsync("/api/tags", request);
+        var createResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", request);
         createResponse.EnsureSuccessStatusCode();
         var createdTagEnvelope = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
 
@@ -516,7 +516,7 @@ public sealed class BoardApiIntegrationTests
         await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
 
         // Act
-        var initialTagsResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/tags", JsonOptions);
+        var initialTagsResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags", JsonOptions);
 
         // Assert
         Assert.NotNull(initialTagsResponse);
@@ -530,14 +530,14 @@ public sealed class BoardApiIntegrationTests
         // Arrange
         await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
         var request = new UpdateTagStyleRequest("gradient", """{"leftColor":"#223344","rightColor":"#446688","textColorMode":"auto"}""");
-        var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/tags", JsonOptions);
+        var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags", JsonOptions);
         Assert.NotNull(tagsEnvelope);
         Assert.NotNull(tagsEnvelope!.Data);
         var bugTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "Bug");
 
         // Act
         var patchResponse = await Client.PatchAsJsonAsync(
-            $"/api/tags/{bugTag.Id}",
+            $"/api/boards/1/tags/{bugTag.Id}",
             request);
         patchResponse.EnsureSuccessStatusCode();
 
@@ -555,7 +555,7 @@ public sealed class BoardApiIntegrationTests
         var request = new UpdateTagStyleRequest("solid", """{"backgroundColor":"#223344","textColorMode":"auto"}""");
 
         // Act
-        var response = await Client.PatchAsJsonAsync("/api/tags/999999", request);
+        var response = await Client.PatchAsJsonAsync("/api/boards/1/tags/999999", request);
         var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
 
         // Assert
@@ -584,17 +584,17 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(createdCard);
         Assert.NotNull(createdCard!.Data);
 
-        var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/tags", JsonOptions);
+        var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags", JsonOptions);
         Assert.NotNull(tagsEnvelope);
         Assert.NotNull(tagsEnvelope!.Data);
         var bugTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "Bug");
 
         // Act
-        var deleteResponse = await Client.DeleteAsync($"/api/tags/{bugTag.Id}");
+        var deleteResponse = await Client.DeleteAsync($"/api/boards/1/tags/{bugTag.Id}");
         deleteResponse.EnsureSuccessStatusCode();
 
         // Assert
-        var tagsAfterDelete = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/tags", JsonOptions);
+        var tagsAfterDelete = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags", JsonOptions);
         Assert.NotNull(tagsAfterDelete);
         Assert.NotNull(tagsAfterDelete!.Data);
         Assert.DoesNotContain(tagsAfterDelete.Data!, x => x.Name == "Bug");
@@ -613,7 +613,7 @@ public sealed class BoardApiIntegrationTests
     public async Task DeleteTag_WhenMissing_ShouldReturnOkContract()
     {
         // Act
-        var response = await Client.DeleteAsync("/api/tags/999999");
+        var response = await Client.DeleteAsync("/api/boards/1/tags/999999");
         var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
 
         // Assert
@@ -630,9 +630,10 @@ public sealed class BoardApiIntegrationTests
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO "Tags" ("Name", "NormalisedName", "StyleName", "StylePropertiesJson", "CreatedAtUtc", "UpdatedAtUtc")
-            VALUES ($name, $normalisedName, $styleName, $stylePropertiesJson, $createdAtUtc, $updatedAtUtc);
+            INSERT INTO "Tags" ("BoardId", "Name", "NormalisedName", "StyleName", "StylePropertiesJson", "CreatedAtUtc", "UpdatedAtUtc")
+            VALUES ($boardId, $name, $normalisedName, $styleName, $stylePropertiesJson, $createdAtUtc, $updatedAtUtc);
             """;
+        command.Parameters.AddWithValue("$boardId", 1);
         command.Parameters.AddWithValue("$name", name);
         command.Parameters.AddWithValue("$normalisedName", normalisedName);
         command.Parameters.AddWithValue("$styleName", styleName);

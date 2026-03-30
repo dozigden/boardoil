@@ -1,7 +1,18 @@
 <template>
   <section class="admin-shell">
     <aside class="admin-nav" :aria-label="`${title} sections`">
-      <h2 class="admin-nav-title">{{ title }}</h2>
+      <div class="admin-nav-heading">
+        <RouterLink
+          v-if="backTo"
+          :to="backTo"
+          class="admin-nav-back"
+          :aria-label="backLabel"
+          :title="backLabel"
+        >
+          ←
+        </RouterLink>
+        <h2 class="admin-nav-title">{{ title }}</h2>
+      </div>
       <nav class="admin-nav-links">
         <RouterLink
           v-for="item in items"
@@ -28,8 +39,13 @@ type AdminNavItem = {
   to: RouteLocationRaw;
 };
 
-defineProps<{
+withDefaults(defineProps<{
   title: string;
   items: AdminNavItem[];
-}>();
+  backTo?: RouteLocationRaw | null;
+  backLabel?: string;
+}>(), {
+  backTo: null,
+  backLabel: 'Back'
+});
 </script>

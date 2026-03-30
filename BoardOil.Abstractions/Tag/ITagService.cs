@@ -5,8 +5,8 @@ namespace BoardOil.Abstractions.Tag;
 
 public interface ITagService
 {
-    Task<ApiResult<IReadOnlyList<TagDto>>> GetTagsAsync();
-    Task<ApiResult<TagDto>> CreateTagAsync(CreateTagRequest request);
-    Task<ApiResult<TagDto>> UpdateTagStyleAsync(int tagId, UpdateTagStyleRequest request);
-    Task<ApiResult> DeleteTagAsync(int tagId);
+    Task<ApiResult<IReadOnlyList<TagDto>>> GetTagsAsync(int boardId);
+    Task<ApiResult<TagDto>> CreateTagAsync(int boardId, CreateTagRequest request);
+    Task<ApiResult<TagDto>> UpdateTagStyleAsync(int boardId, int tagId, UpdateTagStyleRequest request);
+    Task<ApiResult> DeleteTagAsync(int boardId, int tagId);
 }

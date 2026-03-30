@@ -112,8 +112,8 @@ export function createBoardApi() {
     return deleteJson(`/api/boards/${boardId}/cards/${cardId}`);
   }
 
-  async function getTags(): Promise<Result<Tag[], AppError>> {
-    const envelopeResult = await getEnvelope<Tag[]>('/api/tags');
+  async function getTags(boardId: number): Promise<Result<Tag[], AppError>> {
+    const envelopeResult = await getEnvelope<Tag[]>(`/api/boards/${boardId}/tags`);
     if (!envelopeResult.ok) {
       return envelopeResult;
     }
@@ -121,23 +121,24 @@ export function createBoardApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
-  async function createTag(name: string): Promise<Result<Tag, AppError>> {
-    return postData<Tag>('/api/tags', { name });
+  async function createTag(boardId: number, name: string): Promise<Result<Tag, AppError>> {
+    return postData<Tag>(`/api/boards/${boardId}/tags`, { name });
   }
 
   async function updateTagStyle(
+    boardId: number,
     tagId: number,
     styleName: TagStyleName,
     stylePropertiesJson: string
   ): Promise<Result<Tag, AppError>> {
-    return patchData<Tag>(`/api/tags/${tagId}`, {
+    return patchData<Tag>(`/api/boards/${boardId}/tags/${tagId}`, {
       styleName,
       stylePropertiesJson
     });
   }
 
-  async function deleteTag(tagId: number): Promise<Result<void, AppError>> {
-    return deleteJson(`/api/tags/${tagId}`);
+  async function deleteTag(boardId: number, tagId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/boards/${boardId}/tags/${tagId}`);
   }
 
   return {

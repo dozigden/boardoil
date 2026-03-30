@@ -1,30 +1,42 @@
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Tag;
-using BoardOil.Persistence.Abstractions.Entities;
-using BoardOil.Persistence.Abstractions.Tag;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Tag;
+using BoardOil.Persistence.Abstractions.Board;
+using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Tag;
 
 namespace BoardOil.Services.Tag;
 
 public sealed class TagService(
+    IBoardRepository boardRepository,
     ITagRepository tagRepository,
     IDbContextScopeFactory scopeFactory) : ITagService
 {
     private const int MaxTagNameLength = 40;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
-    public async Task<ApiResult<IReadOnlyList<TagDto>>> GetTagsAsync()
+    public async Task<ApiResult<IReadOnlyList<TagDto>>> GetTagsAsync(int boardId)
     {
         using var scope = _scopeFactory.CreateReadOnly();
 
-        var tags = await tagRepository.GetAllAsync();
+        if (boardRepository.Get(boardId) is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
+
+        var tags = await tagRepository.GetAllForBoardAsync(boardId);
         return tags.Select(x => x.ToTagDto()).ToList();
     }
 
-    public async Task<ApiResult<TagDto>> CreateTagAsync(CreateTagRequest request)
+    public async Task<ApiResult<TagDto>> CreateTagAsync(int boardId, CreateTagRequest request)
     {
         using var scope = _scopeFactory.Create();
+
+        if (boardRepository.Get(boardId) is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
 
         var tagValidation = ValidateTagName(request.Name, "name");
         if (tagValidation.Error is not null)
@@ -32,7 +44,7 @@ public sealed class TagService(
             return ValidationFail([tagValidation.Error]);
         }
 
-        var existing = await tagRepository.GetByNormalisedNameAsync(tagValidation.NormalisedName);
+        var existing = await tagRepository.GetByNormalisedNameAsync(boardId, tagValidation.NormalisedName);
         if (existing is not null)
         {
             return ApiResults.Ok(existing.ToTagDto());
@@ -41,6 +53,7 @@ public sealed class TagService(
         var now = DateTime.UtcNow;
         tagRepository.Add(new EntityTag
         {
+            BoardId = boardId,
             Name = tagValidation.CanonicalName,
             NormalisedName = tagValidation.NormalisedName,
             StyleName = TagStyleSchemaValidator.SolidStyleName,
@@ -51,7 +64,7 @@ public sealed class TagService(
 
         await scope.SaveChangesAsync();
 
-        var created = await tagRepository.GetByNormalisedNameAsync(tagValidation.NormalisedName);
+        var created = await tagRepository.GetByNormalisedNameAsync(boardId, tagValidation.NormalisedName);
         if (created is null)
         {
             return ApiErrors.InternalError("Created tag could not be reloaded.");
@@ -60,9 +73,14 @@ public sealed class TagService(
         return ApiResults.Created(created.ToTagDto());
     }
 
-    public async Task<ApiResult<TagDto>> UpdateTagStyleAsync(int tagId, UpdateTagStyleRequest request)
+    public async Task<ApiResult<TagDto>> UpdateTagStyleAsync(int boardId, int tagId, UpdateTagStyleRequest request)
     {
         using var scope = _scopeFactory.Create();
+
+        if (boardRepository.Get(boardId) is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
 
         var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(request.StyleName);
         if (normalisedStyleName is null)
@@ -76,7 +94,7 @@ public sealed class TagService(
             return ValidationFail(styleValidationErrors);
         }
 
-        var existing = tagRepository.Get(tagId);
+        var existing = await tagRepository.GetByIdInBoardAsync(boardId, tagId);
         if (existing is null)
         {
             return ApiErrors.NotFound("Tag not found.");
@@ -92,11 +110,16 @@ public sealed class TagService(
         return existing.ToTagDto();
     }
 
-    public async Task<ApiResult> DeleteTagAsync(int tagId)
+    public async Task<ApiResult> DeleteTagAsync(int boardId, int tagId)
     {
         using var scope = _scopeFactory.Create();
 
-        var existing = tagRepository.Get(tagId);
+        if (boardRepository.Get(boardId) is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
+
+        var existing = await tagRepository.GetByIdInBoardAsync(boardId, tagId);
         if (existing is null)
         {
             return ApiResults.Ok();

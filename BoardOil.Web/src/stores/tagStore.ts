@@ -9,30 +9,28 @@ import type { Result } from '../types/result';
 export const useTagStore = defineStore('tag', () => {
   const tags = ref<Tag[]>([]);
   const busy = ref(false);
+  const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
-  let initialized = false;
 
-  async function initialize() {
-    if (initialized) {
-      return;
-    }
-
-    initialized = true;
-    const loaded = await loadTags();
-    if (!loaded) {
-      initialized = false;
-    }
+  function initialize() {
   }
 
   function dispose() {
-    initialized = false;
+    activeBoardId.value = null;
     tags.value = [];
     busy.value = false;
   }
 
-  async function loadTags() {
-    const result = await api.getTags();
+  async function loadTags(boardId: number | null = activeBoardId.value) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
+      tags.value = [];
+      return false;
+    }
+
+    activeBoardId.value = resolvedBoardId;
+    const result = await api.getTags(resolvedBoardId);
     if (!result.ok) {
       reportError(result.error);
       return false;
@@ -43,8 +41,13 @@ export const useTagStore = defineStore('tag', () => {
     return true;
   }
 
-  async function createTag(tagName: string) {
-    const result = await runBusy(() => api.createTag(tagName));
+  async function createTag(tagName: string, boardId: number | null = activeBoardId.value) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
+      return null;
+    }
+
+    const result = await runBusy(() => api.createTag(resolvedBoardId, tagName));
     if (!result.ok) {
       return null;
     }
@@ -53,7 +56,12 @@ export const useTagStore = defineStore('tag', () => {
     return result.data;
   }
 
-  async function ensureTagsExist(tagNames: string[]) {
+  async function ensureTagsExist(tagNames: string[], boardId: number | null = activeBoardId.value) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
+      return [];
+    }
+
     const resolvedTagNames: string[] = [];
     for (const rawTagName of tagNames) {
       const trimmedTagName = rawTagName.trim();
@@ -67,7 +75,7 @@ export const useTagStore = defineStore('tag', () => {
         continue;
       }
 
-      const created = await createTag(trimmedTagName);
+      const created = await createTag(trimmedTagName, resolvedBoardId);
       if (created) {
         resolvedTagNames.push(created.name);
       }
@@ -76,8 +84,18 @@ export const useTagStore = defineStore('tag', () => {
     return dedupeTagNames(resolvedTagNames);
   }
 
-  async function updateTagStyle(tagId: number, styleName: TagStyleName, stylePropertiesJson: string) {
-    const result = await runBusy(() => api.updateTagStyle(tagId, styleName, stylePropertiesJson));
+  async function updateTagStyle(
+    tagId: number,
+    styleName: TagStyleName,
+    stylePropertiesJson: string,
+    boardId: number | null = activeBoardId.value
+  ) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
+      return null;
+    }
+
+    const result = await runBusy(() => api.updateTagStyle(resolvedBoardId, tagId, styleName, stylePropertiesJson));
     if (!result.ok) {
       return null;
     }
@@ -86,8 +104,13 @@ export const useTagStore = defineStore('tag', () => {
     return result.data;
   }
 
-  async function deleteTag(tagId: number) {
-    const result = await runBusy(() => api.deleteTag(tagId));
+  async function deleteTag(tagId: number, boardId: number | null = activeBoardId.value) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
+      return false;
+    }
+
+    const result = await runBusy(() => api.deleteTag(resolvedBoardId, tagId));
     if (!result.ok) {
       return false;
     }
@@ -150,9 +173,20 @@ export const useTagStore = defineStore('tag', () => {
     feedback.setError(error.message);
   }
 
+  function resolveBoardId(boardId: number | null) {
+    const resolved = boardId ?? activeBoardId.value;
+    if (resolved === null) {
+      feedback.setError('No board selected.');
+      return null;
+    }
+
+    return resolved;
+  }
+
   return {
     tags,
     busy,
+    activeBoardId,
     initialize,
     dispose,
     loadTags,

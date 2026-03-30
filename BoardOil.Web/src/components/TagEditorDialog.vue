@@ -204,10 +204,15 @@ async function saveTag() {
     return;
   }
 
+  if (routeBoardId.value === null) {
+    return;
+  }
+
   const updatedTag = await updateTagStyle(
     editingTag.value.id,
     draft.value.styleName,
-    buildStylePropertiesJsonFromDraft(draft.value)
+    buildStylePropertiesJsonFromDraft(draft.value),
+    routeBoardId.value
   );
   if (!updatedTag) {
     return;
@@ -221,12 +226,16 @@ async function deleteEditingTag() {
     return;
   }
 
+  if (routeBoardId.value === null) {
+    return;
+  }
+
   const confirmed = window.confirm(`Delete tag "${editingTag.value.name}"?\n\nThis removes the tag from all cards and cannot be undone.`);
   if (!confirmed) {
     return;
   }
 
-  const deleted = await deleteTag(editingTag.value.id);
+  const deleted = await deleteTag(editingTag.value.id, routeBoardId.value);
   if (!deleted) {
     return;
   }
@@ -236,8 +245,8 @@ async function deleteEditingTag() {
 }
 
 onMounted(async () => {
-  if (editingTag.value === null) {
-    await loadTags();
+  if (editingTag.value === null && routeBoardId.value !== null) {
+    await loadTags(routeBoardId.value);
   }
 
   attemptedLoad.value = true;

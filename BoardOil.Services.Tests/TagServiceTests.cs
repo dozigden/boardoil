@@ -1,6 +1,4 @@
-using BoardOil.Abstractions.Tag;
 using BoardOil.Contracts.Tag;
-using BoardOil.Ef.Repositories;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -29,10 +27,14 @@ public sealed class TagServiceTests : TestBaseDb
     public async Task CreateTagAsync_WhenTagMissing_ShouldCreateTagWithDefaultStyle()
     {
         // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
         var service = CreateService();
 
         // Act
-        var result = await service.CreateTagAsync(new CreateTagRequest("Bug"));
+        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug"));
 
         // Assert
         Assert.True(result.Success);
@@ -42,6 +44,7 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal("solid", result.Data.StyleName);
 
         var stored = await DbContextForAssert.Tags.SingleAsync();
+        Assert.Equal(boardId, stored.BoardId);
         Assert.Equal("Bug", stored.Name);
         Assert.Equal("BUG", stored.NormalisedName);
         Assert.Equal("solid", stored.StyleName);
@@ -58,8 +61,13 @@ public sealed class TagServiceTests : TestBaseDb
     public async Task CreateTagAsync_WhenTagAlreadyExists_ShouldReturnExistingTag()
     {
         // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
         DbContextForArrange.Tags.Add(new TagEntity
         {
+            BoardId = boardId,
             Name = "Bug",
             NormalisedName = "BUG",
             StyleName = "solid",
@@ -72,7 +80,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.CreateTagAsync(new CreateTagRequest("Bug"));
+        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug"));
 
         // Assert
         Assert.True(result.Success);
@@ -86,10 +94,14 @@ public sealed class TagServiceTests : TestBaseDb
     public async Task CreateTagAsync_WhenNameContainsComma_ShouldReturnValidationError()
     {
         // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
         var service = CreateService();
 
         // Act
-        var result = await service.CreateTagAsync(new CreateTagRequest("Bug,Urgent"));
+        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug,Urgent"));
 
         // Assert
         Assert.False(result.Success);
@@ -102,9 +114,19 @@ public sealed class TagServiceTests : TestBaseDb
     public async Task GetTagsAsync_ShouldReturnAllTags()
     {
         // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var otherBoardId = CreateBoard("Other Board")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
         DbContextForArrange.Tags.AddRange(
             new TagEntity
             {
+                BoardId = boardId,
                 Name = "Bug",
                 NormalisedName = "BUG",
                 StyleName = "solid",
@@ -114,10 +136,21 @@ public sealed class TagServiceTests : TestBaseDb
             },
             new TagEntity
             {
+                BoardId = boardId,
                 Name = "Urgent",
                 NormalisedName = "URGENT",
                 StyleName = "solid",
                 StylePropertiesJson = """{"backgroundColor":"#AA3322","textColorMode":"auto"}""",
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            },
+            new TagEntity
+            {
+                BoardId = otherBoardId,
+                Name = "Other",
+                NormalisedName = "OTHER",
+                StyleName = "solid",
+                StylePropertiesJson = """{"backgroundColor":"#117733","textColorMode":"auto"}""",
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             });
@@ -125,7 +158,7 @@ public sealed class TagServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.GetTagsAsync();
+        var result = await service.GetTagsAsync(boardId);
 
         // Assert
         Assert.True(result.Success);
@@ -137,8 +170,14 @@ public sealed class TagServiceTests : TestBaseDb
     public async Task UpdateTagStyleAsync_WhenStyleInvalid_ShouldReturnValidationError()
     {
         // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
         DbContextForArrange.Tags.Add(new TagEntity
         {
+            BoardId = boardId,
             Name = "Bug",
             NormalisedName = "BUG",
             StyleName = "solid",
@@ -151,7 +190,7 @@ public sealed class TagServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateTagStyleAsync(tagId, new UpdateTagStyleRequest(
+        var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
             StyleName: "solid",
             StylePropertiesJson: """{"backgroundColor":"blue","textColorMode":"auto"}"""));
 
@@ -166,8 +205,14 @@ public sealed class TagServiceTests : TestBaseDb
     public async Task UpdateTagStyleAsync_WhenTagExists_ShouldPersistUpdatedStyle()
     {
         // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
         DbContextForArrange.Tags.Add(new TagEntity
         {
+            BoardId = boardId,
             Name = "Bug",
             NormalisedName = "BUG",
             StyleName = "solid",
@@ -182,7 +227,7 @@ public sealed class TagServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateTagStyleAsync(tagId, new UpdateTagStyleRequest(
+        var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
             StyleName: "gradient",
             StylePropertiesJson: updatedStylePropertiesJson));
 
@@ -198,14 +243,90 @@ public sealed class TagServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task UpdateTagStyleAsync_WhenSameNamedTagExistsOnAnotherBoard_ShouldNotAffectOtherBoardTag()
+    {
+        // Arrange
+        var firstBoardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var secondBoardId = CreateBoard("Operations")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
+        DbContextForArrange.Tags.AddRange(
+            new TagEntity
+            {
+                BoardId = firstBoardId,
+                Name = "Bug",
+                NormalisedName = "BUG",
+                StyleName = "solid",
+                StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            },
+            new TagEntity
+            {
+                BoardId = secondBoardId,
+                Name = "Bug",
+                NormalisedName = "BUG",
+                StyleName = "solid",
+                StylePropertiesJson = """{"backgroundColor":"#553311","textColorMode":"auto"}""",
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            });
+        await DbContextForArrange.SaveChangesAsync();
+
+        var firstBoardTagId = await DbContextForArrange.Tags
+            .Where(x => x.BoardId == firstBoardId && x.NormalisedName == "BUG")
+            .Select(x => x.Id)
+            .SingleAsync();
+
+        var secondBoardTagId = await DbContextForArrange.Tags
+            .Where(x => x.BoardId == secondBoardId && x.NormalisedName == "BUG")
+            .Select(x => x.Id)
+            .SingleAsync();
+
+        var updatedStylePropertiesJson = """{"leftColor":"#223344","rightColor":"#446688","textColorMode":"auto"}""";
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateTagStyleAsync(firstBoardId, firstBoardTagId, new UpdateTagStyleRequest(
+            StyleName: "gradient",
+            StylePropertiesJson: updatedStylePropertiesJson));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(firstBoardTagId, result.Data!.Id);
+        Assert.Equal("gradient", result.Data.StyleName);
+        Assert.Equal(updatedStylePropertiesJson, result.Data.StylePropertiesJson);
+
+        var firstBoardStoredTag = await DbContextForAssert.Tags.SingleAsync(x => x.Id == firstBoardTagId);
+        Assert.Equal(firstBoardId, firstBoardStoredTag.BoardId);
+        Assert.Equal("gradient", firstBoardStoredTag.StyleName);
+        Assert.Equal(updatedStylePropertiesJson, firstBoardStoredTag.StylePropertiesJson);
+
+        var secondBoardStoredTag = await DbContextForAssert.Tags.SingleAsync(x => x.Id == secondBoardTagId);
+        Assert.Equal(secondBoardId, secondBoardStoredTag.BoardId);
+        Assert.Equal("solid", secondBoardStoredTag.StyleName);
+        Assert.Equal("""{"backgroundColor":"#553311","textColorMode":"auto"}""", secondBoardStoredTag.StylePropertiesJson);
+    }
+
+    [Fact]
     public async Task UpdateTagStyleAsync_WhenTagMissing_ShouldReturnNotFound()
     {
         // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
         var stylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""";
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateTagStyleAsync(999_999, new UpdateTagStyleRequest(
+        var result = await service.UpdateTagStyleAsync(boardId, 999_999, new UpdateTagStyleRequest(
             StyleName: "solid",
             StylePropertiesJson: stylePropertiesJson));
 
@@ -224,11 +345,13 @@ public sealed class TagServiceTests : TestBaseDb
             .AddColumn("Todo")
             .AddCard("Task A")
             .Build();
+        var boardId = board.BoardId;
         var cardId = board.GetCard("Todo", "Task A").Id;
 
         var now = DateTime.UtcNow;
         DbContextForArrange.Tags.Add(new TagEntity
         {
+            BoardId = boardId,
             Name = "Bug",
             NormalisedName = "BUG",
             StyleName = "solid",
@@ -249,7 +372,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.DeleteTagAsync(tagId);
+        var result = await service.DeleteTagAsync(boardId, tagId);
 
         // Assert
         Assert.True(result.Success);
@@ -263,10 +386,14 @@ public sealed class TagServiceTests : TestBaseDb
     public async Task DeleteTagAsync_WhenTagMissing_ShouldReturnOk()
     {
         // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
         var service = CreateService();
 
         // Act
-        var result = await service.DeleteTagAsync(999_999);
+        var result = await service.DeleteTagAsync(boardId, 999_999);
 
         // Assert
         Assert.True(result.Success);

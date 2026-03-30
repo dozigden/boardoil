@@ -8,13 +8,19 @@ namespace BoardOil.Ef.Repositories;
 public sealed class TagRepository(IAmbientDbContextLocator ambientDbContextLocator)
     : RepositoryBase<EntityTag>(ambientDbContextLocator), ITagRepository
 {
-    public async Task<IReadOnlyList<EntityTag>> GetAllAsync() =>
+    public async Task<IReadOnlyList<EntityTag>> GetAllForBoardAsync(int boardId) =>
         await DbSet
+            .Where(x => x.BoardId == boardId)
             .OrderBy(x => x.Name)
             .ToListAsync();
 
-    public Task<EntityTag?> GetByNormalisedNameAsync(string normalisedName) =>
+    public Task<EntityTag?> GetByIdInBoardAsync(int boardId, int tagId) =>
         DbSet
-            .Where(x => x.NormalisedName == normalisedName)
+            .Where(x => x.BoardId == boardId && x.Id == tagId)
+            .FirstOrDefaultAsync();
+
+    public Task<EntityTag?> GetByNormalisedNameAsync(int boardId, string normalisedName) =>
+        DbSet
+            .Where(x => x.BoardId == boardId && x.NormalisedName == normalisedName)
             .FirstOrDefaultAsync();
 }

@@ -8,4 +8,5 @@ public sealed class EntityBoard
     public DateTime UpdatedAtUtc { get; set; }
 
     public ICollection<EntityBoardColumn> Columns { get; set; } = new List<EntityBoardColumn>();
+    public ICollection<EntityTag> Tags { get; set; } = new List<EntityTag>();
 }

@@ -47,11 +47,11 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenTagsProvided_ShouldAssignTagsUsingExistingTagCatalogueEntries()
     {
         // Arrange
-        await SeedTagsForArrangeAsync("Bug", "Needs Triage", "Sprint 1");
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .AddColumn("Doing")
             .Build();
+        await SeedTagsForArrangeAsync(board.BoardId, "Bug", "Needs Triage", "Sprint 1");
         var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
@@ -178,12 +178,12 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task UpdateCardAsync_WhenTagNamesProvided_ShouldReplaceAssignedTags()
     {
         // Arrange
-        await SeedTagsForArrangeAsync("Bug", "Urgent", "Ops");
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .AddCard("Title", "Old")
             .AddColumn("Doing")
             .Build();
+        await SeedTagsForArrangeAsync(board.BoardId, "Bug", "Urgent", "Ops");
         var cardId = board.GetCard("Todo", "Title").Id;
 
         var setupService = CreateService();
@@ -618,11 +618,11 @@ public sealed class CardServiceTests : TestBaseDb
     public async Task CreateCardAsync_WhenTagExistsWithComma_ShouldAssignTag()
     {
         // Arrange
-        await SeedTagsForArrangeAsync("Bug,Urgent");
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .AddColumn("Doing")
             .Build();
+        await SeedTagsForArrangeAsync(board.BoardId, "Bug,Urgent");
         var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
@@ -640,11 +640,12 @@ public sealed class CardServiceTests : TestBaseDb
         return ResolveService<CardService>();
     }
 
-    private async Task SeedTagsForArrangeAsync(params string[] tagNames)
+    private async Task SeedTagsForArrangeAsync(int boardId, params string[] tagNames)
     {
         var now = DateTime.UtcNow;
         DbContextForArrange.Tags.AddRange(tagNames.Select(tagName => new TagEntity
         {
+            BoardId = boardId,
             Name = tagName,
             NormalisedName = tagName.ToUpperInvariant(),
             StyleName = "solid",
