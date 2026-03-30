@@ -8,11 +8,11 @@
     <template #actions>
       <div class="editor-actions card-modal-actions">
         <div class="card-modal-actions-left">
-          <button type="submit" class="btn card-modal-save" :disabled="busy || !boardName.trim()" aria-label="Save board name" title="Save board name">
+          <button type="submit" class="btn" :disabled="busy || !boardName.trim()" aria-label="Save board name" title="Save board name">
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
           </button>
-          <button type="button" class="btn btn--ghost card-modal-cancel" :disabled="busy" aria-label="Cancel rename" title="Cancel" @click="emit('close')">
+          <button type="button" class="btn btn--ghost" :disabled="busy" aria-label="Cancel rename" title="Cancel" @click="emit('close')">
             <X :size="16" aria-hidden="true" />
             <span>Cancel</span>
           </button>

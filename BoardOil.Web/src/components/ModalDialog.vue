@@ -158,15 +158,4 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.35rem;
 }
-
-.card-modal-save,
-.card-modal-cancel,
-.card-modal-delete {
-  width: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.5rem;
-}
 </style>
