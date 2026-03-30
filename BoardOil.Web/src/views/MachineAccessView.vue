@@ -10,7 +10,7 @@
     <div class="machine-access-layout">
       <section class="machine-access-column machine-access-column--tokens">
         <div class="machine-access-actions">
-          <button type="button" :disabled="isBusy" @click="openCreateDialog">Create token</button>
+          <button type="button" class="btn" :disabled="isBusy" @click="openCreateDialog">Create token</button>
         </div>
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
         <p v-if="successMessage" class="success">{{ successMessage }}</p>
@@ -22,7 +22,7 @@
             <code class="machine-pat-secret-value">{{ plainTextPat }}</code>
             <button
               type="button"
-              class="ghost machine-pat-copy-icon"
+              class="btn btn--ghost machine-pat-copy-icon"
               :disabled="isBusy"
               aria-label="Copy token"
               title="Copy token"
@@ -32,7 +32,7 @@
             </button>
           </div>
           <div class="machine-pat-secret-actions">
-            <button type="button" class="ghost" :disabled="isBusy" @click="dismissPlainTextPat">Hide token</button>
+            <button type="button" class="btn btn--ghost" :disabled="isBusy" @click="dismissPlainTextPat">Hide token</button>
           </div>
         </section>
 
@@ -64,7 +64,7 @@
             <div class="machine-pat-item-actions">
               <button
                 type="button"
-                class="ghost"
+                class="btn btn--ghost"
                 :disabled="isBusy || token.revokedAtUtc !== null"
                 @click="revokeToken(token)"
               >
@@ -85,7 +85,7 @@
               <code class="machine-pat-setup-code machine-pat-inline-code">{{ mcpEndpoint }}</code>
               <button
                 type="button"
-                class="ghost machine-pat-copy-icon"
+                class="btn btn--ghost machine-pat-copy-icon"
                 :disabled="isBusy"
                 aria-label="Copy endpoint"
                 title="Copy endpoint"
@@ -126,7 +126,7 @@
               <pre class="machine-pat-setup-code">{{ selectedConfigSnippet }}</pre>
               <button
                 type="button"
-                class="ghost machine-pat-copy-icon"
+                class="btn btn--ghost machine-pat-copy-icon"
                 :disabled="isBusy"
                 :aria-label="`Copy ${selectedConfigSnippetLabel} config`"
                 :title="`Copy ${selectedConfigSnippetLabel} config`"
@@ -167,7 +167,7 @@
               <pre class="machine-pat-setup-code">{{ selectedManualTestSnippet }}</pre>
               <button
                 type="button"
-                class="ghost machine-pat-copy-icon"
+                class="btn btn--ghost machine-pat-copy-icon"
                 :disabled="isBusy"
                 :aria-label="`Copy ${selectedManualTestSnippetLabel} example`"
                 :title="`Copy ${selectedManualTestSnippetLabel} example`"

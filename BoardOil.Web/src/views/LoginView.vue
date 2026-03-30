@@ -14,7 +14,7 @@
         <input v-model="password" type="password" autocomplete="current-password" required />
       </label>
       <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-      <button type="submit" :disabled="busy">Login</button>
+      <button type="submit" class="btn" :disabled="busy">Login</button>
     </form>
   </section>
 </template>

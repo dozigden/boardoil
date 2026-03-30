@@ -42,10 +42,10 @@
         />
       </label>
       <div class="configuration-actions">
-        <button type="button" :disabled="saving" @click="saveConfiguration">
+        <button type="button" class="btn" :disabled="saving" @click="saveConfiguration">
           {{ saving ? 'Saving...' : 'Save' }}
         </button>
-        <button type="button" class="ghost" :disabled="saving" @click="resetToAuto">
+        <button type="button" class="btn btn--ghost" :disabled="saving" @click="resetToAuto">
           Use auto (relative)
         </button>
       </div>

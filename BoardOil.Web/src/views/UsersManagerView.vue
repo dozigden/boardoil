@@ -5,7 +5,7 @@
         <h2>User Management</h2>
         <p>Create and manage local BoardOil accounts.</p>
       </div>
-      <button type="button" :disabled="busy" @click="openCreateDialog">Create user</button>
+      <button type="button" class="btn" :disabled="busy" @click="openCreateDialog">Create user</button>
     </header>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
@@ -25,7 +25,7 @@
             <option value="Standard">Standard</option>
             <option value="Admin">Admin</option>
           </select>
-          <button type="button" class="ghost" :disabled="busy" @click="toggleStatus(user.id, user.isActive)">
+          <button type="button" class="btn btn--ghost" :disabled="busy" @click="toggleStatus(user.id, user.isActive)">
             {{ user.isActive ? 'Deactivate' : 'Activate' }}
           </button>
         </div>

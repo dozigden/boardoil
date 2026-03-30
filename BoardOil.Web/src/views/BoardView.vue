@@ -16,7 +16,7 @@
         <h2 class="column-name">{{ column.title }}</h2>
         <button
           type="button"
-          class="ghost column-add-card"
+          class="btn btn--ghost column-add-card"
           aria-label="Add card"
           title="Add card"
           @click="openNewCardDraft(column.id)"
@@ -41,12 +41,12 @@
             />
           </label>
           <div class="editor-actions create-card-inline-actions">
-            <button type="button" class="create-card-save" aria-label="Save new card" title="Save new card" @click="saveNewCardDraft(column.id)">
+            <button type="button" class="btn create-card-save" aria-label="Save new card" title="Save new card" @click="saveNewCardDraft(column.id)">
               <Check :size="16" aria-hidden="true" />
             </button>
             <button
               type="button"
-              class="ghost create-card-cancel"
+              class="btn btn--ghost create-card-cancel"
               aria-label="Cancel new card"
               title="Cancel new card"
               @click="closeNewCardDraft(column.id)"

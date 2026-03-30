@@ -27,9 +27,9 @@
       <p v-if="errorMessage" class="md-link-dialog-error" role="alert">{{ errorMessage }}</p>
 
       <div class="md-link-dialog-actions">
-        <button type="button" class="ghost" @click="emit('cancel')">Cancel</button>
-        <button v-if="canRemove" type="button" class="ghost" @click="emit('remove')">Remove link</button>
-        <button type="button" :disabled="draftUrl.trim().length === 0" @click="onSave">Save</button>
+        <button type="button" class="btn btn--ghost" @click="emit('cancel')">Cancel</button>
+        <button v-if="canRemove" type="button" class="btn btn--ghost" @click="emit('remove')">Remove link</button>
+        <button type="button" class="btn" :disabled="draftUrl.trim().length === 0" @click="onSave">Save</button>
       </div>
     </div>
   </div>

@@ -1,3 +1,5 @@
+@import "./styles/buttons.css";
+
 @font-face {
   font-family: "Montserrat";
   src: url("./assets/fonts/montserrat/Montserrat-VariableFont_wght.ttf") format("truetype-variations");
@@ -538,13 +540,6 @@ body {
   gap: 0.5rem;
 }
 
-.column-add-button {
-  width: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
 .board {
   --column-min-width: 280px;
   --column-max-width: 360px;
@@ -722,12 +717,6 @@ body {
   gap: 0.35rem;
 }
 
-.column-create-save,
-.column-create-cancel {
-  width: auto;
-  padding: 0.4rem 0.7rem;
-}
-
 .column-manager-header {
   display: flex;
   justify-content: space-between;
@@ -744,11 +733,6 @@ body {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-}
-
-.column-edit-button {
-  width: auto;
-  padding: 0.35rem 0.6rem;
 }
 
 .column-drag-handle {
@@ -933,8 +917,7 @@ body {
 
 input,
 textarea,
-select,
-button {
+select {
   width: 100%;
   border-radius: 8px;
   border: 1px solid var(--bo-border-default);
@@ -945,48 +928,6 @@ button {
 textarea {
   min-height: 72px;
   resize: vertical;
-}
-
-button {
-  background: var(--bo-colour-brand);
-  color: var(--bo-ink-on-brand);
-  border-color: var(--bo-colour-brand);
-  cursor: pointer;
-}
-
-button:not([class]):hover:not(:disabled),
-button:not([class]):focus-visible,
-button.card-modal-save:hover:not(:disabled),
-button.card-modal-save:focus-visible,
-button.create-card-save:hover:not(:disabled),
-button.create-card-save:focus-visible,
-button.card-tag-editor-add:hover:not(:disabled),
-button.card-tag-editor-add:focus-visible {
-  background: var(--bo-colour-brand-strong);
-  border-color: var(--bo-colour-brand-strong);
-}
-
-button.ghost {
-  background: transparent;
-  color: var(--bo-link);
-}
-
-button.ghost:hover:not(:disabled),
-button.ghost:focus-visible {
-  background: var(--bo-surface-energy);
-  border-color: var(--bo-colour-energy);
-  color: var(--bo-colour-energy);
-}
-
-button.danger {
-  background: var(--bo-colour-danger);
-  border-color: var(--bo-colour-danger);
-}
-
-button.danger:hover:not(:disabled),
-button.danger:focus-visible {
-  background: var(--bo-colour-danger-ink);
-  border-color: var(--bo-colour-danger-ink);
 }
 
 input:focus,

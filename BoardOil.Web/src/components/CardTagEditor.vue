@@ -35,7 +35,7 @@
       />
       <button
         type="button"
-        class="card-tag-editor-add"
+        class="btn card-tag-editor-add"
         aria-label="Add tags"
         title="Add tags"
         :disabled="!hasPendingTagEntry"
