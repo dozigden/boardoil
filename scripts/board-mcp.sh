@@ -120,12 +120,12 @@ case "$COMMAND" in
     post_mcp "$payload" | jq
     ;;
   board-get)
-    payload="$(jq -cn --argjson boardId "$BOARD_ID" '{jsonrpc:"2.0",id:"board-get",method:"tools/call",params:{name:"board.get",arguments:{boardId:$boardId}}}')"
+    payload="$(jq -cn --argjson id "$BOARD_ID" '{jsonrpc:"2.0",id:"board-get",method:"tools/call",params:{name:"board.get",arguments:{id:$id}}}')"
     post_mcp "$payload" | jq
     ;;
   board-cards)
-    payload="$(jq -cn --argjson boardId "$BOARD_ID" '{jsonrpc:"2.0",id:"board-cards",method:"tools/call",params:{name:"board.get",arguments:{boardId:$boardId}}}')"
-    post_mcp "$payload" | jq -r '.result.structuredContent.data.columns[] | .title as $column | .cards[]? | "\($column)\t#\(.cardId)\t\(.title)"'
+    payload="$(jq -cn --argjson id "$BOARD_ID" '{jsonrpc:"2.0",id:"board-cards",method:"tools/call",params:{name:"board.get",arguments:{id:$id}}}')"
+    post_mcp "$payload" | jq -r '.result.structuredContent.data.columns[] | .title as $column | .cards[]? | "\($column)\t#\(.id)\t\(.title)"'
     ;;
   card-move)
     card_id=""
@@ -152,7 +152,7 @@ case "$COMMAND" in
       exit 1
     fi
 
-    payload="$(jq -cn --argjson boardId "$BOARD_ID" --argjson cardId "$card_id" --arg columnTitle "$column_title" '{jsonrpc:"2.0",id:"card-move",method:"tools/call",params:{name:"card.move_by_column_name",arguments:{boardId:$boardId,cardId:$cardId,columnTitle:$columnTitle}}}')"
+    payload="$(jq -cn --argjson boardId "$BOARD_ID" --argjson id "$card_id" --arg columnTitle "$column_title" '{jsonrpc:"2.0",id:"card-move",method:"tools/call",params:{name:"card.move_by_column_name",arguments:{boardId:$boardId,id:$id,columnTitle:$columnTitle}}}')"
     post_mcp "$payload" | jq
     ;;
   card-description-set)
@@ -180,7 +180,20 @@ case "$COMMAND" in
       exit 1
     fi
 
-    payload="$(jq -cn --argjson boardId "$BOARD_ID" --argjson cardId "$card_id" --arg description "$description" '{jsonrpc:"2.0",id:"card-description-set",method:"tools/call",params:{name:"card.update_description",arguments:{boardId:$boardId,cardId:$cardId,description:$description}}}')"
+    board_payload="$(jq -cn --argjson id "$BOARD_ID" '{jsonrpc:"2.0",id:"card-description-board-get",method:"tools/call",params:{name:"board.get",arguments:{id:$id}}}')"
+    board_response="$(post_mcp "$board_payload")"
+
+    card_json="$(printf '%s' "$board_response" | jq -c --argjson cardId "$card_id" '.result.structuredContent.data.columns[]?.cards[]? | select(.id == $cardId)' | head -n 1)"
+    if [ -z "$card_json" ]; then
+      echo "Could not find card id $card_id on board $BOARD_ID." >&2
+      printf '%s\n' "$board_response" | jq >&2
+      exit 1
+    fi
+
+    title="$(printf '%s' "$card_json" | jq -r '.title')"
+    tag_names_json="$(printf '%s' "$card_json" | jq -c '.tagNames // []')"
+
+    payload="$(jq -cn --argjson boardId "$BOARD_ID" --argjson id "$card_id" --arg title "$title" --arg description "$description" --argjson tagNames "$tag_names_json" '{jsonrpc:"2.0",id:"card-description-set",method:"tools/call",params:{name:"card.update",arguments:{boardId:$boardId,id:$id,title:$title,description:$description,tagNames:$tagNames}}}')"
     post_mcp "$payload" | jq
     ;;
   call)
