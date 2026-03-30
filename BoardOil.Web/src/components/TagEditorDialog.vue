@@ -82,7 +82,7 @@
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
           </button>
-          <button type="button" class="btn btn--ghost" :disabled="busy" aria-label="Cancel editing" title="Cancel" @click="closeTagEditor">
+          <button type="button" class="btn btn--secondary" :disabled="busy" aria-label="Cancel editing" title="Cancel" @click="closeTagEditor">
             <X :size="16" aria-hidden="true" />
             <span>Cancel</span>
           </button>

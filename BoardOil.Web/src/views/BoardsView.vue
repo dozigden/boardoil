@@ -25,7 +25,7 @@
           <div v-if="isAdmin" class="boards-actions">
             <button
               type="button"
-              class="btn btn--ghost boards-action boards-action-icon"
+              class="btn btn--secondary boards-action boards-action-icon"
               :disabled="busy"
               aria-label="Rename board"
               title="Rename board"
@@ -35,7 +35,7 @@
             </button>
             <button
               type="button"
-              class="btn btn--ghost boards-action boards-action-danger boards-action-icon"
+              class="btn btn--danger boards-action boards-action-icon"
               :disabled="busy"
               aria-label="Delete board"
               title="Delete board"

@@ -16,7 +16,7 @@
         <h2 class="column-name">{{ column.title }}</h2>
         <button
           type="button"
-          class="btn btn--ghost column-add-card"
+          class="btn btn--secondary column-add-card"
           aria-label="Add card"
           title="Add card"
           @click="openNewCardDraft(column.id)"
@@ -46,7 +46,7 @@
             </button>
             <button
               type="button"
-              class="btn btn--ghost create-card-cancel"
+              class="btn btn--secondary create-card-cancel"
               aria-label="Cancel new card"
               title="Cancel new card"
               @click="closeNewCardDraft(column.id)"

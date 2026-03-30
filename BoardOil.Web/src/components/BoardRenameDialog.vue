@@ -12,7 +12,7 @@
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
           </button>
-          <button type="button" class="btn btn--ghost" :disabled="busy" aria-label="Cancel rename" title="Cancel" @click="emit('close')">
+          <button type="button" class="btn btn--secondary" :disabled="busy" aria-label="Cancel rename" title="Cancel" @click="emit('close')">
             <X :size="16" aria-hidden="true" />
             <span>Cancel</span>
           </button>

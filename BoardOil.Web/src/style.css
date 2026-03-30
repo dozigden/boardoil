@@ -364,17 +364,7 @@ body {
 }
 
 .menu-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
   list-style: none;
-  cursor: pointer;
-  background: transparent;
-  color: var(--bo-link);
-  border: 1px solid var(--bo-border-brand);
-  border-radius: 8px;
   user-select: none;
   text-decoration: none;
 }
@@ -414,13 +404,6 @@ body {
 .board-switcher-item:focus-visible {
   background: var(--bo-surface-panel);
   color: var(--bo-link);
-}
-
-.menu-trigger:hover,
-.menu-trigger:focus-visible {
-  background: var(--bo-surface-energy);
-  border-color: var(--bo-colour-energy);
-  color: var(--bo-colour-energy);
 }
 
 .board-switcher-trigger:hover,
@@ -1070,17 +1053,6 @@ select:focus {
   min-width: 2.35rem;
   min-height: 2.35rem;
   padding: 0;
-}
-
-.boards-action-danger {
-  border-color: color-mix(in oklab, var(--bo-colour-danger) 30%, var(--bo-border-soft));
-  color: var(--bo-colour-danger);
-}
-
-.boards-action-danger:hover:not(:disabled),
-.boards-action-danger:focus-visible {
-  border-color: var(--bo-colour-danger);
-  background: color-mix(in oklab, var(--bo-colour-danger) 14%, transparent);
 }
 
 .tags-manager {

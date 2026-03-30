@@ -7,7 +7,7 @@
  *
  * `.btn`:
  * - Single source of truth for themed app buttons.
- * - Use `.btn` plus modifiers (`.btn--ghost`, `.btn--danger`, etc.).
+ * - Use `.btn` plus modifiers (`.btn--secondary`, `.btn--danger`, etc.).
  */
 button {
   font: inherit;
@@ -48,9 +48,9 @@ button:disabled {
   color: var(--bo-btn-ink-hover);
 }
 
-.btn--ghost {
-  --bo-btn-bg: transparent;
-  --bo-btn-border: var(--bo-border-default);
+.btn--secondary {
+  --bo-btn-bg: var(--bo-surface-panel);
+  --bo-btn-border: var(--bo-border-brand);
   --bo-btn-ink: var(--bo-link);
   --bo-btn-bg-hover: var(--bo-surface-energy);
   --bo-btn-border-hover: var(--bo-colour-energy);
@@ -67,8 +67,8 @@ button:disabled {
 }
 
 .btn--tab {
-  --bo-btn-bg: transparent;
-  --bo-btn-border: transparent;
+  --bo-btn-bg: var(--bo-surface-base);
+  --bo-btn-border: color-mix(in oklab, var(--bo-colour-energy) 32%, var(--bo-border-soft));
   --bo-btn-ink: color-mix(in oklab, var(--bo-colour-energy) 84%, var(--bo-ink-strong));
   --bo-btn-bg-hover: color-mix(in oklab, var(--bo-colour-energy) 22%, var(--bo-surface-base));
   --bo-btn-border-hover: color-mix(in oklab, var(--bo-colour-energy) 78%, var(--bo-border-soft));
@@ -90,7 +90,7 @@ button:disabled {
 }
 
 .btn--toolbar {
-  --bo-btn-bg: transparent;
+  --bo-btn-bg: var(--bo-surface-muted);
   --bo-btn-border: var(--bo-border-brand);
   --bo-btn-ink: var(--bo-link);
   --bo-btn-bg-hover: var(--bo-surface-energy);
@@ -127,7 +127,7 @@ button:disabled {
 }
 
 .btn--toolbar-menu {
-  --bo-btn-bg: transparent;
+  --bo-btn-bg: var(--bo-surface-base);
   --bo-btn-border: transparent;
   --bo-btn-ink: var(--bo-link);
   --bo-btn-bg-hover: var(--bo-surface-energy);
@@ -143,7 +143,7 @@ button:disabled {
 }
 
 .btn--menu-item {
-  --bo-btn-bg: transparent;
+  --bo-btn-bg: var(--bo-surface-base);
   --bo-btn-border: transparent;
   --bo-btn-ink: var(--bo-ink-default);
   --bo-btn-bg-hover: var(--bo-surface-energy);

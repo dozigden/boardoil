@@ -25,7 +25,7 @@
           <button type="button" class="btn" aria-label="Save new column" title="Save new column" @click="saveNewColumnDraft">
             Save
           </button>
-          <button type="button" class="btn btn--ghost" aria-label="Cancel new column" title="Cancel" @click="closeNewColumnDraft">
+          <button type="button" class="btn btn--secondary" aria-label="Cancel new column" title="Cancel" @click="closeNewColumnDraft">
             Cancel
           </button>
         </div>
@@ -43,7 +43,7 @@
         <div class="column-manager-header">
           <h3 class="column-manager-title">{{ column.title }}</h3>
           <div class="column-manager-actions">
-            <button type="button" class="btn btn--ghost" @click="openColumnEditor(column.id)">
+            <button type="button" class="btn btn--secondary" @click="openColumnEditor(column.id)">
               Edit
             </button>
             <div

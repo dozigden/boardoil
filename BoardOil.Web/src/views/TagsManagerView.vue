@@ -15,7 +15,7 @@
               {{ tagName }}
             </span>
           </div>
-          <button type="button" class="btn btn--ghost tags-edit" :disabled="busy" @click="openEditor(tagName)">
+          <button type="button" class="btn btn--secondary tags-edit" :disabled="busy" @click="openEditor(tagName)">
             Edit
           </button>
         </div>
