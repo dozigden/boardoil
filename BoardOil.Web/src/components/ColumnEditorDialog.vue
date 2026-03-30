@@ -12,15 +12,15 @@
     </template>
     <template #actions>
       <div v-if="editingColumn" class="editor-actions card-modal-actions">
-        <button type="button" class="btn btn--danger card-modal-delete" aria-label="Delete column" title="Delete column" @click="deleteEditingColumn">
+        <button type="button" class="btn btn--danger" aria-label="Delete column" title="Delete column" @click="deleteEditingColumn">
           <Trash2 :size="16" aria-hidden="true" />
         </button>
         <div class="card-modal-actions-left">
-          <button type="submit" class="btn card-modal-save" aria-label="Save column" title="Save column">
+          <button type="submit" class="btn" aria-label="Save column" title="Save column">
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
           </button>
-          <button type="button" class="btn btn--ghost card-modal-cancel" aria-label="Cancel editing" title="Cancel" @click="closeColumnEditor">
+          <button type="button" class="btn btn--ghost" aria-label="Cancel editing" title="Cancel" @click="closeColumnEditor">
             <X :size="16" aria-hidden="true" />
             <span>Cancel</span>
           </button>

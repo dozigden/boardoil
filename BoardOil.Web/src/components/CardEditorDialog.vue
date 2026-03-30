@@ -30,15 +30,15 @@
     </template>
     <template #actions>
       <div v-if="cardDraft" class="editor-actions card-modal-actions">
-        <button type="button" class="btn btn--danger card-modal-delete" aria-label="Delete card" title="Delete card" @click="deleteEditingCard">
+        <button type="button" class="btn btn--danger" aria-label="Delete card" title="Delete card" @click="deleteEditingCard">
           <Trash2 :size="16" aria-hidden="true" />
         </button>
         <div class="card-modal-actions-left">
-          <button type="submit" class="btn card-modal-save" aria-label="Save card" title="Save card">
+          <button type="submit" class="btn" aria-label="Save card" title="Save card">
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
           </button>
-          <button type="button" class="btn btn--ghost card-modal-cancel" aria-label="Cancel editing" title="Cancel" @click="closeCardEditor">
+          <button type="button" class="btn btn--ghost" aria-label="Cancel editing" title="Cancel" @click="closeCardEditor">
             <X :size="16" aria-hidden="true" />
             <span>Cancel</span>
           </button>

@@ -131,8 +131,4 @@ watch(
   justify-content: flex-end;
   gap: 0.35rem;
 }
-
-.md-link-dialog-actions button {
-  width: auto;
-}
 </style>

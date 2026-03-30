@@ -622,10 +622,6 @@ body {
 }
 
 .column-add-card {
-  width: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   padding: 0.3rem;
   margin-right: 0.5rem;
 }
@@ -802,10 +798,6 @@ body {
 
 .create-card-save,
 .create-card-cancel {
-  width: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   padding: 0.4rem;
 }
 
@@ -1027,8 +1019,7 @@ select:focus {
   gap: 0.75rem;
 }
 
-.boards-header > button {
-  width: auto;
+.boards-header > .btn {
   flex: 0 0 auto;
 }
 
@@ -1090,17 +1081,10 @@ select:focus {
   gap: 0.45rem;
 }
 
-.boards-action {
-  width: auto;
-}
-
 .boards-action-icon {
   min-width: 2.35rem;
   min-height: 2.35rem;
   padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .boards-action-danger {
@@ -1172,10 +1156,6 @@ select:focus {
 .tags-item-meta {
   display: grid;
   gap: 0.3rem;
-}
-
-.tags-edit {
-  width: auto;
 }
 
 .tags-dialog-preview {
@@ -1363,8 +1343,7 @@ select:focus {
   gap: 0.55rem;
 }
 
-.users-header > button {
-  width: auto;
+.users-header > .btn {
   justify-self: start;
 }
 
@@ -1458,10 +1437,6 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-}
-
-.machine-access-actions > button {
-  width: auto;
 }
 
 .machine-pat-secret {
@@ -1682,11 +1657,6 @@ select:focus {
   overflow: hidden;
 }
 
-.machine-pat-setup-item > button {
-  width: auto;
-  justify-self: start;
-}
-
 .machine-pat-setup-note {
   margin: 0;
   color: var(--bo-ink-muted);
@@ -1735,10 +1705,6 @@ select:focus {
 .machine-pat-item-actions {
   display: flex;
   justify-content: flex-end;
-}
-
-.machine-pat-item-actions > button {
-  width: auto;
 }
 
 .success {
@@ -1838,10 +1804,6 @@ select:focus {
   }
 
   .machine-pat-item-actions {
-    justify-content: stretch;
-  }
-
-  .machine-pat-item-actions > button {
-    width: 100%;
+    justify-content: flex-start;
   }
 }

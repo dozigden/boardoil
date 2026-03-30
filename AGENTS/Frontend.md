@@ -32,6 +32,12 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
 - Route guards and auth checks should remain centralised through store/router integration.
 - Avoid introductory “wall of text” at the top of pages; interfaces should generally stand on their own unless short context is essential.
 - Use the shared button styles in `BoardOil.Web/src/styles/buttons.css` (`.btn`, `.btn--ghost`, `.btn--danger`, etc.) instead of creating one-off button variants per view.
+- Keep non-`.btn` controls limited to intentional interaction widgets:
+  - menu list actions (`.menu-button`)
+  - markdown toolbar controls (`.md-editor-toolbar-*`)
+  - tab toggles (`.machine-pat-tab`)
+  - chip/suggestion controls inside tag editors (`.tag-pill-remove`, `.card-tag-editor-suggestion`)
+  - inline title edit trigger (`.card-title-button`)
 
 ## Realtime Conventions
 
