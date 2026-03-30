@@ -14,7 +14,7 @@
       <div class="card-editor-fields">
         <CardTagEditor
           v-model:tag-names="cardDraft.tagNames"
-          :ensure-tags-exist="ensureTagsExist"
+          :ensure-tags-exist="ensureTagsExistForBoard"
         />
 
         <div class="card-editor-description-field">
@@ -127,6 +127,10 @@ async function saveCard() {
 
   await saveCardAction(cardDraft.value.id, cardDraft.value.title, cardDraft.value.description, cardDraft.value.tagNames);
   await closeCardEditor();
+}
+
+async function ensureTagsExistForBoard(tagNames: string[]) {
+  return ensureTagsExist(tagNames, routeBoardId.value);
 }
 
 async function deleteEditingCard() {

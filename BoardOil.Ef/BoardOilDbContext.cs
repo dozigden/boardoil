@@ -25,6 +25,10 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .WithOne(x => x.Board)
             .HasForeignKey(x => x.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
+        board.HasMany(x => x.Tags)
+            .WithOne(x => x.Board)
+            .HasForeignKey(x => x.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         var column = modelBuilder.Entity<EntityBoardColumn>();
         column.HasKey(x => x.Id);
@@ -58,12 +62,14 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
 
         var tag = modelBuilder.Entity<EntityTag>();
         tag.HasKey(x => x.Id);
+        tag.Property(x => x.BoardId).IsRequired();
         tag.Property(x => x.Name).HasMaxLength(40).IsRequired();
         tag.Property(x => x.NormalisedName).HasMaxLength(40).IsRequired();
         tag.Property(x => x.StyleName).HasMaxLength(32).IsRequired();
         tag.Property(x => x.StylePropertiesJson).IsRequired();
         tag.ToTable("Tags");
-        tag.HasIndex(x => x.NormalisedName).IsUnique();
+        tag.HasIndex(x => x.BoardId);
+        tag.HasIndex(x => new { x.BoardId, x.NormalisedName }).IsUnique();
         tag.HasMany(x => x.CardTags)
             .WithOne(x => x.Tag)
             .HasForeignKey(x => x.TagId)

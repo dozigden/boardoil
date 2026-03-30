@@ -173,6 +173,7 @@ public sealed class BoardServiceTests : TestBaseDb
         var now = DateTime.UtcNow;
         var tag = new EntityTag
         {
+            BoardId = board.BoardId,
             Name = "Bug",
             NormalisedName = "BUG",
             StyleName = "solid",

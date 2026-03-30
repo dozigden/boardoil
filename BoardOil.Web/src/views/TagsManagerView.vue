@@ -1,12 +1,8 @@
 <template>
   <section class="tags-manager">
     <header class="tags-header">
-      <h2>Tag Styles</h2>
-      <button type="button" class="ghost tags-refresh" @click="loadTags">
-        Refresh
-      </button>
+      <h2>Tags</h2>
     </header>
-    <p class="tags-hint">Tag names are shared globally. Editing style updates all cards using that tag.</p>
 
     <p v-if="tagNames.length === 0" class="tags-empty">No tags yet. Add one from any card editor.</p>
 
@@ -30,7 +26,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onMounted } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
@@ -45,6 +41,7 @@ const tagStore = useTagStore();
 const { board } = storeToRefs(boardStore);
 const { tags, busy } = storeToRefs(tagStore);
 const { loadTags, getTagByName } = tagStore;
+const routeBoardId = computed(() => resolveBoardId());
 
 const tagNames = computed(() => {
   const seenByNormalisedName = new Map<string, string>();
@@ -73,9 +70,18 @@ const tagNames = computed(() => {
   return [...seenByNormalisedName.values()].sort((left, right) => left.localeCompare(right));
 });
 
-onMounted(async () => {
-  await loadTags();
-});
+watch(
+  routeBoardId,
+  async nextBoardId => {
+    if (nextBoardId === null) {
+      await router.replace({ name: 'boards' });
+      return;
+    }
+
+    await loadTags(nextBoardId);
+  },
+  { immediate: true }
+);
 
 async function openEditor(tagName: string) {
   const existingTag = getTagByName(tagName);
@@ -83,12 +89,11 @@ async function openEditor(tagName: string) {
     return;
   }
 
-  const boardId = resolveBoardId();
-  if (boardId === null) {
+  if (routeBoardId.value === null) {
     return;
   }
 
-  await router.push({ name: 'tags-tag', params: { boardId, tagId: existingTag.id } });
+  await router.push({ name: 'tags-tag', params: { boardId: routeBoardId.value, tagId: existingTag.id } });
 }
 
 function tagStyle(tagName: string) {

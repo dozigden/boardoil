@@ -9,20 +9,20 @@ public static class TagEndpoints
 {
     public static IEndpointRouteBuilder MapTagEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/tags", (ITagService tagService) =>
-                tagService.GetTagsAsync().ToHttpResult())
+        app.MapGet("/api/boards/{boardId:int}/tags", (int boardId, ITagService tagService) =>
+                tagService.GetTagsAsync(boardId).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
 
-        app.MapPost("/api/tags", (CreateTagRequest request, ITagService tagService) =>
-                tagService.CreateTagAsync(request).ToHttpResult())
+        app.MapPost("/api/boards/{boardId:int}/tags", (int boardId, CreateTagRequest request, ITagService tagService) =>
+                tagService.CreateTagAsync(boardId, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
-        app.MapPatch("/api/tags/{tagId:int}", (int tagId, UpdateTagStyleRequest request, ITagService tagService) =>
-                tagService.UpdateTagStyleAsync(tagId, request).ToHttpResult())
+        app.MapPatch("/api/boards/{boardId:int}/tags/{tagId:int}", (int boardId, int tagId, UpdateTagStyleRequest request, ITagService tagService) =>
+                tagService.UpdateTagStyleAsync(boardId, tagId, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
-        app.MapDelete("/api/tags/{tagId:int}", (int tagId, ITagService tagService) =>
-                tagService.DeleteTagAsync(tagId).ToHttpResult())
+        app.MapDelete("/api/boards/{boardId:int}/tags/{tagId:int}", (int boardId, int tagId, ITagService tagService) =>
+                tagService.DeleteTagAsync(boardId, tagId).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.CardEditor);
 
         return app;

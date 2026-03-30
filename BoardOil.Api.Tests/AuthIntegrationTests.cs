@@ -224,7 +224,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
         var columnId = await CreateColumnAsAdminAsync(adminClient, "Todo");
         await LoginAsAsync(standardClient, "member", "Password1234!");
-        var createTagResponse = await standardClient.PostAsJsonAsync("/api/tags", new CreateTagRequest("member"));
+        var createTagResponse = await standardClient.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("member"));
         createTagResponse.EnsureSuccessStatusCode();
 
         // Act
@@ -248,7 +248,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
 
         // Act
         var response = await standardClient.PostAsJsonAsync(
-            "/api/tags",
+            "/api/boards/1/tags",
             new CreateTagRequest("member"));
 
         // Assert
@@ -266,7 +266,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
-        var response = await standardClient.GetAsync("/api/tags");
+        var response = await standardClient.GetAsync("/api/boards/1/tags");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -282,14 +282,14 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
         await SeedTagAsync("member", "MEMBER", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
         await LoginAsAsync(standardClient, "member", "Password1234!");
-        var tagsEnvelope = await standardClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/tags");
+        var tagsEnvelope = await standardClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags");
         Assert.NotNull(tagsEnvelope);
         Assert.NotNull(tagsEnvelope!.Data);
         var memberTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "member");
 
         // Act
         var response = await standardClient.PatchAsJsonAsync(
-            $"/api/tags/{memberTag.Id}",
+            $"/api/boards/1/tags/{memberTag.Id}",
             new UpdateTagStyleRequest(
                 StyleName: "solid",
                 StylePropertiesJson: """{"backgroundColor":"#113355","textColorMode":"auto"}"""));
@@ -456,9 +456,10 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO "Tags" ("Name", "NormalisedName", "StyleName", "StylePropertiesJson", "CreatedAtUtc", "UpdatedAtUtc")
-            VALUES ($name, $normalisedName, $styleName, $stylePropertiesJson, $createdAtUtc, $updatedAtUtc);
+            INSERT INTO "Tags" ("BoardId", "Name", "NormalisedName", "StyleName", "StylePropertiesJson", "CreatedAtUtc", "UpdatedAtUtc")
+            VALUES ($boardId, $name, $normalisedName, $styleName, $stylePropertiesJson, $createdAtUtc, $updatedAtUtc);
             """;
+        command.Parameters.AddWithValue("$boardId", 1);
         command.Parameters.AddWithValue("$name", name);
         command.Parameters.AddWithValue("$normalisedName", normalisedName);
         command.Parameters.AddWithValue("$styleName", styleName);

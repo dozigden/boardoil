@@ -1,5 +1,10 @@
 <template>
-  <AdminSplitLayout title="Board Admin" :items="navItems">
+  <AdminSplitLayout
+    title="Board Admin"
+    :items="navItems"
+    :back-to="backToBoard"
+    back-label="Back to board"
+  >
     <RouterView />
   </AdminSplitLayout>
 </template>
@@ -31,5 +36,13 @@ const navItems = computed(() => {
       to: { name: 'tags', params: { boardId: boardId.value } }
     }
   ];
+});
+
+const backToBoard = computed(() => {
+  if (boardId.value === null) {
+    return null;
+  }
+
+  return { name: 'board', params: { boardId: boardId.value } };
 });
 </script>

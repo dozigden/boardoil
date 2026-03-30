@@ -465,6 +465,34 @@ body {
   font-size: 1.05rem;
 }
 
+.admin-nav-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.admin-nav-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid var(--bo-border-default);
+  border-radius: 8px;
+  color: var(--bo-ink-default);
+  text-decoration: none;
+  background: var(--bo-surface-card);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.admin-nav-back:hover,
+.admin-nav-back:focus-visible {
+  background: var(--bo-surface-energy);
+  border-color: var(--bo-colour-energy);
+  color: var(--bo-colour-energy);
+}
+
 .admin-nav-links {
   display: grid;
   gap: 0.35rem;

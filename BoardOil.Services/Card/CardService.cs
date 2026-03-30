@@ -50,7 +50,7 @@ public sealed class CardService(
         }
 
         var now = DateTime.UtcNow;
-        var tags = await ResolveTagsAsync(request.TagNames ?? Array.Empty<string>(), now);
+        var tags = await ResolveTagsAsync(boardId, request.TagNames ?? Array.Empty<string>(), now);
         var card = new EntityBoardCard
         {
             BoardColumnId = request.BoardColumnId,
@@ -91,7 +91,7 @@ public sealed class CardService(
         var updatedTitle = request.Title.Trim();
         var updatedDescription = request.Description;
         var now = DateTime.UtcNow;
-        var updatedTags = await ResolveTagsAsync(request.TagNames, now);
+        var updatedTags = await ResolveTagsAsync(boardId, request.TagNames, now);
         var updatedTagNames = updatedTags
             .Select(x => x.Name)
             .OrderBy(x => x, StringComparer.Ordinal)
@@ -304,7 +304,7 @@ public sealed class CardService(
         }
     }
 
-    private async Task<IReadOnlyList<EntityTag>> ResolveTagsAsync(IReadOnlyList<string> tagNames, DateTime now)
+    private async Task<IReadOnlyList<EntityTag>> ResolveTagsAsync(int boardId, IReadOnlyList<string> tagNames, DateTime now)
     {
         var resolvedTags = new List<EntityTag>();
         var processedNormalisedNames = new HashSet<string>(StringComparer.Ordinal);
@@ -316,7 +316,7 @@ public sealed class CardService(
                 continue;
             }
 
-            var existingTag = await _tagRepository.GetByNormalisedNameAsync(normalisedName);
+            var existingTag = await _tagRepository.GetByNormalisedNameAsync(boardId, normalisedName);
             if (existingTag is not null)
             {
                 resolvedTags.Add(existingTag);
@@ -325,6 +325,7 @@ public sealed class CardService(
 
             var createdTag = new EntityTag
             {
+                BoardId = boardId,
                 Name = tagName,
                 NormalisedName = normalisedName,
                 StyleName = TagStyleSchemaValidator.SolidStyleName,

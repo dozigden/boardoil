@@ -77,6 +77,7 @@ import { nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Card from '../components/Card.vue';
 import { useBoardStore } from '../stores/boardStore';
+import { useTagStore } from '../stores/tagStore';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | null>>({});
@@ -84,6 +85,7 @@ const newCardDraftInputs = ref<Record<number, HTMLInputElement | null>>({});
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
+const tagStore = useTagStore();
 const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { createCard, startDrag, dropCard } = boardStore;
 
@@ -151,7 +153,10 @@ watch(
     const loaded = await boardStore.initialize(boardId);
     if (!loaded && resolveBoardId() === boardId) {
       await router.replace({ name: 'boards' });
+      return;
     }
+
+    await tagStore.loadTags(boardId);
   },
   { immediate: true }
 );
