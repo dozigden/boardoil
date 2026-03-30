@@ -1,7 +1,7 @@
 <template>
   <template v-if="board">
-    <section class="toolbar">
-      <button type="button" class="ghost column-add-button" aria-label="Add column" title="Add column" @click="openNewColumnDraft">
+    <section class="toolbar columns-manager-toolbar">
+      <button type="button" class="column-add-button" aria-label="Add column" title="Add column" @click="openNewColumnDraft">
         <Plus :size="16" aria-hidden="true" />
         <span>Add Column</span>
       </button>
@@ -21,12 +21,12 @@
             @keydown.esc.prevent="closeNewColumnDraft"
           />
         </label>
-        <div class="editor-actions create-card-inline-actions">
-          <button type="button" class="create-card-save" aria-label="Save new column" title="Save new column" @click="saveNewColumnDraft">
-            <Check :size="16" aria-hidden="true" />
+        <div class="column-create-actions">
+          <button type="button" class="column-create-save" aria-label="Save new column" title="Save new column" @click="saveNewColumnDraft">
+            Save
           </button>
-          <button type="button" class="ghost create-card-cancel" aria-label="Cancel new column" title="Cancel" @click="closeNewColumnDraft">
-            <X :size="16" aria-hidden="true" />
+          <button type="button" class="ghost column-create-cancel" aria-label="Cancel new column" title="Cancel" @click="closeNewColumnDraft">
+            Cancel
           </button>
         </div>
       </article>
@@ -41,20 +41,23 @@
         @drop="onColumnDrop(column.id, $event)"
       >
         <div class="column-manager-header">
-          <button type="button" class="card-title-trigger column-title-trigger" @click="openColumnEditor(column.id)">
-            <strong>{{ column.title }}</strong>
-          </button>
-          <button
-            type="button"
-            class="ghost column-drag-handle"
-            aria-label="Drag to reorder column"
-            title="Drag to reorder"
-            draggable="true"
-            @dragstart="onColumnDragStart(column.id, $event)"
-            @dragend="onColumnDragEnd"
-          >
-            <GripVertical :size="16" aria-hidden="true" />
-          </button>
+          <h3 class="column-manager-title">{{ column.title }}</h3>
+          <div class="column-manager-actions">
+            <button type="button" class="ghost column-edit-button" @click="openColumnEditor(column.id)">
+              Edit
+            </button>
+            <div
+              class="column-drag-handle"
+              role="img"
+              aria-label="Drag to reorder column"
+              title="Drag to reorder"
+              draggable="true"
+              @dragstart="onColumnDragStart(column.id, $event)"
+              @dragend="onColumnDragEnd"
+            >
+              <GripVertical :size="16" aria-hidden="true" />
+            </div>
+          </div>
         </div>
       </article>
     </section>
@@ -62,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, GripVertical, Plus, X } from 'lucide-vue-next';
+import { GripVertical, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';

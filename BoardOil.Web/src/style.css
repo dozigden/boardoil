@@ -688,12 +688,19 @@ body {
   gap: 0.35rem;
 }
 
+.columns-manager-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
 .column-manager {
-  margin-top: 1rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
-  max-width: 1200px;
+  max-width: 56rem;
 }
 
 .column-manager-item {
@@ -709,6 +716,18 @@ body {
   border-style: dashed;
 }
 
+.column-create-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.column-create-save,
+.column-create-cancel {
+  width: auto;
+  padding: 0.4rem 0.7rem;
+}
+
 .column-manager-header {
   display: flex;
   justify-content: space-between;
@@ -716,22 +735,40 @@ body {
   gap: 0.5rem;
 }
 
-.column-drag-handle {
-  width: auto;
-  padding: 0.15rem 0.45rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+.column-manager-title {
+  margin: 0;
   font-size: 1rem;
-  line-height: 1;
-  cursor: grab;
-  border: none;
-  outline: none;
-  box-shadow: none;
-  background: transparent;
 }
 
-.column-drag-handle:focus-visible {
-  outline: none;
-  box-shadow: none;
+.column-manager-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.column-edit-button {
+  width: auto;
+  padding: 0.35rem 0.6rem;
+}
+
+.column-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--bo-border-default);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--bo-link);
+  cursor: grab;
+  user-select: none;
+}
+
+.column-drag-handle:hover {
+  background: var(--bo-surface-energy);
+  border-color: var(--bo-colour-energy);
+  color: var(--bo-colour-energy);
 }
 
 .column-drag-handle:active {

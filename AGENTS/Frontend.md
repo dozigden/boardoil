@@ -30,6 +30,7 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
 - Use shared `busy` flags for operation progress.
 - Clear feedback errors on successful operations.
 - Route guards and auth checks should remain centralised through store/router integration.
+- Avoid introductory “wall of text” at the top of pages; interfaces should generally stand on their own unless short context is essential.
 
 ## Realtime Conventions
 
