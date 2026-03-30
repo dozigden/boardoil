@@ -21,7 +21,7 @@
         <RouterLink
           v-if="boardAdminTarget"
           :to="boardAdminTarget"
-          class="menu-trigger header-board-admin-link"
+          class="btn btn--secondary btn--icon menu-trigger header-board-admin-link"
           aria-label="Open board admin"
           title="Board admin"
           @click="closeMenus"
@@ -34,7 +34,7 @@
         <RouterLink
           v-if="isAdmin"
           :to="{ name: 'system-admin-boards' }"
-          class="menu-trigger"
+          class="btn btn--secondary btn--icon menu-trigger"
           aria-label="Open system admin"
           title="System admin"
           @click="closeMenus"
@@ -42,7 +42,7 @@
             <Settings :size="18" aria-hidden="true" />
         </RouterLink>
         <details v-if="isAuthenticated" ref="userMenu" class="header-menu">
-          <summary class="menu-trigger" aria-label="Open user menu" title="User menu">
+          <summary class="btn btn--secondary btn--icon menu-trigger" aria-label="Open user menu" title="User menu">
             <CircleUserRound :size="18" aria-hidden="true" />
           </summary>
           <nav class="menu-panel" aria-label="User menu">

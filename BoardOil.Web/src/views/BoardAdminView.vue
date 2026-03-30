@@ -7,6 +7,7 @@
   >
     <RouterView />
   </AdminSplitLayout>
+  <RouterView name="dialog" />
 </template>
 
 <script setup lang="ts">

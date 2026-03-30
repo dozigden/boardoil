@@ -25,7 +25,7 @@
             <option value="Standard">Standard</option>
             <option value="Admin">Admin</option>
           </select>
-          <button type="button" class="btn btn--ghost" :disabled="busy" @click="toggleStatus(user.id, user.isActive)">
+          <button type="button" class="btn btn--secondary" :disabled="busy" @click="toggleStatus(user.id, user.isActive)">
             {{ user.isActive ? 'Deactivate' : 'Activate' }}
           </button>
         </div>

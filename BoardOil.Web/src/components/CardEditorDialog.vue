@@ -38,7 +38,7 @@
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
           </button>
-          <button type="button" class="btn btn--ghost" aria-label="Cancel editing" title="Cancel" @click="closeCardEditor">
+          <button type="button" class="btn btn--secondary" aria-label="Cancel editing" title="Cancel" @click="closeCardEditor">
             <X :size="16" aria-hidden="true" />
             <span>Cancel</span>
           </button>
@@ -135,6 +135,11 @@ async function ensureTagsExistForBoard(tagNames: string[]) {
 
 async function deleteEditingCard() {
   if (!cardDraft.value) {
+    return;
+  }
+
+  const shouldDelete = window.confirm(`Delete card "${cardDraft.value.title}"?`);
+  if (!shouldDelete) {
     return;
   }
 

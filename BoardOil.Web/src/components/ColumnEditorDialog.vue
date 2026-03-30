@@ -20,7 +20,7 @@
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
           </button>
-          <button type="button" class="btn btn--ghost" aria-label="Cancel editing" title="Cancel" @click="closeColumnEditor">
+          <button type="button" class="btn btn--secondary" aria-label="Cancel editing" title="Cancel" @click="closeColumnEditor">
             <X :size="16" aria-hidden="true" />
             <span>Cancel</span>
           </button>

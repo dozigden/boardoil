@@ -1,7 +1,7 @@
 <template>
   <dialog ref="dialogRef" class="card-modal" :class="`card-modal-${size}`" @cancel.prevent="emit('close')" @click="onDialogClick">
     <form v-if="open" class="editor card-modal-content" @submit.prevent="emit('submit')">
-      <button type="button" class="btn btn--ghost card-modal-close" :aria-label="closeLabel" :title="closeLabel" @click="emit('close')">
+      <button type="button" class="btn btn--secondary btn--icon card-modal-close" :aria-label="closeLabel" :title="closeLabel" @click="emit('close')">
         <X :size="18" aria-hidden="true" />
       </button>
       <h3 class="card-modal-title">
@@ -133,12 +133,6 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0.65rem;
   right: 0.65rem;
-  width: auto;
-  border: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.3rem;
 }
 
 .card-modal-title {
