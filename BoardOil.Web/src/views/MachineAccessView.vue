@@ -102,8 +102,8 @@
               <div class="machine-pat-tab-list" role="tablist" aria-label="Generic MCP config formats">
                 <button
                   type="button"
-                  class="machine-pat-tab"
-                  :class="{ 'machine-pat-tab--active': configSnippetTab === 'json' }"
+                  class="btn btn--tab"
+                  :class="{ 'is-active': configSnippetTab === 'json' }"
                   role="tab"
                   :aria-selected="configSnippetTab === 'json'"
                   @click="configSnippetTab = 'json'"
@@ -112,8 +112,8 @@
                 </button>
                 <button
                   type="button"
-                  class="machine-pat-tab"
-                  :class="{ 'machine-pat-tab--active': configSnippetTab === 'toml' }"
+                  class="btn btn--tab"
+                  :class="{ 'is-active': configSnippetTab === 'toml' }"
                   role="tab"
                   :aria-selected="configSnippetTab === 'toml'"
                   @click="configSnippetTab = 'toml'"
@@ -143,8 +143,8 @@
               <div class="machine-pat-tab-list" role="tablist" aria-label="Manual test examples">
                 <button
                   type="button"
-                  class="machine-pat-tab"
-                  :class="{ 'machine-pat-tab--active': manualTestTab === 'curl' }"
+                  class="btn btn--tab"
+                  :class="{ 'is-active': manualTestTab === 'curl' }"
                   role="tab"
                   :aria-selected="manualTestTab === 'curl'"
                   @click="manualTestTab = 'curl'"
@@ -153,8 +153,8 @@
                 </button>
                 <button
                   type="button"
-                  class="machine-pat-tab"
-                  :class="{ 'machine-pat-tab--active': manualTestTab === 'powershell' }"
+                  class="btn btn--tab"
+                  :class="{ 'is-active': manualTestTab === 'powershell' }"
                   role="tab"
                   :aria-selected="manualTestTab === 'powershell'"
                   @click="manualTestTab = 'powershell'"

@@ -66,6 +66,97 @@ button:disabled {
   --bo-btn-ink-hover: var(--bo-ink-on-brand);
 }
 
+.btn--tab {
+  --bo-btn-bg: transparent;
+  --bo-btn-border: transparent;
+  --bo-btn-ink: color-mix(in oklab, var(--bo-colour-energy) 84%, var(--bo-ink-strong));
+  --bo-btn-bg-hover: color-mix(in oklab, var(--bo-colour-energy) 22%, var(--bo-surface-base));
+  --bo-btn-border-hover: color-mix(in oklab, var(--bo-colour-energy) 78%, var(--bo-border-soft));
+  --bo-btn-ink-hover: color-mix(in oklab, var(--bo-colour-energy-strong) 82%, var(--bo-colour-brand));
+  border-radius: 999px;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  gap: 0;
+}
+
+.btn--tab.is-active {
+  --bo-btn-bg: var(--bo-colour-energy-strong);
+  --bo-btn-border: color-mix(in oklab, var(--bo-colour-energy-strong) 78%, var(--bo-colour-energy));
+  --bo-btn-ink: var(--bo-ink-on-brand);
+  --bo-btn-bg-hover: var(--bo-colour-energy-strong);
+  --bo-btn-border-hover: color-mix(in oklab, var(--bo-colour-energy-strong) 78%, var(--bo-colour-energy));
+  --bo-btn-ink-hover: var(--bo-ink-on-brand);
+}
+
+.btn--toolbar {
+  --bo-btn-bg: transparent;
+  --bo-btn-border: var(--bo-border-brand);
+  --bo-btn-ink: var(--bo-link);
+  --bo-btn-bg-hover: var(--bo-surface-energy);
+  --bo-btn-border-hover: var(--bo-colour-energy);
+  --bo-btn-ink-hover: var(--bo-colour-energy);
+  padding: 0.2rem;
+  line-height: 1.1;
+}
+
+.btn--toolbar.is-active {
+  --bo-btn-bg: var(--bo-colour-energy);
+  --bo-btn-border: var(--bo-surface-energy);
+  --bo-btn-ink: var(--bo-surface-energy);
+  --bo-btn-bg-hover: var(--bo-colour-energy-strong);
+  --bo-btn-border-hover: var(--bo-surface-energy);
+  --bo-btn-ink-hover: var(--bo-surface-energy);
+}
+
+.btn--toolbar:focus-visible:not(:disabled) {
+  outline: 2px solid var(--bo-colour-energy);
+  outline-offset: 2px;
+}
+
+.btn--toolbar.is-active:focus-visible:not(:disabled) {
+  outline: 2px solid var(--bo-surface-energy);
+  outline-offset: 2px;
+}
+
+.btn--toolbar:disabled {
+  opacity: 0.55;
+  border-color: var(--bo-border-soft);
+  color: var(--bo-ink-subtle);
+  cursor: not-allowed;
+}
+
+.btn--toolbar-menu {
+  --bo-btn-bg: transparent;
+  --bo-btn-border: transparent;
+  --bo-btn-ink: var(--bo-link);
+  --bo-btn-bg-hover: var(--bo-surface-energy);
+  --bo-btn-border-hover: var(--bo-colour-energy);
+  --bo-btn-ink-hover: var(--bo-colour-energy);
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 0;
+  border-radius: 6px;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.78rem;
+}
+
+.btn--menu-item {
+  --bo-btn-bg: transparent;
+  --bo-btn-border: transparent;
+  --bo-btn-ink: var(--bo-ink-default);
+  --bo-btn-bg-hover: var(--bo-surface-energy);
+  --bo-btn-border-hover: transparent;
+  --bo-btn-ink-hover: var(--bo-colour-energy);
+  width: 100%;
+  justify-content: flex-start;
+  gap: 0;
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+}
+
 .btn--icon {
   min-width: 2rem;
   padding: 0.35rem;

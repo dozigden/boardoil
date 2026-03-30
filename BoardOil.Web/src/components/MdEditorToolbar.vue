@@ -4,7 +4,7 @@
       <div v-if="action.id === 'heading'" ref="headingSplitRef" class="md-editor-toolbar-split">
         <button
           type="button"
-          class="md-editor-toolbar-button"
+          class="btn btn--toolbar md-editor-toolbar-button"
           :class="{ 'is-active': action.isActive }"
           :disabled="action.disabled"
           aria-label="Heading 1"
@@ -17,7 +17,7 @@
 
         <button
           type="button"
-          class="md-editor-toolbar-button md-editor-toolbar-button-caret"
+          class="btn btn--toolbar md-editor-toolbar-button md-editor-toolbar-button-caret"
           :disabled="action.disabled"
           :aria-label="isHeadingMenuOpen ? 'Close heading levels' : 'Open heading levels'"
           title="Heading levels"
@@ -32,7 +32,7 @@
             v-for="level in headingMenuLevels"
             :key="level"
             type="button"
-            class="md-editor-toolbar-menu-item"
+            class="btn btn--toolbar-menu md-editor-toolbar-menu-item"
             role="menuitem"
             :disabled="action.disabled"
             :title="`Heading ${level}`"
@@ -46,7 +46,7 @@
       <button
         v-else
         type="button"
-        class="md-editor-toolbar-button"
+        class="btn btn--toolbar md-editor-toolbar-button"
         :class="{ 'is-active': action.isActive }"
         :disabled="action.disabled"
         :aria-label="action.ariaLabel"
@@ -60,7 +60,7 @@
 
     <button
       type="button"
-      class="md-editor-toolbar-mode-button"
+      class="btn btn--toolbar md-editor-toolbar-mode-button"
       :class="{ 'is-active': isPlainTextMode }"
       :title="isPlainTextMode ? 'Switch to rich editor' : 'Switch to markdown text editor'"
       :aria-label="isPlainTextMode ? 'Switch to rich editor' : 'Switch to markdown text editor'"
@@ -170,13 +170,6 @@ onBeforeUnmount(() => {
   width: 2rem;
   min-width: 2rem;
   height: 2rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--bo-border-brand);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--bo-link);
   padding: 0.2rem;
   line-height: 1.1;
 }
@@ -192,41 +185,6 @@ onBeforeUnmount(() => {
 .md-editor-toolbar-split .md-editor-toolbar-button:first-child {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
-}
-
-.md-editor-toolbar-button.is-active {
-  border-color: var(--bo-surface-energy);
-  background: var(--bo-colour-energy);
-  color: var(--bo-surface-energy);
-}
-
-.md-editor-toolbar-button.is-active:hover:not(:disabled),
-.md-editor-toolbar-button.is-active:focus-visible:not(:disabled) {
-  background: var(--bo-colour-energy-strong);
-}
-
-.md-editor-toolbar-button:not(.is-active):hover:not(:disabled),
-.md-editor-toolbar-button:not(.is-active):focus-visible:not(:disabled) {
-  border-color: var(--bo-colour-energy);
-  background: var(--bo-surface-energy);
-  color: var(--bo-colour-energy);
-}
-
-.md-editor-toolbar-button:not(.is-active):focus-visible:not(:disabled) {
-  outline: 2px solid var(--bo-colour-energy);
-  outline-offset: 2px;
-}
-
-.md-editor-toolbar-button.is-active:focus-visible:not(:disabled) {
-  outline: 2px solid var(--bo-surface-energy);
-  outline-offset: 2px;
-}
-
-.md-editor-toolbar-button:disabled {
-  opacity: 0.55;
-  border-color: var(--bo-border-soft);
-  color: var(--bo-ink-subtle);
-  cursor: not-allowed;
 }
 
 .md-editor-toolbar-menu {
@@ -245,22 +203,8 @@ onBeforeUnmount(() => {
 }
 
 .md-editor-toolbar-menu-item {
-  width: 100%;
   min-width: 0;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--bo-link);
-  padding: 0.25rem 0.4rem;
   text-align: left;
-  font-size: 0.78rem;
-}
-
-.md-editor-toolbar-menu-item:hover:not(:disabled),
-.md-editor-toolbar-menu-item:focus-visible:not(:disabled) {
-  border-color: var(--bo-colour-energy);
-  background: var(--bo-surface-energy);
-  color: var(--bo-colour-energy);
 }
 
 .md-editor-toolbar-sr {
@@ -277,45 +221,10 @@ onBeforeUnmount(() => {
 
 .md-editor-toolbar-mode-button {
   margin-left: auto;
-  width: auto;
   min-width: 0;
   height: 2rem;
-  display: inline-flex;
-  align-items: center;
   gap: 0.3rem;
-  border: 1px solid var(--bo-border-brand);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--bo-link);
   padding: 0.2rem 0.45rem;
   font-size: 0.78rem;
-}
-
-.md-editor-toolbar-mode-button.is-active {
-  border-color: var(--bo-surface-energy);
-  background: var(--bo-colour-energy);
-  color: var(--bo-surface-energy);
-}
-
-.md-editor-toolbar-mode-button.is-active:hover:not(:disabled),
-.md-editor-toolbar-mode-button.is-active:focus-visible:not(:disabled) {
-  background: var(--bo-colour-energy-strong);
-}
-
-.md-editor-toolbar-mode-button:not(.is-active):hover:not(:disabled),
-.md-editor-toolbar-mode-button:not(.is-active):focus-visible:not(:disabled) {
-  border-color: var(--bo-colour-energy);
-  background: var(--bo-surface-energy);
-  color: var(--bo-colour-energy);
-}
-
-.md-editor-toolbar-mode-button:not(.is-active):focus-visible:not(:disabled) {
-  outline: 2px solid var(--bo-colour-energy);
-  outline-offset: 2px;
-}
-
-.md-editor-toolbar-mode-button.is-active:focus-visible:not(:disabled) {
-  outline: 2px solid var(--bo-surface-energy);
-  outline-offset: 2px;
 }
 </style>

@@ -47,7 +47,7 @@
           </summary>
           <nav class="menu-panel" aria-label="User menu">
             <RouterLink v-if="isAuthenticated" to="/licences" class="menu-item" @click="closeMenus">Licences</RouterLink>
-            <button v-if="isAuthenticated" type="button" class="menu-item menu-button" @click="handleLogout">Logout</button>
+            <button v-if="isAuthenticated" type="button" class="btn btn--menu-item" @click="handleLogout">Logout</button>
           </nav>
         </details>
       </div>
