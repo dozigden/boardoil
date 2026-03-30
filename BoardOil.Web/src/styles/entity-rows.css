@@ -1,0 +1,85 @@
+.entity-rows-page {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+  max-width: 860px;
+}
+
+.entity-rows-page--compact {
+  max-width: 760px;
+}
+
+.entity-rows-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.entity-rows-header h2 {
+  margin: 0;
+}
+
+.entity-rows-header-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.entity-rows-header-copy p {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+
+.entity-rows-empty {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+
+.entity-rows-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.entity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  background: var(--bo-surface-panel);
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.entity-row-main {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.entity-row-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.entity-row-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.entity-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.entity-row-action-icon {
+  min-width: 2.35rem;
+  min-height: 2.35rem;
+  padding: 0;
+}

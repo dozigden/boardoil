@@ -1,6 +1,6 @@
 <template>
-  <section class="boards-view">
-    <header class="boards-header">
+  <section class="entity-rows-page">
+    <header class="entity-rows-header">
       <h2>Boards</h2>
       <button
         v-if="isAdmin"
@@ -13,19 +13,23 @@
       </button>
     </header>
 
-    <p v-if="boards.length === 0" class="boards-empty">No boards yet.</p>
+    <p v-if="boards.length === 0" class="entity-rows-empty">No boards yet.</p>
 
-    <ul v-else class="boards-list">
-      <li v-for="board in boards" :key="`${board.id}-${board.name}`" class="boards-item">
-        <div class="boards-row">
-          <button type="button" class="btn boards-open" @click="openBoard(board.id)">
-            <span class="card-id boards-meta">#{{ board.id }}</span>
-            <span class="boards-name">{{ board.name }}</span>
-          </button>
-          <div v-if="isAdmin" class="boards-actions">
+    <ul v-else class="entity-rows-list">
+      <li v-for="board in boards" :key="`${board.id}-${board.name}`">
+        <div class="entity-row">
+          <div class="entity-row-main">
+            <span class="card-id">#{{ board.id }}</span>
+            <span class="entity-row-title">{{ board.name }}</span>
+          </div>
+          <div class="entity-row-actions">
+            <button type="button" class="btn btn--secondary" :disabled="busy" @click="openBoard(board.id)">
+              Open
+            </button>
             <button
+              v-if="isAdmin"
               type="button"
-              class="btn btn--secondary boards-action boards-action-icon"
+              class="btn btn--secondary entity-row-action-icon"
               :disabled="busy"
               aria-label="Rename board"
               title="Rename board"
@@ -34,8 +38,9 @@
               <Pencil :size="16" aria-hidden="true" />
             </button>
             <button
+              v-if="isAdmin"
               type="button"
-              class="btn btn--danger boards-action boards-action-icon"
+              class="btn btn--danger entity-row-action-icon"
               :disabled="busy"
               aria-label="Delete board"
               title="Delete board"

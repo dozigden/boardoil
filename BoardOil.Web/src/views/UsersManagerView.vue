@@ -1,7 +1,7 @@
 <template>
-  <section class="users-manager">
-    <header class="users-header">
-      <div>
+  <section class="entity-rows-page entity-rows-page--compact">
+    <header class="entity-rows-header users-header">
+      <div class="entity-rows-header-copy">
         <h2>User Management</h2>
         <p>Create and manage local BoardOil accounts.</p>
       </div>
@@ -11,16 +11,16 @@
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
-    <section class="users-list">
-      <article v-for="user in users" :key="user.id" class="users-item">
-        <div class="users-item-meta">
-          <strong>{{ user.userName }}</strong>
-          <span class="users-badges">
+    <section class="entity-rows-list">
+      <article v-for="user in users" :key="user.id" class="entity-row">
+        <div class="entity-row-main">
+          <strong class="entity-row-title">{{ user.userName }}</strong>
+          <span class="entity-row-badges">
             <span class="card-id">{{ user.role }}</span>
             <span class="card-id">{{ user.isActive ? 'Active' : 'Inactive' }}</span>
           </span>
         </div>
-        <div class="users-item-actions">
+        <div class="entity-row-actions">
           <select :value="user.role" :disabled="busy" @change="onRoleChange(user.id, ($event.target as HTMLSelectElement).value)">
             <option value="Standard">Standard</option>
             <option value="Admin">Admin</option>
@@ -136,3 +136,9 @@ onMounted(async () => {
   await loadUsers();
 });
 </script>
+
+<style scoped>
+.users-header {
+  align-items: flex-end;
+}
+</style>

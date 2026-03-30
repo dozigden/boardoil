@@ -35,6 +35,13 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
 - Prefer `.btn.btn--tab` for tab toggles.
 - Prefer `.btn.btn--toolbar` for markdown toolbar actions/mode toggles.
 - Prefer `.btn.btn--menu-item` for menu-panel button actions.
+- For management/list pages with repeated row patterns (for example Boards/Tags/Users/Columns manager views), use the shared entity-row styles in `BoardOil.Web/src/styles/entity-rows.css`:
+  - page shell: `.entity-rows-page` (or `.entity-rows-page--compact` for narrower pages)
+  - list container: `.entity-rows-list`
+  - row container: `.entity-row`
+  - row content/action slots: `.entity-row-main`, `.entity-row-actions`
+  - row title/badge helpers: `.entity-row-title`, `.entity-row-badges`, `.entity-row-action-icon`
+- Keep this entity-row pattern as the default for new management-style rows; only add view-specific row classes when behaviour or visuals are genuinely unique.
 - Keep shared/global classes in shared stylesheets (`BoardOil.Web/src/style.css`, `BoardOil.Web/src/styles/*.css`) only when they are reused across views/components or define app-wide layout/theme behavior.
 - Keep page-specific/component-specific classes in the relevant Vue file (`<style scoped>`), not in global stylesheets.
 - Keep non-`.btn` controls limited to intentional interaction widgets:

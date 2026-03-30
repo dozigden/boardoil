@@ -1,24 +1,20 @@
 <template>
-  <section class="tags-manager">
-    <header class="tags-header">
+  <section class="entity-rows-page">
+    <header class="entity-rows-header">
       <h2>Tags</h2>
     </header>
 
-    <p v-if="tagNames.length === 0" class="tags-empty">No tags yet. Add one from any card editor.</p>
+    <p v-if="tagNames.length === 0" class="entity-rows-empty">No tags yet. Add one from any card editor.</p>
 
-    <section v-else class="tags-list">
-      <article v-for="tagName in tagNames" :key="tagName" class="tags-item">
-        <div class="tags-item-header">
-          <div class="tags-item-meta">
-            <h3>{{ tagName }}</h3>
+    <section v-else class="entity-rows-list">
+      <article v-for="tagName in tagNames" :key="tagName" class="entity-row">
+        <div class="entity-row-main">
+          <h3 class="entity-row-title">{{ tagName }}</h3>
             <span class="tag-pill" :style="tagStyle(tagName)">
               {{ tagName }}
             </span>
-          </div>
-          <button type="button" class="btn btn--secondary tags-edit" :disabled="busy" @click="openEditor(tagName)">
-            Edit
-          </button>
         </div>
+        <button type="button" class="btn btn--secondary" :disabled="busy" @click="openEditor(tagName)">Edit</button>
       </article>
     </section>
   </section>
