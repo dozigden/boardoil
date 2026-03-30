@@ -5,6 +5,7 @@
       <button
         v-if="isAdmin"
         type="button"
+        class="btn"
         :disabled="busy"
         @click="openCreateDialog"
       >
@@ -17,14 +18,14 @@
     <ul v-else class="boards-list">
       <li v-for="board in boards" :key="`${board.id}-${board.name}`" class="boards-item">
         <div class="boards-row">
-          <button type="button" class="boards-open" @click="openBoard(board.id)">
+          <button type="button" class="btn boards-open" @click="openBoard(board.id)">
             <span class="card-id boards-meta">#{{ board.id }}</span>
             <span class="boards-name">{{ board.name }}</span>
           </button>
           <div v-if="isAdmin" class="boards-actions">
             <button
               type="button"
-              class="ghost boards-action boards-action-icon"
+              class="btn btn--ghost boards-action boards-action-icon"
               :disabled="busy"
               aria-label="Rename board"
               title="Rename board"
@@ -34,7 +35,7 @@
             </button>
             <button
               type="button"
-              class="ghost boards-action boards-action-danger boards-action-icon"
+              class="btn btn--ghost boards-action boards-action-danger boards-action-icon"
               :disabled="busy"
               aria-label="Delete board"
               title="Delete board"

@@ -31,6 +31,7 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
 - Clear feedback errors on successful operations.
 - Route guards and auth checks should remain centralised through store/router integration.
 - Avoid introductory “wall of text” at the top of pages; interfaces should generally stand on their own unless short context is essential.
+- Use the shared button styles in `BoardOil.Web/src/styles/buttons.css` (`.btn`, `.btn--ghost`, `.btn--danger`, etc.) instead of creating one-off button variants per view.
 
 ## Realtime Conventions
 

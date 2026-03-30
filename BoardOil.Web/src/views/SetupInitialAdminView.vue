@@ -18,7 +18,7 @@
         <input v-model="confirmPassword" type="password" autocomplete="new-password" minlength="8" required />
       </label>
       <p v-if="displayedErrorMessage" class="error">{{ displayedErrorMessage }}</p>
-      <button type="submit" :disabled="busy">Create admin</button>
+      <button type="submit" class="btn" :disabled="busy">Create admin</button>
       <RouterLink class="auth-link" :to="{ name: 'login' }">Back to sign in</RouterLink>
     </form>
   </section>

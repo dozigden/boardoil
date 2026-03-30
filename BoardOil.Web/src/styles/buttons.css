@@ -1,0 +1,77 @@
+/*
+ * Shared button system.
+ *
+ * `button`:
+ * - Minimal native reset only (font + cursor behaviour).
+ * - No visual theme or variants are attached to the element selector.
+ *
+ * `.btn`:
+ * - Single source of truth for themed app buttons.
+ * - Use `.btn` plus modifiers (`.btn--ghost`, `.btn--danger`, etc.).
+ */
+button {
+  font: inherit;
+  color: inherit;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.btn {
+  --bo-btn-bg: var(--bo-colour-brand);
+  --bo-btn-border: var(--bo-colour-brand);
+  --bo-btn-ink: var(--bo-ink-on-brand);
+  --bo-btn-bg-hover: var(--bo-colour-brand-strong);
+  --bo-btn-border-hover: var(--bo-colour-brand-strong);
+  --bo-btn-ink-hover: var(--bo-ink-on-brand);
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 8px;
+  border: 1px solid var(--bo-btn-border);
+  padding: 0.5rem;
+  background: var(--bo-btn-bg);
+  color: var(--bo-btn-ink);
+  cursor: pointer;
+}
+
+.btn:is(:hover, :focus-visible):not(:disabled) {
+  background: var(--bo-btn-bg-hover);
+  border-color: var(--bo-btn-border-hover);
+  color: var(--bo-btn-ink-hover);
+}
+
+.btn--ghost {
+  --bo-btn-bg: transparent;
+  --bo-btn-border: var(--bo-border-default);
+  --bo-btn-ink: var(--bo-link);
+  --bo-btn-bg-hover: var(--bo-surface-energy);
+  --bo-btn-border-hover: var(--bo-colour-energy);
+  --bo-btn-ink-hover: var(--bo-colour-energy);
+}
+
+.btn--danger {
+  --bo-btn-bg: var(--bo-colour-danger);
+  --bo-btn-border: var(--bo-colour-danger);
+  --bo-btn-ink: var(--bo-ink-on-brand);
+  --bo-btn-bg-hover: var(--bo-colour-danger-ink);
+  --bo-btn-border-hover: var(--bo-colour-danger-ink);
+  --bo-btn-ink-hover: var(--bo-ink-on-brand);
+}
+
+.btn--icon {
+  min-width: 2rem;
+  padding: 0.35rem;
+}
+
+.btn--block {
+  width: 100%;
+  display: flex;
+}

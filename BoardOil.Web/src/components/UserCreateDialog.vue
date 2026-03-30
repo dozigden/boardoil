@@ -28,11 +28,11 @@
     <template #actions>
       <div class="editor-actions card-modal-actions">
         <div class="card-modal-actions-left">
-          <button type="submit" class="card-modal-save" :disabled="busy" aria-label="Create user" title="Create user">
+          <button type="submit" class="btn card-modal-save" :disabled="busy" aria-label="Create user" title="Create user">
             <Check :size="16" aria-hidden="true" />
             <span>Create user</span>
           </button>
-          <button type="button" class="ghost card-modal-cancel" :disabled="busy" aria-label="Cancel creation" title="Cancel" @click="emit('close')">
+          <button type="button" class="btn btn--ghost card-modal-cancel" :disabled="busy" aria-label="Cancel creation" title="Cancel" @click="emit('close')">
             <X :size="16" aria-hidden="true" />
             <span>Cancel</span>
           </button>

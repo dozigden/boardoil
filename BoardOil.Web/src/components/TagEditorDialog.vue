@@ -74,15 +74,15 @@
 
     <template #actions>
       <div v-if="editingTag" class="editor-actions card-modal-actions">
-        <button type="button" class="danger card-modal-delete" :disabled="busy" aria-label="Delete tag" title="Delete tag" @click="deleteEditingTag">
+        <button type="button" class="btn btn--danger card-modal-delete" :disabled="busy" aria-label="Delete tag" title="Delete tag" @click="deleteEditingTag">
           <Trash2 :size="16" aria-hidden="true" />
         </button>
         <div class="card-modal-actions-left">
-          <button type="submit" class="card-modal-save" :disabled="busy" aria-label="Save tag style" title="Save tag style">
+          <button type="submit" class="btn card-modal-save" :disabled="busy" aria-label="Save tag style" title="Save tag style">
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
           </button>
-          <button type="button" class="ghost card-modal-cancel" :disabled="busy" aria-label="Cancel editing" title="Cancel" @click="closeTagEditor">
+          <button type="button" class="btn btn--ghost card-modal-cancel" :disabled="busy" aria-label="Cancel editing" title="Cancel" @click="closeTagEditor">
             <X :size="16" aria-hidden="true" />
             <span>Cancel</span>
           </button>
