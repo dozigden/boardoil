@@ -130,3 +130,82 @@ async function loadLicences() {
   }
 }
 </script>
+
+<style scoped>
+.licences-view {
+  margin-top: 1rem;
+  margin-left: 2rem;
+  display: grid;
+  gap: 0.9rem;
+  max-width: 960px;
+}
+
+.licences-header h2 {
+  margin: 0;
+}
+
+.licences-header p {
+  margin: 0.2rem 0 0;
+  color: var(--bo-ink-muted);
+}
+
+.licences-state {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+
+.licences-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.licence-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  cursor: pointer;
+  list-style: none;
+}
+
+.licence-summary::-webkit-details-marker {
+  display: none;
+}
+
+.licence-package {
+  font-weight: 700;
+  color: var(--bo-ink-strong);
+}
+
+.licence-text {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 10px;
+  background: var(--bo-surface-base);
+  color: var(--bo-ink-strong);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 24rem;
+  overflow: auto;
+  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.83rem;
+  line-height: 1.35;
+}
+
+.licences-unresolved h3,
+.licences-unresolved-hint {
+  margin: 0;
+}
+
+.licences-unresolved-hint {
+  color: var(--bo-ink-muted);
+}
+
+.licences-unresolved-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.45rem;
+}
+</style>

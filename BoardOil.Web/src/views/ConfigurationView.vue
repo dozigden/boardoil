@@ -105,3 +105,62 @@ async function resetToAuto() {
   await saveConfiguration();
 }
 </script>
+
+<style scoped>
+.configuration-view {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+  max-width: 760px;
+}
+
+.configuration-header h2 {
+  margin: 0;
+}
+
+.configuration-header p {
+  margin: 0.2rem 0 0;
+  color: var(--bo-ink-muted);
+}
+
+.configuration-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.configuration-row--start {
+  align-items: flex-start;
+}
+
+.configuration-label {
+  font-weight: 600;
+  color: var(--bo-ink-strong);
+}
+
+.configuration-input-group {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.configuration-input-label {
+  font-weight: 600;
+  color: var(--bo-ink-default);
+}
+
+.configuration-input {
+  width: 100%;
+}
+
+.configuration-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.configuration-hint {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+</style>
