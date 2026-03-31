@@ -1,6 +1,6 @@
 <template>
   <section class="auth-view">
-    <form class="auth-card" @submit.prevent="submit">
+    <form class="auth-card panel panel--strong" @submit.prevent="submit">
       <h2>Sign in</h2>
       <p v-if="requiresInitialAdminSetup" class="auth-help">
         First time setup? <RouterLink :to="{ name: 'setup-initial-admin' }">Create the initial admin</RouterLink>.

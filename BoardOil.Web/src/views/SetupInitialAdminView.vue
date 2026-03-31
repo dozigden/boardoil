@@ -1,6 +1,6 @@
 <template>
   <section class="auth-view">
-    <form class="auth-card" @submit.prevent="submit">
+    <form class="auth-card panel panel--strong" @submit.prevent="submit">
       <h2>Create Initial Admin</h2>
       <p class="auth-help">
         This works only when there are no users yet. After setup, this account is signed in immediately.

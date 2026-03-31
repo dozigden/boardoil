@@ -8,7 +8,7 @@
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
-    <section v-else class="configuration-card">
+    <section v-else class="panel panel-stack panel-stack--cozy">
       <div class="configuration-row">
         <span class="configuration-label">Allow insecure cookies</span>
         <span class="configuration-value">

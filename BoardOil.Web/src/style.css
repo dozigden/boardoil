@@ -1,4 +1,5 @@
 @import "./styles/buttons.css";
+@import "./styles/panels.css";
 @import "./styles/entity-rows.css";
 
 @font-face {
@@ -831,10 +832,6 @@ select:focus {
 
 .auth-card {
   width: min(420px, 92vw);
-  background: var(--bo-surface-panel-strong);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 14px;
-  padding: 1rem;
   display: grid;
   gap: 0.65rem;
 }
@@ -902,15 +899,6 @@ select:focus {
 .configuration-header p {
   margin: 0.2rem 0 0;
   color: var(--bo-ink-muted);
-}
-
-.configuration-card {
-  display: grid;
-  gap: 0.7rem;
-  background: var(--bo-surface-panel);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 12px;
-  padding: 0.85rem;
 }
 
 .configuration-row {
@@ -981,13 +969,6 @@ select:focus {
   gap: 0.55rem;
 }
 
-.licence-item {
-  background: var(--bo-surface-panel);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 12px;
-  padding: 0.85rem;
-}
-
 .licence-summary {
   display: flex;
   align-items: center;
@@ -1022,15 +1003,6 @@ select:focus {
   line-height: 1.35;
 }
 
-.licences-unresolved {
-  background: var(--bo-surface-panel);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 12px;
-  padding: 0.85rem;
-  display: grid;
-  gap: 0.45rem;
-}
-
 .licences-unresolved h3,
 .licences-unresolved-hint {
   margin: 0;
@@ -1045,24 +1017,6 @@ select:focus {
   padding-left: 1.1rem;
   display: grid;
   gap: 0.45rem;
-}
-
-.users-create {
-  display: grid;
-  gap: 0.5rem;
-  background: var(--bo-surface-panel);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 12px;
-  padding: 0.85rem;
-}
-
-.users-create h3 {
-  margin: 0;
-}
-
-.users-create label {
-  display: grid;
-  gap: 0.2rem;
 }
 
 .machine-access-view {
@@ -1105,15 +1059,6 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-}
-
-.machine-pat-secret {
-  display: grid;
-  gap: 0.6rem;
-  background: var(--bo-surface-panel);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 12px;
-  padding: 0.85rem;
 }
 
 .machine-pat-secret h3,
@@ -1228,15 +1173,6 @@ select:focus {
   gap: 0.45rem;
 }
 
-.machine-pat-setup {
-  display: grid;
-  gap: 0.6rem;
-  background: var(--bo-surface-panel);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 12px;
-  padding: 0.85rem;
-}
-
 .machine-pat-setup h3 {
   margin: 0;
 }
@@ -1247,15 +1183,6 @@ select:focus {
   color: var(--bo-ink-default);
   display: grid;
   gap: 0.3rem;
-}
-
-.machine-pat-setup-item {
-  display: grid;
-  gap: 0.45rem;
-  background: var(--bo-surface-base);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 10px;
-  padding: 0.65rem;
 }
 
 .machine-pat-setup-item h4 {
@@ -1320,15 +1247,6 @@ select:focus {
 .machine-pat-empty {
   margin: 0;
   color: var(--bo-ink-muted);
-}
-
-.machine-pat-item {
-  display: grid;
-  gap: 0.55rem;
-  background: var(--bo-surface-panel);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 12px;
-  padding: 0.8rem;
 }
 
 .machine-pat-item-header {

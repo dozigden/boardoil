@@ -15,7 +15,7 @@
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
         <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
-        <section v-if="plainTextPat" class="machine-pat-secret machine-pat-secret--danger">
+        <section v-if="plainTextPat" class="panel panel-stack machine-pat-secret machine-pat-secret--danger">
           <h3>Copy token now</h3>
           <p>This value is only shown once for <strong>{{ plainTextPatName }}</strong>.</p>
           <div class="machine-pat-code-block">
@@ -43,7 +43,7 @@
 
           <p v-if="tokens.length === 0" class="machine-pat-empty">No machine tokens have been created yet.</p>
 
-          <article v-for="token in tokens" :key="token.id" class="machine-pat-item">
+          <article v-for="token in tokens" :key="token.id" class="panel panel-stack panel-stack--compact machine-pat-item">
             <div class="machine-pat-item-header">
               <strong>{{ token.name }}</strong>
               <span class="machine-pat-badges">
@@ -76,10 +76,10 @@
       </section>
 
       <aside class="machine-access-column machine-access-column--guide">
-        <section class="machine-pat-setup">
+        <section class="panel panel-stack machine-pat-setup">
           <h3>Setup snippets</h3>
 
-          <article class="machine-pat-setup-item">
+          <article class="panel panel--base panel--compact panel-stack panel-stack--tight machine-pat-setup-item">
             <h4>MCP endpoint</h4>
             <div class="machine-pat-code-block machine-pat-code-block--endpoint">
               <code class="machine-pat-setup-code machine-pat-inline-code">{{ mcpEndpoint }}</code>
@@ -96,7 +96,7 @@
             </div>
           </article>
 
-          <article class="machine-pat-setup-item">
+          <article class="panel panel--base panel--compact panel-stack panel-stack--tight machine-pat-setup-item">
             <header class="machine-pat-setup-item-header">
               <h4>Generic MCP config snippet</h4>
               <div class="machine-pat-tab-list" role="tablist" aria-label="Generic MCP config formats">
@@ -137,7 +137,7 @@
             </div>
           </article>
 
-          <article class="machine-pat-setup-item">
+          <article class="panel panel--base panel--compact panel-stack panel-stack--tight machine-pat-setup-item">
             <header class="machine-pat-setup-item-header">
               <h4>Manual test</h4>
               <div class="machine-pat-tab-list" role="tablist" aria-label="Manual test examples">

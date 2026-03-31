@@ -10,7 +10,7 @@
 
     <template v-else>
       <section v-if="licenceEntries.length > 0" class="licences-list">
-        <details v-for="entry in licenceEntries" :key="entry.packageName" class="licence-item">
+        <details v-for="entry in licenceEntries" :key="entry.packageName" class="panel">
           <summary class="licence-summary">
             <span class="licence-package">{{ entry.packageName }}</span>
             <span class="card-id">v{{ entry.version }}</span>
@@ -22,7 +22,7 @@
       </section>
       <p v-else class="licences-state">No licence entries found in manifest.</p>
 
-      <section v-if="unresolvedPackages.length > 0" class="licences-unresolved">
+      <section v-if="unresolvedPackages.length > 0" class="panel panel-stack panel-stack--tight licences-unresolved">
         <h3>Some Licence Information Is Unavailable</h3>
         <p class="licences-unresolved-hint">
           Some third-party licence information could not be loaded right now.
