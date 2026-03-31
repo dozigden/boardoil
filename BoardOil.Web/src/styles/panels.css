@@ -1,0 +1,39 @@
+.panel {
+  background: var(--bo-surface-panel);
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.panel--strong {
+  background: var(--bo-surface-panel-strong);
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.panel--base {
+  background: var(--bo-surface-base);
+}
+
+.panel--compact {
+  border-radius: 10px;
+  padding: 0.65rem;
+}
+
+.panel-stack {
+  --bo-panel-stack-gap: 0.6rem;
+  display: grid;
+  gap: var(--bo-panel-stack-gap);
+}
+
+.panel-stack--tight {
+  --bo-panel-stack-gap: 0.45rem;
+}
+
+.panel-stack--compact {
+  --bo-panel-stack-gap: 0.55rem;
+}
+
+.panel-stack--cozy {
+  --bo-panel-stack-gap: 0.7rem;
+}
