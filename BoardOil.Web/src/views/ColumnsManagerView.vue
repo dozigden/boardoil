@@ -1,14 +1,14 @@
 <template>
   <template v-if="board">
-    <section class="toolbar columns-manager-toolbar">
+    <section class="toolbar entity-rows-header columns-manager-toolbar">
       <button type="button" class="btn" aria-label="Add column" title="Add column" @click="openNewColumnDraft">
         <Plus :size="16" aria-hidden="true" />
         <span>Add Column</span>
       </button>
     </section>
 
-    <section class="column-manager">
-      <article v-if="newColumnDraftTitle !== null" class="column-manager-item create-column-inline">
+    <section class="entity-rows-list columns-manager-list">
+      <article v-if="newColumnDraftTitle !== null" class="entity-row columns-manager-item create-column-inline">
         <label class="create-card-inline-label">
           Column title
           <input
@@ -21,7 +21,7 @@
             @keydown.esc.prevent="closeNewColumnDraft"
           />
         </label>
-        <div class="column-create-actions">
+        <div class="entity-row-actions column-create-actions">
           <button type="button" class="btn" aria-label="Save new column" title="Save new column" @click="saveNewColumnDraft">
             Save
           </button>
@@ -34,15 +34,16 @@
       <article
         v-for="column in board.columns"
         :key="column.id"
-        class="column-manager-item draggable-column"
+        class="entity-row columns-manager-item draggable-column"
         :class="{ 'drag-over': dragOverColumnId === column.id }"
         @dragover="onColumnDragOver(column.id, $event)"
         @dragleave="onColumnDragLeave(column.id)"
         @drop="onColumnDrop(column.id, $event)"
       >
-        <div class="column-manager-header">
-          <h3 class="column-manager-title">{{ column.title }}</h3>
-          <div class="column-manager-actions">
+        <div class="entity-row-main">
+          <h3 class="entity-row-title">{{ column.title }}</h3>
+        </div>
+        <div class="entity-row-actions">
             <button type="button" class="btn btn--secondary" @click="openColumnEditor(column.id)">
               Edit
             </button>
@@ -57,7 +58,6 @@
             >
               <GripVertical :size="16" aria-hidden="true" />
             </div>
-          </div>
         </div>
       </article>
     </section>
@@ -210,3 +210,63 @@ watch(
   { immediate: true }
 );
 </script>
+
+<style scoped>
+.columns-manager-toolbar {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
+.columns-manager-list {
+  margin-top: 0;
+  max-width: 56rem;
+}
+
+.columns-manager-item {
+  gap: 0.5rem;
+}
+
+.create-column-inline {
+  border-style: dashed;
+}
+
+.column-create-actions {
+  justify-content: flex-end;
+}
+
+.columns-manager-item label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--bo-ink-default);
+}
+
+.column-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--bo-border-default);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--bo-link);
+  cursor: grab;
+  user-select: none;
+}
+
+.column-drag-handle:hover {
+  background: var(--bo-surface-energy);
+  border-color: var(--bo-colour-energy);
+  color: var(--bo-colour-energy);
+}
+
+.column-drag-handle:active {
+  cursor: grabbing;
+}
+
+.draggable-column.drag-over {
+  border-color: var(--bo-colour-secondary);
+  box-shadow: 0 0 0 2px rgba(105, 193, 206, 0.28);
+}
+</style>
