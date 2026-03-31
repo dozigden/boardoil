@@ -44,4 +44,3 @@ Default: one save per service operation unless a specific transactional reason r
 - Realtime notifications are emitted from services through `IBoardEvents`.
 - Clients should treat realtime as incremental and resync-safe after reconnects.
 - API auth uses JWT/cookies for user sessions.
-- MCP endpoint auth is PAT bearer-based through MCP-specific auth handling.

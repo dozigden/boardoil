@@ -4,7 +4,9 @@ This file defines how agents should manage work tracking and source control in t
 
 ## MCP Board Operations
 
-- Use `./scripts/board-mcp.sh` for board actions (avoid ad-hoc curl one-liners).
+- Use one of these scripts for board actions (and never any other method):
+  - `./scripts/board-mcp.sh` for general board operations.
+  - `./scripts/board-card-description-set-from-file.sh` for card description updates from a file.
 - Prefer script commands:
   - `board-get`
   - `board-cards`
@@ -16,7 +18,9 @@ This file defines how agents should manage work tracking and source control in t
 
 - Production board auth lives in global Codex config, not this repository.
 - Read `~/.codex/config.toml` under `[mcp_servers.boardoil]` for MCP URL and PAT value.
-- Pass explicit `--mcp-url` and `--token` to `board-mcp.sh` when environment variables are not set.
+- Pass explicit `--mcp-url` and `--token` to these scripts when environment variables are not set:
+  - `board-mcp.sh`
+  - `board-card-description-set-from-file.sh`
 
 ## Story Lifecycle Rules
 
