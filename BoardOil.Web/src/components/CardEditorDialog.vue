@@ -186,6 +186,12 @@ watch(
 </script>
 
 <style scoped>
+.dialog-title-with-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .card-editor-fields {
   display: flex;
   flex-direction: column;

@@ -26,7 +26,7 @@
       </header>
 
       <div class="column-content">
-        <article v-if="newCardDraftTitles[column.id] !== undefined" class="card create-card-inline">
+        <article v-if="newCardDraftTitles[column.id] !== undefined" class="create-card-inline">
           <label class="create-card-inline-label">
             Title
             <input
@@ -161,3 +161,165 @@ watch(
   { immediate: true }
 );
 </script>
+
+<style scoped>
+@keyframes bo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.board {
+  --column-min-width: 280px;
+  --column-max-width: 360px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(var(--column-min-width), var(--column-max-width));
+  grid-template-rows: 1fr;
+  gap: 1rem;
+  margin-top: 0;
+  align-items: start;
+  min-height: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  padding-inline: 1.5rem;
+  padding-bottom: 0;
+}
+
+.board-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: hidden;
+}
+
+.board-loading {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+}
+
+.board-loading-indicator {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--bo-border-default) 55%, transparent);
+  border-top-color: var(--bo-colour-brand);
+  animation: bo-spin 0.85s linear infinite;
+}
+
+.board-loading-label {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+
+.column {
+  background: var(--bo-surface-panel);
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 14px;
+  padding: 0.75rem 0.25rem 0.75rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  height: auto;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.column-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.column-name {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.column-add-card {
+  padding: 0.3rem;
+  margin-right: 0.5rem;
+}
+
+.column-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 0.5rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+}
+
+.column-content > .card {
+  margin-bottom: 0;
+}
+
+.column-content:hover,
+.column-content:focus-within {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bo-border-default) transparent;
+}
+
+.column-content::-webkit-scrollbar {
+  width: 0;
+}
+
+.column-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.column-content:hover::-webkit-scrollbar,
+.column-content:focus-within::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.column-content::-webkit-scrollbar-thumb {
+  background: transparent;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+.column-content:hover::-webkit-scrollbar-thumb,
+.column-content:focus-within::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--bo-border-default) 78%, transparent);
+}
+
+.create-card-inline {
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 12px;
+  padding: 0.6rem;
+  background: var(--bo-surface-base);
+  margin-bottom: 0.5rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.create-card-inline-label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.create-card-inline-actions {
+  justify-content: flex-end;
+}
+
+.create-card-save,
+.create-card-cancel {
+  padding: 0.4rem;
+}
+</style>
