@@ -66,3 +66,30 @@ function openEditor() {
   emit('edit-card', props.card.id);
 }
 </script>
+
+<style scoped>
+.card {
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 12px;
+  padding: 0.6rem;
+  background: var(--bo-surface-base);
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--bo-focus-ring);
+  outline-offset: 2px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.55rem;
+}
+
+.card-tags {
+  margin-top: 0.3rem;
+}
+</style>

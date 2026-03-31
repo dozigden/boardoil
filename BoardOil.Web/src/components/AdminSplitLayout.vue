@@ -49,3 +49,108 @@ withDefaults(defineProps<{
   backLabel: 'Back'
 });
 </script>
+
+<style scoped>
+.admin-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 1rem;
+  min-height: 0;
+  height: 100%;
+}
+
+.admin-nav {
+  background: var(--bo-surface-panel);
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 14px;
+  padding: 0.75rem;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  overflow-y: auto;
+}
+
+.admin-nav-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.admin-nav-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.admin-nav-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid var(--bo-border-default);
+  border-radius: 8px;
+  color: var(--bo-ink-default);
+  text-decoration: none;
+  background: var(--bo-surface-card);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.admin-nav-back:hover,
+.admin-nav-back:focus-visible {
+  background: var(--bo-surface-energy);
+  border-color: var(--bo-colour-energy);
+  color: var(--bo-colour-energy);
+}
+
+.admin-nav-links {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-nav-link {
+  display: block;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--bo-ink-default);
+  text-decoration: none;
+}
+
+.admin-nav-link:hover,
+.admin-nav-link:focus-visible {
+  background: var(--bo-surface-energy);
+  color: var(--bo-colour-energy);
+}
+
+.admin-nav-link--active {
+  background: var(--bo-surface-brand);
+  color: var(--bo-link);
+  border-color: var(--bo-border-brand);
+  font-weight: 700;
+}
+
+.admin-content {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bo-border-default) transparent;
+}
+
+@media (max-width: 720px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .admin-nav {
+    overflow: visible;
+  }
+
+  .admin-content {
+    overflow: visible;
+    padding-right: 0;
+  }
+}
+</style>

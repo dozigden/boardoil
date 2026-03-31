@@ -84,3 +84,56 @@ watch(
   { immediate: true }
 );
 </script>
+
+<style scoped>
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+}
+
+.app-shell--board {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-shell--admin {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-shell--page {
+  overflow-x: hidden;
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.app-shell--board .app-content {
+  overflow: hidden;
+}
+
+.app-shell--admin .app-content {
+  overflow: hidden;
+}
+
+.app-shell--page .app-content {
+  overflow: visible;
+}
+
+.app-content > * {
+  min-height: 0;
+  min-width: 0;
+}
+</style>

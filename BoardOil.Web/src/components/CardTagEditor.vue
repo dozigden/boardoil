@@ -237,6 +237,21 @@ async function resetTagEntry() {
 </script>
 
 <style scoped>
+.tag-pill-editable {
+  padding-right: 0.18rem;
+}
+
+.tag-pill-remove {
+  width: auto;
+  min-width: 1.1rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(53, 22, 90, 0.16);
+  color: inherit;
+  padding: 0.02rem 0.26rem;
+  line-height: 1;
+}
+
 .card-tag-editor-row {
   display: flex;
   align-items: center;
