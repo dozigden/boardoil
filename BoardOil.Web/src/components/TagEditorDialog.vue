@@ -282,3 +282,17 @@ watch(
   { immediate: true }
 );
 </script>
+
+<style scoped>
+.tags-dialog-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tags-colour-input {
+  min-height: 2.25rem;
+  padding: 0.2rem;
+}
+</style>
