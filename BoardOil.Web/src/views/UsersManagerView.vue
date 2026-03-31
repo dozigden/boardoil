@@ -14,6 +14,7 @@
     <section class="entity-rows-list">
       <article v-for="user in users" :key="user.id" class="entity-row">
         <div class="entity-row-main">
+          <span class="card-id">#{{ user.id }}</span>
           <strong class="entity-row-title">{{ user.userName }}</strong>
           <span class="entity-row-badges">
             <span class="card-id">{{ user.role }}</span>

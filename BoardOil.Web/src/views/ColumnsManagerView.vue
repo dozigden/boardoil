@@ -44,8 +44,14 @@
           <h3 class="entity-row-title">{{ column.title }}</h3>
         </div>
         <div class="entity-row-actions">
-            <button type="button" class="btn btn--secondary" @click="openColumnEditor(column.id)">
-              Edit
+            <button
+              type="button"
+              class="btn btn--secondary entity-row-action-icon"
+              aria-label="Edit column"
+              title="Edit column"
+              @click="openColumnEditor(column.id)"
+            >
+              <Pencil :size="16" aria-hidden="true" />
             </button>
             <div
               class="column-drag-handle"
@@ -65,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { GripVertical, Plus } from 'lucide-vue-next';
+import { GripVertical, Pencil, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -132,7 +138,7 @@ function onColumnDragStart(columnId: number, event: DragEvent) {
     event.dataTransfer.setData('text/plain', String(columnId));
 
     const handle = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
-    const columnCard = handle?.closest('.column-manager-item');
+    const columnCard = handle?.closest('.columns-manager-item');
     if (columnCard instanceof HTMLElement) {
       event.dataTransfer.setDragImage(columnCard, Math.floor(columnCard.clientWidth / 2), 20);
     }
