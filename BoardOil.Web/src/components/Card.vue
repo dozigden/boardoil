@@ -14,10 +14,10 @@
   >
     <div class="card-header">
       <strong>{{ card.title }}</strong>
-      <span class="card-id">#{{ card.id }}</span>
+      <span class="badge">#{{ card.id }}</span>
     </div>
 
-    <div v-if="card.tagNames.length > 0" class="card-tags" aria-label="Card tags">
+    <div v-if="card.tagNames.length > 0" class="card-tags tag-group" aria-label="Card tags">
       <Tag
         v-for="tagName in card.tagNames"
         :key="tagName"

@@ -13,8 +13,8 @@
         <details v-for="entry in licenceEntries" :key="entry.packageName" class="panel">
           <summary class="licence-summary">
             <span class="licence-package">{{ entry.packageName }}</span>
-            <span class="card-id">v{{ entry.version }}</span>
-            <span class="card-id">{{ entry.declaredLicence }}</span>
+            <span class="badge">v{{ entry.version }}</span>
+            <span class="badge">{{ entry.declaredLicence }}</span>
           </summary>
           <p v-if="entry.errorMessage" class="error">{{ entry.errorMessage }}</p>
           <pre v-else class="licence-text">{{ entry.text }}</pre>

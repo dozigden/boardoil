@@ -1,5 +1,5 @@
 <template>
-  <span class="tag-pill" :style="tagStyle">
+  <span class="tag" :style="tagStyle">
     <span>{{ tagName }}</span>
     <slot />
   </span>

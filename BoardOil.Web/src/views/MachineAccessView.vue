@@ -46,9 +46,9 @@
           <article v-for="token in tokens" :key="token.id" class="panel panel-stack panel-stack--compact machine-pat-item">
             <div class="machine-pat-item-header">
               <strong>{{ token.name }}</strong>
-              <span class="machine-pat-badges">
-                <span class="card-id">{{ tokenStatus(token) }}</span>
-                <span class="card-id">{{ token.tokenPrefix }}</span>
+              <span class="badge-group">
+                <span class="badge">{{ tokenStatus(token) }}</span>
+                <span class="badge">{{ token.tokenPrefix }}</span>
               </span>
             </div>
 
@@ -442,11 +442,3 @@ function sortTokens(items: MachinePat[]) {
   });
 }
 </script>
-
-<style scoped>
-.machine-pat-badges {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-</style>

@@ -10,8 +10,8 @@
       <article v-for="tagName in tagNames" :key="tagName" class="entity-row">
         <div class="entity-row-main">
           <h3 class="entity-row-title">{{ tagName }}</h3>
-          <span class="entity-row-badges">
-            <span class="tag-pill" :style="tagStyle(tagName)">
+          <span class="entity-row-badges tag-group">
+            <span class="tag" :style="tagStyle(tagName)">
               {{ tagName }}
             </span>
           </span>

@@ -2,8 +2,8 @@
   <ModalDialog :open="editingTag !== null" :title="dialogTitle" close-label="Cancel editing" @close="closeTagEditor" @submit="saveTag">
     <template v-if="editingTag && draft">
       <div class="tags-dialog-preview">
-        <span class="card-id">Preview</span>
-        <span class="tag-pill" :style="previewStyle">
+        <span class="badge">Preview</span>
+        <span class="tag" :style="previewStyle">
           {{ editingTag.name }}
         </span>
       </div>

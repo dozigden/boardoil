@@ -1,6 +1,6 @@
 <template>
   <div class="card-tag-editor-row">
-    <div class="card-tag-editor-pills" aria-live="polite">
+    <div class="card-tag-editor-pills tag-group" aria-live="polite">
       <Tag
         v-for="tagName in tagNamesModel"
         :key="tagName"
@@ -247,10 +247,6 @@ async function resetTagEntry() {
 }
 
 .card-tag-editor-pills {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
   flex: 0 1 auto;
   min-width: 0;
 }

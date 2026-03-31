@@ -38,7 +38,7 @@
             type="checkbox"
             @change="toggleBoard(board.id, ($event.target as HTMLInputElement).checked)"
           />
-          <span>{{ board.name }} <span class="card-id">#{{ board.id }}</span></span>
+          <span>{{ board.name }} <span class="badge">#{{ board.id }}</span></span>
         </label>
       </div>
     </fieldset>
