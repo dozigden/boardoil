@@ -1,4 +1,5 @@
 @import "./styles/buttons.css";
+@import "./styles/badges.css";
 @import "./styles/panels.css";
 @import "./styles/entity-rows.css";
 
@@ -703,16 +704,6 @@ body {
   gap: 0.45rem;
 }
 
-.card-id {
-  font-size: 0.75rem;
-  color: var(--bo-ink-muted);
-  background: var(--bo-surface-muted);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 999px;
-  padding: 0.12rem 0.45rem;
-  line-height: 1.2;
-}
-
 .card-title-trigger {
   width: auto;
   margin: 0;
@@ -742,26 +733,8 @@ body {
   white-space: pre-wrap;
 }
 
-.card-tags,
-.tag-editor-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
 .card-tags {
   margin-top: 0.3rem;
-}
-
-.tag-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 999px;
-  padding: 0.12rem 0.5rem;
-  font-size: 0.75rem;
-  line-height: 1.2;
 }
 
 .tag-pill-editable {

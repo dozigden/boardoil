@@ -14,7 +14,7 @@
           @click="closeSwitcher"
         >
           <span class="board-switcher-item-name">{{ boardSummary.name }}</span>
-          <span class="card-id board-switcher-item-meta">#{{ boardSummary.id }}</span>
+          <span class="badge board-switcher-item-meta">#{{ boardSummary.id }}</span>
         </RouterLink>
       </nav>
     </details>

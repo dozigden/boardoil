@@ -12,7 +12,7 @@
       <div class="configuration-row">
         <span class="configuration-label">Allow insecure cookies</span>
         <span class="configuration-value">
-          <span class="card-id">{{ configuration?.allowInsecureCookies ? 'Enabled' : 'Disabled' }}</span>
+          <span class="badge">{{ configuration?.allowInsecureCookies ? 'Enabled' : 'Disabled' }}</span>
         </span>
       </div>
       <p class="configuration-hint">
@@ -24,7 +24,7 @@
       <div class="configuration-row configuration-row--start">
         <span class="configuration-label">MCP public base URL override</span>
         <span class="configuration-value">
-          <span class="card-id">{{ configuration?.mcpPublicBaseUrl ? 'Override set' : 'Auto (relative)' }}</span>
+          <span class="badge">{{ configuration?.mcpPublicBaseUrl ? 'Override set' : 'Auto (relative)' }}</span>
         </span>
       </div>
       <p class="configuration-hint">

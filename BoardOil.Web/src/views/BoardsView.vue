@@ -19,7 +19,7 @@
       <li v-for="board in boards" :key="`${board.id}-${board.name}`">
         <div class="entity-row">
           <div class="entity-row-main">
-            <span class="card-id">#{{ board.id }}</span>
+            <span class="badge">#{{ board.id }}</span>
             <span class="entity-row-title">{{ board.name }}</span>
           </div>
           <div class="entity-row-actions">
