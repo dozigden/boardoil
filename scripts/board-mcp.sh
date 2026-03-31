@@ -77,6 +77,16 @@ ensure_token() {
   fi
 }
 
+require_positive_integer() {
+  local value="$1"
+  local label="$2"
+
+  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "$value" -le 0 ]; then
+    echo "Invalid $label: '$value'. Must be a positive integer." >&2
+    exit 1
+  fi
+}
+
 require_tool curl
 require_tool jq
 
@@ -110,6 +120,7 @@ if [ $# -eq 0 ]; then
 fi
 
 ensure_token
+require_positive_integer "$BOARD_ID" "--board-id"
 
 COMMAND="$1"
 shift
@@ -151,6 +162,7 @@ case "$COMMAND" in
       echo "card-move requires --card-id and --column-title." >&2
       exit 1
     fi
+    require_positive_integer "$card_id" "--card-id"
 
     payload="$(jq -cn --argjson boardId "$BOARD_ID" --argjson id "$card_id" --arg columnTitle "$column_title" '{jsonrpc:"2.0",id:"card-move",method:"tools/call",params:{name:"card.move_by_column_name",arguments:{boardId:$boardId,id:$id,columnTitle:$columnTitle}}}')"
     post_mcp "$payload" | jq
@@ -179,6 +191,7 @@ case "$COMMAND" in
       echo "card-description-set requires --card-id." >&2
       exit 1
     fi
+    require_positive_integer "$card_id" "--card-id"
 
     board_payload="$(jq -cn --argjson id "$BOARD_ID" '{jsonrpc:"2.0",id:"card-description-board-get",method:"tools/call",params:{name:"board.get",arguments:{id:$id}}}')"
     board_response="$(post_mcp "$board_payload")"
