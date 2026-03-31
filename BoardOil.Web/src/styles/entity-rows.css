@@ -55,8 +55,11 @@
 }
 
 .entity-row-main {
-  display: grid;
-  gap: 0.3rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.45rem;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -64,10 +67,12 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .entity-row-badges {
   display: inline-flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 0.35rem;
 }

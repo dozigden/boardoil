@@ -10,17 +10,31 @@
       <article v-for="tagName in tagNames" :key="tagName" class="entity-row">
         <div class="entity-row-main">
           <h3 class="entity-row-title">{{ tagName }}</h3>
+          <span class="entity-row-badges">
             <span class="tag-pill" :style="tagStyle(tagName)">
               {{ tagName }}
             </span>
+          </span>
         </div>
-        <button type="button" class="btn btn--secondary" :disabled="busy" @click="openEditor(tagName)">Edit</button>
+        <div class="entity-row-actions">
+          <button
+            type="button"
+            class="btn btn--secondary entity-row-action-icon"
+            :disabled="busy"
+            aria-label="Edit tag"
+            title="Edit tag"
+            @click="openEditor(tagName)"
+          >
+            <Pencil :size="16" aria-hidden="true" />
+          </button>
+        </div>
       </article>
     </section>
   </section>
 </template>
 
 <script setup lang="ts">
+import { Pencil } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
