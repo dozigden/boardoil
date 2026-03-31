@@ -30,6 +30,7 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
 - Use shared `busy` flags for operation progress.
 - Clear feedback errors on successful operations.
 - Route guards and auth checks should remain centralised through store/router integration.
+- Prefer canonical route paths in the router. Do not add legacy/back-compat or convenience redirect/alias routes; 
 - Avoid introductory “wall of text” at the top of pages; interfaces should generally stand on their own unless short context is essential.
 - Use the shared button styles in `BoardOil.Web/src/styles/buttons.css` (`.btn`, `.btn--secondary`, `.btn--danger`, etc.) instead of creating one-off button variants per view.
 - Prefer `.btn.btn--tab` for tab toggles.

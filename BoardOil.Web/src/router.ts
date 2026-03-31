@@ -119,34 +119,6 @@ const routes: RouteRecordRaw[] = [
     ]
   },
   {
-    path: '/boards/:boardId(\\d+)/columns',
-    redirect: to => ({ name: 'columns', params: { boardId: to.params.boardId } })
-  },
-  {
-    path: '/boards/:boardId(\\d+)/columns/:columnId(\\d+)',
-    redirect: to => ({ name: 'columns-column', params: { boardId: to.params.boardId, columnId: to.params.columnId } })
-  },
-  {
-    path: '/users',
-    redirect: { name: 'users' }
-  },
-  {
-    path: '/machine-access',
-    redirect: { name: 'machine-access' }
-  },
-  {
-    path: '/configuration',
-    redirect: { name: 'configuration' }
-  },
-  {
-    path: '/tags',
-    redirect: { name: 'boards' }
-  },
-  {
-    path: '/tags/:tagId(\\d+)',
-    redirect: { name: 'boards' }
-  },
-  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }
