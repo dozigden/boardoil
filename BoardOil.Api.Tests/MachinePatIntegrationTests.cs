@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
+using Microsoft.Data.Sqlite;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -213,6 +214,73 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PatAuth_WhenLastUsedAtIsAlreadyToday_ShouldNotRewriteTimestamp()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/auth/machine/pats",
+            new CreateMachinePatRequest("throttle-same-day-token", 30, ["mcp:read"], "selected", [1]));
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
+        Assert.NotNull(created);
+        Assert.NotNull(created!.Data);
+
+        var todayStartUtc = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+        await SetPatLastUsedAtUtcAsync(created.Data!.Token.Id, todayStartUtc);
+
+        // Act
+        var toolsListResponse = await SendMcpRequestAsync(
+            adminClient,
+            created.Data.PlainTextToken,
+            "tools/list",
+            new { },
+            "tools-list-throttle-same-day");
+        var tokenAfterCall = await GetMachinePatByIdAsync(adminClient, created.Data.Token.Id);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, toolsListResponse.StatusCode);
+        Assert.NotNull(tokenAfterCall);
+        Assert.NotNull(tokenAfterCall!.LastUsedAtUtc);
+        Assert.Equal(todayStartUtc.Date, tokenAfterCall.LastUsedAtUtc.Value.Date);
+        Assert.Equal(TimeSpan.Zero, tokenAfterCall.LastUsedAtUtc.Value.TimeOfDay);
+    }
+
+    [Fact]
+    public async Task PatAuth_WhenLastUsedAtIsFromPreviousDay_ShouldRewriteTimestamp()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/auth/machine/pats",
+            new CreateMachinePatRequest("throttle-stale-token", 30, ["mcp:read"], "selected", [1]));
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
+        Assert.NotNull(created);
+        Assert.NotNull(created!.Data);
+
+        var yesterdayStartUtc = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-1), DateTimeKind.Utc);
+        await SetPatLastUsedAtUtcAsync(created.Data!.Token.Id, yesterdayStartUtc);
+
+        // Act
+        var toolsListResponse = await SendMcpRequestAsync(
+            adminClient,
+            created.Data.PlainTextToken,
+            "tools/list",
+            new { },
+            "tools-list-throttle-stale-day");
+        var tokenAfterCall = await GetMachinePatByIdAsync(adminClient, created.Data.Token.Id);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, toolsListResponse.StatusCode);
+        Assert.NotNull(tokenAfterCall);
+        Assert.NotNull(tokenAfterCall!.LastUsedAtUtc);
+        Assert.NotEqual(yesterdayStartUtc.Date, tokenAfterCall.LastUsedAtUtc.Value.Date);
+    }
+
+    [Fact]
     public async Task PatLoginEndpoint_ShouldReturnNotFound()
     {
         // Arrange
@@ -245,6 +313,31 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var root = Path.Combine(Directory.GetCurrentDirectory(), ".test-data");
         Directory.CreateDirectory(root);
         return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
+    }
+
+    private async Task SetPatLastUsedAtUtcAsync(int tokenId, DateTime? lastUsedAtUtc)
+    {
+        await using var connection = new SqliteConnection($"Data Source={_databasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE "PersonalAccessTokens"
+            SET "LastUsedAtUtc" = $lastUsedAtUtc
+            WHERE "Id" = $id;
+            """;
+        command.Parameters.AddWithValue("$id", tokenId);
+        command.Parameters.AddWithValue("$lastUsedAtUtc", lastUsedAtUtc is null ? DBNull.Value : lastUsedAtUtc.Value);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<MachinePatEnvelope?> GetMachinePatByIdAsync(HttpClient client, int tokenId)
+    {
+        var listResponse = await client.GetAsync("/api/auth/machine/pats");
+        var listEnvelope = await listResponse.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<MachinePatEnvelope>>>();
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.NotNull(listEnvelope);
+        Assert.NotNull(listEnvelope!.Data);
+        return listEnvelope.Data!.SingleOrDefault(token => token.Id == tokenId);
     }
 
     private sealed record LoginRequest(string UserName, string Password);

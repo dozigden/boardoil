@@ -65,8 +65,13 @@ public sealed class McpPatAuthenticationHandler(
             return AuthenticateResult.Fail("Personal access token does not allow MCP access.");
         }
 
-        personalAccessToken.LastUsedAtUtc = now;
-        await scope.SaveChangesAsync();
+        var shouldUpdateLastUsedAt = !personalAccessToken.LastUsedAtUtc.HasValue
+            || personalAccessToken.LastUsedAtUtc.Value.Date < now.Date;
+        if (shouldUpdateLastUsedAt)
+        {
+            personalAccessToken.LastUsedAtUtc = now;
+            await scope.SaveChangesAsync();
+        }
 
         var claims = new List<Claim>
         {
