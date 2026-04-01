@@ -526,7 +526,7 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
-    public async Task TagEndpoints_ShouldPatchTagStyles()
+    public async Task TagEndpoints_ShouldUpdateTagStyles()
     {
         // Arrange
         await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
@@ -537,13 +537,13 @@ public sealed class BoardApiIntegrationTests
         var bugTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "Bug");
 
         // Act
-        var patchResponse = await Client.PatchAsJsonAsync(
+        var putResponse = await Client.PutAsJsonAsync(
             $"/api/boards/1/tags/{bugTag.Id}",
             request);
-        patchResponse.EnsureSuccessStatusCode();
+        putResponse.EnsureSuccessStatusCode();
 
         // Assert
-        var patchedTagEnvelope = await patchResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
+        var patchedTagEnvelope = await putResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
         Assert.NotNull(patchedTagEnvelope);
         Assert.NotNull(patchedTagEnvelope!.Data);
         Assert.Equal("gradient", patchedTagEnvelope.Data!.StyleName);
@@ -566,11 +566,11 @@ public sealed class BoardApiIntegrationTests
             """{"backgroundColor":"#223344","textColorMode":"auto"}""");
 
         // Act
-        var patchResponse = await Client.PatchAsJsonAsync($"/api/boards/1/tags/{bugTagId}", request);
-        patchResponse.EnsureSuccessStatusCode();
+        var putResponse = await Client.PutAsJsonAsync($"/api/boards/1/tags/{bugTagId}", request);
+        putResponse.EnsureSuccessStatusCode();
 
         // Assert
-        var patchedTagEnvelope = await patchResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
+        var patchedTagEnvelope = await putResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
         Assert.NotNull(patchedTagEnvelope);
         Assert.NotNull(patchedTagEnvelope!.Data);
         Assert.Null(patchedTagEnvelope.Data!.Emoji);
@@ -583,7 +583,7 @@ public sealed class BoardApiIntegrationTests
         var request = new UpdateTagStyleRequest("solid", """{"backgroundColor":"#223344","textColorMode":"auto"}""");
 
         // Act
-        var response = await Client.PatchAsJsonAsync("/api/boards/1/tags/999999", request);
+        var response = await Client.PutAsJsonAsync("/api/boards/1/tags/999999", request);
         var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
 
         // Assert

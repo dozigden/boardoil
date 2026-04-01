@@ -273,7 +273,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task StandardUser_PatchTagStyle_ShouldReturnOk()
+    public async Task StandardUser_UpdateTagStyle_ShouldReturnOk()
     {
         // Arrange
         var adminClient = _factory.CreateClient();
@@ -288,7 +288,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var memberTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "member");
 
         // Act
-        var response = await standardClient.PatchAsJsonAsync(
+        var response = await standardClient.PutAsJsonAsync(
             $"/api/boards/1/tags/{memberTag.Id}",
             new UpdateTagStyleRequest(
                 StyleName: "solid",

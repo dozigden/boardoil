@@ -145,7 +145,7 @@ export function createBoardApi() {
       payload.emoji = emoji;
     }
 
-    return patchData<Tag>(`/api/boards/${boardId}/tags/${tagId}`, payload);
+    return putData<Tag>(`/api/boards/${boardId}/tags/${tagId}`, payload);
   }
 
   async function deleteTag(boardId: number, tagId: number): Promise<Result<void, AppError>> {
