@@ -11,7 +11,7 @@ import type {
   MachinePat,
   ManagedUser
 } from '../types/authTypes';
-import { deleteJson, getEnvelope, patchData, postData, postJson } from './http';
+import { deleteJson, getEnvelope, postData, postJson, putData } from './http';
 
 export type AuthApi = ReturnType<typeof createAuthApi>;
 
@@ -80,11 +80,11 @@ export function createAuthApi() {
   }
 
   async function updateUserRole(userId: number, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
-    return patchData<ManagedUser>(`/api/users/${userId}/role`, { role });
+    return putData<ManagedUser>(`/api/users/${userId}/role`, { role });
   }
 
   async function updateUserStatus(userId: number, isActive: boolean): Promise<Result<ManagedUser, AppError>> {
-    return patchData<ManagedUser>(`/api/users/${userId}/status`, { isActive });
+    return putData<ManagedUser>(`/api/users/${userId}/status`, { isActive });
   }
 
   async function getMachinePats(): Promise<Result<MachinePat[], AppError>> {
