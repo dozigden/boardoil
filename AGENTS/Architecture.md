@@ -30,6 +30,11 @@ This file captures the current runtime architecture so agents can orient quickly
 
 Default: one save per service operation unless a specific transactional reason requires otherwise.
 
+## Endpoint Verb Preference
+
+- For update endpoints, generally prefer `PUT` over `PATCH`.
+- Use `PATCH` only when the endpoint is intentionally a partial-update contract.
+
 ## Boundaries
 
 - Repositories:
