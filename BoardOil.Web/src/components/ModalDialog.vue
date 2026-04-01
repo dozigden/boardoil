@@ -93,6 +93,7 @@ onBeforeUnmount(() => {
   border-radius: 14px;
   padding: 0;
   background: transparent;
+  overflow: visible;
 }
 
 .card-modal.card-modal-md {
@@ -127,6 +128,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--bo-border-soft);
   border-radius: 14px;
   padding: 1rem;
+  overflow: visible;
 }
 
 .card-modal-close {

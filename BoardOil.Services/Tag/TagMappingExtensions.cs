@@ -11,6 +11,7 @@ public static class TagMappingExtensions
             tag.Name,
             tag.StyleName,
             tag.StylePropertiesJson,
+            tag.Emoji,
             tag.CreatedAtUtc,
             tag.UpdatedAtUtc);
 }

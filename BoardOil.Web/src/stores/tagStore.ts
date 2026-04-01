@@ -88,6 +88,7 @@ export const useTagStore = defineStore('tag', () => {
     tagId: number,
     styleName: TagStyleName,
     stylePropertiesJson: string,
+    emoji?: string | null,
     boardId: number | null = activeBoardId.value
   ) {
     const resolvedBoardId = resolveBoardId(boardId);
@@ -95,7 +96,7 @@ export const useTagStore = defineStore('tag', () => {
       return null;
     }
 
-    const result = await runBusy(() => api.updateTagStyle(resolvedBoardId, tagId, styleName, stylePropertiesJson));
+    const result = await runBusy(() => api.updateTagStyle(resolvedBoardId, tagId, styleName, stylePropertiesJson, emoji));
     if (!result.ok) {
       return null;
     }

@@ -121,20 +121,31 @@ export function createBoardApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
-  async function createTag(boardId: number, name: string): Promise<Result<Tag, AppError>> {
-    return postData<Tag>(`/api/boards/${boardId}/tags`, { name });
+  async function createTag(boardId: number, name: string, emoji?: string | null): Promise<Result<Tag, AppError>> {
+    const payload: { name: string; emoji?: string | null } = { name };
+    if (emoji !== undefined) {
+      payload.emoji = emoji;
+    }
+
+    return postData<Tag>(`/api/boards/${boardId}/tags`, payload);
   }
 
   async function updateTagStyle(
     boardId: number,
     tagId: number,
     styleName: TagStyleName,
-    stylePropertiesJson: string
+    stylePropertiesJson: string,
+    emoji?: string | null
   ): Promise<Result<Tag, AppError>> {
-    return patchData<Tag>(`/api/boards/${boardId}/tags/${tagId}`, {
+    const payload: { styleName: TagStyleName; stylePropertiesJson: string; emoji?: string | null } = {
       styleName,
       stylePropertiesJson
-    });
+    };
+    if (emoji !== undefined) {
+      payload.emoji = emoji;
+    }
+
+    return patchData<Tag>(`/api/boards/${boardId}/tags/${tagId}`, payload);
   }
 
   async function deleteTag(boardId: number, tagId: number): Promise<Result<void, AppError>> {

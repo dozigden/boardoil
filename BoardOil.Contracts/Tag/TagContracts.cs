@@ -5,21 +5,25 @@ public sealed record TagDto(
     string Name,
     string StyleName,
     string StylePropertiesJson,
+    string? Emoji,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
 public sealed record UpdateTagStyleRequest(
     string StyleName,
-    string StylePropertiesJson);
+    string StylePropertiesJson,
+    string? Emoji = null);
 
 public sealed record CreateTagRequest(
-    string Name);
+    string Name,
+    string? Emoji = null);
 
 public sealed record TagRecord(
     string Name,
     string NormalisedName,
     string StyleName,
     string StylePropertiesJson,
+    string? Emoji,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
@@ -28,6 +32,7 @@ public sealed record CreateTagRecord(
     string NormalisedName,
     string StyleName,
     string StylePropertiesJson,
+    string? Emoji,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
@@ -36,4 +41,5 @@ public sealed record UpdateTagRecord(
     string NormalisedName,
     string StyleName,
     string StylePropertiesJson,
+    string? Emoji,
     DateTime UpdatedAtUtc);

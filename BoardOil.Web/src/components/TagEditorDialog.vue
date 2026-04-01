@@ -3,10 +3,18 @@
     <template v-if="editingTag && draft">
       <div class="tags-dialog-preview">
         <span class="badge">Preview</span>
-        <span class="tag" :style="previewStyle">
+        <span class="tag" :class="{ 'tag--with-emoji': previewEmoji }" :style="previewStyle" :aria-label="editingTag.name">
+          <span v-if="previewEmoji" class="tag-emoji" aria-hidden="true">{{ previewEmoji }}</span>
           {{ editingTag.name }}
         </span>
       </div>
+
+      <label>
+        Emoji
+        <div class="tags-emoji-picker-wrap">
+          <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" placeholder="Select emoji" />
+        </div>
+      </label>
 
       <label>
         Style
@@ -100,8 +108,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
 import type { TagStyleName } from '../types/boardTypes';
-import { buildStylePropertiesJsonFromDraft, createTagStyleDraft, getTagPillStyle } from '../utils/tagStyles';
+import { buildStylePropertiesJsonFromDraft, createTagStyleDraft, getTagPillStyle, normaliseTagEmojiForRender } from '../utils/tagStyles';
 import type { TagStyleDraft } from '../utils/tagStyles';
+import EmojiPickerDropdown from './EmojiPickerDropdown.vue';
 import ModalDialog from './ModalDialog.vue';
 
 const route = useRoute();
@@ -111,6 +120,7 @@ const tagStore = useTagStore();
 const { busy } = storeToRefs(tagStore);
 const { updateTagStyle, deleteTag, getTagById, loadTags } = tagStore;
 const draft = ref<TagStyleDraft | null>(null);
+const draftEmoji = ref<string | null>(null);
 const attemptedLoad = ref(false);
 
 const routeTagId = computed<number | null>(() => {
@@ -150,10 +160,12 @@ const previewStyle = computed(() => {
     name: editingTag.value.name,
     styleName: draft.value.styleName,
     stylePropertiesJson: buildStylePropertiesJsonFromDraft(draft.value),
+    emoji: normaliseTagEmojiForRender(draftEmoji.value),
     createdAtUtc: editingTag.value.createdAtUtc,
     updatedAtUtc: editingTag.value.updatedAtUtc
   });
 });
+const previewEmoji = computed(() => normaliseTagEmojiForRender(draftEmoji.value));
 
 async function closeTagEditor() {
   const boardId = routeBoardId.value;
@@ -212,6 +224,7 @@ async function saveTag() {
     editingTag.value.id,
     draft.value.styleName,
     buildStylePropertiesJsonFromDraft(draft.value),
+    draftEmoji.value,
     routeBoardId.value
   );
   if (!updatedTag) {
@@ -269,6 +282,7 @@ watch(
 
     if (!nextTag) {
       draft.value = null;
+      draftEmoji.value = null;
       if (hasAttemptedLoad) {
         void router.replace({ name: 'tags', params: { boardId: nextBoardId } });
       }
@@ -277,6 +291,7 @@ watch(
 
     if (previousTagId !== nextTagId || draft.value === null) {
       draft.value = createTagStyleDraft(nextTag);
+      draftEmoji.value = nextTag.emoji ?? null;
     }
   },
   { immediate: true }
@@ -294,5 +309,9 @@ watch(
 .tags-colour-input {
   min-height: 2.25rem;
   padding: 0.2rem;
+}
+
+.tags-emoji-picker-wrap {
+  margin-top: 0.3rem;
 }
 </style>

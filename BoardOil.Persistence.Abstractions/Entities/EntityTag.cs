@@ -8,6 +8,7 @@ public sealed class EntityTag
     public string NormalisedName { get; set; } = string.Empty;
     public string StyleName { get; set; } = string.Empty;
     public string StylePropertiesJson { get; set; } = string.Empty;
+    public string? Emoji { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
 

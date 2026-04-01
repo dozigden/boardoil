@@ -39,9 +39,21 @@ public sealed class TagService(
         }
 
         var tagValidation = ValidateTagName(request.Name, "name");
+        var emojiValidation = TagEmojiValidator.ValidateAndNormalise(request.Emoji, "emoji");
+        var createValidationErrors = new List<ValidationError>();
         if (tagValidation.Error is not null)
         {
-            return ValidationFail([tagValidation.Error]);
+            createValidationErrors.Add(tagValidation.Error);
+        }
+
+        if (emojiValidation.Error is not null)
+        {
+            createValidationErrors.Add(emojiValidation.Error);
+        }
+
+        if (createValidationErrors.Count > 0)
+        {
+            return ValidationFail(createValidationErrors);
         }
 
         var existing = await tagRepository.GetByNormalisedNameAsync(boardId, tagValidation.NormalisedName);
@@ -58,6 +70,7 @@ public sealed class TagService(
             NormalisedName = tagValidation.NormalisedName,
             StyleName = TagStyleSchemaValidator.SolidStyleName,
             StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(),
+            Emoji = emojiValidation.CanonicalEmoji,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         });
@@ -88,10 +101,18 @@ public sealed class TagService(
             return ValidationFail([new ValidationError("styleName", "Style name must be 'solid' or 'gradient'.")]);
         }
 
+        var emojiValidation = TagEmojiValidator.ValidateAndNormalise(request.Emoji, "emoji");
         var styleValidationErrors = TagStyleSchemaValidator.Validate(normalisedStyleName, request.StylePropertiesJson);
-        if (styleValidationErrors.Count > 0)
+        if (emojiValidation.Error is not null || styleValidationErrors.Count > 0)
         {
-            return ValidationFail(styleValidationErrors);
+            var validationErrors = new List<ValidationError>();
+            if (emojiValidation.Error is not null)
+            {
+                validationErrors.Add(emojiValidation.Error);
+            }
+
+            validationErrors.AddRange(styleValidationErrors);
+            return ValidationFail(validationErrors);
         }
 
         var existing = await tagRepository.GetByIdInBoardAsync(boardId, tagId);
@@ -103,6 +124,7 @@ public sealed class TagService(
         var updatedAtUtc = DateTime.UtcNow;
         existing.StyleName = normalisedStyleName;
         existing.StylePropertiesJson = request.StylePropertiesJson;
+        existing.Emoji = emojiValidation.CanonicalEmoji;
         existing.UpdatedAtUtc = updatedAtUtc;
 
         await scope.SaveChangesAsync();

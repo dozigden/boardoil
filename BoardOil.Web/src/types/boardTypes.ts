@@ -16,6 +16,7 @@ export type Tag = {
   name: string;
   styleName: TagStyleName;
   stylePropertiesJson: string;
+  emoji: string | null;
   createdAtUtc: string;
   updatedAtUtc: string;
 };
