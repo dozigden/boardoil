@@ -11,9 +11,7 @@
         <div class="entity-row-main">
           <h3 class="entity-row-title">{{ tagName }}</h3>
           <span class="entity-row-badges tag-group">
-            <span class="tag" :style="tagStyle(tagName)">
-              {{ tagName }}
-            </span>
+            <Tag :tag-name="tagName" />
           </span>
         </div>
         <div class="entity-row-actions">
@@ -39,10 +37,9 @@ import { storeToRefs } from 'pinia';
 import { computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
+import Tag from '../components/Tag.vue';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
-import { DEFAULT_TAG_STYLE_PROPERTIES_JSON, getTagPillStyle } from '../utils/tagStyles';
-import type { Tag } from '../types/boardTypes';
 
 const router = useRouter();
 const route = useRoute();
@@ -104,25 +101,6 @@ async function openEditor(tagName: string) {
   }
 
   await router.push({ name: 'tags-tag', params: { boardId: routeBoardId.value, tagId: existingTag.id } });
-}
-
-function tagStyle(tagName: string) {
-  return getTagPillStyle(resolveTag(tagName));
-}
-
-function resolveTag(tagName: string | null): Tag | null {
-  if (tagName === null) {
-    return null;
-  }
-
-  return getTagByName(tagName) ?? {
-    id: -1,
-    name: tagName,
-    styleName: 'solid',
-    stylePropertiesJson: DEFAULT_TAG_STYLE_PROPERTIES_JSON,
-    createdAtUtc: '',
-    updatedAtUtc: ''
-  };
 }
 
 function normaliseTagNameKey(tagName: string) {

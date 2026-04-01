@@ -495,7 +495,7 @@ public sealed class BoardApiIntegrationTests
     public async Task TagEndpoints_ShouldCreateTag()
     {
         // Arrange
-        var request = new CreateTagRequest("Bug");
+        var request = new CreateTagRequest("Bug", "🐞");
 
         // Act
         var createResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", request);
@@ -506,6 +506,7 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(createdTagEnvelope);
         Assert.NotNull(createdTagEnvelope!.Data);
         Assert.Equal("Bug", createdTagEnvelope.Data!.Name);
+        Assert.Equal("🐞", createdTagEnvelope.Data.Emoji);
         Assert.Equal(201, createdTagEnvelope.StatusCode);
     }
 
@@ -529,7 +530,7 @@ public sealed class BoardApiIntegrationTests
     {
         // Arrange
         await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
-        var request = new UpdateTagStyleRequest("gradient", """{"leftColor":"#223344","rightColor":"#446688","textColorMode":"auto"}""");
+        var request = new UpdateTagStyleRequest("gradient", """{"leftColor":"#223344","rightColor":"#446688","textColorMode":"auto"}""", "⚠️");
         var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags", JsonOptions);
         Assert.NotNull(tagsEnvelope);
         Assert.NotNull(tagsEnvelope!.Data);
@@ -546,6 +547,33 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(patchedTagEnvelope);
         Assert.NotNull(patchedTagEnvelope!.Data);
         Assert.Equal("gradient", patchedTagEnvelope.Data!.StyleName);
+        Assert.Equal("⚠️", patchedTagEnvelope.Data.Emoji);
+    }
+
+    [Fact]
+    public async Task TagEndpoints_WhenEmojiOmitted_ShouldClearExistingEmoji()
+    {
+        // Arrange
+        var createResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("Bug", "🔥"));
+        createResponse.EnsureSuccessStatusCode();
+        var createdTagEnvelope = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
+        Assert.NotNull(createdTagEnvelope);
+        Assert.NotNull(createdTagEnvelope!.Data);
+        var bugTagId = createdTagEnvelope.Data!.Id;
+
+        var request = new UpdateTagStyleRequest(
+            "solid",
+            """{"backgroundColor":"#223344","textColorMode":"auto"}""");
+
+        // Act
+        var patchResponse = await Client.PatchAsJsonAsync($"/api/boards/1/tags/{bugTagId}", request);
+        patchResponse.EnsureSuccessStatusCode();
+
+        // Assert
+        var patchedTagEnvelope = await patchResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
+        Assert.NotNull(patchedTagEnvelope);
+        Assert.NotNull(patchedTagEnvelope!.Data);
+        Assert.Null(patchedTagEnvelope.Data!.Emoji);
     }
 
     [Fact]

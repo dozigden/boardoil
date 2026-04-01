@@ -50,6 +50,14 @@
       "outputFile": "THIRD_PARTY_LICENSES/npm-tiptap-vue-3.txt"
     },
     {
+      "packageName": "emoji-picker-element",
+      "version": "1.29.1",
+      "declaredLicence": "Apache-2.0",
+      "sourceType": "package",
+      "sourceFile": "node_modules/emoji-picker-element/LICENSE",
+      "outputFile": "THIRD_PARTY_LICENSES/npm-emoji-picker-element.txt"
+    },
+    {
       "packageName": "lucide-vue-next",
       "version": "0.577.0",
       "declaredLicence": "ISC",

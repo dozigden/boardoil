@@ -17,6 +17,11 @@ const AUTO_TEXT_COLOR_DARK = '#111827';
 
 export const DEFAULT_TAG_STYLE_PROPERTIES_JSON = '{"backgroundColor":"#69C1CE","textColorMode":"auto"}';
 
+export function normaliseTagEmojiForRender(rawEmoji: string | null | undefined): string | null {
+  const trimmed = rawEmoji?.trim() ?? '';
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export function createTagStyleDraft(tag: Tag): TagStyleDraft {
   const styleName: TagStyleName = tag.styleName === 'gradient' ? 'gradient' : 'solid';
   const styleProperties = parseStyleProperties(tag.stylePropertiesJson);

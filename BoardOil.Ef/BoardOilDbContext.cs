@@ -67,6 +67,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         tag.Property(x => x.NormalisedName).HasMaxLength(40).IsRequired();
         tag.Property(x => x.StyleName).HasMaxLength(32).IsRequired();
         tag.Property(x => x.StylePropertiesJson).IsRequired();
+        tag.Property(x => x.Emoji).HasMaxLength(32).IsRequired(false);
         tag.ToTable("Tags");
         tag.HasIndex(x => x.BoardId);
         tag.HasIndex(x => new { x.BoardId, x.NormalisedName }).IsUnique();

@@ -58,6 +58,28 @@ public sealed class TagServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task CreateTagAsync_WhenEmojiProvided_ShouldPersistEmoji()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var service = CreateService();
+
+        // Act
+        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug", "🐞"));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("🐞", result.Data!.Emoji);
+
+        var stored = await DbContextForAssert.Tags.SingleAsync();
+        Assert.Equal("🐞", stored.Emoji);
+    }
+
+    [Fact]
     public async Task CreateTagAsync_WhenTagAlreadyExists_ShouldReturnExistingTag()
     {
         // Arrange
@@ -240,6 +262,127 @@ public sealed class TagServiceTests : TestBaseDb
         var stored = await DbContextForAssert.Tags.SingleAsync();
         Assert.Equal("gradient", stored.StyleName);
         Assert.Equal(updatedStylePropertiesJson, stored.StylePropertiesJson);
+    }
+
+    [Fact]
+    public async Task UpdateTagStyleAsync_WhenEmojiInvalid_ShouldReturnValidationError()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            StyleName: "solid",
+            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            Emoji: "not-emoji"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("emoji"));
+    }
+
+    [Fact]
+    public async Task UpdateTagStyleAsync_WhenEmojiProvided_ShouldPersistOrClearEmoji()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            Emoji = "🔥",
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
+        var service = CreateService();
+
+        // Act
+        var setEmojiResult = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            StyleName: "solid",
+            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            Emoji: "⚠️"));
+        var clearEmojiResult = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            StyleName: "solid",
+            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            Emoji: "   "));
+
+        // Assert
+        Assert.True(setEmojiResult.Success);
+        Assert.NotNull(setEmojiResult.Data);
+        Assert.Equal("⚠️", setEmojiResult.Data!.Emoji);
+
+        Assert.True(clearEmojiResult.Success);
+        Assert.NotNull(clearEmojiResult.Data);
+        Assert.Null(clearEmojiResult.Data!.Emoji);
+
+        var stored = await DbContextForAssert.Tags.SingleAsync();
+        Assert.Null(stored.Emoji);
+    }
+
+    [Fact]
+    public async Task UpdateTagStyleAsync_WhenEmojiOmitted_ShouldClearExistingEmoji()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            Emoji = "🔥",
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            StyleName: "gradient",
+            StylePropertiesJson: """{"leftColor":"#113355","rightColor":"#557799","textColorMode":"auto"}"""));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Null(result.Data!.Emoji);
+
+        var stored = await DbContextForAssert.Tags.SingleAsync();
+        Assert.Null(stored.Emoji);
     }
 
     [Fact]
