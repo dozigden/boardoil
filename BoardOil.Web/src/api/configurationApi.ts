@@ -2,7 +2,7 @@ import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import type { ConfigurationDto, UpdateConfigurationRequest } from '../types/configurationTypes';
-import { getEnvelope, patchData } from './http';
+import { getEnvelope, putData } from './http';
 
 export function createConfigurationApi() {
   async function getConfiguration(): Promise<Result<ConfigurationDto, AppError>> {
@@ -22,7 +22,7 @@ export function createConfigurationApi() {
   }
 
   async function updateConfiguration(request: UpdateConfigurationRequest): Promise<Result<ConfigurationDto, AppError>> {
-    return patchData<ConfigurationDto>('/api/configuration', request);
+    return putData<ConfigurationDto>('/api/configuration', request);
   }
 
   return {

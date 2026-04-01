@@ -52,10 +52,10 @@ public static class AuthEndpoints
         app.MapPost("/api/users", (CreateUserRequest request, IUserAdminService userAdminService) =>
                 userAdminService.CreateUserAsync(request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
-        app.MapPatch("/api/users/{id:int}/role", (int id, UpdateUserRoleRequest request, IUserAdminService userAdminService) =>
+        app.MapPut("/api/users/{id:int}/role", (int id, UpdateUserRoleRequest request, IUserAdminService userAdminService) =>
                 userAdminService.UpdateUserRoleAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
-        app.MapPatch("/api/users/{id:int}/status", (int id, UpdateUserStatusRequest request, IUserAdminService userAdminService) =>
+        app.MapPut("/api/users/{id:int}/status", (int id, UpdateUserStatusRequest request, IUserAdminService userAdminService) =>
                 userAdminService.UpdateUserStatusAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 

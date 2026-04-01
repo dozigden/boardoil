@@ -379,7 +379,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
-        var response = await standardClient.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
+        var response = await standardClient.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -393,16 +393,16 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
 
         // Act
-        var patchResponse = await adminClient.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com/"));
-        var patchEnvelope = await patchResponse.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
+        var putResponse = await adminClient.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com/"));
+        var putEnvelope = await putResponse.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
         var getResponse = await adminClient.GetAsync("/api/configuration");
         var getEnvelope = await getResponse.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, patchResponse.StatusCode);
-        Assert.NotNull(patchEnvelope);
-        Assert.NotNull(patchEnvelope!.Data);
-        Assert.Equal("https://boardoil.example.com", patchEnvelope.Data!.McpPublicBaseUrl);
+        Assert.Equal(HttpStatusCode.OK, putResponse.StatusCode);
+        Assert.NotNull(putEnvelope);
+        Assert.NotNull(putEnvelope!.Data);
+        Assert.Equal("https://boardoil.example.com", putEnvelope.Data!.McpPublicBaseUrl);
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
         Assert.NotNull(getEnvelope);
         Assert.NotNull(getEnvelope!.Data);
@@ -415,11 +415,11 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         // Arrange
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        var seedResponse = await adminClient.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
+        var seedResponse = await adminClient.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
         seedResponse.EnsureSuccessStatusCode();
 
         // Act
-        var clearResponse = await adminClient.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest(null));
+        var clearResponse = await adminClient.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest(null));
         var clearEnvelope = await clearResponse.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
 
         // Assert
@@ -441,7 +441,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
 
         // Act
-        var response = await adminClient.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest(invalidValue));
+        var response = await adminClient.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest(invalidValue));
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
 
         // Assert

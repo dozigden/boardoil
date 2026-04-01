@@ -13,7 +13,7 @@ public static class ConfigurationEndpoints
                 (await configurationService.GetConfigurationAsync()).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
-        app.MapPatch("/api/configuration", async (UpdateConfigurationRequest request, IConfigurationService configurationService) =>
+        app.MapPut("/api/configuration", async (UpdateConfigurationRequest request, IConfigurationService configurationService) =>
                 (await configurationService.UpdateConfigurationAsync(request)).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly);
 

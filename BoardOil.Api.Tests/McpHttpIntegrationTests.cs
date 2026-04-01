@@ -148,8 +148,8 @@ public sealed class McpHttpIntegrationTests : IAsyncLifetime
         // Arrange
         var client = _factory.CreateClient();
         await RegisterInitialAdminAsync(client);
-        var patchResponse = await client.PatchAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com/base"));
-        patchResponse.EnsureSuccessStatusCode();
+        var putResponse = await client.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com/base"));
+        putResponse.EnsureSuccessStatusCode();
 
         // Act
         var response = await client.GetAsync("/.well-known/mcp");
