@@ -30,9 +30,13 @@ public abstract class McpToolBase<TInput, TOutput>(IMcpAuthorisationService auth
         {
             result = await ExecuteCoreAsync(context, parseResult.Input, cancellationToken);
         }
-        catch (Exception exception)
+        catch (OperationCanceledException)
         {
-            return McpToolCallHelpers.CreateErrorCallToolResult(McpToolCallHelpers.CreateUnhandledServiceError(exception));
+            throw;
+        }
+        catch (Exception)
+        {
+            return McpToolCallHelpers.CreateErrorCallToolResult(McpToolCallHelpers.CreateUnhandledServiceError(context.CorrelationId));
         }
 
         if (!result.Success)

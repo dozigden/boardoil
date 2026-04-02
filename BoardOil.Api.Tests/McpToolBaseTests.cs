@@ -47,7 +47,33 @@ public sealed class McpToolBaseTests
         Assert.True(result.IsError);
         var payload = Assert.IsType<JsonElement>(result.StructuredContent);
         Assert.Equal("service_error", payload.GetProperty("code").GetString());
-        Assert.Contains("boom", payload.GetProperty("message").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Tool execution failed. Correlation id: test-correlation.", payload.GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenUnknownArgumentsProvided_ShouldReturnValidationError()
+    {
+        // Arrange
+        var tool = new TestTool(input =>
+            Task.FromResult(new McpToolResult<TestOutput>(
+                true,
+                new TestOutput(input.Value, "ok"),
+                null)));
+        var context = CreateContext();
+        var arguments = new Dictionary<string, JsonElement>
+        {
+            ["value"] = JsonSerializer.SerializeToElement(1),
+            ["legacyValue"] = JsonSerializer.SerializeToElement(7)
+        };
+
+        // Act
+        var result = await tool.ExecuteAsync(context, arguments, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsError);
+        var payload = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Equal("validation_failed", payload.GetProperty("code").GetString());
+        Assert.Contains("Unknown tool arguments: legacyValue.", payload.GetProperty("message").GetString(), StringComparison.Ordinal);
     }
 
     [Fact]

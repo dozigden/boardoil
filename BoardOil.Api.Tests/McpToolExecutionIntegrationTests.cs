@@ -355,6 +355,61 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
     }
 
     [Fact]
+    public async Task MutationInputs_WithUnknownTopLevelFields_ShouldBeRejected()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+
+        var boardGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-for-unknown-fields",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
+        using var boardGetPayload = await McpJsonRpcClient.ParseJsonAsync(boardGetResponse);
+        var todoColumnId = McpJsonRpcClient.GetStructuredContent(boardGetPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .Single(column => column.GetProperty("title").GetString() == "Todo")
+            .GetProperty("id")
+            .GetInt32();
+
+        // Act
+        var createResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = todoColumnId,
+                    boardColumnId = todoColumnId,
+                    title = "Unknown field test card",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-unknown-fields",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
+
+        // Assert
+        var structuredContent = McpJsonRpcClient.GetStructuredContent(createPayload);
+        Assert.Equal("validation_failed", structuredContent.GetProperty("code").GetString());
+        Assert.Contains("Unknown tool arguments: boardColumnId.", structuredContent.GetProperty("message").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task CardCreate_WhenMultipleIdentifierInputsAreInvalid_ShouldReturnAllValidationErrors()
     {
         // Arrange
