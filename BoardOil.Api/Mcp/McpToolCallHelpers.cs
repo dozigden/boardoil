@@ -1,7 +1,10 @@
 using BoardOil.Contracts.Contracts;
 using BoardOil.Mcp.Contracts;
 using ModelContextProtocol.Protocol;
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace BoardOil.Api.Mcp;
 
@@ -11,12 +14,30 @@ internal static class McpToolCallHelpers
     {
         PropertyNameCaseInsensitive = true
     };
+    private static readonly ConcurrentDictionary<Type, IReadOnlySet<string>> AllowedArgumentNamesByInputType = new();
 
     public static (bool Success, TInput? Input, McpToolError? Error) ParseArguments<TInput>(IDictionary<string, JsonElement>? arguments)
     {
         try
         {
-            var argumentsJson = JsonSerializer.Serialize(arguments ?? new Dictionary<string, JsonElement>(), SerialiserOptions);
+            var providedArguments = arguments ?? new Dictionary<string, JsonElement>();
+            var allowedArgumentNames = AllowedArgumentNamesByInputType.GetOrAdd(typeof(TInput), BuildAllowedArgumentNames);
+            var unknownArgumentNames = providedArguments.Keys
+                .Where(argumentName => !allowedArgumentNames.Contains(argumentName))
+                .OrderBy(argumentName => argumentName, StringComparer.Ordinal)
+                .ToArray();
+            if (unknownArgumentNames.Length > 0)
+            {
+                return (
+                    false,
+                    default,
+                    new McpToolError(
+                        "validation_failed",
+                        $"Unknown tool arguments: {string.Join(", ", unknownArgumentNames)}.",
+                        400));
+            }
+
+            var argumentsJson = JsonSerializer.Serialize(providedArguments, SerialiserOptions);
             var parsed = JsonSerializer.Deserialize<TInput>(argumentsJson, SerialiserOptions);
             if (parsed is null)
             {
@@ -68,8 +89,8 @@ internal static class McpToolCallHelpers
     public static CallToolResult CreateErrorCallToolResult(string code, string message, int statusCode) =>
         CreateErrorCallToolResult(new McpToolError(code, message, statusCode));
 
-    public static McpToolError CreateUnhandledServiceError(Exception exception) =>
-        new("service_error", $"Tool execution failed: {exception.Message}", 500);
+    public static McpToolError CreateUnhandledServiceError(string correlationId) =>
+        new("service_error", $"Tool execution failed. Correlation id: {correlationId}.", 500);
 
     public static JsonElement ParseJson(string value)
     {
@@ -95,6 +116,24 @@ internal static class McpToolCallHelpers
         }
 
         return [new ValidationError(fieldName, $"'{fieldName}' must be greater than zero when provided.")];
+    }
+
+    private static IReadOnlySet<string> BuildAllowedArgumentNames(Type inputType) =>
+        inputType
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(property => property.CanWrite && property.GetIndexParameters().Length == 0)
+            .Select(ResolveArgumentName)
+            .ToHashSet(StringComparer.Ordinal);
+
+    private static string ResolveArgumentName(PropertyInfo propertyInfo)
+    {
+        var explicitName = propertyInfo.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name;
+        if (!string.IsNullOrWhiteSpace(explicitName))
+        {
+            return explicitName;
+        }
+
+        return SerialiserOptions.PropertyNamingPolicy?.ConvertName(propertyInfo.Name) ?? propertyInfo.Name;
     }
 
 }
