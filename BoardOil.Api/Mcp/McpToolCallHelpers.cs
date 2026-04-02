@@ -12,85 +12,7 @@ internal static class McpToolCallHelpers
         PropertyNameCaseInsensitive = true
     };
 
-    public static async Task<CallToolResult> InvokeAsync<TInput, TOutput>(
-        IDictionary<string, JsonElement>? arguments,
-        CancellationToken cancellationToken,
-        Func<TInput, Task<McpToolResult<TOutput>>> handler)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var inputParseResult = ParseArguments<TInput>(arguments);
-        if (!inputParseResult.Success || inputParseResult.Input is null)
-        {
-            return CreateCallToolResult(inputParseResult.ErrorResult);
-        }
-
-        McpToolResult<TOutput> result;
-        try
-        {
-            result = await handler(inputParseResult.Input);
-        }
-        catch (Exception ex)
-        {
-            result = new McpToolResult<TOutput>(
-                false,
-                default,
-                new McpToolError("service_error", $"Tool execution failed: {ex.Message}", 500));
-        }
-
-        return CreateCallToolResult(result);
-    }
-
-    public static CallToolResult CreateCallToolResult<TPayload>(McpToolResult<TPayload> result)
-    {
-        var payloadJson = JsonSerializer.SerializeToElement(result, SerialiserOptions);
-        var text = result.Success ? "ok" : result.Error?.Message ?? "Tool call failed.";
-
-        return new CallToolResult
-        {
-            IsError = !result.Success,
-            StructuredContent = payloadJson,
-            Content =
-            [
-                new TextContentBlock
-                {
-                    Text = text
-                }
-            ]
-        };
-    }
-
-    public static JsonElement ParseJson(string value)
-    {
-        using var document = JsonDocument.Parse(value);
-        return document.RootElement.Clone();
-    }
-
-    public static ApiError? ValidateRequiredIdentifier(int? value, string fieldName)
-    {
-        if (value is > 0)
-        {
-            return null;
-        }
-
-        return ApiErrors.BadRequest(
-            "Validation failed.",
-            [new ValidationError(fieldName, $"'{fieldName}' is required and must be greater than zero.")]);
-    }
-
-    public static ApiError? ValidateOptionalIdentifier(int? value, string fieldName)
-    {
-        if (value is null || value > 0)
-        {
-            return null;
-        }
-
-        return ApiErrors.BadRequest(
-            "Validation failed.",
-            [new ValidationError(fieldName, $"'{fieldName}' must be greater than zero when provided.")]);
-    }
-
-    private static (bool Success, TInput? Input, McpToolResult<object> ErrorResult) ParseArguments<TInput>(IDictionary<string, JsonElement>? arguments)
+    public static (bool Success, TInput? Input, McpToolError? Error) ParseArguments<TInput>(IDictionary<string, JsonElement>? arguments)
     {
         try
         {
@@ -101,23 +23,78 @@ internal static class McpToolCallHelpers
                 return (
                     false,
                     default,
-                    new McpToolResult<object>(
-                        false,
-                        null,
-                        new McpToolError("validation_failed", "Tool arguments are required.", 400)));
+                    new McpToolError("validation_failed", "Tool arguments are required.", 400));
             }
 
-            return (true, parsed, new McpToolResult<object>(true, null, null));
+            return (true, parsed, null);
         }
         catch (JsonException ex)
         {
             return (
                 false,
                 default,
-                new McpToolResult<object>(
-                    false,
-                    null,
-                    new McpToolError("validation_failed", $"Invalid tool arguments: {ex.Message}", 400)));
+                new McpToolError("validation_failed", $"Invalid tool arguments: {ex.Message}", 400));
         }
     }
+
+    public static CallToolResult CreateSuccessCallToolResult<TPayload>(TPayload payload) =>
+        new()
+        {
+            IsError = false,
+            StructuredContent = JsonSerializer.SerializeToElement(payload, SerialiserOptions),
+            Content =
+            [
+                new TextContentBlock
+                {
+                    Text = "ok"
+                }
+            ]
+        };
+
+    public static CallToolResult CreateErrorCallToolResult(McpToolError error) =>
+        new()
+        {
+            IsError = true,
+            StructuredContent = JsonSerializer.SerializeToElement(error, SerialiserOptions),
+            Content =
+            [
+                new TextContentBlock
+                {
+                    Text = error.Message
+                }
+            ]
+        };
+
+    public static CallToolResult CreateErrorCallToolResult(string code, string message, int statusCode) =>
+        CreateErrorCallToolResult(new McpToolError(code, message, statusCode));
+
+    public static McpToolError CreateUnhandledServiceError(Exception exception) =>
+        new("service_error", $"Tool execution failed: {exception.Message}", 500);
+
+    public static JsonElement ParseJson(string value)
+    {
+        using var document = JsonDocument.Parse(value);
+        return document.RootElement.Clone();
+    }
+
+    public static IReadOnlyList<ValidationError> ValidateRequiredIdentifier(int? value, string fieldName)
+    {
+        if (value is > 0)
+        {
+            return [];
+        }
+
+        return [new ValidationError(fieldName, $"'{fieldName}' is required and must be greater than zero.")];
+    }
+
+    public static IReadOnlyList<ValidationError> ValidateOptionalIdentifier(int? value, string fieldName)
+    {
+        if (value is null || value > 0)
+        {
+            return [];
+        }
+
+        return [new ValidationError(fieldName, $"'{fieldName}' must be greater than zero when provided.")];
+    }
+
 }

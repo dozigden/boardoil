@@ -6,7 +6,6 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Api.Configuration;
 using BoardOil.Api.Mcp;
 using BoardOil.Contracts.Auth;
-using BoardOil.Contracts.Contracts;
 using BoardOil.Persistence.Abstractions.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
@@ -19,6 +18,7 @@ public sealed class McpPatAuthenticationHandler(
     UrlEncoder encoder,
     TimeProvider timeProvider,
     IConfigurationService configurationService,
+    IMcpErrorResponseFactory errorResponseFactory,
     IDbContextScopeFactory scopeFactory,
     IPersonalAccessTokenRepository personalAccessTokenRepository)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
@@ -26,6 +26,7 @@ public sealed class McpPatAuthenticationHandler(
     private const string BearerPrefix = "Bearer ";
     private readonly TimeProvider _timeProvider = timeProvider;
     private readonly IConfigurationService _configurationService = configurationService;
+    private readonly IMcpErrorResponseFactory _errorResponseFactory = errorResponseFactory;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
     private readonly IPersonalAccessTokenRepository _personalAccessTokenRepository = personalAccessTokenRepository;
 
@@ -109,7 +110,7 @@ public sealed class McpPatAuthenticationHandler(
         Response.StatusCode = StatusCodes.Status401Unauthorized;
         Response.Headers.WWWAuthenticate = "Bearer realm=\"BoardOil MCP\"";
         var mcpPublicBaseUrl = await _configurationService.GetMcpPublicBaseUrlAsync();
-        await Response.WriteAsJsonAsync(CreateMcpAuthError(mcpPublicBaseUrl, "Invalid or expired bearer token."));
+        await Response.WriteAsJsonAsync(_errorResponseFactory.CreateAuthError(mcpPublicBaseUrl, "Invalid or expired bearer token."));
     }
 
     private bool TryGetBearerToken(out string token)
@@ -125,21 +126,6 @@ public sealed class McpPatAuthenticationHandler(
         token = authHeader[BearerPrefix.Length..].Trim();
         return !string.IsNullOrWhiteSpace(token);
     }
-
-    private object CreateMcpAuthError(string? mcpPublicBaseUrl, string detail) =>
-        new ApiResult<object>(
-            false,
-            new
-            {
-                auth = McpDiscoveryMetadata.CreateAuthMetadata(mcpPublicBaseUrl),
-                endpoint = McpDiscoveryMetadata.GetMcpEndpoint(mcpPublicBaseUrl),
-                docs = McpDiscoveryMetadata.GetMcpDocsEndpoint(mcpPublicBaseUrl),
-                setup = McpDiscoveryMetadata.CreateSetupMetadata(mcpPublicBaseUrl),
-                examples = McpDiscoveryMetadata.CreateExamples(mcpPublicBaseUrl),
-                nextStep = "Create a PAT in the machine access UI, then call POST /mcp with Authorization: Bearer <YOUR_PAT>."
-            },
-            401,
-            detail);
 
     private static string HashToken(string token) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));

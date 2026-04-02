@@ -19,7 +19,6 @@ var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configurat
 var jwtOptions = JwtAuthOptions.FromConfiguration(builder.Configuration);
 var csrfOptions = CsrfOptions.FromConfiguration(builder.Configuration);
 var internalOptions = BoardOilInternalOptions.FromConfiguration(builder.Configuration);
-var mcpServiceProviderAccessor = new McpServiceProviderAccessor();
 
 builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
@@ -51,8 +50,7 @@ builder.Services.AddSingleton(runtimeOptions);
 builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton(csrfOptions);
 builder.Services.AddSingleton(internalOptions);
-builder.Services.AddSingleton(mcpServiceProviderAccessor);
-builder.Services.AddSingleton<McpToolDispatcher>();
+builder.Services.AddBoardOilMcp();
 builder.Services.AddSingleton(new AuthSessionOptions
 {
     AccessTokenMinutes = jwtOptions.AccessTokenMinutes,
@@ -105,10 +103,11 @@ builder.Services
 
                 context.HandleResponse();
                 var configurationService = context.HttpContext.RequestServices.GetRequiredService<IConfigurationService>();
+                var errorFactory = context.HttpContext.RequestServices.GetRequiredService<IMcpErrorResponseFactory>();
                 var mcpPublicBaseUrl = await configurationService.GetMcpPublicBaseUrlAsync();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Headers.WWWAuthenticate = "Bearer realm=\"BoardOil MCP\"";
-                await context.Response.WriteAsJsonAsync(CreateMcpAuthError(mcpPublicBaseUrl, "Invalid or expired bearer token."));
+                await context.Response.WriteAsJsonAsync(errorFactory.CreateAuthError(mcpPublicBaseUrl, "Invalid or expired bearer token."));
             }
         };
     });
@@ -125,35 +124,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(BoardOilPolicies.CardEditor, policy =>
         policy.RequireRole(BoardOilRoles.Admin, BoardOilRoles.Standard));
 });
-builder.Services
-    .AddMcpServer(options =>
-    {
-        options.ServerInfo = new ModelContextProtocol.Protocol.Implementation
-        {
-            Name = "BoardOil MCP",
-            Version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0"
-        };
-    })
-#pragma warning disable MCP9004
-    .WithHttpTransport(options =>
-    {
-        options.Stateless = true;
-        options.EnableLegacySse = false;
-    })
-#pragma warning restore MCP9004
-    .WithListToolsHandler((request, cancellationToken) =>
-        mcpServiceProviderAccessor
-            .ServiceProvider
-            .GetRequiredService<McpToolDispatcher>()
-            .ListToolsAsync(request, cancellationToken))
-    .WithCallToolHandler((request, cancellationToken) =>
-        mcpServiceProviderAccessor
-            .ServiceProvider
-            .GetRequiredService<McpToolDispatcher>()
-            .CallToolAsync(request, cancellationToken));
-
 var app = builder.Build();
-mcpServiceProviderAccessor.Initialise(app.Services);
+app.InitialiseMcpServiceProvider();
 
 if (jwtOptions.AllowInsecureCookies)
 {
@@ -163,38 +135,7 @@ if (jwtOptions.AllowInsecureCookies)
 await app.Services.InitializeBoardOilAsync();
 app.UseCors("BoardOilDevClient");
 app.UseAuthentication();
-app.Use(async (context, next) =>
-{
-    if (context.Request.Path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase))
-    {
-        var authHeader = context.Request.Headers.Authorization.ToString();
-        if (string.IsNullOrWhiteSpace(authHeader)
-            || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-        {
-            var configurationService = context.RequestServices.GetRequiredService<IConfigurationService>();
-            var mcpPublicBaseUrl = await configurationService.GetMcpPublicBaseUrlAsync();
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            context.Response.Headers.WWWAuthenticate = "Bearer realm=\"BoardOil MCP\"";
-            await context.Response.WriteAsJsonAsync(CreateMcpAuthError(mcpPublicBaseUrl, "Missing bearer token."));
-            return;
-        }
-    }
-
-    await next();
-});
-app.Use(async (context, next) =>
-{
-    if (IsUnsupportedMcpStylePath(context.Request.Path))
-    {
-        var configurationService = context.RequestServices.GetRequiredService<IConfigurationService>();
-        var mcpPublicBaseUrl = await configurationService.GetMcpPublicBaseUrlAsync();
-        context.Response.StatusCode = StatusCodes.Status404NotFound;
-        await context.Response.WriteAsJsonAsync(CreateUnsupportedMcpPathError(context.Request.Path, mcpPublicBaseUrl));
-        return;
-    }
-
-    await next();
-});
+app.MapBoardOilMcp();
 app.Use(async (context, next) =>
 {
     if (!HttpMethods.IsPost(context.Request.Method)
@@ -254,10 +195,6 @@ app.MapAuthEndpoints();
 
 app.MapHub<BoardHub>("/hubs/board")
     .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
-app.MapMcp("/mcp")
-    .RequireAuthorization(BoardOilPolicies.McpAuthenticated);
-app.MapGet("/.well-known/mcp", async (IConfigurationService configurationService) =>
-    Results.Json(CreateMcpWellKnownDocument(await configurationService.GetMcpPublicBaseUrlAsync())));
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -275,43 +212,5 @@ static bool IsCsrfExemptAuthPath(PathString path) =>
     || path.StartsWithSegments("/api/auth/machine/login", StringComparison.OrdinalIgnoreCase)
     || path.StartsWithSegments("/api/auth/machine/refresh", StringComparison.OrdinalIgnoreCase)
     || path.StartsWithSegments("/api/auth/machine/logout", StringComparison.OrdinalIgnoreCase);
-
-static bool IsUnsupportedMcpStylePath(PathString path) =>
-    path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase)
-    || path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase)
-    || path.StartsWithSegments("/v1/mcp", StringComparison.OrdinalIgnoreCase);
-
-static object CreateMcpAuthError(string? mcpPublicBaseUrl, string detail) =>
-    new ApiResult<object>(
-        false,
-        new
-        {
-            auth = McpDiscoveryMetadata.CreateAuthMetadata(mcpPublicBaseUrl),
-            endpoint = McpDiscoveryMetadata.GetMcpEndpoint(mcpPublicBaseUrl),
-            docs = McpDiscoveryMetadata.GetMcpDocsEndpoint(mcpPublicBaseUrl),
-            setup = McpDiscoveryMetadata.CreateSetupMetadata(mcpPublicBaseUrl),
-            examples = McpDiscoveryMetadata.CreateExamples(mcpPublicBaseUrl),
-            nextStep = "Create a PAT in the machine access UI, then call POST /mcp with Authorization: Bearer <YOUR_PAT>."
-        },
-        401,
-        detail);
-
-static object CreateUnsupportedMcpPathError(PathString path, string? mcpPublicBaseUrl) =>
-    new ApiResult<object>(
-        false,
-        new
-        {
-            requestedPath = path.ToString(),
-            endpoint = McpDiscoveryMetadata.GetMcpEndpoint(mcpPublicBaseUrl),
-            docs = McpDiscoveryMetadata.GetMcpDocsEndpoint(mcpPublicBaseUrl),
-            setup = McpDiscoveryMetadata.CreateSetupMetadata(mcpPublicBaseUrl),
-            examples = McpDiscoveryMetadata.CreateExamples(mcpPublicBaseUrl),
-            nextStep = "Use POST /mcp with a PAT bearer token. Legacy SSE-style paths are not supported."
-        },
-        404,
-        "Unsupported MCP endpoint path.");
-
-static object CreateMcpWellKnownDocument(string? mcpPublicBaseUrl) =>
-    McpDiscoveryMetadata.CreateWellKnownDocument(mcpPublicBaseUrl);
 
 public partial class Program;

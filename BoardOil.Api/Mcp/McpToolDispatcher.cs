@@ -6,16 +6,20 @@ namespace BoardOil.Api.Mcp;
 
 public sealed class McpToolDispatcher(
     McpServiceProviderAccessor serviceProviderAccessor,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    McpToolRegistry toolRegistry,
+    IMcpAuthorisationService authorisationService)
 {
     private readonly McpServiceProviderAccessor _serviceProviderAccessor = serviceProviderAccessor;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly McpToolRegistry _toolRegistry = toolRegistry;
+    private readonly IMcpAuthorisationService _authorisationService = authorisationService;
 
     public ValueTask<ListToolsResult> ListToolsAsync(RequestContext<ListToolsRequestParams> _, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var tools = ToolCatalogue.Definitions
+        var tools = _toolRegistry.Definitions
             .Select(definition => new Tool
             {
                 Name = definition.Name,
@@ -36,24 +40,26 @@ public sealed class McpToolDispatcher(
         var request = requestContext.Params;
         if (request is null || string.IsNullOrWhiteSpace(request.Name))
         {
-            return McpToolCallHelpers.CreateCallToolResult(new McpToolResult<object>(
-                false,
-                null,
-                new McpToolError("validation_failed", "Tool name is required.", 400)));
+            return McpToolCallHelpers.CreateErrorCallToolResult("validation_failed", "Tool name is required.", 400);
         }
 
         using var scope = _serviceProviderAccessor.ServiceProvider.CreateScope();
         var services = scope.ServiceProvider;
-        var patAccessContext = McpPatAccess.TryGetPatAccessContext(_httpContextAccessor.HttpContext?.User);
+        var httpContext = _httpContextAccessor.HttpContext;
+        var patAccessContext = _authorisationService.GetPatAccessContext(httpContext?.User);
+        var correlationId = httpContext?.TraceIdentifier ?? Guid.NewGuid().ToString("N");
+        var invocationContext = new McpInvocationContext(services, patAccessContext, correlationId);
 
-        if (!McpToolHandlers.ByName.TryGetValue(request.Name, out var handler))
+        if (!_toolRegistry.TryGetRegistration(request.Name, out var registration))
         {
-            return McpToolCallHelpers.CreateCallToolResult(new McpToolResult<object>(
-                false,
-                null,
-                new McpToolError("tool_not_found", $"Unknown tool '{request.Name}'.", 404)));
+            return McpToolCallHelpers.CreateErrorCallToolResult("tool_not_found", $"Unknown tool '{request.Name}'.", 404);
         }
 
-        return await handler(request.Arguments, services, patAccessContext, cancellationToken);
+        if (services.GetRequiredService(registration!.ImplementationType) is not IMcpTool tool)
+        {
+            return McpToolCallHelpers.CreateErrorCallToolResult("service_error", $"Tool '{request.Name}' is not executable.", 500);
+        }
+
+        return await tool.ExecuteAsync(invocationContext, request.Arguments, cancellationToken);
     }
 }

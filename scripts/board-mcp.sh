@@ -136,7 +136,7 @@ case "$COMMAND" in
     ;;
   board-cards)
     payload="$(jq -cn --argjson id "$BOARD_ID" '{jsonrpc:"2.0",id:"board-cards",method:"tools/call",params:{name:"board.get",arguments:{id:$id}}}')"
-    post_mcp "$payload" | jq -r '.result.structuredContent.data.columns[] | .title as $column | .cards[]? | "\($column)\t#\(.id)\t\(.title)"'
+    post_mcp "$payload" | jq -r '.result.structuredContent.columns[] | .title as $column | .cards[]? | "\($column)\t#\(.id)\t\(.title)"'
     ;;
   card-move)
     card_id=""
@@ -164,7 +164,28 @@ case "$COMMAND" in
     fi
     require_positive_integer "$card_id" "--card-id"
 
-    payload="$(jq -cn --argjson boardId "$BOARD_ID" --argjson id "$card_id" --arg columnTitle "$column_title" '{jsonrpc:"2.0",id:"card-move",method:"tools/call",params:{name:"card.move_by_column_name",arguments:{boardId:$boardId,id:$id,columnTitle:$columnTitle}}}')"
+    board_payload="$(jq -cn --argjson id "$BOARD_ID" '{jsonrpc:"2.0",id:"card-move-board-get",method:"tools/call",params:{name:"board.get",arguments:{id:$id}}}')"
+    board_response="$(post_mcp "$board_payload")"
+
+    mapfile -t matches < <(
+      printf '%s' "$board_response" | jq -r --arg columnTitle "$column_title" \
+        '.result.structuredContent.columns[]
+         | select((.title | ascii_downcase) == ($columnTitle | ascii_downcase))
+         | .id'
+    )
+
+    if [ "${#matches[@]}" -eq 0 ]; then
+      echo "No column named '$column_title' exists on board $BOARD_ID." >&2
+      exit 1
+    fi
+
+    if [ "${#matches[@]}" -gt 1 ]; then
+      echo "Multiple columns named '$column_title' exist on board $BOARD_ID. Move by column id instead." >&2
+      exit 1
+    fi
+
+    column_id="${matches[0]}"
+    payload="$(jq -cn --argjson boardId "$BOARD_ID" --argjson id "$card_id" --argjson columnId "$column_id" '{jsonrpc:"2.0",id:"card-move",method:"tools/call",params:{name:"card.move",arguments:{boardId:$boardId,id:$id,columnId:$columnId}}}')"
     post_mcp "$payload" | jq
     ;;
   card-description-set)
@@ -196,7 +217,7 @@ case "$COMMAND" in
     board_payload="$(jq -cn --argjson id "$BOARD_ID" '{jsonrpc:"2.0",id:"card-description-board-get",method:"tools/call",params:{name:"board.get",arguments:{id:$id}}}')"
     board_response="$(post_mcp "$board_payload")"
 
-    card_json="$(printf '%s' "$board_response" | jq -c --argjson cardId "$card_id" '.result.structuredContent.data.columns[]?.cards[]? | select(.id == $cardId)' | head -n 1)"
+    card_json="$(printf '%s' "$board_response" | jq -c --argjson cardId "$card_id" '.result.structuredContent.columns[]?.cards[]? | select(.id == $cardId)' | head -n 1)"
     if [ -z "$card_json" ]; then
       echo "Could not find card id $card_id on board $BOARD_ID." >&2
       printf '%s\n' "$board_response" | jq >&2

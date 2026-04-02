@@ -1,0 +1,58 @@
+using BoardOil.Abstractions.Card;
+using BoardOil.Contracts.Auth;
+using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Contracts;
+using BoardOil.Mcp.Contracts;
+using BoardOil.Mcp.Contracts.Schemas;
+
+namespace BoardOil.Api.Mcp;
+
+public sealed class CardMoveTool(
+    ICardService cardService,
+    IMcpAuthorisationService authorisationService) : McpToolBase<CardMoveInput, CardMutationOutput>(authorisationService)
+{
+    private readonly ICardService _cardService = cardService;
+
+    public override McpToolDefinition Definition { get; } =
+        new(ToolNames.CardMove, "Move card by target column id and optional sibling anchor.", ToolSchemas.CardMoveInput, ToolSchemas.ObjectOutput);
+
+    protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
+        McpInvocationContext context,
+        CardMoveInput input,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IReadOnlyList<ValidationError> validationErrors =
+        [
+            ..McpToolCallHelpers.ValidateRequiredIdentifier(input.BoardId, "boardId"),
+            ..McpToolCallHelpers.ValidateRequiredIdentifier(input.Id, "id"),
+            ..McpToolCallHelpers.ValidateRequiredIdentifier(input.ColumnId, "columnId"),
+            ..McpToolCallHelpers.ValidateOptionalIdentifier(input.AfterId, "afterId")
+        ];
+        if (validationErrors.Count > 0)
+        {
+            return Failure(validationErrors);
+        }
+
+        var boardId = input.BoardId!.Value;
+        var cardId = input.Id!.Value;
+        var columnId = input.ColumnId!.Value;
+        var afterId = input.AfterId;
+
+        var accessError = AuthorisationService.EnsurePatToolAccess(context.PatAccessContext, MachinePatScopes.McpWrite, boardId);
+        if (accessError is not null)
+        {
+            return Failure(accessError);
+        }
+
+        var request = new MoveCardRequest(columnId, afterId);
+        var result = await _cardService.MoveCardAsync(boardId, cardId, request);
+        if (!result.Success || result.Data is null)
+        {
+            return Failure(result.ToMcpError());
+        }
+
+        return Success(new CardMutationOutput(result.Data.ToMcp(), "moved"));
+    }
+}

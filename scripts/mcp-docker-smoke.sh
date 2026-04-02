@@ -129,7 +129,7 @@ board_get_payload=$(curl -fsS -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
   -d "$(jq -cn --argjson boardId "$BOARD_ID" '{jsonrpc:"2.0",id:"board-get",method:"tools/call",params:{name:"board.get",arguments:{id:$boardId}}}')")
 board_get_payload=$(normalise_mcp_json "$board_get_payload")
-first_column_id=$(echo "$board_get_payload" | jq -r '.result.structuredContent.data.columns[0].id')
+first_column_id=$(echo "$board_get_payload" | jq -r '.result.structuredContent.columns[0].id')
 if [ -z "$first_column_id" ] || [ "$first_column_id" = "null" ]; then
   echo "Unable to determine first board column" >&2
   exit 1
@@ -156,6 +156,6 @@ board_verify_payload=$(curl -fsS -X POST "$MCP_URL" \
   -d "$(jq -cn --argjson boardId "$BOARD_ID" '{jsonrpc:"2.0",id:"board-verify",method:"tools/call",params:{name:"board.get",arguments:{id:$boardId}}}')")
 board_verify_payload=$(normalise_mcp_json "$board_verify_payload")
 
-echo "$board_verify_payload" | jq -e --arg title "$CARD_TITLE" '.result.structuredContent.data.columns[].cards[] | select(.title==$title)' >/dev/null
+echo "$board_verify_payload" | jq -e --arg title "$CARD_TITLE" '.result.structuredContent.columns[].cards[] | select(.title==$title)' >/dev/null
 
 echo "[smoke] Docker MCP smoke test passed"
