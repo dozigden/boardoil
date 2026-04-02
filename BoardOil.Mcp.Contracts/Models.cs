@@ -83,14 +83,6 @@ public sealed record CardMoveInput
     public int? AfterId { get; init; }
 }
 
-public sealed record CardMoveByColumnNameInput
-{
-    public int? BoardId { get; init; }
-    public int? Id { get; init; }
-    public string ColumnTitle { get; init; } = string.Empty;
-    public int? AfterId { get; init; }
-}
-
 public sealed record CardDeleteInput
 {
     public int? BoardId { get; init; }

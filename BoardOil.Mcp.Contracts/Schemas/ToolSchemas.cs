@@ -67,20 +67,6 @@ public static class ToolSchemas
     }
     """;
 
-    public const string CardMoveByColumnNameInput = """
-    {
-      "type": "object",
-      "properties": {
-        "boardId": { "type": "integer", "minimum": 1 },
-        "id": { "type": "integer", "minimum": 1 },
-        "columnTitle": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "afterId": { "type": ["integer", "null"], "minimum": 1 }
-      },
-      "required": ["boardId", "id", "columnTitle"],
-      "additionalProperties": false
-    }
-    """;
-
     public const string CardDeleteInput = """
     {
       "type": "object",
@@ -93,35 +79,9 @@ public static class ToolSchemas
     }
     """;
 
-    public const string SuccessOutput = """
+    public const string ObjectOutput = """
     {
-      "type": "object",
-      "properties": {
-        "success": { "const": true },
-        "data": { "type": "object" },
-        "error": { "type": "null" }
-      },
-      "required": ["success", "data", "error"]
-    }
-    """;
-
-    public const string ErrorOutput = """
-    {
-      "type": "object",
-      "properties": {
-        "success": { "const": false },
-        "data": { "type": "null" },
-        "error": {
-          "type": "object",
-          "properties": {
-            "code": { "type": "string" },
-            "message": { "type": "string" },
-            "statusCode": { "type": "integer" }
-          },
-          "required": ["code", "message", "statusCode"]
-        }
-      },
-      "required": ["success", "data", "error"]
+      "type": "object"
     }
     """;
 }

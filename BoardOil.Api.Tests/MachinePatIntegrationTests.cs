@@ -361,60 +361,23 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         DateTime? ExpiresAtUtc,
         DateTime? LastUsedAtUtc,
         DateTime? RevokedAtUtc);
-    private static async Task<HttpResponseMessage> SendMcpRequestAsync(HttpClient client, string bearerToken, string method, object @params, string id)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/mcp")
-        {
-            Content = JsonContent.Create(new Dictionary<string, object?>
-            {
-                ["jsonrpc"] = "2.0",
-                ["id"] = id,
-                ["method"] = method,
-                ["params"] = @params
-            })
-        };
-        request.Headers.Authorization = new("Bearer", bearerToken);
-        request.Headers.Accept.ParseAdd("application/json");
-        request.Headers.Accept.ParseAdd("text/event-stream");
-        return await client.SendAsync(request);
-    }
+    private static Task<HttpResponseMessage> SendMcpRequestAsync(HttpClient client, string bearerToken, string method, object @params, string id) =>
+        McpJsonRpcClient.SendRequestAsync(client, method, @params, id, bearerToken);
 
-    private static async Task<JsonDocument> ParseMcpJsonAsync(HttpResponseMessage response)
-    {
-        var content = await response.Content.ReadAsStringAsync();
-        var trimmed = content.TrimStart();
-        if (trimmed.StartsWith('{'))
-        {
-            return JsonDocument.Parse(trimmed);
-        }
-
-        var sseJsonPayload = trimmed
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => line.Trim())
-            .Where(line => line.StartsWith("data:", StringComparison.Ordinal))
-            .Select(line => line["data:".Length..].Trim())
-            .Where(line => !string.IsNullOrWhiteSpace(line))
-            .LastOrDefault();
-        if (sseJsonPayload is not null)
-        {
-            return JsonDocument.Parse(sseJsonPayload);
-        }
-
-        throw new JsonException($"MCP response was not parseable JSON: {content}");
-    }
+    private static Task<JsonDocument> ParseMcpJsonAsync(HttpResponseMessage response) =>
+        McpJsonRpcClient.ParseJsonAsync(response);
 
     private static void AssertMcpForbidden(JsonDocument payload)
     {
         var root = payload.RootElement;
         if (root.TryGetProperty("result", out var result)
             && result.TryGetProperty("structuredContent", out var structuredContent)
-            && structuredContent.TryGetProperty("error", out var error)
-            && error.ValueKind == JsonValueKind.Object
-            && error.TryGetProperty("statusCode", out var statusProperty)
+            && structuredContent.ValueKind == JsonValueKind.Object
+            && structuredContent.TryGetProperty("statusCode", out var statusProperty)
             && statusProperty.TryGetInt32(out var statusCode))
         {
             Assert.Equal(403, statusCode);
-            if (error.TryGetProperty("code", out var codeProperty))
+            if (structuredContent.TryGetProperty("code", out var codeProperty))
             {
                 Assert.Equal("forbidden", codeProperty.GetString());
             }

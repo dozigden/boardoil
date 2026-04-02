@@ -7,6 +7,5 @@ public static class ToolNames
     public const string CardCreate = "card.create";
     public const string CardUpdate = "card.update";
     public const string CardMove = "card.move";
-    public const string CardMoveByColumnName = "card.move_by_column_name";
     public const string CardDelete = "card.delete";
 }

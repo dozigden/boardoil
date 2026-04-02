@@ -30,7 +30,7 @@ public static class McpMappingExtensions
             card.TagNames,
             card.UpdatedAtUtc);
 
-    public static McpToolResult<T> ToMcpFailure<T>(this ApiResult apiResult)
+    public static McpToolError ToMcpError(this ApiResult apiResult)
     {
         var code = apiResult.StatusCode switch
         {
@@ -49,19 +49,13 @@ public static class McpMappingExtensions
                 x => (IReadOnlyList<string>)x.Value);
         }
 
-        return new McpToolResult<T>(
-            false,
-            default,
-            new McpToolError(
-                code,
-                apiResult.Message ?? "Service returned an error.",
-                apiResult.StatusCode,
-                validation));
+        return new McpToolError(
+            code,
+            apiResult.Message ?? "Service returned an error.",
+            apiResult.StatusCode,
+            validation);
     }
 
-    public static McpToolResult<T> ToMcpFailure<T>(this ApiError apiError) =>
-        ((ApiResult)apiError).ToMcpFailure<T>();
-
-    public static McpToolResult<T> ToMcpSuccess<T>(this T payload) =>
-        new(true, payload, null);
+    public static McpToolError ToMcpError(this ApiError apiError) =>
+        ((ApiResult)apiError).ToMcpError();
 }
