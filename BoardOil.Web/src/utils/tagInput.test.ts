@@ -26,21 +26,41 @@ describe('tagInput', () => {
   it('filters completion suggestions case-insensitively and excludes selected tags', () => {
     const suggestions = getTagCompletionSuggestions(
       ['Bug', 'Bugfix', 'Documentation', 'urgent'],
-      'bu',
+      'FIX',
       ['Bug']
     );
 
     expect(suggestions).toEqual(['Bugfix']);
   });
 
-  it('returns matching suggestions in catalogue order and respects the limit', () => {
+  it('returns all available suggestions when the completion query is empty', () => {
     const suggestions = getTagCompletionSuggestions(
-      ['Alpha', 'Albatross', 'Alphabet', 'Alpine'],
+      ['Bug', 'Documentation', 'urgent'],
+      '',
+      ['documentation']
+    );
+
+    expect(suggestions).toEqual(['Bug', 'urgent']);
+  });
+
+  it('ranks starts-with matches before other contains matches', () => {
+    const suggestions = getTagCompletionSuggestions(
+      ['Pale', 'Alpine', 'Coral', 'Alpha'],
+      'al',
+      []
+    );
+
+    expect(suggestions).toEqual(['Alpine', 'Alpha', 'Pale', 'Coral']);
+  });
+
+  it('respects the suggestion limit after ranking', () => {
+    const suggestions = getTagCompletionSuggestions(
+      ['Pale', 'Alpine', 'Coral', 'Alpha'],
       'al',
       [],
       2
     );
 
-    expect(suggestions).toEqual(['Alpha', 'Albatross']);
+    expect(suggestions).toEqual(['Alpine', 'Alpha']);
   });
 });

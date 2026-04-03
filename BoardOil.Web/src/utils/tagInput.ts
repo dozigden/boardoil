@@ -57,17 +57,18 @@ export function getTagCompletionSuggestions(
   availableTagNames: string[],
   tagEntry: string,
   selectedTagNames: string[],
-  limit = 8
+  limit = Number.POSITIVE_INFINITY
 ): string[] {
   const query = getTagCompletionQuery(tagEntry);
-  if (!query) {
-    return [];
-  }
-
   const normalisedQuery = normalizeTagName(query);
   const selected = new Set(selectedTagNames.map(tagName => normalizeTagName(tagName)));
   const seen = new Set<string>();
-  const suggestions: string[] = [];
+  const startsWithMatches: string[] = [];
+  const containsMatches: string[] = [];
+
+  if (limit <= 0) {
+    return [];
+  }
 
   for (const tagName of availableTagNames) {
     const trimmed = tagName.trim();
@@ -80,18 +81,26 @@ export function getTagCompletionSuggestions(
       continue;
     }
 
-    if (!normalised.startsWith(normalisedQuery)) {
+    if (normalisedQuery.length === 0) {
+      seen.add(normalised);
+      startsWithMatches.push(trimmed);
+      continue;
+    }
+
+    if (!normalised.includes(normalisedQuery)) {
       continue;
     }
 
     seen.add(normalised);
-    suggestions.push(trimmed);
-    if (suggestions.length >= limit) {
-      break;
+    if (normalised.startsWith(normalisedQuery)) {
+      startsWithMatches.push(trimmed);
+      continue;
     }
+
+    containsMatches.push(trimmed);
   }
 
-  return suggestions;
+  return [...startsWithMatches, ...containsMatches].slice(0, limit);
 }
 
 function normalizeTagName(tagName: string) {

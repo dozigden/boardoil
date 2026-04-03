@@ -63,7 +63,7 @@
           @mousedown.prevent
           @click="selectSuggestion(suggestion)"
         >
-          {{ suggestion }}
+          <Tag :tag-name="suggestion" />
         </button>
       </div>
     </div>
@@ -75,7 +75,7 @@ import { Check } from 'lucide-vue-next';
 import { computed, nextTick, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import Tag from './Tag.vue';
-import { mergeTagNames, parseTagInputValues, getTagCompletionQuery, getTagCompletionSuggestions } from '../utils/tagInput';
+import { mergeTagNames, parseTagInputValues, getTagCompletionSuggestions } from '../utils/tagInput';
 import { useTagStore } from '../stores/tagStore';
 
 const props = withDefaults(defineProps<{
@@ -101,13 +101,12 @@ const { tags } = storeToRefs(tagStore);
 const tagEntryFocused = ref(false);
 const activeSuggestionIndex = ref(-1);
 const availableTagNames = computed(() => tags.value.map(tag => tag.name));
-const tagCompletionQuery = computed(() => getTagCompletionQuery(tagEntry.value));
 const tagCompletionSuggestions = computed(() => getTagCompletionSuggestions(
   availableTagNames.value,
   tagEntry.value,
   tagNamesModel.value
 ));
-const isSuggestionsOpen = computed(() => tagEntryFocused.value && tagCompletionQuery.value.length > 0 && tagCompletionSuggestions.value.length > 0);
+const isSuggestionsOpen = computed(() => tagEntryFocused.value && tagCompletionSuggestions.value.length > 0);
 
 const hasPendingTagEntry = computed(() => tagEntry.value.trim().length > 0);
 
@@ -323,6 +322,8 @@ async function resetTagEntry() {
   margin: 0;
   width: 100%;
   min-width: 0;
+  display: flex;
+  align-items: center;
   border: none;
   border-radius: 0.55rem;
   background: transparent;
