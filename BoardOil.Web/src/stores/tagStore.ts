@@ -41,13 +41,13 @@ export const useTagStore = defineStore('tag', () => {
     return true;
   }
 
-  async function createTag(tagName: string, boardId: number | null = activeBoardId.value) {
+  async function createTag(tagName: string, boardId: number | null = activeBoardId.value, emoji?: string | null) {
     const resolvedBoardId = resolveBoardId(boardId);
     if (resolvedBoardId === null) {
       return null;
     }
 
-    const result = await runBusy(() => api.createTag(resolvedBoardId, tagName));
+    const result = await runBusy(() => api.createTag(resolvedBoardId, tagName, emoji));
     if (!result.ok) {
       return null;
     }
@@ -86,6 +86,7 @@ export const useTagStore = defineStore('tag', () => {
 
   async function updateTagStyle(
     tagId: number,
+    name: string,
     styleName: TagStyleName,
     stylePropertiesJson: string,
     emoji?: string | null,
@@ -96,7 +97,7 @@ export const useTagStore = defineStore('tag', () => {
       return null;
     }
 
-    const result = await runBusy(() => api.updateTagStyle(resolvedBoardId, tagId, styleName, stylePropertiesJson, emoji));
+    const result = await runBusy(() => api.updateTagStyle(resolvedBoardId, tagId, name, styleName, stylePropertiesJson, emoji));
     if (!result.ok) {
       return null;
     }

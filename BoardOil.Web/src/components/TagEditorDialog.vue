@@ -1,13 +1,30 @@
 <template>
-  <ModalDialog :open="editingTag !== null" :title="dialogTitle" close-label="Cancel editing" @close="closeTagEditor" @submit="saveTag">
-    <template v-if="editingTag && draft">
+  <ModalDialog
+    :open="isCreateMode || editingTag !== null"
+    :title="dialogTitle"
+    :close-label="isCreateMode ? 'Cancel creating' : 'Cancel editing'"
+    @close="closeTagEditor"
+    @submit="saveTag"
+  >
+    <template v-if="draft">
       <div class="tags-dialog-preview">
         <span class="badge">Preview</span>
-        <span class="tag" :class="{ 'tag--with-emoji': previewEmoji }" :style="previewStyle" :aria-label="editingTag.name">
+        <span class="tag" :class="{ 'tag--with-emoji': previewEmoji }" :style="previewStyle" :aria-label="previewTagName">
           <span v-if="previewEmoji" class="tag-emoji" aria-hidden="true">{{ previewEmoji }}</span>
-          {{ editingTag.name }}
+          {{ previewTagName }}
         </span>
       </div>
+
+      <label>
+        Name
+        <input
+          :value="draftTagName"
+          maxlength="40"
+          :placeholder="isCreateMode ? 'New tag name' : 'Tag name'"
+          :disabled="busy"
+          @input="setDraftTagName(($event.target as HTMLInputElement).value)"
+        />
+      </label>
 
       <label>
         Emoji
@@ -81,14 +98,23 @@
     </template>
 
     <template #actions>
-      <div v-if="editingTag" class="editor-actions card-modal-actions">
-        <button type="button" class="btn btn--danger" :disabled="busy" aria-label="Delete tag" title="Delete tag" @click="deleteEditingTag">
+      <div v-if="draft" class="editor-actions card-modal-actions">
+        <button
+          v-if="!isCreateMode && editingTag"
+          type="button"
+          class="btn btn--danger"
+          :disabled="busy"
+          aria-label="Delete tag"
+          title="Delete tag"
+          @click="deleteEditingTag"
+        >
           <Trash2 :size="16" aria-hidden="true" />
         </button>
+        <span v-else />
         <div class="card-modal-actions-left">
-          <button type="submit" class="btn" :disabled="busy" aria-label="Save tag style" title="Save tag style">
+          <button type="submit" class="btn" :disabled="busy || !hasValidDraftTagName" :aria-label="saveButtonAriaLabel" :title="saveButtonAriaLabel">
             <Check :size="16" aria-hidden="true" />
-            <span>Save</span>
+            <span>{{ saveButtonLabel }}</span>
           </button>
           <button type="button" class="btn btn--secondary" :disabled="busy" aria-label="Cancel editing" title="Cancel" @click="closeTagEditor">
             <X :size="16" aria-hidden="true" />
@@ -103,12 +129,18 @@
 <script setup lang="ts">
 import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
-import type { TagStyleName } from '../types/boardTypes';
-import { buildStylePropertiesJsonFromDraft, createTagStyleDraft, getTagPillStyle, normaliseTagEmojiForRender } from '../utils/tagStyles';
+import type { Tag, TagStyleName } from '../types/boardTypes';
+import {
+  DEFAULT_TAG_STYLE_PROPERTIES_JSON,
+  buildStylePropertiesJsonFromDraft,
+  createTagStyleDraft,
+  getTagPillStyle,
+  normaliseTagEmojiForRender
+} from '../utils/tagStyles';
 import type { TagStyleDraft } from '../utils/tagStyles';
 import EmojiPickerDropdown from './EmojiPickerDropdown.vue';
 import ModalDialog from './ModalDialog.vue';
@@ -118,11 +150,13 @@ const router = useRouter();
 const boardStore = useBoardStore();
 const tagStore = useTagStore();
 const { busy } = storeToRefs(tagStore);
-const { updateTagStyle, deleteTag, getTagById, loadTags } = tagStore;
+const { createTag, updateTagStyle, deleteTag, getTagById, loadTags } = tagStore;
 const draft = ref<TagStyleDraft | null>(null);
 const draftEmoji = ref<string | null>(null);
-const attemptedLoad = ref(false);
+const draftTagName = ref('');
+const draftSourceKey = ref<string | null>(null);
 
+const isCreateMode = computed(() => route.name === 'tags-new');
 const routeTagId = computed<number | null>(() => {
   const rawTagId = route.params.tagId;
   const parsedTagId = typeof rawTagId === 'string'
@@ -148,22 +182,49 @@ const routeBoardId = computed<number | null>(() => {
 });
 
 const editingTag = computed(() => getTagById(routeTagId.value));
-const dialogTitle = computed(() => (editingTag.value ? `Edit Tag: ${editingTag.value.name}` : 'Edit Tag'));
+const dialogTitle = computed(() => {
+  if (isCreateMode.value) {
+    return 'Add Tag';
+  }
 
+  if (editingTag.value) {
+    return `Edit Tag: ${editingTag.value.name}`;
+  }
+
+  return 'Edit Tag';
+});
+const previewTagName = computed(() => {
+  const value = draftTagName.value.trim();
+  if (value.length > 0) {
+    return value;
+  }
+
+  if (isCreateMode.value) {
+    return 'New tag';
+  }
+
+  return editingTag.value?.name ?? 'Tag';
+});
+const hasValidDraftTagName = computed(() => draftTagName.value.trim().length > 0);
+const saveButtonLabel = computed(() => (isCreateMode.value ? 'Create' : 'Save'));
+const saveButtonAriaLabel = computed(() => (isCreateMode.value ? 'Create tag' : 'Save tag style'));
 const previewStyle = computed(() => {
-  if (!editingTag.value || !draft.value) {
+  if (!draft.value) {
     return getTagPillStyle(editingTag.value);
   }
 
-  return getTagPillStyle({
-    id: editingTag.value.id,
-    name: editingTag.value.name,
+  const sourceTag = editingTag.value;
+  const previewTag: Tag = {
+    id: sourceTag?.id ?? 0,
+    name: previewTagName.value,
     styleName: draft.value.styleName,
     stylePropertiesJson: buildStylePropertiesJsonFromDraft(draft.value),
     emoji: normaliseTagEmojiForRender(draftEmoji.value),
-    createdAtUtc: editingTag.value.createdAtUtc,
-    updatedAtUtc: editingTag.value.updatedAtUtc
-  });
+    createdAtUtc: sourceTag?.createdAtUtc ?? '1970-01-01T00:00:00Z',
+    updatedAtUtc: sourceTag?.updatedAtUtc ?? '1970-01-01T00:00:00Z'
+  };
+
+  return getTagPillStyle(previewTag);
 });
 const previewEmoji = computed(() => normaliseTagEmojiForRender(draftEmoji.value));
 
@@ -175,6 +236,10 @@ async function closeTagEditor() {
   }
 
   await router.push({ name: 'tags', params: { boardId } });
+}
+
+function setDraftTagName(value: string) {
+  draftTagName.value = value;
 }
 
 function setStyleName(value: string) {
@@ -212,18 +277,48 @@ function setDraftField(field: keyof TagStyleDraft, value: string) {
 }
 
 async function saveTag() {
-  if (!editingTag.value || !draft.value) {
+  if (!draft.value || routeBoardId.value === null) {
     return;
   }
 
-  if (routeBoardId.value === null) {
+  const stylePropertiesJson = buildStylePropertiesJsonFromDraft(draft.value);
+  const canonicalTagName = draftTagName.value.trim();
+  if (isCreateMode.value) {
+    if (!canonicalTagName) {
+      return;
+    }
+
+    const createdTag = await createTag(canonicalTagName, routeBoardId.value, draftEmoji.value);
+    if (!createdTag) {
+      return;
+    }
+
+    const styledTag = await updateTagStyle(
+      createdTag.id,
+      canonicalTagName,
+      draft.value.styleName,
+      stylePropertiesJson,
+      draftEmoji.value,
+      routeBoardId.value
+    );
+    if (!styledTag) {
+      await router.replace({ name: 'tags-tag', params: { boardId: routeBoardId.value, tagId: createdTag.id } });
+      return;
+    }
+
+    await closeTagEditor();
+    return;
+  }
+
+  if (!editingTag.value) {
     return;
   }
 
   const updatedTag = await updateTagStyle(
     editingTag.value.id,
+    canonicalTagName,
     draft.value.styleName,
-    buildStylePropertiesJsonFromDraft(draft.value),
+    stylePropertiesJson,
     draftEmoji.value,
     routeBoardId.value
   );
@@ -235,11 +330,7 @@ async function saveTag() {
 }
 
 async function deleteEditingTag() {
-  if (!editingTag.value) {
-    return;
-  }
-
-  if (routeBoardId.value === null) {
+  if (!editingTag.value || routeBoardId.value === null) {
     return;
   }
 
@@ -257,42 +348,81 @@ async function deleteEditingTag() {
   await closeTagEditor();
 }
 
-onMounted(async () => {
-  if (editingTag.value === null && routeBoardId.value !== null) {
-    await loadTags(routeBoardId.value);
+function clearDraftState() {
+  draft.value = null;
+  draftEmoji.value = null;
+  draftTagName.value = '';
+  draftSourceKey.value = null;
+}
+
+function initialiseCreateDraftState() {
+  if (draftSourceKey.value === 'create' && draft.value !== null) {
+    return;
   }
 
-  attemptedLoad.value = true;
-});
+  draft.value = createTagStyleDraft({
+    id: 0,
+    name: '',
+    styleName: 'solid',
+    stylePropertiesJson: DEFAULT_TAG_STYLE_PROPERTIES_JSON,
+    emoji: null,
+    createdAtUtc: '1970-01-01T00:00:00Z',
+    updatedAtUtc: '1970-01-01T00:00:00Z'
+  });
+  draftEmoji.value = null;
+  draftTagName.value = '';
+  draftSourceKey.value = 'create';
+}
+
+function initialiseEditDraftState(tag: Tag, tagId: number) {
+  const sourceKey = `edit:${tagId}`;
+  if (draftSourceKey.value === sourceKey && draft.value !== null) {
+    return;
+  }
+
+  draft.value = createTagStyleDraft(tag);
+  draftEmoji.value = tag.emoji ?? null;
+  draftTagName.value = tag.name;
+  draftSourceKey.value = sourceKey;
+}
 
 watch(
-  [routeBoardId, routeTagId, editingTag, attemptedLoad],
-  ([nextBoardId, nextTagId, nextTag, hasAttemptedLoad], [, previousTagId]) => {
+  [routeBoardId, routeTagId, isCreateMode],
+  async ([nextBoardId, nextTagId, nextIsCreate]) => {
     if (nextBoardId === null) {
-      draft.value = null;
-      void router.replace({ name: 'boards' });
+      clearDraftState();
+      await router.replace({ name: 'boards' });
+      return;
+    }
+
+    if (nextIsCreate) {
+      initialiseCreateDraftState();
       return;
     }
 
     if (nextTagId === null) {
-      draft.value = null;
-      void router.replace({ name: 'tags', params: { boardId: nextBoardId } });
+      clearDraftState();
+      await router.replace({ name: 'tags', params: { boardId: nextBoardId } });
       return;
+    }
+
+    let nextTag = getTagById(nextTagId);
+    if (!nextTag) {
+      const loaded = await loadTags(nextBoardId);
+      if (!loaded) {
+        return;
+      }
+
+      nextTag = getTagById(nextTagId);
     }
 
     if (!nextTag) {
-      draft.value = null;
-      draftEmoji.value = null;
-      if (hasAttemptedLoad) {
-        void router.replace({ name: 'tags', params: { boardId: nextBoardId } });
-      }
+      clearDraftState();
+      await router.replace({ name: 'tags', params: { boardId: nextBoardId } });
       return;
     }
 
-    if (previousTagId !== nextTagId || draft.value === null) {
-      draft.value = createTagStyleDraft(nextTag);
-      draftEmoji.value = nextTag.emoji ?? null;
-    }
+    initialiseEditDraftState(nextTag, nextTagId);
   },
   { immediate: true }
 );

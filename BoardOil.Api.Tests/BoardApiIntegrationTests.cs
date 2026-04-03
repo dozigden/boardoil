@@ -530,7 +530,7 @@ public sealed class BoardApiIntegrationTests
     {
         // Arrange
         await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
-        var request = new UpdateTagStyleRequest("gradient", """{"leftColor":"#223344","rightColor":"#446688","textColorMode":"auto"}""", "⚠️");
+        var request = new UpdateTagStyleRequest("Bug", "gradient", """{"leftColor":"#223344","rightColor":"#446688","textColorMode":"auto"}""", "⚠️");
         var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags", JsonOptions);
         Assert.NotNull(tagsEnvelope);
         Assert.NotNull(tagsEnvelope!.Data);
@@ -551,6 +551,32 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task TagEndpoints_ShouldUpdateTagName()
+    {
+        // Arrange
+        await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
+        var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags", JsonOptions);
+        Assert.NotNull(tagsEnvelope);
+        Assert.NotNull(tagsEnvelope!.Data);
+        var bugTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "Bug");
+
+        var request = new UpdateTagStyleRequest(
+            "Platform",
+            "solid",
+            """{"backgroundColor":"#224466","textColorMode":"auto"}""");
+
+        // Act
+        var putResponse = await Client.PutAsJsonAsync($"/api/boards/1/tags/{bugTag.Id}", request);
+        putResponse.EnsureSuccessStatusCode();
+
+        // Assert
+        var updatedTagEnvelope = await putResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
+        Assert.NotNull(updatedTagEnvelope);
+        Assert.NotNull(updatedTagEnvelope!.Data);
+        Assert.Equal("Platform", updatedTagEnvelope.Data!.Name);
+    }
+
+    [Fact]
     public async Task TagEndpoints_WhenEmojiOmitted_ShouldClearExistingEmoji()
     {
         // Arrange
@@ -562,6 +588,7 @@ public sealed class BoardApiIntegrationTests
         var bugTagId = createdTagEnvelope.Data!.Id;
 
         var request = new UpdateTagStyleRequest(
+            "Bug",
             "solid",
             """{"backgroundColor":"#223344","textColorMode":"auto"}""");
 
@@ -580,7 +607,7 @@ public sealed class BoardApiIntegrationTests
     public async Task TagEndpoints_WhenTagIdMissing_ShouldReturnNotFound()
     {
         // Arrange
-        var request = new UpdateTagStyleRequest("solid", """{"backgroundColor":"#223344","textColorMode":"auto"}""");
+        var request = new UpdateTagStyleRequest("Bug", "solid", """{"backgroundColor":"#223344","textColorMode":"auto"}""");
 
         // Act
         var response = await Client.PutAsJsonAsync("/api/boards/1/tags/999999", request);

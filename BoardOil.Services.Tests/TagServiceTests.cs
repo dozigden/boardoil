@@ -213,6 +213,7 @@ public sealed class TagServiceTests : TestBaseDb
         // Act
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            Name: "Bug",
             StyleName: "solid",
             StylePropertiesJson: """{"backgroundColor":"blue","textColorMode":"auto"}"""), ActorUserId);
 
@@ -250,6 +251,7 @@ public sealed class TagServiceTests : TestBaseDb
         // Act
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            Name: "Bug",
             StyleName: "gradient",
             StylePropertiesJson: updatedStylePropertiesJson), ActorUserId);
 
@@ -262,6 +264,96 @@ public sealed class TagServiceTests : TestBaseDb
         var stored = await DbContextForAssert.Tags.SingleAsync();
         Assert.Equal("gradient", stored.StyleName);
         Assert.Equal(updatedStylePropertiesJson, stored.StylePropertiesJson);
+    }
+
+    [Fact]
+    public async Task UpdateTagStyleAsync_WhenNameProvided_ShouldRenameTag()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            StyleName: "solid",
+            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            Name: "Platform"), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("Platform", result.Data!.Name);
+
+        var stored = await DbContextForAssert.Tags.SingleAsync();
+        Assert.Equal("Platform", stored.Name);
+        Assert.Equal("PLATFORM", stored.NormalisedName);
+    }
+
+    [Fact]
+    public async Task UpdateTagStyleAsync_WhenNameConflicts_ShouldReturnValidationError()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
+        DbContextForArrange.Tags.AddRange(
+            new TagEntity
+            {
+                BoardId = boardId,
+                Name = "Bug",
+                NormalisedName = "BUG",
+                StyleName = "solid",
+                StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            },
+            new TagEntity
+            {
+                BoardId = boardId,
+                Name = "Urgent",
+                NormalisedName = "URGENT",
+                StyleName = "solid",
+                StylePropertiesJson = """{"backgroundColor":"#223344","textColorMode":"auto"}""",
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            });
+        await DbContextForArrange.SaveChangesAsync();
+
+        var bugTagId = await DbContextForArrange.Tags
+            .Where(x => x.NormalisedName == "BUG")
+            .Select(x => x.Id)
+            .SingleAsync();
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateTagStyleAsync(boardId, bugTagId, new UpdateTagStyleRequest(
+            StyleName: "solid",
+            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            Name: "Urgent"), ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("name"));
     }
 
     [Fact]
@@ -289,6 +381,7 @@ public sealed class TagServiceTests : TestBaseDb
         // Act
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            Name: "Bug",
             StyleName: "solid",
             StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
             Emoji: "not-emoji"), ActorUserId);
@@ -326,10 +419,12 @@ public sealed class TagServiceTests : TestBaseDb
 
         // Act
         var setEmojiResult = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            Name: "Bug",
             StyleName: "solid",
             StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
             Emoji: "⚠️"), ActorUserId);
         var clearEmojiResult = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            Name: "Bug",
             StyleName: "solid",
             StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
             Emoji: "   "), ActorUserId);
@@ -373,6 +468,7 @@ public sealed class TagServiceTests : TestBaseDb
         // Act
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            Name: "Bug",
             StyleName: "gradient",
             StylePropertiesJson: """{"leftColor":"#113355","rightColor":"#557799","textColorMode":"auto"}"""), ActorUserId);
 
@@ -436,6 +532,7 @@ public sealed class TagServiceTests : TestBaseDb
 
         // Act
         var result = await service.UpdateTagStyleAsync(firstBoardId, firstBoardTagId, new UpdateTagStyleRequest(
+            Name: "Bug",
             StyleName: "gradient",
             StylePropertiesJson: updatedStylePropertiesJson), ActorUserId);
 
@@ -470,6 +567,7 @@ public sealed class TagServiceTests : TestBaseDb
         // Act
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, 999_999, new UpdateTagStyleRequest(
+            Name: "Bug",
             StyleName: "solid",
             StylePropertiesJson: stylePropertiesJson), ActorUserId);
 

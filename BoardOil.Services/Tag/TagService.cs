@@ -115,33 +115,52 @@ public sealed class TagService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(request.StyleName);
-        if (normalisedStyleName is null)
-        {
-            return ValidationFail([new ValidationError("styleName", "Style name must be 'solid' or 'gradient'.")]);
-        }
-
-        var emojiValidation = TagEmojiValidator.ValidateAndNormalise(request.Emoji, "emoji");
-        var styleValidationErrors = TagStyleSchemaValidator.Validate(normalisedStyleName, request.StylePropertiesJson);
-        if (emojiValidation.Error is not null || styleValidationErrors.Count > 0)
-        {
-            var validationErrors = new List<ValidationError>();
-            if (emojiValidation.Error is not null)
-            {
-                validationErrors.Add(emojiValidation.Error);
-            }
-
-            validationErrors.AddRange(styleValidationErrors);
-            return ValidationFail(validationErrors);
-        }
-
         var existing = await tagRepository.GetByIdInBoardAsync(boardId, tagId);
         if (existing is null)
         {
             return ApiErrors.NotFound("Tag not found.");
         }
 
+        var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(request.StyleName);
+        var validationErrors = new List<ValidationError>();
+        if (normalisedStyleName is null)
+        {
+            validationErrors.Add(new ValidationError("styleName", "Style name must be 'solid' or 'gradient'."));
+        }
+
+        var emojiValidation = TagEmojiValidator.ValidateAndNormalise(request.Emoji, "emoji");
+        if (emojiValidation.Error is not null)
+        {
+            validationErrors.Add(emojiValidation.Error);
+        }
+
+        if (normalisedStyleName is not null)
+        {
+            validationErrors.AddRange(TagStyleSchemaValidator.Validate(normalisedStyleName, request.StylePropertiesJson));
+        }
+
+        var tagNameValidation = ValidateTagName(request.Name, "name");
+        if (tagNameValidation.Error is not null)
+        {
+            validationErrors.Add(tagNameValidation.Error);
+        }
+        else
+        {
+            var byName = await tagRepository.GetByNormalisedNameAsync(boardId, tagNameValidation.NormalisedName);
+            if (byName is not null && byName.Id != existing.Id)
+            {
+                validationErrors.Add(new ValidationError("name", $"Tag '{tagNameValidation.CanonicalName}' already exists."));
+            }
+        }
+
+        if (validationErrors.Count > 0 || normalisedStyleName is null)
+        {
+            return ValidationFail(validationErrors);
+        }
+
         var updatedAtUtc = DateTime.UtcNow;
+        existing.Name = tagNameValidation.CanonicalName;
+        existing.NormalisedName = tagNameValidation.NormalisedName;
         existing.StyleName = normalisedStyleName;
         existing.StylePropertiesJson = request.StylePropertiesJson;
         existing.Emoji = emojiValidation.CanonicalEmoji;
