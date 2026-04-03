@@ -133,6 +133,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
+import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
 import type { Tag, TagStyleName } from '../types/boardTypes';
 import {
   DEFAULT_TAG_STYLE_PROPERTIES_JSON,
@@ -149,8 +150,9 @@ const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const tagStore = useTagStore();
+const feedbackStore = useUiFeedbackStore();
 const { busy } = storeToRefs(tagStore);
-const { createTag, updateTagStyle, deleteTag, getTagById, loadTags } = tagStore;
+const { createTag, updateTagStyle, deleteTag, getTagById, getTagByName, loadTags } = tagStore;
 const draft = ref<TagStyleDraft | null>(null);
 const draftEmoji = ref<string | null>(null);
 const draftTagName = ref('');
@@ -285,6 +287,12 @@ async function saveTag() {
   const canonicalTagName = draftTagName.value.trim();
   if (isCreateMode.value) {
     if (!canonicalTagName) {
+      return;
+    }
+
+    const existingTag = getTagByName(canonicalTagName);
+    if (existingTag) {
+      feedbackStore.setError(`Tag '${existingTag.name}' already exists.`);
       return;
     }
 
