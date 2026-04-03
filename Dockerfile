@@ -12,6 +12,7 @@ COPY BoardOil.Abstractions/ BoardOil.Abstractions/
 COPY BoardOil.Persistence.Abstractions/ BoardOil.Persistence.Abstractions/
 COPY BoardOil.Contracts/ BoardOil.Contracts/
 COPY BoardOil.Services/ BoardOil.Services/
+COPY BoardOil.TasksMd/ BoardOil.TasksMd/
 COPY BoardOil.Ef/ BoardOil.Ef/
 COPY BoardOil.Mcp.Contracts/ BoardOil.Mcp.Contracts/
 RUN dotnet restore BoardOil.Api/BoardOil.Api.csproj

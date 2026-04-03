@@ -36,6 +36,10 @@ export function createBoardApi() {
     return postData<Board>('/api/boards', { name });
   }
 
+  async function importTasksMdBoard(url: string): Promise<Result<Board, AppError>> {
+    return postData<Board>('/api/boards/import/tasksmd', { url });
+  }
+
   async function saveBoard(boardId: number, name: string): Promise<Result<BoardSummary, AppError>> {
     return putData<BoardSummary>(`/api/boards/${boardId}`, { name });
   }
@@ -183,6 +187,7 @@ export function createBoardApi() {
     getBoards,
     getBoard,
     createBoard,
+    importTasksMdBoard,
     saveBoard,
     deleteBoard,
     getBoardMembers,

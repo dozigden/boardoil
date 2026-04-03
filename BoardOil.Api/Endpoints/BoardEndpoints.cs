@@ -24,6 +24,9 @@ public static class BoardEndpoints
         boardEndpoints.MapPost(string.Empty, async (CreateBoardRequest request, IBoardService boardService, HttpContext httpContext) =>
             (await boardService.CreateBoardAsync(request, httpContext.GetActorUserId())).ToHttpResult());
 
+        boardEndpoints.MapPost("/import/tasksmd", async (ImportTasksMdBoardRequest request, IBoardImportService boardImportService, HttpContext httpContext) =>
+            (await boardImportService.ImportTasksMdBoardAsync(request, httpContext.GetActorUserId())).ToHttpResult());
+
         boardEndpoints.MapPut("/{boardId:int}", async (int boardId, UpdateBoardRequest request, IBoardService boardService, HttpContext httpContext) =>
             (await boardService.UpdateBoardAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 

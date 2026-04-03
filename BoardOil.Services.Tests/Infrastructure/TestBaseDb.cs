@@ -81,6 +81,7 @@ public abstract class TestBaseDb : IAsyncLifetime
         services.AddScoped<TagService>();
         services.AddSingleton<IBoardEvents, TestBoardEvents>();
         services.AddSingleton<IDbContextFactory>(_ => new TestDbContextFactory(Harness.Options));
+        ConfigureTestServices(services);
         _serviceProvider = services.BuildServiceProvider();
     }
 
@@ -123,4 +124,9 @@ public abstract class TestBaseDb : IAsyncLifetime
             .OrderBy(x => x.SortKey)
             .Select(x => x.Title)
             .ToListAsync();
+
+    protected virtual void ConfigureTestServices(IServiceCollection services)
+    {
+        _ = services;
+    }
 }

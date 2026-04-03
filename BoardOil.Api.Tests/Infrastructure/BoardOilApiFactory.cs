@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BoardOil.Api.Tests.Infrastructure;
 
@@ -10,17 +12,20 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
     private readonly bool _allowInsecureCookies;
     private readonly string? _mcpEventRelayApiKey;
     private readonly string? _mcpEventRelayAllowedSourceIps;
+    private readonly Action<IServiceCollection>? _configureTestServices;
 
     public BoardOilApiFactory(
         string databasePath,
         bool allowInsecureCookies = true,
         string? mcpEventRelayApiKey = null,
-        string? mcpEventRelayAllowedSourceIps = null)
+        string? mcpEventRelayAllowedSourceIps = null,
+        Action<IServiceCollection>? configureTestServices = null)
     {
         _databasePath = databasePath;
         _allowInsecureCookies = allowInsecureCookies;
         _mcpEventRelayApiKey = mcpEventRelayApiKey;
         _mcpEventRelayAllowedSourceIps = mcpEventRelayAllowedSourceIps;
+        _configureTestServices = configureTestServices;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -68,5 +73,10 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
 
             configBuilder.AddInMemoryCollection(settings);
         });
+
+        if (_configureTestServices is not null)
+        {
+            builder.ConfigureTestServices(_configureTestServices);
+        }
     }
 }
