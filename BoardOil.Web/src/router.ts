@@ -58,7 +58,12 @@ const routes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
-        redirect: to => ({ name: 'tags', params: { boardId: to.params.boardId } })
+        redirect: to => ({ name: 'board-details', params: { boardId: to.params.boardId } })
+      },
+      {
+        path: 'details',
+        name: 'board-details',
+        component: () => import('./views/BoardDetailsView.vue')
       },
       {
         path: 'columns',
@@ -98,6 +103,11 @@ const routes: RouteRecordRaw[] = [
         path: 'members',
         name: 'board-members',
         component: () => import('./views/BoardMembersView.vue')
+      },
+      {
+        path: 'delete',
+        name: 'board-delete',
+        component: () => import('./views/BoardDeleteView.vue')
       }
     ]
   },

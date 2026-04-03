@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getBrandTarget, getCurrentBoardName, getOtherBoards, getPageTitle } from './appHeaderNavigation';
+import { getBrandTarget, getCurrentBoardName, getCurrentBoardTarget, getOtherBoards, getPageTitle } from './appHeaderNavigation';
 import type { Board, BoardSummary } from '../types/boardTypes';
 
 describe('appHeaderNavigation', () => {
@@ -35,7 +35,7 @@ describe('appHeaderNavigation', () => {
     expect(getBrandTarget(boards)).toEqual({ name: 'boards' });
   });
 
-  it('filters the current board out of the switcher list', () => {
+  it('filters the current board out of the switcher list and sorts remaining boards by name', () => {
     const boards: BoardSummary[] = [
       {
         id: 7,
@@ -45,13 +45,24 @@ describe('appHeaderNavigation', () => {
       },
       {
         id: 8,
-        name: 'Second board',
+        name: 'Zulu',
+        createdAtUtc: '2026-03-15T00:00:00Z',
+        updatedAtUtc: '2026-03-15T00:00:00Z'
+      },
+      {
+        id: 9,
+        name: 'Alpha',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
     ];
 
-    expect(getOtherBoards(boards, 7).map(board => board.id)).toEqual([8]);
+    expect(getOtherBoards(boards, 7).map(board => board.id)).toEqual([9, 8]);
+  });
+
+  it('resolves the current board route for the board-name link', () => {
+    expect(getCurrentBoardTarget(12)).toEqual({ name: 'board', params: { boardId: 12 } });
+    expect(getCurrentBoardTarget(null)).toBeNull();
   });
 
   it('prefers the loaded board name and falls back to the catalogue list', () => {

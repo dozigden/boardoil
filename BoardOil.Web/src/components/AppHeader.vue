@@ -83,7 +83,7 @@ const brandTarget = computed(() => getBrandTarget(boards.value));
 const boardAdminTarget = computed(() =>
   currentBoardId.value !== null && board.value
     ? {
-        name: board.value.currentUserRole === 'Owner' ? 'columns' : 'tags',
+        name: 'board-details',
         params: { boardId: currentBoardId.value }
       }
     : null

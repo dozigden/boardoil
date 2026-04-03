@@ -33,19 +33,29 @@ const navItems = computed(() => {
 
   const items = [
     {
+      label: 'Details',
+      to: { name: 'board-details', params: { boardId: boardId.value } }
+    },
+    {
       label: 'Tags',
-      to: { name: 'tags', params: { boardId: boardId.value } }
+      to: { name: 'tags', params: { boardId: boardId.value } },
+      activeRouteNames: ['tags', 'tags-new', 'tags-tag']
     }
   ];
 
   if (board.value?.currentUserRole === 'Owner') {
-    items.unshift({
+    items.splice(1, 0, {
       label: 'Columns',
-      to: { name: 'columns', params: { boardId: boardId.value } }
+      to: { name: 'columns', params: { boardId: boardId.value } },
+      activeRouteNames: ['columns', 'columns-column']
     });
     items.push({
       label: 'Members',
       to: { name: 'board-members', params: { boardId: boardId.value } }
+    });
+    items.push({
+      label: 'Delete board',
+      to: { name: 'board-delete', params: { boardId: boardId.value } }
     });
   }
 
