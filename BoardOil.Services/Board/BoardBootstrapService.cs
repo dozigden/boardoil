@@ -3,12 +3,14 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Users;
 using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Board;
 
 public sealed class BoardBootstrapService(
     IBoardRepository boardRepository,
+    IUserRepository userRepository,
     IColumnRepository columnRepository,
     IDbContextScopeFactory scopeFactory) : IBoardBootstrapService
 {
@@ -27,6 +29,20 @@ public sealed class BoardBootstrapService(
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
+
+        var activeUsers = (await userRepository.GetUsersOrderedAsync())
+            .Where(x => x.IsActive)
+            .ToList();
+        foreach (var user in activeUsers)
+        {
+            board.Members.Add(new EntityBoardMember
+            {
+                UserId = user.Id,
+                Role = BoardMemberRole.Owner,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            });
+        }
 
         boardRepository.Add(board);
 

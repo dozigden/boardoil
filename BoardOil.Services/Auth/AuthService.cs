@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Auth;
 using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Contracts.Auth;
@@ -12,6 +13,7 @@ namespace BoardOil.Services.Auth;
 
 public sealed class AuthService(
     IAuthUserRepository authUserRepository,
+    IBoardRepository boardRepository,
     IRefreshTokenRepository refreshTokenRepository,
     IPersonalAccessTokenRepository personalAccessTokenRepository,
     IPasswordHashService passwordHashService,
@@ -57,6 +59,7 @@ public sealed class AuthService(
         var accessTokenExpiresAtUtc = now.AddMinutes(sessionOptions.AccessTokenMinutes);
         var refreshTokenExpiresAtUtc = now.AddDays(sessionOptions.RefreshTokenDays);
         var refreshToken = CreateRefreshToken();
+        var existingBoards = await boardRepository.GetBoardsOrderedAsync();
         var user = new EntityUser
         {
             UserName = request.UserName.Trim(),
@@ -73,7 +76,16 @@ public sealed class AuthService(
                     CreatedAtUtc = now,
                     ExpiresAtUtc = refreshTokenExpiresAtUtc
                 }
-            ]
+            ],
+            BoardMemberships = existingBoards
+                .Select(board => new EntityBoardMember
+                {
+                    BoardId = board.Id,
+                    Role = BoardMemberRole.Owner,
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                })
+                .ToList()
         };
 
         authUserRepository.Add(user);

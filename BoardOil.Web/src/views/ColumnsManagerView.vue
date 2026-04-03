@@ -1,14 +1,15 @@
 <template>
   <template v-if="board">
     <section class="toolbar entity-rows-header columns-manager-toolbar">
-      <button type="button" class="btn" aria-label="Add column" title="Add column" @click="openNewColumnDraft">
+      <button v-if="isOwner" type="button" class="btn" aria-label="Add column" title="Add column" @click="openNewColumnDraft">
         <Plus :size="16" aria-hidden="true" />
         <span>Add Column</span>
       </button>
+      <p v-else class="columns-manager-owner-note">Owner permission required to manage columns.</p>
     </section>
 
     <section class="entity-rows-list columns-manager-list">
-      <article v-if="newColumnDraftTitle !== null" class="entity-row columns-manager-item create-column-inline">
+      <article v-if="isOwner && newColumnDraftTitle !== null" class="entity-row columns-manager-item create-column-inline">
         <label class="create-card-inline-label">
           Column title
           <input
@@ -44,6 +45,7 @@
           <h3 class="entity-row-title">{{ column.title }}</h3>
         </div>
         <div class="entity-row-actions">
+          <template v-if="isOwner">
             <button
               type="button"
               class="btn btn--secondary entity-row-action-icon"
@@ -64,6 +66,7 @@
             >
               <GripVertical :size="16" aria-hidden="true" />
             </div>
+          </template>
         </div>
       </article>
     </section>
@@ -73,7 +76,7 @@
 <script setup lang="ts">
 import { GripVertical, Pencil, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 
@@ -87,6 +90,7 @@ const router = useRouter();
 const boardStore = useBoardStore();
 const { board, busy } = storeToRefs(boardStore);
 const { createColumn: createColumnAction, moveColumn: moveColumnAction } = boardStore;
+const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
 
 async function openNewColumnDraft() {
   if (newColumnDraftTitle.value !== null) {
@@ -132,6 +136,10 @@ async function openColumnEditor(columnId: number) {
 }
 
 function onColumnDragStart(columnId: number, event: DragEvent) {
+  if (!isOwner.value) {
+    return;
+  }
+
   draggingColumnId.value = columnId;
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
@@ -146,6 +154,10 @@ function onColumnDragStart(columnId: number, event: DragEvent) {
 }
 
 function onColumnDragOver(columnId: number, event: DragEvent) {
+  if (!isOwner.value) {
+    return;
+  }
+
   if (draggingColumnId.value === null || draggingColumnId.value === columnId) {
     return;
   }
@@ -161,6 +173,10 @@ function onColumnDragLeave(columnId: number) {
 }
 
 async function onColumnDrop(targetColumnId: number, event: DragEvent) {
+  if (!isOwner.value) {
+    return;
+  }
+
   event.preventDefault();
   dragOverColumnId.value = null;
 
@@ -221,6 +237,10 @@ watch(
 .columns-manager-toolbar {
   margin-top: 0;
   margin-bottom: 0.75rem;
+}
+
+.columns-manager-owner-note {
+  margin: 0;
 }
 
 .columns-manager-list {

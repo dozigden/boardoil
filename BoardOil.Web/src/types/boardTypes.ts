@@ -10,6 +10,7 @@ export type Card = {
 };
 
 export type TagStyleName = 'solid' | 'gradient';
+export type BoardMemberRole = 'Owner' | 'Contributor' | string;
 
 export type Tag = {
   id: number;
@@ -38,12 +39,22 @@ export type Board = {
   name: string;
   createdAtUtc: string;
   updatedAtUtc: string;
+  currentUserRole?: BoardMemberRole | null;
   columns: BoardColumn[];
 };
 
 export type BoardSummary = {
   id: number;
   name: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+  currentUserRole?: BoardMemberRole | null;
+};
+
+export type BoardMember = {
+  userId: number;
+  userName: string;
+  role: BoardMemberRole;
   createdAtUtc: string;
   updatedAtUtc: string;
 };

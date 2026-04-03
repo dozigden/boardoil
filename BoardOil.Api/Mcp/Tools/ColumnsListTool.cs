@@ -39,7 +39,7 @@ public sealed class ColumnsListTool(
             return Failure(accessError);
         }
 
-        var result = await _columnService.GetColumnsAsync(boardId);
+        var result = await _columnService.GetColumnsAsync(boardId, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {
             return Failure(result.ToMcpError());

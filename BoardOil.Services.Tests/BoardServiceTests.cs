@@ -19,7 +19,7 @@ public sealed class BoardServiceTests : TestBaseDb
     {
         // Act
         var service = CreateService();
-        var result = await service.UpdateBoardAsync(999, new UpdateBoardRequest("Renamed"));
+        var result = await service.UpdateBoardAsync(999, new UpdateBoardRequest("Renamed"), ActorUserId);
 
         // Assert
         Assert.False(result.Success);
@@ -36,7 +36,7 @@ public sealed class BoardServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.UpdateBoardAsync(board.BoardId, new UpdateBoardRequest("  Roadmap  "));
+        var result = await service.UpdateBoardAsync(board.BoardId, new UpdateBoardRequest("  Roadmap  "), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -61,7 +61,7 @@ public sealed class BoardServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.DeleteBoardAsync(board.BoardId);
+        var result = await service.DeleteBoardAsync(board.BoardId, ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -75,7 +75,7 @@ public sealed class BoardServiceTests : TestBaseDb
     {
         // Act
         var service = CreateService();
-        var result = await service.DeleteBoardAsync(999);
+        var result = await service.DeleteBoardAsync(999, ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -87,7 +87,7 @@ public sealed class BoardServiceTests : TestBaseDb
     {
         // Act
         var service = CreateService();
-        var result = await service.GetBoardAsync(1);
+        var result = await service.GetBoardAsync(1, ActorUserId);
 
         // Assert
         Assert.False(result.Success);
@@ -104,7 +104,7 @@ public sealed class BoardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.GetBoardAsync(board.BoardId);
+        var result = await service.GetBoardAsync(board.BoardId, ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -130,7 +130,7 @@ public sealed class BoardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.GetBoardAsync(board.BoardId);
+        var result = await service.GetBoardAsync(board.BoardId, ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -192,7 +192,7 @@ public sealed class BoardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.GetBoardAsync(board.BoardId);
+        var result = await service.GetBoardAsync(board.BoardId, ActorUserId);
 
         // Assert
         Assert.True(result.Success);

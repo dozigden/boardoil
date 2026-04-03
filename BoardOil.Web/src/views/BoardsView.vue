@@ -3,7 +3,7 @@
     <header class="entity-rows-header">
       <h2>Boards</h2>
       <button
-        v-if="isAdmin"
+        v-if="isAuthenticated"
         type="button"
         class="btn"
         :disabled="busy"
@@ -27,7 +27,7 @@
               Open
             </button>
             <button
-              v-if="isAdmin"
+              v-if="board.currentUserRole === 'Owner'"
               type="button"
               class="btn btn--secondary entity-row-action-icon"
               :disabled="busy"
@@ -38,7 +38,7 @@
               <Pencil :size="16" aria-hidden="true" />
             </button>
             <button
-              v-if="isAdmin"
+              v-if="board.currentUserRole === 'Owner'"
               type="button"
               class="btn btn--danger entity-row-action-icon"
               :disabled="busy"
@@ -83,7 +83,7 @@ import type { BoardSummary } from '../types/boardTypes';
 const router = useRouter();
 const authStore = useAuthStore();
 const boardCatalogueStore = useBoardCatalogueStore();
-const { isAdmin } = storeToRefs(authStore);
+const { isAuthenticated } = storeToRefs(authStore);
 const { boards, busy } = storeToRefs(boardCatalogueStore);
 
 const isCreateDialogOpen = ref(false);

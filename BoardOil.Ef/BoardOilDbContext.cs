@@ -10,6 +10,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityBoardCard> Cards => Set<EntityBoardCard>();
     public DbSet<EntityTag> Tags => Set<EntityTag>();
     public DbSet<EntityCardTag> CardTags => Set<EntityCardTag>();
+    public DbSet<EntityBoardMember> BoardMembers => Set<EntityBoardMember>();
     public DbSet<EntityUser> Users => Set<EntityUser>();
     public DbSet<EntityRefreshToken> RefreshTokens => Set<EntityRefreshToken>();
     public DbSet<EntityPersonalAccessToken> PersonalAccessTokens => Set<EntityPersonalAccessToken>();
@@ -26,6 +27,10 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .HasForeignKey(x => x.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
         board.HasMany(x => x.Tags)
+            .WithOne(x => x.Board)
+            .HasForeignKey(x => x.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
+        board.HasMany(x => x.Members)
             .WithOne(x => x.Board)
             .HasForeignKey(x => x.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
@@ -92,6 +97,19 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .WithOne(x => x.User)
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+        user.HasMany(x => x.BoardMemberships)
+            .WithOne(x => x.User)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var boardMember = modelBuilder.Entity<EntityBoardMember>();
+        boardMember.HasKey(x => x.Id);
+        boardMember.Property(x => x.Role).IsRequired();
+        boardMember.Property(x => x.CreatedAtUtc).IsRequired();
+        boardMember.Property(x => x.UpdatedAtUtc).IsRequired();
+        boardMember.ToTable("BoardMembers");
+        boardMember.HasIndex(x => new { x.BoardId, x.UserId }).IsUnique();
+        boardMember.HasIndex(x => new { x.BoardId, x.Role });
 
         var refreshToken = modelBuilder.Entity<EntityRefreshToken>();
         refreshToken.HasKey(x => x.Id);

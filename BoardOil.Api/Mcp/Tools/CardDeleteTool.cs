@@ -41,7 +41,7 @@ public sealed class CardDeleteTool(
             return Failure(accessError);
         }
 
-        var result = await _cardService.DeleteCardAsync(boardId, cardId);
+        var result = await _cardService.DeleteCardAsync(boardId, cardId, context.ActorUserId);
         if (!result.Success)
         {
             return Failure(result.ToMcpError());

@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Tag;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Tag;
@@ -11,12 +12,13 @@ namespace BoardOil.Services.Tag;
 public sealed class TagService(
     IBoardRepository boardRepository,
     ITagRepository tagRepository,
+    IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory) : ITagService
 {
     private const int MaxTagNameLength = 40;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
-    public async Task<ApiResult<IReadOnlyList<TagDto>>> GetTagsAsync(int boardId)
+    public async Task<ApiResult<IReadOnlyList<TagDto>>> GetTagsAsync(int boardId, int actorUserId)
     {
         using var scope = _scopeFactory.CreateReadOnly();
 
@@ -25,17 +27,29 @@ public sealed class TagService(
             return ApiErrors.NotFound("Board not found.");
         }
 
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have access to this board.");
+        }
+
         var tags = await tagRepository.GetAllForBoardAsync(boardId);
         return tags.Select(x => x.ToTagDto()).ToList();
     }
 
-    public async Task<ApiResult<TagDto>> CreateTagAsync(int boardId, CreateTagRequest request)
+    public async Task<ApiResult<TagDto>> CreateTagAsync(int boardId, CreateTagRequest request, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
 
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.TagManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         var tagValidation = ValidateTagName(request.Name, "name");
@@ -86,13 +100,19 @@ public sealed class TagService(
         return ApiResults.Created(created.ToTagDto());
     }
 
-    public async Task<ApiResult<TagDto>> UpdateTagStyleAsync(int boardId, int tagId, UpdateTagStyleRequest request)
+    public async Task<ApiResult<TagDto>> UpdateTagStyleAsync(int boardId, int tagId, UpdateTagStyleRequest request, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
 
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.TagManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(request.StyleName);
@@ -132,13 +152,19 @@ public sealed class TagService(
         return existing.ToTagDto();
     }
 
-    public async Task<ApiResult> DeleteTagAsync(int boardId, int tagId)
+    public async Task<ApiResult> DeleteTagAsync(int boardId, int tagId, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
 
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.TagManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         var existing = await tagRepository.GetByIdInBoardAsync(boardId, tagId);

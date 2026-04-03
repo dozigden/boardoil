@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using BoardOil.Api.Tests.Infrastructure;
+using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Tag;
@@ -198,7 +199,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task StandardUser_GetBoard_ShouldReturnOk()
+    public async Task StandardUser_WithoutBoardMembership_GetBoard_ShouldReturnForbidden()
     {
         // Arrange
         var adminClient = _factory.CreateClient();
@@ -211,7 +212,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var response = await standardClient.GetAsync("/api/boards/1");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
@@ -221,7 +222,8 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var adminClient = _factory.CreateClient();
         var standardClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
         var columnId = await CreateColumnAsAdminAsync(adminClient, "Todo");
         await LoginAsAsync(standardClient, "member", "Password1234!");
         var createTagResponse = await standardClient.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("member"));
@@ -243,7 +245,8 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var adminClient = _factory.CreateClient();
         var standardClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
@@ -262,7 +265,8 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var adminClient = _factory.CreateClient();
         var standardClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
@@ -279,7 +283,8 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var adminClient = _factory.CreateClient();
         var standardClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
         await SeedTagAsync("member", "MEMBER", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
         await LoginAsAsync(standardClient, "member", "Password1234!");
         var tagsEnvelope = await standardClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags");
@@ -305,7 +310,8 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var adminClient = _factory.CreateClient();
         var standardClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
@@ -482,9 +488,21 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
     }
 
-    private static async Task CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
+    private static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
     {
         var response = await adminClient.PostAsJsonAsync("/api/users", new CreateUserRequest(userName, password, role));
+        response.EnsureSuccessStatusCode();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardOil.Contracts.Users.ManagedUserDto>>();
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        return envelope.Data!.Id;
+    }
+
+    private static async Task AddBoardMemberAsAdminAsync(HttpClient adminClient, int boardId, int userId, string role)
+    {
+        var response = await adminClient.PostAsJsonAsync(
+            $"/api/boards/{boardId}/members",
+            new AddBoardMemberRequest(userId, role));
         response.EnsureSuccessStatusCode();
     }
 
