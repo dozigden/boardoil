@@ -199,6 +199,19 @@
           "Microsoft.Extensions.Options": "10.0.4"
         }
       },
+      "Microsoft.Extensions.Http": {
+        "type": "Transitive",
+        "resolved": "10.0.4",
+        "contentHash": "QRbs+A+WfiGTnV9KFNfWlF+My5euQNZnsvdVMulwRN6C/tEPaF+ZlQfedHoNvFHKLwjQMmqwm4z+TSO9eLvRQw==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.4",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.4",
+          "Microsoft.Extensions.Diagnostics": "10.0.4",
+          "Microsoft.Extensions.Logging": "10.0.4",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.4",
+          "Microsoft.Extensions.Options": "10.0.4"
+        }
+      },
       "Microsoft.Extensions.Identity.Core": {
         "type": "Transitive",
         "resolved": "10.0.4",
@@ -360,10 +373,7 @@
         }
       },
       "boardoil.persistence.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "BoardOil.Abstractions": "[1.0.0, )"
-        }
+        "type": "Project"
       },
       "boardoil.services": {
         "type": "Project",
@@ -372,8 +382,13 @@
           "BoardOil.Contracts": "[1.0.0, )",
           "BoardOil.Ef": "[1.0.0, )",
           "BoardOil.Persistence.Abstractions": "[1.0.0, )",
+          "BoardOil.TasksMd": "[1.0.0, )",
+          "Microsoft.Extensions.Http": "[10.0.4, )",
           "Microsoft.Extensions.Identity.Core": "[10.0.4, )"
         }
+      },
+      "boardoil.tasksmd": {
+        "type": "Project"
       }
     }
   }

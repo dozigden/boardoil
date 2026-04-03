@@ -20,6 +20,9 @@ public sealed record BoardDto(
 public sealed record CreateBoardRequest(
     string Name);
 
+public sealed record ImportTasksMdBoardRequest(
+    string Url);
+
 public sealed record UpdateBoardRequest(
     string Name);
 

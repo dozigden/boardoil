@@ -92,6 +92,10 @@ const { boards, busy } = storeToRefs(boardCatalogueStore);
 const isCreateDialogOpen = ref(false);
 const editingBoard = ref<BoardSummary | null>(null);
 
+type CreateBoardPayload =
+  | { mode: 'blank'; name: string }
+  | { mode: 'tasksmd'; url: string };
+
 onMounted(async () => {
   await boardCatalogueStore.loadBoards();
 });
@@ -116,8 +120,11 @@ function closeRenameDialog() {
   editingBoard.value = null;
 }
 
-async function submitCreateBoard(payload: { name: string }) {
-  const created = await boardCatalogueStore.createBoard(payload.name);
+async function submitCreateBoard(payload: CreateBoardPayload) {
+  const created = payload.mode === 'blank'
+    ? await boardCatalogueStore.createBoard(payload.name)
+    : await boardCatalogueStore.importTasksMdBoard(payload.url);
+
   if (!created) {
     return;
   }

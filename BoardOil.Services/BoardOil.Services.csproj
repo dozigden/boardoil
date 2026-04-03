@@ -1,11 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.4" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.4" />
     <ProjectReference Include="..\BoardOil.Abstractions\BoardOil.Abstractions.csproj" />
     <ProjectReference Include="..\BoardOil.Contracts\BoardOil.Contracts.csproj" />
     <ProjectReference Include="..\BoardOil.Ef\BoardOil.Ef.csproj" />
     <ProjectReference Include="..\BoardOil.Persistence.Abstractions\BoardOil.Persistence.Abstractions.csproj" />
+    <ProjectReference Include="..\BoardOil.TasksMd\BoardOil.TasksMd.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

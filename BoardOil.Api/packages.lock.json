@@ -375,8 +375,12 @@
           "BoardOil.Abstractions": "[1.0.0, )",
           "BoardOil.Contracts": "[1.0.0, )",
           "BoardOil.Ef": "[1.0.0, )",
-          "BoardOil.Persistence.Abstractions": "[1.0.0, )"
+          "BoardOil.Persistence.Abstractions": "[1.0.0, )",
+          "BoardOil.TasksMd": "[1.0.0, )"
         }
+      },
+      "boardoil.tasksmd": {
+        "type": "Project"
       }
     }
   }

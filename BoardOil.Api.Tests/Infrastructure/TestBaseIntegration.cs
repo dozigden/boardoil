@@ -20,7 +20,7 @@ public abstract class TestBaseIntegration : IAsyncLifetime
     public Task InitializeAsync()
     {
         DatabasePath = BuildDbPath(DbNamePrefix);
-        Factory = new BoardOilApiFactory(DatabasePath);
+        Factory = CreateFactory(DatabasePath);
         Client = Factory.CreateClient();
         return AuthenticateAsInitialAdminAsync();
     }
@@ -145,6 +145,9 @@ public abstract class TestBaseIntegration : IAsyncLifetime
         Directory.CreateDirectory(root);
         return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
     }
+
+    protected virtual BoardOilApiFactory CreateFactory(string databasePath) =>
+        new(databasePath);
 
     private sealed record RegisterInitialAdminRequest(string UserName, string Password);
     private sealed record LoginRequest(string UserName, string Password);
