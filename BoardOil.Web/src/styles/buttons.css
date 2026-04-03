@@ -67,8 +67,8 @@ button:disabled {
 }
 
 .btn--tab {
-  --bo-btn-bg: var(--bo-surface-base);
-  --bo-btn-border: color-mix(in oklab, var(--bo-colour-energy) 32%, var(--bo-border-soft));
+  --bo-btn-bg: transparent;
+  --bo-btn-border: transparent;
   --bo-btn-ink: color-mix(in oklab, var(--bo-colour-energy) 84%, var(--bo-ink-strong));
   --bo-btn-bg-hover: color-mix(in oklab, var(--bo-colour-energy) 22%, var(--bo-surface-base));
   --bo-btn-border-hover: color-mix(in oklab, var(--bo-colour-energy) 78%, var(--bo-border-soft));
