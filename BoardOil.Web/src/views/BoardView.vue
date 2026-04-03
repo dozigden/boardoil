@@ -13,7 +13,10 @@
       @drop="dropCard(column.id, null)"
     >
       <header class="column-header">
-        <h2 class="column-name">{{ column.title }}</h2>
+        <div class="column-heading">
+          <h2 class="column-name">{{ column.title }}</h2>
+          <span class="badge column-card-count">{{ formatColumnCardCount(column.cards.length) }}</span>
+        </div>
         <button
           type="button"
           class="btn btn--secondary column-add-card"
@@ -78,6 +81,7 @@ import { useRoute, useRouter } from 'vue-router';
 import Card from '../components/Card.vue';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
+import { formatColumnCardCount } from '../utils/columnCardCount';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | null>>({});
@@ -240,10 +244,21 @@ watch(
   align-items: center;
 }
 
+.column-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
 .column-name {
-  flex: 1;
   margin: 0;
   font-size: 1rem;
+}
+
+.column-card-count {
+  flex: 0 0 auto;
 }
 
 .column-add-card {
