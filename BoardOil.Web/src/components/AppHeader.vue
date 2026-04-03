@@ -31,8 +31,17 @@
       </div>
       <div class="header-meta">
         <p v-if="isAuthenticated && userName" class="user-meta">
-          Signed in as {{ userName }}<span v-if="boardRoleLabel"> · Board role: {{ boardRoleLabel }}</span>
+          {{ userName }}
         </p>
+        <details v-if="isAuthenticated" ref="userMenu" class="header-menu">
+          <summary class="btn btn--secondary btn--icon menu-trigger" aria-label="Open user menu" title="User menu">
+            <CircleUserRound :size="18" aria-hidden="true" />
+          </summary>
+          <nav class="menu-panel" aria-label="User menu">
+            <RouterLink v-if="isAuthenticated" to="/licences" class="menu-item" @click="closeMenus">Licences</RouterLink>
+            <button v-if="isAuthenticated" type="button" class="btn btn--menu-item" @click="handleLogout">Logout</button>
+          </nav>
+        </details>
         <RouterLink
           v-if="isAdmin"
           :to="{ name: 'system-admin-boards' }"
@@ -43,15 +52,6 @@
         >
             <Settings :size="18" aria-hidden="true" />
         </RouterLink>
-        <details v-if="isAuthenticated" ref="userMenu" class="header-menu">
-          <summary class="btn btn--secondary btn--icon menu-trigger" aria-label="Open user menu" title="User menu">
-            <CircleUserRound :size="18" aria-hidden="true" />
-          </summary>
-          <nav class="menu-panel" aria-label="User menu">
-            <RouterLink v-if="isAuthenticated" to="/licences" class="menu-item" @click="closeMenus">Licences</RouterLink>
-            <button v-if="isAuthenticated" type="button" class="btn btn--menu-item" @click="handleLogout">Logout</button>
-          </nav>
-        </details>
       </div>
     </div>
   </header>
@@ -77,10 +77,9 @@ const boardCatalogueStore = useBoardCatalogueStore();
 const boardStore = useBoardStore();
 const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
 const { boards } = storeToRefs(boardCatalogueStore);
-const { board, currentBoardId, currentUserRole } = storeToRefs(boardStore);
+const { board, currentBoardId } = storeToRefs(boardStore);
 const userName = computed(() => user.value?.userName ?? '');
 const brandTarget = computed(() => getBrandTarget(boards.value));
-const boardRoleLabel = computed(() => currentUserRole.value);
 const boardAdminTarget = computed(() =>
   currentBoardId.value !== null && board.value
     ? {
