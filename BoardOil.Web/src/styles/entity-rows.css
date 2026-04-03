@@ -63,6 +63,33 @@
   min-width: 0;
 }
 
+.entity-row-main-button {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  padding: 0.2rem 0.3rem;
+  margin: -0.2rem -0.3rem;
+  justify-content: flex-start;
+  cursor: pointer;
+}
+
+.entity-row-main-button:hover {
+  background: var(--bo-surface-energy);
+}
+
+.entity-row-main-button:focus-visible {
+  outline: 2px solid var(--bo-colour-energy);
+  outline-offset: 2px;
+}
+
+.entity-row-main-button:disabled {
+  cursor: default;
+}
+
 .entity-row-title {
   margin: 0;
   font-size: 1rem;

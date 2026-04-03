@@ -9,20 +9,16 @@
     <ul v-else class="entity-rows-list">
       <li v-for="board in boards" :key="`${board.id}-${board.name}`">
         <div class="entity-row">
-          <div class="entity-row-main">
+          <button
+            type="button"
+            class="entity-row-main entity-row-main-button"
+            :disabled="busy"
+            :aria-label="`Manage members for board ${board.name}`"
+            @click="openMembers(board.id)"
+          >
             <span class="badge">#{{ board.id }}</span>
             <span class="entity-row-title">{{ board.name }}</span>
-          </div>
-          <div class="entity-row-actions">
-            <button
-              type="button"
-              class="btn btn--secondary"
-              :disabled="busy"
-              @click="openMembers(board.id)"
-            >
-              Manage members
-            </button>
-          </div>
+          </button>
         </div>
       </li>
     </ul>

@@ -13,16 +13,27 @@
 
     <section class="entity-rows-list">
       <article v-for="user in users" :key="user.id" class="entity-row">
-        <div class="entity-row-main">
+        <button
+          type="button"
+          class="entity-row-main entity-row-main-button"
+          :disabled="busy"
+          :aria-label="`Edit user ${user.userName}`"
+          @click="focusUserRoleControl(user.id)"
+        >
           <span class="badge">#{{ user.id }}</span>
           <strong class="entity-row-title">{{ user.userName }}</strong>
           <span class="entity-row-badges badge-group">
             <span class="badge">{{ user.role }}</span>
             <span class="badge">{{ user.isActive ? 'Active' : 'Inactive' }}</span>
           </span>
-        </div>
+        </button>
         <div class="entity-row-actions">
-          <select :value="user.role" :disabled="busy" @change="onRoleChange(user.id, ($event.target as HTMLSelectElement).value)">
+          <select
+            :id="`user-role-${user.id}`"
+            :value="user.role"
+            :disabled="busy"
+            @change="onRoleChange(user.id, ($event.target as HTMLSelectElement).value)"
+          >
             <option value="Standard">Standard</option>
             <option value="Admin">Admin</option>
           </select>
@@ -130,6 +141,17 @@ async function toggleStatus(userId: number, currentState: boolean) {
     successMessage.value = `${result.data.userName} is now ${result.data.isActive ? 'active' : 'inactive'}.`;
   } finally {
     busy.value = false;
+  }
+}
+
+function focusUserRoleControl(userId: number) {
+  if (busy.value) {
+    return;
+  }
+
+  const roleControl = document.getElementById(`user-role-${userId}`);
+  if (roleControl instanceof HTMLSelectElement) {
+    roleControl.focus();
   }
 }
 
