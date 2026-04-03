@@ -2,9 +2,13 @@
   <section class="entity-rows-page">
     <header class="entity-rows-header">
       <h2>Tags</h2>
+      <button type="button" class="btn" :disabled="busy" aria-label="Add tag" title="Add tag" @click="openCreateEditor">
+        <Plus :size="16" aria-hidden="true" />
+        <span>Add Tag</span>
+      </button>
     </header>
 
-    <p v-if="tagNames.length === 0" class="entity-rows-empty">No tags yet. Add one from any card editor.</p>
+    <p v-if="tagNames.length === 0" class="entity-rows-empty">No tags yet. Add one to get started.</p>
 
     <section v-else class="entity-rows-list">
       <article v-for="tagName in tagNames" :key="tagName" class="entity-row">
@@ -32,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { Pencil } from 'lucide-vue-next';
+import { Pencil, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -101,6 +105,14 @@ async function openEditor(tagName: string) {
   }
 
   await router.push({ name: 'tags-tag', params: { boardId: routeBoardId.value, tagId: existingTag.id } });
+}
+
+async function openCreateEditor() {
+  if (routeBoardId.value === null) {
+    return;
+  }
+
+  await router.push({ name: 'tags-new', params: { boardId: routeBoardId.value } });
 }
 
 function normaliseTagNameKey(tagName: string) {

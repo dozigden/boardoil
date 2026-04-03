@@ -296,6 +296,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var response = await standardClient.PutAsJsonAsync(
             $"/api/boards/1/tags/{memberTag.Id}",
             new UpdateTagStyleRequest(
+                Name: "member",
                 StyleName: "solid",
                 StylePropertiesJson: """{"backgroundColor":"#113355","textColorMode":"auto"}"""));
 

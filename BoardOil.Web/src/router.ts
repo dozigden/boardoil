@@ -79,6 +79,14 @@ const routes: RouteRecordRaw[] = [
         component: () => import('./views/TagsManagerView.vue')
       },
       {
+        path: 'tags/new',
+        name: 'tags-new',
+        components: {
+          default: () => import('./views/TagsManagerView.vue'),
+          dialog: () => import('./components/TagEditorDialog.vue')
+        }
+      },
+      {
         path: 'tags/:tagId(\\d+)',
         name: 'tags-tag',
         components: {

@@ -158,11 +158,13 @@ export function createBoardApi() {
   async function updateTagStyle(
     boardId: number,
     tagId: number,
+    name: string,
     styleName: TagStyleName,
     stylePropertiesJson: string,
     emoji?: string | null
   ): Promise<Result<Tag, AppError>> {
-    const payload: { styleName: TagStyleName; stylePropertiesJson: string; emoji?: string | null } = {
+    const payload: { name: string; styleName: TagStyleName; stylePropertiesJson: string; emoji?: string | null } = {
+      name,
       styleName,
       stylePropertiesJson
     };

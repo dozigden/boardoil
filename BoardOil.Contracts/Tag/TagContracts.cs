@@ -10,6 +10,7 @@ public sealed record TagDto(
     DateTime UpdatedAtUtc);
 
 public sealed record UpdateTagStyleRequest(
+    string Name,
     string StyleName,
     string StylePropertiesJson,
     string? Emoji = null);
