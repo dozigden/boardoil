@@ -2,7 +2,6 @@
   <section class="entity-rows-page">
     <header class="entity-rows-header">
       <h2>Members</h2>
-      <span v-if="currentRole" class="badge">Your role: {{ currentRole }}</span>
       <button
         v-if="isCurrentUserOwner"
         type="button"
@@ -57,7 +56,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { createAuthApi } from '../api/authApi';
 import AddBoardMemberDialog from '../components/AddBoardMemberDialog.vue';
@@ -73,13 +72,11 @@ const boardStore = useBoardStore();
 const boardMembersStore = useBoardMembersStore();
 const authApi = createAuthApi();
 const feedback = useUiFeedbackStore();
-const { currentUserRole, isCurrentUserOwner } = storeToRefs(boardStore);
+const { isCurrentUserOwner } = storeToRefs(boardStore);
 const { members, busy } = storeToRefs(boardMembersStore);
 const users = ref<UserDirectoryEntry[]>([]);
 const usersBusy = ref(false);
 const isAddMemberDialogOpen = ref(false);
-
-const currentRole = computed(() => currentUserRole.value);
 
 onUnmounted(() => {
   boardMembersStore.dispose();

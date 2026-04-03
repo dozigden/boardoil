@@ -1,6 +1,7 @@
 <template>
   <template v-if="board">
-    <section class="toolbar entity-rows-header columns-manager-toolbar">
+    <section class="entity-rows-header columns-manager-toolbar">
+      <h2>Columns</h2>
       <button v-if="isOwner" type="button" class="btn" aria-label="Add column" title="Add column" @click="openNewColumnDraft">
         <Plus :size="16" aria-hidden="true" />
         <span>Add Column</span>
@@ -239,8 +240,13 @@ watch(
   margin-bottom: 0.75rem;
 }
 
+.columns-manager-toolbar h2 {
+  margin: 0;
+}
+
 .columns-manager-owner-note {
   margin: 0;
+  text-align: right;
 }
 
 .columns-manager-list {
