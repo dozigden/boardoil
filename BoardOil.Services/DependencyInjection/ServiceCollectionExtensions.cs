@@ -52,12 +52,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBoardService, BoardService>();
+        services.AddScoped<ISystemBoardService, SystemBoardService>();
         services.AddScoped<IBoardAuthorisationService, BoardAuthorisationService>();
         services.AddScoped<IBoardMemberService, BoardMemberService>();
         services.AddScoped<IColumnService, ColumnService>();
         services.AddScoped<ICardService, CardService>();
         services.AddScoped<ITagService, TagService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
+        services.AddScoped<IUserService, UserService>();
 
         return services;
     }

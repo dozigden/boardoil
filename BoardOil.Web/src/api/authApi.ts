@@ -9,7 +9,8 @@ import type {
   CreatedMachinePat,
   CsrfTokenDto,
   MachinePat,
-  ManagedUser
+  ManagedUser,
+  UserDirectoryEntry
 } from '../types/authTypes';
 import { deleteJson, getEnvelope, postData, postJson, putData } from './http';
 
@@ -67,7 +68,16 @@ export function createAuthApi() {
   }
 
   async function getUsers(): Promise<Result<ManagedUser[], AppError>> {
-    const envelopeResult = await getEnvelope<ManagedUser[]>('/api/users');
+    const envelopeResult = await getEnvelope<ManagedUser[]>('/api/admin/users');
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function getAllUsers(): Promise<Result<UserDirectoryEntry[], AppError>> {
+    const envelopeResult = await getEnvelope<UserDirectoryEntry[]>('/api/users');
     if (!envelopeResult.ok) {
       return envelopeResult;
     }
@@ -76,15 +86,15 @@ export function createAuthApi() {
   }
 
   async function createUser(userName: string, password: string, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
-    return postData<ManagedUser>('/api/users', { userName, password, role });
+    return postData<ManagedUser>('/api/admin/users', { userName, password, role });
   }
 
   async function updateUserRole(userId: number, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
-    return putData<ManagedUser>(`/api/users/${userId}/role`, { role });
+    return putData<ManagedUser>(`/api/admin/users/${userId}/role`, { role });
   }
 
   async function updateUserStatus(userId: number, isActive: boolean): Promise<Result<ManagedUser, AppError>> {
-    return putData<ManagedUser>(`/api/users/${userId}/status`, { isActive });
+    return putData<ManagedUser>(`/api/admin/users/${userId}/status`, { isActive });
   }
 
   async function getMachinePats(): Promise<Result<MachinePat[], AppError>> {
@@ -112,6 +122,7 @@ export function createAuthApi() {
     getCsrfToken,
     getBootstrapStatus,
     getUsers,
+    getAllUsers,
     createUser,
     updateUserRole,
     updateUserStatus,

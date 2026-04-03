@@ -185,11 +185,13 @@ app.UseAuthorization();
 
 app.MapHealthEndpoints();
 app.MapBoardEndpoints();
+app.MapSystemBoardEndpoints();
 app.MapColumnEndpoints();
 app.MapCardEndpoints();
 app.MapTagEndpoints();
 app.MapInternalRealtimeEndpoints();
 app.MapConfigurationEndpoints();
+app.MapUserEndpoints();
 
 app.MapAuthEndpoints();
 

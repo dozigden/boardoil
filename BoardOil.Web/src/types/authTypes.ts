@@ -28,6 +28,12 @@ export type ManagedUser = {
   updatedAtUtc: string;
 };
 
+export type UserDirectoryEntry = {
+  id: number;
+  userName: string;
+  isActive: boolean;
+};
+
 export type MachinePatScope = 'mcp:read' | 'mcp:write' | string;
 
 export type MachinePatBoardAccessMode = 'all' | 'selected' | string;

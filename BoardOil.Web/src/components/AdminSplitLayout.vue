@@ -18,8 +18,8 @@
           v-for="item in items"
           :key="item.label"
           :to="item.to"
+          :class="{ 'admin-nav-link--active': isItemActive(item) }"
           class="admin-nav-link"
-          active-class="admin-nav-link--active"
         >
           {{ item.label }}
         </RouterLink>
@@ -33,10 +33,12 @@
 
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router';
+import { useRoute } from 'vue-router';
 
 type AdminNavItem = {
   label: string;
   to: RouteLocationRaw;
+  activeRouteNames?: string[];
 };
 
 withDefaults(defineProps<{
@@ -48,6 +50,31 @@ withDefaults(defineProps<{
   backTo: null,
   backLabel: 'Back'
 });
+
+const route = useRoute();
+
+function isItemActive(item: AdminNavItem) {
+  const currentRouteName = typeof route.name === 'string' ? route.name : null;
+  if (currentRouteName === null) {
+    return false;
+  }
+
+  if (item.activeRouteNames?.includes(currentRouteName)) {
+    return true;
+  }
+
+  const targetRouteName = tryGetTargetRouteName(item.to);
+  return targetRouteName === currentRouteName;
+}
+
+function tryGetTargetRouteName(target: RouteLocationRaw) {
+  if (typeof target !== 'object' || target === null || !('name' in target)) {
+    return null;
+  }
+
+  const name = target.name;
+  return typeof name === 'string' ? name : null;
+}
 </script>
 
 <style scoped>

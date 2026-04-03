@@ -105,7 +105,12 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'boards',
         name: 'system-admin-boards',
-        component: () => import('./views/BoardsView.vue')
+        component: () => import('./views/SystemBoardsView.vue')
+      },
+      {
+        path: 'boards/:boardId(\\d+)/members',
+        name: 'system-admin-board-members',
+        component: () => import('./views/SystemBoardMembersView.vue')
       },
       {
         path: 'users',

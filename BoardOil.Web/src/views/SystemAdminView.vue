@@ -11,7 +11,8 @@ import AdminSplitLayout from '../components/AdminSplitLayout.vue';
 const navItems = [
   {
     label: 'Boards',
-    to: { name: 'system-admin-boards' }
+    to: { name: 'system-admin-boards' },
+    activeRouteNames: ['system-admin-boards', 'system-admin-board-members']
   },
   {
     label: 'Users',

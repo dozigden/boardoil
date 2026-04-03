@@ -8,6 +8,11 @@ public sealed record ManagedUserDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
+public sealed record UserDirectoryEntryDto(
+    int Id,
+    string UserName,
+    bool IsActive);
+
 public sealed record CreateUserRequest(string UserName, string Password, string Role);
 
 public sealed record UpdateUserRoleRequest(string Role);

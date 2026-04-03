@@ -1,9 +1,7 @@
 using BoardOil.Api.Extensions;
 using BoardOil.Abstractions.Auth;
-using BoardOil.Abstractions.Users;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
-using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
 using System.Security.Claims;
 
@@ -45,19 +43,6 @@ public static class AuthEndpoints
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
         app.MapGet("/api/auth/bootstrap-status", (IAuthHttpSessionService authHttpService) =>
                 authHttpService.GetBootstrapStatusAsync());
-
-        app.MapGet("/api/users", (IUserAdminService userAdminService) =>
-                userAdminService.GetUsersAsync().ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
-        app.MapPost("/api/users", (CreateUserRequest request, IUserAdminService userAdminService) =>
-                userAdminService.CreateUserAsync(request).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
-        app.MapPut("/api/users/{id:int}/role", (int id, UpdateUserRoleRequest request, IUserAdminService userAdminService) =>
-                userAdminService.UpdateUserRoleAsync(id, request).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
-        app.MapPut("/api/users/{id:int}/status", (int id, UpdateUserStatusRequest request, IUserAdminService userAdminService) =>
-                userAdminService.UpdateUserStatusAsync(id, request).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
         return app;
     }
