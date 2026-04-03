@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MCP_URL="${BOARDOIL_MCP_URL:-http://192.168.1.144:5000/mcp}"
+MCP_URL="${BOARDOIL_MCP_URL:-http://localhost:5000/mcp}"
 TOKEN="${BOARDOIL_MCP_TOKEN:-}"
 BOARD_ID=1
 
@@ -11,7 +11,7 @@ Usage:
   ./scripts/board-mcp.sh [global options] <command> [command options]
 
 Global options:
-  --mcp-url <url>     MCP endpoint URL (default: http://192.168.1.144:5000/mcp)
+  --mcp-url <url>     MCP endpoint URL (default: http://localhost:5000/mcp)
   --token <token>     Machine PAT token (or set BOARDOIL_MCP_TOKEN)
   --board-id <id>     Default board id for commands that need one (default: 1)
   -h, --help          Show this help
