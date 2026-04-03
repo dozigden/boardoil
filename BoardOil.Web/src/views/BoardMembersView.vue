@@ -18,12 +18,19 @@
     <template v-else>
       <section class="entity-rows-list">
         <article v-for="member in members" :key="member.userId" class="entity-row">
-          <div class="entity-row-main">
-            <h3 class="entity-row-title">{{ member.userName }}</h3>
+          <button
+            type="button"
+            class="entity-row-main entity-row-main-button"
+            :disabled="busy"
+            :aria-label="`Edit member ${member.userName}`"
+            @click="focusMemberRoleControl(member.userId)"
+          >
+            <span class="entity-row-title">{{ member.userName }}</span>
             <span class="badge">#{{ member.userId }}</span>
-          </div>
+          </button>
           <div class="entity-row-actions">
             <select
+              :id="`board-member-role-${member.userId}`"
               :value="member.role"
               :disabled="busy"
               @change="updateRole(member.userId, ($event.target as HTMLSelectElement).value)"
@@ -152,6 +159,17 @@ async function removeMember(member: BoardMember) {
   }
 
   await boardMembersStore.removeMember(member.userId, boardId);
+}
+
+function focusMemberRoleControl(userId: number) {
+  if (busy.value) {
+    return;
+  }
+
+  const roleControl = document.getElementById(`board-member-role-${userId}`);
+  if (roleControl instanceof HTMLSelectElement) {
+    roleControl.focus();
+  }
 }
 
 function resolveBoardId() {

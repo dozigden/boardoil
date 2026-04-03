@@ -42,8 +42,17 @@
         @dragleave="onColumnDragLeave(column.id)"
         @drop="onColumnDrop(column.id, $event)"
       >
-        <div class="entity-row-main">
-          <h3 class="entity-row-title">{{ column.title }}</h3>
+        <button
+          v-if="isOwner"
+          type="button"
+          class="entity-row-main entity-row-main-button"
+          :aria-label="`Edit column ${column.title}`"
+          @click="openColumnEditor(column.id)"
+        >
+          <span class="entity-row-title">{{ column.title }}</span>
+        </button>
+        <div v-else class="entity-row-main">
+          <span class="entity-row-title">{{ column.title }}</span>
         </div>
         <div class="entity-row-actions">
           <template v-if="isOwner">

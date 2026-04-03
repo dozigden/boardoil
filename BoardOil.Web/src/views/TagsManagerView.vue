@@ -12,12 +12,18 @@
 
     <section v-else class="entity-rows-list">
       <article v-for="tagName in tagNames" :key="tagName" class="entity-row">
-        <div class="entity-row-main">
-          <h3 class="entity-row-title">{{ tagName }}</h3>
+        <button
+          type="button"
+          class="entity-row-main entity-row-main-button"
+          :disabled="busy"
+          :aria-label="`Edit tag ${tagName}`"
+          @click="openEditor(tagName)"
+        >
+          <span class="entity-row-title">{{ tagName }}</span>
           <span class="entity-row-badges tag-group">
             <Tag :tag-name="tagName" />
           </span>
-        </div>
+        </button>
         <div class="entity-row-actions">
           <button
             type="button"

@@ -18,14 +18,17 @@
     <ul v-else class="entity-rows-list">
       <li v-for="board in boards" :key="`${board.id}-${board.name}`">
         <div class="entity-row">
-          <div class="entity-row-main">
+          <button
+            type="button"
+            class="entity-row-main entity-row-main-button"
+            :disabled="busy"
+            :aria-label="`Open board ${board.name}`"
+            @click="openBoard(board.id)"
+          >
             <span class="badge">#{{ board.id }}</span>
             <span class="entity-row-title">{{ board.name }}</span>
-          </div>
+          </button>
           <div class="entity-row-actions">
-            <button type="button" class="btn btn--secondary" :disabled="busy" @click="openBoard(board.id)">
-              Open
-            </button>
             <button
               v-if="board.currentUserRole === 'Owner'"
               type="button"
