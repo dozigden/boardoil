@@ -1,9 +1,15 @@
 # BoardOil
 
-BoardOil is a self-hosted Kanban board.
+BoardOil is a self-hosted Kanban board mostly meant for my home lab environment,  I use it to plan tech projects, gardening, and even a wedding.
+
+Key features:
+Multiple boards with basic RBAC.
+It's got a REST API and MCP server.
+
+It's written in .NET and Vue3.  I deploy it myself via Docker, so that's had the most testing.
 
 > Warning
-> This project is just me playing. Nothing to see here.
+> This project is mostly a learning experience. Use at own risk.
 
 ## Quick Start (Docker)
 Run from repository root:
