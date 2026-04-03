@@ -13,6 +13,14 @@ export function getCurrentBoardName(board: Board | null, boards: BoardSummary[],
   return board?.name ?? boards.find(entry => entry.id === currentBoardId)?.name ?? '';
 }
 
+export function getCurrentBoardTarget(currentBoardId: number | null): RouteLocationRaw | null {
+  if (currentBoardId === null) {
+    return null;
+  }
+
+  return { name: 'board', params: { boardId: currentBoardId } };
+}
+
 export function getPageTitle(
   board: Board | null,
   boards: BoardSummary[],
@@ -25,5 +33,14 @@ export function getPageTitle(
 }
 
 export function getOtherBoards(boards: BoardSummary[], currentBoardId: number | null) {
-  return boards.filter(board => board.id !== currentBoardId);
+  return boards
+    .filter(board => board.id !== currentBoardId)
+    .sort((left, right) => {
+      const byName = left.name.localeCompare(right.name);
+      if (byName !== 0) {
+        return byName;
+      }
+
+      return left.id - right.id;
+    });
 }
