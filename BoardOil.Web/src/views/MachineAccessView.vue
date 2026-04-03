@@ -238,7 +238,7 @@ const genericConfigSnippetJson = computed(() =>
 const genericConfigSnippetToml = computed(() =>
   `[mcp_servers.boardoil]
 url = "${mcpEndpoint.value}"
-bearer_token_env_var = "<YOUR_PAT>"`
+bearer_token_env_var = "BOARDOIL_MCP_TOKEN"`
 );
 const selectedConfigSnippet = computed(() => (configSnippetTab.value === 'json' ? genericConfigSnippetJson.value : genericConfigSnippetToml.value));
 const selectedConfigSnippetLabel = computed(() => (configSnippetTab.value === 'json' ? 'JSON' : 'TOML'));
