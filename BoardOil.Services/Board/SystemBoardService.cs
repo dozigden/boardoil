@@ -8,14 +8,28 @@ using BoardOil.Persistence.Abstractions.Users;
 
 namespace BoardOil.Services.Board;
 
-public sealed class BoardMemberService(
+public sealed class SystemBoardService(
     IBoardRepository boardRepository,
     IBoardMemberRepository boardMemberRepository,
     IUserRepository userRepository,
-    IBoardAuthorisationService boardAuthorisationService,
-    IDbContextScopeFactory scopeFactory) : IBoardMemberService
+    IDbContextScopeFactory scopeFactory) : ISystemBoardService
 {
-    public async Task<ApiResult<IReadOnlyList<BoardMemberDto>>> GetMembersAsync(int boardId, int actorUserId)
+    public async Task<ApiResult<IReadOnlyList<BoardSummaryDto>>> GetBoardsAsync()
+    {
+        using var scope = scopeFactory.CreateReadOnly();
+
+        var boards = await boardRepository.GetBoardsOrderedAsync();
+        return boards
+            .Select(x => new BoardSummaryDto(
+                x.Id,
+                x.Name,
+                x.CreatedAtUtc,
+                x.UpdatedAtUtc,
+                null))
+            .ToList();
+    }
+
+    public async Task<ApiResult<IReadOnlyList<BoardMemberDto>>> GetMembersAsync(int boardId)
     {
         using var scope = scopeFactory.CreateReadOnly();
 
@@ -24,29 +38,17 @@ public sealed class BoardMemberService(
             return ApiErrors.NotFound("Board not found.");
         }
 
-        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageMembers);
-        if (!hasPermission)
-        {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
-        }
-
         var members = await boardMemberRepository.GetMembersInBoardAsync(boardId);
         return members.Select(x => x.ToDto()).ToList();
     }
 
-    public async Task<ApiResult<BoardMemberDto>> AddMemberAsync(int boardId, AddBoardMemberRequest request, int actorUserId)
+    public async Task<ApiResult<BoardMemberDto>> AddMemberAsync(int boardId, AddBoardMemberRequest request)
     {
         using var scope = scopeFactory.Create();
 
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
-        }
-
-        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageMembers);
-        if (!hasPermission)
-        {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         if (!TryParseBoardMemberRole(request.Role, out var role))
@@ -87,19 +89,13 @@ public sealed class BoardMemberService(
         return ApiResults.Created(createdMembership.ToDto());
     }
 
-    public async Task<ApiResult<BoardMemberDto>> UpdateMemberRoleAsync(int boardId, int userId, UpdateBoardMemberRoleRequest request, int actorUserId)
+    public async Task<ApiResult<BoardMemberDto>> UpdateMemberRoleAsync(int boardId, int userId, UpdateBoardMemberRoleRequest request)
     {
         using var scope = scopeFactory.Create();
 
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
-        }
-
-        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageMembers);
-        if (!hasPermission)
-        {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         if (!TryParseBoardMemberRole(request.Role, out var role))
@@ -132,19 +128,13 @@ public sealed class BoardMemberService(
         return existingMembership.ToDto();
     }
 
-    public async Task<ApiResult> RemoveMemberAsync(int boardId, int userId, int actorUserId)
+    public async Task<ApiResult> RemoveMemberAsync(int boardId, int userId)
     {
         using var scope = scopeFactory.Create();
 
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
-        }
-
-        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageMembers);
-        if (!hasPermission)
-        {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         var existingMembership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, userId);
@@ -184,15 +174,4 @@ public sealed class BoardMemberService(
         role = default;
         return false;
     }
-}
-
-internal static class BoardMemberMappingExtensions
-{
-    public static BoardMemberDto ToDto(this EntityBoardMember member) =>
-        new(
-            member.UserId,
-            member.User.UserName,
-            member.Role.ToString(),
-            member.CreatedAtUtc,
-            member.UpdatedAtUtc);
 }

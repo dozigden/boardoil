@@ -3,40 +3,21 @@
     <header class="entity-rows-header">
       <h2>Members</h2>
       <span v-if="currentRole" class="badge">Your role: {{ currentRole }}</span>
+      <button
+        v-if="isCurrentUserOwner"
+        type="button"
+        class="btn"
+        :disabled="busy"
+        @click="openAddMemberDialog"
+      >
+        Add member
+      </button>
     </header>
 
     <p v-if="!isCurrentUserOwner" class="entity-rows-empty">Owner permission required to manage members.</p>
 
     <template v-else>
       <section class="entity-rows-list">
-        <article class="entity-row members-add-row">
-          <div class="entity-row-main members-add-fields">
-            <label>
-              User ID
-              <input
-                v-model="newMemberUserId"
-                type="number"
-                min="1"
-                step="1"
-                placeholder="User id"
-                :disabled="busy"
-              />
-            </label>
-            <label>
-              Role
-              <select v-model="newMemberRole" :disabled="busy">
-                <option value="Contributor">Contributor</option>
-                <option value="Owner">Owner</option>
-              </select>
-            </label>
-          </div>
-          <div class="entity-row-actions">
-            <button type="button" class="btn" :disabled="busy" @click="addMember">
-              Add member
-            </button>
-          </div>
-        </article>
-
         <article v-for="member in members" :key="member.userId" class="entity-row">
           <div class="entity-row-main">
             <h3 class="entity-row-title">{{ member.userName }}</h3>
@@ -55,13 +36,21 @@
               type="button"
               class="btn btn--danger"
               :disabled="busy"
-              @click="removeMember(member.userId)"
+              @click="removeMember(member)"
             >
               Remove
             </button>
           </div>
         </article>
       </section>
+
+      <AddBoardMemberDialog
+        :open="isAddMemberDialogOpen"
+        :busy="busy || usersBusy"
+        :users="users"
+        @close="closeAddMemberDialog"
+        @submit="addMember"
+      />
     </template>
   </section>
 </template>
@@ -70,20 +59,25 @@
 import { storeToRefs } from 'pinia';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { createAuthApi } from '../api/authApi';
+import AddBoardMemberDialog from '../components/AddBoardMemberDialog.vue';
 import { useBoardMembersStore } from '../stores/boardMembersStore';
 import { useBoardStore } from '../stores/boardStore';
 import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
-import type { BoardMemberRole } from '../types/boardTypes';
+import type { UserDirectoryEntry } from '../types/authTypes';
+import type { BoardMember, BoardMemberRole } from '../types/boardTypes';
 
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const boardMembersStore = useBoardMembersStore();
+const authApi = createAuthApi();
 const feedback = useUiFeedbackStore();
 const { currentUserRole, isCurrentUserOwner } = storeToRefs(boardStore);
 const { members, busy } = storeToRefs(boardMembersStore);
-const newMemberUserId = ref('');
-const newMemberRole = ref<BoardMemberRole>('Contributor');
+const users = ref<UserDirectoryEntry[]>([]);
+const usersBusy = ref(false);
+const isAddMemberDialogOpen = ref(false);
 
 const currentRole = computed(() => currentUserRole.value);
 
@@ -107,29 +101,37 @@ watch(
     }
 
     await boardMembersStore.loadMembers(boardId);
+    await loadUsers();
   },
   { immediate: true }
 );
 
-async function addMember() {
+async function openAddMemberDialog() {
   const boardId = resolveBoardId();
   if (boardId === null) {
     return;
   }
 
-  const parsedUserId = Number.parseInt(newMemberUserId.value, 10);
-  if (!Number.isFinite(parsedUserId) || parsedUserId <= 0) {
-    feedback.setError('User id must be a positive number.');
+  await loadUsers();
+  isAddMemberDialogOpen.value = true;
+}
+
+function closeAddMemberDialog() {
+  isAddMemberDialogOpen.value = false;
+}
+
+async function addMember(payload: { userId: number; role: BoardMemberRole }) {
+  const boardId = resolveBoardId();
+  if (boardId === null) {
     return;
   }
 
-  const added = await boardMembersStore.addMember(parsedUserId, newMemberRole.value, boardId);
+  const added = await boardMembersStore.addMember(payload.userId, payload.role, boardId);
   if (!added) {
     return;
   }
 
-  newMemberUserId.value = '';
-  newMemberRole.value = 'Contributor';
+  isAddMemberDialogOpen.value = false;
 }
 
 async function updateRole(userId: number, role: string) {
@@ -141,36 +143,39 @@ async function updateRole(userId: number, role: string) {
   await boardMembersStore.updateMemberRole(userId, role, boardId);
 }
 
-async function removeMember(userId: number) {
+async function removeMember(member: BoardMember) {
+  const shouldRemove = window.confirm(`Remove ${member.userName} from this board?`);
+  if (!shouldRemove) {
+    return;
+  }
+
   const boardId = resolveBoardId();
   if (boardId === null) {
     return;
   }
 
-  await boardMembersStore.removeMember(userId, boardId);
+  await boardMembersStore.removeMember(member.userId, boardId);
 }
 
 function resolveBoardId() {
   const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
   return Number.isFinite(parsed) ? parsed : null;
 }
+
+async function loadUsers() {
+  usersBusy.value = true;
+  try {
+    const result = await authApi.getAllUsers();
+    if (!result.ok) {
+      feedback.setError(result.error.message);
+      users.value = [];
+      return false;
+    }
+
+    users.value = [...result.data].sort((left, right) => left.userName.localeCompare(right.userName));
+    return true;
+  } finally {
+    usersBusy.value = false;
+  }
+}
 </script>
-
-<style scoped>
-.members-add-row {
-  border-style: dashed;
-}
-
-.members-add-fields {
-  display: flex;
-  gap: 0.75rem;
-  align-items: end;
-  flex-wrap: wrap;
-}
-
-.members-add-fields label {
-  display: grid;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-}
-</style>

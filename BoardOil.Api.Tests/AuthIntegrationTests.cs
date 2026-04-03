@@ -322,7 +322,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task StandardUser_GetUsers_ShouldReturnForbidden()
+    public async Task StandardUser_GetUsers_ShouldReturnOk()
     {
         // Arrange
         var adminClient = _factory.CreateClient();
@@ -333,6 +333,27 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
 
         // Act
         var response = await standardClient.GetAsync("/api/users");
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<UserDirectoryEntryEnvelope>>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        Assert.Contains(envelope.Data!, x => x.UserName == "member");
+    }
+
+    [Fact]
+    public async Task StandardUser_GetAdminUsers_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.GetAsync("/api/admin/users");
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -490,7 +511,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
 
     private static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
     {
-        var response = await adminClient.PostAsJsonAsync("/api/users", new CreateUserRequest(userName, password, role));
+        var response = await adminClient.PostAsJsonAsync("/api/admin/users", new CreateUserRequest(userName, password, role));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardOil.Contracts.Users.ManagedUserDto>>();
         Assert.NotNull(envelope);
@@ -565,5 +586,6 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ConfigurationEnvelope(bool AllowInsecureCookies, string? McpPublicBaseUrl);
     private sealed record BootstrapStatusEnvelope(bool RequiresInitialAdminSetup);
+    private sealed record UserDirectoryEntryEnvelope(int Id, string UserName, bool IsActive);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

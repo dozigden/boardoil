@@ -201,8 +201,59 @@ public sealed class BoardServiceTests : TestBaseDb
         Assert.Equal(["Bug"], todoCard.TagNames);
     }
 
+    [Fact]
+    public async Task GetBoardsAsync_ShouldReturnOnlyActorMemberships()
+    {
+        // Arrange
+        var actorBoard = CreateBoard("Actor Board")
+            .Build();
+        await CreateForeignBoardAsync("Foreign Board");
+        var service = CreateService();
+
+        // Act
+        var result = await service.GetBoardsAsync(ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Contains(result.Data!, x => x.Id == actorBoard.BoardId && x.Name == "Actor Board");
+        Assert.DoesNotContain(result.Data!, x => x.Name == "Foreign Board");
+    }
+
     private BoardService CreateService()
     {
         return ResolveService<BoardService>();
+    }
+
+    private async Task CreateForeignBoardAsync(string boardName)
+    {
+        var now = DateTime.UtcNow;
+        var owner = new EntityUser
+        {
+            UserName = $"owner-{Guid.NewGuid():N}",
+            PasswordHash = "test-hash",
+            Role = UserRole.Standard,
+            IsActive = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.Users.Add(owner);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var board = new EntityBoard
+        {
+            Name = boardName,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        board.Members.Add(new EntityBoardMember
+        {
+            UserId = owner.Id,
+            Role = BoardMemberRole.Owner,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+        DbContextForArrange.Boards.Add(board);
+        await DbContextForArrange.SaveChangesAsync();
     }
 }
