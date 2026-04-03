@@ -14,6 +14,7 @@ public sealed class FluentBoardBuilder
 
     private readonly BoardOilDbContext _db;
     private readonly DateTime _nowUtc;
+    private readonly int _ownerUserId;
     private readonly BoardEntity _board;
     private readonly Dictionary<string, EntityBoardColumn> _columnsByTitle = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<EntityBoardCard>> _cardsByColumnTitle = new(StringComparer.Ordinal);
@@ -21,10 +22,11 @@ public sealed class FluentBoardBuilder
     private string? _currentColumnTitle;
     private bool _isBuilt;
 
-    internal FluentBoardBuilder(BoardOilDbContext db, string boardName, DateTime nowUtc)
+    internal FluentBoardBuilder(BoardOilDbContext db, string boardName, DateTime nowUtc, int ownerUserId)
     {
         _db = db;
         _nowUtc = nowUtc;
+        _ownerUserId = ownerUserId;
 
         _board = new BoardEntity
         {
@@ -32,6 +34,13 @@ public sealed class FluentBoardBuilder
             CreatedAtUtc = _nowUtc,
             UpdatedAtUtc = _nowUtc
         };
+        _board.Members.Add(new EntityBoardMember
+        {
+            UserId = _ownerUserId,
+            Role = BoardMemberRole.Owner,
+            CreatedAtUtc = _nowUtc,
+            UpdatedAtUtc = _nowUtc
+        });
 
         _db.Boards.Add(_board);
     }

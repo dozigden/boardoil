@@ -34,7 +34,8 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
       id: result.data.id,
       name: result.data.name,
       createdAtUtc: result.data.createdAtUtc,
-      updatedAtUtc: result.data.updatedAtUtc
+      updatedAtUtc: result.data.updatedAtUtc,
+      currentUserRole: result.data.currentUserRole ?? null
     };
     boards.value = [...boards.value, created].sort((left, right) => left.id - right.id);
     return created;

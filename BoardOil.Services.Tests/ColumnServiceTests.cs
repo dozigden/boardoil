@@ -17,7 +17,7 @@ public sealed class ColumnServiceTests : TestBaseDb
     public async Task GetColumnsAsync_WhenNoBoardExists_ShouldReturnNotFound()
     {
         var service = CreateService();
-        var result = await service.GetColumnsAsync(1);
+        var result = await service.GetColumnsAsync(1, ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(404, result.StatusCode);
@@ -34,7 +34,7 @@ public sealed class ColumnServiceTests : TestBaseDb
             .Build();
 
         var service = CreateService();
-        var result = await service.GetColumnsAsync(1);
+        var result = await service.GetColumnsAsync(1, ActorUserId);
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
@@ -56,7 +56,7 @@ public sealed class ColumnServiceTests : TestBaseDb
             .Build();
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("Done"));
+        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("Done"), ActorUserId);
 
         Assert.True(result.Success);
         Assert.Equal(201, result.StatusCode);
@@ -72,7 +72,7 @@ public sealed class ColumnServiceTests : TestBaseDb
     public async Task CreateColumnAsync_WhenNoBoardExists_ShouldReturnNotFound()
     {
         var service = CreateService();
-        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("Todo"));
+        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("Todo"), ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(404, result.StatusCode);
@@ -85,7 +85,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         CreateBoard("BoardOil").Build();
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("   "));
+        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("   "), ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -100,7 +100,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var longTitle = new string('A', 201);
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(1, new CreateColumnRequest(longTitle));
+        var result = await service.CreateColumnAsync(1, new CreateColumnRequest(longTitle), ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -114,7 +114,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         CreateBoard("BoardOil").Build();
 
         var service = CreateService();
-        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("bad@title"));
+        var result = await service.CreateColumnAsync(1, new CreateColumnRequest("bad@title"), ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -130,7 +130,7 @@ public sealed class ColumnServiceTests : TestBaseDb
             .Build();
 
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(1, 999_999, new UpdateColumnRequest("X"));
+        var result = await service.UpdateColumnAsync(1, 999_999, new UpdateColumnRequest("X"), ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(404, result.StatusCode);
@@ -141,7 +141,7 @@ public sealed class ColumnServiceTests : TestBaseDb
     public async Task UpdateColumnAsync_WhenNoBoardExists_ShouldReturnNotFound()
     {
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(1, 1, new UpdateColumnRequest("X"));
+        var result = await service.UpdateColumnAsync(1, 1, new UpdateColumnRequest("X"), ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(404, result.StatusCode);
@@ -157,7 +157,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var columnId = board.GetColumn("Old").Id;
 
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(1, columnId, new UpdateColumnRequest("  New Title  "));
+        var result = await service.UpdateColumnAsync(1, columnId, new UpdateColumnRequest("  New Title  "), ActorUserId);
 
         Assert.True(result.Success);
         Assert.Equal("New Title", result.Data!.Title);
@@ -178,7 +178,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var movingColumnId = board.GetColumn("C").Id;
 
         var service = CreateService();
-        var result = await service.MoveColumnAsync(1, movingColumnId, new MoveColumnRequest(null));
+        var result = await service.MoveColumnAsync(1, movingColumnId, new MoveColumnRequest(null), ActorUserId);
 
         Assert.True(result.Success);
         Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
@@ -201,7 +201,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var service = CreateService();
         var result = await service.MoveColumnAsync(1, 
             movingColumnId,
-            new MoveColumnRequest(anchorColumnId));
+            new MoveColumnRequest(anchorColumnId), ActorUserId);
 
         Assert.True(result.Success);
         Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
@@ -220,7 +220,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var service = CreateService();
         var result = await service.MoveColumnAsync(1, 
             movingColumnId,
-            new MoveColumnRequest(movingColumnId));
+            new MoveColumnRequest(movingColumnId), ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -240,7 +240,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var service = CreateService();
         var result = await service.MoveColumnAsync(1, 
             movingColumnId,
-            new MoveColumnRequest(999_999));
+            new MoveColumnRequest(999_999), ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -257,7 +257,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var columnId = board.GetColumn("Todo").Id;
 
         var service = CreateService();
-        var result = await service.UpdateColumnAsync(1, columnId, new UpdateColumnRequest("bad@title"));
+        var result = await service.UpdateColumnAsync(1, columnId, new UpdateColumnRequest("bad@title"), ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -276,7 +276,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var deletingId = board.GetColumn("B").Id;
 
         var service = CreateService();
-        var result = await service.DeleteColumnAsync(1, deletingId);
+        var result = await service.DeleteColumnAsync(1, deletingId, ActorUserId);
 
         Assert.True(result.Success);
         Assert.Equal(200, result.StatusCode);
@@ -299,7 +299,7 @@ public sealed class ColumnServiceTests : TestBaseDb
             .Build();
 
         var service = CreateService();
-        var result = await service.DeleteColumnAsync(1, 999_999);
+        var result = await service.DeleteColumnAsync(1, 999_999, ActorUserId);
 
         Assert.True(result.Success);
         Assert.Equal(200, result.StatusCode);
@@ -318,7 +318,7 @@ public sealed class ColumnServiceTests : TestBaseDb
         var boardTwoColumnId = boardTwo.GetColumn("Other").Id;
 
         var service = CreateService();
-        var result = await service.DeleteColumnAsync(boardOne.BoardId, boardTwoColumnId);
+        var result = await service.DeleteColumnAsync(boardOne.BoardId, boardTwoColumnId, ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(404, result.StatusCode);
@@ -329,7 +329,7 @@ public sealed class ColumnServiceTests : TestBaseDb
     public async Task DeleteColumnAsync_WhenNoBoardExists_ShouldReturnNotFound()
     {
         var service = CreateService();
-        var result = await service.DeleteColumnAsync(1, 1);
+        var result = await service.DeleteColumnAsync(1, 1, ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(404, result.StatusCode);

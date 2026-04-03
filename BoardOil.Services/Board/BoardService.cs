@@ -15,22 +15,28 @@ namespace BoardOil.Services.Board;
 
 public sealed class BoardService(
     IBoardRepository boardRepository,
+    IBoardMemberRepository boardMemberRepository,
     IColumnRepository columnRepository,
     ICardRepository cardRepository,
+    IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory) : IBoardService
 {
-    public async Task<ApiResult<IReadOnlyList<BoardSummaryDto>>> GetBoardsAsync()
+    public async Task<ApiResult<IReadOnlyList<BoardSummaryDto>>> GetBoardsAsync(int actorUserId)
     {
         using var scope = scopeFactory.CreateReadOnly();
 
-        var boards = await boardRepository.GetBoardsOrderedAsync();
-        var dto = boards
-            .Select(x => new BoardSummaryDto(x.Id, x.Name, x.CreatedAtUtc, x.UpdatedAtUtc))
+        var memberships = await boardMemberRepository.GetMembershipsForUserOrderedAsync(actorUserId);
+        return memberships
+            .Select(x => new BoardSummaryDto(
+                x.Board.Id,
+                x.Board.Name,
+                x.Board.CreatedAtUtc,
+                x.Board.UpdatedAtUtc,
+                x.Role.ToString()))
             .ToList();
-        return dto;
     }
 
-    public async Task<ApiResult<BoardDto>> GetBoardAsync(int boardId)
+    public async Task<ApiResult<BoardDto>> GetBoardAsync(int boardId, int actorUserId)
     {
         using var scope = scopeFactory.CreateReadOnly();
 
@@ -38,6 +44,12 @@ public sealed class BoardService(
         if (board is null)
         {
             return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have access to this board.");
         }
 
         var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
@@ -63,15 +75,19 @@ public sealed class BoardService(
                 cardsByColumnId.GetValueOrDefault(x.Id, Array.Empty<CardDto>())))
             .ToList();
 
+        var membership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, actorUserId);
+        var currentUserRole = membership?.Role.ToString();
+
         return new BoardDto(
             board.Id,
             board.Name,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
+            currentUserRole,
             columnDtos);
     }
 
-    public async Task<ApiResult<BoardDto>> CreateBoardAsync(CreateBoardRequest request)
+    public async Task<ApiResult<BoardDto>> CreateBoardAsync(CreateBoardRequest request, int actorUserId)
     {
         using var scope = scopeFactory.Create();
 
@@ -89,6 +105,15 @@ public sealed class BoardService(
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
+
+        board.Members.Add(new EntityBoardMember
+        {
+            UserId = actorUserId,
+            Role = BoardMemberRole.Owner,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+
         boardRepository.Add(board);
 
         var seedTitles = new[] { "Todo", "In Progress", "Done" };
@@ -128,10 +153,11 @@ public sealed class BoardService(
             board.Name,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
+            BoardMemberRole.Owner.ToString(),
             columnDtos));
     }
 
-    public async Task<ApiResult<BoardSummaryDto>> UpdateBoardAsync(int boardId, UpdateBoardRequest request)
+    public async Task<ApiResult<BoardSummaryDto>> UpdateBoardAsync(int boardId, UpdateBoardRequest request, int actorUserId)
     {
         using var scope = scopeFactory.Create();
 
@@ -139,6 +165,12 @@ public sealed class BoardService(
         if (board is null)
         {
             return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageSettings);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         var updatedName = request.Name.Trim();
@@ -155,10 +187,11 @@ public sealed class BoardService(
             await scope.SaveChangesAsync();
         }
 
-        return new BoardSummaryDto(board.Id, board.Name, board.CreatedAtUtc, board.UpdatedAtUtc);
+        var membership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, actorUserId);
+        return new BoardSummaryDto(board.Id, board.Name, board.CreatedAtUtc, board.UpdatedAtUtc, membership?.Role.ToString());
     }
 
-    public async Task<ApiResult> DeleteBoardAsync(int boardId)
+    public async Task<ApiResult> DeleteBoardAsync(int boardId, int actorUserId)
     {
         using var scope = scopeFactory.Create();
 
@@ -166,6 +199,12 @@ public sealed class BoardService(
         if (board is null)
         {
             return ApiResults.Ok();
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageSettings);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         boardRepository.Remove(board);

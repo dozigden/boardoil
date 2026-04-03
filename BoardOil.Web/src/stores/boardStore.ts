@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { createBoardApi } from '../api/boardApi';
 import { sortBoard } from '../mappers/sortBoard';
 import { createBoardRealtime } from '../realtime/boardRealtime';
@@ -15,6 +15,8 @@ export const useBoardStore = defineStore('board', () => {
   const currentBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
+  const currentUserRole = computed(() => board.value?.currentUserRole ?? null);
+  const isCurrentUserOwner = computed(() => currentUserRole.value === 'Owner');
 
   const realtime = createBoardRealtime({
     onColumnCreated: upsertColumn,
@@ -381,6 +383,8 @@ export const useBoardStore = defineStore('board', () => {
 
   return {
     board,
+    currentUserRole,
+    isCurrentUserOwner,
     busy,
     isLoadingBoard,
     currentBoardId,

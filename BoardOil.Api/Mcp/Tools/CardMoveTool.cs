@@ -47,7 +47,7 @@ public sealed class CardMoveTool(
         }
 
         var request = new MoveCardRequest(columnId, afterId);
-        var result = await _cardService.MoveCardAsync(boardId, cardId, request);
+        var result = await _cardService.MoveCardAsync(boardId, cardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {
             return Failure(result.ToMcpError());

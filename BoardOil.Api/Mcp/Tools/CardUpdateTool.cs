@@ -43,7 +43,7 @@ public sealed class CardUpdateTool(
         }
 
         var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames);
-        var result = await _cardService.UpdateCardAsync(boardId, cardId, request);
+        var result = await _cardService.UpdateCardAsync(boardId, cardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {
             return Failure(result.ToMcpError());

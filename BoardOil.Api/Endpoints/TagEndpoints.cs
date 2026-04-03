@@ -1,4 +1,5 @@
 using BoardOil.Api.Extensions;
+using BoardOil.Api.Auth;
 using BoardOil.Abstractions.Tag;
 using BoardOil.Contracts.Tag;
 using BoardOil.Services.Auth;
@@ -9,21 +10,22 @@ public static class TagEndpoints
 {
     public static IEndpointRouteBuilder MapTagEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/boards/{boardId:int}/tags", (int boardId, ITagService tagService) =>
-                tagService.GetTagsAsync(boardId).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
+        var tagEndpoints = app
+            .MapGroup("/api/boards/{boardId:int}/tags")
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
+            .AddEndpointFilter<RequireActorUserIdFilter>();
 
-        app.MapPost("/api/boards/{boardId:int}/tags", (int boardId, CreateTagRequest request, ITagService tagService) =>
-                tagService.CreateTagAsync(boardId, request).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.CardEditor);
+        tagEndpoints.MapGet(string.Empty, async (int boardId, ITagService tagService, HttpContext httpContext) =>
+            (await tagService.GetTagsAsync(boardId, httpContext.GetActorUserId())).ToHttpResult());
 
-        app.MapPut("/api/boards/{boardId:int}/tags/{tagId:int}", (int boardId, int tagId, UpdateTagStyleRequest request, ITagService tagService) =>
-                tagService.UpdateTagStyleAsync(boardId, tagId, request).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.CardEditor);
+        tagEndpoints.MapPost(string.Empty, async (int boardId, CreateTagRequest request, ITagService tagService, HttpContext httpContext) =>
+            (await tagService.CreateTagAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 
-        app.MapDelete("/api/boards/{boardId:int}/tags/{tagId:int}", (int boardId, int tagId, ITagService tagService) =>
-                tagService.DeleteTagAsync(boardId, tagId).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.CardEditor);
+        tagEndpoints.MapPut("/{tagId:int}", async (int boardId, int tagId, UpdateTagStyleRequest request, ITagService tagService, HttpContext httpContext) =>
+            (await tagService.UpdateTagStyleAsync(boardId, tagId, request, httpContext.GetActorUserId())).ToHttpResult());
+
+        tagEndpoints.MapDelete("/{tagId:int}", async (int boardId, int tagId, ITagService tagService, HttpContext httpContext) =>
+            (await tagService.DeleteTagAsync(boardId, tagId, httpContext.GetActorUserId())).ToHttpResult());
 
         return app;
     }

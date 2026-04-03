@@ -8,6 +8,7 @@ using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Tag;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using BoardOil.Persistence.Abstractions.Entities;
 using Xunit;
 
 namespace BoardOil.Services.Tests.Infrastructure;
@@ -21,6 +22,7 @@ public abstract class TestBaseDb : IAsyncLifetime
     private readonly List<BoardOilDbContext> _actDbContexts = [];
     private ServiceProvider? _serviceProvider;
     private readonly List<IServiceScope> _serviceScopes = [];
+    protected int ActorUserId { get; private set; }
 
     protected BoardOilDbContext DbContextForArrange =>
         _dbContextForArrange ??= Harness.CreateDbContext();
@@ -36,7 +38,7 @@ public abstract class TestBaseDb : IAsyncLifetime
     }
 
     protected FluentBoardBuilder CreateBoard(string name = "BoardOil") =>
-        new(DbContextForArrange, name, FixedNow);
+        new(DbContextForArrange, name, FixedNow, ActorUserId);
 
     protected T ResolveService<T>() where T : notnull
     {
@@ -54,6 +56,22 @@ public abstract class TestBaseDb : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _harness = await SqliteTestHarness.CreateAsync();
+
+        await using (var setupDb = Harness.CreateDbContext())
+        {
+            var actorUser = new EntityUser
+            {
+                UserName = "actor",
+                PasswordHash = "test-hash",
+                Role = UserRole.Admin,
+                IsActive = true,
+                CreatedAtUtc = FixedNow,
+                UpdatedAtUtc = FixedNow
+            };
+            setupDb.Users.Add(actorUser);
+            await setupDb.SaveChangesAsync();
+            ActorUserId = actorUser.Id;
+        }
 
         var services = new ServiceCollection();
         services.AddBoardOilServices("DataSource=:memory:");

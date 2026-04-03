@@ -30,7 +30,9 @@
         </RouterLink>
       </div>
       <div class="header-meta">
-        <p v-if="isAuthenticated && userName" class="user-meta">Signed in as {{ userName }}</p>
+        <p v-if="isAuthenticated && userName" class="user-meta">
+          Signed in as {{ userName }}<span v-if="boardRoleLabel"> · Board role: {{ boardRoleLabel }}</span>
+        </p>
         <RouterLink
           v-if="isAdmin"
           :to="{ name: 'system-admin-boards' }"
@@ -75,12 +77,16 @@ const boardCatalogueStore = useBoardCatalogueStore();
 const boardStore = useBoardStore();
 const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
 const { boards } = storeToRefs(boardCatalogueStore);
-const { board, currentBoardId } = storeToRefs(boardStore);
+const { board, currentBoardId, currentUserRole } = storeToRefs(boardStore);
 const userName = computed(() => user.value?.userName ?? '');
 const brandTarget = computed(() => getBrandTarget(boards.value));
+const boardRoleLabel = computed(() => currentUserRole.value);
 const boardAdminTarget = computed(() =>
-  isAdmin.value && currentBoardId.value !== null
-    ? { name: 'columns', params: { boardId: currentBoardId.value } }
+  currentBoardId.value !== null && board.value
+    ? {
+        name: board.value.currentUserRole === 'Owner' ? 'columns' : 'tags',
+        params: { boardId: currentBoardId.value }
+      }
     : null
 );
 

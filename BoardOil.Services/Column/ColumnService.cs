@@ -1,4 +1,5 @@
 using BoardOil.Abstractions;
+using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Column;
@@ -13,6 +14,7 @@ namespace BoardOil.Services.Column;
 public sealed class ColumnService(
     IBoardRepository boardRepository,
     IColumnRepository columnRepository,
+    IBoardAuthorisationService boardAuthorisationService,
     IColumnValidator validator,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : IColumnService
@@ -20,13 +22,19 @@ public sealed class ColumnService(
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
-    public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync(int boardId)
+    public async Task<ApiResult<IReadOnlyList<ColumnDto>>> GetColumnsAsync(int boardId, int actorUserId)
     {
         using var scope = _scopeFactory.CreateReadOnly();
 
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have access to this board.");
         }
 
         var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId))
@@ -36,7 +44,7 @@ public sealed class ColumnService(
         return columns;
     }
 
-    public async Task<ApiResult<ColumnDto>> CreateColumnAsync(int boardId, CreateColumnRequest request)
+    public async Task<ApiResult<ColumnDto>> CreateColumnAsync(int boardId, CreateColumnRequest request, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
 
@@ -49,6 +57,12 @@ public sealed class ColumnService(
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.ColumnManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId)).ToList();
@@ -78,13 +92,19 @@ public sealed class ColumnService(
         return ApiResults.Created(created);
     }
 
-    public async Task<ApiResult<ColumnDto>> UpdateColumnAsync(int boardId, int id, UpdateColumnRequest request)
+    public async Task<ApiResult<ColumnDto>> UpdateColumnAsync(int boardId, int id, UpdateColumnRequest request, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
 
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.ColumnManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId)).ToList();
@@ -117,13 +137,19 @@ public sealed class ColumnService(
         return dto;
     }
 
-    public async Task<ApiResult<ColumnDto>> MoveColumnAsync(int boardId, int id, MoveColumnRequest request)
+    public async Task<ApiResult<ColumnDto>> MoveColumnAsync(int boardId, int id, MoveColumnRequest request, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
 
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.ColumnManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId)).ToList();
@@ -179,13 +205,19 @@ public sealed class ColumnService(
         return dto;
     }
 
-    public async Task<ApiResult> DeleteColumnAsync(int boardId, int id)
+    public async Task<ApiResult> DeleteColumnAsync(int boardId, int id, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
 
         if (boardRepository.Get(boardId) is null)
         {
             return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.ColumnManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
         var target = columnRepository.Get(id);

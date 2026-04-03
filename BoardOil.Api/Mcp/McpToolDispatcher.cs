@@ -1,4 +1,5 @@
 using BoardOil.Mcp.Contracts;
+using BoardOil.Api.Auth;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -46,9 +47,14 @@ public sealed class McpToolDispatcher(
         using var scope = _serviceProviderAccessor.ServiceProvider.CreateScope();
         var services = scope.ServiceProvider;
         var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext?.User.TryGetUserId(out var actorUserId) != true)
+        {
+            return McpToolCallHelpers.CreateErrorCallToolResult("unauthorized", "Invalid identity context.", 401);
+        }
+
         var patAccessContext = _authorisationService.GetPatAccessContext(httpContext?.User);
         var correlationId = httpContext?.TraceIdentifier ?? Guid.NewGuid().ToString("N");
-        var invocationContext = new McpInvocationContext(services, patAccessContext, correlationId);
+        var invocationContext = new McpInvocationContext(services, actorUserId, patAccessContext, correlationId);
 
         if (!_toolRegistry.TryGetRegistration(request.Name, out var registration))
         {

@@ -43,7 +43,7 @@ public sealed class CardCreateTool(
         }
 
         var request = new CreateCardRequest(columnId, input.Title, input.Description, input.TagNames);
-        var result = await _cardService.CreateCardAsync(boardId, request);
+        var result = await _cardService.CreateCardAsync(boardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {
             return Failure(result.ToMcpError());

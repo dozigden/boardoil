@@ -34,7 +34,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug"));
+        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug"), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -68,7 +68,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug", "🐞"));
+        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug", "🐞"), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -102,7 +102,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug"));
+        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug"), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -123,7 +123,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug,Urgent"));
+        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug,Urgent"), ActorUserId);
 
         // Assert
         Assert.False(result.Success);
@@ -180,7 +180,7 @@ public sealed class TagServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.GetTagsAsync(boardId);
+        var result = await service.GetTagsAsync(boardId, ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -214,7 +214,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
             StyleName: "solid",
-            StylePropertiesJson: """{"backgroundColor":"blue","textColorMode":"auto"}"""));
+            StylePropertiesJson: """{"backgroundColor":"blue","textColorMode":"auto"}"""), ActorUserId);
 
         // Assert
         Assert.False(result.Success);
@@ -251,7 +251,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
             StyleName: "gradient",
-            StylePropertiesJson: updatedStylePropertiesJson));
+            StylePropertiesJson: updatedStylePropertiesJson), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -291,7 +291,7 @@ public sealed class TagServiceTests : TestBaseDb
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
             StyleName: "solid",
             StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            Emoji: "not-emoji"));
+            Emoji: "not-emoji"), ActorUserId);
 
         // Assert
         Assert.False(result.Success);
@@ -328,11 +328,11 @@ public sealed class TagServiceTests : TestBaseDb
         var setEmojiResult = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
             StyleName: "solid",
             StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            Emoji: "⚠️"));
+            Emoji: "⚠️"), ActorUserId);
         var clearEmojiResult = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
             StyleName: "solid",
             StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            Emoji: "   "));
+            Emoji: "   "), ActorUserId);
 
         // Assert
         Assert.True(setEmojiResult.Success);
@@ -374,7 +374,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
             StyleName: "gradient",
-            StylePropertiesJson: """{"leftColor":"#113355","rightColor":"#557799","textColorMode":"auto"}"""));
+            StylePropertiesJson: """{"leftColor":"#113355","rightColor":"#557799","textColorMode":"auto"}"""), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -437,7 +437,7 @@ public sealed class TagServiceTests : TestBaseDb
         // Act
         var result = await service.UpdateTagStyleAsync(firstBoardId, firstBoardTagId, new UpdateTagStyleRequest(
             StyleName: "gradient",
-            StylePropertiesJson: updatedStylePropertiesJson));
+            StylePropertiesJson: updatedStylePropertiesJson), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -471,7 +471,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, 999_999, new UpdateTagStyleRequest(
             StyleName: "solid",
-            StylePropertiesJson: stylePropertiesJson));
+            StylePropertiesJson: stylePropertiesJson), ActorUserId);
 
         // Assert
         Assert.False(result.Success);
@@ -515,7 +515,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.DeleteTagAsync(boardId, tagId);
+        var result = await service.DeleteTagAsync(boardId, tagId, ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -536,7 +536,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.DeleteTagAsync(boardId, 999_999);
+        var result = await service.DeleteTagAsync(boardId, 999_999, ActorUserId);
 
         // Assert
         Assert.True(result.Success);

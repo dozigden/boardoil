@@ -1,4 +1,5 @@
 using BoardOil.Abstractions;
+using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
@@ -16,6 +17,7 @@ public sealed class CardService(
     ICardRepository cardRepository,
     IColumnRepository columnRepository,
     ITagRepository tagRepository,
+    IBoardAuthorisationService boardAuthorisationService,
     ICardValidator validator,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardService
@@ -24,9 +26,15 @@ public sealed class CardService(
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
     private readonly ITagRepository _tagRepository = tagRepository;
 
-    public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request)
+    public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardCreate);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
 
         var validationErrors = await validator.ValidateCreateAsync(request);
         if (validationErrors.Count > 0)
@@ -72,9 +80,15 @@ public sealed class CardService(
         return ApiResults.Created(created);
     }
 
-    public async Task<ApiResult<CardDto>> UpdateCardAsync(int boardId, int id, UpdateCardRequest request)
+    public async Task<ApiResult<CardDto>> UpdateCardAsync(int boardId, int id, UpdateCardRequest request, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
 
         var existingCard = await cardRepository.GetWithTagsAndBoardAsync(id);
         if (existingCard is null || existingCard.BoardColumn.BoardId != boardId)
@@ -120,9 +134,15 @@ public sealed class CardService(
         return dto;
     }
 
-    public async Task<ApiResult<CardDto>> MoveCardAsync(int boardId, int id, MoveCardRequest request)
+    public async Task<ApiResult<CardDto>> MoveCardAsync(int boardId, int id, MoveCardRequest request, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardMove);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
 
         var existingCard = await cardRepository.GetWithTagsAndBoardAsync(id);
         if (existingCard is null || existingCard.BoardColumn.BoardId != boardId)
@@ -206,9 +226,15 @@ public sealed class CardService(
         return dto;
     }
 
-    public async Task<ApiResult> DeleteCardAsync(int boardId, int id)
+    public async Task<ApiResult> DeleteCardAsync(int boardId, int id, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardDelete);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
 
         var card = await cardRepository.GetWithTagsAndBoardAsync(id);
         if (card is null)

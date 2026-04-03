@@ -130,7 +130,7 @@ public sealed class McpToolBaseTests
     private static McpInvocationContext CreateContext()
     {
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
-        return new McpInvocationContext(serviceProvider, null, "test-correlation");
+        return new McpInvocationContext(serviceProvider, 1, null, "test-correlation");
     }
 
     private sealed class TestTool(Func<TestInput, Task<McpToolResult<TestOutput>>> executor)

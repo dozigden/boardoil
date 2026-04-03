@@ -52,12 +52,13 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/boards/:boardId(\\d+)/admin',
+    name: 'board-admin',
     component: () => import('./views/BoardAdminView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_ADMIN },
+    meta: { requiresAuth: true, layout: APP_LAYOUT_ADMIN },
     children: [
       {
         path: '',
-        redirect: to => ({ name: 'columns', params: { boardId: to.params.boardId } })
+        redirect: to => ({ name: 'tags', params: { boardId: to.params.boardId } })
       },
       {
         path: 'columns',
@@ -84,6 +85,11 @@ const routes: RouteRecordRaw[] = [
           default: () => import('./views/TagsManagerView.vue'),
           dialog: () => import('./components/TagEditorDialog.vue')
         }
+      },
+      {
+        path: 'members',
+        name: 'board-members',
+        component: () => import('./views/BoardMembersView.vue')
       }
     ]
   },

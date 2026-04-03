@@ -39,7 +39,7 @@ public sealed class BoardGetTool(
             return Failure(accessError);
         }
 
-        var result = await _boardService.GetBoardAsync(boardId);
+        var result = await _boardService.GetBoardAsync(boardId, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {
             return Failure(result.ToMcpError());

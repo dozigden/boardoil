@@ -6,13 +6,15 @@ public sealed record BoardSummaryDto(
     int Id,
     string Name,
     DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    string? CurrentUserRole);
 
 public sealed record BoardDto(
     int Id,
     string Name,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
+    string? CurrentUserRole,
     IReadOnlyList<BoardColumnDto> Columns);
 
 public sealed record CreateBoardRequest(

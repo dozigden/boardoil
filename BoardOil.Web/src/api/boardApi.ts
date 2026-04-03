@@ -1,4 +1,4 @@
-import type { Board, BoardSummary, Card, Column, Tag, TagStyleName } from '../types/boardTypes';
+import type { Board, BoardMember, BoardMemberRole, BoardSummary, Card, Column, Tag, TagStyleName } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
@@ -42,6 +42,31 @@ export function createBoardApi() {
 
   async function deleteBoard(boardId: number): Promise<Result<void, AppError>> {
     return deleteJson(`/api/boards/${boardId}`);
+  }
+
+  async function getBoardMembers(boardId: number): Promise<Result<BoardMember[], AppError>> {
+    const envelopeResult = await getEnvelope<BoardMember[]>(`/api/boards/${boardId}/members`);
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function addBoardMember(boardId: number, userId: number, role: BoardMemberRole): Promise<Result<BoardMember, AppError>> {
+    return postData<BoardMember>(`/api/boards/${boardId}/members`, { userId, role });
+  }
+
+  async function updateBoardMemberRole(
+    boardId: number,
+    userId: number,
+    role: BoardMemberRole
+  ): Promise<Result<BoardMember, AppError>> {
+    return patchData<BoardMember>(`/api/boards/${boardId}/members/${userId}`, { role });
+  }
+
+  async function removeBoardMember(boardId: number, userId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/boards/${boardId}/members/${userId}`);
   }
 
   async function getColumns(boardId: number): Promise<Result<Column[], AppError>> {
@@ -158,6 +183,10 @@ export function createBoardApi() {
     createBoard,
     saveBoard,
     deleteBoard,
+    getBoardMembers,
+    addBoardMember,
+    updateBoardMemberRole,
+    removeBoardMember,
     getColumns,
     createColumn,
     saveColumn,

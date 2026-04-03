@@ -40,6 +40,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICardValidator, CardValidator>();
         services.AddSingleton<IPasswordHashService, PasswordHashService>();
         services.AddScoped<IBoardRepository, BoardRepository>();
+        services.AddScoped<IBoardMemberRepository, BoardMemberRepository>();
         services.AddScoped<IAuthUserRepository, AuthUserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
@@ -51,6 +52,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBoardService, BoardService>();
+        services.AddScoped<IBoardAuthorisationService, BoardAuthorisationService>();
+        services.AddScoped<IBoardMemberService, BoardMemberService>();
         services.AddScoped<IColumnService, ColumnService>();
         services.AddScoped<ICardService, CardService>();
         services.AddScoped<ITagService, TagService>();
