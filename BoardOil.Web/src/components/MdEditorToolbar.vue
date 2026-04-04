@@ -74,7 +74,8 @@
 
 <script setup lang="ts">
 import { Bold, ChevronDown, FileText, Heading1, Italic, Link, List, ListOrdered, Minus, Quote, SquareCode, Strikethrough } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, onMounted, ref, type Component } from 'vue';
+import { computed, ref, type Component } from 'vue';
+import { useClickOutside } from '../composables/useClickOutside';
 import { mdEditorToolbarActions, type MdEditorHeadingLevel, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';
 
 const props = defineProps<{
@@ -127,30 +128,9 @@ function emitToggleMode() {
   emit('toggle-plain-text-mode');
 }
 
-function onDocumentPointerDown(event: MouseEvent) {
-  if (!isHeadingMenuOpen.value) {
-    return;
-  }
-
-  const target = event.target;
-  if (!(target instanceof Node)) {
-    return;
-  }
-
-  if (headingSplitRef.value?.contains(target)) {
-    return;
-  }
-
+useClickOutside(headingSplitRef, () => {
   isHeadingMenuOpen.value = false;
-}
-
-onMounted(() => {
-  window.addEventListener('mousedown', onDocumentPointerDown);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('mousedown', onDocumentPointerDown);
-});
+}, () => isHeadingMenuOpen.value);
 </script>
 
 <style scoped>

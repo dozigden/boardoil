@@ -33,6 +33,7 @@
 import { ChevronDown } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import type { Board, BoardSummary } from '../types/boardTypes';
+import { useClickOutside } from '../composables/useClickOutside';
 import { getCurrentBoardName, getCurrentBoardTarget, getOtherBoards } from './appHeaderNavigation';
 
 const props = defineProps<{
@@ -54,6 +55,8 @@ function closeSwitcher() {
     switcher.value.open = false;
   }
 }
+
+useClickOutside(switcher, closeSwitcher, () => showBoardSwitcher.value && switcher.value?.open === true);
 </script>
 
 <style scoped>

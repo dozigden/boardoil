@@ -77,8 +77,9 @@
 
 <script setup lang="ts">
 import { Filter } from 'lucide-vue-next';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { ref } from 'vue';
 import type { TagFilterState, TagFilterStateMap } from '../types/tagFilterTypes';
+import { useClickOutside } from '../composables/useClickOutside';
 import Tag from './Tag.vue';
 
 const props = defineProps<{
@@ -95,14 +96,6 @@ const emit = defineEmits<{
 const menuId = 'board-tag-filter-menu';
 const dropdownRoot = ref<HTMLElement | null>(null);
 const hoverTargetStates = ref<Record<string, TagFilterState | null>>({});
-
-onMounted(() => {
-  document.addEventListener('pointerdown', handleDocumentPointerDown);
-});
-
-onBeforeUnmount(() => {
-  document.removeEventListener('pointerdown', handleDocumentPointerDown);
-});
 
 function getTagFilterState(tagName: string): TagFilterState {
   const normalisedTagName = normaliseTagName(tagName);
@@ -189,22 +182,9 @@ function normaliseTagName(tagName: string) {
   return tagName.trim().toLocaleLowerCase();
 }
 
-function handleDocumentPointerDown(event: PointerEvent) {
-  if (!props.open) {
-    return;
-  }
-
-  const target = event.target;
-  if (!(target instanceof Node)) {
-    return;
-  }
-
-  if (dropdownRoot.value?.contains(target)) {
-    return;
-  }
-
+useClickOutside(dropdownRoot, () => {
   emit('update:open', false);
-}
+}, () => props.open);
 </script>
 
 <style scoped>
