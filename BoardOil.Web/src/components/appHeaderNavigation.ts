@@ -2,10 +2,6 @@ import type { Board, BoardSummary } from '../types/boardTypes';
 import type { RouteLocationRaw } from 'vue-router';
 
 export function getBrandTarget(boards: BoardSummary[]): RouteLocationRaw {
-  if (boards.length === 1) {
-    return { name: 'board', params: { boardId: boards[0].id } };
-  }
-
   return { name: 'boards' };
 }
 
