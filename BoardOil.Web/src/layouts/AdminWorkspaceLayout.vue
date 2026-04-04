@@ -15,4 +15,10 @@
   margin-top: 0;
   max-width: none;
 }
+
+@media (max-width: 720px) {
+  .app-layout--admin {
+    padding: 0 0 0.75rem 0;
+  }
+}
 </style>

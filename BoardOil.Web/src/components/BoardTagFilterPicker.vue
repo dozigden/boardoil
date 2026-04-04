@@ -5,12 +5,14 @@
         <button
           type="button"
           class="btn btn--secondary board-tag-filter-toggle"
+          aria-label="Tag filters"
+          title="Tag filters"
           :aria-controls="menuId"
           :aria-expanded="open"
           @click="emit('update:open', !open)"
         >
           <Filter :size="14" aria-hidden="true" />
-          <span>Tags</span>
+          <span class="board-tag-filter-toggle-label">Tags</span>
         </button>
 
         <section v-if="open" :id="menuId" class="panel panel--compact board-tag-filter-menu" aria-label="Tag filter matrix">
@@ -68,21 +70,6 @@
         </button>
       </div>
     </section>
-  </div>
-
-      <div class="board-tag-filter-counts">
-        <span
-          v-if="excludedTagCount > 0"
-          class="badge board-tag-filter-count-badge"
-        >
-          {{ excludedTagCount }} exclude
-        </span>
-        <span
-          v-if="includedTagCount > 0"
-          class="badge board-tag-filter-count-badge"
-        >
-          {{ includedTagCount }} include
-        </span>
       </div>
     </div>
   </div>
@@ -90,7 +77,7 @@
 
 <script setup lang="ts">
 import { Filter } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import type { TagFilterState, TagFilterStateMap } from '../types/tagFilterTypes';
 import Tag from './Tag.vue';
 
@@ -107,14 +94,6 @@ const emit = defineEmits<{
 
 const menuId = 'board-tag-filter-menu';
 const dropdownRoot = ref<HTMLElement | null>(null);
-
-const includedTagCount = computed(() =>
-  props.availableTagNames.filter(tagName => getTagFilterState(tagName) === 'include').length
-);
-
-const excludedTagCount = computed(() =>
-  props.availableTagNames.filter(tagName => getTagFilterState(tagName) === 'exclude').length
-);
 const hoverTargetStates = ref<Record<string, TagFilterState | null>>({});
 
 onMounted(() => {
@@ -251,18 +230,6 @@ function handleDocumentPointerDown(event: PointerEvent) {
 
 .board-tag-filter-button-wrap {
   position: relative;
-}
-
-.board-tag-filter-counts {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.35rem;
-  min-width: 12rem;
-}
-
-.board-tag-filter-count-badge {
-  justify-content: flex-start;
 }
 
 .board-tag-filter-menu {
@@ -437,13 +404,31 @@ function handleDocumentPointerDown(event: PointerEvent) {
 }
 
 @media (max-width: 720px) {
+  .board-tag-filter-dropdown {
+    min-width: 0;
+  }
+
+  .board-tag-filter-toggle {
+    padding: 0.3rem 0.45rem;
+    min-width: 2rem;
+    justify-content: center;
+  }
+
+  .board-tag-filter-toggle-label {
+    display: none;
+  }
+
   .board-tag-filter-menu {
-    width: fit-content;
+    left: 0;
+    right: auto;
+    transform: none;
+    width: min(21rem, calc(100vw - 1.5rem));
     max-width: calc(100vw - 1.5rem);
   }
 
   .board-tag-filter-grid {
-    grid-template-columns: 124px 124px 124px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: min(21rem, calc(100vw - 1.5rem));
     gap: 0;
   }
 }

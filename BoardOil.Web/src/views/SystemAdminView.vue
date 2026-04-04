@@ -1,5 +1,5 @@
 <template>
-  <AdminSplitLayout title="System Admin" :items="navItems">
+  <AdminSplitLayout title="System" :items="navItems">
     <RouterView />
   </AdminSplitLayout>
 </template>
