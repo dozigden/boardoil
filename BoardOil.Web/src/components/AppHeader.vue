@@ -263,7 +263,7 @@ async function handleLogout() {
 
 @media (max-width: 720px) {
   .app-header {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0;
     padding: 0.6rem 0.75rem;
   }
 

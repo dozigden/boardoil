@@ -26,16 +26,13 @@
         <button
           type="button"
           class="btn btn--secondary board-clear-filters"
-          :class="{ 'board-clear-filters--hidden': !hasActiveFilters }"
           aria-label="Clear card filters"
           title="Clear filters"
-          :aria-hidden="!hasActiveFilters"
-          :tabindex="hasActiveFilters ? 0 : -1"
           :disabled="!hasActiveFilters"
           @click="emit('clear')"
         >
           <X :size="16" aria-hidden="true" />
-          <span>Clear filters</span>
+          <span class="board-clear-filters-label">Clear</span>
         </button>
       </div>
     </div>
@@ -102,18 +99,38 @@ const emit = defineEmits<{
   padding: 0.35rem 0.55rem;
 }
 
-.board-clear-filters--hidden {
-  visibility: hidden;
-}
-
 @media (max-width: 720px) {
   .board-filters {
-    margin-inline: 0.75rem;
-    grid-template-columns: 1fr;
+    margin-inline: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-radius: 0 0 10px 10px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .board-search-pane {
+    width: 100%;
   }
 
   .board-controls-pane {
-    justify-content: flex-start;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+
+  .board-filters-summary {
+    margin-left: 0;
+    flex: 0 0 auto;
+  }
+
+  .board-clear-filters {
+    padding: 0.3rem 0.45rem;
   }
 }
 </style>

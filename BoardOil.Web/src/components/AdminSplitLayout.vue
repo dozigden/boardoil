@@ -1,25 +1,35 @@
 <template>
   <section class="admin-shell">
-    <aside class="admin-nav" :aria-label="`${title} sections`">
-      <div class="admin-nav-heading">
-        <RouterLink
-          v-if="backTo"
-          :to="backTo"
-          class="admin-nav-back"
-          :aria-label="backLabel"
-          :title="backLabel"
+    <header class="admin-mobile-bar">
+      <div class="admin-mobile-left">
+        <button
+          type="button"
+          class="btn btn--secondary btn--icon admin-mobile-toggle"
+          :aria-controls="mobileNavId"
+          :aria-expanded="mobileNavOpen"
+          aria-label="Toggle section navigation"
+          @click="mobileNavOpen = !mobileNavOpen"
         >
-          ←
-        </RouterLink>
-        <h2 class="admin-nav-title">{{ title }}</h2>
+          <X v-if="mobileNavOpen" :size="18" aria-hidden="true" />
+          <Menu v-else :size="18" aria-hidden="true" />
+        </button>
+        <h2 class="admin-mobile-page-title">{{ mobilePageTitle }}</h2>
       </div>
+      <div class="admin-mobile-right">
+        <span class="admin-mobile-context">{{ props.title }}</span>
+      </div>
+    </header>
+
+    <aside :id="mobileNavId" class="admin-nav" :class="{ 'admin-nav--open': mobileNavOpen }" :aria-label="`${props.title} sections`">
+      <h2 class="admin-nav-title">{{ props.title }}</h2>
       <nav class="admin-nav-links">
         <RouterLink
-          v-for="item in items"
+          v-for="item in props.items"
           :key="item.label"
           :to="item.to"
           :class="{ 'admin-nav-link--active': isItemActive(item) }"
           class="admin-nav-link"
+          @click="closeMobileNav"
         >
           {{ item.label }}
         </RouterLink>
@@ -32,6 +42,8 @@
 </template>
 
 <script setup lang="ts">
+import { Menu, X } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
 import { useRoute } from 'vue-router';
 
@@ -41,17 +53,29 @@ type AdminNavItem = {
   activeRouteNames?: string[];
 };
 
-withDefaults(defineProps<{
+const props = defineProps<{
   title: string;
   items: AdminNavItem[];
-  backTo?: RouteLocationRaw | null;
-  backLabel?: string;
-}>(), {
-  backTo: null,
-  backLabel: 'Back'
-});
+}>();
 
 const route = useRoute();
+const mobileNavId = 'admin-mobile-nav';
+const mobileNavOpen = ref(false);
+const mobilePageTitle = computed(() => {
+  const activeItem = props.items.find(item => isItemActive(item));
+  return activeItem?.label ?? props.title;
+});
+
+watch(
+  () => route.fullPath,
+  () => {
+    mobileNavOpen.value = false;
+  }
+);
+
+function closeMobileNav() {
+  mobileNavOpen.value = false;
+}
 
 function isItemActive(item: AdminNavItem) {
   const currentRouteName = typeof route.name === 'string' ? route.name : null;
@@ -86,6 +110,43 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
   height: 100%;
 }
 
+.admin-mobile-bar {
+  display: none;
+}
+
+.admin-mobile-left {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.admin-mobile-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.admin-mobile-toggle {
+  flex: 0 0 auto;
+}
+
+.admin-mobile-page-title {
+  margin: 0;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-mobile-context {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--bo-ink-muted);
+}
+
 .admin-nav {
   background: var(--bo-surface-panel);
   border: 1px solid var(--bo-border-soft);
@@ -100,34 +161,6 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
 .admin-nav-title {
   margin: 0;
   font-size: 1.05rem;
-}
-
-.admin-nav-heading {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.admin-nav-back {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
-  border: 1px solid var(--bo-border-default);
-  border-radius: 8px;
-  color: var(--bo-ink-default);
-  text-decoration: none;
-  background: var(--bo-surface-card);
-  font-weight: 700;
-  line-height: 1;
-}
-
-.admin-nav-back:hover,
-.admin-nav-back:focus-visible {
-  background: var(--bo-surface-energy);
-  border-color: var(--bo-colour-energy);
-  color: var(--bo-colour-energy);
 }
 
 .admin-nav-links {
@@ -169,15 +202,37 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
   .admin-shell {
     grid-template-columns: 1fr;
     height: auto;
+    gap: 0.6rem;
+  }
+
+  .admin-mobile-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    background: var(--bo-surface-panel);
+    border-bottom: 1px solid var(--bo-border-soft);
+    padding: 0.45rem 0.75rem;
   }
 
   .admin-nav {
+    display: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-radius: 0 0 10px 10px;
+    padding: 0.5rem 0.75rem;
     overflow: visible;
+  }
+
+  .admin-nav--open {
+    display: grid;
   }
 
   .admin-content {
     overflow: visible;
     padding-right: 0;
+    padding-inline: 0.75rem;
   }
 }
 </style>
