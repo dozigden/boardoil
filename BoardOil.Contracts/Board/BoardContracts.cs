@@ -9,6 +9,12 @@ public sealed record BoardSummaryDto(
     DateTime UpdatedAtUtc,
     string? CurrentUserRole);
 
+public sealed record SystemBoardSummaryDto(
+    int Id,
+    string Name,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc);
+
 public sealed record BoardDto(
     int Id,
     string Name,

@@ -51,6 +51,13 @@ export type BoardSummary = {
   currentUserRole?: BoardMemberRole | null;
 };
 
+export type SystemBoardSummary = {
+  id: number;
+  name: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
 export type BoardMember = {
   userId: number;
   userName: string;
