@@ -4,6 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runtime
+      args:
+        BO_VERSION: "${BO_VERSION:-0.1.0-dev}"
+        BO_CHANNEL: "${BO_CHANNEL:-dev}"
+        BO_BUILD: "${BO_BUILD:-local}"
+        BO_COMMIT: "${BO_COMMIT:-unknown}"
     image: boardoil:dev
     container_name: boardoil
     ports:

@@ -18,6 +18,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Resolve release metadata
+        id: release_meta
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          if [ "$VERSION" = "$TAG" ] || [ -z "$VERSION" ]; then
+            echo "Expected tag format v<version>, got: ${TAG}"
+            exit 1
+          fi
+
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Expected SemVer tag format vMAJOR.MINOR.PATCH[-PRERELEASE][+BUILD], got: ${TAG}"
+            exit 1
+          fi
+
+          REPO_VERSION="$(grep -oPm1 '(?<=<Version>)[^<]+' Directory.Build.props || true)"
+          if [ -z "$REPO_VERSION" ]; then
+            echo "Failed to resolve <Version> from Directory.Build.props"
+            exit 1
+          fi
+
+          if [ "$REPO_VERSION" != "$VERSION" ]; then
+            echo "Tag version (${VERSION}) does not match Directory.Build.props version (${REPO_VERSION})."
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "build=tag-${VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Compute image name
         id: image
         run: |
@@ -50,3 +79,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BO_VERSION=${{ steps.release_meta.outputs.version }}
+            BO_CHANNEL=release
+            BO_BUILD=${{ steps.release_meta.outputs.build }}
+            BO_COMMIT=${{ github.sha }}
