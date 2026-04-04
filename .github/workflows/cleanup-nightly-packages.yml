@@ -1,0 +1,89 @@
+name: Cleanup Nightly Package Versions
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+    inputs:
+      keep_count:
+        description: "How many nightly-<sha> image versions to keep"
+        required: true
+        default: "10"
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  cleanup:
+    name: Cleanup old nightly image versions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete old nightly package versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          KEEP_COUNT: ${{ github.event.inputs.keep_count || '10' }}
+        run: |
+          set -euo pipefail
+
+          if ! [[ "$KEEP_COUNT" =~ ^[0-9]+$ ]] || [ "$KEEP_COUNT" -lt 1 ]; then
+            echo "Invalid keep_count: '$KEEP_COUNT'. Must be an integer >= 1."
+            exit 1
+          fi
+
+          PACKAGE_NAME="$(echo "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
+
+          if versions_json="$(gh api --paginate "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions?per_page=100" | jq -s 'add' 2>/dev/null)"; then
+            API_PREFIX="/users/${OWNER}"
+          elif versions_json="$(gh api --paginate "/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions?per_page=100" | jq -s 'add' 2>/dev/null)"; then
+            API_PREFIX="/orgs/${OWNER}"
+          else
+            echo "Failed to list package versions for ${OWNER}/${PACKAGE_NAME}."
+            exit 1
+          fi
+
+          nightly_versions="$(
+            jq -c '
+              [
+                .[]
+                | {
+                    id: .id,
+                    created_at: .created_at,
+                    tags: (.metadata.container.tags // [])
+                  }
+                | select(.tags | map(test("^nightly-[0-9a-f]+$")) | any)
+              ]
+              | sort_by(.created_at)
+              | reverse
+            ' <<<"$versions_json"
+          )"
+
+          total_nightly="$(jq 'length' <<<"$nightly_versions")"
+          echo "Found ${total_nightly} nightly-<sha> package versions."
+
+          if [ "$total_nightly" -le "$KEEP_COUNT" ]; then
+            echo "Nothing to delete (keep_count=${KEEP_COUNT})."
+            exit 0
+          fi
+
+          delete_ids="$(
+            jq -r --argjson keep "$KEEP_COUNT" '
+              .[$keep:]
+              | .[]
+              | .id
+            ' <<<"$nightly_versions"
+          )"
+
+          delete_count="$(wc -w <<<"$delete_ids" | tr -d ' ')"
+          echo "Deleting ${delete_count} old nightly package versions..."
+
+          for version_id in $delete_ids; do
+            echo "Deleting package version id=${version_id}"
+            gh api -X DELETE "${API_PREFIX}/packages/container/${PACKAGE_NAME}/versions/${version_id}"
+          done
+
+          echo "Cleanup complete."
