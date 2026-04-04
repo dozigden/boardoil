@@ -176,24 +176,31 @@ function closeSwitcher() {
 
 @media (max-width: 720px) {
   .board-switcher {
-    flex: 1 1 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-left: 0.25rem;
+    gap: 0.2rem;
   }
 
   .board-current-link {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-width: 0;
-    max-width: none;
+    max-width: 100%;
+    height: 1.85rem;
+    padding: 0.2rem 0.2rem 0.2rem 0.1rem;
   }
 
   .board-switcher-trigger {
     flex: 0 0 auto;
+    height: 1.85rem;
+    padding: 0.25rem 0.45rem;
   }
 
   .board-switcher-panel {
-    left: 0;
-    right: auto;
-    width: 100%;
-    max-width: none;
+    left: auto;
+    right: 0;
+    width: min(18rem, 92vw);
+    max-width: min(18rem, 92vw);
   }
 }
 </style>

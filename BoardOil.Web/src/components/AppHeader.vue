@@ -262,31 +262,55 @@ async function handleLogout() {
 }
 
 @media (max-width: 720px) {
+  .app-header {
+    margin-bottom: 0.75rem;
+    padding: 0.6rem 0.75rem;
+  }
+
   .header-top {
-    align-items: flex-start;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
   }
 
   .header-primary {
-    width: 100%;
-    align-items: flex-start;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    min-width: 0;
   }
 
   .brand-title {
-    flex-basis: 100%;
+    flex: 0 0 auto;
+  }
+
+  .brand-wordmark {
+    display: none;
+  }
+
+  .brand-logo {
+    --boardoil-logo-size: 36px;
   }
 
   .header-meta {
-    width: 100%;
-    justify-content: space-between;
-    margin-left: 0;
+    width: auto;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    margin-left: 0.25rem;
+    min-height: 0;
+  }
+
+  .user-meta {
+    display: none;
   }
 
   .header-menu {
-    margin-left: auto;
+    margin-left: 0;
   }
 
   .header-board-admin-link {
-    margin-left: 0.5rem;
+    margin-left: 0;
   }
 }
 </style>
