@@ -14,18 +14,16 @@ public sealed class SystemBoardService(
     IUserRepository userRepository,
     IDbContextScopeFactory scopeFactory) : ISystemBoardService
 {
-    public async Task<ApiResult<IReadOnlyList<BoardSummaryDto>>> GetBoardsAsync()
+    public async Task<ApiResult<IReadOnlyList<SystemBoardSummaryDto>>> GetBoardsAsync()
     {
         using var scope = scopeFactory.CreateReadOnly();
 
         var boards = await boardRepository.GetBoardsOrderedAsync();
-        return boards
-            .Select(x => new BoardSummaryDto(
-                x.Id,
-                x.Name,
-                x.CreatedAtUtc,
-                x.UpdatedAtUtc,
-                null))
+        return boards.Select(x => new SystemBoardSummaryDto(
+            x.Id,
+            x.Name,
+            x.CreatedAtUtc,
+            x.UpdatedAtUtc))
             .ToList();
     }
 

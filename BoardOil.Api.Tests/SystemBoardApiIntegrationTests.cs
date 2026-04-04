@@ -42,7 +42,7 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
 
         // Act
         var userScoped = await adminClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardSummaryDto>>>("/api/boards");
-        var systemScoped = await adminClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardSummaryDto>>>("/api/admin/boards");
+        var systemScoped = await adminClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<SystemBoardSummaryDto>>>("/api/admin/boards");
 
         // Assert
         Assert.NotNull(userScoped);

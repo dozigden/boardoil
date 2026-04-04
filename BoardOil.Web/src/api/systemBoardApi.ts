@@ -1,4 +1,4 @@
-import type { BoardMember, BoardMemberRole, BoardSummary } from '../types/boardTypes';
+import type { BoardMember, BoardMemberRole, SystemBoardSummary } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { ok } from '../types/result';
@@ -7,8 +7,8 @@ import { deleteJson, getEnvelope, patchData, postData } from './http';
 export type SystemBoardApi = ReturnType<typeof createSystemBoardApi>;
 
 export function createSystemBoardApi() {
-  async function getBoards(): Promise<Result<BoardSummary[], AppError>> {
-    const envelopeResult = await getEnvelope<BoardSummary[]>('/api/admin/boards');
+  async function getBoards(): Promise<Result<SystemBoardSummary[], AppError>> {
+    const envelopeResult = await getEnvelope<SystemBoardSummary[]>('/api/admin/boards');
     if (!envelopeResult.ok) {
       return envelopeResult;
     }
