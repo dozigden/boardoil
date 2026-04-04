@@ -72,6 +72,7 @@ import { getBrandTarget } from './appHeaderNavigation';
 import { useAuthStore } from '../stores/authStore';
 import { useBoardCatalogueStore } from '../stores/boardCatalogueStore';
 import { useBoardStore } from '../stores/boardStore';
+import { useClickOutside } from '../composables/useClickOutside';
 
 const userMenu = ref<HTMLDetailsElement | null>(null);
 const aboutDialogOpen = ref(false);
@@ -98,6 +99,8 @@ function closeMenu() {
     userMenu.value.open = false;
   }
 }
+
+useClickOutside(userMenu, closeMenu, () => isAuthenticated.value && userMenu.value?.open === true);
 
 function closeMenus() {
   closeMenu();

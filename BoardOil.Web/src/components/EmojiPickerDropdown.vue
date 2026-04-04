@@ -23,7 +23,8 @@
 
 <script setup lang="ts">
 import 'emoji-picker-element';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useClickOutside } from '../composables/useClickOutside';
 import { normaliseTagEmojiForRender } from '../utils/tagStyles';
 
 const props = withDefaults(defineProps<{
@@ -72,22 +73,9 @@ function clearEmoji() {
   open.value = false;
 }
 
-function handleDocumentMouseDown(event: MouseEvent) {
-  if (!open.value) {
-    return;
-  }
-
-  const target = event.target;
-  if (!(target instanceof Node)) {
-    return;
-  }
-
-  if (containerRef.value?.contains(target)) {
-    return;
-  }
-
+useClickOutside(containerRef, () => {
   open.value = false;
-}
+}, () => open.value);
 
 watch(
   () => props.disabled,
@@ -98,13 +86,6 @@ watch(
   }
 );
 
-onMounted(() => {
-  document.addEventListener('mousedown', handleDocumentMouseDown);
-});
-
-onBeforeUnmount(() => {
-  document.removeEventListener('mousedown', handleDocumentMouseDown);
-});
 </script>
 
 <style scoped>
