@@ -38,6 +38,7 @@
             <CircleUserRound :size="18" aria-hidden="true" />
           </summary>
           <nav class="menu-panel" aria-label="User menu">
+            <button v-if="isAuthenticated" type="button" class="btn btn--menu-item" @click="openAboutDialog">About</button>
             <RouterLink v-if="isAuthenticated" to="/licences" class="menu-item" @click="closeMenus">Licences</RouterLink>
             <button v-if="isAuthenticated" type="button" class="btn btn--menu-item" @click="handleLogout">Logout</button>
           </nav>
@@ -55,6 +56,7 @@
       </div>
     </div>
   </header>
+  <AboutDialog :open="aboutDialogOpen" @close="closeAboutDialog" />
 </template>
 
 <script setup lang="ts">
@@ -62,6 +64,7 @@ import { CircleUserRound, Settings, SlidersHorizontal } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import AboutDialog from './AboutDialog.vue';
 import BoardOilDrop from './BoardOilDrop.vue';
 import BoardOilLogo from './BoardOilLogo.vue';
 import HeaderBoardPicker from './HeaderBoardPicker.vue';
@@ -71,6 +74,7 @@ import { useBoardCatalogueStore } from '../stores/boardCatalogueStore';
 import { useBoardStore } from '../stores/boardStore';
 
 const userMenu = ref<HTMLDetailsElement | null>(null);
+const aboutDialogOpen = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
 const boardCatalogueStore = useBoardCatalogueStore();
@@ -103,6 +107,15 @@ async function handleLogout() {
   await authStore.logout();
   closeMenus();
   await router.replace({ name: 'login' });
+}
+
+async function openAboutDialog() {
+  closeMenus();
+  aboutDialogOpen.value = true;
+}
+
+function closeAboutDialog() {
+  aboutDialogOpen.value = false;
 }
 </script>
 

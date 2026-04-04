@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "0 2 * * *"
   workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Force a nightly publish even if no commits changed since last nightly"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -30,17 +36,31 @@ jobs:
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
           echo "name=${IMAGE}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve app version
+        id: app_version
+        run: |
+          VERSION="$(grep -oPm1 '(?<=<Version>)[^<]+' Directory.Build.props || true)"
+          if [ -z "$VERSION" ]; then
+            echo "Failed to resolve <Version> from Directory.Build.props"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Detect changes since last nightly build
         id: changes
         run: |
           CURRENT_SHA="$(git rev-parse HEAD)"
           SHORT_SHA="$(git rev-parse --short=7 HEAD)"
           LAST_SHA="$(git rev-list -n 1 refs/tags/nightly-last-build 2>/dev/null || true)"
+          FORCE_REBUILD="${{ github.event.inputs.force_rebuild || 'false' }}"
 
           echo "current_sha=${CURRENT_SHA}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
-          if [ -n "$LAST_SHA" ] && [ "$LAST_SHA" = "$CURRENT_SHA" ]; then
+          if [ "$FORCE_REBUILD" = "true" ]; then
+            echo "Manual force rebuild requested. Publishing nightly image for ${CURRENT_SHA}."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$LAST_SHA" ] && [ "$LAST_SHA" = "$CURRENT_SHA" ]; then
             echo "No changes since last nightly build (${CURRENT_SHA}). Skipping publish."
             echo "should_build=false" >> "$GITHUB_OUTPUT"
           else
@@ -79,6 +99,11 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BO_VERSION=${{ steps.app_version.outputs.version }}
+            BO_CHANNEL=nightly
+            BO_BUILD=nightly-${{ steps.changes.outputs.short_sha }}
+            BO_COMMIT=${{ steps.changes.outputs.current_sha }}
 
       - name: Update nightly build marker tag
         if: steps.changes.outputs.should_build == 'true'

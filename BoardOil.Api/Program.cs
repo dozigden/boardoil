@@ -19,6 +19,7 @@ var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configurat
 var jwtOptions = JwtAuthOptions.FromConfiguration(builder.Configuration);
 var csrfOptions = CsrfOptions.FromConfiguration(builder.Configuration);
 var internalOptions = BoardOilInternalOptions.FromConfiguration(builder.Configuration);
+var buildInfo = BoardOilBuildInfo.FromConfiguration(builder.Configuration, builder.Environment, typeof(Program).Assembly);
 
 builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
@@ -50,6 +51,7 @@ builder.Services.AddSingleton(runtimeOptions);
 builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton(csrfOptions);
 builder.Services.AddSingleton(internalOptions);
+builder.Services.AddSingleton(buildInfo);
 builder.Services.AddBoardOilMcp();
 builder.Services.AddSingleton(new AuthSessionOptions
 {
@@ -184,6 +186,7 @@ app.Use(async (context, next) =>
 app.UseAuthorization();
 
 app.MapHealthEndpoints();
+app.MapVersionEndpoints();
 app.MapBoardEndpoints();
 app.MapSystemBoardEndpoints();
 app.MapColumnEndpoints();
