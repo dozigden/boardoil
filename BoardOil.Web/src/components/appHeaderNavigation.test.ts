@@ -3,7 +3,7 @@ import { getBrandTarget, getCurrentBoardName, getCurrentBoardTarget, getOtherBoa
 import type { Board, BoardSummary } from '../types/boardTypes';
 
 describe('appHeaderNavigation', () => {
-  it('routes the brand link to the only board when exactly one board exists', () => {
+  it('routes the brand link to board management when exactly one board exists', () => {
     const boards: BoardSummary[] = [
       {
         id: 7,
@@ -13,7 +13,7 @@ describe('appHeaderNavigation', () => {
       }
     ];
 
-    expect(getBrandTarget(boards)).toEqual({ name: 'board', params: { boardId: 7 } });
+    expect(getBrandTarget(boards)).toEqual({ name: 'boards' });
   });
 
   it('routes the brand link to board management when multiple boards exist', () => {
