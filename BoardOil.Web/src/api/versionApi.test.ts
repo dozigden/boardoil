@@ -61,7 +61,7 @@ describe('versionApi', () => {
     const buildInfo = getFrontendBuildInfo();
 
     expect(buildInfo).toEqual({
-      version: '0.1.0',
+      version: '0.2.0',
       channel: 'dev',
       build: 'local',
       commit: 'unknown'
