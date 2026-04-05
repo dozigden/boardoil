@@ -2,13 +2,13 @@ import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import type {
+  AccessToken,
   AuthSession,
   AuthUser,
   BootstrapStatusDto,
-  CreateMachinePatRequest,
-  CreatedMachinePat,
+  CreateAccessTokenRequest,
+  CreatedAccessToken,
   CsrfTokenDto,
-  MachinePat,
   ManagedUser,
   UserDirectoryEntry
 } from '../types/authTypes';
@@ -97,8 +97,8 @@ export function createAuthApi() {
     return putData<ManagedUser>(`/api/admin/users/${userId}/status`, { isActive });
   }
 
-  async function getMachinePats(): Promise<Result<MachinePat[], AppError>> {
-    const envelopeResult = await getEnvelope<MachinePat[]>('/api/auth/machine/pats');
+  async function getAccessTokens(): Promise<Result<AccessToken[], AppError>> {
+    const envelopeResult = await getEnvelope<AccessToken[]>('/api/auth/access-tokens');
     if (!envelopeResult.ok) {
       return envelopeResult;
     }
@@ -106,12 +106,12 @@ export function createAuthApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
-  async function createMachinePat(request: CreateMachinePatRequest): Promise<Result<CreatedMachinePat, AppError>> {
-    return postData<CreatedMachinePat>('/api/auth/machine/pats', request);
+  async function createAccessToken(request: CreateAccessTokenRequest): Promise<Result<CreatedAccessToken, AppError>> {
+    return postData<CreatedAccessToken>('/api/auth/access-tokens', request);
   }
 
-  async function revokeMachinePat(id: number): Promise<Result<void, AppError>> {
-    return deleteJson(`/api/auth/machine/pats/${id}`);
+  async function revokeAccessToken(id: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/auth/access-tokens/${id}`);
   }
 
   return {
@@ -126,9 +126,9 @@ export function createAuthApi() {
     createUser,
     updateUserRole,
     updateUserStatus,
-    getMachinePats,
-    createMachinePat,
-    revokeMachinePat
+    getAccessTokens,
+    createAccessToken,
+    revokeAccessToken
   };
 }
 

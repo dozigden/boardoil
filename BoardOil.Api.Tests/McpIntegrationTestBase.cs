@@ -58,7 +58,7 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
             boardAccessMode,
             allowedBoardIds ?? [1]);
 
-        var response = await client.PostAsJsonAsync("/api/auth/machine/pats", request);
+        var response = await client.PostAsJsonAsync("/api/auth/access-tokens", request);
         response.EnsureSuccessStatusCode();
 
         var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();

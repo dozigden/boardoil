@@ -1,6 +1,6 @@
 <template>
-  <ModalDialog :open="open" title="Create Machine Access Token" close-label="Cancel token creation" @close="emit('close')" @submit="submit">
-    <p class="machine-pat-dialog-hint">Create a token for MCP clients without sharing your account password.</p>
+  <ModalDialog :open="open" title="Create Access Token" close-label="Cancel access token creation" @close="emit('close')" @submit="submit">
+    <p class="machine-pat-dialog-hint">Create a personal access token for MCP clients without sharing your account password.</p>
 
     <label>
       Token name
@@ -87,7 +87,7 @@
 import { Check, X } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import type { BoardSummary } from '../types/boardTypes';
-import type { CreateMachinePatRequest } from '../types/authTypes';
+import type { CreateAccessTokenRequest } from '../types/authTypes';
 import ModalDialog from './ModalDialog.vue';
 
 const props = defineProps<{
@@ -98,7 +98,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  submit: [payload: CreateMachinePatRequest];
+  submit: [payload: CreateAccessTokenRequest];
 }>();
 
 const name = ref('');
@@ -163,7 +163,7 @@ function submit() {
     }
   }
 
-  const payload: CreateMachinePatRequest = {
+  const payload: CreateAccessTokenRequest = {
     name: trimmedName,
     expiresInDays: isNonExpiring.value ? null : Math.trunc(Number(expiresInDays.value)),
     scopes,

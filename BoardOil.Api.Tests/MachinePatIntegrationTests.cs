@@ -33,7 +33,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
         // Act
         var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/machine/pats",
+            "/api/auth/access-tokens",
             new CreateMachinePatRequest("agent-token", 30, ["mcp:write"], "selected", [1]));
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
 
@@ -72,7 +72,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
 
         var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/machine/pats",
+            "/api/auth/access-tokens",
             new CreateMachinePatRequest("read-only-token", 30, ["mcp:read"], "selected", [1]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
@@ -111,7 +111,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/machine/pats",
+            "/api/auth/access-tokens",
             new CreateMachinePatRequest("single-board-token", 30, ["mcp:read"], "selected", [1]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
@@ -143,7 +143,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/machine/pats",
+            "/api/auth/access-tokens",
             new CreateMachinePatRequest("agent-token", 30, ["mcp:write"], "selected", [1]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
@@ -151,7 +151,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         Assert.NotNull(created!.Data);
 
         // Act
-        var revokeResponse = await adminClient.DeleteAsync($"/api/auth/machine/pats/{created.Data!.Token.Id}");
+        var revokeResponse = await adminClient.DeleteAsync($"/api/auth/access-tokens/{created.Data!.Token.Id}");
         var toolsListAfterRevoke = await SendMcpRequestAsync(
             adminClient,
             created.Data.PlainTextToken,
@@ -171,12 +171,12 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/machine/pats",
+            "/api/auth/access-tokens",
             new CreateMachinePatRequest("agent-token", 30, ["mcp:write"], "selected", [1]));
         createResponse.EnsureSuccessStatusCode();
 
         // Act
-        var listResponse = await adminClient.GetAsync("/api/auth/machine/pats");
+        var listResponse = await adminClient.GetAsync("/api/auth/access-tokens");
         var listEnvelope = await listResponse.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<MachinePatEnvelope>>>();
 
         // Assert
@@ -199,7 +199,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
         // Act
         var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/machine/pats",
+            "/api/auth/access-tokens",
             new CreateMachinePatRequest("legacy-scope-token", 30, ["mcp"], "all", []));
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
 
@@ -220,7 +220,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/machine/pats",
+            "/api/auth/access-tokens",
             new CreateMachinePatRequest("throttle-same-day-token", 30, ["mcp:read"], "selected", [1]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
@@ -254,7 +254,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/machine/pats",
+            "/api/auth/access-tokens",
             new CreateMachinePatRequest("throttle-stale-token", 30, ["mcp:read"], "selected", [1]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
@@ -296,6 +296,41 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
             $"Expected 404/405 for removed PAT login endpoint, got {(int)response.StatusCode} ({response.StatusCode}).");
     }
 
+    [Fact]
+    public async Task StandardUser_CanManageOwnAccessTokens()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        _ = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+
+        var standardClient = _factory.CreateClient();
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var createResponse = await standardClient.PostAsJsonAsync(
+            "/api/auth/access-tokens",
+            new CreateMachinePatRequest("member-token", 30, ["mcp:read"], "selected", [1]));
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
+
+        var listResponse = await standardClient.GetAsync("/api/auth/access-tokens");
+        var listEnvelope = await listResponse.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<MachinePatEnvelope>>>();
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.NotNull(created);
+        Assert.NotNull(created!.Data);
+
+        var revokeResponse = await standardClient.DeleteAsync($"/api/auth/access-tokens/{created.Data!.Token.Id}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.NotNull(listEnvelope);
+        Assert.NotNull(listEnvelope!.Data);
+        var listedToken = Assert.Single(listEnvelope.Data!, token => token.Name == "member-token");
+        Assert.Equal(created.Data.Token.Id, listedToken.Id);
+        Assert.Equal(HttpStatusCode.OK, revokeResponse.StatusCode);
+    }
+
     private static async Task RegisterInitialAdminAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
@@ -332,12 +367,33 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
     private static async Task<MachinePatEnvelope?> GetMachinePatByIdAsync(HttpClient client, int tokenId)
     {
-        var listResponse = await client.GetAsync("/api/auth/machine/pats");
+        var listResponse = await client.GetAsync("/api/auth/access-tokens");
         var listEnvelope = await listResponse.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<MachinePatEnvelope>>>();
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.NotNull(listEnvelope);
         Assert.NotNull(listEnvelope!.Data);
         return listEnvelope.Data!.SingleOrDefault(token => token.Id == tokenId);
+    }
+
+    private static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
+    {
+        var response = await adminClient.PostAsJsonAsync("/api/admin/users", new CreateUserRequest(userName, password, role));
+        response.EnsureSuccessStatusCode();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ManagedUserEnvelope>>();
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        return envelope.Data!.Id;
+    }
+
+    private static async Task LoginAsAsync(HttpClient client, string userName, string password)
+    {
+        var response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(userName, password));
+        response.EnsureSuccessStatusCode();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
     }
 
     private sealed record LoginRequest(string UserName, string Password);
@@ -347,8 +403,10 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         IReadOnlyList<string> Scopes,
         string BoardAccessMode,
         IReadOnlyList<int> AllowedBoardIds);
+    private sealed record CreateUserRequest(string UserName, string Password, string Role);
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
+    private sealed record ManagedUserEnvelope(int Id, string UserName, string Role, bool IsActive, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
     private sealed record CreatedMachinePatEnvelope(MachinePatEnvelope Token, string PlainTextToken);
     private sealed record MachinePatEnvelope(
         int Id,

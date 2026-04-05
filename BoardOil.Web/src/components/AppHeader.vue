@@ -40,6 +40,7 @@
           <nav class="menu-panel" aria-label="User menu">
             <button v-if="isAuthenticated" type="button" class="btn btn--menu-item" @click="openAboutDialog">About</button>
             <RouterLink v-if="isAuthenticated" to="/licences" class="menu-item" @click="closeMenus">Licences</RouterLink>
+            <RouterLink v-if="isAuthenticated" :to="{ name: 'access-tokens' }" class="menu-item" @click="closeMenus">Access tokens</RouterLink>
             <button v-if="isAuthenticated" type="button" class="btn btn--menu-item" @click="handleLogout">Logout</button>
           </nav>
         </details>

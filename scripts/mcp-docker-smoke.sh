@@ -95,19 +95,19 @@ if [ -z "$csrf_token" ] && [ "$register_status" = "409" ]; then
 fi
 
 if [ -z "$csrf_token" ]; then
-  echo "Failed to obtain CSRF token for PAT creation" >&2
+  echo "Failed to obtain CSRF token for access token creation" >&2
   exit 1
 fi
 
-echo "[smoke] Creating machine PAT"
-create_pat_payload=$(curl -fsS -X POST "$API_URL/api/auth/machine/pats" \
+echo "[smoke] Creating PAT"
+create_pat_payload=$(curl -fsS -X POST "$API_URL/api/auth/access-tokens" \
   -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
   -H "X-BoardOil-CSRF: $csrf_token" \
   -H "Content-Type: application/json" \
   -d '{"name":"mcp-smoke-token","expiresInDays":30,"scopes":["mcp:read","mcp:write"],"boardAccessMode":"all","allowedBoardIds":[]}')
 pat_token=$(echo "$create_pat_payload" | jq -r '.data.plainTextToken')
 if [ -z "$pat_token" ] || [ "$pat_token" = "null" ]; then
-  echo "Failed to create machine PAT" >&2
+  echo "Failed to create PAT" >&2
   echo "$create_pat_payload" >&2
   exit 1
 fi

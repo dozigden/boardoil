@@ -25,7 +25,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal("/mcp", payload.RootElement.GetProperty("endpoint").GetString());
         Assert.Equal("Bearer", payload.RootElement.GetProperty("auth").GetProperty("scheme").GetString());
         Assert.Equal("personal_access_token", payload.RootElement.GetProperty("setup").GetProperty("preferredAuth").GetString());
-        Assert.Equal("/machine-access", payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
+        Assert.Equal("/access-tokens", payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
         Assert.Equal("/mcp", payload.RootElement
             .GetProperty("setup")
             .GetProperty("examples")
@@ -58,10 +58,10 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             "bo_pat_",
             payload.RootElement.GetProperty("auth").GetProperty("tokenPrefix").GetString());
         Assert.Equal(
-            "https://boardoil.example.com/base/machine-access",
+            "https://boardoil.example.com/base/access-tokens",
             payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
         Assert.Equal(
-            "https://boardoil.example.com/base/machine-access",
+            "https://boardoil.example.com/base/access-tokens",
             payload.RootElement.GetProperty("auth").GetProperty("patManagementUi").GetString());
     }
 

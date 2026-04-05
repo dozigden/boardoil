@@ -25,15 +25,15 @@ public static class AuthEndpoints
                 RefreshMachineAsync(request, authService));
         app.MapPost("/api/auth/machine/logout", (MachineLogoutRequest request, IAuthService authService) =>
                 LogoutMachineAsync(request, authService));
-        app.MapPost("/api/auth/machine/pats", (CreateMachinePatRequest request, IAuthService authService, ClaimsPrincipal claimsPrincipal) =>
+        app.MapPost("/api/auth/access-tokens", (CreateMachinePatRequest request, IAuthService authService, ClaimsPrincipal claimsPrincipal) =>
                 CreateMachinePatAsync(request, authService, claimsPrincipal))
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
-        app.MapGet("/api/auth/machine/pats", (IAuthService authService, ClaimsPrincipal claimsPrincipal) =>
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
+        app.MapGet("/api/auth/access-tokens", (IAuthService authService, ClaimsPrincipal claimsPrincipal) =>
                 ListMachinePatsAsync(authService, claimsPrincipal))
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
-        app.MapDelete("/api/auth/machine/pats/{id:int}", (int id, IAuthService authService, ClaimsPrincipal claimsPrincipal) =>
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
+        app.MapDelete("/api/auth/access-tokens/{id:int}", (int id, IAuthService authService, ClaimsPrincipal claimsPrincipal) =>
                 RevokeMachinePatAsync(id, authService, claimsPrincipal))
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
 
         app.MapGet("/api/auth/csrf", (IAuthHttpSessionService authHttpService, HttpRequest request, HttpResponse response) =>
                 authHttpService.GetCsrf(request, response))

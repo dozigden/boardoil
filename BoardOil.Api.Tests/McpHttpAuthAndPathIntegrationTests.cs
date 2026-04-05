@@ -34,7 +34,7 @@ public sealed class McpHttpAuthAndPathIntegrationTests : McpIntegrationTestBase
         Assert.True(response.Headers.Contains("WWW-Authenticate"));
         Assert.Equal("Bearer", payload.Data.GetProperty("auth").GetProperty("scheme").GetString());
         Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
-        Assert.Equal("/machine-access", payload.Data.GetProperty("setup").GetProperty("patManagementUi").GetString());
+        Assert.Equal("/access-tokens", payload.Data.GetProperty("setup").GetProperty("patManagementUi").GetString());
         Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
     }
 
