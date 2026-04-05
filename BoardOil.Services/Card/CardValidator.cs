@@ -62,6 +62,11 @@ public sealed class CardValidator(
             errors.Add(new ValidationError("tagNames", "Tag names are required."));
         }
 
+        if (request.CardTypeId <= 0)
+        {
+            errors.Add(new ValidationError("cardTypeId", "Card type is required."));
+        }
+
         if (errors.Count > 0)
         {
             return Task.FromResult<IReadOnlyList<ValidationError>>(errors);

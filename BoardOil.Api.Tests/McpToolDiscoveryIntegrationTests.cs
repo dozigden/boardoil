@@ -124,6 +124,18 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.False(cardMoveProperties.TryGetProperty("cardId", out _));
         Assert.False(cardMoveProperties.TryGetProperty("boardColumnId", out _));
         Assert.False(cardMoveProperties.TryGetProperty("positionAfterCardId", out _));
+
+        var cardCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "card.create");
+        var cardCreateProperties = cardCreateTool.GetProperty("inputSchema").GetProperty("properties");
+        Assert.True(cardCreateProperties.TryGetProperty("cardTypeId", out _));
+        var cardCreateRequired = cardCreateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.DoesNotContain("cardTypeId", cardCreateRequired);
+
+        var cardUpdateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "card.update");
+        var cardUpdateProperties = cardUpdateTool.GetProperty("inputSchema").GetProperty("properties");
+        Assert.True(cardUpdateProperties.TryGetProperty("cardTypeId", out _));
+        var cardUpdateRequired = cardUpdateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("cardTypeId", cardUpdateRequired);
     }
 
     private sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);

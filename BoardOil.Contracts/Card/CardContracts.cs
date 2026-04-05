@@ -24,7 +24,7 @@ public sealed record UpdateCardRequest(
     string Title,
     string Description,
     IReadOnlyList<string> TagNames,
-    int? CardTypeId = null);
+    int CardTypeId);
 
 public sealed record MoveCardRequest(
     int BoardColumnId,

@@ -343,10 +343,15 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(createdCard);
         Assert.NotNull(createdCard!.Data);
 
+        var cardTypesEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
+        Assert.NotNull(cardTypesEnvelope);
+        Assert.NotNull(cardTypesEnvelope!.Data);
+        var systemCardType = Assert.Single(cardTypesEnvelope.Data!, x => x.IsSystem);
+
         // Act
         var updatedCardResponse = await Client.PutAsJsonAsync(
             $"/api/boards/1/cards/{createdCard.Data!.Id}",
-            new UpdateCardRequest("Task B", "Desc", ["Urgent"]));
+            new UpdateCardRequest("Task B", "Desc", ["Urgent"], systemCardType.Id));
         updatedCardResponse.EnsureSuccessStatusCode();
 
         // Assert
@@ -358,6 +363,42 @@ public sealed class BoardApiIntegrationTests
         Assert.Single(createdColumnState!.Cards);
         Assert.Equal("Task B", createdColumnState.Cards[0].Title);
         Assert.Equal(["Urgent"], createdColumnState.Cards[0].TagNames);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_UpdateWithoutCardTypeId_ShouldReturnValidationError()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+
+        var createdCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", ["Bug"]));
+        createdCardResponse.EnsureSuccessStatusCode();
+        var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdCard);
+        Assert.NotNull(createdCard!.Data);
+
+        // Act
+        var response = await Client.PutAsJsonAsync(
+            $"/api/boards/1/cards/{createdCard.Data!.Id}",
+            new
+            {
+                title = "Task A",
+                description = "Desc",
+                tagNames = new[] { "Bug" }
+            });
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(400, (int)response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal(400, payload.StatusCode);
     }
 
     [Fact]

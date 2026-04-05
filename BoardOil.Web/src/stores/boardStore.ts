@@ -171,7 +171,7 @@ export const useBoardStore = defineStore('board', () => {
     upsertCard(result.data);
   }
 
-  async function saveCard(cardId: number, title: string, description: string, tagNames: string[], cardTypeId?: number | null) {
+  async function saveCard(cardId: number, title: string, description: string, tagNames: string[], cardTypeId: number) {
     const boardId = getCurrentBoardIdOrReport();
     if (boardId === null) {
       return;

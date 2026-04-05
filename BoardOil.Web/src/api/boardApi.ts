@@ -118,7 +118,7 @@ export function createBoardApi() {
     title: string,
     description: string,
     tagNames: string[],
-    cardTypeId?: number | null
+    cardTypeId: number
   ): Promise<Result<Card, AppError>> {
     return putData<Card>(`/api/boards/${boardId}/cards/${cardId}`, {
       title,
