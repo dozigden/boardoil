@@ -12,7 +12,7 @@ export type BuildInfo = {
 
 export function getFrontendBuildInfo(): BuildInfo {
   return {
-    version: normaliseString(import.meta.env.VITE_BO_VERSION as string | undefined, '0.1.0'),
+    version: normaliseString(import.meta.env.VITE_BO_VERSION as string | undefined, '0.2.0'),
     channel: normaliseString(import.meta.env.VITE_BO_CHANNEL as string | undefined, 'dev').toLowerCase(),
     build: normaliseString(import.meta.env.VITE_BO_BUILD as string | undefined, 'local'),
     commit: normaliseString(import.meta.env.VITE_BO_COMMIT as string | undefined, 'unknown')
