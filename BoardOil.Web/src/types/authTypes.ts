@@ -34,16 +34,16 @@ export type UserDirectoryEntry = {
   isActive: boolean;
 };
 
-export type MachinePatScope = 'mcp:read' | 'mcp:write' | string;
+export type AccessTokenScope = 'mcp:read' | 'mcp:write' | string;
 
-export type MachinePatBoardAccessMode = 'all' | 'selected' | string;
+export type AccessTokenBoardAccessMode = 'all' | 'selected' | string;
 
-export type MachinePat = {
+export type AccessToken = {
   id: number;
   name: string;
   tokenPrefix: string;
-  scopes: MachinePatScope[];
-  boardAccessMode: MachinePatBoardAccessMode;
+  scopes: AccessTokenScope[];
+  boardAccessMode: AccessTokenBoardAccessMode;
   allowedBoardIds: number[];
   createdAtUtc: string;
   expiresAtUtc: string | null;
@@ -51,15 +51,15 @@ export type MachinePat = {
   revokedAtUtc: string | null;
 };
 
-export type CreatedMachinePat = {
-  token: MachinePat;
+export type CreatedAccessToken = {
+  token: AccessToken;
   plainTextToken: string;
 };
 
-export type CreateMachinePatRequest = {
+export type CreateAccessTokenRequest = {
   name: string;
   expiresInDays: number | null;
-  scopes: MachinePatScope[];
-  boardAccessMode: MachinePatBoardAccessMode;
+  scopes: AccessTokenScope[];
+  boardAccessMode: AccessTokenBoardAccessMode;
   allowedBoardIds: number[];
 };

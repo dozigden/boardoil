@@ -15,7 +15,7 @@ public sealed class McpErrorResponseFactory : IMcpErrorResponseFactory
                 docs = McpDiscoveryMetadata.GetMcpDocsEndpoint(mcpPublicBaseUrl),
                 setup = McpDiscoveryMetadata.CreateSetupMetadata(mcpPublicBaseUrl),
                 examples = McpDiscoveryMetadata.CreateExamples(mcpPublicBaseUrl),
-                nextStep = "Create a PAT in the machine access UI, then call POST /mcp with Authorization: Bearer <YOUR_PAT>."
+                nextStep = "Create a PAT in the access tokens UI, then call POST /mcp with Authorization: Bearer <YOUR_PAT>."
             },
             401,
             detail);

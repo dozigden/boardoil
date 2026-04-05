@@ -30,6 +30,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
   },
   {
+    path: '/access-tokens',
+    name: 'access-tokens',
+    component: () => import('./views/AccessTokensView.vue'),
+    meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
+  },
+  {
     path: '/',
     name: 'boards',
     component: () => import('./views/BoardsView.vue'),
@@ -155,11 +161,6 @@ const routes: RouteRecordRaw[] = [
         path: 'users',
         name: 'users',
         component: () => import('./views/UsersManagerView.vue')
-      },
-      {
-        path: 'machine-access',
-        name: 'machine-access',
-        component: () => import('./views/MachineAccessView.vue')
       },
       {
         path: 'configuration',

@@ -21,14 +21,14 @@ public static class McpDiscoveryMetadata
             tokenType = "personal_access_token",
             tokenPrefix = "bo_pat_",
             format = "Bearer <YOUR_PAT>",
-            patManagementUi = ResolveUrl("/machine-access", mcpPublicBaseUrl)
+            patManagementUi = ResolveUrl("/access-tokens", mcpPublicBaseUrl)
         };
 
     public static object CreateSetupMetadata(string? mcpPublicBaseUrl) =>
         new
         {
             preferredAuth = "personal_access_token",
-            patManagementUi = ResolveUrl("/machine-access", mcpPublicBaseUrl),
+            patManagementUi = ResolveUrl("/access-tokens", mcpPublicBaseUrl),
             examples = CreateExamples(mcpPublicBaseUrl)
         };
 

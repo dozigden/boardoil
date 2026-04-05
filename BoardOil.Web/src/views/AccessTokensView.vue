@@ -2,7 +2,7 @@
   <section class="machine-access-view">
     <header class="machine-access-header">
       <div>
-        <h2>Machine Access Tokens</h2>
+        <h2>Access Tokens</h2>
         <p>Create and manage Personal Access Tokens (PATs) for MCP clients.</p>
       </div>
     </header>
@@ -10,7 +10,7 @@
     <div class="machine-access-layout">
       <section class="machine-access-column machine-access-column--tokens">
         <div class="machine-access-actions">
-          <button type="button" class="btn" :disabled="isBusy" @click="openCreateDialog">Create token</button>
+          <button type="button" class="btn" :disabled="isBusy" @click="openCreateDialog">Create access token</button>
         </div>
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
         <p v-if="successMessage" class="success">{{ successMessage }}</p>
@@ -41,7 +41,7 @@
             <h3>Existing tokens</h3>
           </header>
 
-          <p v-if="tokens.length === 0" class="machine-pat-empty">No machine tokens have been created yet.</p>
+          <p v-if="tokens.length === 0" class="machine-pat-empty">No access tokens have been created yet.</p>
 
           <article v-for="token in tokens" :key="token.id" class="panel panel-stack panel-stack--compact machine-pat-item">
             <div class="machine-pat-item-header">
@@ -185,7 +185,7 @@
       </aside>
     </div>
 
-    <MachinePatCreateDialog
+    <AccessTokenCreateDialog
       :open="isCreateDialogOpen"
       :busy="isBusy"
       :boards="boards"
@@ -200,15 +200,15 @@ import { Copy } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { createAuthApi } from '../api/authApi';
 import { createBoardApi } from '../api/boardApi';
-import MachinePatCreateDialog from '../components/MachinePatCreateDialog.vue';
-import type { CreateMachinePatRequest, MachinePat } from '../types/authTypes';
+import AccessTokenCreateDialog from '../components/AccessTokenCreateDialog.vue';
+import type { AccessToken, CreateAccessTokenRequest } from '../types/authTypes';
 import type { BoardSummary } from '../types/boardTypes';
 
 const authApi = createAuthApi();
 const boardApi = createBoardApi();
 
 const boards = ref<BoardSummary[]>([]);
-const tokens = ref<MachinePat[]>([]);
+const tokens = ref<AccessToken[]>([]);
 const loading = ref(false);
 const createBusy = ref(false);
 const revokeBusyTokenId = ref<number | null>(null);
@@ -268,7 +268,7 @@ async function loadInitialData() {
   loading.value = true;
   errorMessage.value = null;
   try {
-    const [boardsResult, tokensResult] = await Promise.all([boardApi.getBoards(), authApi.getMachinePats()]);
+    const [boardsResult, tokensResult] = await Promise.all([boardApi.getBoards(), authApi.getAccessTokens()]);
     if (!boardsResult.ok) {
       errorMessage.value = boardsResult.error.message;
       return;
@@ -290,7 +290,7 @@ async function refreshTokens() {
   loading.value = true;
   errorMessage.value = null;
   try {
-    const result = await authApi.getMachinePats();
+    const result = await authApi.getAccessTokens();
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -310,12 +310,12 @@ function closeCreateDialog() {
   isCreateDialogOpen.value = false;
 }
 
-async function createToken(payload: CreateMachinePatRequest) {
+async function createToken(payload: CreateAccessTokenRequest) {
   createBusy.value = true;
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await authApi.createMachinePat(payload);
+    const result = await authApi.createAccessToken(payload);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -325,18 +325,18 @@ async function createToken(payload: CreateMachinePatRequest) {
     plainTextPat.value = result.data.plainTextToken;
     plainTextPatName.value = result.data.token.name;
     isCreateDialogOpen.value = false;
-    successMessage.value = `Created token ${result.data.token.name}. Copy it now; it will not be shown again.`;
+    successMessage.value = `Created access token ${result.data.token.name}. Copy it now; it will not be shown again.`;
   } finally {
     createBusy.value = false;
   }
 }
 
-async function revokeToken(token: MachinePat) {
+async function revokeToken(token: AccessToken) {
   if (token.revokedAtUtc) {
     return;
   }
 
-  if (!window.confirm(`Revoke token "${token.name}"? This cannot be undone.`)) {
+  if (!window.confirm(`Revoke access token "${token.name}"? This cannot be undone.`)) {
     return;
   }
 
@@ -344,13 +344,13 @@ async function revokeToken(token: MachinePat) {
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await authApi.revokeMachinePat(token.id);
+    const result = await authApi.revokeAccessToken(token.id);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
     }
 
-    successMessage.value = `Revoked token ${token.name}.`;
+    successMessage.value = `Revoked access token ${token.name}.`;
     await refreshTokens();
   } finally {
     revokeBusyTokenId.value = null;
@@ -402,7 +402,7 @@ function formatDate(value: string | null) {
   return parsed.toLocaleString();
 }
 
-function tokenStatus(token: MachinePat) {
+function tokenStatus(token: AccessToken) {
   if (token.revokedAtUtc) {
     return 'Revoked';
   }
@@ -417,7 +417,7 @@ function tokenStatus(token: MachinePat) {
   return 'Active';
 }
 
-function describeBoardAccess(token: MachinePat) {
+function describeBoardAccess(token: AccessToken) {
   if (token.boardAccessMode === 'all') {
     return 'All boards';
   }
@@ -434,7 +434,7 @@ function describeBoardAccess(token: MachinePat) {
     .join(', ');
 }
 
-function sortTokens(items: MachinePat[]) {
+function sortTokens(items: AccessToken[]) {
   return [...items].sort((left, right) => {
     const leftTimestamp = Date.parse(left.createdAtUtc);
     const rightTimestamp = Date.parse(right.createdAtUtc);

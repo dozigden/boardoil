@@ -19,10 +19,6 @@ const navItems = [
     to: { name: 'users' }
   },
   {
-    label: 'Machine Access',
-    to: { name: 'machine-access' }
-  },
-  {
     label: 'Configuration',
     to: { name: 'configuration' }
   }
