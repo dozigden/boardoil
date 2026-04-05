@@ -1,6 +1,9 @@
 export type Card = {
   id: number;
   boardColumnId: number;
+  cardTypeId: number;
+  cardTypeName: string;
+  cardTypeEmoji: string | null;
   title: string;
   description: string;
   sortKey: string;
@@ -18,6 +21,15 @@ export type Tag = {
   styleName: TagStyleName;
   stylePropertiesJson: string;
   emoji: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
+export type CardType = {
+  id: number;
+  name: string;
+  emoji: string | null;
+  isSystem: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
 };

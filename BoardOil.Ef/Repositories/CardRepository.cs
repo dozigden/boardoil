@@ -17,6 +17,9 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
         }
 
         await DbContext.Entry(card)
+            .Reference(x => x.CardType)
+            .LoadAsync();
+        await DbContext.Entry(card)
             .Collection(x => x.CardTags)
             .Query()
             .Include(x => x.Tag)
@@ -26,6 +29,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
 
     public Task<EntityBoardCard?> GetWithTagsAndBoardAsync(int id) =>
         DbSet
+            .Include(x => x.CardType)
             .Include(x => x.CardTags)
                 .ThenInclude(x => x.Tag)
             .Include(x => x.BoardColumn)
@@ -43,6 +47,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
         await DbSet
             .Where(x => x.BoardColumnId == columnId)
             .OrderBy(x => x.SortKey)
+            .Include(x => x.CardType)
             .Include(x => x.CardTags)
                 .ThenInclude(x => x.Tag)
             .ToListAsync();
@@ -57,6 +62,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
         return await DbSet
             .Where(x => columnIds.Contains(x.BoardColumnId))
             .OrderBy(x => x.SortKey)
+            .Include(x => x.CardType)
             .Include(x => x.CardTags)
                 .ThenInclude(x => x.Tag)
             .ToListAsync();

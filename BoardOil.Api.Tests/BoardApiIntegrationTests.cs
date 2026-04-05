@@ -316,6 +316,9 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(createdCard!.Data);
         Assert.Equal("Task A", createdCard.Data!.Title);
         Assert.Equal(["Bug", "Urgent"], createdCard.Data.TagNames);
+        Assert.True(createdCard.Data.CardTypeId > 0);
+        Assert.Equal("Story", createdCard.Data.CardTypeName);
+        Assert.Null(createdCard.Data.CardTypeEmoji);
     }
 
     [Fact]
@@ -355,6 +358,58 @@ public sealed class BoardApiIntegrationTests
         Assert.Single(createdColumnState!.Cards);
         Assert.Equal("Task B", createdColumnState.Cards[0].Title);
         Assert.Equal(["Urgent"], createdColumnState.Cards[0].TagNames);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_ShouldCreateAndUpdateCard_WithExplicitCardTypeId()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+
+        var createdTypeResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/card-types",
+            new CreateCardTypeRequest("Bug", "🐞"));
+        createdTypeResponse.EnsureSuccessStatusCode();
+        var createdTypeEnvelope = await createdTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>(JsonOptions);
+        Assert.NotNull(createdTypeEnvelope);
+        Assert.NotNull(createdTypeEnvelope!.Data);
+
+        // Act: create with explicit type
+        var createCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Task A", "Desc", ["Bug"], createdTypeEnvelope.Data!.Id));
+        createCardResponse.EnsureSuccessStatusCode();
+        var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+
+        // Assert: created card uses selected type
+        Assert.NotNull(createdCardEnvelope);
+        Assert.NotNull(createdCardEnvelope!.Data);
+        Assert.Equal(createdTypeEnvelope.Data.Id, createdCardEnvelope.Data!.CardTypeId);
+        Assert.Equal("Bug", createdCardEnvelope.Data.CardTypeName);
+        Assert.Equal("🐞", createdCardEnvelope.Data.CardTypeEmoji);
+
+        // Act: update card type by selecting system type
+        var allTypesEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
+        Assert.NotNull(allTypesEnvelope);
+        Assert.NotNull(allTypesEnvelope!.Data);
+        var systemType = Assert.Single(allTypesEnvelope.Data!, x => x.IsSystem);
+
+        var updateCardResponse = await Client.PutAsJsonAsync(
+            $"/api/boards/1/cards/{createdCardEnvelope.Data.Id}",
+            new UpdateCardRequest("Task A", "Desc", ["Bug"], systemType.Id));
+        updateCardResponse.EnsureSuccessStatusCode();
+        var updatedCardEnvelope = await updateCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+
+        // Assert: updated card uses system type
+        Assert.NotNull(updatedCardEnvelope);
+        Assert.NotNull(updatedCardEnvelope!.Data);
+        Assert.Equal(systemType.Id, updatedCardEnvelope.Data!.CardTypeId);
+        Assert.Equal(systemType.Name, updatedCardEnvelope.Data.CardTypeName);
+        Assert.Equal(systemType.Emoji, updatedCardEnvelope.Data.CardTypeEmoji);
     }
 
     [Fact]

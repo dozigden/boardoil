@@ -62,6 +62,9 @@ function makeCard(overrides: { title: string; description: string; tagNames: str
   return {
     id: 1,
     boardColumnId: 10,
+    cardTypeId: 1,
+    cardTypeName: 'Story',
+    cardTypeEmoji: null,
     title: overrides.title,
     description: overrides.description,
     sortKey: '00000000000000000010',
