@@ -315,6 +315,7 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(createdCard);
         Assert.NotNull(createdCard!.Data);
         Assert.Equal("Task A", createdCard.Data!.Title);
+        Assert.Equal(["Bug", "Urgent"], createdCard.Data.Tags.Select(x => x.Name).ToArray());
         Assert.Equal(["Bug", "Urgent"], createdCard.Data.TagNames);
         Assert.True(createdCard.Data.CardTypeId > 0);
         Assert.Equal("Story", createdCard.Data.CardTypeName);
@@ -362,6 +363,7 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(createdColumnState);
         Assert.Single(createdColumnState!.Cards);
         Assert.Equal("Task B", createdColumnState.Cards[0].Title);
+        Assert.Equal(["Urgent"], createdColumnState.Cards[0].Tags.Select(x => x.Name).ToArray());
         Assert.Equal(["Urgent"], createdColumnState.Cards[0].TagNames);
     }
 
@@ -807,6 +809,7 @@ public sealed class BoardApiIntegrationTests
         var columnState = boardAfterDelete.Data!.Columns.Single(x => x.Id == createdColumn.Data.Id);
         var cardState = columnState.Cards.Single(x => x.Id == createdCard.Data!.Id);
         Assert.Equal("Task A", cardState.Title);
+        Assert.Equal(["Urgent"], cardState.Tags.Select(x => x.Name).ToArray());
         Assert.Equal(["Urgent"], cardState.TagNames);
     }
 

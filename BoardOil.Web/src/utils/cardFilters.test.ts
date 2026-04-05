@@ -68,6 +68,13 @@ function makeCard(overrides: { title: string; description: string; tagNames: str
     title: overrides.title,
     description: overrides.description,
     sortKey: '00000000000000000010',
+    tags: overrides.tagNames.map((name, index) => ({
+      id: index + 1,
+      name,
+      styleName: 'solid' as const,
+      stylePropertiesJson: '{"backgroundColor":"#224466","textColorMode":"auto"}',
+      emoji: null
+    })),
     tagNames: overrides.tagNames,
     createdAtUtc: '2026-04-03T00:00:00Z',
     updatedAtUtc: '2026-04-03T00:00:00Z'

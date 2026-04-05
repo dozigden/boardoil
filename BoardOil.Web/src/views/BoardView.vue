@@ -122,16 +122,7 @@ const tagStore = useTagStore();
 const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { tags } = storeToRefs(tagStore);
 const { createCard, startDrag, dropCard } = cardStore;
-const availableTagNames = computed(() => {
-  const mergedTagNames = tags.value.map(tag => tag.name);
-  for (const column of board.value?.columns ?? []) {
-    for (const card of column.cards) {
-      mergedTagNames.push(...card.tagNames);
-    }
-  }
-
-  return dedupeTagNames(mergedTagNames).sort((left, right) => left.localeCompare(right));
-});
+const availableTagNames = computed(() => tags.value.map(tag => tag.name).sort((left, right) => left.localeCompare(right)));
 const includedTagNames = computed(() => availableTagNames.value.filter(tagName => resolveTagFilterState(tagName) === 'include'));
 const excludedTagNames = computed(() => availableTagNames.value.filter(tagName => resolveTagFilterState(tagName) === 'exclude'));
 const cardFilters = computed<CardSearchAndTagFilter>(() => ({
@@ -244,22 +235,6 @@ watch(
   },
   { immediate: true }
 );
-
-function dedupeTagNames(tagNames: string[]) {
-  const deduped: string[] = [];
-  const seen = new Set<string>();
-  for (const tagName of tagNames) {
-    const normalisedTagName = normaliseTagName(tagName);
-    if (!normalisedTagName || seen.has(normalisedTagName)) {
-      continue;
-    }
-
-    seen.add(normalisedTagName);
-    deduped.push(tagName.trim());
-  }
-
-  return deduped;
-}
 
 function normaliseTagName(tagName: string) {
   return tagName.trim().toLocaleLowerCase();

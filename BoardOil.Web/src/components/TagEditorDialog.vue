@@ -369,13 +369,9 @@ function initialiseCreateDraftState() {
   }
 
   draft.value = createTagStyleDraft({
-    id: 0,
-    name: '',
     styleName: 'solid',
     stylePropertiesJson: DEFAULT_TAG_STYLE_PROPERTIES_JSON,
-    emoji: null,
-    createdAtUtc: '1970-01-01T00:00:00Z',
-    updatedAtUtc: '1970-01-01T00:00:00Z'
+    emoji: null
   });
   draftEmoji.value = null;
   draftTagName.value = '';

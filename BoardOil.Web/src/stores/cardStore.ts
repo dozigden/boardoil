@@ -202,10 +202,12 @@ export const useCardStore = defineStore('card', () => {
 
     for (const [key, card] of Object.entries(cardsById.value)) {
       const nextTagNames = card.tagNames.filter(existingTagName => existingTagName.trim().toUpperCase() !== normalisedTagName);
+      const nextTags = card.tags.filter(existingTag => existingTag.name.trim().toUpperCase() !== normalisedTagName);
       if (nextTagNames.length !== card.tagNames.length) {
         hasChanges = true;
         nextCardsById[Number(key)] = {
           ...card,
+          tags: nextTags,
           tagNames: nextTagNames
         };
         continue;
@@ -272,6 +274,7 @@ export const useCardStore = defineStore('card', () => {
 function cloneCard(card: Card): Card {
   return {
     ...card,
+    tags: card.tags.map(tag => ({ ...tag })),
     tagNames: [...card.tagNames]
   };
 }

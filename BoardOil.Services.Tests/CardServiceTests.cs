@@ -46,6 +46,7 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.Equal("Desc", stored.Description);
         Assert.True(systemCardType.IsSystem);
         Assert.Equal("Story", systemCardType.Name);
+        Assert.Empty(result.Data.Tags);
         Assert.Empty(result.Data.TagNames);
     }
 
@@ -71,6 +72,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
+        Assert.Equal(["Bug", "Needs Triage", "Sprint 1"], result.Data!.Tags.Select(x => x.Name).ToArray());
         Assert.Equal(["Bug", "Needs Triage", "Sprint 1"], result.Data!.TagNames);
 
         var storedTags = await DbContextForAssert.Tags
@@ -214,6 +216,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
+        Assert.Equal(["Ops", "Urgent"], result.Data!.Tags.Select(x => x.Name).ToArray());
         Assert.Equal(["Ops", "Urgent"], result.Data!.TagNames);
 
         var storedCardTags = await DbContextForAssert.CardTags
@@ -666,6 +669,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
+        Assert.Equal(["Bug,Urgent"], result.Data!.Tags.Select(x => x.Name).ToArray());
         Assert.Equal(["Bug,Urgent"], result.Data!.TagNames);
     }
 

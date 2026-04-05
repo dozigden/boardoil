@@ -30,8 +30,17 @@ public static class McpMappingExtensions
             card.Title,
             card.Description,
             card.SortKey,
+            card.Tags.Select(tag => tag.ToMcp()).ToArray(),
             card.TagNames,
             card.UpdatedAtUtc);
+
+    private static McpCardTagSnapshot ToMcp(this CardTagDto tag) =>
+        new(
+            tag.Id,
+            tag.Name,
+            tag.StyleName,
+            tag.StylePropertiesJson,
+            tag.Emoji);
 
     public static McpToolError ToMcpError(this ApiResult apiResult)
     {

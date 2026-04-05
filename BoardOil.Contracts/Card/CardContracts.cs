@@ -1,5 +1,12 @@
 namespace BoardOil.Contracts.Card;
 
+public sealed record CardTagDto(
+    int Id,
+    string Name,
+    string StyleName,
+    string StylePropertiesJson,
+    string? Emoji);
+
 public sealed record CardDto(
     int Id,
     int BoardColumnId,
@@ -9,6 +16,7 @@ public sealed record CardDto(
     string Title,
     string Description,
     string SortKey,
+    IReadOnlyList<CardTagDto> Tags,
     IReadOnlyList<string> TagNames,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
@@ -39,6 +47,7 @@ public sealed record CardRecord(
     string Title,
     string Description,
     string SortKey,
+    IReadOnlyList<CardTagDto> Tags,
     IReadOnlyList<string> TagNames,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);

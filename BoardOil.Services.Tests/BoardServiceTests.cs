@@ -161,7 +161,7 @@ public sealed class BoardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task GetBoardAsync_WhenCardsHaveTags_ShouldIncludeTagNames()
+    public async Task GetBoardAsync_WhenCardsHaveTags_ShouldIncludeTagNamesAndRichTags()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -198,6 +198,12 @@ public sealed class BoardServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         var todoCard = result.Data!.Columns[0].Cards[0];
+        var richTag = Assert.Single(todoCard.Tags);
+        Assert.Equal(tag.Id, richTag.Id);
+        Assert.Equal("Bug", richTag.Name);
+        Assert.Equal("solid", richTag.StyleName);
+        Assert.Equal("""{"backgroundColor":"#224466","textColorMode":"auto"}""", richTag.StylePropertiesJson);
+        Assert.Null(richTag.Emoji);
         Assert.Equal(["Bug"], todoCard.TagNames);
     }
 

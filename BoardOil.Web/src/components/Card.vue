@@ -17,11 +17,11 @@
       <span class="badge">#{{ card.id }}</span>
     </div>
 
-    <div v-if="card.tagNames.length > 0" class="card-tags tag-group" aria-label="Card tags">
+    <div v-if="card.tags.length > 0" class="card-tags tag-group" aria-label="Card tags">
       <Tag
-        v-for="tagName in card.tagNames"
-        :key="tagName"
-        :tag-name="tagName"
+        v-for="tag in card.tags"
+        :key="tag.id"
+        :tag-id="tag.id"
       >
       </Tag>
     </div>

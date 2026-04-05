@@ -1,3 +1,17 @@
+export type TagStyleName = 'solid' | 'gradient';
+export type BoardMemberRole = 'Owner' | 'Contributor' | string;
+
+export type TagPresentation = {
+  styleName: TagStyleName;
+  stylePropertiesJson: string;
+  emoji: string | null;
+};
+
+export type CardTag = TagPresentation & {
+  id: number;
+  name: string;
+};
+
 export type Card = {
   id: number;
   boardColumnId: number;
@@ -7,20 +21,15 @@ export type Card = {
   title: string;
   description: string;
   sortKey: string;
+  tags: CardTag[];
   tagNames: string[];
   createdAtUtc: string;
   updatedAtUtc: string;
 };
 
-export type TagStyleName = 'solid' | 'gradient';
-export type BoardMemberRole = 'Owner' | 'Contributor' | string;
-
-export type Tag = {
+export type Tag = TagPresentation & {
   id: number;
   name: string;
-  styleName: TagStyleName;
-  stylePropertiesJson: string;
-  emoji: string | null;
   createdAtUtc: string;
   updatedAtUtc: string;
 };
