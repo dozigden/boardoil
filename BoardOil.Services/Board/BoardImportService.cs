@@ -26,7 +26,7 @@ public sealed class BoardImportService(
     private const int MaxBoardNameLength = 120;
     private const int MaxColumnNameLength = 200;
     private const int MaxCardTitleLength = 200;
-    private const int MaxCardDescriptionLength = 5000;
+    private const int MaxCardDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
 
     public async Task<ApiResult<BoardDto>> ImportTasksMdBoardAsync(ImportTasksMdBoardRequest request, int actorUserId)
@@ -266,7 +266,9 @@ public sealed class BoardImportService(
 
                 if (card.Description.Length > MaxCardDescriptionLength)
                 {
-                    validationErrors.Add(new ValidationError($"columns[{columnIndex}].cards[{cardIndex}].description", "Card description must be 5000 characters or fewer."));
+                    validationErrors.Add(new ValidationError(
+                        $"columns[{columnIndex}].cards[{cardIndex}].description",
+                        $"Card description must be {MaxCardDescriptionLength} characters or fewer."));
                 }
 
                 ValidateTagNames(card.TagNames, $"columns[{columnIndex}].cards[{cardIndex}].tagNames", validationErrors);

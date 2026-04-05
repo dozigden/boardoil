@@ -12,6 +12,8 @@ namespace BoardOil.Services.Tests;
 
 public sealed class CardServiceTests : TestBaseDb
 {
+    private const int MaxCardDescriptionLength = 20_000;
+
     [Fact]
     public async Task CreateCardAsync_WhenColumnEmpty_ShouldCreateCardWithSortKey()
     {
@@ -530,7 +532,7 @@ public sealed class CardServiceTests : TestBaseDb
             .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
 
-        var longDescription = new string('D', 5001);
+        var longDescription = new string('D', MaxCardDescriptionLength + 1);
 
         // Act
         var service = CreateService();
@@ -541,6 +543,27 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.Equal(400, result.StatusCode);
         Assert.NotNull(result.ValidationErrors);
         Assert.True(result.ValidationErrors!.ContainsKey("description"));
+    }
+
+    [Fact]
+    public async Task CreateCardAsync_WhenDescriptionAtMaxLength_ShouldCreateCard()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var maxLengthDescription = new string('D', MaxCardDescriptionLength);
+
+        // Act
+        var service = CreateService();
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "ValidTitle", maxLengthDescription, null), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(maxLengthDescription, result.Data!.Description);
     }
 
     [Fact]
