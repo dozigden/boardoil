@@ -55,7 +55,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         card.HasKey(x => x.Id);
         card.Property(x => x.CardTypeId).IsRequired();
         card.Property(x => x.Title).HasMaxLength(200).IsRequired();
-        card.Property(x => x.Description).HasMaxLength(5000).IsRequired();
+        card.Property(x => x.Description).HasMaxLength(20_000).IsRequired();
         card.Property(x => x.SortKey).HasMaxLength(20).IsRequired();
         card.ToTable("Cards");
         card.HasIndex(x => new { x.BoardColumnId, x.SortKey }).IsUnique();

@@ -52,7 +52,7 @@ const props = withDefaults(defineProps<{
   minHeight?: string;
 }>(), {
   ariaLabel: 'Markdown editor',
-  maxLength: 5000,
+  maxLength: 20_000,
   minHeight: '12rem'
 });
 

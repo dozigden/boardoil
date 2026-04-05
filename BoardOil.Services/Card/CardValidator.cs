@@ -9,6 +9,7 @@ namespace BoardOil.Services.Card;
 public sealed class CardValidator(
     ICardRepository cardRepository) : ICardValidator
 {
+    private const int MaxDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
     private readonly ICardRepository _cardRepository = cardRepository;
 
@@ -104,9 +105,9 @@ public sealed class CardValidator(
 
     private static void ValidateDescription(string description, ICollection<ValidationError> errors)
     {
-        if (description.Length > 5000)
+        if (description.Length > MaxDescriptionLength)
         {
-            errors.Add(new ValidationError("description", "Card description must be 5000 characters or fewer."));
+            errors.Add(new ValidationError("description", $"Card description must be {MaxDescriptionLength} characters or fewer."));
         }
     }
 

@@ -12,6 +12,7 @@ namespace BoardOil.Api.Tests;
 
 public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
 {
+    private const int MaxCardDescriptionLength = 20_000;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly FakeTasksMdClient _tasksMdClient = new();
 
@@ -78,6 +79,26 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
         Assert.False(payload!.Success);
         Assert.NotNull(payload.ValidationErrors);
         Assert.Contains("url", payload.ValidationErrors!.Keys);
+    }
+
+    [Fact]
+    public async Task ImportTasksMdBoard_WhenCardDescriptionExceedsMaxLength_ShouldReturnBadRequest()
+    {
+        _tasksMdClient.Model = new TasksMdBoardImportModel(
+            [new TasksMdImportedColumn("Todo", [new TasksMdImportedCard("Card A", new string('D', MaxCardDescriptionLength + 1), [])])],
+            []);
+
+        var response = await Client.PostAsJsonAsync(
+            "/api/boards/import/tasksmd",
+            new ImportTasksMdBoardRequest("https://tasks.example.net/"));
+
+        Assert.Equal(400, (int)response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.NotNull(payload.ValidationErrors);
+        Assert.Contains("columns[0].cards[0].description", payload.ValidationErrors!.Keys);
     }
 
     private sealed class FakeTasksMdClient : ITasksMdClient

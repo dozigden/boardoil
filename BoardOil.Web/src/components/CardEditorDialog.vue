@@ -39,7 +39,7 @@
           <MdEditor
             v-model="descriptionDraft"
             aria-label="Card description"
-            :max-length="5000"
+            :max-length="maxDescriptionLength"
             min-height="12rem"
           />
         </div>
@@ -89,6 +89,7 @@ const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { saveCard: saveCardAction, deleteCard } = boardStore;
 const { loadCardTypes } = cardTypeStore;
 const { ensureTagsExist } = tagStore;
+const maxDescriptionLength = 20_000;
 type CardDraft = { id: number; title: string; description: string; tagNames: string[]; cardTypeId: number | null };
 
 const cardDraft = ref<CardDraft | null>(null);
@@ -122,7 +123,7 @@ const descriptionDraft = computed({
 });
 
 function normaliseDescription(value: string) {
-  return value.slice(0, 5000);
+  return value.slice(0, maxDescriptionLength);
 }
 
 function clearDraft() {
