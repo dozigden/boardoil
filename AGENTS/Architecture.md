@@ -35,6 +35,16 @@ Default: one save per service operation unless a specific transactional reason r
 - For update endpoints, generally prefer `PUT` over `PATCH`.
 - Use `PATCH` only when the endpoint is intentionally a partial-update contract.
 
+## Contract Design Guidance
+
+- Prefer endpoint-specific DTOs when read and write concerns diverge; do not force one contract shape to serve both equally if that makes either side awkward.
+- Full-update (`PUT`) contracts should remain cheap for clients to round-trip. If a client edits one field and keeps the rest unchanged, it should not need complex shape conversion just to resend the untouched fields.
+- Denormalised read models are acceptable when they materially improve consumer ergonomics (for example richer one-hit payloads for integrations), but treat that as a convenience projection rather than proof that the denormalised payload is the only source of truth.
+- When a read model duplicates data from a catalogue or parent entity, explicitly document the intended authority model:
+  - which payload/store is authoritative for live updates and mutations
+  - which payload is convenience/snapshot data for easier reads
+- Do not introduce partial-update contracts just to paper over awkward DTO design. Prefer improving the contract shape first; adopt `PATCH` only when partial semantics are genuinely required.
+
 ## Boundaries
 
 - Repositories:
