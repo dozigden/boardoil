@@ -8,6 +8,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityBoard> Boards => Set<EntityBoard>();
     public DbSet<EntityBoardColumn> Columns => Set<EntityBoardColumn>();
     public DbSet<EntityBoardCard> Cards => Set<EntityBoardCard>();
+    public DbSet<EntityCardType> CardTypes => Set<EntityCardType>();
     public DbSet<EntityTag> Tags => Set<EntityTag>();
     public DbSet<EntityCardTag> CardTags => Set<EntityCardTag>();
     public DbSet<EntityBoardMember> BoardMembers => Set<EntityBoardMember>();
@@ -23,6 +24,10 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         board.Property(x => x.Name).HasMaxLength(120).IsRequired();
         board.ToTable("Boards");
         board.HasMany(x => x.Columns)
+            .WithOne(x => x.Board)
+            .HasForeignKey(x => x.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
+        board.HasMany(x => x.CardTypes)
             .WithOne(x => x.Board)
             .HasForeignKey(x => x.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
@@ -48,15 +53,33 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
 
         var card = modelBuilder.Entity<EntityBoardCard>();
         card.HasKey(x => x.Id);
+        card.Property(x => x.CardTypeId).IsRequired();
         card.Property(x => x.Title).HasMaxLength(200).IsRequired();
         card.Property(x => x.Description).HasMaxLength(5000).IsRequired();
         card.Property(x => x.SortKey).HasMaxLength(20).IsRequired();
         card.ToTable("Cards");
         card.HasIndex(x => new { x.BoardColumnId, x.SortKey }).IsUnique();
+        card.HasIndex(x => x.CardTypeId);
+        card.HasOne(x => x.CardType)
+            .WithMany(x => x.Cards)
+            .HasForeignKey(x => x.CardTypeId)
+            .OnDelete(DeleteBehavior.NoAction);
         card.HasMany(x => x.CardTags)
             .WithOne(x => x.Card)
             .HasForeignKey(x => x.CardId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        var cardType = modelBuilder.Entity<EntityCardType>();
+        cardType.HasKey(x => x.Id);
+        cardType.Property(x => x.BoardId).IsRequired();
+        cardType.Property(x => x.Name).HasMaxLength(40).IsRequired();
+        cardType.Property(x => x.Emoji).HasMaxLength(32).IsRequired(false);
+        cardType.Property(x => x.IsSystem).IsRequired();
+        cardType.ToTable("CardTypes");
+        cardType.HasIndex(x => x.BoardId);
+        cardType.HasIndex(x => x.BoardId)
+            .HasFilter("\"IsSystem\" = 1")
+            .IsUnique();
 
         var cardTag = modelBuilder.Entity<EntityCardTag>();
         cardTag.HasKey(x => x.Id);

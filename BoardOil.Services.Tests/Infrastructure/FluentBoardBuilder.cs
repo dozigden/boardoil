@@ -18,6 +18,7 @@ public sealed class FluentBoardBuilder
     private readonly BoardEntity _board;
     private readonly Dictionary<string, EntityBoardColumn> _columnsByTitle = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<EntityBoardCard>> _cardsByColumnTitle = new(StringComparer.Ordinal);
+    private readonly EntityCardType _systemCardType;
     private EntityBoardColumn? _currentColumn;
     private string? _currentColumnTitle;
     private bool _isBuilt;
@@ -41,6 +42,16 @@ public sealed class FluentBoardBuilder
             CreatedAtUtc = _nowUtc,
             UpdatedAtUtc = _nowUtc
         });
+        _systemCardType = new EntityCardType
+        {
+            Board = _board,
+            Name = "Story",
+            Emoji = null,
+            IsSystem = true,
+            CreatedAtUtc = _nowUtc,
+            UpdatedAtUtc = _nowUtc
+        };
+        _board.CardTypes.Add(_systemCardType);
 
         _db.Boards.Add(_board);
     }
@@ -99,6 +110,7 @@ public sealed class FluentBoardBuilder
 
         var card = new EntityBoardCard
         {
+            CardType = _systemCardType,
             Title = title,
             Description = description,
             SortKey = sortKey,

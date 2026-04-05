@@ -13,6 +13,7 @@ using BoardOil.Abstractions.Users;
 using BoardOil.Persistence.Abstractions.Auth;
 using BoardOil.Persistence.Abstractions.Configuration;
 using BoardOil.Persistence.Abstractions.Card;
+using BoardOil.Persistence.Abstractions.CardType;
 using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Tag;
@@ -49,6 +50,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAppSettingRepository, AppSettingRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
+        services.AddScoped<ICardTypeRepository, CardTypeRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();

@@ -31,6 +31,25 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task BootstrappedBoard_ShouldHaveSystemCardType()
+    {
+        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT COUNT(1)
+            FROM "CardTypes"
+            WHERE "BoardId" = 1
+              AND "IsSystem" = 1
+              AND "Name" = 'Story';
+            """;
+
+        var systemTypeCount = (long)(await command.ExecuteScalarAsync() ?? 0L);
+        Assert.Equal(1, systemTypeCount);
+    }
+
+    [Fact]
     public async Task GetBoards_ShouldReturnBoardList()
     {
         var result = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardSummaryDto>>>("/api/boards", JsonOptions);
@@ -60,6 +79,36 @@ public sealed class BoardApiIntegrationTests
         Assert.NotEqual(first.Data!.Id, second.Data!.Id);
         Assert.Equal(["Todo", "In Progress", "Done"], first.Data.Columns.Select(x => x.Title).ToArray());
         Assert.Equal(["Todo", "In Progress", "Done"], second.Data.Columns.Select(x => x.Title).ToArray());
+    }
+
+    [Fact]
+    public async Task CreateBoard_ShouldCreateSystemCardType()
+    {
+        // Arrange
+        var createBoardResponse = await Client.PostAsJsonAsync("/api/boards", new CreateBoardRequest("CardType Seed"));
+        createBoardResponse.EnsureSuccessStatusCode();
+        var createdBoard = await createBoardResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        Assert.NotNull(createdBoard);
+        Assert.NotNull(createdBoard!.Data);
+        var boardId = createdBoard.Data!.Id;
+
+        // Act
+        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT COUNT(1)
+            FROM "CardTypes"
+            WHERE "BoardId" = $boardId
+              AND "IsSystem" = 1
+              AND "Name" = 'Story';
+            """;
+        command.Parameters.AddWithValue("$boardId", boardId);
+        var systemTypeCount = (long)(await command.ExecuteScalarAsync() ?? 0L);
+
+        // Assert
+        Assert.Equal(1, systemTypeCount);
     }
 
     [Fact]

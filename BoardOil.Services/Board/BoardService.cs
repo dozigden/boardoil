@@ -115,6 +115,7 @@ public sealed class BoardService(
         });
 
         boardRepository.Add(board);
+        board.CardTypes.Add(CardTypeDefaults.CreateSystemForBoard(board, now));
 
         var seedTitles = new[] { "Todo", "In Progress", "Done" };
         string? previousSortKey = null;
