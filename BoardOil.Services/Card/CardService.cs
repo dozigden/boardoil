@@ -51,11 +51,21 @@ public sealed class CardService(
             return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
         }
 
+        var requestedCardType = request.CardTypeId is null
+            ? null
+            : await _cardTypeRepository.GetByIdInBoardAsync(boardId, request.CardTypeId.Value);
+        if (request.CardTypeId is not null && requestedCardType is null)
+        {
+            return ValidationFail([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
+        }
+
         var systemCardType = await _cardTypeRepository.GetSystemByBoardIdAsync(boardId);
         if (systemCardType is null)
         {
             return ApiErrors.InternalError("System card type not found for board.");
         }
+
+        var selectedCardType = requestedCardType ?? systemCardType;
 
         var cards = (await cardRepository.GetCardsInColumnOrderedAsync(request.BoardColumnId)).ToList();
 
@@ -71,7 +81,8 @@ public sealed class CardService(
         var card = new EntityBoardCard
         {
             BoardColumnId = request.BoardColumnId,
-            CardTypeId = systemCardType.Id,
+            CardTypeId = selectedCardType.Id,
+            CardType = selectedCardType,
             Title = request.Title.Trim(),
             Description = request.Description,
             SortKey = sortKey!,
@@ -116,15 +127,27 @@ public sealed class CardService(
         var updatedDescription = request.Description;
         var now = DateTime.UtcNow;
         var updatedTags = await ResolveTagsAsync(boardId, request.TagNames, now);
+        EntityCardType? selectedCardType = null;
+        if (request.CardTypeId is not null)
+        {
+            selectedCardType = await _cardTypeRepository.GetByIdInBoardAsync(boardId, request.CardTypeId.Value);
+            if (selectedCardType is null)
+            {
+                return ValidationFail([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
+            }
+        }
+
         var updatedTagNames = updatedTags
             .Select(x => x.Name)
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
         var existingTagNames = GetOrderedTagNames(existingCard);
         var tagsChanged = !existingTagNames.SequenceEqual(updatedTagNames, StringComparer.Ordinal);
+        var cardTypeChanged = selectedCardType is not null && selectedCardType.Id != existingCard.CardTypeId;
         var metadataChanged = updatedTitle != existingCard.Title
             || updatedDescription != existingCard.Description
-            || tagsChanged;
+            || tagsChanged
+            || cardTypeChanged;
         if (metadataChanged)
         {
             existingCard.Title = updatedTitle;
@@ -132,6 +155,12 @@ public sealed class CardService(
             if (tagsChanged)
             {
                 ReplaceTags(existingCard, updatedTags);
+            }
+
+            if (cardTypeChanged)
+            {
+                existingCard.CardTypeId = selectedCardType!.Id;
+                existingCard.CardType = selectedCardType;
             }
 
             existingCard.UpdatedAtUtc = now;

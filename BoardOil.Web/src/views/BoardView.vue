@@ -99,6 +99,7 @@ import { useRoute, useRouter } from 'vue-router';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
 import Card from '../components/Card.vue';
 import { useBoardStore } from '../stores/boardStore';
+import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useTagStore } from '../stores/tagStore';
 import type { TagFilterState, TagFilterStateMap } from '../types/tagFilterTypes';
 import { formatColumnCardCount } from '../utils/columnCardCount';
@@ -114,6 +115,7 @@ const isTagFilterMenuOpen = ref(false);
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
+const cardTypeStore = useCardTypeStore();
 const tagStore = useTagStore();
 const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { tags } = storeToRefs(tagStore);
@@ -236,6 +238,7 @@ watch(
     }
 
     await tagStore.loadTags(boardId);
+    await cardTypeStore.loadCardTypes(boardId);
   },
   { immediate: true }
 );

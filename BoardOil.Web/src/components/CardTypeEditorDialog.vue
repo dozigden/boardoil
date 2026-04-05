@@ -1,0 +1,231 @@
+<template>
+  <ModalDialog
+    :open="isCreateMode || editingCardType !== null"
+    :title="dialogTitle"
+    :close-label="isCreateMode ? 'Cancel creating' : 'Cancel editing'"
+    @close="closeDialog"
+    @submit="saveCardType"
+  >
+    <template v-if="draftName !== null">
+      <label>
+        Name
+        <input
+          :value="draftName"
+          maxlength="40"
+          :placeholder="isCreateMode ? 'New card type name' : 'Card type name'"
+          :disabled="busy"
+          @input="draftName = ($event.target as HTMLInputElement).value"
+        />
+      </label>
+
+      <label>
+        Emoji
+        <div class="card-types-emoji-picker-wrap">
+          <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" placeholder="Select emoji" />
+        </div>
+      </label>
+    </template>
+
+    <template #actions>
+      <div v-if="draftName !== null" class="editor-actions card-modal-actions">
+        <button
+          v-if="showDeleteAction"
+          type="button"
+          class="btn btn--danger"
+          :disabled="busy"
+          aria-label="Delete card type"
+          title="Delete card type"
+          @click="deleteEditingCardType"
+        >
+          <Trash2 :size="16" aria-hidden="true" />
+        </button>
+        <span v-else />
+        <div class="card-modal-actions-left">
+          <button
+            type="submit"
+            class="btn"
+            :disabled="busy || !hasValidName"
+            :aria-label="isCreateMode ? 'Create card type' : 'Save card type'"
+            :title="isCreateMode ? 'Create card type' : 'Save card type'"
+          >
+            <Check :size="16" aria-hidden="true" />
+            <span>{{ isCreateMode ? 'Create' : 'Save' }}</span>
+          </button>
+          <button type="button" class="btn btn--secondary" :disabled="busy" aria-label="Cancel editing" title="Cancel" @click="closeDialog">
+            <X :size="16" aria-hidden="true" />
+            <span>Cancel</span>
+          </button>
+        </div>
+      </div>
+    </template>
+  </ModalDialog>
+</template>
+
+<script setup lang="ts">
+import { Check, Trash2, X } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import ModalDialog from './ModalDialog.vue';
+import EmojiPickerDropdown from './EmojiPickerDropdown.vue';
+import { useCardTypeStore } from '../stores/cardTypeStore';
+
+const route = useRoute();
+const router = useRouter();
+const cardTypeStore = useCardTypeStore();
+const { busy } = storeToRefs(cardTypeStore);
+const { createCardType, updateCardType, deleteCardType, getCardTypeById, loadCardTypes } = cardTypeStore;
+
+const draftName = ref<string | null>(null);
+const draftEmoji = ref<string | null>(null);
+const draftSourceKey = ref<string | null>(null);
+
+const isCreateMode = computed(() => route.name === 'card-types-new');
+const routeBoardId = computed<number | null>(() => {
+  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+});
+const routeCardTypeId = computed<number | null>(() => {
+  const parsed = Number.parseInt(String(route.params.cardTypeId ?? ''), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+});
+const editingCardType = computed(() => getCardTypeById(routeCardTypeId.value));
+const dialogTitle = computed(() => {
+  if (isCreateMode.value) {
+    return 'Add Card Type';
+  }
+
+  if (editingCardType.value) {
+    return `Edit Card Type: ${editingCardType.value.name}`;
+  }
+
+  return 'Edit Card Type';
+});
+const hasValidName = computed(() => (draftName.value ?? '').trim().length > 0);
+const showDeleteAction = computed(() => !isCreateMode.value && editingCardType.value !== null && !editingCardType.value.isSystem);
+
+watch(
+  [routeBoardId, routeCardTypeId, isCreateMode],
+  async ([nextBoardId, nextCardTypeId, nextIsCreate]) => {
+    if (nextBoardId === null) {
+      clearDraft();
+      await router.replace({ name: 'boards' });
+      return;
+    }
+
+    if (nextIsCreate) {
+      if (draftSourceKey.value === 'create') {
+        return;
+      }
+
+      draftName.value = '';
+      draftEmoji.value = null;
+      draftSourceKey.value = 'create';
+      return;
+    }
+
+    if (nextCardTypeId === null) {
+      clearDraft();
+      await router.replace({ name: 'card-types', params: { boardId: nextBoardId } });
+      return;
+    }
+
+    let nextCardType = getCardTypeById(nextCardTypeId);
+    if (!nextCardType) {
+      const loaded = await loadCardTypes(nextBoardId);
+      if (!loaded) {
+        return;
+      }
+
+      nextCardType = getCardTypeById(nextCardTypeId);
+    }
+
+    if (!nextCardType) {
+      clearDraft();
+      await router.replace({ name: 'card-types', params: { boardId: nextBoardId } });
+      return;
+    }
+
+    const sourceKey = `edit:${nextCardTypeId}`;
+    if (draftSourceKey.value === sourceKey) {
+      return;
+    }
+
+    draftName.value = nextCardType.name;
+    draftEmoji.value = nextCardType.emoji;
+    draftSourceKey.value = sourceKey;
+  },
+  { immediate: true }
+);
+
+async function closeDialog() {
+  const boardId = routeBoardId.value;
+  if (boardId === null) {
+    await router.push({ name: 'boards' });
+    return;
+  }
+
+  await router.push({ name: 'card-types', params: { boardId } });
+}
+
+async function saveCardType() {
+  const boardId = routeBoardId.value;
+  const canonicalName = (draftName.value ?? '').trim();
+  if (boardId === null || !canonicalName) {
+    return;
+  }
+
+  if (isCreateMode.value) {
+    const created = await createCardType(canonicalName, draftEmoji.value, boardId);
+    if (!created) {
+      return;
+    }
+
+    await closeDialog();
+    return;
+  }
+
+  if (!editingCardType.value) {
+    return;
+  }
+
+  const updated = await updateCardType(editingCardType.value.id, canonicalName, draftEmoji.value, boardId);
+  if (!updated) {
+    return;
+  }
+
+  await closeDialog();
+}
+
+async function deleteEditingCardType() {
+  if (!editingCardType.value || routeBoardId.value === null || editingCardType.value.isSystem) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Delete card type "${editingCardType.value.name}"?\n\nCards using this type will be reassigned to the board system type.`
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  const deleted = await deleteCardType(editingCardType.value.id, routeBoardId.value);
+  if (!deleted) {
+    return;
+  }
+
+  await closeDialog();
+}
+
+function clearDraft() {
+  draftName.value = null;
+  draftEmoji.value = null;
+  draftSourceKey.value = null;
+}
+</script>
+
+<style scoped>
+.card-types-emoji-picker-wrap {
+  margin-top: 0.25rem;
+}
+</style>

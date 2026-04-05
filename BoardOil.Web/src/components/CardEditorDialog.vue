@@ -2,6 +2,7 @@
   <ModalDialog :open="editingCard !== null" title="Edit Card" size="fill" close-label="Cancel editing" @close="closeCardEditor" @submit="saveCard">
     <template #title>
       <div class="dialog-title-with-pill">
+        <template v-if="selectedCardTypeEmoji">{{ selectedCardTypeEmoji }}</template>
         <CardTitleEditor
           v-if="cardDraft"
           :card-id="cardDraft.id"
@@ -12,6 +13,22 @@
     </template>
     <template v-if="cardDraft">
       <div class="card-editor-fields">
+        <label class="card-editor-card-type-field">
+          <span class="card-editor-field-label">Type</span>
+          <select
+            :value="cardDraft.cardTypeId ?? ''"
+            @change="setDraftCardTypeId(($event.target as HTMLSelectElement).value)"
+          >
+            <option
+              v-for="cardType in cardTypes"
+              :key="cardType.id"
+              :value="cardType.id"
+            >
+              {{ cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name }}
+            </option>
+          </select>
+        </label>
+
         <CardTagEditor
           v-model:tag-names="cardDraft.tagNames"
           :ensure-tags-exist="ensureTagsExistForBoard"
@@ -58,16 +75,21 @@ import CardTagEditor from './CardTagEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import ModalDialog from './ModalDialog.vue';
 import { useBoardStore } from '../stores/boardStore';
+import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useTagStore } from '../stores/tagStore';
+import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardTypeSelection';
 
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
+const cardTypeStore = useCardTypeStore();
 const tagStore = useTagStore();
 const { board } = storeToRefs(boardStore);
+const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { saveCard: saveCardAction, deleteCard } = boardStore;
+const { loadCardTypes } = cardTypeStore;
 const { ensureTagsExist } = tagStore;
-type CardDraft = { id: number; title: string; description: string; tagNames: string[] };
+type CardDraft = { id: number; title: string; description: string; tagNames: string[]; cardTypeId: number | null };
 
 const cardDraft = ref<CardDraft | null>(null);
 
@@ -84,6 +106,13 @@ const routeBoardId = computed<number | null>(() => {
 });
 
 const editingCard = computed(() => boardStore.getCardById(routeCardId.value));
+const selectedCardTypeEmoji = computed(() => {
+  return resolveSelectedCardTypeEmoji(
+    cardDraft.value?.cardTypeId ?? null,
+    cardTypes.value,
+    editingCard.value?.cardTypeEmoji ?? null
+  );
+});
 const descriptionDraft = computed({
   get: () => {
     const draft = cardDraft.value;
@@ -120,12 +149,30 @@ function updateEditingCardDraft(field: 'title' | 'description', value: string) {
   cardDraft.value = { ...cardDraft.value, [field]: nextValue };
 }
 
+function setDraftCardTypeId(rawValue: string) {
+  if (!cardDraft.value) {
+    return;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  cardDraft.value = {
+    ...cardDraft.value,
+    cardTypeId: Number.isFinite(parsed) ? parsed : null
+  };
+}
+
 async function saveCard() {
   if (!cardDraft.value) {
     return;
   }
 
-  await saveCardAction(cardDraft.value.id, cardDraft.value.title, cardDraft.value.description, cardDraft.value.tagNames);
+  await saveCardAction(
+    cardDraft.value.id,
+    cardDraft.value.title,
+    cardDraft.value.description,
+    cardDraft.value.tagNames,
+    cardDraft.value.cardTypeId
+  );
   await closeCardEditor();
 }
 
@@ -149,7 +196,7 @@ async function deleteEditingCard() {
 
 watch(
   [routeBoardId, routeCardId, editingCard, board],
-  ([nextBoardId, nextCardId, nextCard, nextBoard]) => {
+  async ([nextBoardId, nextCardId, nextCard, nextBoard]) => {
     if (nextBoardId === null) {
       clearDraft();
       void router.replace({ name: 'boards' });
@@ -166,6 +213,10 @@ watch(
       return;
     }
 
+    if (cardTypes.value.length === 0) {
+      await loadCardTypes(nextBoardId);
+    }
+
     if (!nextCard) {
       clearDraft();
       void router.replace({ name: 'board', params: { boardId: nextBoardId } });
@@ -177,7 +228,22 @@ watch(
         id: nextCard.id,
         title: nextCard.title,
         description: normaliseDescription(nextCard.description),
-        tagNames: [...nextCard.tagNames]
+        tagNames: [...nextCard.tagNames],
+        cardTypeId: nextCard.cardTypeId
+      };
+      return;
+    }
+
+    const draftCardTypeExists = cardDraft.value.cardTypeId !== null
+      && cardTypes.value.some(x => x.id === cardDraft.value!.cardTypeId);
+    if (!draftCardTypeExists) {
+      cardDraft.value = {
+        ...cardDraft.value,
+        cardTypeId: resolveDraftCardTypeId(
+          null,
+          systemCardType.value?.id ?? null,
+          cardTypes.value[0]?.id ?? null
+        )
       };
     }
   },
@@ -200,6 +266,13 @@ watch(
   min-height: 0;
   overflow: visible;
 }
+
+.card-editor-card-type-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
 
 .card-editor-description-field {
   display: flex;

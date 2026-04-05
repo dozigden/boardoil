@@ -171,13 +171,13 @@ export const useBoardStore = defineStore('board', () => {
     upsertCard(result.data);
   }
 
-  async function saveCard(cardId: number, title: string, description: string, tagNames: string[]) {
+  async function saveCard(cardId: number, title: string, description: string, tagNames: string[], cardTypeId?: number | null) {
     const boardId = getCurrentBoardIdOrReport();
     if (boardId === null) {
       return;
     }
 
-    const result = await runBusy(() => api.saveCard(boardId, cardId, title, description, tagNames));
+    const result = await runBusy(() => api.saveCard(boardId, cardId, title, description, tagNames, cardTypeId));
     if (!result.ok) {
       return;
     }

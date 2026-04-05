@@ -13,7 +13,7 @@
     @dragend="onDragEnd"
   >
     <div class="card-header">
-      <strong>{{ card.title }}</strong>
+      <strong>{{ card.cardTypeEmoji ? `${card.cardTypeEmoji} ` : '' }}{{ card.title }}</strong>
       <span class="badge">#{{ card.id }}</span>
     </div>
 
@@ -86,6 +86,7 @@ function openEditor() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0.55rem;
 }
 

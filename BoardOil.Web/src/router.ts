@@ -100,6 +100,27 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'card-types',
+        name: 'card-types',
+        component: () => import('./views/CardTypesManagerView.vue')
+      },
+      {
+        path: 'card-types/new',
+        name: 'card-types-new',
+        components: {
+          default: () => import('./views/CardTypesManagerView.vue'),
+          dialog: () => import('./components/CardTypeEditorDialog.vue')
+        }
+      },
+      {
+        path: 'card-types/:cardTypeId(\\d+)',
+        name: 'card-types-card-type',
+        components: {
+          default: () => import('./views/CardTypesManagerView.vue'),
+          dialog: () => import('./components/CardTypeEditorDialog.vue')
+        }
+      },
+      {
         path: 'members',
         name: 'board-members',
         component: () => import('./views/BoardMembersView.vue')

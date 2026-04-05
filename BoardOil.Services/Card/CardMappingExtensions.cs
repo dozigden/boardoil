@@ -9,6 +9,9 @@ public static class CardMappingExtensions
         new(
             card.Id,
             card.BoardColumnId,
+            card.CardTypeId,
+            card.CardTypeName,
+            card.CardTypeEmoji,
             card.Title,
             card.Description,
             card.SortKey,
@@ -20,6 +23,9 @@ public static class CardMappingExtensions
         new(
             card.Id,
             card.BoardColumnId,
+            card.CardTypeId,
+            card.CardType.Name,
+            card.CardType.Emoji,
             card.Title,
             card.Description,
             card.SortKey,

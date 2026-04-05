@@ -1,4 +1,4 @@
-import type { Board, BoardMember, BoardMemberRole, BoardSummary, Card, Column, Tag, TagStyleName } from '../types/boardTypes';
+import type { Board, BoardMember, BoardMemberRole, BoardSummary, Card, CardType, Column, Tag, TagStyleName } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
@@ -102,12 +102,13 @@ export function createBoardApi() {
     return deleteJson(`/api/boards/${boardId}/columns/${columnId}`);
   }
 
-  async function createCard(boardId: number, columnId: number, title: string): Promise<Result<Card, AppError>> {
+  async function createCard(boardId: number, columnId: number, title: string, cardTypeId?: number | null): Promise<Result<Card, AppError>> {
     return postData<Card>(`/api/boards/${boardId}/cards`, {
       boardColumnId: columnId,
       title,
       description: '',
-      tagNames: []
+      tagNames: [],
+      cardTypeId
     });
   }
 
@@ -116,12 +117,14 @@ export function createBoardApi() {
     cardId: number,
     title: string,
     description: string,
-    tagNames: string[]
+    tagNames: string[],
+    cardTypeId?: number | null
   ): Promise<Result<Card, AppError>> {
     return putData<Card>(`/api/boards/${boardId}/cards/${cardId}`, {
       title,
       description,
-      tagNames
+      tagNames,
+      cardTypeId
     });
   }
 
@@ -183,6 +186,37 @@ export function createBoardApi() {
     return deleteJson(`/api/boards/${boardId}/tags/${tagId}`);
   }
 
+  async function getCardTypes(boardId: number): Promise<Result<CardType[], AppError>> {
+    const envelopeResult = await getEnvelope<CardType[]>(`/api/boards/${boardId}/card-types`);
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function createCardType(boardId: number, name: string, emoji?: string | null): Promise<Result<CardType, AppError>> {
+    const payload: { name: string; emoji?: string | null } = { name };
+    if (emoji !== undefined) {
+      payload.emoji = emoji;
+    }
+
+    return postData<CardType>(`/api/boards/${boardId}/card-types`, payload);
+  }
+
+  async function updateCardType(boardId: number, cardTypeId: number, name: string, emoji?: string | null): Promise<Result<CardType, AppError>> {
+    const payload: { name: string; emoji?: string | null } = { name };
+    if (emoji !== undefined) {
+      payload.emoji = emoji;
+    }
+
+    return putData<CardType>(`/api/boards/${boardId}/card-types/${cardTypeId}`, payload);
+  }
+
+  async function deleteCardType(boardId: number, cardTypeId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/boards/${boardId}/card-types/${cardTypeId}`);
+  }
+
   return {
     getBoards,
     getBoard,
@@ -206,7 +240,11 @@ export function createBoardApi() {
     getTags,
     createTag,
     updateTagStyle,
-    deleteTag
+    deleteTag,
+    getCardTypes,
+    createCardType,
+    updateCardType,
+    deleteCardType
   };
 }
 

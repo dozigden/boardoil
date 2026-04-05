@@ -3,6 +3,9 @@ namespace BoardOil.Contracts.Card;
 public sealed record CardDto(
     int Id,
     int BoardColumnId,
+    int CardTypeId,
+    string CardTypeName,
+    string? CardTypeEmoji,
     string Title,
     string Description,
     string SortKey,
@@ -14,12 +17,14 @@ public sealed record CreateCardRequest(
     int BoardColumnId,
     string Title,
     string Description,
-    IReadOnlyList<string>? TagNames);
+    IReadOnlyList<string>? TagNames,
+    int? CardTypeId = null);
 
 public sealed record UpdateCardRequest(
     string Title,
     string Description,
-    IReadOnlyList<string> TagNames);
+    IReadOnlyList<string> TagNames,
+    int? CardTypeId = null);
 
 public sealed record MoveCardRequest(
     int BoardColumnId,
@@ -28,6 +33,9 @@ public sealed record MoveCardRequest(
 public sealed record CardRecord(
     int Id,
     int BoardColumnId,
+    int CardTypeId,
+    string CardTypeName,
+    string? CardTypeEmoji,
     string Title,
     string Description,
     string SortKey,
@@ -37,6 +45,7 @@ public sealed record CardRecord(
 
 public sealed record CreateCardRecord(
     int BoardColumnId,
+    int CardTypeId,
     string Title,
     string Description,
     string SortKey,
@@ -47,6 +56,7 @@ public sealed record CreateCardRecord(
 public sealed record UpdateCardRecord(
     int Id,
     int BoardColumnId,
+    int CardTypeId,
     string Title,
     string Description,
     string SortKey,
