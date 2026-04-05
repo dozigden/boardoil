@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useBoardStore } from './boardStore';
 import { useUiFeedbackStore } from './uiFeedbackStore';
 import type { AppError } from '../types/appError';
-import type { Board, Card, Column } from '../types/boardTypes';
+import type { Board, Column } from '../types/boardTypes';
 import { err, ok } from '../types/result';
 import type { Result } from '../types/result';
 
@@ -12,11 +12,7 @@ const api = {
   createColumn: vi.fn(),
   saveColumn: vi.fn(),
   moveColumn: vi.fn(),
-  deleteColumn: vi.fn(),
-  createCard: vi.fn(),
-  saveCard: vi.fn(),
-  moveCard: vi.fn(),
-  deleteCard: vi.fn()
+  deleteColumn: vi.fn()
 };
 
 const realtime = {
@@ -44,6 +40,7 @@ describe('boardStore', () => {
   it('initializes board and connects realtime', async () => {
     const store = useBoardStore();
     expect(store.isLoadingBoard).toBe(false);
+
     await store.initialize(1);
 
     expect(api.getBoard).toHaveBeenCalledTimes(1);
@@ -51,6 +48,7 @@ describe('boardStore', () => {
     expect(realtime.connect).toHaveBeenCalledWith(1);
     expect(store.isLoadingBoard).toBe(false);
     expect(store.board?.columns.length).toBe(2);
+    expect(store.board?.columns[0].cards.map(x => x.id)).toEqual([101]);
   });
 
   it('fails initialization and disconnects when realtime connect fails', async () => {
@@ -152,211 +150,6 @@ describe('boardStore', () => {
     expect(api.moveColumn).toHaveBeenCalledWith(1, 2, null);
   });
 
-  it('moves card across columns incrementally', async () => {
-    const store = useBoardStore();
-    await store.initialize(1);
-
-    const moved: Card = {
-      id: 101,
-      boardColumnId: 2,
-      cardTypeId: 1,
-      cardTypeName: 'Story',
-      cardTypeEmoji: null,
-            title: 'Task A',
-      description: 'Seed',
-      sortKey: '00000000000000000001',
-      tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:01:00Z'
-    };
-    api.moveCard.mockResolvedValue(ok(moved));
-
-    store.startDrag(101, 1);
-    await store.dropCard(2, null);
-
-    expect(store.board?.columns[0].cards).toHaveLength(0);
-    expect(store.board?.columns[1].cards[0].id).toBe(101);
-    expect(api.moveCard).toHaveBeenCalledWith(1, 101, 2, null);
-    expect(api.getBoard).toHaveBeenCalledTimes(1);
-  });
-
-  it('translates drop-before-card into predecessor anchor', async () => {
-    const store = useBoardStore();
-    await store.initialize(1);
-
-    store.board = {
-      ...store.board!,
-      columns: [
-        {
-          ...store.board!.columns[0],
-          cards: [store.board!.columns[0].cards[0]]
-        },
-        {
-          ...store.board!.columns[1],
-          cards: [
-            {
-              id: 201,
-              boardColumnId: 2,
-              cardTypeId: 1,
-              cardTypeName: 'Story',
-              cardTypeEmoji: null,
-            title: 'Task B',
-              description: 'Seed',
-              sortKey: '00000000000000000010',
-              tagNames: [],
-              createdAtUtc: '2026-03-15T00:00:00Z',
-              updatedAtUtc: '2026-03-15T00:00:00Z'
-            },
-            {
-              id: 202,
-              boardColumnId: 2,
-              cardTypeId: 1,
-              cardTypeName: 'Story',
-              cardTypeEmoji: null,
-            title: 'Task C',
-              description: 'Seed',
-              sortKey: '00000000000000000020',
-              tagNames: [],
-              createdAtUtc: '2026-03-15T00:00:00Z',
-              updatedAtUtc: '2026-03-15T00:00:00Z'
-            }
-          ]
-        }
-      ]
-    };
-
-    const moved: Card = {
-      id: 101,
-      boardColumnId: 2,
-      cardTypeId: 1,
-      cardTypeName: 'Story',
-      cardTypeEmoji: null,
-            title: 'Task A',
-      description: 'Seed',
-      sortKey: '00000000000000000015',
-      tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:01:00Z'
-    };
-    api.moveCard.mockResolvedValue(ok(moved));
-
-    store.startDrag(101, 1);
-    await store.dropCard(2, 202);
-
-    expect(api.moveCard).toHaveBeenCalledWith(1, 101, 2, 201);
-  });
-
-  it('uses null anchor when dropping before first card', async () => {
-    const store = useBoardStore();
-    await store.initialize(1);
-
-    store.board = {
-      ...store.board!,
-      columns: [
-        {
-          ...store.board!.columns[0],
-          cards: [store.board!.columns[0].cards[0]]
-        },
-        {
-          ...store.board!.columns[1],
-          cards: [
-            {
-              id: 201,
-              boardColumnId: 2,
-              cardTypeId: 1,
-              cardTypeName: 'Story',
-              cardTypeEmoji: null,
-            title: 'Task B',
-              description: 'Seed',
-              sortKey: '00000000000000000010',
-              tagNames: [],
-              createdAtUtc: '2026-03-15T00:00:00Z',
-              updatedAtUtc: '2026-03-15T00:00:00Z'
-            }
-          ]
-        }
-      ]
-    };
-
-    const moved: Card = {
-      id: 101,
-      boardColumnId: 2,
-      cardTypeId: 1,
-      cardTypeName: 'Story',
-      cardTypeEmoji: null,
-            title: 'Task A',
-      description: 'Seed',
-      sortKey: '00000000000000000005',
-      tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:01:00Z'
-    };
-    api.moveCard.mockResolvedValue(ok(moved));
-
-    store.startDrag(101, 1);
-    await store.dropCard(2, 201);
-
-    expect(api.moveCard).toHaveBeenCalledWith(1, 101, 2, null);
-  });
-
-  it('saveCard updates card', async () => {
-    const store = useBoardStore();
-    await store.initialize(1);
-
-    const updated: Card = {
-      id: 101,
-      boardColumnId: 1,
-      cardTypeId: 1,
-      cardTypeName: 'Story',
-      cardTypeEmoji: null,
-            title: 'Task A+',
-      description: 'Updated',
-      sortKey: '00000000000000000001',
-      tagNames: ['Bug'],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:02:00Z'
-    };
-    api.saveCard.mockResolvedValue(ok(updated));
-
-    await store.saveCard(101, 'Task A+', 'Updated', ['Bug'], 1);
-
-    expect(store.board?.columns[0].cards[0].title).toBe('Task A+');
-    expect(store.board?.columns[0].cards[0].tagNames).toEqual(['Bug']);
-  });
-
-  it('removeTagFromCards strips matching tags case-insensitively', async () => {
-    const store = useBoardStore();
-    await store.initialize(1);
-    store.board = {
-      ...store.board!,
-      columns: [
-        {
-          ...store.board!.columns[0],
-          cards: [
-            {
-              ...store.board!.columns[0].cards[0],
-              tagNames: ['Bug', 'urgent']
-            }
-          ]
-        },
-        ...store.board!.columns.slice(1)
-      ]
-    };
-
-    store.removeTagFromCards(' bug ');
-
-    expect(store.board?.columns[0].cards[0].tagNames).toEqual(['urgent']);
-  });
-
-  it('finds card by id from board state', async () => {
-    const store = useBoardStore();
-    await store.initialize(1);
-
-    expect(store.getCardById(101)?.title).toBe('Task A');
-    expect(store.getCardById(999)).toBeNull();
-    expect(store.getCardById(null)).toBeNull();
-  });
-
   it('sets feedback error when API returns failure', async () => {
     const store = useBoardStore();
     const feedback = useUiFeedbackStore();
@@ -372,7 +165,6 @@ describe('boardStore', () => {
 
     expect(feedback.errorMessage).toBe('Column create failed.');
   });
-
 });
 
 function makeBoard(id = 1, name = 'Board'): Board {
@@ -419,9 +211,9 @@ function makeBoard(id = 1, name = 'Board'): Board {
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
   let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise;
-    reject = rejectPromise;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
   });
 
   return { promise, resolve, reject };

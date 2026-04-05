@@ -39,6 +39,7 @@ const router = useRouter();
 const boardStore = useBoardStore();
 const boardCatalogueStore = useBoardCatalogueStore();
 const { board } = storeToRefs(boardStore);
+const { applyBoardSummaryUpdate } = boardStore;
 const { busy } = storeToRefs(boardCatalogueStore);
 const boardNameDraft = ref('');
 
@@ -83,11 +84,7 @@ async function saveBoardName() {
   }
 
   if (board.value?.id === nextBoardId) {
-    board.value = {
-      ...board.value,
-      name: saved.name,
-      updatedAtUtc: saved.updatedAtUtc
-    };
+    applyBoardSummaryUpdate(saved);
   }
 
   boardNameDraft.value = saved.name;

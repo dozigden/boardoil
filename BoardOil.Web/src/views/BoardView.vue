@@ -99,6 +99,7 @@ import { useRoute, useRouter } from 'vue-router';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
 import Card from '../components/Card.vue';
 import { useBoardStore } from '../stores/boardStore';
+import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useTagStore } from '../stores/tagStore';
 import type { TagFilterState, TagFilterStateMap } from '../types/tagFilterTypes';
@@ -115,11 +116,12 @@ const isTagFilterMenuOpen = ref(false);
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
+const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
 const tagStore = useTagStore();
 const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { tags } = storeToRefs(tagStore);
-const { createCard, startDrag, dropCard } = boardStore;
+const { createCard, startDrag, dropCard } = cardStore;
 const availableTagNames = computed(() => {
   const mergedTagNames = tags.value.map(tag => tag.name);
   for (const column of board.value?.columns ?? []) {

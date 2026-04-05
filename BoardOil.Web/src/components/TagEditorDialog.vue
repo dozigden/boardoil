@@ -131,7 +131,7 @@ import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useBoardStore } from '../stores/boardStore';
+import { useCardStore } from '../stores/cardStore';
 import { useTagStore } from '../stores/tagStore';
 import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
 import type { Tag, TagStyleName } from '../types/boardTypes';
@@ -148,7 +148,7 @@ import ModalDialog from './ModalDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
-const boardStore = useBoardStore();
+const cardStore = useCardStore();
 const tagStore = useTagStore();
 const feedbackStore = useUiFeedbackStore();
 const { busy } = storeToRefs(tagStore);
@@ -352,7 +352,7 @@ async function deleteEditingTag() {
     return;
   }
 
-  boardStore.removeTagFromCards(editingTag.value.name);
+  cardStore.removeTagFromCards(editingTag.value.name);
   await closeTagEditor();
 }
 

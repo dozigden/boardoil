@@ -4,35 +4,53 @@ import { createBoardApi } from '../api/boardApi';
 import { sortBoard } from '../mappers/sortBoard';
 import { createBoardRealtime } from '../realtime/boardRealtime';
 import { useUiFeedbackStore } from './uiFeedbackStore';
-import type { Board, BoardColumn, Card, Column } from '../types/boardTypes';
+import { useCardStore } from './cardStore';
+import type { Board, BoardSummary, Column } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 
+type BoardShell = Omit<Board, 'columns'> & {
+  columns: Column[];
+};
+
 export const useBoardStore = defineStore('board', () => {
-  const board = ref<Board | null>(null);
+  const boardShell = ref<BoardShell | null>(null);
   const busy = ref(false);
   const isLoadingBoard = ref(false);
   const currentBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
+  const cardStore = useCardStore();
   const api = createBoardApi();
-  const currentUserRole = computed(() => board.value?.currentUserRole ?? null);
+  const board = computed<Board | null>(() => {
+    if (!boardShell.value) {
+      return null;
+    }
+
+    return {
+      ...boardShell.value,
+      columns: boardShell.value.columns.map(column => ({
+        ...column,
+        cards: cardStore.getCardsForColumn(column.id)
+      }))
+    };
+  });
+  const currentUserRole = computed(() => boardShell.value?.currentUserRole ?? null);
   const isCurrentUserOwner = computed(() => currentUserRole.value === 'Owner');
 
   const realtime = createBoardRealtime({
     onColumnCreated: upsertColumn,
     onColumnUpdated: upsertColumn,
     onColumnDeleted: removeColumn,
-    onCardCreated: upsertCard,
-    onCardUpdated: upsertCard,
-    onCardDeleted: removeCard,
-    onCardMoved: upsertCard,
+    onCardCreated: cardStore.upsertCard,
+    onCardUpdated: cardStore.upsertCard,
+    onCardDeleted: cardStore.removeCard,
+    onCardMoved: cardStore.upsertCard,
     onResync: async () => {
       if (currentBoardId.value !== null) {
         await loadBoard(currentBoardId.value);
       }
     }
   });
-  let dragState: { cardId: number; fromColumnId: number } | null = null;
   let loadRequestVersion = 0;
   let initializeRequestVersion = 0;
 
@@ -64,10 +82,10 @@ export const useBoardStore = defineStore('board', () => {
     initializeRequestVersion += 1;
     loadRequestVersion += 1;
     await realtime.disconnect();
-    board.value = null;
+    boardShell.value = null;
     currentBoardId.value = null;
-    dragState = null;
     isLoadingBoard.value = false;
+    cardStore.dispose();
   }
 
   async function loadBoard(boardId: number) {
@@ -78,15 +96,17 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     if (!result.ok) {
-      board.value = null;
+      boardShell.value = null;
       currentBoardId.value = null;
-      dragState = null;
+      cardStore.dispose();
       reportError(result.error);
       return false;
     }
 
+    const sortedBoard = sortBoard(result.data);
     currentBoardId.value = boardId;
-    board.value = sortBoard(result.data);
+    boardShell.value = stripBoardCards(sortedBoard);
+    cardStore.replaceBoardCards(boardId, sortedBoard.columns);
     feedback.clearError();
     return true;
   }
@@ -152,87 +172,23 @@ export const useBoardStore = defineStore('board', () => {
     removeColumn(columnId);
   }
 
-  async function createCard(columnId: number, title: string) {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      return;
-    }
+  function applyBoardSummaryUpdate(summary: Pick<BoardSummary, 'id' | 'name' | 'updatedAtUtc'>) {
+    mutateBoardShell(draft => {
+      if (draft.id !== summary.id) {
+        return;
+      }
 
-    const boardId = getCurrentBoardIdOrReport();
-    if (boardId === null) {
-      return;
-    }
-
-    const result = await runBusy(() => api.createCard(boardId, columnId, trimmedTitle));
-    if (!result.ok) {
-      return;
-    }
-
-    upsertCard(result.data);
+      draft.name = summary.name;
+      draft.updatedAtUtc = summary.updatedAtUtc;
+    });
   }
 
-  async function saveCard(cardId: number, title: string, description: string, tagNames: string[], cardTypeId: number) {
-    const boardId = getCurrentBoardIdOrReport();
-    if (boardId === null) {
-      return;
+  function getColumnById(columnId: number | null) {
+    if (!boardShell.value || columnId === null) {
+      return null;
     }
 
-    const result = await runBusy(() => api.saveCard(boardId, cardId, title, description, tagNames, cardTypeId));
-    if (!result.ok) {
-      return;
-    }
-
-    upsertCard(result.data);
-  }
-
-  async function deleteCard(cardId: number) {
-    const boardId = getCurrentBoardIdOrReport();
-    if (boardId === null) {
-      return;
-    }
-
-    const result = await runBusy(() => api.deleteCard(boardId, cardId));
-    if (!result.ok) {
-      return;
-    }
-
-    removeCard(cardId);
-  }
-
-  function startDrag(cardId: number, fromColumnId: number) {
-    dragState = { cardId, fromColumnId };
-  }
-
-  async function dropCard(targetColumnId: number, targetCardId: number | null) {
-    if (!dragState) {
-      return;
-    }
-
-    const boardId = getCurrentBoardIdOrReport();
-    if (boardId === null) {
-      dragState = null;
-      return;
-    }
-
-    const movingCardId = dragState.cardId;
-    dragState = null;
-
-    const positionAfterCardId = resolvePositionAfterCardId(
-      board.value,
-      movingCardId,
-      targetColumnId,
-      targetCardId
-    );
-    if (positionAfterCardId === undefined) {
-      return;
-    }
-
-    const result = await runBusy(() => api.moveCard(boardId, movingCardId, targetColumnId, positionAfterCardId));
-    if (!result.ok) {
-      return;
-    }
-
-    upsertCard(result.data);
+    return boardShell.value.columns.find(x => x.id === columnId) ?? null;
   }
 
   async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
@@ -265,24 +221,19 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   function upsertColumn(column: Column) {
-    mutateBoard(draft => {
+    mutateBoardShell(draft => {
       const existingIndex = draft.columns.findIndex(x => x.id === column.id);
-      const nextColumn: BoardColumn = {
-        ...column,
-        cards: existingIndex >= 0 ? draft.columns[existingIndex].cards : []
-      };
-
       if (existingIndex >= 0) {
         draft.columns.splice(existingIndex, 1);
       }
 
-      draft.columns.push(nextColumn);
+      draft.columns.push(column);
       sortColumns(draft.columns);
     });
   }
 
   function removeColumn(columnId: number) {
-    mutateBoard(draft => {
+    mutateBoardShell(draft => {
       const index = draft.columns.findIndex(x => x.id === columnId);
       if (index < 0) {
         return;
@@ -292,93 +243,14 @@ export const useBoardStore = defineStore('board', () => {
     });
   }
 
-  function upsertCard(card: Card) {
-    mutateBoard(draft => {
-      let existingColumn: BoardColumn | null = null;
-      let existingIndex = -1;
-      for (const column of draft.columns) {
-        const cardIndex = column.cards.findIndex(x => x.id === card.id);
-        if (cardIndex >= 0) {
-          existingColumn = column;
-          existingIndex = cardIndex;
-          break;
-        }
-      }
-
-      if (existingColumn) {
-        existingColumn.cards.splice(existingIndex, 1);
-      }
-
-      const targetColumn = draft.columns.find(x => x.id === card.boardColumnId);
-      if (!targetColumn) {
-        return;
-      }
-
-      targetColumn.cards.push(card);
-      sortCardsInColumns(draft.columns);
-    });
-  }
-
-  function removeCard(cardId: number) {
-    mutateBoard(draft => {
-      for (const column of draft.columns) {
-        const index = column.cards.findIndex(x => x.id === cardId);
-        if (index < 0) {
-          continue;
-        }
-
-        column.cards.splice(index, 1);
-        return;
-      }
-    });
-  }
-
-  function getCardById(cardId: number | null) {
-    if (!board.value || cardId === null) {
-      return null;
-    }
-
-    for (const column of board.value.columns) {
-      const card = column.cards.find(x => x.id === cardId);
-      if (card) {
-        return card;
-      }
-    }
-
-    return null;
-  }
-
-  function getColumnById(columnId: number | null) {
-    if (!board.value || columnId === null) {
-      return null;
-    }
-
-    return board.value.columns.find(x => x.id === columnId) ?? null;
-  }
-
-  function removeTagFromCards(tagName: string) {
-    const normalisedTagName = tagName.trim().toUpperCase();
-    if (!normalisedTagName) {
+  function mutateBoardShell(mutator: (draft: BoardShell) => void) {
+    if (!boardShell.value) {
       return;
     }
 
-    mutateBoard(draft => {
-      for (const column of draft.columns) {
-        for (const card of column.cards) {
-          card.tagNames = card.tagNames.filter(existingTagName => existingTagName.trim().toUpperCase() !== normalisedTagName);
-        }
-      }
-    });
-  }
-
-  function mutateBoard(mutator: (draft: Board) => void) {
-    if (!board.value) {
-      return;
-    }
-
-    const draft = cloneBoard(board.value);
+    const draft = cloneBoardShell(boardShell.value);
     mutator(draft);
-    board.value = draft;
+    boardShell.value = draft;
   }
 
   return {
@@ -394,35 +266,33 @@ export const useBoardStore = defineStore('board', () => {
     saveColumn,
     moveColumn,
     deleteColumn,
-    createCard,
-    saveCard,
-    deleteCard,
-    removeTagFromCards,
-    getCardById,
-    getColumnById,
-    startDrag,
-    dropCard
+    applyBoardSummaryUpdate,
+    getColumnById
   };
 });
 
-function cloneBoard(source: Board): Board {
+function stripBoardCards(source: Board): BoardShell {
   return {
     ...source,
     columns: source.columns.map(column => ({
-      ...column,
-      cards: column.cards.map(card => ({ ...card, tagNames: [...card.tagNames] }))
+      id: column.id,
+      title: column.title,
+      sortKey: column.sortKey,
+      createdAtUtc: column.createdAtUtc,
+      updatedAtUtc: column.updatedAtUtc
     }))
   };
 }
 
-function sortCardsInColumns(columns: BoardColumn[]) {
-  for (const column of columns) {
-    column.cards.sort((a, b) => compareSortKey(a.sortKey, b.sortKey));
-  }
+function cloneBoardShell(source: BoardShell): BoardShell {
+  return {
+    ...source,
+    columns: source.columns.map(column => ({ ...column }))
+  };
 }
 
-function sortColumns(columns: BoardColumn[]) {
-  columns.sort((a, b) => compareSortKey(a.sortKey, b.sortKey));
+function sortColumns(columns: Column[]) {
+  columns.sort((left, right) => compareSortKey(left.sortKey, right.sortKey));
 }
 
 function compareSortKey(left: string, right: string) {
@@ -435,36 +305,4 @@ function compareSortKey(left: string, right: string) {
   }
 
   return 0;
-}
-
-function resolvePositionAfterCardId(
-  board: Board | null,
-  movingCardId: number,
-  targetColumnId: number,
-  targetCardId: number | null
-): number | null | undefined {
-  if (!board) {
-    return undefined;
-  }
-
-  const targetColumn = board.columns.find(x => x.id === targetColumnId);
-  if (!targetColumn) {
-    return undefined;
-  }
-
-  if (targetCardId === movingCardId) {
-    return undefined;
-  }
-
-  const targetCards = targetColumn.cards.filter(x => x.id !== movingCardId);
-  if (targetCardId === null) {
-    return targetCards.length === 0 ? null : targetCards[targetCards.length - 1].id;
-  }
-
-  const targetIndex = targetCards.findIndex(x => x.id === targetCardId);
-  if (targetIndex < 0) {
-    return undefined;
-  }
-
-  return targetIndex === 0 ? null : targetCards[targetIndex - 1].id;
 }

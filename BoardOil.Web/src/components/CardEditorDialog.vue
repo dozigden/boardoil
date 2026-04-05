@@ -75,6 +75,7 @@ import CardTagEditor from './CardTagEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import ModalDialog from './ModalDialog.vue';
 import { useBoardStore } from '../stores/boardStore';
+import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useTagStore } from '../stores/tagStore';
 import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardTypeSelection';
@@ -82,11 +83,12 @@ import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardType
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
+const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
 const tagStore = useTagStore();
 const { board } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
-const { saveCard: saveCardAction, deleteCard } = boardStore;
+const { saveCard: saveCardAction, deleteCard } = cardStore;
 const { loadCardTypes } = cardTypeStore;
 const { ensureTagsExist } = tagStore;
 const maxDescriptionLength = 20_000;
@@ -106,7 +108,7 @@ const routeBoardId = computed<number | null>(() => {
   return Number.isFinite(parsed) ? parsed : null;
 });
 
-const editingCard = computed(() => boardStore.getCardById(routeCardId.value));
+const editingCard = computed(() => cardStore.getCardById(routeCardId.value));
 const selectedCardTypeEmoji = computed(() => {
   return resolveSelectedCardTypeEmoji(
     cardDraft.value?.cardTypeId ?? null,
