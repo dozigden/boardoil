@@ -3,6 +3,7 @@ using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Tag;
 using Microsoft.Data.Sqlite;
@@ -728,6 +729,119 @@ public sealed class BoardApiIntegrationTests
         Assert.Null(payload.Message);
     }
 
+    [Fact]
+    public async Task CardTypeEndpoints_ShouldCreateListUpdateAndDelete_WithCardReassignment()
+    {
+        // Arrange
+        var createColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createColumnResponse.EnsureSuccessStatusCode();
+        var columnEnvelope = await createColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(columnEnvelope);
+        Assert.NotNull(columnEnvelope!.Data);
+
+        var createCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(columnEnvelope.Data!.Id, "Task A", "Desc", null));
+        createCardResponse.EnsureSuccessStatusCode();
+        var cardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(cardEnvelope);
+        Assert.NotNull(cardEnvelope!.Data);
+
+        // Act: create
+        var createTypeResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/card-types",
+            new CreateCardTypeRequest("Bug", "🐞"));
+        createTypeResponse.EnsureSuccessStatusCode();
+        var createdTypeEnvelope = await createTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>(JsonOptions);
+
+        // Assert: create
+        Assert.NotNull(createdTypeEnvelope);
+        Assert.NotNull(createdTypeEnvelope!.Data);
+        Assert.Equal(201, createdTypeEnvelope.StatusCode);
+        Assert.False(createdTypeEnvelope.Data!.IsSystem);
+        Assert.Equal("Bug", createdTypeEnvelope.Data.Name);
+        Assert.Equal("🐞", createdTypeEnvelope.Data.Emoji);
+
+        // Act: list
+        var listEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
+
+        // Assert: list
+        Assert.NotNull(listEnvelope);
+        Assert.NotNull(listEnvelope!.Data);
+        Assert.Contains(listEnvelope.Data!, x => x.IsSystem && x.Name == "Story");
+        Assert.Contains(listEnvelope.Data!, x => x.Name == "Bug");
+        var systemType = Assert.Single(listEnvelope.Data!, x => x.IsSystem);
+        var bugType = Assert.Single(listEnvelope.Data!, x => x.Name == "Bug");
+
+        // Act: update
+        var updateTypeResponse = await Client.PutAsJsonAsync(
+            $"/api/boards/1/card-types/{bugType.Id}",
+            new UpdateCardTypeRequest("Defect", "⚠️"));
+        updateTypeResponse.EnsureSuccessStatusCode();
+        var updatedTypeEnvelope = await updateTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>(JsonOptions);
+
+        // Assert: update
+        Assert.NotNull(updatedTypeEnvelope);
+        Assert.NotNull(updatedTypeEnvelope!.Data);
+        Assert.Equal("Defect", updatedTypeEnvelope.Data!.Name);
+        Assert.Equal("⚠️", updatedTypeEnvelope.Data.Emoji);
+        Assert.False(updatedTypeEnvelope.Data.IsSystem);
+
+        await AssignCardTypeToCardAsync(cardEnvelope.Data!.Id, bugType.Id);
+
+        // Act: delete non-system
+        var deleteTypeResponse = await Client.DeleteAsync($"/api/boards/1/card-types/{bugType.Id}");
+        deleteTypeResponse.EnsureSuccessStatusCode();
+
+        // Assert: card reassigned
+        var reassignedCardTypeId = await GetCardTypeIdForCardAsync(cardEnvelope.Data.Id);
+        Assert.Equal(systemType.Id, reassignedCardTypeId);
+
+        var listAfterDelete = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
+        Assert.NotNull(listAfterDelete);
+        Assert.NotNull(listAfterDelete!.Data);
+        Assert.DoesNotContain(listAfterDelete.Data!, x => x.Id == bugType.Id);
+    }
+
+    [Fact]
+    public async Task CardTypeEndpoints_WhenDeletingSystemType_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var listEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
+        Assert.NotNull(listEnvelope);
+        Assert.NotNull(listEnvelope!.Data);
+        var systemType = Assert.Single(listEnvelope.Data!, x => x.IsSystem);
+
+        // Act
+        var response = await Client.DeleteAsync($"/api/boards/1/card-types/{systemType.Id}");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(400, (int)response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal(400, payload.StatusCode);
+        Assert.Equal("System card type cannot be deleted.", payload.Message);
+    }
+
+    [Fact]
+    public async Task CardTypeEndpoints_WhenDuplicateNameSubmitted_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var firstCreate = await Client.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("Feature"));
+        firstCreate.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("  feature  "));
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(400, (int)response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal(400, payload.StatusCode);
+    }
+
     private async Task SeedTagAsync(string name, string normalisedName, string styleName, string stylePropertiesJson)
     {
         await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
@@ -746,6 +860,36 @@ public sealed class BoardApiIntegrationTests
         command.Parameters.AddWithValue("$createdAtUtc", now);
         command.Parameters.AddWithValue("$updatedAtUtc", now);
         await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task AssignCardTypeToCardAsync(int cardId, int cardTypeId)
+    {
+        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE "Cards"
+            SET "CardTypeId" = $cardTypeId
+            WHERE "Id" = $cardId;
+            """;
+        command.Parameters.AddWithValue("$cardId", cardId);
+        command.Parameters.AddWithValue("$cardTypeId", cardTypeId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<int> GetCardTypeIdForCardAsync(int cardId)
+    {
+        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT "CardTypeId"
+            FROM "Cards"
+            WHERE "Id" = $cardId;
+            """;
+        command.Parameters.AddWithValue("$cardId", cardId);
+        var value = await command.ExecuteScalarAsync();
+        return Convert.ToInt32(value);
     }
 
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);

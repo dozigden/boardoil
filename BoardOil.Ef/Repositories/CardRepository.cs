@@ -31,6 +31,11 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             .Include(x => x.BoardColumn)
             .FirstOrDefaultAsync(x => x.Id == id);
 
+    public async Task<IReadOnlyList<EntityBoardCard>> GetByBoardAndCardTypeAsync(int boardId, int cardTypeId) =>
+        await DbSet
+            .Where(x => x.CardTypeId == cardTypeId && x.BoardColumn.BoardId == boardId)
+            .ToListAsync();
+
     public Task<bool> ColumnExistsAsync(int columnId) =>
         DbContext.Columns.AnyAsync(x => x.Id == columnId);
 

@@ -3,6 +3,7 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Ef;
 using BoardOil.Services.Board;
 using BoardOil.Services.Card;
+using BoardOil.Services.CardType;
 using BoardOil.Services.Column;
 using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Tag;
@@ -78,6 +79,7 @@ public abstract class TestBaseDb : IAsyncLifetime
         services.AddScoped<BoardService>();
         services.AddScoped<ColumnService>();
         services.AddScoped<CardService>();
+        services.AddScoped<CardTypeService>();
         services.AddScoped<TagService>();
         services.AddSingleton<IBoardEvents, TestBoardEvents>();
         services.AddSingleton<IDbContextFactory>(_ => new TestDbContextFactory(Harness.Options));
