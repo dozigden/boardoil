@@ -38,8 +38,16 @@ public sealed record McpCardSnapshot(
     string Title,
     string Description,
     string SortKey,
+    IReadOnlyList<McpCardTagSnapshot> Tags,
     IReadOnlyList<string> TagNames,
     DateTime UpdatedAtUtc);
+
+public sealed record McpCardTagSnapshot(
+    int Id,
+    string Name,
+    string StyleName,
+    string StylePropertiesJson,
+    string? Emoji);
 
 public sealed record BoardGetInput
 {

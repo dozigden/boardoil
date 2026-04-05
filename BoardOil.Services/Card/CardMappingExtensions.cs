@@ -15,6 +15,7 @@ public static class CardMappingExtensions
             card.Title,
             card.Description,
             card.SortKey,
+            card.Tags,
             card.TagNames,
             card.CreatedAtUtc,
             card.UpdatedAtUtc);
@@ -30,9 +31,21 @@ public static class CardMappingExtensions
             card.Description,
             card.SortKey,
             card.CardTags
+                .Select(x => x.Tag.ToCardTagDto())
+                .OrderBy(x => x.Name, StringComparer.Ordinal)
+                .ToList(),
+            card.CardTags
                 .Select(x => x.Tag.Name)
                 .OrderBy(x => x, StringComparer.Ordinal)
                 .ToList(),
             card.CreatedAtUtc,
             card.UpdatedAtUtc);
+
+    private static CardTagDto ToCardTagDto(this EntityTag tag) =>
+        new(
+            tag.Id,
+            tag.Name,
+            tag.StyleName,
+            tag.StylePropertiesJson,
+            tag.Emoji);
 }

@@ -1,7 +1,7 @@
 <template>
-  <span class="tag" :class="{ 'tag--with-emoji': tagEmoji }" :style="tagStyle" :aria-label="tagName">
+  <span v-if="resolvedTag" class="tag" :class="{ 'tag--with-emoji': tagEmoji }" :style="tagStyle" :aria-label="resolvedTag.name">
     <span v-if="tagEmoji" class="tag-emoji" aria-hidden="true">{{ tagEmoji }}</span>
-    <span>{{ tagName }}</span>
+    <span>{{ resolvedTag.name }}</span>
     <slot />
   </span>
 </template>
@@ -12,12 +12,19 @@ import { useTagStore } from '../stores/tagStore';
 import { getTagPillStyle, normaliseTagEmojiForRender } from '../utils/tagStyles';
 
 const props = defineProps<{
-  tagName: string;
+  tagName?: string;
+  tagId?: number | null;
 }>();
 
 const tagStore = useTagStore();
-const tag = computed(() => tagStore.getTagByName(props.tagName));
+const resolvedTag = computed(() => {
+  if (props.tagId !== null && props.tagId !== undefined) {
+    return tagStore.getTagById(props.tagId);
+  }
 
-const tagStyle = computed(() => getTagPillStyle(tag.value));
-const tagEmoji = computed(() => normaliseTagEmojiForRender(tag.value?.emoji));
+  return tagStore.getTagByName(props.tagName ?? null);
+});
+
+const tagStyle = computed(() => getTagPillStyle(resolvedTag.value));
+const tagEmoji = computed(() => normaliseTagEmojiForRender(resolvedTag.value?.emoji));
 </script>

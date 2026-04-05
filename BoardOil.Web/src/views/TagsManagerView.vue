@@ -48,44 +48,16 @@ import { computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import Tag from '../components/Tag.vue';
-import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
 
 const router = useRouter();
 const route = useRoute();
-const boardStore = useBoardStore();
 const tagStore = useTagStore();
-const { board } = storeToRefs(boardStore);
 const { tags, busy } = storeToRefs(tagStore);
 const { loadTags, getTagByName } = tagStore;
 const routeBoardId = computed(() => resolveBoardId());
 
-const tagNames = computed(() => {
-  const seenByNormalisedName = new Map<string, string>();
-  for (const tag of tags.value) {
-    seenByNormalisedName.set(normaliseTagNameKey(tag.name), tag.name);
-  }
-
-  if (board.value) {
-    for (const column of board.value.columns) {
-      for (const card of column.cards) {
-        for (const rawTagName of card.tagNames) {
-          const tagName = rawTagName.trim();
-          if (!tagName) {
-            continue;
-          }
-
-          const key = normaliseTagNameKey(tagName);
-          if (!seenByNormalisedName.has(key)) {
-            seenByNormalisedName.set(key, tagName);
-          }
-        }
-      }
-    }
-  }
-
-  return [...seenByNormalisedName.values()].sort((left, right) => left.localeCompare(right));
-});
+const tagNames = computed(() => tags.value.map(tag => tag.name).sort((left, right) => left.localeCompare(right)));
 
 watch(
   routeBoardId,
@@ -119,10 +91,6 @@ async function openCreateEditor() {
   }
 
   await router.push({ name: 'tags-new', params: { boardId: routeBoardId.value } });
-}
-
-function normaliseTagNameKey(tagName: string) {
-  return tagName.trim().toUpperCase();
 }
 
 function resolveBoardId() {

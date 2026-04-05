@@ -1,4 +1,4 @@
-import type { Tag, TagStyleName } from '../types/boardTypes';
+import type { TagPresentation, TagStyleName } from '../types/boardTypes';
 
 type TextColorMode = 'auto' | 'custom';
 
@@ -22,7 +22,7 @@ export function normaliseTagEmojiForRender(rawEmoji: string | null | undefined):
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export function createTagStyleDraft(tag: Tag): TagStyleDraft {
+export function createTagStyleDraft(tag: TagPresentation): TagStyleDraft {
   const styleName: TagStyleName = tag.styleName === 'gradient' ? 'gradient' : 'solid';
   const styleProperties = parseStyleProperties(tag.stylePropertiesJson);
   const textColorMode: TextColorMode = styleProperties.textColorMode === 'custom' ? 'custom' : 'auto';
@@ -61,7 +61,7 @@ export function buildStylePropertiesJsonFromDraft(draft: TagStyleDraft): string 
   return JSON.stringify(payload);
 }
 
-export function getTagPillStyle(tag: Tag | null): Record<string, string> {
+export function getTagPillStyle(tag: TagPresentation | null): Record<string, string> {
   if (!tag) {
     return {
       background: '#F1EBFB',

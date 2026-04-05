@@ -52,8 +52,10 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
         Assert.Equal("tasks.example.net", payload.Data!.Name);
         Assert.Equal(["Todo", "In Progress"], payload.Data.Columns.Select(x => x.Title).ToArray());
         Assert.Equal(["Card A", "Card B"], payload.Data.Columns[0].Cards.Select(x => x.Title).ToArray());
+        Assert.Equal(["Discovered", "Urgent"], payload.Data.Columns[0].Cards[0].Tags.Select(x => x.Name).ToArray());
         Assert.Equal(["Discovered", "Urgent"], payload.Data.Columns[0].Cards[0].TagNames);
         Assert.Equal("Clean description", payload.Data.Columns[0].Cards[0].Description);
+        Assert.Contains(payload.Data.Columns[0].Cards[0].Tags, x => x.Name == "Urgent" && x.StylePropertiesJson.Contains("#bf616a", StringComparison.OrdinalIgnoreCase));
 
         var tagsResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>(
             $"/api/boards/{payload.Data.Id}/tags",

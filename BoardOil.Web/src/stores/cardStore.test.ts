@@ -49,6 +49,7 @@ describe('cardStore', () => {
       title: 'Task B',
       description: '',
       sortKey: '00000000000000000002',
+      tags: [],
       tagNames: [],
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:00:00Z'
@@ -74,6 +75,7 @@ describe('cardStore', () => {
       title: 'Task A',
       description: 'Seed',
       sortKey: '00000000000000000001',
+      tags: [],
       tagNames: [],
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:01:00Z'
@@ -101,6 +103,7 @@ describe('cardStore', () => {
         title: 'Task B',
         description: 'Seed',
         sortKey: '00000000000000000010',
+        tags: [],
         tagNames: [],
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
@@ -114,6 +117,7 @@ describe('cardStore', () => {
         title: 'Task C',
         description: 'Seed',
         sortKey: '00000000000000000020',
+        tags: [],
         tagNames: [],
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
@@ -130,6 +134,7 @@ describe('cardStore', () => {
       title: 'Task A',
       description: 'Seed',
       sortKey: '00000000000000000015',
+      tags: [],
       tagNames: [],
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:01:00Z'
@@ -155,6 +160,7 @@ describe('cardStore', () => {
         title: 'Task B',
         description: 'Seed',
         sortKey: '00000000000000000010',
+        tags: [],
         tagNames: [],
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
@@ -171,6 +177,7 @@ describe('cardStore', () => {
       title: 'Task A',
       description: 'Seed',
       sortKey: '00000000000000000005',
+      tags: [],
       tagNames: [],
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:01:00Z'
@@ -196,6 +203,15 @@ describe('cardStore', () => {
       title: 'Task A+',
       description: 'Updated',
       sortKey: '00000000000000000001',
+      tags: [
+        {
+          id: 7,
+          name: 'Bug',
+          styleName: 'solid',
+          stylePropertiesJson: '{"backgroundColor":"#224466","textColorMode":"auto"}',
+          emoji: null
+        }
+      ],
       tagNames: ['Bug'],
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:02:00Z'
@@ -212,11 +228,28 @@ describe('cardStore', () => {
     const store = useCardStore();
     const board = makeBoard();
     board.columns[0].cards[0].tagNames = ['Bug', 'urgent'];
+    board.columns[0].cards[0].tags = [
+      {
+        id: 7,
+        name: 'Bug',
+        styleName: 'solid',
+        stylePropertiesJson: '{"backgroundColor":"#224466","textColorMode":"auto"}',
+        emoji: null
+      },
+      {
+        id: 8,
+        name: 'urgent',
+        styleName: 'solid',
+        stylePropertiesJson: '{"backgroundColor":"#113355","textColorMode":"auto"}',
+        emoji: null
+      }
+    ];
     store.replaceBoardCards(board.id, board.columns);
 
     store.removeTagFromCards(' bug ');
 
     expect(store.getCardById(101)?.tagNames).toEqual(['urgent']);
+    expect(store.getCardById(101)?.tags.map(tag => tag.name)).toEqual(['urgent']);
   });
 
   it('sets feedback error when API returns failure', async () => {
@@ -259,6 +292,7 @@ function makeBoard(id = 1, name = 'Board'): Board {
             title: 'Task A',
             description: 'Seed',
             sortKey: '00000000000000000001',
+            tags: [],
             tagNames: [],
             createdAtUtc: '2026-03-15T00:00:00Z',
             updatedAtUtc: '2026-03-15T00:00:00Z'

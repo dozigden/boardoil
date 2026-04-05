@@ -92,6 +92,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         Assert.True(createdCard.TryGetProperty("cardTypeId", out _));
         Assert.True(createdCard.TryGetProperty("cardTypeName", out _));
         Assert.True(createdCard.TryGetProperty("cardTypeEmoji", out _));
+        Assert.True(createdCard.TryGetProperty("tags", out _));
     }
 
     [Fact]
@@ -153,6 +154,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         Assert.True(createdCard.TryGetProperty("cardTypeId", out _));
         Assert.True(createdCard.TryGetProperty("cardTypeName", out _));
         Assert.True(createdCard.TryGetProperty("cardTypeEmoji", out _));
+        Assert.True(createdCard.TryGetProperty("tags", out _));
         Assert.False(createdCard.TryGetProperty("cardId", out _));
         Assert.False(createdCard.TryGetProperty("boardColumnId", out _));
 
@@ -181,6 +183,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         Assert.True(boardCard.TryGetProperty("cardTypeId", out _));
         Assert.True(boardCard.TryGetProperty("cardTypeName", out _));
         Assert.True(boardCard.TryGetProperty("cardTypeEmoji", out _));
+        Assert.True(boardCard.TryGetProperty("tags", out _));
         Assert.False(boardCard.TryGetProperty("cardId", out _));
         Assert.False(boardCard.TryGetProperty("boardColumnId", out _));
     }
