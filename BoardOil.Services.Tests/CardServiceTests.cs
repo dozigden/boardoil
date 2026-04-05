@@ -140,10 +140,11 @@ public sealed class CardServiceTests : TestBaseDb
             .AddColumn("Doing")
             .Build();
         var cardId = board.GetCard("Todo", "Old").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest("  New Title  ", "Desc", []), ActorUserId);
+        var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest("  New Title  ", "Desc", [], systemCardTypeId), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -164,10 +165,11 @@ public sealed class CardServiceTests : TestBaseDb
             .AddColumn("Doing")
             .Build();
         var cardId = board.GetCard("Todo", "Title").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
 
         // Act
         var service = CreateService();
-        var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest("Title", "New Description", []), ActorUserId);
+        var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest("Title", "New Description", [], systemCardTypeId), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -189,12 +191,14 @@ public sealed class CardServiceTests : TestBaseDb
             .Build();
         await SeedTagsForArrangeAsync(board.BoardId, "Bug", "Urgent", "Ops");
         var cardId = board.GetCard("Todo", "Title").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
 
         var setupService = CreateService();
         var seedResult = await setupService.UpdateCardAsync(1, cardId, new UpdateCardRequest(
             Title: "Title",
             Description: "Old",
-            TagNames: ["Bug", "Urgent"]), ActorUserId);
+            TagNames: ["Bug", "Urgent"],
+            CardTypeId: systemCardTypeId), ActorUserId);
         Assert.True(seedResult.Success);
 
         // Act
@@ -202,7 +206,8 @@ public sealed class CardServiceTests : TestBaseDb
         var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest(
             Title: "Title",
             Description: "Old",
-            TagNames: ["Urgent", "Ops"]), ActorUserId);
+            TagNames: ["Urgent", "Ops"],
+            CardTypeId: systemCardTypeId), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -321,7 +326,7 @@ public sealed class CardServiceTests : TestBaseDb
         // Act
         var service = CreateService();
 
-        var result = await service.UpdateCardAsync(1, 999_999, new UpdateCardRequest("X", string.Empty, []), ActorUserId);
+        var result = await service.UpdateCardAsync(1, 999_999, new UpdateCardRequest("X", string.Empty, [], 1), ActorUserId);
 
         // Assert
         Assert.False(result.Success);
@@ -576,13 +581,15 @@ public sealed class CardServiceTests : TestBaseDb
             .Build();
         var cardId = board.GetCard("Todo", "Title").Id;
         var missingTag = "AutoTag";
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
 
         // Act
         var service = CreateService();
         var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest(
             Title: "Title",
             Description: "Old",
-            TagNames: [missingTag]), ActorUserId);
+            TagNames: [missingTag],
+            CardTypeId: systemCardTypeId), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -659,4 +666,10 @@ public sealed class CardServiceTests : TestBaseDb
         }));
         await DbContextForArrange.SaveChangesAsync();
     }
+
+    private Task<int> GetSystemCardTypeIdForBoardAsync(int boardId) =>
+        DbContextForArrange.CardTypes
+            .Where(x => x.BoardId == boardId && x.IsSystem)
+            .Select(x => x.Id)
+            .SingleAsync();
 }

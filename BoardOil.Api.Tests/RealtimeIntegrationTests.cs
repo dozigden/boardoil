@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Column;
 using Microsoft.AspNetCore.SignalR.Client;
 using Xunit;
@@ -55,6 +56,50 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
 
         Assert.Equal("Realtime Task", cardA.Title);
         Assert.Equal(cardA.Id, cardB.Id);
+        Assert.True(cardA.CardTypeId > 0);
+        Assert.Equal("Story", cardA.CardTypeName);
+        Assert.Null(cardA.CardTypeEmoji);
+    }
+
+    [Fact]
+    public async Task CardUpdated_ShouldBroadcastCardTypeFields()
+    {
+        // Arrange
+        var column = await CreateColumnAsync("Todo");
+
+        var createTypeResponse = await Client.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("Bug", "🐞"));
+        createTypeResponse.EnsureSuccessStatusCode();
+        var createdTypeEnvelope = await createTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>();
+        Assert.NotNull(createdTypeEnvelope);
+        Assert.NotNull(createdTypeEnvelope!.Data);
+        var bugTypeId = createdTypeEnvelope.Data!.Id;
+
+        var createCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(column.Id, "Realtime Task", "Desc", null));
+        createCardResponse.EnsureSuccessStatusCode();
+        var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>();
+        Assert.NotNull(createdCardEnvelope);
+        Assert.NotNull(createdCardEnvelope!.Data);
+        var cardId = createdCardEnvelope.Data!.Id;
+
+        await using var connection = CreateHubConnection();
+        var updatedEvent = new TaskCompletionSource<CardDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.On<CardDto>("CardUpdated", card => updatedEvent.TrySetResult(card));
+        await StartConnectionsAsync(1, connection);
+
+        // Act
+        var updateResponse = await Client.PutAsJsonAsync(
+            $"/api/boards/1/cards/{cardId}",
+            new UpdateCardRequest("Realtime Task", "Desc", [], bugTypeId));
+        updateResponse.EnsureSuccessStatusCode();
+
+        // Assert
+        var updatedCard = await WaitAsync(updatedEvent.Task);
+        Assert.Equal(cardId, updatedCard.Id);
+        Assert.Equal(bugTypeId, updatedCard.CardTypeId);
+        Assert.Equal("Bug", updatedCard.CardTypeName);
+        Assert.Equal("🐞", updatedCard.CardTypeEmoji);
     }
 
     private async Task<ColumnDto> CreateColumnAsync(string title)

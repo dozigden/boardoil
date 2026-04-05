@@ -88,7 +88,10 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             .EnumerateArray()
             .SelectMany(column => column.GetProperty("cards").EnumerateArray())
             .ToArray();
-        Assert.Contains(cards, card => card.GetProperty("title").GetString() == "API in-process MCP test");
+        var createdCard = Assert.Single(cards, card => card.GetProperty("title").GetString() == "API in-process MCP test");
+        Assert.True(createdCard.TryGetProperty("cardTypeId", out _));
+        Assert.True(createdCard.TryGetProperty("cardTypeName", out _));
+        Assert.True(createdCard.TryGetProperty("cardTypeEmoji", out _));
     }
 
     [Fact]
@@ -147,6 +150,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
         Assert.True(createdCard.TryGetProperty("id", out _));
         Assert.True(createdCard.TryGetProperty("columnId", out _));
+        Assert.True(createdCard.TryGetProperty("cardTypeId", out _));
+        Assert.True(createdCard.TryGetProperty("cardTypeName", out _));
+        Assert.True(createdCard.TryGetProperty("cardTypeEmoji", out _));
         Assert.False(createdCard.TryGetProperty("cardId", out _));
         Assert.False(createdCard.TryGetProperty("boardColumnId", out _));
 
@@ -172,6 +178,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         // Assert
         Assert.True(boardCard.TryGetProperty("id", out _));
         Assert.True(boardCard.TryGetProperty("columnId", out _));
+        Assert.True(boardCard.TryGetProperty("cardTypeId", out _));
+        Assert.True(boardCard.TryGetProperty("cardTypeName", out _));
+        Assert.True(boardCard.TryGetProperty("cardTypeEmoji", out _));
         Assert.False(boardCard.TryGetProperty("cardId", out _));
         Assert.False(boardCard.TryGetProperty("boardColumnId", out _));
     }
@@ -225,10 +234,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
 
-        var createdCardId = McpJsonRpcClient.GetStructuredContent(createPayload)
-            .GetProperty("card")
-            .GetProperty("id")
-            .GetInt32();
+        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
+        var createdCardId = createdCard.GetProperty("id").GetInt32();
+        var createdCardTypeId = createdCard.GetProperty("cardTypeId").GetInt32();
 
         var updateResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -240,6 +248,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                 {
                     boardId = 1,
                     id = createdCardId,
+                    cardTypeId = createdCardTypeId,
                     title = "Canonical MCP card updated",
                     description = "updated with canonical ids",
                     tagNames = Array.Empty<string>()
@@ -467,6 +476,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                 {
                     boardId = 0,
                     id = 0,
+                    cardTypeId = 0,
                     title = "Invalid update",
                     description = "validation test",
                     tagNames = Array.Empty<string>()
@@ -483,8 +493,10 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         var validationErrors = structuredContent.GetProperty("validationErrors");
         Assert.True(validationErrors.TryGetProperty("boardId", out var boardIdErrors));
         Assert.True(validationErrors.TryGetProperty("id", out var idErrors));
+        Assert.True(validationErrors.TryGetProperty("cardTypeId", out var cardTypeIdErrors));
         Assert.NotEmpty(boardIdErrors.EnumerateArray());
         Assert.NotEmpty(idErrors.EnumerateArray());
+        Assert.NotEmpty(cardTypeIdErrors.EnumerateArray());
     }
 
     [Fact]

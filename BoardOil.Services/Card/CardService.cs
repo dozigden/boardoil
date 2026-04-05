@@ -127,14 +127,10 @@ public sealed class CardService(
         var updatedDescription = request.Description;
         var now = DateTime.UtcNow;
         var updatedTags = await ResolveTagsAsync(boardId, request.TagNames, now);
-        EntityCardType? selectedCardType = null;
-        if (request.CardTypeId is not null)
+        var selectedCardType = await _cardTypeRepository.GetByIdInBoardAsync(boardId, request.CardTypeId);
+        if (selectedCardType is null)
         {
-            selectedCardType = await _cardTypeRepository.GetByIdInBoardAsync(boardId, request.CardTypeId.Value);
-            if (selectedCardType is null)
-            {
-                return ValidationFail([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
-            }
+            return ValidationFail([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
         }
 
         var updatedTagNames = updatedTags
@@ -143,7 +139,7 @@ public sealed class CardService(
             .ToList();
         var existingTagNames = GetOrderedTagNames(existingCard);
         var tagsChanged = !existingTagNames.SequenceEqual(updatedTagNames, StringComparer.Ordinal);
-        var cardTypeChanged = selectedCardType is not null && selectedCardType.Id != existingCard.CardTypeId;
+        var cardTypeChanged = selectedCardType.Id != existingCard.CardTypeId;
         var metadataChanged = updatedTitle != existingCard.Title
             || updatedDescription != existingCard.Description
             || tagsChanged
@@ -159,7 +155,7 @@ public sealed class CardService(
 
             if (cardTypeChanged)
             {
-                existingCard.CardTypeId = selectedCardType!.Id;
+                existingCard.CardTypeId = selectedCardType.Id;
                 existingCard.CardType = selectedCardType;
             }
 

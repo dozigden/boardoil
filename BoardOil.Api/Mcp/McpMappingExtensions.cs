@@ -24,6 +24,9 @@ public static class McpMappingExtensions
         new(
             card.Id,
             card.BoardColumnId,
+            card.CardTypeId,
+            card.CardTypeName,
+            card.CardTypeEmoji,
             card.Title,
             card.Description,
             card.SortKey,

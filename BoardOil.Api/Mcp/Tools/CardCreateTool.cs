@@ -42,7 +42,7 @@ public sealed class CardCreateTool(
             return Failure(accessError);
         }
 
-        var request = new CreateCardRequest(columnId, input.Title, input.Description, input.TagNames);
+        var request = new CreateCardRequest(columnId, input.Title, input.Description, input.TagNames, input.CardTypeId);
         var result = await _cardService.CreateCardAsync(boardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {

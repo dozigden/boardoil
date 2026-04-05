@@ -26,7 +26,8 @@ public sealed class CardUpdateTool(
         IReadOnlyList<ValidationError> validationErrors =
         [
             ..McpToolCallHelpers.ValidateRequiredIdentifier(input.BoardId, "boardId"),
-            ..McpToolCallHelpers.ValidateRequiredIdentifier(input.Id, "id")
+            ..McpToolCallHelpers.ValidateRequiredIdentifier(input.Id, "id"),
+            ..McpToolCallHelpers.ValidateRequiredIdentifier(input.CardTypeId, "cardTypeId")
         ];
         if (validationErrors.Count > 0)
         {
@@ -42,7 +43,7 @@ public sealed class CardUpdateTool(
             return Failure(accessError);
         }
 
-        var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames);
+        var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames, input.CardTypeId!.Value);
         var result = await _cardService.UpdateCardAsync(boardId, cardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {

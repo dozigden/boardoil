@@ -162,7 +162,7 @@ function setDraftCardTypeId(rawValue: string) {
 }
 
 async function saveCard() {
-  if (!cardDraft.value) {
+  if (!cardDraft.value || cardDraft.value.cardTypeId === null) {
     return;
   }
 

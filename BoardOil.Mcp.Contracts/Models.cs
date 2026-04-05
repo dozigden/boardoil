@@ -32,6 +32,9 @@ public sealed record McpColumnSnapshot(
 public sealed record McpCardSnapshot(
     int Id,
     int ColumnId,
+    int CardTypeId,
+    string CardTypeName,
+    string? CardTypeEmoji,
     string Title,
     string Description,
     string SortKey,
@@ -61,6 +64,7 @@ public sealed record CardCreateInput
 {
     public int? BoardId { get; init; }
     public int? ColumnId { get; init; }
+    public int? CardTypeId { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyList<string>? TagNames { get; init; }
@@ -70,6 +74,7 @@ public sealed record CardUpdateInput
 {
     public int? BoardId { get; init; }
     public int? Id { get; init; }
+    public int? CardTypeId { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyList<string> TagNames { get; init; } = [];

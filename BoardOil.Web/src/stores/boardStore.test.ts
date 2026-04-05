@@ -318,7 +318,7 @@ describe('boardStore', () => {
     };
     api.saveCard.mockResolvedValue(ok(updated));
 
-    await store.saveCard(101, 'Task A+', 'Updated', ['Bug']);
+    await store.saveCard(101, 'Task A+', 'Updated', ['Bug'], 1);
 
     expect(store.board?.columns[0].cards[0].title).toBe('Task A+');
     expect(store.board?.columns[0].cards[0].tagNames).toEqual(['Bug']);
