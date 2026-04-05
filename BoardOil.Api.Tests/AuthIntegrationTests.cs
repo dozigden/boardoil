@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Tag;
 using Microsoft.Data.Sqlite;
@@ -274,6 +275,72 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_GetCardTypes_ShouldReturnOk()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.GetAsync("/api/boards/1/card-types");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_CreateCardType_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.PostAsJsonAsync(
+            "/api/boards/1/card-types",
+            new CreateCardTypeRequest("Feature"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_UpdateAndDeleteCardType_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
+        var createTypeResponse = await adminClient.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("Feature"));
+        createTypeResponse.EnsureSuccessStatusCode();
+        var createdTypeEnvelope = await createTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>();
+        Assert.NotNull(createdTypeEnvelope);
+        Assert.NotNull(createdTypeEnvelope!.Data);
+        var cardTypeId = createdTypeEnvelope.Data!.Id;
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var updateResponse = await standardClient.PutAsJsonAsync(
+            $"/api/boards/1/card-types/{cardTypeId}",
+            new UpdateCardTypeRequest("Platform"));
+        var deleteResponse = await standardClient.DeleteAsync($"/api/boards/1/card-types/{cardTypeId}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, updateResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
     }
 
     [Fact]

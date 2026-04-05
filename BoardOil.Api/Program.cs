@@ -191,6 +191,7 @@ app.MapBoardEndpoints();
 app.MapSystemBoardEndpoints();
 app.MapColumnEndpoints();
 app.MapCardEndpoints();
+app.MapCardTypeEndpoints();
 app.MapTagEndpoints();
 app.MapInternalRealtimeEndpoints();
 app.MapConfigurationEndpoints();
