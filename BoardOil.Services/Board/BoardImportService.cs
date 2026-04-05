@@ -89,6 +89,8 @@ public sealed class BoardImportService(
             UpdatedAtUtc = now
         });
         boardRepository.Add(board);
+        var systemCardType = CardTypeDefaults.CreateSystemForBoard(board, now);
+        board.CardTypes.Add(systemCardType);
 
         var tagsByNormalisedName = new Dictionary<string, EntityTag>(StringComparer.Ordinal);
         foreach (var importedTag in importModel.Tags)
@@ -132,6 +134,7 @@ public sealed class BoardImportService(
                 var createdCard = new EntityBoardCard
                 {
                     BoardColumn = createdColumn,
+                    CardType = systemCardType,
                     Title = importedCard.Name.Trim(),
                     Description = importedCard.Description,
                     SortKey = cardSortKey,

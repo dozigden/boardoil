@@ -5,6 +5,7 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Persistence.Abstractions.Card;
+using BoardOil.Persistence.Abstractions.CardType;
 using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Tag;
@@ -15,6 +16,7 @@ namespace BoardOil.Services.Card;
 
 public sealed class CardService(
     ICardRepository cardRepository,
+    ICardTypeRepository cardTypeRepository,
     IColumnRepository columnRepository,
     ITagRepository tagRepository,
     IBoardAuthorisationService boardAuthorisationService,
@@ -24,6 +26,7 @@ public sealed class CardService(
 {
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
+    private readonly ICardTypeRepository _cardTypeRepository = cardTypeRepository;
     private readonly ITagRepository _tagRepository = tagRepository;
 
     public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId)
@@ -48,6 +51,12 @@ public sealed class CardService(
             return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
         }
 
+        var systemCardType = await _cardTypeRepository.GetSystemByBoardIdAsync(boardId);
+        if (systemCardType is null)
+        {
+            return ApiErrors.InternalError("System card type not found for board.");
+        }
+
         var cards = (await cardRepository.GetCardsInColumnOrderedAsync(request.BoardColumnId)).ToList();
 
         var previousKey = cards.Count > 0 ? cards[^1].SortKey : null;
@@ -62,6 +71,7 @@ public sealed class CardService(
         var card = new EntityBoardCard
         {
             BoardColumnId = request.BoardColumnId,
+            CardTypeId = systemCardType.Id,
             Title = request.Title.Trim(),
             Description = request.Description,
             SortKey = sortKey!,

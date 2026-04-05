@@ -36,10 +36,14 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.Equal("New Card", result.Data.Title);
         Assert.Equal("Desc", result.Data.Description);
         var stored = await DbContextForAssert.Cards.SingleAsync();
+        var systemCardType = await DbContextForAssert.CardTypes.SingleAsync();
 
         Assert.Equal(todoColumnId, stored.BoardColumnId);
+        Assert.Equal(systemCardType.Id, stored.CardTypeId);
         Assert.Equal("New Card", stored.Title);
         Assert.Equal("Desc", stored.Description);
+        Assert.True(systemCardType.IsSystem);
+        Assert.Equal("Story", systemCardType.Name);
         Assert.Empty(result.Data.TagNames);
     }
 

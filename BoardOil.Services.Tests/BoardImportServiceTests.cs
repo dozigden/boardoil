@@ -58,12 +58,16 @@ public sealed class BoardImportServiceTests : TestBaseDb
 
         var columns = DbContextForAssert.Columns.Where(x => x.BoardId == boardId).OrderBy(x => x.SortKey).ToList();
         Assert.Equal(["Todo", "Done"], columns.Select(x => x.Title).ToArray());
+        var systemCardType = DbContextForAssert.CardTypes.Single(x => x.BoardId == boardId && x.IsSystem);
+        Assert.Equal("Story", systemCardType.Name);
+        Assert.Null(systemCardType.Emoji);
 
         var todoCards = DbContextForAssert.Cards
             .Where(x => x.BoardColumnId == columns[0].Id)
             .OrderBy(x => x.SortKey)
             .ToList();
         Assert.Equal(["Card A", "Card B"], todoCards.Select(x => x.Title).ToArray());
+        Assert.All(todoCards, x => Assert.Equal(systemCardType.Id, x.CardTypeId));
 
         var tags = DbContextForAssert.Tags.Where(x => x.BoardId == boardId).OrderBy(x => x.Name).ToList();
         Assert.Equal(["MissingTag", "Urgent"], tags.Select(x => x.Name).ToArray());

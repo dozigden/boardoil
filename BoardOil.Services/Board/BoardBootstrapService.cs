@@ -3,6 +3,7 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Services.Card;
 using BoardOil.Persistence.Abstractions.Users;
 using BoardOil.Services.Ordering;
 
@@ -45,6 +46,7 @@ public sealed class BoardBootstrapService(
         }
 
         boardRepository.Add(board);
+        board.CardTypes.Add(CardTypeDefaults.CreateSystemForBoard(board, now));
 
         var seedTitles = new[] { "Todo", "In Progress", "Done" };
         string? previousSortKey = null;
