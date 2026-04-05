@@ -49,6 +49,22 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
   - chip/suggestion controls inside tag editors (`.tag-pill-remove`, `.card-tag-editor-suggestion`)
   - inline title edit trigger (`.card-title-button`)
 
+## Contract and Store Authority
+
+- Be explicit about which client store is authoritative for a given kind of data.
+- A denormalised field on an entity read model can exist for convenience without becoming the authoritative source for live rendering or mutation flows.
+- When backend contracts expose both:
+  - rich embedded read data for convenience
+  - and a separate catalogue/store with the same underlying metadata
+  document and preserve which one the UI should treat as authoritative.
+- Prefer this pattern when it avoids broad fan-out updates:
+  - integrations can consume rich embedded data in one hit
+  - the web app can still rely on a dedicated catalogue store for live shared metadata such as styling or labels that affect many entities at once
+- Keep full-update form/edit flows cheap:
+  - if writes remain full replacement updates, stores/components should be able to round-trip unchanged fields without projection-heavy conversion work
+  - avoid introducing client complexity just because a richer read model exists
+- For future entity/store design (not just tags), treat “authoritative source” and “convenience read shape” as separate design decisions and record both when adding new contracts.
+
 ## Realtime Conventions
 
 - `boardStore` owns realtime connect/disconnect for board workspace views.
