@@ -4,14 +4,14 @@ This file defines how agents should manage work tracking and source control in t
 
 ## MCP Board Operations
 
-- Use one of these scripts for board actions (and never any other method):
-  - `./scripts/board-mcp.sh` for general board operations.
-  - `./scripts/board-card-description-set-from-file.sh` for card description updates from a file.
-- Prefer script commands:
-  - `board-get`
-  - `board-cards`
-  - `card-move`
-  - `call --tool card.update` (for description/status updates)
+- Story `#82` is an active workflow experiment to try direct MCP board operations instead of the repository proxy scripts.
+- During this experiment:
+  - direct MCP board operations are allowed and preferred
+  - keep notes on `#82` about ergonomics, reliability, and whether this reduces elevation prompts
+  - use scripts only if direct MCP is clearly blocked or materially worse for the case at hand
+- Historical script entry points still exist:
+  - `./scripts/board-mcp.sh` for general board operations
+  - `./scripts/board-card-description-set-from-file.sh` for card description updates from a file
 - Treat the board as the execution source of truth during board-driven work.
 
 ## MCP Authentication Notes
