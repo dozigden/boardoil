@@ -37,37 +37,3 @@ public sealed record UpdateCardRequest(
 public sealed record MoveCardRequest(
     int BoardColumnId,
     int? PositionAfterCardId);
-
-public sealed record CardRecord(
-    int Id,
-    int BoardColumnId,
-    int CardTypeId,
-    string CardTypeName,
-    string? CardTypeEmoji,
-    string Title,
-    string Description,
-    string SortKey,
-    IReadOnlyList<CardTagDto> Tags,
-    IReadOnlyList<string> TagNames,
-    DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc);
-
-public sealed record CreateCardRecord(
-    int BoardColumnId,
-    int CardTypeId,
-    string Title,
-    string Description,
-    string SortKey,
-    IReadOnlyList<string> TagNames,
-    DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc);
-
-public sealed record UpdateCardRecord(
-    int Id,
-    int BoardColumnId,
-    int CardTypeId,
-    string Title,
-    string Description,
-    string SortKey,
-    IReadOnlyList<string>? TagNames,
-    DateTime UpdatedAtUtc);

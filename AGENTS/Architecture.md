@@ -38,12 +38,15 @@ Default: one save per service operation unless a specific transactional reason r
 ## Contract Design Guidance
 
 - Prefer endpoint-specific DTOs when read and write concerns diverge; do not force one contract shape to serve both equally if that makes either side awkward.
+- Do not create multiple DTOs or record types for the same area unless there is a genuine difference to justify them. A naming distinction on its own is not enough; there should be a concrete difference in fields, behaviour, lifecycle, audience, or contract semantics.
+- If two DTOs have the same shape and are used the same way, prefer a single contract until a real divergence appears. Avoid speculative semantic types that add naming without adding clarity.
 - Full-update (`PUT`) contracts should remain cheap for clients to round-trip. If a client edits one field and keeps the rest unchanged, it should not need complex shape conversion just to resend the untouched fields.
 - Denormalised read models are acceptable when they materially improve consumer ergonomics (for example richer one-hit payloads for integrations), but treat that as a convenience projection rather than proof that the denormalised payload is the only source of truth.
 - When a read model duplicates data from a catalogue or parent entity, explicitly document the intended authority model:
   - which payload/store is authoritative for live updates and mutations
   - which payload is convenience/snapshot data for easier reads
 - Do not introduce partial-update contracts just to paper over awkward DTO design. Prefer improving the contract shape first; adopt `PATCH` only when partial semantics are genuinely required.
+- Periodically remove dead or orphaned contract types when the intended abstraction never materialised. Unused DTO/record layers create noise and make the real architecture harder to read.
 
 ## Boundaries
 
