@@ -50,6 +50,9 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     hubConnection.on('CardMoved', async (card: Card) => {
       await handlers.onCardMoved(card);
     });
+    hubConnection.on('ResyncRequested', async () => {
+      await handlers.onResync();
+    });
 
     hubConnection.onreconnected(async () => {
       if (subscribedBoardId !== null) {

@@ -5,6 +5,7 @@ import { sortBoard } from '../mappers/sortBoard';
 import { createBoardRealtime } from '../realtime/boardRealtime';
 import { useUiFeedbackStore } from './uiFeedbackStore';
 import { useCardStore } from './cardStore';
+import { useCardTypeStore } from './cardTypeStore';
 import type { Board, BoardSummary, Column } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
@@ -20,6 +21,7 @@ export const useBoardStore = defineStore('board', () => {
   const currentBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const cardStore = useCardStore();
+  const cardTypeStore = useCardTypeStore();
   const api = createBoardApi();
   const board = computed<Board | null>(() => {
     if (!boardShell.value) {
@@ -48,6 +50,7 @@ export const useBoardStore = defineStore('board', () => {
     onResync: async () => {
       if (currentBoardId.value !== null) {
         await loadBoard(currentBoardId.value);
+        await cardTypeStore.loadCardTypes(currentBoardId.value);
       }
     }
   });

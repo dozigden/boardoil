@@ -13,7 +13,7 @@
     @dragend="onDragEnd"
   >
     <div class="card-header">
-      <strong>{{ card.cardTypeEmoji ? `${card.cardTypeEmoji} ` : '' }}{{ card.title }}</strong>
+      <strong>{{ resolvedCardTypeEmoji ? `${resolvedCardTypeEmoji} ` : '' }}{{ card.title }}</strong>
       <span class="badge">#{{ card.id }}</span>
     </div>
 
@@ -29,8 +29,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import type { Card as BoardCard } from '../types/boardTypes';
+import { useCardTypeStore } from '../stores/cardTypeStore';
 import Tag from './Tag.vue';
 
 const props = defineProps<{
@@ -44,7 +45,9 @@ const emit = defineEmits<{
   'edit-card': [cardId: number];
 }>();
 
+const cardTypeStore = useCardTypeStore();
 const isDragging = ref(false);
+const resolvedCardTypeEmoji = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId)?.emoji ?? null);
 
 function onDragStart() {
   isDragging.value = true;
