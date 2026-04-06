@@ -5,7 +5,7 @@ using BoardOil.Contracts.Contracts;
 using BoardOil.Services.Auth;
 using System.Security.Claims;
 
-namespace BoardOil.Api.Auth;
+namespace BoardOil.Api.Endpoints;
 
 public static class AuthEndpoints
 {
