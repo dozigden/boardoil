@@ -5,21 +5,6 @@ namespace BoardOil.Services.Card;
 
 public static class CardMappingExtensions
 {
-    public static CardDto ToCardDto(this CardRecord card) =>
-        new(
-            card.Id,
-            card.BoardColumnId,
-            card.CardTypeId,
-            card.CardTypeName,
-            card.CardTypeEmoji,
-            card.Title,
-            card.Description,
-            card.SortKey,
-            card.Tags,
-            card.TagNames,
-            card.CreatedAtUtc,
-            card.UpdatedAtUtc);
-
     public static CardDto ToCardDto(this EntityBoardCard card) =>
         new(
             card.Id,
