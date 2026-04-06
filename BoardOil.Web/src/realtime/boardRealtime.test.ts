@@ -88,6 +88,26 @@ describe('boardRealtime', () => {
     expect(onResync).toHaveBeenCalledTimes(1);
   });
 
+  it('resyncs when explicit resync event is received', async () => {
+    const onResync = vi.fn(async () => undefined);
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(),
+      onColumnUpdated: vi.fn(),
+      onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(),
+      onCardUpdated: vi.fn(),
+      onCardDeleted: vi.fn(),
+      onCardMoved: vi.fn(),
+      onResync
+    });
+
+    await realtime.connect(42);
+    await connection.eventHandlers.ResyncRequested?.();
+
+    expect(onResync).toHaveBeenCalledTimes(1);
+  });
+
   it('still stops connection when unsubscribe fails during disconnect', async () => {
     const { createBoardRealtime } = await import('./boardRealtime');
     const realtime = createBoardRealtime({

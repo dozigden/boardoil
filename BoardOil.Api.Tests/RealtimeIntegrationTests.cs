@@ -102,6 +102,48 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
         Assert.Equal("🐞", updatedCard.CardTypeEmoji);
     }
 
+    [Fact]
+    public async Task CardTypeUpdated_ShouldRequestBoardResync()
+    {
+        var createTypeResponse = await Client.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("Bug", "🐞"));
+        createTypeResponse.EnsureSuccessStatusCode();
+        var createdTypeEnvelope = await createTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>();
+        Assert.NotNull(createdTypeEnvelope);
+        Assert.NotNull(createdTypeEnvelope!.Data);
+
+        await using var connection = CreateHubConnection();
+        var resyncEvent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.On("ResyncRequested", () => resyncEvent.TrySetResult(true));
+        await StartConnectionsAsync(1, connection);
+
+        var updateTypeResponse = await Client.PutAsJsonAsync(
+            $"/api/boards/1/card-types/{createdTypeEnvelope.Data!.Id}",
+            new UpdateCardTypeRequest("Defect", "⚠️"));
+        updateTypeResponse.EnsureSuccessStatusCode();
+
+        await WaitAsync(resyncEvent.Task);
+    }
+
+    [Fact]
+    public async Task CardTypeDeleted_ShouldRequestBoardResync()
+    {
+        var createTypeResponse = await Client.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("Bug", "🐞"));
+        createTypeResponse.EnsureSuccessStatusCode();
+        var createdTypeEnvelope = await createTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>();
+        Assert.NotNull(createdTypeEnvelope);
+        Assert.NotNull(createdTypeEnvelope!.Data);
+
+        await using var connection = CreateHubConnection();
+        var resyncEvent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.On("ResyncRequested", () => resyncEvent.TrySetResult(true));
+        await StartConnectionsAsync(1, connection);
+
+        var deleteTypeResponse = await Client.DeleteAsync($"/api/boards/1/card-types/{createdTypeEnvelope.Data!.Id}");
+        deleteTypeResponse.EnsureSuccessStatusCode();
+
+        await WaitAsync(resyncEvent.Task);
+    }
+
     private async Task<ColumnDto> CreateColumnAsync(string title)
     {
         var response = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest(title));

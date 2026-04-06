@@ -14,4 +14,5 @@ public sealed class TestBoardEvents : IBoardEvents
     public Task CardUpdatedAsync(int boardId, CardDto card) => Task.CompletedTask;
     public Task CardDeletedAsync(int boardId, int cardId) => Task.CompletedTask;
     public Task CardMovedAsync(int boardId, CardDto card) => Task.CompletedTask;
+    public Task ResyncRequestedAsync(int boardId) => Task.CompletedTask;
 }

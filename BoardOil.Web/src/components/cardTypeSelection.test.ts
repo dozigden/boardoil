@@ -22,11 +22,11 @@ const cardTypes = [
 
 describe('resolveSelectedCardTypeEmoji', () => {
   it('returns selected card type emoji when card type exists', () => {
-    expect(resolveSelectedCardTypeEmoji(2, cardTypes, null)).toBe('🐞');
+    expect(resolveSelectedCardTypeEmoji(2, cardTypes)).toBe('🐞');
   });
 
-  it('falls back to provided emoji when card type is missing', () => {
-    expect(resolveSelectedCardTypeEmoji(999, cardTypes, '⭐')).toBe('⭐');
+  it('returns null when card type is missing', () => {
+    expect(resolveSelectedCardTypeEmoji(999, cardTypes)).toBeNull();
   });
 });
 

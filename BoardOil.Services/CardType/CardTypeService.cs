@@ -1,3 +1,4 @@
+using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.CardType;
 using BoardOil.Abstractions.DataAccess;
@@ -16,10 +17,12 @@ public sealed class CardTypeService(
     ICardTypeRepository cardTypeRepository,
     ICardRepository cardRepository,
     IBoardAuthorisationService boardAuthorisationService,
+    IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardTypeService
 {
     private const int MaxCardTypeNameLength = 40;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
+    private readonly IBoardEvents _boardEvents = boardEvents;
 
     public async Task<ApiResult<IReadOnlyList<CardTypeDto>>> GetCardTypesAsync(int boardId, int actorUserId)
     {
@@ -95,6 +98,7 @@ public sealed class CardTypeService(
         cardTypeRepository.Add(entity);
 
         await scope.SaveChangesAsync();
+        await _boardEvents.ResyncRequestedAsync(boardId);
 
         return ApiResults.Created(entity.ToCardTypeDto());
     }
@@ -152,6 +156,7 @@ public sealed class CardTypeService(
         existing.UpdatedAtUtc = DateTime.UtcNow;
 
         await scope.SaveChangesAsync();
+        await _boardEvents.ResyncRequestedAsync(boardId);
 
         return existing.ToCardTypeDto();
     }
@@ -198,6 +203,7 @@ public sealed class CardTypeService(
 
         cardTypeRepository.Remove(existing);
         await scope.SaveChangesAsync();
+        await _boardEvents.ResyncRequestedAsync(boardId);
 
         return ApiResults.Ok();
     }

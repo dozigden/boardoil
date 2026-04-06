@@ -112,8 +112,7 @@ const editingCard = computed(() => cardStore.getCardById(routeCardId.value));
 const selectedCardTypeEmoji = computed(() => {
   return resolveSelectedCardTypeEmoji(
     cardDraft.value?.cardTypeId ?? null,
-    cardTypes.value,
-    editingCard.value?.cardTypeEmoji ?? null
+    cardTypes.value
   );
 });
 const descriptionDraft = computed({
