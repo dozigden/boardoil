@@ -4,6 +4,7 @@ using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Services.Auth;
 using System.Security.Claims;
+using BoardOil.Api.Auth;
 
 namespace BoardOil.Api.Endpoints;
 
