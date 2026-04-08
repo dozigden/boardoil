@@ -2,9 +2,14 @@ import type { Board, BoardMember, BoardMemberRole, BoardSummary, Card, CardType,
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
-import { deleteJson, getEnvelope, patchData, postData, putData } from './http';
+import { deleteJson, getBinary, getEnvelope, patchData, postData, putData } from './http';
 
 export type BoardApi = ReturnType<typeof createBoardApi>;
+export type BoardExportPackage = {
+  fileName: string;
+  contentType: string | null;
+  blob: Blob;
+};
 
 export function createBoardApi() {
   async function getBoards(): Promise<Result<BoardSummary[], AppError>> {
@@ -38,6 +43,19 @@ export function createBoardApi() {
 
   async function importTasksMdBoard(url: string): Promise<Result<Board, AppError>> {
     return postData<Board>('/api/boards/import/tasksmd', { url });
+  }
+
+  async function exportBoard(boardId: number): Promise<Result<BoardExportPackage, AppError>> {
+    const result = await getBinary(`/api/boards/${boardId}/export`);
+    if (!result.ok) {
+      return result;
+    }
+
+    return ok({
+      fileName: result.data.fileName,
+      contentType: result.data.contentType,
+      blob: result.data.blob
+    });
   }
 
   async function saveBoard(boardId: number, name: string): Promise<Result<BoardSummary, AppError>> {
@@ -222,6 +240,7 @@ export function createBoardApi() {
     getBoard,
     createBoard,
     importTasksMdBoard,
+    exportBoard,
     saveBoard,
     deleteBoard,
     getBoardMembers,

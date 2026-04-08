@@ -154,4 +154,30 @@ describe('http api client', () => {
     expect(result.ok).toBe(false);
     expect(unauthorizedSpy).not.toHaveBeenCalled();
   });
+
+  it('returns binary payload with filename from content-disposition', async () => {
+    const fetchMock = vi.mocked(fetch);
+    const fileBlob = new Blob(['zip-content'], { type: 'application/zip' });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        'Content-Type': 'application/zip',
+        'Content-Disposition': "attachment; filename*=UTF-8''BoardOil.boardoil.zip"
+      }),
+      blob: async () => fileBlob
+    } as unknown as Response);
+
+    const { getBinary } = await import('./http');
+    const result = await getBinary('/api/boards/1/export');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected success result.');
+    }
+
+    expect(result.data.fileName).toBe('BoardOil.boardoil.zip');
+    expect(result.data.contentType).toBe('application/zip');
+    expect(result.data.blob).toBe(fileBlob);
+  });
 });
