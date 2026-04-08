@@ -1,0 +1,59 @@
+using BoardOil.Contracts.Board;
+using BoardOil.Services.Board;
+using Xunit;
+
+namespace BoardOil.Services.Tests;
+
+public sealed class BoardPackageContractTests
+{
+    [Fact]
+    public void ValidateManifest_WhenUsingCurrentSchema_ShouldSucceed()
+    {
+        var manifest = new BoardPackageManifestDto(
+            BoardPackageContract.PackageFormat,
+            BoardPackageContract.CurrentSchemaVersion,
+            "0.2.0",
+            [new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, BoardPackageContract.BoardEntryPath)]);
+
+        var validationError = BoardPackageContract.ValidateManifest(manifest);
+
+        Assert.Null(validationError);
+        Assert.True(BoardPackageContract.IsSupportedSchemaVersion(manifest.SchemaVersion));
+    }
+
+    [Fact]
+    public void ValidateManifest_WhenSchemaVersionIsFuture_ShouldFailWithClearError()
+    {
+        var manifest = new BoardPackageManifestDto(
+            BoardPackageContract.PackageFormat,
+            BoardPackageContract.CurrentSchemaVersion + 1,
+            "999.0.0",
+            [new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, BoardPackageContract.BoardEntryPath)]);
+
+        var validationError = BoardPackageContract.ValidateManifest(manifest);
+
+        Assert.NotNull(validationError);
+        Assert.Equal(400, validationError!.StatusCode);
+        Assert.NotNull(validationError.ValidationErrors);
+        Assert.True(validationError.ValidationErrors!.ContainsKey("manifest.schemaVersion"));
+        Assert.Contains(
+            "Maximum supported version is",
+            validationError.ValidationErrors["manifest.schemaVersion"][0]);
+    }
+
+    [Fact]
+    public void ValidateManifest_WhenBoardEntryPathIsWrong_ShouldFail()
+    {
+        var manifest = new BoardPackageManifestDto(
+            BoardPackageContract.PackageFormat,
+            BoardPackageContract.CurrentSchemaVersion,
+            "0.2.0",
+            [new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, "board-data.json")]);
+
+        var validationError = BoardPackageContract.ValidateManifest(manifest);
+
+        Assert.NotNull(validationError);
+        Assert.NotNull(validationError!.ValidationErrors);
+        Assert.True(validationError.ValidationErrors!.ContainsKey("manifest.entries"));
+    }
+}
