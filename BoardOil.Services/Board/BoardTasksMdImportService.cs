@@ -15,13 +15,13 @@ using BoardOil.TasksMd;
 
 namespace BoardOil.Services.Board;
 
-public sealed class BoardImportService(
+public sealed class BoardTasksMdImportService(
     IBoardRepository boardRepository,
     IColumnRepository columnRepository,
     ICardRepository cardRepository,
     ITagRepository tagRepository,
     ITasksMdClient tasksMdClient,
-    IDbContextScopeFactory scopeFactory) : IBoardImportService
+    IDbContextScopeFactory scopeFactory) : IBoardTasksMdImportService
 {
     private const int MaxBoardNameLength = 120;
     private const int MaxColumnNameLength = 200;
@@ -65,7 +65,7 @@ public sealed class BoardImportService(
         }
 
         var boardName = sourceUrl.Host;
-        var validationResult = ValidateImportModel(boardName, importModel);
+        var validationResult = ValidateTasksMdImportModel(boardName, importModel);
         if (validationResult is not null)
         {
             return validationResult;
@@ -225,18 +225,11 @@ public sealed class BoardImportService(
         }
     }
 
-    private static ApiError? ValidateImportModel(string boardName, TasksMdBoardImportModel importModel)
+    private static ApiError? ValidateTasksMdImportModel(string boardName, TasksMdBoardImportModel importModel)
     {
         var validationErrors = new List<ValidationError>();
 
-        if (string.IsNullOrWhiteSpace(boardName))
-        {
-            validationErrors.Add(new ValidationError("url", "tasksmd URL host is required."));
-        }
-        else if (boardName.Length > MaxBoardNameLength)
-        {
-            validationErrors.Add(new ValidationError("url", "Board name derived from URL host must be 120 characters or fewer."));
-        }
+        ValidateBoardName(boardName, "url", validationErrors, "tasksmd URL host is required.");
 
         for (var columnIndex = 0; columnIndex < importModel.Columns.Count; columnIndex++)
         {
@@ -282,31 +275,61 @@ public sealed class BoardImportService(
             return null;
         }
 
-        return ApiErrors.BadRequest("Validation failed.", validationErrors);
+        return ValidationFail(validationErrors);
+    }
+
+    private static void ValidateBoardName(
+        string boardName,
+        string property,
+        ICollection<ValidationError> validationErrors,
+        string? emptyMessage = null)
+    {
+        if (string.IsNullOrWhiteSpace(boardName))
+        {
+            validationErrors.Add(new ValidationError(property, emptyMessage ?? "Board name is required."));
+            return;
+        }
+
+        if (boardName.Length > MaxBoardNameLength)
+        {
+            validationErrors.Add(new ValidationError(property, "Board name must be 120 characters or fewer."));
+        }
     }
 
     private static void ValidateTagNames(IReadOnlyList<string> tagNames, string propertyPrefix, ICollection<ValidationError> validationErrors)
     {
         for (var tagIndex = 0; tagIndex < tagNames.Count; tagIndex++)
         {
-            var tagName = tagNames[tagIndex].Trim();
-            var property = $"{propertyPrefix}[{tagIndex}]";
-            if (tagName.Length == 0)
+            var tagNameValidation = ValidateTagName(tagNames[tagIndex], $"{propertyPrefix}[{tagIndex}]");
+            if (tagNameValidation.Error is not null)
             {
-                validationErrors.Add(new ValidationError(property, "Tag name is required."));
-                continue;
-            }
-
-            if (tagName.Contains(',', StringComparison.Ordinal))
-            {
-                validationErrors.Add(new ValidationError(property, "Tag name must be a single value."));
-            }
-
-            if (tagName.Length > MaxTagNameLength)
-            {
-                validationErrors.Add(new ValidationError(property, "Tag name must be 40 characters or fewer."));
+                validationErrors.Add(tagNameValidation.Error);
             }
         }
+    }
+
+    private static TagNameValidationResult ValidateTagName(string? rawTagName, string property)
+    {
+        if (string.IsNullOrWhiteSpace(rawTagName))
+        {
+            return new TagNameValidationResult(string.Empty, string.Empty, new ValidationError(property, "Tag name is required."));
+        }
+
+        var canonicalTagName = rawTagName.Trim();
+        if (canonicalTagName.Contains(',', StringComparison.Ordinal))
+        {
+            return new TagNameValidationResult(string.Empty, string.Empty, new ValidationError(property, "Tag name must be a single value."));
+        }
+
+        if (canonicalTagName.Length > MaxTagNameLength)
+        {
+            return new TagNameValidationResult(
+                string.Empty,
+                string.Empty,
+                new ValidationError(property, "Tag name must be 40 characters or fewer."));
+        }
+
+        return new TagNameValidationResult(canonicalTagName, NormaliseTagName(canonicalTagName), null);
     }
 
     private static string BuildSolidTagStyleProperties(string hexColor) =>
@@ -321,4 +344,9 @@ public sealed class BoardImportService(
 
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
         ApiErrors.BadRequest("Validation failed.", validationErrors);
+
+    private sealed record TagNameValidationResult(
+        string CanonicalName,
+        string NormalisedName,
+        ValidationError? Error);
 }

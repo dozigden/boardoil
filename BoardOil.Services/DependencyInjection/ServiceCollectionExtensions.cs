@@ -59,7 +59,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBoardService, BoardService>();
         services.AddScoped<IBoardExportService, BoardExportService>();
-        services.AddScoped<IBoardImportService, BoardImportService>();
+        services.AddScoped<IBoardPackageImportService, BoardPackageImportService>();
+        services.AddScoped<IBoardTasksMdImportService, BoardTasksMdImportService>();
         services.AddScoped<ISystemBoardService, SystemBoardService>();
         services.AddScoped<IBoardAuthorisationService, BoardAuthorisationService>();
         services.AddScoped<IBoardMemberService, BoardMemberService>();
