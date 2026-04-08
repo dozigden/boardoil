@@ -9,6 +9,12 @@ let unauthorizedHandler: (() => void | Promise<void>) | null = null;
 let handlingUnauthorized = false;
 let refreshInFlight: Promise<boolean> | null = null;
 
+export type BinaryResponse = {
+  blob: Blob;
+  fileName: string;
+  contentType: string | null;
+};
+
 export function setCsrfToken(token: string | null) {
   csrfToken = token;
 }
@@ -80,6 +86,30 @@ export async function deleteJson(path: string): Promise<Result<void, AppError>> 
   return err({
     kind: 'api',
     message: envelopeResult.data.message ?? `Request failed with status ${responseResult.data.status}`
+  });
+}
+
+export async function getBinary(path: string): Promise<Result<BinaryResponse, AppError>> {
+  const responseResult = await request(path, { method: 'GET' });
+  if (!responseResult.ok) {
+    return responseResult;
+  }
+
+  const response = responseResult.data;
+  let blob: Blob;
+  try {
+    blob = await response.blob();
+  } catch {
+    return err({
+      kind: 'parse',
+      message: 'Unexpected binary API response.'
+    });
+  }
+
+  return ok({
+    blob,
+    fileName: extractFileName(response.headers.get('Content-Disposition')!),
+    contentType: response.headers.get('Content-Type')
   });
 }
 
@@ -301,4 +331,18 @@ async function parseEnvelope<T>(response: Response): Promise<Result<ApiEnvelope<
     kind: 'parse',
     message: 'Unexpected empty API response.'
   });
+}
+
+function extractFileName(contentDisposition: string) {
+  const encodedMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encodedMatch && encodedMatch[1]) {
+    try {
+      return decodeURIComponent(encodedMatch[1].trim().replace(/^"|"$/g, ''));
+    } catch {
+      return encodedMatch[1].trim().replace(/^"|"$/g, '');
+    }
+  }
+
+  const simpleMatch = contentDisposition.match(/filename=([^;]+)/i);
+  return simpleMatch![1].trim().replace(/^"|"$/g, '');
 }
