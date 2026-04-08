@@ -113,8 +113,8 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
         var payload = new BoardPackageBoardDto(
             "Imported API Board",
             [
-                new BoardPackageCardTypeDto("Story", null, true),
-                new BoardPackageCardTypeDto("Bug", "🐞", false)
+                new BoardPackageCardTypeDto("Story", null, true, "solid", """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}"""),
+                new BoardPackageCardTypeDto("Bug", "🐞", false, "gradient", """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""")
             ],
             [
                 new BoardPackageTagDto("Urgent", "solid", """{"backgroundColor":"#ED333B","textColorMode":"auto"}""", "🧪")

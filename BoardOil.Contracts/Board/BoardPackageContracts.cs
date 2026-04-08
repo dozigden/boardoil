@@ -19,7 +19,9 @@ public sealed record BoardPackageBoardDto(
 public sealed record BoardPackageCardTypeDto(
     string Name,
     string? Emoji,
-    bool IsSystem);
+    bool IsSystem,
+    string? StyleName = null,
+    string? StylePropertiesJson = null);
 
 public sealed record BoardPackageTagDto(
     string Name,

@@ -74,6 +74,8 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         cardType.Property(x => x.BoardId).IsRequired();
         cardType.Property(x => x.Name).HasMaxLength(40).IsRequired();
         cardType.Property(x => x.Emoji).HasMaxLength(32).IsRequired(false);
+        cardType.Property(x => x.StyleName).HasMaxLength(64).IsRequired();
+        cardType.Property(x => x.StylePropertiesJson).IsRequired();
         cardType.Property(x => x.IsSystem).IsRequired();
         cardType.ToTable("CardTypes");
         cardType.HasIndex(x => x.BoardId);

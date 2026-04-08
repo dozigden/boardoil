@@ -8,6 +8,7 @@ using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Card;
 using BoardOil.Persistence.Abstractions.CardType;
 using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Services.Card;
 using BoardOil.Services.Tag;
 
 namespace BoardOil.Services.CardType;
@@ -91,6 +92,8 @@ public sealed class CardTypeService(
             BoardId = boardId,
             Name = nameValidation.CanonicalName,
             Emoji = emojiValidation.CanonicalEmoji,
+            StyleName = ResolveStyleName(request.StyleName),
+            StylePropertiesJson = ResolveStylePropertiesJson(request.StylePropertiesJson),
             IsSystem = false,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
@@ -153,6 +156,8 @@ public sealed class CardTypeService(
 
         existing.Name = nameValidation.CanonicalName;
         existing.Emoji = emojiValidation.CanonicalEmoji;
+        existing.StyleName = ResolveStyleName(request.StyleName, existing.StyleName);
+        existing.StylePropertiesJson = ResolveStylePropertiesJson(request.StylePropertiesJson, existing.StylePropertiesJson);
         existing.UpdatedAtUtc = DateTime.UtcNow;
 
         await scope.SaveChangesAsync();
@@ -232,6 +237,36 @@ public sealed class CardTypeService(
 
     private static string NormaliseName(string name) =>
         name.ToUpperInvariant();
+
+    private static string ResolveStyleName(string? requestedStyleName, string? existingStyleName = null)
+    {
+        if (!string.IsNullOrWhiteSpace(requestedStyleName))
+        {
+            return requestedStyleName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(existingStyleName))
+        {
+            return existingStyleName.Trim();
+        }
+
+        return CardTypeDefaults.DefaultStyleName;
+    }
+
+    private static string ResolveStylePropertiesJson(string? requestedStylePropertiesJson, string? existingStylePropertiesJson = null)
+    {
+        if (!string.IsNullOrWhiteSpace(requestedStylePropertiesJson))
+        {
+            return requestedStylePropertiesJson.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(existingStylePropertiesJson))
+        {
+            return existingStylePropertiesJson.Trim();
+        }
+
+        return CardTypeDefaults.DefaultStylePropertiesJson;
+    }
 
     private sealed record CardTypeNameValidationResult(
         string CanonicalName,

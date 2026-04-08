@@ -10,6 +10,8 @@ public static class CardTypeMappingExtensions
             cardType.Id,
             cardType.Name,
             cardType.Emoji,
+            cardType.StyleName,
+            cardType.StylePropertiesJson,
             cardType.IsSystem,
             cardType.CreatedAtUtc,
             cardType.UpdatedAtUtc);

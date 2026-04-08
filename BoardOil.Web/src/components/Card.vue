@@ -1,6 +1,7 @@
 <template>
   <div
     class="card"
+    :style="cardStyle"
     draggable="true"
     role="button"
     tabindex="0"
@@ -32,6 +33,7 @@
 import { computed, ref } from 'vue';
 import type { Card as BoardCard } from '../types/boardTypes';
 import { useCardTypeStore } from '../stores/cardTypeStore';
+import { getCardSurfaceStyle } from '../utils/cardTypeStyles';
 import Tag from './Tag.vue';
 
 const props = defineProps<{
@@ -47,7 +49,9 @@ const emit = defineEmits<{
 
 const cardTypeStore = useCardTypeStore();
 const isDragging = ref(false);
-const resolvedCardTypeEmoji = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId)?.emoji ?? null);
+const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId));
+const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
+const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
 
 function onDragStart() {
   isDragging.value = true;

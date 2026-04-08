@@ -80,6 +80,8 @@ public sealed class BoardPackageImportService(
 
         var systemCardType = CardTypeDefaults.CreateSystemForBoard(board, now);
         board.CardTypes.Add(systemCardType);
+        systemCardType.StyleName = importPlan.SystemCardTypeStyleName;
+        systemCardType.StylePropertiesJson = importPlan.SystemCardTypeStylePropertiesJson;
         var cardTypesByNormalisedName = new Dictionary<string, EntityCardType>(StringComparer.Ordinal)
         {
             [NormaliseName(CardTypeDefaults.SystemTypeName)] = systemCardType
@@ -92,6 +94,8 @@ public sealed class BoardPackageImportService(
                 Board = board,
                 Name = cardType.Name,
                 Emoji = cardType.Emoji,
+                StyleName = cardType.StyleName,
+                StylePropertiesJson = cardType.StylePropertiesJson,
                 IsSystem = false,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
@@ -355,6 +359,8 @@ public sealed class BoardPackageImportService(
         }
 
         var plannedCardTypes = new List<CardTypeImportDefinition>();
+        var systemCardTypeStyleName = CardTypeDefaults.DefaultStyleName;
+        var systemCardTypeStylePropertiesJson = CardTypeDefaults.DefaultStylePropertiesJson;
         var knownCardTypeNames = new HashSet<string>(StringComparer.Ordinal)
         {
             NormaliseName(CardTypeDefaults.SystemTypeName)
@@ -401,6 +407,8 @@ public sealed class BoardPackageImportService(
                             $"Card type '{cardTypeNameValidation.CanonicalName}' is reserved for the system card type."));
                     }
 
+                    systemCardTypeStyleName = ResolveCardTypeStyleName(importedCardType.StyleName);
+                    systemCardTypeStylePropertiesJson = ResolveCardTypeStylePropertiesJson(importedCardType.StylePropertiesJson);
                     continue;
                 }
 
@@ -423,7 +431,9 @@ public sealed class BoardPackageImportService(
                 plannedCardTypes.Add(new CardTypeImportDefinition(
                     cardTypeNameValidation.CanonicalName,
                     cardTypeNameValidation.NormalisedName,
-                    emojiValidation.CanonicalEmoji));
+                    emojiValidation.CanonicalEmoji,
+                    ResolveCardTypeStyleName(importedCardType.StyleName),
+                    ResolveCardTypeStylePropertiesJson(importedCardType.StylePropertiesJson)));
             }
         }
 
@@ -609,6 +619,8 @@ public sealed class BoardPackageImportService(
         return new BuildImportPlanResult(
             new BoardPackageImportPlan(
                 boardName,
+                systemCardTypeStyleName,
+                systemCardTypeStylePropertiesJson,
                 plannedCardTypes,
                 plannedTagDefinitionsByNormalisedName.Values.ToList(),
                 plannedColumns),
@@ -727,6 +739,26 @@ public sealed class BoardPackageImportService(
     private static string NormaliseName(string value) =>
         value.ToUpperInvariant();
 
+    private static string ResolveCardTypeStyleName(string? styleName)
+    {
+        if (string.IsNullOrWhiteSpace(styleName))
+        {
+            return CardTypeDefaults.DefaultStyleName;
+        }
+
+        return styleName.Trim();
+    }
+
+    private static string ResolveCardTypeStylePropertiesJson(string? stylePropertiesJson)
+    {
+        if (string.IsNullOrWhiteSpace(stylePropertiesJson))
+        {
+            return CardTypeDefaults.DefaultStylePropertiesJson;
+        }
+
+        return stylePropertiesJson.Trim();
+    }
+
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
         ApiErrors.BadRequest("Validation failed.", validationErrors);
 
@@ -745,6 +777,8 @@ public sealed class BoardPackageImportService(
 
     private sealed record BoardPackageImportPlan(
         string BoardName,
+        string SystemCardTypeStyleName,
+        string SystemCardTypeStylePropertiesJson,
         IReadOnlyList<CardTypeImportDefinition> CardTypes,
         IReadOnlyList<TagImportDefinition> TagDefinitions,
         IReadOnlyList<ColumnImportDefinition> Columns);
@@ -752,7 +786,9 @@ public sealed class BoardPackageImportService(
     private sealed record CardTypeImportDefinition(
         string Name,
         string NormalisedName,
-        string? Emoji);
+        string? Emoji,
+        string StyleName,
+        string StylePropertiesJson);
 
     private sealed record TagImportDefinition(
         string Name,

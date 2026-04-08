@@ -223,19 +223,54 @@ export function createBoardApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
-  async function createCardType(boardId: number, name: string, emoji?: string | null): Promise<Result<CardType, AppError>> {
-    const payload: { name: string; emoji?: string | null } = { name };
+  async function createCardType(
+    boardId: number,
+    name: string,
+    emoji?: string | null,
+    styleName?: TagStyleName,
+    stylePropertiesJson?: string
+  ): Promise<Result<CardType, AppError>> {
+    const payload: {
+      name: string;
+      emoji?: string | null;
+      styleName?: TagStyleName;
+      stylePropertiesJson?: string;
+    } = { name };
     if (emoji !== undefined) {
       payload.emoji = emoji;
+    }
+    if (styleName !== undefined) {
+      payload.styleName = styleName;
+    }
+    if (stylePropertiesJson !== undefined) {
+      payload.stylePropertiesJson = stylePropertiesJson;
     }
 
     return postData<CardType>(`/api/boards/${boardId}/card-types`, payload);
   }
 
-  async function updateCardType(boardId: number, cardTypeId: number, name: string, emoji?: string | null): Promise<Result<CardType, AppError>> {
-    const payload: { name: string; emoji?: string | null } = { name };
+  async function updateCardType(
+    boardId: number,
+    cardTypeId: number,
+    name: string,
+    emoji?: string | null,
+    styleName?: TagStyleName,
+    stylePropertiesJson?: string
+  ): Promise<Result<CardType, AppError>> {
+    const payload: {
+      name: string;
+      emoji?: string | null;
+      styleName?: TagStyleName;
+      stylePropertiesJson?: string;
+    } = { name };
     if (emoji !== undefined) {
       payload.emoji = emoji;
+    }
+    if (styleName !== undefined) {
+      payload.styleName = styleName;
+    }
+    if (stylePropertiesJson !== undefined) {
+      payload.stylePropertiesJson = stylePropertiesJson;
     }
 
     return putData<CardType>(`/api/boards/${boardId}/card-types/${cardTypeId}`, payload);
