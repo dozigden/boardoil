@@ -2,7 +2,7 @@ import type { Board, BoardMember, BoardMemberRole, BoardSummary, Card, CardType,
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
-import { deleteJson, getBinary, getEnvelope, patchData, postData, putData } from './http';
+import { deleteJson, getBinary, getEnvelope, patchData, postData, postFormData, putData } from './http';
 
 export type BoardApi = ReturnType<typeof createBoardApi>;
 export type BoardExportPackage = {
@@ -43,6 +43,16 @@ export function createBoardApi() {
 
   async function importTasksMdBoard(url: string): Promise<Result<Board, AppError>> {
     return postData<Board>('/api/boards/import/tasksmd', { url });
+  }
+
+  async function importBoardPackage(file: File, name?: string): Promise<Result<Board, AppError>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (typeof name === 'string' && name.trim().length > 0) {
+      formData.append('name', name.trim());
+    }
+
+    return postFormData<Board>('/api/boards/import', formData);
   }
 
   async function exportBoard(boardId: number): Promise<Result<BoardExportPackage, AppError>> {
@@ -240,6 +250,7 @@ export function createBoardApi() {
     getBoard,
     createBoard,
     importTasksMdBoard,
+    importBoardPackage,
     exportBoard,
     saveBoard,
     deleteBoard,

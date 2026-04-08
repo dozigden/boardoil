@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import { createBoardApi } from './boardApi';
-import { getBinary } from './http';
+import { getBinary, postFormData } from './http';
 
 vi.mock('./http', () => ({
   deleteJson: vi.fn(),
@@ -10,6 +10,7 @@ vi.mock('./http', () => ({
   getEnvelope: vi.fn(),
   patchData: vi.fn(),
   postData: vi.fn(),
+  postFormData: vi.fn(),
   putData: vi.fn()
 }));
 
@@ -58,5 +59,37 @@ describe('boardApi exportBoard', () => {
     }
 
     expect(result.error).toEqual(apiError);
+  });
+});
+
+describe('boardApi importBoardPackage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('posts multipart form data with file and optional name override', async () => {
+    const board = {
+      id: 42,
+      name: 'Imported Board',
+      createdAtUtc: '2026-04-08T00:00:00Z',
+      updatedAtUtc: '2026-04-08T00:00:00Z',
+      currentUserRole: 'Owner',
+      columns: []
+    };
+    vi.mocked(postFormData).mockResolvedValue(ok(board));
+    const file = new File(['zip-data'], 'board.boardoil.zip', { type: 'application/zip' });
+
+    const api = createBoardApi();
+    const result = await api.importBoardPackage(file, 'Renamed Board');
+
+    expect(result.ok).toBe(true);
+    expect(postFormData).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(postFormData).mock.calls[0]?.[0]).toBe('/api/boards/import');
+    const payload = vi.mocked(postFormData).mock.calls[0]?.[1];
+    expect(payload).toBeInstanceOf(FormData);
+    expect(payload?.get('name')).toBe('Renamed Board');
+    const uploadedFile = payload?.get('file');
+    expect(uploadedFile).toBeInstanceOf(File);
+    expect((uploadedFile as File).name).toBe('board.boardoil.zip');
   });
 });

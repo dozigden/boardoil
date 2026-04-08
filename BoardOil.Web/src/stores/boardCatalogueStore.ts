@@ -58,6 +58,23 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     return created;
   }
 
+  async function importBoardPackage(file: File, name?: string) {
+    const result = await runBusy(() => api.importBoardPackage(file, name));
+    if (!result.ok) {
+      return null;
+    }
+
+    const created = {
+      id: result.data.id,
+      name: result.data.name,
+      createdAtUtc: result.data.createdAtUtc,
+      updatedAtUtc: result.data.updatedAtUtc,
+      currentUserRole: result.data.currentUserRole ?? null
+    };
+    boards.value = [...boards.value, created].sort((left, right) => left.id - right.id);
+    return created;
+  }
+
   async function saveBoard(boardId: number, name: string) {
     const result = await runBusy(() => api.saveBoard(boardId, name));
     if (!result.ok) {
@@ -111,6 +128,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     loadBoards,
     createBoard,
     importTasksMdBoard,
+    importBoardPackage,
     saveBoard,
     deleteBoard,
     dispose

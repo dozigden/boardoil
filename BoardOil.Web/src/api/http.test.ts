@@ -180,4 +180,35 @@ describe('http api client', () => {
     expect(result.data.contentType).toBe('application/zip');
     expect(result.data.blob).toBe(fileBlob);
   });
+
+  it('posts form data payloads without forcing json content type', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: { id: 9, name: 'Imported' },
+        statusCode: 200
+      })
+    } as unknown as Response);
+
+    const formData = new FormData();
+    formData.append('name', 'Imported');
+    formData.append('file', new Blob(['zip-data'], { type: 'application/zip' }), 'board.boardoil.zip');
+
+    const { postFormData, setCsrfToken } = await import('./http');
+    setCsrfToken('csrf-token');
+    const result = await postFormData<{ id: number; name: string }>('/api/boards/import', formData);
+
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const fetchArgs = fetchMock.mock.calls[0];
+    expect(fetchArgs?.[0]).toBe('http://localhost:5173/api/boards/import');
+    expect(fetchArgs?.[1]?.credentials).toBe('include');
+    expect(fetchArgs?.[1]?.body).toBe(formData);
+    const headers = fetchArgs?.[1]?.headers as Headers;
+    expect(headers.get('Content-Type')).toBeNull();
+    expect(headers.get('X-BoardOil-CSRF')).toBe('csrf-token');
+  });
 });

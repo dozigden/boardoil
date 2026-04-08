@@ -60,6 +60,10 @@ export async function postData<T>(path: string, payload: unknown): Promise<Resul
   return sendJsonForData<T>('POST', path, payload);
 }
 
+export async function postFormData<T>(path: string, payload: FormData): Promise<Result<T, AppError>> {
+  return sendFormForData<T>('POST', path, payload);
+}
+
 export async function patchData<T>(path: string, payload: unknown): Promise<Result<T, AppError>> {
   return sendJsonForData<T>('PATCH', path, payload);
 }
@@ -151,6 +155,41 @@ async function sendJsonForData<T>(
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
+  });
+  if (!responseResult.ok) {
+    return responseResult;
+  }
+
+  const envelopeResult = await parseEnvelope<T>(responseResult.data);
+  if (!envelopeResult.ok) {
+    return envelopeResult;
+  }
+
+  if (!responseResult.data.ok || envelopeResult.data.success === false) {
+    return err({
+      kind: 'api',
+      message: envelopeResult.data.message ?? `Request failed with status ${responseResult.data.status}`
+    });
+  }
+
+  if (envelopeResult.data.data === null) {
+    return err({
+      kind: 'parse',
+      message: 'Expected response payload was missing.'
+    });
+  }
+
+  return ok(envelopeResult.data.data);
+}
+
+async function sendFormForData<T>(
+  method: 'POST',
+  path: string,
+  payload: FormData
+): Promise<Result<T, AppError>> {
+  const responseResult = await request(path, {
+    method,
+    body: payload
   });
   if (!responseResult.ok) {
     return responseResult;
