@@ -4,23 +4,29 @@ This file defines how agents should manage work tracking and source control in t
 
 ## MCP Board Operations
 
-- Story `#82` is an active workflow experiment to try direct MCP board operations instead of the repository proxy scripts.
-- During this experiment:
-  - direct MCP board operations are allowed and preferred
-  - keep notes on `#82` about ergonomics, reliability, and whether this reduces elevation prompts
-  - use scripts only if direct MCP is clearly blocked or materially worse for the case at hand
-- Historical script entry points still exist:
-  - `./scripts/board-mcp.sh` for general board operations
-  - `./scripts/board-card-description-set-from-file.sh` for card description updates from a file
+- Story `#82` established direct MCP board operations as the preferred and default workflow.
+- Repository proxy scripts for board MCP operations have been removed.
+- Use direct MCP tools for board operations.
+- For card description-only updates, `card.update` is a full-state update. Always provide:
+  - `boardId`
+  - `id`
+  - `cardTypeId`
+  - `title`
+  - `description`
+  - `tagNames`
+- Safe pattern for description edits:
+  - read current card from `board.get`
+  - preserve existing `title`, `tagNames`, and `cardTypeId`
+  - send only the new `description` alongside preserved required fields
+- Treat MCP `isError: true` responses as failed operations.
 - Treat the board as the execution source of truth during board-driven work.
 
 ## MCP Authentication Notes
 
 - Production board auth lives in global Codex config, not this repository.
 - Read `~/.codex/config.toml` under `[mcp_servers.boardoil]` for MCP URL and PAT value.
-- Pass explicit `--mcp-url` and `--token` to these scripts when environment variables are not set:
-  - `board-mcp.sh`
-  - `board-card-description-set-from-file.sh`
+- Direct MCP connector usage should rely on this config.
+- For manual HTTP debugging only, use the MCP URL and PAT from that config directly.
 
 ## Story Lifecycle Rules
 
