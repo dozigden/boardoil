@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
@@ -29,6 +31,78 @@ public sealed class BoardApiIntegrationTests
         Assert.Equal("Todo", result.Data.Columns[0].Title);
         Assert.Equal("In Progress", result.Data.Columns[1].Title);
         Assert.Equal("Done", result.Data.Columns[2].Title);
+    }
+
+    [Fact]
+    public async Task ExportBoard_ShouldReturnZipWithManifestAndBoardPayload()
+    {
+        var createTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("ExportTag"));
+        createTagResponse.EnsureSuccessStatusCode();
+        var createTagEnvelope = await createTagResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
+        Assert.NotNull(createTagEnvelope);
+        Assert.NotNull(createTagEnvelope!.Data);
+        var tagId = createTagEnvelope.Data!.Id;
+
+        var updateTagResponse = await Client.PutAsJsonAsync(
+            $"/api/boards/1/tags/{tagId}",
+            new UpdateTagStyleRequest("ExportTag", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""", "🧪"));
+        updateTagResponse.EnsureSuccessStatusCode();
+
+        var boardBeforeExport = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.NotNull(boardBeforeExport);
+        Assert.NotNull(boardBeforeExport!.Data);
+        var todoColumnId = boardBeforeExport.Data!.Columns[0].Id;
+
+        var createCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(todoColumnId, "Export card", "Export description", ["ExportTag"]));
+        createCardResponse.EnsureSuccessStatusCode();
+
+        var exportResponse = await Client.GetAsync("/api/boards/1/export");
+
+        Assert.Equal(HttpStatusCode.OK, exportResponse.StatusCode);
+        Assert.Equal("application/zip", exportResponse.Content.Headers.ContentType?.MediaType);
+        Assert.NotNull(exportResponse.Content.Headers.ContentDisposition);
+        Assert.NotNull(exportResponse.Content.Headers.ContentDisposition!.FileName);
+        Assert.Contains(".boardoil.zip", exportResponse.Content.Headers.ContentDisposition.FileName!, StringComparison.OrdinalIgnoreCase);
+
+        var payloadBytes = await exportResponse.Content.ReadAsByteArrayAsync();
+        Assert.NotEmpty(payloadBytes);
+
+        using var payloadStream = new MemoryStream(payloadBytes);
+        using var archive = new ZipArchive(payloadStream, ZipArchiveMode.Read);
+
+        var manifestEntry = archive.GetEntry("manifest.json");
+        Assert.NotNull(manifestEntry);
+        using var manifestReader = new StreamReader(manifestEntry!.Open());
+        var manifestJson = await manifestReader.ReadToEndAsync();
+        var manifest = JsonSerializer.Deserialize<BoardPackageManifestDto>(manifestJson, JsonOptions);
+        Assert.NotNull(manifest);
+        Assert.Equal("boardoil-board-package", manifest!.Format);
+        Assert.Equal(1, manifest.SchemaVersion);
+        Assert.False(string.IsNullOrWhiteSpace(manifest.ExportedByVersion));
+        Assert.Contains(manifest.Entries, x => x.Kind == "board" && x.Path == "board.json");
+
+        var boardEntry = archive.GetEntry("board.json");
+        Assert.NotNull(boardEntry);
+        using var boardReader = new StreamReader(boardEntry!.Open());
+        var boardJson = await boardReader.ReadToEndAsync();
+        var boardPayload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
+        Assert.NotNull(boardPayload);
+        Assert.Equal("BoardOil", boardPayload!.Name);
+        Assert.Contains(boardPayload.Columns, x => x.Title == "Todo");
+        Assert.Contains(boardPayload.Columns.SelectMany(x => x.Cards), x => x.Title == "Export card" && x.CardTypeName == "Story");
+        Assert.Contains(boardPayload.Tags, x => x.Name == "ExportTag" && x.StyleName == "solid" && x.Emoji == "🧪");
+    }
+
+    [Fact]
+    public async Task ExportBoard_WhenUnauthenticated_ShouldReturnUnauthorized()
+    {
+        var unauthenticatedClient = Factory.CreateClient();
+
+        var response = await unauthenticatedClient.GetAsync("/api/boards/1/export");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
