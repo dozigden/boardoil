@@ -9,3 +9,35 @@ public sealed record BoardPackageManifestDto(
 public sealed record BoardPackageManifestEntryDto(
     string Kind,
     string Path);
+
+public sealed record BoardPackageBoardDto(
+    string Name,
+    IReadOnlyList<BoardPackageCardTypeDto> CardTypes,
+    IReadOnlyList<BoardPackageTagDto> Tags,
+    IReadOnlyList<BoardPackageColumnDto> Columns);
+
+public sealed record BoardPackageCardTypeDto(
+    string Name,
+    string? Emoji,
+    bool IsSystem);
+
+public sealed record BoardPackageTagDto(
+    string Name,
+    string StyleName,
+    string StylePropertiesJson,
+    string? Emoji);
+
+public sealed record BoardPackageColumnDto(
+    string Title,
+    IReadOnlyList<BoardPackageCardDto> Cards);
+
+public sealed record BoardPackageCardDto(
+    string Title,
+    string Description,
+    string CardTypeName,
+    IReadOnlyList<string> TagNames);
+
+public sealed record BoardPackageExportDto(
+    string FileName,
+    string ContentType,
+    byte[] Content);

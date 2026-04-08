@@ -1,5 +1,6 @@
 using BoardOil.Api.Extensions;
 using BoardOil.Api.Auth;
+using BoardOil.Api.Configuration;
 using BoardOil.Abstractions.Board;
 using BoardOil.Contracts.Board;
 using BoardOil.Services.Auth;
@@ -20,6 +21,22 @@ public static class BoardEndpoints
 
         boardEndpoints.MapGet("/{boardId:int}", async (int boardId, IBoardService boardService, HttpContext httpContext) =>
             (await boardService.GetBoardAsync(boardId, httpContext.GetActorUserId())).ToHttpResult());
+
+        boardEndpoints.MapGet("/{boardId:int}/export", async (
+            int boardId,
+            IBoardExportService boardExportService,
+            BoardOilBuildInfo buildInfo,
+            HttpContext httpContext) =>
+        {
+            var result = await boardExportService.ExportBoardAsync(boardId, httpContext.GetActorUserId(), buildInfo.Version);
+            if (!result.Success)
+            {
+                return result.ToHttpResult();
+            }
+
+            var export = result.Data!;
+            return Results.File(export.Content, export.ContentType, export.FileName);
+        });
 
         boardEndpoints.MapPost(string.Empty, async (CreateBoardRequest request, IBoardService boardService, HttpContext httpContext) =>
             (await boardService.CreateBoardAsync(request, httpContext.GetActorUserId())).ToHttpResult());
