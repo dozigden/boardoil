@@ -79,6 +79,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import BoardCreateDialog from '../components/BoardCreateDialog.vue';
 import BoardRenameDialog from '../components/BoardRenameDialog.vue';
+import type { BoardCreateDialogSubmitPayload } from '../components/boardCreateDialogModel';
 import { useAuthStore } from '../stores/authStore';
 import { useBoardCatalogueStore } from '../stores/boardCatalogueStore';
 import type { BoardSummary } from '../types/boardTypes';
@@ -91,10 +92,6 @@ const { boards, busy } = storeToRefs(boardCatalogueStore);
 
 const isCreateDialogOpen = ref(false);
 const editingBoard = ref<BoardSummary | null>(null);
-
-type CreateBoardPayload =
-  | { mode: 'blank'; name: string }
-  | { mode: 'tasksmd'; url: string };
 
 onMounted(async () => {
   await boardCatalogueStore.loadBoards();
@@ -120,10 +117,15 @@ function closeRenameDialog() {
   editingBoard.value = null;
 }
 
-async function submitCreateBoard(payload: CreateBoardPayload) {
-  const created = payload.mode === 'blank'
-    ? await boardCatalogueStore.createBoard(payload.name)
-    : await boardCatalogueStore.importTasksMdBoard(payload.url);
+async function submitCreateBoard(payload: BoardCreateDialogSubmitPayload) {
+  let created: Awaited<ReturnType<typeof boardCatalogueStore.createBoard>>;
+  if (payload.mode === 'blank') {
+    created = await boardCatalogueStore.createBoard(payload.name);
+  } else if (payload.mode === 'tasksmd') {
+    created = await boardCatalogueStore.importTasksMdBoard(payload.url);
+  } else {
+    created = await boardCatalogueStore.importBoardPackage(payload.file, payload.name);
+  }
 
   if (!created) {
     return;

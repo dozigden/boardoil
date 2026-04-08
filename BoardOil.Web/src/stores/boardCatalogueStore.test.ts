@@ -8,6 +8,7 @@ const api = {
   getBoards: vi.fn(),
   createBoard: vi.fn(),
   importTasksMdBoard: vi.fn(),
+  importBoardPackage: vi.fn(),
   saveBoard: vi.fn(),
   deleteBoard: vi.fn()
 };
@@ -23,6 +24,7 @@ describe('boardCatalogueStore', () => {
     api.getBoards.mockResolvedValue(ok([]));
     api.createBoard.mockResolvedValue(ok(makeBoard(10, 'Roadmap')));
     api.importTasksMdBoard.mockResolvedValue(ok(makeBoard(11, 'tasks.example.net')));
+    api.importBoardPackage.mockResolvedValue(ok(makeBoard(12, 'Imported Board')));
     api.saveBoard.mockResolvedValue(ok(makeSummary(10, 'Roadmap')));
     api.deleteBoard.mockResolvedValue(ok(undefined));
   });
@@ -46,6 +48,30 @@ describe('boardCatalogueStore', () => {
 
     expect(imported).toBeNull();
     expect(feedback.errorMessage).toBe('Import failed.');
+    expect(store.boards).toHaveLength(0);
+  });
+
+  it('imports board package and appends it to catalogue', async () => {
+    const store = useBoardCatalogueStore();
+    const file = new File(['zip-data'], 'board.boardoil.zip', { type: 'application/zip' });
+
+    const imported = await store.importBoardPackage(file, 'Imported Name');
+
+    expect(api.importBoardPackage).toHaveBeenCalledWith(file, 'Imported Name');
+    expect(imported?.id).toBe(12);
+    expect(store.boards.map(x => x.name)).toEqual(['Imported Board']);
+  });
+
+  it('reports API error when board package import fails', async () => {
+    const store = useBoardCatalogueStore();
+    const feedback = useUiFeedbackStore();
+    const file = new File(['zip-data'], 'board.boardoil.zip', { type: 'application/zip' });
+    api.importBoardPackage.mockResolvedValueOnce(err({ kind: 'api', message: 'Package import failed.' }));
+
+    const imported = await store.importBoardPackage(file);
+
+    expect(imported).toBeNull();
+    expect(feedback.errorMessage).toBe('Package import failed.');
     expect(store.boards).toHaveLength(0);
   });
 });
