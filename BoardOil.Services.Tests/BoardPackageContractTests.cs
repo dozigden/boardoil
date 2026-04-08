@@ -19,6 +19,17 @@ public sealed class BoardPackageContractTests
 
         Assert.Null(validationError);
         Assert.True(BoardPackageContract.IsSupportedSchemaVersion(manifest.SchemaVersion));
+        Assert.True(BoardPackageContract.IsSupportedSchemaVersion(BoardPackageContract.MinSupportedSchemaVersion));
+    }
+
+    [Fact]
+    public void IsSupportedSchemaVersion_WhenOutsideSupportedWindow_ShouldReturnFalse()
+    {
+        var belowMinimum = BoardPackageContract.MinSupportedSchemaVersion - 1;
+        var aboveCurrent = BoardPackageContract.CurrentSchemaVersion + 1;
+
+        Assert.False(BoardPackageContract.IsSupportedSchemaVersion(belowMinimum));
+        Assert.False(BoardPackageContract.IsSupportedSchemaVersion(aboveCurrent));
     }
 
     [Fact]
