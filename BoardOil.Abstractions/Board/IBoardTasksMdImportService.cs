@@ -3,7 +3,7 @@ using BoardOil.Contracts.Contracts;
 
 namespace BoardOil.Abstractions.Board;
 
-public interface IBoardImportService
+public interface IBoardTasksMdImportService
 {
     Task<ApiResult<BoardDto>> ImportTasksMdBoardAsync(ImportTasksMdBoardRequest request, int actorUserId);
 }

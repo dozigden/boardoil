@@ -29,6 +29,10 @@ public sealed record CreateBoardRequest(
 public sealed record ImportTasksMdBoardRequest(
     string Url);
 
+public sealed record ImportBoardPackageRequest(
+    string? Name,
+    byte[] PackageContent);
+
 public sealed record UpdateBoardRequest(
     string Name);
 
