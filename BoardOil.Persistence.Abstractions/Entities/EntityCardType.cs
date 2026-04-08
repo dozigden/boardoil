@@ -6,6 +6,8 @@ public sealed class EntityCardType
     public int BoardId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Emoji { get; set; }
+    public string StyleName { get; set; } = string.Empty;
+    public string StylePropertiesJson { get; set; } = string.Empty;
     public bool IsSystem { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }

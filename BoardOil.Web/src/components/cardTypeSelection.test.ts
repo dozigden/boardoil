@@ -5,6 +5,8 @@ const cardTypes = [
   {
     id: 1,
     name: 'Story',
+    styleName: 'solid' as const,
+    stylePropertiesJson: '{"backgroundColor":"#FFFFFF","textColorMode":"auto"}',
     emoji: null,
     isSystem: true,
     createdAtUtc: '2026-01-01T00:00:00Z',
@@ -13,6 +15,8 @@ const cardTypes = [
   {
     id: 2,
     name: 'Bug',
+    styleName: 'gradient' as const,
+    stylePropertiesJson: '{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}',
     emoji: '🐞',
     isSystem: false,
     createdAtUtc: '2026-01-01T00:00:00Z',

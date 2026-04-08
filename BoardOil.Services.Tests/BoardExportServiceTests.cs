@@ -28,6 +28,8 @@ public sealed class BoardExportServiceTests : TestBaseDb
             BoardId = board.BoardId,
             Name = "Bug",
             Emoji = "B",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#FEEFC3","textColorMode":"auto"}""",
             IsSystem = false,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
@@ -87,8 +89,19 @@ public sealed class BoardExportServiceTests : TestBaseDb
         var payload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
         Assert.NotNull(payload);
         Assert.Equal("Export Board", payload!.Name);
-        Assert.Contains(payload.CardTypes, x => x.Name == "Story" && x.IsSystem);
-        Assert.Contains(payload.CardTypes, x => x.Name == "Bug" && !x.IsSystem && x.Emoji == "B");
+        Assert.Contains(
+            payload.CardTypes,
+            x => x.Name == "Story"
+                && x.IsSystem
+                && x.StyleName == "solid"
+                && !string.IsNullOrWhiteSpace(x.StylePropertiesJson));
+        Assert.Contains(
+            payload.CardTypes,
+            x => x.Name == "Bug"
+                && !x.IsSystem
+                && x.Emoji == "B"
+                && x.StyleName == "solid"
+                && x.StylePropertiesJson == """{"backgroundColor":"#FEEFC3","textColorMode":"auto"}""");
         Assert.Contains(payload.Tags, x => x.Name == "Urgent" && x.StyleName == "solid" && x.Emoji == "!");
         Assert.Single(payload.Columns);
         Assert.Equal("Todo", payload.Columns[0].Title);

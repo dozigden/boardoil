@@ -1,6 +1,7 @@
 using System.Numerics;
 using BoardOil.Ef;
 using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Services.Card;
 using BoardEntity = BoardOil.Persistence.Abstractions.Entities.EntityBoard;
 
 namespace BoardOil.Services.Tests.Infrastructure;
@@ -45,8 +46,10 @@ public sealed class FluentBoardBuilder
         _systemCardType = new EntityCardType
         {
             Board = _board,
-            Name = "Story",
+            Name = CardTypeDefaults.SystemTypeName,
             Emoji = null,
+            StyleName = CardTypeDefaults.DefaultStyleName,
+            StylePropertiesJson = CardTypeDefaults.DefaultStylePropertiesJson,
             IsSystem = true,
             CreatedAtUtc = _nowUtc,
             UpdatedAtUtc = _nowUtc

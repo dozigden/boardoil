@@ -93,7 +93,31 @@ public sealed class CardTypeServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task UpdateCardTypeAsync_WhenSystemType_ShouldAllowRenameAndEmojiUpdate()
+    public async Task CreateCardTypeAsync_WhenStyleFieldsOmitted_ShouldUseDefaultStyle()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var service = CreateService();
+
+        // Act
+        var result = await service.CreateCardTypeAsync(boardId, new CreateCardTypeRequest("Feature"), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("solid", result.Data!.StyleName);
+        Assert.Equal("""{"backgroundColor":"#FFFFFF","textColorMode":"auto"}""", result.Data.StylePropertiesJson);
+
+        var stored = await DbContextForAssert.CardTypes.SingleAsync(x => x.Id == result.Data.Id);
+        Assert.Equal("solid", stored.StyleName);
+        Assert.Equal("""{"backgroundColor":"#FFFFFF","textColorMode":"auto"}""", stored.StylePropertiesJson);
+    }
+
+    [Fact]
+    public async Task UpdateCardTypeAsync_WhenSystemType_ShouldAllowRenameEmojiAndStyleUpdate()
     {
         // Arrange
         var boardId = CreateBoard("BoardOil")
@@ -104,18 +128,30 @@ public sealed class CardTypeServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.UpdateCardTypeAsync(boardId, systemType.Id, new UpdateCardTypeRequest("Epic", "🚀"), ActorUserId);
+        var result = await service.UpdateCardTypeAsync(
+            boardId,
+            systemType.Id,
+            new UpdateCardTypeRequest(
+                "Epic",
+                "🚀",
+                "gradient",
+                """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}"""),
+            ActorUserId);
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("Epic", result.Data!.Name);
         Assert.Equal("🚀", result.Data.Emoji);
+        Assert.Equal("gradient", result.Data.StyleName);
+        Assert.Equal("""{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""", result.Data.StylePropertiesJson);
         Assert.True(result.Data.IsSystem);
 
         var stored = await DbContextForAssert.CardTypes.SingleAsync(x => x.Id == systemType.Id);
         Assert.Equal("Epic", stored.Name);
         Assert.Equal("🚀", stored.Emoji);
+        Assert.Equal("gradient", stored.StyleName);
+        Assert.Equal("""{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""", stored.StylePropertiesJson);
         Assert.True(stored.IsSystem);
     }
 

@@ -123,8 +123,8 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var payload = new BoardPackageBoardDto(
             "Imported Package Board",
             [
-                new BoardPackageCardTypeDto("Story", null, true),
-                new BoardPackageCardTypeDto("Bug", "🐞", false)
+                new BoardPackageCardTypeDto("Story", null, true, "solid", """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}"""),
+                new BoardPackageCardTypeDto("Bug", "🐞", false, "gradient", """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""")
             ],
             [
                 new BoardPackageTagDto("Urgent", "solid", """{"backgroundColor":"#ED333B","textColorMode":"auto"}""", "🟥")
@@ -161,8 +161,19 @@ public sealed class BoardImportServiceTests : TestBaseDb
 
         var cardTypes = DbContextForAssert.CardTypes.Where(x => x.BoardId == boardId).OrderBy(x => x.Name).ToList();
         Assert.Equal(["Bug", "Story"], cardTypes.Select(x => x.Name).ToArray());
-        Assert.Contains(cardTypes, x => x.Name == "Story" && x.IsSystem);
-        Assert.Contains(cardTypes, x => x.Name == "Bug" && !x.IsSystem && x.Emoji == "🐞");
+        Assert.Contains(
+            cardTypes,
+            x => x.Name == "Story"
+                && x.IsSystem
+                && x.StyleName == "solid"
+                && x.StylePropertiesJson == """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}""");
+        Assert.Contains(
+            cardTypes,
+            x => x.Name == "Bug"
+                && !x.IsSystem
+                && x.Emoji == "🐞"
+                && x.StyleName == "gradient"
+                && x.StylePropertiesJson == """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""");
 
         var tags = DbContextForAssert.Tags.Where(x => x.BoardId == boardId).OrderBy(x => x.Name).ToList();
         Assert.Equal(["NeedsReview", "Urgent"], tags.Select(x => x.Name).ToArray());

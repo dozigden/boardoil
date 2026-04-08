@@ -37,6 +37,8 @@ export type Tag = TagPresentation & {
 export type CardType = {
   id: number;
   name: string;
+  styleName: TagStyleName;
+  stylePropertiesJson: string;
   emoji: string | null;
   isSystem: boolean;
   createdAtUtc: string;

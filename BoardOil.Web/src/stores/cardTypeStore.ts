@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { createBoardApi } from '../api/boardApi';
-import type { CardType } from '../types/boardTypes';
+import type { CardType, TagStyleName } from '../types/boardTypes';
 import { useUiFeedbackStore } from './uiFeedbackStore';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
@@ -40,13 +40,19 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return true;
   }
 
-  async function createCardType(name: string, emoji?: string | null, boardId: number | null = activeBoardId.value) {
+  async function createCardType(
+    name: string,
+    emoji: string | null | undefined,
+    styleName: TagStyleName,
+    stylePropertiesJson: string,
+    boardId: number | null = activeBoardId.value
+  ) {
     const resolvedBoardId = resolveBoardId(boardId);
     if (resolvedBoardId === null) {
       return null;
     }
 
-    const result = await runBusy(() => api.createCardType(resolvedBoardId, name, emoji));
+    const result = await runBusy(() => api.createCardType(resolvedBoardId, name, emoji, styleName, stylePropertiesJson));
     if (!result.ok) {
       return null;
     }
@@ -55,13 +61,27 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return result.data;
   }
 
-  async function updateCardType(cardTypeId: number, name: string, emoji?: string | null, boardId: number | null = activeBoardId.value) {
+  async function updateCardType(
+    cardTypeId: number,
+    name: string,
+    emoji: string | null | undefined,
+    styleName: TagStyleName,
+    stylePropertiesJson: string,
+    boardId: number | null = activeBoardId.value
+  ) {
     const resolvedBoardId = resolveBoardId(boardId);
     if (resolvedBoardId === null) {
       return null;
     }
 
-    const result = await runBusy(() => api.updateCardType(resolvedBoardId, cardTypeId, name, emoji));
+    const result = await runBusy(() => api.updateCardType(
+      resolvedBoardId,
+      cardTypeId,
+      name,
+      emoji,
+      styleName,
+      stylePropertiesJson
+    ));
     if (!result.ok) {
       return null;
     }
