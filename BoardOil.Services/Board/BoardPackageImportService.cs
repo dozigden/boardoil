@@ -274,7 +274,16 @@ public sealed class BoardPackageImportService(
             using (var boardReader = new StreamReader(boardEntry.Open()))
             {
                 var boardJson = boardReader.ReadToEnd();
-                boardPayload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
+                var parseBoardPayloadResult = TryParseBoardPayload(manifest.SchemaVersion, boardJson);
+                if (parseBoardPayloadResult.Error is not null)
+                {
+                    return new ReadBoardPackageResult(
+                        manifest,
+                        null,
+                        parseBoardPayloadResult.Error);
+                }
+
+                boardPayload = parseBoardPayloadResult.BoardPayload;
             }
 
             if (boardPayload is null)
@@ -300,6 +309,24 @@ public sealed class BoardPackageImportService(
                 null,
                 null,
                 ValidationFail([new ValidationError("file", "Board package JSON content is invalid.")]));
+        }
+    }
+
+    private static ParseBoardPayloadResult TryParseBoardPayload(int schemaVersion, string boardJson)
+    {
+        switch (schemaVersion)
+        {
+            case 1:
+            {
+                var boardPayload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
+                return new ParseBoardPayloadResult(boardPayload, null);
+            }
+            default:
+                return new ParseBoardPayloadResult(
+                    null,
+                    ValidationFail([new ValidationError(
+                        "manifest.schemaVersion",
+                        $"Schema version '{schemaVersion}' does not have an import payload handler configured.")]));
         }
     }
 
@@ -705,6 +732,10 @@ public sealed class BoardPackageImportService(
 
     private sealed record ReadBoardPackageResult(
         BoardPackageManifestDto? Manifest,
+        BoardPackageBoardDto? BoardPayload,
+        ApiError? Error);
+
+    private sealed record ParseBoardPayloadResult(
         BoardPackageBoardDto? BoardPayload,
         ApiError? Error);
 

@@ -6,6 +6,7 @@ namespace BoardOil.Services.Board;
 public static class BoardPackageContract
 {
     public const string PackageFormat = "boardoil-board-package";
+    public const int MinSupportedSchemaVersion = 1;
     public const int CurrentSchemaVersion = 1;
     public const string ManifestPath = "manifest.json";
     public const string BoardEntryKind = "board";
@@ -25,7 +26,8 @@ public static class BoardPackageContract
     }
 
     public static bool IsSupportedSchemaVersion(int schemaVersion) =>
-        schemaVersion == CurrentSchemaVersion;
+        schemaVersion >= MinSupportedSchemaVersion
+        && schemaVersion <= CurrentSchemaVersion;
 
     public static ApiError? ValidateManifest(BoardPackageManifestDto manifest)
     {
@@ -39,6 +41,12 @@ public static class BoardPackageContract
         if (manifest.SchemaVersion <= 0)
         {
             errors.Add(new ValidationError("manifest.schemaVersion", "Schema version must be greater than zero."));
+        }
+        else if (manifest.SchemaVersion < MinSupportedSchemaVersion)
+        {
+            errors.Add(new ValidationError(
+                "manifest.schemaVersion",
+                $"Schema version '{manifest.SchemaVersion}' is no longer supported by this importer. Minimum supported version is '{MinSupportedSchemaVersion}'."));
         }
         else if (manifest.SchemaVersion > CurrentSchemaVersion)
         {
