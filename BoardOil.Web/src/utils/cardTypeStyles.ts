@@ -10,7 +10,7 @@ import {
 export type CardTypeStyleDraft = StyleDraft;
 
 export const DEFAULT_CARD_TYPE_STYLE_NAME: TagStyleName = 'solid';
-export const DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON = '{"backgroundColor":"#FFFFFF","textColorMode":"auto"}';
+export const DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON = '{"backgroundColor":"#FFFFFF","textColorMode":"auto","borderMode":"auto"}';
 
 export function normaliseCardTypeEmojiForRender(rawEmoji: string | null | undefined): string | null {
   return normaliseEmojiForRender(rawEmoji);
