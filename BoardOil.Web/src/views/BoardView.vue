@@ -22,8 +22,8 @@
         v-for="column in filteredColumns"
         :key="column.id"
         class="column"
-        @dragover.prevent
-        @drop="dropCard(column.id, null)"
+        @dragover.prevent="handleColumnDragOver(column.id, $event)"
+        @drop.prevent="handleColumnDrop(column.id)"
       >
         <header class="column-header">
           <div class="column-heading">
@@ -41,7 +41,13 @@
           </button>
         </header>
 
-        <div class="column-content">
+        <div
+          class="column-content"
+          :class="{
+            'column-content--drop-tail': isDropPoint(column.id, null),
+            'column-content--drop-head': isDropAtColumnStart(column.id)
+          }"
+        >
           <article v-if="newCardDraftTitles[column.id] !== undefined" class="create-card-inline">
             <label class="create-card-inline-label">
               Title
@@ -77,8 +83,12 @@
             :key="card.id"
             :card="card"
             :column-id="column.id"
-            @start-drag="startDrag"
-            @drop-card="dropCard"
+            :data-card-id="card.id"
+            :drop-indicator="resolveCardDropIndicator(column.id, card.id)"
+            @start-drag="onCardDragStart"
+            @end-drag="onCardDragEnd"
+            @dragover.prevent.stop="onCardDragOver(column.id, card.id, $event)"
+            @drop.prevent.stop="onCardDrop(column.id, card.id, $event)"
             @edit-card="openCardEditor"
           />
 
@@ -112,6 +122,8 @@ const newCardDraftInputs = ref<Record<number, HTMLInputElement | null>>({});
 const cardSearchText = ref('');
 const tagFilterStates = ref<TagFilterStateMap>({});
 const isTagFilterMenuOpen = ref(false);
+const draggingCardId = ref<number | null>(null);
+const activeDropPoint = ref<{ columnId: number; targetCardId: number | null } | null>(null);
 
 const route = useRoute();
 const router = useRouter();
@@ -194,6 +206,107 @@ async function openCardEditor(cardId: number) {
   await router.push({ name: 'board-card', params: { boardId, cardId } });
 }
 
+function onCardDragStart(cardId: number, fromColumnId: number) {
+  draggingCardId.value = cardId;
+  activeDropPoint.value = null;
+  startDrag(cardId, fromColumnId);
+}
+
+function onCardDragEnd() {
+  clearDragInteraction();
+}
+
+function onCardDragOver(columnId: number, cardId: number, event: DragEvent) {
+  if (draggingCardId.value === null || cardId === draggingCardId.value) {
+    return;
+  }
+
+  const targetCardId = resolveDropTargetCardId(columnId, cardId, event);
+  if (targetCardId === undefined) {
+    return;
+  }
+
+  setDropPoint(columnId, targetCardId);
+}
+
+async function onCardDrop(columnId: number, cardId: number, event: DragEvent) {
+  onCardDragOver(columnId, cardId, event);
+  const targetCardId = activeDropPoint.value?.columnId === columnId
+    ? activeDropPoint.value.targetCardId
+    : cardId;
+  await dropAt(columnId, targetCardId);
+}
+
+function setDropPoint(columnId: number, targetCardId: number | null) {
+  if (draggingCardId.value === null) {
+    return;
+  }
+
+  if (targetCardId === draggingCardId.value) {
+    return;
+  }
+
+  activeDropPoint.value = { columnId, targetCardId };
+}
+
+function isDropPoint(columnId: number, targetCardId: number | null) {
+  return activeDropPoint.value?.columnId === columnId && activeDropPoint.value.targetCardId === targetCardId;
+}
+
+function isDropAtColumnStart(columnId: number) {
+  const firstCardId = getFirstVisibleCardId(columnId);
+  if (firstCardId === null) {
+    return false;
+  }
+
+  return activeDropPoint.value?.columnId === columnId
+    && activeDropPoint.value.targetCardId === firstCardId;
+}
+
+function resolveCardDropIndicator(columnId: number, cardId: number): 'none' | 'before' | 'after' {
+  if (draggingCardId.value === null || cardId === draggingCardId.value) {
+    return 'none';
+  }
+
+  const targetCardId = activeDropPoint.value?.columnId === columnId
+    ? activeDropPoint.value.targetCardId
+    : undefined;
+  if (targetCardId === undefined) {
+    return 'none';
+  }
+
+  if (targetCardId === cardId) {
+    return 'before';
+  }
+
+  const nextCardId = getNextVisibleCardId(columnId, cardId);
+  if (nextCardId === targetCardId || (targetCardId === null && nextCardId === null)) {
+    return 'after';
+  }
+
+  return 'none';
+}
+
+function handleColumnDragOver(columnId: number, event: DragEvent) {
+  const targetCardId = resolveColumnDropTargetCardId(columnId, event);
+  setDropPoint(columnId, targetCardId);
+}
+
+async function handleColumnDrop(columnId: number) {
+  const targetCardId = activeDropPoint.value?.columnId === columnId
+    ? activeDropPoint.value.targetCardId
+    : null;
+  await dropAt(columnId, targetCardId);
+}
+
+async function dropAt(columnId: number, targetCardId: number | null) {
+  try {
+    await dropCard(columnId, targetCardId);
+  } finally {
+    clearDragInteraction();
+  }
+}
+
 function clearCardFilters() {
   cardSearchText.value = '';
   tagFilterStates.value = {};
@@ -217,6 +330,7 @@ function resolveBoardId() {
 watch(
   () => route.params.boardId,
   async () => {
+    clearDragInteraction();
     clearCardFilters();
     const boardId = resolveBoardId();
     if (boardId === null) {
@@ -238,6 +352,96 @@ watch(
 
 function normaliseTagName(tagName: string) {
   return tagName.trim().toLocaleLowerCase();
+}
+
+function clearDragInteraction() {
+  draggingCardId.value = null;
+  activeDropPoint.value = null;
+}
+
+function resolveDropTargetCardId(columnId: number, cardId: number, event: DragEvent): number | null | undefined {
+  const currentTarget = event.currentTarget;
+  if (!(currentTarget instanceof HTMLElement)) {
+    return cardId;
+  }
+
+  const rect = currentTarget.getBoundingClientRect();
+  const dropBeforeCard = event.clientY <= rect.top + (rect.height / 2);
+  const candidateTargetCardId = dropBeforeCard
+    ? cardId
+    : getNextVisibleCardId(columnId, cardId);
+
+  return coerceTargetCardId(columnId, candidateTargetCardId);
+}
+
+function getNextVisibleCardId(columnId: number, cardId: number): number | null {
+  const column = filteredColumns.value.find(x => x.id === columnId);
+  if (!column) {
+    return null;
+  }
+
+  const index = column.cards.findIndex(card => card.id === cardId);
+  if (index < 0) {
+    return null;
+  }
+
+  return column.cards[index + 1]?.id ?? null;
+}
+
+function getFirstVisibleCardId(columnId: number): number | null {
+  const column = filteredColumns.value.find(x => x.id === columnId);
+  if (!column) {
+    return null;
+  }
+
+  const movingCardId = draggingCardId.value;
+  for (const card of column.cards) {
+    if (card.id !== movingCardId) {
+      return card.id;
+    }
+  }
+
+  return null;
+}
+
+function coerceTargetCardId(columnId: number, candidateTargetCardId: number | null) {
+  const movingCardId = draggingCardId.value;
+  if (candidateTargetCardId === null || movingCardId === null || candidateTargetCardId !== movingCardId) {
+    return candidateTargetCardId;
+  }
+
+  return getNextVisibleCardId(columnId, candidateTargetCardId);
+}
+
+function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): number | null {
+  if (draggingCardId.value === null) {
+    return null;
+  }
+
+  const currentTarget = event.currentTarget;
+  if (!(currentTarget instanceof HTMLElement)) {
+    return null;
+  }
+
+  const cardElements = Array.from(currentTarget.querySelectorAll<HTMLElement>('[data-card-id]'));
+  if (cardElements.length === 0) {
+    return null;
+  }
+
+  for (const element of cardElements) {
+    const cardId = Number.parseInt(element.dataset.cardId ?? '', 10);
+    if (!Number.isFinite(cardId) || cardId === draggingCardId.value) {
+      continue;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const midpoint = rect.top + (rect.height / 2);
+    if (event.clientY <= midpoint) {
+      return cardId;
+    }
+  }
+
+  return null;
 }
 </script>
 
@@ -355,6 +559,26 @@ function normaliseTagName(tagName: string) {
   padding-right: 0.5rem;
   overscroll-behavior-y: contain;
   scrollbar-width: none;
+  position: relative;
+}
+
+.column-content--drop-tail {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--bo-focus-ring) 45%, transparent);
+  border-radius: 10px;
+}
+
+.column-content--drop-head::before {
+  content: '';
+  position: absolute;
+  left: 0.25rem;
+  right: 0.75rem;
+  top: 0.1rem;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--bo-focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bo-focus-ring) 30%, transparent);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .column-content > .card {
