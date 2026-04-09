@@ -1,6 +1,11 @@
 <template>
   <div
     class="card"
+    :class="{
+      'card--dragging': isDragging,
+      'card--drop-before': dropIndicator === 'before',
+      'card--drop-after': dropIndicator === 'after'
+    }"
     :style="cardStyle"
     draggable="true"
     role="button"
@@ -9,8 +14,6 @@
     @keydown.enter.prevent="openEditor"
     @keydown.space.prevent="openEditor"
     @dragstart="onDragStart"
-    @dragover.prevent
-    @drop="emit('drop-card', columnId, card.id)"
     @dragend="onDragEnd"
   >
     <div class="card-header">
@@ -39,11 +42,12 @@ import Tag from './Tag.vue';
 const props = defineProps<{
   card: BoardCard;
   columnId: number;
+  dropIndicator?: 'none' | 'before' | 'after';
 }>();
 
 const emit = defineEmits<{
   'start-drag': [cardId: number, fromColumnId: number];
-  'drop-card': [targetColumnId: number, targetCardId: number];
+  'end-drag': [];
   'edit-card': [cardId: number];
 }>();
 
@@ -53,12 +57,19 @@ const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
 const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
 
-function onDragStart() {
+function onDragStart(event: DragEvent) {
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(props.card.id));
+  }
+
   isDragging.value = true;
   emit('start-drag', props.card.id, props.columnId);
 }
 
 function onDragEnd() {
+  emit('end-drag');
+
   // Avoid opening editor from the click event that can follow a drag.
   setTimeout(() => {
     isDragging.value = false;
@@ -82,6 +93,32 @@ function openEditor() {
   background: var(--bo-surface-base);
   margin-bottom: 0.5rem;
   cursor: pointer;
+  position: relative;
+}
+
+.card--dragging {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.card--drop-before::before,
+.card--drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0.25rem;
+  right: 0.25rem;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--bo-focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bo-focus-ring) 30%, transparent);
+}
+
+.card--drop-before::before {
+  top: -0.45rem;
+}
+
+.card--drop-after::after {
+  bottom: -0.45rem;
 }
 
 .card:focus-visible {
