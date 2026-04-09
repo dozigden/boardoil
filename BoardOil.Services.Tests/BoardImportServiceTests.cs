@@ -182,6 +182,47 @@ public sealed class BoardImportServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task ImportBoardPackageAsync_WhenSystemCardTypeIsRenamed_ShouldImportWithRenamedSystemType()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Renamed System Type Board",
+            [
+                new BoardPackageCardTypeDto("Work Item", "📘", true, "solid", """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}"""),
+                new BoardPackageCardTypeDto("Bug", "🐞", false, "gradient", """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""")
+            ],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Fix login", "Investigate and fix", "Bug", []),
+                        new BoardPackageCardDto("Audit auth flow", "Cross-check config and docs", "Work Item", [])
+                    ])
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.Equal(201, result.StatusCode);
+        Assert.NotNull(result.Data);
+
+        var boardId = result.Data!.Id;
+        var cardTypes = DbContextForAssert.CardTypes.Where(x => x.BoardId == boardId).OrderBy(x => x.Name).ToList();
+        Assert.Equal(["Bug", "Work Item"], cardTypes.Select(x => x.Name).ToArray());
+        Assert.Contains(
+            cardTypes,
+            x => x.Name == "Work Item"
+                && x.IsSystem
+                && x.Emoji == "📘"
+                && x.StyleName == "solid"
+                && x.StylePropertiesJson == """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}""");
+    }
+
+    [Fact]
     public async Task ImportBoardPackageAsync_WhenSchemaVersionIsFuture_ShouldReturnBadRequestAndWriteNothing()
     {
         var manifest = new BoardPackageManifestDto(

@@ -80,11 +80,13 @@ public sealed class BoardPackageImportService(
 
         var systemCardType = CardTypeDefaults.CreateSystemForBoard(board, now);
         board.CardTypes.Add(systemCardType);
+        systemCardType.Name = importPlan.SystemCardTypeName;
+        systemCardType.Emoji = importPlan.SystemCardTypeEmoji;
         systemCardType.StyleName = importPlan.SystemCardTypeStyleName;
         systemCardType.StylePropertiesJson = importPlan.SystemCardTypeStylePropertiesJson;
         var cardTypesByNormalisedName = new Dictionary<string, EntityCardType>(StringComparer.Ordinal)
         {
-            [NormaliseName(CardTypeDefaults.SystemTypeName)] = systemCardType
+            [importPlan.SystemCardTypeNormalisedName] = systemCardType
         };
 
         foreach (var cardType in importPlan.CardTypes)
@@ -359,12 +361,13 @@ public sealed class BoardPackageImportService(
         }
 
         var plannedCardTypes = new List<CardTypeImportDefinition>();
+        var systemCardTypeName = CardTypeDefaults.SystemTypeName;
+        var systemCardTypeNormalisedName = NormaliseName(CardTypeDefaults.SystemTypeName);
+        string? systemCardTypeEmoji = null;
         var systemCardTypeStyleName = CardTypeDefaults.DefaultStyleName;
         var systemCardTypeStylePropertiesJson = CardTypeDefaults.DefaultStylePropertiesJson;
-        var knownCardTypeNames = new HashSet<string>(StringComparer.Ordinal)
-        {
-            NormaliseName(CardTypeDefaults.SystemTypeName)
-        };
+        var hasSystemCardType = false;
+        var knownCardTypeNames = new HashSet<string>(StringComparer.Ordinal);
 
         if (packageCardTypes is not null)
         {
@@ -393,38 +396,30 @@ public sealed class BoardPackageImportService(
                     continue;
                 }
 
-                var isSystemType = string.Equals(
-                    cardTypeNameValidation.NormalisedName,
-                    NormaliseName(CardTypeDefaults.SystemTypeName),
-                    StringComparison.Ordinal);
-
-                if (isSystemType)
-                {
-                    if (!importedCardType.IsSystem)
-                    {
-                        validationErrors.Add(new ValidationError(
-                            $"{cardTypePropertyPrefix}.name",
-                            $"Card type '{cardTypeNameValidation.CanonicalName}' is reserved for the system card type."));
-                    }
-
-                    systemCardTypeStyleName = ResolveCardTypeStyleName(importedCardType.StyleName);
-                    systemCardTypeStylePropertiesJson = ResolveCardTypeStylePropertiesJson(importedCardType.StylePropertiesJson);
-                    continue;
-                }
-
-                if (importedCardType.IsSystem)
-                {
-                    validationErrors.Add(new ValidationError(
-                        $"{cardTypePropertyPrefix}.isSystem",
-                        $"Only '{CardTypeDefaults.SystemTypeName}' can be marked as a system card type."));
-                    continue;
-                }
-
                 if (!knownCardTypeNames.Add(cardTypeNameValidation.NormalisedName))
                 {
                     validationErrors.Add(new ValidationError(
                         $"{cardTypePropertyPrefix}.name",
                         $"Card type '{cardTypeNameValidation.CanonicalName}' is duplicated when compared case-insensitively."));
+                    continue;
+                }
+
+                if (importedCardType.IsSystem)
+                {
+                    if (hasSystemCardType)
+                    {
+                        validationErrors.Add(new ValidationError(
+                            $"{cardTypePropertyPrefix}.isSystem",
+                            "Only one card type can be marked as a system card type."));
+                        continue;
+                    }
+
+                    hasSystemCardType = true;
+                    systemCardTypeName = cardTypeNameValidation.CanonicalName;
+                    systemCardTypeNormalisedName = cardTypeNameValidation.NormalisedName;
+                    systemCardTypeEmoji = emojiValidation.CanonicalEmoji;
+                    systemCardTypeStyleName = ResolveCardTypeStyleName(importedCardType.StyleName);
+                    systemCardTypeStylePropertiesJson = ResolveCardTypeStylePropertiesJson(importedCardType.StylePropertiesJson);
                     continue;
                 }
 
@@ -619,6 +614,9 @@ public sealed class BoardPackageImportService(
         return new BuildImportPlanResult(
             new BoardPackageImportPlan(
                 boardName,
+                systemCardTypeName,
+                systemCardTypeNormalisedName,
+                systemCardTypeEmoji,
                 systemCardTypeStyleName,
                 systemCardTypeStylePropertiesJson,
                 plannedCardTypes,
@@ -777,6 +775,9 @@ public sealed class BoardPackageImportService(
 
     private sealed record BoardPackageImportPlan(
         string BoardName,
+        string SystemCardTypeName,
+        string SystemCardTypeNormalisedName,
+        string? SystemCardTypeEmoji,
         string SystemCardTypeStyleName,
         string SystemCardTypeStylePropertiesJson,
         IReadOnlyList<CardTypeImportDefinition> CardTypes,
