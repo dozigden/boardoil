@@ -199,7 +199,8 @@ useClickOutside(dropdownRoot, () => {
   display: inline-flex;
   align-items: center;
   gap: 0.32rem;
-  padding: 0.3rem 0.55rem;
+  min-height: var(--bo-board-filter-control-height, 2.3rem);
+  padding: 0 0.65rem;
 }
 
 .board-tag-filter-trigger-row {
@@ -389,7 +390,8 @@ useClickOutside(dropdownRoot, () => {
   }
 
   .board-tag-filter-toggle {
-    padding: 0.3rem 0.45rem;
+    min-height: var(--bo-board-filter-control-height, 2.3rem);
+    padding: 0 0.5rem;
     min-width: 2rem;
     justify-content: center;
   }

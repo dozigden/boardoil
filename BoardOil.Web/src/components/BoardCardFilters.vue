@@ -62,12 +62,13 @@ const emit = defineEmits<{
 
 <style scoped>
 .board-filters {
+  --bo-board-filter-control-height: 2.3rem;
   margin-inline: 1.5rem;
   margin-top: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.6rem 0.9rem;
-  align-items: start;
+  align-items: center;
 }
 
 .board-search-pane {
@@ -82,7 +83,7 @@ const emit = defineEmits<{
 
 .board-controls-pane {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
 }
@@ -96,7 +97,12 @@ const emit = defineEmits<{
 }
 
 .board-clear-filters {
-  padding: 0.35rem 0.55rem;
+  min-height: var(--bo-board-filter-control-height);
+  padding: 0 0.65rem;
+}
+
+.board-search-field input {
+  min-height: var(--bo-board-filter-control-height);
 }
 
 @media (max-width: 720px) {
@@ -130,7 +136,7 @@ const emit = defineEmits<{
   }
 
   .board-clear-filters {
-    padding: 0.3rem 0.45rem;
+    padding: 0 0.5rem;
   }
 }
 </style>

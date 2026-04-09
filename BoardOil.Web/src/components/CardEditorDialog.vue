@@ -12,37 +12,43 @@
       </div>
     </template>
     <template v-if="cardDraft">
-      <div class="card-editor-fields">
-        <label class="card-editor-card-type-field">
-          <span class="card-editor-field-label">Type</span>
-          <select
-            :value="cardDraft.cardTypeId ?? ''"
-            @change="setDraftCardTypeId(($event.target as HTMLSelectElement).value)"
-          >
-            <option
-              v-for="cardType in cardTypes"
-              :key="cardType.id"
-              :value="cardType.id"
-            >
-              {{ cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name }}
-            </option>
-          </select>
-        </label>
-
-        <CardTagEditor
-          v-model:tag-names="cardDraft.tagNames"
-          :ensure-tags-exist="ensureTagsExistForBoard"
-        />
-
-        <div class="card-editor-description-field">
-          <span class="card-editor-field-label">Description</span>
-          <MdEditor
-            v-model="descriptionDraft"
-            aria-label="Card description"
-            :max-length="maxDescriptionLength"
-            min-height="12rem"
-          />
+      <div class="card-editor-layout">
+        <div class="card-editor-main">
+          <div class="card-editor-description-field">
+            <MdEditor
+              v-model="descriptionDraft"
+              aria-label="Card description"
+              :max-length="maxDescriptionLength"
+              min-height="12rem"
+            />
+          </div>
         </div>
+
+        <aside class="card-editor-options" aria-label="Card options">
+          <div class="card-editor-option-section">
+            <CardTagEditor
+              v-model:tag-names="cardDraft.tagNames"
+              :ensure-tags-exist="ensureTagsExistForBoard"
+            />
+          </div>
+
+          <label class="card-editor-card-type-field">
+            <span class="card-editor-field-label">Type</span>
+            <select
+              :value="cardDraft.cardTypeId ?? ''"
+              @change="setDraftCardTypeId(($event.target as HTMLSelectElement).value)"
+            >
+              <option
+                v-for="cardType in cardTypes"
+                :key="cardType.id"
+                :value="cardType.id"
+              >
+                {{ cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name }}
+              </option>
+            </select>
+          </label>
+
+        </aside>
       </div>
     </template>
     <template #actions>
@@ -260,26 +266,65 @@ watch(
   gap: 0.5rem;
 }
 
-.card-editor-fields {
+.card-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(14rem, 1fr);
+  gap: 0.85rem;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.card-editor-main {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  flex: 1;
+  min-width: 0;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .card-editor-card-type-field {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.25rem;
 }
 
+.card-editor-option-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.card-editor-options :deep(.card-tag-editor-pills) {
+  width: 100%;
+}
+
+.card-editor-options :deep(.card-tag-editor-entry) {
+  display: flex;
+  width: 100%;
+}
+
+.card-editor-options :deep(.card-tag-editor-entry input) {
+  width: 100%;
+  min-width: 0;
+}
+
+.card-editor-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--bo-border-soft);
+  padding-left: 0.85rem;
+}
 
 .card-editor-description-field {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.25rem;
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
@@ -287,5 +332,18 @@ watch(
 
 .card-editor-field-label {
   font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .card-editor-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card-editor-options {
+    border-left: none;
+    border-top: 1px solid var(--bo-border-soft);
+    padding-left: 0;
+    padding-top: 0.75rem;
+  }
 }
 </style>

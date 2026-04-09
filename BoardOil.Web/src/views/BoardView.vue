@@ -28,7 +28,7 @@
         <header class="column-header">
           <div class="column-heading">
             <h2 class="column-name">{{ column.title }}</h2>
-            <span class="badge column-card-count">{{ formatColumnCardCount(column.cards.length) }}</span>
+            <span class="column-card-count">{{ formatColumnCardCount(column.cards.length) }}</span>
           </div>
           <button
             type="button"
@@ -542,6 +542,10 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
 
 .column-card-count {
   flex: 0 0 auto;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--bo-ink-muted);
+  line-height: 1.2;
 }
 
 .column-add-card {
