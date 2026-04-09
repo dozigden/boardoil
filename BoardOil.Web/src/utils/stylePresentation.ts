@@ -1,6 +1,7 @@
 import type { TagStyleName } from '../types/boardTypes';
 
 export type TextColorMode = 'auto' | 'custom';
+export type BorderMode = 'auto' | 'custom' | 'none';
 
 export type StylePresentation = {
   styleName: string;
@@ -10,10 +11,12 @@ export type StylePresentation = {
 export type StyleDraft = {
   styleName: TagStyleName;
   textColorMode: TextColorMode;
+  borderMode: BorderMode;
   backgroundColor: string;
   leftColor: string;
   rightColor: string;
   textColor: string;
+  borderColor: string;
 };
 
 export type SurfaceStyleOptions = {
@@ -25,11 +28,14 @@ export type SurfaceStyleOptions = {
 
 const DEFAULT_BACKGROUND_COLOR = '#69C1CE';
 const DEFAULT_TEXT_COLOR = '#111827';
+const DEFAULT_BORDER_COLOR = '#D8CDEC';
 const AUTO_TEXT_COLOR_LIGHT = '#FFFFFF';
 const AUTO_TEXT_COLOR_DARK = '#111827';
 
 type ParsedStyleProperties = {
   textColorMode?: string;
+  borderMode?: string;
+  borderColor?: string;
   backgroundColor?: string;
   leftColor?: string;
   rightColor?: string;
@@ -45,6 +51,7 @@ export function createStyleDraft(style: StylePresentation, fallbackStyleProperti
   const styleName: TagStyleName = style.styleName === 'gradient' ? 'gradient' : 'solid';
   const styleProperties = parseStyleProperties(style.stylePropertiesJson, fallbackStylePropertiesJson);
   const textColorMode: TextColorMode = styleProperties.textColorMode === 'custom' ? 'custom' : 'auto';
+  const borderMode: BorderMode = resolveBorderMode(styleProperties.borderMode);
   const fallbackSolidColor = styleName === 'solid'
     ? DEFAULT_BACKGROUND_COLOR
     : normalizeHexColor(styleProperties.leftColor, DEFAULT_BACKGROUND_COLOR);
@@ -61,10 +68,12 @@ export function createStyleDraft(style: StylePresentation, fallbackStyleProperti
   return {
     styleName,
     textColorMode,
+    borderMode,
     backgroundColor: solidColor,
     leftColor,
     rightColor,
-    textColor: normalizeHexColor(styleProperties.textColor, DEFAULT_TEXT_COLOR)
+    textColor: normalizeHexColor(styleProperties.textColor, DEFAULT_TEXT_COLOR),
+    borderColor: normalizeHexColor(styleProperties.borderColor, DEFAULT_BORDER_COLOR)
   };
 }
 
@@ -73,6 +82,10 @@ export function buildStylePropertiesJsonFromDraft(draft: StyleDraft): string {
     ? {
       backgroundColor: normalizeHexColor(draft.backgroundColor, DEFAULT_BACKGROUND_COLOR),
       textColorMode: draft.textColorMode,
+      borderMode: draft.borderMode,
+      ...(draft.borderMode === 'custom'
+        ? { borderColor: normalizeHexColor(draft.borderColor, DEFAULT_BORDER_COLOR) }
+        : {}),
       ...(draft.textColorMode === 'custom'
         ? { textColor: normalizeHexColor(draft.textColor, DEFAULT_TEXT_COLOR) }
         : {})
@@ -81,6 +94,10 @@ export function buildStylePropertiesJsonFromDraft(draft: StyleDraft): string {
       leftColor: normalizeHexColor(draft.leftColor, DEFAULT_BACKGROUND_COLOR),
       rightColor: normalizeHexColor(draft.rightColor, DEFAULT_BACKGROUND_COLOR),
       textColorMode: draft.textColorMode,
+      borderMode: draft.borderMode,
+      ...(draft.borderMode === 'custom'
+        ? { borderColor: normalizeHexColor(draft.borderColor, DEFAULT_BORDER_COLOR) }
+        : {}),
       ...(draft.textColorMode === 'custom'
         ? { textColor: normalizeHexColor(draft.textColor, DEFAULT_TEXT_COLOR) }
         : {})
@@ -114,7 +131,7 @@ export function getSurfaceStyle(
   return {
     background,
     color: textColor,
-    borderColor: toRgba(baseColor, options.borderAlpha ?? 0.48)
+    borderColor: resolveBorderColor(draft, baseColor, options)
   };
 }
 
@@ -149,12 +166,45 @@ function normalizeHexColor(value: string | null | undefined, fallback: string): 
   return /^#[0-9A-F]{6}$/u.test(candidate) ? candidate : fallback;
 }
 
+function resolveBorderMode(rawBorderMode: string | undefined): BorderMode {
+  switch ((rawBorderMode ?? '').trim().toLowerCase()) {
+    case 'custom':
+      return 'custom';
+    case 'none':
+      return 'none';
+    default:
+      return 'auto';
+  }
+}
+
 function resolveTextColor(draft: StyleDraft, baseColor: string): string {
   if (draft.textColorMode === 'custom') {
     return normalizeHexColor(draft.textColor, DEFAULT_TEXT_COLOR);
   }
 
   return getAutoTextColor(baseColor);
+}
+
+function resolveBorderColor(draft: StyleDraft, baseColor: string, options: SurfaceStyleOptions): string {
+  if (draft.borderMode === 'none') {
+    return 'transparent';
+  }
+
+  if (draft.borderMode === 'custom') {
+    return normalizeHexColor(draft.borderColor, DEFAULT_BORDER_COLOR);
+  }
+
+  const rgb = parseHexColor(baseColor);
+  if (!rgb) {
+    return options.fallbackBorderColor;
+  }
+
+  const lightness = ((rgb.r * 299) + (rgb.g * 587) + (rgb.b * 114)) / 1000;
+  if (lightness >= 220) {
+    return options.fallbackBorderColor;
+  }
+
+  return toRgba(baseColor, options.borderAlpha ?? 0.48);
 }
 
 function getAutoTextColor(backgroundHex: string): string {

@@ -97,6 +97,26 @@
           @input="setDraftStyleField('textColor', ($event.target as HTMLInputElement).value)"
         />
       </label>
+
+      <label>
+        Border
+        <select :value="draftStyle.borderMode" :disabled="busy" @change="setBorderMode(($event.target as HTMLSelectElement).value)">
+          <option value="auto">Auto</option>
+          <option value="custom">Custom</option>
+          <option value="none">None</option>
+        </select>
+      </label>
+
+      <label v-if="draftStyle.borderMode === 'custom'">
+        Border Color
+        <input
+          type="color"
+          class="card-types-colour-input"
+          :value="draftStyle.borderColor"
+          :disabled="busy"
+          @input="setDraftStyleField('borderColor', ($event.target as HTMLInputElement).value)"
+        />
+      </label>
     </template>
 
     <template #actions>
@@ -368,6 +388,21 @@ function setTextMode(value: string) {
   draftStyle.value = {
     ...draftStyle.value,
     textColorMode: value === 'custom' ? 'custom' : 'auto'
+  };
+}
+
+function setBorderMode(value: string) {
+  if (!draftStyle.value) {
+    return;
+  }
+
+  draftStyle.value = {
+    ...draftStyle.value,
+    borderMode: value === 'custom'
+      ? 'custom'
+      : value === 'none'
+        ? 'none'
+        : 'auto'
   };
 }
 
