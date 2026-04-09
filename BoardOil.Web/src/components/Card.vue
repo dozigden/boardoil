@@ -17,8 +17,8 @@
     @dragend="onDragEnd"
   >
     <div class="card-header">
-      <strong>{{ resolvedCardTypeEmoji ? `${resolvedCardTypeEmoji} ` : '' }}{{ card.title }}</strong>
-      <span class="badge">#{{ card.id }}</span>
+      <strong class="card-title">{{ resolvedCardTypeEmoji ? `${resolvedCardTypeEmoji} ` : '' }}{{ card.title }}</strong>
+      <span class="card-id">#{{ card.id }}</span>
     </div>
 
     <div v-if="card.tags.length > 0" class="card-tags tag-group" aria-label="Card tags">
@@ -129,9 +129,21 @@ function openEditor() {
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
   margin-bottom: 0.55rem;
+}
+
+.card-title {
+  min-width: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.card-id {
+  flex: 0 0 auto;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .card-tags {
