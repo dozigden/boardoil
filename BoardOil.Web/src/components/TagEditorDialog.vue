@@ -157,12 +157,11 @@ import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
 import type { Tag, TagStyleName } from '../types/boardTypes';
 import {
   DEFAULT_TAG_STYLE_PROPERTIES_JSON,
-  buildStylePropertiesJsonFromDraft,
   createTagStyleDraft,
   getTagPillStyle,
   normaliseTagEmojiForRender
 } from '../utils/tagStyles';
-import type { TagStyleDraft } from '../utils/tagStyles';
+import { useStyleDraft } from '../composables/useStyleDraft';
 import EmojiPickerDropdown from './EmojiPickerDropdown.vue';
 import ModalDialog from './ModalDialog.vue';
 
@@ -173,7 +172,16 @@ const tagStore = useTagStore();
 const feedbackStore = useUiFeedbackStore();
 const { busy } = storeToRefs(tagStore);
 const { createTag, updateTagStyle, deleteTag, getTagById, getTagByName, loadTags } = tagStore;
-const draft = ref<TagStyleDraft | null>(null);
+const {
+  draft,
+  stylePropertiesJson,
+  setDraft,
+  clearDraft,
+  setStyleName,
+  setTextMode,
+  setBorderMode,
+  setField: setDraftField
+} = useStyleDraft();
 const draftEmoji = ref<string | null>(null);
 const draftTagName = ref('');
 const draftSourceKey = ref<string | null>(null);
@@ -240,7 +248,7 @@ const previewStyle = computed(() => {
     id: sourceTag?.id ?? 0,
     name: previewTagName.value,
     styleName: draft.value.styleName,
-    stylePropertiesJson: buildStylePropertiesJsonFromDraft(draft.value),
+    stylePropertiesJson: stylePropertiesJson.value ?? DEFAULT_TAG_STYLE_PROPERTIES_JSON,
     emoji: normaliseTagEmojiForRender(draftEmoji.value),
     createdAtUtc: sourceTag?.createdAtUtc ?? '1970-01-01T00:00:00Z',
     updatedAtUtc: sourceTag?.updatedAtUtc ?? '1970-01-01T00:00:00Z'
@@ -264,61 +272,16 @@ function setDraftTagName(value: string) {
   draftTagName.value = value;
 }
 
-function setStyleName(value: string) {
-  if (!draft.value) {
-    return;
-  }
-
-  const styleName: TagStyleName = value === 'gradient' ? 'gradient' : 'solid';
-  draft.value = {
-    ...draft.value,
-    styleName
-  };
-}
-
-function setTextMode(value: string) {
-  if (!draft.value) {
-    return;
-  }
-
-  draft.value = {
-    ...draft.value,
-    textColorMode: value === 'custom' ? 'custom' : 'auto'
-  };
-}
-
-function setBorderMode(value: string) {
-  if (!draft.value) {
-    return;
-  }
-
-  draft.value = {
-    ...draft.value,
-    borderMode: value === 'custom'
-      ? 'custom'
-      : value === 'none'
-        ? 'none'
-        : 'auto'
-  };
-}
-
-function setDraftField(field: keyof TagStyleDraft, value: string) {
-  if (!draft.value) {
-    return;
-  }
-
-  draft.value = {
-    ...draft.value,
-    [field]: value
-  };
-}
-
 async function saveTag() {
   if (!draft.value || routeBoardId.value === null) {
     return;
   }
 
-  const stylePropertiesJson = buildStylePropertiesJsonFromDraft(draft.value);
+  const nextStylePropertiesJson = stylePropertiesJson.value;
+  if (!nextStylePropertiesJson) {
+    return;
+  }
+
   const canonicalTagName = draftTagName.value.trim();
   if (isCreateMode.value) {
     if (!canonicalTagName) {
@@ -340,7 +303,7 @@ async function saveTag() {
       createdTag.id,
       canonicalTagName,
       draft.value.styleName,
-      stylePropertiesJson,
+      nextStylePropertiesJson,
       draftEmoji.value,
       routeBoardId.value
     );
@@ -361,7 +324,7 @@ async function saveTag() {
     editingTag.value.id,
     canonicalTagName,
     draft.value.styleName,
-    stylePropertiesJson,
+    nextStylePropertiesJson,
     draftEmoji.value,
     routeBoardId.value
   );
@@ -392,7 +355,7 @@ async function deleteEditingTag() {
 }
 
 function clearDraftState() {
-  draft.value = null;
+  clearDraft();
   draftEmoji.value = null;
   draftTagName.value = '';
   draftSourceKey.value = null;
@@ -403,11 +366,11 @@ function initialiseCreateDraftState() {
     return;
   }
 
-  draft.value = createTagStyleDraft({
+  setDraft(createTagStyleDraft({
     styleName: 'solid',
     stylePropertiesJson: DEFAULT_TAG_STYLE_PROPERTIES_JSON,
     emoji: null
-  });
+  }));
   draftEmoji.value = null;
   draftTagName.value = '';
   draftSourceKey.value = 'create';
@@ -419,7 +382,7 @@ function initialiseEditDraftState(tag: Tag, tagId: number) {
     return;
   }
 
-  draft.value = createTagStyleDraft(tag);
+  setDraft(createTagStyleDraft(tag));
   draftEmoji.value = tag.emoji ?? null;
   draftTagName.value = tag.name;
   draftSourceKey.value = sourceKey;

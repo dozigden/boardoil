@@ -162,16 +162,14 @@ import { useRoute, useRouter } from 'vue-router';
 import ModalDialog from './ModalDialog.vue';
 import EmojiPickerDropdown from './EmojiPickerDropdown.vue';
 import { useCardTypeStore } from '../stores/cardTypeStore';
-import type { TagStyleName } from '../types/boardTypes';
 import {
-  buildStylePropertiesJsonFromDraft,
   createCardTypeStyleDraft,
   DEFAULT_CARD_TYPE_STYLE_NAME,
   DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON,
   getCardSurfaceStyle,
   normaliseCardTypeEmojiForRender
 } from '../utils/cardTypeStyles';
-import type { CardTypeStyleDraft } from '../utils/cardTypeStyles';
+import { useStyleDraft } from '../composables/useStyleDraft';
 
 const route = useRoute();
 const router = useRouter();
@@ -181,7 +179,16 @@ const { createCardType, updateCardType, deleteCardType, getCardTypeById, loadCar
 
 const draftName = ref<string | null>(null);
 const draftEmoji = ref<string | null>(null);
-const draftStyle = ref<CardTypeStyleDraft | null>(null);
+const {
+  draft: draftStyle,
+  stylePropertiesJson,
+  setDraft: setDraftStyle,
+  clearDraft: clearDraftStyle,
+  setStyleName,
+  setTextMode,
+  setBorderMode,
+  setField: setDraftStyleField
+} = useStyleDraft();
 const draftSourceKey = ref<string | null>(null);
 
 const isCreateMode = computed(() => route.name === 'card-types-new');
@@ -224,7 +231,7 @@ const previewCardStyle = computed(() => {
 
   return getCardSurfaceStyle({
     styleName: draftStyle.value.styleName,
-    stylePropertiesJson: buildStylePropertiesJsonFromDraft(draftStyle.value)
+    stylePropertiesJson: stylePropertiesJson.value ?? DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON
   });
 });
 
@@ -244,10 +251,10 @@ watch(
 
       draftName.value = '';
       draftEmoji.value = null;
-      draftStyle.value = createCardTypeStyleDraft({
+      setDraftStyle(createCardTypeStyleDraft({
         styleName: DEFAULT_CARD_TYPE_STYLE_NAME,
         stylePropertiesJson: DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON
-      });
+      }));
       draftSourceKey.value = 'create';
       return;
     }
@@ -281,7 +288,7 @@ watch(
 
     draftName.value = nextCardType.name;
     draftEmoji.value = nextCardType.emoji;
-    draftStyle.value = createCardTypeStyleDraft(nextCardType);
+    setDraftStyle(createCardTypeStyleDraft(nextCardType));
     draftSourceKey.value = sourceKey;
   },
   { immediate: true }
@@ -304,14 +311,17 @@ async function saveCardType() {
     return;
   }
 
-  const stylePropertiesJson = buildStylePropertiesJsonFromDraft(draftStyle.value);
+  const nextStylePropertiesJson = stylePropertiesJson.value;
+  if (!nextStylePropertiesJson) {
+    return;
+  }
 
   if (isCreateMode.value) {
     const created = await createCardType(
       canonicalName,
       draftEmoji.value,
       draftStyle.value.styleName,
-      stylePropertiesJson,
+      nextStylePropertiesJson,
       boardId
     );
     if (!created) {
@@ -331,7 +341,7 @@ async function saveCardType() {
     canonicalName,
     draftEmoji.value,
     draftStyle.value.styleName,
-    stylePropertiesJson,
+    nextStylePropertiesJson,
     boardId
   );
   if (!updated) {
@@ -364,57 +374,8 @@ async function deleteEditingCardType() {
 function clearDraft() {
   draftName.value = null;
   draftEmoji.value = null;
-  draftStyle.value = null;
+  clearDraftStyle();
   draftSourceKey.value = null;
-}
-
-function setStyleName(value: string) {
-  if (!draftStyle.value) {
-    return;
-  }
-
-  const styleName: TagStyleName = value === 'gradient' ? 'gradient' : 'solid';
-  draftStyle.value = {
-    ...draftStyle.value,
-    styleName
-  };
-}
-
-function setTextMode(value: string) {
-  if (!draftStyle.value) {
-    return;
-  }
-
-  draftStyle.value = {
-    ...draftStyle.value,
-    textColorMode: value === 'custom' ? 'custom' : 'auto'
-  };
-}
-
-function setBorderMode(value: string) {
-  if (!draftStyle.value) {
-    return;
-  }
-
-  draftStyle.value = {
-    ...draftStyle.value,
-    borderMode: value === 'custom'
-      ? 'custom'
-      : value === 'none'
-        ? 'none'
-        : 'auto'
-  };
-}
-
-function setDraftStyleField(field: keyof CardTypeStyleDraft, value: string) {
-  if (!draftStyle.value) {
-    return;
-  }
-
-  draftStyle.value = {
-    ...draftStyle.value,
-    [field]: value
-  };
 }
 </script>
 
