@@ -29,6 +29,17 @@
         </button>
         <div class="entity-row-actions">
           <button
+            v-if="!cardType.isSystem"
+            type="button"
+            class="btn btn--secondary"
+            :disabled="busy"
+            aria-label="Set as default card type"
+            title="Set as default card type"
+            @click="setAsDefault(cardType.id)"
+          >
+            <span>Set as default</span>
+          </button>
+          <button
             type="button"
             class="btn btn--secondary entity-row-action-icon"
             :disabled="busy"
@@ -59,7 +70,7 @@ const cardTypeStore = useCardTypeStore();
 const { currentUserRole } = storeToRefs(boardStore);
 const { initialize } = boardStore;
 const { cardTypes, busy } = storeToRefs(cardTypeStore);
-const { loadCardTypes } = cardTypeStore;
+const { loadCardTypes, setDefaultCardType } = cardTypeStore;
 
 const isOwner = computed(() => currentUserRole.value === 'Owner');
 
@@ -106,6 +117,14 @@ async function openCreateEditor() {
   }
 
   await router.push({ name: 'card-types-new', params: { boardId: routeBoardId.value } });
+}
+
+async function setAsDefault(cardTypeId: number) {
+  if (routeBoardId.value === null) {
+    return;
+  }
+
+  await setDefaultCardType(cardTypeId, routeBoardId.value);
 }
 </script>
 
