@@ -4,10 +4,12 @@ using BoardOil.Abstractions.CardType;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Ef;
 using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Card;
 using BoardOil.Persistence.Abstractions.CardType;
 using BoardOil.Persistence.Abstractions.Entities;
+using Microsoft.EntityFrameworkCore;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tag;
 
@@ -199,10 +201,11 @@ public sealed class CardTypeService(
         }
 
         var now = DateTime.UtcNow;
-        currentDefaultCardType.IsSystem = false;
-        currentDefaultCardType.UpdatedAtUtc = now;
-        nextDefaultCardType.IsSystem = true;
-        nextDefaultCardType.UpdatedAtUtc = now;
+        var dbContext = scope.DbContexts.Get<BoardOilDbContext>();
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE CardTypes SET IsSystem = 0, UpdatedAtUtc = {0} WHERE Id = {1}; UPDATE CardTypes SET IsSystem = 1, UpdatedAtUtc = {0} WHERE Id = {2};",
+            now, currentDefaultCardType.Id, nextDefaultCardType.Id);
 
         await scope.SaveChangesAsync();
         await _boardEvents.ResyncRequestedAsync(boardId);
