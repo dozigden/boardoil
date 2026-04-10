@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isClickOutsideElement } from './useClickOutside';
+import { isClickOutsideElement, resolveClickOutsideElement } from './useClickOutside';
 
 describe('isClickOutsideElement', () => {
   it('returns false when the composed path contains the element', () => {
@@ -36,5 +36,23 @@ describe('isClickOutsideElement', () => {
     } as any;
 
     expect(isClickOutsideElement(event, root)).toBe(true);
+  });
+});
+
+describe('resolveClickOutsideElement', () => {
+  it('returns null for nullish values', () => {
+    expect(resolveClickOutsideElement(null)).toBeNull();
+    expect(resolveClickOutsideElement(undefined)).toBeNull();
+  });
+
+  it('returns the element when value is a single element', () => {
+    const element = {} as HTMLElement;
+    expect(resolveClickOutsideElement(element)).toBe(element);
+  });
+
+  it('returns first html element when value is an array ref', () => {
+    const first = {} as HTMLElement;
+    const second = {} as HTMLElement;
+    expect(resolveClickOutsideElement([first, second])).toBe(first);
   });
 });
