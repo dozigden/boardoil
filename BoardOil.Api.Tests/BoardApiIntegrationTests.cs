@@ -977,6 +977,50 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task CardTypeEndpoints_SetDefault_ShouldUseNewDefaultForCreatedCards()
+    {
+        // Arrange
+        var createColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createColumnResponse.EnsureSuccessStatusCode();
+        var columnEnvelope = await createColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(columnEnvelope);
+        Assert.NotNull(columnEnvelope!.Data);
+
+        var createTypeResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/card-types",
+            new CreateCardTypeRequest("Bug", "🐞"));
+        createTypeResponse.EnsureSuccessStatusCode();
+        var createdTypeEnvelope = await createTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>(JsonOptions);
+        Assert.NotNull(createdTypeEnvelope);
+        Assert.NotNull(createdTypeEnvelope!.Data);
+
+        // Act: switch default card type
+        var setDefaultResponse = await Client.PatchAsync($"/api/boards/1/card-types/{createdTypeEnvelope.Data!.Id}/default", null);
+        setDefaultResponse.EnsureSuccessStatusCode();
+
+        // Assert: card type flags updated
+        var listEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
+        Assert.NotNull(listEnvelope);
+        Assert.NotNull(listEnvelope!.Data);
+        var bugType = Assert.Single(listEnvelope.Data!, x => x.Name == "Bug");
+        var storyType = Assert.Single(listEnvelope.Data!, x => x.Name == "Story");
+        Assert.True(bugType.IsSystem);
+        Assert.False(storyType.IsSystem);
+
+        // Assert: create-card default follows switched card type
+        var createCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(columnEnvelope.Data.Id, "Task with default", "Desc", null));
+        createCardResponse.EnsureSuccessStatusCode();
+        var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdCardEnvelope);
+        Assert.NotNull(createdCardEnvelope!.Data);
+        Assert.Equal(bugType.Id, createdCardEnvelope.Data!.CardTypeId);
+        Assert.Equal("Bug", createdCardEnvelope.Data.CardTypeName);
+        Assert.Equal("🐞", createdCardEnvelope.Data.CardTypeEmoji);
+    }
+
+    [Fact]
     public async Task CardTypeEndpoints_WhenDeletingSystemType_ShouldReturnBadRequest()
     {
         // Arrange

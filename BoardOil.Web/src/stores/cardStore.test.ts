@@ -62,6 +62,32 @@ describe('cardStore', () => {
     expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([101, 102]);
   });
 
+  it('creates a card with an explicit card type id', async () => {
+    const store = useCardStore();
+    store.replaceBoardCards(1, makeBoard().columns);
+
+    const created: Card = {
+      id: 103,
+      boardColumnId: 1,
+      cardTypeId: 2,
+      cardTypeName: 'Bug',
+      cardTypeEmoji: '🕷️',
+      title: 'Task C',
+      description: '',
+      sortKey: '00000000000000000003',
+      tags: [],
+      tagNames: [],
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:00:00Z'
+    };
+    api.createCard.mockResolvedValue(ok(created));
+
+    await store.createCard(1, 'Task C', 2);
+
+    expect(api.createCard).toHaveBeenCalledWith(1, 1, 'Task C', 2);
+    expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([101, 103]);
+  });
+
   it('moves card across columns incrementally', async () => {
     const store = useCardStore();
     store.replaceBoardCards(1, makeBoard().columns);

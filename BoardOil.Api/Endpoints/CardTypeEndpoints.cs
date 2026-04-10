@@ -24,6 +24,9 @@ public static class CardTypeEndpoints
         cardTypeEndpoints.MapPut("/{cardTypeId:int}", async (int boardId, int cardTypeId, UpdateCardTypeRequest request, ICardTypeService cardTypeService, HttpContext httpContext) =>
             (await cardTypeService.UpdateCardTypeAsync(boardId, cardTypeId, request, httpContext.GetActorUserId())).ToHttpResult());
 
+        cardTypeEndpoints.MapPatch("/{cardTypeId:int}/default", async (int boardId, int cardTypeId, ICardTypeService cardTypeService, HttpContext httpContext) =>
+            (await cardTypeService.SetDefaultCardTypeAsync(boardId, cardTypeId, httpContext.GetActorUserId())).ToHttpResult());
+
         cardTypeEndpoints.MapDelete("/{cardTypeId:int}", async (int boardId, int cardTypeId, ICardTypeService cardTypeService, HttpContext httpContext) =>
             (await cardTypeService.DeleteCardTypeAsync(boardId, cardTypeId, httpContext.GetActorUserId())).ToHttpResult());
 

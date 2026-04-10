@@ -187,6 +187,75 @@ public sealed class CardTypeServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task SetDefaultCardTypeAsync_WhenActorIsContributor_ShouldReturnForbidden()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var now = DateTime.UtcNow;
+        var cardType = new EntityCardType
+        {
+            BoardId = boardId,
+            Name = "Feature",
+            Emoji = null,
+            IsSystem = false,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.CardTypes.Add(cardType);
+        await DbContextForArrange.SaveChangesAsync();
+        var contributorUserId = await AddContributorAsync(boardId, "set-default-contributor");
+        var service = CreateService();
+
+        // Act
+        var result = await service.SetDefaultCardTypeAsync(boardId, cardType.Id, contributorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(403, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task SetDefaultCardTypeAsync_WhenCustomTypeExists_ShouldSwitchDefaultType()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var now = DateTime.UtcNow;
+        var customType = new EntityCardType
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            Emoji = "🐞",
+            IsSystem = false,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.CardTypes.Add(customType);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var service = CreateService();
+
+        // Act
+        var result = await service.SetDefaultCardTypeAsync(boardId, customType.Id, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+
+        var cardTypes = await DbContextForAssert.CardTypes
+            .Where(x => x.BoardId == boardId)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+        Assert.Single(cardTypes, x => x.IsSystem);
+        Assert.True(cardTypes.Single(x => x.Id == customType.Id).IsSystem);
+    }
+
+    [Fact]
     public async Task DeleteCardTypeAsync_WhenSystemType_ShouldReturnValidationError()
     {
         // Arrange
