@@ -33,14 +33,23 @@
           <div class="column-add-card-wrap" :ref="element => setCreateCardTypeMenuRoot(column.id, element)">
             <button
               type="button"
-              class="btn btn--secondary column-add-card"
-              aria-label="Add card"
-              :title="cardTypes.length > 1 ? 'Add card (choose type)' : 'Add card'"
-              :aria-expanded="cardTypes.length > 1 ? createCardTypeMenuColumnId === column.id : undefined"
-              @click="toggleCreateCardTypeMenu(column.id)"
+              class="btn btn--secondary column-add-card column-add-card-main"
+              aria-label="Add default card"
+              title="Add default card"
+              @click="openDefaultCardDraft(column.id)"
             >
               <Plus :size="16" aria-hidden="true" />
-              <ChevronDown v-if="cardTypes.length > 1" :size="14" aria-hidden="true" />
+            </button>
+            <button
+              v-if="cardTypes.length > 1"
+              type="button"
+              class="btn btn--secondary column-add-card column-add-card-toggle"
+              aria-label="Choose card type"
+              title="Choose card type"
+              :aria-expanded="createCardTypeMenuColumnId === column.id"
+              @click="toggleCreateCardTypeMenu(column.id)"
+            >
+              <ChevronDown :size="14" aria-hidden="true" />
             </button>
 
             <section
@@ -60,7 +69,6 @@
                   <span v-if="cardType.emoji" aria-hidden="true">{{ cardType.emoji }}</span>
                   <span>{{ cardType.name }}</span>
                 </span>
-                <span v-if="cardType.isSystem" class="column-add-card-menu-item-meta">Default</span>
               </button>
             </section>
           </div>
@@ -73,38 +81,15 @@
             'column-content--drop-head': isDropAtColumnStart(column.id)
           }"
         >
-          <article v-if="newCardDraftTitles[column.id] !== undefined" class="create-card-inline">
-            <p v-if="resolveDraftCardTypeLabel(column.id) !== ''" class="create-card-inline-meta">
-              {{ resolveDraftCardTypeLabel(column.id) }}
-            </p>
-            <label class="create-card-inline-label">
-              Title
-              <input
-                :ref="element => setNewCardDraftInput(column.id, element)"
-                :value="newCardDraftTitles[column.id]"
-                type="text"
-                maxlength="200"
-                placeholder="New card title"
-                @input="updateNewCardDraftTitle(column.id, ($event.target as HTMLInputElement).value)"
-                @keydown.enter.prevent="saveNewCardDraft(column.id)"
-                @keydown.esc.prevent="closeNewCardDraft(column.id)"
-              />
-            </label>
-            <div class="editor-actions create-card-inline-actions">
-              <button type="button" class="btn create-card-save" aria-label="Save new card" title="Save new card" @click="saveNewCardDraft(column.id)">
-                <Check :size="16" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="btn btn--secondary create-card-cancel"
-                aria-label="Cancel new card"
-                title="Cancel new card"
-                @click="closeNewCardDraft(column.id)"
-              >
-                <X :size="16" aria-hidden="true" />
-              </button>
-            </div>
-          </article>
+          <CreateCardInline
+            v-if="newCardDraftTitles[column.id] !== undefined"
+            :title="newCardDraftTitles[column.id] ?? ''"
+            :card-type-id="newCardDraftCardTypeIds[column.id] ?? defaultCreateCardTypeId"
+            :input-ref="element => setNewCardDraftInput(column.id, element)"
+            @update:title="updateNewCardDraftTitle(column.id, $event)"
+            @save="saveNewCardDraft(column.id)"
+            @cancel="closeNewCardDraft(column.id)"
+          />
 
           <Card
             v-for="card in column.cards"
@@ -130,12 +115,13 @@
 </template>
 
 <script setup lang="ts">
-import { Check, ChevronDown, Plus, X } from 'lucide-vue-next';
+import { ChevronDown, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
 import Card from '../components/Card.vue';
+import CreateCardInline from '../components/CreateCardInline.vue';
 import { useClickOutside } from '../composables/useClickOutside';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardStore } from '../stores/cardStore';
@@ -148,7 +134,7 @@ import type { CardSearchAndTagFilter } from '../utils/cardFilters';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
-const newCardDraftInputs = ref<Record<number, HTMLInputElement | null>>({});
+const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
 const createCardTypeMenuColumnId = ref<number | null>(null);
 const createCardTypeMenuRoots = ref<Record<number, HTMLElement | null>>({});
 const cardSearchText = ref('');
@@ -224,6 +210,10 @@ async function openNewCardDraft(columnId: number, cardTypeId: number | null = de
   newCardDraftInputs.value[columnId]?.focus();
 }
 
+function openDefaultCardDraft(columnId: number) {
+  void openNewCardDraft(columnId, defaultCreateCardTypeId.value);
+}
+
 function updateNewCardDraftTitle(columnId: number, value: string) {
   if (newCardDraftTitles.value[columnId] === undefined) {
     return;
@@ -239,7 +229,9 @@ function closeNewCardDraft(columnId: number) {
 }
 
 function setNewCardDraftInput(columnId: number, element: unknown) {
-  newCardDraftInputs.value[columnId] = element instanceof HTMLInputElement ? element : null;
+  newCardDraftInputs.value[columnId] = element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
+    ? element
+    : null;
 }
 
 async function saveNewCardDraft(columnId: number) {
@@ -259,22 +251,10 @@ function setCreateCardTypeMenuRoot(columnId: number, element: unknown) {
 
 function toggleCreateCardTypeMenu(columnId: number) {
   if (cardTypes.value.length <= 1) {
-    void openNewCardDraft(columnId, defaultCreateCardTypeId.value);
     return;
   }
 
   createCardTypeMenuColumnId.value = createCardTypeMenuColumnId.value === columnId ? null : columnId;
-}
-
-function resolveDraftCardTypeLabel(columnId: number) {
-  const draftCardTypeId = newCardDraftCardTypeIds.value[columnId] ?? defaultCreateCardTypeId.value;
-  const cardType = cardTypes.value.find(x => x.id === draftCardTypeId);
-  if (!cardType) {
-    return '';
-  }
-
-  const name = cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name;
-  return cardType.isSystem ? `${name} (Default)` : name;
 }
 
 async function openCardEditor(cardId: number) {
@@ -630,19 +610,38 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
 }
 
 .column-add-card {
-  padding: 0.3rem;
-  margin-right: 0.5rem;
+  height: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.column-add-card-main {
+  min-width: 2rem;
+}
+
+.column-add-card-main:not(:only-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.column-add-card-toggle {
+  margin-left: -1px;
+  min-width: 1.75rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .column-add-card-wrap {
   position: relative;
   display: inline-flex;
   align-items: center;
+  margin-right: 0.5rem;
 }
 
 .column-add-card-menu {
   position: absolute;
-  right: 0.5rem;
+  right: 0;
   top: calc(100% + 0.35rem);
   z-index: 5;
   min-width: 12.5rem;
@@ -661,11 +660,6 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-}
-
-.column-add-card-menu-item-meta {
-  color: var(--bo-ink-subtle);
-  font-size: 0.75rem;
 }
 
 .column-content {
@@ -733,37 +727,6 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
 .column-content:hover::-webkit-scrollbar-thumb,
 .column-content:focus-within::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--bo-border-default) 78%, transparent);
-}
-
-.create-card-inline {
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 12px;
-  padding: 0.6rem;
-  background: var(--bo-surface-base);
-  margin-bottom: 0.5rem;
-  display: grid;
-  gap: 0.45rem;
-}
-
-.create-card-inline-label {
-  display: grid;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-
-.create-card-inline-meta {
-  margin: 0;
-  color: var(--bo-ink-muted);
-  font-size: 0.8rem;
-}
-
-.create-card-inline-actions {
-  justify-content: flex-end;
-}
-
-.create-card-save,
-.create-card-cancel {
-  padding: 0.4rem;
 }
 
 .column-filter-empty {
