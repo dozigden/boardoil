@@ -4,6 +4,20 @@ type ClickOutsideEvent = Pick<PointerEvent, 'target'> & {
   composedPath?: () => EventTarget[];
 };
 
+export function resolveClickOutsideElement(
+  value: HTMLElement | HTMLElement[] | null | undefined
+): HTMLElement | null {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.find(candidate => candidate !== null && candidate !== undefined) ?? null;
+  }
+
+  return value;
+}
+
 export function isClickOutsideElement(event: ClickOutsideEvent, element: HTMLElement | null): boolean {
   if (!element) {
     return false;
@@ -23,7 +37,7 @@ export function isClickOutsideElement(event: ClickOutsideEvent, element: HTMLEle
 }
 
 export function useClickOutside(
-  elementRef: MaybeRefOrGetter<HTMLElement | null>,
+  elementRef: MaybeRefOrGetter<HTMLElement | HTMLElement[] | null>,
   onOutsideClick: (event: PointerEvent) => void,
   enabled: MaybeRefOrGetter<boolean> = true
 ) {
@@ -32,7 +46,7 @@ export function useClickOutside(
       return;
     }
 
-    const element = toValue(elementRef);
+    const element = resolveClickOutsideElement(toValue(elementRef));
     if (!isClickOutsideElement(event, element)) {
       return;
     }
