@@ -131,4 +131,14 @@ watch(
   justify-content: flex-end;
   gap: 0.35rem;
 }
+
+@media (max-width: 720px) {
+  .md-link-dialog {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    border-radius: 0;
+  }
+}
 </style>

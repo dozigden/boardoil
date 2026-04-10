@@ -154,4 +154,25 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.35rem;
 }
+
+@media (max-width: 720px) {
+  .card-modal,
+  .card-modal.card-modal-md,
+  .card-modal.card-modal-fill {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .card-modal-content {
+    height: 100%;
+    max-height: 100%;
+    overflow: auto;
+    border-radius: 0;
+  }
+}
 </style>
