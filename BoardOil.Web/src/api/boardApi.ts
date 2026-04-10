@@ -276,6 +276,10 @@ export function createBoardApi() {
     return putData<CardType>(`/api/boards/${boardId}/card-types/${cardTypeId}`, payload);
   }
 
+  async function setDefaultCardType(boardId: number, cardTypeId: number): Promise<Result<void, AppError>> {
+    return patchData<void>(`/api/boards/${boardId}/card-types/${cardTypeId}/default`, {});
+  }
+
   async function deleteCardType(boardId: number, cardTypeId: number): Promise<Result<void, AppError>> {
     return deleteJson(`/api/boards/${boardId}/card-types/${cardTypeId}`);
   }
@@ -309,6 +313,7 @@ export function createBoardApi() {
     getCardTypes,
     createCardType,
     updateCardType,
+    setDefaultCardType,
     deleteCardType
   };
 }

@@ -166,6 +166,50 @@ public sealed class CardTypeService(
         return existing.ToCardTypeDto();
     }
 
+    public async Task<ApiResult> SetDefaultCardTypeAsync(int boardId, int cardTypeId, int actorUserId)
+    {
+        using var scope = _scopeFactory.Create();
+
+        if (boardRepository.Get(boardId) is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageSettings);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        var nextDefaultCardType = await cardTypeRepository.GetByIdInBoardAsync(boardId, cardTypeId);
+        if (nextDefaultCardType is null)
+        {
+            return ApiErrors.NotFound("Card type not found.");
+        }
+
+        if (nextDefaultCardType.IsSystem)
+        {
+            return ApiResults.Ok();
+        }
+
+        var currentDefaultCardType = await cardTypeRepository.GetSystemByBoardIdAsync(boardId);
+        if (currentDefaultCardType is null)
+        {
+            return ApiErrors.InternalError("System card type not found for board.");
+        }
+
+        var now = DateTime.UtcNow;
+        currentDefaultCardType.IsSystem = false;
+        currentDefaultCardType.UpdatedAtUtc = now;
+        nextDefaultCardType.IsSystem = true;
+        nextDefaultCardType.UpdatedAtUtc = now;
+
+        await scope.SaveChangesAsync();
+        await _boardEvents.ResyncRequestedAsync(boardId);
+
+        return ApiResults.Ok();
+    }
+
     public async Task<ApiResult> DeleteCardTypeAsync(int boardId, int cardTypeId, int actorUserId)
     {
         using var scope = _scopeFactory.Create();

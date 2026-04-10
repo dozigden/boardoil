@@ -44,7 +44,12 @@ export const useCardStore = defineStore('card', () => {
     dragState = null;
   }
 
-  async function createCard(columnId: number, title: string, boardId: number | null = activeBoardId.value) {
+  async function createCard(
+    columnId: number,
+    title: string,
+    cardTypeId: number | null = null,
+    boardId: number | null = activeBoardId.value
+  ) {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       return;
@@ -55,7 +60,13 @@ export const useCardStore = defineStore('card', () => {
       return;
     }
 
-    const result = await runBusy(() => api.createCard(resolvedBoardId, columnId, trimmedTitle));
+    const result = await runBusy(() => {
+      if (cardTypeId === null) {
+        return api.createCard(resolvedBoardId, columnId, trimmedTitle);
+      }
+
+      return api.createCard(resolvedBoardId, columnId, trimmedTitle, cardTypeId);
+    });
     if (!result.ok) {
       return;
     }

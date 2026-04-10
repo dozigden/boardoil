@@ -24,7 +24,7 @@
             <span>{{ cardType.name }}</span>
           </span>
           <span class="entity-row-badges">
-            <span v-if="cardType.isSystem" class="badge">System</span>
+            <span v-if="cardType.isSystem" class="badge">Default</span>
           </span>
         </button>
         <div class="entity-row-actions">

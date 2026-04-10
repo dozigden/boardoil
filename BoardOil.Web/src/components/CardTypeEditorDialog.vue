@@ -11,8 +11,8 @@
         <span class="badge">Preview</span>
         <article class="card-type-preview-card" :style="previewCardStyle">
           <div class="card-header">
-            <strong>{{ previewTitle }}</strong>
-            <span class="badge">#123</span>
+            <strong class="card-title">{{ previewTitle }}</strong>
+            <span class="card-id">#123</span>
           </div>
         </article>
       </div>
@@ -121,18 +121,30 @@
 
     <template #actions>
       <div v-if="draftName !== null" class="editor-actions card-modal-actions">
-        <button
-          v-if="showDeleteAction"
-          type="button"
-          class="btn btn--danger"
-          :disabled="busy"
-          aria-label="Delete card type"
-          title="Delete card type"
-          @click="deleteEditingCardType"
-        >
-          <Trash2 :size="16" aria-hidden="true" />
-        </button>
-        <span v-else />
+        <div class="card-type-dialog-leading-actions">
+          <button
+            v-if="showSetDefaultAction"
+            type="button"
+            class="btn btn--secondary"
+            :disabled="busy"
+            aria-label="Set as default card type"
+            title="Set as default card type"
+            @click="setEditingCardTypeAsDefault"
+          >
+            <span>Set Default</span>
+          </button>
+          <button
+            v-if="showDeleteAction"
+            type="button"
+            class="btn btn--danger"
+            :disabled="busy"
+            aria-label="Delete card type"
+            title="Delete card type"
+            @click="deleteEditingCardType"
+          >
+            <Trash2 :size="16" aria-hidden="true" />
+          </button>
+        </div>
         <div class="card-modal-actions-left">
           <button
             type="submit"
@@ -175,7 +187,7 @@ const route = useRoute();
 const router = useRouter();
 const cardTypeStore = useCardTypeStore();
 const { busy } = storeToRefs(cardTypeStore);
-const { createCardType, updateCardType, deleteCardType, getCardTypeById, loadCardTypes } = cardTypeStore;
+const { createCardType, updateCardType, setDefaultCardType, deleteCardType, getCardTypeById, loadCardTypes } = cardTypeStore;
 
 const draftName = ref<string | null>(null);
 const draftEmoji = ref<string | null>(null);
@@ -214,6 +226,7 @@ const dialogTitle = computed(() => {
 });
 const hasValidName = computed(() => (draftName.value ?? '').trim().length > 0);
 const showDeleteAction = computed(() => !isCreateMode.value && editingCardType.value !== null && !editingCardType.value.isSystem);
+const showSetDefaultAction = computed(() => !isCreateMode.value && editingCardType.value !== null && !editingCardType.value.isSystem);
 const previewName = computed(() => {
   const value = (draftName.value ?? '').trim();
   if (value.length > 0) {
@@ -357,7 +370,7 @@ async function deleteEditingCardType() {
   }
 
   const confirmed = window.confirm(
-    `Delete card type "${editingCardType.value.name}"?\n\nCards using this type will be reassigned to the board system type.`
+    `Delete card type "${editingCardType.value.name}"?\n\nCards using this type will be reassigned to the board default type.`
   );
   if (!confirmed) {
     return;
@@ -365,6 +378,19 @@ async function deleteEditingCardType() {
 
   const deleted = await deleteCardType(editingCardType.value.id, routeBoardId.value);
   if (!deleted) {
+    return;
+  }
+
+  await closeDialog();
+}
+
+async function setEditingCardTypeAsDefault() {
+  if (!editingCardType.value || routeBoardId.value === null || editingCardType.value.isSystem) {
+    return;
+  }
+
+  const updated = await setDefaultCardType(editingCardType.value.id, routeBoardId.value);
+  if (!updated) {
     return;
   }
 
@@ -405,8 +431,26 @@ function clearDraft() {
 
 .card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+.card-type-dialog-leading-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.card-title {
+  min-width: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.card-id {
+  flex: 0 0 auto;
+  font-weight: 600;
+  line-height: 1.25;
 }
 </style>

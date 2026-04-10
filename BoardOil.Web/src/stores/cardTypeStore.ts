@@ -105,6 +105,21 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return true;
   }
 
+  async function setDefaultCardType(cardTypeId: number, boardId: number | null = activeBoardId.value) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
+      return false;
+    }
+
+    const result = await runBusy(() => api.setDefaultCardType(resolvedBoardId, cardTypeId));
+    if (!result.ok) {
+      return false;
+    }
+
+    await loadCardTypes(resolvedBoardId);
+    return true;
+  }
+
   function getCardTypeById(cardTypeId: number | null) {
     if (cardTypeId === null) {
       return null;
@@ -168,6 +183,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
     loadCardTypes,
     createCardType,
     updateCardType,
+    setDefaultCardType,
     deleteCardType,
     getCardTypeById
   };

@@ -178,10 +178,12 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
         var updateResponse = await standardClient.PutAsJsonAsync(
             $"/api/boards/1/card-types/{cardTypeId}",
             new UpdateCardTypeRequest("Platform"));
+        var setDefaultResponse = await standardClient.PatchAsync($"/api/boards/1/card-types/{cardTypeId}/default", null);
         var deleteResponse = await standardClient.DeleteAsync($"/api/boards/1/card-types/{cardTypeId}");
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, updateResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, setDefaultResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
     }
 
