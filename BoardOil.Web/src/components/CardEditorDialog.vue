@@ -337,6 +337,7 @@ watch(
 @media (max-width: 900px) {
   .card-editor-layout {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .card-editor-options {
@@ -344,6 +345,57 @@ watch(
     border-top: 1px solid var(--bo-border-soft);
     padding-left: 0;
     padding-top: 0.75rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .dialog-title-with-pill {
+    gap: 0.35rem;
+    min-width: 0;
+    width: calc(100% - 2.1rem);
+  }
+
+  .card-editor-layout {
+    gap: 0.6rem;
+  }
+
+  .card-editor-options {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(7rem, auto);
+    align-items: end;
+    gap: 0.5rem;
+    padding-top: 0.6rem;
+  }
+
+  .card-editor-option-section {
+    min-width: 0;
+  }
+
+  .card-editor-card-type-field {
+    min-width: 0;
+  }
+
+  .card-editor-card-type-field select {
+    min-width: 0;
+  }
+
+  .card-editor-options :deep(.card-tag-editor-entry input) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .card-editor-description-field :deep(.md-editor) {
+    --md-editor-min-height: 8rem;
+    height: 100%;
+  }
+
+  .card-editor-description-field :deep(.md-editor-input),
+  .card-editor-description-field :deep(.md-editor-content) {
+    height: 100%;
+  }
+
+  :deep(.card-modal-content) {
+    padding: 0.75rem;
   }
 }
 </style>
