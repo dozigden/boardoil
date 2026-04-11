@@ -19,7 +19,7 @@ const navItems = [
     to: { name: 'users' }
   },
   {
-    label: 'Client accounts',
+    label: 'Client Accounts',
     to: { name: 'client-accounts' }
   },
   {

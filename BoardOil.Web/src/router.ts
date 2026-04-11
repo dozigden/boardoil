@@ -168,6 +168,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('./views/ClientAccountsView.vue')
       },
       {
+        path: 'client-accounts/:clientAccountId(\\d+)/tokens',
+        name: 'client-account-tokens',
+        component: () => import('./views/ClientAccountTokensView.vue')
+      },
+      {
         path: 'configuration',
         name: 'configuration',
         component: () => import('./views/ConfigurationView.vue')
