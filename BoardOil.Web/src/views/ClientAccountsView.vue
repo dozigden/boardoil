@@ -59,12 +59,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { createAuthApi } from '../api/authApi';
+import { createSystemApi } from '../api/systemApi';
 import AccessTokenSecretModal from '../components/AccessTokenSecretModal.vue';
 import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.vue';
 import type { ClientAccount, CreateClientAccountRequest } from '../types/authTypes';
 
-const authApi = createAuthApi();
+const systemApi = createSystemApi();
 const clients = ref<ClientAccount[]>([]);
 
 const loading = ref(false);
@@ -92,7 +92,7 @@ async function loadClients() {
   loading.value = true;
   errorMessage.value = null;
   try {
-    const result = await authApi.getClientAccounts();
+    const result = await systemApi.getClientAccounts();
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -109,7 +109,7 @@ async function createClientAccount(payload: CreateClientAccountRequest) {
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await authApi.createClientAccount(payload);
+    const result = await systemApi.createClientAccount(payload);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;

@@ -55,10 +55,10 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { createConfigurationApi } from '../api/configurationApi';
+import { createSystemApi } from '../api/systemApi';
 import type { ConfigurationDto } from '../types/configurationTypes';
 
-const configurationApi = createConfigurationApi();
+const systemApi = createSystemApi();
 const configuration = ref<ConfigurationDto | null>(null);
 const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
@@ -66,7 +66,7 @@ const saving = ref(false);
 const mcpPublicBaseUrlDraft = ref('');
 
 onMounted(async () => {
-  const result = await configurationApi.getConfiguration();
+  const result = await systemApi.getConfiguration();
   if (!result.ok) {
     errorMessage.value = result.error.message;
     return;
@@ -82,7 +82,7 @@ async function saveConfiguration() {
   successMessage.value = null;
   try {
     const requestValue = mcpPublicBaseUrlDraft.value.trim();
-    const result = await configurationApi.updateConfiguration({
+    const result = await systemApi.updateConfiguration({
       mcpPublicBaseUrl: requestValue.length > 0 ? requestValue : null
     });
     if (!result.ok) {

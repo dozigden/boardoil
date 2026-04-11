@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { createSystemBoardApi } from '../api/systemBoardApi';
+import { createSystemApi } from '../api/systemApi';
 import { useUiFeedbackStore } from './uiFeedbackStore';
 import type { SystemBoardSummary } from '../types/boardTypes';
 
@@ -8,7 +8,7 @@ export const useSystemBoardStore = defineStore('systemBoard', () => {
   const boards = ref<SystemBoardSummary[]>([]);
   const busy = ref(false);
   const feedback = useUiFeedbackStore();
-  const api = createSystemBoardApi();
+  const api = createSystemApi();
 
   async function loadBoards() {
     busy.value = true;
