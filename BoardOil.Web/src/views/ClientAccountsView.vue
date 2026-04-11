@@ -63,37 +63,16 @@
 
         <section class="client-token-list">
           <p v-if="selectedClient && tokens.length === 0" class="client-accounts-empty">No tokens for this client yet.</p>
-          <article
+          <AccessTokenListItem
             v-for="token in tokens"
             :key="token.id"
-            class="panel panel-stack panel-stack--compact client-token-item"
-          >
-            <div class="client-token-item-header">
-              <strong>{{ token.name }}</strong>
-              <span class="badge-group">
-                <span class="badge">{{ tokenStatus(token) }}</span>
-                <span class="badge">{{ token.tokenPrefix }}</span>
-              </span>
-            </div>
-            <div class="client-token-item-meta">
-              <span><strong>Scopes:</strong> {{ token.scopes.join(', ') || 'None' }}</span>
-              <span><strong>Boards:</strong> {{ describeBoardAccess(token) }}</span>
-              <span><strong>Created:</strong> {{ formatDate(token.createdAtUtc) }}</span>
-              <span><strong>Expires:</strong> {{ formatDate(token.expiresAtUtc) }}</span>
-              <span><strong>Last used:</strong> {{ formatDate(token.lastUsedAtUtc) }}</span>
-              <span><strong>Revoked:</strong> {{ formatDate(token.revokedAtUtc) }}</span>
-            </div>
-            <div class="client-token-item-actions">
-              <button
-                type="button"
-                class="btn btn--secondary"
-                :disabled="isBusy || token.revokedAtUtc !== null"
-                @click="revokeToken(token)"
-              >
-                {{ token.revokedAtUtc ? 'Revoked' : 'Revoke token' }}
-              </button>
-            </div>
-          </article>
+            :token="token"
+            :is-busy="isBusy"
+            :token-status="tokenStatus"
+            :describe-board-access="describeBoardAccess"
+            :format-date="formatDate"
+            @revoke="revokeToken"
+          />
         </section>
       </section>
     </div>
@@ -130,6 +109,7 @@ import { computed, onMounted, ref } from 'vue';
 import { createAuthApi } from '../api/authApi';
 import { createBoardApi } from '../api/boardApi';
 import AccessTokenCreateDialog from '../components/AccessTokenCreateDialog.vue';
+import AccessTokenListItem from '../components/AccessTokenListItem.vue';
 import AccessTokenSecretModal from '../components/AccessTokenSecretModal.vue';
 import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.vue';
 import type { AccessToken, ClientAccount, CreateAccessTokenRequest, CreateClientAccountRequest } from '../types/authTypes';
@@ -464,25 +444,6 @@ onMounted(async () => {
 .client-token-list {
   display: grid;
   gap: 0.7rem;
-}
-
-.client-token-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.client-token-item-meta {
-  display: grid;
-  gap: 0.2rem;
-  color: var(--bo-ink-muted);
-  font-size: 0.9rem;
-}
-
-.client-token-item-actions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 @media (max-width: 960px) {

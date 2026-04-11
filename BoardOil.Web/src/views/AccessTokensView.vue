@@ -22,35 +22,16 @@
 
           <p v-if="tokens.length === 0" class="machine-pat-empty">No access tokens have been created yet.</p>
 
-          <article v-for="token in tokens" :key="token.id" class="panel panel-stack panel-stack--compact machine-pat-item">
-            <div class="machine-pat-item-header">
-              <strong>{{ token.name }}</strong>
-              <span class="badge-group">
-                <span class="badge">{{ tokenStatus(token) }}</span>
-                <span class="badge">{{ token.tokenPrefix }}</span>
-              </span>
-            </div>
-
-            <div class="machine-pat-item-meta">
-              <span><strong>Scopes:</strong> {{ token.scopes.join(', ') || 'None' }}</span>
-              <span><strong>Boards:</strong> {{ describeBoardAccess(token) }}</span>
-              <span><strong>Created:</strong> {{ formatDate(token.createdAtUtc) }}</span>
-              <span><strong>Expires:</strong> {{ formatDate(token.expiresAtUtc) }}</span>
-              <span><strong>Last used:</strong> {{ formatDate(token.lastUsedAtUtc) }}</span>
-              <span><strong>Revoked:</strong> {{ formatDate(token.revokedAtUtc) }}</span>
-            </div>
-
-            <div class="machine-pat-item-actions">
-              <button
-                type="button"
-                class="btn btn--secondary"
-                :disabled="isBusy || token.revokedAtUtc !== null"
-                @click="revokeToken(token)"
-              >
-                {{ token.revokedAtUtc ? 'Revoked' : 'Revoke token' }}
-              </button>
-            </div>
-          </article>
+          <AccessTokenListItem
+            v-for="token in tokens"
+            :key="token.id"
+            :token="token"
+            :is-busy="isBusy"
+            :token-status="tokenStatus"
+            :describe-board-access="describeBoardAccess"
+            :format-date="formatDate"
+            @revoke="revokeToken"
+          />
         </section>
       </section>
 
@@ -229,6 +210,7 @@ import { computed, onMounted, ref } from 'vue';
 import { createAuthApi } from '../api/authApi';
 import { createBoardApi } from '../api/boardApi';
 import AccessTokenCreateDialog from '../components/AccessTokenCreateDialog.vue';
+import AccessTokenListItem from '../components/AccessTokenListItem.vue';
 import AccessTokenSecretModal from '../components/AccessTokenSecretModal.vue';
 import type { AccessToken, CreateAccessTokenRequest } from '../types/authTypes';
 import type { BoardSummary } from '../types/boardTypes';
@@ -675,24 +657,6 @@ function sortTokens(items: AccessToken[]) {
   color: var(--bo-ink-muted);
 }
 
-.machine-pat-item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.7rem;
-}
-
-.machine-pat-item-meta {
-  display: grid;
-  gap: 0.3rem;
-  color: var(--bo-ink-default);
-}
-
-.machine-pat-item-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
 @media (max-width: 1040px) {
   .machine-access-layout {
     grid-template-columns: 1fr;
@@ -705,13 +669,5 @@ function sortTokens(items: AccessToken[]) {
     pointer-events: auto;
   }
 
-  .machine-pat-item-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .machine-pat-item-actions {
-    justify-content: flex-start;
-  }
 }
 </style>
