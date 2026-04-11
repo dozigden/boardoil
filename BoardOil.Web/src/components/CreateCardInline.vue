@@ -5,6 +5,7 @@
       <textarea
         :ref="setInputRef"
         class="create-card-inline-input"
+        :class="{ 'create-card-inline-input--error': hasError }"
         :value="title"
         rows="1"
         maxlength="200"
@@ -14,6 +15,10 @@
         @keydown.esc.prevent="emit('cancel')"
       />
     </div>
+
+    <p v-if="hasError" class="create-card-inline-error" role="alert">
+      {{ errorMessage }}
+    </p>
 
     <div class="editor-actions create-card-inline-actions">
       <button type="button" class="btn create-card-save" aria-label="Save new card" title="Save new card" @click="emit('save')">
@@ -35,6 +40,7 @@ import { getCardSurfaceStyle, normaliseCardTypeEmojiForRender } from '../utils/c
 const props = defineProps<{
   title: string;
   cardTypeId: number | null;
+  errorMessage?: string;
   inputRef?: (element: unknown) => void;
 }>();
 
@@ -49,6 +55,7 @@ const titleInputRef = ref<HTMLTextAreaElement | null>(null);
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.cardTypeId));
 const draftStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
 const draftEmoji = computed(() => normaliseCardTypeEmojiForRender(resolvedCardType.value?.emoji));
+const hasError = computed(() => Boolean(props.errorMessage));
 
 function setInputRef(element: unknown) {
   titleInputRef.value = element instanceof HTMLTextAreaElement ? element : null;
@@ -139,8 +146,18 @@ watch(
   outline-offset: 1px;
 }
 
+.create-card-inline-input--error {
+  border-color: var(--bo-status-danger);
+}
+
 .create-card-inline-actions {
   justify-content: flex-end;
+}
+
+.create-card-inline-error {
+  margin: 0;
+  color: var(--bo-status-danger);
+  font-size: 0.85rem;
 }
 
 .create-card-save,

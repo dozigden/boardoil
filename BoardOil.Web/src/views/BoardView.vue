@@ -85,6 +85,7 @@
             v-if="newCardDraftTitles[column.id] !== undefined"
             :title="newCardDraftTitles[column.id] ?? ''"
             :card-type-id="newCardDraftCardTypeIds[column.id] ?? defaultCreateCardTypeId"
+            :error-message="newCardDraftErrors[column.id] ?? ''"
             :input-ref="element => setNewCardDraftInput(column.id, element)"
             @update:title="updateNewCardDraftTitle(column.id, $event)"
             @save="saveNewCardDraft(column.id)"
@@ -127,6 +128,7 @@ import { useBoardStore } from '../stores/boardStore';
 import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useTagStore } from '../stores/tagStore';
+import type { AppError } from '../types/appError';
 import type { TagFilterState, TagFilterStateMap } from '../types/tagFilterTypes';
 import { formatColumnCardCount } from '../utils/columnCardCount';
 import { createCardSearchAndTagMatcher } from '../utils/cardFilters';
@@ -135,6 +137,7 @@ import type { CardSearchAndTagFilter } from '../utils/cardFilters';
 const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
+const newCardDraftErrors = ref<Record<number, string>>({});
 const createCardTypeMenuColumnId = ref<number | null>(null);
 const createCardTypeMenuRoots = ref<Record<number, HTMLElement | null>>({});
 const cardSearchText = ref('');
@@ -200,12 +203,14 @@ async function openNewCardDraft(columnId: number, cardTypeId: number | null = de
 
   if (newCardDraftTitles.value[columnId] !== undefined) {
     newCardDraftCardTypeIds.value[columnId] = cardTypeId;
+    delete newCardDraftErrors.value[columnId];
     newCardDraftInputs.value[columnId]?.focus();
     return;
   }
 
   newCardDraftTitles.value[columnId] = '';
   newCardDraftCardTypeIds.value[columnId] = cardTypeId;
+  delete newCardDraftErrors.value[columnId];
   await nextTick();
   newCardDraftInputs.value[columnId]?.focus();
 }
@@ -220,12 +225,16 @@ function updateNewCardDraftTitle(columnId: number, value: string) {
   }
 
   newCardDraftTitles.value[columnId] = value;
+  if (newCardDraftErrors.value[columnId]) {
+    delete newCardDraftErrors.value[columnId];
+  }
 }
 
 function closeNewCardDraft(columnId: number) {
   delete newCardDraftTitles.value[columnId];
   delete newCardDraftCardTypeIds.value[columnId];
   delete newCardDraftInputs.value[columnId];
+  delete newCardDraftErrors.value[columnId];
 }
 
 function setNewCardDraftInput(columnId: number, element: unknown) {
@@ -241,8 +250,14 @@ async function saveNewCardDraft(columnId: number) {
   }
 
   const cardTypeId = newCardDraftCardTypeIds.value[columnId] ?? defaultCreateCardTypeId.value;
-  await createCard(columnId, title, cardTypeId);
-  closeNewCardDraft(columnId);
+  const result = await createCard(columnId, title, cardTypeId);
+  if (!result || result.ok) {
+    closeNewCardDraft(columnId);
+    return;
+  }
+
+  newCardDraftErrors.value[columnId] = resolveCreateCardErrorMessage(result.error);
+  newCardDraftInputs.value[columnId]?.focus();
 }
 
 function setCreateCardTypeMenuRoot(columnId: number, element: unknown) {
@@ -274,6 +289,16 @@ function onCardDragStart(cardId: number, fromColumnId: number) {
 
 function onCardDragEnd() {
   clearDragInteraction();
+}
+
+function resolveCreateCardErrorMessage(error: AppError) {
+  const validationErrors = error.validationErrors ?? {};
+  const titleErrors = validationErrors.title ?? validationErrors[''] ?? [];
+  if (titleErrors.length > 0) {
+    return titleErrors[0]!;
+  }
+
+  return error.message;
 }
 
 function onCardDragOver(columnId: number, cardId: number, event: DragEvent) {
