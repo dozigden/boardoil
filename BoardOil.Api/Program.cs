@@ -252,6 +252,7 @@ app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
     options.SwaggerEndpoint("/swagger/v1/swagger.json", $"BoardOil API {buildInfo.Version}");
+    options.UseRequestInterceptor("(req) => { req.credentials = 'omit'; return req; }");
 });
 app.MapGet("/swagger.json", () => Results.Redirect("/swagger/v1/swagger.json"));
 
