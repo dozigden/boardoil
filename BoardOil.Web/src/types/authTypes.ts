@@ -80,8 +80,12 @@ export type CreateClientAccountRequest = {
   tokenName?: string | null;
   expiresInDays?: number | null;
   scopes?: AccessTokenScope[] | null;
-  boardAccessMode?: AccessTokenBoardAccessMode;
-  allowedBoardIds?: number[];
+};
+
+export type CreateClientAccessTokenRequest = {
+  name: string;
+  expiresInDays: number | null;
+  scopes: AccessTokenScope[];
 };
 
 export type CreatedClientAccount = {

@@ -8,6 +8,7 @@ import type {
   BootstrapStatusDto,
   ClientAccount,
   CreateAccessTokenRequest,
+  CreateClientAccessTokenRequest,
   CreateClientAccountRequest,
   CreatedAccessToken,
   CreatedClientAccount,
@@ -116,7 +117,7 @@ export function createAuthApi() {
 
   async function createClientAccountToken(
     clientAccountId: number,
-    request: CreateAccessTokenRequest
+    request: CreateClientAccessTokenRequest
   ): Promise<Result<CreatedAccessToken, AppError>> {
     return postData<CreatedAccessToken>(`/api/system/client-accounts/${clientAccountId}/tokens`, request);
   }
