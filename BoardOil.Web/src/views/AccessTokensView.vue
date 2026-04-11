@@ -15,27 +15,6 @@
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
         <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
-        <section v-if="plainTextPat" class="panel panel-stack machine-pat-secret machine-pat-secret--danger">
-          <h3>Copy token now</h3>
-          <p>This value is only shown once for <strong>{{ plainTextPatName }}</strong>.</p>
-          <div class="machine-pat-code-block">
-            <code class="machine-pat-secret-value">{{ plainTextPat }}</code>
-            <button
-              type="button"
-              class="btn btn--secondary machine-pat-copy-icon"
-              :disabled="isBusy"
-              aria-label="Copy token"
-              title="Copy token"
-              @click="copyPlainTextPat"
-            >
-              <Copy :size="14" aria-hidden="true" />
-            </button>
-          </div>
-          <div class="machine-pat-secret-actions">
-            <button type="button" class="btn btn--secondary" :disabled="isBusy" @click="dismissPlainTextPat">Hide token</button>
-          </div>
-        </section>
-
         <section class="machine-pat-list">
           <header class="machine-pat-list-header">
             <h3>Existing tokens</h3>
@@ -233,6 +212,14 @@
       @close="closeCreateDialog"
       @submit="createToken"
     />
+    <AccessTokenSecretModal
+      :open="isSecretModalOpen"
+      :busy="isBusy"
+      :token="plainTextPat"
+      :token-name="plainTextPatName"
+      @close="dismissPlainTextPat"
+      @copy="copyPlainTextPat"
+    />
   </section>
 </template>
 
@@ -242,6 +229,7 @@ import { computed, onMounted, ref } from 'vue';
 import { createAuthApi } from '../api/authApi';
 import { createBoardApi } from '../api/boardApi';
 import AccessTokenCreateDialog from '../components/AccessTokenCreateDialog.vue';
+import AccessTokenSecretModal from '../components/AccessTokenSecretModal.vue';
 import type { AccessToken, CreateAccessTokenRequest } from '../types/authTypes';
 import type { BoardSummary } from '../types/boardTypes';
 
@@ -263,6 +251,7 @@ const manualTestTab = ref<'curl' | 'powershell'>('curl');
 const restAuthTab = ref<'curl' | 'powershell'>('curl');
 
 const isBusy = computed(() => loading.value || createBusy.value || revokeBusyTokenId.value !== null);
+const isSecretModalOpen = computed(() => plainTextPat.value !== null);
 const mcpEndpoint = computed(() => `${window.location.origin}/mcp`);
 const apiBaseUrl = computed(() => window.location.origin);
 const genericConfigSnippetJson = computed(() =>
@@ -383,7 +372,7 @@ async function createToken(payload: CreateAccessTokenRequest) {
     plainTextPat.value = result.data.plainTextToken;
     plainTextPatName.value = result.data.token.name;
     isCreateDialogOpen.value = false;
-    successMessage.value = `Created access token ${result.data.token.name}. Copy it now; it will not be shown again.`;
+    successMessage.value = `Created access token ${result.data.token.name}.`;
   } finally {
     createBusy.value = false;
   }
@@ -544,38 +533,6 @@ function sortTokens(items: AccessToken[]) {
   justify-content: flex-start;
 }
 
-.machine-pat-secret h3,
-.machine-pat-secret p {
-  margin: 0;
-}
-
-.machine-pat-secret--danger {
-  border-color: color-mix(in oklab, var(--bo-colour-danger) 50%, var(--bo-border-soft));
-  background: color-mix(in oklab, var(--bo-colour-danger) 10%, var(--bo-surface-base));
-}
-
-.machine-pat-secret--danger h3 {
-  color: var(--bo-colour-danger-ink);
-}
-
-.machine-pat-secret-value {
-  display: block;
-  padding: 0.65rem;
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 10px;
-  background: var(--bo-surface-base);
-  color: var(--bo-ink-strong);
-  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
-  font-size: 0.83rem;
-  overflow-wrap: anywhere;
-}
-
-.machine-pat-secret--danger .machine-pat-secret-value {
-  border-color: color-mix(in oklab, var(--bo-colour-danger) 45%, var(--bo-border-soft));
-  background: color-mix(in oklab, var(--bo-colour-danger) 6%, var(--bo-surface-base));
-  color: var(--bo-colour-danger-ink);
-}
-
 .machine-pat-code-block {
   position: relative;
   min-width: 0;
@@ -599,8 +556,7 @@ function sortTokens(items: AccessToken[]) {
   transform: translateY(-50%);
 }
 
-.machine-pat-code-block > .machine-pat-setup-code,
-.machine-pat-code-block > .machine-pat-secret-value {
+.machine-pat-code-block > .machine-pat-setup-code {
   max-width: 100%;
   padding-right: 2.4rem;
 }
@@ -635,25 +591,6 @@ function sortTokens(items: AccessToken[]) {
   border-color: var(--bo-colour-energy-strong);
   background: color-mix(in oklab, var(--bo-colour-energy) 26%, var(--bo-surface-base));
   color: color-mix(in oklab, var(--bo-colour-energy-strong) 82%, var(--bo-colour-brand));
-}
-
-.machine-pat-secret--danger .machine-pat-copy-icon {
-  border-color: color-mix(in oklab, var(--bo-colour-danger) 50%, var(--bo-border-soft));
-  background: color-mix(in oklab, var(--bo-colour-danger) 15%, var(--bo-surface-base));
-  color: var(--bo-colour-danger-ink);
-}
-
-.machine-pat-secret--danger .machine-pat-copy-icon:hover:not(:disabled),
-.machine-pat-secret--danger .machine-pat-copy-icon:focus-visible {
-  border-color: var(--bo-colour-danger);
-  background: var(--bo-colour-danger);
-  color: var(--bo-surface-base);
-}
-
-.machine-pat-secret-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
 }
 
 .machine-pat-setup h3 {
@@ -763,11 +700,6 @@ function sortTokens(items: AccessToken[]) {
 }
 
 @media (max-width: 720px) {
-  .machine-pat-secret-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .machine-pat-copy-icon {
     opacity: 1;
     pointer-events: auto;

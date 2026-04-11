@@ -61,27 +61,6 @@
           </button>
         </header>
 
-        <section v-if="plainTextPat" class="panel panel-stack client-token-secret">
-          <h3>Copy token now</h3>
-          <p>This value is only shown once for <strong>{{ plainTextPatName }}</strong>.</p>
-          <div class="client-token-code-block">
-            <code class="client-token-secret-value">{{ plainTextPat }}</code>
-            <button
-              type="button"
-              class="btn btn--secondary client-token-copy-icon"
-              :disabled="isBusy"
-              aria-label="Copy token"
-              title="Copy token"
-              @click="copyPlainTextPat"
-            >
-              <Copy :size="14" aria-hidden="true" />
-            </button>
-          </div>
-          <div class="client-token-secret-actions">
-            <button type="button" class="btn btn--secondary" :disabled="isBusy" @click="dismissPlainTextPat">Hide token</button>
-          </div>
-        </section>
-
         <section class="client-token-list">
           <p v-if="selectedClient && tokens.length === 0" class="client-accounts-empty">No tokens for this client yet.</p>
           <article
@@ -135,15 +114,23 @@
       @close="closeCreateTokenDialog"
       @submit="createClientToken"
     />
+    <AccessTokenSecretModal
+      :open="isSecretModalOpen"
+      :busy="isBusy"
+      :token="plainTextPat"
+      :token-name="plainTextPatName"
+      @close="dismissPlainTextPat"
+      @copy="copyPlainTextPat"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { Copy } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { createAuthApi } from '../api/authApi';
 import { createBoardApi } from '../api/boardApi';
 import AccessTokenCreateDialog from '../components/AccessTokenCreateDialog.vue';
+import AccessTokenSecretModal from '../components/AccessTokenSecretModal.vue';
 import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.vue';
 import type { AccessToken, ClientAccount, CreateAccessTokenRequest, CreateClientAccountRequest } from '../types/authTypes';
 import type { BoardSummary } from '../types/boardTypes';
@@ -175,6 +162,7 @@ const selectedClient = computed(() => clients.value.find(client => client.id ===
 const isBusy = computed(
   () => loading.value || tokenLoading.value || createBusy.value || tokenCreateBusy.value || revokeBusyTokenId.value !== null
 );
+const isSecretModalOpen = computed(() => plainTextPat.value !== null);
 
 function openCreateDialog() {
   isCreateDialogOpen.value = true;
@@ -265,7 +253,7 @@ async function createClientAccount(payload: CreateClientAccountRequest) {
     tokens.value = sortTokens([result.data.token.token]);
     plainTextPat.value = result.data.token.plainTextToken;
     plainTextPatName.value = result.data.token.token.name;
-    successMessage.value = `Created client account ${result.data.account.userName}. Copy the token now; it will not be shown again.`;
+    successMessage.value = `Created client account ${result.data.account.userName}.`;
     isCreateDialogOpen.value = false;
   } finally {
     createBusy.value = false;
@@ -290,7 +278,7 @@ async function createClientToken(payload: CreateAccessTokenRequest) {
     tokens.value = sortTokens([result.data.token, ...tokens.value.filter(token => token.id !== result.data.token.id)]);
     plainTextPat.value = result.data.plainTextToken;
     plainTextPatName.value = result.data.token.name;
-    successMessage.value = `Created access token ${result.data.token.name}. Copy it now; it will not be shown again.`;
+    successMessage.value = `Created access token ${result.data.token.name}.`;
     isCreateTokenDialogOpen.value = false;
   } finally {
     tokenCreateBusy.value = false;
@@ -471,49 +459,6 @@ onMounted(async () => {
 .client-tokens-header p {
   margin: 0.2rem 0 0;
   color: var(--bo-ink-muted);
-}
-
-.client-token-secret h3,
-.client-token-secret p {
-  margin: 0;
-}
-
-.client-token-code-block {
-  position: relative;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.client-token-secret-value {
-  display: block;
-  padding: 0.65rem 2.4rem 0.65rem 0.65rem;
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 10px;
-  background: var(--bo-surface-base);
-  color: var(--bo-ink-strong);
-  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
-  font-size: 0.83rem;
-  overflow-wrap: anywhere;
-}
-
-.client-token-copy-icon {
-  position: absolute;
-  top: 0.42rem;
-  right: 0.42rem;
-  width: 1.75rem;
-  min-width: 1.75rem;
-  height: 1.75rem;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-color: color-mix(in oklab, var(--bo-colour-energy) 45%, var(--bo-border-soft));
-  background: color-mix(in oklab, var(--bo-colour-energy) 16%, var(--bo-surface-base));
-}
-
-.client-token-secret-actions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .client-token-list {
