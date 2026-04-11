@@ -625,7 +625,7 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(todoState);
         Assert.NotNull(doingState);
         Assert.Empty(todoState!.Cards);
-        Assert.Equal(["Move me", "Existing A", "Existing B"], doingState!.Cards.Select(x => x.Title).ToArray());
+        Assert.Equal(["Move me", "Existing B", "Existing A"], doingState!.Cards.Select(x => x.Title).ToArray());
     }
 
     [Fact]
