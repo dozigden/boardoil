@@ -36,15 +36,13 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         // Act
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest("agent-token", 30, ["mcp:write"], "selected", [1]));
+            new CreateMachinePatRequest("agent-token", 30, ["mcp:write"]));
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
 
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.NotNull(created);
         Assert.NotNull(created!.Data);
         Assert.False(string.IsNullOrWhiteSpace(created.Data!.PlainTextToken));
-        Assert.Equal("selected", created.Data.Token.BoardAccessMode);
-        Assert.Equal([1], created.Data.Token.AllowedBoardIds);
 
         var toolsListResponse = await SendMcpRequestAsync(
             adminClient,
@@ -134,7 +132,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         // Arrange
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        var createdPat = await CreatePatAsync(adminClient, "mcp-only-token", [MachinePatScopes.McpRead], "selected", [1]);
+        var createdPat = await CreatePatAsync(adminClient, "mcp-only-token", [MachinePatScopes.McpRead]);
         var patClient = CreatePatClient(createdPat.PlainTextToken);
 
         // Act
@@ -150,7 +148,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         // Arrange
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        var createdPat = await CreatePatAsync(adminClient, "mcp-write-token", [MachinePatScopes.McpWrite], "selected", [1]);
+        var createdPat = await CreatePatAsync(adminClient, "mcp-write-token", [MachinePatScopes.McpWrite]);
         var patClient = CreatePatClient(createdPat.PlainTextToken);
 
         // Act
@@ -168,7 +166,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest("api-scope-token", 30, [MachinePatScopes.ApiWrite], "selected", [1]));
+            new CreateMachinePatRequest("api-scope-token", 30, [MachinePatScopes.ApiWrite]));
         var payload = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
 
         // Act
@@ -264,7 +262,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         // Arrange
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        var createdPat = await CreatePatAsync(adminClient, "mcp-read-token", [MachinePatScopes.McpRead], "selected", [1]);
+        var createdPat = await CreatePatAsync(adminClient, "mcp-read-token", [MachinePatScopes.McpRead]);
         var patClient = CreatePatClient(createdPat.PlainTextToken);
 
         // Act
@@ -280,7 +278,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         // Arrange
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        var createdPat = await CreatePatAsync(adminClient, "mcp-read-token", [MachinePatScopes.McpRead], "selected", [1]);
+        var createdPat = await CreatePatAsync(adminClient, "mcp-read-token", [MachinePatScopes.McpRead]);
         var patClient = CreatePatClient(createdPat.PlainTextToken);
 
         // Act
@@ -300,7 +298,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest("read-only-token", 30, ["mcp:read"], "selected", [1]));
+            new CreateMachinePatRequest("read-only-token", 30, ["mcp:read"]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
         Assert.NotNull(created);
@@ -332,14 +330,14 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PatWithSelectedBoardAccess_BoardGetOutsideAllowlist_ShouldReturnForbiddenToolError()
+    public async Task PatWithMcpReadScope_BoardGetAcrossBoards_ShouldReturnOk()
     {
         // Arrange
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest("single-board-token", 30, ["mcp:read"], "selected", [1]));
+            new CreateMachinePatRequest("multi-board-token", 30, ["mcp:read"]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
         Assert.NotNull(created);
@@ -353,14 +351,14 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
             new
             {
                 name = "board.get",
-                arguments = new { id = 2 }
+                arguments = new { id = 1 }
             },
-            "board-get-forbidden");
+            "board-get-ok");
         using var payload = await ParseMcpJsonAsync(boardGetResponse);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
-        AssertMcpForbidden(payload);
+        AssertMcpOk(payload);
     }
 
     [Fact]
@@ -371,7 +369,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest("agent-token", 30, ["mcp:write"], "selected", [1]));
+            new CreateMachinePatRequest("agent-token", 30, ["mcp:write"]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
         Assert.NotNull(created);
@@ -400,7 +398,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest("agent-token", 30, ["mcp:write"], "selected", [1]));
+            new CreateMachinePatRequest("agent-token", 30, ["mcp:write"]));
         createResponse.EnsureSuccessStatusCode();
 
         // Act
@@ -414,8 +412,6 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var token = Assert.Single(listEnvelope.Data!, x => x.Name == "agent-token");
         Assert.Contains("mcp:write", token.Scopes);
         Assert.False(string.IsNullOrWhiteSpace(token.TokenPrefix));
-        Assert.Equal("selected", token.BoardAccessMode);
-        Assert.Equal([1], token.AllowedBoardIds);
     }
 
     [Fact]
@@ -428,7 +424,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         // Act
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest("legacy-scope-token", 30, ["mcp"], "all", []));
+            new CreateMachinePatRequest("legacy-scope-token", 30, ["mcp"]));
         var payload = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
 
         // Assert
@@ -445,7 +441,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest("throttle-same-day-token", 30, ["mcp:read"], "selected", [1]));
+            new CreateMachinePatRequest("throttle-same-day-token", 30, ["mcp:read"]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
         Assert.NotNull(created);
@@ -479,7 +475,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest("throttle-stale-token", 30, ["mcp:read"], "selected", [1]));
+            new CreateMachinePatRequest("throttle-stale-token", 30, ["mcp:read"]));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
         Assert.NotNull(created);
@@ -534,7 +530,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         // Act
         var createResponse = await standardClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest("member-token", 30, ["mcp:read"], "selected", [1]));
+            new CreateMachinePatRequest("member-token", 30, ["mcp:read"]));
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
 
         var listResponse = await standardClient.GetAsync("/api/auth/access-tokens");
@@ -570,13 +566,11 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     private static async Task<CreatedMachinePatEnvelope> CreatePatAsync(
         HttpClient client,
         string name,
-        IReadOnlyList<string> scopes,
-        string boardAccessMode = "all",
-        IReadOnlyList<int>? allowedBoardIds = null)
+        IReadOnlyList<string> scopes)
     {
         var createResponse = await client.PostAsJsonAsync(
             "/api/auth/access-tokens",
-            new CreateMachinePatRequest(name, 30, scopes, boardAccessMode, allowedBoardIds ?? []));
+            new CreateMachinePatRequest(name, 30, scopes));
         createResponse.EnsureSuccessStatusCode();
 
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
@@ -674,9 +668,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     private sealed record CreateMachinePatRequest(
         string Name,
         int? ExpiresInDays,
-        IReadOnlyList<string> Scopes,
-        string BoardAccessMode,
-        IReadOnlyList<int> AllowedBoardIds);
+        IReadOnlyList<string> Scopes);
     private sealed record CreateClientAccountRequest(
         string UserName,
         string Role,
@@ -695,8 +687,6 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         string Name,
         string TokenPrefix,
         IReadOnlyList<string> Scopes,
-        string BoardAccessMode,
-        IReadOnlyList<int> AllowedBoardIds,
         DateTime CreatedAtUtc,
         DateTime? ExpiresAtUtc,
         DateTime? LastUsedAtUtc,
@@ -735,5 +725,16 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         }
 
         Assert.Fail($"Expected MCP forbidden tool error payload, got: {root.GetRawText()}");
+    }
+
+    private static void AssertMcpOk(JsonDocument payload)
+    {
+        var root = payload.RootElement;
+        if (root.TryGetProperty("error", out var error))
+        {
+            Assert.Fail($"Expected MCP success payload, got error: {error.GetRawText()}");
+        }
+
+        Assert.True(root.TryGetProperty("result", out _), $"Expected MCP success payload, got: {root.GetRawText()}");
     }
 }

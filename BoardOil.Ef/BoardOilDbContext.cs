@@ -153,8 +153,6 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         personalAccessToken.Property(x => x.TokenHash).HasMaxLength(200).IsRequired();
         personalAccessToken.Property(x => x.TokenPrefix).HasMaxLength(24).IsRequired();
         personalAccessToken.Property(x => x.ScopesCsv).HasMaxLength(500).IsRequired();
-        personalAccessToken.Property(x => x.BoardAccessMode).HasMaxLength(24).IsRequired();
-        personalAccessToken.Property(x => x.AllowedBoardIdsCsv).HasMaxLength(500).IsRequired();
         personalAccessToken.Property(x => x.CreatedAtUtc).IsRequired();
         personalAccessToken.Property(x => x.ExpiresAtUtc).IsRequired(false);
         personalAccessToken.Property(x => x.LastUsedAtUtc).IsRequired(false);

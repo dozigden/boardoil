@@ -46,15 +46,11 @@ export type UserDirectoryEntry = {
 
 export type AccessTokenScope = 'mcp:read' | 'mcp:write' | 'api:read' | 'api:write' | 'api:admin' | 'api:system' | string;
 
-export type AccessTokenBoardAccessMode = 'all' | 'selected' | string;
-
 export type AccessToken = {
   id: number;
   name: string;
   tokenPrefix: string;
   scopes: AccessTokenScope[];
-  boardAccessMode: AccessTokenBoardAccessMode;
-  allowedBoardIds: number[];
   createdAtUtc: string;
   expiresAtUtc: string | null;
   lastUsedAtUtc: string | null;
@@ -70,8 +66,6 @@ export type CreateAccessTokenRequest = {
   name: string;
   expiresInDays: number | null;
   scopes: AccessTokenScope[];
-  boardAccessMode: AccessTokenBoardAccessMode;
-  allowedBoardIds: number[];
 };
 
 export type CreateClientAccountRequest = {

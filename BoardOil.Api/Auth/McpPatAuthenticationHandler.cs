@@ -92,9 +92,7 @@ public sealed class McpPatAuthenticationHandler(
             new(ClaimTypes.Role, personalAccessToken.User.Role.ToString()),
             new("boardoil_auth_type", "pat"),
             new("boardoil_pat_id", personalAccessToken.Id.ToString()),
-            new("boardoil_pat_name", personalAccessToken.Name),
-            new("boardoil_pat_board_access_mode", NormaliseBoardAccessMode(personalAccessToken.BoardAccessMode)),
-            new("boardoil_pat_allowed_board_ids", personalAccessToken.AllowedBoardIdsCsv ?? string.Empty)
+            new("boardoil_pat_name", personalAccessToken.Name)
         };
 
         claims.AddRange(scopes.Select(scopeName => new Claim("boardoil_pat_scope", scopeName)));
@@ -157,16 +155,6 @@ public sealed class McpPatAuthenticationHandler(
     private static bool HasAnyMcpScope(IEnumerable<string> scopes) =>
         scopes.Contains(MachinePatScopes.McpRead, StringComparer.Ordinal)
         || scopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal);
-
-    private static string NormaliseBoardAccessMode(string? boardAccessMode)
-    {
-        if (string.IsNullOrWhiteSpace(boardAccessMode))
-        {
-            return MachinePatBoardAccessModes.All;
-        }
-
-        return boardAccessMode.Trim().ToLowerInvariant();
-    }
 
     private static bool IsMcpRequest(PathString path) =>
         path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase);

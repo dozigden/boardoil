@@ -20,7 +20,6 @@
 
     <div class="machine-pat-item-meta">
       <span><strong>Scopes:</strong> {{ token.scopes.join(', ') || 'None' }}</span>
-      <span><strong>Boards:</strong> {{ describeBoardAccess(token) }}</span>
       <span><strong>Created:</strong> {{ formatDate(token.createdAtUtc) }}</span>
       <span><strong>Expires:</strong> {{ formatDate(token.expiresAtUtc) }}</span>
       <span><strong>Last used:</strong> {{ formatDate(token.lastUsedAtUtc) }}</span>
@@ -37,7 +36,6 @@ interface Props {
   token: AccessToken;
   isBusy: boolean;
   tokenStatus: (token: AccessToken) => string;
-  describeBoardAccess: (token: AccessToken) => string;
   formatDate: (value: string | null) => string;
 }
 
@@ -45,7 +43,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{ revoke: [AccessToken] }>();
 
-const { token, isBusy, tokenStatus, describeBoardAccess, formatDate } = props;
+const { token, isBusy, tokenStatus, formatDate } = props;
 </script>
 
 <style scoped>

@@ -28,7 +28,6 @@
             :token="token"
             :is-busy="isBusy"
             :token-status="tokenStatus"
-            :describe-board-access="describeBoardAccess"
             :format-date="formatDate"
             @revoke="revokeToken"
           />
@@ -189,7 +188,6 @@
     <AccessTokenCreateDialog
       :open="isCreateDialogOpen"
       :busy="isBusy"
-      :boards="boards"
       :default-scopes="userDefaultScopes"
       :allowed-scopes="userAllowedScopes"
       @close="closeCreateDialog"
@@ -210,17 +208,13 @@
 import { Copy } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { createAuthApi } from '../api/authApi';
-import { createBoardApi } from '../api/boardApi';
 import AccessTokenCreateDialog from '../components/AccessTokenCreateDialog.vue';
 import AccessTokenListItem from '../components/AccessTokenListItem.vue';
 import AccessTokenSecretModal from '../components/AccessTokenSecretModal.vue';
 import type { AccessToken, CreateAccessTokenRequest } from '../types/authTypes';
-import type { BoardSummary } from '../types/boardTypes';
 
 const authApi = createAuthApi();
-const boardApi = createBoardApi();
 
-const boards = ref<BoardSummary[]>([]);
 const tokens = ref<AccessToken[]>([]);
 const loading = ref(false);
 const createBusy = ref(false);
@@ -301,18 +295,12 @@ async function loadInitialData() {
   loading.value = true;
   errorMessage.value = null;
   try {
-    const [boardsResult, tokensResult] = await Promise.all([boardApi.getBoards(), authApi.getAccessTokens()]);
-    if (!boardsResult.ok) {
-      errorMessage.value = boardsResult.error.message;
-      return;
-    }
-
+    const tokensResult = await authApi.getAccessTokens();
     if (!tokensResult.ok) {
       errorMessage.value = tokensResult.error.message;
       return;
     }
 
-    boards.value = [...boardsResult.data].sort((left, right) => left.id - right.id);
     tokens.value = sortTokens(tokensResult.data);
   } finally {
     loading.value = false;
@@ -448,23 +436,6 @@ function tokenStatus(token: AccessToken) {
   }
 
   return 'Active';
-}
-
-function describeBoardAccess(token: AccessToken) {
-  if (token.boardAccessMode === 'all') {
-    return 'All boards';
-  }
-
-  if (token.allowedBoardIds.length === 0) {
-    return 'No boards';
-  }
-
-  return token.allowedBoardIds
-    .map(boardId => {
-      const board = boards.value.find(entry => entry.id === boardId);
-      return board ? `${board.name} (#${board.id})` : `#${boardId}`;
-    })
-    .join(', ');
 }
 
 function sortTokens(items: AccessToken[]) {

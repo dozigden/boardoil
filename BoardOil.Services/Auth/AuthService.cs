@@ -161,23 +161,6 @@ public sealed class AuthService(
             return ApiErrors.BadRequest("At least one scope is required.");
         }
 
-        var boardAccessMode = MachinePatRules.NormaliseBoardAccessMode(request.BoardAccessMode);
-        if (!MachinePatRules.SupportedBoardAccessModes.Contains(boardAccessMode, StringComparer.Ordinal))
-        {
-            return ApiErrors.BadRequest("Unsupported boardAccessMode provided.");
-        }
-
-        var allowedBoardIds = MachinePatRules.NormaliseAllowedBoardIds(request.AllowedBoardIds);
-        if (boardAccessMode == MachinePatBoardAccessModes.All && allowedBoardIds.Count > 0)
-        {
-            return ApiErrors.BadRequest("allowedBoardIds must be empty when boardAccessMode is 'all'.");
-        }
-
-        if (boardAccessMode == MachinePatBoardAccessModes.Selected && allowedBoardIds.Count == 0)
-        {
-            return ApiErrors.BadRequest("allowedBoardIds is required when boardAccessMode is 'selected'.");
-        }
-
         var plainTextToken = CreatePersonalAccessToken();
         var entity = new EntityPersonalAccessToken
         {
@@ -186,8 +169,6 @@ public sealed class AuthService(
             TokenHash = HashToken(plainTextToken),
             TokenPrefix = plainTextToken[..12],
             ScopesCsv = string.Join(',', scopes),
-            BoardAccessMode = boardAccessMode,
-            AllowedBoardIdsCsv = string.Join(',', allowedBoardIds),
             CreatedAtUtc = now,
             ExpiresAtUtc = request.ExpiresInDays is null ? null : now.AddDays(request.ExpiresInDays.Value)
         };
@@ -374,15 +355,6 @@ public sealed class AuthService(
             scopes,
             MachinePatRules.DefaultUserScopes,
             MachinePatRules.SupportedUserScopes);
-
-    private static string NormaliseBoardAccessMode(string? boardAccessMode) =>
-        MachinePatRules.NormaliseBoardAccessMode(boardAccessMode);
-
-    private static IReadOnlyList<int> ParseAllowedBoardIds(string allowedBoardIdsCsv) =>
-        MachinePatRules.ParseAllowedBoardIds(allowedBoardIdsCsv);
-
-    private static IReadOnlyList<int> NormaliseAllowedBoardIds(IEnumerable<int>? allowedBoardIds) =>
-        MachinePatRules.NormaliseAllowedBoardIds(allowedBoardIds);
 
     private static MachinePatDto ToMachinePatDto(EntityPersonalAccessToken token) =>
         MachinePatRules.ToMachinePatDto(token);
