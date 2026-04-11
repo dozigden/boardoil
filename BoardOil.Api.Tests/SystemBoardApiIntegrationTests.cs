@@ -42,7 +42,7 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
 
         // Act
         var userScoped = await adminClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardSummaryDto>>>("/api/boards");
-        var systemScoped = await adminClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<SystemBoardSummaryDto>>>("/api/admin/boards");
+        var systemScoped = await adminClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<SystemBoardSummaryDto>>>("/api/system/boards");
 
         // Assert
         Assert.NotNull(userScoped);
@@ -65,7 +65,7 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
         await LoginAsAsync(memberClient, "member", "Password1234!");
 
         // Act
-        var response = await memberClient.GetAsync("/api/admin/boards");
+        var response = await memberClient.GetAsync("/api/system/boards");
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -90,19 +90,19 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
 
         // Act
         var addResponse = await adminClient.PostAsJsonAsync(
-            $"/api/admin/boards/{boardId}/members",
+            $"/api/system/boards/{boardId}/members",
             new AddBoardMemberRequest(helperUserId, "Contributor"));
         var addEnvelope = await addResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardMemberDto>>();
 
         var demoteOwnerResponse = await adminClient.PatchAsJsonAsync(
-            $"/api/admin/boards/{boardId}/members/{ownerUserId}",
+            $"/api/system/boards/{boardId}/members/{ownerUserId}",
             new UpdateBoardMemberRoleRequest("Contributor"));
         var demoteEnvelope = await demoteOwnerResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
 
         var membersEnvelope = await adminClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardMemberDto>>>(
-            $"/api/admin/boards/{boardId}/members");
+            $"/api/system/boards/{boardId}/members");
         var duplicateAddResponse = await adminClient.PostAsJsonAsync(
-            $"/api/admin/boards/{boardId}/members",
+            $"/api/system/boards/{boardId}/members",
             new AddBoardMemberRequest(helperUserId, "Owner"));
         var duplicateAddEnvelope = await duplicateAddResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
 
@@ -142,7 +142,7 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
 
     private static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
     {
-        var response = await adminClient.PostAsJsonAsync("/api/admin/users", new CreateUserRequest(userName, password, role));
+        var response = await adminClient.PostAsJsonAsync("/api/system/users", new CreateUserRequest(userName, password, role));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ManagedUserDto>>();
         Assert.NotNull(envelope);

@@ -6,7 +6,7 @@ import { getEnvelope, putData } from './http';
 
 export function createConfigurationApi() {
   async function getConfiguration(): Promise<Result<ConfigurationDto, AppError>> {
-    const result = await getEnvelope<ConfigurationDto>('/api/configuration');
+    const result = await getEnvelope<ConfigurationDto>('/api/system/configuration');
     if (!result.ok) {
       return result;
     }
@@ -22,7 +22,7 @@ export function createConfigurationApi() {
   }
 
   async function updateConfiguration(request: UpdateConfigurationRequest): Promise<Result<ConfigurationDto, AppError>> {
-    return putData<ConfigurationDto>('/api/configuration', request);
+    return putData<ConfigurationDto>('/api/system/configuration', request);
   }
 
   return {

@@ -11,7 +11,7 @@ public static class SystemBoardEndpoints
     public static IEndpointRouteBuilder MapSystemBoardEndpoints(this IEndpointRouteBuilder app)
     {
         var systemBoardEndpoints = app
-            .MapGroup("/api/admin/boards")
+            .MapGroup("/api/system/boards")
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .AddEndpointFilter<RequireActorUserIdFilter>()
             .WithTags("System Boards");

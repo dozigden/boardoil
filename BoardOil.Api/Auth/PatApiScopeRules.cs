@@ -29,10 +29,8 @@ internal static class PatApiScopeRules
     }
 
     internal static bool IsSystemPath(PathString path) =>
-        path.StartsWithSegments("/api/system", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments("/api/admin/boards", StringComparison.OrdinalIgnoreCase);
+        path.StartsWithSegments("/api/system", StringComparison.OrdinalIgnoreCase);
 
     internal static bool IsAdminPath(PathString path) =>
-        path.StartsWithSegments("/api/admin", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments("/api/configuration", StringComparison.OrdinalIgnoreCase);
+        path.StartsWithSegments("/api/admin", StringComparison.OrdinalIgnoreCase);
 }

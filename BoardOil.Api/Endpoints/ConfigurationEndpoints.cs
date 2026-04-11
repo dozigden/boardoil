@@ -9,12 +9,12 @@ public static class ConfigurationEndpoints
 {
     public static IEndpointRouteBuilder MapConfigurationEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/configuration", async (IConfigurationService configurationService) =>
+        app.MapGet("/api/system/configuration", async (IConfigurationService configurationService) =>
                 (await configurationService.GetConfigurationAsync()).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("Configuration");
 
-        app.MapPut("/api/configuration", async (UpdateConfigurationRequest request, IConfigurationService configurationService) =>
+        app.MapPut("/api/system/configuration", async (UpdateConfigurationRequest request, IConfigurationService configurationService) =>
                 (await configurationService.UpdateConfigurationAsync(request)).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("Configuration");

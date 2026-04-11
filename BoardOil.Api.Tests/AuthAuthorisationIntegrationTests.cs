@@ -265,7 +265,7 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
-        var response = await standardClient.GetAsync("/api/admin/users");
+        var response = await standardClient.GetAsync("/api/system/users");
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -282,7 +282,7 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
-        var response = await standardClient.GetAsync("/api/configuration");
+        var response = await standardClient.GetAsync("/api/system/configuration");
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -296,7 +296,7 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
 
         // Act
-        var response = await adminClient.GetAsync("/api/configuration");
+        var response = await adminClient.GetAsync("/api/system/configuration");
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
 
         // Assert
@@ -318,7 +318,7 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
-        var response = await standardClient.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
+        var response = await standardClient.PutAsJsonAsync("/api/system/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -332,9 +332,9 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
 
         // Act
-        var putResponse = await adminClient.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com/"));
+        var putResponse = await adminClient.PutAsJsonAsync("/api/system/configuration", new UpdateConfigurationRequest("https://boardoil.example.com/"));
         var putEnvelope = await putResponse.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
-        var getResponse = await adminClient.GetAsync("/api/configuration");
+        var getResponse = await adminClient.GetAsync("/api/system/configuration");
         var getEnvelope = await getResponse.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
 
         // Assert
@@ -354,11 +354,11 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
         // Arrange
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        var seedResponse = await adminClient.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
+        var seedResponse = await adminClient.PutAsJsonAsync("/api/system/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
         seedResponse.EnsureSuccessStatusCode();
 
         // Act
-        var clearResponse = await adminClient.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest(null));
+        var clearResponse = await adminClient.PutAsJsonAsync("/api/system/configuration", new UpdateConfigurationRequest(null));
         var clearEnvelope = await clearResponse.Content.ReadFromJsonAsync<ApiEnvelope<ConfigurationEnvelope>>();
 
         // Assert
@@ -380,7 +380,7 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(adminClient);
 
         // Act
-        var response = await adminClient.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest(invalidValue));
+        var response = await adminClient.PutAsJsonAsync("/api/system/configuration", new UpdateConfigurationRequest(invalidValue));
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
 
         // Assert
@@ -423,7 +423,7 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
 
     private static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
     {
-        var response = await adminClient.PostAsJsonAsync("/api/admin/users", new CreateUserRequest(userName, password, role));
+        var response = await adminClient.PostAsJsonAsync("/api/system/users", new CreateUserRequest(userName, password, role));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardOil.Contracts.Users.ManagedUserDto>>();
         Assert.NotNull(envelope);
