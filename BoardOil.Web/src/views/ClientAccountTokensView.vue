@@ -65,7 +65,7 @@ import { createBoardApi } from '../api/boardApi';
 import AccessTokenCreateDialog from '../components/AccessTokenCreateDialog.vue';
 import AccessTokenListItem from '../components/AccessTokenListItem.vue';
 import AccessTokenSecretModal from '../components/AccessTokenSecretModal.vue';
-import type { AccessToken, ClientAccount, CreateAccessTokenRequest } from '../types/authTypes';
+import type { AccessToken, ClientAccount, CreateAccessTokenRequest, CreateClientAccessTokenRequest } from '../types/authTypes';
 import type { BoardSummary } from '../types/boardTypes';
 
 const authApi = createAuthApi();
@@ -163,11 +163,17 @@ async function createClientToken(payload: CreateAccessTokenRequest) {
     return;
   }
 
+  const request: CreateClientAccessTokenRequest = {
+    name: payload.name,
+    expiresInDays: payload.expiresInDays,
+    scopes: payload.scopes
+  };
+
   tokenCreateBusy.value = true;
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await authApi.createClientAccountToken(client.value.id, payload);
+    const result = await authApi.createClientAccountToken(client.value.id, request);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;

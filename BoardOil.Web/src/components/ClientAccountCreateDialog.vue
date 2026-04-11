@@ -206,9 +206,7 @@ function submit() {
     role: role.value,
     tokenName: trimmedTokenName,
     expiresInDays: isNonExpiring.value ? null : Math.trunc(Number(expiresInDays.value)),
-    scopes,
-    boardAccessMode: 'all',
-    allowedBoardIds: []
+    scopes
   };
 
   emit('submit', payload);
