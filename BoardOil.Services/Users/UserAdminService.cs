@@ -54,6 +54,7 @@ public sealed class UserAdminService(
             UserName = userName,
             PasswordHash = passwordHashService.HashPassword(request.Password),
             Role = role,
+            IdentityType = UserIdentityType.User,
             IsActive = true,
             CreatedAtUtc = now,
             UpdatedAtUtc = now

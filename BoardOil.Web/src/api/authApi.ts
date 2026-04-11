@@ -6,8 +6,11 @@ import type {
   AuthSession,
   AuthUser,
   BootstrapStatusDto,
+  ClientAccount,
   CreateAccessTokenRequest,
+  CreateClientAccountRequest,
   CreatedAccessToken,
+  CreatedClientAccount,
   CsrfTokenDto,
   ManagedUser,
   UserDirectoryEntry
@@ -89,6 +92,39 @@ export function createAuthApi() {
     return postData<ManagedUser>('/api/system/users', { userName, password, role });
   }
 
+  async function getClientAccounts(): Promise<Result<ClientAccount[], AppError>> {
+    const envelopeResult = await getEnvelope<ClientAccount[]>('/api/system/client-accounts');
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function createClientAccount(request: CreateClientAccountRequest): Promise<Result<CreatedClientAccount, AppError>> {
+    return postData<CreatedClientAccount>('/api/system/client-accounts', request);
+  }
+
+  async function getClientAccountTokens(clientAccountId: number): Promise<Result<AccessToken[], AppError>> {
+    const envelopeResult = await getEnvelope<AccessToken[]>(`/api/system/client-accounts/${clientAccountId}/tokens`);
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function createClientAccountToken(
+    clientAccountId: number,
+    request: CreateAccessTokenRequest
+  ): Promise<Result<CreatedAccessToken, AppError>> {
+    return postData<CreatedAccessToken>(`/api/system/client-accounts/${clientAccountId}/tokens`, request);
+  }
+
+  async function revokeClientAccountToken(clientAccountId: number, tokenId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/system/client-accounts/${clientAccountId}/tokens/${tokenId}`);
+  }
+
   async function updateUserRole(userId: number, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
     return putData<ManagedUser>(`/api/system/users/${userId}/role`, { role });
   }
@@ -124,6 +160,11 @@ export function createAuthApi() {
     getUsers,
     getAllUsers,
     createUser,
+    getClientAccounts,
+    createClientAccount,
+    getClientAccountTokens,
+    createClientAccountToken,
+    revokeClientAccountToken,
     updateUserRole,
     updateUserStatus,
     getAccessTokens,

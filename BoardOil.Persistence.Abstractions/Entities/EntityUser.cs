@@ -6,6 +6,7 @@ public sealed class EntityUser
     public string UserName { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.Standard;
+    public UserIdentityType IdentityType { get; set; } = UserIdentityType.User;
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }

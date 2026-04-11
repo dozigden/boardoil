@@ -19,6 +19,10 @@ const navItems = [
     to: { name: 'users' }
   },
   {
+    label: 'Client accounts',
+    to: { name: 'client-accounts' }
+  },
+  {
     label: 'Configuration',
     to: { name: 'configuration' }
   }
