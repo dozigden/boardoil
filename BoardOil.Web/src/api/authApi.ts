@@ -6,15 +6,9 @@ import type {
   AuthSession,
   AuthUser,
   BootstrapStatusDto,
-  ClientAccount,
   CreateAccessTokenRequest,
-  CreateClientAccessTokenRequest,
-  CreateClientAccountRequest,
   CreatedAccessToken,
-  CreatedClientAccount,
-  CsrfTokenDto,
-  ManagedUser,
-  UserDirectoryEntry
+  CsrfTokenDto
 } from '../types/authTypes';
 import { deleteJson, getEnvelope, postData, postJson, putData } from './http';
 
@@ -71,69 +65,6 @@ export function createAuthApi() {
     return ok(envelopeResult.data.data?.requiresInitialAdminSetup === true);
   }
 
-  async function getUsers(): Promise<Result<ManagedUser[], AppError>> {
-    const envelopeResult = await getEnvelope<ManagedUser[]>('/api/system/users');
-    if (!envelopeResult.ok) {
-      return envelopeResult;
-    }
-
-    return ok(envelopeResult.data.data ?? []);
-  }
-
-  async function getAllUsers(): Promise<Result<UserDirectoryEntry[], AppError>> {
-    const envelopeResult = await getEnvelope<UserDirectoryEntry[]>('/api/users');
-    if (!envelopeResult.ok) {
-      return envelopeResult;
-    }
-
-    return ok(envelopeResult.data.data ?? []);
-  }
-
-  async function createUser(userName: string, password: string, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
-    return postData<ManagedUser>('/api/system/users', { userName, password, role });
-  }
-
-  async function getClientAccounts(): Promise<Result<ClientAccount[], AppError>> {
-    const envelopeResult = await getEnvelope<ClientAccount[]>('/api/system/client-accounts');
-    if (!envelopeResult.ok) {
-      return envelopeResult;
-    }
-
-    return ok(envelopeResult.data.data ?? []);
-  }
-
-  async function createClientAccount(request: CreateClientAccountRequest): Promise<Result<CreatedClientAccount, AppError>> {
-    return postData<CreatedClientAccount>('/api/system/client-accounts', request);
-  }
-
-  async function getClientAccountTokens(clientAccountId: number): Promise<Result<AccessToken[], AppError>> {
-    const envelopeResult = await getEnvelope<AccessToken[]>(`/api/system/client-accounts/${clientAccountId}/tokens`);
-    if (!envelopeResult.ok) {
-      return envelopeResult;
-    }
-
-    return ok(envelopeResult.data.data ?? []);
-  }
-
-  async function createClientAccountToken(
-    clientAccountId: number,
-    request: CreateClientAccessTokenRequest
-  ): Promise<Result<CreatedAccessToken, AppError>> {
-    return postData<CreatedAccessToken>(`/api/system/client-accounts/${clientAccountId}/tokens`, request);
-  }
-
-  async function revokeClientAccountToken(clientAccountId: number, tokenId: number): Promise<Result<void, AppError>> {
-    return deleteJson(`/api/system/client-accounts/${clientAccountId}/tokens/${tokenId}`);
-  }
-
-  async function updateUserRole(userId: number, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
-    return putData<ManagedUser>(`/api/system/users/${userId}/role`, { role });
-  }
-
-  async function updateUserStatus(userId: number, isActive: boolean): Promise<Result<ManagedUser, AppError>> {
-    return putData<ManagedUser>(`/api/system/users/${userId}/status`, { isActive });
-  }
-
   async function getAccessTokens(): Promise<Result<AccessToken[], AppError>> {
     const envelopeResult = await getEnvelope<AccessToken[]>('/api/auth/access-tokens');
     if (!envelopeResult.ok) {
@@ -158,16 +89,6 @@ export function createAuthApi() {
     getMe,
     getCsrfToken,
     getBootstrapStatus,
-    getUsers,
-    getAllUsers,
-    createUser,
-    getClientAccounts,
-    createClientAccount,
-    getClientAccountTokens,
-    createClientAccountToken,
-    revokeClientAccountToken,
-    updateUserRole,
-    updateUserStatus,
     getAccessTokens,
     createAccessToken,
     revokeAccessToken

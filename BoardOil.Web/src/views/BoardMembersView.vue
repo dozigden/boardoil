@@ -65,7 +65,7 @@
 import { storeToRefs } from 'pinia';
 import { onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { createAuthApi } from '../api/authApi';
+import { createUsersApi } from '../api/usersApi';
 import AddBoardMemberDialog from '../components/AddBoardMemberDialog.vue';
 import { useBoardMembersStore } from '../stores/boardMembersStore';
 import { useBoardStore } from '../stores/boardStore';
@@ -77,7 +77,7 @@ const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const boardMembersStore = useBoardMembersStore();
-const authApi = createAuthApi();
+const usersApi = createUsersApi();
 const feedback = useUiFeedbackStore();
 const { isCurrentUserOwner } = storeToRefs(boardStore);
 const { members, busy } = storeToRefs(boardMembersStore);
@@ -180,7 +180,7 @@ function resolveBoardId() {
 async function loadUsers() {
   usersBusy.value = true;
   try {
-    const result = await authApi.getAllUsers();
+    const result = await usersApi.getAllUsers();
     if (!result.ok) {
       feedback.setError(result.error.message);
       users.value = [];

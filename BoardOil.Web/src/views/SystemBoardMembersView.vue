@@ -59,8 +59,8 @@
 import { storeToRefs } from 'pinia';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { createAuthApi } from '../api/authApi';
-import { createSystemBoardApi } from '../api/systemBoardApi';
+import { createSystemApi } from '../api/systemApi';
+import { createUsersApi } from '../api/usersApi';
 import AddBoardMemberDialog from '../components/AddBoardMemberDialog.vue';
 import { useSystemBoardMembersStore } from '../stores/systemBoardMembersStore';
 import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
@@ -70,8 +70,8 @@ import type { BoardMember, BoardMemberRole } from '../types/boardTypes';
 const route = useRoute();
 const router = useRouter();
 const boardMembersStore = useSystemBoardMembersStore();
-const authApi = createAuthApi();
-const systemBoardApi = createSystemBoardApi();
+const systemApi = createSystemApi();
+const usersApi = createUsersApi();
 const feedback = useUiFeedbackStore();
 const { members, busy } = storeToRefs(boardMembersStore);
 const users = ref<UserDirectoryEntry[]>([]);
@@ -183,7 +183,7 @@ function resolveBoardId() {
 async function loadUsers() {
   usersBusy.value = true;
   try {
-    const result = await authApi.getAllUsers();
+    const result = await usersApi.getAllUsers();
     if (!result.ok) {
       feedback.setError(result.error.message);
       users.value = [];
@@ -198,7 +198,7 @@ async function loadUsers() {
 }
 
 async function loadBoardName(resolvedBoardId: number) {
-  const result = await systemBoardApi.getBoards();
+  const result = await systemApi.getBoards();
   if (!result.ok) {
     boardName.value = null;
     return false;

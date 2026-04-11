@@ -60,7 +60,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { createAuthApi } from '../api/authApi';
+import { createSystemApi } from '../api/systemApi';
 import { createBoardApi } from '../api/boardApi';
 import AccessTokenCreateDialog from '../components/AccessTokenCreateDialog.vue';
 import AccessTokenListItem from '../components/AccessTokenListItem.vue';
@@ -68,7 +68,7 @@ import AccessTokenSecretModal from '../components/AccessTokenSecretModal.vue';
 import type { AccessToken, ClientAccount, CreateAccessTokenRequest, CreateClientAccessTokenRequest } from '../types/authTypes';
 import type { BoardSummary } from '../types/boardTypes';
 
-const authApi = createAuthApi();
+const systemApi = createSystemApi();
 const boardApi = createBoardApi();
 const route = useRoute();
 const router = useRouter();
@@ -130,7 +130,7 @@ async function loadClients() {
   loading.value = true;
   errorMessage.value = null;
   try {
-    const result = await authApi.getClientAccounts();
+    const result = await systemApi.getClientAccounts();
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -146,7 +146,7 @@ async function loadTokens(targetClientId: number) {
   tokenLoading.value = true;
   errorMessage.value = null;
   try {
-    const result = await authApi.getClientAccountTokens(targetClientId);
+    const result = await systemApi.getClientAccountTokens(targetClientId);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -173,7 +173,7 @@ async function createClientToken(payload: CreateAccessTokenRequest) {
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await authApi.createClientAccountToken(client.value.id, request);
+    const result = await systemApi.createClientAccountToken(client.value.id, request);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -202,7 +202,7 @@ async function revokeToken(token: AccessToken) {
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await authApi.revokeClientAccountToken(client.value.id, token.id);
+    const result = await systemApi.revokeClientAccountToken(client.value.id, token.id);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;

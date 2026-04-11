@@ -51,11 +51,11 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { createAuthApi } from '../api/authApi';
+import { createSystemApi } from '../api/systemApi';
 import UserCreateDialog from '../components/UserCreateDialog.vue';
 import type { ManagedUser } from '../types/authTypes';
 
-const authApi = createAuthApi();
+const systemApi = createSystemApi();
 const users = ref<ManagedUser[]>([]);
 const busy = ref(false);
 const errorMessage = ref<string | null>(null);
@@ -66,7 +66,7 @@ async function loadUsers() {
   busy.value = true;
   errorMessage.value = null;
   try {
-    const result = await authApi.getUsers();
+    const result = await systemApi.getUsers();
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -91,7 +91,7 @@ async function createUser(payload: { userName: string; password: string; role: '
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await authApi.createUser(payload.userName, payload.password, payload.role);
+    const result = await systemApi.createUser(payload.userName, payload.password, payload.role);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -114,7 +114,7 @@ async function onRoleChange(userId: number, nextRole: string) {
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await authApi.updateUserRole(userId, nextRole);
+    const result = await systemApi.updateUserRole(userId, nextRole);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -132,7 +132,7 @@ async function toggleStatus(userId: number, currentState: boolean) {
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await authApi.updateUserStatus(userId, !currentState);
+    const result = await systemApi.updateUserStatus(userId, !currentState);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;

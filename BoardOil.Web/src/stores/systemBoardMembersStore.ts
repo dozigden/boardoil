@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { createSystemBoardApi } from '../api/systemBoardApi';
+import { createSystemApi } from '../api/systemApi';
 import { useUiFeedbackStore } from './uiFeedbackStore';
 import type { BoardMember, BoardMemberRole } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
@@ -11,7 +11,7 @@ export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () =
   const busy = ref(false);
   const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
-  const api = createSystemBoardApi();
+  const api = createSystemApi();
 
   function dispose() {
     activeBoardId.value = null;
