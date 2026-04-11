@@ -73,8 +73,8 @@ public sealed class ClientAccountService(
             tokenName,
             request.ExpiresInDays,
             request.Scopes,
-            request.BoardAccessMode,
-            request.AllowedBoardIds);
+            MachinePatBoardAccessModes.All,
+            null);
 
         var patResult = BuildPatEntity(user, tokenRequest, now, MachinePatRules.DefaultClientScopes, forceAllBoards: true);
         if (!patResult.Success || patResult.Data is null)
@@ -107,7 +107,7 @@ public sealed class ClientAccountService(
         return tokens.Select(MachinePatRules.ToMachinePatDto).ToArray();
     }
 
-    public async Task<ApiResult<CreatedMachinePatDto>> CreateClientAccessTokenAsync(int clientAccountId, CreateMachinePatRequest request)
+    public async Task<ApiResult<CreatedMachinePatDto>> CreateClientAccessTokenAsync(int clientAccountId, CreateClientAccessTokenRequest request)
     {
         using var scope = scopeFactory.Create();
 
@@ -118,7 +118,14 @@ public sealed class ClientAccountService(
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var patResult = BuildPatEntity(user, request, now, MachinePatRules.DefaultClientScopes, forceAllBoards: true);
+        var tokenRequest = new CreateMachinePatRequest(
+            request.Name,
+            request.ExpiresInDays,
+            request.Scopes,
+            MachinePatBoardAccessModes.All,
+            null);
+
+        var patResult = BuildPatEntity(user, tokenRequest, now, MachinePatRules.DefaultClientScopes, forceAllBoards: true);
         if (!patResult.Success || patResult.Data is null)
         {
             return ApiResults.BadRequest<CreatedMachinePatDto>(patResult.Message ?? "Token creation failed.", patResult.ValidationErrors);

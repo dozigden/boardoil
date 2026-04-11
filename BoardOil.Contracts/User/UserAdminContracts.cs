@@ -31,9 +31,12 @@ public sealed record CreateClientAccountRequest(
     string Role,
     string? TokenName = null,
     int? ExpiresInDays = null,
-    string[]? Scopes = null,
-    string BoardAccessMode = MachinePatBoardAccessModes.All,
-    int[]? AllowedBoardIds = null);
+    string[]? Scopes = null);
+
+public sealed record CreateClientAccessTokenRequest(
+    string Name,
+    int? ExpiresInDays = null,
+    string[]? Scopes = null);
 
 public sealed record CreatedClientAccountDto(
     ClientAccountDto Account,

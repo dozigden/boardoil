@@ -1,6 +1,5 @@
 using BoardOil.Api.Extensions;
 using BoardOil.Abstractions.Users;
-using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
 
@@ -25,7 +24,7 @@ public static class ClientAccountEndpoints
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("System Client Accounts");
 
-        app.MapPost("/api/system/client-accounts/{id:int}/tokens", (int id, CreateMachinePatRequest request, IClientAccountService clientAccountService) =>
+        app.MapPost("/api/system/client-accounts/{id:int}/tokens", (int id, CreateClientAccessTokenRequest request, IClientAccountService clientAccountService) =>
                 clientAccountService.CreateClientAccessTokenAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("System Client Accounts");
