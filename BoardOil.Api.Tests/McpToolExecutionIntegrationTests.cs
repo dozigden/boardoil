@@ -80,6 +80,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             .Select(tool => tool.GetProperty("name").GetString())
             .ToArray();
         Assert.Contains("board.get", toolNames);
+        Assert.Contains("card.get", toolNames);
         Assert.Contains("card.create", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
 
@@ -93,6 +94,96 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         Assert.True(createdCard.TryGetProperty("cardTypeName", out _));
         Assert.True(createdCard.TryGetProperty("cardTypeEmoji", out _));
         Assert.True(createdCard.TryGetProperty("tags", out _));
+    }
+
+    [Fact]
+    public async Task BoardGet_ShouldExcludeDescriptions_ButCardGetReturnsFullDetails()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+
+        var boardGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-before-card-create",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
+        using var boardGetPayload = await McpJsonRpcClient.ParseJsonAsync(boardGetResponse);
+
+        var todoColumnId = McpJsonRpcClient.GetStructuredContent(boardGetPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .Single(column => column.GetProperty("title").GetString() == "Todo")
+            .GetProperty("id")
+            .GetInt32();
+
+        const string fullDescription = "Full detail test";
+
+        var createResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = todoColumnId,
+                    title = "Board get description test",
+                    description = fullDescription,
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-description-test",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
+        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
+        var createdCardId = createdCard.GetProperty("id").GetInt32();
+
+        var boardVerifyResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-after-card-create",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, boardVerifyResponse.StatusCode);
+        using var boardVerifyPayload = await McpJsonRpcClient.ParseJsonAsync(boardVerifyResponse);
+
+        var boardCard = McpJsonRpcClient.GetStructuredContent(boardVerifyPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .SelectMany(column => column.GetProperty("cards").EnumerateArray())
+            .Single(card => card.GetProperty("id").GetInt32() == createdCardId);
+
+        Assert.False(boardCard.TryGetProperty("description", out _));
+
+        var cardGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.get",
+                arguments = new { boardId = 1, id = createdCardId }
+            },
+            "card-get-description-test",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, cardGetResponse.StatusCode);
+        using var cardGetPayload = await McpJsonRpcClient.ParseJsonAsync(cardGetResponse);
+
+        var cardData = McpJsonRpcClient.GetStructuredContent(cardGetPayload);
+        Assert.Equal(fullDescription, cardData.GetProperty("description").GetString());
     }
 
     [Fact]

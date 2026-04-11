@@ -12,6 +12,7 @@ public static class McpServiceCollectionExtensions
 
         RegisterTool<BoardGetTool>(services);
         RegisterTool<ColumnsListTool>(services);
+        RegisterTool<CardGetTool>(services);
         RegisterTool<CardCreateTool>(services);
         RegisterTool<CardUpdateTool>(services);
         RegisterTool<CardMoveTool>(services);
