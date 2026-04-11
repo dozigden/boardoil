@@ -384,9 +384,9 @@ public sealed class AuthService(
         {
             errors.Add(new ValidationError("userName", "Username is required."));
         }
-        else if (userName.Trim().Length is < 3 or > 64)
+        else if (userName.Trim().Length is < 1 or > 64)
         {
-            errors.Add(new ValidationError("userName", "Username must be between 3 and 64 characters."));
+            errors.Add(new ValidationError("userName", "Username must be between 1 and 64 characters."));
         }
 
         if (string.IsNullOrWhiteSpace(password))
