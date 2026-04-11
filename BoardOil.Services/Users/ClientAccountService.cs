@@ -72,11 +72,9 @@ public sealed class ClientAccountService(
         var tokenRequest = new CreateMachinePatRequest(
             tokenName,
             request.ExpiresInDays,
-            request.Scopes,
-            MachinePatBoardAccessModes.All,
-            null);
+            request.Scopes);
 
-        var patResult = BuildPatEntity(user, tokenRequest, now, MachinePatRules.DefaultClientScopes, forceAllBoards: true);
+        var patResult = BuildPatEntity(user, tokenRequest, now, MachinePatRules.DefaultClientScopes);
         if (!patResult.Success || patResult.Data is null)
         {
             return ApiResults.BadRequest<CreatedClientAccountDto>(patResult.Message ?? "Token creation failed.", patResult.ValidationErrors);
@@ -121,11 +119,9 @@ public sealed class ClientAccountService(
         var tokenRequest = new CreateMachinePatRequest(
             request.Name,
             request.ExpiresInDays,
-            request.Scopes,
-            MachinePatBoardAccessModes.All,
-            null);
+            request.Scopes);
 
-        var patResult = BuildPatEntity(user, tokenRequest, now, MachinePatRules.DefaultClientScopes, forceAllBoards: true);
+        var patResult = BuildPatEntity(user, tokenRequest, now, MachinePatRules.DefaultClientScopes);
         if (!patResult.Success || patResult.Data is null)
         {
             return ApiResults.BadRequest<CreatedMachinePatDto>(patResult.Message ?? "Token creation failed.", patResult.ValidationErrors);
@@ -168,8 +164,7 @@ public sealed class ClientAccountService(
         EntityUser user,
         CreateMachinePatRequest request,
         DateTime now,
-        IReadOnlyList<string> defaultScopes,
-        bool forceAllBoards)
+        IReadOnlyList<string> defaultScopes)
     {
         var name = request.Name?.Trim();
         if (string.IsNullOrWhiteSpace(name))
@@ -211,27 +206,6 @@ public sealed class ClientAccountService(
             return ApiErrors.BadRequest("At least one scope is required.");
         }
 
-        var boardAccessMode = forceAllBoards
-            ? MachinePatBoardAccessModes.All
-            : MachinePatRules.NormaliseBoardAccessMode(request.BoardAccessMode);
-        if (!MachinePatRules.SupportedBoardAccessModes.Contains(boardAccessMode, StringComparer.Ordinal))
-        {
-            return ApiErrors.BadRequest("Unsupported boardAccessMode provided.");
-        }
-
-        var allowedBoardIds = forceAllBoards
-            ? Array.Empty<int>()
-            : MachinePatRules.NormaliseAllowedBoardIds(request.AllowedBoardIds);
-        if (!forceAllBoards && boardAccessMode == MachinePatBoardAccessModes.All && allowedBoardIds.Count > 0)
-        {
-            return ApiErrors.BadRequest("allowedBoardIds must be empty when boardAccessMode is 'all'.");
-        }
-
-        if (!forceAllBoards && boardAccessMode == MachinePatBoardAccessModes.Selected && allowedBoardIds.Count == 0)
-        {
-            return ApiErrors.BadRequest("allowedBoardIds is required when boardAccessMode is 'selected'.");
-        }
-
         var plainTextToken = CreatePersonalAccessToken();
         var entity = new EntityPersonalAccessToken
         {
@@ -240,8 +214,6 @@ public sealed class ClientAccountService(
             TokenHash = HashToken(plainTextToken),
             TokenPrefix = plainTextToken[..12],
             ScopesCsv = string.Join(',', scopes),
-            BoardAccessMode = boardAccessMode,
-            AllowedBoardIdsCsv = string.Join(',', allowedBoardIds),
             CreatedAtUtc = now,
             ExpiresAtUtc = request.ExpiresInDays is null ? null : now.AddDays(request.ExpiresInDays.Value)
         };

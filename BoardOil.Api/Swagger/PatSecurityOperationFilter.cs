@@ -52,21 +52,6 @@ internal sealed class PatSecurityOperationFilter : IOperationFilter
             $"Required PAT scope: `{requiredScope}`."
         };
 
-        if (HasBoardIdParameter(context))
-        {
-            notes.Add("Selected-board PATs can only access allow-listed boardIds.");
-        }
-
-        if (IsBoardsList(pathString, httpMethod))
-        {
-            notes.Add("Selected-board PATs only see allow-listed boards.");
-        }
-
-        if (IsBoardCreate(pathString, httpMethod))
-        {
-            notes.Add("Selected-board PATs cannot create or import boards.");
-        }
-
         AppendPatNotes(operation, notes);
     }
 
@@ -80,19 +65,6 @@ internal sealed class PatSecurityOperationFilter : IOperationFilter
         var trimmed = relativePath.Split('?', 2)[0].TrimStart('/');
         return $"/{trimmed}";
     }
-
-    private static bool HasBoardIdParameter(OperationFilterContext context) =>
-        context.ApiDescription.ParameterDescriptions.Any(parameter =>
-            string.Equals(parameter.Name, "boardId", StringComparison.OrdinalIgnoreCase));
-
-    private static bool IsBoardsList(PathString path, string httpMethod) =>
-        HttpMethods.IsGet(httpMethod)
-        && path.Equals("/api/boards", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsBoardCreate(PathString path, string httpMethod) =>
-        HttpMethods.IsPost(httpMethod)
-        && (path.Equals("/api/boards", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWithSegments("/api/boards/import", StringComparison.OrdinalIgnoreCase));
 
     private static void AddSecurityRequirement(OpenApiOperation operation, string schemeName)
     {

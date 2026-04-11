@@ -18,18 +18,10 @@ public static class MachinePatScopes
     public const string ApiSystem = "api:system";
 }
 
-public static class MachinePatBoardAccessModes
-{
-    public const string All = "all";
-    public const string Selected = "selected";
-}
-
 public sealed record CreateMachinePatRequest(
     string Name,
     int? ExpiresInDays = null,
-    string[]? Scopes = null,
-    string BoardAccessMode = MachinePatBoardAccessModes.All,
-    int[]? AllowedBoardIds = null);
+    string[]? Scopes = null);
 
 public sealed record AuthUserDto(int Id, string UserName, string Role);
 
@@ -54,8 +46,6 @@ public sealed record MachinePatDto(
     string Name,
     string TokenPrefix,
     IReadOnlyList<string> Scopes,
-    string BoardAccessMode,
-    IReadOnlyList<int> AllowedBoardIds,
     DateTime CreatedAtUtc,
     DateTime? ExpiresAtUtc,
     DateTime? LastUsedAtUtc,

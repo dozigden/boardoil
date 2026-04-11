@@ -104,7 +104,7 @@ create_pat_payload=$(curl -fsS -X POST "$API_URL/api/auth/access-tokens" \
   -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
   -H "X-BoardOil-CSRF: $csrf_token" \
   -H "Content-Type: application/json" \
-  -d '{"name":"mcp-smoke-token","expiresInDays":30,"scopes":["mcp:read","mcp:write"],"boardAccessMode":"all","allowedBoardIds":[]}')
+  -d '{"name":"mcp-smoke-token","expiresInDays":30,"scopes":["mcp:read","mcp:write"]}')
 pat_token=$(echo "$create_pat_payload" | jq -r '.data.plainTextToken')
 if [ -z "$pat_token" ] || [ "$pat_token" = "null" ]; then
   echo "Failed to create PAT" >&2

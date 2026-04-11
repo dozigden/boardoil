@@ -31,7 +31,6 @@
         :token="token"
         :is-busy="isBusy"
         :token-status="tokenStatus"
-        :describe-board-access="describeBoardAccess"
         :format-date="formatDate"
         @revoke="revokeToken"
       />
@@ -40,10 +39,8 @@
     <AccessTokenCreateDialog
       :open="isCreateTokenDialogOpen"
       :busy="isBusy"
-      :boards="boards"
       :default-scopes="clientDefaultScopes"
       :allowed-scopes="clientAllowedScopes"
-      :allow-board-access-selection="false"
       @close="closeCreateTokenDialog"
       @submit="createClientToken"
     />
@@ -62,15 +59,12 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { createSystemApi } from '../api/systemApi';
-import { createBoardApi } from '../api/boardApi';
 import AccessTokenCreateDialog from '../components/AccessTokenCreateDialog.vue';
 import AccessTokenListItem from '../components/AccessTokenListItem.vue';
 import AccessTokenSecretModal from '../components/AccessTokenSecretModal.vue';
 import type { AccessToken, ClientAccount, CreateAccessTokenRequest, CreateClientAccessTokenRequest } from '../types/authTypes';
-import type { BoardSummary } from '../types/boardTypes';
 
 const systemApi = createSystemApi();
-const boardApi = createBoardApi();
 const route = useRoute();
 const router = useRouter();
 
@@ -80,7 +74,6 @@ const clientAllowedScopes = ['mcp:read', 'mcp:write', 'api:read', 'api:write', '
 const clients = ref<ClientAccount[]>([]);
 const clientId = ref<number | null>(null);
 const tokens = ref<AccessToken[]>([]);
-const boards = ref<BoardSummary[]>([]);
 
 const loading = ref(false);
 const tokenLoading = ref(false);
@@ -119,13 +112,6 @@ function openCreateTokenDialog() {
 
 function closeCreateTokenDialog() {
   isCreateTokenDialogOpen.value = false;
-}
-
-async function loadBoards() {
-  const result = await boardApi.getBoards();
-  if (result.ok) {
-    boards.value = result.data;
-  }
 }
 
 async function loadClients() {
@@ -255,22 +241,6 @@ function tokenStatus(token: AccessToken) {
   return 'Active';
 }
 
-function describeBoardAccess(token: AccessToken) {
-  if (token.boardAccessMode === 'all') {
-    return 'All boards';
-  }
-
-  if (token.allowedBoardIds.length === 0) {
-    return 'No boards';
-  }
-
-  return token.allowedBoardIds
-    .map(boardId => {
-      const board = boards.value.find(entry => entry.id === boardId);
-      return board ? `${board.name} (#${board.id})` : `#${boardId}`;
-    })
-    .join(', ');
-}
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -328,7 +298,6 @@ watch(
 );
 
 onMounted(async () => {
-  await loadBoards();
   if (clientId.value === null) {
     clientId.value = resolveClientId();
   }

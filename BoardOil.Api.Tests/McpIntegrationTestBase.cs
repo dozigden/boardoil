@@ -47,16 +47,12 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
 
     protected static async Task<string> CreateMachinePatAsync(
         HttpClient client,
-        IReadOnlyList<string>? scopes = null,
-        string boardAccessMode = "selected",
-        IReadOnlyList<int>? allowedBoardIds = null)
+        IReadOnlyList<string>? scopes = null)
     {
         var request = new CreateMachinePatRequest(
             "api-mcp-test-token",
             30,
-            scopes ?? ["mcp:read", "mcp:write"],
-            boardAccessMode,
-            allowedBoardIds ?? [1]);
+            scopes ?? ["mcp:read", "mcp:write"]);
 
         var response = await client.PostAsJsonAsync("/api/auth/access-tokens", request);
         response.EnsureSuccessStatusCode();
@@ -79,9 +75,7 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
     protected sealed record CreateMachinePatRequest(
         string Name,
         int? ExpiresInDays,
-        IReadOnlyList<string> Scopes,
-        string BoardAccessMode,
-        IReadOnlyList<int> AllowedBoardIds);
+        IReadOnlyList<string> Scopes);
     protected sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
     protected sealed record AuthSessionEnvelope(string CsrfToken);
     protected sealed record CreatedMachinePatEnvelope(MachinePatEnvelope Token, string PlainTextToken);
@@ -91,8 +85,6 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         string Name,
         string TokenPrefix,
         IReadOnlyList<string> Scopes,
-        string BoardAccessMode,
-        IReadOnlyList<int> AllowedBoardIds,
         DateTime CreatedAtUtc,
         DateTime? ExpiresAtUtc,
         DateTime? LastUsedAtUtc,

@@ -2,12 +2,10 @@ using BoardOil.Api.Extensions;
 using BoardOil.Api.Auth;
 using BoardOil.Api.Configuration;
 using BoardOil.Abstractions.Board;
-using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Services.Auth;
 using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 
 namespace BoardOil.Api.Endpoints;
 
@@ -24,20 +22,7 @@ public static class BoardEndpoints
         boardEndpoints.MapGet(string.Empty, async (IBoardService boardService, HttpContext httpContext) =>
         {
             var result = await boardService.GetBoardsAsync(httpContext.GetActorUserId());
-            if (!result.Success || result.Data is null)
-            {
-                return result.ToHttpResult();
-            }
-
-            if (!TryGetPatBoardAllowList(httpContext.User, out var allowedBoardIds))
-            {
-                return result.ToHttpResult();
-            }
-
-            var filteredBoards = result.Data
-                .Where(board => allowedBoardIds.Contains(board.Id))
-                .ToList();
-            return ApiResults.Ok<IReadOnlyList<BoardSummaryDto>>(filteredBoards).ToHttpResult();
+            return result.ToHttpResult();
         });
 
         boardEndpoints.MapGet("/{boardId:int}", async (int boardId, IBoardService boardService, HttpContext httpContext) =>
@@ -151,29 +136,4 @@ public static class BoardEndpoints
                 [property] = [message]
             });
 
-    private static bool TryGetPatBoardAllowList(ClaimsPrincipal claimsPrincipal, out HashSet<int> allowedBoardIds)
-    {
-        allowedBoardIds = [];
-        var authType = claimsPrincipal.FindFirst("boardoil_auth_type")?.Value;
-        if (!string.Equals(authType, "pat", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        var boardAccessMode = claimsPrincipal.FindFirst("boardoil_pat_board_access_mode")?.Value;
-        if (!string.Equals(boardAccessMode, MachinePatBoardAccessModes.Selected, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        var allowedBoardIdsClaim = claimsPrincipal.FindFirst("boardoil_pat_allowed_board_ids")?.Value;
-        allowedBoardIds = (allowedBoardIdsClaim ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(rawBoardId => int.TryParse(rawBoardId, out var boardId) ? (int?)boardId : null)
-            .Where(boardId => boardId is > 0)
-            .Select(boardId => boardId!.Value)
-            .ToHashSet();
-
-        return true;
-    }
 }

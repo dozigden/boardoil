@@ -16,30 +16,6 @@
       </label>
     </fieldset>
 
-    <fieldset v-if="allowBoardAccessSelection" class="machine-pat-dialog-group">
-      <legend>Board access</legend>
-      <label class="machine-pat-dialog-check">
-        <input v-model="boardAccessMode" :disabled="busy" type="radio" value="all" />
-        <span>All boards</span>
-      </label>
-      <label class="machine-pat-dialog-check">
-        <input v-model="boardAccessMode" :disabled="busy" type="radio" value="selected" />
-        <span>Selected boards only</span>
-      </label>
-      <div v-if="boardAccessMode === 'selected'" class="machine-pat-board-list">
-        <p v-if="boards.length === 0" class="machine-pat-board-empty">No boards available yet.</p>
-        <label v-for="board in boards" :key="board.id" class="machine-pat-dialog-check">
-          <input
-            :checked="selectedBoardIds.includes(board.id)"
-            :disabled="busy"
-            type="checkbox"
-            @change="toggleBoard(board.id, ($event.target as HTMLInputElement).checked)"
-          />
-          <span>{{ board.name }} <span class="badge">#{{ board.id }}</span></span>
-        </label>
-      </div>
-    </fieldset>
-
     <fieldset class="machine-pat-dialog-group">
       <legend>Expiry</legend>
       <label class="machine-pat-dialog-check">
@@ -83,17 +59,14 @@
 <script setup lang="ts">
 import { Check, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
-import type { BoardSummary } from '../types/boardTypes';
 import type { CreateAccessTokenRequest } from '../types/authTypes';
 import ModalDialog from './ModalDialog.vue';
 
 const props = defineProps<{
   open: boolean;
   busy: boolean;
-  boards: BoardSummary[];
   defaultScopes: string[];
   allowedScopes: string[];
-  allowBoardAccessSelection?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -112,8 +85,6 @@ const scopeDefinitions = [
 
 const name = ref('');
 const selectedScopes = ref<string[]>([]);
-const boardAccessMode = ref<'all' | 'selected'>('all');
-const selectedBoardIds = ref<number[]>([]);
 const isNonExpiring = ref(false);
 const nonExpiringConfirmed = ref(false);
 const expiresInDays = ref(30);
@@ -129,9 +100,6 @@ function resetDraft() {
   name.value = '';
   const scopeSet = new Set(props.defaultScopes.map(scope => scope.toLowerCase()));
   selectedScopes.value = [...scopeSet].filter(scope => allowedScopeSet.value.has(scope));
-
-  boardAccessMode.value = 'all';
-  selectedBoardIds.value = [];
   isNonExpiring.value = false;
   nonExpiringConfirmed.value = false;
   expiresInDays.value = 30;
@@ -154,11 +122,6 @@ function submit() {
     return;
   }
 
-  if (props.allowBoardAccessSelection !== false && boardAccessMode.value === 'selected' && selectedBoardIds.value.length === 0) {
-    draftError.value = 'Select at least one board for selected-board mode.';
-    return;
-  }
-
   if (isNonExpiring.value && !nonExpiringConfirmed.value) {
     draftError.value = 'Confirm non-expiring token risk before creating.';
     return;
@@ -175,27 +138,9 @@ function submit() {
   const payload: CreateAccessTokenRequest = {
     name: trimmedName,
     expiresInDays: isNonExpiring.value ? null : Math.trunc(Number(expiresInDays.value)),
-    scopes,
-    boardAccessMode: props.allowBoardAccessSelection === false ? 'all' : boardAccessMode.value,
-    allowedBoardIds:
-      props.allowBoardAccessSelection === false
-        ? []
-        : boardAccessMode.value === 'selected'
-          ? [...selectedBoardIds.value]
-          : []
+    scopes
   };
   emit('submit', payload);
-}
-
-function toggleBoard(boardId: number, checked: boolean) {
-  if (checked) {
-    if (!selectedBoardIds.value.includes(boardId)) {
-      selectedBoardIds.value = [...selectedBoardIds.value, boardId].sort((left, right) => left - right);
-    }
-    return;
-  }
-
-  selectedBoardIds.value = selectedBoardIds.value.filter(id => id !== boardId);
 }
 
 watch(
@@ -261,20 +206,6 @@ watch(
   padding: 0;
   margin-top: 0.15rem;
   flex: 0 0 auto;
-}
-
-.machine-pat-board-list {
-  display: grid;
-  gap: 0.35rem;
-  padding-top: 0.1rem;
-  border-top: 1px dashed var(--bo-border-soft);
-  margin-top: 0.15rem;
-  padding-top: 0.55rem;
-}
-
-.machine-pat-board-empty {
-  margin: 0;
-  color: var(--bo-ink-muted);
 }
 
 .machine-pat-warning {

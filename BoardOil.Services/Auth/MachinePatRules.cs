@@ -37,12 +37,6 @@ internal static class MachinePatRules
         MachinePatScopes.ApiSystem
     ];
 
-    internal static readonly string[] SupportedBoardAccessModes =
-    [
-        MachinePatBoardAccessModes.All,
-        MachinePatBoardAccessModes.Selected
-    ];
-
     internal static IReadOnlyList<string> ParseScopes(string scopesCsv)
     {
         var normalisedScopes = scopesCsv
@@ -74,47 +68,13 @@ internal static class MachinePatRules
             .ToArray();
     }
 
-    internal static string NormaliseBoardAccessMode(string? boardAccessMode)
-    {
-        if (string.IsNullOrWhiteSpace(boardAccessMode))
-        {
-            return MachinePatBoardAccessModes.All;
-        }
-
-        return boardAccessMode.Trim().ToLowerInvariant();
-    }
-
-    internal static IReadOnlyList<int> ParseAllowedBoardIds(string allowedBoardIdsCsv) =>
-        allowedBoardIdsCsv
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(x => int.TryParse(x, out var boardId) ? boardId : (int?)null)
-            .Where(x => x is > 0)
-            .Select(x => x!.Value)
-            .Distinct()
-            .Order()
-            .ToArray();
-
-    internal static IReadOnlyList<int> NormaliseAllowedBoardIds(IEnumerable<int>? allowedBoardIds) =>
-        (allowedBoardIds ?? [])
-            .Where(x => x > 0)
-            .Distinct()
-            .Order()
-            .ToArray();
-
     internal static MachinePatDto ToMachinePatDto(EntityPersonalAccessToken token)
     {
-        var boardAccessMode = NormaliseBoardAccessMode(token.BoardAccessMode);
-        var allowedBoardIds = boardAccessMode == MachinePatBoardAccessModes.All
-            ? Array.Empty<int>()
-            : ParseAllowedBoardIds(token.AllowedBoardIdsCsv);
-
         return new MachinePatDto(
             token.Id,
             token.Name,
             token.TokenPrefix,
             ParseScopes(token.ScopesCsv),
-            boardAccessMode,
-            allowedBoardIds,
             token.CreatedAtUtc,
             token.ExpiresAtUtc,
             token.LastUsedAtUtc,
