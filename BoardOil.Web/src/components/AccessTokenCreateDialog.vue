@@ -9,30 +9,10 @@
 
     <fieldset class="machine-pat-dialog-group">
       <legend>Scopes</legend>
-      <p class="machine-pat-dialog-scope-hint">MCP scopes control `/mcp`. API scopes control `/api` endpoints.</p>
-      <label class="machine-pat-dialog-check">
-        <input v-model="includeMcpRead" :disabled="busy" type="checkbox" />
-        <span><code>mcp:read</code> (board and column reads)</span>
-      </label>
-      <label class="machine-pat-dialog-check">
-        <input v-model="includeMcpWrite" :disabled="busy" type="checkbox" />
-        <span><code>mcp:write</code> (card create/update/move/delete)</span>
-      </label>
-      <label class="machine-pat-dialog-check">
-        <input v-model="includeApiRead" :disabled="busy" type="checkbox" />
-        <span><code>api:read</code> (REST `GET` and `HEAD` on `/api/*`)</span>
-      </label>
-      <label class="machine-pat-dialog-check">
-        <input v-model="includeApiWrite" :disabled="busy" type="checkbox" />
-        <span><code>api:write</code> (REST `POST`/`PUT`/`PATCH`/`DELETE` on `/api/*`)</span>
-      </label>
-      <label class="machine-pat-dialog-check">
-        <input v-model="includeApiAdmin" :disabled="busy" type="checkbox" />
-        <span><code>api:admin</code> (`/api/admin/*`)</span>
-      </label>
-      <label class="machine-pat-dialog-check">
-        <input v-model="includeApiSystem" :disabled="busy" type="checkbox" />
-        <span><code>api:system</code> (`/api/system/*`)</span>
+      <p class="machine-pat-dialog-scope-hint">{{ scopeHint }}</p>
+      <label v-for="scope in visibleScopes" :key="scope.id" class="machine-pat-dialog-check">
+        <input v-model="selectedScopes" :disabled="busy" type="checkbox" :value="scope.id" />
+        <span><code>{{ scope.id }}</code>{{ scope.description }}</span>
       </label>
     </fieldset>
 
@@ -102,7 +82,7 @@
 
 <script setup lang="ts">
 import { Check, X } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { BoardSummary } from '../types/boardTypes';
 import type { CreateAccessTokenRequest } from '../types/authTypes';
 import ModalDialog from './ModalDialog.vue';
@@ -111,7 +91,8 @@ const props = defineProps<{
   open: boolean;
   busy: boolean;
   boards: BoardSummary[];
-  defaultScopes?: string[];
+  defaultScopes: string[];
+  allowedScopes: string[];
   allowBoardAccessSelection?: boolean;
 }>();
 
@@ -120,31 +101,35 @@ const emit = defineEmits<{
   submit: [payload: CreateAccessTokenRequest];
 }>();
 
+const scopeDefinitions = [
+  { id: 'mcp:read', description: ' (board and column reads)' },
+  { id: 'mcp:write', description: ' (card create/update/move/delete)' },
+  { id: 'api:read', description: ' (REST `GET` and `HEAD` on `/api/*`)' },
+  { id: 'api:write', description: ' (REST `POST`/`PUT`/`PATCH`/`DELETE` on `/api/*`)' },
+  { id: 'api:admin', description: ' (`/api/admin/*`)' },
+  { id: 'api:system', description: ' (`/api/system/*`)' }
+] as const;
+
 const name = ref('');
-const includeMcpRead = ref(true);
-const includeMcpWrite = ref(true);
-const includeApiRead = ref(false);
-const includeApiWrite = ref(false);
-const includeApiAdmin = ref(false);
-const includeApiSystem = ref(false);
+const selectedScopes = ref<string[]>([]);
 const boardAccessMode = ref<'all' | 'selected'>('all');
 const selectedBoardIds = ref<number[]>([]);
 const isNonExpiring = ref(false);
 const nonExpiringConfirmed = ref(false);
 const expiresInDays = ref(30);
 const draftError = ref<string | null>(null);
+const allowedScopeSet = computed(() => new Set(props.allowedScopes.map(scope => scope.toLowerCase())));
+const visibleScopes = computed(() => scopeDefinitions.filter(scope => allowedScopeSet.value.has(scope.id)));
+const scopeHint = computed(() => {
+  const hasApiScopes = visibleScopes.value.some(scope => scope.id.startsWith('api:'));
+  return hasApiScopes ? 'MCP scopes control `/mcp`. API scopes control `/api` endpoints.' : 'MCP scopes control `/mcp`.';
+});
 
 function resetDraft() {
   name.value = '';
-  const scopeSet = new Set((props.defaultScopes ?? []).map(scope => scope.toLowerCase()));
-  const useDefaults = scopeSet.size > 0;
+  const scopeSet = new Set(props.defaultScopes.map(scope => scope.toLowerCase()));
+  selectedScopes.value = [...scopeSet].filter(scope => allowedScopeSet.value.has(scope));
 
-  includeMcpRead.value = useDefaults ? scopeSet.has('mcp:read') : true;
-  includeMcpWrite.value = useDefaults ? scopeSet.has('mcp:write') : true;
-  includeApiRead.value = useDefaults ? scopeSet.has('api:read') : false;
-  includeApiWrite.value = useDefaults ? scopeSet.has('api:write') : false;
-  includeApiAdmin.value = useDefaults ? scopeSet.has('api:admin') : false;
-  includeApiSystem.value = useDefaults ? scopeSet.has('api:system') : false;
   boardAccessMode.value = 'all';
   selectedBoardIds.value = [];
   isNonExpiring.value = false;
@@ -162,25 +147,7 @@ function submit() {
     return;
   }
 
-  const scopes: string[] = [];
-  if (includeMcpRead.value) {
-    scopes.push('mcp:read');
-  }
-  if (includeMcpWrite.value) {
-    scopes.push('mcp:write');
-  }
-  if (includeApiRead.value) {
-    scopes.push('api:read');
-  }
-  if (includeApiWrite.value) {
-    scopes.push('api:write');
-  }
-  if (includeApiAdmin.value) {
-    scopes.push('api:admin');
-  }
-  if (includeApiSystem.value) {
-    scopes.push('api:system');
-  }
+  const scopes = selectedScopes.value.filter(scope => allowedScopeSet.value.has(scope));
 
   if (scopes.length === 0) {
     draftError.value = 'Select at least one scope.';

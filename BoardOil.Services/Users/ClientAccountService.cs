@@ -197,12 +197,15 @@ public sealed class ClientAccountService(
             return ApiErrors.BadRequest("At least one scope is required.");
         }
 
-        if (requestedScopes.Except(MachinePatRules.SupportedScopes, StringComparer.OrdinalIgnoreCase).Any())
+        if (requestedScopes.Except(MachinePatRules.SupportedClientScopes, StringComparer.OrdinalIgnoreCase).Any())
         {
             return ApiErrors.BadRequest("Unsupported scope provided.");
         }
 
-        var scopes = MachinePatRules.NormaliseScopes(request.Scopes, defaultScopes);
+        var scopes = MachinePatRules.NormaliseScopes(
+            request.Scopes,
+            defaultScopes,
+            MachinePatRules.SupportedClientScopes);
         if (scopes.Count == 0)
         {
             return ApiErrors.BadRequest("At least one scope is required.");

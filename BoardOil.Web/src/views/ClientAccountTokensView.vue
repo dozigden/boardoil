@@ -42,6 +42,7 @@
       :busy="isBusy"
       :boards="boards"
       :default-scopes="clientDefaultScopes"
+      :allowed-scopes="clientAllowedScopes"
       :allow-board-access-selection="false"
       @close="closeCreateTokenDialog"
       @submit="createClientToken"
@@ -74,6 +75,7 @@ const route = useRoute();
 const router = useRouter();
 
 const clientDefaultScopes = ['api:read', 'api:write', 'api:admin', 'api:system'];
+const clientAllowedScopes = ['mcp:read', 'mcp:write', 'api:read', 'api:write', 'api:admin', 'api:system'];
 
 const clients = ref<ClientAccount[]>([]);
 const clientId = ref<number | null>(null);

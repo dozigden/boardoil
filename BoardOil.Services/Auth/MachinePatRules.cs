@@ -15,6 +15,14 @@ internal static class MachinePatRules
         MachinePatScopes.ApiSystem
     ];
 
+    internal static readonly string[] SupportedUserScopes =
+    [
+        MachinePatScopes.McpRead,
+        MachinePatScopes.McpWrite
+    ];
+
+    internal static readonly string[] SupportedClientScopes = SupportedScopes;
+
     internal static readonly string[] DefaultUserScopes =
     [
         MachinePatScopes.McpRead,
@@ -49,13 +57,19 @@ internal static class MachinePatRules
     }
 
     internal static IReadOnlyList<string> NormaliseScopes(IEnumerable<string>? scopes, IEnumerable<string> defaultScopes)
+        => NormaliseScopes(scopes, defaultScopes, SupportedScopes);
+
+    internal static IReadOnlyList<string> NormaliseScopes(
+        IEnumerable<string>? scopes,
+        IEnumerable<string> defaultScopes,
+        IEnumerable<string> supportedScopes)
     {
         var normalisedScopes = (scopes ?? defaultScopes)
             .Select(x => x.Trim().ToLowerInvariant())
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .ToHashSet(StringComparer.Ordinal);
 
-        return SupportedScopes
+        return supportedScopes
             .Where(scope => normalisedScopes.Contains(scope))
             .ToArray();
     }

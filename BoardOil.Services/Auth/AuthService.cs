@@ -142,15 +142,23 @@ public sealed class AuthService(
             return ApiErrors.BadRequest("expiresInDays must be between 1 and 3650 when specified.");
         }
 
-        var scopes = MachinePatRules.NormaliseScopes(request.Scopes, MachinePatRules.DefaultUserScopes);
+        var requestedScopes = request.Scopes?
+            .Select(x => x.Trim().ToLowerInvariant())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToArray();
+        if (requestedScopes is { Length: > 0 }
+            && requestedScopes.Except(MachinePatRules.SupportedUserScopes, StringComparer.OrdinalIgnoreCase).Any())
+        {
+            return ApiErrors.BadRequest("Unsupported scope provided.");
+        }
+
+        var scopes = MachinePatRules.NormaliseScopes(
+            request.Scopes,
+            MachinePatRules.DefaultUserScopes,
+            MachinePatRules.SupportedUserScopes);
         if (scopes.Count == 0)
         {
             return ApiErrors.BadRequest("At least one scope is required.");
-        }
-
-        if (scopes.Except(MachinePatRules.SupportedScopes, StringComparer.OrdinalIgnoreCase).Any())
-        {
-            return ApiErrors.BadRequest("Unsupported scope provided.");
         }
 
         var boardAccessMode = MachinePatRules.NormaliseBoardAccessMode(request.BoardAccessMode);
@@ -362,7 +370,10 @@ public sealed class AuthService(
     }
 
     private static IReadOnlyList<string> NormaliseScopes(IEnumerable<string>? scopes) =>
-        MachinePatRules.NormaliseScopes(scopes, MachinePatRules.DefaultUserScopes);
+        MachinePatRules.NormaliseScopes(
+            scopes,
+            MachinePatRules.DefaultUserScopes,
+            MachinePatRules.SupportedUserScopes);
 
     private static string NormaliseBoardAccessMode(string? boardAccessMode) =>
         MachinePatRules.NormaliseBoardAccessMode(boardAccessMode);
