@@ -2,8 +2,6 @@ using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Persistence.Abstractions.Card;
-using System.Text.RegularExpressions;
-
 namespace BoardOil.Services.Card;
 
 public sealed class CardValidator(
@@ -12,9 +10,6 @@ public sealed class CardValidator(
     private const int MaxDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
     private readonly ICardRepository _cardRepository = cardRepository;
-
-    private static readonly Regex AllowedCardTitleRegex =
-        new("^[A-Za-z0-9][A-Za-z0-9 \\-._&'(),!?:/]*$", RegexOptions.Compiled);
 
     public async Task<IReadOnlyList<ValidationError>> ValidateCreateAsync(CreateCardRequest request)
     {
@@ -97,9 +92,9 @@ public sealed class CardValidator(
             return;
         }
 
-        if (!AllowedCardTitleRegex.IsMatch(normalized))
+        if (ContainsControlCharacters(normalized))
         {
-            errors.Add(new ValidationError("title", "Card title can only contain letters, numbers, spaces, and . , - _ & ' ( ) ! ? : /"));
+            errors.Add(new ValidationError("title", "Card title cannot contain control characters."));
         }
     }
 
@@ -134,5 +129,18 @@ public sealed class CardValidator(
         }
 
         return tagValidationErrors.Count == 0 ? Array.Empty<ValidationError>() : tagValidationErrors;
+    }
+
+    private static bool ContainsControlCharacters(string value)
+    {
+        foreach (var character in value)
+        {
+            if (char.IsControl(character))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

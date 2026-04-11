@@ -52,26 +52,32 @@ export const useCardStore = defineStore('card', () => {
   ) {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      return;
+      return null;
     }
 
     const resolvedBoardId = resolveBoardId(boardId);
     if (resolvedBoardId === null) {
-      return;
+      return null;
     }
 
-    const result = await runBusy(() => {
-      if (cardTypeId === null) {
-        return api.createCard(resolvedBoardId, columnId, trimmedTitle);
-      }
+    const result = await runBusy(
+      () => {
+        if (cardTypeId === null) {
+          return api.createCard(resolvedBoardId, columnId, trimmedTitle);
+        }
 
-      return api.createCard(resolvedBoardId, columnId, trimmedTitle, cardTypeId);
-    });
+        return api.createCard(resolvedBoardId, columnId, trimmedTitle, cardTypeId);
+      },
+      {
+        suppressError: error => hasValidationErrors(error)
+      }
+    );
     if (!result.ok) {
-      return;
+      return result;
     }
 
     upsertCard(result.data);
+    return result;
   }
 
   async function saveCard(
@@ -232,12 +238,19 @@ export const useCardStore = defineStore('card', () => {
     }
   }
 
-  async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
+  async function runBusy<T>(
+    operation: () => Promise<Result<T, AppError>>,
+    options?: { suppressError?: (error: AppError) => boolean }
+  ) {
     busy.value = true;
     try {
       const result = await operation();
       if (!result.ok) {
-        reportError(result.error);
+        if (options?.suppressError?.(result.error)) {
+          feedback.clearError();
+        } else {
+          reportError(result.error);
+        }
       } else {
         feedback.clearError();
       }
@@ -281,6 +294,10 @@ export const useCardStore = defineStore('card', () => {
     removeTagFromCards
   };
 });
+
+function hasValidationErrors(error: AppError) {
+  return Boolean(error.validationErrors && Object.keys(error.validationErrors).length > 0);
+}
 
 function cloneCard(card: Card): Card {
   return {

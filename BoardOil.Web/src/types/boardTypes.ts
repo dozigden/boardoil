@@ -94,4 +94,5 @@ export type ApiEnvelope<T> = {
   data: T | null;
   statusCode: number;
   message?: string;
+  validationErrors?: Record<string, string[]>;
 };

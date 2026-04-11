@@ -40,7 +40,8 @@ export async function getEnvelope<T>(path: string): Promise<Result<ApiEnvelope<T
 
   return err({
     kind: 'api',
-    message: envelopeResult.data.message ?? `Request failed with status ${responseResult.data.status}`
+    message: envelopeResult.data.message ?? `Request failed with status ${responseResult.data.status}`,
+    validationErrors: envelopeResult.data.validationErrors
   });
 }
 
@@ -89,7 +90,8 @@ export async function deleteJson(path: string): Promise<Result<void, AppError>> 
 
   return err({
     kind: 'api',
-    message: envelopeResult.data.message ?? `Request failed with status ${responseResult.data.status}`
+    message: envelopeResult.data.message ?? `Request failed with status ${responseResult.data.status}`,
+    validationErrors: envelopeResult.data.validationErrors
   });
 }
 
@@ -142,7 +144,8 @@ async function sendJson(
 
   return err({
     kind: 'api',
-    message: envelopeResult.data.message ?? `Request failed with status ${responseResult.data.status}`
+    message: envelopeResult.data.message ?? `Request failed with status ${responseResult.data.status}`,
+    validationErrors: envelopeResult.data.validationErrors
   });
 }
 
@@ -234,11 +237,12 @@ async function request(path: string, init: RequestInit): Promise<Result<Response
             void handleUnauthorized();
           }
 
-          return err({
-            kind: 'http',
-            message: retriedEnvelope?.message ?? `Request failed with status ${retriedResponse.status}`,
-            statusCode: retriedResponse.status
-          });
+      return err({
+        kind: 'http',
+        message: retriedEnvelope?.message ?? `Request failed with status ${retriedResponse.status}`,
+        statusCode: retriedResponse.status,
+        validationErrors: retriedEnvelope?.validationErrors
+      });
         }
       }
 
@@ -250,7 +254,8 @@ async function request(path: string, init: RequestInit): Promise<Result<Response
       return err({
         kind: 'http',
         message: envelope?.message ?? `Request failed with status ${response.status}`,
-        statusCode: response.status
+        statusCode: response.status,
+        validationErrors: envelope?.validationErrors
       });
     }
 

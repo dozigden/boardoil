@@ -4,4 +4,5 @@ export type AppError = {
   kind: AppErrorKind;
   message: string;
   statusCode?: number;
+  validationErrors?: Record<string, string[]>;
 };

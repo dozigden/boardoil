@@ -472,13 +472,35 @@ public sealed class CardServiceTests : TestBaseDb
 
         // Act
         var service = CreateService();
-        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "bad@title", "Desc", null), ActorUserId);
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "bad\ntitle", "Desc", null), ActorUserId);
 
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
         Assert.NotNull(result.ValidationErrors);
         Assert.True(result.ValidationErrors!.ContainsKey("title"));
+    }
+
+    [Fact]
+    public async Task CreateCardAsync_WhenTitleContainsSpecialCharacters_ShouldCreateCard()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var title = "Fix: titles with * < > & symbols";
+
+        // Act
+        var service = CreateService();
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, title, "Desc", null), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(201, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.Equal(title, result.Data!.Title);
     }
 
     [Fact]
