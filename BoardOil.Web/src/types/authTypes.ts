@@ -34,7 +34,7 @@ export type UserDirectoryEntry = {
   isActive: boolean;
 };
 
-export type AccessTokenScope = 'mcp:read' | 'mcp:write' | string;
+export type AccessTokenScope = 'mcp:read' | 'mcp:write' | 'api:read' | 'api:write' | 'api:admin' | string;
 
 export type AccessTokenBoardAccessMode = 'all' | 'selected' | string;
 

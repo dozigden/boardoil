@@ -24,6 +24,14 @@ public sealed class McpPatAuthenticationHandler(
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     private const string BearerPrefix = "Bearer ";
+    private static readonly string[] SupportedPatScopes =
+    [
+        MachinePatScopes.McpRead,
+        MachinePatScopes.McpWrite,
+        MachinePatScopes.ApiRead,
+        MachinePatScopes.ApiWrite,
+        MachinePatScopes.ApiAdmin
+    ];
     private readonly TimeProvider _timeProvider = timeProvider;
     private readonly IConfigurationService _configurationService = configurationService;
     private readonly IMcpErrorResponseFactory _errorResponseFactory = errorResponseFactory;
@@ -32,7 +40,9 @@ public sealed class McpPatAuthenticationHandler(
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase))
+        var isMcpRequest = IsMcpRequest(Request.Path);
+        var isApiRequest = IsApiRequest(Request.Path);
+        if (!isMcpRequest && !isApiRequest)
         {
             return AuthenticateResult.NoResult();
         }
@@ -61,7 +71,7 @@ public sealed class McpPatAuthenticationHandler(
         }
 
         var scopes = ParseScopes(personalAccessToken.ScopesCsv);
-        if (!HasAnyMcpScope(scopes))
+        if (isMcpRequest && !HasAnyMcpScope(scopes))
         {
             return AuthenticateResult.Fail("Personal access token does not allow MCP access.");
         }
@@ -132,26 +142,15 @@ public sealed class McpPatAuthenticationHandler(
 
     private static IReadOnlyList<string> ParseScopes(string scopesCsv)
     {
-        var rawScopes = scopesCsv
+        var normalisedScopes = scopesCsv
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(x => x.Trim().ToLowerInvariant())
             .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.Ordinal)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return SupportedPatScopes
+            .Where(scope => normalisedScopes.Contains(scope))
             .ToArray();
-
-        var hasLegacyMcp = rawScopes.Contains(MachinePatScopes.LegacyMcp, StringComparer.Ordinal);
-        var scopes = new List<string>();
-        if (hasLegacyMcp || rawScopes.Contains(MachinePatScopes.McpRead, StringComparer.Ordinal))
-        {
-            scopes.Add(MachinePatScopes.McpRead);
-        }
-
-        if (hasLegacyMcp || rawScopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal))
-        {
-            scopes.Add(MachinePatScopes.McpWrite);
-        }
-
-        return scopes;
     }
 
     private static bool HasAnyMcpScope(IEnumerable<string> scopes) =>
@@ -167,4 +166,10 @@ public sealed class McpPatAuthenticationHandler(
 
         return boardAccessMode.Trim().ToLowerInvariant();
     }
+
+    private static bool IsMcpRequest(PathString path) =>
+        path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsApiRequest(PathString path) =>
+        path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase);
 }
