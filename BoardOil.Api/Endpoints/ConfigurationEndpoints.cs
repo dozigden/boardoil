@@ -11,11 +11,13 @@ public static class ConfigurationEndpoints
     {
         app.MapGet("/api/configuration", async (IConfigurationService configurationService) =>
                 (await configurationService.GetConfigurationAsync()).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("Configuration");
 
         app.MapPut("/api/configuration", async (UpdateConfigurationRequest request, IConfigurationService configurationService) =>
                 (await configurationService.UpdateConfigurationAsync(request)).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("Configuration");
 
         return app;
     }

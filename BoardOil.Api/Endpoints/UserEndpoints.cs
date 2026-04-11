@@ -11,20 +11,25 @@ public static class UserEndpoints
     {
         app.MapGet("/api/users", (IUserService userService) =>
                 userService.GetUsersAsync().ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
+            .WithTags("Users");
 
         app.MapGet("/api/admin/users", (IUserAdminService userAdminService) =>
                 userAdminService.GetUsersAsync().ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("Admin Users");
         app.MapPost("/api/admin/users", (CreateUserRequest request, IUserAdminService userAdminService) =>
                 userAdminService.CreateUserAsync(request).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("Admin Users");
         app.MapPut("/api/admin/users/{id:int}/role", (int id, UpdateUserRoleRequest request, IUserAdminService userAdminService) =>
                 userAdminService.UpdateUserRoleAsync(id, request).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("Admin Users");
         app.MapPut("/api/admin/users/{id:int}/status", (int id, UpdateUserStatusRequest request, IUserAdminService userAdminService) =>
                 userAdminService.UpdateUserStatusAsync(id, request).ToHttpResult())
-            .RequireAuthorization(BoardOilPolicies.AdminOnly);
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("Admin Users");
 
         return app;
     }

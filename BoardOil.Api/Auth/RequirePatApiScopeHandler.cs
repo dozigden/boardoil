@@ -44,7 +44,7 @@ internal sealed class RequirePatApiScopeHandler(IHttpContextAccessor httpContext
             return Task.CompletedTask;
         }
 
-        var requiredScope = GetRequiredScope(httpContext.Request);
+        var requiredScope = PatApiScopeRules.GetRequiredScope(httpContext.Request);
         if (!HasRequiredPatScope(context.User, requiredScope))
         {
             context.Fail();
@@ -66,34 +66,6 @@ internal sealed class RequirePatApiScopeHandler(IHttpContextAccessor httpContext
         var authType = claimsPrincipal.FindFirst("boardoil_auth_type")?.Value;
         return string.Equals(authType, "pat", StringComparison.Ordinal);
     }
-
-    private static string GetRequiredScope(HttpRequest request)
-    {
-        if (IsSystemPath(request.Path))
-        {
-            return MachinePatScopes.ApiSystem;
-        }
-
-        if (IsAdminPath(request.Path))
-        {
-            return MachinePatScopes.ApiAdmin;
-        }
-
-        if (HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method))
-        {
-            return MachinePatScopes.ApiRead;
-        }
-
-        return MachinePatScopes.ApiWrite;
-    }
-
-    private static bool IsSystemPath(PathString path) =>
-        path.StartsWithSegments("/api/system", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments("/api/admin/boards", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsAdminPath(PathString path) =>
-        path.StartsWithSegments("/api/admin", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments("/api/configuration", StringComparison.OrdinalIgnoreCase);
 
     private static bool HasRequiredPatScope(ClaimsPrincipal claimsPrincipal, string requiredScope)
     {

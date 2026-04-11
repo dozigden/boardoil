@@ -218,6 +218,11 @@
         "resolved": "10.4.1",
         "contentHash": "ZxhU/wg9BOc3ohibhLl18toPLWm96ysQoE+3OhCgrZ0TUPZd7bsUmGteeatz08yweyuPIEhtyUzEZTF+3bMWEQ=="
       },
+      "Microsoft.Extensions.ApiDescription.Server": {
+        "type": "Transitive",
+        "resolved": "6.0.5",
+        "contentHash": "Ckb5EDBUNJdFWyajfXzUIMRkhf52fHZOQuuZg/oiu8y7zDCVwD0iHhew6MnThjHmevanpxL3f5ci2TtHQEN6bw=="
+      },
       "Microsoft.Extensions.Caching.Abstractions": {
         "type": "Transitive",
         "resolved": "10.0.5",
@@ -598,6 +603,11 @@
           "Microsoft.IdentityModel.Logging": "8.14.0"
         }
       },
+      "Microsoft.OpenApi": {
+        "type": "Transitive",
+        "resolved": "1.6.14",
+        "contentHash": "tTaBT8qjk3xINfESyOPE2rIellPvB7qpVqiWiyA/lACVvz+xOGiXhFUfohcx82NLbi5avzLW0lx+s6oAqQijfw=="
+      },
       "Microsoft.TestPlatform.ObjectModel": {
         "type": "Transitive",
         "resolved": "17.13.0",
@@ -671,6 +681,38 @@
           "SQLitePCLRaw.core": "2.1.11"
         }
       },
+      "Swashbuckle.AspNetCore": {
+        "type": "Transitive",
+        "resolved": "6.6.2",
+        "contentHash": "+NB4UYVYN6AhDSjW0IJAd1AGD8V33gemFNLPaxKTtPkHB+HaKAKf9MGAEUPivEWvqeQfcKIw8lJaHq6LHljRuw==",
+        "dependencies": {
+          "Microsoft.Extensions.ApiDescription.Server": "6.0.5",
+          "Swashbuckle.AspNetCore.Swagger": "6.6.2",
+          "Swashbuckle.AspNetCore.SwaggerGen": "6.6.2",
+          "Swashbuckle.AspNetCore.SwaggerUI": "6.6.2"
+        }
+      },
+      "Swashbuckle.AspNetCore.Swagger": {
+        "type": "Transitive",
+        "resolved": "6.6.2",
+        "contentHash": "ovgPTSYX83UrQUWiS5vzDcJ8TEX1MAxBgDFMK45rC24MorHEPQlZAHlaXj/yth4Zf6xcktpUgTEBvffRQVwDKA==",
+        "dependencies": {
+          "Microsoft.OpenApi": "1.6.14"
+        }
+      },
+      "Swashbuckle.AspNetCore.SwaggerGen": {
+        "type": "Transitive",
+        "resolved": "6.6.2",
+        "contentHash": "zv4ikn4AT1VYuOsDCpktLq4QDq08e7Utzbir86M5/ZkRaLXbCPF11E1/vTmOiDzRTl0zTZINQU2qLKwTcHgfrA==",
+        "dependencies": {
+          "Swashbuckle.AspNetCore.Swagger": "6.6.2"
+        }
+      },
+      "Swashbuckle.AspNetCore.SwaggerUI": {
+        "type": "Transitive",
+        "resolved": "6.6.2",
+        "contentHash": "mBBb+/8Hm2Q3Wygag+hu2jj69tZW5psuv0vMRXY07Wy+Rrj40vRP8ZTbKBhs91r45/HXT4aY4z0iSBYx1h6JvA=="
+      },
       "System.Diagnostics.EventLog": {
         "type": "Transitive",
         "resolved": "10.0.4",
@@ -719,18 +761,19 @@
       "boardoil.abstractions": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Contracts": "[1.0.0, )",
+          "BoardOil.Contracts": "[0.2.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.4, )"
         }
       },
       "boardoil.api": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Mcp.Contracts": "[1.0.0, )",
-          "BoardOil.Services": "[1.0.0, )",
+          "BoardOil.Mcp.Contracts": "[0.2.0, )",
+          "BoardOil.Services": "[0.2.0, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.4, )",
           "ModelContextProtocol": "[1.2.0, )",
-          "ModelContextProtocol.AspNetCore": "[1.2.0, )"
+          "ModelContextProtocol.AspNetCore": "[1.2.0, )",
+          "Swashbuckle.AspNetCore": "[6.6.2, )"
         }
       },
       "boardoil.contracts": {
@@ -739,8 +782,8 @@
       "boardoil.ef": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Abstractions": "[1.0.0, )",
-          "BoardOil.Persistence.Abstractions": "[1.0.0, )",
+          "BoardOil.Abstractions": "[0.2.0, )",
+          "BoardOil.Persistence.Abstractions": "[0.2.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.4, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.4, )"
         }
@@ -754,11 +797,11 @@
       "boardoil.services": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Abstractions": "[1.0.0, )",
-          "BoardOil.Contracts": "[1.0.0, )",
-          "BoardOil.Ef": "[1.0.0, )",
-          "BoardOil.Persistence.Abstractions": "[1.0.0, )",
-          "BoardOil.TasksMd": "[1.0.0, )",
+          "BoardOil.Abstractions": "[0.2.0, )",
+          "BoardOil.Contracts": "[0.2.0, )",
+          "BoardOil.Ef": "[0.2.0, )",
+          "BoardOil.Persistence.Abstractions": "[0.2.0, )",
+          "BoardOil.TasksMd": "[0.2.0, )",
           "Microsoft.Extensions.Http": "[10.0.4, )",
           "Microsoft.Extensions.Identity.Core": "[10.0.4, )"
         }

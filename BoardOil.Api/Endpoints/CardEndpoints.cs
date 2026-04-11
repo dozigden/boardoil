@@ -13,7 +13,8 @@ public static class CardEndpoints
         var cardEndpoints = app
             .MapGroup("/api/boards/{boardId:int}/cards")
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
-            .AddEndpointFilter<RequireActorUserIdFilter>();
+            .AddEndpointFilter<RequireActorUserIdFilter>()
+            .WithTags("Cards");
 
         cardEndpoints.MapPost(string.Empty, async (int boardId, CreateCardRequest request, ICardService cardService, HttpContext httpContext) =>
             (await cardService.CreateCardAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());

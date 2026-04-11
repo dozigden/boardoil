@@ -13,7 +13,8 @@ public static class InternalRealtimeEndpoints
 {
     public static IEndpointRouteBuilder MapInternalRealtimeEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost(BoardRealtimeRelay.EndpointPath, ForwardBoardEventAsync);
+        app.MapPost(BoardRealtimeRelay.EndpointPath, ForwardBoardEventAsync)
+            .WithTags("Other");
         return app;
     }
 

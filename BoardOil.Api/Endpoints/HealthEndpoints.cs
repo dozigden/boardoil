@@ -8,7 +8,8 @@ public static class HealthEndpoints
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder app)
     {
         // API health endpoint used for container/dev smoke checks.
-        app.MapGet("/api/health", () => ApiResults.Ok(new { status = "ok" }).ToHttpResult());
+        app.MapGet("/api/health", () => ApiResults.Ok(new { status = "ok" }).ToHttpResult())
+            .WithTags("Other");
         return app;
     }
 }

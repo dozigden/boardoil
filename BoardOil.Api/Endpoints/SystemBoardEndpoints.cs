@@ -13,7 +13,8 @@ public static class SystemBoardEndpoints
         var systemBoardEndpoints = app
             .MapGroup("/api/admin/boards")
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
-            .AddEndpointFilter<RequireActorUserIdFilter>();
+            .AddEndpointFilter<RequireActorUserIdFilter>()
+            .WithTags("System Boards");
 
         systemBoardEndpoints.MapGet(string.Empty, async (ISystemBoardService systemBoardService) =>
             (await systemBoardService.GetBoardsAsync()).ToHttpResult());
