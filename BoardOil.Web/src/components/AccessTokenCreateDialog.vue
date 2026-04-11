@@ -36,7 +36,7 @@
       </label>
     </fieldset>
 
-    <fieldset class="machine-pat-dialog-group">
+    <fieldset v-if="allowBoardAccessSelection" class="machine-pat-dialog-group">
       <legend>Board access</legend>
       <label class="machine-pat-dialog-check">
         <input v-model="boardAccessMode" :disabled="busy" type="radio" value="all" />
@@ -111,6 +111,8 @@ const props = defineProps<{
   open: boolean;
   busy: boolean;
   boards: BoardSummary[];
+  defaultScopes?: string[];
+  allowBoardAccessSelection?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -134,12 +136,15 @@ const draftError = ref<string | null>(null);
 
 function resetDraft() {
   name.value = '';
-  includeMcpRead.value = true;
-  includeMcpWrite.value = true;
-  includeApiRead.value = false;
-  includeApiWrite.value = false;
-  includeApiAdmin.value = false;
-  includeApiSystem.value = false;
+  const scopeSet = new Set((props.defaultScopes ?? []).map(scope => scope.toLowerCase()));
+  const useDefaults = scopeSet.size > 0;
+
+  includeMcpRead.value = useDefaults ? scopeSet.has('mcp:read') : true;
+  includeMcpWrite.value = useDefaults ? scopeSet.has('mcp:write') : true;
+  includeApiRead.value = useDefaults ? scopeSet.has('api:read') : false;
+  includeApiWrite.value = useDefaults ? scopeSet.has('api:write') : false;
+  includeApiAdmin.value = useDefaults ? scopeSet.has('api:admin') : false;
+  includeApiSystem.value = useDefaults ? scopeSet.has('api:system') : false;
   boardAccessMode.value = 'all';
   selectedBoardIds.value = [];
   isNonExpiring.value = false;
@@ -182,7 +187,7 @@ function submit() {
     return;
   }
 
-  if (boardAccessMode.value === 'selected' && selectedBoardIds.value.length === 0) {
+  if (props.allowBoardAccessSelection !== false && boardAccessMode.value === 'selected' && selectedBoardIds.value.length === 0) {
     draftError.value = 'Select at least one board for selected-board mode.';
     return;
   }
@@ -204,8 +209,13 @@ function submit() {
     name: trimmedName,
     expiresInDays: isNonExpiring.value ? null : Math.trunc(Number(expiresInDays.value)),
     scopes,
-    boardAccessMode: boardAccessMode.value,
-    allowedBoardIds: boardAccessMode.value === 'selected' ? [...selectedBoardIds.value] : []
+    boardAccessMode: props.allowBoardAccessSelection === false ? 'all' : boardAccessMode.value,
+    allowedBoardIds:
+      props.allowBoardAccessSelection === false
+        ? []
+        : boardAccessMode.value === 'selected'
+          ? [...selectedBoardIds.value]
+          : []
   };
   emit('submit', payload);
 }

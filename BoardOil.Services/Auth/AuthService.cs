@@ -22,28 +22,6 @@ public sealed class AuthService(
     TimeProvider timeProvider,
     IDbContextScopeFactory scopeFactory) : IAuthService
 {
-    private static readonly string[] SupportedPatScopes =
-    [
-        MachinePatScopes.McpRead,
-        MachinePatScopes.McpWrite,
-        MachinePatScopes.ApiRead,
-        MachinePatScopes.ApiWrite,
-        MachinePatScopes.ApiAdmin,
-        MachinePatScopes.ApiSystem
-    ];
-
-    private static readonly string[] DefaultPatScopes =
-    [
-        MachinePatScopes.McpRead,
-        MachinePatScopes.McpWrite
-    ];
-
-    private static readonly string[] SupportedBoardAccessModes =
-    [
-        MachinePatBoardAccessModes.All,
-        MachinePatBoardAccessModes.Selected
-    ];
-
     public async Task<ApiResult<AuthSessionTokens>> RegisterInitialAdminAsync(RegisterInitialAdminRequest request)
     {
         using var scope = scopeFactory.Create();
@@ -69,6 +47,7 @@ public sealed class AuthService(
             UserName = request.UserName.Trim(),
             PasswordHash = passwordHashService.HashPassword(request.Password),
             Role = UserRole.Admin,
+            IdentityType = UserIdentityType.User,
             IsActive = true,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
@@ -116,7 +95,12 @@ public sealed class AuthService(
         }
 
         var user = await authUserRepository.GetByUserNameAsync(normalisedUserName);
-        if (user is null || !user.IsActive || !passwordHashService.VerifyPassword(request.Password, user.PasswordHash))
+        if (user is null || !user.IsActive || user.IdentityType == UserIdentityType.Client)
+        {
+            return ApiErrors.Unauthorized("Invalid username or password.");
+        }
+
+        if (!passwordHashService.VerifyPassword(request.Password, user.PasswordHash))
         {
             return ApiErrors.Unauthorized("Invalid username or password.");
         }
@@ -129,6 +113,17 @@ public sealed class AuthService(
     public async Task<ApiResult<CreatedMachinePatDto>> CreateMachinePatAsync(int userId, CreateMachinePatRequest request)
     {
         using var scope = scopeFactory.Create();
+
+        var user = authUserRepository.Get(userId);
+        if (user is null || !user.IsActive)
+        {
+            return ApiErrors.Unauthorized("User is not active.");
+        }
+
+        if (user.IdentityType == UserIdentityType.Client)
+        {
+            return ApiErrors.Forbidden("Client accounts cannot manage access tokens.");
+        }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var name = request.Name?.Trim();
@@ -147,24 +142,24 @@ public sealed class AuthService(
             return ApiErrors.BadRequest("expiresInDays must be between 1 and 3650 when specified.");
         }
 
-        var scopes = NormaliseScopes(request.Scopes);
+        var scopes = MachinePatRules.NormaliseScopes(request.Scopes, MachinePatRules.DefaultUserScopes);
         if (scopes.Count == 0)
         {
             return ApiErrors.BadRequest("At least one scope is required.");
         }
 
-        if (scopes.Except(SupportedPatScopes, StringComparer.OrdinalIgnoreCase).Any())
+        if (scopes.Except(MachinePatRules.SupportedScopes, StringComparer.OrdinalIgnoreCase).Any())
         {
             return ApiErrors.BadRequest("Unsupported scope provided.");
         }
 
-        var boardAccessMode = NormaliseBoardAccessMode(request.BoardAccessMode);
-        if (!SupportedBoardAccessModes.Contains(boardAccessMode, StringComparer.Ordinal))
+        var boardAccessMode = MachinePatRules.NormaliseBoardAccessMode(request.BoardAccessMode);
+        if (!MachinePatRules.SupportedBoardAccessModes.Contains(boardAccessMode, StringComparer.Ordinal))
         {
             return ApiErrors.BadRequest("Unsupported boardAccessMode provided.");
         }
 
-        var allowedBoardIds = NormaliseAllowedBoardIds(request.AllowedBoardIds);
+        var allowedBoardIds = MachinePatRules.NormaliseAllowedBoardIds(request.AllowedBoardIds);
         if (boardAccessMode == MachinePatBoardAccessModes.All && allowedBoardIds.Count > 0)
         {
             return ApiErrors.BadRequest("allowedBoardIds must be empty when boardAccessMode is 'all'.");
@@ -193,7 +188,7 @@ public sealed class AuthService(
         await scope.SaveChangesAsync();
 
         return new CreatedMachinePatDto(
-            ToMachinePatDto(entity),
+            MachinePatRules.ToMachinePatDto(entity),
             plainTextToken);
     }
 
@@ -201,13 +196,35 @@ public sealed class AuthService(
     {
         using var scope = scopeFactory.CreateReadOnly();
 
+        var user = authUserRepository.Get(userId);
+        if (user is null || !user.IsActive)
+        {
+            return ApiErrors.Unauthorized("User is not active.");
+        }
+
+        if (user.IdentityType == UserIdentityType.Client)
+        {
+            return ApiErrors.Forbidden("Client accounts cannot manage access tokens.");
+        }
+
         var tokens = await personalAccessTokenRepository.GetByUserIdAsync(userId);
-        return tokens.Select(ToMachinePatDto).ToArray();
+        return tokens.Select(MachinePatRules.ToMachinePatDto).ToArray();
     }
 
     public async Task<ApiResult> RevokeMachinePatAsync(int userId, int tokenId)
     {
         using var scope = scopeFactory.Create();
+
+        var user = authUserRepository.Get(userId);
+        if (user is null || !user.IsActive)
+        {
+            return ApiErrors.Unauthorized("User is not active.");
+        }
+
+        if (user.IdentityType == UserIdentityType.Client)
+        {
+            return ApiErrors.Forbidden("Client accounts cannot manage access tokens.");
+        }
 
         var token = await personalAccessTokenRepository.GetByIdAsync(tokenId);
         if (token is null || token.UserId != userId)
@@ -240,7 +257,8 @@ public sealed class AuthService(
         if (existingToken is null
             || existingToken.RevokedAtUtc is not null
             || existingToken.ExpiresAtUtc <= now
-            || !existingToken.User.IsActive)
+            || !existingToken.User.IsActive
+            || existingToken.User.IdentityType == UserIdentityType.Client)
         {
             return ApiErrors.Unauthorized("Refresh token is invalid or expired.");
         }
@@ -340,79 +358,23 @@ public sealed class AuthService(
 
     private static IReadOnlyList<string> ParseScopes(string scopesCsv)
     {
-        var normalisedScopes = scopesCsv
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(x => x.Trim().ToLowerInvariant())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToHashSet(StringComparer.Ordinal);
-
-        return SupportedPatScopes
-            .Where(scope => normalisedScopes.Contains(scope))
-            .ToArray();
+        return MachinePatRules.ParseScopes(scopesCsv);
     }
 
-    private static IReadOnlyList<string> NormaliseScopes(IEnumerable<string>? scopes)
-    {
-        var normalisedScopes = (scopes ?? DefaultPatScopes)
-            .Select(x => x.Trim().ToLowerInvariant())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToHashSet(StringComparer.Ordinal);
+    private static IReadOnlyList<string> NormaliseScopes(IEnumerable<string>? scopes) =>
+        MachinePatRules.NormaliseScopes(scopes, MachinePatRules.DefaultUserScopes);
 
-        return SupportedPatScopes
-            .Where(scope => normalisedScopes.Contains(scope))
-            .ToArray();
-    }
-
-    private static string NormaliseBoardAccessMode(string? boardAccessMode)
-    {
-        if (string.IsNullOrWhiteSpace(boardAccessMode))
-        {
-            return MachinePatBoardAccessModes.All;
-        }
-
-        return boardAccessMode.Trim().ToLowerInvariant();
-    }
+    private static string NormaliseBoardAccessMode(string? boardAccessMode) =>
+        MachinePatRules.NormaliseBoardAccessMode(boardAccessMode);
 
     private static IReadOnlyList<int> ParseAllowedBoardIds(string allowedBoardIdsCsv) =>
-        allowedBoardIdsCsv
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(x => int.TryParse(x, out var boardId) ? boardId : (int?)null)
-            .Where(x => x is > 0)
-            .Select(x => x!.Value)
-            .Distinct()
-            .Order()
-            .ToArray();
+        MachinePatRules.ParseAllowedBoardIds(allowedBoardIdsCsv);
 
     private static IReadOnlyList<int> NormaliseAllowedBoardIds(IEnumerable<int>? allowedBoardIds) =>
-        (allowedBoardIds ?? [])
-            .Where(x => x > 0)
-            .Distinct()
-            .Order()
-            .ToArray();
+        MachinePatRules.NormaliseAllowedBoardIds(allowedBoardIds);
 
-    private static bool HasAnyMcpScope(IEnumerable<string> scopes) =>
-        scopes.Contains(MachinePatScopes.McpRead, StringComparer.Ordinal)
-        || scopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal);
-
-    private static MachinePatDto ToMachinePatDto(EntityPersonalAccessToken token)
-    {
-        var boardAccessMode = NormaliseBoardAccessMode(token.BoardAccessMode);
-        var allowedBoardIds = boardAccessMode == MachinePatBoardAccessModes.All
-            ? Array.Empty<int>()
-            : ParseAllowedBoardIds(token.AllowedBoardIdsCsv);
-
-        return new MachinePatDto(
-            token.Id,
-            token.Name,
-            token.TokenPrefix,
-            ParseScopes(token.ScopesCsv),
-            boardAccessMode,
-            allowedBoardIds,
-            token.CreatedAtUtc,
-            token.ExpiresAtUtc,
-            token.LastUsedAtUtc,
-            token.RevokedAtUtc);
-    }
+    private static MachinePatDto ToMachinePatDto(EntityPersonalAccessToken token) =>
+        MachinePatRules.ToMachinePatDto(token);
 
     private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string password)
     {

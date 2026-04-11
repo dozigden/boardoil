@@ -23,6 +23,7 @@
           <span class="badge">#{{ user.id }}</span>
           <strong class="entity-row-title">{{ user.userName }}</strong>
           <span class="entity-row-badges badge-group">
+            <span class="badge">{{ user.identityType }}</span>
             <span class="badge">{{ user.role }}</span>
             <span class="badge">{{ user.isActive ? 'Active' : 'Inactive' }}</span>
           </span>

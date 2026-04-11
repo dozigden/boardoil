@@ -23,6 +23,16 @@ export type ManagedUser = {
   id: number;
   userName: string;
   role: 'Admin' | 'Standard' | string;
+  identityType: 'User' | 'Client' | string;
+  isActive: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
+export type ClientAccount = {
+  id: number;
+  userName: string;
+  role: 'Admin' | 'Standard' | string;
   isActive: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
@@ -62,4 +72,19 @@ export type CreateAccessTokenRequest = {
   scopes: AccessTokenScope[];
   boardAccessMode: AccessTokenBoardAccessMode;
   allowedBoardIds: number[];
+};
+
+export type CreateClientAccountRequest = {
+  userName: string;
+  role: 'Admin' | 'Standard' | string;
+  tokenName?: string | null;
+  expiresInDays?: number | null;
+  scopes?: AccessTokenScope[] | null;
+  boardAccessMode?: AccessTokenBoardAccessMode;
+  allowedBoardIds?: number[];
+};
+
+export type CreatedClientAccount = {
+  account: ClientAccount;
+  token: CreatedAccessToken;
 };

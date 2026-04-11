@@ -68,6 +68,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICardService, CardService>();
         services.AddScoped<ICardTypeService, CardTypeService>();
         services.AddScoped<ITagService, TagService>();
+        services.AddScoped<IClientAccountService, ClientAccountService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
         services.AddScoped<IUserService, UserService>();
         services.AddHttpClient<ITasksMdClient, TasksMdClient>(client =>
@@ -130,6 +131,7 @@ public static class ServiceCollectionExtensions
                 "UserName" TEXT NOT NULL,
                 "PasswordHash" TEXT NOT NULL,
                 "Role" INTEGER NOT NULL,
+                "IdentityType" INTEGER NOT NULL DEFAULT 0,
                 "IsActive" INTEGER NOT NULL,
                 "CreatedAtUtc" TEXT NOT NULL,
                 "UpdatedAtUtc" TEXT NOT NULL

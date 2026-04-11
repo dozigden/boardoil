@@ -111,6 +111,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         user.Property(x => x.UserName).HasMaxLength(64).IsRequired();
         user.Property(x => x.PasswordHash).HasMaxLength(512).IsRequired();
         user.Property(x => x.Role).IsRequired();
+        user.Property(x => x.IdentityType).IsRequired();
         user.Property(x => x.IsActive).IsRequired();
         user.ToTable("Users");
         user.HasIndex(x => x.UserName).IsUnique();

@@ -17,5 +17,5 @@ public sealed class UserRepository(IAmbientDbContextLocator ambientDbContextLoca
         DbSet.AnyAsync(x => x.UserName == userName);
 
     public Task<int> CountActiveAdminsAsync() =>
-        DbSet.CountAsync(x => x.IsActive && x.Role == UserRole.Admin);
+        DbSet.CountAsync(x => x.IsActive && x.Role == UserRole.Admin && x.IdentityType == UserIdentityType.User);
 }

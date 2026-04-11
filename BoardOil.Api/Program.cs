@@ -266,6 +266,7 @@ app.MapTagEndpoints();
 app.MapInternalRealtimeEndpoints();
 app.MapConfigurationEndpoints();
 app.MapUserEndpoints();
+app.MapClientAccountEndpoints();
 
 app.MapAuthEndpoints();
 

@@ -1,0 +1,548 @@
+<template>
+  <section class="client-accounts-view">
+    <header class="client-accounts-header">
+      <div>
+        <h2>Client Accounts</h2>
+        <p>Manage service accounts and their access tokens.</p>
+      </div>
+      <button type="button" class="btn" :disabled="isBusy" @click="openCreateDialog">Create client account</button>
+    </header>
+
+    <div class="client-accounts-layout">
+      <section class="client-accounts-column">
+        <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+        <p v-if="successMessage" class="success">{{ successMessage }}</p>
+
+        <section class="client-accounts-list">
+          <p v-if="clients.length === 0" class="client-accounts-empty">No client accounts have been created yet.</p>
+          <article
+            v-for="client in clients"
+            :key="client.id"
+            class="entity-row client-account-row"
+            :class="{ 'is-selected': client.id === selectedClientId }"
+          >
+            <button
+              type="button"
+              class="entity-row-main entity-row-main-button"
+              :disabled="isBusy"
+              :aria-label="`Select client account ${client.userName}`"
+              @click="selectClient(client.id)"
+            >
+              <span class="badge">#{{ client.id }}</span>
+              <strong class="entity-row-title">{{ client.userName }}</strong>
+              <span class="entity-row-badges badge-group">
+                <span class="badge">{{ client.role }}</span>
+                <span class="badge">{{ client.isActive ? 'Active' : 'Inactive' }}</span>
+              </span>
+            </button>
+            <div class="entity-row-actions">
+              <button type="button" class="btn btn--secondary" :disabled="isBusy" @click="selectClient(client.id)">
+                Tokens
+              </button>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section class="client-accounts-column">
+        <header class="client-tokens-header">
+          <div>
+            <h3 v-if="selectedClient">{{ selectedClient.userName }} tokens</h3>
+            <h3 v-else>Client tokens</h3>
+            <p v-if="!selectedClient">Select a client account to manage its tokens.</p>
+          </div>
+          <button
+            type="button"
+            class="btn"
+            :disabled="isBusy || !selectedClient"
+            @click="openCreateTokenDialog"
+          >
+            Create token
+          </button>
+        </header>
+
+        <section v-if="plainTextPat" class="panel panel-stack client-token-secret">
+          <h3>Copy token now</h3>
+          <p>This value is only shown once for <strong>{{ plainTextPatName }}</strong>.</p>
+          <div class="client-token-code-block">
+            <code class="client-token-secret-value">{{ plainTextPat }}</code>
+            <button
+              type="button"
+              class="btn btn--secondary client-token-copy-icon"
+              :disabled="isBusy"
+              aria-label="Copy token"
+              title="Copy token"
+              @click="copyPlainTextPat"
+            >
+              <Copy :size="14" aria-hidden="true" />
+            </button>
+          </div>
+          <div class="client-token-secret-actions">
+            <button type="button" class="btn btn--secondary" :disabled="isBusy" @click="dismissPlainTextPat">Hide token</button>
+          </div>
+        </section>
+
+        <section class="client-token-list">
+          <p v-if="selectedClient && tokens.length === 0" class="client-accounts-empty">No tokens for this client yet.</p>
+          <article
+            v-for="token in tokens"
+            :key="token.id"
+            class="panel panel-stack panel-stack--compact client-token-item"
+          >
+            <div class="client-token-item-header">
+              <strong>{{ token.name }}</strong>
+              <span class="badge-group">
+                <span class="badge">{{ tokenStatus(token) }}</span>
+                <span class="badge">{{ token.tokenPrefix }}</span>
+              </span>
+            </div>
+            <div class="client-token-item-meta">
+              <span><strong>Scopes:</strong> {{ token.scopes.join(', ') || 'None' }}</span>
+              <span><strong>Boards:</strong> {{ describeBoardAccess(token) }}</span>
+              <span><strong>Created:</strong> {{ formatDate(token.createdAtUtc) }}</span>
+              <span><strong>Expires:</strong> {{ formatDate(token.expiresAtUtc) }}</span>
+              <span><strong>Last used:</strong> {{ formatDate(token.lastUsedAtUtc) }}</span>
+              <span><strong>Revoked:</strong> {{ formatDate(token.revokedAtUtc) }}</span>
+            </div>
+            <div class="client-token-item-actions">
+              <button
+                type="button"
+                class="btn btn--secondary"
+                :disabled="isBusy || token.revokedAtUtc !== null"
+                @click="revokeToken(token)"
+              >
+                {{ token.revokedAtUtc ? 'Revoked' : 'Revoke token' }}
+              </button>
+            </div>
+          </article>
+        </section>
+      </section>
+    </div>
+
+    <ClientAccountCreateDialog
+      :open="isCreateDialogOpen"
+      :busy="isBusy"
+      @close="closeCreateDialog"
+      @submit="createClientAccount"
+    />
+
+    <AccessTokenCreateDialog
+      :open="isCreateTokenDialogOpen"
+      :busy="isBusy"
+      :boards="boards"
+      :default-scopes="clientDefaultScopes"
+      :allow-board-access-selection="false"
+      @close="closeCreateTokenDialog"
+      @submit="createClientToken"
+    />
+  </section>
+</template>
+
+<script setup lang="ts">
+import { Copy } from 'lucide-vue-next';
+import { computed, onMounted, ref } from 'vue';
+import { createAuthApi } from '../api/authApi';
+import { createBoardApi } from '../api/boardApi';
+import AccessTokenCreateDialog from '../components/AccessTokenCreateDialog.vue';
+import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.vue';
+import type { AccessToken, ClientAccount, CreateAccessTokenRequest, CreateClientAccountRequest } from '../types/authTypes';
+import type { BoardSummary } from '../types/boardTypes';
+
+const authApi = createAuthApi();
+const boardApi = createBoardApi();
+
+const clientDefaultScopes = ['api:read', 'api:write', 'api:admin', 'api:system'];
+
+const clients = ref<ClientAccount[]>([]);
+const tokens = ref<AccessToken[]>([]);
+const boards = ref<BoardSummary[]>([]);
+const selectedClientId = ref<number | null>(null);
+
+const loading = ref(false);
+const tokenLoading = ref(false);
+const createBusy = ref(false);
+const tokenCreateBusy = ref(false);
+const revokeBusyTokenId = ref<number | null>(null);
+const isCreateDialogOpen = ref(false);
+const isCreateTokenDialogOpen = ref(false);
+const errorMessage = ref<string | null>(null);
+const successMessage = ref<string | null>(null);
+const plainTextPat = ref<string | null>(null);
+const plainTextPatName = ref<string>('');
+
+const selectedClient = computed(() => clients.value.find(client => client.id === selectedClientId.value) ?? null);
+
+const isBusy = computed(
+  () => loading.value || tokenLoading.value || createBusy.value || tokenCreateBusy.value || revokeBusyTokenId.value !== null
+);
+
+function openCreateDialog() {
+  isCreateDialogOpen.value = true;
+}
+
+function closeCreateDialog() {
+  isCreateDialogOpen.value = false;
+}
+
+function openCreateTokenDialog() {
+  if (!selectedClient.value) {
+    return;
+  }
+
+  isCreateTokenDialogOpen.value = true;
+}
+
+function closeCreateTokenDialog() {
+  isCreateTokenDialogOpen.value = false;
+}
+
+async function loadBoards() {
+  const result = await boardApi.getBoards();
+  if (result.ok) {
+    boards.value = result.data;
+  }
+}
+
+async function loadClients() {
+  loading.value = true;
+  errorMessage.value = null;
+  try {
+    const result = await authApi.getClientAccounts();
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    clients.value = result.data;
+    if (selectedClientId.value !== null && !clients.value.some(client => client.id === selectedClientId.value)) {
+      selectedClientId.value = null;
+      tokens.value = [];
+    }
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function loadTokens(clientAccountId: number) {
+  tokenLoading.value = true;
+  errorMessage.value = null;
+  try {
+    const result = await authApi.getClientAccountTokens(clientAccountId);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    tokens.value = sortTokens(result.data);
+  } finally {
+    tokenLoading.value = false;
+  }
+}
+
+async function selectClient(clientId: number) {
+  if (isBusy.value) {
+    return;
+  }
+
+  selectedClientId.value = clientId;
+  dismissPlainTextPat();
+  await loadTokens(clientId);
+}
+
+async function createClientAccount(payload: CreateClientAccountRequest) {
+  createBusy.value = true;
+  errorMessage.value = null;
+  successMessage.value = null;
+  try {
+    const result = await authApi.createClientAccount(payload);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    clients.value = [...clients.value, result.data.account].sort((a, b) => a.userName.localeCompare(b.userName));
+    selectedClientId.value = result.data.account.id;
+    tokens.value = sortTokens([result.data.token.token]);
+    plainTextPat.value = result.data.token.plainTextToken;
+    plainTextPatName.value = result.data.token.token.name;
+    successMessage.value = `Created client account ${result.data.account.userName}. Copy the token now; it will not be shown again.`;
+    isCreateDialogOpen.value = false;
+  } finally {
+    createBusy.value = false;
+  }
+}
+
+async function createClientToken(payload: CreateAccessTokenRequest) {
+  if (!selectedClient.value) {
+    return;
+  }
+
+  tokenCreateBusy.value = true;
+  errorMessage.value = null;
+  successMessage.value = null;
+  try {
+    const result = await authApi.createClientAccountToken(selectedClient.value.id, payload);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    tokens.value = sortTokens([result.data.token, ...tokens.value.filter(token => token.id !== result.data.token.id)]);
+    plainTextPat.value = result.data.plainTextToken;
+    plainTextPatName.value = result.data.token.name;
+    successMessage.value = `Created access token ${result.data.token.name}. Copy it now; it will not be shown again.`;
+    isCreateTokenDialogOpen.value = false;
+  } finally {
+    tokenCreateBusy.value = false;
+  }
+}
+
+async function revokeToken(token: AccessToken) {
+  if (!selectedClient.value || token.revokedAtUtc) {
+    return;
+  }
+
+  if (!window.confirm(`Revoke access token "${token.name}"? This cannot be undone.`)) {
+    return;
+  }
+
+  revokeBusyTokenId.value = token.id;
+  errorMessage.value = null;
+  successMessage.value = null;
+  try {
+    const result = await authApi.revokeClientAccountToken(selectedClient.value.id, token.id);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    successMessage.value = `Revoked access token ${token.name}.`;
+    await loadTokens(selectedClient.value.id);
+  } finally {
+    revokeBusyTokenId.value = null;
+  }
+}
+
+async function copyPlainTextPat() {
+  if (!plainTextPat.value) {
+    return;
+  }
+
+  await copyToClipboard(plainTextPat.value, `token ${plainTextPatName.value}`);
+}
+
+async function copyToClipboard(text: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    successMessage.value = `Copied ${label} to clipboard.`;
+    errorMessage.value = null;
+  } catch {
+    errorMessage.value = 'Could not copy to clipboard automatically.';
+  }
+}
+
+function dismissPlainTextPat() {
+  plainTextPat.value = null;
+  plainTextPatName.value = '';
+}
+
+function tokenStatus(token: AccessToken) {
+  if (token.revokedAtUtc) {
+    return 'Revoked';
+  }
+
+  if (token.expiresAtUtc) {
+    const expiresAt = Date.parse(token.expiresAtUtc);
+    if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
+      return 'Expired';
+    }
+  }
+
+  return 'Active';
+}
+
+function describeBoardAccess(token: AccessToken) {
+  if (token.boardAccessMode === 'all') {
+    return 'All boards';
+  }
+
+  if (token.allowedBoardIds.length === 0) {
+    return 'No boards';
+  }
+
+  return token.allowedBoardIds
+    .map(boardId => {
+      const board = boards.value.find(entry => entry.id === boardId);
+      return board ? `${board.name} (#${board.id})` : `#${boardId}`;
+    })
+    .join(', ');
+}
+
+function formatDate(value: string | null) {
+  if (!value) {
+    return 'Never';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleString();
+}
+
+function sortTokens(items: AccessToken[]) {
+  return [...items].sort((left, right) => {
+    const leftTimestamp = Date.parse(left.createdAtUtc);
+    const rightTimestamp = Date.parse(right.createdAtUtc);
+    return rightTimestamp - leftTimestamp;
+  });
+}
+
+onMounted(async () => {
+  await Promise.all([loadBoards(), loadClients()]);
+});
+</script>
+
+<style scoped>
+.client-accounts-view {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.client-accounts-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.client-accounts-header h2 {
+  margin: 0;
+}
+
+.client-accounts-header p {
+  margin: 0.2rem 0 0;
+  color: var(--bo-ink-muted);
+}
+
+.client-accounts-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.1fr) minmax(320px, 1fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.client-accounts-column {
+  min-width: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.client-accounts-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.client-account-row.is-selected {
+  border-color: color-mix(in oklab, var(--bo-colour-energy) 40%, var(--bo-border-soft));
+  background: color-mix(in oklab, var(--bo-colour-energy) 10%, var(--bo-surface-base));
+}
+
+.client-accounts-empty {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+
+.client-tokens-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.client-tokens-header h3 {
+  margin: 0;
+}
+
+.client-tokens-header p {
+  margin: 0.2rem 0 0;
+  color: var(--bo-ink-muted);
+}
+
+.client-token-secret h3,
+.client-token-secret p {
+  margin: 0;
+}
+
+.client-token-code-block {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.client-token-secret-value {
+  display: block;
+  padding: 0.65rem 2.4rem 0.65rem 0.65rem;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 10px;
+  background: var(--bo-surface-base);
+  color: var(--bo-ink-strong);
+  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.83rem;
+  overflow-wrap: anywhere;
+}
+
+.client-token-copy-icon {
+  position: absolute;
+  top: 0.42rem;
+  right: 0.42rem;
+  width: 1.75rem;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: color-mix(in oklab, var(--bo-colour-energy) 45%, var(--bo-border-soft));
+  background: color-mix(in oklab, var(--bo-colour-energy) 16%, var(--bo-surface-base));
+}
+
+.client-token-secret-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.client-token-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.client-token-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.client-token-item-meta {
+  display: grid;
+  gap: 0.2rem;
+  color: var(--bo-ink-muted);
+  font-size: 0.9rem;
+}
+
+.client-token-item-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 960px) {
+  .client-accounts-layout {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
