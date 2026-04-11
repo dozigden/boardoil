@@ -255,6 +255,50 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task StandardUser_GetUsers_ShouldExcludeClientAccounts()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await CreateClientAccountAsAdminAsync(adminClient, "client-bot", "Standard");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.GetAsync("/api/users");
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<UserDirectoryEntryEnvelope>>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        Assert.Contains(envelope.Data!, x => x.UserName == "member");
+        Assert.DoesNotContain(envelope.Data!, x => x.UserName == "client-bot");
+    }
+
+    [Fact]
+    public async Task AdminUser_GetSystemUsers_ShouldExcludeClientAccounts()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await CreateClientAccountAsAdminAsync(adminClient, "client-bot", "Standard");
+
+        // Act
+        var response = await adminClient.GetAsync("/api/system/users");
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<ManagedUserEnvelope>>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        Assert.Contains(envelope.Data!, x => x.UserName == "member");
+        Assert.DoesNotContain(envelope.Data!, x => x.UserName == "client-bot");
+    }
+
+    [Fact]
     public async Task StandardUser_GetAdminUsers_ShouldReturnForbidden()
     {
         // Arrange
@@ -431,6 +475,12 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
         return envelope.Data!.Id;
     }
 
+    private static async Task CreateClientAccountAsAdminAsync(HttpClient adminClient, string userName, string role)
+    {
+        var response = await adminClient.PostAsJsonAsync("/api/system/client-accounts", new CreateClientAccountRequest(userName, role));
+        response.EnsureSuccessStatusCode();
+    }
+
     private static async Task AddBoardMemberAsAdminAsync(HttpClient adminClient, int boardId, int userId, string role)
     {
         var response = await adminClient.PostAsJsonAsync(
@@ -469,9 +519,11 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
 
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record CreateUserRequest(string UserName, string Password, string Role);
+    private sealed record CreateClientAccountRequest(string UserName, string Role);
     private sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ConfigurationEnvelope(bool AllowInsecureCookies, string? McpPublicBaseUrl);
     private sealed record UserDirectoryEntryEnvelope(int Id, string UserName, bool IsActive);
+    private sealed record ManagedUserEnvelope(string UserName);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }
