@@ -151,8 +151,8 @@ function submit() {
     return;
   }
 
-  if (trimmedUserName.length < 3 || trimmedUserName.length > 64) {
-    draftError.value = 'Username must be between 3 and 64 characters.';
+  if (trimmedUserName.length < 1 || trimmedUserName.length > 64) {
+    draftError.value = 'Username must be between 1 and 64 characters.';
     return;
   }
 
