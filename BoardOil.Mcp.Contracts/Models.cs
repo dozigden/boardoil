@@ -27,7 +27,19 @@ public sealed record McpColumnSnapshot(
     int Id,
     string Title,
     string SortKey,
-    IReadOnlyList<McpCardSnapshot> Cards);
+    IReadOnlyList<McpBoardCardSnapshot> Cards);
+
+public sealed record McpBoardCardSnapshot(
+    int Id,
+    int ColumnId,
+    int CardTypeId,
+    string CardTypeName,
+    string? CardTypeEmoji,
+    string Title,
+    string SortKey,
+    IReadOnlyList<McpCardTagSnapshot> Tags,
+    IReadOnlyList<string> TagNames,
+    DateTime UpdatedAtUtc);
 
 public sealed record McpCardSnapshot(
     int Id,
@@ -51,6 +63,12 @@ public sealed record McpCardTagSnapshot(
 
 public sealed record BoardGetInput
 {
+    public int? Id { get; init; }
+}
+
+public sealed record CardGetInput
+{
+    public int? BoardId { get; init; }
     public int? Id { get; init; }
 }
 

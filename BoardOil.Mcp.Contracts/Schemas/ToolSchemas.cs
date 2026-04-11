@@ -15,6 +15,18 @@ public static class ToolSchemas
 
     public const string ColumnsListInput = BoardGetInput;
 
+    public const string CardGetInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "id": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["boardId", "id"],
+      "additionalProperties": false
+    }
+    """;
+
     public const string CardCreateInput = """
     {
       "type": "object",

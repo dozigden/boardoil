@@ -29,6 +29,25 @@ public sealed class CardService(
     private readonly ICardTypeRepository _cardTypeRepository = cardTypeRepository;
     private readonly ITagRepository _tagRepository = tagRepository;
 
+    public async Task<ApiResult<CardDto>> GetCardAsync(int boardId, int id, int actorUserId)
+    {
+        using var scope = _scopeFactory.CreateReadOnly();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have access to this board.");
+        }
+
+        var card = await cardRepository.GetWithTagsAndBoardAsync(id);
+        if (card is null || card.BoardColumn.BoardId != boardId)
+        {
+            return ApiErrors.NotFound("Card not found.");
+        }
+
+        return card.ToCardDto();
+    }
+
     public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId)
     {
         using var scope = _scopeFactory.Create();

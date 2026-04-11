@@ -62,6 +62,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
             .Select(tool => tool.GetProperty("name").GetString())
             .ToArray();
         Assert.Contains("board.get", toolNames);
+        Assert.Contains("card.get", toolNames);
         Assert.Contains("card.create", toolNames);
     }
 

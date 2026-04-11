@@ -17,7 +17,7 @@ public static class McpMappingExtensions
                     column.Id,
                     column.Title,
                     column.SortKey,
-                    column.Cards.Select(card => card.ToMcp()).ToArray()))
+                    column.Cards.Select(card => card.ToMcpBoardSnapshot()).ToArray()))
                 .ToArray());
 
     public static McpCardSnapshot ToMcp(this CardDto card) =>
@@ -29,6 +29,19 @@ public static class McpMappingExtensions
             card.CardTypeEmoji,
             card.Title,
             card.Description,
+            card.SortKey,
+            card.Tags.Select(tag => tag.ToMcp()).ToArray(),
+            card.TagNames,
+            card.UpdatedAtUtc);
+
+    private static McpBoardCardSnapshot ToMcpBoardSnapshot(this CardDto card) =>
+        new(
+            card.Id,
+            card.BoardColumnId,
+            card.CardTypeId,
+            card.CardTypeName,
+            card.CardTypeEmoji,
+            card.Title,
             card.SortKey,
             card.Tags.Select(tag => tag.ToMcp()).ToArray(),
             card.TagNames,

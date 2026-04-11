@@ -1,4 +1,4 @@
-using BoardOil.Abstractions.Board;
+using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Mcp.Contracts;
@@ -6,24 +6,25 @@ using BoardOil.Mcp.Contracts.Schemas;
 
 namespace BoardOil.Api.Mcp;
 
-public sealed class BoardGetTool(
-    IBoardService boardService,
-    IMcpAuthorisationService authorisationService) : McpToolBase<BoardGetInput, McpBoardSnapshot>(authorisationService)
+public sealed class CardGetTool(
+    ICardService cardService,
+    IMcpAuthorisationService authorisationService) : McpToolBase<CardGetInput, McpCardSnapshot>(authorisationService)
 {
-    private readonly IBoardService _boardService = boardService;
+    private readonly ICardService _cardService = cardService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.BoardGet, "Get a board snapshot including columns and cards. Card descriptions are omitted; use card.get for full text.", ToolSchemas.BoardGetInput, ToolSchemas.ObjectOutput);
+        new(ToolNames.CardGet, "Get a card snapshot including description and tags.", ToolSchemas.CardGetInput, ToolSchemas.ObjectOutput);
 
-    protected override async Task<McpToolResult<McpBoardSnapshot>> ExecuteCoreAsync(
+    protected override async Task<McpToolResult<McpCardSnapshot>> ExecuteCoreAsync(
         McpInvocationContext context,
-        BoardGetInput input,
+        CardGetInput input,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         IReadOnlyList<ValidationError> validationErrors =
         [
+            ..McpToolCallHelpers.ValidateRequiredIdentifier(input.BoardId, "boardId"),
             ..McpToolCallHelpers.ValidateRequiredIdentifier(input.Id, "id")
         ];
         if (validationErrors.Count > 0)
@@ -31,7 +32,8 @@ public sealed class BoardGetTool(
             return Failure(validationErrors);
         }
 
-        var boardId = input.Id!.Value;
+        var boardId = input.BoardId!.Value;
+        var cardId = input.Id!.Value;
 
         var accessError = AuthorisationService.EnsurePatToolAccess(context.PatAccessContext, MachinePatScopes.McpRead, boardId);
         if (accessError is not null)
@@ -39,7 +41,7 @@ public sealed class BoardGetTool(
             return Failure(accessError);
         }
 
-        var result = await _boardService.GetBoardAsync(boardId, context.ActorUserId);
+        var result = await _cardService.GetCardAsync(boardId, cardId, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {
             return Failure(result.ToMcpError());
