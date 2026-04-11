@@ -28,11 +28,11 @@
       </label>
       <label class="machine-pat-dialog-check">
         <input v-model="includeApiAdmin" :disabled="busy" type="checkbox" />
-        <span><code>api:admin</code> (`/api/admin/*`, `/api/configuration`)</span>
+        <span><code>api:admin</code> (`/api/admin/*`)</span>
       </label>
       <label class="machine-pat-dialog-check">
         <input v-model="includeApiSystem" :disabled="busy" type="checkbox" />
-        <span><code>api:system</code> (`/api/system/*`, `/api/admin/boards`)</span>
+        <span><code>api:system</code> (`/api/system/*`)</span>
       </label>
     </fieldset>
 

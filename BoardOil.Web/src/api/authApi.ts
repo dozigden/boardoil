@@ -68,7 +68,7 @@ export function createAuthApi() {
   }
 
   async function getUsers(): Promise<Result<ManagedUser[], AppError>> {
-    const envelopeResult = await getEnvelope<ManagedUser[]>('/api/admin/users');
+    const envelopeResult = await getEnvelope<ManagedUser[]>('/api/system/users');
     if (!envelopeResult.ok) {
       return envelopeResult;
     }
@@ -86,15 +86,15 @@ export function createAuthApi() {
   }
 
   async function createUser(userName: string, password: string, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
-    return postData<ManagedUser>('/api/admin/users', { userName, password, role });
+    return postData<ManagedUser>('/api/system/users', { userName, password, role });
   }
 
   async function updateUserRole(userId: number, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
-    return putData<ManagedUser>(`/api/admin/users/${userId}/role`, { role });
+    return putData<ManagedUser>(`/api/system/users/${userId}/role`, { role });
   }
 
   async function updateUserStatus(userId: number, isActive: boolean): Promise<Result<ManagedUser, AppError>> {
-    return putData<ManagedUser>(`/api/admin/users/${userId}/status`, { isActive });
+    return putData<ManagedUser>(`/api/system/users/${userId}/status`, { isActive });
   }
 
   async function getAccessTokens(): Promise<Result<AccessToken[], AppError>> {

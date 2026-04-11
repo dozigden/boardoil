@@ -146,7 +146,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PatWithoutApiAdminScope_GetAdminUsers_ShouldReturnForbidden()
+    public async Task PatWithoutApiSystemScope_GetSystemUsers_ShouldReturnForbidden()
     {
         // Arrange
         var adminClient = _factory.CreateClient();
@@ -155,23 +155,23 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var patClient = CreatePatClient(createdPat.PlainTextToken);
 
         // Act
-        var response = await patClient.GetAsync("/api/admin/users");
+        var response = await patClient.GetAsync("/api/system/users");
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
-    public async Task PatWithApiAdminScope_GetAdminUsers_ShouldReturnOk()
+    public async Task PatWithApiSystemScope_GetSystemUsers_ShouldReturnOk()
     {
         // Arrange
         var adminClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        var createdPat = await CreatePatAsync(adminClient, "api-admin-token", [MachinePatScopes.ApiAdmin]);
+        var createdPat = await CreatePatAsync(adminClient, "api-system-token", [MachinePatScopes.ApiSystem]);
         var patClient = CreatePatClient(createdPat.PlainTextToken);
 
         // Act
-        var response = await patClient.GetAsync("/api/admin/users");
+        var response = await patClient.GetAsync("/api/system/users");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -187,7 +187,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var patClient = CreatePatClient(createdPat.PlainTextToken);
 
         // Act
-        var response = await patClient.GetAsync("/api/admin/boards");
+        var response = await patClient.GetAsync("/api/system/boards");
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -203,7 +203,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var patClient = CreatePatClient(createdPat.PlainTextToken);
 
         // Act
-        var response = await patClient.GetAsync("/api/admin/boards");
+        var response = await patClient.GetAsync("/api/system/boards");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -608,7 +608,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
     private static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
     {
-        var response = await adminClient.PostAsJsonAsync("/api/admin/users", new CreateUserRequest(userName, password, role));
+        var response = await adminClient.PostAsJsonAsync("/api/system/users", new CreateUserRequest(userName, password, role));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ManagedUserEnvelope>>();
         Assert.NotNull(envelope);

@@ -8,7 +8,7 @@ export type SystemBoardApi = ReturnType<typeof createSystemBoardApi>;
 
 export function createSystemBoardApi() {
   async function getBoards(): Promise<Result<SystemBoardSummary[], AppError>> {
-    const envelopeResult = await getEnvelope<SystemBoardSummary[]>('/api/admin/boards');
+    const envelopeResult = await getEnvelope<SystemBoardSummary[]>('/api/system/boards');
     if (!envelopeResult.ok) {
       return envelopeResult;
     }
@@ -17,7 +17,7 @@ export function createSystemBoardApi() {
   }
 
   async function getBoardMembers(boardId: number): Promise<Result<BoardMember[], AppError>> {
-    const envelopeResult = await getEnvelope<BoardMember[]>(`/api/admin/boards/${boardId}/members`);
+    const envelopeResult = await getEnvelope<BoardMember[]>(`/api/system/boards/${boardId}/members`);
     if (!envelopeResult.ok) {
       return envelopeResult;
     }
@@ -26,7 +26,7 @@ export function createSystemBoardApi() {
   }
 
   async function addBoardMember(boardId: number, userId: number, role: BoardMemberRole): Promise<Result<BoardMember, AppError>> {
-    return postData<BoardMember>(`/api/admin/boards/${boardId}/members`, { userId, role });
+    return postData<BoardMember>(`/api/system/boards/${boardId}/members`, { userId, role });
   }
 
   async function updateBoardMemberRole(
@@ -34,11 +34,11 @@ export function createSystemBoardApi() {
     userId: number,
     role: BoardMemberRole
   ): Promise<Result<BoardMember, AppError>> {
-    return patchData<BoardMember>(`/api/admin/boards/${boardId}/members/${userId}`, { role });
+    return patchData<BoardMember>(`/api/system/boards/${boardId}/members/${userId}`, { role });
   }
 
   async function removeBoardMember(boardId: number, userId: number): Promise<Result<void, AppError>> {
-    return deleteJson(`/api/admin/boards/${boardId}/members/${userId}`);
+    return deleteJson(`/api/system/boards/${boardId}/members/${userId}`);
   }
 
   return {

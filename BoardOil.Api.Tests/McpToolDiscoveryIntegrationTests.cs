@@ -41,7 +41,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         // Arrange
         var client = CreateClient();
         await RegisterInitialAdminAsync(client);
-        var putResponse = await client.PutAsJsonAsync("/api/configuration", new UpdateConfigurationRequest("https://boardoil.example.com/base"));
+        var putResponse = await client.PutAsJsonAsync("/api/system/configuration", new UpdateConfigurationRequest("https://boardoil.example.com/base"));
         putResponse.EnsureSuccessStatusCode();
 
         // Act
