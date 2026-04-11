@@ -32,7 +32,7 @@ public sealed class BoardBootstrapService(
         };
 
         var activeUsers = (await userRepository.GetUsersOrderedAsync())
-            .Where(x => x.IsActive)
+            .Where(x => x.IsActive && x.IdentityType == UserIdentityType.User)
             .ToList();
         foreach (var user in activeUsers)
         {

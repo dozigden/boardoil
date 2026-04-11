@@ -2,6 +2,7 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Users;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Users;
+using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Users;
 
 namespace BoardOil.Services.Users;
@@ -15,6 +16,7 @@ public sealed class UserService(
         using var scope = scopeFactory.CreateReadOnly();
 
         var users = (await userRepository.GetUsersOrderedAsync())
+            .Where(x => x.IdentityType == UserIdentityType.User)
             .Select(x => new UserDirectoryEntryDto(x.Id, x.UserName, x.IsActive))
             .ToList();
 

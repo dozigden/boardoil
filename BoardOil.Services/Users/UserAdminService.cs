@@ -20,6 +20,7 @@ public sealed class UserAdminService(
         using var scope = scopeFactory.CreateReadOnly();
 
         var users = (await userRepository.GetUsersOrderedAsync())
+            .Where(x => x.IdentityType == UserIdentityType.User)
             .Select(x => x.ToManagedUserDto())
             .ToList();
 
