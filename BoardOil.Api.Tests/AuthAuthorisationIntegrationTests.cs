@@ -255,7 +255,7 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task StandardUser_GetUsers_ShouldExcludeClientAccounts()
+    public async Task StandardUser_GetUsers_ShouldIncludeClientAccounts()
     {
         // Arrange
         var adminClient = _factory.CreateClient();
@@ -274,7 +274,7 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
         Assert.NotNull(envelope);
         Assert.NotNull(envelope!.Data);
         Assert.Contains(envelope.Data!, x => x.UserName == "member");
-        Assert.DoesNotContain(envelope.Data!, x => x.UserName == "client-bot");
+        Assert.Contains(envelope.Data!, x => x.UserName == "client-bot");
     }
 
     [Fact]
