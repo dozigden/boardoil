@@ -190,6 +190,8 @@
       :open="isCreateDialogOpen"
       :busy="isBusy"
       :boards="boards"
+      :default-scopes="userDefaultScopes"
+      :allowed-scopes="userAllowedScopes"
       @close="closeCreateDialog"
       @submit="createToken"
     />
@@ -236,6 +238,8 @@ const isBusy = computed(() => loading.value || createBusy.value || revokeBusyTok
 const isSecretModalOpen = computed(() => plainTextPat.value !== null);
 const mcpEndpoint = computed(() => `${window.location.origin}/mcp`);
 const apiBaseUrl = computed(() => window.location.origin);
+const userDefaultScopes = ['mcp:read', 'mcp:write'];
+const userAllowedScopes = ['mcp:read', 'mcp:write'];
 const genericConfigSnippetJson = computed(() =>
   `{
   "mcpServers": {

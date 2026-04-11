@@ -94,6 +94,8 @@ onBeforeUnmount(() => {
   padding: 0;
   background: transparent;
   overflow: visible;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
 }
 
 .card-modal.card-modal-md {
@@ -128,7 +130,9 @@ onBeforeUnmount(() => {
   border: 1px solid var(--bo-border-soft);
   border-radius: 14px;
   padding: 1rem;
-  overflow: visible;
+  overflow: auto;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
 }
 
 .card-modal-close {
