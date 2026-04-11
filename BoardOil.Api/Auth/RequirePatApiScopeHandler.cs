@@ -107,6 +107,12 @@ internal sealed class RequirePatApiScopeHandler(IHttpContextAccessor httpContext
             return true;
         }
 
+        if (string.Equals(boardAccessMode, MachinePatBoardAccessModes.Selected, StringComparison.Ordinal)
+            && IsBoardCreateRequest(httpContext.Request))
+        {
+            return false;
+        }
+
         var allowedBoardIds = ParseAllowedBoardIds(claimsPrincipal.FindFirst("boardoil_pat_allowed_board_ids")?.Value);
         var routeBoardId = TryResolveBoardId(httpContext);
         if (routeBoardId is null)
@@ -115,6 +121,28 @@ internal sealed class RequirePatApiScopeHandler(IHttpContextAccessor httpContext
         }
 
         return allowedBoardIds.Contains(routeBoardId.Value);
+    }
+
+    private static bool IsBoardCreateRequest(HttpRequest request)
+    {
+        if (!HttpMethods.IsPost(request.Method))
+        {
+            return false;
+        }
+
+        if (!request.Path.StartsWithSegments("/api/boards", StringComparison.OrdinalIgnoreCase, out var remaining))
+        {
+            return false;
+        }
+
+        if (!remaining.HasValue || string.IsNullOrWhiteSpace(remaining.Value))
+        {
+            return true;
+        }
+
+        var trimmed = remaining.Value.Trim('/');
+        return trimmed.Equals("import", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("import/tasksmd", StringComparison.OrdinalIgnoreCase);
     }
 
     private static HashSet<int> ParseAllowedBoardIds(string? allowedBoardIdsClaim)
