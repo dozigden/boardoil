@@ -18,7 +18,8 @@ public static class BoardEndpoints
         var boardEndpoints = app
             .MapGroup("/api/boards")
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
-            .AddEndpointFilter<RequireActorUserIdFilter>();
+            .AddEndpointFilter<RequireActorUserIdFilter>()
+            .WithTags("Boards");
 
         boardEndpoints.MapGet(string.Empty, async (IBoardService boardService, HttpContext httpContext) =>
         {

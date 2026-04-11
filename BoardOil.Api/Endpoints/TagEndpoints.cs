@@ -13,7 +13,8 @@ public static class TagEndpoints
         var tagEndpoints = app
             .MapGroup("/api/boards/{boardId:int}/tags")
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
-            .AddEndpointFilter<RequireActorUserIdFilter>();
+            .AddEndpointFilter<RequireActorUserIdFilter>()
+            .WithTags("Tags");
 
         tagEndpoints.MapGet(string.Empty, async (int boardId, ITagService tagService, HttpContext httpContext) =>
             (await tagService.GetTagsAsync(boardId, httpContext.GetActorUserId())).ToHttpResult());

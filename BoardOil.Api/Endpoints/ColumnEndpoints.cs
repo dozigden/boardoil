@@ -13,7 +13,8 @@ public static class ColumnEndpoints
         var columnEndpoints = app
             .MapGroup("/api/boards/{boardId:int}/columns")
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
-            .AddEndpointFilter<RequireActorUserIdFilter>();
+            .AddEndpointFilter<RequireActorUserIdFilter>()
+            .WithTags("Columns");
 
         columnEndpoints.MapGet(string.Empty, async (int boardId, IColumnService columnService, HttpContext httpContext) =>
             (await columnService.GetColumnsAsync(boardId, httpContext.GetActorUserId())).ToHttpResult());

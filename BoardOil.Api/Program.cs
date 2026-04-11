@@ -4,6 +4,7 @@ using BoardOil.Api.Endpoints;
 using BoardOil.Api.Extensions;
 using BoardOil.Api.Mcp;
 using BoardOil.Api.Realtime;
+using BoardOil.Api.Swagger;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Contracts.Contracts;
@@ -12,6 +13,7 @@ using BoardOil.Services.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.OpenApi.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
@@ -152,6 +154,36 @@ builder.Services.AddAuthorization(options =>
             .RequireRole(BoardOilRoles.Admin, BoardOilRoles.Standard)
             .AddRequirements(patApiScopeRequirement));
 });
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "BoardOil API",
+        Version = buildInfo.Version
+    });
+    options.DocInclusionPredicate((_, apiDescription) =>
+    {
+        var relativePath = apiDescription.RelativePath ?? string.Empty;
+        var path = "/" + relativePath.Split('?', 2)[0].TrimStart('/');
+        return path.StartsWith("/api", StringComparison.OrdinalIgnoreCase);
+    });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "JWT bearer token from a user session. Format: `Bearer {token}`."
+    });
+    options.AddSecurityDefinition("PatBearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Name = "Authorization",
+        Description = "Personal access token. Format: `Bearer bo_pat_...`."
+    });
+    options.OperationFilter<PatSecurityOperationFilter>();
+});
 var app = builder.Build();
 app.InitialiseMcpServiceProvider();
 
@@ -216,6 +248,12 @@ app.Use(async (context, next) =>
     await next();
 });
 app.UseAuthorization();
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", $"BoardOil API {buildInfo.Version}");
+});
+app.MapGet("/swagger.json", () => Results.Redirect("/swagger/v1/swagger.json"));
 
 app.MapHealthEndpoints();
 app.MapVersionEndpoints();

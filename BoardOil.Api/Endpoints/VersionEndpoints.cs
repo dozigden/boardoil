@@ -9,7 +9,8 @@ public static class VersionEndpoints
     public static IEndpointRouteBuilder MapVersionEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/version", (BoardOilBuildInfo buildInfo) =>
-            ApiResults.Ok(buildInfo).ToHttpResult());
+            ApiResults.Ok(buildInfo).ToHttpResult())
+            .WithTags("Other");
         return app;
     }
 }
