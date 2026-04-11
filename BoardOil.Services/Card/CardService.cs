@@ -69,8 +69,8 @@ public sealed class CardService(
 
         var cards = (await cardRepository.GetCardsInColumnOrderedAsync(request.BoardColumnId)).ToList();
 
-        var previousKey = cards.Count > 0 ? cards[^1].SortKey : null;
-        var nextKey = (string?)null;
+        var previousKey = (string?)null;
+        var nextKey = cards.Count > 0 ? cards[0].SortKey : null;
         if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
         {
             return allocationError!;

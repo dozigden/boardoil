@@ -90,7 +90,7 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task CreateCardAsync_WhenColumnHasCards_ShouldAppendToEnd()
+    public async Task CreateCardAsync_WhenColumnHasCards_ShouldInsertAtTop()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -110,7 +110,7 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
         var titles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
 
-        Assert.Equal(["A", "B", "End"], titles);
+        Assert.Equal(["End", "A", "B"], titles);
     }
 
     [Fact]

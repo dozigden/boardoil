@@ -48,7 +48,7 @@ describe('cardStore', () => {
       cardTypeEmoji: null,
       title: 'Task B',
       description: '',
-      sortKey: '00000000000000000002',
+      sortKey: '00000000000000000000',
       tags: [],
       tagNames: [],
       createdAtUtc: '2026-03-15T00:00:00Z',
@@ -59,7 +59,7 @@ describe('cardStore', () => {
     await store.createCard(1, 'Task B');
 
     expect(api.createCard).toHaveBeenCalledWith(1, 1, 'Task B');
-    expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([101, 102]);
+    expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([102, 101]);
   });
 
   it('creates a card with an explicit card type id', async () => {
@@ -74,7 +74,7 @@ describe('cardStore', () => {
       cardTypeEmoji: '🕷️',
       title: 'Task C',
       description: '',
-      sortKey: '00000000000000000003',
+      sortKey: '00000000000000000000',
       tags: [],
       tagNames: [],
       createdAtUtc: '2026-03-15T00:00:00Z',
@@ -85,7 +85,7 @@ describe('cardStore', () => {
     await store.createCard(1, 'Task C', 2);
 
     expect(api.createCard).toHaveBeenCalledWith(1, 1, 'Task C', 2);
-    expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([101, 103]);
+    expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([103, 101]);
   });
 
   it('moves card across columns incrementally', async () => {
