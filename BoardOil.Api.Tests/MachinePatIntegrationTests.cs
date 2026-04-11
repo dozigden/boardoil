@@ -130,6 +130,22 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PatWithSelectedBoardAccess_PostBoard_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createdPat = await CreatePatAsync(adminClient, "api-write-selected-token", [MachinePatScopes.ApiWrite], "selected", [1]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.PostAsJsonAsync("/api/boards", new { name = "Blocked PAT Board" });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task PatWithoutApiAdminScope_GetAdminUsers_ShouldReturnForbidden()
     {
         // Arrange
