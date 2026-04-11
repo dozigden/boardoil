@@ -1,6 +1,6 @@
 <template>
   <ModalDialog :open="open" title="Create Access Token" close-label="Cancel access token creation" @close="emit('close')" @submit="submit">
-    <p class="machine-pat-dialog-hint">Create a personal access token for MCP clients without sharing your account password.</p>
+    <p class="machine-pat-dialog-hint">Create a personal access token for MCP and REST API clients without sharing your account password.</p>
 
     <label>
       Token name
@@ -9,13 +9,26 @@
 
     <fieldset class="machine-pat-dialog-group">
       <legend>Scopes</legend>
+      <p class="machine-pat-dialog-scope-hint">MCP scopes control `/mcp`. API scopes control `/api` endpoints.</p>
       <label class="machine-pat-dialog-check">
-        <input v-model="includeRead" :disabled="busy" type="checkbox" />
+        <input v-model="includeMcpRead" :disabled="busy" type="checkbox" />
         <span><code>mcp:read</code> (board and column reads)</span>
       </label>
       <label class="machine-pat-dialog-check">
-        <input v-model="includeWrite" :disabled="busy" type="checkbox" />
+        <input v-model="includeMcpWrite" :disabled="busy" type="checkbox" />
         <span><code>mcp:write</code> (card create/update/move/delete)</span>
+      </label>
+      <label class="machine-pat-dialog-check">
+        <input v-model="includeApiRead" :disabled="busy" type="checkbox" />
+        <span><code>api:read</code> (REST `GET` and `HEAD` on `/api/*`)</span>
+      </label>
+      <label class="machine-pat-dialog-check">
+        <input v-model="includeApiWrite" :disabled="busy" type="checkbox" />
+        <span><code>api:write</code> (REST `POST`/`PUT`/`PATCH`/`DELETE` on `/api/*`)</span>
+      </label>
+      <label class="machine-pat-dialog-check">
+        <input v-model="includeApiAdmin" :disabled="busy" type="checkbox" />
+        <span><code>api:admin</code> (`/api/admin/*`, `/api/system/*`, `/api/configuration`)</span>
       </label>
     </fieldset>
 
@@ -102,8 +115,11 @@ const emit = defineEmits<{
 }>();
 
 const name = ref('');
-const includeRead = ref(true);
-const includeWrite = ref(true);
+const includeMcpRead = ref(true);
+const includeMcpWrite = ref(true);
+const includeApiRead = ref(false);
+const includeApiWrite = ref(false);
+const includeApiAdmin = ref(false);
 const boardAccessMode = ref<'all' | 'selected'>('all');
 const selectedBoardIds = ref<number[]>([]);
 const isNonExpiring = ref(false);
@@ -113,8 +129,11 @@ const draftError = ref<string | null>(null);
 
 function resetDraft() {
   name.value = '';
-  includeRead.value = true;
-  includeWrite.value = true;
+  includeMcpRead.value = true;
+  includeMcpWrite.value = true;
+  includeApiRead.value = false;
+  includeApiWrite.value = false;
+  includeApiAdmin.value = false;
   boardAccessMode.value = 'all';
   selectedBoardIds.value = [];
   isNonExpiring.value = false;
@@ -133,11 +152,20 @@ function submit() {
   }
 
   const scopes: string[] = [];
-  if (includeRead.value) {
+  if (includeMcpRead.value) {
     scopes.push('mcp:read');
   }
-  if (includeWrite.value) {
+  if (includeMcpWrite.value) {
     scopes.push('mcp:write');
+  }
+  if (includeApiRead.value) {
+    scopes.push('api:read');
+  }
+  if (includeApiWrite.value) {
+    scopes.push('api:write');
+  }
+  if (includeApiAdmin.value) {
+    scopes.push('api:admin');
   }
 
   if (scopes.length === 0) {
@@ -226,6 +254,12 @@ watch(
   font-weight: 700;
   color: var(--bo-link);
   padding: 0 0.25rem;
+}
+
+.machine-pat-dialog-scope-hint {
+  margin: 0;
+  color: var(--bo-ink-muted);
+  line-height: 1.35;
 }
 
 .machine-pat-dialog-check {

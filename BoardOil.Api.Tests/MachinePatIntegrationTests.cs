@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
+using BoardOil.Contracts.Auth;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -62,6 +63,141 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
             .ToArray();
         Assert.Contains("board.get", toolNames);
         Assert.Contains("card.create", toolNames);
+    }
+
+    [Fact]
+    public async Task PatWithApiReadScope_GetBoard_ShouldReturnOk()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createdPat = await CreatePatAsync(adminClient, "api-read-token", [MachinePatScopes.ApiRead], "selected", [1]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.GetAsync("/api/boards/1");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatWithoutApiScope_GetBoard_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createdPat = await CreatePatAsync(adminClient, "mcp-only-token", [MachinePatScopes.McpRead], "selected", [1]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.GetAsync("/api/boards/1");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatWithApiReadScope_PostBoard_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createdPat = await CreatePatAsync(adminClient, "api-read-only-token", [MachinePatScopes.ApiRead]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.PostAsJsonAsync("/api/boards", new { name = "Blocked PAT Board" });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatWithApiWriteScope_PostBoard_WithoutCsrf_ShouldReturnCreated()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createdPat = await CreatePatAsync(adminClient, "api-write-token", [MachinePatScopes.ApiWrite]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.PostAsJsonAsync("/api/boards", new { name = "PAT Created Board" });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatWithoutApiAdminScope_GetAdminUsers_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createdPat = await CreatePatAsync(adminClient, "api-read-token", [MachinePatScopes.ApiRead]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.GetAsync("/api/admin/users");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatWithApiAdminScope_GetAdminUsers_ShouldReturnOk()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createdPat = await CreatePatAsync(adminClient, "api-admin-token", [MachinePatScopes.ApiAdmin]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.GetAsync("/api/admin/users");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatWithSelectedBoardAccess_GetBoardOutsideAllowList_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var otherBoardId = await CreateBoardAsAdminAsync(adminClient, "Secondary Board");
+        var createdPat = await CreatePatAsync(adminClient, "selected-board-token", [MachinePatScopes.ApiRead], "selected", [1]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.GetAsync($"/api/boards/{otherBoardId}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatWithSelectedBoardAccess_GetBoards_ShouldFilterToAllowList()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var otherBoardId = await CreateBoardAsAdminAsync(adminClient, "Secondary Board");
+        var createdPat = await CreatePatAsync(adminClient, "selected-board-token", [MachinePatScopes.ApiRead], "selected", [1]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.GetAsync("/api/boards");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardSummaryEnvelope>>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.NotNull(payload!.Data);
+        Assert.Contains(payload.Data!, board => board.Id == 1);
+        Assert.DoesNotContain(payload.Data!, board => board.Id == otherBoardId);
     }
 
     [Fact]
@@ -165,6 +301,24 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RevokePat_ShouldBlockFutureRestApiCalls()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createdPat = await CreatePatAsync(adminClient, "revoked-api-token", [MachinePatScopes.ApiRead], "selected", [1]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var revokeResponse = await adminClient.DeleteAsync($"/api/auth/access-tokens/{createdPat.Token.Id}");
+        var boardAfterRevokeResponse = await patClient.GetAsync("/api/boards/1");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, revokeResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, boardAfterRevokeResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task ListPats_ShouldIncludeCreatedTokenMetadata()
     {
         // Arrange
@@ -191,7 +345,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreatePat_WithLegacyMcpScope_ShouldNormaliseToReadAndWriteScopes()
+    public async Task CreatePat_WithLegacyMcpScope_ShouldReturnBadRequest()
     {
         // Arrange
         var adminClient = _factory.CreateClient();
@@ -201,16 +355,12 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
             new CreateMachinePatRequest("legacy-scope-token", 30, ["mcp"], "all", []));
-        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
+        var payload = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
-        Assert.NotNull(created);
-        Assert.NotNull(created!.Data);
-        Assert.Contains("mcp:read", created.Data!.Token.Scopes);
-        Assert.Contains("mcp:write", created.Data.Token.Scopes);
-        Assert.Equal("all", created.Data.Token.BoardAccessMode);
-        Assert.Empty(created.Data.Token.AllowedBoardIds);
+        Assert.Equal(HttpStatusCode.BadRequest, createResponse.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
     }
 
     [Fact]
@@ -343,6 +493,39 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
     }
 
+    private static async Task<CreatedMachinePatEnvelope> CreatePatAsync(
+        HttpClient client,
+        string name,
+        IReadOnlyList<string> scopes,
+        string boardAccessMode = "all",
+        IReadOnlyList<int>? allowedBoardIds = null)
+    {
+        var createResponse = await client.PostAsJsonAsync(
+            "/api/auth/access-tokens",
+            new CreateMachinePatRequest(name, 30, scopes, boardAccessMode, allowedBoardIds ?? []));
+        createResponse.EnsureSuccessStatusCode();
+
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
+        Assert.NotNull(created);
+        Assert.NotNull(created!.Data);
+        return created.Data!;
+    }
+
+    private HttpClient CreatePatClient(string plainTextToken)
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", plainTextToken);
+        return client;
+    }
+
+    private static async Task<int> CreateBoardAsAdminAsync(HttpClient adminClient, string boardName)
+    {
+        var createResponse = await adminClient.PostAsJsonAsync("/api/boards", new { name = boardName });
+        createResponse.EnsureSuccessStatusCode();
+        using var payload = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync());
+        return payload.RootElement.GetProperty("data").GetProperty("id").GetInt32();
+    }
+
     private static string BuildDbPath(string dbNamePrefix)
     {
         var root = Path.Combine(Directory.GetCurrentDirectory(), ".test-data");
@@ -407,6 +590,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
     private sealed record ManagedUserEnvelope(int Id, string UserName, string Role, bool IsActive, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
+    private sealed record BoardSummaryEnvelope(int Id, string Name, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string? CurrentUserRole);
     private sealed record CreatedMachinePatEnvelope(MachinePatEnvelope Token, string PlainTextToken);
     private sealed record MachinePatEnvelope(
         int Id,

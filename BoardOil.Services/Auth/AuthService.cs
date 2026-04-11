@@ -25,7 +25,10 @@ public sealed class AuthService(
     private static readonly string[] SupportedPatScopes =
     [
         MachinePatScopes.McpRead,
-        MachinePatScopes.McpWrite
+        MachinePatScopes.McpWrite,
+        MachinePatScopes.ApiRead,
+        MachinePatScopes.ApiWrite,
+        MachinePatScopes.ApiAdmin
     ];
 
     private static readonly string[] DefaultPatScopes =
@@ -336,44 +339,26 @@ public sealed class AuthService(
 
     private static IReadOnlyList<string> ParseScopes(string scopesCsv)
     {
-        var rawScopes = scopesCsv
+        var normalisedScopes = scopesCsv
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(x => x.Trim().ToLowerInvariant())
             .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.Ordinal)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return SupportedPatScopes
+            .Where(scope => normalisedScopes.Contains(scope))
             .ToArray();
-
-        var hasLegacyMcp = rawScopes.Contains(MachinePatScopes.LegacyMcp, StringComparer.Ordinal);
-        var scopes = new List<string>();
-        if (hasLegacyMcp || rawScopes.Contains(MachinePatScopes.McpRead, StringComparer.Ordinal))
-        {
-            scopes.Add(MachinePatScopes.McpRead);
-        }
-
-        if (hasLegacyMcp || rawScopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal))
-        {
-            scopes.Add(MachinePatScopes.McpWrite);
-        }
-
-        return scopes;
     }
 
     private static IReadOnlyList<string> NormaliseScopes(IEnumerable<string>? scopes)
     {
-        var rawScopes = (scopes ?? DefaultPatScopes)
+        var normalisedScopes = (scopes ?? DefaultPatScopes)
             .Select(x => x.Trim().ToLowerInvariant())
             .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+            .ToHashSet(StringComparer.Ordinal);
 
-        if (rawScopes.Remove(MachinePatScopes.LegacyMcp))
-        {
-            rawScopes.Add(MachinePatScopes.McpRead);
-            rawScopes.Add(MachinePatScopes.McpWrite);
-        }
-
-        return rawScopes
-            .Distinct(StringComparer.Ordinal)
+        return SupportedPatScopes
+            .Where(scope => normalisedScopes.Contains(scope))
             .ToArray();
     }
 

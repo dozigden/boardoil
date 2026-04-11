@@ -11,7 +11,9 @@ using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -63,6 +65,7 @@ builder.Services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
 builder.Services.AddScoped<IAuthHttpSessionService, AuthHttpSessionService>();
 builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
+builder.Services.AddSingleton<IAuthorizationHandler, RequirePatApiScopeHandler>();
 builder.Services
     .AddAuthentication(options =>
     {
@@ -88,6 +91,18 @@ builder.Services
         {
             OnMessageReceived = context =>
             {
+                var authHeader = context.Request.Headers.Authorization.ToString();
+                if (!string.IsNullOrWhiteSpace(authHeader)
+                    && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var bearerToken = authHeader["Bearer ".Length..].Trim();
+                    if (bearerToken.StartsWith("bo_pat_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        context.NoResult();
+                        return Task.CompletedTask;
+                    }
+                }
+
                 if (string.IsNullOrWhiteSpace(context.Token)
                     && context.Request.Cookies.TryGetValue(jwtOptions.AccessTokenCookieName, out var cookieToken))
                 {
@@ -115,16 +130,27 @@ builder.Services
     });
 builder.Services.AddAuthorization(options =>
 {
+    var patApiScopeRequirement = new RequirePatApiScopeRequirement();
+
     options.AddPolicy(BoardOilPolicies.AuthenticatedUser, policy =>
-        policy.RequireAuthenticatedUser());
+        policy
+            .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, McpAuthenticationSchemes.PatBearer)
+            .RequireAuthenticatedUser()
+            .AddRequirements(patApiScopeRequirement));
     options.AddPolicy(BoardOilPolicies.McpAuthenticated, policy =>
         policy
             .AddAuthenticationSchemes(McpAuthenticationSchemes.PatBearer)
             .RequireAuthenticatedUser());
     options.AddPolicy(BoardOilPolicies.AdminOnly, policy =>
-        policy.RequireRole(BoardOilRoles.Admin));
+        policy
+            .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, McpAuthenticationSchemes.PatBearer)
+            .RequireRole(BoardOilRoles.Admin)
+            .AddRequirements(patApiScopeRequirement));
     options.AddPolicy(BoardOilPolicies.CardEditor, policy =>
-        policy.RequireRole(BoardOilRoles.Admin, BoardOilRoles.Standard));
+        policy
+            .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, McpAuthenticationSchemes.PatBearer)
+            .RequireRole(BoardOilRoles.Admin, BoardOilRoles.Standard)
+            .AddRequirements(patApiScopeRequirement));
 });
 var app = builder.Build();
 app.InitialiseMcpServiceProvider();
@@ -162,6 +188,12 @@ app.Use(async (context, next) =>
     }
 
     if (context.User.Identity?.IsAuthenticated != true)
+    {
+        await next();
+        return;
+    }
+
+    if (IsPatAuthenticatedPrincipal(context.User))
     {
         await next();
         return;
@@ -218,5 +250,11 @@ static bool IsCsrfExemptAuthPath(PathString path) =>
     || path.StartsWithSegments("/api/auth/machine/login", StringComparison.OrdinalIgnoreCase)
     || path.StartsWithSegments("/api/auth/machine/refresh", StringComparison.OrdinalIgnoreCase)
     || path.StartsWithSegments("/api/auth/machine/logout", StringComparison.OrdinalIgnoreCase);
+
+static bool IsPatAuthenticatedPrincipal(ClaimsPrincipal claimsPrincipal)
+{
+    var authType = claimsPrincipal.FindFirst("boardoil_auth_type")?.Value;
+    return string.Equals(authType, "pat", StringComparison.Ordinal);
+}
 
 public partial class Program;

@@ -12,7 +12,9 @@ public static class MachinePatScopes
 {
     public const string McpRead = "mcp:read";
     public const string McpWrite = "mcp:write";
-    public const string LegacyMcp = "mcp";
+    public const string ApiRead = "api:read";
+    public const string ApiWrite = "api:write";
+    public const string ApiAdmin = "api:admin";
 }
 
 public static class MachinePatBoardAccessModes
