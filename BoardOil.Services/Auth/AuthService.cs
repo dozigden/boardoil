@@ -28,7 +28,8 @@ public sealed class AuthService(
         MachinePatScopes.McpWrite,
         MachinePatScopes.ApiRead,
         MachinePatScopes.ApiWrite,
-        MachinePatScopes.ApiAdmin
+        MachinePatScopes.ApiAdmin,
+        MachinePatScopes.ApiSystem
     ];
 
     private static readonly string[] DefaultPatScopes =

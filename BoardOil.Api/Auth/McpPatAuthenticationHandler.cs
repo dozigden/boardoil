@@ -30,7 +30,8 @@ public sealed class McpPatAuthenticationHandler(
         MachinePatScopes.McpWrite,
         MachinePatScopes.ApiRead,
         MachinePatScopes.ApiWrite,
-        MachinePatScopes.ApiAdmin
+        MachinePatScopes.ApiAdmin,
+        MachinePatScopes.ApiSystem
     ];
     private readonly TimeProvider _timeProvider = timeProvider;
     private readonly IConfigurationService _configurationService = configurationService;
