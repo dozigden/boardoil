@@ -178,6 +178,38 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PatWithApiAdminScope_GetSystemBoards_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createdPat = await CreatePatAsync(adminClient, "api-admin-token", [MachinePatScopes.ApiAdmin]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.GetAsync("/api/admin/boards");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatWithApiSystemScope_GetSystemBoards_ShouldReturnOk()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var createdPat = await CreatePatAsync(adminClient, "api-system-token", [MachinePatScopes.ApiSystem]);
+        var patClient = CreatePatClient(createdPat.PlainTextToken);
+
+        // Act
+        var response = await patClient.GetAsync("/api/admin/boards");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task PatWithSelectedBoardAccess_GetBoardOutsideAllowList_ShouldReturnForbidden()
     {
         // Arrange

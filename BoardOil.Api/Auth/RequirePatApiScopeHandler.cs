@@ -69,6 +69,11 @@ internal sealed class RequirePatApiScopeHandler(IHttpContextAccessor httpContext
 
     private static string GetRequiredScope(HttpRequest request)
     {
+        if (IsSystemPath(request.Path))
+        {
+            return MachinePatScopes.ApiSystem;
+        }
+
         if (IsAdminPath(request.Path))
         {
             return MachinePatScopes.ApiAdmin;
@@ -82,9 +87,12 @@ internal sealed class RequirePatApiScopeHandler(IHttpContextAccessor httpContext
         return MachinePatScopes.ApiWrite;
     }
 
+    private static bool IsSystemPath(PathString path) =>
+        path.StartsWithSegments("/api/system", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/api/admin/boards", StringComparison.OrdinalIgnoreCase);
+
     private static bool IsAdminPath(PathString path) =>
         path.StartsWithSegments("/api/admin", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments("/api/system", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments("/api/configuration", StringComparison.OrdinalIgnoreCase);
 
     private static bool HasRequiredPatScope(ClaimsPrincipal claimsPrincipal, string requiredScope)

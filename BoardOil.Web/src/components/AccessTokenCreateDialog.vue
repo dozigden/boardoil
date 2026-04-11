@@ -28,7 +28,11 @@
       </label>
       <label class="machine-pat-dialog-check">
         <input v-model="includeApiAdmin" :disabled="busy" type="checkbox" />
-        <span><code>api:admin</code> (`/api/admin/*`, `/api/system/*`, `/api/configuration`)</span>
+        <span><code>api:admin</code> (`/api/admin/*`, `/api/configuration`)</span>
+      </label>
+      <label class="machine-pat-dialog-check">
+        <input v-model="includeApiSystem" :disabled="busy" type="checkbox" />
+        <span><code>api:system</code> (`/api/system/*`, `/api/admin/boards`)</span>
       </label>
     </fieldset>
 
@@ -120,6 +124,7 @@ const includeMcpWrite = ref(true);
 const includeApiRead = ref(false);
 const includeApiWrite = ref(false);
 const includeApiAdmin = ref(false);
+const includeApiSystem = ref(false);
 const boardAccessMode = ref<'all' | 'selected'>('all');
 const selectedBoardIds = ref<number[]>([]);
 const isNonExpiring = ref(false);
@@ -134,6 +139,7 @@ function resetDraft() {
   includeApiRead.value = false;
   includeApiWrite.value = false;
   includeApiAdmin.value = false;
+  includeApiSystem.value = false;
   boardAccessMode.value = 'all';
   selectedBoardIds.value = [];
   isNonExpiring.value = false;
@@ -166,6 +172,9 @@ function submit() {
   }
   if (includeApiAdmin.value) {
     scopes.push('api:admin');
+  }
+  if (includeApiSystem.value) {
+    scopes.push('api:system');
   }
 
   if (scopes.length === 0) {
