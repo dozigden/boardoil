@@ -23,6 +23,52 @@ fi
 api_pid=""
 web_pid=""
 
+stop_stale_vite() {
+  local port=5173
+
+  if ! command -v ss >/dev/null 2>&1; then
+    return
+  fi
+
+  local ss_output=""
+  ss_output=$(ss -ltnp 2>/dev/null || true)
+  if [[ -z "$ss_output" ]]; then
+    return
+  fi
+
+  local pids=""
+  pids=$(awk -v port=":$port" '
+    $0 ~ port {
+      while (match($0, /pid=[0-9]+/)) {
+        pid=substr($0, RSTART+4, RLENGTH-4)
+        print pid
+        $0=substr($0, RSTART+RLENGTH)
+      }
+    }
+  ' <<<"$ss_output" | sort -u)
+
+  if [[ -z "$pids" ]]; then
+    return
+  fi
+
+  while IFS= read -r pid; do
+    if [[ -z "$pid" ]] || ! kill -0 "$pid" 2>/dev/null; then
+      continue
+    fi
+
+    local args=""
+    args=$(ps -p "$pid" -o args= 2>/dev/null || true)
+    if [[ -z "$args" ]]; then
+      continue
+    fi
+
+    if grep -qi "vite" <<<"$args"; then
+      echo "Stopping existing Vite process on port $port (pid $pid)..."
+      kill "$pid" 2>/dev/null || true
+    fi
+  done <<<"$pids"
+}
+
 cleanup() {
   trap - INT TERM EXIT
 
@@ -46,6 +92,7 @@ dotnet run --no-launch-profile --project "$API_PROJECT" --urls http://127.0.0.1:
 api_pid=$!
 
 echo "Starting frontend on http://localhost:5173 ..."
+stop_stale_vite
 (
   cd "$WEB_DIR"
   npm run dev

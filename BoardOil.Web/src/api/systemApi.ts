@@ -92,6 +92,10 @@ export function createSystemApi() {
     return putData<ManagedUser>(`/api/system/users/${userId}/status`, { isActive });
   }
 
+  async function deleteUser(userId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/system/users/${userId}`);
+  }
+
   async function getClientAccounts(): Promise<Result<ClientAccount[], AppError>> {
     const envelopeResult = await getEnvelope<ClientAccount[]>('/api/system/client-accounts');
     if (!envelopeResult.ok) {
@@ -125,6 +129,10 @@ export function createSystemApi() {
     return deleteJson(`/api/system/client-accounts/${clientAccountId}/tokens/${tokenId}`);
   }
 
+  async function deleteClientAccount(clientAccountId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/system/client-accounts/${clientAccountId}`);
+  }
+
   return {
     getConfiguration,
     updateConfiguration,
@@ -137,11 +145,13 @@ export function createSystemApi() {
     createUser,
     updateUserRole,
     updateUserStatus,
+    deleteUser,
     getClientAccounts,
     createClientAccount,
     getClientAccountTokens,
     createClientAccountToken,
-    revokeClientAccountToken
+    revokeClientAccountToken,
+    deleteClientAccount
   };
 }
 

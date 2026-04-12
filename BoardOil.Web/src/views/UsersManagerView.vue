@@ -17,8 +17,8 @@
           type="button"
           class="entity-row-main entity-row-main-button"
           :disabled="busy"
-          :aria-label="`Edit user ${user.userName}`"
-          @click="focusUserRoleControl(user.id)"
+          :aria-label="`User actions for ${user.userName}`"
+          @click="openUserActions(user.id)"
         >
           <span class="badge">#{{ user.id }}</span>
           <strong class="entity-row-title">{{ user.userName }}</strong>
@@ -29,18 +29,47 @@
           </span>
         </button>
         <div class="entity-row-actions">
-          <select
-            :id="`user-role-${user.id}`"
-            :value="user.role"
+          <BoDropdown
+            align="right"
+            icon-only
+            label="User actions"
+            :icon="MoreVertical"
             :disabled="busy"
-            @change="onRoleChange(user.id, ($event.target as HTMLSelectElement).value)"
+            :open="openUserMenuId === user.id"
+            @update:open="setUserMenuOpen(user.id, $event)"
           >
-            <option value="Standard">Standard</option>
-            <option value="Admin">Admin</option>
-          </select>
-          <button type="button" class="btn btn--secondary" :disabled="busy" @click="toggleStatus(user.id, user.isActive)">
-            {{ user.isActive ? 'Deactivate' : 'Activate' }}
-          </button>
+            <template #default="{ close }">
+              <button
+                type="button"
+                class="bo-dropdown-item"
+                :disabled="busy || user.role === 'Admin'"
+                @click="setRoleFromMenu(user.id, 'Admin', close)"
+              >
+                Set role: Admin
+              </button>
+              <button
+                type="button"
+                class="bo-dropdown-item"
+                :disabled="busy || user.role === 'Standard'"
+                @click="setRoleFromMenu(user.id, 'Standard', close)"
+              >
+                Set role: Standard
+              </button>
+              <span class="bo-dropdown-divider" aria-hidden="true"></span>
+              <button type="button" class="bo-dropdown-item" :disabled="busy" @click="toggleStatusFromMenu(user.id, user.isActive, close)">
+                {{ user.isActive ? 'Deactivate' : 'Activate' }}
+              </button>
+              <span class="bo-dropdown-divider" aria-hidden="true"></span>
+              <button
+                type="button"
+                class="bo-dropdown-item"
+                :disabled="busy || isCurrentUser(user.id)"
+                @click="deleteUserFromMenu(user, close)"
+              >
+                Delete
+              </button>
+            </template>
+          </BoDropdown>
         </div>
       </article>
     </section>
@@ -50,17 +79,24 @@
 </template>
 
 <script setup lang="ts">
+import { MoreVertical } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
 import { createSystemApi } from '../api/systemApi';
+import BoDropdown from '../components/BoDropdown.vue';
 import UserCreateDialog from '../components/UserCreateDialog.vue';
+import { useAuthStore } from '../stores/authStore';
 import type { ManagedUser } from '../types/authTypes';
 
 const systemApi = createSystemApi();
+const authStore = useAuthStore();
+const { user: currentUser } = storeToRefs(authStore);
 const users = ref<ManagedUser[]>([]);
 const busy = ref(false);
 const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const isCreateDialogOpen = ref(false);
+const openUserMenuId = ref<number | null>(null);
 
 async function loadUsers() {
   busy.value = true;
@@ -105,11 +141,7 @@ async function createUser(payload: { userName: string; password: string; role: '
   }
 }
 
-async function onRoleChange(userId: number, nextRole: string) {
-  if (nextRole !== 'Admin' && nextRole !== 'Standard') {
-    return;
-  }
-
+async function onRoleChange(userId: number, nextRole: 'Admin' | 'Standard') {
   busy.value = true;
   errorMessage.value = null;
   successMessage.value = null;
@@ -145,15 +177,70 @@ async function toggleStatus(userId: number, currentState: boolean) {
   }
 }
 
-function focusUserRoleControl(userId: number) {
+async function deleteUser(user: ManagedUser) {
+  if (isCurrentUser(user.id)) {
+    errorMessage.value = 'You cannot delete your own account.';
+    return;
+  }
+
+  const confirmed = window.confirm(`Delete user "${user.userName}"? This removes their access and cannot be undone.`);
+  if (!confirmed) {
+    return;
+  }
+
+  busy.value = true;
+  errorMessage.value = null;
+  successMessage.value = null;
+  try {
+    const result = await systemApi.deleteUser(user.id);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    users.value = users.value.filter(entry => entry.id !== user.id);
+    successMessage.value = `Deleted user ${user.userName}.`;
+  } finally {
+    busy.value = false;
+  }
+}
+
+function openUserActions(userId: number) {
   if (busy.value) {
     return;
   }
 
-  const roleControl = document.getElementById(`user-role-${userId}`);
-  if (roleControl instanceof HTMLSelectElement) {
-    roleControl.focus();
+  openUserMenuId.value = openUserMenuId.value === userId ? null : userId;
+}
+
+function setUserMenuOpen(userId: number, isOpen: boolean) {
+  if (isOpen) {
+    openUserMenuId.value = userId;
+    return;
   }
+
+  if (openUserMenuId.value === userId) {
+    openUserMenuId.value = null;
+  }
+}
+
+function isCurrentUser(userId: number) {
+  return currentUser.value?.id === userId;
+}
+
+async function setRoleFromMenu(userId: number, nextRole: 'Admin' | 'Standard', close: () => void) {
+  close();
+  await onRoleChange(userId, nextRole);
+}
+
+async function toggleStatusFromMenu(userId: number, currentState: boolean, close: () => void) {
+  close();
+  await toggleStatus(userId, currentState);
+}
+
+async function deleteUserFromMenu(user: ManagedUser, close: () => void) {
+  close();
+  await deleteUser(user);
 }
 
 onMounted(async () => {

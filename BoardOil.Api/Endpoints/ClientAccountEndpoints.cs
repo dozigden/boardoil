@@ -29,6 +29,11 @@ public static class ClientAccountEndpoints
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("System Client Accounts");
 
+        app.MapDelete("/api/system/client-accounts/{id:int}", (int id, IClientAccountService clientAccountService) =>
+                clientAccountService.DeleteClientAccountAsync(id).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("System Client Accounts");
+
         app.MapDelete("/api/system/client-accounts/{id:int}/tokens/{tokenId:int}", (int id, int tokenId, IClientAccountService clientAccountService) =>
                 clientAccountService.RevokeClientAccessTokenAsync(id, tokenId).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
