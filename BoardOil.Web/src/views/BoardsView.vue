@@ -23,7 +23,7 @@
             class="entity-row-main entity-row-main-button"
             :disabled="busy"
             :aria-label="`Configure board ${board.name}`"
-            @click="openBoardConfiguration(board.id)"
+            @click="openBoard(board.id)"
           >
             <span class="badge">#{{ board.id }}</span>
             <span class="entity-row-title">{{ board.name }}</span>
