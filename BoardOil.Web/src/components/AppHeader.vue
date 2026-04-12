@@ -18,42 +18,55 @@
           :boards="boards"
           :current-board-id="currentBoardId"
         />
-        <RouterLink
-          v-if="boardAdminTarget"
-          :to="boardAdminTarget"
-          class="btn btn--secondary btn--icon menu-trigger header-board-admin-link"
-          aria-label="Open board admin"
-          title="Board admin"
-          @click="closeMenus"
-        >
-          <SlidersHorizontal :size="18" aria-hidden="true" />
-        </RouterLink>
       </div>
       <div class="header-meta">
         <p v-if="isAuthenticated && userName" class="user-meta">
           {{ userName }}
         </p>
-        <details v-if="isAuthenticated" ref="userMenu" class="header-menu">
-          <summary class="btn btn--secondary btn--icon menu-trigger" aria-label="Open user menu" title="User menu">
-            <CircleUserRound :size="18" aria-hidden="true" />
-          </summary>
-          <nav class="menu-panel" aria-label="User menu">
-            <button v-if="isAuthenticated" type="button" class="btn btn--menu-item" @click="openAboutDialog">About</button>
-            <RouterLink v-if="isAuthenticated" to="/licences" class="menu-item" @click="closeMenus">Licences</RouterLink>
-            <RouterLink v-if="isAuthenticated" :to="{ name: 'access-tokens' }" class="menu-item" @click="closeMenus">Access tokens</RouterLink>
-            <button v-if="isAuthenticated" type="button" class="btn btn--menu-item" @click="handleLogout">Logout</button>
-          </nav>
-        </details>
-        <RouterLink
-          v-if="isAdmin"
-          :to="{ name: 'system-admin-boards' }"
-          class="btn btn--secondary btn--icon menu-trigger"
-          aria-label="Open system admin"
-          title="System admin"
-          @click="closeMenus"
+        <BoDropdown
+          v-if="isAuthenticated"
+          class="header-menu"
+          align="right"
+          icon-only
+          label="User menu"
+          :icon="CircleUserRound"
         >
-            <Settings :size="18" aria-hidden="true" />
-        </RouterLink>
+          <template #default="{ close }">
+            <RouterLink :to="{ name: 'access-tokens' }" class="bo-dropdown-item" @click="close">Access tokens</RouterLink>
+            <span class="bo-dropdown-divider" aria-hidden="true"></span>
+            <button type="button" class="bo-dropdown-item" @click="handleLogout(close)">Logout</button>
+          </template>
+        </BoDropdown>
+        <BoDropdown
+          v-if="isAuthenticated"
+          class="header-menu"
+          align="right"
+          icon-only
+          label="System admin"
+          :icon="Settings"
+        >
+          <template #default="{ close }">
+            <RouterLink
+              v-if="boardAdminTarget"
+              :to="boardAdminTarget"
+              class="bo-dropdown-item"
+              @click="close"
+            >
+              Board Configuration
+            </RouterLink>
+            <RouterLink
+              v-if="isAdmin"
+              :to="{ name: 'system-admin-boards' }"
+              class="bo-dropdown-item"
+              @click="close"
+            >
+              System Settings
+            </RouterLink>
+            <span class="bo-dropdown-divider" aria-hidden="true"></span>
+            <RouterLink to="/licences" class="bo-dropdown-item" @click="close">Licences</RouterLink>
+            <button type="button" class="bo-dropdown-item" @click="openAboutDialog(close)">About</button>
+          </template>
+        </BoDropdown>
       </div>
     </div>
   </header>
@@ -68,14 +81,12 @@ import { useRouter } from 'vue-router';
 import AboutDialog from './AboutDialog.vue';
 import BoardOilDrop from './BoardOilDrop.vue';
 import BoardOilLogo from './BoardOilLogo.vue';
+import BoDropdown from './BoDropdown.vue';
 import HeaderBoardPicker from './HeaderBoardPicker.vue';
 import { getBrandTarget } from './appHeaderNavigation';
 import { useAuthStore } from '../stores/authStore';
 import { useBoardCatalogueStore } from '../stores/boardCatalogueStore';
 import { useBoardStore } from '../stores/boardStore';
-import { useClickOutside } from '../composables/useClickOutside';
-
-const userMenu = ref<HTMLDetailsElement | null>(null);
 const aboutDialogOpen = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
@@ -95,26 +106,14 @@ const boardAdminTarget = computed(() =>
     : null
 );
 
-function closeMenu() {
-  if (userMenu.value) {
-    userMenu.value.open = false;
-  }
-}
-
-useClickOutside(userMenu, closeMenu, () => isAuthenticated.value && userMenu.value?.open === true);
-
-function closeMenus() {
-  closeMenu();
-}
-
-async function handleLogout() {
+async function handleLogout(close?: () => void) {
+  close?.();
   await authStore.logout();
-  closeMenus();
   await router.replace({ name: 'login' });
 }
 
-async function openAboutDialog() {
-  closeMenus();
+async function openAboutDialog(close?: () => void) {
+  close?.();
   aboutDialogOpen.value = true;
 }
 
@@ -249,33 +248,6 @@ function closeAboutDialog() {
 
 .menu-trigger::-webkit-details-marker {
   display: none;
-}
-
-.menu-panel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.35rem);
-  min-width: 11rem;
-  background: var(--bo-surface-base);
-  border: 1px solid var(--bo-border-default);
-  border-radius: 8px;
-  padding: 0.35rem;
-  box-shadow: var(--bo-shadow-pop);
-  z-index: 10;
-}
-
-.menu-item {
-  display: block;
-  text-decoration: none;
-  color: var(--bo-ink-default);
-  border-radius: 6px;
-  padding: 0.45rem 0.55rem;
-}
-
-.menu-item:hover,
-.menu-item:focus-visible {
-  background: var(--bo-surface-energy);
-  color: var(--bo-colour-energy);
 }
 
 @media (max-width: 720px) {
