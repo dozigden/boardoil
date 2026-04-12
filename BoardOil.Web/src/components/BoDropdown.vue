@@ -14,13 +14,19 @@
       :aria-controls="menuId"
       :aria-label="triggerAriaLabel"
       :title="label"
-      aria-haspopup="menu"
+      :aria-haspopup="popup"
       @click="toggleOpen"
     >
       <component v-if="icon" :is="icon" :size="iconSize" aria-hidden="true" />
       <span v-if="triggerText">{{ triggerText }}</span>
     </button>
-    <div v-if="isOpen" :id="menuId" class="bo-dropdown-panel" role="menu" :aria-label="menuAriaLabel">
+    <div
+      v-if="isOpen"
+      :id="menuId"
+      class="bo-dropdown-panel"
+      :role="panelRole"
+      :aria-label="label"
+    >
       <div class="bo-dropdown-content">
         <slot :close="close" :open="isOpen" />
       </div>
@@ -41,8 +47,9 @@ const props = withDefaults(defineProps<{
   align?: 'left' | 'right' | 'center';
   iconOnly?: boolean;
   disabled?: boolean;
-  open?: boolean | null;
   buttonClass?: string | string[] | Record<string, boolean> | null;
+  panelRole?: string;
+  popup?: string | boolean | null;
 }>(), {
   align: 'left',
   iconOnly: false,
@@ -50,19 +57,14 @@ const props = withDefaults(defineProps<{
   text: null,
   icon: null,
   iconSize: 18,
-  open: null,
-  buttonClass: null
+  buttonClass: null,
+  panelRole: 'menu',
+  popup: 'menu'
 });
 
-const emit = defineEmits<{
-  'update:open': [open: boolean];
-}>();
-
 const rootRef = ref<HTMLElement | null>(null);
-const internalOpen = ref(false);
+const isOpen = ref(false);
 const menuId = `bo-dropdown-${Math.random().toString(36).slice(2, 10)}`;
-const isControlled = computed(() => props.open !== null);
-const isOpen = computed(() => (isControlled.value ? props.open === true : internalOpen.value));
 const triggerText = computed(() => {
   if (props.text !== null) {
     return props.text;
@@ -72,25 +74,13 @@ const triggerText = computed(() => {
 });
 const isIconOnly = computed(() => props.iconOnly || !triggerText.value);
 const triggerAriaLabel = computed(() => (isIconOnly.value ? props.label : undefined));
-const menuAriaLabel = computed(() => {
-  const normalised = props.label.trim().toLowerCase();
-  if (normalised.includes('menu')) {
-    return props.label;
-  }
-
-  return `${props.label} menu`;
-});
 
 function setOpen(next: boolean) {
   if (props.disabled && next) {
     return;
   }
 
-  if (!isControlled.value) {
-    internalOpen.value = next;
-  }
-
-  emit('update:open', next);
+  isOpen.value = next;
 }
 
 function toggleOpen() {
@@ -107,8 +97,7 @@ watch(
   () => props.disabled,
   nextDisabled => {
     if (nextDisabled) {
-      internalOpen.value = false;
-      emit('update:open', false);
+      isOpen.value = false;
     }
   }
 );

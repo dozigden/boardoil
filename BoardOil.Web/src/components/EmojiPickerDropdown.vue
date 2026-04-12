@@ -1,30 +1,32 @@
 <template>
-  <div ref="containerRef" class="emoji-picker-dropdown">
-    <button
-      type="button"
-      class="btn btn--secondary emoji-picker-dropdown-trigger"
-      :disabled="disabled"
-      :aria-expanded="open"
-      aria-haspopup="dialog"
-      @click="toggleOpen"
-    >
-      <span>{{ selectedEmoji ?? placeholder }}</span>
-    </button>
-    <div v-if="open" class="emoji-picker-dropdown-panel">
-      <emoji-picker class="emoji-picker-dropdown-picker" @emoji-click="handleEmojiClick" />
+  <BoDropdown
+    class="emoji-picker-dropdown"
+    label="Emoji picker"
+    :text="selectedEmoji ?? placeholder"
+    :disabled="disabled"
+    panel-role="dialog"
+    popup="dialog"
+  >
+    <template #default="{ close }">
+      <emoji-picker class="emoji-picker-dropdown-picker" @emoji-click="event => handleEmojiClick(event, close)" />
       <div class="emoji-picker-dropdown-actions">
-        <button type="button" class="btn btn--secondary" :disabled="disabled || !selectedEmoji" @click="clearEmoji">
+        <button
+          type="button"
+          class="btn btn--secondary"
+          :disabled="disabled || !selectedEmoji"
+          @click="clearEmoji(close)"
+        >
           Clear
         </button>
       </div>
-    </div>
-  </div>
+    </template>
+  </BoDropdown>
 </template>
 
 <script setup lang="ts">
 import 'emoji-picker-element';
-import { computed, ref, watch } from 'vue';
-import { useClickOutside } from '../composables/useClickOutside';
+import { computed } from 'vue';
+import BoDropdown from './BoDropdown.vue';
 import { normaliseTagEmojiForRender } from '../utils/tagStyles';
 
 const props = withDefaults(defineProps<{
@@ -40,20 +42,9 @@ const emit = defineEmits<{
   'update:modelValue': [value: string | null];
 }>();
 
-const open = ref(false);
-const containerRef = ref<HTMLElement | null>(null);
-
 const selectedEmoji = computed(() => normaliseTagEmojiForRender(props.modelValue));
 
-function toggleOpen() {
-  if (props.disabled) {
-    return;
-  }
-
-  open.value = !open.value;
-}
-
-function handleEmojiClick(event: Event) {
+function handleEmojiClick(event: Event, close?: () => void) {
   const emojiEvent = event as CustomEvent<{ unicode?: string }>;
   const emoji = normaliseTagEmojiForRender(emojiEvent.detail?.unicode);
   if (!emoji) {
@@ -61,45 +52,21 @@ function handleEmojiClick(event: Event) {
   }
 
   emit('update:modelValue', emoji);
-  open.value = false;
+  close?.();
 }
 
-function clearEmoji() {
+function clearEmoji(close?: () => void) {
   if (props.disabled || !selectedEmoji.value) {
     return;
   }
 
   emit('update:modelValue', null);
-  open.value = false;
+  close?.();
 }
-
-useClickOutside(containerRef, () => {
-  open.value = false;
-}, () => open.value);
-
-watch(
-  () => props.disabled,
-  nextDisabled => {
-    if (nextDisabled) {
-      open.value = false;
-    }
-  }
-);
-
 </script>
 
 <style scoped>
-.emoji-picker-dropdown {
-  position: relative;
-}
-
-.emoji-picker-dropdown-trigger {
-  width: auto;
-}
-
-.emoji-picker-dropdown-panel {
-  position: absolute;
-  top: calc(100% + 0.35rem);
+.emoji-picker-dropdown :deep(.bo-dropdown-panel) {
   left: 0;
   width: 22rem;
   max-width: min(22rem, calc(100vw - 3rem));
@@ -109,6 +76,10 @@ watch(
   background: var(--bo-surface-panel-strong);
   box-shadow: var(--bo-shadow-pop);
   z-index: 4;
+}
+
+.emoji-picker-dropdown :deep(.bo-dropdown-content) {
+  gap: 0;
 }
 
 .emoji-picker-dropdown-picker {
