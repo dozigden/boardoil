@@ -48,8 +48,6 @@
               icon-only
               button-class="column-add-card"
               align="right"
-              :open="createCardTypeMenuColumnId === column.id"
-              @update:open="setCreateCardTypeMenuOpen(column.id, $event)"
             >
               <template #default="{ close }">
                 <button
@@ -133,7 +131,6 @@ const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
 const newCardDraftErrors = ref<Record<number, string>>({});
-const createCardTypeMenuColumnId = ref<number | null>(null);
 const cardSearchText = ref('');
 const tagFilterStates = ref<TagFilterStateMap>({});
 const isTagFilterMenuOpen = ref(false);
@@ -177,8 +174,6 @@ const hasActiveCardFilters = computed(() =>
 );
 
 async function openNewCardDraft(columnId: number, cardTypeId: number | null = defaultCreateCardTypeId.value) {
-  createCardTypeMenuColumnId.value = null;
-
   if (newCardDraftTitles.value[columnId] !== undefined) {
     newCardDraftCardTypeIds.value[columnId] = cardTypeId;
     delete newCardDraftErrors.value[columnId];
@@ -236,22 +231,6 @@ async function saveNewCardDraft(columnId: number) {
 
   newCardDraftErrors.value[columnId] = resolveCreateCardErrorMessage(result.error);
   newCardDraftInputs.value[columnId]?.focus();
-}
-
-function setCreateCardTypeMenuOpen(columnId: number, open: boolean) {
-  if (cardTypes.value.length <= 1) {
-    createCardTypeMenuColumnId.value = null;
-    return;
-  }
-
-  if (open) {
-    createCardTypeMenuColumnId.value = columnId;
-    return;
-  }
-
-  if (createCardTypeMenuColumnId.value === columnId) {
-    createCardTypeMenuColumnId.value = null;
-  }
 }
 
 async function openCardEditor(cardId: number) {
@@ -424,7 +403,6 @@ function normaliseTagName(tagName: string) {
 function clearDragInteraction() {
   draggingCardId.value = null;
   activeDropPoint.value = null;
-  createCardTypeMenuColumnId.value = null;
 }
 
 function resolveDropTargetCardId(columnId: number, cardId: number, event: DragEvent): number | null | undefined {

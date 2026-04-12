@@ -13,13 +13,7 @@
 
     <section class="entity-rows-list">
       <article v-for="user in users" :key="user.id" class="entity-row">
-        <button
-          type="button"
-          class="entity-row-main entity-row-main-button"
-          :disabled="busy"
-          :aria-label="`User actions for ${user.userName}`"
-          @click="openUserActions(user.id)"
-        >
+        <div class="entity-row-main">
           <span class="badge">#{{ user.id }}</span>
           <strong class="entity-row-title">{{ user.userName }}</strong>
           <span class="entity-row-badges badge-group">
@@ -27,7 +21,7 @@
             <span class="badge">{{ user.role }}</span>
             <span class="badge">{{ user.isActive ? 'Active' : 'Inactive' }}</span>
           </span>
-        </button>
+        </div>
         <div class="entity-row-actions">
           <BoDropdown
             align="right"
@@ -35,8 +29,6 @@
             label="User actions"
             :icon="MoreVertical"
             :disabled="busy"
-            :open="openUserMenuId === user.id"
-            @update:open="setUserMenuOpen(user.id, $event)"
           >
             <template #default="{ close }">
               <button
@@ -96,7 +88,6 @@ const busy = ref(false);
 const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const isCreateDialogOpen = ref(false);
-const openUserMenuId = ref<number | null>(null);
 
 async function loadUsers() {
   busy.value = true;
@@ -202,25 +193,6 @@ async function deleteUser(user: ManagedUser) {
     successMessage.value = `Deleted user ${user.userName}.`;
   } finally {
     busy.value = false;
-  }
-}
-
-function openUserActions(userId: number) {
-  if (busy.value) {
-    return;
-  }
-
-  openUserMenuId.value = openUserMenuId.value === userId ? null : userId;
-}
-
-function setUserMenuOpen(userId: number, isOpen: boolean) {
-  if (isOpen) {
-    openUserMenuId.value = userId;
-    return;
-  }
-
-  if (openUserMenuId.value === userId) {
-    openUserMenuId.value = null;
   }
 }
 
