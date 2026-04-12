@@ -1,5 +1,8 @@
+using System.Security.Claims;
+using BoardOil.Api.Auth;
 using BoardOil.Api.Extensions;
 using BoardOil.Abstractions.Users;
+using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
 
@@ -28,6 +31,17 @@ public static class UserEndpoints
             .WithTags("System Users");
         app.MapPut("/api/system/users/{id:int}/status", (int id, UpdateUserStatusRequest request, IUserAdminService userAdminService) =>
                 userAdminService.UpdateUserStatusAsync(id, request).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("System Users");
+        app.MapDelete("/api/system/users/{id:int}", async (int id, ClaimsPrincipal user, IUserAdminService userAdminService) =>
+            {
+                if (!user.TryGetUserId(out var actorUserId))
+                {
+                    return ((ApiResult)ApiErrors.Unauthorized("Invalid identity context.")).ToHttpResult();
+                }
+
+                return (await userAdminService.DeleteUserAsync(id, actorUserId)).ToHttpResult();
+            })
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("System Users");
 

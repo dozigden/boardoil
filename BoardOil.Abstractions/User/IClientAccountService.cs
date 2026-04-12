@@ -11,4 +11,5 @@ public interface IClientAccountService
     Task<ApiResult<IReadOnlyList<MachinePatDto>>> ListClientAccessTokensAsync(int clientAccountId);
     Task<ApiResult<CreatedMachinePatDto>> CreateClientAccessTokenAsync(int clientAccountId, CreateClientAccessTokenRequest request);
     Task<ApiResult> RevokeClientAccessTokenAsync(int clientAccountId, int tokenId);
+    Task<ApiResult> DeleteClientAccountAsync(int clientAccountId);
 }

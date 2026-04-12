@@ -124,6 +124,36 @@ public sealed class UserAdminService(
         return user.ToManagedUserDto();
     }
 
+    public async Task<ApiResult> DeleteUserAsync(int id, int actorUserId)
+    {
+        using var scope = scopeFactory.Create();
+
+        if (id == actorUserId)
+        {
+            return ApiErrors.BadRequest("Cannot delete your own account.");
+        }
+
+        var user = userRepository.Get(id);
+        if (user is null || user.IdentityType != UserIdentityType.User)
+        {
+            return ApiErrors.NotFound("User not found.");
+        }
+
+        if (user.Role == UserRole.Admin && user.IsActive)
+        {
+            var activeAdminCount = await userRepository.CountActiveAdminsAsync();
+            if (activeAdminCount <= 1)
+            {
+                return ApiErrors.BadRequest("Cannot delete the last active admin.");
+            }
+        }
+
+        userRepository.Remove(user);
+        await scope.SaveChangesAsync();
+
+        return ApiResults.Ok();
+    }
+
     private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string password)
     {
         var errors = new List<ValidationError>();

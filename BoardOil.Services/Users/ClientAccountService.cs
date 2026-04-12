@@ -160,6 +160,22 @@ public sealed class ClientAccountService(
         return ApiResults.Ok();
     }
 
+    public async Task<ApiResult> DeleteClientAccountAsync(int clientAccountId)
+    {
+        using var scope = scopeFactory.Create();
+
+        var user = userRepository.Get(clientAccountId);
+        if (user is null || user.IdentityType != UserIdentityType.Client)
+        {
+            return ApiErrors.NotFound("Client account not found.");
+        }
+
+        userRepository.Remove(user);
+        await scope.SaveChangesAsync();
+
+        return ApiResults.Ok();
+    }
+
     private static ApiResult<CreatedPat> BuildPatEntity(
         EntityUser user,
         CreateMachinePatRequest request,

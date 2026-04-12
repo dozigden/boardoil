@@ -30,9 +30,23 @@
             </span>
           </button>
           <div class="entity-row-actions">
-            <button type="button" class="btn btn--secondary" :disabled="isBusy" @click="openClientTokens(client.id)">
-              Tokens
-            </button>
+            <BoDropdown
+              align="right"
+              icon-only
+              label="Client account actions"
+              :icon="MoreVertical"
+              :disabled="isBusy"
+            >
+              <template #default="{ close }">
+                <button type="button" class="bo-dropdown-item" :disabled="isBusy" @click="openClientTokensFromMenu(client.id, close)">
+                  Tokens
+                </button>
+                <span class="bo-dropdown-divider" aria-hidden="true"></span>
+                <button type="button" class="bo-dropdown-item" :disabled="isBusy" @click="deleteClientFromMenu(client, close)">
+                  Delete
+                </button>
+              </template>
+            </BoDropdown>
           </div>
         </article>
       </section>
@@ -57,10 +71,12 @@
 </template>
 
 <script setup lang="ts">
+import { MoreVertical } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { createSystemApi } from '../api/systemApi';
 import AccessTokenSecretModal from '../components/AccessTokenSecretModal.vue';
+import BoDropdown from '../components/BoDropdown.vue';
 import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.vue';
 import type { ClientAccount, CreateClientAccountRequest } from '../types/authTypes';
 
@@ -151,6 +167,39 @@ function dismissPlainTextPat() {
 function openClientTokens(clientId: number) {
   dismissPlainTextPat();
   router.push({ name: 'client-account-tokens', params: { clientAccountId: clientId } });
+}
+
+async function deleteClientAccount(client: ClientAccount) {
+  const confirmed = window.confirm(`Delete client account "${client.userName}"? This revokes its access and cannot be undone.`);
+  if (!confirmed) {
+    return;
+  }
+
+  loading.value = true;
+  errorMessage.value = null;
+  successMessage.value = null;
+  try {
+    const result = await systemApi.deleteClientAccount(client.id);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    clients.value = clients.value.filter(entry => entry.id !== client.id);
+    successMessage.value = `Deleted client account ${client.userName}.`;
+  } finally {
+    loading.value = false;
+  }
+}
+
+function openClientTokensFromMenu(clientId: number, close: () => void) {
+  close();
+  openClientTokens(clientId);
+}
+
+async function deleteClientFromMenu(client: ClientAccount, close: () => void) {
+  close();
+  await deleteClientAccount(client);
 }
 
 onMounted(async () => {

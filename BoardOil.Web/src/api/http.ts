@@ -232,28 +232,28 @@ async function request(path: string, init: RequestInit): Promise<Result<Response
             return ok(retriedResponse);
           }
 
-          const retriedEnvelope = await tryParseEnvelope(retriedResponse);
+          const retriedEnvelope = await tryParseErrorPayload(retriedResponse);
           if (retriedResponse.status === 401 && shouldHandleUnauthorized(path)) {
             void handleUnauthorized();
           }
 
-      return err({
-        kind: 'http',
-        message: retriedEnvelope?.message ?? `Request failed with status ${retriedResponse.status}`,
-        statusCode: retriedResponse.status,
-        validationErrors: retriedEnvelope?.validationErrors
-      });
+          return err({
+            kind: 'http',
+            message: retriedEnvelope?.message ?? formatStatusMessage(retriedResponse),
+            statusCode: retriedResponse.status,
+            validationErrors: retriedEnvelope?.validationErrors
+          });
         }
       }
 
-      const envelope = await tryParseEnvelope(response);
+      const envelope = await tryParseErrorPayload(response);
       if (response.status === 401 && shouldHandleUnauthorized(path)) {
         void handleUnauthorized();
       }
 
       return err({
         kind: 'http',
-        message: envelope?.message ?? `Request failed with status ${response.status}`,
+        message: envelope?.message ?? formatStatusMessage(response),
         statusCode: response.status,
         validationErrors: envelope?.validationErrors
       });
@@ -363,6 +363,48 @@ async function tryRefreshSession() {
 
 async function tryParseEnvelope(response: Response) {
   return (await response.clone().json().catch(() => null)) as ApiEnvelope<unknown> | null;
+}
+
+type ErrorPayload = {
+  message?: string;
+  title?: string;
+  detail?: string;
+  error?: string;
+  validationErrors?: Record<string, string[]>;
+  errors?: Record<string, string[]>;
+};
+
+async function tryParseErrorPayload(response: Response): Promise<{ message?: string; validationErrors?: Record<string, string[]> } | null> {
+  const payload = (await response.clone().json().catch(() => null)) as ErrorPayload | null;
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const message = typeof payload.message === 'string'
+    ? payload.message
+    : typeof payload.detail === 'string' && payload.detail.trim().length > 0
+      ? payload.detail
+      : typeof payload.title === 'string'
+        ? payload.title
+        : typeof payload.error === 'string'
+          ? payload.error
+          : undefined;
+
+  const validationErrors = payload.validationErrors ?? payload.errors;
+  if (!message && !validationErrors) {
+    return null;
+  }
+
+  return { message, validationErrors };
+}
+
+function formatStatusMessage(response: Response) {
+  const statusText = response.statusText?.trim();
+  if (statusText) {
+    return `Request failed with status ${response.status} (${statusText})`;
+  }
+
+  return `Request failed with status ${response.status}`;
 }
 
 async function parseEnvelope<T>(response: Response): Promise<Result<ApiEnvelope<T>, AppError>> {
