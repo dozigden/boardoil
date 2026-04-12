@@ -8,7 +8,7 @@
     popup="dialog"
   >
     <template #default="{ close }">
-      <emoji-picker class="emoji-picker-dropdown-picker" @emoji-click="event => handleEmojiClick(event, close)" />
+      <emoji-picker class="emoji-picker-dropdown-picker" @emoji-click="(event: Event) => handleEmojiClick(event, close)" />
       <div class="emoji-picker-dropdown-actions">
         <button
           type="button"
