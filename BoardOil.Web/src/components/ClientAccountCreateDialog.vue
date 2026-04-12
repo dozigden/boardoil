@@ -6,8 +6,6 @@
     @close="emit('close')"
     @submit="submit"
   >
-    <p class="client-account-dialog-hint">Create a client account and issue its first access token.</p>
-
     <fieldset class="client-account-dialog-group">
       <legend>Account</legend>
       <label>
@@ -29,7 +27,6 @@
         Token name
         <input v-model="tokenName" :disabled="busy" maxlength="120" required />
       </label>
-      <p class="client-account-dialog-scope-hint">API scopes are selected by default. Add MCP scopes if needed.</p>
       <label class="client-account-dialog-check">
         <input v-model="includeMcpRead" :disabled="busy" type="checkbox" />
         <span><code>mcp:read</code> (board and column reads)</span>
@@ -223,12 +220,6 @@ watch(
 </script>
 
 <style scoped>
-.client-account-dialog-hint {
-  margin: 0;
-  color: var(--bo-ink-muted);
-  line-height: 1.4;
-}
-
 .client-account-dialog-group {
   display: grid;
   gap: 0.45rem;
@@ -238,6 +229,12 @@ watch(
   border: 1px solid var(--bo-border-soft);
   border-radius: 10px;
   background: var(--bo-surface-base);
+}
+
+.client-account-dialog-group > legend {
+  font-weight: 700;
+  color: var(--bo-link);
+  padding: 0 0.25rem;
 }
 
 .client-account-dialog-group > label:not(.client-account-dialog-check) {
@@ -254,26 +251,36 @@ watch(
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
-  font-size: 0.92rem;
+  color: var(--bo-ink-default);
+  line-height: 1.35;
+}
+
+.client-account-dialog-check > input {
+  width: auto;
+  padding: 0;
+  margin-top: 0.15rem;
+  flex: 0 0 auto;
 }
 
 .client-account-dialog-check code {
   font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
 }
 
-.client-account-dialog-scope-hint {
-  margin: 0;
-  color: var(--bo-ink-muted);
-}
-
 .client-account-warning {
-  padding: 0.6rem;
+  display: grid;
+  gap: 0.4rem;
   border-radius: 10px;
-  border: 1px solid color-mix(in oklab, var(--bo-colour-danger) 45%, var(--bo-border-soft));
-  background: color-mix(in oklab, var(--bo-colour-danger) 10%, var(--bo-surface-base));
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--bo-colour-warning);
+  background: color-mix(in srgb, var(--bo-colour-warning) 18%, white);
 }
 
-.client-account-warning p {
-  margin: 0 0 0.4rem;
+.client-account-warning > p {
+  margin: 0;
+  color: var(--bo-ink-strong);
+}
+
+.client-account-dialog-actions {
+  margin-top: 0.35rem;
 }
 </style>

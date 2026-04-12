@@ -3,7 +3,7 @@
     <header class="client-accounts-header">
       <div>
         <h2>Client Accounts</h2>
-        <p>Manage service accounts and their access tokens.</p>
+        <p>Client accounts are used for REST API access from other applications, or MCP if you want the agent to have its own identity.</p>
       </div>
       <button type="button" class="btn" :disabled="isBusy" @click="openCreateDialog">Create client account</button>
     </header>

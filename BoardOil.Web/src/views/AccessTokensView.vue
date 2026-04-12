@@ -3,7 +3,7 @@
     <header class="machine-access-header">
       <div>
         <h2>Access Tokens</h2>
-        <p>Create and manage Personal Access Tokens (PATs) for MCP and REST API clients.</p>
+        <p>Personal Access Tokens for MCP clients so that they can act as you.  If you want an agent to have its own identity use a client account instead.</p>
       </div>
     </header>
 
@@ -137,49 +137,8 @@
             </div>
           </article>
 
-          <article class="panel panel--base panel--compact panel-stack panel-stack--tight machine-pat-setup-item">
-            <header class="machine-pat-setup-item-header">
-              <h4>REST API auth examples</h4>
-              <div class="machine-pat-tab-list" role="tablist" aria-label="REST API auth examples">
-                <button
-                  type="button"
-                  class="btn btn--tab"
-                  :class="{ 'is-active': restAuthTab === 'curl' }"
-                  role="tab"
-                  :aria-selected="restAuthTab === 'curl'"
-                  @click="restAuthTab = 'curl'"
-                >
-                  Curl
-                </button>
-                <button
-                  type="button"
-                  class="btn btn--tab"
-                  :class="{ 'is-active': restAuthTab === 'powershell' }"
-                  role="tab"
-                  :aria-selected="restAuthTab === 'powershell'"
-                  @click="restAuthTab = 'powershell'"
-                >
-                  PowerShell
-                </button>
-              </div>
-            </header>
-            <div class="machine-pat-code-block">
-              <pre class="machine-pat-setup-code">{{ selectedRestAuthSnippet }}</pre>
-              <button
-                type="button"
-                class="btn btn--secondary machine-pat-copy-icon"
-                :disabled="isBusy"
-                :aria-label="`Copy ${selectedRestAuthSnippetLabel} REST API example`"
-                :title="`Copy ${selectedRestAuthSnippetLabel} REST API example`"
-                @click="copySnippet(selectedRestAuthSnippet, `${selectedRestAuthSnippetLabel} REST API auth example`)"
-              >
-                <Copy :size="14" aria-hidden="true" />
-              </button>
-            </div>
-          </article>
-
           <p class="machine-pat-setup-note">
-            Use PAT as the direct bearer token for MCP and REST calls. PATs do not use refresh-token login.
+            Use PAT as the direct bearer token for MCP calls. PATs do not use refresh-token login.
           </p>
         </section>
       </aside>
@@ -226,7 +185,6 @@ const plainTextPat = ref<string | null>(null);
 const plainTextPatName = ref<string>('');
 const configSnippetTab = ref<'json' | 'toml'>('json');
 const manualTestTab = ref<'curl' | 'powershell'>('curl');
-const restAuthTab = ref<'curl' | 'powershell'>('curl');
 
 const isBusy = computed(() => loading.value || createBusy.value || revokeBusyTokenId.value !== null);
 const isSecretModalOpen = computed(() => plainTextPat.value !== null);
@@ -241,7 +199,7 @@ const genericConfigSnippetJson = computed(() =>
       "transport": "http",
       "url": "${mcpEndpoint.value}",
       "headers": {
-        "Authorization": "Bearer <YOUR_PAT>"
+        "Authorization": "Bearer <YOUR_ACCESS_TOKEN>"
       }
     }
   }
@@ -256,14 +214,14 @@ const selectedConfigSnippet = computed(() => (configSnippetTab.value === 'json' 
 const selectedConfigSnippetLabel = computed(() => (configSnippetTab.value === 'json' ? 'JSON' : 'TOML'));
 const manualTestCurlSnippet = computed(() =>
   `curl -sS -X POST ${mcpEndpoint.value} \\
-  -H "Authorization: Bearer <YOUR_PAT>" \\
+  -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>" \\
   -H "Content-Type: application/json" \\
   --data '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list"}'`
 );
 const manualTestPowerShellSnippet = computed(() =>
   `$endpoint = "${mcpEndpoint.value}"
 $headers = @{
-  Authorization = "Bearer <YOUR_PAT>"
+  Authorization = "Bearer <YOUR_ACCESS_TOKEN>"
   "Content-Type" = "application/json"
 }
 $body = '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list"}'
@@ -271,21 +229,6 @@ Invoke-RestMethod -Method Post -Uri $endpoint -Headers $headers -Body $body`
 );
 const selectedManualTestSnippet = computed(() => (manualTestTab.value === 'curl' ? manualTestCurlSnippet.value : manualTestPowerShellSnippet.value));
 const selectedManualTestSnippetLabel = computed(() => (manualTestTab.value === 'curl' ? 'Curl' : 'PowerShell'));
-const restAuthCurlSnippet = computed(() =>
-  `curl -sS "${apiBaseUrl.value}/api/boards" \\
-  -H "Authorization: Bearer <YOUR_PAT>" \\
-  -H "Accept: application/json"`
-);
-const restAuthPowerShellSnippet = computed(() =>
-  `$endpoint = "${apiBaseUrl.value}/api/boards"
-$headers = @{
-  Authorization = "Bearer <YOUR_PAT>"
-  Accept = "application/json"
-}
-Invoke-RestMethod -Method Get -Uri $endpoint -Headers $headers`
-);
-const selectedRestAuthSnippet = computed(() => (restAuthTab.value === 'curl' ? restAuthCurlSnippet.value : restAuthPowerShellSnippet.value));
-const selectedRestAuthSnippetLabel = computed(() => (restAuthTab.value === 'curl' ? 'Curl' : 'PowerShell'));
 
 onMounted(async () => {
   await loadInitialData();
