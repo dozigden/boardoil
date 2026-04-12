@@ -49,7 +49,7 @@ const props = withDefaults(defineProps<{
   disabled?: boolean;
   buttonClass?: string | string[] | Record<string, boolean> | null;
   panelRole?: string;
-  popup?: string | boolean | null;
+  popup?: boolean | 'menu' | 'dialog';
 }>(), {
   align: 'left',
   iconOnly: false,
