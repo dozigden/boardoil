@@ -177,10 +177,10 @@ builder.Services.AddSwaggerGen(options =>
     });
     options.AddSecurityDefinition("PatBearer", new OpenApiSecurityScheme
     {
-        Type = SecuritySchemeType.ApiKey,
-        In = ParameterLocation.Header,
-        Name = "Authorization",
-        Description = "Personal access token. Format: `Bearer bo_pat_...`."
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "PAT",
+        Description = "Personal access token. Paste the raw `bo_pat_...` value; Swagger UI will add `Bearer`."
     });
     options.OperationFilter<PatSecurityOperationFilter>();
 });
