@@ -166,3 +166,29 @@ button:disabled {
   width: 100%;
   display: flex;
 }
+
+.btn-group {
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-group > * + * {
+  margin-left: -1px;
+}
+
+.btn-group > .btn,
+.btn-group > .bo-dropdown .bo-dropdown-trigger {
+  border-radius: 0;
+}
+
+.btn-group > .btn:first-child,
+.btn-group > .bo-dropdown:first-child .bo-dropdown-trigger {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.btn-group > .btn:last-child,
+.btn-group > .bo-dropdown:last-child .bo-dropdown-trigger {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}

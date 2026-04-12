@@ -30,7 +30,7 @@
             <h2 class="column-name">{{ column.title }}</h2>
             <span class="column-card-count">{{ formatColumnCardCount(column.cards.length) }}</span>
           </div>
-          <div class="column-add-card-wrap" :ref="element => setCreateCardTypeMenuRoot(column.id, element)">
+          <div class="btn-group">
             <button
               type="button"
               class="btn btn--secondary column-add-card column-add-card-main"
@@ -40,37 +40,32 @@
             >
               <Plus :size="16" aria-hidden="true" />
             </button>
-            <button
+            <BoDropdown
               v-if="cardTypes.length > 1"
-              type="button"
-              class="btn btn--secondary column-add-card column-add-card-toggle"
-              aria-label="Choose card type"
-              title="Choose card type"
-              :aria-expanded="createCardTypeMenuColumnId === column.id"
-              @click="toggleCreateCardTypeMenu(column.id)"
+              label="Choose card type"
+              :icon="ChevronDown"
+              :icon-size="14"
+              icon-only
+              button-class="column-add-card"
+              align="right"
+              :open="createCardTypeMenuColumnId === column.id"
+              @update:open="setCreateCardTypeMenuOpen(column.id, $event)"
             >
-              <ChevronDown :size="14" aria-hidden="true" />
-            </button>
-
-            <section
-              v-if="cardTypes.length > 1 && createCardTypeMenuColumnId === column.id"
-              class="panel panel--compact column-add-card-menu"
-              aria-label="New card type"
-            >
-              <button
-                v-for="cardType in cardTypes"
-                :key="cardType.id"
-                type="button"
-                class="btn btn--menu-item column-add-card-menu-item"
-                :title="`New ${cardType.name}`"
-                @click="openNewCardDraft(column.id, cardType.id)"
-              >
-                <span class="column-add-card-menu-item-title">
-                  <span v-if="cardType.emoji" aria-hidden="true">{{ cardType.emoji }}</span>
-                  <span>{{ cardType.name }}</span>
-                </span>
-              </button>
-            </section>
+              <template #default="{ close }">
+                <button
+                  v-for="cardType in cardTypes"
+                  :key="cardType.id"
+                  type="button"
+                  class="bo-dropdown-item"
+                  :title="`New ${cardType.name}`"
+                  @click="openNewCardDraft(column.id, cardType.id); close()"
+                >
+                  <span class="bo-dropdown-item-main">
+                    {{ cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name }}
+                  </span>
+                </button>
+              </template>
+            </BoDropdown>
           </div>
         </header>
 
@@ -120,10 +115,10 @@ import { ChevronDown, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import BoDropdown from '../components/BoDropdown.vue';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
 import Card from '../components/Card.vue';
 import CreateCardInline from '../components/CreateCardInline.vue';
-import { useClickOutside } from '../composables/useClickOutside';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
@@ -139,7 +134,6 @@ const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
 const newCardDraftErrors = ref<Record<number, string>>({});
 const createCardTypeMenuColumnId = ref<number | null>(null);
-const createCardTypeMenuRoots = ref<Record<number, HTMLElement | null>>({});
 const cardSearchText = ref('');
 const tagFilterStates = ref<TagFilterStateMap>({});
 const isTagFilterMenuOpen = ref(false);
@@ -156,14 +150,6 @@ const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { tags } = storeToRefs(tagStore);
 const { createCard, startDrag, dropCard } = cardStore;
-const activeCreateCardTypeMenuRoot = computed(() => {
-  const activeColumnId = createCardTypeMenuColumnId.value;
-  if (activeColumnId === null) {
-    return null;
-  }
-
-  return createCardTypeMenuRoots.value[activeColumnId] ?? null;
-});
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 const availableTagNames = computed(() => tags.value.map(tag => tag.name).sort((left, right) => left.localeCompare(right)));
 const includedTagNames = computed(() => availableTagNames.value.filter(tagName => resolveTagFilterState(tagName) === 'include'));
@@ -188,14 +174,6 @@ const hasActiveCardFilters = computed(() =>
   cardSearchText.value.trim().length > 0
   || includedTagNames.value.length > 0
   || excludedTagNames.value.length > 0
-);
-
-useClickOutside(
-  activeCreateCardTypeMenuRoot,
-  () => {
-    createCardTypeMenuColumnId.value = null;
-  },
-  () => createCardTypeMenuColumnId.value !== null
 );
 
 async function openNewCardDraft(columnId: number, cardTypeId: number | null = defaultCreateCardTypeId.value) {
@@ -260,16 +238,20 @@ async function saveNewCardDraft(columnId: number) {
   newCardDraftInputs.value[columnId]?.focus();
 }
 
-function setCreateCardTypeMenuRoot(columnId: number, element: unknown) {
-  createCardTypeMenuRoots.value[columnId] = element instanceof HTMLElement ? element : null;
-}
-
-function toggleCreateCardTypeMenu(columnId: number) {
+function setCreateCardTypeMenuOpen(columnId: number, open: boolean) {
   if (cardTypes.value.length <= 1) {
+    createCardTypeMenuColumnId.value = null;
     return;
   }
 
-  createCardTypeMenuColumnId.value = createCardTypeMenuColumnId.value === columnId ? null : columnId;
+  if (open) {
+    createCardTypeMenuColumnId.value = columnId;
+    return;
+  }
+
+  if (createCardTypeMenuColumnId.value === columnId) {
+    createCardTypeMenuColumnId.value = null;
+  }
 }
 
 async function openCardEditor(cardId: number) {
@@ -643,48 +625,6 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
 
 .column-add-card-main {
   min-width: 2rem;
-}
-
-.column-add-card-main:not(:only-child) {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.column-add-card-toggle {
-  margin-left: -1px;
-  min-width: 1.75rem;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.column-add-card-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  margin-right: 0.5rem;
-}
-
-.column-add-card-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.35rem);
-  z-index: 5;
-  min-width: 12.5rem;
-  max-width: min(18rem, 72vw);
-  display: grid;
-  gap: 0.25rem;
-}
-
-.column-add-card-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.column-add-card-menu-item-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
 }
 
 .column-content {
