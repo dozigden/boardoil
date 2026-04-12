@@ -31,15 +31,17 @@ export function getPageTitle(
   return currentBoardName === '' ? PRODUCT_TITLE : `${currentBoardName}${BROWSER_TITLE_SUFFIX}`;
 }
 
-export function getOtherBoards(boards: BoardSummary[], currentBoardId: number | null) {
-  return boards
-    .filter(board => board.id !== currentBoardId)
-    .sort((left, right) => {
-      const byName = left.name.localeCompare(right.name);
-      if (byName !== 0) {
-        return byName;
-      }
+export function getSortedBoards(boards: BoardSummary[]) {
+  return [...boards].sort((left, right) => {
+    const byName = left.name.localeCompare(right.name);
+    if (byName !== 0) {
+      return byName;
+    }
 
-      return left.id - right.id;
-    });
+    return left.id - right.id;
+  });
+}
+
+export function getOtherBoards(boards: BoardSummary[], currentBoardId: number | null) {
+  return getSortedBoards(boards).filter(board => board.id !== currentBoardId);
 }

@@ -22,35 +22,34 @@
             type="button"
             class="entity-row-main entity-row-main-button"
             :disabled="busy"
-            :aria-label="`Open board ${board.name}`"
-            @click="openBoard(board.id)"
+            :aria-label="`Configure board ${board.name}`"
+            @click="openBoardConfiguration(board.id)"
           >
             <span class="badge">#{{ board.id }}</span>
             <span class="entity-row-title">{{ board.name }}</span>
           </button>
           <div class="entity-row-actions">
-            <button
+            <BoDropdown
               v-if="board.currentUserRole === 'Owner'"
-              type="button"
-              class="btn btn--secondary entity-row-action-icon"
+              align="right"
+              icon-only
+              label="Board actions"
+              :icon="MoreVertical"
               :disabled="busy"
-              aria-label="Rename board"
-              title="Rename board"
-              @click="openRenameDialog(board)"
             >
-              <Pencil :size="16" aria-hidden="true" />
-            </button>
-            <button
-              v-if="board.currentUserRole === 'Owner'"
-              type="button"
-              class="btn btn--danger entity-row-action-icon"
-              :disabled="busy"
-              aria-label="Delete board"
-              title="Delete board"
-              @click="confirmDeleteBoard(board)"
-            >
-              <Trash2 :size="16" aria-hidden="true" />
-            </button>
+              <template #default="{ close }">
+                <button type="button" class="bo-dropdown-item" @click="openBoardFromMenu(board.id, close)">
+                  View
+                </button>
+                <button type="button" class="bo-dropdown-item" @click="openConfigurationFromMenu(board.id, close)">
+                  Configuration
+                </button>
+                <span class="bo-dropdown-divider" aria-hidden="true"></span>
+                <button type="button" class="bo-dropdown-item" @click="openDeleteFromMenu(board.id, close)">
+                  Delete
+                </button>
+              </template>
+            </BoDropdown>
           </div>
         </div>
       </li>
@@ -62,27 +61,19 @@
       @close="closeCreateDialog"
       @submit="submitCreateBoard"
     />
-    <BoardRenameDialog
-      :open="editingBoard !== null"
-      :busy="busy"
-      :initial-name="editingBoard?.name ?? ''"
-      @close="closeRenameDialog"
-      @submit="submitRenameBoard"
-    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { Pencil, Trash2 } from 'lucide-vue-next';
+import { MoreVertical } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import BoardCreateDialog from '../components/BoardCreateDialog.vue';
-import BoardRenameDialog from '../components/BoardRenameDialog.vue';
+import BoDropdown from '../components/BoDropdown.vue';
 import type { BoardCreateDialogSubmitPayload } from '../components/boardCreateDialogModel';
 import { useAuthStore } from '../stores/authStore';
 import { useBoardCatalogueStore } from '../stores/boardCatalogueStore';
-import type { BoardSummary } from '../types/boardTypes';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -91,8 +82,6 @@ const { isAuthenticated } = storeToRefs(authStore);
 const { boards, busy } = storeToRefs(boardCatalogueStore);
 
 const isCreateDialogOpen = ref(false);
-const editingBoard = ref<BoardSummary | null>(null);
-
 onMounted(async () => {
   await boardCatalogueStore.loadBoards();
 });
@@ -101,20 +90,16 @@ async function openBoard(boardId: number) {
   await router.push({ name: 'board', params: { boardId } });
 }
 
+async function openBoardConfiguration(boardId: number) {
+  await router.push({ name: 'board-details', params: { boardId } });
+}
+
 function openCreateDialog() {
   isCreateDialogOpen.value = true;
 }
 
 function closeCreateDialog() {
   isCreateDialogOpen.value = false;
-}
-
-function openRenameDialog(board: BoardSummary) {
-  editingBoard.value = { ...board };
-}
-
-function closeRenameDialog() {
-  editingBoard.value = null;
 }
 
 async function submitCreateBoard(payload: BoardCreateDialogSubmitPayload) {
@@ -135,26 +120,18 @@ async function submitCreateBoard(payload: BoardCreateDialogSubmitPayload) {
   await router.push({ name: 'board', params: { boardId: created.id } });
 }
 
-async function submitRenameBoard(payload: { name: string }) {
-  const board = editingBoard.value;
-  if (!board) {
-    return;
-  }
-
-  const updated = await boardCatalogueStore.saveBoard(board.id, payload.name);
-  if (!updated) {
-    return;
-  }
-
-  editingBoard.value = null;
+async function openConfigurationFromMenu(boardId: number, close: () => void) {
+  close();
+  await openBoardConfiguration(boardId);
 }
 
-async function confirmDeleteBoard(board: BoardSummary) {
-  const shouldDelete = window.confirm(`Delete board "${board.name}"? This will permanently remove its columns and cards.`);
-  if (!shouldDelete) {
-    return;
-  }
+async function openBoardFromMenu(boardId: number, close: () => void) {
+  close();
+  await openBoard(boardId);
+}
 
-  await boardCatalogueStore.deleteBoard(board.id);
+async function openDeleteFromMenu(boardId: number, close: () => void) {
+  close();
+  await router.push({ name: 'board-delete', params: { boardId } });
 }
 </script>

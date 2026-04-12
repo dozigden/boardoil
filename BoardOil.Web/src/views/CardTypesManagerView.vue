@@ -28,27 +28,27 @@
           </span>
         </button>
         <div class="entity-row-actions">
-          <button
-            v-if="!cardType.isSystem"
-            type="button"
-            class="btn btn--secondary"
+          <BoDropdown
+            align="right"
+            icon-only
+            label="Card type actions"
+            :icon="MoreVertical"
             :disabled="busy"
-            aria-label="Set as default card type"
-            title="Set as default card type"
-            @click="setAsDefault(cardType.id)"
           >
-            <span>Set as default</span>
-          </button>
-          <button
-            type="button"
-            class="btn btn--secondary entity-row-action-icon"
-            :disabled="busy"
-            aria-label="Edit card type"
-            title="Edit card type"
-            @click="openEditor(cardType.id)"
-          >
-            <Pencil :size="16" aria-hidden="true" />
-          </button>
+            <template #default="{ close }">
+              <button type="button" class="bo-dropdown-item" @click="openEditorFromMenu(cardType.id, close)">
+                Edit
+              </button>
+              <button
+                v-if="!cardType.isSystem"
+                type="button"
+                class="bo-dropdown-item"
+                @click="setAsDefaultFromMenu(cardType.id, close)"
+              >
+                Set as default
+              </button>
+            </template>
+          </BoDropdown>
         </div>
       </article>
     </section>
@@ -56,10 +56,11 @@
 </template>
 
 <script setup lang="ts">
-import { Pencil, Plus } from 'lucide-vue-next';
+import { MoreVertical, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import BoDropdown from '../components/BoDropdown.vue';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 
@@ -125,6 +126,16 @@ async function setAsDefault(cardTypeId: number) {
   }
 
   await setDefaultCardType(cardTypeId, routeBoardId.value);
+}
+
+async function openEditorFromMenu(cardTypeId: number, close: () => void) {
+  close();
+  await openEditor(cardTypeId);
+}
+
+async function setAsDefaultFromMenu(cardTypeId: number, close: () => void) {
+  close();
+  await setAsDefault(cardTypeId);
 }
 </script>
 
