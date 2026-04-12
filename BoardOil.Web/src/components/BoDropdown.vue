@@ -8,7 +8,7 @@
     <button
       type="button"
       class="btn btn--secondary bo-dropdown-trigger"
-      :class="{ 'btn--icon': isIconOnly }"
+      :class="[buttonClass, { 'btn--icon': isIconOnly }]"
       :disabled="disabled"
       :aria-expanded="isOpen"
       :aria-controls="menuId"
@@ -42,6 +42,7 @@ const props = withDefaults(defineProps<{
   iconOnly?: boolean;
   disabled?: boolean;
   open?: boolean | null;
+  buttonClass?: string | string[] | Record<string, boolean> | null;
 }>(), {
   align: 'left',
   iconOnly: false,
@@ -49,7 +50,8 @@ const props = withDefaults(defineProps<{
   text: null,
   icon: null,
   iconSize: 18,
-  open: null
+  open: null,
+  buttonClass: null
 });
 
 const emit = defineEmits<{
