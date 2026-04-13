@@ -169,15 +169,20 @@ button:disabled {
 
 .btn-group {
   display: inline-flex;
-  align-items: center;
+  align-items: stretch;
 }
 
 .btn-group > * + * {
   margin-left: -1px;
 }
 
+.btn-group > .bo-dropdown {
+  display: inline-flex;
+}
+
 .btn-group > .btn,
 .btn-group > .bo-dropdown .bo-dropdown-trigger {
+  height: 100%;
   border-radius: 0;
 }
 
