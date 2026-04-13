@@ -571,6 +571,7 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
   justify-content: space-between;
   gap: 0.5rem;
   align-items: center;
+  padding-right: 0.5rem;
 }
 
 .column-heading {
