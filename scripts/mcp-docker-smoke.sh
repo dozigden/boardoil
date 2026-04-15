@@ -3,6 +3,7 @@ set -euo pipefail
 
 API_URL="http://localhost:5000"
 MCP_URL="$API_URL/mcp"
+COMPOSE_FILE="docker-compose.dev.yml"
 ADMIN_USER="admin"
 ADMIN_PASSWORD="Password1234!"
 CARD_TITLE="mcp-smoke-$(date +%s)"
@@ -40,12 +41,12 @@ normalise_mcp_json() {
 
 cleanup() {
   rm -f "$COOKIE_JAR" >/dev/null 2>&1 || true
-  docker compose down --remove-orphans >/dev/null 2>&1 || true
+  docker compose -f "$COMPOSE_FILE" down --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
 echo "[smoke] Starting compose stack"
-docker compose up --build -d
+docker compose -f "$COMPOSE_FILE" up --build -d
 
 echo "[smoke] Waiting for API health"
 for _ in $(seq 1 60); do
