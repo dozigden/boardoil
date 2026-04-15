@@ -9,44 +9,31 @@ It's got a REST API and MCP server.
 It's written in .NET and Vue3.  I deploy it myself via Docker, so that's had the most testing.
 
 > Warning
-> This project is mostly a learning experience. Use at own risk.
+> While I rely on this project for much of my own work it is mostly a learning experience. Use at own risk.
 
-## Quick Start (Docker)
-Run from repository root:
+## Quick Start - Docker compose
+The docker-compose.yml pulls the latest published image.
 
-```bash
-docker compose up --build -d
-```
+If you're doing anything more than just trying it out you should set the signing key, and turn off insecure cookies once youre running https; both in the environment settings of the compose file.
+
 
 Open: `http://localhost:5000`
 
 Stop:
 
 ```bash
-docker compose down
+docker compose -f docker-compose.dev.yml down
 ```
 
-## Required Production Setup
-Before real deployment, set a strong signing key:
-- `BoardOilAuth__SigningKey` must be at least 32 characters.
-- Set `BoardOilAuth__AllowInsecureCookies: "false"` and configure https.
+### Data volume
 
-## Data & Persistence
-Docker compose uses a named volume:
-- `boardoil-data` mounted at `/data`
-- SQLite file: `/data/boardoil.db`
+The SQLite database is kept in the data volume.  On release of a new version, before the database is updated, a backup copy is made within a 'backups' folder, backups older than 30 days are deleted.
 
-Back up by copying the SQLite file while the app is stopped.
-
-## Troubleshooting
-`401` right after login (especially from another device):
-- If running plain HTTP with secure cookies, session cookies will not be sent.
-- Enable `BoardOilAuth__AllowInsecureCookies=true` for HTTP mode.
-
-`CSRF validation failed` during setup/login flow:
-- Clear `boardoil_access`, `boardoil_refresh`, `boardoil_csrf` cookies and retry.
+You should backup the data volume as you see fit.
 
 ## Development
+
+### Local build
 Restore/install:
 
 ```bash
@@ -58,4 +45,11 @@ Run backend + frontend:
 
 ```bash
 ./dev-startall.sh
+```
+
+### Compose
+`docker-compose.dev.yml` builds the image from the local source tree and tags it as `boardoil:dev`.  Use it for testing local Docker builds:
+
+```bash
+docker compose -f docker-compose.dev.yml up --build -d
 ```

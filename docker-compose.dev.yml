@@ -1,0 +1,24 @@
+services:
+  boardoil:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        BO_VERSION: "${BO_VERSION:-0.2.0-dev}"
+        BO_CHANNEL: "${BO_CHANNEL:-dev}"
+        BO_BUILD: "${BO_BUILD:-local}"
+        BO_COMMIT: "${BO_COMMIT:-unknown}"
+    image: boardoil:dev
+    container_name: boardoil
+    ports:
+      - "5000:5000"
+    environment:
+      ASPNETCORE_URLS: "http://0.0.0.0:5000"
+      BoardOilAuth__AllowInsecureCookies: "true"
+    volumes:
+      - boardoil-data:/data
+    restart: unless-stopped
+
+volumes:
+  boardoil-data:
