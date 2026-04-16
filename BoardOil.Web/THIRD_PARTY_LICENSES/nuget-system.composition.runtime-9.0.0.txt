@@ -1,0 +1,7 @@
+NuGet Package: System.Composition.Runtime
+Version: 9.0.0
+Declared Licence Expression: MIT
+Licence Reference: https://licenses.nuget.org/MIT
+Copyright: © Microsoft Corporation. All rights reserved.
+
+This package declares a licence expression in its NuGet metadata. Refer to the linked licence text for obligations.

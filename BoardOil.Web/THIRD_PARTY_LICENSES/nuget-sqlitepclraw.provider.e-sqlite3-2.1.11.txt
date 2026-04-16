@@ -1,0 +1,7 @@
+NuGet Package: SQLitePCLRaw.provider.e_sqlite3
+Version: 2.1.11
+Declared Licence Expression: Apache-2.0
+Licence Reference: https://licenses.nuget.org/Apache-2.0
+Copyright: Copyright 2014-2024 SourceGear, LLC
+
+This package declares a licence expression in its NuGet metadata. Refer to the linked licence text for obligations.
