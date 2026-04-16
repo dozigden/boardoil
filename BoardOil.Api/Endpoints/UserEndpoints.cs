@@ -33,11 +33,15 @@ public static class UserEndpoints
                 userAdminService.UpdateUserStatusAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("System Users");
+        app.MapPut("/api/system/users/{id:int}/password", (int id, ResetUserPasswordRequest request, IUserAdminService userAdminService) =>
+                userAdminService.ResetUserPasswordAsync(id, request).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("System Users");
         app.MapDelete("/api/system/users/{id:int}", async (int id, ClaimsPrincipal user, IUserAdminService userAdminService) =>
             {
                 if (!user.TryGetUserId(out var actorUserId))
                 {
-                    return ((ApiResult)ApiErrors.Unauthorized("Invalid identity context.")).ToHttpResult();
+                    return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
                 }
 
                 return (await userAdminService.DeleteUserAsync(id, actorUserId)).ToHttpResult();

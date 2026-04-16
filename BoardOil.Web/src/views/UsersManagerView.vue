@@ -51,6 +51,9 @@
               <button type="button" class="bo-dropdown-item" :disabled="busy" @click="toggleStatusFromMenu(user.id, user.isActive, close)">
                 {{ user.isActive ? 'Deactivate' : 'Activate' }}
               </button>
+              <button type="button" class="bo-dropdown-item" :disabled="busy" @click="openResetPasswordFromMenu(user, close)">
+                Reset password
+              </button>
               <span class="bo-dropdown-divider" aria-hidden="true"></span>
               <button
                 type="button"
@@ -67,6 +70,14 @@
     </section>
 
     <UserCreateDialog :open="isCreateDialogOpen" :busy="busy" @close="closeCreateDialog" @submit="createUser" />
+    <PasswordResetDialog
+      :open="isResetPasswordDialogOpen"
+      :busy="busy"
+      mode="admin"
+      :target-user-name="userForPasswordReset?.userName"
+      @close="closeResetPasswordDialog"
+      @submit="submitResetPassword"
+    />
   </section>
 </template>
 
@@ -76,6 +87,7 @@ import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
 import { createSystemApi } from '../api/systemApi';
 import BoDropdown from '../components/BoDropdown.vue';
+import PasswordResetDialog from '../components/PasswordResetDialog.vue';
 import UserCreateDialog from '../components/UserCreateDialog.vue';
 import { useAuthStore } from '../stores/authStore';
 import type { ManagedUser } from '../types/authTypes';
@@ -88,6 +100,8 @@ const busy = ref(false);
 const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const isCreateDialogOpen = ref(false);
+const isResetPasswordDialogOpen = ref(false);
+const userForPasswordReset = ref<ManagedUser | null>(null);
 
 async function loadUsers() {
   busy.value = true;
@@ -113,6 +127,16 @@ function closeCreateDialog() {
   isCreateDialogOpen.value = false;
 }
 
+function openResetPasswordDialog(user: ManagedUser) {
+  userForPasswordReset.value = user;
+  isResetPasswordDialogOpen.value = true;
+}
+
+function closeResetPasswordDialog() {
+  isResetPasswordDialogOpen.value = false;
+  userForPasswordReset.value = null;
+}
+
 async function createUser(payload: { userName: string; password: string; role: 'Admin' | 'Standard' }) {
   busy.value = true;
   errorMessage.value = null;
@@ -127,6 +151,30 @@ async function createUser(payload: { userName: string; password: string; role: '
     users.value = [...users.value, result.data].sort((a, b) => a.userName.localeCompare(b.userName));
     isCreateDialogOpen.value = false;
     successMessage.value = `Created user ${result.data.userName}.`;
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function submitResetPassword(payload: { currentPassword?: string; newPassword: string }) {
+  const selectedUser = userForPasswordReset.value;
+  if (!selectedUser) {
+    return;
+  }
+
+  busy.value = true;
+  errorMessage.value = null;
+  successMessage.value = null;
+  try {
+    const result = await systemApi.resetUserPassword(selectedUser.id, payload.newPassword);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    isResetPasswordDialogOpen.value = false;
+    userForPasswordReset.value = null;
+    successMessage.value = `Password reset for ${selectedUser.userName}.`;
   } finally {
     busy.value = false;
   }
@@ -213,6 +261,11 @@ async function toggleStatusFromMenu(userId: number, currentState: boolean, close
 async function deleteUserFromMenu(user: ManagedUser, close: () => void) {
   close();
   await deleteUser(user);
+}
+
+function openResetPasswordFromMenu(user: ManagedUser, close: () => void) {
+  close();
+  openResetPasswordDialog(user);
 }
 
 onMounted(async () => {

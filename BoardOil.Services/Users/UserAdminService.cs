@@ -1,5 +1,6 @@
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Users;
+using BoardOil.Persistence.Abstractions.Auth;
 using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Users;
 using BoardOil.Contracts.Contracts;
@@ -11,6 +12,7 @@ namespace BoardOil.Services.Users;
 
 public sealed class UserAdminService(
     IUserRepository userRepository,
+    IRefreshTokenRepository refreshTokenRepository,
     IPasswordHashService passwordHashService,
     TimeProvider timeProvider,
     IDbContextScopeFactory scopeFactory) : IUserAdminService
@@ -124,6 +126,31 @@ public sealed class UserAdminService(
         return user.ToManagedUserDto();
     }
 
+    public async Task<ApiResult> ResetUserPasswordAsync(int id, ResetUserPasswordRequest request)
+    {
+        using var scope = scopeFactory.Create();
+
+        var user = userRepository.Get(id);
+        if (user is null || user.IdentityType != UserIdentityType.User)
+        {
+            return ApiErrors.NotFound("User not found.");
+        }
+
+        var passwordValidation = ValidatePassword(request.NewPassword, "newPassword");
+        if (passwordValidation.Count > 0)
+        {
+            return ApiErrors.BadRequest("Validation failed.", passwordValidation);
+        }
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        user.PasswordHash = passwordHashService.HashPassword(request.NewPassword);
+        user.UpdatedAtUtc = now;
+        await refreshTokenRepository.RevokeActiveTokensByUserIdAsync(user.Id, now);
+        await scope.SaveChangesAsync();
+
+        return ApiResults.Ok();
+    }
+
     public async Task<ApiResult> DeleteUserAsync(int id, int actorUserId)
     {
         using var scope = scopeFactory.Create();
@@ -167,13 +194,21 @@ public sealed class UserAdminService(
             errors.Add(new ValidationError("userName", "Username must be between 1 and 64 characters."));
         }
 
+        errors.AddRange(ValidatePassword(password, "password"));
+
+        return errors;
+    }
+
+    private static IReadOnlyList<ValidationError> ValidatePassword(string password, string fieldName)
+    {
+        var errors = new List<ValidationError>();
         if (string.IsNullOrWhiteSpace(password))
         {
-            errors.Add(new ValidationError("password", "Password is required."));
+            errors.Add(new ValidationError(fieldName, "Password is required."));
         }
         else if (password.Length < 10)
         {
-            errors.Add(new ValidationError("password", "Password must be at least 10 characters."));
+            errors.Add(new ValidationError(fieldName, "Password must be at least 10 characters."));
         }
 
         return errors;

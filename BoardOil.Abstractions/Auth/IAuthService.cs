@@ -8,6 +8,7 @@ public interface IAuthService
 {
     Task<ApiResult<AuthSessionTokens>> RegisterInitialAdminAsync(RegisterInitialAdminRequest request);
     Task<ApiResult<AuthSessionTokens>> LoginAsync(LoginRequest request);
+    Task<ApiResult> ChangeOwnPasswordAsync(int userId, ChangeOwnPasswordRequest request);
     Task<ApiResult<AuthSessionTokens>> RefreshAsync(string? refreshToken);
     Task<ApiResult> LogoutAsync(string? refreshToken);
     Task<ApiResult<CreatedMachinePatDto>> CreateMachinePatAsync(int userId, CreateMachinePatRequest request);

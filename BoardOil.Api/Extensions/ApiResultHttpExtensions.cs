@@ -5,6 +5,9 @@ namespace BoardOil.Api.Extensions;
 
 public static class ApiResultHttpExtensions
 {
+    public static IResult ToHttpResult(this ApiError error) =>
+        ((ApiResult)error).ToHttpResult();
+
     public static IResult ToHttpResult(this ApiResult result) =>
         Results.Json(result, statusCode: result.StatusCode);
 

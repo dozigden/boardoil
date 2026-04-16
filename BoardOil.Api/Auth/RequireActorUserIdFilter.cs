@@ -9,7 +9,7 @@ internal sealed class RequireActorUserIdFilter : IEndpointFilter
     {
         if (!context.HttpContext.User.TryGetUserId(out var actorUserId))
         {
-            return ((ApiResult)ApiErrors.Unauthorized("Invalid identity context.")).ToHttpResult();
+            return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
         }
 
         context.HttpContext.SetActorUserId(actorUserId);

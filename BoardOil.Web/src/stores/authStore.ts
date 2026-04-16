@@ -93,6 +93,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function changeOwnPassword(currentPassword: string, newPassword: string) {
+    busy.value = true;
+    errorMessage.value = null;
+    try {
+      const result = await api.changeOwnPassword(currentPassword, newPassword);
+      if (!result.ok) {
+        errorMessage.value = result.error.message;
+        return false;
+      }
+
+      clearSession();
+      return true;
+    } finally {
+      busy.value = false;
+    }
+  }
+
   async function logout() {
     busy.value = true;
     try {
@@ -123,6 +140,7 @@ export const useAuthStore = defineStore('auth', () => {
     initialize,
     login,
     registerInitialAdmin,
+    changeOwnPassword,
     logout,
     handleUnauthorized
   };

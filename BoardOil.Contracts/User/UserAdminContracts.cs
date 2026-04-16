@@ -45,3 +45,4 @@ public sealed record CreatedClientAccountDto(
 public sealed record UpdateUserRoleRequest(string Role);
 
 public sealed record UpdateUserStatusRequest(bool IsActive);
+public sealed record ResetUserPasswordRequest(string NewPassword);

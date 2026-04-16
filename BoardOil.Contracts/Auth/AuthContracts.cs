@@ -3,6 +3,7 @@ namespace BoardOil.Contracts.Auth;
 public sealed record RegisterInitialAdminRequest(string UserName, string Password);
 
 public sealed record LoginRequest(string UserName, string Password);
+public sealed record ChangeOwnPasswordRequest(string CurrentPassword, string NewPassword);
 
 public sealed record MachineRefreshRequest(string RefreshToken);
 
