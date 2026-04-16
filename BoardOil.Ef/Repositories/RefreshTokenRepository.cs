@@ -15,4 +15,16 @@ public sealed class RefreshTokenRepository(IAmbientDbContextLocator ambientDbCon
         DbSet
             .Include(x => x.User)
             .FirstOrDefaultAsync(x => x.TokenHash == tokenHash);
+
+    public async Task RevokeActiveTokensByUserIdAsync(int userId, DateTime revokedAtUtc)
+    {
+        var activeTokens = await DbSet
+            .Where(x => x.UserId == userId && x.RevokedAtUtc == null)
+            .ToListAsync();
+
+        foreach (var token in activeTokens)
+        {
+            token.RevokedAtUtc = revokedAtUtc;
+        }
+    }
 }

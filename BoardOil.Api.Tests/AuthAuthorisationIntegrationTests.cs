@@ -316,6 +316,65 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AdminUser_ResetUserPassword_ShouldAllowLoginWithNewPasswordOnly()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var memberClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await LoginAsAsync(memberClient, "member", "Password1234!");
+
+        // Act
+        var resetResponse = await adminClient.PutAsJsonAsync(
+            $"/api/system/users/{memberUserId}/password",
+            new ResetUserPasswordRequest("FreshPassword1234!"));
+        var oldLoginResponse = await memberClient.PostAsJsonAsync("/api/auth/login", new LoginRequest("member", "Password1234!"));
+        var newLoginResponse = await memberClient.PostAsJsonAsync("/api/auth/login", new LoginRequest("member", "FreshPassword1234!"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, resetResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, oldLoginResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, newLoginResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardUser_ResetUserPassword_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.PutAsJsonAsync(
+            $"/api/system/users/{memberUserId}/password",
+            new ResetUserPasswordRequest("FreshPassword1234!"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminUser_ResetUserPassword_WithInvalidNewPassword_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+
+        // Act
+        var response = await adminClient.PutAsJsonAsync(
+            $"/api/system/users/{memberUserId}/password",
+            new ResetUserPasswordRequest("short"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task StandardUser_GetConfiguration_ShouldReturnForbidden()
     {
         // Arrange
@@ -519,6 +578,7 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
 
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record CreateUserRequest(string UserName, string Password, string Role);
+    private sealed record ResetUserPasswordRequest(string NewPassword);
     private sealed record CreateClientAccountRequest(string UserName, string Role);
     private sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);
     private sealed record AuthSessionEnvelope(string CsrfToken);

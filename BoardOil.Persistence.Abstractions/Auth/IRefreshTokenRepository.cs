@@ -7,4 +7,5 @@ public interface IRefreshTokenRepository : IRepositoryBase<EntityRefreshToken>
 {
     Task<EntityRefreshToken?> GetByHashAsync(string tokenHash);
     Task<EntityRefreshToken?> GetWithUserByHashAsync(string tokenHash);
+    Task RevokeActiveTokensByUserIdAsync(int userId, DateTime revokedAtUtc);
 }

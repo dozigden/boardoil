@@ -7,6 +7,7 @@ public interface IAuthHttpSessionService
 {
     Task<IResult> RegisterInitialAdminAsync(RegisterInitialAdminRequest request, HttpResponse response);
     Task<IResult> LoginAsync(LoginRequest request, HttpResponse response);
+    Task<IResult> ChangeOwnPasswordAsync(ChangeOwnPasswordRequest request, ClaimsPrincipal claimsPrincipal, HttpResponse response);
     Task<IResult> RefreshAsync(HttpRequest request, HttpResponse response);
     Task<IResult> LogoutAsync(HttpRequest request, HttpResponse response);
     IResult GetCsrf(HttpRequest request, HttpResponse response);

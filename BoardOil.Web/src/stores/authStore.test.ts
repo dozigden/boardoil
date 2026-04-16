@@ -9,6 +9,7 @@ const authApi = {
   registerInitialAdmin: vi.fn(),
   login: vi.fn(),
   logout: vi.fn(),
+  changeOwnPassword: vi.fn(),
   getMe: vi.fn(),
   getCsrfToken: vi.fn(),
   getBootstrapStatus: vi.fn()
@@ -163,6 +164,37 @@ describe('authStore', () => {
     expect(store.user).toBeNull();
     expect(store.isAuthenticated).toBe(false);
     expect(setCsrfToken).toHaveBeenLastCalledWith(null);
+  });
+
+  it('changeOwnPassword clears local session on success', async () => {
+    const store = useAuthStore();
+    authApi.login.mockResolvedValue(
+      ok<AuthSession>({
+        user: { id: 1, userName: 'admin', role: 'Admin' },
+        accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
+        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
+        csrfToken: 'csrf-login'
+      })
+    );
+    authApi.changeOwnPassword.mockResolvedValue(ok(undefined));
+    await store.login('admin', 'Password1234!');
+
+    const success = await store.changeOwnPassword('Password1234!', 'BetterPassword1234!');
+
+    expect(success).toBe(true);
+    expect(store.user).toBeNull();
+    expect(setCsrfToken).toHaveBeenLastCalledWith(null);
+  });
+
+  it('changeOwnPassword exposes API error message on failure', async () => {
+    const store = useAuthStore();
+    const apiError: AppError = { kind: 'api', message: 'Current password is incorrect.' };
+    authApi.changeOwnPassword.mockResolvedValue(err(apiError));
+
+    const success = await store.changeOwnPassword('bad', 'BetterPassword1234!');
+
+    expect(success).toBe(false);
+    expect(store.errorMessage).toBe('Current password is incorrect.');
   });
 
   it('handleUnauthorized clears local session immediately', async () => {

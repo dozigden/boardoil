@@ -110,6 +110,46 @@ public sealed class AuthService(
         return session;
     }
 
+    public async Task<ApiResult> ChangeOwnPasswordAsync(int userId, ChangeOwnPasswordRequest request)
+    {
+        using var scope = scopeFactory.Create();
+
+        var user = authUserRepository.Get(userId);
+        if (user is null || !user.IsActive)
+        {
+            return ApiErrors.Unauthorized("User is not active.");
+        }
+
+        if (user.IdentityType == UserIdentityType.Client)
+        {
+            return ApiErrors.Forbidden("Client accounts cannot change passwords.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+        {
+            return ApiErrors.BadRequest("Validation failed.", [new ValidationError("currentPassword", "Current password is required.")]);
+        }
+
+        if (!passwordHashService.VerifyPassword(request.CurrentPassword, user.PasswordHash))
+        {
+            return ApiErrors.Unauthorized("Current password is incorrect.");
+        }
+
+        var passwordValidation = ValidatePassword(request.NewPassword, "newPassword");
+        if (passwordValidation.Count > 0)
+        {
+            return ApiErrors.BadRequest("Validation failed.", passwordValidation);
+        }
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        user.PasswordHash = passwordHashService.HashPassword(request.NewPassword);
+        user.UpdatedAtUtc = now;
+        await refreshTokenRepository.RevokeActiveTokensByUserIdAsync(user.Id, now);
+        await scope.SaveChangesAsync();
+
+        return ApiResults.Ok();
+    }
+
     public async Task<ApiResult<CreatedMachinePatDto>> CreateMachinePatAsync(int userId, CreateMachinePatRequest request)
     {
         using var scope = scopeFactory.Create();
@@ -372,13 +412,21 @@ public sealed class AuthService(
             errors.Add(new ValidationError("userName", "Username must be between 1 and 64 characters."));
         }
 
+        errors.AddRange(ValidatePassword(password, "password"));
+
+        return errors;
+    }
+
+    private static IReadOnlyList<ValidationError> ValidatePassword(string password, string fieldName)
+    {
+        var errors = new List<ValidationError>();
         if (string.IsNullOrWhiteSpace(password))
         {
-            errors.Add(new ValidationError("password", "Password is required."));
+            errors.Add(new ValidationError(fieldName, "Password is required."));
         }
         else if (password.Length < 10)
         {
-            errors.Add(new ValidationError("password", "Password must be at least 10 characters."));
+            errors.Add(new ValidationError(fieldName, "Password must be at least 10 characters."));
         }
 
         return errors;

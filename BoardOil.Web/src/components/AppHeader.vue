@@ -32,6 +32,8 @@
           :icon="CircleUserRound"
         >
           <template #default="{ close }">
+            <button type="button" class="bo-dropdown-item" @click="openPasswordResetDialog(close)">Reset password</button>
+            <span class="bo-dropdown-divider" aria-hidden="true"></span>
             <RouterLink :to="{ name: 'access-tokens' }" class="bo-dropdown-item" @click="close">Access tokens</RouterLink>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
             <button type="button" class="bo-dropdown-item" @click="handleLogout(close)">Logout</button>
@@ -71,10 +73,38 @@
     </div>
   </header>
   <AboutDialog :open="aboutDialogOpen" @close="closeAboutDialog" />
+  <PasswordResetDialog
+    :open="passwordResetDialogOpen"
+    :busy="busy"
+    mode="self"
+    @close="closePasswordResetDialog"
+    @submit="submitPasswordReset"
+  />
+  <ModalDialog
+    :open="passwordResetSuccessDialogOpen"
+    title="Password Reset Complete"
+    close-label="Continue to login"
+    @close="acknowledgePasswordReset"
+    @submit="acknowledgePasswordReset"
+  >
+    <p class="password-reset-success-copy">
+      Password reset successful. You are now signed out.
+    </p>
+
+    <template #actions>
+      <div class="editor-actions card-modal-actions">
+        <div class="card-modal-actions-left">
+          <button type="submit" class="btn" aria-label="Continue to login" title="Continue to login">
+            <span>OK</span>
+          </button>
+        </div>
+      </div>
+    </template>
+  </ModalDialog>
 </template>
 
 <script setup lang="ts">
-import { CircleUserRound, Settings, SlidersHorizontal } from 'lucide-vue-next';
+import { CircleUserRound, Settings } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -83,16 +113,20 @@ import BoardOilDrop from './BoardOilDrop.vue';
 import BoardOilLogo from './BoardOilLogo.vue';
 import BoDropdown from './BoDropdown.vue';
 import HeaderBoardPicker from './HeaderBoardPicker.vue';
+import ModalDialog from './ModalDialog.vue';
+import PasswordResetDialog from './PasswordResetDialog.vue';
 import { getBrandTarget } from './appHeaderNavigation';
 import { useAuthStore } from '../stores/authStore';
 import { useBoardCatalogueStore } from '../stores/boardCatalogueStore';
 import { useBoardStore } from '../stores/boardStore';
 const aboutDialogOpen = ref(false);
+const passwordResetDialogOpen = ref(false);
+const passwordResetSuccessDialogOpen = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
 const boardCatalogueStore = useBoardCatalogueStore();
 const boardStore = useBoardStore();
-const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
+const { user, isAuthenticated, isAdmin, busy } = storeToRefs(authStore);
 const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId } = storeToRefs(boardStore);
 const userName = computed(() => user.value?.userName ?? '');
@@ -119,6 +153,34 @@ async function openAboutDialog(close?: () => void) {
 
 function closeAboutDialog() {
   aboutDialogOpen.value = false;
+}
+
+async function openPasswordResetDialog(close?: () => void) {
+  close?.();
+  passwordResetDialogOpen.value = true;
+}
+
+function closePasswordResetDialog() {
+  passwordResetDialogOpen.value = false;
+}
+
+async function submitPasswordReset(payload: { currentPassword?: string; newPassword: string }) {
+  if (!payload.currentPassword) {
+    return;
+  }
+
+  const success = await authStore.changeOwnPassword(payload.currentPassword, payload.newPassword);
+  if (!success) {
+    return;
+  }
+
+  passwordResetDialogOpen.value = false;
+  passwordResetSuccessDialogOpen.value = true;
+}
+
+async function acknowledgePasswordReset() {
+  passwordResetSuccessDialogOpen.value = false;
+  await router.replace({ name: 'login', query: { passwordReset: '1' } });
 }
 </script>
 
@@ -248,6 +310,11 @@ function closeAboutDialog() {
 
 .menu-trigger::-webkit-details-marker {
   display: none;
+}
+
+.password-reset-success-copy {
+  margin: 0 0 0.75rem;
+  color: var(--bo-ink-muted);
 }
 
 @media (max-width: 720px) {

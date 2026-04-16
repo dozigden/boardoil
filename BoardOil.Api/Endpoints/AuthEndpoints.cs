@@ -18,6 +18,10 @@ public static class AuthEndpoints
         app.MapPost("/api/auth/login", (LoginRequest request, IAuthHttpSessionService authHttpService, HttpResponse response) =>
                 authHttpService.LoginAsync(request, response))
             .WithTags("Auth");
+        app.MapPost("/api/auth/change-password", (ChangeOwnPasswordRequest request, IAuthHttpSessionService authHttpService, ClaimsPrincipal claimsPrincipal, HttpResponse response) =>
+                authHttpService.ChangeOwnPasswordAsync(request, claimsPrincipal, response))
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
+            .WithTags("Auth");
         app.MapPost("/api/auth/refresh", (IAuthHttpSessionService authHttpService, HttpRequest request, HttpResponse response) =>
                 authHttpService.RefreshAsync(request, response))
             .WithTags("Auth");
@@ -96,7 +100,7 @@ public static class AuthEndpoints
     {
         if (!TryGetUserId(claimsPrincipal, out var userId))
         {
-            return ((ApiResult)ApiErrors.Unauthorized("Invalid identity context.")).ToHttpResult();
+            return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
         }
 
         var result = await authService.CreateMachinePatAsync(userId, request);
@@ -112,7 +116,7 @@ public static class AuthEndpoints
     {
         if (!TryGetUserId(claimsPrincipal, out var userId))
         {
-            return ((ApiResult)ApiErrors.Unauthorized("Invalid identity context.")).ToHttpResult();
+            return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
         }
 
         return (await authService.ListMachinePatsAsync(userId)).ToHttpResult();
@@ -122,7 +126,7 @@ public static class AuthEndpoints
     {
         if (!TryGetUserId(claimsPrincipal, out var userId))
         {
-            return ((ApiResult)ApiErrors.Unauthorized("Invalid identity context.")).ToHttpResult();
+            return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
         }
 
         return (await authService.RevokeMachinePatAsync(userId, id)).ToHttpResult();

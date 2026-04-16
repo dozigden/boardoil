@@ -38,6 +38,24 @@ public sealed class AuthHttpSessionService(
         return ApiResults.Ok(result.Data.ToDto()).ToHttpResult();
     }
 
+    public async Task<IResult> ChangeOwnPasswordAsync(ChangeOwnPasswordRequest request, ClaimsPrincipal claimsPrincipal, HttpResponse response)
+    {
+        var userIdClaim = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+        {
+            return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
+        }
+
+        var result = await authService.ChangeOwnPasswordAsync(userId, request);
+        if (!result.Success)
+        {
+            return result.ToHttpResult();
+        }
+
+        ClearAuthCookies(response);
+        return ApiResults.Ok().ToHttpResult();
+    }
+
     public async Task<IResult> RefreshAsync(HttpRequest request, HttpResponse response)
     {
         request.Cookies.TryGetValue(jwtOptions.RefreshTokenCookieName, out var refreshToken);

@@ -26,18 +26,18 @@ public static class InternalRealtimeEndpoints
     {
         if (!IsEndpointEnabled(options))
         {
-            return ((ApiResult)ApiErrors.NotFound("Not found.")).ToHttpResult();
+            return ApiErrors.NotFound("Not found.").ToHttpResult();
         }
 
         if (!IsAuthorised(httpContext, options))
         {
-            return ((ApiResult)ApiErrors.Unauthorized("Unauthorised.")).ToHttpResult();
+            return ApiErrors.Unauthorized("Unauthorised.").ToHttpResult();
         }
 
         var validationError = Validate(request);
         if (validationError is not null)
         {
-            return ((ApiResult)validationError).ToHttpResult();
+            return validationError.ToHttpResult();
         }
 
         await DispatchAsync(request, boardEvents);

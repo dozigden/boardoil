@@ -27,6 +27,10 @@ export function createAuthApi() {
     return postJson('/api/auth/logout', {});
   }
 
+  async function changeOwnPassword(currentPassword: string, newPassword: string): Promise<Result<void, AppError>> {
+    return postJson('/api/auth/change-password', { currentPassword, newPassword });
+  }
+
   async function getMe(): Promise<Result<AuthUser | null, AppError>> {
     const envelopeResult = await getEnvelope<AuthUser>('/api/auth/me');
     if (!envelopeResult.ok) {
@@ -86,6 +90,7 @@ export function createAuthApi() {
     registerInitialAdmin,
     login,
     logout,
+    changeOwnPassword,
     getMe,
     getCsrfToken,
     getBootstrapStatus,

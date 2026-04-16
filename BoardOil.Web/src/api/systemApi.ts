@@ -12,7 +12,7 @@ import type {
 } from '../types/authTypes';
 import type { ConfigurationDto, UpdateConfigurationRequest } from '../types/configurationTypes';
 import { err, ok } from '../types/result';
-import { deleteJson, getEnvelope, patchData, postData, putData } from './http';
+import { deleteJson, getEnvelope, patchData, postData, putData, putJson } from './http';
 
 export type SystemApi = ReturnType<typeof createSystemApi>;
 
@@ -92,6 +92,10 @@ export function createSystemApi() {
     return putData<ManagedUser>(`/api/system/users/${userId}/status`, { isActive });
   }
 
+  async function resetUserPassword(userId: number, newPassword: string): Promise<Result<void, AppError>> {
+    return putJson(`/api/system/users/${userId}/password`, { newPassword });
+  }
+
   async function deleteUser(userId: number): Promise<Result<void, AppError>> {
     return deleteJson(`/api/system/users/${userId}`);
   }
@@ -145,6 +149,7 @@ export function createSystemApi() {
     createUser,
     updateUserRole,
     updateUserStatus,
+    resetUserPassword,
     deleteUser,
     getClientAccounts,
     createClientAccount,
