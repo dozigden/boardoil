@@ -135,8 +135,8 @@ public sealed class CardService(
     {
         using var scope = _scopeFactory.Create();
 
-        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate);
-        if (!hasPermission)
+        var hasUpdatePermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate);
+        if (!hasUpdatePermission)
         {
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
@@ -153,6 +153,26 @@ public sealed class CardService(
             return ValidationFail(updateValidationErrors);
         }
 
+        var currentColumnId = existingCard.BoardColumnId;
+        var requestedColumnId = request.BoardColumnId ?? currentColumnId;
+        if (request.BoardColumnId is int explicitColumnId && explicitColumnId != currentColumnId)
+        {
+            var hasMovePermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardMove);
+            if (!hasMovePermission)
+            {
+                return ApiErrors.Forbidden("You do not have permission for this action.");
+            }
+        }
+
+        if (request.BoardColumnId is int updateColumnId)
+        {
+            var targetColumn = columnRepository.Get(updateColumnId);
+            if (targetColumn is null || targetColumn.BoardId != boardId)
+            {
+                return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
+            }
+        }
+
         var updatedTitle = request.Title.Trim();
         var updatedDescription = request.Description;
         var now = DateTime.UtcNow;
@@ -161,6 +181,20 @@ public sealed class CardService(
         if (selectedCardType is null)
         {
             return ValidationFail([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
+        }
+
+        var movementChanged = requestedColumnId != currentColumnId;
+        string? targetSortKey = null;
+        if (movementChanged)
+        {
+            var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(requestedColumnId))
+                .Where(x => x.Id != id)
+                .ToList();
+            var nextKey = targetCards.Count > 0 ? targetCards[0].SortKey : null;
+            if (!TryGenerateSortKey(null, nextKey, out targetSortKey, out var allocationError))
+            {
+                return allocationError!;
+            }
         }
 
         var updatedTagNames = updatedTags
@@ -174,7 +208,7 @@ public sealed class CardService(
             || updatedDescription != existingCard.Description
             || tagsChanged
             || cardTypeChanged;
-        if (metadataChanged)
+        if (metadataChanged || movementChanged)
         {
             existingCard.Title = updatedTitle;
             existingCard.Description = updatedDescription;
@@ -189,12 +223,25 @@ public sealed class CardService(
                 existingCard.CardType = selectedCardType;
             }
 
+            if (movementChanged)
+            {
+                existingCard.BoardColumnId = requestedColumnId;
+                existingCard.SortKey = targetSortKey!;
+            }
+
             existingCard.UpdatedAtUtc = now;
             await scope.SaveChangesAsync();
         }
 
         var dto = existingCard.ToCardDto();
-        await _boardEvents.CardUpdatedAsync(boardId, dto);
+        if (movementChanged)
+        {
+            await _boardEvents.CardMovedAsync(boardId, dto);
+        }
+        else
+        {
+            await _boardEvents.CardUpdatedAsync(boardId, dto);
+        }
 
         return dto;
     }

@@ -14,7 +14,7 @@ public sealed class CardUpdateTool(
     private readonly ICardService _cardService = cardService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardUpdate, "Update card title, description, and tags.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput);
+        new(ToolNames.CardUpdate, "Update card title, description, tags, and optional target column.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -27,6 +27,7 @@ public sealed class CardUpdateTool(
         [
             ..McpToolCallHelpers.ValidateRequiredIdentifier(input.BoardId, "boardId"),
             ..McpToolCallHelpers.ValidateRequiredIdentifier(input.Id, "id"),
+            ..McpToolCallHelpers.ValidateOptionalIdentifier(input.ColumnId, "columnId"),
             ..McpToolCallHelpers.ValidateRequiredIdentifier(input.CardTypeId, "cardTypeId")
         ];
         if (validationErrors.Count > 0)
@@ -43,7 +44,7 @@ public sealed class CardUpdateTool(
             return Failure(accessError);
         }
 
-        var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames, input.CardTypeId!.Value);
+        var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames, input.CardTypeId!.Value, input.ColumnId);
         var result = await _cardService.UpdateCardAsync(boardId, cardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {

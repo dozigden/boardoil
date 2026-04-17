@@ -32,7 +32,30 @@
             />
           </div>
 
-          <label class="card-editor-card-type-field">
+          <div class="card-editor-select-field card-editor-column-picker">
+            <span class="card-editor-field-label">Column</span>
+            <BoDropdown
+              class="card-editor-column-dropdown"
+              align="left"
+              label="Select column"
+              :text="selectedBoardColumnLabel"
+            >
+              <template #default="{ close }">
+                <button
+                  v-for="column in boardColumns"
+                  :key="column.id"
+                  type="button"
+                  class="bo-dropdown-item"
+                  @click="setDraftBoardColumnId(column.id, close)"
+                >
+                  <span class="bo-dropdown-item-main">{{ column.title }}</span>
+                  <span v-if="column.id === cardDraft.boardColumnId" class="badge bo-dropdown-item-meta">Selected</span>
+                </button>
+              </template>
+            </BoDropdown>
+          </div>
+
+          <label class="card-editor-select-field">
             <span class="card-editor-field-label">Type</span>
             <select
               :value="cardDraft.cardTypeId ?? ''"
@@ -77,6 +100,7 @@ import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MdEditor from './MdEditor.vue';
+import BoDropdown from './BoDropdown.vue';
 import CardTagEditor from './CardTagEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import ModalDialog from './ModalDialog.vue';
@@ -98,7 +122,7 @@ const { saveCard: saveCardAction, deleteCard } = cardStore;
 const { loadCardTypes } = cardTypeStore;
 const { ensureTagsExist } = tagStore;
 const maxDescriptionLength = 20_000;
-type CardDraft = { id: number; title: string; description: string; tagNames: string[]; cardTypeId: number | null };
+type CardDraft = { id: number; title: string; description: string; tagNames: string[]; cardTypeId: number | null; boardColumnId: number };
 
 const cardDraft = ref<CardDraft | null>(null);
 
@@ -115,6 +139,14 @@ const routeBoardId = computed<number | null>(() => {
 });
 
 const editingCard = computed(() => cardStore.getCardById(routeCardId.value));
+const boardColumns = computed(() => board.value?.columns ?? []);
+const selectedBoardColumnLabel = computed(() => {
+  if (!cardDraft.value) {
+    return 'Select column';
+  }
+
+  return boardColumns.value.find(column => column.id === cardDraft.value!.boardColumnId)?.title ?? 'Select column';
+});
 const selectedCardTypeEmoji = computed(() => {
   return resolveSelectedCardTypeEmoji(
     cardDraft.value?.cardTypeId ?? null,
@@ -169,6 +201,18 @@ function setDraftCardTypeId(rawValue: string) {
   };
 }
 
+function setDraftBoardColumnId(boardColumnId: number, close?: () => void) {
+  if (!cardDraft.value) {
+    return;
+  }
+
+  cardDraft.value = {
+    ...cardDraft.value,
+    boardColumnId
+  };
+  close?.();
+}
+
 async function saveCard() {
   if (!cardDraft.value || cardDraft.value.cardTypeId === null) {
     return;
@@ -179,7 +223,8 @@ async function saveCard() {
     cardDraft.value.title,
     cardDraft.value.description,
     cardDraft.value.tagNames,
-    cardDraft.value.cardTypeId
+    cardDraft.value.cardTypeId,
+    cardDraft.value.boardColumnId
   );
   await closeCardEditor();
 }
@@ -237,16 +282,35 @@ watch(
         title: nextCard.title,
         description: normaliseDescription(nextCard.description),
         tagNames: [...nextCard.tagNames],
-        cardTypeId: nextCard.cardTypeId
+        cardTypeId: nextCard.cardTypeId,
+        boardColumnId: nextCard.boardColumnId
       };
       return;
     }
 
-    const draftCardTypeExists = cardDraft.value.cardTypeId !== null
-      && cardTypes.value.some(x => x.id === cardDraft.value!.cardTypeId);
+    const draft = cardDraft.value;
+    if (!draft) {
+      return;
+    }
+
+    const draftColumnExists = nextBoard.columns.some(x => x.id === draft.boardColumnId);
+    if (!draftColumnExists) {
+      cardDraft.value = {
+        ...draft,
+        boardColumnId: nextCard.boardColumnId
+      };
+    }
+
+    const nextDraft = cardDraft.value;
+    if (!nextDraft) {
+      return;
+    }
+
+    const draftCardTypeExists = nextDraft.cardTypeId !== null
+      && cardTypes.value.some(x => x.id === nextDraft.cardTypeId);
     if (!draftCardTypeExists) {
       cardDraft.value = {
-        ...cardDraft.value,
+        ...nextDraft,
         cardTypeId: resolveDraftCardTypeId(
           null,
           systemCardType.value?.id ?? null,
@@ -284,10 +348,24 @@ watch(
   overflow: hidden;
 }
 
-.card-editor-card-type-field {
+.card-editor-select-field {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.card-editor-column-picker :deep(.bo-dropdown) {
+  width: 100%;
+}
+
+.card-editor-column-picker :deep(.bo-dropdown-trigger) {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.card-editor-column-picker :deep(.bo-dropdown-panel) {
+  width: 100%;
+  min-width: 0;
 }
 
 .card-editor-option-section {
@@ -371,11 +449,11 @@ watch(
     min-width: 0;
   }
 
-  .card-editor-card-type-field {
+  .card-editor-select-field {
     min-width: 0;
   }
 
-  .card-editor-card-type-field select {
+  .card-editor-select-field select {
     min-width: 0;
   }
 

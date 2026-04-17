@@ -100,6 +100,7 @@ public sealed record CardUpdateInput
 {
     public int? BoardId { get; init; }
     public int? Id { get; init; }
+    public int? ColumnId { get; init; }
     public int? CardTypeId { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;

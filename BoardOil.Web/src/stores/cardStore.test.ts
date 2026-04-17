@@ -244,10 +244,11 @@ describe('cardStore', () => {
     };
     api.saveCard.mockResolvedValue(ok(updated));
 
-    await store.saveCard(101, 'Task A+', 'Updated', ['Bug'], 1);
+    await store.saveCard(101, 'Task A+', 'Updated', ['Bug'], 1, 1);
 
     expect(store.getCardById(101)?.title).toBe('Task A+');
     expect(store.getCardById(101)?.tagNames).toEqual(['Bug']);
+    expect(api.saveCard).toHaveBeenCalledWith(1, 101, 'Task A+', 'Updated', ['Bug'], 1, 1);
   });
 
   it('removeTagFromCards strips matching tags case-insensitively', () => {

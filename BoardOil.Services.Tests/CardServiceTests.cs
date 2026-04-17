@@ -272,6 +272,71 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task UpdateCardAsync_WhenBoardColumnIdChanges_ShouldMoveCardToTopOfTargetColumn()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateCardAsync(1, movingCardId, new UpdateCardRequest(
+            Title: "Move me updated",
+            Description: "updated",
+            TagNames: [],
+            CardTypeId: systemCardTypeId,
+            BoardColumnId: doingColumnId), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(doingColumnId, result.Data!.BoardColumnId);
+        Assert.Equal("Move me updated", result.Data.Title);
+        Assert.Equal("updated", result.Data.Description);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Equal(["Move me updated", "A", "B"], doingTitles);
+    }
+
+    [Fact]
+    public async Task UpdateCardAsync_WhenBoardColumnIdMatchesCurrentColumn_ShouldNotReorderCards()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("Middle", "2")
+            .AddCard("B", "3")
+            .Build();
+        var middleCardId = board.GetCard("Todo", "Middle").Id;
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateCardAsync(1, middleCardId, new UpdateCardRequest(
+            Title: "Middle updated",
+            Description: "2",
+            TagNames: [],
+            CardTypeId: systemCardTypeId,
+            BoardColumnId: todoColumnId), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(todoColumnId, result.Data!.BoardColumnId);
+        var todoTitles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
+        Assert.Equal(["A", "Middle updated", "B"], todoTitles);
+    }
+
+    [Fact]
     public async Task MoveCardAsync_WhenReorderingWithinSameColumn_ShouldReorder()
     {
         // Arrange
@@ -380,6 +445,34 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.False(result.Success);
         Assert.Equal(404, result.StatusCode);
         Assert.Equal("Card not found.", result.Message);
+    }
+
+    [Fact]
+    public async Task UpdateCardAsync_WhenTargetColumnMissing_ShouldReturnValidationErrorForBoardColumnId()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Card", "Desc")
+            .AddColumn("Doing")
+            .Build();
+        var cardId = board.GetCard("Todo", "Card").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest(
+            Title: "Card",
+            Description: "Desc",
+            TagNames: [],
+            CardTypeId: systemCardTypeId,
+            BoardColumnId: 999_999), ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("boardColumnId"));
     }
 
     [Fact]

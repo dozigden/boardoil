@@ -35,7 +35,7 @@ public sealed class CardValidator(
         return tagValidationErrors;
     }
 
-    public Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(UpdateCardRequest request)
+    public async Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(UpdateCardRequest request)
     {
         var errors = new List<ValidationError>();
         if (request.Title.IsTrimmedNullOrEmpty())
@@ -66,18 +66,34 @@ public sealed class CardValidator(
             errors.Add(new ValidationError("cardTypeId", "Card type is required."));
         }
 
+        if (request.BoardColumnId is int boardColumnId)
+        {
+            if (boardColumnId <= 0)
+            {
+                errors.Add(new ValidationError("boardColumnId", "Column is required."));
+            }
+            else
+            {
+                var columnExists = await _cardRepository.ColumnExistsAsync(boardColumnId);
+                if (!columnExists)
+                {
+                    errors.Add(new ValidationError("boardColumnId", "Column does not exist."));
+                }
+            }
+        }
+
         if (errors.Count > 0)
         {
-            return Task.FromResult<IReadOnlyList<ValidationError>>(errors);
+            return errors;
         }
 
         var tagValidationErrors = ValidateTagNames(request.TagNames!);
         if (tagValidationErrors.Count > 0)
         {
-            return Task.FromResult(tagValidationErrors);
+            return tagValidationErrors;
         }
 
-        return Task.FromResult<IReadOnlyList<ValidationError>>(Array.Empty<ValidationError>());
+        return Array.Empty<ValidationError>();
     }
 
     private static void ValidateTitle(string title, ICollection<ValidationError> errors)
