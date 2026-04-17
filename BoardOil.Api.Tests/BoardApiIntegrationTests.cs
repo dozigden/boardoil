@@ -365,6 +365,41 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task Swagger_RequestSchemas_ShouldMarkNonNullableReferencePropertiesAsRequired()
+    {
+        // Arrange
+        var swaggerResponse = await Client.GetAsync("/swagger/v1/swagger.json");
+        swaggerResponse.EnsureSuccessStatusCode();
+        await using var swaggerStream = await swaggerResponse.Content.ReadAsStreamAsync();
+        using var swaggerDocument = await JsonDocument.ParseAsync(swaggerStream);
+
+        var components = swaggerDocument.RootElement.GetProperty("components");
+        var schemas = components.GetProperty("schemas");
+        var createCardSchema = schemas.GetProperty("CreateCardRequest");
+        var required = createCardSchema.TryGetProperty("required", out var requiredElement)
+            ? requiredElement.EnumerateArray().Select(x => x.GetString()).ToArray()
+            : [];
+        var properties = createCardSchema.GetProperty("properties");
+        var boardColumnIdSchema = properties.GetProperty("boardColumnId");
+        var titleSchema = properties.GetProperty("title");
+
+        // Assert: CreateCardRequest
+        Assert.DoesNotContain("boardColumnId", required);
+        Assert.Contains("title", required);
+        Assert.Contains("description", required);
+        Assert.True(boardColumnIdSchema.TryGetProperty("nullable", out var boardColumnNullable));
+        Assert.True(boardColumnNullable.GetBoolean());
+        Assert.False(titleSchema.TryGetProperty("nullable", out var titleNullable) && titleNullable.GetBoolean());
+
+        // Assert: CreateBoardRequest (proves this is global, not card-specific)
+        var createBoardSchema = schemas.GetProperty("CreateBoardRequest");
+        var createBoardRequired = createBoardSchema.GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
+        var createBoardNameSchema = createBoardSchema.GetProperty("properties").GetProperty("name");
+        Assert.Contains("name", createBoardRequired);
+        Assert.False(createBoardNameSchema.TryGetProperty("nullable", out var createBoardNameNullable) && createBoardNameNullable.GetBoolean());
+    }
+
+    [Fact]
     public async Task CardEndpoints_ShouldCreateCard_WithTagNames()
     {
         // Arrange
