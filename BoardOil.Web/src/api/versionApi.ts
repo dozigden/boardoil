@@ -12,7 +12,7 @@ export type BuildInfo = {
 
 export function getFrontendBuildInfo(): BuildInfo {
   return {
-    version: normaliseString(import.meta.env.VITE_BO_VERSION as string | undefined, '0.2.0'),
+    version: requiredString(import.meta.env.VITE_BO_VERSION as string | undefined, 'VITE_BO_VERSION'),
     channel: normaliseString(import.meta.env.VITE_BO_CHANNEL as string | undefined, 'dev').toLowerCase(),
     build: normaliseString(import.meta.env.VITE_BO_BUILD as string | undefined, 'local'),
     commit: normaliseString(import.meta.env.VITE_BO_COMMIT as string | undefined, 'unknown')
@@ -44,4 +44,13 @@ export async function getBackendBuildInfo(): Promise<Result<BuildInfo, AppError>
 function normaliseString(value: string | undefined, fallback: string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : fallback;
+}
+
+function requiredString(value: string | undefined, name: string) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    throw new Error(`Missing required frontend build metadata: ${name}`);
+  }
+
+  return trimmed;
 }
