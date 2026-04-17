@@ -303,6 +303,19 @@ function getNuGetPackageRoot(packageName, version) {
   return path.join(os.homedir(), ".nuget", "packages", packageName.toLowerCase(), version.toLowerCase());
 }
 
+function toPosixPath(filePath) {
+  return filePath.split(path.sep).join("/");
+}
+
+function getNuGetManifestSourceFile(packageName, version, packageRoot, sourcePath) {
+  const relativePath = path.relative(packageRoot, sourcePath);
+  const safeRelativePath =
+    relativePath.startsWith("..") || path.isAbsolute(relativePath) ? path.basename(sourcePath) : relativePath;
+  return `~/.nuget/packages/${packageName.toLowerCase()}/${version.toLowerCase()}/${toPosixPath(
+    safeRelativePath
+  )}`;
+}
+
 async function findNuspecFile(packageRoot, packageName) {
   const expectedPath = path.join(packageRoot, `${packageName.toLowerCase()}.nuspec`);
   if (await fileExists(expectedPath)) {
@@ -599,7 +612,12 @@ async function main() {
     }
 
     const declaredLicence = nuspecMetadata.licenceValue ?? nuspecMetadata.licenceUrl ?? "unknown";
-    const relativeNuspecPath = path.relative(projectRoot, nuspecPath);
+    const nugetManifestNuspecPath = getNuGetManifestSourceFile(
+      nugetPackage.packageName,
+      nugetPackage.version,
+      packageRoot,
+      nuspecPath
+    );
 
     if (nuspecMetadata.licenceType === "file" && nuspecMetadata.licenceValue) {
       const relativeLicencePath = nuspecMetadata.licenceValue.replace(/\\/g, "/");
@@ -626,7 +644,12 @@ async function main() {
         version: nugetPackage.version,
         declaredLicence,
         sourceType: "nuget-package-file",
-        sourceFile: path.relative(projectRoot, sourcePath),
+        sourceFile: getNuGetManifestSourceFile(
+          nugetPackage.packageName,
+          nugetPackage.version,
+          packageRoot,
+          sourcePath
+        ),
         outputFile: path.relative(projectRoot, outputPath)
       });
       continue;
@@ -652,7 +675,7 @@ async function main() {
         version: nugetPackage.version,
         declaredLicence,
         sourceType: "nuget-license-expression",
-        sourceFile: relativeNuspecPath,
+        sourceFile: nugetManifestNuspecPath,
         outputFile: path.relative(projectRoot, outputPath)
       });
       continue;
@@ -667,7 +690,12 @@ async function main() {
         version: nugetPackage.version,
         declaredLicence,
         sourceType: "package",
-        sourceFile: path.relative(projectRoot, sourcePath),
+        sourceFile: getNuGetManifestSourceFile(
+          nugetPackage.packageName,
+          nugetPackage.version,
+          packageRoot,
+          sourcePath
+        ),
         outputFile: path.relative(projectRoot, outputPath)
       });
       continue;
@@ -688,7 +716,7 @@ async function main() {
         version: nugetPackage.version,
         declaredLicence,
         sourceType: "nuget-license-url",
-        sourceFile: relativeNuspecPath,
+        sourceFile: nugetManifestNuspecPath,
         outputFile: path.relative(projectRoot, outputPath)
       });
       continue;
