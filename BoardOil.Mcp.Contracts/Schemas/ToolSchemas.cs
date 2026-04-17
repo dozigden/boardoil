@@ -53,6 +53,7 @@ public static class ToolSchemas
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
         "id": { "type": "integer", "minimum": 1 },
+        "columnId": { "type": ["integer", "null"], "minimum": 1 },
         "cardTypeId": { "type": "integer", "minimum": 1 },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
         "description": { "type": "string", "maxLength": 20000 },

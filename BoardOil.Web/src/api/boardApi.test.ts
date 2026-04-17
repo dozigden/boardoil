@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import { createBoardApi } from './boardApi';
-import { getBinary, postFormData } from './http';
+import { getBinary, postFormData, putData } from './http';
 
 vi.mock('./http', () => ({
   deleteJson: vi.fn(),
@@ -91,5 +91,41 @@ describe('boardApi importBoardPackage', () => {
     const uploadedFile = payload?.get('file');
     expect(uploadedFile).toBeInstanceOf(File);
     expect((uploadedFile as File).name).toBe('board.boardoil.zip');
+  });
+});
+
+describe('boardApi saveCard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('sends boardColumnId in update payload', async () => {
+    const card = {
+      id: 99,
+      boardColumnId: 3,
+      cardTypeId: 1,
+      cardTypeName: 'Story',
+      cardTypeEmoji: null,
+      title: 'Updated card',
+      description: 'Updated',
+      sortKey: '00000000000000000001',
+      tags: [],
+      tagNames: [],
+      createdAtUtc: '2026-04-17T00:00:00Z',
+      updatedAtUtc: '2026-04-17T00:00:00Z'
+    };
+    vi.mocked(putData).mockResolvedValue(ok(card));
+
+    const api = createBoardApi();
+    const result = await api.saveCard(1, 99, 'Updated card', 'Updated', ['Bug'], 1, 3);
+
+    expect(result.ok).toBe(true);
+    expect(putData).toHaveBeenCalledWith('/api/boards/1/cards/99', {
+      title: 'Updated card',
+      description: 'Updated',
+      tagNames: ['Bug'],
+      cardTypeId: 1,
+      boardColumnId: 3
+    });
   });
 });

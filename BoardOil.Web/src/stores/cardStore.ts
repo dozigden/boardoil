@@ -86,6 +86,7 @@ export const useCardStore = defineStore('card', () => {
     description: string,
     tagNames: string[],
     cardTypeId: number,
+    boardColumnId: number,
     boardId: number | null = activeBoardId.value
   ) {
     const resolvedBoardId = resolveBoardId(boardId);
@@ -93,7 +94,7 @@ export const useCardStore = defineStore('card', () => {
       return;
     }
 
-    const result = await runBusy(() => api.saveCard(resolvedBoardId, cardId, title, description, tagNames, cardTypeId));
+    const result = await runBusy(() => api.saveCard(resolvedBoardId, cardId, title, description, tagNames, cardTypeId, boardColumnId));
     if (!result.ok) {
       return;
     }

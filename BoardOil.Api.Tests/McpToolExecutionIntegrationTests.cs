@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using Xunit;
@@ -369,6 +370,161 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task CardUpdate_WithColumnId_ShouldMoveCardToTopOfTargetColumn()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+
+        var createColumnResponse = await client.PostAsJsonAsync(
+            "/api/boards/1/columns",
+            new
+            {
+                title = "Doing"
+            });
+        createColumnResponse.EnsureSuccessStatusCode();
+
+        var boardGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-for-card-update-column-id",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
+        using var boardGetPayload = await McpJsonRpcClient.ParseJsonAsync(boardGetResponse);
+
+        var columns = McpJsonRpcClient.GetStructuredContent(boardGetPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .ToArray();
+        var todoColumnId = columns.Single(column => column.GetProperty("title").GetString() == "Todo").GetProperty("id").GetInt32();
+        var doingColumnId = columns.Single(column => column.GetProperty("title").GetString() == "Doing").GetProperty("id").GetInt32();
+
+        var existingAResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = doingColumnId,
+                    title = "Existing A",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-existing-a",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, existingAResponse.StatusCode);
+
+        var existingBResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = doingColumnId,
+                    title = "Existing B",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-existing-b",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, existingBResponse.StatusCode);
+
+        var createResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = todoColumnId,
+                    title = "Move me",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-move-me",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
+
+        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
+        var createdCardId = createdCard.GetProperty("id").GetInt32();
+        var createdCardTypeId = createdCard.GetProperty("cardTypeId").GetInt32();
+
+        // Act
+        var updateResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.update",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = createdCardId,
+                    columnId = doingColumnId,
+                    cardTypeId = createdCardTypeId,
+                    title = "Move me updated",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-update-with-column-id",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var verifyResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-after-card-update-column-id",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, verifyResponse.StatusCode);
+        using var verifyPayload = await McpJsonRpcClient.ParseJsonAsync(verifyResponse);
+
+        // Assert
+        var verifyColumns = McpJsonRpcClient.GetStructuredContent(verifyPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .ToArray();
+        var todoCards = verifyColumns
+            .Single(column => column.GetProperty("id").GetInt32() == todoColumnId)
+            .GetProperty("cards")
+            .EnumerateArray()
+            .ToArray();
+        var doingCards = verifyColumns
+            .Single(column => column.GetProperty("id").GetInt32() == doingColumnId)
+            .GetProperty("cards")
+            .EnumerateArray()
+            .ToArray();
+
+        Assert.Empty(todoCards);
+        Assert.Equal("Move me updated", doingCards[0].GetProperty("title").GetString());
+        Assert.Equal("Existing B", doingCards[1].GetProperty("title").GetString());
+        Assert.Equal("Existing A", doingCards[2].GetProperty("title").GetString());
     }
 
     [Fact]

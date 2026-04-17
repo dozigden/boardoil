@@ -138,8 +138,10 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
 
         var cardUpdateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "card.update");
         var cardUpdateProperties = cardUpdateTool.GetProperty("inputSchema").GetProperty("properties");
+        Assert.True(cardUpdateProperties.TryGetProperty("columnId", out _));
         Assert.True(cardUpdateProperties.TryGetProperty("cardTypeId", out _));
         var cardUpdateRequired = cardUpdateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.DoesNotContain("columnId", cardUpdateRequired);
         Assert.Contains("cardTypeId", cardUpdateRequired);
     }
 

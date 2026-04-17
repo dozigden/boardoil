@@ -146,13 +146,15 @@ export function createBoardApi() {
     title: string,
     description: string,
     tagNames: string[],
-    cardTypeId: number
+    cardTypeId: number,
+    boardColumnId: number
   ): Promise<Result<Card, AppError>> {
     return putData<Card>(`/api/boards/${boardId}/cards/${cardId}`, {
       title,
       description,
       tagNames,
-      cardTypeId
+      cardTypeId,
+      boardColumnId
     });
   }
 

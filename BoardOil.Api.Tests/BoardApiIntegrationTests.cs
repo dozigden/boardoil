@@ -536,6 +536,60 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_UpdateWithBoardColumnId_ShouldMoveCardToTopOfTargetColumn()
+    {
+        // Arrange
+        var createdTodoColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdTodoColumnResponse.EnsureSuccessStatusCode();
+        var createdTodoColumn = await createdTodoColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdTodoColumn);
+        Assert.NotNull(createdTodoColumn!.Data);
+
+        var createdDoingColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Doing"));
+        createdDoingColumnResponse.EnsureSuccessStatusCode();
+        var createdDoingColumn = await createdDoingColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdDoingColumn);
+        Assert.NotNull(createdDoingColumn!.Data);
+
+        var movingCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdTodoColumn.Data!.Id, "Move me", "Desc", null));
+        movingCardResponse.EnsureSuccessStatusCode();
+        var movingCard = await movingCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(movingCard);
+        Assert.NotNull(movingCard!.Data);
+
+        var existingAResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdDoingColumn.Data!.Id, "Existing A", "Desc", null));
+        existingAResponse.EnsureSuccessStatusCode();
+        var existingBResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdDoingColumn.Data!.Id, "Existing B", "Desc", null));
+        existingBResponse.EnsureSuccessStatusCode();
+
+        var cardTypesEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
+        Assert.NotNull(cardTypesEnvelope);
+        Assert.NotNull(cardTypesEnvelope!.Data);
+        var systemCardType = Assert.Single(cardTypesEnvelope.Data!, x => x.IsSystem);
+
+        // Act
+        var updatedCardResponse = await Client.PutAsJsonAsync(
+            $"/api/boards/1/cards/{movingCard.Data!.Id}",
+            new UpdateCardRequest("Move me updated", "Updated", [], systemCardType.Id, createdDoingColumn.Data.Id));
+        updatedCardResponse.EnsureSuccessStatusCode();
+
+        // Assert
+        var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.NotNull(board);
+        Assert.NotNull(board!.Data);
+        var todoState = board.Data.Columns.Single(x => x.Id == createdTodoColumn.Data.Id);
+        var doingState = board.Data.Columns.Single(x => x.Id == createdDoingColumn.Data.Id);
+        Assert.Empty(todoState.Cards);
+        Assert.Equal(["Move me updated", "Existing B", "Existing A"], doingState.Cards.Select(x => x.Title).ToArray());
+    }
+
+    [Fact]
     public async Task CardEndpoints_UpdateWithoutCardTypeId_ShouldReturnValidationError()
     {
         // Arrange
