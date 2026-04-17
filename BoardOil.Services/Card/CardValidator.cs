@@ -21,11 +21,14 @@ public sealed class CardValidator(
             return errors;
         }
 
-        var columnExists = await _cardRepository.ColumnExistsAsync(request.BoardColumnId);
-        if (!columnExists)
+        if (request.BoardColumnId is int boardColumnId)
         {
-            errors.Add(new ValidationError("boardColumnId", "Column does not exist."));
-            return errors;
+            var columnExists = await _cardRepository.ColumnExistsAsync(boardColumnId);
+            if (!columnExists)
+            {
+                errors.Add(new ValidationError("boardColumnId", "Column does not exist."));
+                return errors;
+            }
         }
 
         var tagValidationErrors = ValidateTagNames(request.TagNames);

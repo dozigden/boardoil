@@ -64,8 +64,18 @@ public sealed class CardService(
             return ValidationFail(validationErrors);
         }
 
-        var targetColumn = columnRepository.Get(request.BoardColumnId);
-        if (targetColumn is null || targetColumn.BoardId != boardId)
+        var targetColumn = request.BoardColumnId is int boardColumnId
+            ? columnRepository.Get(boardColumnId)
+            : (await columnRepository.GetColumnsInBoardOrderedAsync(boardId)).FirstOrDefault();
+        if (targetColumn is null)
+        {
+            var message = request.BoardColumnId is null
+                ? "Board does not contain any columns."
+                : "Column does not exist in board.";
+            return ValidationFail([new ValidationError("boardColumnId", message)]);
+        }
+
+        if (targetColumn.BoardId != boardId)
         {
             return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
         }
@@ -86,7 +96,7 @@ public sealed class CardService(
 
         var selectedCardType = requestedCardType ?? systemCardType;
 
-        var cards = (await cardRepository.GetCardsInColumnOrderedAsync(request.BoardColumnId)).ToList();
+        var cards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id)).ToList();
 
         var previousKey = (string?)null;
         var nextKey = cards.Count > 0 ? cards[0].SortKey : null;
@@ -99,7 +109,7 @@ public sealed class CardService(
         var tags = await ResolveTagsAsync(boardId, request.TagNames ?? Array.Empty<string>(), now);
         var card = new EntityBoardCard
         {
-            BoardColumnId = request.BoardColumnId,
+            BoardColumnId = targetColumn.Id,
             CardTypeId = selectedCardType.Id,
             CardType = selectedCardType,
             Title = request.Title.Trim(),

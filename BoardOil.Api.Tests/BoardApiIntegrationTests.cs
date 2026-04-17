@@ -396,6 +396,36 @@ public sealed class BoardApiIntegrationTests
         Assert.Null(createdCard.Data.CardTypeEmoji);
     }
 
+    [Trait("Category", "Integration")]
+    [Trait("Consumer", "HA")]
+    [Trait("Surface", "REST")]
+    [Fact]
+    public async Task CardEndpoints_CreateWithoutBoardColumnId_ShouldCreateCardInLeftMostColumn()
+    {
+        // Arrange
+        var boardBefore = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.NotNull(boardBefore);
+        Assert.NotNull(boardBefore!.Data);
+        var leftMostColumnId = boardBefore.Data!.Columns[0].Id;
+
+        // Act
+        var createdCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new
+            {
+                title = "Task A",
+                description = "Desc",
+                tagNames = Array.Empty<string>()
+            });
+        createdCardResponse.EnsureSuccessStatusCode();
+        var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+
+        // Assert
+        Assert.NotNull(createdCard);
+        Assert.NotNull(createdCard!.Data);
+        Assert.Equal(leftMostColumnId, createdCard.Data!.BoardColumnId);
+    }
+
     [Fact]
     public async Task CardEndpoints_ShouldUpdateCard_TitleAndTagNames()
     {
