@@ -24,7 +24,7 @@ public sealed record CardDto(
 public sealed record CreateCardRequest(
     int? BoardColumnId,
     string Title,
-    string Description,
+    string? Description,
     IReadOnlyList<string>? TagNames,
     int? CardTypeId = null);
 

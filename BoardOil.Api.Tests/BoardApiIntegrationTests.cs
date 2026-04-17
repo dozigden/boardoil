@@ -382,14 +382,17 @@ public sealed class BoardApiIntegrationTests
         var properties = createCardSchema.GetProperty("properties");
         var boardColumnIdSchema = properties.GetProperty("boardColumnId");
         var titleSchema = properties.GetProperty("title");
+        var descriptionSchema = properties.GetProperty("description");
 
         // Assert: CreateCardRequest
         Assert.DoesNotContain("boardColumnId", required);
         Assert.Contains("title", required);
-        Assert.Contains("description", required);
+        Assert.DoesNotContain("description", required);
         Assert.True(boardColumnIdSchema.TryGetProperty("nullable", out var boardColumnNullable));
         Assert.True(boardColumnNullable.GetBoolean());
         Assert.False(titleSchema.TryGetProperty("nullable", out var titleNullable) && titleNullable.GetBoolean());
+        Assert.True(descriptionSchema.TryGetProperty("nullable", out var descriptionNullable));
+        Assert.True(descriptionNullable.GetBoolean());
 
         // Assert: CreateBoardRequest (proves this is global, not card-specific)
         var createBoardSchema = schemas.GetProperty("CreateBoardRequest");
@@ -459,6 +462,32 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(createdCard);
         Assert.NotNull(createdCard!.Data);
         Assert.Equal(leftMostColumnId, createdCard.Data!.BoardColumnId);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_CreateWithoutDescription_ShouldPersistEmptyDescription()
+    {
+        // Arrange
+        var boardBefore = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.NotNull(boardBefore);
+        Assert.NotNull(boardBefore!.Data);
+        var leftMostColumnId = boardBefore.Data!.Columns[0].Id;
+
+        // Act
+        var createdCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new
+            {
+                boardColumnId = leftMostColumnId,
+                title = "Task A"
+            });
+        createdCardResponse.EnsureSuccessStatusCode();
+        var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+
+        // Assert
+        Assert.NotNull(createdCard);
+        Assert.NotNull(createdCard!.Data);
+        Assert.Equal(string.Empty, createdCard.Data!.Description);
     }
 
     [Fact]

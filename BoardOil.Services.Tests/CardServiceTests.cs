@@ -73,6 +73,27 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task CreateCardAsync_WhenDescriptionIsNull_ShouldPersistEmptyString()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+
+        // Act
+        var service = CreateService();
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(todoColumnId, "New Card", null, null), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(string.Empty, result.Data!.Description);
+        var stored = await DbContextForAssert.Cards.SingleAsync();
+        Assert.Equal(string.Empty, stored.Description);
+    }
+
+    [Fact]
     public async Task CreateCardAsync_WhenTagsProvided_ShouldAssignTagsUsingExistingTagCatalogueEntries()
     {
         // Arrange

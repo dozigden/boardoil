@@ -106,6 +106,7 @@ public sealed class CardService(
         }
 
         var now = DateTime.UtcNow;
+        var description = request.Description ?? string.Empty;
         var tags = await ResolveTagsAsync(boardId, request.TagNames ?? Array.Empty<string>(), now);
         var card = new EntityBoardCard
         {
@@ -113,7 +114,7 @@ public sealed class CardService(
             CardTypeId = selectedCardType.Id,
             CardType = selectedCardType,
             Title = request.Title.Trim(),
-            Description = request.Description,
+            Description = description,
             SortKey = sortKey!,
             CreatedAtUtc = now,
             UpdatedAtUtc = now

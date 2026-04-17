@@ -15,7 +15,7 @@ public sealed class CardValidator(
     {
         var errors = new List<ValidationError>();
         ValidateTitle(request.Title, errors);
-        ValidateDescription(request.Description, errors);
+        ValidateDescription(request.Description ?? string.Empty, errors);
         if (errors.Count > 0)
         {
             return errors;
