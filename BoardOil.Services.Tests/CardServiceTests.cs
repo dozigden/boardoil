@@ -51,6 +51,28 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task CreateCardAsync_WhenColumnOmitted_ShouldCreateCardInLeftMostColumn()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing")
+            .Build();
+        var leftMostColumnId = board.GetColumn("Todo").Id;
+
+        // Act
+        var service = CreateService();
+        var result = await service.CreateCardAsync(1, new CreateCardRequest(null, "New Card", "Desc", null), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(leftMostColumnId, result.Data!.BoardColumnId);
+        var stored = await DbContextForAssert.Cards.SingleAsync();
+        Assert.Equal(leftMostColumnId, stored.BoardColumnId);
+    }
+
+    [Fact]
     public async Task CreateCardAsync_WhenTagsProvided_ShouldAssignTagsUsingExistingTagCatalogueEntries()
     {
         // Arrange

@@ -22,7 +22,7 @@ public sealed record CardDto(
     DateTime UpdatedAtUtc);
 
 public sealed record CreateCardRequest(
-    int BoardColumnId,
+    int? BoardColumnId,
     string Title,
     string Description,
     IReadOnlyList<string>? TagNames,
