@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-04-17T08:27:05.607Z",
+  "generatedAtUtc": "2026-04-17T21:15:40.494Z",
   "packageSource": "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -23,7 +23,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-link",
-      "version": "3.20.4",
+      "version": "3.22.3",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-link/LICENSE.md",
@@ -32,7 +32,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/markdown",
-      "version": "3.20.4",
+      "version": "3.22.3",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/markdown/LICENSE.md",
@@ -41,7 +41,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/pm",
-      "version": "3.20.4",
+      "version": "3.22.3",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/pm/LICENSE.md",
@@ -50,7 +50,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/starter-kit",
-      "version": "3.20.4",
+      "version": "3.22.3",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/starter-kit/LICENSE.md",
@@ -59,7 +59,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/vue-3",
-      "version": "3.20.4",
+      "version": "3.22.3",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/vue-3/LICENSE.md",
@@ -95,7 +95,7 @@
     {
       "ecosystem": "npm",
       "packageName": "vue",
-      "version": "3.5.30",
+      "version": "3.5.32",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/vue/LICENSE",
