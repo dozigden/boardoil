@@ -92,8 +92,5 @@ jobs:
             exit 1
           fi
 
-      - name: Run check
-        run: npm run check
-
-      - name: Run tests
-        run: npm test
+      - name: Verify frontend release gate
+        run: npm run verify-release
