@@ -209,6 +209,18 @@ async function loadPreviouslyManagedOutputFiles(licencesOutputDirectory) {
   }
 }
 
+async function loadExistingManifest(manifestPath) {
+  try {
+    return JSON.parse(await fs.readFile(manifestPath, "utf8"));
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 function getManifestPublicOutputFileName(outputFile) {
   return path.basename(outputFile);
 }
@@ -728,16 +740,32 @@ async function main() {
     }
   }
 
-  const manifest = {
-    generatedAtUtc: new Date().toISOString(),
+  const manifestPath = path.join(licencesOutputDirectory, "MANIFEST.json");
+  const manifestBase = {
     packageSource:
       "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
     copiedLicences,
     unresolvedPackages
   };
 
+  const existingManifest = await loadExistingManifest(manifestPath);
+  const existingCopiedLicences = existingManifest?.copiedLicences ?? [];
+  const existingUnresolvedPackages = existingManifest?.unresolvedPackages ?? [];
+  const shouldPreserveGeneratedAtUtc =
+    typeof existingManifest?.generatedAtUtc === "string" &&
+    existingManifest.packageSource === manifestBase.packageSource &&
+    JSON.stringify(existingCopiedLicences) === JSON.stringify(manifestBase.copiedLicences) &&
+    JSON.stringify(existingUnresolvedPackages) === JSON.stringify(manifestBase.unresolvedPackages);
+
+  const manifest = {
+    generatedAtUtc: shouldPreserveGeneratedAtUtc
+      ? existingManifest.generatedAtUtc
+      : new Date().toISOString(),
+    ...manifestBase
+  };
+
   await fs.writeFile(
-    path.join(licencesOutputDirectory, "MANIFEST.json"),
+    manifestPath,
     `${JSON.stringify(manifest, null, 2)}\n`,
     "utf8"
   );
