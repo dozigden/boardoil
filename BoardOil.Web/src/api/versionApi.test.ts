@@ -11,6 +11,8 @@ vi.mock('./http', () => ({
 }));
 
 describe('versionApi', () => {
+  const testVersion = '1.2.3-test';
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -57,14 +59,24 @@ describe('versionApi', () => {
     expect(result.error).toEqual(backendError);
   });
 
-  it('falls back to local defaults when frontend env vars are not set', () => {
+  it('returns frontend build metadata when version env var is set', () => {
+    vi.stubEnv('VITE_BO_VERSION', testVersion);
+
     const buildInfo = getFrontendBuildInfo();
 
     expect(buildInfo).toEqual({
-      version: '0.2.0',
+      version: testVersion,
       channel: 'dev',
       build: 'local',
       commit: 'unknown'
     });
+  });
+
+  it('throws when frontend version env var is missing', () => {
+    vi.stubEnv('VITE_BO_VERSION', '   ');
+
+    expect(() => getFrontendBuildInfo()).toThrowError(
+      'Missing required frontend build metadata: VITE_BO_VERSION'
+    );
   });
 });
