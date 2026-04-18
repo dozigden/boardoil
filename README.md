@@ -20,7 +20,7 @@ The docker-compose.yml pulls the latest published image.
 
 You will need to be authenticated to the GitHub registry in Docker, see https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 
-If you're doing anything more than just trying it out you should set the signing key, and turn off insecure cookies once youre running https; both in the environment settings of the compose file.
+If you're doing anything more than just trying it out you should set the signing key, and turn off insecure cookies once you're running https; both are in the environment settings of the compose file.
 
 ### Data volume
 
