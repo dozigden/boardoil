@@ -277,10 +277,38 @@ app.MapHub<BoardHub>("/hubs/board")
     .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
 
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        if (string.Equals(context.File.Name, "index.html", StringComparison.OrdinalIgnoreCase))
+        {
+            ApplySpaShellCacheHeaders(context.Context.Response);
+        }
+    }
+});
 
 // Frontend SPA fallback once frontend build output is copied into wwwroot.
-app.MapFallbackToFile("index.html");
+app.MapFallback(async context =>
+{
+    var webRootPath = app.Environment.WebRootPath;
+    if (string.IsNullOrWhiteSpace(webRootPath))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    var indexFilePath = Path.Combine(webRootPath, "index.html");
+    if (!File.Exists(indexFilePath))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    ApplySpaShellCacheHeaders(context.Response);
+    context.Response.ContentType = "text/html; charset=utf-8";
+    await context.Response.SendFileAsync(indexFilePath);
+});
 
 app.Run();
 
@@ -297,6 +325,12 @@ static bool IsPatAuthenticatedPrincipal(ClaimsPrincipal claimsPrincipal)
 {
     var authType = claimsPrincipal.FindFirst("boardoil_auth_type")?.Value;
     return string.Equals(authType, "pat", StringComparison.Ordinal);
+}
+
+static void ApplySpaShellCacheHeaders(HttpResponse response)
+{
+    response.Headers.CacheControl = "no-cache, must-revalidate";
+    response.Headers.Pragma = "no-cache";
 }
 
 public partial class Program;

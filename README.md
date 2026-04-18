@@ -16,14 +16,7 @@ The docker-compose.yml pulls the latest published image.
 
 If you're doing anything more than just trying it out you should set the signing key, and turn off insecure cookies once youre running https; both in the environment settings of the compose file.
 
-
 Open: `http://localhost:5000`
-
-Stop:
-
-```bash
-docker compose -f docker-compose.dev.yml down
-```
 
 ### Data volume
 
