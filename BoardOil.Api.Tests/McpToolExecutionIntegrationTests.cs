@@ -211,6 +211,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
 
         var boardData = McpJsonRpcClient.GetStructuredContent(boardGetPayload);
         Assert.True(boardData.TryGetProperty("id", out _));
+        Assert.True(boardData.TryGetProperty("description", out _));
         Assert.False(boardData.TryGetProperty("boardId", out _));
 
         var todoColumn = boardData

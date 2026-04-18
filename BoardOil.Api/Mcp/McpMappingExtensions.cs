@@ -11,6 +11,7 @@ public static class McpMappingExtensions
         new(
             board.Id,
             board.Name,
+            board.Description,
             board.UpdatedAtUtc,
             board.Columns
                 .Select(column => new McpColumnSnapshot(

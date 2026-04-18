@@ -24,8 +24,8 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     return true;
   }
 
-  async function createBoard(name: string) {
-    const result = await runBusy(() => api.createBoard(name));
+  async function createBoard(name: string, description?: string) {
+    const result = await runBusy(() => api.createBoard(name, description));
     if (!result.ok) {
       return null;
     }
@@ -33,6 +33,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     const created = {
       id: result.data.id,
       name: result.data.name,
+      description: result.data.description,
       createdAtUtc: result.data.createdAtUtc,
       updatedAtUtc: result.data.updatedAtUtc,
       currentUserRole: result.data.currentUserRole ?? null
@@ -50,6 +51,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     const created = {
       id: result.data.id,
       name: result.data.name,
+      description: result.data.description,
       createdAtUtc: result.data.createdAtUtc,
       updatedAtUtc: result.data.updatedAtUtc,
       currentUserRole: result.data.currentUserRole ?? null
@@ -67,6 +69,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     const created = {
       id: result.data.id,
       name: result.data.name,
+      description: result.data.description,
       createdAtUtc: result.data.createdAtUtc,
       updatedAtUtc: result.data.updatedAtUtc,
       currentUserRole: result.data.currentUserRole ?? null
@@ -75,8 +78,8 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     return created;
   }
 
-  async function saveBoard(boardId: number, name: string) {
-    const result = await runBusy(() => api.saveBoard(boardId, name));
+  async function saveBoard(boardId: number, name: string, description?: string) {
+    const result = await runBusy(() => api.saveBoard(boardId, name, description));
     if (!result.ok) {
       return null;
     }

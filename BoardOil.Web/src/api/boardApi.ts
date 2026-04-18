@@ -37,8 +37,8 @@ export function createBoardApi() {
     return ok(envelopeResult.data.data);
   }
 
-  async function createBoard(name: string): Promise<Result<Board, AppError>> {
-    return postData<Board>('/api/boards', { name });
+  async function createBoard(name: string, description?: string): Promise<Result<Board, AppError>> {
+    return postData<Board>('/api/boards', { name, description });
   }
 
   async function importTasksMdBoard(url: string): Promise<Result<Board, AppError>> {
@@ -68,8 +68,8 @@ export function createBoardApi() {
     });
   }
 
-  async function saveBoard(boardId: number, name: string): Promise<Result<BoardSummary, AppError>> {
-    return putData<BoardSummary>(`/api/boards/${boardId}`, { name });
+  async function saveBoard(boardId: number, name: string, description?: string): Promise<Result<BoardSummary, AppError>> {
+    return putData<BoardSummary>(`/api/boards/${boardId}`, { name, description });
   }
 
   async function deleteBoard(boardId: number): Promise<Result<void, AppError>> {

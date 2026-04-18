@@ -1,13 +1,14 @@
 export type BoardCreateMode = 'blank' | 'tasksmd' | 'package';
 
 export type BoardCreateDialogSubmitPayload =
-  | { mode: 'blank'; name: string }
+  | { mode: 'blank'; name: string; description: string }
   | { mode: 'tasksmd'; url: string }
   | { mode: 'package'; file: File; name?: string };
 
 export type BoardCreateDraft = {
   mode: BoardCreateMode;
   boardName: string;
+  boardDescription: string;
   tasksMdUrl: string;
   packageFile: File | null;
   packageBoardNameOverride: string;
@@ -31,7 +32,11 @@ export function canSubmitBoardCreateDraft(draft: BoardCreateDraft, busy: boolean
 
 export function buildBoardCreateSubmitPayload(draft: BoardCreateDraft): BoardCreateDialogSubmitPayload | null {
   if (draft.mode === 'blank') {
-    return { mode: 'blank', name: draft.boardName.trim() };
+    return {
+      mode: 'blank',
+      name: draft.boardName.trim(),
+      description: draft.boardDescription.trim()
+    };
   }
 
   if (draft.mode === 'tasksmd') {

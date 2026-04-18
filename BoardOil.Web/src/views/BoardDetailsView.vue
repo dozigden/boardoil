@@ -2,7 +2,7 @@
   <section class="board-details-page">
     <h2>Details</h2>
 
-    <form class="board-details-form" @submit.prevent="saveBoardName">
+    <form class="board-details-form" @submit.prevent="saveBoardDetails">
       <label>
         Board name
         <input
@@ -12,12 +12,21 @@
           required
         />
       </label>
+      <label>
+        Description (optional)
+        <textarea
+          v-model="boardDescriptionDraft"
+          :disabled="!isOwner || busy"
+          maxlength="5000"
+          rows="8"
+        ></textarea>
+      </label>
 
-      <p v-if="!isOwner" class="board-details-owner-note">Owner permission required to rename this board.</p>
+      <p v-if="!isOwner" class="board-details-owner-note">Owner permission required to edit this board.</p>
 
       <div class="board-details-actions">
         <button type="submit" class="btn" :disabled="!canSave">
-          Save name
+          Save details
         </button>
         <button type="button" class="btn btn--secondary" :disabled="busy || !hasChanges" @click="resetDraft">
           Reset
@@ -57,12 +66,16 @@ const { board } = storeToRefs(boardStore);
 const { applyBoardSummaryUpdate } = boardStore;
 const { busy } = storeToRefs(boardCatalogueStore);
 const boardNameDraft = ref('');
+const boardDescriptionDraft = ref('');
 const exporting = ref(false);
 
 const boardId = computed(() => resolveBoardId());
 const boardName = computed(() => board.value?.name ?? '');
+const boardDescription = computed(() => board.value?.description ?? '');
 const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
-const hasChanges = computed(() => boardNameDraft.value.trim() !== boardName.value.trim());
+const hasChanges = computed(() =>
+  boardNameDraft.value.trim() !== boardName.value.trim()
+  || boardDescriptionDraft.value.trim() !== boardDescription.value.trim());
 const canSave = computed(() => isOwner.value && !busy.value && boardNameDraft.value.trim().length > 0 && hasChanges.value);
 const canExport = computed(() => isOwner.value && !exporting.value);
 
@@ -81,21 +94,26 @@ watch(
     }
 
     boardNameDraft.value = board.value?.name ?? '';
+    boardDescriptionDraft.value = board.value?.description ?? '';
   },
   { immediate: true }
 );
 
 function resetDraft() {
   boardNameDraft.value = boardName.value;
+  boardDescriptionDraft.value = boardDescription.value;
 }
 
-async function saveBoardName() {
+async function saveBoardDetails() {
   const nextBoardId = boardId.value;
   if (nextBoardId === null || !canSave.value) {
     return;
   }
 
-  const saved = await boardCatalogueStore.saveBoard(nextBoardId, boardNameDraft.value.trim());
+  const saved = await boardCatalogueStore.saveBoard(
+    nextBoardId,
+    boardNameDraft.value.trim(),
+    boardDescriptionDraft.value.trim());
   if (!saved) {
     return;
   }
@@ -105,6 +123,7 @@ async function saveBoardName() {
   }
 
   boardNameDraft.value = saved.name;
+  boardDescriptionDraft.value = saved.description;
 }
 
 async function exportBoardPackage() {

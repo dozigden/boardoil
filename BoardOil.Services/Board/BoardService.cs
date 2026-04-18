@@ -21,6 +21,9 @@ public sealed class BoardService(
     IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory) : IBoardService
 {
+    private const int MaxBoardNameLength = 120;
+    private const int MaxBoardDescriptionLength = 5_000;
+
     public async Task<ApiResult<IReadOnlyList<BoardSummaryDto>>> GetBoardsAsync(int actorUserId)
     {
         using var scope = scopeFactory.CreateReadOnly();
@@ -30,6 +33,7 @@ public sealed class BoardService(
             .Select(x => new BoardSummaryDto(
                 x.Board.Id,
                 x.Board.Name,
+                x.Board.Description,
                 x.Board.CreatedAtUtc,
                 x.Board.UpdatedAtUtc,
                 x.Role.ToString()))
@@ -81,6 +85,7 @@ public sealed class BoardService(
         return new BoardDto(
             board.Id,
             board.Name,
+            board.Description,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             currentUserRole,
@@ -92,7 +97,13 @@ public sealed class BoardService(
         using var scope = scopeFactory.Create();
 
         var name = request.Name.Trim();
+        var description = NormaliseBoardDescription(request.Description);
         var validationError = ValidateBoardName(name);
+        if (validationError is null)
+        {
+            validationError = ValidateBoardDescription(description);
+        }
+
         if (validationError is not null)
         {
             return validationError;
@@ -102,6 +113,7 @@ public sealed class BoardService(
         var board = new EntityBoard
         {
             Name = name,
+            Description = description,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
@@ -152,6 +164,7 @@ public sealed class BoardService(
         return ApiResults.Created(new BoardDto(
             board.Id,
             board.Name,
+            board.Description,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             BoardMemberRole.Owner.ToString(),
@@ -175,21 +188,36 @@ public sealed class BoardService(
         }
 
         var updatedName = request.Name.Trim();
+        var updatedDescription = NormaliseBoardDescription(request.Description);
         var validationError = ValidateBoardName(updatedName);
+        if (validationError is null)
+        {
+            validationError = ValidateBoardDescription(updatedDescription);
+        }
+
         if (validationError is not null)
         {
             return validationError;
         }
 
-        if (!string.Equals(board.Name, updatedName, StringComparison.Ordinal))
+        var hasNameChanged = !string.Equals(board.Name, updatedName, StringComparison.Ordinal);
+        var hasDescriptionChanged = !string.Equals(board.Description, updatedDescription, StringComparison.Ordinal);
+        if (hasNameChanged || hasDescriptionChanged)
         {
             board.Name = updatedName;
+            board.Description = updatedDescription;
             board.UpdatedAtUtc = DateTime.UtcNow;
             await scope.SaveChangesAsync();
         }
 
         var membership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, actorUserId);
-        return new BoardSummaryDto(board.Id, board.Name, board.CreatedAtUtc, board.UpdatedAtUtc, membership?.Role.ToString());
+        return new BoardSummaryDto(
+            board.Id,
+            board.Name,
+            board.Description,
+            board.CreatedAtUtc,
+            board.UpdatedAtUtc,
+            membership?.Role.ToString());
     }
 
     public async Task<ApiResult> DeleteBoardAsync(int boardId, int actorUserId)
@@ -222,11 +250,26 @@ public sealed class BoardService(
                 [new ValidationError("name", "Board name is required.")]);
         }
 
-        if (boardName.Length > 120)
+        if (boardName.Length > MaxBoardNameLength)
         {
             return ApiErrors.BadRequest(
                 "Validation failed.",
-                [new ValidationError("name", "Board name must be 120 characters or fewer.")]);
+                [new ValidationError("name", $"Board name must be {MaxBoardNameLength} characters or fewer.")]);
+        }
+
+        return null;
+    }
+
+    private static string NormaliseBoardDescription(string? boardDescription) =>
+        boardDescription?.Trim() ?? string.Empty;
+
+    private static ApiError? ValidateBoardDescription(string boardDescription)
+    {
+        if (boardDescription.Length > MaxBoardDescriptionLength)
+        {
+            return ApiErrors.BadRequest(
+                "Validation failed.",
+                [new ValidationError("description", $"Board description must be {MaxBoardDescriptionLength} characters or fewer.")]);
         }
 
         return null;

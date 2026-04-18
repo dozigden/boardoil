@@ -20,6 +20,7 @@ public sealed record McpToolResult<T>(
 public sealed record McpBoardSnapshot(
     int Id,
     string BoardName,
+    string Description,
     DateTime UpdatedAtUtc,
     IReadOnlyList<McpColumnSnapshot> Columns);
 

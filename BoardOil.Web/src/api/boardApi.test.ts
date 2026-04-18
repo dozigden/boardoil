@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import { createBoardApi } from './boardApi';
-import { getBinary, postFormData, putData } from './http';
+import { getBinary, postData, postFormData, putData } from './http';
 
 vi.mock('./http', () => ({
   deleteJson: vi.fn(),
@@ -71,6 +71,7 @@ describe('boardApi importBoardPackage', () => {
     const board = {
       id: 42,
       name: 'Imported Board',
+      description: '',
       createdAtUtc: '2026-04-08T00:00:00Z',
       updatedAtUtc: '2026-04-08T00:00:00Z',
       currentUserRole: 'Owner',
@@ -91,6 +92,53 @@ describe('boardApi importBoardPackage', () => {
     const uploadedFile = payload?.get('file');
     expect(uploadedFile).toBeInstanceOf(File);
     expect((uploadedFile as File).name).toBe('board.boardoil.zip');
+  });
+});
+
+describe('boardApi createBoard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('sends optional description in create payload', async () => {
+    vi.mocked(postData).mockResolvedValue(ok({
+      id: 1,
+      name: 'Roadmap',
+      description: 'Planning board',
+      createdAtUtc: '2026-04-18T00:00:00Z',
+      updatedAtUtc: '2026-04-18T00:00:00Z',
+      currentUserRole: 'Owner',
+      columns: []
+    }));
+
+    const api = createBoardApi();
+    const result = await api.createBoard('Roadmap', 'Planning board');
+
+    expect(result.ok).toBe(true);
+    expect(postData).toHaveBeenCalledWith('/api/boards', { name: 'Roadmap', description: 'Planning board' });
+  });
+});
+
+describe('boardApi saveBoard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('sends description in board update payload', async () => {
+    vi.mocked(putData).mockResolvedValue(ok({
+      id: 1,
+      name: 'Roadmap',
+      description: 'Updated description',
+      createdAtUtc: '2026-04-18T00:00:00Z',
+      updatedAtUtc: '2026-04-18T00:00:00Z',
+      currentUserRole: 'Owner'
+    }));
+
+    const api = createBoardApi();
+    const result = await api.saveBoard(1, 'Roadmap', 'Updated description');
+
+    expect(result.ok).toBe(true);
+    expect(putData).toHaveBeenCalledWith('/api/boards/1', { name: 'Roadmap', description: 'Updated description' });
   });
 });
 
