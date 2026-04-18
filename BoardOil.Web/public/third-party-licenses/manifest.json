@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-04-17T21:27:41.557Z",
+  "generatedAtUtc": "2026-04-18T07:32:28.498Z",
   "packageSource": "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -122,11 +122,11 @@
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.AspNetCore.Authentication.JwtBearer",
-      "version": "10.0.4",
+      "version": "10.0.6",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.aspnetcore.authentication.jwtbearer/10.0.4/microsoft.aspnetcore.authentication.jwtbearer.nuspec",
-      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.aspnetcore.authentication.jwtbearer-10.0.4.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.aspnetcore.authentication.jwtbearer/10.0.6/microsoft.aspnetcore.authentication.jwtbearer.nuspec",
+      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.aspnetcore.authentication.jwtbearer-10.0.6.txt"
     },
     {
       "ecosystem": "nuget",
@@ -185,65 +185,65 @@
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.Data.Sqlite.Core",
-      "version": "10.0.4",
+      "version": "10.0.6",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.data.sqlite.core/10.0.4/microsoft.data.sqlite.core.nuspec",
-      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.data.sqlite.core-10.0.4.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.data.sqlite.core/10.0.6/microsoft.data.sqlite.core.nuspec",
+      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.data.sqlite.core-10.0.6.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.EntityFrameworkCore",
-      "version": "10.0.4",
+      "version": "10.0.6",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore/10.0.4/microsoft.entityframeworkcore.nuspec",
-      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore-10.0.4.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore/10.0.6/microsoft.entityframeworkcore.nuspec",
+      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore-10.0.6.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.EntityFrameworkCore.Abstractions",
-      "version": "10.0.4",
+      "version": "10.0.6",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore.abstractions/10.0.4/microsoft.entityframeworkcore.abstractions.nuspec",
-      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore.abstractions-10.0.4.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore.abstractions/10.0.6/microsoft.entityframeworkcore.abstractions.nuspec",
+      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore.abstractions-10.0.6.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.EntityFrameworkCore.Analyzers",
-      "version": "10.0.4",
+      "version": "10.0.6",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore.analyzers/10.0.4/microsoft.entityframeworkcore.analyzers.nuspec",
-      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore.analyzers-10.0.4.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore.analyzers/10.0.6/microsoft.entityframeworkcore.analyzers.nuspec",
+      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore.analyzers-10.0.6.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.EntityFrameworkCore.Relational",
-      "version": "10.0.4",
+      "version": "10.0.6",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore.relational/10.0.4/microsoft.entityframeworkcore.relational.nuspec",
-      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore.relational-10.0.4.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore.relational/10.0.6/microsoft.entityframeworkcore.relational.nuspec",
+      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore.relational-10.0.6.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.EntityFrameworkCore.Sqlite",
-      "version": "10.0.4",
+      "version": "10.0.6",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore.sqlite/10.0.4/microsoft.entityframeworkcore.sqlite.nuspec",
-      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore.sqlite-10.0.4.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore.sqlite/10.0.6/microsoft.entityframeworkcore.sqlite.nuspec",
+      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore.sqlite-10.0.6.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.EntityFrameworkCore.Sqlite.Core",
-      "version": "10.0.4",
+      "version": "10.0.6",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore.sqlite.core/10.0.4/microsoft.entityframeworkcore.sqlite.core.nuspec",
-      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore.sqlite.core-10.0.4.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.entityframeworkcore.sqlite.core/10.0.6/microsoft.entityframeworkcore.sqlite.core.nuspec",
+      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.entityframeworkcore.sqlite.core-10.0.6.txt"
     },
     {
       "ecosystem": "nuget",
@@ -257,11 +257,11 @@
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.Extensions.DependencyModel",
-      "version": "10.0.4",
+      "version": "10.0.6",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.extensions.dependencymodel/10.0.4/microsoft.extensions.dependencymodel.nuspec",
-      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.extensions.dependencymodel-10.0.4.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.extensions.dependencymodel/10.0.6/microsoft.extensions.dependencymodel.nuspec",
+      "outputFile": "THIRD_PARTY_LICENSES/nuget-microsoft.extensions.dependencymodel-10.0.6.txt"
     },
     {
       "ecosystem": "nuget",

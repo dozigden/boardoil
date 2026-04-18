@@ -1,5 +1,5 @@
-NuGet Package: Microsoft.EntityFrameworkCore.Sqlite.Core
-Version: 10.0.4
+NuGet Package: Microsoft.EntityFrameworkCore.Analyzers
+Version: 10.0.6
 Declared Licence Expression: MIT
 Licence Reference: https://licenses.nuget.org/MIT
 Copyright: © Microsoft Corporation. All rights reserved.
