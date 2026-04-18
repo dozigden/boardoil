@@ -175,13 +175,14 @@ export const useBoardStore = defineStore('board', () => {
     removeColumn(columnId);
   }
 
-  function applyBoardSummaryUpdate(summary: Pick<BoardSummary, 'id' | 'name' | 'updatedAtUtc'>) {
+  function applyBoardSummaryUpdate(summary: Pick<BoardSummary, 'id' | 'name' | 'description' | 'updatedAtUtc'>) {
     mutateBoardShell(draft => {
       if (draft.id !== summary.id) {
         return;
       }
 
       draft.name = summary.name;
+      draft.description = summary.description;
       draft.updatedAtUtc = summary.updatedAtUtc;
     });
   }

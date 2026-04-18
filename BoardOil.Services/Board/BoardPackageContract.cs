@@ -7,7 +7,7 @@ public static class BoardPackageContract
 {
     public const string PackageFormat = "boardoil-board-package";
     public const int MinSupportedSchemaVersion = 1;
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
     public const string ManifestPath = "manifest.json";
     public const string BoardEntryKind = "board";
     public const string BoardEntryPath = "board.json";

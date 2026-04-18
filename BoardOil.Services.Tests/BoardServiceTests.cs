@@ -43,9 +43,34 @@ public sealed class BoardServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Equal(board.BoardId, result.Data!.Id);
         Assert.Equal("Roadmap", result.Data.Name);
+        Assert.Equal(string.Empty, result.Data.Description);
 
         var persisted = DbContextForAssert.Boards.Single(x => x.Id == board.BoardId);
         Assert.Equal("Roadmap", persisted.Name);
+        Assert.Equal(string.Empty, persisted.Description);
+    }
+
+    [Fact]
+    public async Task UpdateBoardAsync_ShouldTrimAndPersistDescription()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .Build();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateBoardAsync(
+            board.BoardId,
+            new UpdateBoardRequest("BoardOil", "  Service-level board guidance  "),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("Service-level board guidance", result.Data!.Description);
+
+        var persisted = DbContextForAssert.Boards.Single(x => x.Id == board.BoardId);
+        Assert.Equal("Service-level board guidance", persisted.Description);
     }
 
     [Fact]

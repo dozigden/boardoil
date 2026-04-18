@@ -112,6 +112,7 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
         var manifest = BoardPackageContract.CreateManifest("0.3.0");
         var payload = new BoardPackageBoardDto(
             "Imported API Board",
+            "Imported API Board description",
             [
                 new BoardPackageCardTypeDto("Story", null, true, "solid", """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}"""),
                 new BoardPackageCardTypeDto("Bug", "🐞", false, "gradient", """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""")
@@ -148,6 +149,7 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
         Assert.True(envelope!.Success);
         Assert.NotNull(envelope.Data);
         Assert.Equal("Renamed Board", envelope.Data!.Name);
+        Assert.Equal("Imported API Board description", envelope.Data.Description);
         Assert.Equal(["Todo"], envelope.Data.Columns.Select(x => x.Title).ToArray());
         Assert.Equal("Bug", envelope.Data.Columns[0].Cards[0].CardTypeName);
         Assert.Equal(["NeedsReview", "Urgent"], envelope.Data.Columns[0].Cards[0].TagNames);

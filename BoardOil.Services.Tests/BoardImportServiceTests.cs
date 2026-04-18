@@ -122,6 +122,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var manifest = BoardPackageContract.CreateManifest("0.3.0");
         var payload = new BoardPackageBoardDto(
             "Imported Package Board",
+            "Imported package description",
             [
                 new BoardPackageCardTypeDto("Story", null, true, "solid", """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}"""),
                 new BoardPackageCardTypeDto("Bug", "🐞", false, "gradient", """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""")
@@ -151,6 +152,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.Equal(201, result.StatusCode);
         Assert.NotNull(result.Data);
         Assert.Equal("Imported Package Board", result.Data!.Name);
+        Assert.Equal("Imported package description", result.Data.Description);
         Assert.Equal(["Todo", "Done"], result.Data.Columns.Select(x => x.Title).ToArray());
         Assert.Equal("Bug", result.Data.Columns[0].Cards[0].CardTypeName);
         Assert.Equal(["NeedsReview", "Urgent"], result.Data.Columns[0].Cards[0].TagNames);
@@ -187,6 +189,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var manifest = BoardPackageContract.CreateManifest("0.3.0");
         var payload = new BoardPackageBoardDto(
             "Renamed System Type Board",
+            "Renamed system type board description",
             [
                 new BoardPackageCardTypeDto("Work Item", "📘", true, "solid", """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}"""),
                 new BoardPackageCardTypeDto("Bug", "🐞", false, "gradient", """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""")
@@ -209,8 +212,9 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.Equal(201, result.StatusCode);
         Assert.NotNull(result.Data);
+        Assert.Equal("Renamed system type board description", result.Data!.Description);
 
-        var boardId = result.Data!.Id;
+        var boardId = result.Data.Id;
         var cardTypes = DbContextForAssert.CardTypes.Where(x => x.BoardId == boardId).OrderBy(x => x.Name).ToList();
         Assert.Equal(["Bug", "Work Item"], cardTypes.Select(x => x.Name).ToArray());
         Assert.Contains(
@@ -223,6 +227,38 @@ public sealed class BoardImportServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task ImportBoardPackageAsync_WhenSchemaVersionIsOne_ShouldImportWithEmptyDescription()
+    {
+        var manifest = new BoardPackageManifestDto(
+            BoardPackageContract.PackageFormat,
+            1,
+            "0.2.0",
+            [new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, BoardPackageContract.BoardEntryPath)]);
+        var boardPayloadV1Json =
+            """
+            {
+              "name": "Legacy Board",
+              "cardTypes": [
+                { "name": "Story", "emoji": null, "isSystem": true }
+              ],
+              "tags": [],
+              "columns": []
+            }
+            """;
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackageWithRawBoardPayload(manifest, boardPayloadV1Json)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.Equal(201, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.Equal("Legacy Board", result.Data!.Name);
+        Assert.Equal(string.Empty, result.Data.Description);
+    }
+
+    [Fact]
     public async Task ImportBoardPackageAsync_WhenSchemaVersionIsFuture_ShouldReturnBadRequestAndWriteNothing()
     {
         var manifest = new BoardPackageManifestDto(
@@ -232,6 +268,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
             [new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, BoardPackageContract.BoardEntryPath)]);
         var payload = new BoardPackageBoardDto(
             "Future Board",
+            "Future board description",
             [new BoardPackageCardTypeDto("Story", null, true)],
             [],
             []);
@@ -278,6 +315,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var manifest = BoardPackageContract.CreateManifest("0.3.0");
         var payload = new BoardPackageBoardDto(
             "Collision Board",
+            "Collision board description",
             [new BoardPackageCardTypeDto("Story", null, true)],
             [
                 new BoardPackageTagDto("Urgent", "solid", """{"backgroundColor":"#ED333B","textColorMode":"auto"}""", null),

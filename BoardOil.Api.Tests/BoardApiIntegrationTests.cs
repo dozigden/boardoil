@@ -79,7 +79,7 @@ public sealed class BoardApiIntegrationTests
         var manifest = JsonSerializer.Deserialize<BoardPackageManifestDto>(manifestJson, JsonOptions);
         Assert.NotNull(manifest);
         Assert.Equal("boardoil-board-package", manifest!.Format);
-        Assert.Equal(1, manifest.SchemaVersion);
+        Assert.Equal(2, manifest.SchemaVersion);
         Assert.False(string.IsNullOrWhiteSpace(manifest.ExportedByVersion));
         Assert.Contains(manifest.Entries, x => x.Kind == "board" && x.Path == "board.json");
 
@@ -90,6 +90,7 @@ public sealed class BoardApiIntegrationTests
         var boardPayload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
         Assert.NotNull(boardPayload);
         Assert.Equal("BoardOil", boardPayload!.Name);
+        Assert.Equal(string.Empty, boardPayload.Description);
         Assert.Contains(boardPayload.Columns, x => x.Title == "Todo");
         Assert.Contains(boardPayload.Columns.SelectMany(x => x.Cards), x => x.Title == "Export card" && x.CardTypeName == "Story");
         Assert.Contains(boardPayload.Tags, x => x.Name == "ExportTag" && x.StyleName == "solid" && x.Emoji == "🧪");
@@ -152,6 +153,8 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(second!.Data);
 
         Assert.NotEqual(first.Data!.Id, second.Data!.Id);
+        Assert.Equal(string.Empty, first.Data.Description);
+        Assert.Equal(string.Empty, second.Data.Description);
         Assert.Equal(["Todo", "In Progress", "Done"], first.Data.Columns.Select(x => x.Title).ToArray());
         Assert.Equal(["Todo", "In Progress", "Done"], second.Data.Columns.Select(x => x.Title).ToArray());
     }
@@ -206,11 +209,56 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(updated!.Data);
         Assert.Equal(created.Data.Id, updated.Data!.Id);
         Assert.Equal("Product Roadmap", updated.Data.Name);
+        Assert.Equal(string.Empty, updated.Data.Description);
 
         var boardList = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardSummaryDto>>>("/api/boards", JsonOptions);
         Assert.NotNull(boardList);
         Assert.NotNull(boardList!.Data);
-        Assert.Contains(boardList.Data!, x => x.Id == created.Data.Id && x.Name == "Product Roadmap");
+        Assert.Contains(boardList.Data!, x => x.Id == created.Data.Id && x.Name == "Product Roadmap" && x.Description == string.Empty);
+    }
+
+    [Fact]
+    public async Task BoardEndpoints_ShouldRoundTripDescriptionOnCreateAndUpdate()
+    {
+        // Arrange
+        var createResponse = await Client.PostAsJsonAsync(
+            "/api/boards",
+            new CreateBoardRequest("Roadmap", "  Initial board guidance  "));
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        Assert.NotNull(created);
+        Assert.NotNull(created!.Data);
+        Assert.Equal("Initial board guidance", created.Data!.Description);
+
+        // Act
+        var updateResponse = await Client.PutAsJsonAsync(
+            $"/api/boards/{created.Data.Id}",
+            new UpdateBoardRequest("Roadmap", "  Updated board guidance  "));
+        updateResponse.EnsureSuccessStatusCode();
+        var updated = await updateResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardSummaryDto>>(JsonOptions);
+        Assert.NotNull(updated);
+        Assert.NotNull(updated!.Data);
+        Assert.Equal("Updated board guidance", updated.Data!.Description);
+
+        // Assert
+        var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>($"/api/boards/{created.Data.Id}", JsonOptions);
+        Assert.NotNull(board);
+        Assert.NotNull(board!.Data);
+        Assert.Equal("Updated board guidance", board.Data!.Description);
+    }
+
+    [Fact]
+    public async Task BoardEndpoints_WhenDescriptionExceedsLimit_ShouldReturnBadRequest()
+    {
+        var response = await Client.PostAsJsonAsync(
+            "/api/boards",
+            new CreateBoardRequest("Roadmap", new string('D', 5_001)));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal("Validation failed.", payload.Message);
     }
 
     [Fact]

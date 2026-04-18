@@ -77,6 +77,7 @@ public sealed class BoardTasksMdImportService(
         var board = new EntityBoard
         {
             Name = boardName,
+            Description = string.Empty,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
@@ -171,6 +172,7 @@ public sealed class BoardTasksMdImportService(
         return ApiResults.Created(new BoardDto(
             board.Id,
             board.Name,
+            board.Description,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             BoardMemberRole.Owner.ToString(),

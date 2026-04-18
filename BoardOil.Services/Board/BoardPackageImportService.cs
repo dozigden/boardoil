@@ -25,6 +25,7 @@ public sealed class BoardPackageImportService(
     IDbContextScopeFactory scopeFactory) : IBoardPackageImportService
 {
     private const int MaxBoardNameLength = 120;
+    private const int MaxBoardDescriptionLength = 5_000;
     private const int MaxColumnNameLength = 200;
     private const int MaxCardTitleLength = 200;
     private const int MaxCardDescriptionLength = 20_000;
@@ -47,7 +48,8 @@ public sealed class BoardPackageImportService(
         }
 
         var boardName = ResolveImportedBoardName(request.Name, readPackageResult.BoardPayload!.Name);
-        var planResult = BuildBoardPackageImportPlan(boardName, readPackageResult.BoardPayload!);
+        var boardDescription = ResolveImportedBoardDescription(readPackageResult.BoardPayload.Description);
+        var planResult = BuildBoardPackageImportPlan(boardName, boardDescription, readPackageResult.BoardPayload);
         if (planResult.Error is not null)
         {
             return planResult.Error;
@@ -64,6 +66,7 @@ public sealed class BoardPackageImportService(
         var board = new EntityBoard
         {
             Name = importPlan.BoardName,
+            Description = importPlan.BoardDescription,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
@@ -213,6 +216,7 @@ public sealed class BoardPackageImportService(
         return ApiResults.Created(new BoardDto(
             board.Id,
             board.Name,
+            board.Description,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             BoardMemberRole.Owner.ToString(),
@@ -324,6 +328,22 @@ public sealed class BoardPackageImportService(
         {
             case 1:
             {
+                var legacyBoardPayload = JsonSerializer.Deserialize<BoardPackageBoardV1Dto>(boardJson, JsonOptions);
+                if (legacyBoardPayload is null)
+                {
+                    return new ParseBoardPayloadResult(null, null);
+                }
+
+                var boardPayload = new BoardPackageBoardDto(
+                    legacyBoardPayload.Name,
+                    string.Empty,
+                    legacyBoardPayload.CardTypes,
+                    legacyBoardPayload.Tags,
+                    legacyBoardPayload.Columns);
+                return new ParseBoardPayloadResult(boardPayload, null);
+            }
+            case 2:
+            {
                 var boardPayload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
                 return new ParseBoardPayloadResult(boardPayload, null);
             }
@@ -336,11 +356,15 @@ public sealed class BoardPackageImportService(
         }
     }
 
-    private static BuildImportPlanResult BuildBoardPackageImportPlan(string boardName, BoardPackageBoardDto boardPayload)
+    private static BuildImportPlanResult BuildBoardPackageImportPlan(
+        string boardName,
+        string boardDescription,
+        BoardPackageBoardDto boardPayload)
     {
         var validationErrors = new List<ValidationError>();
 
         ValidateBoardName(boardName, "name", validationErrors);
+        ValidateBoardDescription(boardDescription, "description", validationErrors);
 
         var packageCardTypes = boardPayload.CardTypes;
         if (packageCardTypes is null)
@@ -614,6 +638,7 @@ public sealed class BoardPackageImportService(
         return new BuildImportPlanResult(
             new BoardPackageImportPlan(
                 boardName,
+                boardDescription,
                 systemCardTypeName,
                 systemCardTypeNormalisedName,
                 systemCardTypeEmoji,
@@ -634,6 +659,9 @@ public sealed class BoardPackageImportService(
         return sourceName?.Trim() ?? string.Empty;
     }
 
+    private static string ResolveImportedBoardDescription(string? importedBoardDescription) =>
+        importedBoardDescription?.Trim() ?? string.Empty;
+
     private static void ValidateBoardName(string boardName, string property, ICollection<ValidationError> validationErrors)
     {
         if (string.IsNullOrWhiteSpace(boardName))
@@ -645,6 +673,14 @@ public sealed class BoardPackageImportService(
         if (boardName.Length > MaxBoardNameLength)
         {
             validationErrors.Add(new ValidationError(property, "Board name must be 120 characters or fewer."));
+        }
+    }
+
+    private static void ValidateBoardDescription(string boardDescription, string property, ICollection<ValidationError> validationErrors)
+    {
+        if (boardDescription.Length > MaxBoardDescriptionLength)
+        {
+            validationErrors.Add(new ValidationError(property, $"Board description must be {MaxBoardDescriptionLength} characters or fewer."));
         }
     }
 
@@ -775,6 +811,7 @@ public sealed class BoardPackageImportService(
 
     private sealed record BoardPackageImportPlan(
         string BoardName,
+        string BoardDescription,
         string SystemCardTypeName,
         string SystemCardTypeNormalisedName,
         string? SystemCardTypeEmoji,
@@ -783,6 +820,12 @@ public sealed class BoardPackageImportService(
         IReadOnlyList<CardTypeImportDefinition> CardTypes,
         IReadOnlyList<TagImportDefinition> TagDefinitions,
         IReadOnlyList<ColumnImportDefinition> Columns);
+
+    private sealed record BoardPackageBoardV1Dto(
+        string Name,
+        IReadOnlyList<BoardPackageCardTypeDto> CardTypes,
+        IReadOnlyList<BoardPackageTagDto> Tags,
+        IReadOnlyList<BoardPackageColumnDto> Columns);
 
     private sealed record CardTypeImportDefinition(
         string Name,

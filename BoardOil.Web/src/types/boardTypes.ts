@@ -60,6 +60,7 @@ export type BoardColumn = Column & {
 export type Board = {
   id: number;
   name: string;
+  description: string;
   createdAtUtc: string;
   updatedAtUtc: string;
   currentUserRole?: BoardMemberRole | null;
@@ -69,6 +70,7 @@ export type Board = {
 export type BoardSummary = {
   id: number;
   name: string;
+  description: string;
   createdAtUtc: string;
   updatedAtUtc: string;
   currentUserRole?: BoardMemberRole | null;

@@ -12,6 +12,7 @@ public sealed record BoardPackageManifestEntryDto(
 
 public sealed record BoardPackageBoardDto(
     string Name,
+    string? Description,
     IReadOnlyList<BoardPackageCardTypeDto> CardTypes,
     IReadOnlyList<BoardPackageTagDto> Tags,
     IReadOnlyList<BoardPackageColumnDto> Columns);

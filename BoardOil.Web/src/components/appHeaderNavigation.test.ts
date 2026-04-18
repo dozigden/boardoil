@@ -8,6 +8,7 @@ describe('appHeaderNavigation', () => {
       {
         id: 7,
         name: 'Solo board',
+        description: '',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -21,12 +22,14 @@ describe('appHeaderNavigation', () => {
       {
         id: 7,
         name: 'Solo board',
+        description: '',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       },
       {
         id: 8,
         name: 'Second board',
+        description: '',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -40,18 +43,21 @@ describe('appHeaderNavigation', () => {
       {
         id: 7,
         name: 'Solo board',
+        description: '',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       },
       {
         id: 8,
         name: 'Zulu',
+        description: '',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       },
       {
         id: 9,
         name: 'Alpha',
+        description: '',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -69,6 +75,7 @@ describe('appHeaderNavigation', () => {
     const board: Board = {
       id: 7,
       name: 'Loaded board',
+      description: '',
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:00:00Z',
       columns: []
@@ -77,6 +84,7 @@ describe('appHeaderNavigation', () => {
       {
         id: 7,
         name: 'Catalogue board',
+        description: '',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -90,6 +98,7 @@ describe('appHeaderNavigation', () => {
     const board: Board = {
       id: 7,
       name: 'Loaded board',
+      description: '',
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:00:00Z',
       columns: []
@@ -98,6 +107,7 @@ describe('appHeaderNavigation', () => {
       {
         id: 7,
         name: 'Catalogue board',
+        description: '',
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }

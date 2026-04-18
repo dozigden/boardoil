@@ -69,6 +69,7 @@ public sealed class BoardExportService(
 
         var boardPayload = new BoardPackageBoardDto(
             board.Name,
+            board.Description,
             cardTypes
                 .Select(x => new BoardPackageCardTypeDto(x.Name, x.Emoji, x.IsSystem, x.StyleName, x.StylePropertiesJson))
                 .ToList(),

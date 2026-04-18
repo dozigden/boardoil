@@ -22,6 +22,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         var board = modelBuilder.Entity<EntityBoard>();
         board.HasKey(x => x.Id);
         board.Property(x => x.Name).HasMaxLength(120).IsRequired();
+        board.Property(x => x.Description).HasMaxLength(5_000).IsRequired();
         board.ToTable("Boards");
         board.HasMany(x => x.Columns)
             .WithOne(x => x.Board)

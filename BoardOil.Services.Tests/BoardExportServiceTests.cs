@@ -20,6 +20,9 @@ public sealed class BoardExportServiceTests : TestBaseDb
             .AddColumn("Todo")
             .AddCard("Task A", "Description A")
             .Build();
+        var boardEntity = DbContextForArrange.Boards.Single(x => x.Id == board.BoardId);
+        boardEntity.Description = "Export board description";
+        await DbContextForArrange.SaveChangesAsync();
         var card = board.GetCard("Todo", "Task A");
         var now = DateTime.UtcNow;
 
@@ -76,7 +79,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         var manifest = JsonSerializer.Deserialize<BoardPackageManifestDto>(manifestJson, JsonOptions);
         Assert.NotNull(manifest);
         Assert.Equal("boardoil-board-package", manifest!.Format);
-        Assert.Equal(1, manifest.SchemaVersion);
+        Assert.Equal(2, manifest.SchemaVersion);
         Assert.Equal("0.2.0", manifest.ExportedByVersion);
         Assert.Single(manifest.Entries);
         Assert.Equal("board", manifest.Entries[0].Kind);
@@ -89,6 +92,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         var payload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
         Assert.NotNull(payload);
         Assert.Equal("Export Board", payload!.Name);
+        Assert.Equal("Export board description", payload.Description);
         Assert.Contains(
             payload.CardTypes,
             x => x.Name == "Story"

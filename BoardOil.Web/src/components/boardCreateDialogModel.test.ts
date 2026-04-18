@@ -9,6 +9,7 @@ function makeDraft(overrides: Partial<BoardCreateDraft> = {}): BoardCreateDraft 
   return {
     mode: 'blank',
     boardName: '',
+    boardDescription: '',
     tasksMdUrl: '',
     packageFile: null,
     packageBoardNameOverride: '',
@@ -61,6 +62,22 @@ describe('boardCreateDialogModel', () => {
       mode: 'package',
       file,
       name: undefined
+    });
+  });
+
+  it('builds blank submit payload with trimmed description', () => {
+    const payload = buildBoardCreateSubmitPayload(
+      makeDraft({
+        mode: 'blank',
+        boardName: '  Roadmap  ',
+        boardDescription: '  Board guidance  '
+      })
+    );
+
+    expect(payload).toEqual({
+      mode: 'blank',
+      name: 'Roadmap',
+      description: 'Board guidance'
     });
   });
 });

@@ -40,6 +40,10 @@
       Board name
       <input v-model="boardName" :disabled="busy" maxlength="120" required />
     </label>
+    <label v-if="mode === 'blank'">
+      Description (optional)
+      <textarea v-model="boardDescription" :disabled="busy" maxlength="5000" rows="4"></textarea>
+    </label>
     <template v-else-if="mode === 'tasksmd'">
       <label>
         tasksmd URL
@@ -109,6 +113,7 @@ const emit = defineEmits<{
 
 const mode = ref<BoardCreateMode>('blank');
 const boardName = ref('');
+const boardDescription = ref('');
 const tasksMdUrl = ref('');
 const packageFile = ref<File | null>(null);
 const packageFileName = ref('');
@@ -119,6 +124,7 @@ const canSubmit = computed(() =>
   canSubmitBoardCreateDraft({
     mode: mode.value,
     boardName: boardName.value,
+    boardDescription: boardDescription.value,
     tasksMdUrl: tasksMdUrl.value,
     packageFile: packageFile.value,
     packageBoardNameOverride: packageBoardNameOverride.value
@@ -127,6 +133,7 @@ const canSubmit = computed(() =>
 function resetDraft() {
   mode.value = 'blank';
   boardName.value = '';
+  boardDescription.value = '';
   tasksMdUrl.value = '';
   packageFile.value = null;
   packageFileName.value = '';
@@ -144,6 +151,7 @@ function submit() {
   const payload = buildBoardCreateSubmitPayload({
     mode: mode.value,
     boardName: boardName.value,
+    boardDescription: boardDescription.value,
     tasksMdUrl: tasksMdUrl.value,
     packageFile: packageFile.value,
     packageBoardNameOverride: packageBoardNameOverride.value
