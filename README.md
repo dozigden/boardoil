@@ -19,8 +19,9 @@ It's written in .NET and Vue3.  I deploy it myself via Docker, so that's had the
 The docker-compose.yml pulls the latest published image.
 
 If you're doing anything more than just trying it out you should set the signing key, and turn off insecure cookies once youre running https; both in the environment settings of the compose file.
+You will need to be authenticated to the GitHub registry in Docker, see https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 
-Open: `http://localhost:5000`
+Then open: `http://localhost:5000`
 
 ### Data volume
 
