@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.Board;
+using BoardOil.Abstractions.Card;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,7 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
             .AddCard("Archive me", "Desc")
             .Build();
         var cardId = board.GetCard("Todo", "Archive me").Id;
-        var service = ResolveService<CardService>();
+        var service = ResolveService<ICardArchiveService>();
 
         // Act
         var result = await service.ArchiveCardAsync(board.BoardId, cardId, ActorUserId);
@@ -40,7 +41,7 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .Build();
-        var service = ResolveService<CardService>();
+        var service = ResolveService<ICardArchiveService>();
 
         // Act
         var result = await service.GetArchivedCardsAsync(board.BoardId, search: null, ActorUserId);

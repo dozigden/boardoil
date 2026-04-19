@@ -67,6 +67,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBoardMemberService, BoardMemberService>();
         services.AddScoped<IColumnService, ColumnService>();
         services.AddScoped<ICardService, CardService>();
+        services.AddScoped<ICardArchiveService, CardArchiveService>();
         services.AddScoped<ICardTypeService, CardTypeService>();
         services.AddScoped<ITagService, TagService>();
         services.AddScoped<IClientAccountService, ClientAccountService>();

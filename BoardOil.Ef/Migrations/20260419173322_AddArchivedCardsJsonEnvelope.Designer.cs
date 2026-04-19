@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoardOil.Ef.Migrations
 {
     [DbContext(typeof(BoardOilDbContext))]
-    [Migration("20260419164508_RefineArchivedCardsJsonEnvelope")]
-    partial class RefineArchivedCardsJsonEnvelope
+    [Migration("20260419173322_AddArchivedCardsJsonEnvelope")]
+    partial class AddArchivedCardsJsonEnvelope
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
