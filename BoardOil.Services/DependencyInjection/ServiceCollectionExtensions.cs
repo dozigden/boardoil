@@ -52,6 +52,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAppSettingRepository, AppSettingRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
+        services.AddScoped<IArchivedCardRepository, ArchivedCardRepository>();
         services.AddScoped<ICardTypeRepository, CardTypeRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IUserRepository, UserRepository>();

@@ -3,6 +3,7 @@ using System;
 using BoardOil.Ef;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoardOil.Ef.Migrations
 {
     [DbContext(typeof(BoardOilDbContext))]
-    partial class BoardOilDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260419155612_AddArchivedCards")]
+    partial class AddArchivedCards
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.6");
@@ -56,33 +59,55 @@ namespace BoardOil.Ef.Migrations
                     b.Property<int>("BoardId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("OriginalCardId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("SearchTagsJson")
-                        .IsRequired()
-                        .HasMaxLength(65535)
+                    b.Property<string>("CardTypeEmoji")
+                        .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("SearchTextNormalised")
+                    b.Property<string>("CardTypeName")
                         .IsRequired()
-                        .HasMaxLength(65535)
+                        .HasMaxLength(40)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("SearchTitle")
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalisedTitle")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("SnapshotJson")
+                    b.Property<int>("OriginalCardId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OriginalColumnName")
                         .IsRequired()
-                        .HasMaxLength(524288)
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OriginalCreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OriginalUpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TagNamesCsv")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("OriginalCardId")
                         .IsUnique();
+
+                    b.HasIndex("BoardId", "NormalisedTitle");
 
                     b.HasIndex("BoardId", "ArchivedAtUtc", "Id");
 

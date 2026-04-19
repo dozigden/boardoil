@@ -11,11 +11,14 @@ using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Tag;
 using BoardOil.Services.Ordering;
 using BoardOil.Services.Tag;
+using System.Text;
+using System.Text.Json;
 
 namespace BoardOil.Services.Card;
 
 public sealed class CardService(
     ICardRepository cardRepository,
+    IArchivedCardRepository archivedCardRepository,
     ICardTypeRepository cardTypeRepository,
     IColumnRepository columnRepository,
     ITagRepository tagRepository,
@@ -24,8 +27,11 @@ public sealed class CardService(
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardService
 {
+    private const int MaxArchiveSnapshotJsonBytes = 524_288;
+
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
+    private readonly IArchivedCardRepository _archivedCardRepository = archivedCardRepository;
     private readonly ICardTypeRepository _cardTypeRepository = cardTypeRepository;
     private readonly ITagRepository _tagRepository = tagRepository;
 
@@ -46,6 +52,24 @@ public sealed class CardService(
         }
 
         return card.ToCardDto();
+    }
+
+    public async Task<ApiResult<IReadOnlyList<ArchivedCardDto>>> GetArchivedCardsAsync(int boardId, string? search, int actorUserId)
+    {
+        using var scope = _scopeFactory.CreateReadOnly();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have access to this board.");
+        }
+
+        var normalisedSearch = NormaliseSearchTerm(search);
+        var archivedCards = await _archivedCardRepository.ListByBoardAsync(boardId, normalisedSearch);
+        IReadOnlyList<ArchivedCardDto> dto = archivedCards
+            .Select(x => x.ToArchivedCardDto())
+            .ToList();
+        return ApiResults.Ok(dto);
     }
 
     public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId)
@@ -366,6 +390,57 @@ public sealed class CardService(
         return ApiResults.Ok();
     }
 
+    public async Task<ApiResult<ArchivedCardDto>> ArchiveCardAsync(int boardId, int id, int actorUserId)
+    {
+        using var scope = _scopeFactory.Create();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardDelete);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        var card = await cardRepository.GetWithTagsAndBoardAsync(id);
+        if (card is null || card.BoardColumn.BoardId != boardId)
+        {
+            return ApiErrors.NotFound("Card not found.");
+        }
+
+        var archivedAtUtc = DateTime.UtcNow;
+        var tagNames = card.CardTags
+            .Select(x => x.Tag.Name)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+        var snapshotJson = ArchivedCardSnapshotSerialiser.CreateSnapshotJson(boardId, card, archivedAtUtc);
+        if (Encoding.UTF8.GetByteCount(snapshotJson) > MaxArchiveSnapshotJsonBytes)
+        {
+            return ApiErrors.InternalError("Archive snapshot exceeds configured size limit.");
+        }
+
+        var searchTitle = card.Title.Trim();
+        var searchTagsJson = JsonSerializer.Serialize<IReadOnlyList<string>>(tagNames);
+        var searchTextNormalised = BuildNormalisedSearchText(searchTitle, tagNames);
+        var archivedCard = new EntityArchivedCard
+        {
+            BoardId = boardId,
+            OriginalCardId = card.Id,
+            ArchivedAtUtc = archivedAtUtc,
+            SnapshotJson = snapshotJson,
+            SearchTitle = searchTitle,
+            SearchTagsJson = searchTagsJson,
+            SearchTextNormalised = searchTextNormalised
+        };
+
+        _archivedCardRepository.Add(archivedCard);
+        cardRepository.Remove(card);
+        await scope.SaveChangesAsync();
+        await _boardEvents.CardDeletedAsync(boardId, id);
+
+        return ApiResults.Ok(archivedCard.ToArchivedCardDto());
+    }
+
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
         ApiErrors.BadRequest("Validation failed.", validationErrors);
 
@@ -491,4 +566,24 @@ public sealed class CardService(
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
     }
+
+    private static string? NormaliseSearchTerm(string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return null;
+        }
+
+        return NormaliseSearchValue(search);
+    }
+
+    private static string BuildNormalisedSearchText(string title, IReadOnlyList<string> tagNames)
+    {
+        var values = new List<string> { NormaliseSearchValue(title) };
+        values.AddRange(tagNames.Select(NormaliseSearchValue));
+        return string.Join('\n', values.Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private static string NormaliseSearchValue(string value) =>
+        value.Trim().ToUpperInvariant();
 }

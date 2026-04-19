@@ -858,6 +858,103 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_ShouldArchiveCard()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+        var createTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("Bug"));
+        createTagResponse.EnsureSuccessStatusCode();
+        var createdCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Archive me", "Desc", ["Bug"]));
+        createdCardResponse.EnsureSuccessStatusCode();
+        var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdCard);
+        Assert.NotNull(createdCard!.Data);
+
+        // Act
+        var archiveResponse = await Client.PostAsync($"/api/boards/1/cards/{createdCard.Data!.Id}/archive", content: null);
+        archiveResponse.EnsureSuccessStatusCode();
+        var archivedCardEnvelope = await archiveResponse.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(JsonOptions);
+
+        // Assert
+        Assert.NotNull(archivedCardEnvelope);
+        Assert.NotNull(archivedCardEnvelope!.Data);
+        Assert.Equal(createdCard.Data.Id, archivedCardEnvelope.Data!.OriginalCardId);
+        Assert.Equal("Archive me", archivedCardEnvelope.Data.Title);
+        Assert.Equal(["Bug"], archivedCardEnvelope.Data.TagNames);
+        Assert.False(string.IsNullOrWhiteSpace(archivedCardEnvelope.Data.SnapshotJson));
+
+        var boardAfterArchive = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.NotNull(boardAfterArchive);
+        Assert.NotNull(boardAfterArchive!.Data);
+        var columnAfterArchive = boardAfterArchive.Data!.Columns.FirstOrDefault(x => x.Id == createdColumn.Data.Id);
+        Assert.NotNull(columnAfterArchive);
+        Assert.Empty(columnAfterArchive!.Cards);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_GetArchived_ShouldOrderNewestFirst_AndSearchByTitleAndTags()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+        var createTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("Urgent"));
+        createTagResponse.EnsureSuccessStatusCode();
+        var alphaCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Alpha item", "No marker", null));
+        alphaCreateResponse.EnsureSuccessStatusCode();
+        var alphaCard = await alphaCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(alphaCard);
+        Assert.NotNull(alphaCard!.Data);
+        var betaCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Beta item", "Contains needle marker", ["Urgent"]));
+        betaCreateResponse.EnsureSuccessStatusCode();
+        var betaCard = await betaCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(betaCard);
+        Assert.NotNull(betaCard!.Data);
+
+        var alphaArchiveResponse = await Client.PostAsync($"/api/boards/1/cards/{alphaCard.Data!.Id}/archive", content: null);
+        alphaArchiveResponse.EnsureSuccessStatusCode();
+        var betaArchiveResponse = await Client.PostAsync($"/api/boards/1/cards/{betaCard.Data!.Id}/archive", content: null);
+        betaArchiveResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var allArchivedResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ArchivedCardDto>>>("/api/boards/1/cards/archived", JsonOptions);
+        var titleSearchResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ArchivedCardDto>>>("/api/boards/1/cards/archived?search=alpha", JsonOptions);
+        var tagSearchResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ArchivedCardDto>>>("/api/boards/1/cards/archived?search=urgent", JsonOptions);
+        var descriptionSearchResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ArchivedCardDto>>>("/api/boards/1/cards/archived?search=needle", JsonOptions);
+
+        // Assert
+        Assert.NotNull(allArchivedResponse);
+        Assert.NotNull(allArchivedResponse!.Data);
+        Assert.Equal(["Beta item", "Alpha item"], allArchivedResponse.Data!.Select(x => x.Title).ToArray());
+
+        Assert.NotNull(titleSearchResponse);
+        Assert.NotNull(titleSearchResponse!.Data);
+        var titleMatch = Assert.Single(titleSearchResponse.Data!);
+        Assert.Equal("Alpha item", titleMatch.Title);
+
+        Assert.NotNull(tagSearchResponse);
+        Assert.NotNull(tagSearchResponse!.Data);
+        var tagMatch = Assert.Single(tagSearchResponse.Data!);
+        Assert.Equal("Beta item", tagMatch.Title);
+
+        Assert.NotNull(descriptionSearchResponse);
+        Assert.NotNull(descriptionSearchResponse!.Data);
+        Assert.Empty(descriptionSearchResponse.Data!);
+    }
+
+    [Fact]
     public async Task Data_ShouldPersistAcrossFactoryRestarts_WhenUsingSameDatabasePath()
     {
         var dbPath = CreateDbPath("boardoil-api-persist-tests");

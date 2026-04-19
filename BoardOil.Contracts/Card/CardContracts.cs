@@ -21,6 +21,15 @@ public sealed record CardDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
+public sealed record ArchivedCardDto(
+    int Id,
+    int BoardId,
+    int OriginalCardId,
+    string Title,
+    IReadOnlyList<string> TagNames,
+    DateTime ArchivedAtUtc,
+    string SnapshotJson);
+
 public sealed record CreateCardRequest(
     int? BoardColumnId,
     string Title,
