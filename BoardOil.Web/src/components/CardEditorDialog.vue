@@ -76,10 +76,17 @@
     </template>
     <template #actions>
       <div v-if="cardDraft" class="editor-actions card-modal-actions">
-        <button type="button" class="btn btn--danger" aria-label="Delete card" title="Delete card" @click="deleteEditingCard">
-          <Trash2 :size="16" aria-hidden="true" />
-        </button>
         <div class="card-modal-actions-left">
+          <button type="button" class="btn btn--secondary" aria-label="Archive card" title="Archive card" @click="archiveEditingCard">
+            <Archive :size="16" aria-hidden="true" />
+            <span>Archive</span>
+          </button>
+          <button type="button" class="btn btn--danger" aria-label="Delete card" title="Delete card" @click="deleteEditingCard">
+            <Trash2 :size="16" aria-hidden="true" />
+            <span>Delete</span>
+          </button>
+        </div>
+        <div class="card-modal-actions-right">
           <button type="submit" class="btn" aria-label="Save card" title="Save card">
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
@@ -95,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, Trash2, X } from 'lucide-vue-next';
+import { Archive, Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -118,7 +125,7 @@ const cardTypeStore = useCardTypeStore();
 const tagStore = useTagStore();
 const { board } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
-const { saveCard: saveCardAction, deleteCard } = cardStore;
+const { saveCard: saveCardAction, deleteCard, archiveCard } = cardStore;
 const { loadCardTypes } = cardTypeStore;
 const { ensureTagsExist } = tagStore;
 const maxDescriptionLength = 20_000;
@@ -243,8 +250,26 @@ async function deleteEditingCard() {
     return;
   }
 
-  await deleteCard(cardDraft.value.id);
-  await closeCardEditor();
+  const deleted = await deleteCard(cardDraft.value.id);
+  if (deleted) {
+    await closeCardEditor();
+  }
+}
+
+async function archiveEditingCard() {
+  if (!cardDraft.value) {
+    return;
+  }
+
+  const shouldArchive = window.confirm(`Archive card "${cardDraft.value.title}"?`);
+  if (!shouldArchive) {
+    return;
+  }
+
+  const archived = await archiveCard(cardDraft.value.id);
+  if (archived) {
+    await closeCardEditor();
+  }
 }
 
 watch(
@@ -410,6 +435,12 @@ watch(
 
 .card-editor-field-label {
   font-size: 0.85rem;
+}
+
+.card-modal-actions-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 @media (max-width: 900px) {

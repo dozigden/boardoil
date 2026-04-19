@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import { createBoardApi } from './boardApi';
-import { getBinary, postData, postFormData, putData } from './http';
+import { getBinary, getEnvelope, postData, postFormData, postJson, putData } from './http';
 
 vi.mock('./http', () => ({
   deleteJson: vi.fn(),
@@ -10,6 +10,7 @@ vi.mock('./http', () => ({
   getEnvelope: vi.fn(),
   patchData: vi.fn(),
   postData: vi.fn(),
+  postJson: vi.fn(),
   postFormData: vi.fn(),
   putData: vi.fn()
 }));
@@ -175,5 +176,82 @@ describe('boardApi saveCard', () => {
       cardTypeId: 1,
       boardColumnId: 3
     });
+  });
+});
+
+describe('boardApi archived cards', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('loads archived cards with search and pagination query', async () => {
+    vi.mocked(getEnvelope).mockResolvedValue(ok({
+      success: true,
+      data: {
+        items: [],
+        offset: 25,
+        limit: 25,
+        totalCount: 0
+      },
+      statusCode: 200
+    }));
+
+    const api = createBoardApi();
+    const result = await api.getArchivedCards(7, { searchText: 'urgent', offset: 25, limit: 25 });
+
+    expect(result.ok).toBe(true);
+    expect(getEnvelope).toHaveBeenCalledWith('/api/boards/7/cards/archived?search=urgent&offset=25&limit=25');
+  });
+
+  it('loads a single archived card by id', async () => {
+    vi.mocked(getEnvelope).mockResolvedValue(ok({
+      success: true,
+      data: {
+        id: 3,
+        boardId: 7,
+        originalCardId: 42,
+        title: 'Archived card',
+        tagNames: ['Urgent'],
+        archivedAtUtc: '2026-04-19T18:00:00Z',
+        snapshotJson: '{"schema":"archived-card"}'
+      },
+      statusCode: 200
+    }));
+
+    const api = createBoardApi();
+    const result = await api.getArchivedCard(7, 3);
+
+    expect(result.ok).toBe(true);
+    expect(getEnvelope).toHaveBeenCalledWith('/api/boards/7/cards/archived/3');
+  });
+
+  it('returns api error when archived list envelope has no data payload', async () => {
+    vi.mocked(getEnvelope).mockResolvedValue(ok({
+      success: true,
+      data: null,
+      statusCode: 200,
+      message: 'Missing data'
+    }));
+
+    const api = createBoardApi();
+    const result = await api.getArchivedCards(7);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected error result.');
+    }
+
+    expect(result.error.kind).toBe('api');
+    expect(result.error.message).toBe('Missing data');
+  });
+
+  it('archives a card via archive endpoint', async () => {
+    vi.mocked(postJson).mockResolvedValue(ok(undefined));
+
+    const api = createBoardApi();
+    const result = await api.archiveCard(7, 33);
+
+    expect(result.ok).toBe(true);
+    expect(postJson).toHaveBeenCalledWith('/api/boards/7/cards/33/archive', {});
   });
 });

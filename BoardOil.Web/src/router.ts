@@ -48,6 +48,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD }
   },
   {
+    path: '/boards/:boardId(\\d+)/archived',
+    name: 'board-archived',
+    component: () => import('./views/ArchivedCardsView.vue'),
+    meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
+  },
+  {
     path: '/boards/:boardId(\\d+)/card/:cardId(\\d+)',
     name: 'board-card',
     components: {
