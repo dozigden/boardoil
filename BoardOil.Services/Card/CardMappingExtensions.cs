@@ -1,5 +1,6 @@
 using BoardOil.Contracts.Card;
 using BoardOil.Persistence.Abstractions.Entities;
+using System.Text.Json;
 
 namespace BoardOil.Services.Card;
 
@@ -26,6 +27,16 @@ public static class CardMappingExtensions
             card.CreatedAtUtc,
             card.UpdatedAtUtc);
 
+    public static ArchivedCardDto ToArchivedCardDto(this EntityArchivedCard archivedCard) =>
+        new(
+            archivedCard.Id,
+            archivedCard.BoardId,
+            archivedCard.OriginalCardId,
+            archivedCard.SearchTitle,
+            ParseSearchTagsJson(archivedCard.SearchTagsJson),
+            archivedCard.ArchivedAtUtc,
+            archivedCard.SnapshotJson);
+
     private static CardTagDto ToCardTagDto(this EntityTag tag) =>
         new(
             tag.Id,
@@ -33,4 +44,21 @@ public static class CardMappingExtensions
             tag.StyleName,
             tag.StylePropertiesJson,
             tag.Emoji);
+
+    private static IReadOnlyList<string> ParseSearchTagsJson(string searchTagsJson)
+    {
+        if (string.IsNullOrWhiteSpace(searchTagsJson))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<IReadOnlyList<string>>(searchTagsJson) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
 }

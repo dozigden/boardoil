@@ -8,6 +8,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityBoard> Boards => Set<EntityBoard>();
     public DbSet<EntityBoardColumn> Columns => Set<EntityBoardColumn>();
     public DbSet<EntityBoardCard> Cards => Set<EntityBoardCard>();
+    public DbSet<EntityArchivedCard> ArchivedCards => Set<EntityArchivedCard>();
     public DbSet<EntityCardType> CardTypes => Set<EntityCardType>();
     public DbSet<EntityTag> Tags => Set<EntityTag>();
     public DbSet<EntityCardTag> CardTags => Set<EntityCardTag>();
@@ -29,6 +30,10 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .HasForeignKey(x => x.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
         board.HasMany(x => x.CardTypes)
+            .WithOne(x => x.Board)
+            .HasForeignKey(x => x.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
+        board.HasMany(x => x.ArchivedCards)
             .WithOne(x => x.Board)
             .HasForeignKey(x => x.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
@@ -69,6 +74,19 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .WithOne(x => x.Card)
             .HasForeignKey(x => x.CardId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        var archivedCard = modelBuilder.Entity<EntityArchivedCard>();
+        archivedCard.HasKey(x => x.Id);
+        archivedCard.Property(x => x.BoardId).IsRequired();
+        archivedCard.Property(x => x.OriginalCardId).IsRequired();
+        archivedCard.Property(x => x.ArchivedAtUtc).IsRequired();
+        archivedCard.Property(x => x.SnapshotJson).HasMaxLength(524_288).IsRequired();
+        archivedCard.Property(x => x.SearchTitle).HasMaxLength(200).IsRequired();
+        archivedCard.Property(x => x.SearchTagsJson).HasMaxLength(65_535).IsRequired();
+        archivedCard.Property(x => x.SearchTextNormalised).HasMaxLength(65_535).IsRequired();
+        archivedCard.ToTable("ArchivedCards");
+        archivedCard.HasIndex(x => new { x.BoardId, x.ArchivedAtUtc, x.Id });
+        archivedCard.HasIndex(x => x.OriginalCardId).IsUnique();
 
         var cardType = modelBuilder.Entity<EntityCardType>();
         cardType.HasKey(x => x.Id);
