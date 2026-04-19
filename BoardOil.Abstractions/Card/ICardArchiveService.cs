@@ -5,6 +5,7 @@ namespace BoardOil.Abstractions.Card;
 
 public interface ICardArchiveService
 {
-    Task<ApiResult<IReadOnlyList<ArchivedCardDto>>> GetArchivedCardsAsync(int boardId, string? search, int actorUserId);
+    Task<ApiResult<ArchivedCardListDto>> GetArchivedCardsAsync(int boardId, string? search, int? offset, int? limit, int actorUserId);
+    Task<ApiResult<ArchivedCardDto>> GetArchivedCardAsync(int boardId, int archivedCardId, int actorUserId);
     Task<ApiResult<ArchivedCardDto>> ArchiveCardAsync(int boardId, int id, int actorUserId);
 }

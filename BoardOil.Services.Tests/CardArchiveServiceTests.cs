@@ -77,12 +77,12 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(secondArchive.Success);
 
         // Act
-        var result = await service.GetArchivedCardsAsync(boardId, search: null, ActorUserId);
+        var result = await service.GetArchivedCardsAsync(boardId, search: null, offset: null, limit: null, ActorUserId);
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        Assert.Equal(["Beta", "Alpha"], result.Data!.Select(x => x.Title).ToArray());
+        Assert.Equal(["Beta", "Alpha"], result.Data!.Items.Select(x => x.Title).ToArray());
     }
 
     [Fact]
@@ -113,23 +113,23 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(bravoArchive.Success);
 
         // Act
-        var titleSearchResult = await service.GetArchivedCardsAsync(boardId, search: "alpha", ActorUserId);
-        var tagSearchResult = await service.GetArchivedCardsAsync(boardId, search: "urgent", ActorUserId);
-        var descriptionSearchResult = await service.GetArchivedCardsAsync(boardId, search: "needle", ActorUserId);
+        var titleSearchResult = await service.GetArchivedCardsAsync(boardId, search: "alpha", offset: null, limit: null, ActorUserId);
+        var tagSearchResult = await service.GetArchivedCardsAsync(boardId, search: "urgent", offset: null, limit: null, ActorUserId);
+        var descriptionSearchResult = await service.GetArchivedCardsAsync(boardId, search: "needle", offset: null, limit: null, ActorUserId);
 
         // Assert
         Assert.True(titleSearchResult.Success);
         Assert.NotNull(titleSearchResult.Data);
-        var archivedCard = Assert.Single(titleSearchResult.Data!);
+        var archivedCard = Assert.Single(titleSearchResult.Data!.Items);
         Assert.Equal("Alpha feature", archivedCard.Title);
 
         Assert.True(descriptionSearchResult.Success);
         Assert.NotNull(descriptionSearchResult.Data);
-        Assert.Empty(descriptionSearchResult.Data!);
+        Assert.Empty(descriptionSearchResult.Data!.Items);
 
         Assert.True(tagSearchResult.Success);
         Assert.NotNull(tagSearchResult.Data);
-        var tagMatch = Assert.Single(tagSearchResult.Data!);
+        var tagMatch = Assert.Single(tagSearchResult.Data!.Items);
         Assert.Equal("Bravo card", tagMatch.Title);
     }
 
@@ -157,14 +157,91 @@ public sealed class CardArchiveServiceTests : TestBaseDb
 
         // Act
         var service = ResolveService<ICardArchiveService>();
-        var result = await service.GetArchivedCardsAsync(boardId, search: "ops", ActorUserId);
+        var result = await service.GetArchivedCardsAsync(boardId, search: "ops", offset: null, limit: null, ActorUserId);
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        var card = Assert.Single(result.Data!);
+        var card = Assert.Single(result.Data!.Items);
         Assert.Equal("Future card", card.Title);
         Assert.Equal(["Ops"], card.TagNames);
+    }
+
+    [Fact]
+    public async Task GetArchivedCardsAsync_WhenPaginationSpecified_ShouldReturnSliceAndMetadata()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Alpha", "First")
+            .AddCard("Bravo", "Second")
+            .AddCard("Charlie", "Third")
+            .Build();
+        var boardId = board.BoardId;
+        var service = ResolveService<ICardArchiveService>();
+        var alphaArchive = await service.ArchiveCardAsync(boardId, board.GetCard("Todo", "Alpha").Id, ActorUserId);
+        Assert.True(alphaArchive.Success);
+        var bravoArchive = await service.ArchiveCardAsync(boardId, board.GetCard("Todo", "Bravo").Id, ActorUserId);
+        Assert.True(bravoArchive.Success);
+        var charlieArchive = await service.ArchiveCardAsync(boardId, board.GetCard("Todo", "Charlie").Id, ActorUserId);
+        Assert.True(charlieArchive.Success);
+
+        // Act
+        var result = await service.GetArchivedCardsAsync(boardId, search: null, offset: 1, limit: 1, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(1, result.Data!.Offset);
+        Assert.Equal(1, result.Data.Limit);
+        Assert.Equal(3, result.Data.TotalCount);
+        var archivedCard = Assert.Single(result.Data.Items);
+        Assert.Equal("Bravo", archivedCard.Title);
+    }
+
+    [Fact]
+    public async Task GetArchivedCardsAsync_WhenPaginationInvalid_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.GetArchivedCardsAsync(board.BoardId, search: null, offset: -1, limit: 0, ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.Contains("offset", result.ValidationErrors!.Keys, StringComparer.Ordinal);
+        Assert.Contains("limit", result.ValidationErrors.Keys, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public async Task GetArchivedCardAsync_WhenArchivedCardExists_ShouldReturnFullSnapshot()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Desc")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var service = ResolveService<ICardArchiveService>();
+        var archiveResult = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+        Assert.True(archiveResult.Success);
+        Assert.NotNull(archiveResult.Data);
+
+        // Act
+        var result = await service.GetArchivedCardAsync(boardId, archiveResult.Data!.Id, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("Archive me", result.Data!.Title);
+        Assert.False(string.IsNullOrWhiteSpace(result.Data.SnapshotJson));
     }
 
     private async Task SeedTagsForArrangeAsync(int boardId, params string[] tagNames)

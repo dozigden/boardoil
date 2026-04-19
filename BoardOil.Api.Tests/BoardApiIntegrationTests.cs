@@ -929,29 +929,108 @@ public sealed class BoardApiIntegrationTests
         betaArchiveResponse.EnsureSuccessStatusCode();
 
         // Act
-        var allArchivedResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ArchivedCardDto>>>("/api/boards/1/cards/archived", JsonOptions);
-        var titleSearchResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ArchivedCardDto>>>("/api/boards/1/cards/archived?search=alpha", JsonOptions);
-        var tagSearchResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ArchivedCardDto>>>("/api/boards/1/cards/archived?search=urgent", JsonOptions);
-        var descriptionSearchResponse = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ArchivedCardDto>>>("/api/boards/1/cards/archived?search=needle", JsonOptions);
+        var allArchivedResponse = await Client.GetFromJsonAsync<ApiEnvelope<ArchivedCardListDto>>("/api/boards/1/cards/archived", JsonOptions);
+        var titleSearchResponse = await Client.GetFromJsonAsync<ApiEnvelope<ArchivedCardListDto>>("/api/boards/1/cards/archived?search=alpha", JsonOptions);
+        var tagSearchResponse = await Client.GetFromJsonAsync<ApiEnvelope<ArchivedCardListDto>>("/api/boards/1/cards/archived?search=urgent", JsonOptions);
+        var descriptionSearchResponse = await Client.GetFromJsonAsync<ApiEnvelope<ArchivedCardListDto>>("/api/boards/1/cards/archived?search=needle", JsonOptions);
+        var pagedArchivedResponse = await Client.GetFromJsonAsync<ApiEnvelope<ArchivedCardListDto>>("/api/boards/1/cards/archived?offset=1&limit=1", JsonOptions);
 
         // Assert
         Assert.NotNull(allArchivedResponse);
         Assert.NotNull(allArchivedResponse!.Data);
-        Assert.Equal(["Beta item", "Alpha item"], allArchivedResponse.Data!.Select(x => x.Title).ToArray());
+        Assert.Equal(["Beta item", "Alpha item"], allArchivedResponse.Data!.Items.Select(x => x.Title).ToArray());
+        Assert.Equal(2, allArchivedResponse.Data.TotalCount);
 
         Assert.NotNull(titleSearchResponse);
         Assert.NotNull(titleSearchResponse!.Data);
-        var titleMatch = Assert.Single(titleSearchResponse.Data!);
+        var titleMatch = Assert.Single(titleSearchResponse.Data!.Items);
         Assert.Equal("Alpha item", titleMatch.Title);
 
         Assert.NotNull(tagSearchResponse);
         Assert.NotNull(tagSearchResponse!.Data);
-        var tagMatch = Assert.Single(tagSearchResponse.Data!);
+        var tagMatch = Assert.Single(tagSearchResponse.Data!.Items);
         Assert.Equal("Beta item", tagMatch.Title);
 
         Assert.NotNull(descriptionSearchResponse);
         Assert.NotNull(descriptionSearchResponse!.Data);
-        Assert.Empty(descriptionSearchResponse.Data!);
+        Assert.Empty(descriptionSearchResponse.Data!.Items);
+
+        Assert.NotNull(pagedArchivedResponse);
+        Assert.NotNull(pagedArchivedResponse!.Data);
+        Assert.Equal(1, pagedArchivedResponse.Data!.Offset);
+        Assert.Equal(1, pagedArchivedResponse.Data.Limit);
+        Assert.Equal(2, pagedArchivedResponse.Data.TotalCount);
+        var pagedCard = Assert.Single(pagedArchivedResponse.Data.Items);
+        Assert.Equal("Alpha item", pagedCard.Title);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_GetArchived_WhenPaginationInvalid_ShouldReturnBadRequest()
+    {
+        // Act
+        var response = await Client.GetAsync("/api/boards/1/cards/archived?offset=-1&limit=0");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardListDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal(400, payload.StatusCode);
+        Assert.Equal("Invalid pagination parameters.", payload.Message);
+        Assert.NotNull(payload.ValidationErrors);
+        Assert.Contains("offset", payload.ValidationErrors!.Keys, StringComparer.Ordinal);
+        Assert.Contains("limit", payload.ValidationErrors.Keys, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_GetArchivedById_ShouldReturnSnapshot()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+        var createTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("Bug"));
+        createTagResponse.EnsureSuccessStatusCode();
+        var createdCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Archive me", "Desc", ["Bug"]));
+        createdCardResponse.EnsureSuccessStatusCode();
+        var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdCard);
+        Assert.NotNull(createdCard!.Data);
+        var archiveResponse = await Client.PostAsync($"/api/boards/1/cards/{createdCard.Data!.Id}/archive", content: null);
+        archiveResponse.EnsureSuccessStatusCode();
+        var archivedCardEnvelope = await archiveResponse.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(JsonOptions);
+        Assert.NotNull(archivedCardEnvelope);
+        Assert.NotNull(archivedCardEnvelope!.Data);
+
+        // Act
+        var archivedByIdResponse = await Client.GetFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(
+            $"/api/boards/1/cards/archived/{archivedCardEnvelope.Data!.Id}",
+            JsonOptions);
+
+        // Assert
+        Assert.NotNull(archivedByIdResponse);
+        Assert.NotNull(archivedByIdResponse!.Data);
+        Assert.Equal("Archive me", archivedByIdResponse.Data!.Title);
+        Assert.False(string.IsNullOrWhiteSpace(archivedByIdResponse.Data.SnapshotJson));
+    }
+
+    [Fact]
+    public async Task CardEndpoints_GetArchivedById_WhenMissing_ShouldReturnNotFound()
+    {
+        // Act
+        var response = await Client.GetAsync("/api/boards/1/cards/archived/999999");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal(404, payload.StatusCode);
+        Assert.Equal("Archived card not found.", payload.Message);
     }
 
     [Fact]
@@ -1402,5 +1481,10 @@ public sealed class BoardApiIntegrationTests
         return Convert.ToInt32(value);
     }
 
-    private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
+    private sealed record ApiEnvelope<T>(
+        bool Success,
+        T? Data,
+        int StatusCode,
+        string? Message,
+        Dictionary<string, string[]>? ValidationErrors = null);
 }

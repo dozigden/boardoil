@@ -19,8 +19,10 @@ public sealed class CardArchiveService(
     IDbContextScopeFactory scopeFactory) : ICardArchiveService
 {
     private const int MaxArchiveSnapshotJsonBytes = 524_288;
+    private const int DefaultListLimit = 50;
+    private const int MaxListLimit = 200;
 
-    public async Task<ApiResult<IReadOnlyList<ArchivedCardDto>>> GetArchivedCardsAsync(int boardId, string? search, int actorUserId)
+    public async Task<ApiResult<ArchivedCardListDto>> GetArchivedCardsAsync(int boardId, string? search, int? offset, int? limit, int actorUserId)
     {
         using var scope = scopeFactory.CreateReadOnly();
 
@@ -30,12 +32,40 @@ public sealed class CardArchiveService(
             return ApiErrors.Forbidden("You do not have access to this board.");
         }
 
+        var paginationValidationErrors = ValidatePagination(offset, limit);
+        if (paginationValidationErrors.Count > 0)
+        {
+            return ApiErrors.BadRequest("Invalid pagination parameters.", paginationValidationErrors);
+        }
+
+        var listOffset = offset ?? 0;
+        var listLimit = limit ?? DefaultListLimit;
         var normalisedSearch = NormaliseSearchTerm(search);
-        var archivedCards = await archivedCardRepository.ListByBoardAsync(boardId, normalisedSearch);
-        IReadOnlyList<ArchivedCardDto> dto = archivedCards
-            .Select(x => x.ToArchivedCardDto())
+        var totalCount = await archivedCardRepository.CountByBoardAsync(boardId, normalisedSearch);
+        var archivedCards = await archivedCardRepository.ListByBoardAsync(boardId, normalisedSearch, listOffset, listLimit);
+        IReadOnlyList<ArchivedCardListItemDto> items = archivedCards
+            .Select(x => x.ToArchivedCardListItemDto())
             .ToList();
-        return ApiResults.Ok(dto);
+        return ApiResults.Ok(new ArchivedCardListDto(items, listOffset, listLimit, totalCount));
+    }
+
+    public async Task<ApiResult<ArchivedCardDto>> GetArchivedCardAsync(int boardId, int archivedCardId, int actorUserId)
+    {
+        using var scope = scopeFactory.CreateReadOnly();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have access to this board.");
+        }
+
+        var archivedCard = await archivedCardRepository.GetByIdAsync(boardId, archivedCardId);
+        if (archivedCard is null)
+        {
+            return ApiErrors.NotFound("Archived card not found.");
+        }
+
+        return ApiResults.Ok(archivedCard.ToArchivedCardDto());
     }
 
     public async Task<ApiResult<ArchivedCardDto>> ArchiveCardAsync(int boardId, int id, int actorUserId)
@@ -108,4 +138,26 @@ public sealed class CardArchiveService(
 
     private static string NormaliseSearchValue(string value) =>
         value.Trim().ToUpperInvariant();
+
+    private static List<ValidationError> ValidatePagination(int? offset, int? limit)
+    {
+        var errors = new List<ValidationError>();
+
+        if (offset is < 0)
+        {
+            errors.Add(new ValidationError(nameof(offset), "Offset must be 0 or greater."));
+        }
+
+        if (limit is < 1)
+        {
+            errors.Add(new ValidationError(nameof(limit), "Limit must be at least 1 when provided."));
+        }
+
+        if (limit is > MaxListLimit)
+        {
+            errors.Add(new ValidationError(nameof(limit), $"Limit cannot exceed {MaxListLimit}."));
+        }
+
+        return errors;
+    }
 }

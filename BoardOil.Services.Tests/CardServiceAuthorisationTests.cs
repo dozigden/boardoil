@@ -44,7 +44,25 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
         var service = ResolveService<ICardArchiveService>();
 
         // Act
-        var result = await service.GetArchivedCardsAsync(board.BoardId, search: null, ActorUserId);
+        var result = await service.GetArchivedCardsAsync(board.BoardId, search: null, offset: null, limit: null, ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(403, result.StatusCode);
+        Assert.Equal(BoardPermission.BoardAccess, _boardAuthorisationService.LastPermission);
+    }
+
+    [Fact]
+    public async Task GetArchivedCardAsync_WhenPermissionDenied_ShouldCheckBoardAccessPermission()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.GetArchivedCardAsync(board.BoardId, archivedCardId: 123, ActorUserId);
 
         // Assert
         Assert.False(result.Success);
