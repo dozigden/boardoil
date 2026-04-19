@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace BoardOil.Ef.Migrations
 {
     /// <inheritdoc />
-    public partial class AddArchivedCards : Migration
+    public partial class AddArchivedCardsJsonEnvelope : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -19,16 +19,11 @@ namespace BoardOil.Ef.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     BoardId = table.Column<int>(type: "INTEGER", nullable: false),
                     OriginalCardId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Title = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    NormalisedTitle = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "TEXT", maxLength: 20000, nullable: false),
-                    CardTypeName = table.Column<string>(type: "TEXT", maxLength: 40, nullable: false),
-                    CardTypeEmoji = table.Column<string>(type: "TEXT", maxLength: 32, nullable: true),
-                    OriginalColumnName = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    TagNamesCsv = table.Column<string>(type: "TEXT", maxLength: 4000, nullable: false),
                     ArchivedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    OriginalCreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    OriginalUpdatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    SnapshotJson = table.Column<string>(type: "TEXT", maxLength: 524288, nullable: false),
+                    SearchTitle = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
+                    SearchTagsJson = table.Column<string>(type: "TEXT", maxLength: 65535, nullable: false),
+                    SearchTextNormalised = table.Column<string>(type: "TEXT", maxLength: 65535, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -45,11 +40,6 @@ namespace BoardOil.Ef.Migrations
                 name: "IX_ArchivedCards_BoardId_ArchivedAtUtc_Id",
                 table: "ArchivedCards",
                 columns: new[] { "BoardId", "ArchivedAtUtc", "Id" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ArchivedCards_BoardId_NormalisedTitle",
-                table: "ArchivedCards",
-                columns: new[] { "BoardId", "NormalisedTitle" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ArchivedCards_OriginalCardId",

@@ -19,8 +19,8 @@ public static class CardEndpoints
         cardEndpoints.MapPost(string.Empty, async (int boardId, CreateCardRequest request, ICardService cardService, HttpContext httpContext) =>
             (await cardService.CreateCardAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 
-        cardEndpoints.MapGet("/archived", async (int boardId, string? search, ICardService cardService, HttpContext httpContext) =>
-            (await cardService.GetArchivedCardsAsync(boardId, search, httpContext.GetActorUserId())).ToHttpResult());
+        cardEndpoints.MapGet("/archived", async (int boardId, string? search, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
+            (await cardArchiveService.GetArchivedCardsAsync(boardId, search, httpContext.GetActorUserId())).ToHttpResult());
 
         cardEndpoints.MapPut("/{id:int}", async (int boardId, int id, UpdateCardRequest request, ICardService cardService, HttpContext httpContext) =>
             (await cardService.UpdateCardAsync(boardId, id, request, httpContext.GetActorUserId())).ToHttpResult());
@@ -28,8 +28,8 @@ public static class CardEndpoints
         cardEndpoints.MapPatch("/{id:int}/move", async (int boardId, int id, MoveCardRequest request, ICardService cardService, HttpContext httpContext) =>
             (await cardService.MoveCardAsync(boardId, id, request, httpContext.GetActorUserId())).ToHttpResult());
 
-        cardEndpoints.MapPost("/{id:int}/archive", async (int boardId, int id, ICardService cardService, HttpContext httpContext) =>
-            (await cardService.ArchiveCardAsync(boardId, id, httpContext.GetActorUserId())).ToHttpResult());
+        cardEndpoints.MapPost("/{id:int}/archive", async (int boardId, int id, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
+            (await cardArchiveService.ArchiveCardAsync(boardId, id, httpContext.GetActorUserId())).ToHttpResult());
 
         cardEndpoints.MapDelete("/{id:int}", async (int boardId, int id, ICardService cardService, HttpContext httpContext) =>
             (await cardService.DeleteCardAsync(boardId, id, httpContext.GetActorUserId())).ToHttpResult());
