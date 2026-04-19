@@ -27,6 +27,26 @@ export type Card = {
   updatedAtUtc: string;
 };
 
+export type ArchivedCardListItem = {
+  id: number;
+  boardId: number;
+  originalCardId: number;
+  title: string;
+  tagNames: string[];
+  archivedAtUtc: string;
+};
+
+export type ArchivedCard = ArchivedCardListItem & {
+  snapshotJson: string;
+};
+
+export type ArchivedCardList = {
+  items: ArchivedCardListItem[];
+  offset: number;
+  limit: number;
+  totalCount: number;
+};
+
 export type Tag = TagPresentation & {
   id: number;
   name: string;

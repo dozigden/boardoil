@@ -5,6 +5,13 @@
   </section>
 
   <section v-else-if="board" class="board-view">
+    <section class="board-view-toolbar">
+      <button type="button" class="btn btn--secondary" aria-label="View archived cards" @click="openArchivedCards">
+        <Archive :size="16" aria-hidden="true" />
+        <span>Archived Cards</span>
+      </button>
+    </section>
+
     <BoardCardFilters
       :search-text="cardSearchText"
       :available-tag-names="availableTagNames"
@@ -109,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronDown, Plus } from 'lucide-vue-next';
+import { Archive, ChevronDown, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -240,6 +247,15 @@ async function openCardEditor(cardId: number) {
   }
 
   await router.push({ name: 'board-card', params: { boardId, cardId } });
+}
+
+async function openArchivedCards() {
+  const boardId = resolveBoardId();
+  if (boardId === null) {
+    return;
+  }
+
+  await router.push({ name: 'board-archived', params: { boardId } });
 }
 
 function onCardDragStart(cardId: number, fromColumnId: number) {
@@ -507,6 +523,12 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
   gap: 0.75rem;
 }
 
+.board-view-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding-inline: 1.5rem;
+}
+
 .board {
   --column-min-width: 280px;
   --column-max-width: 360px;
@@ -682,6 +704,10 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
 }
 
 @media (max-width: 720px) {
+  .board-view-toolbar {
+    padding-inline: 0.75rem;
+  }
+
   .board {
     padding-inline: 0.75rem;
   }

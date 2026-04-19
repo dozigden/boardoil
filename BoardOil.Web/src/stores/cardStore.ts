@@ -105,15 +105,31 @@ export const useCardStore = defineStore('card', () => {
   async function deleteCard(cardId: number, boardId: number | null = activeBoardId.value) {
     const resolvedBoardId = resolveBoardId(boardId);
     if (resolvedBoardId === null) {
-      return;
+      return false;
     }
 
     const result = await runBusy(() => api.deleteCard(resolvedBoardId, cardId));
     if (!result.ok) {
-      return;
+      return false;
     }
 
     removeCard(cardId);
+    return true;
+  }
+
+  async function archiveCard(cardId: number, boardId: number | null = activeBoardId.value) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
+      return false;
+    }
+
+    const result = await runBusy(() => api.archiveCard(resolvedBoardId, cardId));
+    if (!result.ok) {
+      return false;
+    }
+
+    removeCard(cardId);
+    return true;
   }
 
   function startDrag(cardId: number, fromColumnId: number) {
@@ -286,6 +302,7 @@ export const useCardStore = defineStore('card', () => {
     createCard,
     saveCard,
     deleteCard,
+    archiveCard,
     startDrag,
     dropCard,
     upsertCard,

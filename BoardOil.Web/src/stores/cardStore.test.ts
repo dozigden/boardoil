@@ -10,7 +10,8 @@ const api = {
   createCard: vi.fn(),
   saveCard: vi.fn(),
   moveCard: vi.fn(),
-  deleteCard: vi.fn()
+  deleteCard: vi.fn(),
+  archiveCard: vi.fn()
 };
 
 vi.mock('../api/boardApi', () => ({
@@ -249,6 +250,19 @@ describe('cardStore', () => {
     expect(store.getCardById(101)?.title).toBe('Task A+');
     expect(store.getCardById(101)?.tagNames).toEqual(['Bug']);
     expect(api.saveCard).toHaveBeenCalledWith(1, 101, 'Task A+', 'Updated', ['Bug'], 1, 1);
+  });
+
+  it('archiveCard removes card from active board cache', async () => {
+    const store = useCardStore();
+    store.replaceBoardCards(1, makeBoard().columns);
+    api.archiveCard.mockResolvedValue(ok(undefined));
+
+    const archived = await store.archiveCard(101);
+
+    expect(archived).toBe(true);
+    expect(api.archiveCard).toHaveBeenCalledWith(1, 101);
+    expect(store.getCardById(101)).toBeNull();
+    expect(store.getCardsForColumn(1)).toHaveLength(0);
   });
 
   it('removeTagFromCards strips matching tags case-insensitively', () => {
