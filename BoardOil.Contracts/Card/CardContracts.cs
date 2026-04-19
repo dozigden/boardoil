@@ -30,6 +30,20 @@ public sealed record ArchivedCardDto(
     DateTime ArchivedAtUtc,
     string SnapshotJson);
 
+public sealed record ArchivedCardListItemDto(
+    int Id,
+    int BoardId,
+    int OriginalCardId,
+    string Title,
+    IReadOnlyList<string> TagNames,
+    DateTime ArchivedAtUtc);
+
+public sealed record ArchivedCardListDto(
+    IReadOnlyList<ArchivedCardListItemDto> Items,
+    int Offset,
+    int Limit,
+    int TotalCount);
+
 public sealed record CreateCardRequest(
     int? BoardColumnId,
     string Title,
