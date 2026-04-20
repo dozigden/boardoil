@@ -1,65 +1,62 @@
 <template>
-  <section class="entity-rows-page archived-cards-page">
-    <header class="entity-rows-header archived-cards-header">
-      <div class="archived-cards-heading">
-        <h2>Archived Cards</h2>
-      </div>
+  <section class="archived-cards-page">
+    <section class="archived-cards-filter-row">
+      <h2 class="archived-cards-title">Archived Cards</h2>
+      <BoardCardFilters
+        :search-text="searchDraft"
+        :available-tag-names="[]"
+        :filter-states="filterStates"
+        :picker-open="isTagFilterMenuOpen"
+        :has-active-filters="hasActiveFilters"
+        @update:search-text="handleSearchTextChanged"
+        @update:filter-states="filterStates = $event"
+        @update:picker-open="isTagFilterMenuOpen = $event"
+        @clear="clearSearch"
+      />
       <button type="button" class="btn btn--secondary" @click="goToBoard">Back To Board</button>
-    </header>
-
-    <BoardCardFilters
-      :search-text="searchDraft"
-      :available-tag-names="[]"
-      :filter-states="filterStates"
-      :picker-open="isTagFilterMenuOpen"
-      :has-active-filters="hasActiveFilters"
-      @update:search-text="handleSearchTextChanged"
-      @update:filter-states="filterStates = $event"
-      @update:picker-open="isTagFilterMenuOpen = $event"
-      @clear="clearSearch"
-    />
-
-    <div class="archived-cards-meta">
-      <p class="archived-cards-range">
-        <template v-if="totalCount > 0">
-          Showing {{ rangeStart }}-{{ rangeEnd }} of {{ totalCount }}
-        </template>
-        <template v-else>
-          No archived cards found.
-        </template>
-      </p>
-    </div>
-
-    <p v-if="isLoadingList" class="entity-rows-empty">Loading archived cards...</p>
-    <p v-else-if="listErrorMessage" class="entity-rows-empty">{{ listErrorMessage }}</p>
-
-    <section v-else-if="listItems.length > 0" class="entity-rows-list archived-cards-list">
-      <article v-for="item in listItems" :key="item.id" class="entity-row">
-        <button
-          type="button"
-          class="entity-row-main-button archived-card-row-main"
-          :aria-label="`Open archived card ${item.title}`"
-          @click="openArchivedCard(item)"
-        >
-          <span class="archived-card-row-header">
-            <span class="entity-row-title">#{{ item.originalCardId }} {{ item.title }}</span>
-            <span class="archived-card-row-meta">Archived {{ formatDateTime(item.archivedAtUtc) }}</span>
-          </span>
-          <span v-if="item.tagNames.length > 0" class="archived-card-tags">
-            <span v-for="tagName in item.tagNames" :key="`${item.id}-${tagName}`" class="archived-card-tag">{{ tagName }}</span>
-          </span>
-        </button>
-      </article>
     </section>
 
-    <p v-else class="entity-rows-empty">
-      No archived cards match your filters.
-    </p>
-
-    <footer class="archived-cards-pagination">
-      <button type="button" class="btn btn--secondary" :disabled="!canGoPrevious" @click="goToPreviousPage">Previous</button>
-      <button type="button" class="btn btn--secondary" :disabled="!canGoNext" @click="goToNextPage">Next</button>
-    </footer>
+    <section class="archived-cards-grid-region">
+      <p v-if="listErrorMessage" class="archived-cards-empty">{{ listErrorMessage }}</p>
+      <BoGrid
+        v-else
+        class="archived-cards-grid"
+        :columns="gridFields"
+        :items="listItems"
+        :is-loading="isLoadingList"
+        :empty-text="emptyGridText"
+        sticky-header="100%"
+        :total-count="totalCount"
+        :offset="offsetQuery"
+        :limit="PageLimit"
+        row-clickable
+        @row-clicked="openArchivedCardFromRow"
+        @previous-page="goToPreviousPage"
+        @next-page="goToNextPage"
+      >
+        <template #cell(id)="{ row }">
+          <span class="archived-card-id">#{{ row.originalCardId }}</span>
+        </template>
+        <template #cell(title)="{ row }">
+          <span class="archived-card-title">{{ row.title }}</span>
+        </template>
+        <template #cell(tagNames)="{ row }">
+          <span v-if="Array.isArray(row.tagNames) && row.tagNames.length > 0" class="archived-card-tags">
+            <Tag
+              v-for="tagName in row.tagNames"
+              :key="`${row.id}-${tagName}`"
+              class="archived-card-tag"
+              :tagName="tagName"
+              enable-fallback
+            />
+          </span>
+          <span v-else class="archived-card-tags-empty">-</span>
+        </template>
+        <template #cell(archivedAtUtc)="{ row }">
+          <span class="archived-card-date">{{ formatDateTime(String(row.archivedAtUtc ?? '')) }}</span>
+        </template>
+      </BoGrid>
+    </section>
   </section>
 
   <ModalDialog
@@ -89,11 +86,14 @@ import { storeToRefs } from 'pinia';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
+import BoGrid from '../components/BoGrid.vue';
 import ModalDialog from '../components/ModalDialog.vue';
 import { createBoardApi } from '../api/boardApi';
 import { useBoardStore } from '../stores/boardStore';
 import type { ArchivedCard, ArchivedCardList, ArchivedCardListItem } from '../types/boardTypes';
 import type { TagFilterStateMap } from '../types/tagFilterTypes';
+import Tag from '../components/Tag.vue';
+import { useTagStore } from '../stores/tagStore';
 
 const PageLimit = 25;
 
@@ -102,12 +102,14 @@ const boardStore = useBoardStore();
 const route = useRoute();
 const router = useRouter();
 const { currentBoardId } = storeToRefs(boardStore);
+const tagStore = useTagStore();
+const { tags } = storeToRefs(tagStore);
 
 const searchDraft = ref('');
 const filterStates = ref<TagFilterStateMap>({});
 const isTagFilterMenuOpen = ref(false);
 const archivedCardList = ref<ArchivedCardList | null>(null);
-const isLoadingList = ref(false);
+const isLoadingList = ref(true);
 const listErrorMessage = ref('');
 const isDetailModalOpen = ref(false);
 const isLoadingDetail = ref(false);
@@ -130,17 +132,8 @@ const offsetQuery = computed(() => {
 });
 const listItems = computed(() => archivedCardList.value?.items ?? []);
 const totalCount = computed(() => archivedCardList.value?.totalCount ?? 0);
-const rangeStart = computed(() => (totalCount.value === 0 ? 0 : offsetQuery.value + 1));
-const rangeEnd = computed(() => {
-  if (totalCount.value === 0) {
-    return 0;
-  }
-
-  return Math.min(offsetQuery.value + listItems.value.length, totalCount.value);
-});
-const canGoPrevious = computed(() => offsetQuery.value > 0);
-const canGoNext = computed(() => offsetQuery.value + listItems.value.length < totalCount.value);
 const hasActiveFilters = computed(() => searchDraft.value.trim().length > 0);
+const emptyGridText = computed(() => hasActiveFilters.value ? 'No archived cards match your filters.' : 'No archived cards found.');
 const detailModalTitle = computed(() => selectedArchivedCard.value?.title ?? selectedArchivedCardListItem.value?.title ?? 'Archived Card');
 const formattedSnapshotJson = computed(() => {
   const snapshotJson = selectedArchivedCard.value?.snapshotJson ?? '';
@@ -171,6 +164,8 @@ watch(
 
     searchDraft.value = searchQuery.value;
     await loadArchivedCards();
+    await tagStore.loadTags(routeBoardId.value);
+
     closeDetailModal();
   },
   { immediate: true }
@@ -234,6 +229,27 @@ async function goToPreviousPage() {
 
 async function goToNextPage() {
   await updateQuery({ offset: offsetQuery.value + PageLimit });
+}
+
+const gridFields: Array<{
+  key: string;
+  label: string;
+  rowKeyColumn?: boolean;
+  width?: string;
+  align?: 'end';
+}> = [
+  { key: 'id', label: 'Id', rowKeyColumn: true, width: '6.5rem' },
+  { key: 'title', label: 'Title' },
+  { key: 'tagNames', label: 'Tags' },
+  { key: 'archivedAtUtc', label: 'Archived', width: '14rem', align: 'end' }
+];
+
+function openArchivedCardFromRow(row: Record<string, unknown>) {
+  if (typeof row.id !== 'number') {
+    return;
+  }
+
+  void openArchivedCard(row as ArchivedCardListItem);
 }
 
 async function openArchivedCard(item: ArchivedCardListItem) {
@@ -338,68 +354,59 @@ function formatDateTime(value: string) {
 
 <style scoped>
 .archived-cards-page {
+  display: grid;
   max-width: none;
   margin-top: 0.45rem;
+  margin-bottom: 1rem;
   margin-inline-end: 2rem;
+  gap: 0.5rem;
+  min-height: 0;
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
-.archived-cards-header {
-  align-items: flex-end;
+.archived-cards-filter-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-.archived-cards-heading h2 {
+.archived-cards-title {
   margin: 0;
+  white-space: nowrap;
 }
 
-.archived-cards-page :deep(.board-filters) {
+.archived-cards-filter-row :deep(.board-filters) {
+  width: 100%;
   margin-inline: 0;
   margin-top: 0;
+  gap: 0.45rem 0.65rem;
 }
 
-.archived-cards-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.archived-cards-range {
-  margin: 0;
-  color: var(--bo-ink-muted);
-}
-
-.archived-cards-list {
+.archived-cards-grid {
   margin-top: 0;
+  min-height: 0;
+  height: 100%;
 }
 
-.archived-card-row-main {
-  display: grid;
-  gap: 0.35rem;
-  width: 100%;
+.archived-cards-grid-region {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.archived-card-row-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 0.75rem;
-  min-width: 0;
-  width: 100%;
-}
-
-.archived-card-row-header .entity-row-title {
+.archived-card-title {
   display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.archived-card-row-meta {
+.archived-card-date {
+  display: block;
   color: var(--bo-ink-muted);
   font-size: 0.88rem;
-  justify-self: end;
   text-align: right;
   white-space: nowrap;
 }
@@ -419,11 +426,13 @@ function formatDateTime(value: string) {
   background: var(--bo-surface-energy);
 }
 
-.archived-cards-pagination {
-  margin-top: 0.85rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
+.archived-card-tags-empty {
+  color: var(--bo-ink-subtle);
+}
+
+.archived-cards-empty {
+  margin: 0;
+  color: var(--bo-ink-muted);
 }
 
 .archived-detail-loading,
@@ -461,15 +470,11 @@ function formatDateTime(value: string) {
   .archived-cards-page {
     margin-inline-end: 0.75rem;
   }
+}
 
-  .archived-cards-header {
-    align-items: stretch;
+@media (max-width: 767px) {
+  .archived-card-date {
+    text-align: left;
   }
-
-  .archived-cards-meta {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
 }
 </style>

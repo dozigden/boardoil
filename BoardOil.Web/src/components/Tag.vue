@@ -1,7 +1,7 @@
 <template>
-  <span v-if="resolvedTag" class="tag" :class="{ 'tag--with-emoji': tagEmoji }" :style="tagStyle" :aria-label="resolvedTag.name">
+  <span v-if="displayTagName" class="tag" :class="{ 'tag--with-emoji': tagEmoji }" :style="tagStyle" :aria-label="displayTagName">
     <span v-if="tagEmoji" class="tag-emoji" aria-hidden="true">{{ tagEmoji }}</span>
-    <span>{{ resolvedTag.name }}</span>
+    <span>{{ displayTagName }}</span>
     <slot />
   </span>
 </template>
@@ -11,20 +11,44 @@ import { computed } from 'vue';
 import { useTagStore } from '../stores/tagStore';
 import { getTagPillStyle, normaliseTagEmojiForRender } from '../utils/tagStyles';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   tagName?: string;
   tagId?: number | null;
-}>();
+  enableFallback?: boolean;
+}>(), {
+  enableFallback: false
+});
 
 const tagStore = useTagStore();
-const resolvedTag = computed(() => {
+const resolvedTagFromStore = computed(() => {
   if (props.tagId !== null && props.tagId !== undefined) {
-    return tagStore.getTagById(props.tagId);
+    const byId = tagStore.getTagById(props.tagId);
+    if (byId) {
+      return byId;
+    }
   }
 
   return tagStore.getTagByName(props.tagName ?? null);
 });
+const fallbackTagName = computed(() => {
+  if (!props.enableFallback) {
+    return null;
+  }
 
-const tagStyle = computed(() => getTagPillStyle(resolvedTag.value));
-const tagEmoji = computed(() => normaliseTagEmojiForRender(resolvedTag.value?.emoji));
+  const tagNameFromProp = props.tagName?.trim();
+  if (tagNameFromProp) {
+    return tagNameFromProp;
+  }
+
+  if (props.tagId !== null && props.tagId !== undefined) {
+    return 'Tag';
+  }
+
+  return null;
+});
+const displayTagName = computed(() => resolvedTagFromStore.value?.name ?? fallbackTagName.value);
+const tagStyleSource = computed(() => resolvedTagFromStore.value);
+
+const tagStyle = computed(() => getTagPillStyle(tagStyleSource.value));
+const tagEmoji = computed(() => normaliseTagEmojiForRender(tagStyleSource.value?.emoji));
 </script>
