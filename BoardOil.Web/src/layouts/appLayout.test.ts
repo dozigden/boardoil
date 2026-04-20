@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, APP_LAYOUT_PAGE, resolveAppLayout } from './appLayout';
+import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, APP_LAYOUT_FULL_HEIGHT, APP_LAYOUT_PAGE, resolveAppLayout } from './appLayout';
 
 describe('resolveAppLayout', () => {
   it('defaults to page scrolling', () => {
@@ -12,6 +12,10 @@ describe('resolveAppLayout', () => {
 
   it('uses admin layout when requested', () => {
     expect(resolveAppLayout(APP_LAYOUT_ADMIN)).toBe(APP_LAYOUT_ADMIN);
+  });
+
+  it('uses full-height layout when requested', () => {
+    expect(resolveAppLayout(APP_LAYOUT_FULL_HEIGHT)).toBe(APP_LAYOUT_FULL_HEIGHT);
   });
 
   it('treats unknown layout values as page scrolling', () => {

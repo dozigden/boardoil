@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import { resolveAuthNavigation } from './auth/navigationGuard';
 import { useAuthStore } from './stores/authStore';
-import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, APP_LAYOUT_PAGE } from './layouts/appLayout';
+import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, APP_LAYOUT_FULL_HEIGHT, APP_LAYOUT_PAGE } from './layouts/appLayout';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -51,7 +51,7 @@ const routes: RouteRecordRaw[] = [
     path: '/boards/:boardId(\\d+)/archived',
     name: 'board-archived',
     component: () => import('./views/ArchivedCardsView.vue'),
-    meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
+    meta: { requiresAuth: true, layout: APP_LAYOUT_FULL_HEIGHT }
   },
   {
     path: '/boards/:boardId(\\d+)/card/:cardId(\\d+)',
