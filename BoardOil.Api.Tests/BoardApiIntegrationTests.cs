@@ -907,6 +907,130 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_ShouldArchiveCardsInBulk()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+        var alphaCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Alpha", "First", null));
+        alphaCreateResponse.EnsureSuccessStatusCode();
+        var alphaCard = await alphaCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(alphaCard);
+        Assert.NotNull(alphaCard!.Data);
+        var bravoCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Bravo", "Second", null));
+        bravoCreateResponse.EnsureSuccessStatusCode();
+        var bravoCard = await bravoCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(bravoCard);
+        Assert.NotNull(bravoCard!.Data);
+
+        // Act
+        var archiveResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards/archive",
+            new ArchiveCardsRequest([alphaCard.Data!.Id, bravoCard.Data!.Id]));
+        archiveResponse.EnsureSuccessStatusCode();
+        var archivedSummaryEnvelope = await archiveResponse.Content.ReadFromJsonAsync<ApiEnvelope<ArchiveCardsSummaryDto>>(JsonOptions);
+
+        // Assert
+        Assert.NotNull(archivedSummaryEnvelope);
+        Assert.NotNull(archivedSummaryEnvelope!.Data);
+        Assert.Equal(1, archivedSummaryEnvelope.Data!.BoardId);
+        Assert.Equal(2, archivedSummaryEnvelope.Data.RequestedCount);
+        Assert.Equal(2, archivedSummaryEnvelope.Data.ArchivedCount);
+
+        var boardAfterArchive = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.NotNull(boardAfterArchive);
+        Assert.NotNull(boardAfterArchive!.Data);
+        var columnAfterArchive = boardAfterArchive.Data!.Columns.FirstOrDefault(x => x.Id == createdColumn.Data!.Id);
+        Assert.NotNull(columnAfterArchive);
+        Assert.Empty(columnAfterArchive!.Cards);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_ArchiveCardsInBulk_WhenPayloadInvalid_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+        var createdCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Archive me", "Desc", null));
+        createdCardResponse.EnsureSuccessStatusCode();
+        var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdCard);
+        Assert.NotNull(createdCard!.Data);
+
+        // Act
+        var response = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards/archive",
+            new ArchiveCardsRequest([0, createdCard.Data!.Id, createdCard.Data.Id]));
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<ArchiveCardsSummaryDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal(400, payload.StatusCode);
+        Assert.Equal("Validation failed.", payload.Message);
+        Assert.NotNull(payload.ValidationErrors);
+        Assert.Contains("cardIds", payload.ValidationErrors!.Keys, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_ArchiveCardsInBulk_WhenAnyCardMissing_ShouldBeAtomic()
+    {
+        // Arrange
+        var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        Assert.NotNull(createdColumn);
+        Assert.NotNull(createdColumn!.Data);
+        var alphaCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Alpha", "First", null));
+        alphaCreateResponse.EnsureSuccessStatusCode();
+        var alphaCard = await alphaCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(alphaCard);
+        Assert.NotNull(alphaCard!.Data);
+        var bravoCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumn.Data!.Id, "Bravo", "Second", null));
+        bravoCreateResponse.EnsureSuccessStatusCode();
+        var bravoCard = await bravoCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(bravoCard);
+        Assert.NotNull(bravoCard!.Data);
+
+        // Act
+        var response = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards/archive",
+            new ArchiveCardsRequest([alphaCard.Data!.Id, bravoCard.Data!.Id + 10_000]));
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<ArchiveCardsSummaryDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Equal(404, payload.StatusCode);
+        Assert.Equal("Card not found.", payload.Message);
+
+        var boardAfterFailedArchive = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.NotNull(boardAfterFailedArchive);
+        Assert.NotNull(boardAfterFailedArchive!.Data);
+        var columnAfterFailure = boardAfterFailedArchive.Data!.Columns.FirstOrDefault(x => x.Id == createdColumn.Data!.Id);
+        Assert.NotNull(columnAfterFailure);
+        Assert.Equal(2, columnAfterFailure!.Cards.Count);
+    }
+
+    [Fact]
     public async Task CardEndpoints_GetArchived_ShouldOrderNewestFirst_AndSearchByTitleAndTags()
     {
         // Arrange

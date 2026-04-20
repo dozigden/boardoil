@@ -70,21 +70,78 @@ public sealed class CardArchiveService(
 
     public async Task<ApiResult<ArchivedCardDto>> ArchiveCardAsync(int boardId, int id, int actorUserId)
     {
+        var archiveResult = await ExecuteArchiveCardsAsync(boardId, [id], actorUserId);
+        if (archiveResult.Error is not null)
+        {
+            return archiveResult.Error;
+        }
+
+        var archivedCard = archiveResult.ArchivedCards![0];
+        return ApiResults.Ok(archivedCard.ToArchivedCardDto());
+    }
+
+    public async Task<ApiResult<ArchiveCardsSummaryDto>> ArchiveCardsAsync(int boardId, ArchiveCardsRequest request, int actorUserId)
+    {
+        var cardIds = request?.CardIds;
+        var validationErrors = ValidateArchiveCardIds(cardIds);
+        if (validationErrors.Count > 0)
+        {
+            return ApiErrors.BadRequest("Validation failed.", validationErrors);
+        }
+
+        var archiveResult = await ExecuteArchiveCardsAsync(boardId, cardIds!, actorUserId);
+        if (archiveResult.Error is not null)
+        {
+            return archiveResult.Error;
+        }
+
+        return ApiResults.Ok(new ArchiveCardsSummaryDto(boardId, cardIds!.Count, archiveResult.ArchivedCards!.Count));
+    }
+
+    private async Task<ArchiveExecutionResult> ExecuteArchiveCardsAsync(int boardId, IReadOnlyList<int> requestedCardIds, int actorUserId)
+    {
         using var scope = scopeFactory.Create();
 
         var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardDelete);
         if (!hasPermission)
         {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
+            return new ArchiveExecutionResult(ApiErrors.Forbidden("You do not have permission for this action."), null);
         }
 
-        var card = await cardRepository.GetWithTagsAndBoardAsync(id);
-        if (card is null || card.BoardColumn.BoardId != boardId)
+        var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(requestedCardIds);
+        if (cards.Count != requestedCardIds.Count || cards.Any(x => x.BoardColumn.BoardId != boardId))
         {
-            return ApiErrors.NotFound("Card not found.");
+            return new ArchiveExecutionResult(ApiErrors.NotFound("Card not found."), null);
         }
 
-        var archivedAtUtc = DateTime.UtcNow;
+        var cardsById = cards.ToDictionary(x => x.Id);
+        var orderedCards = requestedCardIds.Select(x => cardsById[x]).ToList();
+        var archivedCards = new List<EntityArchivedCard>(orderedCards.Count);
+        foreach (var card in orderedCards)
+        {
+            var archivedAtUtc = DateTime.UtcNow;
+            var buildResult = BuildArchivedCardEntity(boardId, card, archivedAtUtc);
+            if (buildResult.Error is not null)
+            {
+                return new ArchiveExecutionResult(buildResult.Error, null);
+            }
+
+            archivedCards.Add(buildResult.ArchivedCard!);
+        }
+
+        archivedCardRepository.AddRange(archivedCards);
+        cardRepository.RemoveRange(orderedCards);
+        await scope.SaveChangesAsync();
+        foreach (var cardId in requestedCardIds)
+        {
+            await boardEvents.CardDeletedAsync(boardId, cardId);
+        }
+
+        return new ArchiveExecutionResult(null, archivedCards);
+    }
+
+    private static ArchivedCardBuildResult BuildArchivedCardEntity(int boardId, EntityBoardCard card, DateTime archivedAtUtc)
+    {
         var tagNames = card.CardTags
             .Select(x => x.Tag.Name)
             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -94,7 +151,7 @@ public sealed class CardArchiveService(
         var snapshotJson = ArchivedCardSnapshotSerialiser.CreateSnapshotJson(boardId, card, archivedAtUtc);
         if (Encoding.UTF8.GetByteCount(snapshotJson) > MaxArchiveSnapshotJsonBytes)
         {
-            return ApiErrors.InternalError("Archive snapshot exceeds configured size limit.");
+            return new ArchivedCardBuildResult(null, ApiErrors.InternalError("Archive snapshot exceeds configured size limit."));
         }
 
         var searchTitle = card.Title.Trim();
@@ -110,13 +167,7 @@ public sealed class CardArchiveService(
             SearchTagsJson = searchTagsJson,
             SearchTextNormalised = searchTextNormalised
         };
-
-        archivedCardRepository.Add(archivedCard);
-        cardRepository.Remove(card);
-        await scope.SaveChangesAsync();
-        await boardEvents.CardDeletedAsync(boardId, id);
-
-        return ApiResults.Ok(archivedCard.ToArchivedCardDto());
+        return new ArchivedCardBuildResult(archivedCard, null);
     }
 
     private static string? NormaliseSearchTerm(string? search)
@@ -139,6 +190,32 @@ public sealed class CardArchiveService(
     private static string NormaliseSearchValue(string value) =>
         value.Trim().ToUpperInvariant();
 
+    private static List<ValidationError> ValidateArchiveCardIds(IReadOnlyList<int>? cardIds)
+    {
+        var errors = new List<ValidationError>();
+        if (cardIds is null || cardIds.Count == 0)
+        {
+            errors.Add(new ValidationError("cardIds", "Card IDs are required."));
+            return errors;
+        }
+
+        var seenCardIds = new HashSet<int>();
+        foreach (var cardId in cardIds)
+        {
+            if (cardId <= 0)
+            {
+                errors.Add(new ValidationError("cardIds", "Card IDs must be greater than 0."));
+            }
+
+            if (!seenCardIds.Add(cardId))
+            {
+                errors.Add(new ValidationError("cardIds", $"Card ID '{cardId}' is duplicated."));
+            }
+        }
+
+        return errors;
+    }
+
     private static List<ValidationError> ValidatePagination(int? offset, int? limit)
     {
         var errors = new List<ValidationError>();
@@ -160,4 +237,12 @@ public sealed class CardArchiveService(
 
         return errors;
     }
+
+    private sealed record ArchiveExecutionResult(
+        ApiError? Error,
+        IReadOnlyList<EntityArchivedCard>? ArchivedCards);
+
+    private sealed record ArchivedCardBuildResult(
+        EntityArchivedCard? ArchivedCard,
+        ApiError? Error);
 }

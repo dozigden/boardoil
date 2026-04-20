@@ -44,6 +44,14 @@ public sealed record ArchivedCardListDto(
     int Limit,
     int TotalCount);
 
+public sealed record ArchiveCardsRequest(
+    IReadOnlyList<int>? CardIds);
+
+public sealed record ArchiveCardsSummaryDto(
+    int BoardId,
+    int RequestedCount,
+    int ArchivedCount);
+
 public sealed record CreateCardRequest(
     int? BoardColumnId,
     string Title,
