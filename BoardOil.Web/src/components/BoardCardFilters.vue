@@ -1,5 +1,5 @@
 <template>
-  <header class="panel panel--compact board-filters">
+  <header :class="rootClasses">
     <div class="board-search-pane">
       <label class="board-search-field">
         <input
@@ -41,16 +41,20 @@
 
 <script setup lang="ts">
 import { X } from 'lucide-vue-next';
+import { computed } from 'vue';
 import type { TagFilterStateMap } from '../types/tagFilterTypes';
 import BoardTagFilterPicker from './BoardTagFilterPicker.vue';
 
-defineProps<{
+const props = withDefaults(defineProps<{
   searchText: string;
   availableTagNames: string[];
   filterStates: TagFilterStateMap;
   pickerOpen: boolean;
   hasActiveFilters: boolean;
-}>();
+  embedded?: boolean;
+}>(), {
+  embedded: false
+});
 
 const emit = defineEmits<{
   'update:searchText': [value: string];
@@ -58,17 +62,31 @@ const emit = defineEmits<{
   'update:pickerOpen': [value: boolean];
   clear: [];
 }>();
+
+const rootClasses = computed(() => (
+  props.embedded
+    ? ['board-filters', 'board-filters--embedded']
+    : ['panel', 'panel--compact', 'board-filters']
+));
 </script>
 
 <style scoped>
 .board-filters {
   --bo-board-filter-control-height: 2.3rem;
-  margin-inline: 1.5rem;
   margin-top: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.6rem 0.9rem;
   align-items: center;
+}
+
+.board-filters:not(.board-filters--embedded) {
+  margin-inline: 1.5rem;
+}
+
+.board-filters--embedded {
+  margin-inline: 0;
+  padding: 0.45rem 0.6rem;
 }
 
 .board-search-pane {
@@ -106,7 +124,7 @@ const emit = defineEmits<{
 }
 
 @media (max-width: 720px) {
-  .board-filters {
+  .board-filters:not(.board-filters--embedded) {
     margin-inline: 0;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.5rem;
@@ -116,6 +134,12 @@ const emit = defineEmits<{
     border-right: none;
     border-radius: 0 0 10px 10px;
     padding: 0.5rem 0.75rem;
+  }
+
+  .board-filters--embedded {
+    padding: 0.32rem 0.45rem;
+    gap: 0.45rem;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .board-search-pane {

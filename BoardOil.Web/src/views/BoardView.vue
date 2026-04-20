@@ -5,24 +5,20 @@
   </section>
 
   <section v-else-if="board" class="board-view">
-    <section class="board-view-toolbar">
-      <button type="button" class="btn btn--secondary" aria-label="View archived cards" @click="openArchivedCards">
-        <Archive :size="16" aria-hidden="true" />
-        <span>Archived Cards</span>
-      </button>
-    </section>
-
-    <BoardCardFilters
-      :search-text="cardSearchText"
-      :available-tag-names="availableTagNames"
-      :filter-states="tagFilterStates"
-      :picker-open="isTagFilterMenuOpen"
-      :has-active-filters="hasActiveCardFilters"
-      @update:search-text="cardSearchText = $event"
-      @update:filter-states="tagFilterStates = $event"
-      @update:picker-open="isTagFilterMenuOpen = $event"
-      @clear="clearCardFilters"
-    />
+    <BoardConveyor right-label="Archive" right-aria-label="View archived cards" @right-click="openArchivedCards">
+      <BoardCardFilters
+        embedded
+        :search-text="cardSearchText"
+        :available-tag-names="availableTagNames"
+        :filter-states="tagFilterStates"
+        :picker-open="isTagFilterMenuOpen"
+        :has-active-filters="hasActiveCardFilters"
+        @update:search-text="cardSearchText = $event"
+        @update:filter-states="tagFilterStates = $event"
+        @update:picker-open="isTagFilterMenuOpen = $event"
+        @clear="clearCardFilters"
+      />
+    </BoardConveyor>
 
     <section class="board">
       <article
@@ -116,12 +112,13 @@
 </template>
 
 <script setup lang="ts">
-import { Archive, ChevronDown, Plus } from 'lucide-vue-next';
+import { ChevronDown, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoDropdown from '../components/BoDropdown.vue';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
+import BoardConveyor from '../components/BoardConveyor.vue';
 import Card from '../components/Card.vue';
 import CreateCardInline from '../components/CreateCardInline.vue';
 import { useBoardStore } from '../stores/boardStore';
@@ -523,10 +520,8 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
   gap: 0.75rem;
 }
 
-.board-view-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  padding-inline: 1.5rem;
+.board-view :deep(.board-conveyor) {
+  margin-inline: 1.5rem;
 }
 
 .board {
@@ -704,8 +699,8 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
 }
 
 @media (max-width: 720px) {
-  .board-view-toolbar {
-    padding-inline: 0.75rem;
+  .board-view :deep(.board-conveyor) {
+    margin-inline: 0.75rem;
   }
 
   .board {
