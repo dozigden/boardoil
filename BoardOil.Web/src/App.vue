@@ -2,17 +2,23 @@
   <main :class="['app-shell', `app-shell--${layoutMode}`]">
     <AppHeader />
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <component :is="layoutComponent" class="app-content">
-      <RouterView />
-    </component>
+    <section class="app-content-stage">
+      <RouterView v-slot="{ Component, route: viewRoute }">
+        <Transition :name="pageTransitionName">
+          <component :is="layoutComponent" :key="getViewKey(viewRoute)" class="app-content">
+            <component :is="Component" />
+          </component>
+        </Transition>
+      </RouterView>
+    </section>
     <RouterView name="dialog" />
   </main>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, onUnmounted, watch } from 'vue';
-import { RouterView, useRoute } from 'vue-router';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { RouterView, useRoute, type RouteLocationNormalizedLoaded } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
 import { useBoardCatalogueStore } from './stores/boardCatalogueStore';
 import { useBoardStore } from './stores/boardStore';
@@ -35,6 +41,8 @@ const route = useRoute();
 const { errorMessage } = storeToRefs(feedbackStore);
 const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId } = storeToRefs(boardStore);
+const pageTransitionName = ref('route-none');
+const previousRouteSnapshot = ref<RouteSnapshot | null>(null);
 const layoutMode = computed(() => resolveAppLayout(route.meta.layout));
 const layoutComponent = computed(() => {
   if (layoutMode.value === APP_LAYOUT_BOARD) {
@@ -88,6 +96,55 @@ watch(
   },
   { immediate: true }
 );
+
+watch(
+  () => ({ name: route.name, boardId: route.params.boardId }),
+  () => {
+    const current = toRouteSnapshot(route);
+    pageTransitionName.value = resolvePageTransition(previousRouteSnapshot.value, current);
+    previousRouteSnapshot.value = current;
+  },
+  { immediate: true }
+);
+
+function getViewKey(viewRoute: RouteLocationNormalizedLoaded) {
+  const routeName = typeof viewRoute.name === 'string' ? viewRoute.name : 'route';
+  return `${routeName}:${JSON.stringify(viewRoute.params ?? {})}`;
+}
+
+function toRouteSnapshot(activeRoute: ReturnType<typeof useRoute>): RouteSnapshot {
+  const boardIdParam = activeRoute.params.boardId;
+  const boardId = Array.isArray(boardIdParam)
+    ? (boardIdParam[0] ? String(boardIdParam[0]) : null)
+    : (boardIdParam ? String(boardIdParam) : null);
+
+  return {
+    name: typeof activeRoute.name === 'string' ? activeRoute.name : '',
+    boardId
+  };
+}
+
+function resolvePageTransition(previous: RouteSnapshot | null, current: RouteSnapshot) {
+  if (!previous) {
+    return 'route-none';
+  }
+
+  const isSameBoard = previous.boardId !== null && previous.boardId === current.boardId;
+  if (isSameBoard && previous.name === 'board' && current.name === 'board-archived') {
+    return 'conveyor-slide-left';
+  }
+
+  if (isSameBoard && previous.name === 'board-archived' && current.name === 'board') {
+    return 'conveyor-slide-right';
+  }
+
+  return 'route-none';
+}
+
+type RouteSnapshot = {
+  name: string;
+  boardId: string | null;
+};
 </script>
 
 <style scoped>
@@ -131,24 +188,75 @@ watch(
   width: 100%;
 }
 
-.app-shell--board .app-content {
+.app-content-stage {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell--board .app-content-stage {
   overflow: hidden;
 }
 
-.app-shell--admin .app-content {
+.app-shell--admin .app-content-stage {
   overflow: hidden;
 }
 
-.app-shell--full-height .app-content {
+.app-shell--full-height .app-content-stage {
   overflow: hidden;
 }
 
-.app-shell--page .app-content {
+.app-shell--page .app-content-stage {
   overflow: visible;
 }
 
 .app-content > * {
   min-height: 0;
   min-width: 0;
+}
+
+.conveyor-slide-left-enter-active,
+.conveyor-slide-left-leave-active,
+.conveyor-slide-right-enter-active,
+.conveyor-slide-right-leave-active {
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  position: absolute;
+  inset: 0;
+}
+
+.conveyor-slide-left-enter-from {
+  transform: translate3d(100%, 0, 0);
+}
+
+.conveyor-slide-left-enter-to {
+  transform: translate3d(0, 0, 0);
+}
+
+.conveyor-slide-left-leave-from {
+  transform: translate3d(0, 0, 0);
+}
+
+.conveyor-slide-left-leave-to {
+  transform: translate3d(-100%, 0, 0);
+}
+
+.conveyor-slide-right-enter-from {
+  transform: translate3d(-100%, 0, 0);
+}
+
+.conveyor-slide-right-enter-to {
+  transform: translate3d(0, 0, 0);
+}
+
+.conveyor-slide-right-leave-from {
+  transform: translate3d(0, 0, 0);
+}
+
+.conveyor-slide-right-leave-to {
+  transform: translate3d(100%, 0, 0);
 }
 </style>
