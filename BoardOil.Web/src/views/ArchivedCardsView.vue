@@ -1,8 +1,8 @@
 <template>
   <section class="archived-cards-page">
-    <section class="archived-cards-filter-row">
-      <h2 class="archived-cards-title">Archived Cards</h2>
+    <BoardConveyor left-label="Board" left-aria-label="Back to board" @left-click="goToBoard">
       <BoardCardFilters
+        embedded
         :search-text="searchDraft"
         :available-tag-names="[]"
         :filter-states="filterStates"
@@ -13,8 +13,7 @@
         @update:picker-open="isTagFilterMenuOpen = $event"
         @clear="clearSearch"
       />
-      <button type="button" class="btn btn--secondary" @click="goToBoard">Back To Board</button>
-    </section>
+    </BoardConveyor>
 
     <section class="archived-cards-grid-region">
       <p v-if="listErrorMessage" class="archived-cards-empty">{{ listErrorMessage }}</p>
@@ -86,6 +85,7 @@ import { storeToRefs } from 'pinia';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
+import BoardConveyor from '../components/BoardConveyor.vue';
 import BoGrid from '../components/BoGrid.vue';
 import ModalDialog from '../components/ModalDialog.vue';
 import { createBoardApi } from '../api/boardApi';
@@ -358,30 +358,15 @@ function formatDateTime(value: string) {
   max-width: none;
   margin-top: 0.45rem;
   margin-bottom: 1rem;
-  margin-inline-end: 2rem;
+  margin-inline-end: 0.75rem;
   gap: 0.5rem;
   min-height: 0;
   height: 100%;
   grid-template-rows: auto minmax(0, 1fr);
 }
 
-.archived-cards-filter-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.archived-cards-title {
-  margin: 0;
-  white-space: nowrap;
-}
-
-.archived-cards-filter-row :deep(.board-filters) {
+.archived-cards-page :deep(.board-filters) {
   width: 100%;
-  margin-inline: 0;
-  margin-top: 0;
-  gap: 0.45rem 0.65rem;
 }
 
 .archived-cards-grid {
@@ -468,7 +453,7 @@ function formatDateTime(value: string) {
 
 @media (max-width: 720px) {
   .archived-cards-page {
-    margin-inline-end: 0.75rem;
+    margin-inline-end: 0.5rem;
   }
 }
 

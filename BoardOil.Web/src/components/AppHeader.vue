@@ -269,7 +269,7 @@ async function acknowledgePasswordReset() {
 }
 
 .brand-logo {
-  --boardoil-logo-size: 60px;
+  --boardoil-logo-size: 2rem;
   display: block;
   align-self: center;
   flex: 0 0 auto;
@@ -345,7 +345,7 @@ async function acknowledgePasswordReset() {
   }
 
   .brand-logo {
-    --boardoil-logo-size: 36px;
+    --boardoil-logo-size: 1.75rem;
   }
 
   .header-meta {
