@@ -1,5 +1,6 @@
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
+using BoardOil.Contracts.Card;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,28 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
 
         // Act
         var result = await service.ArchiveCardAsync(board.BoardId, cardId, ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(403, result.StatusCode);
+        Assert.Equal(BoardPermission.CardDelete, _boardAuthorisationService.LastPermission);
+        var cardStillExists = await DbContextForAssert.Cards.AnyAsync(x => x.Id == cardId);
+        Assert.True(cardStillExists);
+    }
+
+    [Fact]
+    public async Task ArchiveCardsAsync_WhenPermissionDenied_ShouldCheckCardDeletePermission()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Desc")
+            .Build();
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.ArchiveCardsAsync(board.BoardId, new ArchiveCardsRequest([cardId]), ActorUserId);
 
         // Assert
         Assert.False(result.Success);

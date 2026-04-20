@@ -47,6 +47,12 @@ export type ArchivedCardList = {
   totalCount: number;
 };
 
+export type ArchiveCardsSummary = {
+  boardId: number;
+  requestedCount: number;
+  archivedCount: number;
+};
+
 export type Tag = TagPresentation & {
   id: number;
   name: string;

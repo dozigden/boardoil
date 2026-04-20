@@ -254,4 +254,25 @@ describe('boardApi archived cards', () => {
     expect(result.ok).toBe(true);
     expect(postJson).toHaveBeenCalledWith('/api/boards/7/cards/33/archive', {});
   });
+
+  it('archives cards in bulk and returns summary payload', async () => {
+    vi.mocked(postData).mockResolvedValue(ok({
+      boardId: 7,
+      requestedCount: 2,
+      archivedCount: 2
+    }));
+
+    const api = createBoardApi();
+    const result = await api.archiveCards(7, [11, 12]);
+
+    expect(result.ok).toBe(true);
+    expect(postData).toHaveBeenCalledWith('/api/boards/7/cards/archive', { cardIds: [11, 12] });
+    if (!result.ok) {
+      throw new Error('Expected success result.');
+    }
+
+    expect(result.data.boardId).toBe(7);
+    expect(result.data.requestedCount).toBe(2);
+    expect(result.data.archivedCount).toBe(2);
+  });
 });

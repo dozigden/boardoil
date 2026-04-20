@@ -59,6 +59,97 @@ public sealed class CardArchiveServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task ArchiveCardsAsync_WhenCardsExist_ShouldArchiveAllAndReturnSummary()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Alpha", "First")
+            .AddCard("Bravo", "Second")
+            .Build();
+        var boardId = board.BoardId;
+        var alphaCardId = board.GetCard("Todo", "Alpha").Id;
+        var bravoCardId = board.GetCard("Todo", "Bravo").Id;
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.ArchiveCardsAsync(boardId, new ArchiveCardsRequest([alphaCardId, bravoCardId]), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.Equal(boardId, result.Data!.BoardId);
+        Assert.Equal(2, result.Data.RequestedCount);
+        Assert.Equal(2, result.Data.ArchivedCount);
+
+        var liveCards = await DbContextForAssert.Cards.Where(x => x.Id == alphaCardId || x.Id == bravoCardId).ToListAsync();
+        Assert.Empty(liveCards);
+        var archivedCards = await DbContextForAssert.Set<ArchivedCardEntity>()
+            .Where(x => x.BoardId == boardId)
+            .ToListAsync();
+        Assert.Equal(2, archivedCards.Count);
+    }
+
+    [Fact]
+    public async Task ArchiveCardsAsync_WhenCardIdsContainDuplicates_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Duplicate", "Desc")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Duplicate").Id;
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.ArchiveCardsAsync(boardId, new ArchiveCardsRequest([cardId, cardId]), ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.Contains("cardIds", result.ValidationErrors!.Keys, StringComparer.Ordinal);
+
+        var liveCard = await DbContextForAssert.Cards.SingleAsync(x => x.Id == cardId);
+        Assert.Equal("Duplicate", liveCard.Title);
+        var archivedCount = await DbContextForAssert.Set<ArchivedCardEntity>().CountAsync();
+        Assert.Equal(0, archivedCount);
+    }
+
+    [Fact]
+    public async Task ArchiveCardsAsync_WhenAnyCardIsMissing_ShouldReturnNotFoundAndArchiveNothing()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Alpha", "First")
+            .AddCard("Bravo", "Second")
+            .Build();
+        var boardId = board.BoardId;
+        var alphaCardId = board.GetCard("Todo", "Alpha").Id;
+        var bravoCardId = board.GetCard("Todo", "Bravo").Id;
+        var missingCardId = bravoCardId + 10_000;
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.ArchiveCardsAsync(boardId, new ArchiveCardsRequest([alphaCardId, missingCardId]), ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(404, result.StatusCode);
+
+        var liveCardIds = await DbContextForAssert.Cards
+            .Where(x => x.Id == alphaCardId || x.Id == bravoCardId)
+            .Select(x => x.Id)
+            .ToListAsync();
+        Assert.Equal(2, liveCardIds.Count);
+        var archivedCount = await DbContextForAssert.Set<ArchivedCardEntity>().CountAsync();
+        Assert.Equal(0, archivedCount);
+    }
+
+    [Fact]
     public async Task GetArchivedCardsAsync_WhenMultipleCardsArchived_ShouldReturnNewestFirst()
     {
         // Arrange

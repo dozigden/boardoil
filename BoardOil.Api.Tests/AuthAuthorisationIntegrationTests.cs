@@ -88,6 +88,37 @@ public sealed class AuthAuthorisationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task StandardUser_WithoutBoardMembership_ArchiveCardsBulk_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = _factory.CreateClient();
+        var standardClient = _factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        var createdColumnResponse = await adminClient.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
+        createdColumnResponse.EnsureSuccessStatusCode();
+        var createdColumnEnvelope = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
+        Assert.NotNull(createdColumnEnvelope);
+        Assert.NotNull(createdColumnEnvelope!.Data);
+        var createdCardResponse = await adminClient.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumnEnvelope.Data!.Id, "Archive target", "Desc", null));
+        createdCardResponse.EnsureSuccessStatusCode();
+        var createdCardEnvelope = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>();
+        Assert.NotNull(createdCardEnvelope);
+        Assert.NotNull(createdCardEnvelope!.Data);
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.PostAsJsonAsync(
+            "/api/boards/1/cards/archive",
+            new ArchiveCardsRequest([createdCardEnvelope.Data!.Id]));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task StandardUser_WithoutBoardMembership_GetArchivedCards_ShouldReturnForbidden()
     {
         // Arrange

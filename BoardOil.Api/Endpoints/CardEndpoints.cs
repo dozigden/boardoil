@@ -34,6 +34,9 @@ public static class CardEndpoints
         cardEndpoints.MapPost("/{id:int}/archive", async (int boardId, int id, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
             (await cardArchiveService.ArchiveCardAsync(boardId, id, httpContext.GetActorUserId())).ToHttpResult());
 
+        cardEndpoints.MapPost("/archive", async (int boardId, ArchiveCardsRequest request, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
+            (await cardArchiveService.ArchiveCardsAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
+
         cardEndpoints.MapDelete("/{id:int}", async (int boardId, int id, ICardService cardService, HttpContext httpContext) =>
             (await cardService.DeleteCardAsync(boardId, id, httpContext.GetActorUserId())).ToHttpResult());
 
