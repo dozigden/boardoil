@@ -34,7 +34,7 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
-    public async Task ExportBoard_ShouldReturnZipWithManifestAndBoardPayload()
+    public async Task ExportBoard_ShouldReturnZipWithManifestBoardPayloadAndArchivePayload()
     {
         var createTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("ExportTag"));
         createTagResponse.EnsureSuccessStatusCode();
@@ -82,6 +82,7 @@ public sealed class BoardApiIntegrationTests
         Assert.Equal(2, manifest.SchemaVersion);
         Assert.False(string.IsNullOrWhiteSpace(manifest.ExportedByVersion));
         Assert.Contains(manifest.Entries, x => x.Kind == "board" && x.Path == "board.json");
+        Assert.Contains(manifest.Entries, x => x.Kind == "archive" && x.Path == "archive.json");
 
         var boardEntry = archive.GetEntry("board.json");
         Assert.NotNull(boardEntry);
@@ -94,6 +95,14 @@ public sealed class BoardApiIntegrationTests
         Assert.Contains(boardPayload.Columns, x => x.Title == "Todo");
         Assert.Contains(boardPayload.Columns.SelectMany(x => x.Cards), x => x.Title == "Export card" && x.CardTypeName == "Story");
         Assert.Contains(boardPayload.Tags, x => x.Name == "ExportTag" && x.StyleName == "solid" && x.Emoji == "🧪");
+
+        var archiveEntry = archive.GetEntry("archive.json");
+        Assert.NotNull(archiveEntry);
+        using var archiveReader = new StreamReader(archiveEntry!.Open());
+        var archiveJson = await archiveReader.ReadToEndAsync();
+        var archivePayload = JsonSerializer.Deserialize<BoardPackageArchiveDto>(archiveJson, JsonOptions);
+        Assert.NotNull(archivePayload);
+        Assert.Empty(archivePayload!.Cards);
     }
 
     [Fact]

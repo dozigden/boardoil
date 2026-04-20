@@ -11,6 +11,8 @@ public static class BoardPackageContract
     public const string ManifestPath = "manifest.json";
     public const string BoardEntryKind = "board";
     public const string BoardEntryPath = "board.json";
+    public const string ArchiveEntryKind = "archive";
+    public const string ArchiveEntryPath = "archive.json";
 
     public static BoardPackageManifestDto CreateManifest(string exportedByVersion)
     {
@@ -22,7 +24,10 @@ public static class BoardPackageContract
             PackageFormat,
             CurrentSchemaVersion,
             normalisedExporterVersion,
-            [new BoardPackageManifestEntryDto(BoardEntryKind, BoardEntryPath)]);
+            [
+                new BoardPackageManifestEntryDto(BoardEntryKind, BoardEntryPath),
+                new BoardPackageManifestEntryDto(ArchiveEntryKind, ArchiveEntryPath)
+            ]);
     }
 
     public static bool IsSupportedSchemaVersion(int schemaVersion) =>
@@ -73,6 +78,21 @@ public static class BoardPackageContract
             errors.Add(new ValidationError(
                 "manifest.entries",
                 $"'{BoardEntryKind}' entry path must be '{BoardEntryPath}'."));
+        }
+
+        var archiveEntries = manifest.Entries
+            .Where(x => string.Equals(x.Kind?.Trim(), ArchiveEntryKind, StringComparison.Ordinal))
+            .ToList();
+
+        if (archiveEntries.Count > 1)
+        {
+            errors.Add(new ValidationError("manifest.entries", $"Manifest can contain at most one '{ArchiveEntryKind}' entry."));
+        }
+        else if (archiveEntries.Count == 1 && !string.Equals(archiveEntries[0].Path?.Trim(), ArchiveEntryPath, StringComparison.Ordinal))
+        {
+            errors.Add(new ValidationError(
+                "manifest.entries",
+                $"'{ArchiveEntryKind}' entry path must be '{ArchiveEntryPath}'."));
         }
 
         return errors.Count == 0

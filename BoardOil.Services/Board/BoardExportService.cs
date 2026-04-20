@@ -10,6 +10,7 @@ using BoardOil.Persistence.Abstractions.Card;
 using BoardOil.Persistence.Abstractions.CardType;
 using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Tag;
+using BoardOil.Services.Card;
 
 namespace BoardOil.Services.Board;
 
@@ -17,6 +18,7 @@ public sealed class BoardExportService(
     IBoardRepository boardRepository,
     IColumnRepository columnRepository,
     ICardRepository cardRepository,
+    IArchivedCardRepository archivedCardRepository,
     ICardTypeRepository cardTypeRepository,
     ITagRepository tagRepository,
     IBoardAuthorisationService boardAuthorisationService,
@@ -48,6 +50,7 @@ public sealed class BoardExportService(
         var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
         var columnIds = columns.Select(x => x.Id).ToList();
         var cards = await cardRepository.GetCardsForColumnsOrderedAsync(columnIds);
+        var archivedCards = await archivedCardRepository.ListForExportAsync(boardId);
         var cardTypes = await cardTypeRepository.GetAllForBoardAsync(boardId);
         var tags = await tagRepository.GetAllForBoardAsync(boardId);
 
@@ -81,9 +84,19 @@ public sealed class BoardExportService(
                     x.Title,
                     cardsByColumnId.GetValueOrDefault(x.Id, [])))
                 .ToList());
+        var archivePayload = new BoardPackageArchiveDto(
+            archivedCards
+                .Select(x => x.ToArchivedCardDto())
+                .Select(x => new BoardPackageArchivedCardDto(
+                    x.OriginalCardId,
+                    x.Title,
+                    x.TagNames,
+                    x.ArchivedAtUtc,
+                    x.SnapshotJson))
+                .ToList());
 
         var manifest = BoardPackageContract.CreateManifest(exportedByVersion);
-        var packageBytes = BuildPackage(manifest, boardPayload);
+        var packageBytes = BuildPackage(manifest, boardPayload, archivePayload);
         var fileName = BuildExportFileName(board.Name);
 
         return ApiResults.Ok(new BoardPackageExportDto(
@@ -92,13 +105,14 @@ public sealed class BoardExportService(
             packageBytes));
     }
 
-    private static byte[] BuildPackage(BoardPackageManifestDto manifest, BoardPackageBoardDto boardPayload)
+    private static byte[] BuildPackage(BoardPackageManifestDto manifest, BoardPackageBoardDto boardPayload, BoardPackageArchiveDto archivePayload)
     {
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
             WriteJsonEntry(archive, BoardPackageContract.ManifestPath, manifest);
             WriteJsonEntry(archive, BoardPackageContract.BoardEntryPath, boardPayload);
+            WriteJsonEntry(archive, BoardPackageContract.ArchiveEntryPath, archivePayload);
         }
 
         return stream.ToArray();
