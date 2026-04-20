@@ -21,8 +21,9 @@ import { useAuthStore } from './stores/authStore';
 import { useUiFeedbackStore } from './stores/uiFeedbackStore';
 import BoardWorkspaceLayout from './layouts/BoardWorkspaceLayout.vue';
 import AdminWorkspaceLayout from './layouts/AdminWorkspaceLayout.vue';
+import FullHeightLayout from './layouts/FullHeightLayout.vue';
 import PageScrollLayout from './layouts/PageScrollLayout.vue';
-import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, resolveAppLayout } from './layouts/appLayout';
+import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, APP_LAYOUT_FULL_HEIGHT, resolveAppLayout } from './layouts/appLayout';
 import { getPageTitle } from './components/appHeaderNavigation';
 
 const boardStore = useBoardStore();
@@ -42,6 +43,10 @@ const layoutComponent = computed(() => {
 
   if (layoutMode.value === APP_LAYOUT_ADMIN) {
     return AdminWorkspaceLayout;
+  }
+
+  if (layoutMode.value === APP_LAYOUT_FULL_HEIGHT) {
+    return FullHeightLayout;
   }
 
   return PageScrollLayout;
@@ -107,6 +112,12 @@ watch(
   overflow: hidden;
 }
 
+.app-shell--full-height {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .app-shell--page {
   overflow-x: hidden;
 }
@@ -125,6 +136,10 @@ watch(
 }
 
 .app-shell--admin .app-content {
+  overflow: hidden;
+}
+
+.app-shell--full-height .app-content {
   overflow: hidden;
 }
 
