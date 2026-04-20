@@ -23,6 +23,15 @@ public sealed class BoardPackageContractTests
     }
 
     [Fact]
+    public void CreateManifest_ShouldIncludeBoardAndArchiveEntries()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.2.0");
+
+        Assert.Contains(manifest.Entries, x => x.Kind == BoardPackageContract.BoardEntryKind && x.Path == BoardPackageContract.BoardEntryPath);
+        Assert.Contains(manifest.Entries, x => x.Kind == BoardPackageContract.ArchiveEntryKind && x.Path == BoardPackageContract.ArchiveEntryPath);
+    }
+
+    [Fact]
     public void IsSupportedSchemaVersion_WhenOutsideSupportedWindow_ShouldReturnFalse()
     {
         var belowMinimum = BoardPackageContract.MinSupportedSchemaVersion - 1;
@@ -60,6 +69,25 @@ public sealed class BoardPackageContractTests
             BoardPackageContract.CurrentSchemaVersion,
             "0.2.0",
             [new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, "board-data.json")]);
+
+        var validationError = BoardPackageContract.ValidateManifest(manifest);
+
+        Assert.NotNull(validationError);
+        Assert.NotNull(validationError!.ValidationErrors);
+        Assert.True(validationError.ValidationErrors!.ContainsKey("manifest.entries"));
+    }
+
+    [Fact]
+    public void ValidateManifest_WhenArchiveEntryPathIsWrong_ShouldFail()
+    {
+        var manifest = new BoardPackageManifestDto(
+            BoardPackageContract.PackageFormat,
+            BoardPackageContract.CurrentSchemaVersion,
+            "0.2.0",
+            [
+                new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, BoardPackageContract.BoardEntryPath),
+                new BoardPackageManifestEntryDto(BoardPackageContract.ArchiveEntryKind, "archive-data.json")
+            ]);
 
         var validationError = BoardPackageContract.ValidateManifest(manifest);
 

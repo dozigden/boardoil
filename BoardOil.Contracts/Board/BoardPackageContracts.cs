@@ -40,6 +40,16 @@ public sealed record BoardPackageCardDto(
     string CardTypeName,
     IReadOnlyList<string> TagNames);
 
+public sealed record BoardPackageArchiveDto(
+    IReadOnlyList<BoardPackageArchivedCardDto> Cards);
+
+public sealed record BoardPackageArchivedCardDto(
+    int OriginalCardId,
+    string Title,
+    IReadOnlyList<string> TagNames,
+    DateTime ArchivedAtUtc,
+    string SnapshotJson);
+
 public sealed record BoardPackageExportDto(
     string FileName,
     string ContentType,

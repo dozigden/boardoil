@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
@@ -20,6 +21,7 @@ public sealed class BoardPackageImportService(
     IBoardRepository boardRepository,
     IColumnRepository columnRepository,
     ICardRepository cardRepository,
+    IArchivedCardRepository archivedCardRepository,
     ICardTypeRepository cardTypeRepository,
     ITagRepository tagRepository,
     IDbContextScopeFactory scopeFactory) : IBoardPackageImportService
@@ -31,6 +33,10 @@ public sealed class BoardPackageImportService(
     private const int MaxCardDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
     private const int MaxCardTypeNameLength = 40;
+    private const int MaxArchiveTitleLength = 200;
+    private const int MaxArchiveSnapshotJsonBytes = 524_288;
+    private const int MaxArchiveSearchTagsJsonLength = 65_535;
+    private const int MaxArchiveSearchTextNormalisedLength = 65_535;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -49,7 +55,7 @@ public sealed class BoardPackageImportService(
 
         var boardName = ResolveImportedBoardName(request.Name, readPackageResult.BoardPayload!.Name);
         var boardDescription = ResolveImportedBoardDescription(readPackageResult.BoardPayload.Description);
-        var planResult = BuildBoardPackageImportPlan(boardName, boardDescription, readPackageResult.BoardPayload);
+        var planResult = BuildBoardPackageImportPlan(boardName, boardDescription, readPackageResult.BoardPayload, readPackageResult.ArchivePayload);
         if (planResult.Error is not null)
         {
             return planResult.Error;
@@ -197,6 +203,45 @@ public sealed class BoardPackageImportService(
             createdCardsByColumn.Add(createdColumn, createdCards);
         }
 
+        if (importPlan.ArchivedCards.Count > 0)
+        {
+            var requestedOriginalCardIds = importPlan.ArchivedCards
+                .Select(x => x.OriginalCardId)
+                .Distinct()
+                .ToList();
+            var existingOriginalCardIds = await archivedCardRepository.ListExistingOriginalCardIdsAsync(requestedOriginalCardIds);
+            var nextFallbackOriginalCardId = await ResolveNextImportedArchivedOriginalCardIdAsync();
+            var assignedOriginalCardIds = new HashSet<int>(existingOriginalCardIds);
+
+            foreach (var importedArchivedCard in importPlan.ArchivedCards)
+            {
+                var assignedOriginalCardId = importedArchivedCard.OriginalCardId;
+                if (assignedOriginalCardId <= 0 || !assignedOriginalCardIds.Add(assignedOriginalCardId))
+                {
+                    assignedOriginalCardId = nextFallbackOriginalCardId;
+                    while (!assignedOriginalCardIds.Add(assignedOriginalCardId))
+                    {
+                        assignedOriginalCardId--;
+                    }
+
+                    nextFallbackOriginalCardId = assignedOriginalCardId - 1;
+                }
+
+                var searchTagsJson = JsonSerializer.Serialize<IReadOnlyList<string>>(importedArchivedCard.TagNames);
+                var searchTextNormalised = BuildArchiveSearchText(importedArchivedCard.Title, importedArchivedCard.TagNames);
+                archivedCardRepository.Add(new EntityArchivedCard
+                {
+                    Board = board,
+                    OriginalCardId = assignedOriginalCardId,
+                    ArchivedAtUtc = importedArchivedCard.ArchivedAtUtc,
+                    SnapshotJson = importedArchivedCard.SnapshotJson,
+                    SearchTitle = importedArchivedCard.Title,
+                    SearchTagsJson = searchTagsJson,
+                    SearchTextNormalised = searchTextNormalised
+                });
+            }
+        }
+
         await scope.SaveChangesAsync();
 
         var columnDtos = createdColumns
@@ -236,6 +281,7 @@ public sealed class BoardPackageImportService(
                 return new ReadBoardPackageResult(
                     null,
                     null,
+                    null,
                     ValidationFail([new ValidationError("manifest", $"Board package is missing '{BoardPackageContract.ManifestPath}'.")]));
             }
 
@@ -251,12 +297,14 @@ public sealed class BoardPackageImportService(
                 return new ReadBoardPackageResult(
                     null,
                     null,
+                    null,
                     ValidationFail([new ValidationError("manifest", "Board package manifest is invalid JSON.")]));
             }
 
             if (manifest.Entries is null)
             {
                 return new ReadBoardPackageResult(
+                    null,
                     null,
                     null,
                     ValidationFail([new ValidationError("manifest.entries", "Manifest entries are required.")]));
@@ -268,6 +316,7 @@ public sealed class BoardPackageImportService(
                 return new ReadBoardPackageResult(
                     manifest,
                     null,
+                    null,
                     manifestValidationError);
             }
 
@@ -275,6 +324,7 @@ public sealed class BoardPackageImportService(
             if (boardEntry is null)
             {
                 return new ReadBoardPackageResult(
+                    null,
                     null,
                     null,
                     ValidationFail([new ValidationError("board", $"Board package is missing '{BoardPackageContract.BoardEntryPath}'.")]));
@@ -290,6 +340,7 @@ public sealed class BoardPackageImportService(
                     return new ReadBoardPackageResult(
                         manifest,
                         null,
+                        null,
                         parseBoardPayloadResult.Error);
                 }
 
@@ -301,14 +352,47 @@ public sealed class BoardPackageImportService(
                 return new ReadBoardPackageResult(
                     null,
                     null,
+                    null,
                     ValidationFail([new ValidationError("board", "Board payload is invalid JSON.")]));
             }
 
-            return new ReadBoardPackageResult(manifest, boardPayload, null);
+            BoardPackageArchiveDto? archivePayload = null;
+            var hasArchiveEntry = manifest.Entries.Any(x =>
+                string.Equals(x.Kind?.Trim(), BoardPackageContract.ArchiveEntryKind, StringComparison.Ordinal)
+                && string.Equals(x.Path?.Trim(), BoardPackageContract.ArchiveEntryPath, StringComparison.Ordinal));
+            if (hasArchiveEntry)
+            {
+                var archiveEntry = archive.GetEntry(BoardPackageContract.ArchiveEntryPath);
+                if (archiveEntry is null)
+                {
+                    return new ReadBoardPackageResult(
+                        manifest,
+                        boardPayload,
+                        null,
+                        ValidationFail([new ValidationError("archive", $"Board package is missing '{BoardPackageContract.ArchiveEntryPath}'.")]));
+                }
+
+                using var archiveReader = new StreamReader(archiveEntry.Open());
+                var archiveJson = archiveReader.ReadToEnd();
+                var parseArchivePayloadResult = TryParseArchivePayload(manifest.SchemaVersion, archiveJson);
+                if (parseArchivePayloadResult.Error is not null)
+                {
+                    return new ReadBoardPackageResult(
+                        manifest,
+                        boardPayload,
+                        null,
+                        parseArchivePayloadResult.Error);
+                }
+
+                archivePayload = parseArchivePayloadResult.ArchivePayload;
+            }
+
+            return new ReadBoardPackageResult(manifest, boardPayload, archivePayload, null);
         }
         catch (InvalidDataException)
         {
             return new ReadBoardPackageResult(
+                null,
                 null,
                 null,
                 ValidationFail([new ValidationError("file", "Uploaded file is not a valid ZIP archive.")]));
@@ -316,6 +400,7 @@ public sealed class BoardPackageImportService(
         catch (JsonException)
         {
             return new ReadBoardPackageResult(
+                null,
                 null,
                 null,
                 ValidationFail([new ValidationError("file", "Board package JSON content is invalid.")]));
@@ -356,10 +441,37 @@ public sealed class BoardPackageImportService(
         }
     }
 
+    private static ParseArchivePayloadResult TryParseArchivePayload(int schemaVersion, string archiveJson)
+    {
+        switch (schemaVersion)
+        {
+            case 1:
+            case 2:
+            {
+                var archivePayload = JsonSerializer.Deserialize<BoardPackageArchiveDto>(archiveJson, JsonOptions);
+                if (archivePayload is null)
+                {
+                    return new ParseArchivePayloadResult(
+                        null,
+                        ValidationFail([new ValidationError("archive", "Archive payload is invalid JSON.")]));
+                }
+
+                return new ParseArchivePayloadResult(archivePayload, null);
+            }
+            default:
+                return new ParseArchivePayloadResult(
+                    null,
+                    ValidationFail([new ValidationError(
+                        "manifest.schemaVersion",
+                        $"Schema version '{schemaVersion}' does not have an archive payload handler configured.")]));
+        }
+    }
+
     private static BuildImportPlanResult BuildBoardPackageImportPlan(
         string boardName,
         string boardDescription,
-        BoardPackageBoardDto boardPayload)
+        BoardPackageBoardDto boardPayload,
+        BoardPackageArchiveDto? archivePayload)
     {
         var validationErrors = new List<ValidationError>();
 
@@ -630,6 +742,89 @@ public sealed class BoardPackageImportService(
             }
         }
 
+        var plannedArchivedCards = new List<ArchivedCardImportDefinition>();
+        if (archivePayload is not null)
+        {
+            if (archivePayload.Cards is null)
+            {
+                validationErrors.Add(new ValidationError("archive.cards", "Archive cards are required."));
+            }
+            else
+            {
+                for (var archivedCardIndex = 0; archivedCardIndex < archivePayload.Cards.Count; archivedCardIndex++)
+                {
+                    var archivedCard = archivePayload.Cards[archivedCardIndex];
+                    var archivedCardPropertyPrefix = $"archive.cards[{archivedCardIndex}]";
+                    if (archivedCard is null)
+                    {
+                        validationErrors.Add(new ValidationError(archivedCardPropertyPrefix, "Archived card entry is required."));
+                        continue;
+                    }
+
+                    var title = archivedCard.Title?.Trim() ?? string.Empty;
+                    if (title.Length == 0)
+                    {
+                        validationErrors.Add(new ValidationError($"{archivedCardPropertyPrefix}.title", "Archived card title is required."));
+                    }
+                    else if (title.Length > MaxArchiveTitleLength)
+                    {
+                        validationErrors.Add(new ValidationError(
+                            $"{archivedCardPropertyPrefix}.title",
+                            $"Archived card title must be {MaxArchiveTitleLength} characters or fewer."));
+                    }
+
+                    var snapshotJson = archivedCard.SnapshotJson?.Trim() ?? string.Empty;
+                    if (snapshotJson.Length == 0)
+                    {
+                        validationErrors.Add(new ValidationError($"{archivedCardPropertyPrefix}.snapshotJson", "Archived card snapshot JSON is required."));
+                    }
+                    else if (Encoding.UTF8.GetByteCount(snapshotJson) > MaxArchiveSnapshotJsonBytes)
+                    {
+                        validationErrors.Add(new ValidationError(
+                            $"{archivedCardPropertyPrefix}.snapshotJson",
+                            $"Archived card snapshot JSON must be {MaxArchiveSnapshotJsonBytes} bytes or fewer."));
+                    }
+
+                    if (archivedCard.ArchivedAtUtc == default)
+                    {
+                        validationErrors.Add(new ValidationError($"{archivedCardPropertyPrefix}.archivedAtUtc", "Archived at time is required."));
+                    }
+
+                    var canonicalTagNames = ValidateAndCanonicaliseCardTagNames(
+                        archivedCard.TagNames,
+                        $"{archivedCardPropertyPrefix}.tagNames",
+                        validationErrors);
+                    var searchTagsJson = JsonSerializer.Serialize<IReadOnlyList<string>>(canonicalTagNames);
+                    if (searchTagsJson.Length > MaxArchiveSearchTagsJsonLength)
+                    {
+                        validationErrors.Add(new ValidationError(
+                            $"{archivedCardPropertyPrefix}.tagNames",
+                            "Archived card tags exceed the supported search payload size."));
+                    }
+
+                    var searchTextNormalised = BuildArchiveSearchText(title, canonicalTagNames);
+                    if (searchTextNormalised.Length > MaxArchiveSearchTextNormalisedLength)
+                    {
+                        validationErrors.Add(new ValidationError(
+                            $"{archivedCardPropertyPrefix}.tagNames",
+                            "Archived card title and tags exceed the supported search payload size."));
+                    }
+
+                    if (validationErrors.Any(x => x.Property.StartsWith(archivedCardPropertyPrefix, StringComparison.Ordinal)))
+                    {
+                        continue;
+                    }
+
+                    plannedArchivedCards.Add(new ArchivedCardImportDefinition(
+                        archivedCard.OriginalCardId,
+                        title,
+                        canonicalTagNames,
+                        archivedCard.ArchivedAtUtc,
+                        snapshotJson));
+                }
+            }
+        }
+
         if (validationErrors.Count > 0)
         {
             return new BuildImportPlanResult(null, ValidationFail(validationErrors));
@@ -646,7 +841,8 @@ public sealed class BoardPackageImportService(
                 systemCardTypeStylePropertiesJson,
                 plannedCardTypes,
                 plannedTagDefinitionsByNormalisedName.Values.ToList(),
-                plannedColumns),
+                plannedColumns,
+                plannedArchivedCards),
             null);
     }
 
@@ -793,16 +989,37 @@ public sealed class BoardPackageImportService(
         return stylePropertiesJson.Trim();
     }
 
+    private async Task<int> ResolveNextImportedArchivedOriginalCardIdAsync()
+    {
+        var minimumOriginalCardId = await archivedCardRepository.GetMinimumOriginalCardIdAsync() ?? 0;
+        return Math.Min(0, minimumOriginalCardId) - 1;
+    }
+
+    private static string BuildArchiveSearchText(string title, IReadOnlyList<string> tagNames)
+    {
+        var values = new List<string> { NormaliseSearchValue(title) };
+        values.AddRange(tagNames.Select(NormaliseSearchValue));
+        return string.Join('\n', values.Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private static string NormaliseSearchValue(string value) =>
+        value.Trim().ToUpperInvariant();
+
     private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
         ApiErrors.BadRequest("Validation failed.", validationErrors);
 
     private sealed record ReadBoardPackageResult(
         BoardPackageManifestDto? Manifest,
         BoardPackageBoardDto? BoardPayload,
+        BoardPackageArchiveDto? ArchivePayload,
         ApiError? Error);
 
     private sealed record ParseBoardPayloadResult(
         BoardPackageBoardDto? BoardPayload,
+        ApiError? Error);
+
+    private sealed record ParseArchivePayloadResult(
+        BoardPackageArchiveDto? ArchivePayload,
         ApiError? Error);
 
     private sealed record BuildImportPlanResult(
@@ -819,7 +1036,8 @@ public sealed class BoardPackageImportService(
         string SystemCardTypeStylePropertiesJson,
         IReadOnlyList<CardTypeImportDefinition> CardTypes,
         IReadOnlyList<TagImportDefinition> TagDefinitions,
-        IReadOnlyList<ColumnImportDefinition> Columns);
+        IReadOnlyList<ColumnImportDefinition> Columns,
+        IReadOnlyList<ArchivedCardImportDefinition> ArchivedCards);
 
     private sealed record BoardPackageBoardV1Dto(
         string Name,
@@ -850,6 +1068,13 @@ public sealed class BoardPackageImportService(
         string Description,
         string CardTypeNormalisedName,
         IReadOnlyList<string> TagNames);
+
+    private sealed record ArchivedCardImportDefinition(
+        int OriginalCardId,
+        string Title,
+        IReadOnlyList<string> TagNames,
+        DateTime ArchivedAtUtc,
+        string SnapshotJson);
 
     private sealed record TagNameValidationResult(
         string CanonicalName,

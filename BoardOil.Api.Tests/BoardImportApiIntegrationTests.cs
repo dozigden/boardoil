@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
+using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Tag;
 using BoardOil.Services.Board;
 using BoardOil.TasksMd;
@@ -156,6 +157,56 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
     }
 
     [Fact]
+    public async Task ImportBoardPackage_WithArchivePayload_ShouldImportArchivedCards()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Imported API Archive Board",
+            "Imported API archive board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            []);
+        var archivePayload = new BoardPackageArchiveDto(
+            [
+                new BoardPackageArchivedCardDto(
+                    444,
+                    "API imported archived card",
+                    ["Urgent"],
+                    new DateTime(2026, 04, 20, 12, 0, 0, DateTimeKind.Utc),
+                    """{"schema":"archived-card","version":1,"capturedAtUtc":"2026-04-20T12:00:00Z","payload":{"title":"API imported archived card"}}""")
+            ]);
+
+        using var requestContent = new MultipartFormDataContent();
+        requestContent.Add(
+            new ByteArrayContent(BuildBoardPackage(manifest, payload, archivePayload))
+            {
+                Headers =
+                {
+                    ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip")
+                }
+            },
+            "file",
+            "board.boardoil.zip");
+
+        var response = await Client.PostAsync("/api/boards/import", requestContent);
+        response.EnsureSuccessStatusCode();
+
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        var boardId = envelope.Data!.Id;
+
+        var archivedListEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<ArchivedCardListDto>>(
+            $"/api/boards/{boardId}/cards/archived",
+            JsonOptions);
+        Assert.NotNull(archivedListEnvelope);
+        Assert.NotNull(archivedListEnvelope!.Data);
+        Assert.Single(archivedListEnvelope.Data!.Items);
+        Assert.Equal("API imported archived card", archivedListEnvelope.Data.Items[0].Title);
+        Assert.Equal(["Urgent"], archivedListEnvelope.Data.Items[0].TagNames);
+    }
+
+    [Fact]
     public async Task ImportBoardPackage_WhenFileIsMissing_ShouldReturnBadRequest()
     {
         using var requestContent = new MultipartFormDataContent();
@@ -198,13 +249,20 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
         }
     }
 
-    private static byte[] BuildBoardPackage(BoardPackageManifestDto manifest, BoardPackageBoardDto boardPayload)
+    private static byte[] BuildBoardPackage(
+        BoardPackageManifestDto manifest,
+        BoardPackageBoardDto boardPayload,
+        BoardPackageArchiveDto? archivePayload = null)
     {
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
             WriteJsonEntry(archive, BoardPackageContract.ManifestPath, manifest);
             WriteJsonEntry(archive, BoardPackageContract.BoardEntryPath, boardPayload);
+            if (manifest.Entries.Any(x => x.Kind == BoardPackageContract.ArchiveEntryKind && x.Path == BoardPackageContract.ArchiveEntryPath))
+            {
+                WriteJsonEntry(archive, BoardPackageContract.ArchiveEntryPath, archivePayload ?? new BoardPackageArchiveDto([]));
+            }
         }
 
         return stream.ToArray();

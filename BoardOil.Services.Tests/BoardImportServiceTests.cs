@@ -184,6 +184,129 @@ public sealed class BoardImportServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task ImportBoardPackageAsync_WithArchivePayload_ShouldImportArchivedCards()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Archive Import Board",
+            "Archive import board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            []);
+        var archivePayload = new BoardPackageArchiveDto(
+            [
+                new BoardPackageArchivedCardDto(
+                    12345,
+                    "Imported archived card",
+                    ["Urgent"],
+                    new DateTime(2026, 04, 20, 10, 0, 0, DateTimeKind.Utc),
+                    """{"schema":"archived-card","version":1,"capturedAtUtc":"2026-04-20T10:00:00Z","payload":{"title":"Imported archived card"}}""")
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload, archivePayload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var archivedCard = DbContextForAssert.ArchivedCards.Single(x => x.BoardId == boardId);
+        Assert.Equal(12345, archivedCard.OriginalCardId);
+        Assert.Equal("Imported archived card", archivedCard.SearchTitle);
+        Assert.Equal("""["Urgent"]""", archivedCard.SearchTagsJson);
+        Assert.Contains("IMPORTED ARCHIVED CARD", archivedCard.SearchTextNormalised);
+        Assert.Contains("URGENT", archivedCard.SearchTextNormalised);
+        Assert.Contains("\"schema\":\"archived-card\"", archivedCard.SnapshotJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenArchiveOriginalCardIdCollides_ShouldAssignFallbackId()
+    {
+        var existingBoard = CreateBoard("Existing Archive Board")
+            .AddColumn("Todo")
+            .Build();
+
+        DbContextForArrange.ArchivedCards.Add(new EntityArchivedCard
+        {
+            BoardId = existingBoard.BoardId,
+            OriginalCardId = 777,
+            ArchivedAtUtc = new DateTime(2026, 04, 20, 9, 0, 0, DateTimeKind.Utc),
+            SnapshotJson = """{"schema":"archived-card","version":1,"capturedAtUtc":"2026-04-20T09:00:00Z","payload":{"title":"Existing"}}""",
+            SearchTitle = "Existing",
+            SearchTagsJson = "[]",
+            SearchTextNormalised = "EXISTING"
+        });
+        await DbContextForArrange.SaveChangesAsync();
+
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Archive Collision Board",
+            "Archive collision board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            []);
+        var archivePayload = new BoardPackageArchiveDto(
+            [
+                new BoardPackageArchivedCardDto(
+                    777,
+                    "Colliding archived card",
+                    [],
+                    new DateTime(2026, 04, 20, 11, 0, 0, DateTimeKind.Utc),
+                    """{"schema":"archived-card","version":1,"capturedAtUtc":"2026-04-20T11:00:00Z","payload":{"title":"Colliding archived card"}}""")
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload, archivePayload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var archivedCard = DbContextForAssert.ArchivedCards.Single(x => x.BoardId == boardId);
+        Assert.NotEqual(777, archivedCard.OriginalCardId);
+        Assert.True(archivedCard.OriginalCardId < 0);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WithLargeArchivePayload_ShouldImportAllArchivedCards()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Large Archive Board",
+            "Large archive board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            []);
+        const int archivedCardCount = 1_200;
+        var archivedCards = Enumerable.Range(1, archivedCardCount)
+            .Select(x => new BoardPackageArchivedCardDto(
+                x,
+                $"Archived {x}",
+                ["Load"],
+                new DateTime(2026, 04, 20, 12, 0, 0, DateTimeKind.Utc).AddMinutes(x),
+                $"{{\"schema\":\"archived-card\",\"version\":1,\"capturedAtUtc\":\"2026-04-20T12:00:00Z\",\"payload\":{{\"title\":\"Archived {x}\"}}}}"))
+            .ToList();
+        var archivePayload = new BoardPackageArchiveDto(archivedCards);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload, archivePayload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var importedArchivedCards = DbContextForAssert.ArchivedCards
+            .Where(x => x.BoardId == boardId)
+            .ToList();
+        Assert.Equal(archivedCardCount, importedArchivedCards.Count);
+        Assert.Contains(importedArchivedCards, x => x.OriginalCardId == 1 && x.SearchTitle == "Archived 1");
+        Assert.Contains(importedArchivedCards, x => x.OriginalCardId == archivedCardCount && x.SearchTitle == $"Archived {archivedCardCount}");
+    }
+
+    [Fact]
     public async Task ImportBoardPackageAsync_WhenSystemCardTypeIsRenamed_ShouldImportWithRenamedSystemType()
     {
         var manifest = BoardPackageContract.CreateManifest("0.3.0");
@@ -350,6 +473,29 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.Empty(DbContextForAssert.Boards.Where(x => x.Name == "Broken"));
     }
 
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenArchivePayloadIsJsonNull_ShouldReturnBadRequestAndWriteNothing()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Archive Null Board",
+            "Archive null board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            []);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackageWithRawArchivePayload(manifest, payload, "null")),
+            ActorUserId);
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.Contains("archive", result.ValidationErrors!.Keys);
+        Assert.Empty(DbContextForAssert.Boards.Where(x => x.Name == "Archive Null Board"));
+    }
+
     private sealed class FakeTasksMdClient : ITasksMdClient
     {
         public TasksMdBoardImportModel Model { get; set; } = new([], []);
@@ -368,13 +514,20 @@ public sealed class BoardImportServiceTests : TestBaseDb
         }
     }
 
-    private static byte[] BuildBoardPackage(BoardPackageManifestDto manifest, BoardPackageBoardDto boardPayload)
+    private static byte[] BuildBoardPackage(
+        BoardPackageManifestDto manifest,
+        BoardPackageBoardDto boardPayload,
+        BoardPackageArchiveDto? archivePayload = null)
     {
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
             WriteJsonEntry(archive, BoardPackageContract.ManifestPath, manifest);
             WriteJsonEntry(archive, BoardPackageContract.BoardEntryPath, boardPayload);
+            if (manifest.Entries.Any(x => x.Kind == BoardPackageContract.ArchiveEntryKind && x.Path == BoardPackageContract.ArchiveEntryPath))
+            {
+                WriteJsonEntry(archive, BoardPackageContract.ArchiveEntryPath, archivePayload ?? new BoardPackageArchiveDto([]));
+            }
         }
 
         return stream.ToArray();
@@ -387,7 +540,10 @@ public sealed class BoardImportServiceTests : TestBaseDb
         writer.Write(JsonSerializer.Serialize(payload, JsonOptions));
     }
 
-    private static byte[] BuildBoardPackageWithRawBoardPayload(BoardPackageManifestDto manifest, string rawBoardPayload)
+    private static byte[] BuildBoardPackageWithRawBoardPayload(
+        BoardPackageManifestDto manifest,
+        string rawBoardPayload,
+        BoardPackageArchiveDto? archivePayload = null)
     {
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
@@ -396,6 +552,28 @@ public sealed class BoardImportServiceTests : TestBaseDb
             var boardEntry = archive.CreateEntry(BoardPackageContract.BoardEntryPath, CompressionLevel.Optimal);
             using var writer = new StreamWriter(boardEntry.Open());
             writer.Write(rawBoardPayload);
+            if (manifest.Entries.Any(x => x.Kind == BoardPackageContract.ArchiveEntryKind && x.Path == BoardPackageContract.ArchiveEntryPath))
+            {
+                WriteJsonEntry(archive, BoardPackageContract.ArchiveEntryPath, archivePayload ?? new BoardPackageArchiveDto([]));
+            }
+        }
+
+        return stream.ToArray();
+    }
+
+    private static byte[] BuildBoardPackageWithRawArchivePayload(
+        BoardPackageManifestDto manifest,
+        BoardPackageBoardDto boardPayload,
+        string rawArchivePayload)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            WriteJsonEntry(archive, BoardPackageContract.ManifestPath, manifest);
+            WriteJsonEntry(archive, BoardPackageContract.BoardEntryPath, boardPayload);
+            var archiveEntry = archive.CreateEntry(BoardPackageContract.ArchiveEntryPath, CompressionLevel.Optimal);
+            using var writer = new StreamWriter(archiveEntry.Open());
+            writer.Write(rawArchivePayload);
         }
 
         return stream.ToArray();
