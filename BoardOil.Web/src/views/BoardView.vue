@@ -36,47 +36,14 @@
         @dragover.prevent="handleColumnDragOver(column.id, $event)"
         @drop.prevent="handleColumnDrop(column.id)"
       >
-        <header class="column-header">
-          <div class="column-heading">
-            <h2 class="column-name">{{ column.title }}</h2>
-            <span class="column-card-count">{{ formatColumnCardCount(column.cards.length) }}</span>
-          </div>
-          <div class="btn-group">
-            <button
-              type="button"
-              class="btn btn--secondary column-add-card column-add-card-main"
-              aria-label="Add default card"
-              title="Add default card"
-              @click="openDefaultCardDraft(column.id)"
-            >
-              <Plus :size="16" aria-hidden="true" />
-            </button>
-            <BoDropdown
-              v-if="cardTypes.length > 1"
-              label="Choose card type"
-              :icon="ChevronDown"
-              :icon-size="14"
-              icon-only
-              button-class="column-add-card"
-              align="right"
-            >
-              <template #default="{ close }">
-                <button
-                  v-for="cardType in cardTypes"
-                  :key="cardType.id"
-                  type="button"
-                  class="bo-dropdown-item"
-                  :title="`New ${cardType.name}`"
-                  @click="openNewCardDraft(column.id, cardType.id); close()"
-                >
-                  <span class="bo-dropdown-item-main">
-                    {{ cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name }}
-                  </span>
-                </button>
-              </template>
-            </BoDropdown>
-          </div>
-        </header>
+        <BoardColumnHeader
+          :column-id="column.id"
+          :title="column.title"
+          :count-label="formatColumnCardCount(column.cards.length)"
+          :card-types="cardTypes"
+          @open-default-card-draft="openDefaultCardDraft"
+          @open-card-draft-for-type="openNewCardDraft"
+        />
 
         <div
           class="column-content"
@@ -120,77 +87,41 @@
       </article>
     </section>
 
-    <ModalDialog
+    <BoardArchiveSelectedCardsDialog
       :open="isArchiveConfirmOpen"
-      title="Archive Selected Cards"
-      close-label="Close archive confirmation"
+      :selected-cards="selectedCards"
+      :selected-count="selectedCardCount"
+      :is-archiving="isArchivingSelectedCards"
       @close="closeArchiveConfirm"
-    >
-      <p class="archive-confirm-summary">
-        Archive {{ selectedCardCount }} selected card{{ selectedCardCount === 1 ? '' : 's' }}?
-      </p>
-      <p v-if="selectedCardCount === 0" class="archive-confirm-empty">
-        No cards selected.
-      </p>
-      <ul v-else class="archive-confirm-list">
-        <li v-for="card in selectedCards" :key="card.id" class="archive-confirm-list-item">
-          {{ card.title }}
-        </li>
-      </ul>
-      <section class="card-modal-actions">
-        <div class="card-modal-actions-left">
-          <button type="button" class="btn btn--secondary" :disabled="isArchivingSelectedCards" @click="closeArchiveConfirm">
-            Cancel
-          </button>
-        </div>
-        <button
-          type="button"
-          class="btn btn--danger"
-          :disabled="isArchivingSelectedCards || selectedCardCount === 0"
-          @click="confirmArchiveSelectedCards"
-        >
-          {{ isArchivingSelectedCards ? 'Archiving...' : 'Archive selected' }}
-        </button>
-      </section>
-    </ModalDialog>
+      @confirm="confirmArchiveSelectedCards"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { ChevronDown, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import BoDropdown from '../components/BoDropdown.vue';
+import BoardArchiveSelectedCardsDialog from '../components/BoardArchiveSelectedCardsDialog.vue';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
+import BoardColumnHeader from '../components/BoardColumnHeader.vue';
 import BoardConveyor from '../components/BoardConveyor.vue';
 import Card from '../components/Card.vue';
 import CreateCardInline from '../components/CreateCardInline.vue';
-import ModalDialog from '../components/ModalDialog.vue';
+import { useBoardCardDragDrop } from '../composables/useBoardCardDragDrop';
+import { useBoardCardFilters } from '../composables/useBoardCardFilters';
+import { useBoardCardSelection } from '../composables/useBoardCardSelection';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../types/appError';
-import type { Card as BoardCard } from '../types/boardTypes';
-import type { TagFilterState, TagFilterStateMap } from '../types/tagFilterTypes';
 import { formatColumnCardCount } from '../utils/columnCardCount';
-import { createCardSearchAndTagMatcher } from '../utils/cardFilters';
-import type { CardSearchAndTagFilter } from '../utils/cardFilters';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
 const newCardDraftErrors = ref<Record<number, string>>({});
-const cardSearchText = ref('');
-const tagFilterStates = ref<TagFilterStateMap>({});
-const isTagFilterMenuOpen = ref(false);
-const isCardSelectionMode = ref(false);
-const selectedCardIds = ref<number[]>([]);
-const draggingCardId = ref<number | null>(null);
-const activeDropPoint = ref<{ columnId: number; targetCardId: number | null } | null>(null);
-const isArchiveConfirmOpen = ref(false);
-const isArchivingSelectedCards = ref(false);
 
 const route = useRoute();
 const router = useRouter();
@@ -198,102 +129,67 @@ const boardStore = useBoardStore();
 const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
 const tagStore = useTagStore();
+
 const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { tags } = storeToRefs(tagStore);
 const { createCard, startDrag, dropCard, archiveCards } = cardStore;
+
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
-const availableTagNames = computed(() => tags.value.map(tag => tag.name).sort((left, right) => left.localeCompare(right)));
-const includedTagNames = computed(() => availableTagNames.value.filter(tagName => resolveTagFilterState(tagName) === 'include'));
-const excludedTagNames = computed(() => availableTagNames.value.filter(tagName => resolveTagFilterState(tagName) === 'exclude'));
-const cardFilters = computed<CardSearchAndTagFilter>(() => ({
-  searchText: cardSearchText.value,
-  includedTagNames: [...includedTagNames.value],
-  excludedTagNames: [...excludedTagNames.value]
-}));
-const filteredColumns = computed(() => {
-  if (!board.value) {
-    return [];
+
+const {
+  cardSearchText,
+  tagFilterStates,
+  isTagFilterMenuOpen,
+  availableTagNames,
+  filteredColumns,
+  hasActiveCardFilters,
+  clearCardFilters
+} = useBoardCardFilters(board, tags);
+
+async function openArchivedCards() {
+  const boardId = resolveBoardId();
+  if (boardId === null) {
+    return;
   }
 
-  const matcher = createCardSearchAndTagMatcher(cardFilters.value);
-  return board.value.columns.map(column => ({
-    ...column,
-    cards: column.cards.filter(card => matcher(card))
-  }));
-});
-const hasActiveCardFilters = computed(() =>
-  cardSearchText.value.trim().length > 0
-  || includedTagNames.value.length > 0
-  || excludedTagNames.value.length > 0
-);
-const cardsById = computed(() => {
-  if (!board.value) {
-    return new Map<number, BoardCard>();
-  }
-
-  return board.value.columns.reduce((map, column) => {
-    for (const card of column.cards) {
-      map.set(card.id, card);
-    }
-
-    return map;
-  }, new Map<number, BoardCard>());
-});
-const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
-const selectedCards = computed<BoardCard[]>(() =>
-  selectedCardIds.value
-    .map(cardId => cardsById.value.get(cardId))
-    .filter((card): card is BoardCard => card !== undefined));
-const selectedCardCount = computed(() => selectedCards.value.length);
-const archiveConveyorLabel = computed(() => {
-  if (isCardSelectionMode.value && selectedCardCount.value > 0) {
-    return `Archive ${selectedCardCount.value}`;
-  }
-
-  return 'Archive';
-});
-const archiveConveyorAriaLabel = computed(() => {
-  if (isCardSelectionMode.value) {
-    return selectedCardCount.value > 0
-      ? `Archive ${selectedCardCount.value} selected cards`
-      : 'Archive selected cards';
-  }
-
-  return 'View archived cards';
-});
-const archiveConveyorDisabled = computed(() =>
-  isArchivingSelectedCards.value
-  || (isCardSelectionMode.value && selectedCardCount.value === 0));
-
-function isCardSelected(cardId: number) {
-  return selectedCardIdSet.value.has(cardId);
+  await router.push({ name: 'board-archived', params: { boardId } });
 }
 
-function clearCardSelection() {
-  selectedCardIds.value = [];
-}
+const {
+  isCardSelectionMode,
+  selectedCards,
+  selectedCardCount,
+  isArchiveConfirmOpen,
+  isArchivingSelectedCards,
+  archiveConveyorLabel,
+  archiveConveyorAriaLabel,
+  archiveConveyorDisabled,
+  isCardSelected,
+  toggleCardSelectionMode: toggleCardSelectionModeInternal,
+  toggleCardSelection,
+  handleArchiveConveyorClick,
+  closeArchiveConfirm,
+  confirmArchiveSelectedCards,
+  resetSelectionState
+} = useBoardCardSelection(board, archiveCards, resolveBoardId, openArchivedCards);
+
+const {
+  onCardDragStart,
+  onCardDragEnd,
+  onCardDragOver,
+  onCardDrop,
+  handleColumnDragOver,
+  handleColumnDrop,
+  isDropPoint,
+  isDropAtColumnStart,
+  resolveCardDropIndicator,
+  clearDragInteraction
+} = useBoardCardDragDrop(filteredColumns, isCardSelectionMode, startDrag, dropCard);
 
 function toggleCardSelectionMode() {
-  isCardSelectionMode.value = !isCardSelectionMode.value;
   clearDragInteraction();
-  if (!isCardSelectionMode.value) {
-    clearCardSelection();
-    isArchiveConfirmOpen.value = false;
-  }
-}
-
-function toggleCardSelection(cardId: number) {
-  if (!isCardSelectionMode.value) {
-    return;
-  }
-
-  if (selectedCardIdSet.value.has(cardId)) {
-    selectedCardIds.value = selectedCardIds.value.filter(x => x !== cardId);
-    return;
-  }
-
-  selectedCardIds.value = [...selectedCardIds.value, cardId];
+  toggleCardSelectionModeInternal();
 }
 
 async function openNewCardDraft(columnId: number, cardTypeId: number | null = defaultCreateCardTypeId.value) {
@@ -365,72 +261,6 @@ async function openCardEditor(cardId: number) {
   await router.push({ name: 'board-card', params: { boardId, cardId } });
 }
 
-async function openArchivedCards() {
-  const boardId = resolveBoardId();
-  if (boardId === null) {
-    return;
-  }
-
-  await router.push({ name: 'board-archived', params: { boardId } });
-}
-
-function handleArchiveConveyorClick() {
-  if (!isCardSelectionMode.value) {
-    void openArchivedCards();
-    return;
-  }
-
-  isArchiveConfirmOpen.value = true;
-}
-
-function closeArchiveConfirm() {
-  if (isArchivingSelectedCards.value) {
-    return;
-  }
-
-  isArchiveConfirmOpen.value = false;
-}
-
-async function confirmArchiveSelectedCards() {
-  const boardId = resolveBoardId();
-  if (boardId === null) {
-    return;
-  }
-
-  const cardIds = selectedCards.value.map(card => card.id);
-  if (cardIds.length === 0) {
-    isArchiveConfirmOpen.value = false;
-    return;
-  }
-
-  isArchivingSelectedCards.value = true;
-  try {
-    const archived = await archiveCards(cardIds, boardId);
-    if (!archived) {
-      return;
-    }
-
-    isArchiveConfirmOpen.value = false;
-    clearCardSelection();
-  } finally {
-    isArchivingSelectedCards.value = false;
-  }
-}
-
-function onCardDragStart(cardId: number, fromColumnId: number) {
-  if (isCardSelectionMode.value) {
-    return;
-  }
-
-  draggingCardId.value = cardId;
-  activeDropPoint.value = null;
-  startDrag(cardId, fromColumnId);
-}
-
-function onCardDragEnd() {
-  clearDragInteraction();
-}
-
 function resolveCreateCardErrorMessage(error: AppError) {
   const validationErrors = error.validationErrors ?? {};
   const titleErrors = validationErrors.title ?? validationErrors[''] ?? [];
@@ -439,128 +269,6 @@ function resolveCreateCardErrorMessage(error: AppError) {
   }
 
   return error.message;
-}
-
-function onCardDragOver(columnId: number, cardId: number, event: DragEvent) {
-  if (isCardSelectionMode.value) {
-    return;
-  }
-
-  if (draggingCardId.value === null || cardId === draggingCardId.value) {
-    return;
-  }
-
-  const targetCardId = resolveDropTargetCardId(columnId, cardId, event);
-  if (targetCardId === undefined) {
-    return;
-  }
-
-  setDropPoint(columnId, targetCardId);
-}
-
-async function onCardDrop(columnId: number, cardId: number, event: DragEvent) {
-  if (isCardSelectionMode.value) {
-    return;
-  }
-
-  onCardDragOver(columnId, cardId, event);
-  const targetCardId = activeDropPoint.value?.columnId === columnId
-    ? activeDropPoint.value.targetCardId
-    : cardId;
-  await dropAt(columnId, targetCardId);
-}
-
-function setDropPoint(columnId: number, targetCardId: number | null) {
-  if (draggingCardId.value === null) {
-    return;
-  }
-
-  if (targetCardId === draggingCardId.value) {
-    return;
-  }
-
-  activeDropPoint.value = { columnId, targetCardId };
-}
-
-function isDropPoint(columnId: number, targetCardId: number | null) {
-  return activeDropPoint.value?.columnId === columnId && activeDropPoint.value.targetCardId === targetCardId;
-}
-
-function isDropAtColumnStart(columnId: number) {
-  const firstCardId = getFirstVisibleCardId(columnId);
-  if (firstCardId === null) {
-    return false;
-  }
-
-  return activeDropPoint.value?.columnId === columnId
-    && activeDropPoint.value.targetCardId === firstCardId;
-}
-
-function resolveCardDropIndicator(columnId: number, cardId: number): 'none' | 'before' | 'after' {
-  if (isCardSelectionMode.value || draggingCardId.value === null || cardId === draggingCardId.value) {
-    return 'none';
-  }
-
-  const targetCardId = activeDropPoint.value?.columnId === columnId
-    ? activeDropPoint.value.targetCardId
-    : undefined;
-  if (targetCardId === undefined) {
-    return 'none';
-  }
-
-  if (targetCardId === cardId) {
-    return 'before';
-  }
-
-  const nextCardId = getNextVisibleCardId(columnId, cardId);
-  if (nextCardId === targetCardId || (targetCardId === null && nextCardId === null)) {
-    return 'after';
-  }
-
-  return 'none';
-}
-
-function handleColumnDragOver(columnId: number, event: DragEvent) {
-  if (isCardSelectionMode.value) {
-    return;
-  }
-
-  const targetCardId = resolveColumnDropTargetCardId(columnId, event);
-  setDropPoint(columnId, targetCardId);
-}
-
-async function handleColumnDrop(columnId: number) {
-  if (isCardSelectionMode.value) {
-    return;
-  }
-
-  const targetCardId = activeDropPoint.value?.columnId === columnId
-    ? activeDropPoint.value.targetCardId
-    : null;
-  await dropAt(columnId, targetCardId);
-}
-
-async function dropAt(columnId: number, targetCardId: number | null) {
-  try {
-    await dropCard(columnId, targetCardId);
-  } finally {
-    clearDragInteraction();
-  }
-}
-
-function clearCardFilters() {
-  cardSearchText.value = '';
-  tagFilterStates.value = {};
-  isTagFilterMenuOpen.value = false;
-}
-
-function resolveTagFilterState(tagName: string): TagFilterState {
-  const normalisedTagName = normaliseTagName(tagName);
-  if (!normalisedTagName) {
-    return 'none';
-  }
-
-  return tagFilterStates.value[normalisedTagName] ?? 'none';
 }
 
 function resolveBoardId() {
@@ -573,10 +281,8 @@ watch(
   async () => {
     clearDragInteraction();
     clearCardFilters();
-    isCardSelectionMode.value = false;
-    clearCardSelection();
-    isArchiveConfirmOpen.value = false;
-    isArchivingSelectedCards.value = false;
+    resetSelectionState();
+
     const boardId = resolveBoardId();
     if (boardId === null) {
       await router.replace({ name: 'boards' });
@@ -594,107 +300,6 @@ watch(
   },
   { immediate: true }
 );
-
-watch(
-  cardsById,
-  currentCardsById => {
-    selectedCardIds.value = selectedCardIds.value.filter(cardId => currentCardsById.has(cardId));
-  }
-);
-
-function normaliseTagName(tagName: string) {
-  return tagName.trim().toLocaleLowerCase();
-}
-
-function clearDragInteraction() {
-  draggingCardId.value = null;
-  activeDropPoint.value = null;
-}
-
-function resolveDropTargetCardId(columnId: number, cardId: number, event: DragEvent): number | null | undefined {
-  const currentTarget = event.currentTarget;
-  if (!(currentTarget instanceof HTMLElement)) {
-    return cardId;
-  }
-
-  const rect = currentTarget.getBoundingClientRect();
-  const dropBeforeCard = event.clientY <= rect.top + (rect.height / 2);
-  const candidateTargetCardId = dropBeforeCard
-    ? cardId
-    : getNextVisibleCardId(columnId, cardId);
-
-  return coerceTargetCardId(columnId, candidateTargetCardId);
-}
-
-function getNextVisibleCardId(columnId: number, cardId: number): number | null {
-  const column = filteredColumns.value.find(x => x.id === columnId);
-  if (!column) {
-    return null;
-  }
-
-  const index = column.cards.findIndex(card => card.id === cardId);
-  if (index < 0) {
-    return null;
-  }
-
-  return column.cards[index + 1]?.id ?? null;
-}
-
-function getFirstVisibleCardId(columnId: number): number | null {
-  const column = filteredColumns.value.find(x => x.id === columnId);
-  if (!column) {
-    return null;
-  }
-
-  const movingCardId = draggingCardId.value;
-  for (const card of column.cards) {
-    if (card.id !== movingCardId) {
-      return card.id;
-    }
-  }
-
-  return null;
-}
-
-function coerceTargetCardId(columnId: number, candidateTargetCardId: number | null) {
-  const movingCardId = draggingCardId.value;
-  if (candidateTargetCardId === null || movingCardId === null || candidateTargetCardId !== movingCardId) {
-    return candidateTargetCardId;
-  }
-
-  return getNextVisibleCardId(columnId, candidateTargetCardId);
-}
-
-function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): number | null {
-  if (draggingCardId.value === null) {
-    return null;
-  }
-
-  const currentTarget = event.currentTarget;
-  if (!(currentTarget instanceof HTMLElement)) {
-    return null;
-  }
-
-  const cardElements = Array.from(currentTarget.querySelectorAll<HTMLElement>('[data-card-id]'));
-  if (cardElements.length === 0) {
-    return null;
-  }
-
-  for (const element of cardElements) {
-    const cardId = Number.parseInt(element.dataset.cardId ?? '', 10);
-    if (!Number.isFinite(cardId) || cardId === draggingCardId.value) {
-      continue;
-    }
-
-    const rect = element.getBoundingClientRect();
-    const midpoint = rect.top + (rect.height / 2);
-    if (event.clientY <= midpoint) {
-      return cardId;
-    }
-  }
-
-  return null;
-}
 </script>
 
 <style scoped>
@@ -776,46 +381,6 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
   overflow: hidden;
 }
 
-.column-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  align-items: center;
-  padding-right: 0.5rem;
-}
-
-.column-heading {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  min-width: 0;
-}
-
-.column-name {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.column-card-count {
-  flex: 0 0 auto;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--bo-ink-muted);
-  line-height: 1.2;
-}
-
-.column-add-card {
-  height: 2rem;
-  min-height: 2rem;
-  padding: 0;
-  line-height: 1;
-}
-
-.column-add-card-main {
-  min-width: 2rem;
-}
-
 .column-content {
   display: flex;
   flex-direction: column;
@@ -889,28 +454,6 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
   font-size: 0.85rem;
   text-align: center;
   padding: 0.55rem;
-}
-
-.archive-confirm-summary {
-  margin: 0 0 0.6rem;
-  color: var(--bo-ink);
-}
-
-.archive-confirm-empty {
-  margin: 0 0 0.6rem;
-  color: var(--bo-ink-muted);
-}
-
-.archive-confirm-list {
-  margin: 0 0 0.9rem;
-  padding-left: 1.25rem;
-  max-height: 14rem;
-  overflow-y: auto;
-}
-
-.archive-confirm-list-item {
-  margin: 0.15rem 0;
-  color: var(--bo-ink);
 }
 
 @media (max-width: 720px) {
