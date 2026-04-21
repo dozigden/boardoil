@@ -95,6 +95,28 @@ export function useBoardCardSelection(
     selectedCardIds.value = [...selectedCardIds.value, cardId];
   }
 
+  function selectCardIds(cardIds: number[]) {
+    if (!isCardSelectionMode.value || cardIds.length === 0) {
+      return;
+    }
+
+    const nextSelectedCardIds = new Set(selectedCardIds.value);
+    for (const cardId of cardIds) {
+      nextSelectedCardIds.add(cardId);
+    }
+
+    selectedCardIds.value = [...nextSelectedCardIds];
+  }
+
+  function unselectCardIds(cardIds: number[]) {
+    if (!isCardSelectionMode.value || cardIds.length === 0) {
+      return;
+    }
+
+    const cardIdSet = new Set(cardIds);
+    selectedCardIds.value = selectedCardIds.value.filter(cardId => !cardIdSet.has(cardId));
+  }
+
   function handleArchiveConveyorClick() {
     if (!isCardSelectionMode.value) {
       void openArchivedCards();
@@ -132,6 +154,7 @@ export function useBoardCardSelection(
       }
 
       isArchiveConfirmOpen.value = false;
+      isCardSelectionMode.value = false;
       clearCardSelection();
     } finally {
       isArchivingSelectedCards.value = false;
@@ -163,6 +186,8 @@ export function useBoardCardSelection(
     clearCardSelection,
     toggleCardSelectionMode,
     toggleCardSelection,
+    selectCardIds,
+    unselectCardIds,
     handleArchiveConveyorClick,
     closeArchiveConfirm,
     confirmArchiveSelectedCards,

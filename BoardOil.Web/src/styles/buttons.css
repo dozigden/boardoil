@@ -48,6 +48,13 @@ button:disabled {
   color: var(--bo-btn-ink-hover);
 }
 
+.btn:disabled {
+  background: color-mix(in oklab, var(--bo-surface-muted) 82%, var(--bo-surface-base));
+  border-color: color-mix(in oklab, var(--bo-border-soft) 78%, var(--bo-border-default));
+  color: var(--bo-ink-subtle);
+  box-shadow: none;
+}
+
 .btn--secondary {
   --bo-btn-bg: var(--bo-surface-panel);
   --bo-btn-border: var(--bo-border-brand);
