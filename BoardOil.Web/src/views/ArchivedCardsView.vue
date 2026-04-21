@@ -67,16 +67,11 @@
   >
     <p v-if="isLoadingDetail" class="archived-detail-loading">Loading archived card...</p>
     <p v-else-if="detailErrorMessage" class="archived-detail-error">{{ detailErrorMessage }}</p>
-    <template v-else-if="selectedArchivedCard">
-      <section class="archived-detail-meta">
-        <p><strong>Archived:</strong> {{ formatDateTime(selectedArchivedCard.archivedAtUtc) }}</p>
-        <p><strong>Original card ID:</strong> {{ selectedArchivedCard.originalCardId }}</p>
-      </section>
-      <section class="archived-detail-snapshot">
-        <h4>Snapshot Payload</h4>
-        <pre>{{ formattedSnapshotJson }}</pre>
-      </section>
-    </template>
+    <ArchivedCardDetailContent
+      v-else-if="selectedArchivedCard"
+      :archived-card="selectedArchivedCard"
+      :column-title="resolveColumnTitle(selectedArchivedCard.card.boardColumnId)"
+    />
   </ModalDialog>
 </template>
 
@@ -87,6 +82,7 @@ import { useRoute, useRouter } from 'vue-router';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
 import BoardConveyor from '../components/BoardConveyor.vue';
 import BoGrid from '../components/BoGrid.vue';
+import ArchivedCardDetailContent from '../components/ArchivedCardDetailContent.vue';
 import ModalDialog from '../components/ModalDialog.vue';
 import { createBoardApi } from '../api/boardApi';
 import { useBoardStore } from '../stores/boardStore';
@@ -101,9 +97,8 @@ const api = createBoardApi();
 const boardStore = useBoardStore();
 const route = useRoute();
 const router = useRouter();
-const { currentBoardId } = storeToRefs(boardStore);
+const { currentBoardId, board } = storeToRefs(boardStore);
 const tagStore = useTagStore();
-const { tags } = storeToRefs(tagStore);
 
 const searchDraft = ref('');
 const filterStates = ref<TagFilterStateMap>({});
@@ -135,18 +130,6 @@ const totalCount = computed(() => archivedCardList.value?.totalCount ?? 0);
 const hasActiveFilters = computed(() => searchDraft.value.trim().length > 0);
 const emptyGridText = computed(() => hasActiveFilters.value ? 'No archived cards match your filters.' : 'No archived cards found.');
 const detailModalTitle = computed(() => selectedArchivedCard.value?.title ?? selectedArchivedCardListItem.value?.title ?? 'Archived Card');
-const formattedSnapshotJson = computed(() => {
-  const snapshotJson = selectedArchivedCard.value?.snapshotJson ?? '';
-  if (!snapshotJson) {
-    return '';
-  }
-
-  try {
-    return JSON.stringify(JSON.parse(snapshotJson), null, 2);
-  } catch {
-    return snapshotJson;
-  }
-});
 
 watch(
   routeBoardId,
@@ -350,6 +333,10 @@ function formatDateTime(value: string) {
     timeStyle: 'short'
   }).format(date);
 }
+
+function resolveColumnTitle(boardColumnId: number) {
+  return board.value?.columns.find(column => column.id === boardColumnId)?.title ?? null;
+}
 </script>
 
 <style scoped>
@@ -424,31 +411,6 @@ function formatDateTime(value: string) {
 .archived-detail-error {
   margin: 0;
   color: var(--bo-ink-muted);
-}
-
-.archived-detail-meta {
-  display: grid;
-  gap: 0.2rem;
-  margin-bottom: 0.75rem;
-}
-
-.archived-detail-meta p {
-  margin: 0;
-}
-
-.archived-detail-snapshot h4 {
-  margin: 0 0 0.45rem;
-}
-
-.archived-detail-snapshot pre {
-  margin: 0;
-  padding: 0.75rem;
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 10px;
-  background: var(--bo-surface-panel);
-  font-size: 0.82rem;
-  line-height: 1.45;
-  overflow: auto;
 }
 
 @media (max-width: 720px) {

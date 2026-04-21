@@ -49,7 +49,7 @@ public sealed class CardArchiveService(
         return ApiResults.Ok(new ArchivedCardListDto(items, listOffset, listLimit, totalCount));
     }
 
-    public async Task<ApiResult<ArchivedCardDto>> GetArchivedCardAsync(int boardId, int archivedCardId, int actorUserId)
+    public async Task<ApiResult<ArchivedCardDetailDto>> GetArchivedCardAsync(int boardId, int archivedCardId, int actorUserId)
     {
         using var scope = scopeFactory.CreateReadOnly();
 
@@ -65,7 +65,13 @@ public sealed class CardArchiveService(
             return ApiErrors.NotFound("Archived card not found.");
         }
 
-        return ApiResults.Ok(archivedCard.ToArchivedCardDto());
+        var parsed = ArchivedCardSnapshotSerialiser.TryBuildCurrentCardDto(archivedCard.SnapshotJson, out var snapshotCard, out var snapshotReadError);
+        if (!parsed || snapshotCard is null)
+        {
+            return ApiErrors.InternalError(snapshotReadError ?? "Archived card snapshot is invalid.");
+        }
+
+        return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(snapshotCard));
     }
 
     public async Task<ApiResult<ArchivedCardDto>> ArchiveCardAsync(int boardId, int id, int actorUserId)

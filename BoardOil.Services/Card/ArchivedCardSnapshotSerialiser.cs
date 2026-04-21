@@ -125,6 +125,32 @@ public static class ArchivedCardSnapshotSerialiser
             return false;
         }
     }
+
+    public static bool TryBuildCurrentCardDto(string snapshotJson, out CardDto? card, out string? error)
+    {
+        card = null;
+        var parsed = TryReadKnownPayload(snapshotJson, out var knownPayload, out error);
+        if (!parsed || knownPayload is null)
+        {
+            return false;
+        }
+
+        var payload = knownPayload.Payload;
+        card = new CardDto(
+            payload.OriginalCardId,
+            payload.BoardColumnId,
+            payload.CardTypeId,
+            payload.CardTypeName,
+            payload.CardTypeEmoji,
+            payload.Title,
+            payload.Description,
+            payload.SortKey,
+            payload.Tags,
+            payload.TagNames,
+            payload.CreatedAtUtc,
+            payload.UpdatedAtUtc);
+        return true;
+    }
 }
 
 public sealed record ArchivedCardSnapshotEnvelopeV1(

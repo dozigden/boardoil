@@ -37,7 +37,7 @@ export type ArchivedCardListItem = {
 };
 
 export type ArchivedCard = ArchivedCardListItem & {
-  snapshotJson: string;
+  card: Card;
 };
 
 export type ArchivedCardList = {

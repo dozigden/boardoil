@@ -213,7 +213,20 @@ describe('boardApi archived cards', () => {
         title: 'Archived card',
         tagNames: ['Urgent'],
         archivedAtUtc: '2026-04-19T18:00:00Z',
-        snapshotJson: '{"schema":"archived-card"}'
+        card: {
+          id: 42,
+          boardColumnId: 9,
+          cardTypeId: 1,
+          cardTypeName: 'Story',
+          cardTypeEmoji: '📌',
+          title: 'Archived card',
+          description: 'Snapshot description',
+          sortKey: 'A',
+          tags: [],
+          tagNames: ['Urgent'],
+          createdAtUtc: '2026-04-18T18:00:00Z',
+          updatedAtUtc: '2026-04-19T18:00:00Z'
+        }
       },
       statusCode: 200
     }));
