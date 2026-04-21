@@ -5,6 +5,7 @@
         <button
           type="button"
           class="btn btn--secondary board-tag-filter-toggle"
+          :class="{ 'board-tag-filter-toggle--active': hasActiveTagFilters }"
           aria-label="Tag filters"
           title="Tag filters"
           :aria-controls="menuId"
@@ -85,6 +86,7 @@ import Tag from './Tag.vue';
 const props = defineProps<{
   availableTagNames: string[];
   filterStates: TagFilterStateMap;
+  hasActiveTagFilters: boolean;
   open: boolean;
 }>();
 
@@ -201,6 +203,16 @@ useClickOutside(dropdownRoot, () => {
   gap: 0.32rem;
   min-height: var(--bo-board-filter-control-height, 2.3rem);
   padding: 0 0.65rem;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.board-tag-filter-toggle--active {
+  --bo-btn-bg: var(--bo-colour-energy);
+  --bo-btn-border: var(--bo-surface-energy);
+  --bo-btn-ink: var(--bo-surface-energy);
+  --bo-btn-bg-hover: var(--bo-colour-energy-strong);
+  --bo-btn-border-hover: var(--bo-surface-energy);
+  --bo-btn-ink-hover: var(--bo-surface-energy);
 }
 
 .board-tag-filter-trigger-row {

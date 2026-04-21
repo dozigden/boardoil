@@ -18,6 +18,7 @@
           v-if="availableTagNames.length > 0"
           :available-tag-names="availableTagNames"
           :filter-states="filterStates"
+          :has-active-tag-filters="hasActiveTagFilters"
           :open="pickerOpen"
           @update:filter-states="emit('update:filterStates', $event)"
           @update:open="emit('update:pickerOpen', $event)"
@@ -97,6 +98,8 @@ const rootClasses = computed(() => (
     ? ['board-filters', 'board-filters--embedded']
     : ['panel', 'panel--compact', 'board-filters']
 ));
+
+const hasActiveTagFilters = computed(() => Object.keys(props.filterStates).length > 0);
 </script>
 
 <style scoped>
