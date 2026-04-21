@@ -2,22 +2,34 @@
   <div
     class="card"
     :class="{
+      'card--selected': selected,
       'card--dragging': isDragging,
       'card--drop-before': dropIndicator === 'before',
       'card--drop-after': dropIndicator === 'after'
     }"
     :style="cardStyle"
-    draggable="true"
-    role="button"
+    :draggable="!selectionMode"
+    :role="selectionMode ? 'checkbox' : 'button'"
+    :aria-checked="selectionMode ? selected : undefined"
     tabindex="0"
-    @click="openEditor"
-    @keydown.enter.prevent="openEditor"
-    @keydown.space.prevent="openEditor"
+    @click="handlePrimaryAction"
+    @keydown.enter.prevent="handlePrimaryAction"
+    @keydown.space.prevent="handlePrimaryAction"
     @dragstart="onDragStart"
     @dragend="onDragEnd"
   >
     <div class="card-header">
-      <strong class="card-title">{{ resolvedCardTypeEmoji ? `${resolvedCardTypeEmoji} ` : '' }}{{ card.title }}</strong>
+      <strong class="card-title">
+        <span
+          v-if="selectionMode"
+          class="card-selection-indicator"
+          :class="{ 'card-selection-indicator--selected': selected }"
+          aria-hidden="true"
+        >
+          {{ selected ? '✓' : '' }}
+        </span>
+        <span class="card-title-text">{{ resolvedCardTypeEmoji ? `${resolvedCardTypeEmoji} ` : '' }}{{ card.title }}</span>
+      </strong>
       <span class="card-id">#{{ card.id }}</span>
     </div>
 
@@ -39,16 +51,23 @@ import { useCardTypeStore } from '../stores/cardTypeStore';
 import { getCardSurfaceStyle } from '../utils/cardTypeStyles';
 import Tag from './Tag.vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   card: BoardCard;
   columnId: number;
   dropIndicator?: 'none' | 'before' | 'after';
-}>();
+  selectionMode?: boolean;
+  selected?: boolean;
+}>(), {
+  dropIndicator: 'none',
+  selectionMode: false,
+  selected: false
+});
 
 const emit = defineEmits<{
   'start-drag': [cardId: number, fromColumnId: number];
   'end-drag': [];
   'edit-card': [cardId: number];
+  'toggle-select': [cardId: number];
 }>();
 
 const cardTypeStore = useCardTypeStore();
@@ -58,6 +77,11 @@ const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? nu
 const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
 
 function onDragStart(event: DragEvent) {
+  if (props.selectionMode) {
+    event.preventDefault();
+    return;
+  }
+
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', String(props.card.id));
@@ -76,8 +100,13 @@ function onDragEnd() {
   }, 0);
 }
 
-function openEditor() {
+function handlePrimaryAction() {
   if (isDragging.value) {
+    return;
+  }
+
+  if (props.selectionMode) {
+    emit('toggle-select', props.card.id);
     return;
   }
 
@@ -94,6 +123,11 @@ function openEditor() {
   margin-bottom: 0.5rem;
   cursor: pointer;
   position: relative;
+}
+
+.card--selected {
+  border-color: var(--bo-focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bo-focus-ring) 24%, transparent);
 }
 
 .card--dragging {
@@ -135,8 +169,14 @@ function openEditor() {
 }
 
 .card-title {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.45rem;
   min-width: 0;
   line-height: 1.25;
+}
+
+.card-title-text {
   overflow-wrap: anywhere;
 }
 
@@ -148,5 +188,26 @@ function openEditor() {
 
 .card-tags {
   margin-top: 0.3rem;
+}
+
+.card-selection-indicator {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--bo-border-default);
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  line-height: 1;
+  margin-top: 0.04rem;
+  flex: 0 0 auto;
+}
+
+.card-selection-indicator--selected {
+  border-color: var(--bo-focus-ring);
+  background: var(--bo-focus-ring);
+  color: var(--bo-surface-panel);
 }
 </style>
