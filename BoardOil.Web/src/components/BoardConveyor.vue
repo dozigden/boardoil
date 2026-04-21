@@ -8,12 +8,7 @@
       :disabled="leftDisabled"
       @click="emit('leftClick')"
     >
-      <div class="board-conveyor-end-tip-wrapper board-conveyor-end-tip-wrapper--left">
-        <svg class="board-conveyor-end-shape-tip board-conveyor-end-shape-tip--left" viewBox="0 0 22 44" preserveAspectRatio="none" aria-hidden="true">
-          <path class="board-conveyor-end-shape-fill" d="M22 1.5 Q12 8.5 1.5 22 Q12 35.5 22 42.5 Z" />
-          <path class="board-conveyor-end-shape-edge board-conveyor-end-shape-edge--tip" d="M22 1.5 Q12 8.5 1.5 22 Q12 35.5 22 42.5" vector-effect="non-scaling-stroke" />
-        </svg>
-      </div>
+      <BoardConveyorTip side="left" />
       <div class="board-conveyor-end-body-wrapper">
         <svg class="board-conveyor-end-shape-body board-conveyor-end-shape-body--left" viewBox="0 0 120 44" preserveAspectRatio="none" aria-hidden="true">
           <path class="board-conveyor-end-shape-fill" d="M0 1.5 H108.5 Q118.5 1.5 118.5 11.5 V32.5 Q118.5 42.5 108.5 42.5 H0 Z" />
@@ -48,12 +43,7 @@
           <ChevronRight :size="16" aria-hidden="true" />
         </span>
       </div>
-      <div class="board-conveyor-end-tip-wrapper board-conveyor-end-tip-wrapper--right">
-        <svg class="board-conveyor-end-shape-tip board-conveyor-end-shape-tip--right" viewBox="0 0 22 44" preserveAspectRatio="none" aria-hidden="true">
-          <path class="board-conveyor-end-shape-fill" d="M22 1.5 Q12 8.5 1.5 22 Q12 35.5 22 42.5 Z" />
-          <path class="board-conveyor-end-shape-edge board-conveyor-end-shape-edge--tip" d="M22 1.5 Q12 8.5 1.5 22 Q12 35.5 22 42.5" vector-effect="non-scaling-stroke" />
-        </svg>
-      </div>
+      <BoardConveyorTip side="right" />
     </button>
   </header>
 </template>
@@ -61,6 +51,7 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { computed } from 'vue';
+import BoardConveyorTip from './BoardConveyorTip.vue';
 
 const props = withDefaults(defineProps<{
   leftLabel?: string | null;
@@ -134,15 +125,6 @@ const hasRightAction = computed(() => (props.rightLabel ?? '').trim().length > 0
   z-index: 1;
 }
 
-.board-conveyor-end-tip-wrapper {
-  position: relative;
-  flex: 0 0 var(--bo-conveyor-tip-width);
-  width: var(--bo-conveyor-tip-width);
-  height: 100%;
-  min-height: 100%;
-  z-index: 2;
-}
-
 .board-conveyor-end-shape-body--left {
   position: absolute;
   inset: 0;
@@ -161,27 +143,6 @@ const hasRightAction = computed(() => (props.rightLabel ?? '').trim().length > 0
   transform-origin: center;
 }
 
-.board-conveyor-end-shape-tip {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.board-conveyor-end-tip-wrapper--left {
-  margin-right: -2px;
-}
-
-.board-conveyor-end-tip-wrapper--right {
-  margin-left: -2px;
-}
-
-.board-conveyor-end-shape-tip--right {
-  transform: scaleX(-1);
-  transform-origin: center;
-}
-
 .board-conveyor-end-shape-fill {
   fill: var(--bo-conveyor-end-fill);
 }
@@ -194,10 +155,6 @@ const hasRightAction = computed(() => (props.rightLabel ?? '').trim().length > 0
 }
 
 .board-conveyor-end-shape-edge--body {
-  stroke-linecap: butt;
-}
-
-.board-conveyor-end-shape-edge--tip {
   stroke-linecap: butt;
 }
 
