@@ -1,5 +1,5 @@
 <template>
-  <header class="board-conveyor">
+  <header class="board-conveyor" :class="{ 'board-conveyor--highlighted': highlighted }">
     <button
       v-if="hasLeftAction"
       type="button"
@@ -60,13 +60,15 @@ const props = withDefaults(defineProps<{
   rightAriaLabel?: string | null;
   leftDisabled?: boolean;
   rightDisabled?: boolean;
+  highlighted?: boolean;
 }>(), {
   leftLabel: null,
   leftAriaLabel: null,
   rightLabel: null,
   rightAriaLabel: null,
   leftDisabled: false,
-  rightDisabled: false
+  rightDisabled: false,
+  highlighted: false
 });
 
 const emit = defineEmits<{
@@ -185,6 +187,19 @@ const hasRightAction = computed(() => (props.rightLabel ?? '').trim().length > 0
   --bo-conveyor-end-fill: color-mix(in srgb, var(--bo-surface-energy) 74%, var(--bo-surface-panel));
   --bo-conveyor-end-stroke: var(--bo-colour-energy);
   color: var(--bo-colour-energy);
+}
+
+.board-conveyor--highlighted .board-conveyor-end {
+  --bo-conveyor-end-fill: color-mix(in oklab, var(--bo-colour-brand) 92%, var(--bo-colour-brand-strong));
+  --bo-conveyor-end-stroke: var(--bo-colour-brand-strong);
+  color: var(--bo-ink-on-brand);
+  text-shadow: 0 1px 0 color-mix(in srgb, #000 24%, transparent);
+}
+
+.board-conveyor--highlighted .board-conveyor-end:is(:hover, :focus-visible):not(:disabled) {
+  --bo-conveyor-end-fill: var(--bo-colour-brand-strong);
+  --bo-conveyor-end-stroke: var(--bo-colour-brand-strong);
+  color: var(--bo-ink-on-brand);
 }
 
 .board-conveyor-end:focus-visible {

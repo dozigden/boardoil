@@ -40,20 +40,25 @@
     </div>
 
     <div class="board-selection-pane">
-      <button
-        type="button"
-        class="btn btn--secondary board-selection-toggle"
-        :aria-label="selectionMode ? 'Done selecting cards' : 'Select cards'"
+      <label
+        class="board-selection-toggle"
         :title="selectionMode ? 'Done selecting cards' : 'Select cards'"
-        @click="emit('toggleSelectionMode')"
       >
+        <input
+          type="checkbox"
+          class="board-selection-toggle-input"
+          :checked="selectionMode"
+          aria-label="Toggle card selection mode"
+          @change="emit('toggleSelectionMode')"
+        />
+        <span class="board-selection-toggle-switch" aria-hidden="true" />
         <span class="board-selection-toggle-label">
-          {{ selectionMode ? 'Done' : 'Select' }}
+          Select
         </span>
         <span v-if="selectionMode && selectedCount > 0" class="board-selection-toggle-count">
           {{ selectedCount }}
         </span>
-      </button>
+      </label>
     </div>
   </header>
 </template>
@@ -157,12 +162,68 @@ const rootClasses = computed(() => (
 
 .board-selection-toggle {
   min-height: var(--bo-board-filter-control-height);
-  min-width: 4.85rem;
-  padding: 0 0.65rem;
+  padding: 0 0.3rem;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
+  gap: 0.45rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.board-selection-toggle-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.board-selection-toggle-switch {
+  position: relative;
+  width: 2.2rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bo-border-default) 85%, transparent);
+  border: 1px solid var(--bo-border-default);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.board-selection-toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: calc(1.25rem - 4px);
+  height: calc(1.25rem - 4px);
+  border-radius: 50%;
+  background: var(--bo-surface-panel);
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 20%, transparent);
+  transition: transform 140ms ease;
+}
+
+.board-selection-toggle-input:checked + .board-selection-toggle-switch {
+  background: color-mix(in srgb, var(--bo-colour-brand) 84%, var(--bo-colour-brand-strong));
+  border-color: var(--bo-colour-brand);
+}
+
+.board-selection-toggle-input:checked + .board-selection-toggle-switch::after {
+  transform: translateX(0.95rem);
+}
+
+.board-selection-toggle:focus-within {
+  outline: 2px solid var(--bo-focus-ring);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+.board-selection-toggle-input:checked ~ .board-selection-toggle-label {
+  color: var(--bo-colour-brand);
+}
+
+.board-selection-toggle-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--bo-text-default);
 }
 
 .board-selection-pane {
@@ -178,8 +239,9 @@ const rootClasses = computed(() => (
   height: 1.25rem;
   padding: 0 0.34rem;
   border-radius: 999px;
-  background: var(--bo-surface-energy);
-  color: var(--bo-text-default);
+  background: var(--bo-surface-brand);
+  border: 1px solid var(--bo-border-brand);
+  color: var(--bo-colour-brand-strong);
   font-size: 0.76rem;
   line-height: 1;
 }

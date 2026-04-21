@@ -4,7 +4,27 @@
       <h2 class="column-name">{{ title }}</h2>
       <span class="column-card-count">{{ countLabel }}</span>
     </div>
-    <div class="btn-group">
+    <div v-if="selectionMode" class="column-selection-actions">
+      <button
+        type="button"
+        class="btn column-selection-action"
+        title="Select all visible cards in column"
+        :disabled="disableSelectAll"
+        @click="emit('selectAllVisible', columnId)"
+      >
+        All
+      </button>
+      <button
+        type="button"
+        class="btn column-selection-action"
+        title="Unselect all visible cards in column"
+        :disabled="disableClearVisible"
+        @click="emit('clearVisible', columnId)"
+      >
+        None
+      </button>
+    </div>
+    <div v-else class="btn-group">
       <button
         type="button"
         class="btn btn--secondary column-add-card column-add-card-main"
@@ -52,11 +72,16 @@ defineProps<{
   title: string;
   countLabel: string;
   cardTypes: CardType[];
+  selectionMode?: boolean;
+  disableSelectAll?: boolean;
+  disableClearVisible?: boolean;
 }>();
 
 const emit = defineEmits<{
   openDefaultCardDraft: [columnId: number];
   openCardDraftForType: [columnId: number, cardTypeId: number];
+  selectAllVisible: [columnId: number];
+  clearVisible: [columnId: number];
 }>();
 </script>
 
@@ -99,5 +124,16 @@ const emit = defineEmits<{
 
 .column-add-card-main {
   min-width: 2rem;
+}
+
+.column-selection-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.column-selection-action {
+  min-height: 2rem;
+  padding: 0 0.55rem;
+  font-size: 0.84rem;
 }
 </style>

@@ -6,6 +6,7 @@
 
   <section v-else-if="board" class="board-view">
     <BoardConveyor
+      :highlighted="isCardSelectionMode"
       :right-label="archiveConveyorLabel"
       :right-aria-label="archiveConveyorAriaLabel"
       :right-disabled="archiveConveyorDisabled"
@@ -41,8 +42,13 @@
           :title="column.title"
           :count-label="formatColumnCardCount(column.cards.length)"
           :card-types="cardTypes"
+          :selection-mode="isCardSelectionMode"
+          :disable-select-all="!canSelectAllVisibleInColumn(column.id)"
+          :disable-clear-visible="!canClearVisibleInColumn(column.id)"
           @open-default-card-draft="openDefaultCardDraft"
           @open-card-draft-for-type="openNewCardDraft"
+          @select-all-visible="selectAllVisibleInColumn"
+          @clear-visible="clearVisibleInColumn"
         />
 
         <div
@@ -168,6 +174,8 @@ const {
   isCardSelected,
   toggleCardSelectionMode: toggleCardSelectionModeInternal,
   toggleCardSelection,
+  selectCardIds,
+  unselectCardIds,
   handleArchiveConveyorClick,
   closeArchiveConfirm,
   confirmArchiveSelectedCards,
@@ -190,6 +198,42 @@ const {
 function toggleCardSelectionMode() {
   clearDragInteraction();
   toggleCardSelectionModeInternal();
+}
+
+function selectAllVisibleInColumn(columnId: number) {
+  const column = filteredColumns.value.find(x => x.id === columnId);
+  if (!column) {
+    return;
+  }
+
+  selectCardIds(column.cards.map(card => card.id));
+}
+
+function clearVisibleInColumn(columnId: number) {
+  const column = filteredColumns.value.find(x => x.id === columnId);
+  if (!column) {
+    return;
+  }
+
+  unselectCardIds(column.cards.map(card => card.id));
+}
+
+function canSelectAllVisibleInColumn(columnId: number) {
+  const column = filteredColumns.value.find(x => x.id === columnId);
+  if (!column || column.cards.length === 0) {
+    return false;
+  }
+
+  return column.cards.some(card => !isCardSelected(card.id));
+}
+
+function canClearVisibleInColumn(columnId: number) {
+  const column = filteredColumns.value.find(x => x.id === columnId);
+  if (!column || column.cards.length === 0) {
+    return false;
+  }
+
+  return column.cards.some(card => isCardSelected(card.id));
 }
 
 async function openNewCardDraft(columnId: number, cardTypeId: number | null = defaultCreateCardTypeId.value) {

@@ -126,8 +126,11 @@ function handlePrimaryAction() {
 }
 
 .card--selected {
-  border-color: var(--bo-focus-ring);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bo-focus-ring) 24%, transparent);
+  border-color: color-mix(in oklab, var(--bo-colour-brand) 58%, var(--bo-border-default));
+  background: color-mix(in oklab, var(--bo-colour-brand) 4%, var(--bo-surface-base));
+  box-shadow:
+    inset 6px 0 0 color-mix(in oklab, var(--bo-colour-brand) 84%, var(--bo-colour-brand-strong)),
+    inset 0 0 0 1px color-mix(in oklab, var(--bo-colour-brand) 26%, transparent);
 }
 
 .card--dragging {
@@ -206,8 +209,8 @@ function handlePrimaryAction() {
 }
 
 .card-selection-indicator--selected {
-  border-color: var(--bo-focus-ring);
-  background: var(--bo-focus-ring);
-  color: var(--bo-surface-panel);
+  border-color: var(--bo-colour-brand);
+  background: var(--bo-colour-brand);
+  color: var(--bo-ink-on-brand);
 }
 </style>
