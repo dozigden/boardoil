@@ -5,7 +5,12 @@
   </section>
 
   <section v-else-if="board" class="board-view">
-    <BoardConveyor right-label="Archive" right-aria-label="View archived cards" @right-click="openArchivedCards">
+    <BoardConveyor
+      :right-label="archiveConveyorLabel"
+      :right-aria-label="archiveConveyorAriaLabel"
+      :right-disabled="isArchivingSelectedCards"
+      @right-click="handleArchiveConveyorClick"
+    >
       <BoardCardFilters
         embedded
         :search-text="cardSearchText"
@@ -28,10 +33,23 @@
         @dragover.prevent="handleColumnDragOver(column.id, $event)"
         @drop.prevent="handleColumnDrop(column.id)"
       >
-        <header class="column-header">
+        <header class="column-header" :class="{ 'column-header--archive-selectable': isArchiveSelectableColumn(column.id) }">
           <div class="column-heading">
             <h2 class="column-name">{{ column.title }}</h2>
             <span class="column-card-count">{{ formatColumnCardCount(column.cards.length) }}</span>
+            <label
+              v-if="isArchiveSelectableColumn(column.id)"
+              class="column-archive-toggle"
+              :class="{ 'column-archive-toggle--visible': selectedArchiveColumnId === column.id }"
+              :title="selectedArchiveColumnId === column.id ? 'Archive column selected' : 'Select column for archive'"
+            >
+              <input
+                type="checkbox"
+                class="column-archive-toggle-input"
+                :checked="selectedArchiveColumnId === column.id"
+                @change="toggleArchiveColumnSelection(column.id, $event)"
+              />
+            </label>
           </div>
           <div class="btn-group">
             <button
@@ -108,6 +126,41 @@
         </div>
       </article>
     </section>
+
+    <ModalDialog
+      :open="isArchiveConfirmOpen"
+      title="Archive Selected Column"
+      close-label="Close archive confirmation"
+      @close="closeArchiveConfirm"
+    >
+      <p class="archive-confirm-summary">
+        Archive {{ selectedArchiveCardCount }} card{{ selectedArchiveCardCount === 1 ? '' : 's' }} from
+        "{{ selectedArchiveColumn?.title ?? 'column' }}"?
+      </p>
+      <p v-if="selectedArchiveCardCount === 0" class="archive-confirm-empty">
+        No cards available in this column.
+      </p>
+      <ul v-else class="archive-confirm-list">
+        <li v-for="card in selectedArchiveCards" :key="card.id" class="archive-confirm-list-item">
+          {{ card.title }}
+        </li>
+      </ul>
+      <section class="card-modal-actions">
+        <div class="card-modal-actions-left">
+          <button type="button" class="btn btn--secondary" :disabled="isArchivingSelectedCards" @click="closeArchiveConfirm">
+            Cancel
+          </button>
+        </div>
+        <button
+          type="button"
+          class="btn btn--danger"
+          :disabled="isArchivingSelectedCards || selectedArchiveCardCount === 0"
+          @click="confirmArchiveSelectedColumn"
+        >
+          {{ isArchivingSelectedCards ? 'Archiving...' : 'Archive selected' }}
+        </button>
+      </section>
+    </ModalDialog>
   </section>
 </template>
 
@@ -121,11 +174,13 @@ import BoardCardFilters from '../components/BoardCardFilters.vue';
 import BoardConveyor from '../components/BoardConveyor.vue';
 import Card from '../components/Card.vue';
 import CreateCardInline from '../components/CreateCardInline.vue';
+import ModalDialog from '../components/ModalDialog.vue';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../types/appError';
+import type { Card as BoardCard } from '../types/boardTypes';
 import type { TagFilterState, TagFilterStateMap } from '../types/tagFilterTypes';
 import { formatColumnCardCount } from '../utils/columnCardCount';
 import { createCardSearchAndTagMatcher } from '../utils/cardFilters';
@@ -140,6 +195,9 @@ const tagFilterStates = ref<TagFilterStateMap>({});
 const isTagFilterMenuOpen = ref(false);
 const draggingCardId = ref<number | null>(null);
 const activeDropPoint = ref<{ columnId: number; targetCardId: number | null } | null>(null);
+const selectedArchiveColumnId = ref<number | null>(null);
+const isArchiveConfirmOpen = ref(false);
+const isArchivingSelectedCards = ref(false);
 
 const route = useRoute();
 const router = useRouter();
@@ -150,7 +208,7 @@ const tagStore = useTagStore();
 const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { tags } = storeToRefs(tagStore);
-const { createCard, startDrag, dropCard } = cardStore;
+const { createCard, startDrag, dropCard, archiveCards } = cardStore;
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 const availableTagNames = computed(() => tags.value.map(tag => tag.name).sort((left, right) => left.localeCompare(right)));
 const includedTagNames = computed(() => availableTagNames.value.filter(tagName => resolveTagFilterState(tagName) === 'include'));
@@ -176,6 +234,24 @@ const hasActiveCardFilters = computed(() =>
   || includedTagNames.value.length > 0
   || excludedTagNames.value.length > 0
 );
+const rightMostColumnId = computed(() => filteredColumns.value[filteredColumns.value.length - 1]?.id ?? null);
+const selectedArchiveColumn = computed(() => {
+  if (!board.value || selectedArchiveColumnId.value === null) {
+    return null;
+  }
+
+  return board.value.columns.find(column => column.id === selectedArchiveColumnId.value) ?? null;
+});
+const selectedArchiveCards = computed<BoardCard[]>(() => selectedArchiveColumn.value?.cards ?? []);
+const selectedArchiveCardCount = computed(() => selectedArchiveCards.value.length);
+const archiveConveyorLabel = computed(() =>
+  selectedArchiveColumn.value
+    ? `Archive ${selectedArchiveCardCount.value} selected`
+    : 'Archive');
+const archiveConveyorAriaLabel = computed(() =>
+  selectedArchiveColumn.value
+    ? `Archive ${selectedArchiveCardCount.value} selected cards`
+    : 'View archived cards');
 
 async function openNewCardDraft(columnId: number, cardTypeId: number | null = defaultCreateCardTypeId.value) {
   if (newCardDraftTitles.value[columnId] !== undefined) {
@@ -253,6 +329,64 @@ async function openArchivedCards() {
   }
 
   await router.push({ name: 'board-archived', params: { boardId } });
+}
+
+function isArchiveSelectableColumn(columnId: number) {
+  return rightMostColumnId.value === columnId;
+}
+
+function toggleArchiveColumnSelection(columnId: number, event: Event) {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement)) {
+    return;
+  }
+
+  selectedArchiveColumnId.value = target.checked ? columnId : null;
+}
+
+function handleArchiveConveyorClick() {
+  if (!selectedArchiveColumn.value) {
+    void openArchivedCards();
+    return;
+  }
+
+  isArchiveConfirmOpen.value = true;
+}
+
+function closeArchiveConfirm() {
+  if (isArchivingSelectedCards.value) {
+    return;
+  }
+
+  isArchiveConfirmOpen.value = false;
+}
+
+async function confirmArchiveSelectedColumn() {
+  const boardId = resolveBoardId();
+  if (boardId === null) {
+    return;
+  }
+
+  const cardIds = selectedArchiveCards.value.map(card => card.id);
+  if (cardIds.length === 0) {
+    isArchiveConfirmOpen.value = false;
+    selectedArchiveColumnId.value = null;
+    return;
+  }
+
+  isArchivingSelectedCards.value = true;
+  try {
+    const archived = await archiveCards(cardIds, boardId);
+    if (!archived) {
+      return;
+    }
+
+    isArchiveConfirmOpen.value = false;
+    selectedArchiveColumnId.value = null;
+    await router.push({ name: 'board-archived', params: { boardId } });
+  } finally {
+    isArchivingSelectedCards.value = false;
+  }
 }
 
 function onCardDragStart(cardId: number, fromColumnId: number) {
@@ -391,6 +525,9 @@ watch(
   async () => {
     clearDragInteraction();
     clearCardFilters();
+    selectedArchiveColumnId.value = null;
+    isArchiveConfirmOpen.value = false;
+    isArchivingSelectedCards.value = false;
     const boardId = resolveBoardId();
     if (boardId === null) {
       await router.replace({ name: 'boards' });
@@ -407,6 +544,16 @@ watch(
     await cardTypeStore.loadCardTypes(boardId);
   },
   { immediate: true }
+);
+
+watch(
+  rightMostColumnId,
+  rightMostId => {
+    if (selectedArchiveColumnId.value !== null && selectedArchiveColumnId.value !== rightMostId) {
+      selectedArchiveColumnId.value = null;
+      isArchiveConfirmOpen.value = false;
+    }
+  }
 );
 
 function normaliseTagName(tagName: string) {
@@ -591,6 +738,10 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
   padding-right: 0.5rem;
 }
 
+.column-header--archive-selectable {
+  padding-right: 0.25rem;
+}
+
 .column-heading {
   display: flex;
   align-items: center;
@@ -610,6 +761,28 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
   font-weight: 600;
   color: var(--bo-ink-muted);
   line-height: 1.2;
+}
+
+.column-archive-toggle {
+  opacity: 0;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 140ms ease;
+}
+
+.column-header--archive-selectable:hover .column-archive-toggle,
+.column-header--archive-selectable:focus-within .column-archive-toggle,
+.column-archive-toggle--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.column-archive-toggle-input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--bo-colour-danger);
 }
 
 .column-add-card {
@@ -696,6 +869,28 @@ function resolveColumnDropTargetCardId(columnId: number, event: DragEvent): numb
   font-size: 0.85rem;
   text-align: center;
   padding: 0.55rem;
+}
+
+.archive-confirm-summary {
+  margin: 0 0 0.6rem;
+  color: var(--bo-ink);
+}
+
+.archive-confirm-empty {
+  margin: 0 0 0.6rem;
+  color: var(--bo-ink-muted);
+}
+
+.archive-confirm-list {
+  margin: 0 0 0.9rem;
+  padding-left: 1.25rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.archive-confirm-list-item {
+  margin: 0.15rem 0;
+  color: var(--bo-ink);
 }
 
 @media (max-width: 720px) {

@@ -201,6 +201,10 @@ type RouteSnapshot = {
   overflow: hidden;
 }
 
+.app-shell--board :deep(.app-header) {
+  margin-bottom: 0.5rem;
+}
+
 .app-shell--admin .app-content-stage {
   overflow: hidden;
 }

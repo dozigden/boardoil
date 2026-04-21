@@ -132,6 +132,25 @@ export const useCardStore = defineStore('card', () => {
     return true;
   }
 
+  async function archiveCards(cardIds: number[], boardId: number | null = activeBoardId.value) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
+      return false;
+    }
+
+    const uniqueCardIds = [...new Set(cardIds)];
+    const result = await runBusy(() => api.archiveCards(resolvedBoardId, uniqueCardIds));
+    if (!result.ok) {
+      return false;
+    }
+
+    for (const cardId of uniqueCardIds) {
+      removeCard(cardId);
+    }
+
+    return true;
+  }
+
   function startDrag(cardId: number, fromColumnId: number) {
     dragState = { cardId, fromColumnId };
   }
@@ -303,6 +322,7 @@ export const useCardStore = defineStore('card', () => {
     saveCard,
     deleteCard,
     archiveCard,
+    archiveCards,
     startDrag,
     dropCard,
     upsertCard,
