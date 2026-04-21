@@ -47,6 +47,27 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal("Snapshot version is newer than this runtime supports.", error);
     }
 
+    [Fact]
+    public void TryBuildCurrentCardDto_WhenSnapshotIsKnown_ShouldReturnCardDto()
+    {
+        // Arrange
+        var capturedAtUtc = new DateTime(2026, 4, 19, 16, 0, 0, DateTimeKind.Utc);
+        var card = BuildCardEntity();
+        var snapshotJson = ArchivedCardSnapshotSerialiser.CreateSnapshotJson(99, card, capturedAtUtc);
+
+        // Act
+        var parsed = ArchivedCardSnapshotSerialiser.TryBuildCurrentCardDto(snapshotJson, out var parsedCard, out var error);
+
+        // Assert
+        Assert.True(parsed);
+        Assert.Null(error);
+        Assert.NotNull(parsedCard);
+        Assert.Equal(card.Id, parsedCard!.Id);
+        Assert.Equal(card.Title, parsedCard.Title);
+        Assert.Equal(card.Description, parsedCard.Description);
+        Assert.Equal(["Bug"], parsedCard.TagNames);
+    }
+
     private static EntityBoardCard BuildCardEntity()
     {
         var board = new EntityBoard { Id = 99, Name = "BoardOil" };

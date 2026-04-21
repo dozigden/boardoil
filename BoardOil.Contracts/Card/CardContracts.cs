@@ -30,6 +30,15 @@ public sealed record ArchivedCardDto(
     DateTime ArchivedAtUtc,
     string SnapshotJson);
 
+public sealed record ArchivedCardDetailDto(
+    int Id,
+    int BoardId,
+    int OriginalCardId,
+    string Title,
+    IReadOnlyList<string> TagNames,
+    DateTime ArchivedAtUtc,
+    CardDto Card);
+
 public sealed record ArchivedCardListItemDto(
     int Id,
     int BoardId,

@@ -311,7 +311,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task GetArchivedCardAsync_WhenArchivedCardExists_ShouldReturnFullSnapshot()
+    public async Task GetArchivedCardAsync_WhenArchivedCardExists_ShouldReturnCurrentCardSnapshot()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -332,7 +332,9 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("Archive me", result.Data!.Title);
-        Assert.False(string.IsNullOrWhiteSpace(result.Data.SnapshotJson));
+        Assert.Equal(cardId, result.Data.Card.Id);
+        Assert.Equal("Archive me", result.Data.Card.Title);
+        Assert.Equal("Desc", result.Data.Card.Description);
     }
 
     private async Task SeedTagsForArrangeAsync(int boardId, params string[] tagNames)

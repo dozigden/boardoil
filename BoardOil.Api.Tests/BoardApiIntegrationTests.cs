@@ -1116,7 +1116,7 @@ public sealed class BoardApiIntegrationTests
     }
 
     [Fact]
-    public async Task CardEndpoints_GetArchivedById_ShouldReturnSnapshot()
+    public async Task CardEndpoints_GetArchivedById_ShouldReturnCurrentCardSnapshot()
     {
         // Arrange
         var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
@@ -1140,7 +1140,7 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(archivedCardEnvelope!.Data);
 
         // Act
-        var archivedByIdResponse = await Client.GetFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(
+        var archivedByIdResponse = await Client.GetFromJsonAsync<ApiEnvelope<ArchivedCardDetailDto>>(
             $"/api/boards/1/cards/archived/{archivedCardEnvelope.Data!.Id}",
             JsonOptions);
 
@@ -1148,7 +1148,9 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(archivedByIdResponse);
         Assert.NotNull(archivedByIdResponse!.Data);
         Assert.Equal("Archive me", archivedByIdResponse.Data!.Title);
-        Assert.False(string.IsNullOrWhiteSpace(archivedByIdResponse.Data.SnapshotJson));
+        Assert.Equal(createdCard.Data.Id, archivedByIdResponse.Data.Card.Id);
+        Assert.Equal("Archive me", archivedByIdResponse.Data.Card.Title);
+        Assert.Equal("Desc", archivedByIdResponse.Data.Card.Description);
     }
 
     [Fact]
@@ -1156,7 +1158,7 @@ public sealed class BoardApiIntegrationTests
     {
         // Act
         var response = await Client.GetAsync("/api/boards/1/cards/archived/999999");
-        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(JsonOptions);
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDetailDto>>(JsonOptions);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
