@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    <div class="board-selection-pane">
+    <div v-if="showSelectionToggle" class="board-selection-pane">
       <label
         class="board-selection-toggle"
         :title="selectionMode ? 'Done selecting cards' : 'Select cards'"
@@ -78,10 +78,12 @@ const props = withDefaults(defineProps<{
   hasActiveFilters: boolean;
   selectionMode?: boolean;
   selectedCount?: number;
+  showSelectionToggle?: boolean;
   embedded?: boolean;
 }>(), {
   selectionMode: false,
   selectedCount: 0,
+  showSelectionToggle: true,
   embedded: false
 });
 

@@ -8,6 +8,7 @@
         :filter-states="filterStates"
         :picker-open="isTagFilterMenuOpen"
         :has-active-filters="hasActiveFilters"
+        :show-selection-toggle="false"
         @update:search-text="handleSearchTextChanged"
         @update:filter-states="filterStates = $event"
         @update:picker-open="isTagFilterMenuOpen = $event"
