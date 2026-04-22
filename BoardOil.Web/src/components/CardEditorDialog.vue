@@ -55,21 +55,29 @@
             </BoDropdown>
           </div>
 
-          <label class="card-editor-select-field">
+          <div class="card-editor-select-field card-editor-type-picker">
             <span class="card-editor-field-label">Type</span>
-            <select
-              :value="cardDraft.cardTypeId ?? ''"
-              @change="setDraftCardTypeId(($event.target as HTMLSelectElement).value)"
+            <BoDropdown
+              align="left"
+              label="Select card type"
+              :text="selectedCardTypeLabel"
             >
-              <option
-                v-for="cardType in cardTypes"
-                :key="cardType.id"
-                :value="cardType.id"
-              >
-                {{ cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name }}
-              </option>
-            </select>
-          </label>
+              <template #default="{ close }">
+                <button
+                  v-for="cardType in cardTypes"
+                  :key="cardType.id"
+                  type="button"
+                  class="bo-dropdown-item"
+                  @click="setDraftCardTypeId(cardType.id, close)"
+                >
+                  <span class="bo-dropdown-item-main">
+                    {{ cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name }}
+                  </span>
+                  <span v-if="cardType.id === cardDraft.cardTypeId" class="badge bo-dropdown-item-meta">Selected</span>
+                </button>
+              </template>
+            </BoDropdown>
+          </div>
 
         </aside>
       </div>
@@ -154,6 +162,20 @@ const selectedBoardColumnLabel = computed(() => {
 
   return boardColumns.value.find(column => column.id === cardDraft.value!.boardColumnId)?.title ?? 'Select column';
 });
+const selectedCardTypeLabel = computed(() => {
+  if (!cardDraft.value) {
+    return 'Select card type';
+  }
+
+  const selectedCardType = cardTypes.value.find(cardType => cardType.id === cardDraft.value!.cardTypeId);
+  if (!selectedCardType) {
+    return 'Select card type';
+  }
+
+  return selectedCardType.emoji
+    ? `${selectedCardType.emoji} ${selectedCardType.name}`
+    : selectedCardType.name;
+});
 const selectedCardTypeEmoji = computed(() => {
   return resolveSelectedCardTypeEmoji(
     cardDraft.value?.cardTypeId ?? null,
@@ -196,16 +218,16 @@ function updateEditingCardDraft(field: 'title' | 'description', value: string) {
   cardDraft.value = { ...cardDraft.value, [field]: nextValue };
 }
 
-function setDraftCardTypeId(rawValue: string) {
+function setDraftCardTypeId(cardTypeId: number, close?: () => void) {
   if (!cardDraft.value) {
     return;
   }
 
-  const parsed = Number.parseInt(rawValue, 10);
   cardDraft.value = {
     ...cardDraft.value,
-    cardTypeId: Number.isFinite(parsed) ? parsed : null
+    cardTypeId
   };
+  close?.();
 }
 
 function setDraftBoardColumnId(boardColumnId: number, close?: () => void) {
@@ -379,16 +401,19 @@ watch(
   gap: 0.25rem;
 }
 
-.card-editor-column-picker :deep(.bo-dropdown) {
+.card-editor-column-picker :deep(.bo-dropdown),
+.card-editor-type-picker :deep(.bo-dropdown) {
   width: 100%;
 }
 
-.card-editor-column-picker :deep(.bo-dropdown-trigger) {
+.card-editor-column-picker :deep(.bo-dropdown-trigger),
+.card-editor-type-picker :deep(.bo-dropdown-trigger) {
   width: 100%;
   justify-content: space-between;
 }
 
-.card-editor-column-picker :deep(.bo-dropdown-panel) {
+.card-editor-column-picker :deep(.bo-dropdown-panel),
+.card-editor-type-picker :deep(.bo-dropdown-panel) {
   width: 100%;
   min-width: 0;
 }
@@ -481,10 +506,6 @@ watch(
   }
 
   .card-editor-select-field {
-    min-width: 0;
-  }
-
-  .card-editor-select-field select {
     min-width: 0;
   }
 
