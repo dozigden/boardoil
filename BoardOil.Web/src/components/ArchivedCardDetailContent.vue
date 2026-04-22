@@ -8,19 +8,36 @@
 
       <section class="card-editor-description-field archived-card-detail-description">
         <span class="card-editor-field-label">Description</span>
-        <pre>{{ card.description || 'No description.' }}</pre>
+        <MdViewer
+          :model-value="descriptionForDisplay"
+          aria-label="Archived card description"
+        />
       </section>
     </div>
 
     <aside class="card-editor-options archived-card-detail-options" aria-label="Archived card details">
       <div class="card-editor-option-section">
-        <span class="card-editor-field-label">Type</span>
-        <span>{{ cardTypeLabel }}</span>
+        <span class="card-editor-field-label">Tags</span>
+        <span v-if="card.tagNames.length > 0" class="archived-card-tags">
+          <Tag
+            v-for="tagName in card.tagNames"
+            :key="`detail-${archivedCard.id}-${tagName}`"
+            class="archived-card-tag"
+            :tagName="tagName"
+            enable-fallback
+          />
+        </span>
+        <span v-else class="archived-card-tags-empty">-</span>
       </div>
 
       <div class="card-editor-option-section">
         <span class="card-editor-field-label">Column</span>
         <span>{{ columnLabel }}</span>
+      </div>
+
+      <div class="card-editor-option-section">
+        <span class="card-editor-field-label">Type</span>
+        <span>{{ cardTypeLabel }}</span>
       </div>
 
       <div class="card-editor-option-section">
@@ -37,26 +54,13 @@
         <span class="card-editor-field-label">Updated</span>
         <span>{{ formatDateTime(card.updatedAtUtc) }}</span>
       </div>
-
-      <div class="card-editor-option-section">
-        <span class="card-editor-field-label">Tags</span>
-        <span v-if="card.tagNames.length > 0" class="archived-card-tags">
-          <Tag
-            v-for="tagName in card.tagNames"
-            :key="`detail-${archivedCard.id}-${tagName}`"
-            class="archived-card-tag"
-            :tagName="tagName"
-            enable-fallback
-          />
-        </span>
-        <span v-else class="archived-card-tags-empty">-</span>
-      </div>
     </aside>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import MdViewer from './MdViewer.vue';
 import Tag from './Tag.vue';
 import type { ArchivedCard } from '../types/boardTypes';
 
@@ -79,6 +83,11 @@ const columnLabel = computed(() => {
   }
 
   return `#${card.value.boardColumnId}`;
+});
+
+const descriptionForDisplay = computed(() => {
+  const value = card.value.description.trim();
+  return value.length > 0 ? value : 'No description.';
 });
 
 function formatDateTime(value: string) {
@@ -160,22 +169,6 @@ function formatDateTime(value: string) {
 .card-editor-field-label {
   font-size: 0.85rem;
   color: var(--bo-ink-muted);
-}
-
-.archived-card-detail-description pre {
-  flex: 1 1 0;
-  min-height: 0;
-  max-height: 100%;
-  margin: 0;
-  padding: 0.75rem;
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 10px;
-  background: var(--bo-surface-panel);
-  font-size: 0.82rem;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-y: auto;
 }
 
 .archived-card-tags {
