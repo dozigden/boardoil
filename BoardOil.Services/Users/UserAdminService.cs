@@ -123,57 +123,6 @@ public sealed class UserAdminService(
         return user.ToManagedUserDto();
     }
 
-    public async Task<ApiResult<ManagedUserDto>> UpdateUserRoleAsync(int id, UpdateUserRoleRequest request)
-    {
-        using var scope = scopeFactory.Create();
-
-        if (!TryParseRole(request.Role, out var role))
-        {
-            return ApiErrors.BadRequest("Role must be 'Admin' or 'Standard'.");
-        }
-
-        var user = userRepository.Get(id);
-        if (user is null || user.IdentityType != UserIdentityType.User)
-        {
-            return ApiErrors.NotFound("User not found.");
-        }
-
-        var adminGuardError = await ValidateAdminUpdateAsync(user, role, user.IsActive);
-        if (adminGuardError is not null)
-        {
-            return adminGuardError;
-        }
-
-        user.Role = role;
-        user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
-        await scope.SaveChangesAsync();
-
-        return user.ToManagedUserDto();
-    }
-
-    public async Task<ApiResult<ManagedUserDto>> UpdateUserStatusAsync(int id, UpdateUserStatusRequest request)
-    {
-        using var scope = scopeFactory.Create();
-
-        var user = userRepository.Get(id);
-        if (user is null || user.IdentityType != UserIdentityType.User)
-        {
-            return ApiErrors.NotFound("User not found.");
-        }
-
-        var adminGuardError = await ValidateAdminUpdateAsync(user, user.Role, request.IsActive);
-        if (adminGuardError is not null)
-        {
-            return adminGuardError;
-        }
-
-        user.IsActive = request.IsActive;
-        user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
-        await scope.SaveChangesAsync();
-
-        return user.ToManagedUserDto();
-    }
-
     public async Task<ApiResult> ResetUserPasswordAsync(int id, ResetUserPasswordRequest request)
     {
         using var scope = scopeFactory.Create();

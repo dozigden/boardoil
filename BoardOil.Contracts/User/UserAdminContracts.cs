@@ -47,8 +47,4 @@ public sealed record CreatedClientAccountDto(
 
 public sealed record UpdateUserRequest(string Email, string Role, bool IsActive);
 public sealed record UpdateClientAccountRequest(string Email, string Role, bool IsActive);
-
-public sealed record UpdateUserRoleRequest(string Role);
-
-public sealed record UpdateUserStatusRequest(bool IsActive);
 public sealed record ResetUserPasswordRequest(string NewPassword);
