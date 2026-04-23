@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { resolveAuthNavigation } from './auth/navigationGuard';
+import { resolveAuthNavigation } from './site/auth/navigationGuard';
 
 function makeTarget(options?: { name?: string; requiresAuth?: boolean; requiresAdmin?: boolean }) {
   return {

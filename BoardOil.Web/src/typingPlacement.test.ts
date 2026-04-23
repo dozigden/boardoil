@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import cardSfc from './components/Card.vue?raw';
-import dialogSfc from './components/CardEditorDialog.vue?raw';
+import cardSfc from './board/components/Card.vue?raw';
+import dialogSfc from './board/components/CardEditorDialog.vue?raw';
 
 function countOccurrences(content: string, fragment: string) {
   return content.split(fragment).length - 1;

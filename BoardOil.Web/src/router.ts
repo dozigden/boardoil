@@ -1,71 +1,71 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
-import { resolveAuthNavigation } from './auth/navigationGuard';
-import { useAuthStore } from './stores/authStore';
-import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, APP_LAYOUT_FULL_HEIGHT, APP_LAYOUT_PAGE } from './layouts/appLayout';
+import { resolveAuthNavigation } from './site/auth/navigationGuard';
+import { useAuthStore } from './shared/stores/authStore';
+import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, APP_LAYOUT_FULL_HEIGHT, APP_LAYOUT_PAGE } from './site/layouts/appLayout';
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     name: 'login',
-    component: () => import('./views/LoginView.vue'),
+    component: () => import('./site/views/LoginView.vue'),
     meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/setup-initial-admin',
     name: 'setup-initial-admin',
-    component: () => import('./views/SetupInitialAdminView.vue'),
+    component: () => import('./site/views/SetupInitialAdminView.vue'),
     meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/unauthorized',
     name: 'unauthorized',
-    component: () => import('./views/UnauthorizedView.vue'),
+    component: () => import('./site/views/UnauthorizedView.vue'),
     meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/licences',
     name: 'licences',
-    component: () => import('./views/LicencesView.vue'),
+    component: () => import('./site/views/LicencesView.vue'),
     meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/access-tokens',
     name: 'access-tokens',
-    component: () => import('./views/AccessTokensView.vue'),
+    component: () => import('./site/views/AccessTokensView.vue'),
     meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/',
     name: 'boards',
-    component: () => import('./views/BoardsView.vue'),
+    component: () => import('./board/views/BoardsView.vue'),
     meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
   },
   {
     path: '/boards/:boardId(\\d+)',
     name: 'board',
-    component: () => import('./views/BoardView.vue'),
+    component: () => import('./board/views/BoardView.vue'),
     meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD }
   },
   {
     path: '/boards/:boardId(\\d+)/archived',
     name: 'board-archived',
-    component: () => import('./views/ArchivedCardsView.vue'),
+    component: () => import('./board/views/ArchivedCardsView.vue'),
     meta: { requiresAuth: true, layout: APP_LAYOUT_FULL_HEIGHT }
   },
   {
     path: '/boards/:boardId(\\d+)/card/:cardId(\\d+)',
     name: 'board-card',
     components: {
-      default: () => import('./views/BoardView.vue'),
-      dialog: () => import('./components/CardEditorDialog.vue')
+      default: () => import('./board/views/BoardView.vue'),
+      dialog: () => import('./board/components/CardEditorDialog.vue')
     },
     meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD }
   },
   {
     path: '/boards/:boardId(\\d+)/admin',
     name: 'board-admin',
-    component: () => import('./views/BoardAdminView.vue'),
+    component: () => import('./board/views/BoardAdminView.vue'),
     meta: { requiresAuth: true, layout: APP_LAYOUT_ADMIN },
     children: [
       {
@@ -75,78 +75,78 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'details',
         name: 'board-details',
-        component: () => import('./views/BoardDetailsView.vue')
+        component: () => import('./board/views/BoardDetailsView.vue')
       },
       {
         path: 'columns',
         name: 'columns',
-        component: () => import('./views/ColumnsManagerView.vue')
+        component: () => import('./board/views/ColumnsManagerView.vue')
       },
       {
         path: 'columns/:columnId(\\d+)',
         name: 'columns-column',
         components: {
-          default: () => import('./views/ColumnsManagerView.vue'),
-          dialog: () => import('./components/ColumnEditorDialog.vue')
+          default: () => import('./board/views/ColumnsManagerView.vue'),
+          dialog: () => import('./board/components/ColumnEditorDialog.vue')
         }
       },
       {
         path: 'tags',
         name: 'tags',
-        component: () => import('./views/TagsManagerView.vue')
+        component: () => import('./board/views/TagsManagerView.vue')
       },
       {
         path: 'tags/new',
         name: 'tags-new',
         components: {
-          default: () => import('./views/TagsManagerView.vue'),
-          dialog: () => import('./components/TagEditorDialog.vue')
+          default: () => import('./board/views/TagsManagerView.vue'),
+          dialog: () => import('./board/components/TagEditorDialog.vue')
         }
       },
       {
         path: 'tags/:tagId(\\d+)',
         name: 'tags-tag',
         components: {
-          default: () => import('./views/TagsManagerView.vue'),
-          dialog: () => import('./components/TagEditorDialog.vue')
+          default: () => import('./board/views/TagsManagerView.vue'),
+          dialog: () => import('./board/components/TagEditorDialog.vue')
         }
       },
       {
         path: 'card-types',
         name: 'card-types',
-        component: () => import('./views/CardTypesManagerView.vue')
+        component: () => import('./board/views/CardTypesManagerView.vue')
       },
       {
         path: 'card-types/new',
         name: 'card-types-new',
         components: {
-          default: () => import('./views/CardTypesManagerView.vue'),
-          dialog: () => import('./components/CardTypeEditorDialog.vue')
+          default: () => import('./board/views/CardTypesManagerView.vue'),
+          dialog: () => import('./board/components/CardTypeEditorDialog.vue')
         }
       },
       {
         path: 'card-types/:cardTypeId(\\d+)',
         name: 'card-types-card-type',
         components: {
-          default: () => import('./views/CardTypesManagerView.vue'),
-          dialog: () => import('./components/CardTypeEditorDialog.vue')
+          default: () => import('./board/views/CardTypesManagerView.vue'),
+          dialog: () => import('./board/components/CardTypeEditorDialog.vue')
         }
       },
       {
         path: 'members',
         name: 'board-members',
-        component: () => import('./views/BoardMembersView.vue')
+        component: () => import('./board/views/BoardMembersView.vue')
       },
       {
         path: 'delete',
         name: 'board-delete',
-        component: () => import('./views/BoardDeleteView.vue')
+        component: () => import('./board/views/BoardDeleteView.vue')
       }
     ]
   },
   {
     path: '/admin/system',
-    component: () => import('./views/SystemAdminView.vue'),
+    component: () => import('./system/views/SystemAdminView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true, layout: APP_LAYOUT_ADMIN },
     children: [
       {
@@ -156,32 +156,32 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'boards',
         name: 'system-admin-boards',
-        component: () => import('./views/SystemBoardsView.vue')
+        component: () => import('./system/views/SystemBoardsView.vue')
       },
       {
         path: 'boards/:boardId(\\d+)/members',
         name: 'system-admin-board-members',
-        component: () => import('./views/SystemBoardMembersView.vue')
+        component: () => import('./system/views/SystemBoardMembersView.vue')
       },
       {
         path: 'users',
         name: 'users',
-        component: () => import('./views/UsersManagerView.vue')
+        component: () => import('./system/views/UsersManagerView.vue')
       },
       {
         path: 'client-accounts',
         name: 'client-accounts',
-        component: () => import('./views/ClientAccountsView.vue')
+        component: () => import('./system/views/ClientAccountsView.vue')
       },
       {
         path: 'client-accounts/:clientAccountId(\\d+)/tokens',
         name: 'client-account-tokens',
-        component: () => import('./views/ClientAccountTokensView.vue')
+        component: () => import('./system/views/ClientAccountTokensView.vue')
       },
       {
         path: 'configuration',
         name: 'configuration',
-        component: () => import('./views/ConfigurationView.vue')
+        component: () => import('./system/views/ConfigurationView.vue')
       }
     ]
   },

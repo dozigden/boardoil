@@ -1,7 +1,7 @@
-@import "./styles/buttons.css";
-@import "./styles/badges.css";
-@import "./styles/panels.css";
-@import "./styles/entity-rows.css";
+@import "./shared/styles/buttons.css";
+@import "./shared/styles/badges.css";
+@import "./shared/styles/panels.css";
+@import "./shared/styles/entity-rows.css";
 
 @font-face {
   font-family: "Montserrat";
