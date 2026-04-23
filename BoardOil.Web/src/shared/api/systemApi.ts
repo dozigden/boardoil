@@ -8,7 +8,9 @@ import type {
   CreateClientAccountRequest,
   CreatedAccessToken,
   CreatedClientAccount,
-  ManagedUser
+  ManagedUser,
+  UpdateClientAccountRequest,
+  UpdateManagedUserRequest
 } from '../types/authTypes';
 import type { ConfigurationDto, UpdateConfigurationRequest } from '../types/configurationTypes';
 import { err, ok } from '../types/result';
@@ -80,8 +82,12 @@ export function createSystemApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
-  async function createUser(userName: string, password: string, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
-    return postData<ManagedUser>('/api/system/users', { userName, password, role });
+  async function createUser(userName: string, email: string, password: string, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
+    return postData<ManagedUser>('/api/system/users', { userName, email, password, role });
+  }
+
+  async function updateUser(userId: number, request: UpdateManagedUserRequest): Promise<Result<ManagedUser, AppError>> {
+    return putData<ManagedUser>(`/api/system/users/${userId}`, request);
   }
 
   async function updateUserRole(userId: number, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
@@ -111,6 +117,10 @@ export function createSystemApi() {
 
   async function createClientAccount(request: CreateClientAccountRequest): Promise<Result<CreatedClientAccount, AppError>> {
     return postData<CreatedClientAccount>('/api/system/client-accounts', request);
+  }
+
+  async function updateClientAccount(clientAccountId: number, request: UpdateClientAccountRequest): Promise<Result<ClientAccount, AppError>> {
+    return putData<ClientAccount>(`/api/system/client-accounts/${clientAccountId}`, request);
   }
 
   async function getClientAccountTokens(clientAccountId: number): Promise<Result<AccessToken[], AppError>> {
@@ -147,12 +157,14 @@ export function createSystemApi() {
     removeBoardMember,
     getUsers,
     createUser,
+    updateUser,
     updateUserRole,
     updateUserStatus,
     resetUserPassword,
     deleteUser,
     getClientAccounts,
     createClientAccount,
+    updateClientAccount,
     getClientAccountTokens,
     createClientAccountToken,
     revokeClientAccountToken,

@@ -8,6 +8,7 @@ using BoardOil.Persistence.Abstractions.Auth;
 using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Services.Users;
 
 namespace BoardOil.Services.Auth;
 
@@ -26,7 +27,7 @@ public sealed class AuthService(
     {
         using var scope = scopeFactory.Create();
 
-        var validation = ValidateCredentials(request.UserName, request.Password);
+        var validation = ValidateCredentials(request.UserName, request.Email, request.Password);
         if (validation.Count > 0)
         {
             return ApiErrors.BadRequest("Validation failed.", validation);
@@ -37,6 +38,13 @@ public sealed class AuthService(
             return new ApiError(409, "Initial admin already exists.");
         }
 
+        var normalisedEmail = EmailAddressRules.TryNormalise(request.Email)!;
+        var emailExists = await authUserRepository.NormalisedEmailExistsAsync(normalisedEmail);
+        if (emailExists)
+        {
+            return ApiErrors.BadRequest("Email already exists.");
+        }
+
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var accessTokenExpiresAtUtc = now.AddMinutes(sessionOptions.AccessTokenMinutes);
         var refreshTokenExpiresAtUtc = now.AddDays(sessionOptions.RefreshTokenDays);
@@ -45,6 +53,8 @@ public sealed class AuthService(
         var user = new EntityUser
         {
             UserName = request.UserName.Trim(),
+            Email = request.Email.Trim(),
+            NormalisedEmail = normalisedEmail,
             PasswordHash = passwordHashService.HashPassword(request.Password),
             Role = UserRole.Admin,
             IdentityType = UserIdentityType.User,
@@ -399,7 +409,7 @@ public sealed class AuthService(
     private static MachinePatDto ToMachinePatDto(EntityPersonalAccessToken token) =>
         MachinePatRules.ToMachinePatDto(token);
 
-    private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string password)
+    private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string email, string password)
     {
         var errors = new List<ValidationError>();
 
@@ -412,6 +422,7 @@ public sealed class AuthService(
             errors.Add(new ValidationError("userName", "Username must be between 1 and 64 characters."));
         }
 
+        errors.AddRange(EmailAddressRules.Validate(email, "email"));
         errors.AddRange(ValidatePassword(password, "password"));
 
         return errors;

@@ -123,7 +123,9 @@ public sealed class MachineAuthIntegrationTests : IAsyncLifetime
 
     private static async Task RegisterInitialAdminAsync(HttpClient client)
     {
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
         response.EnsureSuccessStatusCode();
     }
 
@@ -134,6 +136,7 @@ public sealed class MachineAuthIntegrationTests : IAsyncLifetime
         return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
     }
 
+    private sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record MachineRefreshRequest(string RefreshToken);
     private sealed record MachineLogoutRequest(string? RefreshToken);

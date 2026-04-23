@@ -16,6 +16,12 @@ public sealed class UserRepository(IAmbientDbContextLocator ambientDbContextLoca
     public Task<bool> UserNameExistsAsync(string userName) =>
         DbSet.AnyAsync(x => x.UserName == userName);
 
+    public Task<bool> NormalisedEmailExistsAsync(string normalisedEmail) =>
+        DbSet.AnyAsync(x => x.NormalisedEmail == normalisedEmail);
+
+    public Task<bool> NormalisedEmailExistsForOtherUserAsync(int userId, string normalisedEmail) =>
+        DbSet.AnyAsync(x => x.Id != userId && x.NormalisedEmail == normalisedEmail);
+
     public Task<int> CountActiveAdminsAsync() =>
         DbSet.CountAsync(x => x.IsActive && x.Role == UserRole.Admin && x.IdentityType == UserIdentityType.User);
 }

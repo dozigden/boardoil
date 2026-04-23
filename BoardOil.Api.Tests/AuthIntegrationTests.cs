@@ -29,10 +29,27 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RegisterInitialAdmin_WithInvalidEmail_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        // Act
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "invalid-email", "Password1234!"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -43,7 +60,9 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         await RegisterInitialAdminAsync(client);
 
         // Act
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin2", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin2", "admin2@localhost", "Password1234!"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -57,7 +76,9 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         client.DefaultRequestHeaders.Add("Cookie", "boardoil_access=stale-token");
 
         // Act
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -229,7 +250,9 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var client = factory.CreateClient();
 
         // Act
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -244,7 +267,9 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -254,7 +279,9 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
 
     private static async Task RegisterInitialAdminAsync(HttpClient client)
     {
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
         response.EnsureSuccessStatusCode();
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
@@ -266,7 +293,9 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
 
     private static async Task<string> RegisterInitialAdminAndGetRefreshTokenAsync(HttpClient client)
     {
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
         response.EnsureSuccessStatusCode();
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
@@ -314,6 +343,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
     }
 
+    private sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record ChangeOwnPasswordRequest(string CurrentPassword, string NewPassword);
     private sealed record AuthSessionEnvelope(string CsrfToken);

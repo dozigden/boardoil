@@ -356,9 +356,12 @@ public sealed class CardTypeServiceTests : TestBaseDb
     private async Task<int> AddContributorAsync(int boardId, string userName)
     {
         var now = DateTime.UtcNow;
+        var email = $"{userName}@localhost";
         var user = new EntityUser
         {
             UserName = userName,
+            Email = email,
+            NormalisedEmail = email.ToLowerInvariant(),
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,

@@ -16,6 +16,7 @@
         <div class="entity-row-main">
           <span class="badge">#{{ user.id }}</span>
           <strong class="entity-row-title">{{ user.userName }}</strong>
+          <span class="user-email">{{ user.email }}</span>
           <span class="entity-row-badges badge-group">
             <span class="badge">{{ user.identityType }}</span>
             <span class="badge">{{ user.role }}</span>
@@ -34,23 +35,12 @@
               <button
                 type="button"
                 class="bo-dropdown-item"
-                :disabled="busy || user.role === 'Admin'"
-                @click="setRoleFromMenu(user.id, 'Admin', close)"
+                :disabled="busy"
+                @click="openEditUserFromMenu(user, close)"
               >
-                Set role: Admin
-              </button>
-              <button
-                type="button"
-                class="bo-dropdown-item"
-                :disabled="busy || user.role === 'Standard'"
-                @click="setRoleFromMenu(user.id, 'Standard', close)"
-              >
-                Set role: Standard
+                Edit details
               </button>
               <span class="bo-dropdown-divider" aria-hidden="true"></span>
-              <button type="button" class="bo-dropdown-item" :disabled="busy" @click="toggleStatusFromMenu(user.id, user.isActive, close)">
-                {{ user.isActive ? 'Deactivate' : 'Activate' }}
-              </button>
               <button type="button" class="bo-dropdown-item" :disabled="busy" @click="openResetPasswordFromMenu(user, close)">
                 Reset password
               </button>
@@ -70,6 +60,13 @@
     </section>
 
     <UserCreateDialog :open="isCreateDialogOpen" :busy="busy" @close="closeCreateDialog" @submit="createUser" />
+    <UserEditDialog
+      :open="isEditDialogOpen"
+      :busy="busy"
+      :user="userForEdit"
+      @close="closeEditDialog"
+      @submit="submitUserEdit"
+    />
     <PasswordResetDialog
       :open="isResetPasswordDialogOpen"
       :busy="busy"
@@ -89,6 +86,7 @@ import { createSystemApi } from '../../shared/api/systemApi';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import PasswordResetDialog from '../../shared/components/PasswordResetDialog.vue';
 import UserCreateDialog from '../components/UserCreateDialog.vue';
+import UserEditDialog from '../components/UserEditDialog.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
 import type { ManagedUser } from '../../shared/types/authTypes';
 
@@ -100,7 +98,9 @@ const busy = ref(false);
 const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const isCreateDialogOpen = ref(false);
+const isEditDialogOpen = ref(false);
 const isResetPasswordDialogOpen = ref(false);
+const userForEdit = ref<ManagedUser | null>(null);
 const userForPasswordReset = ref<ManagedUser | null>(null);
 
 async function loadUsers() {
@@ -137,12 +137,12 @@ function closeResetPasswordDialog() {
   userForPasswordReset.value = null;
 }
 
-async function createUser(payload: { userName: string; password: string; role: 'Admin' | 'Standard' }) {
+async function createUser(payload: { userName: string; email: string; password: string; role: 'Admin' | 'Standard' }) {
   busy.value = true;
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await systemApi.createUser(payload.userName, payload.password, payload.role);
+    const result = await systemApi.createUser(payload.userName, payload.email, payload.password, payload.role);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -151,6 +151,40 @@ async function createUser(payload: { userName: string; password: string; role: '
     users.value = [...users.value, result.data].sort((a, b) => a.userName.localeCompare(b.userName));
     isCreateDialogOpen.value = false;
     successMessage.value = `Created user ${result.data.userName}.`;
+  } finally {
+    busy.value = false;
+  }
+}
+
+function openEditDialog(user: ManagedUser) {
+  userForEdit.value = user;
+  isEditDialogOpen.value = true;
+}
+
+function closeEditDialog() {
+  isEditDialogOpen.value = false;
+  userForEdit.value = null;
+}
+
+async function submitUserEdit(payload: { email: string; role: 'Admin' | 'Standard'; isActive: boolean }) {
+  const selectedUser = userForEdit.value;
+  if (!selectedUser) {
+    return;
+  }
+
+  busy.value = true;
+  errorMessage.value = null;
+  successMessage.value = null;
+  try {
+    const result = await systemApi.updateUser(selectedUser.id, payload);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    users.value = users.value.map(user => (user.id === selectedUser.id ? result.data : user));
+    closeEditDialog();
+    successMessage.value = `Updated ${result.data.userName}.`;
   } finally {
     busy.value = false;
   }
@@ -175,42 +209,6 @@ async function submitResetPassword(payload: { currentPassword?: string; newPassw
     isResetPasswordDialogOpen.value = false;
     userForPasswordReset.value = null;
     successMessage.value = `Password reset for ${selectedUser.userName}.`;
-  } finally {
-    busy.value = false;
-  }
-}
-
-async function onRoleChange(userId: number, nextRole: 'Admin' | 'Standard') {
-  busy.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.updateUserRole(userId, nextRole);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    users.value = users.value.map(user => (user.id === userId ? result.data : user));
-    successMessage.value = `Updated role for ${result.data.userName}.`;
-  } finally {
-    busy.value = false;
-  }
-}
-
-async function toggleStatus(userId: number, currentState: boolean) {
-  busy.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.updateUserStatus(userId, !currentState);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    users.value = users.value.map(user => (user.id === userId ? result.data : user));
-    successMessage.value = `${result.data.userName} is now ${result.data.isActive ? 'active' : 'inactive'}.`;
   } finally {
     busy.value = false;
   }
@@ -248,19 +246,14 @@ function isCurrentUser(userId: number) {
   return currentUser.value?.id === userId;
 }
 
-async function setRoleFromMenu(userId: number, nextRole: 'Admin' | 'Standard', close: () => void) {
-  close();
-  await onRoleChange(userId, nextRole);
-}
-
-async function toggleStatusFromMenu(userId: number, currentState: boolean, close: () => void) {
-  close();
-  await toggleStatus(userId, currentState);
-}
-
 async function deleteUserFromMenu(user: ManagedUser, close: () => void) {
   close();
   await deleteUser(user);
+}
+
+function openEditUserFromMenu(user: ManagedUser, close: () => void) {
+  close();
+  openEditDialog(user);
 }
 
 function openResetPasswordFromMenu(user: ManagedUser, close: () => void) {
@@ -276,5 +269,10 @@ onMounted(async () => {
 <style scoped>
 .users-header {
   align-items: flex-end;
+}
+
+.user-email {
+  color: var(--bo-ink-muted);
+  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
 }
 </style>

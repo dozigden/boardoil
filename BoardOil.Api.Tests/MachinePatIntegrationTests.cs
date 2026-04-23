@@ -553,7 +553,9 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
     private static async Task RegisterInitialAdminAsync(HttpClient client)
     {
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
         response.EnsureSuccessStatusCode();
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
@@ -587,7 +589,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     {
         var response = await adminClient.PostAsJsonAsync(
             "/api/system/client-accounts",
-            new CreateClientAccountRequest(userName, role, "Initial token", 30, scopes));
+            new CreateClientAccountRequest(userName, $"{userName}@localhost", role, "Initial token", 30, scopes));
         response.EnsureSuccessStatusCode();
 
         var created = await response.Content.ReadFromJsonAsync<ApiEnvelope<CreatedClientAccountEnvelope>>();
@@ -637,7 +639,9 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
     private static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
     {
-        var response = await adminClient.PostAsJsonAsync("/api/system/users", new CreateUserRequest(userName, password, role));
+        var response = await adminClient.PostAsJsonAsync(
+            "/api/system/users",
+            new CreateUserRequest(userName, $"{userName}@localhost", password, role));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ManagedUserEnvelope>>();
         Assert.NotNull(envelope);
@@ -664,6 +668,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
     }
 
+    private sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record CreateMachinePatRequest(
         string Name,
@@ -671,11 +676,12 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         IReadOnlyList<string> Scopes);
     private sealed record CreateClientAccountRequest(
         string UserName,
+        string Email,
         string Role,
         string? TokenName,
         int? ExpiresInDays,
         IReadOnlyList<string>? Scopes);
-    private sealed record CreateUserRequest(string UserName, string Password, string Role);
+    private sealed record CreateUserRequest(string UserName, string Email, string Password, string Role);
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
     private sealed record ManagedUserEnvelope(int Id, string UserName, string Role, bool IsActive, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);

@@ -5,6 +5,7 @@ namespace BoardOil.Contracts.Users;
 public sealed record ManagedUserDto(
     int Id,
     string UserName,
+    string Email,
     string Role,
     string IdentityType,
     bool IsActive,
@@ -16,11 +17,12 @@ public sealed record UserDirectoryEntryDto(
     string UserName,
     bool IsActive);
 
-public sealed record CreateUserRequest(string UserName, string Password, string Role);
+public sealed record CreateUserRequest(string UserName, string Email, string Password, string Role);
 
 public sealed record ClientAccountDto(
     int Id,
     string UserName,
+    string Email,
     string Role,
     bool IsActive,
     DateTime CreatedAtUtc,
@@ -28,6 +30,7 @@ public sealed record ClientAccountDto(
 
 public sealed record CreateClientAccountRequest(
     string UserName,
+    string Email,
     string Role,
     string? TokenName = null,
     int? ExpiresInDays = null,
@@ -41,6 +44,9 @@ public sealed record CreateClientAccessTokenRequest(
 public sealed record CreatedClientAccountDto(
     ClientAccountDto Account,
     CreatedMachinePatDto Token);
+
+public sealed record UpdateUserRequest(string Email, string Role, bool IsActive);
+public sealed record UpdateClientAccountRequest(string Email, string Role, bool IsActive);
 
 public sealed record UpdateUserRoleRequest(string Role);
 

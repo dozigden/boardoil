@@ -89,9 +89,13 @@ public sealed class SystemBoardServiceTests : TestBaseDb
     private async Task<int> CreateUserAsync(string userNamePrefix, UserRole role, bool isActive = true)
     {
         var now = DateTime.UtcNow;
+        var userName = $"{userNamePrefix}-{Guid.NewGuid():N}";
+        var email = $"{userName}@localhost";
         var user = new EntityUser
         {
-            UserName = $"{userNamePrefix}-{Guid.NewGuid():N}",
+            UserName = userName,
+            Email = email,
+            NormalisedEmail = email.ToLowerInvariant(),
             PasswordHash = "test-hash",
             Role = role,
             IsActive = isActive,

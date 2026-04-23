@@ -15,8 +15,8 @@ import { deleteJson, getEnvelope, postData, postJson, putData } from './http';
 export type AuthApi = ReturnType<typeof createAuthApi>;
 
 export function createAuthApi() {
-  async function registerInitialAdmin(userName: string, password: string): Promise<Result<AuthSession, AppError>> {
-    return postData<AuthSession>('/api/auth/register-initial-admin', { userName, password });
+  async function registerInitialAdmin(userName: string, email: string, password: string): Promise<Result<AuthSession, AppError>> {
+    return postData<AuthSession>('/api/auth/register-initial-admin', { userName, email, password });
   }
 
   async function login(userName: string, password: string): Promise<Result<AuthSession, AppError>> {

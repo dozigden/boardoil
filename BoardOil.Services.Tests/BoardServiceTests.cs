@@ -259,9 +259,13 @@ public sealed class BoardServiceTests : TestBaseDb
     private async Task CreateForeignBoardAsync(string boardName)
     {
         var now = DateTime.UtcNow;
+        var ownerUserName = $"owner-{Guid.NewGuid():N}";
+        var ownerEmail = $"{ownerUserName}@localhost";
         var owner = new EntityUser
         {
-            UserName = $"owner-{Guid.NewGuid():N}",
+            UserName = ownerUserName,
+            Email = ownerEmail,
+            NormalisedEmail = ownerEmail.ToLowerInvariant(),
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,

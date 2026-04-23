@@ -18,6 +18,10 @@ public static class ClientAccountEndpoints
                 clientAccountService.CreateClientAccountAsync(request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("System Client Accounts");
+        app.MapPut("/api/system/client-accounts/{id:int}", (int id, UpdateClientAccountRequest request, IClientAccountService clientAccountService) =>
+                clientAccountService.UpdateClientAccountAsync(id, request).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("System Client Accounts");
 
         app.MapGet("/api/system/client-accounts/{id:int}/tokens", (int id, IClientAccountService clientAccountService) =>
                 clientAccountService.ListClientAccessTokensAsync(id).ToHttpResult())
