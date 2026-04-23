@@ -113,7 +113,7 @@ describe('authStore', () => {
     };
     authApi.registerInitialAdmin.mockResolvedValue(ok(session));
 
-    const success = await store.registerInitialAdmin('admin', 'Password1234!');
+    const success = await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!');
 
     expect(success).toBe(true);
     expect(store.user?.userName).toBe('admin');
@@ -140,7 +140,7 @@ describe('authStore', () => {
     const apiError: AppError = { kind: 'api', message: 'Initial admin already exists.' };
     authApi.registerInitialAdmin.mockResolvedValue(err(apiError));
 
-    const success = await store.registerInitialAdmin('admin', 'Password1234!');
+    const success = await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!');
 
     expect(success).toBe(false);
     expect(store.errorMessage).toBe('Initial admin already exists.');

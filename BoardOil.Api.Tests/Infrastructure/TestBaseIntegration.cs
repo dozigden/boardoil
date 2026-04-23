@@ -38,7 +38,7 @@ public abstract class TestBaseIntegration : IAsyncLifetime
     protected async Task AuthenticateAsInitialAdminAsync()
     {
         var client = Client;
-        var register = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new RegisterInitialAdminRequest("admin", "Password1234!"));
+        var register = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
         if (register.StatusCode == HttpStatusCode.Conflict)
         {
             var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", "Password1234!"));
@@ -61,7 +61,7 @@ public abstract class TestBaseIntegration : IAsyncLifetime
 
     protected static async Task AuthenticateAsInitialAdminAsync(HttpClient client)
     {
-        var register = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new RegisterInitialAdminRequest("admin", "Password1234!"));
+        var register = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
         if (register.StatusCode == HttpStatusCode.Conflict)
         {
             var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", "Password1234!"));
@@ -149,7 +149,7 @@ public abstract class TestBaseIntegration : IAsyncLifetime
     protected virtual BoardOilApiFactory CreateFactory(string databasePath) =>
         new(databasePath);
 
-    private sealed record RegisterInitialAdminRequest(string UserName, string Password);
+    private sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);

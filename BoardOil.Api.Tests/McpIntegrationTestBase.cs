@@ -25,7 +25,9 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
 
     protected static async Task RegisterInitialAdminAsync(HttpClient client)
     {
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
         response.EnsureSuccessStatusCode();
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
@@ -71,6 +73,7 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
     }
 
+    protected sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     protected sealed record LoginRequest(string UserName, string Password);
     protected sealed record CreateMachinePatRequest(
         string Name,

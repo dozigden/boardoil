@@ -24,6 +24,7 @@
           >
             <span class="badge">#{{ client.id }}</span>
             <strong class="entity-row-title">{{ client.userName }}</strong>
+            <span class="client-email">{{ client.email }}</span>
             <span class="entity-row-badges badge-group">
               <span class="badge">{{ client.role }}</span>
               <span class="badge">{{ client.isActive ? 'Active' : 'Inactive' }}</span>
@@ -38,6 +39,10 @@
               :disabled="isBusy"
             >
               <template #default="{ close }">
+                <button type="button" class="bo-dropdown-item" :disabled="isBusy" @click="openEditClientFromMenu(client, close)">
+                  Edit details
+                </button>
+                <span class="bo-dropdown-divider" aria-hidden="true"></span>
                 <button type="button" class="bo-dropdown-item" :disabled="isBusy" @click="openClientTokensFromMenu(client.id, close)">
                   Tokens
                 </button>
@@ -57,6 +62,13 @@
       :busy="isBusy"
       @close="closeCreateDialog"
       @submit="createClientAccount"
+    />
+    <ClientAccountEditDialog
+      :open="isEditDialogOpen"
+      :busy="isBusy"
+      :client="clientForEdit"
+      @close="closeEditDialog"
+      @submit="submitClientEdit"
     />
 
     <AccessTokenSecretModal
@@ -78,6 +90,7 @@ import { createSystemApi } from '../../shared/api/systemApi';
 import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretModal.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.vue';
+import ClientAccountEditDialog from '../components/ClientAccountEditDialog.vue';
 import type { ClientAccount, CreateClientAccountRequest } from '../../shared/types/authTypes';
 
 const systemApi = createSystemApi();
@@ -85,15 +98,18 @@ const clients = ref<ClientAccount[]>([]);
 
 const loading = ref(false);
 const createBusy = ref(false);
+const editBusy = ref(false);
 const isCreateDialogOpen = ref(false);
+const isEditDialogOpen = ref(false);
 const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const plainTextPat = ref<string | null>(null);
 const plainTextPatName = ref<string>('');
+const clientForEdit = ref<ClientAccount | null>(null);
 
 const router = useRouter();
 
-const isBusy = computed(() => loading.value || createBusy.value);
+const isBusy = computed(() => loading.value || createBusy.value || editBusy.value);
 const isSecretModalOpen = computed(() => plainTextPat.value !== null);
 
 function openCreateDialog() {
@@ -102,6 +118,16 @@ function openCreateDialog() {
 
 function closeCreateDialog() {
   isCreateDialogOpen.value = false;
+}
+
+function openEditDialog(client: ClientAccount) {
+  clientForEdit.value = client;
+  isEditDialogOpen.value = true;
+}
+
+function closeEditDialog() {
+  clientForEdit.value = null;
+  isEditDialogOpen.value = false;
 }
 
 async function loadClients() {
@@ -138,6 +164,30 @@ async function createClientAccount(payload: CreateClientAccountRequest) {
     isCreateDialogOpen.value = false;
   } finally {
     createBusy.value = false;
+  }
+}
+
+async function submitClientEdit(payload: { email: string; role: 'Admin' | 'Standard'; isActive: boolean }) {
+  const selectedClient = clientForEdit.value;
+  if (!selectedClient) {
+    return;
+  }
+
+  editBusy.value = true;
+  errorMessage.value = null;
+  successMessage.value = null;
+  try {
+    const result = await systemApi.updateClientAccount(selectedClient.id, payload);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    clients.value = clients.value.map(client => (client.id === selectedClient.id ? result.data : client));
+    closeEditDialog();
+    successMessage.value = `Updated client account ${result.data.userName}.`;
+  } finally {
+    editBusy.value = false;
   }
 }
 
@@ -202,6 +252,11 @@ async function deleteClientFromMenu(client: ClientAccount, close: () => void) {
   await deleteClientAccount(client);
 }
 
+function openEditClientFromMenu(client: ClientAccount, close: () => void) {
+  close();
+  openEditDialog(client);
+}
+
 onMounted(async () => {
   await loadClients();
 });
@@ -245,5 +300,10 @@ onMounted(async () => {
 .client-accounts-empty {
   margin: 0;
   color: var(--bo-ink-muted);
+}
+
+.client-email {
+  color: var(--bo-ink-muted);
+  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
 }
 </style>

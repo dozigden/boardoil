@@ -22,6 +22,7 @@ export type BootstrapStatusDto = {
 export type ManagedUser = {
   id: number;
   userName: string;
+  email: string;
   role: 'Admin' | 'Standard' | string;
   identityType: 'User' | 'Client' | string;
   isActive: boolean;
@@ -32,6 +33,7 @@ export type ManagedUser = {
 export type ClientAccount = {
   id: number;
   userName: string;
+  email: string;
   role: 'Admin' | 'Standard' | string;
   isActive: boolean;
   createdAtUtc: string;
@@ -70,10 +72,23 @@ export type CreateAccessTokenRequest = {
 
 export type CreateClientAccountRequest = {
   userName: string;
+  email: string;
   role: 'Admin' | 'Standard' | string;
   tokenName?: string | null;
   expiresInDays?: number | null;
   scopes?: AccessTokenScope[] | null;
+};
+
+export type UpdateManagedUserRequest = {
+  email: string;
+  role: 'Admin' | 'Standard' | string;
+  isActive: boolean;
+};
+
+export type UpdateClientAccountRequest = {
+  email: string;
+  role: 'Admin' | 'Standard' | string;
+  isActive: boolean;
 };
 
 export type CreateClientAccessTokenRequest = {

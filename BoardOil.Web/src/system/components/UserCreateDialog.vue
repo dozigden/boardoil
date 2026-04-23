@@ -6,6 +6,11 @@
     </label>
 
     <label>
+      Email
+      <input v-model="email" :disabled="busy" type="email" autocomplete="email" maxlength="320" required />
+    </label>
+
+    <label>
       Password
       <input v-model="password" :disabled="busy" type="password" autocomplete="new-password" required />
     </label>
@@ -55,10 +60,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  submit: [payload: { userName: string; password: string; role: 'Admin' | 'Standard' }];
+  submit: [payload: { userName: string; email: string; password: string; role: 'Admin' | 'Standard' }];
 }>();
 
 const userName = ref('');
+const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const role = ref<'Admin' | 'Standard'>('Standard');
@@ -66,6 +72,7 @@ const draftError = ref<string | null>(null);
 
 function resetDraft() {
   userName.value = '';
+  email.value = '';
   password.value = '';
   confirmPassword.value = '';
   role.value = 'Standard';
@@ -73,6 +80,13 @@ function resetDraft() {
 }
 
 function submit() {
+  const trimmedEmail = email.value.trim();
+  const atIndex = trimmedEmail.indexOf('@');
+  if (atIndex <= 0 || atIndex !== trimmedEmail.lastIndexOf('@') || atIndex >= trimmedEmail.length - 1) {
+    draftError.value = "Email must contain '@' with characters before and after it.";
+    return;
+  }
+
   draftError.value = validatePasswordConfirmation(password.value, confirmPassword.value);
   if (draftError.value) {
     return;
@@ -80,6 +94,7 @@ function submit() {
 
   emit('submit', {
     userName: userName.value,
+    email: trimmedEmail,
     password: password.value,
     role: role.value
   });

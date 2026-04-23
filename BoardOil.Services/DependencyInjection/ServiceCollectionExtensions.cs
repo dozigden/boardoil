@@ -131,6 +131,8 @@ public static class ServiceCollectionExtensions
             CREATE TABLE IF NOT EXISTS "Users" (
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_Users" PRIMARY KEY AUTOINCREMENT,
                 "UserName" TEXT NOT NULL,
+                "Email" TEXT NOT NULL DEFAULT '',
+                "NormalisedEmail" TEXT NOT NULL DEFAULT '',
                 "PasswordHash" TEXT NOT NULL,
                 "Role" INTEGER NOT NULL,
                 "IdentityType" INTEGER NOT NULL DEFAULT 0,
@@ -139,6 +141,7 @@ public static class ServiceCollectionExtensions
                 "UpdatedAtUtc" TEXT NOT NULL
             );
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_Users_UserName" ON "Users" ("UserName");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_Users_NormalisedEmail" ON "Users" ("NormalisedEmail");
             """);
 
         await dbContext.Database.ExecuteSqlRawAsync("""

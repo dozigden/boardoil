@@ -130,7 +130,9 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
 
     private static async Task RegisterInitialAdminAsync(HttpClient client)
     {
-        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin", new LoginRequest("admin", "Password1234!"));
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
         response.EnsureSuccessStatusCode();
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
@@ -142,7 +144,9 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
 
     private static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
     {
-        var response = await adminClient.PostAsJsonAsync("/api/system/users", new CreateUserRequest(userName, password, role));
+        var response = await adminClient.PostAsJsonAsync(
+            "/api/system/users",
+            new CreateUserRequest(userName, $"{userName}@localhost", password, role));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ManagedUserDto>>();
         Assert.NotNull(envelope);
@@ -168,8 +172,9 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
         return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
     }
 
+    private sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     private sealed record LoginRequest(string UserName, string Password);
-    private sealed record CreateUserRequest(string UserName, string Password, string Role);
+    private sealed record CreateUserRequest(string UserName, string Email, string Password, string Role);
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

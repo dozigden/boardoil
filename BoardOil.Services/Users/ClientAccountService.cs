@@ -38,7 +38,7 @@ public sealed class ClientAccountService(
     {
         using var scope = scopeFactory.Create();
 
-        var validation = ValidateUserName(request.UserName);
+        var validation = ValidateUserNameAndEmail(request.UserName, request.Email);
         if (validation.Count > 0)
         {
             return ApiErrors.BadRequest("Validation failed.", validation);
@@ -50,16 +50,26 @@ public sealed class ClientAccountService(
         }
 
         var userName = request.UserName.Trim();
+        var email = request.Email.Trim();
+        var normalisedEmail = EmailAddressRules.TryNormalise(email)!;
         var exists = await userRepository.UserNameExistsAsync(userName);
         if (exists)
         {
             return ApiErrors.BadRequest("Username already exists.");
         }
 
+        var emailExists = await userRepository.NormalisedEmailExistsAsync(normalisedEmail);
+        if (emailExists)
+        {
+            return ApiErrors.BadRequest("Email already exists.");
+        }
+
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var user = new EntityUser
         {
             UserName = userName,
+            Email = email,
+            NormalisedEmail = normalisedEmail,
             PasswordHash = passwordHashService.HashPassword(CreateRandomPassword()),
             Role = role,
             IdentityType = UserIdentityType.Client,
@@ -89,6 +99,44 @@ public sealed class ClientAccountService(
             patResult.Data.PlainTextToken);
 
         return ApiResults.Created(new CreatedClientAccountDto(user.ToClientAccountDto(), createdToken));
+    }
+
+    public async Task<ApiResult<ClientAccountDto>> UpdateClientAccountAsync(int clientAccountId, UpdateClientAccountRequest request)
+    {
+        using var scope = scopeFactory.Create();
+
+        if (!TryParseRole(request.Role, out var role))
+        {
+            return ApiErrors.BadRequest("Role must be 'Admin' or 'Standard'.");
+        }
+
+        var emailValidation = EmailAddressRules.Validate(request.Email, "email");
+        if (emailValidation.Count > 0)
+        {
+            return ApiErrors.BadRequest("Validation failed.", emailValidation);
+        }
+
+        var user = userRepository.Get(clientAccountId);
+        if (user is null || user.IdentityType != UserIdentityType.Client)
+        {
+            return ApiErrors.NotFound("Client account not found.");
+        }
+
+        var normalisedEmail = EmailAddressRules.TryNormalise(request.Email)!;
+        var emailExists = await userRepository.NormalisedEmailExistsForOtherUserAsync(user.Id, normalisedEmail);
+        if (emailExists)
+        {
+            return ApiErrors.BadRequest("Email already exists.");
+        }
+
+        user.Email = request.Email.Trim();
+        user.NormalisedEmail = normalisedEmail;
+        user.Role = role;
+        user.IsActive = request.IsActive;
+        user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
+        await scope.SaveChangesAsync();
+
+        return user.ToClientAccountDto();
     }
 
     public async Task<ApiResult<IReadOnlyList<MachinePatDto>>> ListClientAccessTokensAsync(int clientAccountId)
@@ -246,7 +294,7 @@ public sealed class ClientAccountService(
     private static string CreateRandomPassword() =>
         Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 
-    private static IReadOnlyList<ValidationError> ValidateUserName(string userName)
+    private static IReadOnlyList<ValidationError> ValidateUserNameAndEmail(string userName, string email)
     {
         var errors = new List<ValidationError>();
 
@@ -258,6 +306,8 @@ public sealed class ClientAccountService(
         {
             errors.Add(new ValidationError("userName", "Username must be between 1 and 64 characters."));
         }
+
+        errors.AddRange(EmailAddressRules.Validate(email, "email"));
 
         return errors;
     }

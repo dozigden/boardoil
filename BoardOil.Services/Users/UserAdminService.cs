@@ -33,7 +33,7 @@ public sealed class UserAdminService(
     {
         using var scope = scopeFactory.Create();
 
-        var validation = ValidateCredentials(request.UserName, request.Password);
+        var validation = ValidateCredentials(request.UserName, request.Email, request.Password);
         if (validation.Count > 0)
         {
             return ApiErrors.BadRequest("Validation failed.", validation);
@@ -45,16 +45,26 @@ public sealed class UserAdminService(
         }
 
         var userName = request.UserName.Trim();
+        var email = request.Email.Trim();
+        var normalisedEmail = EmailAddressRules.TryNormalise(email)!;
         var exists = await userRepository.UserNameExistsAsync(userName);
         if (exists)
         {
             return ApiErrors.BadRequest("Username already exists.");
         }
 
+        var emailExists = await userRepository.NormalisedEmailExistsAsync(normalisedEmail);
+        if (emailExists)
+        {
+            return ApiErrors.BadRequest("Email already exists.");
+        }
+
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var user = new EntityUser
         {
             UserName = userName,
+            Email = email,
+            NormalisedEmail = normalisedEmail,
             PasswordHash = passwordHashService.HashPassword(request.Password),
             Role = role,
             IdentityType = UserIdentityType.User,
@@ -64,6 +74,50 @@ public sealed class UserAdminService(
         };
 
         userRepository.Add(user);
+        await scope.SaveChangesAsync();
+
+        return user.ToManagedUserDto();
+    }
+
+    public async Task<ApiResult<ManagedUserDto>> UpdateUserAsync(int id, UpdateUserRequest request)
+    {
+        using var scope = scopeFactory.Create();
+
+        if (!TryParseRole(request.Role, out var role))
+        {
+            return ApiErrors.BadRequest("Role must be 'Admin' or 'Standard'.");
+        }
+
+        var emailValidation = EmailAddressRules.Validate(request.Email, "email");
+        if (emailValidation.Count > 0)
+        {
+            return ApiErrors.BadRequest("Validation failed.", emailValidation);
+        }
+
+        var user = userRepository.Get(id);
+        if (user is null || user.IdentityType != UserIdentityType.User)
+        {
+            return ApiErrors.NotFound("User not found.");
+        }
+
+        var normalisedEmail = EmailAddressRules.TryNormalise(request.Email)!;
+        var emailExists = await userRepository.NormalisedEmailExistsForOtherUserAsync(user.Id, normalisedEmail);
+        if (emailExists)
+        {
+            return ApiErrors.BadRequest("Email already exists.");
+        }
+
+        var adminGuardError = await ValidateAdminUpdateAsync(user, role, request.IsActive);
+        if (adminGuardError is not null)
+        {
+            return adminGuardError;
+        }
+
+        user.Email = request.Email.Trim();
+        user.NormalisedEmail = normalisedEmail;
+        user.Role = role;
+        user.IsActive = request.IsActive;
+        user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
         await scope.SaveChangesAsync();
 
         return user.ToManagedUserDto();
@@ -79,18 +133,15 @@ public sealed class UserAdminService(
         }
 
         var user = userRepository.Get(id);
-        if (user is null)
+        if (user is null || user.IdentityType != UserIdentityType.User)
         {
             return ApiErrors.NotFound("User not found.");
         }
 
-        if (user.Role == UserRole.Admin && role != UserRole.Admin)
+        var adminGuardError = await ValidateAdminUpdateAsync(user, role, user.IsActive);
+        if (adminGuardError is not null)
         {
-            var activeAdminCount = await userRepository.CountActiveAdminsAsync();
-            if (activeAdminCount <= 1)
-            {
-                return ApiErrors.BadRequest("Cannot remove the last active admin.");
-            }
+            return adminGuardError;
         }
 
         user.Role = role;
@@ -105,18 +156,15 @@ public sealed class UserAdminService(
         using var scope = scopeFactory.Create();
 
         var user = userRepository.Get(id);
-        if (user is null)
+        if (user is null || user.IdentityType != UserIdentityType.User)
         {
             return ApiErrors.NotFound("User not found.");
         }
 
-        if (!request.IsActive && user.IsActive && user.Role == UserRole.Admin)
+        var adminGuardError = await ValidateAdminUpdateAsync(user, user.Role, request.IsActive);
+        if (adminGuardError is not null)
         {
-            var activeAdminCount = await userRepository.CountActiveAdminsAsync();
-            if (activeAdminCount <= 1)
-            {
-                return ApiErrors.BadRequest("Cannot deactivate the last active admin.");
-            }
+            return adminGuardError;
         }
 
         user.IsActive = request.IsActive;
@@ -181,7 +229,32 @@ public sealed class UserAdminService(
         return ApiResults.Ok();
     }
 
-    private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string password)
+    private async Task<ApiError?> ValidateAdminUpdateAsync(EntityUser user, UserRole nextRole, bool nextIsActive)
+    {
+        var isDemotingLastAdmin = user.Role == UserRole.Admin && nextRole != UserRole.Admin;
+        if (isDemotingLastAdmin)
+        {
+            var activeAdminCount = await userRepository.CountActiveAdminsAsync();
+            if (activeAdminCount <= 1)
+            {
+                return ApiErrors.BadRequest("Cannot remove the last active admin.");
+            }
+        }
+
+        var isDeactivatingLastAdmin = user.Role == UserRole.Admin && user.IsActive && !nextIsActive;
+        if (isDeactivatingLastAdmin)
+        {
+            var activeAdminCount = await userRepository.CountActiveAdminsAsync();
+            if (activeAdminCount <= 1)
+            {
+                return ApiErrors.BadRequest("Cannot deactivate the last active admin.");
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string email, string password)
     {
         var errors = new List<ValidationError>();
 
@@ -194,6 +267,7 @@ public sealed class UserAdminService(
             errors.Add(new ValidationError("userName", "Username must be between 1 and 64 characters."));
         }
 
+        errors.AddRange(EmailAddressRules.Validate(email, "email"));
         errors.AddRange(ValidatePassword(password, "password"));
 
         return errors;

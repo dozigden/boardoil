@@ -13,6 +13,10 @@
         <input v-model="userName" :disabled="busy" maxlength="64" required />
       </label>
       <label>
+        Email
+        <input v-model="email" :disabled="busy" type="email" autocomplete="email" maxlength="320" required />
+      </label>
+      <label>
         Role
         <select v-model="role" :disabled="busy">
           <option value="Standard">Standard</option>
@@ -110,6 +114,7 @@ const emit = defineEmits<{
 }>();
 
 const userName = ref('');
+const email = ref('');
 const role = ref<'Admin' | 'Standard'>('Standard');
 const tokenName = ref('Initial token');
 const includeMcpRead = ref(false);
@@ -125,6 +130,7 @@ const draftError = ref<string | null>(null);
 
 function resetDraft() {
   userName.value = '';
+  email.value = '';
   role.value = 'Standard';
   tokenName.value = 'Initial token';
   includeMcpRead.value = false;
@@ -150,6 +156,13 @@ function submit() {
 
   if (trimmedUserName.length < 1 || trimmedUserName.length > 64) {
     draftError.value = 'Username must be between 1 and 64 characters.';
+    return;
+  }
+
+  const trimmedEmail = email.value.trim();
+  const atIndex = trimmedEmail.indexOf('@');
+  if (atIndex <= 0 || atIndex !== trimmedEmail.lastIndexOf('@') || atIndex >= trimmedEmail.length - 1) {
+    draftError.value = "Email must contain '@' with characters before and after it.";
     return;
   }
 
@@ -200,6 +213,7 @@ function submit() {
 
   const payload: CreateClientAccountRequest = {
     userName: trimmedUserName,
+    email: trimmedEmail,
     role: role.value,
     tokenName: trimmedTokenName,
     expiresInDays: isNonExpiring.value ? null : Math.trunc(Number(expiresInDays.value)),

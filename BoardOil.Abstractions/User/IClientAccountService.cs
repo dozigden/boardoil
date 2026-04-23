@@ -8,6 +8,7 @@ public interface IClientAccountService
 {
     Task<ApiResult<IReadOnlyList<ClientAccountDto>>> GetClientAccountsAsync();
     Task<ApiResult<CreatedClientAccountDto>> CreateClientAccountAsync(CreateClientAccountRequest request);
+    Task<ApiResult<ClientAccountDto>> UpdateClientAccountAsync(int clientAccountId, UpdateClientAccountRequest request);
     Task<ApiResult<IReadOnlyList<MachinePatDto>>> ListClientAccessTokensAsync(int clientAccountId);
     Task<ApiResult<CreatedMachinePatDto>> CreateClientAccessTokenAsync(int clientAccountId, CreateClientAccessTokenRequest request);
     Task<ApiResult> RevokeClientAccessTokenAsync(int clientAccountId, int tokenId);

@@ -25,6 +25,10 @@ public static class UserEndpoints
                 userAdminService.CreateUserAsync(request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("System Users");
+        app.MapPut("/api/system/users/{id:int}", (int id, UpdateUserRequest request, IUserAdminService userAdminService) =>
+                userAdminService.UpdateUserAsync(id, request).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("System Users");
         app.MapPut("/api/system/users/{id:int}/role", (int id, UpdateUserRoleRequest request, IUserAdminService userAdminService) =>
                 userAdminService.UpdateUserRoleAsync(id, request).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
