@@ -90,14 +90,6 @@ export function createSystemApi() {
     return putData<ManagedUser>(`/api/system/users/${userId}`, request);
   }
 
-  async function updateUserRole(userId: number, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
-    return putData<ManagedUser>(`/api/system/users/${userId}/role`, { role });
-  }
-
-  async function updateUserStatus(userId: number, isActive: boolean): Promise<Result<ManagedUser, AppError>> {
-    return putData<ManagedUser>(`/api/system/users/${userId}/status`, { isActive });
-  }
-
   async function resetUserPassword(userId: number, newPassword: string): Promise<Result<void, AppError>> {
     return putJson(`/api/system/users/${userId}/password`, { newPassword });
   }
@@ -158,8 +150,6 @@ export function createSystemApi() {
     getUsers,
     createUser,
     updateUser,
-    updateUserRole,
-    updateUserStatus,
     resetUserPassword,
     deleteUser,
     getClientAccounts,
