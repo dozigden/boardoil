@@ -399,9 +399,13 @@ async function main() {
   const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
   const projectRoot = path.resolve(scriptDirectory, "..");
   const nodeModulesRoot = path.join(projectRoot, "node_modules");
-  const licencesOutputDirectory = path.join(projectRoot, "THIRD_PARTY_LICENSES");
-  const manualLicencesDirectory = path.join(projectRoot, "THIRD_PARTY_LICENSES_MANUAL");
-  const nugetManualLicencesDirectory = path.join(projectRoot, "THIRD_PARTY_LICENSES_MANUAL_NUGET");
+  const licencesOutputDirectory = path.join(projectRoot, "compliance", "third-party-licenses");
+  const manualLicencesDirectory = path.join(projectRoot, "compliance", "third-party-licenses-manual");
+  const nugetManualLicencesDirectory = path.join(
+    projectRoot,
+    "compliance",
+    "third-party-licenses-manual-nuget"
+  );
   const publicLicencesDirectory = path.join(projectRoot, "public", "third-party-licenses");
   const strictMode = process.argv.includes("--strict");
   const publishPublicMirror = process.argv.includes("--publish-public");
@@ -861,7 +865,7 @@ async function main() {
 
   if (unresolvedPackages.length > 0) {
     console.warn(`Could not source ${unresolvedPackages.length} package licence file(s).`);
-    console.warn("See BoardOil.Web/THIRD_PARTY_LICENSES/UNRESOLVED.md for details.");
+    console.warn("See BoardOil.Web/compliance/third-party-licenses/UNRESOLVED.md for details.");
 
     if (strictMode) {
       process.exitCode = 1;

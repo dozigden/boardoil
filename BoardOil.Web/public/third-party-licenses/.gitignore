@@ -1,4 +1,4 @@
-# Generated at build/sync time from BoardOil.Web/THIRD_PARTY_LICENSES.
+# Generated at build/sync time from BoardOil.Web/compliance/third-party-licenses.
 # Keep this directory in git, but do not track generated licence artefacts.
 *
 !.gitignore

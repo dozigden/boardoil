@@ -3,7 +3,7 @@ import boardoil from './scripts/eslint-rules/boardoil.js';
 
 export default [
   {
-    files: ['src/api/**/*Api.ts'],
+    files: ['src/shared/api/**/*Api.ts'],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: 'latest',
