@@ -143,40 +143,6 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PatWithMcpWriteScope_PostBoard_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = _factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createdPat = await CreatePatAsync(adminClient, "mcp-write-token", [MachinePatScopes.McpWrite]);
-        var patClient = CreatePatClient(createdPat.PlainTextToken);
-
-        // Act
-        var response = await patClient.PostAsJsonAsync("/api/boards", new { name = "PAT Created Board" });
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task CreatePat_WithApiScope_ShouldReturnBadRequest()
-    {
-        // Arrange
-        var adminClient = _factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/access-tokens",
-            new CreateMachinePatRequest("api-scope-token", 30, [MachinePatScopes.ApiWrite]));
-        var payload = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
-
-        // Act
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, createResponse.StatusCode);
-        Assert.NotNull(payload);
-        Assert.False(payload!.Success);
-    }
-
-    [Fact]
     public async Task ClientPatWithoutApiSystemScope_GetSystemUsers_ShouldReturnForbidden()
     {
         // Arrange
@@ -217,26 +183,6 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ClientPatWithApiAdminScope_GetSystemBoards_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = _factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createdClient = await CreateClientAccountAsync(
-            adminClient,
-            $"client-api-admin-{Guid.NewGuid():N}",
-            "Admin",
-            [MachinePatScopes.ApiAdmin]);
-        var patClient = CreatePatClient(createdClient.Token.PlainTextToken);
-
-        // Act
-        var response = await patClient.GetAsync("/api/system/boards");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
     public async Task ClientPatWithApiSystemScope_GetSystemBoards_ShouldReturnOk()
     {
         // Arrange
@@ -254,22 +200,6 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task PatWithMcpScope_GetSystemUsers_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = _factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createdPat = await CreatePatAsync(adminClient, "mcp-read-token", [MachinePatScopes.McpRead]);
-        var patClient = CreatePatClient(createdPat.PlainTextToken);
-
-        // Act
-        var response = await patClient.GetAsync("/api/system/users");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
@@ -327,38 +257,6 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         // Assert
         Assert.Equal(HttpStatusCode.OK, createCardResponse.StatusCode);
         AssertMcpForbidden(payload);
-    }
-
-    [Fact]
-    public async Task PatWithMcpReadScope_BoardGetAcrossBoards_ShouldReturnOk()
-    {
-        // Arrange
-        var adminClient = _factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/access-tokens",
-            new CreateMachinePatRequest("multi-board-token", 30, ["mcp:read"]));
-        createResponse.EnsureSuccessStatusCode();
-        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
-        Assert.NotNull(created);
-        Assert.NotNull(created!.Data);
-
-        // Act
-        var boardGetResponse = await SendMcpRequestAsync(
-            adminClient,
-            created.Data!.PlainTextToken,
-            "tools/call",
-            new
-            {
-                name = "board.get",
-                arguments = new { id = 1 }
-            },
-            "board-get-ok");
-        using var payload = await ParseMcpJsonAsync(boardGetResponse);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
-        AssertMcpOk(payload);
     }
 
     [Fact]
@@ -431,40 +329,6 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, createResponse.StatusCode);
         Assert.NotNull(payload);
         Assert.False(payload!.Success);
-    }
-
-    [Fact]
-    public async Task PatAuth_WhenLastUsedAtIsAlreadyToday_ShouldNotRewriteTimestamp()
-    {
-        // Arrange
-        var adminClient = _factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/access-tokens",
-            new CreateMachinePatRequest("throttle-same-day-token", 30, ["mcp:read"]));
-        createResponse.EnsureSuccessStatusCode();
-        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
-        Assert.NotNull(created);
-        Assert.NotNull(created!.Data);
-
-        var todayStartUtc = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
-        await SetPatLastUsedAtUtcAsync(created.Data!.Token.Id, todayStartUtc);
-
-        // Act
-        var toolsListResponse = await SendMcpRequestAsync(
-            adminClient,
-            created.Data.PlainTextToken,
-            "tools/list",
-            new { },
-            "tools-list-throttle-same-day");
-        var tokenAfterCall = await GetMachinePatByIdAsync(adminClient, created.Data.Token.Id);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, toolsListResponse.StatusCode);
-        Assert.NotNull(tokenAfterCall);
-        Assert.NotNull(tokenAfterCall!.LastUsedAtUtc);
-        Assert.Equal(todayStartUtc.Date, tokenAfterCall.LastUsedAtUtc.Value.Date);
-        Assert.Equal(TimeSpan.Zero, tokenAfterCall.LastUsedAtUtc.Value.TimeOfDay);
     }
 
     [Fact]

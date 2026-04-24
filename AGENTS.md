@@ -7,6 +7,7 @@ Read area guidance before working in that part of the system:
 - [AGENTS/Database.md](AGENTS/Database.md)
 - [AGENTS/Frontend.md](AGENTS/Frontend.md)
 - [AGENTS/StoryBoardAndSourceControl.md](AGENTS/StoryBoardAndSourceControl.md)
+- [AGENTS/Testing.md](AGENTS/Testing.md)
 
 `README` files are for human user information, not agent execution guidance.
 
