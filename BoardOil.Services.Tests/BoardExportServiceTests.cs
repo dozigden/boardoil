@@ -19,12 +19,15 @@ public sealed class BoardExportServiceTests : TestBaseDb
         var board = CreateBoard("Export Board")
             .AddColumn("Todo")
             .AddCard("Task A", "Description A")
+            .AddCard("Task B", "Description B")
             .Build();
         var boardEntity = DbContextForArrange.Boards.Single(x => x.Id == board.BoardId);
         boardEntity.Description = "Export board description";
         await DbContextForArrange.SaveChangesAsync();
         var card = board.GetCard("Todo", "Task A");
+        var unassignedCard = board.GetCard("Todo", "Task B");
         var now = DateTime.UtcNow;
+        var actor = DbContextForArrange.Users.Single(x => x.Id == ActorUserId);
 
         var customCardType = new EntityCardType
         {
@@ -57,6 +60,8 @@ public sealed class BoardExportServiceTests : TestBaseDb
             CardId = card.Id,
             TagId = urgentTag.Id
         });
+        var cardEntity = DbContextForArrange.Cards.Single(x => x.Id == card.Id);
+        cardEntity.AssignedUserId = actor.Id;
         DbContextForArrange.ArchivedCards.Add(new EntityArchivedCard
         {
             BoardId = board.BoardId,
@@ -118,10 +123,15 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.Contains(payload.Tags, x => x.Name == "Urgent" && x.StyleName == "solid" && x.Emoji == "!");
         Assert.Single(payload.Columns);
         Assert.Equal("Todo", payload.Columns[0].Title);
-        Assert.Single(payload.Columns[0].Cards);
-        Assert.Equal("Task A", payload.Columns[0].Cards[0].Title);
-        Assert.Equal("Story", payload.Columns[0].Cards[0].CardTypeName);
-        Assert.Equal(["Urgent"], payload.Columns[0].Cards[0].TagNames);
+        Assert.Equal(2, payload.Columns[0].Cards.Count);
+        var exportedAssignedCard = payload.Columns[0].Cards.Single(x => x.Title == "Task A");
+        Assert.Equal("Story", exportedAssignedCard.CardTypeName);
+        Assert.Equal(["Urgent"], exportedAssignedCard.TagNames);
+        Assert.Equal(actor.Email, exportedAssignedCard.AssignedUserEmail);
+        var exportedUnassignedCard = payload.Columns[0].Cards.Single(x => x.Title == unassignedCard.Title);
+        Assert.Equal("Story", exportedUnassignedCard.CardTypeName);
+        Assert.Equal([], exportedUnassignedCard.TagNames);
+        Assert.Null(exportedUnassignedCard.AssignedUserEmail);
 
         var archiveEntry = archive.GetEntry("archive.json");
         Assert.NotNull(archiveEntry);

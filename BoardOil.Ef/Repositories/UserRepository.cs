@@ -13,6 +13,9 @@ public sealed class UserRepository(IAmbientDbContextLocator ambientDbContextLoca
             .OrderBy(x => x.UserName)
             .ToListAsync();
 
+    public Task<EntityUser?> GetByNormalisedEmailAsync(string normalisedEmail) =>
+        DbSet.SingleOrDefaultAsync(x => x.NormalisedEmail == normalisedEmail);
+
     public Task<bool> UserNameExistsAsync(string userName) =>
         DbSet.AnyAsync(x => x.UserName == userName);
 

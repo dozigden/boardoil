@@ -67,7 +67,8 @@ public sealed class BoardExportService(
                         card.CardTags
                             .OrderBy(cardTag => cardTag.Tag.Name)
                             .Select(cardTag => cardTag.Tag.Name)
-                            .ToList()))
+                            .ToList(),
+                        card.AssignedUser?.Email))
                     .ToList());
 
         var boardPayload = new BoardPackageBoardDto(

@@ -3,11 +3,13 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
+using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Tag;
 using BoardOil.Services.Board;
 using BoardOil.TasksMd;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
@@ -157,6 +159,88 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
     }
 
     [Fact]
+    public async Task ImportBoardPackage_WhenAssignedUserEmailMatchesActiveIdentity_ShouldAssignCard()
+    {
+        var meEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<AuthUserDto>>("/api/auth/me", JsonOptions);
+        Assert.NotNull(meEnvelope);
+        Assert.NotNull(meEnvelope!.Data);
+        var actorUserId = meEnvelope.Data!.Id;
+        var actorEmail = await ReadUserEmailAsync(actorUserId);
+
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Assigned Import Board",
+            "Assigned import board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Assigned card", "Description", "Story", [], actorEmail.ToUpperInvariant())
+                    ])
+            ]);
+
+        using var requestContent = new MultipartFormDataContent();
+        requestContent.Add(
+            new ByteArrayContent(BuildBoardPackage(manifest, payload))
+            {
+                Headers =
+                {
+                    ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip")
+                }
+            },
+            "file",
+            "board.boardoil.zip");
+
+        var response = await Client.PostAsync("/api/boards/import", requestContent);
+        response.EnsureSuccessStatusCode();
+
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        Assert.Equal(actorUserId, envelope.Data!.Columns[0].Cards[0].AssignedUserId);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackage_WhenAssignedUserEmailIsUnknown_ShouldLeaveCardUnassigned()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Unassigned Import Board",
+            "Unassigned import board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Unassigned card", "Description", "Story", [], "missing-user@example.com")
+                    ])
+            ]);
+
+        using var requestContent = new MultipartFormDataContent();
+        requestContent.Add(
+            new ByteArrayContent(BuildBoardPackage(manifest, payload))
+            {
+                Headers =
+                {
+                    ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip")
+                }
+            },
+            "file",
+            "board.boardoil.zip");
+
+        var response = await Client.PostAsync("/api/boards/import", requestContent);
+        response.EnsureSuccessStatusCode();
+
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        Assert.NotNull(envelope);
+        Assert.NotNull(envelope!.Data);
+        Assert.Null(envelope.Data!.Columns[0].Cards[0].AssignedUserId);
+    }
+
+    [Fact]
     public async Task ImportBoardPackage_WithArchivePayload_ShouldImportArchivedCards()
     {
         var manifest = BoardPackageContract.CreateManifest("0.3.0");
@@ -273,6 +357,23 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
         var entry = archive.CreateEntry(path, CompressionLevel.Optimal);
         using var writer = new StreamWriter(entry.Open());
         writer.Write(JsonSerializer.Serialize(payload, JsonOptions));
+    }
+
+    private async Task<string> ReadUserEmailAsync(int userId)
+    {
+        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT "Email"
+            FROM "Users"
+            WHERE "Id" = $userId;
+            """;
+        command.Parameters.AddWithValue("$userId", userId);
+        var value = (string?)await command.ExecuteScalarAsync();
+        Assert.False(string.IsNullOrWhiteSpace(value));
+        return value!;
     }
 
     private sealed record ApiEnvelope<T>(
