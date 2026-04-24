@@ -34,6 +34,7 @@ public static class ToolSchemas
         "boardId": { "type": "integer", "minimum": 1 },
         "columnId": { "type": "integer", "minimum": 1 },
         "cardTypeId": { "type": ["integer", "null"], "minimum": 1 },
+        "assignedUserId": { "type": ["integer", "null"], "minimum": 1 },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
         "description": { "type": "string", "maxLength": 20000 },
         "tagNames": {
@@ -55,6 +56,7 @@ public static class ToolSchemas
         "id": { "type": "integer", "minimum": 1 },
         "columnId": { "type": ["integer", "null"], "minimum": 1 },
         "cardTypeId": { "type": "integer", "minimum": 1 },
+        "assignedUserId": { "type": ["integer", "null"], "minimum": 1 },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
         "description": { "type": "string", "maxLength": 20000 },
         "tagNames": {

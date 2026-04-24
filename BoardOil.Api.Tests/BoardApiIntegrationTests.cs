@@ -8,6 +8,7 @@ using BoardOil.Contracts.Card;
 using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Tag;
+using BoardOil.Contracts.Users;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -1564,6 +1565,88 @@ public sealed class BoardApiIntegrationTests
         Assert.NotNull(payload);
         Assert.False(payload!.Success);
         Assert.Equal(400, payload.StatusCode);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_ShouldAssignAndClearAssignedUser()
+    {
+        var usersEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<UserDirectoryEntryDto>>>("/api/users", JsonOptions);
+        Assert.NotNull(usersEnvelope);
+        Assert.NotNull(usersEnvelope!.Data);
+        var assignedUser = Assert.Single(usersEnvelope.Data!, x => x.UserName == "admin");
+
+        var boardEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.NotNull(boardEnvelope);
+        Assert.NotNull(boardEnvelope!.Data);
+        var todoColumnId = boardEnvelope.Data!.Columns[0].Id;
+
+        var createResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(todoColumnId, "Assigned card", "Assigned desc", [], null, assignedUser.Id));
+        createResponse.EnsureSuccessStatusCode();
+        var createdEnvelope = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdEnvelope);
+        Assert.NotNull(createdEnvelope!.Data);
+        Assert.Equal(assignedUser.Id, createdEnvelope.Data!.AssignedUserId);
+        Assert.Equal(assignedUser.UserName, createdEnvelope.Data.AssignedUserName);
+
+        var updateResponse = await Client.PutAsJsonAsync(
+            $"/api/boards/1/cards/{createdEnvelope.Data.Id}",
+            new UpdateCardRequest(
+                createdEnvelope.Data.Title,
+                createdEnvelope.Data.Description,
+                createdEnvelope.Data.TagNames,
+                createdEnvelope.Data.CardTypeId,
+                createdEnvelope.Data.BoardColumnId,
+                null));
+        updateResponse.EnsureSuccessStatusCode();
+        var updatedEnvelope = await updateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(updatedEnvelope);
+        Assert.NotNull(updatedEnvelope!.Data);
+        Assert.Null(updatedEnvelope.Data!.AssignedUserId);
+        Assert.Null(updatedEnvelope.Data.AssignedUserName);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_WhenAssignedUserNotInBoard_ShouldReturnValidationError()
+    {
+        var createUserResponse = await Client.PostAsJsonAsync(
+            "/api/system/users",
+            new CreateUserRequest("non-member", "non-member@localhost", "Password1234!", "Standard"));
+        createUserResponse.EnsureSuccessStatusCode();
+        var createdUserEnvelope = await createUserResponse.Content.ReadFromJsonAsync<ApiEnvelope<ManagedUserDto>>(JsonOptions);
+        Assert.NotNull(createdUserEnvelope);
+        Assert.NotNull(createdUserEnvelope!.Data);
+
+        var boardEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.NotNull(boardEnvelope);
+        Assert.NotNull(boardEnvelope!.Data);
+        var todoColumnId = boardEnvelope.Data!.Columns[0].Id;
+
+        var createCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(todoColumnId, "Assignable", "Desc", []));
+        createCardResponse.EnsureSuccessStatusCode();
+        var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdCardEnvelope);
+        Assert.NotNull(createdCardEnvelope!.Data);
+
+        var updateResponse = await Client.PutAsJsonAsync(
+            $"/api/boards/1/cards/{createdCardEnvelope.Data!.Id}",
+            new UpdateCardRequest(
+                createdCardEnvelope.Data.Title,
+                createdCardEnvelope.Data.Description,
+                createdCardEnvelope.Data.TagNames,
+                createdCardEnvelope.Data.CardTypeId,
+                createdCardEnvelope.Data.BoardColumnId,
+                createdUserEnvelope.Data!.Id));
+        var validationEnvelope = await updateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
+        Assert.NotNull(validationEnvelope);
+        Assert.False(validationEnvelope!.Success);
+        Assert.NotNull(validationEnvelope.ValidationErrors);
+        Assert.True(validationEnvelope.ValidationErrors!.ContainsKey("assignedUserId"));
     }
 
     private async Task SeedTagAsync(string name, string normalisedName, string styleName, string stylePropertiesJson)

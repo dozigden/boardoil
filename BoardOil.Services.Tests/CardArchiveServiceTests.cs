@@ -5,7 +5,9 @@ using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using ArchivedCardEntity = BoardOil.Persistence.Abstractions.Entities.EntityArchivedCard;
+using BoardMemberEntity = BoardOil.Persistence.Abstractions.Entities.EntityBoardMember;
 using TagEntity = BoardOil.Persistence.Abstractions.Entities.EntityTag;
+using UserEntity = BoardOil.Persistence.Abstractions.Entities.EntityUser;
 
 namespace BoardOil.Services.Tests;
 
@@ -337,6 +339,81 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.Equal("Desc", result.Data.Card.Description);
     }
 
+    [Fact]
+    public async Task GetArchivedCardAsync_WhenAssignedUserStillInBoard_ShouldPopulateAssignedUserFields()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Desc")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var assignedUser = await CreateBoardMemberUserAsync(boardId);
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var cardService = ResolveService<CardService>();
+        var assignResult = await cardService.UpdateCardAsync(
+            boardId,
+            cardId,
+            new UpdateCardRequest("Archive me", "Desc", [], systemCardTypeId, null, assignedUser.Id),
+            ActorUserId);
+        Assert.True(assignResult.Success);
+
+        var service = ResolveService<ICardArchiveService>();
+        var archiveResult = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+        Assert.True(archiveResult.Success);
+        Assert.NotNull(archiveResult.Data);
+
+        // Act
+        var result = await service.GetArchivedCardAsync(boardId, archiveResult.Data!.Id, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(assignedUser.Id, result.Data!.Card.AssignedUserId);
+        Assert.Equal(assignedUser.UserName, result.Data.Card.AssignedUserName);
+    }
+
+    [Fact]
+    public async Task GetArchivedCardAsync_WhenAssignedUserNoLongerInBoard_ShouldReturnNullAssignedUserFields()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Desc")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var assignedUser = await CreateBoardMemberUserAsync(boardId);
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var cardService = ResolveService<CardService>();
+        var assignResult = await cardService.UpdateCardAsync(
+            boardId,
+            cardId,
+            new UpdateCardRequest("Archive me", "Desc", [], systemCardTypeId, null, assignedUser.Id),
+            ActorUserId);
+        Assert.True(assignResult.Success);
+
+        var service = ResolveService<ICardArchiveService>();
+        var archiveResult = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+        Assert.True(archiveResult.Success);
+        Assert.NotNull(archiveResult.Data);
+
+        var membership = await DbContextForArrange.BoardMembers
+            .SingleAsync(x => x.BoardId == boardId && x.UserId == assignedUser.Id);
+        DbContextForArrange.BoardMembers.Remove(membership);
+        await DbContextForArrange.SaveChangesAsync();
+
+        // Act
+        var result = await service.GetArchivedCardAsync(boardId, archiveResult.Data!.Id, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Null(result.Data!.Card.AssignedUserId);
+        Assert.Null(result.Data.Card.AssignedUserName);
+    }
+
     private async Task SeedTagsForArrangeAsync(int boardId, params string[] tagNames)
     {
         var now = DateTime.UtcNow;
@@ -351,6 +428,37 @@ public sealed class CardArchiveServiceTests : TestBaseDb
             UpdatedAtUtc = now
         }));
         await DbContextForArrange.SaveChangesAsync();
+    }
+
+    private async Task<UserEntity> CreateBoardMemberUserAsync(int boardId)
+    {
+        var now = DateTime.UtcNow;
+        var userName = $"assigned-{Guid.NewGuid():N}";
+        var email = $"{userName}@localhost";
+        var user = new UserEntity
+        {
+            UserName = userName,
+            Email = email,
+            NormalisedEmail = email.ToUpperInvariant(),
+            PasswordHash = "hash",
+            IsActive = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.Users.Add(user);
+        await DbContextForArrange.SaveChangesAsync();
+
+        DbContextForArrange.BoardMembers.Add(new BoardMemberEntity
+        {
+            BoardId = boardId,
+            UserId = user.Id,
+            Role = BoardOil.Persistence.Abstractions.Entities.BoardMemberRole.Contributor,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+        await DbContextForArrange.SaveChangesAsync();
+
+        return user;
     }
 
     private Task<int> GetSystemCardTypeIdForBoardAsync(int boardId) =>

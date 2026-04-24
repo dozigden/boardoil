@@ -26,7 +26,8 @@ public sealed class CardCreateTool(
         IReadOnlyList<ValidationError> validationErrors =
         [
             ..McpToolCallHelpers.ValidateRequiredIdentifier(input.BoardId, "boardId"),
-            ..McpToolCallHelpers.ValidateRequiredIdentifier(input.ColumnId, "columnId")
+            ..McpToolCallHelpers.ValidateRequiredIdentifier(input.ColumnId, "columnId"),
+            ..McpToolCallHelpers.ValidateOptionalIdentifier(input.AssignedUserId, "assignedUserId")
         ];
         if (validationErrors.Count > 0)
         {
@@ -42,7 +43,7 @@ public sealed class CardCreateTool(
             return Failure(accessError);
         }
 
-        var request = new CreateCardRequest(columnId, input.Title, input.Description, input.TagNames, input.CardTypeId);
+        var request = new CreateCardRequest(columnId, input.Title, input.Description, input.TagNames, input.CardTypeId, input.AssignedUserId);
         var result = await _cardService.CreateCardAsync(boardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {

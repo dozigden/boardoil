@@ -33,7 +33,8 @@ public static class ArchivedCardSnapshotSerialiser
                 .OrderBy(x => x, StringComparer.Ordinal)
                 .ToList(),
             card.CreatedAtUtc,
-            card.UpdatedAtUtc);
+            card.UpdatedAtUtc,
+            card.AssignedUserId);
 
         var envelope = new ArchivedCardSnapshotEnvelopeV1(
             SchemaName,
@@ -148,7 +149,9 @@ public static class ArchivedCardSnapshotSerialiser
             payload.Tags,
             payload.TagNames,
             payload.CreatedAtUtc,
-            payload.UpdatedAtUtc);
+            payload.UpdatedAtUtc,
+            payload.AssignedUserId,
+            null);
         return true;
     }
 }
@@ -173,7 +176,8 @@ public sealed record ArchivedCardSnapshotV1Payload(
     IReadOnlyList<CardTagDto> Tags,
     IReadOnlyList<string> TagNames,
     DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    int? AssignedUserId = null);
 
 public sealed record ArchivedCardSnapshotKnownPayload(
     string Schema,

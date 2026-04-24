@@ -41,6 +41,8 @@
       >
       </Tag>
     </div>
+
+    <p v-if="card.assignedUserName" class="card-assigned-to">Assigned to {{ card.assignedUserName }}</p>
   </div>
 </template>
 
@@ -191,6 +193,12 @@ function handlePrimaryAction() {
 
 .card-tags {
   margin-top: 0.3rem;
+}
+
+.card-assigned-to {
+  margin: 0.4rem 0 0;
+  font-size: 0.82rem;
+  color: var(--bo-ink-muted);
 }
 
 .card-selection-indicator {

@@ -18,6 +18,8 @@ export type Card = {
   cardTypeId: number;
   cardTypeName: string;
   cardTypeEmoji: string | null;
+  assignedUserId?: number | null;
+  assignedUserName?: string | null;
   title: string;
   description: string;
   sortKey: string;

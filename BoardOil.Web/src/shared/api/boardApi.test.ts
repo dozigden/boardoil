@@ -174,7 +174,8 @@ describe('boardApi saveCard', () => {
       description: 'Updated',
       tagNames: ['Bug'],
       cardTypeId: 1,
-      boardColumnId: 3
+      boardColumnId: 3,
+      assignedUserId: null
     });
   });
 });

@@ -4,6 +4,7 @@ using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Card;
 using BoardOil.Persistence.Abstractions.Entities;
 using System.Text;
@@ -14,6 +15,7 @@ namespace BoardOil.Services.Card;
 public sealed class CardArchiveService(
     ICardRepository cardRepository,
     IArchivedCardRepository archivedCardRepository,
+    IBoardMemberRepository boardMemberRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardArchiveService
@@ -71,7 +73,8 @@ public sealed class CardArchiveService(
             return ApiErrors.InternalError(snapshotReadError ?? "Archived card snapshot is invalid.");
         }
 
-        return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(snapshotCard));
+        var currentSnapshotCard = await ResolveCurrentSnapshotCardAsync(boardId, snapshotCard);
+        return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard));
     }
 
     public async Task<ApiResult<ArchivedCardDto>> ArchiveCardAsync(int boardId, int id, int actorUserId)
@@ -191,6 +194,26 @@ public sealed class CardArchiveService(
         var values = new List<string> { NormaliseSearchValue(title) };
         values.AddRange(tagNames.Select(NormaliseSearchValue));
         return string.Join('\n', values.Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private async Task<CardDto> ResolveCurrentSnapshotCardAsync(int boardId, CardDto snapshotCard)
+    {
+        if (snapshotCard.AssignedUserId is null)
+        {
+            return snapshotCard with { AssignedUserId = null, AssignedUserName = null };
+        }
+
+        var membership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, snapshotCard.AssignedUserId.Value);
+        if (membership?.User is null)
+        {
+            return snapshotCard with { AssignedUserId = null, AssignedUserName = null };
+        }
+
+        return snapshotCard with
+        {
+            AssignedUserId = membership.UserId,
+            AssignedUserName = membership.User.UserName
+        };
     }
 
     private static string NormaliseSearchValue(string value) =>

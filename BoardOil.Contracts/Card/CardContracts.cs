@@ -19,7 +19,9 @@ public sealed record CardDto(
     IReadOnlyList<CardTagDto> Tags,
     IReadOnlyList<string> TagNames,
     DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    int? AssignedUserId = null,
+    string? AssignedUserName = null);
 
 public sealed record ArchivedCardDto(
     int Id,
@@ -66,14 +68,16 @@ public sealed record CreateCardRequest(
     string Title,
     string? Description,
     IReadOnlyList<string>? TagNames,
-    int? CardTypeId = null);
+    int? CardTypeId = null,
+    int? AssignedUserId = null);
 
 public sealed record UpdateCardRequest(
     string Title,
     string Description,
     IReadOnlyList<string> TagNames,
     int CardTypeId,
-    int? BoardColumnId = null);
+    int? BoardColumnId = null,
+    int? AssignedUserId = null);
 
 public sealed record MoveCardRequest(
     int BoardColumnId,

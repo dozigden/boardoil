@@ -24,7 +24,7 @@ public sealed class BoardMemberService(
             return ApiErrors.NotFound("Board not found.");
         }
 
-        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageMembers);
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess);
         if (!hasPermission)
         {
             return ApiErrors.Forbidden("You do not have permission for this action.");

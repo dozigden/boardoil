@@ -143,13 +143,20 @@ export function createBoardApi() {
     return deleteJson(`/api/boards/${boardId}/columns/${columnId}`);
   }
 
-  async function createCard(boardId: number, columnId: number, title: string, cardTypeId?: number | null): Promise<Result<Card, AppError>> {
+  async function createCard(
+    boardId: number,
+    columnId: number,
+    title: string,
+    cardTypeId?: number | null,
+    assignedUserId?: number | null
+  ): Promise<Result<Card, AppError>> {
     return postData<Card>(`/api/boards/${boardId}/cards`, {
       boardColumnId: columnId,
       title,
       description: '',
       tagNames: [],
-      cardTypeId
+      cardTypeId,
+      assignedUserId
     });
   }
 
@@ -160,14 +167,16 @@ export function createBoardApi() {
     description: string,
     tagNames: string[],
     cardTypeId: number,
-    boardColumnId: number
+    boardColumnId: number,
+    assignedUserId: number | null = null
   ): Promise<Result<Card, AppError>> {
     return putData<Card>(`/api/boards/${boardId}/cards/${cardId}`, {
       title,
       description,
       tagNames,
       cardTypeId,
-      boardColumnId
+      boardColumnId,
+      assignedUserId
     });
   }
 
