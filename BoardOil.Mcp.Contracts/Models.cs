@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace BoardOil.Mcp.Contracts;
 
 public sealed record McpToolDefinition(
@@ -104,14 +106,28 @@ public sealed record CardCreateInput
 
 public sealed record CardUpdateInput
 {
+    private int? _assignedUserId;
+    private bool _assignedUserIdSpecified;
+
     public int? BoardId { get; init; }
     public int? Id { get; init; }
     public int? ColumnId { get; init; }
     public int? CardTypeId { get; init; }
-    public int? AssignedUserId { get; init; }
+    public int? AssignedUserId
+    {
+        get => _assignedUserId;
+        init
+        {
+            _assignedUserId = value;
+            _assignedUserIdSpecified = true;
+        }
+    }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyList<string> TagNames { get; init; } = [];
+
+    [JsonIgnore]
+    public bool AssignedUserIdSpecified => _assignedUserIdSpecified;
 }
 
 public sealed record CardMoveInput
