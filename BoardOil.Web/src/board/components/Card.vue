@@ -33,6 +33,11 @@
       <span class="card-id">#{{ card.id }}</span>
     </div>
 
+    <p v-if="card.assignedUserName" class="card-assigned-to">
+      <CircleUserRound class="card-assigned-icon" aria-hidden="true" />
+      <span>{{ card.assignedUserName }}</span>
+    </p>
+
     <div v-if="card.tags.length > 0" class="card-tags tag-group" aria-label="Card tags">
       <Tag
         v-for="tag in card.tags"
@@ -41,12 +46,11 @@
       >
       </Tag>
     </div>
-
-    <p v-if="card.assignedUserName" class="card-assigned-to">Assigned to {{ card.assignedUserName }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
+import { CircleUserRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import type { Card as BoardCard } from '../../shared/types/boardTypes';
 import { useCardTypeStore } from '../stores/cardTypeStore';
@@ -192,13 +196,23 @@ function handlePrimaryAction() {
 }
 
 .card-tags {
-  margin-top: 0.3rem;
+  margin-top: 0.4rem;
 }
 
 .card-assigned-to {
-  margin: 0.4rem 0 0;
+  margin: 0.3rem 0 0;
   font-size: 0.82rem;
-  color: var(--bo-ink-muted);
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+}
+
+.card-assigned-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: 0 0 auto;
 }
 
 .card-selection-indicator {
