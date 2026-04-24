@@ -38,7 +38,8 @@ public sealed record BoardPackageCardDto(
     string Title,
     string Description,
     string CardTypeName,
-    IReadOnlyList<string> TagNames);
+    IReadOnlyList<string> TagNames,
+    string? AssignedUserEmail = null);
 
 public sealed record BoardPackageArchiveDto(
     IReadOnlyList<BoardPackageArchivedCardDto> Cards);

@@ -11,9 +11,11 @@ using BoardOil.Persistence.Abstractions.CardType;
 using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Tag;
+using BoardOil.Persistence.Abstractions.Users;
 using BoardOil.Services.Card;
 using BoardOil.Services.Ordering;
 using BoardOil.Services.Tag;
+using BoardOil.Services.Users;
 
 namespace BoardOil.Services.Board;
 
@@ -24,6 +26,7 @@ public sealed class BoardPackageImportService(
     IArchivedCardRepository archivedCardRepository,
     ICardTypeRepository cardTypeRepository,
     ITagRepository tagRepository,
+    IUserRepository userRepository,
     IDbContextScopeFactory scopeFactory) : IBoardPackageImportService
 {
     private const int MaxBoardNameLength = 120;
@@ -137,6 +140,7 @@ public sealed class BoardPackageImportService(
 
         var createdColumns = new List<EntityBoardColumn>(importPlan.Columns.Count);
         var createdCardsByColumn = new Dictionary<EntityBoardColumn, List<EntityBoardCard>>();
+        var assigneeByNormalisedEmail = new Dictionary<string, EntityUser?>(StringComparer.Ordinal);
         string? previousColumnSortKey = null;
 
         foreach (var importedColumn in importPlan.Columns)
@@ -159,11 +163,16 @@ public sealed class BoardPackageImportService(
 
             foreach (var importedCard in importedColumn.Cards)
             {
+                var assignedUser = await ResolveImportedAssignedUserAsync(
+                    importedCard.AssignedUserNormalisedEmail,
+                    assigneeByNormalisedEmail);
                 var cardSortKey = SortKeyGenerator.Between(previousCardSortKey, null);
                 var createdCard = new EntityBoardCard
                 {
                     BoardColumn = createdColumn,
                     CardType = cardTypesByNormalisedName[importedCard.CardTypeNormalisedName],
+                    AssignedUserId = assignedUser?.Id,
+                    AssignedUser = assignedUser,
                     Title = importedCard.Title,
                     Description = importedCard.Description,
                     SortKey = cardSortKey,
@@ -730,7 +739,8 @@ public sealed class BoardPackageImportService(
                         cardTitle,
                         cardDescription,
                         cardTypeValidation.NormalisedName,
-                        canonicalTagNames));
+                        canonicalTagNames,
+                        ResolveAssignedUserNormalisedEmail(importedCard.AssignedUserEmail)));
                 }
 
                 if (validationErrors.Any(x => x.Property.StartsWith(columnPropertyPrefix, StringComparison.Ordinal)))
@@ -989,6 +999,38 @@ public sealed class BoardPackageImportService(
         return stylePropertiesJson.Trim();
     }
 
+    private static string? ResolveAssignedUserNormalisedEmail(string? assignedUserEmail)
+    {
+        if (string.IsNullOrWhiteSpace(assignedUserEmail))
+        {
+            return null;
+        }
+
+        return EmailAddressRules.Validate(assignedUserEmail, "assignedUserEmail").Count > 0
+            ? null
+            : EmailAddressRules.TryNormalise(assignedUserEmail);
+    }
+
+    private async Task<EntityUser?> ResolveImportedAssignedUserAsync(
+        string? assignedUserNormalisedEmail,
+        IDictionary<string, EntityUser?> assigneeByNormalisedEmail)
+    {
+        if (string.IsNullOrWhiteSpace(assignedUserNormalisedEmail))
+        {
+            return null;
+        }
+
+        if (assigneeByNormalisedEmail.TryGetValue(assignedUserNormalisedEmail, out var cachedAssignee))
+        {
+            return cachedAssignee;
+        }
+
+        var user = await userRepository.GetByNormalisedEmailAsync(assignedUserNormalisedEmail);
+        var resolvedAssignee = user is { IsActive: true } ? user : null;
+        assigneeByNormalisedEmail[assignedUserNormalisedEmail] = resolvedAssignee;
+        return resolvedAssignee;
+    }
+
     private async Task<int> ResolveNextImportedArchivedOriginalCardIdAsync()
     {
         var minimumOriginalCardId = await archivedCardRepository.GetMinimumOriginalCardIdAsync() ?? 0;
@@ -1067,7 +1109,8 @@ public sealed class BoardPackageImportService(
         string Title,
         string Description,
         string CardTypeNormalisedName,
-        IReadOnlyList<string> TagNames);
+        IReadOnlyList<string> TagNames,
+        string? AssignedUserNormalisedEmail);
 
     private sealed record ArchivedCardImportDefinition(
         int OriginalCardId,

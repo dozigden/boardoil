@@ -184,6 +184,215 @@ public sealed class BoardImportServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task ImportBoardPackageAsync_WhenAssignedUserEmailMatchesActiveUser_ShouldAssignCard()
+    {
+        var actor = DbContextForArrange.Users.Single(x => x.Id == ActorUserId);
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Assigned User Import Board",
+            "Assigned user import board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Assigned card", "Description", "Story", [], actor.Email.ToUpperInvariant())
+                    ])
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId);
+        Assert.Equal(actor.Id, importedCard.AssignedUserId);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenAssignedUserEmailMatchesActiveClientIdentity_ShouldAssignCard()
+    {
+        var now = DateTime.UtcNow;
+        var clientEmail = $"client-{Guid.NewGuid():N}@example.com";
+        var clientUser = new EntityUser
+        {
+            UserName = $"client-{Guid.NewGuid():N}",
+            Email = clientEmail,
+            NormalisedEmail = clientEmail.ToLowerInvariant(),
+            PasswordHash = "test-hash",
+            Role = UserRole.Standard,
+            IdentityType = UserIdentityType.Client,
+            IsActive = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.Users.Add(clientUser);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Client Identity Import Board",
+            "Client identity import board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Assigned card", "Description", "Story", [], clientUser.Email)
+                    ])
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId);
+        Assert.Equal(clientUser.Id, importedCard.AssignedUserId);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenAssignedUserEmailMatchesInactiveUser_ShouldLeaveCardUnassigned()
+    {
+        var now = DateTime.UtcNow;
+        var inactiveUserEmail = $"inactive-{Guid.NewGuid():N}@example.com";
+        var inactiveUser = new EntityUser
+        {
+            UserName = $"inactive-{Guid.NewGuid():N}",
+            Email = inactiveUserEmail,
+            NormalisedEmail = inactiveUserEmail.ToLowerInvariant(),
+            PasswordHash = "test-hash",
+            Role = UserRole.Standard,
+            IdentityType = UserIdentityType.User,
+            IsActive = false,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.Users.Add(inactiveUser);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Inactive User Import Board",
+            "Inactive user import board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Unassigned card", "Description", "Story", [], inactiveUser.Email)
+                    ])
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId);
+        Assert.Null(importedCard.AssignedUserId);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenAssignedUserEmailIsUnknown_ShouldLeaveCardUnassigned()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Unknown User Import Board",
+            "Unknown user import board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Unassigned card", "Description", "Story", [], "missing-user@example.com")
+                    ])
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId);
+        Assert.Null(importedCard.AssignedUserId);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenAssignedUserEmailIsInvalid_ShouldLeaveCardUnassigned()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Invalid Email Import Board",
+            "Invalid email import board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Unassigned card", "Description", "Story", [], "invalid-email")
+                    ])
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId);
+        Assert.Null(importedCard.AssignedUserId);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenAssignedUserEmailIsMissing_ShouldLeaveCardUnassigned()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Missing Assignment Field Board",
+            "Missing assignment field board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Unassigned card", "Description", "Story", [])
+                    ])
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId);
+        Assert.Null(importedCard.AssignedUserId);
+    }
+
+    [Fact]
     public async Task ImportBoardPackageAsync_WithArchivePayload_ShouldImportArchivedCards()
     {
         var manifest = BoardPackageContract.CreateManifest("0.3.0");

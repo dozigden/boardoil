@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
+using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.CardType;
@@ -37,6 +38,11 @@ public sealed class BoardApiIntegrationTests
     [Fact]
     public async Task ExportBoard_ShouldReturnZipWithManifestBoardPayloadAndArchivePayload()
     {
+        var meEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<AuthUserDto>>("/api/auth/me", JsonOptions);
+        Assert.NotNull(meEnvelope);
+        Assert.NotNull(meEnvelope!.Data);
+        var actorUserId = meEnvelope.Data!.Id;
+
         var createTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("ExportTag"));
         createTagResponse.EnsureSuccessStatusCode();
         var createTagEnvelope = await createTagResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
@@ -56,7 +62,7 @@ public sealed class BoardApiIntegrationTests
 
         var createCardResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/cards",
-            new CreateCardRequest(todoColumnId, "Export card", "Export description", ["ExportTag"]));
+            new CreateCardRequest(todoColumnId, "Export card", "Export description", ["ExportTag"], AssignedUserId: actorUserId));
         createCardResponse.EnsureSuccessStatusCode();
 
         var exportResponse = await Client.GetAsync("/api/boards/1/export");
@@ -94,7 +100,11 @@ public sealed class BoardApiIntegrationTests
         Assert.Equal("BoardOil", boardPayload!.Name);
         Assert.Equal(string.Empty, boardPayload.Description);
         Assert.Contains(boardPayload.Columns, x => x.Title == "Todo");
-        Assert.Contains(boardPayload.Columns.SelectMany(x => x.Cards), x => x.Title == "Export card" && x.CardTypeName == "Story");
+        Assert.Contains(
+            boardPayload.Columns.SelectMany(x => x.Cards),
+            x => x.Title == "Export card"
+                && x.CardTypeName == "Story"
+                && !string.IsNullOrWhiteSpace(x.AssignedUserEmail));
         Assert.Contains(boardPayload.Tags, x => x.Name == "ExportTag" && x.StyleName == "solid" && x.Emoji == "🧪");
 
         var archiveEntry = archive.GetEntry("archive.json");
