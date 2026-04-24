@@ -40,7 +40,9 @@ public sealed record McpBoardCardSnapshot(
     string SortKey,
     IReadOnlyList<McpCardTagSnapshot> Tags,
     IReadOnlyList<string> TagNames,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    int? AssignedUserId,
+    string? AssignedUserName);
 
 public sealed record McpCardSnapshot(
     int Id,
@@ -53,7 +55,9 @@ public sealed record McpCardSnapshot(
     string SortKey,
     IReadOnlyList<McpCardTagSnapshot> Tags,
     IReadOnlyList<string> TagNames,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    int? AssignedUserId,
+    string? AssignedUserName);
 
 public sealed record McpCardTagSnapshot(
     int Id,
@@ -92,6 +96,7 @@ public sealed record CardCreateInput
     public int? BoardId { get; init; }
     public int? ColumnId { get; init; }
     public int? CardTypeId { get; init; }
+    public int? AssignedUserId { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyList<string>? TagNames { get; init; }
@@ -103,6 +108,7 @@ public sealed record CardUpdateInput
     public int? Id { get; init; }
     public int? ColumnId { get; init; }
     public int? CardTypeId { get; init; }
+    public int? AssignedUserId { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyList<string> TagNames { get; init; } = [];

@@ -28,6 +28,7 @@ public sealed class CardUpdateTool(
             ..McpToolCallHelpers.ValidateRequiredIdentifier(input.BoardId, "boardId"),
             ..McpToolCallHelpers.ValidateRequiredIdentifier(input.Id, "id"),
             ..McpToolCallHelpers.ValidateOptionalIdentifier(input.ColumnId, "columnId"),
+            ..McpToolCallHelpers.ValidateOptionalIdentifier(input.AssignedUserId, "assignedUserId"),
             ..McpToolCallHelpers.ValidateRequiredIdentifier(input.CardTypeId, "cardTypeId")
         ];
         if (validationErrors.Count > 0)
@@ -44,7 +45,7 @@ public sealed class CardUpdateTool(
             return Failure(accessError);
         }
 
-        var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames, input.CardTypeId!.Value, input.ColumnId);
+        var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames, input.CardTypeId!.Value, input.ColumnId, input.AssignedUserId);
         var result = await _cardService.UpdateCardAsync(boardId, cardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {

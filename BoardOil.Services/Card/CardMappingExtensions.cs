@@ -25,7 +25,9 @@ public static class CardMappingExtensions
                 .OrderBy(x => x, StringComparer.Ordinal)
                 .ToList(),
             card.CreatedAtUtc,
-            card.UpdatedAtUtc);
+            card.UpdatedAtUtc,
+            card.AssignedUserId,
+            card.AssignedUser?.UserName);
 
     public static ArchivedCardDto ToArchivedCardDto(this EntityArchivedCard archivedCard) =>
         new(

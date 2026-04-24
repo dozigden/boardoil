@@ -128,8 +128,10 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         var cardCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "card.create");
         var cardCreateProperties = cardCreateTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(cardCreateProperties.TryGetProperty("cardTypeId", out _));
+        Assert.True(cardCreateProperties.TryGetProperty("assignedUserId", out _));
         var cardCreateRequired = cardCreateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
         Assert.DoesNotContain("cardTypeId", cardCreateRequired);
+        Assert.DoesNotContain("assignedUserId", cardCreateRequired);
 
         var cardGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "card.get");
         var cardGetProperties = cardGetTool.GetProperty("inputSchema").GetProperty("properties");
@@ -140,9 +142,11 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         var cardUpdateProperties = cardUpdateTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(cardUpdateProperties.TryGetProperty("columnId", out _));
         Assert.True(cardUpdateProperties.TryGetProperty("cardTypeId", out _));
+        Assert.True(cardUpdateProperties.TryGetProperty("assignedUserId", out _));
         var cardUpdateRequired = cardUpdateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
         Assert.DoesNotContain("columnId", cardUpdateRequired);
         Assert.Contains("cardTypeId", cardUpdateRequired);
+        Assert.DoesNotContain("assignedUserId", cardUpdateRequired);
     }
 
     private sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);

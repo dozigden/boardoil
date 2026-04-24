@@ -33,7 +33,9 @@ public static class McpMappingExtensions
             card.SortKey,
             card.Tags.Select(tag => tag.ToMcp()).ToArray(),
             card.TagNames,
-            card.UpdatedAtUtc);
+            card.UpdatedAtUtc,
+            card.AssignedUserId,
+            card.AssignedUserName);
 
     private static McpBoardCardSnapshot ToMcpBoardSnapshot(this CardDto card) =>
         new(
@@ -46,7 +48,9 @@ public static class McpMappingExtensions
             card.SortKey,
             card.Tags.Select(tag => tag.ToMcp()).ToArray(),
             card.TagNames,
-            card.UpdatedAtUtc);
+            card.UpdatedAtUtc,
+            card.AssignedUserId,
+            card.AssignedUserName);
 
     private static McpCardTagSnapshot ToMcp(this CardTagDto tag) =>
         new(

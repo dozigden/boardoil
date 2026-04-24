@@ -79,6 +79,36 @@
             </BoDropdown>
           </div>
 
+          <div class="card-editor-select-field card-editor-assigned-user-picker">
+            <span class="card-editor-field-label">Assigned to</span>
+            <BoDropdown
+              align="left"
+              label="Select assigned user"
+              :text="selectedAssignedUserLabel"
+            >
+              <template #default="{ close }">
+                <button
+                  type="button"
+                  class="bo-dropdown-item"
+                  @click="setDraftAssignedUserId(null, close)"
+                >
+                  <span class="bo-dropdown-item-main">Unassigned</span>
+                  <span v-if="cardDraft.assignedUserId === null" class="badge bo-dropdown-item-meta">Selected</span>
+                </button>
+                <button
+                  v-for="member in boardMembers"
+                  :key="member.userId"
+                  type="button"
+                  class="bo-dropdown-item"
+                  @click="setDraftAssignedUserId(member.userId, close)"
+                >
+                  <span class="bo-dropdown-item-main">{{ member.userName }}</span>
+                  <span v-if="member.userId === cardDraft.assignedUserId" class="badge bo-dropdown-item-meta">Selected</span>
+                </button>
+              </template>
+            </BoDropdown>
+          </div>
+
         </aside>
       </div>
     </template>
@@ -120,6 +150,7 @@ import CardTagEditor from './CardTagEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
 import { useBoardStore } from '../stores/boardStore';
+import { useBoardMembersStore } from '../stores/boardMembersStore';
 import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useTagStore } from '../stores/tagStore';
@@ -128,16 +159,28 @@ import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardType
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
+const boardMembersStore = useBoardMembersStore();
 const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
 const tagStore = useTagStore();
 const { board } = storeToRefs(boardStore);
+const { members: boardMembers, activeBoardId: boardMembersActiveBoardId } = storeToRefs(boardMembersStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { saveCard: saveCardAction, deleteCard, archiveCard } = cardStore;
+const { loadMembers } = boardMembersStore;
 const { loadCardTypes } = cardTypeStore;
 const { ensureTagsExist } = tagStore;
 const maxDescriptionLength = 20_000;
-type CardDraft = { id: number; title: string; description: string; tagNames: string[]; cardTypeId: number | null; boardColumnId: number };
+type CardDraft = {
+  id: number;
+  title: string;
+  description: string;
+  tagNames: string[];
+  cardTypeId: number | null;
+  boardColumnId: number;
+  assignedUserId: number | null;
+  assignedUserName: string | null;
+};
 
 const cardDraft = ref<CardDraft | null>(null);
 
@@ -181,6 +224,18 @@ const selectedCardTypeEmoji = computed(() => {
     cardDraft.value?.cardTypeId ?? null,
     cardTypes.value
   );
+});
+const selectedAssignedUserLabel = computed(() => {
+  if (!cardDraft.value || cardDraft.value.assignedUserId === null) {
+    return 'Unassigned';
+  }
+
+  const selectedMember = boardMembers.value.find(x => x.userId === cardDraft.value!.assignedUserId);
+  if (selectedMember) {
+    return selectedMember.userName;
+  }
+
+  return cardDraft.value.assignedUserName ?? `User #${cardDraft.value.assignedUserId}`;
 });
 const descriptionDraft = computed({
   get: () => {
@@ -242,6 +297,22 @@ function setDraftBoardColumnId(boardColumnId: number, close?: () => void) {
   close?.();
 }
 
+function setDraftAssignedUserId(assignedUserId: number | null, close?: () => void) {
+  if (!cardDraft.value) {
+    return;
+  }
+
+  const assignedUserName = assignedUserId === null
+    ? null
+    : (boardMembers.value.find(x => x.userId === assignedUserId)?.userName ?? cardDraft.value.assignedUserName);
+  cardDraft.value = {
+    ...cardDraft.value,
+    assignedUserId,
+    assignedUserName
+  };
+  close?.();
+}
+
 async function saveCard() {
   if (!cardDraft.value || cardDraft.value.cardTypeId === null) {
     return;
@@ -253,7 +324,8 @@ async function saveCard() {
     cardDraft.value.description,
     cardDraft.value.tagNames,
     cardDraft.value.cardTypeId,
-    cardDraft.value.boardColumnId
+    cardDraft.value.boardColumnId,
+    cardDraft.value.assignedUserId
   );
   await closeCardEditor();
 }
@@ -316,6 +388,9 @@ watch(
     if (cardTypes.value.length === 0) {
       await loadCardTypes(nextBoardId);
     }
+    if (boardMembersActiveBoardId.value !== nextBoardId || boardMembers.value.length === 0) {
+      await loadMembers(nextBoardId);
+    }
 
     if (!nextCard) {
       clearDraft();
@@ -330,7 +405,9 @@ watch(
         description: normaliseDescription(nextCard.description),
         tagNames: [...nextCard.tagNames],
         cardTypeId: nextCard.cardTypeId,
-        boardColumnId: nextCard.boardColumnId
+        boardColumnId: nextCard.boardColumnId,
+        assignedUserId: nextCard.assignedUserId ?? null,
+        assignedUserName: nextCard.assignedUserName ?? null
       };
       return;
     }
@@ -364,6 +441,21 @@ watch(
           cardTypes.value[0]?.id ?? null
         )
       };
+    }
+
+    const finalDraft = cardDraft.value;
+    if (!finalDraft) {
+      return;
+    }
+
+    if (finalDraft.assignedUserId !== null) {
+      const selectedMember = boardMembers.value.find(x => x.userId === finalDraft.assignedUserId);
+      if (selectedMember && selectedMember.userName !== finalDraft.assignedUserName) {
+        cardDraft.value = {
+          ...finalDraft,
+          assignedUserName: selectedMember.userName
+        };
+      }
     }
   },
   { immediate: true }
@@ -402,18 +494,21 @@ watch(
 }
 
 .card-editor-column-picker :deep(.bo-dropdown),
-.card-editor-type-picker :deep(.bo-dropdown) {
+.card-editor-type-picker :deep(.bo-dropdown),
+.card-editor-assigned-user-picker :deep(.bo-dropdown) {
   width: 100%;
 }
 
 .card-editor-column-picker :deep(.bo-dropdown-trigger),
-.card-editor-type-picker :deep(.bo-dropdown-trigger) {
+.card-editor-type-picker :deep(.bo-dropdown-trigger),
+.card-editor-assigned-user-picker :deep(.bo-dropdown-trigger) {
   width: 100%;
   justify-content: space-between;
 }
 
 .card-editor-column-picker :deep(.bo-dropdown-panel),
-.card-editor-type-picker :deep(.bo-dropdown-panel) {
+.card-editor-type-picker :deep(.bo-dropdown-panel),
+.card-editor-assigned-user-picker :deep(.bo-dropdown-panel) {
   width: 100%;
   min-width: 0;
 }
@@ -494,9 +589,8 @@ watch(
   }
 
   .card-editor-options {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(7rem, auto);
-    align-items: end;
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
     padding-top: 0.6rem;
   }

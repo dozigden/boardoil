@@ -16,6 +16,7 @@ public sealed class CardValidator(
         var errors = new List<ValidationError>();
         ValidateTitle(request.Title, errors);
         ValidateDescription(request.Description ?? string.Empty, errors);
+        ValidateAssignedUserId(request.AssignedUserId, errors);
         if (errors.Count > 0)
         {
             return errors;
@@ -66,6 +67,8 @@ public sealed class CardValidator(
             errors.Add(new ValidationError("cardTypeId", "Card type is required."));
         }
 
+        ValidateAssignedUserId(request.AssignedUserId, errors);
+
         if (request.BoardColumnId is int boardColumnId)
         {
             if (boardColumnId <= 0)
@@ -94,6 +97,19 @@ public sealed class CardValidator(
         }
 
         return Array.Empty<ValidationError>();
+    }
+
+    private static void ValidateAssignedUserId(int? assignedUserId, ICollection<ValidationError> errors)
+    {
+        if (assignedUserId is null)
+        {
+            return;
+        }
+
+        if (assignedUserId.Value <= 0)
+        {
+            errors.Add(new ValidationError("assignedUserId", "Assigned user is invalid."));
+        }
     }
 
     private static void ValidateTitle(string title, ICollection<ValidationError> errors)
