@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <TargetPlatform>x64</TargetPlatform>
+    <TargetFrameworkVersion>.NETCoreApp,Version=v10.0</TargetFrameworkVersion>
+  </RunConfiguration>
+  <DotNetCLI>
+    <CliPath>/usr/bin/dotnet</CliPath>
+  </DotNetCLI>
+</RunSettings>
