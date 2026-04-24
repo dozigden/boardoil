@@ -529,6 +529,113 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
     }
 
     [Fact]
+    public async Task CardUpdate_WhenAssignedUserIdIsOmitted_ShouldPreserveExistingAssignment()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+
+        var boardGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-before-assignment-omitted-update",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
+        using var boardGetPayload = await McpJsonRpcClient.ParseJsonAsync(boardGetResponse);
+
+        var todoColumnId = McpJsonRpcClient.GetStructuredContent(boardGetPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .Single(column => column.GetProperty("title").GetString() == "Todo")
+            .GetProperty("id")
+            .GetInt32();
+
+        var usersResponse = await client.GetAsync("/api/users");
+        usersResponse.EnsureSuccessStatusCode();
+        using var usersPayload = JsonDocument.Parse(await usersResponse.Content.ReadAsStringAsync());
+        var adminUser = usersPayload.RootElement
+            .GetProperty("data")
+            .EnumerateArray()
+            .Single(user => string.Equals(user.GetProperty("userName").GetString(), "admin", StringComparison.Ordinal));
+        var adminUserId = adminUser.GetProperty("id").GetInt32();
+
+        var createResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = todoColumnId,
+                    cardTypeId = (int?)null,
+                    assignedUserId = adminUserId,
+                    title = "Assigned by MCP",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-assigned-before-omitted-update",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
+        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
+        var createdCardId = createdCard.GetProperty("id").GetInt32();
+        var createdCardTypeId = createdCard.GetProperty("cardTypeId").GetInt32();
+
+        // Act
+        var updateResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.update",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = createdCardId,
+                    columnId = todoColumnId,
+                    cardTypeId = createdCardTypeId,
+                    title = "Assigned by MCP (updated)",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-update-omitted-assigned-user-id",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var cardGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.get",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = createdCardId
+                }
+            },
+            "card-get-after-omitted-assigned-user-id-update",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, cardGetResponse.StatusCode);
+        using var cardGetPayload = await McpJsonRpcClient.ParseJsonAsync(cardGetResponse);
+
+        // Assert
+        var cardData = McpJsonRpcClient.GetStructuredContent(cardGetPayload);
+        Assert.Equal(adminUserId, cardData.GetProperty("assignedUserId").GetInt32());
+        Assert.Equal("admin", cardData.GetProperty("assignedUserName").GetString());
+    }
+
+    [Fact]
     public async Task LegacyMutationInputs_ShouldBeRejected()
     {
         // Arrange
