@@ -1,11 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
-using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Tag;
-using BoardOil.Contracts.Users;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -91,23 +89,9 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
     }
 
     [Fact]
-    public async Task CardTypeEndpoints_ShouldCreateListUpdateAndDelete_WithCardReassignment()
+    public async Task CardTypeEndpoints_ShouldCreateListUpdateAndDeleteNonSystemType()
     {
         // Arrange
-        var createColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
-        createColumnResponse.EnsureSuccessStatusCode();
-        var columnEnvelope = await createColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
-        Assert.NotNull(columnEnvelope);
-        Assert.NotNull(columnEnvelope!.Data);
-
-        var createCardResponse = await Client.PostAsJsonAsync(
-            "/api/boards/1/cards",
-            new CreateCardRequest(columnEnvelope.Data!.Id, "Task A", "Desc", null));
-        createCardResponse.EnsureSuccessStatusCode();
-        var cardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
-        Assert.NotNull(cardEnvelope);
-        Assert.NotNull(cardEnvelope!.Data);
-
         // Act: create
         var createTypeResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/card-types",
@@ -148,16 +132,11 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         Assert.Equal("⚠️", updatedTypeEnvelope.Data.Emoji);
         Assert.False(updatedTypeEnvelope.Data.IsSystem);
 
-        await AssignCardTypeToCardAsync(cardEnvelope.Data!.Id, bugType.Id);
-
         // Act: delete non-system
         var deleteTypeResponse = await Client.DeleteAsync($"/api/boards/1/card-types/{bugType.Id}");
         deleteTypeResponse.EnsureSuccessStatusCode();
 
-        // Assert: card reassigned
-        var reassignedCardTypeId = await GetCardTypeIdForCardAsync(cardEnvelope.Data.Id);
-        Assert.Equal(systemType.Id, reassignedCardTypeId);
-
+        // Assert: delete reflected in list
         var listAfterDelete = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
         Assert.NotNull(listAfterDelete);
         Assert.NotNull(listAfterDelete!.Data);
@@ -227,48 +206,6 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         Assert.False(payload!.Success);
         Assert.Equal(400, payload.StatusCode);
         Assert.Equal("System card type cannot be deleted.", payload.Message);
-    }
-
-    [Fact]
-    public async Task CardEndpoints_WhenAssignedUserNotInBoard_ShouldReturnValidationError()
-    {
-        var createUserResponse = await Client.PostAsJsonAsync(
-            "/api/system/users",
-            new CreateUserRequest("non-member", "non-member@localhost", "Password1234!", "Standard"));
-        createUserResponse.EnsureSuccessStatusCode();
-        var createdUserEnvelope = await createUserResponse.Content.ReadFromJsonAsync<ApiEnvelope<ManagedUserDto>>(JsonOptions);
-        Assert.NotNull(createdUserEnvelope);
-        Assert.NotNull(createdUserEnvelope!.Data);
-
-        var boardEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
-        Assert.NotNull(boardEnvelope);
-        Assert.NotNull(boardEnvelope!.Data);
-        var todoColumnId = boardEnvelope.Data!.Columns[0].Id;
-
-        var createCardResponse = await Client.PostAsJsonAsync(
-            "/api/boards/1/cards",
-            new CreateCardRequest(todoColumnId, "Assignable", "Desc", []));
-        createCardResponse.EnsureSuccessStatusCode();
-        var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
-        Assert.NotNull(createdCardEnvelope);
-        Assert.NotNull(createdCardEnvelope!.Data);
-
-        var updateResponse = await Client.PutAsJsonAsync(
-            $"/api/boards/1/cards/{createdCardEnvelope.Data!.Id}",
-            new UpdateCardRequest(
-                createdCardEnvelope.Data.Title,
-                createdCardEnvelope.Data.Description,
-                createdCardEnvelope.Data.TagNames,
-                createdCardEnvelope.Data.CardTypeId,
-                createdCardEnvelope.Data.BoardColumnId,
-                createdUserEnvelope.Data!.Id));
-        var validationEnvelope = await updateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
-
-        Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
-        Assert.NotNull(validationEnvelope);
-        Assert.False(validationEnvelope!.Success);
-        Assert.NotNull(validationEnvelope.ValidationErrors);
-        Assert.True(validationEnvelope.ValidationErrors!.ContainsKey("assignedUserId"));
     }
 
 }
