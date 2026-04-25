@@ -333,6 +333,222 @@ public sealed class AuthServiceTests : TestBaseDb
         Assert.Null(replacementToken.RevokedAtUtc);
     }
 
+    [Fact]
+    public async Task RefreshAsync_WhenTokenInvalid_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.RefreshAsync("not-a-real-token");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(401, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task LogoutAsync_WhenTokenExists_ShouldRevokeToken()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        const string refreshToken = "logout-refresh-token";
+        var refreshTokenHash = HashToken(refreshToken);
+        var now = DateTime.UtcNow;
+        DbContextForArrange.RefreshTokens.Add(new EntityRefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = refreshTokenHash,
+            CreatedAtUtc = now.AddHours(-1),
+            ExpiresAtUtc = now.AddDays(1)
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.LogoutAsync(refreshToken);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+
+        var persisted = await DbContextForAssert.RefreshTokens.SingleAsync(x => x.TokenHash == refreshTokenHash);
+        Assert.NotNull(persisted.RevokedAtUtc);
+    }
+
+    [Fact]
+    public async Task CreateMachinePatAsync_WhenUnsupportedScopeProvided_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.CreateMachinePatAsync(
+            user.Id,
+            new CreateMachinePatRequest("legacy-scope-token", 30, ["mcp"]));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Unsupported scope provided.", result.Message);
+    }
+
+    [Fact]
+    public async Task CreateMachinePatAsync_WhenValid_ShouldPersistTokenAndReturnPlainTextToken()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.CreateMachinePatAsync(
+            user.Id,
+            new CreateMachinePatRequest("agent-token", 30, [MachinePatScopes.McpWrite]));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.StartsWith("bo_pat_", result.Data!.PlainTextToken, StringComparison.Ordinal);
+        Assert.Equal("agent-token", result.Data.Token.Name);
+        Assert.Equal([MachinePatScopes.McpWrite], result.Data.Token.Scopes);
+
+        var persistedToken = await DbContextForAssert.PersonalAccessTokens.SingleAsync();
+        Assert.Equal(user.Id, persistedToken.UserId);
+        Assert.Equal(HashToken(result.Data.PlainTextToken), persistedToken.TokenHash);
+        Assert.Equal(result.Data.PlainTextToken[..12], persistedToken.TokenPrefix);
+        Assert.Equal(MachinePatScopes.McpWrite, persistedToken.ScopesCsv);
+        Assert.Null(persistedToken.RevokedAtUtc);
+    }
+
+    [Fact]
+    public async Task ListMachinePatsAsync_WhenTokensExist_ShouldReturnTokensInCreatedDescendingOrder()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var now = DateTime.UtcNow;
+        DbContextForArrange.PersonalAccessTokens.AddRange(
+            new EntityPersonalAccessToken
+            {
+                UserId = user.Id,
+                Name = "older-token",
+                TokenHash = HashToken("older"),
+                TokenPrefix = "bo_pat_OLDER",
+                ScopesCsv = MachinePatScopes.McpRead,
+                CreatedAtUtc = now.AddMinutes(-5),
+                ExpiresAtUtc = now.AddDays(1)
+            },
+            new EntityPersonalAccessToken
+            {
+                UserId = user.Id,
+                Name = "newer-token",
+                TokenHash = HashToken("newer"),
+                TokenPrefix = "bo_pat_NEWER",
+                ScopesCsv = $"{MachinePatScopes.McpRead},{MachinePatScopes.McpWrite}",
+                CreatedAtUtc = now,
+                ExpiresAtUtc = now.AddDays(1)
+            });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.ListMachinePatsAsync(user.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(["newer-token", "older-token"], result.Data!.Select(x => x.Name).ToArray());
+        Assert.Equal([MachinePatScopes.McpRead, MachinePatScopes.McpWrite], result.Data[0].Scopes);
+    }
+
+    [Fact]
+    public async Task RevokeMachinePatAsync_WhenOwnedAndActive_ShouldMarkTokenRevoked()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var now = DateTime.UtcNow;
+        var token = new EntityPersonalAccessToken
+        {
+            UserId = user.Id,
+            Name = "revoke-me",
+            TokenHash = HashToken("revoke-me"),
+            TokenPrefix = "bo_pat_REVOK",
+            ScopesCsv = MachinePatScopes.McpRead,
+            CreatedAtUtc = now,
+            ExpiresAtUtc = now.AddDays(1)
+        };
+        DbContextForArrange.PersonalAccessTokens.Add(token);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.RevokeMachinePatAsync(user.Id, token.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+
+        var persisted = await DbContextForAssert.PersonalAccessTokens.SingleAsync(x => x.Id == token.Id);
+        Assert.NotNull(persisted.RevokedAtUtc);
+    }
+
+    [Fact]
+    public async Task RevokeMachinePatAsync_WhenTokenNotOwnedByUser_ShouldReturnNotFound()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var passwordHashService = ResolveService<IPasswordHashService>();
+        var now = DateTime.UtcNow;
+        var owner = new EntityUser
+        {
+            UserName = "owner",
+            Email = "owner@localhost",
+            NormalisedEmail = "owner@localhost",
+            PasswordHash = passwordHashService.HashPassword("Password1234!"),
+            Role = UserRole.Admin,
+            IdentityType = UserIdentityType.User,
+            IsActive = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        var otherUser = new EntityUser
+        {
+            UserName = "other",
+            Email = "other@localhost",
+            NormalisedEmail = "other@localhost",
+            PasswordHash = passwordHashService.HashPassword("Password1234!"),
+            Role = UserRole.Admin,
+            IdentityType = UserIdentityType.User,
+            IsActive = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.Users.AddRange(owner, otherUser);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var token = new EntityPersonalAccessToken
+        {
+            UserId = owner.Id,
+            Name = "owner-token",
+            TokenHash = HashToken("owner-token"),
+            TokenPrefix = "bo_pat_OWNER",
+            ScopesCsv = MachinePatScopes.McpRead,
+            CreatedAtUtc = now,
+            ExpiresAtUtc = now.AddDays(1)
+        };
+        DbContextForArrange.PersonalAccessTokens.Add(token);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.RevokeMachinePatAsync(otherUser.Id, token.Id);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(404, result.StatusCode);
+    }
+
     private async Task RemoveAllUsersAsync()
     {
         DbContextForArrange.Users.RemoveRange(DbContextForArrange.Users);

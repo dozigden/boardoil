@@ -289,49 +289,6 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
 
     [Fact]
-    public async Task ListPats_ShouldIncludeCreatedTokenMetadata()
-    {
-        // Arrange
-        var adminClient = _factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/access-tokens",
-            new CreateMachinePatRequest("agent-token", 30, ["mcp:write"]));
-        createResponse.EnsureSuccessStatusCode();
-
-        // Act
-        var listResponse = await adminClient.GetAsync("/api/auth/access-tokens");
-        var listEnvelope = await listResponse.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<MachinePatEnvelope>>>();
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
-        Assert.NotNull(listEnvelope);
-        Assert.NotNull(listEnvelope!.Data);
-        var token = Assert.Single(listEnvelope.Data!, x => x.Name == "agent-token");
-        Assert.Contains("mcp:write", token.Scopes);
-        Assert.False(string.IsNullOrWhiteSpace(token.TokenPrefix));
-    }
-
-    [Fact]
-    public async Task CreatePat_WithLegacyMcpScope_ShouldReturnBadRequest()
-    {
-        // Arrange
-        var adminClient = _factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-
-        // Act
-        var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/access-tokens",
-            new CreateMachinePatRequest("legacy-scope-token", 30, ["mcp"]));
-        var payload = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
-
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, createResponse.StatusCode);
-        Assert.NotNull(payload);
-        Assert.False(payload!.Success);
-    }
-
-    [Fact]
     public async Task PatAuth_WhenLastUsedAtIsFromPreviousDay_ShouldRewriteTimestamp()
     {
         // Arrange
