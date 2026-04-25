@@ -4,37 +4,11 @@ using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public abstract class McpIntegrationTestBase : IAsyncLifetime
+public abstract class McpIntegrationTestBase : ApiFactoryIntegrationTestBase
 {
-    private string _databasePath = string.Empty;
-    private BoardOilApiFactory _factory = null!;
-
-    public Task InitializeAsync()
+    protected async Task RegisterInitialAdminAsync(HttpClient client)
     {
-        _databasePath = BuildDbPath(GetType().Name);
-        _factory = new BoardOilApiFactory(_databasePath);
-        return Task.CompletedTask;
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _factory.DisposeAsync();
-    }
-
-    protected HttpClient CreateClient() => _factory.CreateClient();
-
-    protected static async Task RegisterInitialAdminAsync(HttpClient client)
-    {
-        var response = await client.PostAsJsonAsync(
-            "/api/auth/register-initial-admin",
-            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
-        response.EnsureSuccessStatusCode();
-
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
-        Assert.NotNull(envelope);
-        Assert.NotNull(envelope!.Data);
-        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
-        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
+        _ = await AuthenticateAsInitialAdminAsync(client);
     }
 
     protected static async Task<string> LoginMachineAsync(HttpClient client)
@@ -66,21 +40,12 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         return payload.Data.PlainTextToken;
     }
 
-    private static string BuildDbPath(string dbNamePrefix)
-    {
-        var root = Path.Combine(Directory.GetCurrentDirectory(), ".test-data");
-        Directory.CreateDirectory(root);
-        return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
-    }
-
-    protected sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     protected sealed record LoginRequest(string UserName, string Password);
     protected sealed record CreateMachinePatRequest(
         string Name,
         int? ExpiresInDays,
         IReadOnlyList<string> Scopes);
     protected sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
-    protected sealed record AuthSessionEnvelope(string CsrfToken);
     protected sealed record CreatedMachinePatEnvelope(MachinePatEnvelope Token, string PlainTextToken);
     protected sealed record MachineSessionEnvelope(string AccessToken);
     protected sealed record MachinePatEnvelope(

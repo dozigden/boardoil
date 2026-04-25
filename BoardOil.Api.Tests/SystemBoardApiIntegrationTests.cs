@@ -7,28 +7,14 @@ using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
+public sealed class SystemBoardApiIntegrationTests : ApiFactoryIntegrationTestBase
 {
-    private string _databasePath = string.Empty;
-    private BoardOilApiFactory _factory = null!;
-
-    public Task InitializeAsync()
-    {
-        _databasePath = BuildDbPath("boardoil-system-board-api-tests");
-        _factory = new BoardOilApiFactory(_databasePath);
-        return Task.CompletedTask;
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _factory.DisposeAsync();
-    }
 
     [Fact]
     public async Task Admin_GetSystemBoards_ShouldReturnSuccessContract()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
 
         // Act
@@ -45,8 +31,8 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
     public async Task StandardUser_GetSystemBoards_ShouldReturnForbidden()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
-        var memberClient = _factory.CreateClient();
+        var adminClient = CreateClient();
+        var memberClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
         await LoginAsAsync(memberClient, "member", "Password1234!");
@@ -62,8 +48,8 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
     public async Task Admin_SystemMembershipEndpoints_ShouldAddAndListMembersWithoutAdminBoardMembership()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
-        var memberClient = _factory.CreateClient();
+        var adminClient = CreateClient();
+        var memberClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         _ = await CreateUserAsAdminAsync(adminClient, "owner", "Password1234!", "Standard");
         var helperUserId = await CreateUserAsAdminAsync(adminClient, "helper", "Password1234!", "Standard");
@@ -96,18 +82,9 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
         Assert.Contains(membersEnvelope.Data!, x => x.UserId == helperUserId && x.Role == "Contributor");
     }
 
-    private static async Task RegisterInitialAdminAsync(HttpClient client)
+    private async Task RegisterInitialAdminAsync(HttpClient client)
     {
-        var response = await client.PostAsJsonAsync(
-            "/api/auth/register-initial-admin",
-            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
-        response.EnsureSuccessStatusCode();
-
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
-        Assert.NotNull(envelope);
-        Assert.NotNull(envelope!.Data);
-        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
-        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
+        _ = await AuthenticateAsInitialAdminAsync(client);
     }
 
     private static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
@@ -133,14 +110,6 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
         client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
     }
 
-    private static string BuildDbPath(string dbNamePrefix)
-    {
-        var root = Path.Combine(Directory.GetCurrentDirectory(), ".test-data");
-        Directory.CreateDirectory(root);
-        return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
-    }
-
-    private sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record CreateUserRequest(string UserName, string Email, string Password, string Role);
     private sealed record AuthSessionEnvelope(string CsrfToken);

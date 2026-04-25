@@ -10,8 +10,6 @@ namespace BoardOil.Api.Tests;
 
 public sealed class RealtimeIntegrationTests : TestBaseIntegration
 {
-    protected override string DbNamePrefix => "boardoil-realtime-tests";
-
     [Fact]
     public async Task HubConnection_AnonymousClient_ShouldBeRejected()
     {

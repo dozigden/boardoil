@@ -9,28 +9,14 @@ using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class MachinePatIntegrationTests : IAsyncLifetime
+public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
 {
-    private string _databasePath = string.Empty;
-    private BoardOilApiFactory _factory = null!;
-
-    public Task InitializeAsync()
-    {
-        _databasePath = BuildDbPath("boardoil-machine-pat-tests");
-        _factory = new BoardOilApiFactory(_databasePath);
-        return Task.CompletedTask;
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _factory.DisposeAsync();
-    }
 
     [Fact]
     public async Task CreatePat_ThenCallMcpWithPatBearer_ShouldSucceed()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
 
         // Act
@@ -69,7 +55,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task ClientPatWithApiReadScope_GetBoard_ShouldReturnOk()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createdClient = await CreateClientAccountAsync(
             adminClient,
@@ -90,7 +76,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task ClientPatWithApiReadScope_PostBoard_ShouldReturnForbidden()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createdClient = await CreateClientAccountAsync(
             adminClient,
@@ -110,7 +96,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task ClientPatWithApiWriteScope_PostBoard_WithoutCsrf_ShouldReturnCreated()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createdClient = await CreateClientAccountAsync(
             adminClient,
@@ -130,7 +116,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task PatWithoutApiScope_GetBoard_ShouldReturnForbidden()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createdPat = await CreatePatAsync(adminClient, "mcp-only-token", [MachinePatScopes.McpRead]);
         var patClient = CreatePatClient(createdPat.PlainTextToken);
@@ -146,7 +132,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task ClientPatWithoutApiSystemScope_GetSystemUsers_ShouldReturnForbidden()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createdClient = await CreateClientAccountAsync(
             adminClient,
@@ -166,7 +152,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task ClientPatWithApiSystemScope_GetSystemUsers_ShouldReturnOk()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createdClient = await CreateClientAccountAsync(
             adminClient,
@@ -186,7 +172,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task ClientPatWithApiSystemScope_GetSystemBoards_ShouldReturnOk()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createdClient = await CreateClientAccountAsync(
             adminClient,
@@ -206,7 +192,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task PatWithMcpScope_GetSystemBoards_ShouldReturnForbidden()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createdPat = await CreatePatAsync(adminClient, "mcp-read-token", [MachinePatScopes.McpRead]);
         var patClient = CreatePatClient(createdPat.PlainTextToken);
@@ -223,7 +209,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task PatWithReadOnlyScope_CardCreate_ShouldReturnForbiddenToolError()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
 
         var createResponse = await adminClient.PostAsJsonAsync(
@@ -263,7 +249,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task RevokePat_ShouldBlockFuturePatLogin()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
@@ -292,7 +278,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task PatAuth_WhenLastUsedAtIsFromPreviousDay_ShouldRewriteTimestamp()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         var createResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/access-tokens",
@@ -325,7 +311,7 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task PatLoginEndpoint_ShouldReturnNotFound()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
 
         // Act
@@ -341,11 +327,11 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
     public async Task StandardUser_CanManageOwnAccessTokens()
     {
         // Arrange
-        var adminClient = _factory.CreateClient();
+        var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         _ = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
 
-        var standardClient = _factory.CreateClient();
+        var standardClient = CreateClient();
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
@@ -372,18 +358,9 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, revokeResponse.StatusCode);
     }
 
-    private static async Task RegisterInitialAdminAsync(HttpClient client)
+    private async Task RegisterInitialAdminAsync(HttpClient client)
     {
-        var response = await client.PostAsJsonAsync(
-            "/api/auth/register-initial-admin",
-            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
-        response.EnsureSuccessStatusCode();
-
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
-        Assert.NotNull(envelope);
-        Assert.NotNull(envelope!.Data);
-        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
-        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
+        _ = await AuthenticateAsInitialAdminAsync(client);
     }
 
     private static async Task<CreatedMachinePatEnvelope> CreatePatAsync(
@@ -421,21 +398,14 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
 
     private HttpClient CreatePatClient(string plainTextToken)
     {
-        var client = _factory.CreateClient();
+        var client = CreateClient();
         client.DefaultRequestHeaders.Authorization = new("Bearer", plainTextToken);
         return client;
     }
 
-    private static string BuildDbPath(string dbNamePrefix)
-    {
-        var root = Path.Combine(Directory.GetCurrentDirectory(), ".test-data");
-        Directory.CreateDirectory(root);
-        return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
-    }
-
     private async Task SetPatLastUsedAtUtcAsync(int tokenId, DateTime? lastUsedAtUtc)
     {
-        await using var connection = new SqliteConnection($"Data Source={_databasePath}");
+        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -489,7 +459,6 @@ public sealed class MachinePatIntegrationTests : IAsyncLifetime
         client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
     }
 
-    private sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record CreateMachinePatRequest(
         string Name,

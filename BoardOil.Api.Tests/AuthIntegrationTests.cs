@@ -5,28 +5,13 @@ using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class AuthIntegrationTests : IAsyncLifetime
+public sealed class AuthIntegrationTests : ApiFactoryIntegrationTestBase
 {
-    private string _databasePath = string.Empty;
-    private BoardOilApiFactory _factory = null!;
-
-    public Task InitializeAsync()
-    {
-        _databasePath = BuildDbPath("boardoil-auth-tests");
-        _factory = new BoardOilApiFactory(_databasePath);
-        return Task.CompletedTask;
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _factory.DisposeAsync();
-    }
-
     [Fact]
     public async Task RegisterInitialAdmin_FirstAttempt_ShouldReturnCreated()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = CreateClient();
 
         // Act
         var response = await client.PostAsJsonAsync(
@@ -41,7 +26,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     public async Task RegisterInitialAdmin_WithStaleAccessCookieAndNoCsrfHeader_ShouldSucceed()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = CreateClient();
         client.DefaultRequestHeaders.Add("Cookie", "boardoil_access=stale-token");
 
         // Act
@@ -57,7 +42,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     public async Task BootstrapStatus_WhenNoUsers_ShouldRequireInitialAdminSetup()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = CreateClient();
 
         // Act
         var response = await client.GetAsync("/api/auth/bootstrap-status");
@@ -74,8 +59,8 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     public async Task Login_WithExistingAuthCookieAndNoCsrfHeader_ShouldSucceed()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        await RegisterInitialAdminAsync(client);
+        var client = CreateClient();
+        _ = await AuthenticateAsInitialAdminAsync(client);
         client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
 
         // Act
@@ -89,8 +74,8 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     public async Task ChangeOwnPassword_WithValidCurrentPassword_ShouldReturnOk()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        await RegisterInitialAdminAsync(client);
+        var client = CreateClient();
+        _ = await AuthenticateAsInitialAdminAsync(client);
 
         // Act
         var changeResponse = await client.PostAsJsonAsync(
@@ -105,7 +90,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     public async Task Refresh_WithoutCookie_ShouldReturnUnauthorized()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = CreateClient();
 
         // Act
         var response = await client.PostAsJsonAsync("/api/auth/refresh", new { });
@@ -122,7 +107,7 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     public async Task RegisterInitialAdmin_WhenInsecureCookiesDisabled_ShouldSetSecureFlagOnAuthCookies()
     {
         // Arrange
-        var dbPath = BuildDbPath("boardoil-auth-secure-cookie-tests");
+        var dbPath = CreateDbPath("boardoil-auth-secure-cookie-tests");
         await using var factory = new BoardOilApiFactory(dbPath, allowInsecureCookies: false);
         var client = factory.CreateClient();
 
@@ -135,20 +120,6 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         response.EnsureSuccessStatusCode();
         Assert.True(ResponseHasCookieAttribute(response, "boardoil_access", "secure"));
         Assert.True(ResponseHasCookieAttribute(response, "boardoil_refresh", "secure"));
-    }
-
-    private static async Task RegisterInitialAdminAsync(HttpClient client)
-    {
-        var response = await client.PostAsJsonAsync(
-            "/api/auth/register-initial-admin",
-            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
-        response.EnsureSuccessStatusCode();
-
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
-        Assert.NotNull(envelope);
-        Assert.NotNull(envelope!.Data);
-        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
-        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
     }
 
     private static bool ResponseHasCookieAttribute(HttpResponseMessage response, string cookieName, string attribute)
@@ -176,17 +147,9 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         return false;
     }
 
-    private static string BuildDbPath(string dbNamePrefix)
-    {
-        var root = Path.Combine(Directory.GetCurrentDirectory(), ".test-data");
-        Directory.CreateDirectory(root);
-        return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
-    }
-
     private sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record ChangeOwnPasswordRequest(string CurrentPassword, string NewPassword);
-    private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record BootstrapStatusEnvelope(bool RequiresInitialAdminSetup);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }
