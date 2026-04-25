@@ -120,6 +120,110 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         Assert.False(result.Data.IsActive);
     }
 
+    [Fact]
+    public async Task ListClientAccessTokensAsync_WhenClientHasTokens_ShouldReturnNewestFirst()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var client = await AddUserAsync("client-bot", "client-bot@localhost", UserIdentityType.Client);
+        var olderToken = await AddPersonalAccessTokenAsync(client.Id, "older-token", MachinePatScopes.ApiRead, DateTime.UtcNow.AddMinutes(-2));
+        var newerToken = await AddPersonalAccessTokenAsync(client.Id, "newer-token", $"{MachinePatScopes.ApiRead},{MachinePatScopes.ApiWrite}", DateTime.UtcNow);
+        var service = ResolveService<IClientAccountService>();
+
+        // Act
+        var result = await service.ListClientAccessTokensAsync(client.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(["newer-token", "older-token"], result.Data!.Select(x => x.Name).ToArray());
+        Assert.Equal([MachinePatScopes.ApiRead, MachinePatScopes.ApiWrite], result.Data[0].Scopes);
+        Assert.Equal(olderToken.Id, result.Data[1].Id);
+        Assert.Equal(newerToken.Id, result.Data[0].Id);
+    }
+
+    [Fact]
+    public async Task CreateClientAccessTokenAsync_WhenUnsupportedScope_ShouldReturnBadRequest()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var client = await AddUserAsync("client-bot", "client-bot@localhost", UserIdentityType.Client);
+        var service = ResolveService<IClientAccountService>();
+
+        // Act
+        var result = await service.CreateClientAccessTokenAsync(
+            client.Id,
+            new CreateClientAccessTokenRequest("invalid-scope", 30, ["legacy:scope"]));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Unsupported scope provided.", result.Message);
+    }
+
+    [Fact]
+    public async Task CreateClientAccessTokenAsync_WhenValid_ShouldPersistTokenAndReturnPlainTextToken()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var client = await AddUserAsync("client-bot", "client-bot@localhost", UserIdentityType.Client);
+        var service = ResolveService<IClientAccountService>();
+
+        // Act
+        var result = await service.CreateClientAccessTokenAsync(
+            client.Id,
+            new CreateClientAccessTokenRequest("new-token", 30, [MachinePatScopes.ApiRead]));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(201, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.Equal("new-token", result.Data!.Token.Name);
+        Assert.Equal([MachinePatScopes.ApiRead], result.Data.Token.Scopes);
+        Assert.StartsWith("bo_pat_", result.Data.PlainTextToken, StringComparison.Ordinal);
+
+        var persisted = await DbContextForAssert.PersonalAccessTokens.SingleAsync(x => x.UserId == client.Id && x.Name == "new-token");
+        Assert.Equal(client.Id, persisted.UserId);
+        Assert.Equal(MachinePatScopes.ApiRead, persisted.ScopesCsv);
+    }
+
+    [Fact]
+    public async Task RevokeClientAccessTokenAsync_WhenOwnedTokenActive_ShouldMarkRevoked()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var client = await AddUserAsync("client-bot", "client-bot@localhost", UserIdentityType.Client);
+        var token = await AddPersonalAccessTokenAsync(client.Id, "revoke-me", MachinePatScopes.ApiRead, DateTime.UtcNow);
+        var service = ResolveService<IClientAccountService>();
+
+        // Act
+        var result = await service.RevokeClientAccessTokenAsync(client.Id, token.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+
+        var persisted = await DbContextForAssert.PersonalAccessTokens.SingleAsync(x => x.Id == token.Id);
+        Assert.NotNull(persisted.RevokedAtUtc);
+    }
+
+    [Fact]
+    public async Task DeleteClientAccountAsync_WhenClientExists_ShouldDeleteUser()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var client = await AddUserAsync("client-bot", "client-bot@localhost", UserIdentityType.Client);
+        var service = ResolveService<IClientAccountService>();
+
+        // Act
+        var result = await service.DeleteClientAccountAsync(client.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Null(await DbContextForAssert.Users.SingleOrDefaultAsync(x => x.Id == client.Id));
+    }
+
     private async Task RemoveAllUsersAsync()
     {
         DbContextForArrange.Users.RemoveRange(DbContextForArrange.Users);
@@ -149,5 +253,26 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         DbContextForArrange.Users.Add(user);
         await DbContextForArrange.SaveChangesAsync();
         return user;
+    }
+
+    private async Task<EntityPersonalAccessToken> AddPersonalAccessTokenAsync(
+        int userId,
+        string name,
+        string scopesCsv,
+        DateTime createdAtUtc)
+    {
+        var token = new EntityPersonalAccessToken
+        {
+            UserId = userId,
+            Name = name,
+            TokenHash = $"{name}-hash",
+            TokenPrefix = $"bo_pat_{name[..Math.Min(name.Length, 5)].ToUpperInvariant()}",
+            ScopesCsv = scopesCsv,
+            CreatedAtUtc = createdAtUtc,
+            ExpiresAtUtc = createdAtUtc.AddDays(7)
+        };
+        DbContextForArrange.PersonalAccessTokens.Add(token);
+        await DbContextForArrange.SaveChangesAsync();
+        return token;
     }
 }
