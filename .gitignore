@@ -11,6 +11,7 @@ BoardOil.Web/dist/
 *.db
 *.db-wal
 *.db-shm
+.data/
 .test-data/
 
 # Editor/OS

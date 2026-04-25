@@ -22,13 +22,16 @@ public sealed class BoardOilRuntimeOptions
         var configured = configuration.GetConnectionString("BoardOil");
         if (!string.IsNullOrWhiteSpace(configured))
         {
+            EnsureSqliteDirectoryExists(configured);
             return configured;
         }
 
         var dataPath = string.IsNullOrWhiteSpace(DataPath)
             ? "/data/boardoil.db"
             : DataPath!.Trim();
-        return $"Data Source={dataPath}";
+        var connectionString = $"Data Source={dataPath}";
+        EnsureSqliteDirectoryExists(connectionString);
+        return connectionString;
     }
 
     public string ResolveListenUrl(IConfiguration configuration)
@@ -49,5 +52,31 @@ public sealed class BoardOilRuntimeOptions
         return explicitUrls
             .Replace("http://localhost:0", "http://127.0.0.1:0", StringComparison.OrdinalIgnoreCase)
             .Replace("https://localhost:0", "https://127.0.0.1:0", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void EnsureSqliteDirectoryExists(string connectionString)
+    {
+        const string prefix = "Data Source=";
+        if (!connectionString.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var dataSource = connectionString[prefix.Length..].Trim();
+        if (string.IsNullOrWhiteSpace(dataSource)
+            || string.Equals(dataSource, ":memory:", StringComparison.OrdinalIgnoreCase)
+            || dataSource.StartsWith("file:", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var fullPath = Path.GetFullPath(dataSource);
+        var directoryPath = Path.GetDirectoryName(fullPath);
+        if (string.IsNullOrWhiteSpace(directoryPath))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(directoryPath);
     }
 }
