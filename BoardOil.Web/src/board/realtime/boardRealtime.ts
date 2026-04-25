@@ -32,6 +32,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
   let hubConnection: HubConnection | null = null;
   let subscribedBoardId: number | null = null;
   let startPromise: Promise<void> | null = null;
+  let subscribePromise: Promise<void> | null = null;
 
   async function ensureConnectionStarted() {
     if (!hubConnection) {
@@ -115,16 +116,31 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
       return;
     }
 
-    if (subscribedBoardId !== null && subscribedBoardId !== boardId) {
-      logRealtime('Unsubscribing previous board.', { boardId: subscribedBoardId });
-      await hubConnection.invoke('UnsubscribeBoard', subscribedBoardId);
+    if (subscribePromise) {
+      logRealtime('Waiting for existing board subscription update.', { boardId });
+      await subscribePromise;
+
+      if (subscribedBoardId === boardId) {
+        return;
+      }
     }
 
-    if (subscribedBoardId !== boardId) {
-      logRealtime('Subscribing board.', { boardId });
-      await hubConnection.invoke('SubscribeBoard', boardId);
-      subscribedBoardId = boardId;
-    }
+    subscribePromise = (async () => {
+      if (subscribedBoardId !== null && subscribedBoardId !== boardId) {
+        logRealtime('Unsubscribing previous board.', { boardId: subscribedBoardId });
+        await hubConnection.invoke('UnsubscribeBoard', subscribedBoardId);
+      }
+
+      if (subscribedBoardId !== boardId) {
+        logRealtime('Subscribing board.', { boardId });
+        await hubConnection.invoke('SubscribeBoard', boardId);
+        subscribedBoardId = boardId;
+      }
+    })().finally(() => {
+      subscribePromise = null;
+    });
+
+    await subscribePromise;
   }
 
   async function disconnect() {
@@ -133,6 +149,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
       const connection = hubConnection;
       const boardId = subscribedBoardId;
       const pendingStart = startPromise;
+      const pendingSubscribe = subscribePromise;
 
       if (pendingStart) {
         try {
@@ -140,6 +157,15 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
           await pendingStart;
         } catch {
           // If startup failed, continue teardown.
+        }
+      }
+
+      if (pendingSubscribe) {
+        try {
+          logRealtime('Waiting for pending subscribe update before disconnect.');
+          await pendingSubscribe;
+        } catch {
+          // If subscription failed, continue teardown.
         }
       }
 
