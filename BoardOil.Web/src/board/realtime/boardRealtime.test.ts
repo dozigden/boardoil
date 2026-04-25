@@ -6,6 +6,7 @@ type FakeConnection = {
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
   invoke: ReturnType<typeof vi.fn>;
+  state: string;
   eventHandlers: Record<string, (...args: unknown[]) => unknown>;
   reconnectHandler: (() => Promise<unknown> | unknown) | null;
 };
@@ -16,6 +17,7 @@ vi.mock('@microsoft/signalr', () => {
   connection = {
     eventHandlers: {},
     reconnectHandler: null,
+    state: 'Disconnected',
     on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
       connection.eventHandlers[event] = handler;
       return connection;
@@ -24,8 +26,12 @@ vi.mock('@microsoft/signalr', () => {
       connection.reconnectHandler = handler;
       return connection;
     }),
-    start: vi.fn(async () => undefined),
-    stop: vi.fn(async () => undefined),
+    start: vi.fn(async () => {
+      connection.state = 'Connected';
+    }),
+    stop: vi.fn(async () => {
+      connection.state = 'Disconnected';
+    }),
     invoke: vi.fn(async () => undefined)
   };
 
@@ -49,6 +55,9 @@ vi.mock('@microsoft/signalr', () => {
 
   return {
     HubConnectionBuilder,
+    HubConnectionState: {
+      Connected: 'Connected'
+    },
     LogLevel: {
       Warning: 'Warning'
     }
@@ -130,6 +139,48 @@ describe('boardRealtime', () => {
     await realtime.disconnect();
 
     expect(connection.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for in-flight start before subscribing during concurrent connect calls', async () => {
+    let resolveStart!: () => void;
+    connection.state = 'Disconnected';
+    connection.start.mockImplementation(
+      () => new Promise<void>(resolve => {
+        resolveStart = () => {
+          connection.state = 'Connected';
+          resolve();
+        };
+      })
+    );
+    connection.invoke.mockImplementation(async (method: string) => {
+      if (method === 'SubscribeBoard' && connection.state !== 'Connected') {
+        throw new Error('subscribe called before connected');
+      }
+    });
+
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(),
+      onColumnUpdated: vi.fn(),
+      onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(),
+      onCardUpdated: vi.fn(),
+      onCardDeleted: vi.fn(),
+      onCardMoved: vi.fn(),
+      onResync: vi.fn()
+    });
+
+    const firstConnect = realtime.connect(42);
+    const secondConnect = realtime.connect(42);
+
+    expect(connection.invoke).not.toHaveBeenCalledWith('SubscribeBoard', 42);
+
+    resolveStart();
+    await Promise.all([firstConnect, secondConnect]);
+
+    expect(connection.start).toHaveBeenCalledTimes(1);
+    expect(connection.invoke).toHaveBeenCalledTimes(1);
+    expect(connection.invoke).toHaveBeenCalledWith('SubscribeBoard', 42);
   });
 
   afterEach(() => {

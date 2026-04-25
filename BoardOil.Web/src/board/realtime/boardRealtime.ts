@@ -1,4 +1,4 @@
-import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
+import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { boardHubUrl } from '../../shared/api/config';
 import type { Card, Column } from '../../shared/types/boardTypes';
 
@@ -13,56 +13,100 @@ type RealtimeHandlers = {
   onResync: () => Promise<unknown> | unknown;
 };
 
+const realtimeDebugEnabled = import.meta.env.DEV;
+
+function logRealtime(message: string, details?: unknown) {
+  if (!realtimeDebugEnabled) {
+    return;
+  }
+
+  if (details === undefined) {
+    console.debug(`[board-realtime] ${message}`);
+    return;
+  }
+
+  console.debug(`[board-realtime] ${message}`, details);
+}
+
 export function createBoardRealtime(handlers: RealtimeHandlers) {
   let hubConnection: HubConnection | null = null;
   let subscribedBoardId: number | null = null;
+  let startPromise: Promise<void> | null = null;
 
-  async function connect(boardId: number) {
-    if (hubConnection) {
-      await subscribeBoard(boardId);
+  async function ensureConnectionStarted() {
+    if (!hubConnection) {
       return;
     }
 
-    hubConnection = new HubConnectionBuilder()
-      .withUrl(boardHubUrl)
-      .withAutomaticReconnect()
-      .configureLogging(LogLevel.Warning)
-      .build();
+    if (hubConnection.state === HubConnectionState.Connected) {
+      return;
+    }
 
-    hubConnection.on('ColumnCreated', async (column: Column) => {
-      await handlers.onColumnCreated(column);
-    });
-    hubConnection.on('ColumnUpdated', async (column: Column) => {
-      await handlers.onColumnUpdated(column);
-    });
-    hubConnection.on('ColumnDeleted', async (columnId: number) => {
-      await handlers.onColumnDeleted(columnId);
-    });
-    hubConnection.on('CardCreated', async (card: Card) => {
-      await handlers.onCardCreated(card);
-    });
-    hubConnection.on('CardUpdated', async (card: Card) => {
-      await handlers.onCardUpdated(card);
-    });
-    hubConnection.on('CardDeleted', async (cardId: number) => {
-      await handlers.onCardDeleted(cardId);
-    });
-    hubConnection.on('CardMoved', async (card: Card) => {
-      await handlers.onCardMoved(card);
-    });
-    hubConnection.on('ResyncRequested', async () => {
-      await handlers.onResync();
+    if (startPromise) {
+      logRealtime('Waiting for existing connection start.');
+      await startPromise;
+      return;
+    }
+
+    logRealtime('Starting realtime connection.');
+    startPromise = hubConnection.start().finally(() => {
+      startPromise = null;
     });
 
-    hubConnection.onreconnected(async () => {
-      if (subscribedBoardId !== null) {
-        await hubConnection?.invoke('SubscribeBoard', subscribedBoardId);
-      }
+    await startPromise;
+    logRealtime('Realtime connection started.');
+  }
 
-      await handlers.onResync();
-    });
+  async function connect(boardId: number) {
+    logRealtime('Connect requested.', { boardId });
 
-    await hubConnection.start();
+    if (!hubConnection) {
+      logRealtime('Creating hub connection.');
+      hubConnection = new HubConnectionBuilder()
+        .withUrl(boardHubUrl)
+        .withAutomaticReconnect()
+        .configureLogging(LogLevel.Warning)
+        .build();
+
+      hubConnection.on('ColumnCreated', async (column: Column) => {
+        await handlers.onColumnCreated(column);
+      });
+      hubConnection.on('ColumnUpdated', async (column: Column) => {
+        await handlers.onColumnUpdated(column);
+      });
+      hubConnection.on('ColumnDeleted', async (columnId: number) => {
+        await handlers.onColumnDeleted(columnId);
+      });
+      hubConnection.on('CardCreated', async (card: Card) => {
+        await handlers.onCardCreated(card);
+      });
+      hubConnection.on('CardUpdated', async (card: Card) => {
+        await handlers.onCardUpdated(card);
+      });
+      hubConnection.on('CardDeleted', async (cardId: number) => {
+        await handlers.onCardDeleted(cardId);
+      });
+      hubConnection.on('CardMoved', async (card: Card) => {
+        await handlers.onCardMoved(card);
+      });
+      hubConnection.on('ResyncRequested', async () => {
+        await handlers.onResync();
+      });
+
+      hubConnection.onreconnected(async () => {
+        logRealtime('Connection reconnected.', { subscribedBoardId });
+
+        if (subscribedBoardId !== null) {
+          await hubConnection?.invoke('SubscribeBoard', subscribedBoardId);
+          logRealtime('Re-subscribed after reconnect.', { boardId: subscribedBoardId });
+        }
+
+        await handlers.onResync();
+        logRealtime('Resync requested after reconnect.');
+      });
+    }
+
+    await ensureConnectionStarted();
     await subscribeBoard(boardId);
   }
 
@@ -72,10 +116,12 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     }
 
     if (subscribedBoardId !== null && subscribedBoardId !== boardId) {
+      logRealtime('Unsubscribing previous board.', { boardId: subscribedBoardId });
       await hubConnection.invoke('UnsubscribeBoard', subscribedBoardId);
     }
 
     if (subscribedBoardId !== boardId) {
+      logRealtime('Subscribing board.', { boardId });
       await hubConnection.invoke('SubscribeBoard', boardId);
       subscribedBoardId = boardId;
     }
@@ -83,8 +129,19 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
 
   async function disconnect() {
     if (hubConnection) {
+      logRealtime('Disconnect requested.', { subscribedBoardId });
       const connection = hubConnection;
       const boardId = subscribedBoardId;
+      const pendingStart = startPromise;
+
+      if (pendingStart) {
+        try {
+          logRealtime('Waiting for pending start before disconnect.');
+          await pendingStart;
+        } catch {
+          // If startup failed, continue teardown.
+        }
+      }
 
       try {
         if (boardId !== null) {
@@ -94,6 +151,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         // Best-effort cleanup; continue stopping the connection.
       } finally {
         await connection.stop();
+        logRealtime('Connection stopped.');
         if (hubConnection === connection) {
           hubConnection = null;
         }
