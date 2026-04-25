@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_PROJECT="$ROOT_DIR/BoardOil.Api/BoardOil.Api.csproj"
 WEB_DIR="$ROOT_DIR/BoardOil.Web"
+DEV_DATA_DIR="$ROOT_DIR/.data/dev"
+DEV_DB_PATH="$DEV_DATA_DIR/boardoil.dev.db"
 
 if ! command -v dotnet >/dev/null 2>&1; then
   echo "Error: dotnet is required but not found on PATH." >&2
@@ -86,9 +88,13 @@ cleanup() {
 trap cleanup INT TERM EXIT
 
 echo "Starting API on http://127.0.0.1:5000 ..."
+mkdir -p "$DEV_DATA_DIR"
+echo "Building API ..."
+dotnet build "$API_PROJECT" -maxcpucount:1 -nodeReuse:false >/dev/null
 ASPNETCORE_ENVIRONMENT=Development \
 DOTNET_ENVIRONMENT=Development \
-dotnet run --no-launch-profile --project "$API_PROJECT" --urls http://127.0.0.1:5000 &
+ConnectionStrings__BoardOil="Data Source=$DEV_DB_PATH" \
+dotnet run --no-launch-profile --no-build --project "$API_PROJECT" --urls http://127.0.0.1:5000 &
 api_pid=$!
 
 echo "Starting frontend on http://localhost:5173 ..."
