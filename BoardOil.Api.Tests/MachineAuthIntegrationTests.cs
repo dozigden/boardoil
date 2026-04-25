@@ -5,28 +5,14 @@ using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class MachineAuthIntegrationTests : IAsyncLifetime
+public sealed class MachineAuthIntegrationTests : ApiFactoryIntegrationTestBase
 {
-    private string _databasePath = string.Empty;
-    private BoardOilApiFactory _factory = null!;
-
-    public Task InitializeAsync()
-    {
-        _databasePath = BuildDbPath("boardoil-machine-auth-tests");
-        _factory = new BoardOilApiFactory(_databasePath);
-        return Task.CompletedTask;
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _factory.DisposeAsync();
-    }
 
     [Fact]
     public async Task MachineLogin_WithValidCredentials_ShouldReturnAccessAndRefreshTokens()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = CreateClient();
         await RegisterInitialAdminAsync(client);
 
         // Act
@@ -47,7 +33,7 @@ public sealed class MachineAuthIntegrationTests : IAsyncLifetime
     public async Task MachineRefresh_WithInvalidToken_ShouldReturnUnauthorized()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = CreateClient();
 
         // Act
         var response = await client.PostAsJsonAsync("/api/auth/machine/refresh", new MachineRefreshRequest("invalid-refresh-token"));
@@ -63,7 +49,7 @@ public sealed class MachineAuthIntegrationTests : IAsyncLifetime
     public async Task MachineLogout_WithRefreshToken_ShouldReturnOk()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = CreateClient();
         await RegisterInitialAdminAsync(client);
         var loginResponse = await client.PostAsJsonAsync("/api/auth/machine/login", new LoginRequest("admin", "Password1234!"));
         loginResponse.EnsureSuccessStatusCode();
@@ -78,22 +64,12 @@ public sealed class MachineAuthIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, logoutResponse.StatusCode);
     }
 
-    private static async Task RegisterInitialAdminAsync(HttpClient client)
+    private async Task RegisterInitialAdminAsync(HttpClient client)
     {
-        var response = await client.PostAsJsonAsync(
-            "/api/auth/register-initial-admin",
-            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
-        response.EnsureSuccessStatusCode();
+        _ = client;
+        await EnsureInitialAdminSeededAsync();
     }
 
-    private static string BuildDbPath(string dbNamePrefix)
-    {
-        var root = Path.Combine(Directory.GetCurrentDirectory(), ".test-data");
-        Directory.CreateDirectory(root);
-        return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
-    }
-
-    private sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record MachineRefreshRequest(string RefreshToken);
     private sealed record MachineLogoutRequest(string? RefreshToken);

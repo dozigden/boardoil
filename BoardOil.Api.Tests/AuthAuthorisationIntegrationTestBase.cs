@@ -7,26 +7,8 @@ using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public abstract class AuthAuthorisationIntegrationTestBase : IAsyncLifetime
+public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrationTestBase
 {
-    protected string DatabasePath { get; private set; } = string.Empty;
-    protected BoardOilApiFactory Factory { get; private set; } = null!;
-
-    public Task InitializeAsync()
-    {
-        DatabasePath = BuildDbPath("boardoil-auth-authorisation-tests");
-        Factory = new BoardOilApiFactory(DatabasePath);
-        return Task.CompletedTask;
-    }
-
-    public async Task DisposeAsync()
-    {
-        if (Factory is not null)
-        {
-            await Factory.DisposeAsync();
-        }
-    }
-
     protected async Task SeedTagAsync(string name, string normalisedName, string styleName, string stylePropertiesJson)
     {
         await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
@@ -47,18 +29,9 @@ public abstract class AuthAuthorisationIntegrationTestBase : IAsyncLifetime
         await command.ExecuteNonQueryAsync();
     }
 
-    protected static async Task RegisterInitialAdminAsync(HttpClient client)
+    protected async Task RegisterInitialAdminAsync(HttpClient client)
     {
-        var response = await client.PostAsJsonAsync(
-            "/api/auth/register-initial-admin",
-            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
-        response.EnsureSuccessStatusCode();
-
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
-        Assert.NotNull(envelope);
-        Assert.NotNull(envelope!.Data);
-        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
-        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
+        _ = await AuthenticateAsInitialAdminAsync(client);
     }
 
     protected static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)
@@ -110,14 +83,6 @@ public abstract class AuthAuthorisationIntegrationTestBase : IAsyncLifetime
         client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
     }
 
-    private static string BuildDbPath(string dbNamePrefix)
-    {
-        var root = Path.Combine(Directory.GetCurrentDirectory(), ".test-data");
-        Directory.CreateDirectory(root);
-        return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
-    }
-
-    protected sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     protected sealed record LoginRequest(string UserName, string Password);
     protected sealed record CreateUserRequest(string UserName, string Email, string Password, string Role);
     protected sealed record ResetUserPasswordRequest(string NewPassword);

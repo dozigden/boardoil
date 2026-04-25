@@ -172,7 +172,7 @@ public sealed class BoardApiCardIntegrationTests
         await using (var factory = new BoardOilApiFactory(dbPath))
         {
             var client = factory.CreateClient();
-            await AuthenticateAsInitialAdminAsync(client);
+            await AuthenticateAsInitialAdminAsync(client, factory.Services);
             var create = await client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Persisted"));
             create.EnsureSuccessStatusCode();
         }
@@ -180,7 +180,7 @@ public sealed class BoardApiCardIntegrationTests
         await using (var factory = new BoardOilApiFactory(dbPath))
         {
             var client = factory.CreateClient();
-            await AuthenticateAsInitialAdminAsync(client);
+            await AuthenticateAsInitialAdminAsync(client, factory.Services);
             var board = await client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
 
             Assert.NotNull(board);
