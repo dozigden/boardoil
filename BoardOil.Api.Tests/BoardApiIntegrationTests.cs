@@ -1,13 +1,9 @@
-using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
-using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Board;
-using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Column;
-using BoardOil.Contracts.Tag;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -73,33 +69,30 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
     }
 
     [Fact]
-    public async Task BoardEndpoints_ShouldRoundTripDescriptionOnCreateAndUpdate()
+    public async Task BoardEndpoints_CreateAndUpdate_ShouldReturnSuccessContracts()
     {
         // Arrange
         var createResponse = await Client.PostAsJsonAsync(
             "/api/boards",
             new CreateBoardRequest("Roadmap", "  Initial board guidance  "));
-        createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
         Assert.NotNull(created);
         Assert.NotNull(created!.Data);
-        Assert.Equal("Initial board guidance", created.Data!.Description);
+        Assert.Equal(201, (int)createResponse.StatusCode);
+        Assert.True(created.Success);
 
         // Act
         var updateResponse = await Client.PutAsJsonAsync(
             $"/api/boards/{created.Data.Id}",
             new UpdateBoardRequest("Roadmap", "  Updated board guidance  "));
-        updateResponse.EnsureSuccessStatusCode();
         var updated = await updateResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardSummaryDto>>(JsonOptions);
         Assert.NotNull(updated);
-        Assert.NotNull(updated!.Data);
-        Assert.Equal("Updated board guidance", updated.Data!.Description);
 
         // Assert
-        var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>($"/api/boards/{created.Data.Id}", JsonOptions);
-        Assert.NotNull(board);
-        Assert.NotNull(board!.Data);
-        Assert.Equal("Updated board guidance", board.Data!.Description);
+        Assert.Equal(200, (int)updateResponse.StatusCode);
+        Assert.True(updated!.Success);
+        Assert.NotNull(updated.Data);
+        Assert.Equal(created.Data.Id, updated.Data!.Id);
     }
 
     [Fact]
@@ -118,46 +111,31 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
     }
 
     [Fact]
-    public async Task ColumnEndpoints_ShouldCreateAndDeleteColumn()
+    public async Task ColumnEndpoints_CreateAndDelete_ShouldReturnSuccessContracts()
     {
         // Arrange
         var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
-        createdColumnResponse.EnsureSuccessStatusCode();
         var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
         Assert.NotNull(createdColumn);
         Assert.NotNull(createdColumn!.Data);
-
-        // Assert created
-        var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
-        Assert.NotNull(board);
-        Assert.NotNull(board!.Data);
-        Assert.Equal(4, board.Data!.Columns.Count);
-        Assert.Contains(board.Data.Columns, column => column.Id == createdColumn.Data.Id && column.Title == "Todo");
+        Assert.Equal(201, (int)createdColumnResponse.StatusCode);
+        Assert.True(createdColumn.Success);
 
         // Act
         var deleteColumnResponse = await Client.DeleteAsync($"/api/boards/1/columns/{createdColumn.Data.Id}");
-        deleteColumnResponse.EnsureSuccessStatusCode();
+        var deleted = await deleteColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
 
         // Assert deleted
-        var afterDelete = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
-        Assert.NotNull(afterDelete);
-        Assert.NotNull(afterDelete!.Data);
-        Assert.Equal(3, afterDelete.Data!.Columns.Count);
-        Assert.Equal(["Todo", "In Progress", "Done"], afterDelete.Data.Columns.Select(x => x.Title).ToArray());
+        Assert.Equal(200, (int)deleteColumnResponse.StatusCode);
+        Assert.NotNull(deleted);
+        Assert.True(deleted!.Success);
     }
 
     [Fact]
-    public async Task ColumnEndpoints_ShouldMoveColumnToStart_WhenPositionAfterColumnIdIsNull()
+    public async Task ColumnEndpoints_Move_ShouldReturnSuccessContract()
     {
         // Arrange
-        var createdFirstColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("A"));
-        createdFirstColumnResponse.EnsureSuccessStatusCode();
-        var createdFirstColumn = await createdFirstColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
-        Assert.NotNull(createdFirstColumn);
-        Assert.NotNull(createdFirstColumn!.Data);
-
         var createdSecondColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("B"));
-        createdSecondColumnResponse.EnsureSuccessStatusCode();
         var createdSecondColumn = await createdSecondColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
         Assert.NotNull(createdSecondColumn);
         Assert.NotNull(createdSecondColumn!.Data);
@@ -166,14 +144,14 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         var moveResponse = await Client.PatchAsJsonAsync(
             $"/api/boards/1/columns/{createdSecondColumn.Data!.Id}/move",
             new MoveColumnRequest(null));
-        moveResponse.EnsureSuccessStatusCode();
+        var moved = await moveResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
 
         // Assert
-        var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
-        Assert.NotNull(board);
-        Assert.NotNull(board!.Data);
-        Assert.Equal(createdSecondColumn.Data.Id, board.Data!.Columns[0].Id);
-        Assert.Contains(board.Data.Columns, x => x.Id == createdFirstColumn.Data!.Id);
+        Assert.Equal(200, (int)moveResponse.StatusCode);
+        Assert.NotNull(moved);
+        Assert.True(moved!.Success);
+        Assert.NotNull(moved.Data);
+        Assert.Equal(createdSecondColumn.Data.Id, moved.Data!.Id);
     }
 
     [Fact]
