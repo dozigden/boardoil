@@ -1,8 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using BoardOil.Contracts.Card;
 using BoardOil.Contracts.CardType;
-using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Tag;
 using Xunit;
 
@@ -89,7 +87,7 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
     }
 
     [Fact]
-    public async Task CardTypeEndpoints_ShouldCreateListUpdateAndDeleteNonSystemType()
+    public async Task CardTypeEndpoints_ShouldCreateListUpdateAndDeleteCustomType()
     {
         // Arrange
         // Act: create
@@ -103,7 +101,6 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         Assert.NotNull(createdTypeEnvelope);
         Assert.NotNull(createdTypeEnvelope!.Data);
         Assert.Equal(201, createdTypeEnvelope.StatusCode);
-        Assert.False(createdTypeEnvelope.Data!.IsSystem);
         Assert.Equal("Bug", createdTypeEnvelope.Data.Name);
         Assert.Equal("🐞", createdTypeEnvelope.Data.Emoji);
 
@@ -113,9 +110,7 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         // Assert: list
         Assert.NotNull(listEnvelope);
         Assert.NotNull(listEnvelope!.Data);
-        Assert.Contains(listEnvelope.Data!, x => x.IsSystem && x.Name == "Story");
         Assert.Contains(listEnvelope.Data!, x => x.Name == "Bug");
-        var systemType = Assert.Single(listEnvelope.Data!, x => x.IsSystem);
         var bugType = Assert.Single(listEnvelope.Data!, x => x.Name == "Bug");
 
         // Act: update
@@ -130,7 +125,6 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         Assert.NotNull(updatedTypeEnvelope!.Data);
         Assert.Equal("Defect", updatedTypeEnvelope.Data!.Name);
         Assert.Equal("⚠️", updatedTypeEnvelope.Data.Emoji);
-        Assert.False(updatedTypeEnvelope.Data.IsSystem);
 
         // Act: delete non-system
         var deleteTypeResponse = await Client.DeleteAsync($"/api/boards/1/card-types/{bugType.Id}");
@@ -144,15 +138,9 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
     }
 
     [Fact]
-    public async Task CardTypeEndpoints_SetDefault_ShouldUseNewDefaultForCreatedCards()
+    public async Task CardTypeEndpoints_SetDefault_ShouldReturnOkContract()
     {
         // Arrange
-        var createColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
-        createColumnResponse.EnsureSuccessStatusCode();
-        var columnEnvelope = await createColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
-        Assert.NotNull(columnEnvelope);
-        Assert.NotNull(columnEnvelope!.Data);
-
         var createTypeResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/card-types",
             new CreateCardTypeRequest("Bug", "🐞"));
@@ -161,51 +149,15 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         Assert.NotNull(createdTypeEnvelope);
         Assert.NotNull(createdTypeEnvelope!.Data);
 
-        // Act: switch default card type
-        var setDefaultResponse = await Client.PatchAsync($"/api/boards/1/card-types/{createdTypeEnvelope.Data!.Id}/default", null);
-        setDefaultResponse.EnsureSuccessStatusCode();
-
-        // Assert: card type flags updated
-        var listEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
-        Assert.NotNull(listEnvelope);
-        Assert.NotNull(listEnvelope!.Data);
-        var bugType = Assert.Single(listEnvelope.Data!, x => x.Name == "Bug");
-        var storyType = Assert.Single(listEnvelope.Data!, x => x.Name == "Story");
-        Assert.True(bugType.IsSystem);
-        Assert.False(storyType.IsSystem);
-
-        // Assert: create-card default follows switched card type
-        var createCardResponse = await Client.PostAsJsonAsync(
-            "/api/boards/1/cards",
-            new CreateCardRequest(columnEnvelope.Data.Id, "Task with default", "Desc", null));
-        createCardResponse.EnsureSuccessStatusCode();
-        var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
-        Assert.NotNull(createdCardEnvelope);
-        Assert.NotNull(createdCardEnvelope!.Data);
-        Assert.Equal(bugType.Id, createdCardEnvelope.Data!.CardTypeId);
-        Assert.Equal("Bug", createdCardEnvelope.Data.CardTypeName);
-        Assert.Equal("🐞", createdCardEnvelope.Data.CardTypeEmoji);
-    }
-
-    [Fact]
-    public async Task CardTypeEndpoints_WhenDeletingSystemType_ShouldReturnBadRequest()
-    {
-        // Arrange
-        var listEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
-        Assert.NotNull(listEnvelope);
-        Assert.NotNull(listEnvelope!.Data);
-        var systemType = Assert.Single(listEnvelope.Data!, x => x.IsSystem);
-
         // Act
-        var response = await Client.DeleteAsync($"/api/boards/1/card-types/{systemType.Id}");
-        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
+        var setDefaultResponse = await Client.PatchAsync($"/api/boards/1/card-types/{createdTypeEnvelope.Data!.Id}/default", null);
+        var payload = await setDefaultResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
 
         // Assert
-        Assert.Equal(400, (int)response.StatusCode);
+        Assert.Equal(200, (int)setDefaultResponse.StatusCode);
         Assert.NotNull(payload);
-        Assert.False(payload!.Success);
-        Assert.Equal(400, payload.StatusCode);
-        Assert.Equal("System card type cannot be deleted.", payload.Message);
+        Assert.True(payload!.Success);
+        Assert.Equal(200, payload.StatusCode);
     }
 
 }

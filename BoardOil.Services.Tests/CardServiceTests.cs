@@ -1,5 +1,6 @@
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Card;
+using BoardOil.Abstractions.CardType;
 using BoardOil.Contracts.Card;
 using BoardOil.Ef.Repositories;
 using BoardOil.Services.Card;
@@ -7,6 +8,7 @@ using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using ArchivedCardEntity = BoardOil.Persistence.Abstractions.Entities.EntityArchivedCard;
+using CardTypeEntity = BoardOil.Persistence.Abstractions.Entities.EntityCardType;
 using BoardMemberEntity = BoardOil.Persistence.Abstractions.Entities.EntityBoardMember;
 using TagEntity = BoardOil.Persistence.Abstractions.Entities.EntityTag;
 using UserEntity = BoardOil.Persistence.Abstractions.Entities.EntityUser;
@@ -204,6 +206,44 @@ public sealed class CardServiceTests : TestBaseDb
         var titles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
 
         Assert.Equal(["End", "A", "B"], titles);
+    }
+
+    [Fact]
+    public async Task CreateCardAsync_WhenDefaultCardTypeWasSwitched_ShouldUseCurrentSystemCardType()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var boardId = board.BoardId;
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var now = DateTime.UtcNow;
+        var customType = new CardTypeEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            Emoji = "🐞",
+            IsSystem = false,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.CardTypes.Add(customType);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var cardTypeService = ResolveService<ICardTypeService>();
+        var setDefaultResult = await cardTypeService.SetDefaultCardTypeAsync(boardId, customType.Id, ActorUserId);
+        Assert.True(setDefaultResult.Success);
+
+        // Act
+        var service = CreateService();
+        var result = await service.CreateCardAsync(boardId, new CreateCardRequest(todoColumnId, "New Card", "Desc", null), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(customType.Id, result.Data!.CardTypeId);
+        Assert.Equal("Bug", result.Data.CardTypeName);
+        Assert.Equal("🐞", result.Data.CardTypeEmoji);
     }
 
     [Fact]
