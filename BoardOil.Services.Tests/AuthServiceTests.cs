@@ -124,11 +124,249 @@ public sealed class AuthServiceTests : TestBaseDb
         Assert.All(boardMemberships, x => Assert.Equal(BoardMemberRole.Owner, x.Role));
     }
 
+    [Fact]
+    public async Task GetBootstrapStatusAsync_WhenNoUsers_ShouldRequireInitialAdminSetup()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.GetBootstrapStatusAsync();
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data!.RequiresInitialAdminSetup);
+    }
+
+    [Fact]
+    public async Task GetBootstrapStatusAsync_WhenUsersExist_ShouldNotRequireInitialAdminSetup()
+    {
+        // Arrange
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.GetBootstrapStatusAsync();
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data!.RequiresInitialAdminSetup);
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenCredentialsValid_ShouldReturnSessionAndPersistRefreshToken()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.LoginAsync(new LoginRequest(user.UserName, "Password1234!"));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.Equal(1, _accessTokenIssuer.CallCount);
+
+        var persistedToken = await DbContextForAssert.RefreshTokens.SingleAsync();
+        Assert.Equal(user.Id, persistedToken.UserId);
+        Assert.Equal(HashToken(result.Data!.RefreshToken), persistedToken.TokenHash);
+        Assert.Null(persistedToken.RevokedAtUtc);
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenPasswordInvalid_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.LoginAsync(new LoginRequest(user.UserName, "wrong-password"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(401, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChangeOwnPasswordAsync_WhenCurrentPasswordInvalid_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.ChangeOwnPasswordAsync(
+            user.Id,
+            new ChangeOwnPasswordRequest("wrong-password", "FreshPassword1234!"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(401, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChangeOwnPasswordAsync_WhenNewPasswordInvalid_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.ChangeOwnPasswordAsync(
+            user.Id,
+            new ChangeOwnPasswordRequest("Password1234!", "short"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.Contains("newPassword", result.ValidationErrors!.Keys);
+    }
+
+    [Fact]
+    public async Task ChangeOwnPasswordAsync_WhenValid_ShouldUpdatePasswordAndRevokeActiveRefreshTokens()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var now = DateTime.UtcNow;
+        var previouslyRevokedAtUtc = now.AddMinutes(-30);
+        DbContextForArrange.RefreshTokens.AddRange(
+            new EntityRefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = HashToken("active-token"),
+                CreatedAtUtc = now.AddHours(-1),
+                ExpiresAtUtc = now.AddDays(1),
+                RevokedAtUtc = null
+            },
+            new EntityRefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = HashToken("already-revoked-token"),
+                CreatedAtUtc = now.AddHours(-2),
+                ExpiresAtUtc = now.AddDays(1),
+                RevokedAtUtc = previouslyRevokedAtUtc
+            });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.ChangeOwnPasswordAsync(
+            user.Id,
+            new ChangeOwnPasswordRequest("Password1234!", "FreshPassword1234!"));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+
+        var persistedUser = await DbContextForAssert.Users.SingleAsync(x => x.Id == user.Id);
+        var passwordHashService = ResolveService<IPasswordHashService>();
+        Assert.True(passwordHashService.VerifyPassword("FreshPassword1234!", persistedUser.PasswordHash));
+        Assert.False(passwordHashService.VerifyPassword("Password1234!", persistedUser.PasswordHash));
+
+        var tokens = await DbContextForAssert.RefreshTokens
+            .Where(x => x.UserId == user.Id)
+            .OrderBy(x => x.TokenHash)
+            .ToListAsync();
+        Assert.Equal(2, tokens.Count);
+        Assert.All(tokens, token => Assert.NotNull(token.RevokedAtUtc));
+        Assert.Contains(tokens, token => token.TokenHash == HashToken("already-revoked-token") && token.RevokedAtUtc == previouslyRevokedAtUtc);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_WhenTokenMissing_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.RefreshAsync(refreshToken: null);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(401, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_WhenTokenValid_ShouldRotateRefreshToken()
+    {
+        // Arrange
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        const string oldRefreshToken = "refresh-token-1";
+        var oldRefreshTokenHash = HashToken(oldRefreshToken);
+        var now = DateTime.UtcNow;
+        DbContextForArrange.RefreshTokens.Add(new EntityRefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = oldRefreshTokenHash,
+            CreatedAtUtc = now.AddHours(-1),
+            ExpiresAtUtc = now.AddDays(1)
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.RefreshAsync(oldRefreshToken);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.NotEqual(oldRefreshToken, result.Data!.RefreshToken);
+
+        var tokens = await DbContextForAssert.RefreshTokens
+            .Where(x => x.UserId == user.Id)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+        Assert.Equal(2, tokens.Count);
+
+        var previousToken = tokens.Single(x => x.TokenHash == oldRefreshTokenHash);
+        var replacementToken = tokens.Single(x => x.TokenHash == HashToken(result.Data.RefreshToken));
+
+        Assert.NotNull(previousToken.RevokedAtUtc);
+        Assert.Equal(HashToken(result.Data.RefreshToken), previousToken.ReplacedByTokenHash);
+        Assert.Null(replacementToken.RevokedAtUtc);
+    }
+
     private async Task RemoveAllUsersAsync()
     {
         DbContextForArrange.Users.RemoveRange(DbContextForArrange.Users);
         await DbContextForArrange.SaveChangesAsync();
     }
+
+    private async Task<EntityUser> SeedActiveUserAsync(
+        string userName,
+        string password,
+        UserRole role = UserRole.Admin,
+        UserIdentityType identityType = UserIdentityType.User)
+    {
+        await RemoveAllUsersAsync();
+        var now = DateTime.UtcNow;
+        var passwordHashService = ResolveService<IPasswordHashService>();
+        var user = new EntityUser
+        {
+            UserName = userName,
+            Email = $"{userName}@localhost",
+            NormalisedEmail = $"{userName}@localhost",
+            PasswordHash = passwordHashService.HashPassword(password),
+            Role = role,
+            IdentityType = identityType,
+            IsActive = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.Users.Add(user);
+        await DbContextForArrange.SaveChangesAsync();
+        return user;
+    }
+
+    private static string HashToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
     private sealed class TestAccessTokenIssuer : IAccessTokenIssuer
     {
