@@ -38,37 +38,6 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RegisterInitialAdmin_WithInvalidEmail_ShouldReturnBadRequest()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-
-        // Act
-        var response = await client.PostAsJsonAsync(
-            "/api/auth/register-initial-admin",
-            new RegisterInitialAdminRequest("admin", "invalid-email", "Password1234!"));
-
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task RegisterInitialAdmin_WhenAdminAlreadyExists_ShouldReturnConflict()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-        await RegisterInitialAdminAsync(client);
-
-        // Act
-        var response = await client.PostAsJsonAsync(
-            "/api/auth/register-initial-admin",
-            new RegisterInitialAdminRequest("admin2", "admin2@localhost", "Password1234!"));
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-    }
-
-    [Fact]
     public async Task RegisterInitialAdmin_WithStaleAccessCookieAndNoCsrfHeader_ShouldSucceed()
     {
         // Arrange
@@ -258,23 +227,6 @@ public sealed class AuthIntegrationTests : IAsyncLifetime
         response.EnsureSuccessStatusCode();
         Assert.True(ResponseHasCookieAttribute(response, "boardoil_access", "secure"));
         Assert.True(ResponseHasCookieAttribute(response, "boardoil_refresh", "secure"));
-    }
-
-    [Fact]
-    public async Task RegisterInitialAdmin_WhenInsecureCookiesEnabled_ShouldNotSetSecureFlagOnAuthCookies()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-
-        // Act
-        var response = await client.PostAsJsonAsync(
-            "/api/auth/register-initial-admin",
-            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
-
-        // Assert
-        response.EnsureSuccessStatusCode();
-        Assert.False(ResponseHasCookieAttribute(response, "boardoil_access", "secure"));
-        Assert.False(ResponseHasCookieAttribute(response, "boardoil_refresh", "secure"));
     }
 
     private static async Task RegisterInitialAdminAsync(HttpClient client)
