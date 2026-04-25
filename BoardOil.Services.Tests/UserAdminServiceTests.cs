@@ -148,6 +148,58 @@ public sealed class UserAdminServiceTests : TestBaseDb
         Assert.All(tokens, token => Assert.NotNull(token.RevokedAtUtc));
     }
 
+    [Fact]
+    public async Task DeleteUserAsync_WhenDeletingSelf_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var service = ResolveService<IUserAdminService>();
+
+        // Act
+        var result = await service.DeleteUserAsync(ActorUserId, ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Cannot delete your own account.", result.Message);
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_WhenDeletingLastActiveAdmin_ShouldReturnBadRequest()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var targetAdmin = await AddUserAsync("target-admin", "target-admin@localhost", "Password1234!", UserRole.Admin, isActive: true);
+        var service = ResolveService<IUserAdminService>();
+
+        // Act
+        var result = await service.DeleteUserAsync(targetAdmin.Id, actorUserId: -1);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Cannot delete the last active admin.", result.Message);
+        Assert.Equal(1, await DbContextForAssert.Users.CountAsync());
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_WhenAnotherActiveAdminExists_ShouldDeleteUser()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var targetAdmin = await AddUserAsync("target-admin", "target-admin@localhost", "Password1234!", UserRole.Admin, isActive: true);
+        var actorAdmin = await AddUserAsync("actor-admin", "actor-admin@localhost", "Password1234!", UserRole.Admin, isActive: true);
+        var service = ResolveService<IUserAdminService>();
+
+        // Act
+        var result = await service.DeleteUserAsync(targetAdmin.Id, actorAdmin.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Null(await DbContextForAssert.Users.SingleOrDefaultAsync(x => x.Id == targetAdmin.Id));
+        Assert.NotNull(await DbContextForAssert.Users.SingleOrDefaultAsync(x => x.Id == actorAdmin.Id));
+    }
+
     private async Task RemoveAllUsersAsync()
     {
         DbContextForArrange.Users.RemoveRange(DbContextForArrange.Users);

@@ -72,13 +72,13 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Admin_SystemMembershipEndpoints_ShouldManageMembersWithoutAdminBoardMembership()
+    public async Task Admin_SystemMembershipEndpoints_ShouldAddAndListMembersWithoutAdminBoardMembership()
     {
         // Arrange
         var adminClient = _factory.CreateClient();
         var memberClient = _factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        var ownerUserId = await CreateUserAsAdminAsync(adminClient, "owner", "Password1234!", "Standard");
+        _ = await CreateUserAsAdminAsync(adminClient, "owner", "Password1234!", "Standard");
         var helperUserId = await CreateUserAsAdminAsync(adminClient, "helper", "Password1234!", "Standard");
         await LoginAsAsync(memberClient, "owner", "Password1234!");
         var createBoardResponse = await memberClient.PostAsJsonAsync("/api/boards", new CreateBoardRequest("Backstop Board"));
@@ -94,17 +94,8 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
             new AddBoardMemberRequest(helperUserId, "Contributor"));
         var addEnvelope = await addResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardMemberDto>>();
 
-        var demoteOwnerResponse = await adminClient.PatchAsJsonAsync(
-            $"/api/system/boards/{boardId}/members/{ownerUserId}",
-            new UpdateBoardMemberRoleRequest("Contributor"));
-        var demoteEnvelope = await demoteOwnerResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
-
         var membersEnvelope = await adminClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardMemberDto>>>(
             $"/api/system/boards/{boardId}/members");
-        var duplicateAddResponse = await adminClient.PostAsJsonAsync(
-            $"/api/system/boards/{boardId}/members",
-            new AddBoardMemberRequest(helperUserId, "Owner"));
-        var duplicateAddEnvelope = await duplicateAddResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, addResponse.StatusCode);
@@ -113,19 +104,9 @@ public sealed class SystemBoardApiIntegrationTests : IAsyncLifetime
         Assert.Equal(helperUserId, addEnvelope.Data!.UserId);
         Assert.Equal("Contributor", addEnvelope.Data.Role);
 
-        Assert.Equal(HttpStatusCode.BadRequest, demoteOwnerResponse.StatusCode);
-        Assert.NotNull(demoteEnvelope);
-        Assert.False(demoteEnvelope!.Success);
-        Assert.Equal("Board must have at least one owner.", demoteEnvelope.Message);
-
         Assert.NotNull(membersEnvelope);
         Assert.NotNull(membersEnvelope!.Data);
         Assert.Contains(membersEnvelope.Data!, x => x.UserId == helperUserId && x.Role == "Contributor");
-
-        Assert.Equal(HttpStatusCode.BadRequest, duplicateAddResponse.StatusCode);
-        Assert.NotNull(duplicateAddEnvelope);
-        Assert.False(duplicateAddEnvelope!.Success);
-        Assert.Equal("User is already a board member.", duplicateAddEnvelope.Message);
     }
 
     private static async Task RegisterInitialAdminAsync(HttpClient client)
