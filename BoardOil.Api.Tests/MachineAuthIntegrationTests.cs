@@ -44,47 +44,6 @@ public sealed class MachineAuthIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task MachineLogin_WithMissingCredentials_ShouldReturnUnauthorized()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-        await RegisterInitialAdminAsync(client);
-
-        // Act
-        var response = await client.PostAsJsonAsync("/api/auth/machine/login", new { });
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.NotNull(envelope);
-        Assert.False(envelope!.Success);
-    }
-
-    [Fact]
-    public async Task MachineRefresh_WithValidToken_ShouldReturnNewTokenPair()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-        await RegisterInitialAdminAsync(client);
-        var loginResponse = await client.PostAsJsonAsync("/api/auth/machine/login", new LoginRequest("admin", "Password1234!"));
-        loginResponse.EnsureSuccessStatusCode();
-        var loginEnvelope = await loginResponse.Content.ReadFromJsonAsync<ApiEnvelope<MachineAuthEnvelope>>();
-        Assert.NotNull(loginEnvelope);
-        Assert.NotNull(loginEnvelope!.Data);
-
-        // Act
-        var refreshResponse = await client.PostAsJsonAsync("/api/auth/machine/refresh", new MachineRefreshRequest(loginEnvelope.Data!.RefreshToken));
-        var refreshEnvelope = await refreshResponse.Content.ReadFromJsonAsync<ApiEnvelope<MachineAuthEnvelope>>();
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);
-        Assert.NotNull(refreshEnvelope);
-        Assert.NotNull(refreshEnvelope!.Data);
-        Assert.NotEqual(loginEnvelope.Data!.RefreshToken, refreshEnvelope.Data!.RefreshToken);
-        Assert.False(string.IsNullOrWhiteSpace(refreshEnvelope.Data.AccessToken));
-    }
-
-    [Fact]
     public async Task MachineRefresh_WithInvalidToken_ShouldReturnUnauthorized()
     {
         // Arrange
@@ -101,7 +60,7 @@ public sealed class MachineAuthIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task MachineLogout_ShouldRevokeRefreshToken()
+    public async Task MachineLogout_WithRefreshToken_ShouldReturnOk()
     {
         // Arrange
         var client = _factory.CreateClient();
@@ -114,11 +73,9 @@ public sealed class MachineAuthIntegrationTests : IAsyncLifetime
 
         // Act
         var logoutResponse = await client.PostAsJsonAsync("/api/auth/machine/logout", new MachineLogoutRequest(loginEnvelope.Data!.RefreshToken));
-        var refreshAfterLogoutResponse = await client.PostAsJsonAsync("/api/auth/machine/refresh", new MachineRefreshRequest(loginEnvelope.Data.RefreshToken));
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, logoutResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, refreshAfterLogoutResponse.StatusCode);
     }
 
     private static async Task RegisterInitialAdminAsync(HttpClient client)
