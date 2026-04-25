@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
-using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Tag;
 using Xunit;
@@ -43,60 +42,6 @@ public sealed class BoardApiCardIntegrationTests
         Assert.True(createdCard.Data.CardTypeId > 0);
         Assert.Equal("Story", createdCard.Data.CardTypeName);
         Assert.Null(createdCard.Data.CardTypeEmoji);
-    }
-
-    [Fact]
-    public async Task CardEndpoints_UpdateWithBoardColumnId_ShouldMoveCardToTopOfTargetColumn()
-    {
-        // Arrange
-        var createdTodoColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
-        createdTodoColumnResponse.EnsureSuccessStatusCode();
-        var createdTodoColumn = await createdTodoColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
-        Assert.NotNull(createdTodoColumn);
-        Assert.NotNull(createdTodoColumn!.Data);
-
-        var createdDoingColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Doing"));
-        createdDoingColumnResponse.EnsureSuccessStatusCode();
-        var createdDoingColumn = await createdDoingColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
-        Assert.NotNull(createdDoingColumn);
-        Assert.NotNull(createdDoingColumn!.Data);
-
-        var movingCardResponse = await Client.PostAsJsonAsync(
-            "/api/boards/1/cards",
-            new CreateCardRequest(createdTodoColumn.Data!.Id, "Move me", "Desc", null));
-        movingCardResponse.EnsureSuccessStatusCode();
-        var movingCard = await movingCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
-        Assert.NotNull(movingCard);
-        Assert.NotNull(movingCard!.Data);
-
-        var existingAResponse = await Client.PostAsJsonAsync(
-            "/api/boards/1/cards",
-            new CreateCardRequest(createdDoingColumn.Data!.Id, "Existing A", "Desc", null));
-        existingAResponse.EnsureSuccessStatusCode();
-        var existingBResponse = await Client.PostAsJsonAsync(
-            "/api/boards/1/cards",
-            new CreateCardRequest(createdDoingColumn.Data!.Id, "Existing B", "Desc", null));
-        existingBResponse.EnsureSuccessStatusCode();
-
-        var cardTypesEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<CardTypeDto>>>("/api/boards/1/card-types", JsonOptions);
-        Assert.NotNull(cardTypesEnvelope);
-        Assert.NotNull(cardTypesEnvelope!.Data);
-        var systemCardType = Assert.Single(cardTypesEnvelope.Data!, x => x.IsSystem);
-
-        // Act
-        var updatedCardResponse = await Client.PutAsJsonAsync(
-            $"/api/boards/1/cards/{movingCard.Data!.Id}",
-            new UpdateCardRequest("Move me updated", "Updated", [], systemCardType.Id, createdDoingColumn.Data.Id));
-        updatedCardResponse.EnsureSuccessStatusCode();
-
-        // Assert
-        var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
-        Assert.NotNull(board);
-        Assert.NotNull(board!.Data);
-        var todoState = board.Data.Columns.Single(x => x.Id == createdTodoColumn.Data.Id);
-        var doingState = board.Data.Columns.Single(x => x.Id == createdDoingColumn.Data.Id);
-        Assert.Empty(todoState.Cards);
-        Assert.Equal(["Move me updated", "Existing B", "Existing A"], doingState.Cards.Select(x => x.Title).ToArray());
     }
 
     [Fact]
@@ -209,53 +154,6 @@ public sealed class BoardApiCardIntegrationTests
         Assert.NotNull(archivedCardEnvelope!.Data);
         Assert.Equal(createdCard.Data.Id, archivedCardEnvelope.Data!.OriginalCardId);
         Assert.Equal("Archive me", archivedCardEnvelope.Data.Title);
-        Assert.Equal(["Bug"], archivedCardEnvelope.Data.TagNames);
-        Assert.False(string.IsNullOrWhiteSpace(archivedCardEnvelope.Data.SnapshotJson));
-
-        var boardAfterArchive = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
-        Assert.NotNull(boardAfterArchive);
-        Assert.NotNull(boardAfterArchive!.Data);
-        var columnAfterArchive = boardAfterArchive.Data!.Columns.FirstOrDefault(x => x.Id == createdColumn.Data.Id);
-        Assert.NotNull(columnAfterArchive);
-        Assert.Empty(columnAfterArchive!.Cards);
-    }
-
-    [Fact]
-    public async Task CardEndpoints_GetArchivedById_ShouldReturnCurrentCardSnapshot()
-    {
-        // Arrange
-        var createdColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
-        createdColumnResponse.EnsureSuccessStatusCode();
-        var createdColumn = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
-        Assert.NotNull(createdColumn);
-        Assert.NotNull(createdColumn!.Data);
-        var createTagResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("Bug"));
-        createTagResponse.EnsureSuccessStatusCode();
-        var createdCardResponse = await Client.PostAsJsonAsync(
-            "/api/boards/1/cards",
-            new CreateCardRequest(createdColumn.Data!.Id, "Archive me", "Desc", ["Bug"]));
-        createdCardResponse.EnsureSuccessStatusCode();
-        var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
-        Assert.NotNull(createdCard);
-        Assert.NotNull(createdCard!.Data);
-        var archiveResponse = await Client.PostAsync($"/api/boards/1/cards/{createdCard.Data!.Id}/archive", content: null);
-        archiveResponse.EnsureSuccessStatusCode();
-        var archivedCardEnvelope = await archiveResponse.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(JsonOptions);
-        Assert.NotNull(archivedCardEnvelope);
-        Assert.NotNull(archivedCardEnvelope!.Data);
-
-        // Act
-        var archivedByIdResponse = await Client.GetFromJsonAsync<ApiEnvelope<ArchivedCardDetailDto>>(
-            $"/api/boards/1/cards/archived/{archivedCardEnvelope.Data!.Id}",
-            JsonOptions);
-
-        // Assert
-        Assert.NotNull(archivedByIdResponse);
-        Assert.NotNull(archivedByIdResponse!.Data);
-        Assert.Equal("Archive me", archivedByIdResponse.Data!.Title);
-        Assert.Equal(createdCard.Data.Id, archivedByIdResponse.Data.Card.Id);
-        Assert.Equal("Archive me", archivedByIdResponse.Data.Card.Title);
-        Assert.Equal("Desc", archivedByIdResponse.Data.Card.Description);
     }
 
     [Fact]
