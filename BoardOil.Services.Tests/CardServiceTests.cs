@@ -337,6 +337,48 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task UpdateCardAsync_WhenAssignedUserIsNotActiveBoardMember_ShouldReturnValidationError()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Title", "Old")
+            .Build();
+        var cardId = board.GetCard("Todo", "Title").Id;
+        var now = DateTime.UtcNow;
+        var outsiderUserName = $"outsider-{Guid.NewGuid():N}";
+        var outsiderEmail = $"{outsiderUserName}@localhost";
+        var outsider = new UserEntity
+        {
+            UserName = outsiderUserName,
+            Email = outsiderEmail,
+            NormalisedEmail = outsiderEmail,
+            PasswordHash = "hash",
+            IsActive = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        DbContextForArrange.Users.Add(outsider);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateCardAsync(
+            board.BoardId,
+            cardId,
+            new UpdateCardRequest("Title", "Old", [], systemCardTypeId, null, outsider.Id),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.Contains("assignedUserId", result.ValidationErrors!.Keys);
+    }
+
+    [Fact]
     public async Task UpdateCardAsync_WhenTagNamesProvided_ShouldReplaceAssignedTags()
     {
         // Arrange
