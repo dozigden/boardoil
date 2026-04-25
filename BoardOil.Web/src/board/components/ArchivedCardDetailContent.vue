@@ -41,6 +41,11 @@
       </div>
 
       <div class="card-editor-option-section">
+        <span class="card-editor-field-label">Assigned to</span>
+        <span class="archived-card-assignee">{{ assignedUserLabel }}</span>
+      </div>
+
+      <div class="card-editor-option-section">
         <span class="card-editor-field-label">Archived</span>
         <span>{{ formatDateTime(archivedCard.archivedAtUtc) }}</span>
       </div>
@@ -83,6 +88,20 @@ const columnLabel = computed(() => {
   }
 
   return `#${card.value.boardColumnId}`;
+});
+
+const assignedUserLabel = computed(() => {
+  const value = card.value;
+  const name = value.assignedUserName?.trim();
+  if (name && name.length > 0) {
+    return name;
+  }
+
+  if (value.assignedUserId !== null && value.assignedUserId !== undefined) {
+    return `User #${value.assignedUserId}`;
+  }
+
+  return 'Unassigned';
 });
 
 const descriptionForDisplay = computed(() => {
@@ -188,6 +207,10 @@ function formatDateTime(value: string) {
 
 .archived-card-tags-empty {
   color: var(--bo-ink-subtle);
+}
+
+.archived-card-assignee {
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 900px) {

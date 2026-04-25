@@ -220,6 +220,8 @@ describe('boardApi archived cards', () => {
           cardTypeId: 1,
           cardTypeName: 'Story',
           cardTypeEmoji: '📌',
+          assignedUserId: 17,
+          assignedUserName: 'alex',
           title: 'Archived card',
           description: 'Snapshot description',
           sortKey: 'A',
