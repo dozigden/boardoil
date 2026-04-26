@@ -14,9 +14,12 @@ public static class McpApplicationExtensions
 
     public static WebApplication MapBoardOilMcp(this WebApplication app)
     {
+        var mcpOptions = app.Services.GetRequiredService<BoardOilMcpOptions>();
+
         app.Use(async (context, next) =>
         {
-            if (context.Request.Path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase))
+            if (mcpOptions.AuthMode is McpAuthMode.Pat
+                && IsMcpAuthRequiredPath(context.Request.Path, mcpOptions))
             {
                 var authHeader = context.Request.Headers.Authorization.ToString();
                 if (string.IsNullOrWhiteSpace(authHeader)
@@ -37,7 +40,7 @@ public static class McpApplicationExtensions
 
         app.Use(async (context, next) =>
         {
-            if (IsUnsupportedMcpStylePath(context.Request.Path))
+            if (IsUnsupportedMcpStylePath(context.Request.Path, mcpOptions))
             {
                 var configurationService = context.RequestServices.GetRequiredService<IConfigurationService>();
                 var errorFactory = context.RequestServices.GetRequiredService<IMcpErrorResponseFactory>();
@@ -50,17 +53,31 @@ public static class McpApplicationExtensions
             await next();
         });
 
-        app.MapMcp("/mcp")
-            .RequireAuthorization(BoardOilPolicies.McpAuthenticated);
+        var mcpEndpoint = app.MapMcp("/mcp");
+        if (mcpOptions.AuthMode is McpAuthMode.Pat)
+        {
+            mcpEndpoint.RequireAuthorization(BoardOilPolicies.McpAuthenticated);
+        }
 
         app.MapGet("/.well-known/mcp", async (IConfigurationService configurationService) =>
-            Results.Json(McpDiscoveryMetadata.CreateWellKnownDocument(await configurationService.GetMcpPublicBaseUrlAsync())));
+            Results.Json(McpDiscoveryMetadata.CreateWellKnownDocument(
+                await configurationService.GetMcpPublicBaseUrlAsync(),
+                mcpOptions)));
 
         return app;
     }
 
-    private static bool IsUnsupportedMcpStylePath(PathString path) =>
-        path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase)
+    private static bool IsUnsupportedMcpStylePath(PathString path, BoardOilMcpOptions mcpOptions) =>
+        (!mcpOptions.SupportsLegacySseTransport
+            && path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase))
+        || (!mcpOptions.SupportsLegacySseTransport
+            && path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase))
         || path.StartsWithSegments("/v1/mcp", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsMcpAuthRequiredPath(PathString path, BoardOilMcpOptions mcpOptions) =>
+        path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase)
+        || (mcpOptions.SupportsLegacySseTransport
+            && path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase))
+        || (mcpOptions.SupportsLegacySseTransport
+            && path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase));
 }
