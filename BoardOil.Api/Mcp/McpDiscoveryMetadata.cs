@@ -10,6 +10,7 @@ public static class McpDiscoveryMetadata
             protocol = "mcp-http",
             auth = CreateAuthMetadata(mcpPublicBaseUrl),
             setup = CreateSetupMetadata(mcpPublicBaseUrl),
+            profile = CreateProfileMetadata(),
             examples = CreateExamples(mcpPublicBaseUrl)
         };
 
@@ -29,7 +30,17 @@ public static class McpDiscoveryMetadata
         {
             preferredAuth = "personal_access_token",
             patManagementUi = ResolveUrl("/access-tokens", mcpPublicBaseUrl),
+            recommendedFirstCallSequence = CreateRecommendedFirstCallSequence(),
             examples = CreateExamples(mcpPublicBaseUrl)
+        };
+
+    public static object CreateProfileMetadata() =>
+        new
+        {
+            mode = "tool-first",
+            promptsList = "supported-empty-list",
+            resourcesList = "supported-empty-list",
+            note = "Use tools/list then board.list to discover board ids before board.get and card operations."
         };
 
     public static object CreateExamples(string? mcpPublicBaseUrl) =>
@@ -59,8 +70,53 @@ public static class McpDiscoveryMetadata
                     id = "tools-list",
                     method = "tools/list"
                 }
+            },
+            boardListRequest = new
+            {
+                method = "POST",
+                url = GetMcpEndpoint(mcpPublicBaseUrl),
+                headers = new
+                {
+                    Authorization = "Bearer <YOUR_PAT>",
+                    contentType = "application/json"
+                },
+                body = new
+                {
+                    jsonrpc = "2.0",
+                    id = "board-list",
+                    method = "tools/call",
+                    @params = new
+                    {
+                        name = "board.list",
+                        arguments = new { }
+                    }
+                }
             }
         };
+
+    public static object[] CreateRecommendedFirstCallSequence() =>
+    [
+        new
+        {
+            step = 1,
+            method = "tools/list",
+            purpose = "Discover available tools and argument schemas."
+        },
+        new
+        {
+            step = 2,
+            method = "tools/call",
+            tool = "board.list",
+            purpose = "Discover accessible board ids."
+        },
+        new
+        {
+            step = 3,
+            method = "tools/call",
+            tool = "board.get",
+            purpose = "Fetch board snapshot, then use columns/card tools."
+        }
+    ];
 
     public static string GetMcpEndpoint(string? mcpPublicBaseUrl) =>
         ResolveUrl("/mcp", mcpPublicBaseUrl);

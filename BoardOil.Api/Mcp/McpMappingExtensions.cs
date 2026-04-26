@@ -7,6 +7,15 @@ namespace BoardOil.Api.Mcp;
 
 public static class McpMappingExtensions
 {
+    public static McpBoardSummary ToMcp(this BoardSummaryDto board) =>
+        new(
+            board.Id,
+            board.Name,
+            board.Description,
+            board.CreatedAtUtc,
+            board.UpdatedAtUtc,
+            board.CurrentUserRole);
+
     public static McpBoardSnapshot ToMcp(this BoardDto board) =>
         new(
             board.Id,

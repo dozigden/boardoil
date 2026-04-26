@@ -98,6 +98,73 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
     }
 
     [Fact]
+    public async Task BoardList_WithReadScopePat_ShouldReturnAccessibleBoards()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client, ["mcp:read"]);
+
+        // Act
+        var boardListResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.list",
+                arguments = new { }
+            },
+            "board-list-success",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, boardListResponse.StatusCode);
+        using var boardListPayload = await McpJsonRpcClient.ParseJsonAsync(boardListResponse);
+
+        // Assert
+        var boards = McpJsonRpcClient.GetStructuredContent(boardListPayload)
+            .GetProperty("boards")
+            .EnumerateArray()
+            .ToArray();
+        Assert.NotEmpty(boards);
+
+        var board = boards[0];
+        Assert.True(board.TryGetProperty("id", out _));
+        Assert.True(board.TryGetProperty("name", out _));
+        Assert.True(board.TryGetProperty("description", out _));
+        Assert.True(board.TryGetProperty("createdAtUtc", out _));
+        Assert.True(board.TryGetProperty("updatedAtUtc", out _));
+    }
+
+    [Fact]
+    public async Task BoardList_WithWriteOnlyPat_ShouldReturnForbiddenError()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client, ["mcp:write"]);
+
+        // Act
+        var boardListResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.list",
+                arguments = new { }
+            },
+            "board-list-forbidden",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, boardListResponse.StatusCode);
+        using var boardListPayload = await McpJsonRpcClient.ParseJsonAsync(boardListResponse);
+
+        // Assert
+        var result = boardListPayload.RootElement.GetProperty("result");
+        Assert.True(result.GetProperty("isError").GetBoolean());
+        var structuredContent = result.GetProperty("structuredContent");
+        Assert.Equal("forbidden", structuredContent.GetProperty("code").GetString());
+        Assert.Equal(403, structuredContent.GetProperty("statusCode").GetInt32());
+    }
+
+    [Fact]
     public async Task BoardGet_ShouldExcludeDescriptions_ButCardGetReturnsFullDetails()
     {
         // Arrange
