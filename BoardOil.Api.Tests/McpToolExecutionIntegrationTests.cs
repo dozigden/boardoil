@@ -80,9 +80,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             .EnumerateArray()
             .Select(tool => tool.GetProperty("name").GetString())
             .ToArray();
-        Assert.Contains("board.get", toolNames);
-        Assert.Contains("card.get", toolNames);
-        Assert.Contains("card.create", toolNames);
+        Assert.Contains("board_get", toolNames);
+        Assert.Contains("card_get", toolNames);
+        Assert.Contains("card_create", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
 
         var cards = McpJsonRpcClient.GetStructuredContent(verifyPayload)

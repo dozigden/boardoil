@@ -14,7 +14,7 @@ public sealed class McpToolRegistry
         using var scope = serviceProvider.CreateScope();
         var tools = scope.ServiceProvider.GetServices<IMcpTool>().ToArray();
 
-        _byName = tools
+        var canonicalByName = tools
             .GroupBy(tool => tool.Definition.Name, StringComparer.Ordinal)
             .ToDictionary(
                 group => group.Key,
@@ -30,7 +30,21 @@ public sealed class McpToolRegistry
                 },
                 StringComparer.Ordinal);
 
-        _definitions = _byName.Values
+        var byName = new Dictionary<string, McpToolRegistration>(canonicalByName, StringComparer.Ordinal);
+        foreach (var pair in canonicalByName)
+        {
+            var legacyAlias = pair.Key.Replace("_", ".", StringComparison.Ordinal);
+            if (string.Equals(legacyAlias, pair.Key, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            byName.TryAdd(legacyAlias, pair.Value);
+        }
+
+        _byName = byName;
+
+        _definitions = canonicalByName.Values
             .Select(registration => registration.Definition)
             .OrderBy(definition => definition.Name, StringComparer.Ordinal)
             .ToArray();

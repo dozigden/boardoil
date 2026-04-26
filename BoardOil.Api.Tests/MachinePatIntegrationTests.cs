@@ -46,9 +46,9 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
             .EnumerateArray()
             .Select(tool => tool.GetProperty("name").GetString())
             .ToArray();
-        Assert.Contains("board.get", toolNames);
-        Assert.Contains("card.get", toolNames);
-        Assert.Contains("card.create", toolNames);
+        Assert.Contains("board_get", toolNames);
+        Assert.Contains("card_get", toolNames);
+        Assert.Contains("card_create", toolNames);
     }
 
     [Fact]
