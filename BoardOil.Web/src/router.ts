@@ -64,12 +64,12 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/boards/:boardId(\\d+)/admin',
-    name: 'board-admin',
     component: () => import('./board/views/BoardAdminView.vue'),
     meta: { requiresAuth: true, layout: APP_LAYOUT_ADMIN },
     children: [
       {
         path: '',
+        name: 'board-admin',
         redirect: to => ({ name: 'board-details', params: { boardId: to.params.boardId } })
       },
       {
