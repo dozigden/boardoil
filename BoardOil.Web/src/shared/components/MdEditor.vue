@@ -75,7 +75,9 @@ const tiptapEditor = useEditor({
   content: '',
   contentType: 'markdown',
   extensions: [
-    StarterKit,
+    StarterKit.configure({
+      link: false
+    }),
     Link.configure({
       openOnClick: false,
       enableClickSelection: true,
