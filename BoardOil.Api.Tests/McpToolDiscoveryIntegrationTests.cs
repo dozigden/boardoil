@@ -26,6 +26,19 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal("Bearer", payload.RootElement.GetProperty("auth").GetProperty("scheme").GetString());
         Assert.Equal("personal_access_token", payload.RootElement.GetProperty("setup").GetProperty("preferredAuth").GetString());
         Assert.Equal("/access-tokens", payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
+        Assert.Equal("tools/list", payload.RootElement
+            .GetProperty("setup")
+            .GetProperty("recommendedFirstCallSequence")[0]
+            .GetProperty("method")
+            .GetString());
+        Assert.Equal("board.list", payload.RootElement
+            .GetProperty("setup")
+            .GetProperty("recommendedFirstCallSequence")[1]
+            .GetProperty("tool")
+            .GetString());
+        Assert.Equal("tool-first", payload.RootElement.GetProperty("profile").GetProperty("mode").GetString());
+        Assert.Equal("supported-empty-list", payload.RootElement.GetProperty("profile").GetProperty("promptsList").GetString());
+        Assert.Equal("supported-empty-list", payload.RootElement.GetProperty("profile").GetProperty("resourcesList").GetString());
         Assert.Equal("/mcp", payload.RootElement
             .GetProperty("setup")
             .GetProperty("examples")
@@ -87,6 +100,19 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .GetProperty("toolsListRequest")
             .GetProperty("method")
             .GetString());
+        Assert.Equal("tools/call", payload.RootElement
+            .GetProperty("examples")
+            .GetProperty("boardListRequest")
+            .GetProperty("body")
+            .GetProperty("method")
+            .GetString());
+        Assert.Equal("board.list", payload.RootElement
+            .GetProperty("examples")
+            .GetProperty("boardListRequest")
+            .GetProperty("body")
+            .GetProperty("params")
+            .GetProperty("name")
+            .GetString());
     }
 
     [Fact]
@@ -109,7 +135,12 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .EnumerateArray()
             .Select(tool => tool.GetProperty("name").GetString())
             .ToArray();
+        Assert.Contains("board.list", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
+
+        var boardListTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "board.list");
+        Assert.True(boardListTool.GetProperty("inputSchema").TryGetProperty("properties", out var boardListProperties));
+        Assert.Empty(boardListProperties.EnumerateObject());
 
         var boardGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "board.get");
         var boardGetProperties = boardGetTool.GetProperty("inputSchema").GetProperty("properties");

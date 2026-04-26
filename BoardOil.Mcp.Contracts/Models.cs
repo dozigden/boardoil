@@ -26,6 +26,14 @@ public sealed record McpBoardSnapshot(
     DateTime UpdatedAtUtc,
     IReadOnlyList<McpColumnSnapshot> Columns);
 
+public sealed record McpBoardSummary(
+    int Id,
+    string Name,
+    string Description,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc,
+    string? CurrentUserRole);
+
 public sealed record McpColumnSnapshot(
     int Id,
     string Title,
@@ -72,6 +80,11 @@ public sealed record BoardGetInput
 {
     public int? Id { get; init; }
 }
+
+public sealed record BoardListInput;
+
+public sealed record BoardListOutput(
+    IReadOnlyList<McpBoardSummary> Boards);
 
 public sealed record CardGetInput
 {

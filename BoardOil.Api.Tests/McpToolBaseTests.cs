@@ -148,6 +148,8 @@ public sealed class McpToolBaseTests
     {
         public PatAccessContext? GetPatAccessContext(ClaimsPrincipal? claimsPrincipal) => null;
 
+        public McpToolError? EnsurePatScopeAccess(PatAccessContext? patAccessContext, string requiredScope) => null;
+
         public McpToolError? EnsurePatToolAccess(PatAccessContext? patAccessContext, string requiredScope, int boardId) => null;
     }
 

@@ -30,6 +30,11 @@ public sealed class McpAuthorisationService : IMcpAuthorisationService
 
     public McpToolError? EnsurePatToolAccess(PatAccessContext? patAccessContext, string requiredScope, int boardId)
     {
+        return EnsurePatScopeAccess(patAccessContext, requiredScope);
+    }
+
+    public McpToolError? EnsurePatScopeAccess(PatAccessContext? patAccessContext, string requiredScope)
+    {
         if (patAccessContext is null)
         {
             return null;

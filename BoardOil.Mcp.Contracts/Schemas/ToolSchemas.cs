@@ -2,6 +2,14 @@ namespace BoardOil.Mcp.Contracts.Schemas;
 
 public static class ToolSchemas
 {
+    public const string BoardListInput = """
+    {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+    """;
+
     public const string BoardGetInput = """
     {
       "type": "object",

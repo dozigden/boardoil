@@ -1,3 +1,5 @@
+using ModelContextProtocol.Protocol;
+
 namespace BoardOil.Api.Mcp;
 
 public static class McpServiceCollectionExtensions
@@ -10,6 +12,7 @@ public static class McpServiceCollectionExtensions
         services.AddSingleton<IMcpAuthorisationService, McpAuthorisationService>();
         services.AddSingleton<IMcpErrorResponseFactory, McpErrorResponseFactory>();
 
+        RegisterTool<BoardListTool>(services);
         RegisterTool<BoardGetTool>(services);
         RegisterTool<ColumnsListTool>(services);
         RegisterTool<CardGetTool>(services);
@@ -42,6 +45,22 @@ public static class McpServiceCollectionExtensions
                     .ServiceProvider
                     .GetRequiredService<McpToolDispatcher>()
                     .ListToolsAsync(request, cancellationToken))
+            .WithListPromptsHandler((_, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return ValueTask.FromResult(new ListPromptsResult
+                {
+                    Prompts = []
+                });
+            })
+            .WithListResourcesHandler((_, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return ValueTask.FromResult(new ListResourcesResult
+                {
+                    Resources = []
+                });
+            })
             .WithCallToolHandler((request, cancellationToken) =>
                 mcpServiceProviderAccessor
                     .ServiceProvider

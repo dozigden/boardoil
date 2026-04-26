@@ -2,6 +2,7 @@ namespace BoardOil.Mcp.Contracts;
 
 public static class ToolNames
 {
+    public const string BoardList = "board.list";
     public const string BoardGet = "board.get";
     public const string CardGet = "card.get";
     public const string ColumnsList = "columns.list";
