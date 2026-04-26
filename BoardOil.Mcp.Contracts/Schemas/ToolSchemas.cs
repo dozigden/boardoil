@@ -47,8 +47,7 @@ public static class ToolSchemas
         "description": { "type": "string", "maxLength": 20000 },
         "tagNames": {
           "type": ["array", "null"],
-          "items": { "type": "string", "minLength": 1, "maxLength": 80 },
-          "maxItems": 20
+          "items": { "type": "string", "minLength": 1, "maxLength": 80 }
         }
       },
       "required": ["boardId", "columnId", "title", "description"],
@@ -69,8 +68,7 @@ public static class ToolSchemas
         "description": { "type": "string", "maxLength": 20000 },
         "tagNames": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1, "maxLength": 80 },
-          "maxItems": 20
+          "items": { "type": "string", "minLength": 1, "maxLength": 80 }
         }
       },
       "required": ["boardId", "id", "cardTypeId", "title", "description", "tagNames"],
