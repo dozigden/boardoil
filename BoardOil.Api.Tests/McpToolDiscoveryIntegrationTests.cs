@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
+using BoardOil.Mcp.Contracts;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -31,7 +32,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .GetProperty("recommendedFirstCallSequence")[0]
             .GetProperty("method")
             .GetString());
-        Assert.Equal("board.list", payload.RootElement
+        Assert.Equal(ToolNames.BoardList, payload.RootElement
             .GetProperty("setup")
             .GetProperty("recommendedFirstCallSequence")[1]
             .GetProperty("tool")
@@ -106,7 +107,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .GetProperty("body")
             .GetProperty("method")
             .GetString());
-        Assert.Equal("board.list", payload.RootElement
+        Assert.Equal(ToolNames.BoardList, payload.RootElement
             .GetProperty("examples")
             .GetProperty("boardListRequest")
             .GetProperty("body")
@@ -135,19 +136,19 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .EnumerateArray()
             .Select(tool => tool.GetProperty("name").GetString())
             .ToArray();
-        Assert.Contains("board.list", toolNames);
+        Assert.Contains(ToolNames.BoardList, toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
 
-        var boardListTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "board.list");
+        var boardListTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.BoardList);
         Assert.True(boardListTool.GetProperty("inputSchema").TryGetProperty("properties", out var boardListProperties));
         Assert.Empty(boardListProperties.EnumerateObject());
 
-        var boardGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "board.get");
+        var boardGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.BoardGet);
         var boardGetProperties = boardGetTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(boardGetProperties.TryGetProperty("id", out _));
         Assert.False(boardGetProperties.TryGetProperty("boardId", out _));
 
-        var cardMoveTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "card.move");
+        var cardMoveTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardMove);
         var cardMoveProperties = cardMoveTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(cardMoveProperties.TryGetProperty("id", out _));
         Assert.True(cardMoveProperties.TryGetProperty("columnId", out _));
@@ -156,7 +157,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.False(cardMoveProperties.TryGetProperty("boardColumnId", out _));
         Assert.False(cardMoveProperties.TryGetProperty("positionAfterCardId", out _));
 
-        var cardCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "card.create");
+        var cardCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardCreate);
         var cardCreateProperties = cardCreateTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(cardCreateProperties.TryGetProperty("cardTypeId", out _));
         Assert.True(cardCreateProperties.TryGetProperty("assignedUserId", out _));
@@ -164,12 +165,12 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.DoesNotContain("cardTypeId", cardCreateRequired);
         Assert.DoesNotContain("assignedUserId", cardCreateRequired);
 
-        var cardGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "card.get");
+        var cardGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardGet);
         var cardGetProperties = cardGetTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(cardGetProperties.TryGetProperty("boardId", out _));
         Assert.True(cardGetProperties.TryGetProperty("id", out _));
 
-        var cardUpdateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, "card.update");
+        var cardUpdateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardUpdate);
         var cardUpdateProperties = cardUpdateTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(cardUpdateProperties.TryGetProperty("columnId", out _));
         Assert.True(cardUpdateProperties.TryGetProperty("cardTypeId", out _));

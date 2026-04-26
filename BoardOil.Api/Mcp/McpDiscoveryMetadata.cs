@@ -1,4 +1,5 @@
 using BoardOil.Api.Configuration;
+using BoardOil.Mcp.Contracts;
 
 namespace BoardOil.Api.Mcp;
 
@@ -57,7 +58,7 @@ public static class McpDiscoveryMetadata
             mode = "tool-first",
             promptsList = "supported-empty-list",
             resourcesList = "supported-empty-list",
-            note = "Use tools/list then board.list to discover board ids before board.get and card operations."
+            note = "Use tools/list then board_list to discover board ids before board_get and card operations."
         };
 
     public static object CreateExamples(string? mcpPublicBaseUrl, BoardOilMcpOptions mcpOptions) =>
@@ -99,7 +100,7 @@ public static class McpDiscoveryMetadata
                         method = "tools/call",
                         @params = new
                         {
-                            name = "board.list",
+                            name = ToolNames.BoardList,
                             arguments = new { }
                         }
                     }
@@ -148,7 +149,7 @@ public static class McpDiscoveryMetadata
                     method = "tools/call",
                     @params = new
                     {
-                        name = "board.list",
+                        name = ToolNames.BoardList,
                         arguments = new { }
                     }
                 }
@@ -167,14 +168,14 @@ public static class McpDiscoveryMetadata
         {
             step = 2,
             method = "tools/call",
-            tool = "board.list",
+            tool = ToolNames.BoardList,
             purpose = "Discover accessible board ids."
         },
         new
         {
             step = 3,
             method = "tools/call",
-            tool = "board.get",
+            tool = ToolNames.BoardGet,
             purpose = "Fetch board snapshot, then use columns/card tools."
         }
     ];
