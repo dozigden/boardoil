@@ -23,6 +23,7 @@ var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configurat
 var jwtOptions = JwtAuthOptions.FromConfiguration(builder.Configuration);
 var csrfOptions = CsrfOptions.FromConfiguration(builder.Configuration);
 var internalOptions = BoardOilInternalOptions.FromConfiguration(builder.Configuration);
+var mcpOptions = BoardOilMcpOptions.FromConfiguration(builder.Configuration);
 var buildInfo = BoardOilBuildInfo.FromConfiguration(builder.Configuration, builder.Environment, typeof(Program).Assembly);
 
 builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
@@ -55,8 +56,9 @@ builder.Services.AddSingleton(runtimeOptions);
 builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton(csrfOptions);
 builder.Services.AddSingleton(internalOptions);
+builder.Services.AddSingleton(mcpOptions);
 builder.Services.AddSingleton(buildInfo);
-builder.Services.AddBoardOilMcp();
+builder.Services.AddBoardOilMcp(mcpOptions);
 builder.Services.AddSingleton(new AuthSessionOptions
 {
     AccessTokenMinutes = jwtOptions.AccessTokenMinutes,
@@ -140,9 +142,16 @@ builder.Services.AddAuthorization(options =>
             .RequireAuthenticatedUser()
             .AddRequirements(patApiScopeRequirement));
     options.AddPolicy(BoardOilPolicies.McpAuthenticated, policy =>
-        policy
-            .AddAuthenticationSchemes(McpAuthenticationSchemes.PatBearer)
-            .RequireAuthenticatedUser());
+    {
+        policy.AddAuthenticationSchemes(McpAuthenticationSchemes.PatBearer);
+        if (mcpOptions.AuthMode is McpAuthMode.Pat)
+        {
+            policy.RequireAuthenticatedUser();
+            return;
+        }
+
+        policy.RequireAssertion(_ => true);
+    });
     options.AddPolicy(BoardOilPolicies.AdminOnly, policy =>
         policy
             .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, McpAuthenticationSchemes.PatBearer)
@@ -192,6 +201,11 @@ app.InitialiseMcpServiceProvider();
 if (jwtOptions.AllowInsecureCookies)
 {
     app.Logger.LogWarning("Auth cookies are configured with Secure=false. This should only be used for local/home-lab HTTP setups.");
+}
+if (mcpOptions.AuthMode is McpAuthMode.None)
+{
+    app.Logger.LogWarning(
+        "MCP auth mode is configured as 'none'. MCP endpoints are unauthenticated and should only be exposed in trusted environments.");
 }
 
 await app.Services.InitializeBoardOilAsync();

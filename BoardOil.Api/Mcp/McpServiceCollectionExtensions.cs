@@ -1,10 +1,11 @@
+using BoardOil.Api.Configuration;
 using ModelContextProtocol.Protocol;
 
 namespace BoardOil.Api.Mcp;
 
 public static class McpServiceCollectionExtensions
 {
-    public static IServiceCollection AddBoardOilMcp(this IServiceCollection services)
+    public static IServiceCollection AddBoardOilMcp(this IServiceCollection services, BoardOilMcpOptions mcpOptions)
     {
         var mcpServiceProviderAccessor = new McpServiceProviderAccessor();
         services.AddSingleton(mcpServiceProviderAccessor);
@@ -36,8 +37,8 @@ public static class McpServiceCollectionExtensions
 #pragma warning disable MCP9004
             .WithHttpTransport(options =>
             {
-                options.Stateless = true;
-                options.EnableLegacySse = false;
+                options.Stateless = !mcpOptions.SupportsLegacySseTransport;
+                options.EnableLegacySse = mcpOptions.SupportsLegacySseTransport;
             })
 #pragma warning restore MCP9004
             .WithListToolsHandler((request, cancellationToken) =>

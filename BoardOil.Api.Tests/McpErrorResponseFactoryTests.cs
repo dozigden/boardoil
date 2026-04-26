@@ -1,3 +1,4 @@
+using BoardOil.Api.Configuration;
 using BoardOil.Api.Mcp;
 using Microsoft.AspNetCore.Http;
 using Xunit;
@@ -6,7 +7,7 @@ namespace BoardOil.Api.Tests;
 
 public sealed class McpErrorResponseFactoryTests
 {
-    private readonly McpErrorResponseFactory _factory = new();
+    private readonly McpErrorResponseFactory _factory = new(new BoardOilMcpOptions());
 
     [Fact]
     public void CreateAuthError_ShouldReturnConsistentPayload()

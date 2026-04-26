@@ -1,21 +1,31 @@
+using BoardOil.Api.Configuration;
+
 namespace BoardOil.Api.Mcp;
 
 public static class McpDiscoveryMetadata
 {
-    public static object CreateWellKnownDocument(string? mcpPublicBaseUrl) =>
+    public static object CreateWellKnownDocument(string? mcpPublicBaseUrl, BoardOilMcpOptions mcpOptions) =>
         new
         {
             name = "BoardOil MCP",
             endpoint = GetMcpEndpoint(mcpPublicBaseUrl),
             protocol = "mcp-http",
-            auth = CreateAuthMetadata(mcpPublicBaseUrl),
-            setup = CreateSetupMetadata(mcpPublicBaseUrl),
+            auth = CreateAuthMetadata(mcpPublicBaseUrl, mcpOptions),
+            setup = CreateSetupMetadata(mcpPublicBaseUrl, mcpOptions),
             profile = CreateProfileMetadata(),
-            examples = CreateExamples(mcpPublicBaseUrl)
+            examples = CreateExamples(mcpPublicBaseUrl, mcpOptions)
         };
 
-    public static object CreateAuthMetadata(string? mcpPublicBaseUrl) =>
-        new
+    public static object CreateAuthMetadata(string? mcpPublicBaseUrl, BoardOilMcpOptions mcpOptions) =>
+        mcpOptions.AuthMode is McpAuthMode.None
+            ? new
+            {
+                scheme = "None",
+                required = false,
+                mode = "no_auth",
+                note = "No authentication required. Intended for trusted local or home-lab MCP clients."
+            }
+            : new
         {
             scheme = "Bearer",
             headerName = "Authorization",
@@ -25,13 +35,20 @@ public static class McpDiscoveryMetadata
             patManagementUi = ResolveUrl("/access-tokens", mcpPublicBaseUrl)
         };
 
-    public static object CreateSetupMetadata(string? mcpPublicBaseUrl) =>
-        new
+    public static object CreateSetupMetadata(string? mcpPublicBaseUrl, BoardOilMcpOptions mcpOptions) =>
+        mcpOptions.AuthMode is McpAuthMode.None
+            ? new
+            {
+                preferredAuth = "none",
+                recommendedFirstCallSequence = CreateRecommendedFirstCallSequence(),
+                examples = CreateExamples(mcpPublicBaseUrl, mcpOptions)
+            }
+            : new
         {
             preferredAuth = "personal_access_token",
             patManagementUi = ResolveUrl("/access-tokens", mcpPublicBaseUrl),
             recommendedFirstCallSequence = CreateRecommendedFirstCallSequence(),
-            examples = CreateExamples(mcpPublicBaseUrl)
+            examples = CreateExamples(mcpPublicBaseUrl, mcpOptions)
         };
 
     public static object CreateProfileMetadata() =>
@@ -43,8 +60,52 @@ public static class McpDiscoveryMetadata
             note = "Use tools/list then board.list to discover board ids before board.get and card operations."
         };
 
-    public static object CreateExamples(string? mcpPublicBaseUrl) =>
-        new
+    public static object CreateExamples(string? mcpPublicBaseUrl, BoardOilMcpOptions mcpOptions) =>
+        mcpOptions.AuthMode is McpAuthMode.None
+            ? new
+            {
+                genericMcpConfig = new
+                {
+                    transport = "http",
+                    url = GetMcpEndpoint(mcpPublicBaseUrl)
+                },
+                toolsListRequest = new
+                {
+                    method = "POST",
+                    url = GetMcpEndpoint(mcpPublicBaseUrl),
+                    headers = new
+                    {
+                        contentType = "application/json"
+                    },
+                    body = new
+                    {
+                        jsonrpc = "2.0",
+                        id = "tools-list",
+                        method = "tools/list"
+                    }
+                },
+                boardListRequest = new
+                {
+                    method = "POST",
+                    url = GetMcpEndpoint(mcpPublicBaseUrl),
+                    headers = new
+                    {
+                        contentType = "application/json"
+                    },
+                    body = new
+                    {
+                        jsonrpc = "2.0",
+                        id = "board-list",
+                        method = "tools/call",
+                        @params = new
+                        {
+                            name = "board.list",
+                            arguments = new { }
+                        }
+                    }
+                }
+            }
+            : new
         {
             genericMcpConfig = new
             {

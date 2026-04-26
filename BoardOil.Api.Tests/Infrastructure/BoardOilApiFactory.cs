@@ -14,6 +14,7 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
     private readonly bool _allowInsecureCookies;
     private readonly string? _mcpEventRelayApiKey;
     private readonly string? _mcpEventRelayAllowedSourceIps;
+    private readonly IReadOnlyDictionary<string, string?> _configurationOverrides;
     private readonly Action<IServiceCollection>? _configureTestServices;
 
     public BoardOilApiFactory(
@@ -21,12 +22,14 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         bool allowInsecureCookies = true,
         string? mcpEventRelayApiKey = null,
         string? mcpEventRelayAllowedSourceIps = null,
+        IReadOnlyDictionary<string, string?>? configurationOverrides = null,
         Action<IServiceCollection>? configureTestServices = null)
     {
         _databasePath = databasePath;
         _allowInsecureCookies = allowInsecureCookies;
         _mcpEventRelayApiKey = mcpEventRelayApiKey;
         _mcpEventRelayAllowedSourceIps = mcpEventRelayAllowedSourceIps;
+        _configurationOverrides = configurationOverrides ?? new Dictionary<string, string?>();
         _configureTestServices = configureTestServices;
     }
 
@@ -53,6 +56,10 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         {
             builder.UseSetting("BoardOilInternal:McpEventRelayAllowedSourceIps", _mcpEventRelayAllowedSourceIps);
         }
+        foreach (var overrideEntry in _configurationOverrides)
+        {
+            builder.UseSetting(overrideEntry.Key, overrideEntry.Value);
+        }
 
         builder.ConfigureAppConfiguration((_, configBuilder) =>
         {
@@ -71,6 +78,10 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
             if (!string.IsNullOrWhiteSpace(_mcpEventRelayAllowedSourceIps))
             {
                 settings["BoardOilInternal:McpEventRelayAllowedSourceIps"] = _mcpEventRelayAllowedSourceIps;
+            }
+            foreach (var overrideEntry in _configurationOverrides)
+            {
+                settings[overrideEntry.Key] = overrideEntry.Value;
             }
 
             configBuilder.AddInMemoryCollection(settings);

@@ -1,5 +1,6 @@
 using BoardOil.Mcp.Contracts;
 using BoardOil.Api.Auth;
+using BoardOil.Api.Configuration;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -9,12 +10,14 @@ public sealed class McpToolDispatcher(
     McpServiceProviderAccessor serviceProviderAccessor,
     IHttpContextAccessor httpContextAccessor,
     McpToolRegistry toolRegistry,
-    IMcpAuthorisationService authorisationService)
+    IMcpAuthorisationService authorisationService,
+    BoardOilMcpOptions mcpOptions)
 {
     private readonly McpServiceProviderAccessor _serviceProviderAccessor = serviceProviderAccessor;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly McpToolRegistry _toolRegistry = toolRegistry;
     private readonly IMcpAuthorisationService _authorisationService = authorisationService;
+    private readonly BoardOilMcpOptions _mcpOptions = mcpOptions;
 
     public ValueTask<ListToolsResult> ListToolsAsync(RequestContext<ListToolsRequestParams> _, CancellationToken cancellationToken)
     {
@@ -47,7 +50,8 @@ public sealed class McpToolDispatcher(
         using var scope = _serviceProviderAccessor.ServiceProvider.CreateScope();
         var services = scope.ServiceProvider;
         var httpContext = _httpContextAccessor.HttpContext;
-        if (httpContext?.User.TryGetUserId(out var actorUserId) != true)
+        if (httpContext?.User.TryGetUserId(out var actorUserId) != true
+            && !TryGetAnonymousActorUserId(httpContext, out actorUserId))
         {
             return McpToolCallHelpers.CreateErrorCallToolResult("unauthorized", "Invalid identity context.", 401);
         }
@@ -67,5 +71,33 @@ public sealed class McpToolDispatcher(
         }
 
         return await tool.ExecuteAsync(invocationContext, request.Arguments, cancellationToken);
+    }
+
+    private bool TryGetAnonymousActorUserId(HttpContext? httpContext, out int actorUserId)
+    {
+        actorUserId = default;
+        if (_mcpOptions.AuthMode is not McpAuthMode.None)
+        {
+            return false;
+        }
+
+        if (httpContext is null)
+        {
+            return false;
+        }
+
+        var path = httpContext.Request.Path;
+        var isMcpPath = path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWithSegments("/v1/mcp", StringComparison.OrdinalIgnoreCase)
+            || (_mcpOptions.SupportsLegacySseTransport
+                && (path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase)));
+        if (!isMcpPath)
+        {
+            return false;
+        }
+
+        actorUserId = _mcpOptions.AnonymousActorUserId;
+        return actorUserId > 0;
     }
 }

@@ -22,6 +22,34 @@ You will need to be authenticated to the GitHub registry in Docker, see https://
 
 If you're doing anything more than just trying it out you should set the signing key, and turn off insecure cookies once you're running https; both are in the environment settings of the compose file.
 
+### MCP container options
+
+MCP behavior can be configured through environment variables:
+
+- `BoardOilMcp__TransportMode`: `http` (default) or `both` 
+- `BoardOilMcp__AuthMode`: `pat` (default) or `none`
+- `BoardOilMcp__AnonymousActorUserId`: actor user id used when `AuthMode=none` (default `1`)
+
+Recommended secure default:
+
+```yaml
+environment:
+  BoardOilMcp__TransportMode: "http"
+  BoardOilMcp__AuthMode: "pat"
+```
+
+Home Assistant example (SSE + no auth):
+
+```yaml
+environment:
+  BoardOilMcp__TransportMode: "both"
+  BoardOilMcp__AuthMode: "none"
+  BoardOilMcp__AnonymousActorUserId: "1"
+```
+
+> Warning
+> `BoardOilMcp__AuthMode=none` disables MCP authentication. Only use this on trusted/local networks.
+
 ### Data volume
 
 The SQLite database is kept in the data volume.  On release of a new version, before the database is updated, a backup copy is made within a 'backups' folder, backups older than 30 days are deleted.
