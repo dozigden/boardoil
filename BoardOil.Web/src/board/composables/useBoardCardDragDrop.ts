@@ -59,6 +59,22 @@ export function useBoardCardDragDrop(
     await dropAt(columnId, targetCardId);
   }
 
+  function onColumnTailDragOver(columnId: number) {
+    if (isCardSelectionMode.value) {
+      return;
+    }
+
+    setDropPoint(columnId, null);
+  }
+
+  async function onColumnTailDrop(columnId: number) {
+    if (isCardSelectionMode.value) {
+      return;
+    }
+
+    await dropAt(columnId, null);
+  }
+
   function handleColumnDragOver(columnId: number, event: DragEvent) {
     if (isCardSelectionMode.value) {
       return;
@@ -234,6 +250,8 @@ export function useBoardCardDragDrop(
     onCardDragEnd,
     onCardDragOver,
     onCardDrop,
+    onColumnTailDragOver,
+    onColumnTailDrop,
     handleColumnDragOver,
     handleColumnDrop,
     isDropPoint,

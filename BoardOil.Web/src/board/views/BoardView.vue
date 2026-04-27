@@ -30,67 +30,75 @@
     </BoardConveyor>
 
     <section class="board">
-      <article
-        v-for="column in filteredColumns"
-        :key="column.id"
-        class="column"
-        @dragover.prevent="handleColumnDragOver(column.id, $event)"
-        @drop.prevent="handleColumnDrop(column.id)"
-      >
-        <BoardColumnHeader
-          :column-id="column.id"
-          :title="column.title"
-          :count-label="formatColumnCardCount(column.cards.length)"
-          :card-types="cardTypes"
-          :selection-mode="isCardSelectionMode"
-          :disable-select-all="!canSelectAllVisibleInColumn(column.id)"
-          :disable-clear-visible="!canClearVisibleInColumn(column.id)"
-          @open-default-card-draft="openDefaultCardDraft"
-          @open-card-draft-for-type="openNewCardDraft"
-          @select-all-visible="selectAllVisibleInColumn"
-          @clear-visible="clearVisibleInColumn"
-        />
+      <div v-for="column in filteredColumns" :key="column.id" class="column-stack">
+        <article
+          class="column"
+          @dragover.prevent="handleColumnDragOver(column.id, $event)"
+          @drop.prevent="handleColumnDrop(column.id)"
+        >
+          <BoardColumnHeader
+            :column-id="column.id"
+            :title="column.title"
+            :count-label="formatColumnCardCount(column.cards.length)"
+            :card-types="cardTypes"
+            :selection-mode="isCardSelectionMode"
+            :disable-select-all="!canSelectAllVisibleInColumn(column.id)"
+            :disable-clear-visible="!canClearVisibleInColumn(column.id)"
+            @open-default-card-draft="openDefaultCardDraft"
+            @open-card-draft-for-type="openNewCardDraft"
+            @select-all-visible="selectAllVisibleInColumn"
+            @clear-visible="clearVisibleInColumn"
+          />
+
+          <div
+            class="column-content"
+            :class="{
+              'column-content--drop-tail': isDropPoint(column.id, null),
+              'column-content--drop-head': isDropAtColumnStart(column.id)
+            }"
+          >
+            <CreateCardInline
+              v-if="newCardDraftTitles[column.id] !== undefined"
+              :title="newCardDraftTitles[column.id] ?? ''"
+              :card-type-id="newCardDraftCardTypeIds[column.id] ?? defaultCreateCardTypeId"
+              :error-message="newCardDraftErrors[column.id] ?? ''"
+              :input-ref="element => setNewCardDraftInput(column.id, element)"
+              @update:title="updateNewCardDraftTitle(column.id, $event)"
+              @save="saveNewCardDraft(column.id)"
+              @cancel="closeNewCardDraft(column.id)"
+            />
+
+            <Card
+              v-for="card in column.cards"
+              :key="card.id"
+              :card="card"
+              :column-id="column.id"
+              :data-card-id="card.id"
+              :drop-indicator="resolveCardDropIndicator(column.id, card.id)"
+              :selection-mode="isCardSelectionMode"
+              :selected="isCardSelected(card.id)"
+              @start-drag="onCardDragStart"
+              @end-drag="onCardDragEnd"
+              @dragover.prevent.stop="onCardDragOver(column.id, card.id, $event)"
+              @drop.prevent.stop="onCardDrop(column.id, card.id, $event)"
+              @edit-card="openCardEditor"
+              @toggle-select="toggleCardSelection"
+            />
+
+            <p v-if="hasActiveCardFilters && column.cards.length === 0 && newCardDraftTitles[column.id] === undefined" class="column-filter-empty">
+              No matching cards.
+            </p>
+          </div>
+        </article>
 
         <div
-          class="column-content"
-          :class="{
-            'column-content--drop-tail': isDropPoint(column.id, null),
-            'column-content--drop-head': isDropAtColumnStart(column.id)
-          }"
-        >
-          <CreateCardInline
-            v-if="newCardDraftTitles[column.id] !== undefined"
-            :title="newCardDraftTitles[column.id] ?? ''"
-            :card-type-id="newCardDraftCardTypeIds[column.id] ?? defaultCreateCardTypeId"
-            :error-message="newCardDraftErrors[column.id] ?? ''"
-            :input-ref="element => setNewCardDraftInput(column.id, element)"
-            @update:title="updateNewCardDraftTitle(column.id, $event)"
-            @save="saveNewCardDraft(column.id)"
-            @cancel="closeNewCardDraft(column.id)"
-          />
-
-          <Card
-            v-for="card in column.cards"
-            :key="card.id"
-            :card="card"
-            :column-id="column.id"
-            :data-card-id="card.id"
-            :drop-indicator="resolveCardDropIndicator(column.id, card.id)"
-            :selection-mode="isCardSelectionMode"
-            :selected="isCardSelected(card.id)"
-            @start-drag="onCardDragStart"
-            @end-drag="onCardDragEnd"
-            @dragover.prevent.stop="onCardDragOver(column.id, card.id, $event)"
-            @drop.prevent.stop="onCardDrop(column.id, card.id, $event)"
-            @edit-card="openCardEditor"
-            @toggle-select="toggleCardSelection"
-          />
-
-          <p v-if="hasActiveCardFilters && column.cards.length === 0 && newCardDraftTitles[column.id] === undefined" class="column-filter-empty">
-            No matching cards.
-          </p>
-        </div>
-      </article>
+          class="column-tail-drop-zone"
+          :class="{ 'column-tail-drop-zone--active': isDropPoint(column.id, null) }"
+          aria-hidden="true"
+          @dragover.prevent.stop="onColumnTailDragOver(column.id)"
+          @drop.prevent.stop="onColumnTailDrop(column.id)"
+        />
+      </div>
     </section>
 
     <BoardArchiveSelectedCardsDialog
@@ -187,6 +195,8 @@ const {
   onCardDragEnd,
   onCardDragOver,
   onCardDrop,
+  onColumnTailDragOver,
+  onColumnTailDrop,
   handleColumnDragOver,
   handleColumnDrop,
   isDropPoint,
@@ -375,7 +385,7 @@ watch(
   grid-template-rows: 1fr;
   gap: 1rem;
   margin-top: 0;
-  align-items: start;
+  align-items: stretch;
   min-height: 0;
   height: 100%;
   overflow-x: auto;
@@ -423,6 +433,13 @@ watch(
   height: auto;
   max-height: 100%;
   overflow: hidden;
+}
+
+.column-stack {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .column-content {
@@ -498,6 +515,19 @@ watch(
   font-size: 0.85rem;
   text-align: center;
   padding: 0.55rem;
+}
+
+.column-tail-drop-zone {
+  flex: 1 1 auto;
+  min-height: 0.25rem;
+  border-radius: 10px;
+  border: 1px dashed transparent;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.column-tail-drop-zone--active {
+  background: color-mix(in srgb, var(--bo-focus-ring) 14%, transparent);
+  border-color: color-mix(in srgb, var(--bo-focus-ring) 60%, transparent);
 }
 
 @media (max-width: 720px) {
