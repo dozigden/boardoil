@@ -74,6 +74,10 @@ public sealed class ArchivedCardRepository(IAmbientDbContextLocator ambientDbCon
             .AsNoTracking()
             .SingleOrDefaultAsync(x => x.BoardId == boardId && x.Id == archivedCardId);
 
+    public Task<EntityArchivedCard?> GetByIdForUpdateAsync(int boardId, int archivedCardId) =>
+        DbSet
+            .SingleOrDefaultAsync(x => x.BoardId == boardId && x.Id == archivedCardId);
+
     private IQueryable<EntityArchivedCard> BuildQuery(int boardId, string? normalisedSearch)
     {
         var query = DbSet

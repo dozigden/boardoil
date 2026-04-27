@@ -70,3 +70,17 @@ Rules:
 - Archive list/search should not depend on fully deserialising `SnapshotJson`.
 - Keep metadata-based list/search resilient even when payload versions differ.
 - Preserve room for future restore support without forcing table redesign for each card contract change.
+
+## Testing Pattern for Version Compatibility
+
+- Treat archive compatibility tests as **reader tests**, not writer tests.
+- For versioned restore tests (for example `*Unarchive*V1Tests`):
+  - seed `EntityArchivedCard` rows directly
+  - provide explicit snapshot JSON for the target version (`v1`, `v2`, etc.)
+  - do **not** create test setup snapshots by calling `ArchiveCardAsync`, because that always writes the current/latest version.
+- Keep versioned suites frozen once added:
+  - `V1` tests should keep asserting `V1` payload behavior even after current writer moves to newer versions.
+  - Add new suites (`V2`, `V3`, ...) for new envelope versions rather than rewriting older suites.
+- Keep writer tests separate:
+  - add/maintain dedicated tests that assert `ArchiveCardAsync` writes `CurrentVersion`.
+  - keep these tests out of versioned compatibility suites.

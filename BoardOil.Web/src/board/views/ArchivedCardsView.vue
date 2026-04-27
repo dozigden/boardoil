@@ -73,6 +73,14 @@
       :archived-card="selectedArchivedCard"
       :column-title="resolveColumnTitle(selectedArchivedCard.card.boardColumnId)"
     />
+    <template #actions>
+      <div v-if="selectedArchivedCard" class="card-modal-actions">
+        <span />
+        <button type="button" class="btn" :disabled="isUnarchiving" @click="unarchiveSelectedCard">
+          {{ isUnarchiving ? 'Unarchiving...' : 'Unarchive' }}
+        </button>
+      </div>
+    </template>
   </ModalDialog>
 </template>
 
@@ -109,6 +117,7 @@ const isLoadingList = ref(true);
 const listErrorMessage = ref('');
 const isDetailModalOpen = ref(false);
 const isLoadingDetail = ref(false);
+const isUnarchiving = ref(false);
 const detailErrorMessage = ref('');
 const selectedArchivedCard = ref<ArchivedCard | null>(null);
 const selectedArchivedCardListItem = ref<ArchivedCardListItem | null>(null);
@@ -272,9 +281,37 @@ function closeDetailModal() {
   detailRequestVersion += 1;
   isDetailModalOpen.value = false;
   isLoadingDetail.value = false;
+  isUnarchiving.value = false;
   detailErrorMessage.value = '';
   selectedArchivedCard.value = null;
   selectedArchivedCardListItem.value = null;
+}
+
+async function unarchiveSelectedCard() {
+  if (isUnarchiving.value) {
+    return;
+  }
+
+  const boardId = routeBoardId.value;
+  const archivedCardId = selectedArchivedCard.value?.id;
+  if (boardId === null || archivedCardId === undefined) {
+    return;
+  }
+
+  isUnarchiving.value = true;
+  detailErrorMessage.value = '';
+  try {
+    const result = await api.unarchiveCard(boardId, archivedCardId);
+    if (!result.ok) {
+      detailErrorMessage.value = result.error.message;
+      return;
+    }
+
+    closeDetailModal();
+    await loadArchivedCards();
+  } finally {
+    isUnarchiving.value = false;
+  }
 }
 
 async function loadArchivedCards() {

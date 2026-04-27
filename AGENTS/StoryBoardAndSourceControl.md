@@ -45,8 +45,14 @@ This file defines how agents should manage work tracking and source control in t
   - Work should be manually reviewed after completion and before final closure.
   - Update the story description with outcomes and validation commands before moving to `Done`.
 
+## Plans
+
+- The first action of any new plan that is not already being generated from a story on the board should always be to create a new story and record the plan in it.
+- Plans should favour vertical slices with deliverables that can be reviewed by the user.
+
 ## Source Control Practices
 
 - Make intentional commits with clear messages linked to story outcomes.
 - Avoid mixing unrelated work in the same commit/story update.
 - Do not include local scratch files (for example `.codex`) in commits.
+- Commit messages should start with the board number if working from a card, and keep descriptions short, eg: '#123 Improved test coverage for feature blah.'

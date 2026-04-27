@@ -291,4 +291,27 @@ describe('boardApi archived cards', () => {
     expect(result.data.requestedCount).toBe(2);
     expect(result.data.archivedCount).toBe(2);
   });
+
+  it('unarchives a card via unarchive endpoint', async () => {
+    vi.mocked(postData).mockResolvedValue(ok({
+      id: 99,
+      boardColumnId: 2,
+      cardTypeId: 1,
+      cardTypeName: 'Story',
+      cardTypeEmoji: null,
+      title: 'Restored card',
+      description: 'Desc',
+      sortKey: 'A',
+      tags: [],
+      tagNames: [],
+      createdAtUtc: '2026-04-26T12:00:00Z',
+      updatedAtUtc: '2026-04-26T12:00:00Z'
+    }));
+
+    const api = createBoardApi();
+    const result = await api.unarchiveCard(7, 3);
+
+    expect(result.ok).toBe(true);
+    expect(postData).toHaveBeenCalledWith('/api/boards/7/cards/archived/3/unarchive', {});
+  });
 });

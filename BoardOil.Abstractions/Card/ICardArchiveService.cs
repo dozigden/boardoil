@@ -9,4 +9,5 @@ public interface ICardArchiveService
     Task<ApiResult<ArchivedCardDetailDto>> GetArchivedCardAsync(int boardId, int archivedCardId, int actorUserId);
     Task<ApiResult<ArchivedCardDto>> ArchiveCardAsync(int boardId, int id, int actorUserId);
     Task<ApiResult<ArchiveCardsSummaryDto>> ArchiveCardsAsync(int boardId, ArchiveCardsRequest request, int actorUserId);
+    Task<ApiResult<CardDto>> UnarchiveCardAsync(int boardId, int archivedCardId, int actorUserId);
 }

@@ -121,6 +121,33 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_Unarchive_ShouldReturnRestoredCardContract()
+    {
+        // Arrange
+        var createdColumnId = await SeedBoardColumnAsync("Todo");
+        var createdCardId = await SeedBoardCardAsync(createdColumnId, "Archive me", "Desc");
+        var archiveResponse = await Client.PostAsync($"/api/boards/1/cards/{createdCardId}/archive", content: null);
+        archiveResponse.EnsureSuccessStatusCode();
+        var archivedCardEnvelope = await archiveResponse.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(JsonOptions);
+        Assert.NotNull(archivedCardEnvelope);
+        Assert.NotNull(archivedCardEnvelope!.Data);
+        var archivedCardId = archivedCardEnvelope.Data!.Id;
+
+        // Act
+        var response = await Client.PostAsync($"/api/boards/1/cards/archived/{archivedCardId}/unarchive", content: null);
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.True(payload!.Success);
+        Assert.NotNull(payload.Data);
+        Assert.NotEqual(createdCardId, payload.Data!.Id);
+        Assert.Equal("Archive me", payload.Data.Title);
+        Assert.Equal(createdColumnId, payload.Data.BoardColumnId);
+    }
+
+    [Fact]
     public async Task Data_ShouldPersistAcrossFactoryRestarts_WhenUsingSameDatabasePath()
     {
         var dbPath = CreateDbPath("boardoil-api-persist-tests");
