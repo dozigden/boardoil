@@ -204,6 +204,10 @@ export function createBoardApi() {
     return postData<ArchiveCardsSummary>(`/api/boards/${boardId}/cards/archive`, { cardIds });
   }
 
+  async function unarchiveCard(boardId: number, archivedCardId: number): Promise<Result<Card, AppError>> {
+    return postData<Card>(`/api/boards/${boardId}/cards/archived/${archivedCardId}/unarchive`, {});
+  }
+
   async function getArchivedCards(
     boardId: number,
     options?: { searchText?: string; offset?: number; limit?: number }
@@ -391,6 +395,7 @@ export function createBoardApi() {
     deleteCard,
     archiveCard,
     archiveCards,
+    unarchiveCard,
     getArchivedCards,
     getArchivedCard,
     getTags,

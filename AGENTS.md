@@ -2,11 +2,12 @@
 
 Read area guidance before working in that part of the system:
 
-- [AGENTS/Architecture.md](AGENTS/Architecture.md)
+- [AGENTS/Architecture.md](AGENTS/Architecture.md) - Read before making any new projects or adding dependancies
+- [AGENTS/ArchiveCards.md](AGENTS/ArchiveCards.md) - Read before working on archive cards
 - [AGENTS/CSharpCodingConventions.md](AGENTS/CSharpCodingConventions.md)
 - [AGENTS/Database.md](AGENTS/Database.md)
 - [AGENTS/Frontend.md](AGENTS/Frontend.md)
-- [AGENTS/StoryBoardAndSourceControl.md](AGENTS/StoryBoardAndSourceControl.md)
+- [AGENTS/StoryBoardAndSourceControl.md](AGENTS/StoryBoardAndSourceControl.md) - Read when working with stories or planning any new work
 - [AGENTS/Testing.md](AGENTS/Testing.md)
 
 `README` files are for human user information, not agent execution guidance.

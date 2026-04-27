@@ -6,7 +6,12 @@ using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Card;
+using BoardOil.Persistence.Abstractions.CardType;
+using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Tag;
+using BoardOil.Services.Ordering;
+using BoardOil.Services.Tag;
 using System.Text;
 using System.Text.Json;
 
@@ -15,12 +20,17 @@ namespace BoardOil.Services.Card;
 public sealed class CardArchiveService(
     ICardRepository cardRepository,
     IArchivedCardRepository archivedCardRepository,
+    ICardTypeRepository cardTypeRepository,
+    IColumnRepository columnRepository,
     IBoardMemberRepository boardMemberRepository,
+    ITagRepository tagRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardArchiveService
 {
     private const int MaxArchiveSnapshotJsonBytes = 524_288;
+    private const int MaxCardTitleLength = 200;
+    private const int MaxCardDescriptionLength = 20_000;
     private const int DefaultListLimit = 50;
     private const int MaxListLimit = 200;
 
@@ -105,6 +115,83 @@ public sealed class CardArchiveService(
         }
 
         return ApiResults.Ok(new ArchiveCardsSummaryDto(boardId, cardIds!.Count, archiveResult.ArchivedCards!.Count));
+    }
+
+    public async Task<ApiResult<CardDto>> UnarchiveCardAsync(int boardId, int archivedCardId, int actorUserId)
+    {
+        using var scope = scopeFactory.Create();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardCreate);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        var archivedCard = await archivedCardRepository.GetByIdForUpdateAsync(boardId, archivedCardId);
+        if (archivedCard is null)
+        {
+            return ApiErrors.NotFound("Archived card not found.");
+        }
+
+        var parsed = ArchivedCardSnapshotSerialiser.TryBuildCurrentCardDto(archivedCard.SnapshotJson, out var snapshotCard, out var snapshotReadError);
+        if (!parsed || snapshotCard is null)
+        {
+            return ApiErrors.BadRequest($"Archived card snapshot cannot be restored. {snapshotReadError ?? "Snapshot is invalid."}");
+        }
+
+        var targetColumn = await ResolveRestoreColumnAsync(boardId, snapshotCard.BoardColumnId);
+        if (targetColumn is null)
+        {
+            return ApiErrors.BadRequest("Board does not contain any columns.");
+        }
+
+        var selectedCardType = await cardTypeRepository.GetByIdInBoardAsync(boardId, snapshotCard.CardTypeId)
+            ?? await cardTypeRepository.GetSystemByBoardIdAsync(boardId);
+        if (selectedCardType is null)
+        {
+            return ApiErrors.InternalError("System card type not found for board.");
+        }
+
+        var validationErrors = ValidateSnapshotCardData(snapshotCard);
+        if (validationErrors.Count > 0)
+        {
+            return ApiErrors.BadRequest("Archived card snapshot cannot be restored.", validationErrors);
+        }
+
+        var title = snapshotCard.Title.Trim();
+        var now = DateTime.UtcNow;
+        var cardsInColumn = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
+        var nextSortKey = cardsInColumn.Count > 0 ? cardsInColumn[0].SortKey : null;
+        if (!TryGenerateSortKey(null, nextSortKey, out var sortKeyValue, out var sortKeyError))
+        {
+            return sortKeyError!;
+        }
+
+        var resolvedAssignedUser = await ResolveAssignedUserForRestoreAsync(boardId, snapshotCard.AssignedUserId);
+        var resolvedTags = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames, now);
+        var restoredCard = new EntityBoardCard
+        {
+            BoardColumnId = targetColumn.Id,
+            BoardColumn = targetColumn,
+            CardTypeId = selectedCardType.Id,
+            CardType = selectedCardType,
+            AssignedUserId = resolvedAssignedUser?.Id,
+            AssignedUser = resolvedAssignedUser,
+            Title = title,
+            Description = snapshotCard.Description,
+            SortKey = sortKeyValue!,
+            CreatedAtUtc = snapshotCard.CreatedAtUtc == default ? now : snapshotCard.CreatedAtUtc,
+            UpdatedAtUtc = snapshotCard.UpdatedAtUtc == default ? now : snapshotCard.UpdatedAtUtc
+        };
+        ReplaceTags(restoredCard, resolvedTags);
+
+        cardRepository.Add(restoredCard);
+        archivedCardRepository.Remove(archivedCard);
+        await scope.SaveChangesAsync();
+
+        var dto = restoredCard.ToCardDto();
+        await boardEvents.CardCreatedAsync(boardId, dto);
+        return ApiResults.Ok(dto);
     }
 
     private async Task<ArchiveExecutionResult> ExecuteArchiveCardsAsync(int boardId, IReadOnlyList<int> requestedCardIds, int actorUserId)
@@ -214,6 +301,148 @@ public sealed class CardArchiveService(
             AssignedUserId = membership.UserId,
             AssignedUserName = membership.User.UserName
         };
+    }
+
+    private async Task<EntityBoardColumn?> ResolveRestoreColumnAsync(int boardId, int snapshotBoardColumnId)
+    {
+        var snapshotColumn = columnRepository.Get(snapshotBoardColumnId);
+        if (snapshotColumn is not null && snapshotColumn.BoardId == boardId)
+        {
+            return snapshotColumn;
+        }
+
+        var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
+        return columns.FirstOrDefault();
+    }
+
+    private async Task<EntityUser?> ResolveAssignedUserForRestoreAsync(int boardId, int? assignedUserId)
+    {
+        if (assignedUserId is null)
+        {
+            return null;
+        }
+
+        var membership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, assignedUserId.Value);
+        if (membership?.User is null || !membership.User.IsActive)
+        {
+            return null;
+        }
+
+        return membership.User;
+    }
+
+    private async Task<IReadOnlyList<EntityTag>> ResolveTagsForRestoreAsync(int boardId, IReadOnlyList<string> tagNames, DateTime now)
+    {
+        var resolvedTags = new List<EntityTag>();
+        var processedNormalisedNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var tagName in NormaliseTagNames(tagNames))
+        {
+            var normalisedName = tagName.ToUpperInvariant();
+            if (!processedNormalisedNames.Add(normalisedName))
+            {
+                continue;
+            }
+
+            var existingTag = await tagRepository.GetByNormalisedNameAsync(boardId, normalisedName);
+            if (existingTag is not null)
+            {
+                resolvedTags.Add(existingTag);
+                continue;
+            }
+
+            var createdTag = new EntityTag
+            {
+                BoardId = boardId,
+                Name = tagName,
+                NormalisedName = normalisedName,
+                StyleName = TagStyleSchemaValidator.SolidStyleName,
+                StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(),
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            };
+            tagRepository.Add(createdTag);
+            resolvedTags.Add(createdTag);
+        }
+
+        return resolvedTags
+            .OrderBy(x => x.Name, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static void ReplaceTags(EntityBoardCard card, IReadOnlyList<EntityTag> tags)
+    {
+        card.CardTags.Clear();
+        foreach (var tag in tags.OrderBy(x => x.Name, StringComparer.Ordinal))
+        {
+            card.CardTags.Add(new EntityCardTag { Tag = tag });
+        }
+    }
+
+    private static IReadOnlyList<string> NormaliseTagNames(IReadOnlyList<string> tagNames) =>
+        tagNames
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+
+    private static List<ValidationError> ValidateSnapshotCardData(CardDto snapshotCard)
+    {
+        var errors = new List<ValidationError>();
+        var title = snapshotCard.Title.Trim();
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            errors.Add(new ValidationError("snapshot.title", "Card title is required."));
+        }
+        else if (title.Length > MaxCardTitleLength)
+        {
+            errors.Add(new ValidationError("snapshot.title", $"Card title must be {MaxCardTitleLength} characters or fewer."));
+        }
+        else if (ContainsControlCharacters(title))
+        {
+            errors.Add(new ValidationError("snapshot.title", "Card title cannot contain control characters."));
+        }
+
+        if (snapshotCard.Description.Length > MaxCardDescriptionLength)
+        {
+            errors.Add(new ValidationError("snapshot.description", $"Card description must be {MaxCardDescriptionLength} characters or fewer."));
+        }
+
+        return errors;
+    }
+
+    private static bool ContainsControlCharacters(string value)
+    {
+        foreach (var character in value)
+        {
+            if (char.IsControl(character))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGenerateSortKey(string? previous, string? next, out string? sortKey, out ApiError? error)
+    {
+        try
+        {
+            sortKey = SortKeyGenerator.Between(previous, next);
+            error = null;
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            sortKey = null;
+            error = ApiErrors.InternalError("Unable to assign card order key.");
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            sortKey = null;
+            error = ApiErrors.InternalError("Unable to assign card order key.");
+            return false;
+        }
     }
 
     private static string NormaliseSearchValue(string value) =>

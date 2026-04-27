@@ -11,4 +11,5 @@ public interface IArchivedCardRepository : IRepositoryBase<EntityArchivedCard>
     Task<int?> GetMinimumOriginalCardIdAsync();
     Task<int> CountByBoardAsync(int boardId, string? normalisedSearch);
     Task<EntityArchivedCard?> GetByIdAsync(int boardId, int archivedCardId);
+    Task<EntityArchivedCard?> GetByIdForUpdateAsync(int boardId, int archivedCardId);
 }
