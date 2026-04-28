@@ -24,6 +24,7 @@ import { useBoardCatalogueStore } from './shared/stores/boardCatalogueStore';
 import { useBoardStore } from './board/stores/boardStore';
 import { useTagStore } from './board/stores/tagStore';
 import { useAuthStore } from './shared/stores/authStore';
+import { useUserProfileImageStore } from './shared/stores/userProfileImageStore';
 import { useUiFeedbackStore } from './shared/stores/uiFeedbackStore';
 import BoardWorkspaceLayout from './site/layouts/BoardWorkspaceLayout.vue';
 import AdminWorkspaceLayout from './site/layouts/AdminWorkspaceLayout.vue';
@@ -36,6 +37,7 @@ const boardStore = useBoardStore();
 const boardCatalogueStore = useBoardCatalogueStore();
 const tagStore = useTagStore();
 const authStore = useAuthStore();
+const userProfileImageStore = useUserProfileImageStore();
 const feedbackStore = useUiFeedbackStore();
 const route = useRoute();
 const { errorMessage } = storeToRefs(feedbackStore);
@@ -79,13 +81,18 @@ watch(
   () => authStore.isAuthenticated,
   async authenticated => {
     if (authenticated) {
-      await Promise.all([tagStore.initialize(), boardCatalogueStore.loadBoards()]);
+      await Promise.all([
+        tagStore.initialize(),
+        boardCatalogueStore.loadBoards(),
+        userProfileImageStore.loadOwnProfileImage()
+      ]);
       return;
     }
 
     await boardStore.dispose();
     boardCatalogueStore.dispose();
     tagStore.dispose();
+    userProfileImageStore.reset();
   }
 );
 

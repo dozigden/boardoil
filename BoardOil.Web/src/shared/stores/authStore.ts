@@ -1,17 +1,13 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { createAuthApi } from '../api/authApi';
-import { createUsersApi } from '../api/usersApi';
 import { setCsrfToken, setUnauthorizedHandler } from '../api/http';
-import { buildApiUrl } from '../api/config';
 import { router } from '../../router';
-import type { AuthUser, UserProfileImage } from '../types/authTypes';
+import type { AuthUser } from '../types/authTypes';
 
 export const useAuthStore = defineStore('auth', () => {
   const api = createAuthApi();
-  const usersApi = createUsersApi();
   const user = ref<AuthUser | null>(null);
-  const userProfileImage = ref<UserProfileImage | null>(null);
   const busy = ref(false);
   const initialized = ref(false);
   const errorMessage = ref<string | null>(null);
@@ -19,9 +15,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => user.value !== null);
   const isAdmin = computed(() => user.value?.role === 'Admin');
-  const userProfileImageUrl = computed(() =>
-    userProfileImage.value ? buildApiUrl(`/images/${userProfileImage.value.relativePath}`) : null
-  );
 
   setUnauthorizedHandler(async () => {
     handleUnauthorized();
@@ -50,7 +43,6 @@ export const useAuthStore = defineStore('auth', () => {
 
       user.value = meResult.data;
       requiresInitialAdminSetup.value = false;
-      await loadOwnProfileImage();
       const csrfResult = await api.getCsrfToken();
       if (csrfResult.ok) {
         setCsrfToken(csrfResult.data);
@@ -128,57 +120,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function loadOwnProfileImage() {
-    const result = await usersApi.getMyProfileImage();
-    if (!result.ok) {
-      return false;
-    }
-
-    userProfileImage.value = result.data;
-    return true;
-  }
-
-  async function uploadOwnProfileImage(file: File) {
-    busy.value = true;
-    errorMessage.value = null;
-    try {
-      const result = await usersApi.uploadMyProfileImage(file);
-      if (!result.ok) {
-        errorMessage.value = result.error.message;
-        return false;
-      }
-
-      userProfileImage.value = result.data;
-      return true;
-    } finally {
-      busy.value = false;
-    }
-  }
-
-  async function deleteOwnProfileImage() {
-    busy.value = true;
-    errorMessage.value = null;
-    try {
-      const result = await usersApi.deleteMyProfileImage();
-      if (!result.ok) {
-        errorMessage.value = result.error.message;
-        return false;
-      }
-
-      userProfileImage.value = null;
-      return true;
-    } finally {
-      busy.value = false;
-    }
-  }
-
   function handleUnauthorized() {
     clearSession();
   }
 
   function clearSession() {
     user.value = null;
-    userProfileImage.value = null;
     setCsrfToken(null);
   }
 
@@ -190,16 +137,11 @@ export const useAuthStore = defineStore('auth', () => {
     requiresInitialAdminSetup,
     isAuthenticated,
     isAdmin,
-    userProfileImage,
-    userProfileImageUrl,
     initialize,
     login,
     registerInitialAdmin,
     changeOwnPassword,
     logout,
-    loadOwnProfileImage,
-    uploadOwnProfileImage,
-    deleteOwnProfileImage,
     handleUnauthorized
   };
 });
