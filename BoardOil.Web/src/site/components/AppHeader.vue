@@ -41,7 +41,7 @@
             <CircleUserRound v-else :size="18" aria-hidden="true" />
           </template>
           <template #default="{ close }">
-            <button type="button" class="bo-dropdown-item" @click="openUserImagePicker(close)">User image</button>
+            <RouterLink :to="{ name: 'user-admin-profile' }" class="bo-dropdown-item" @click="close">Profile</RouterLink>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
             <button type="button" class="bo-dropdown-item" @click="openPasswordResetDialog(close)">Reset password</button>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
@@ -83,13 +83,6 @@
       </div>
     </div>
   </header>
-  <input
-    ref="userImageInput"
-    type="file"
-    accept="image/png,image/jpeg,image/webp"
-    class="user-image-input"
-    @change="onUserImageSelected"
-  />
   <AboutDialog :open="aboutDialogOpen" @close="closeAboutDialog" />
   <PasswordResetDialog
     :open="passwordResetDialogOpen"
@@ -157,7 +150,6 @@ const boardAdminTarget = computed(() =>
       }
     : null
 );
-const userImageInput = ref<HTMLInputElement | null>(null);
 
 async function handleLogout(close?: () => void) {
   close?.();
@@ -181,22 +173,6 @@ async function openPasswordResetDialog(close?: () => void) {
 
 function closePasswordResetDialog() {
   passwordResetDialogOpen.value = false;
-}
-
-function openUserImagePicker(close?: () => void) {
-  close?.();
-  userImageInput.value?.click();
-}
-
-async function onUserImageSelected(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) {
-    return;
-  }
-
-  await authStore.uploadOwnProfileImage(file);
-  input.value = '';
 }
 
 async function submitPasswordReset(payload: { currentPassword?: string; newPassword: string }) {
@@ -337,10 +313,6 @@ async function acknowledgePasswordReset() {
   object-fit: cover;
   border: 0;
   background: var(--bo-surface-base);
-}
-
-.user-image-input {
-  display: none;
 }
 
 .header-menu--user :deep(.bo-dropdown-trigger) {
