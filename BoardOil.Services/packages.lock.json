@@ -28,6 +28,12 @@
           "Microsoft.Extensions.Options": "10.0.6"
         }
       },
+      "SixLabors.ImageSharp": {
+        "type": "Direct",
+        "requested": "[3.1.11, )",
+        "resolved": "3.1.11",
+        "contentHash": "JfPLyigLthuE50yi6tMt7Amrenr/fA31t2CvJyhy/kQmfulIBAqo5T/YFUSRHtuYPXRSaUHygFeh6Qd933EoSw=="
+      },
       "Microsoft.AspNetCore.Cryptography.Internal": {
         "type": "Transitive",
         "resolved": "10.0.6",
@@ -266,7 +272,7 @@
       "boardoil.abstractions": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Contracts": "[0.2.0, )",
+          "BoardOil.Contracts": "[1.1.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.6, )"
         }
       },
@@ -276,8 +282,8 @@
       "boardoil.ef": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Abstractions": "[0.2.0, )",
-          "BoardOil.Persistence.Abstractions": "[0.2.0, )",
+          "BoardOil.Abstractions": "[1.1.0, )",
+          "BoardOil.Persistence.Abstractions": "[1.1.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.6, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.6, )"
         }

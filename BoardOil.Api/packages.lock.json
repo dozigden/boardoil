@@ -277,6 +277,11 @@
         "resolved": "13.0.3",
         "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
       },
+      "SixLabors.ImageSharp": {
+        "type": "Transitive",
+        "resolved": "3.1.11",
+        "contentHash": "JfPLyigLthuE50yi6tMt7Amrenr/fA31t2CvJyhy/kQmfulIBAqo5T/YFUSRHtuYPXRSaUHygFeh6Qd933EoSw=="
+      },
       "SQLitePCLRaw.bundle_e_sqlite3": {
         "type": "Transitive",
         "resolved": "2.1.11",
@@ -390,7 +395,7 @@
       "boardoil.abstractions": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Contracts": "[0.2.0, )",
+          "BoardOil.Contracts": "[1.1.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.6, )"
         }
       },
@@ -400,8 +405,8 @@
       "boardoil.ef": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Abstractions": "[0.2.0, )",
-          "BoardOil.Persistence.Abstractions": "[0.2.0, )",
+          "BoardOil.Abstractions": "[1.1.0, )",
+          "BoardOil.Persistence.Abstractions": "[1.1.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.6, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.6, )"
         }
@@ -415,11 +420,12 @@
       "boardoil.services": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Abstractions": "[0.2.0, )",
-          "BoardOil.Contracts": "[0.2.0, )",
-          "BoardOil.Ef": "[0.2.0, )",
-          "BoardOil.Persistence.Abstractions": "[0.2.0, )",
-          "BoardOil.TasksMd": "[0.2.0, )"
+          "BoardOil.Abstractions": "[1.1.0, )",
+          "BoardOil.Contracts": "[1.1.0, )",
+          "BoardOil.Ef": "[1.1.0, )",
+          "BoardOil.Persistence.Abstractions": "[1.1.0, )",
+          "BoardOil.TasksMd": "[1.1.0, )",
+          "SixLabors.ImageSharp": "[3.1.11, )"
         }
       },
       "boardoil.tasksmd": {

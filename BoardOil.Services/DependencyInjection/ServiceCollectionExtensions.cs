@@ -19,6 +19,7 @@ using BoardOil.Persistence.Abstractions.CardType;
 using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Tag;
+using BoardOil.Persistence.Abstractions.Image;
 using BoardOil.Persistence.Abstractions.Users;
 using BoardOil.Services.Auth;
 using BoardOil.Services.Board;
@@ -57,6 +58,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IArchivedCardRepository, ArchivedCardRepository>();
         services.AddScoped<ICardTypeRepository, CardTypeRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
+        services.AddScoped<IImageRepository, ImageRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
         services.AddScoped<IAuthService, AuthService>();
@@ -76,6 +78,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserAdminService, UserAdminService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IImageStorageService, LocalImageStorageService>();
+        services.AddScoped<IUserProfileImageService, UserProfileImageService>();
         services.AddHttpClient<ITasksMdClient, TasksMdClient>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(15);
