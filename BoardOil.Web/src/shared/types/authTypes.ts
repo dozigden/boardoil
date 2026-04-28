@@ -46,6 +46,17 @@ export type UserDirectoryEntry = {
   isActive: boolean;
 };
 
+export type UserProfileImage = {
+  id: number;
+  contentType: string;
+  relativePath: string;
+  byteLength: number;
+  width: number;
+  height: number;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
 export type AccessTokenScope = 'mcp:read' | 'mcp:write' | 'api:read' | 'api:write' | 'api:admin' | 'api:system' | string;
 
 export type AccessToken = {
