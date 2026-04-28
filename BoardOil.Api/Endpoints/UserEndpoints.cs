@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using BoardOil.Api.Auth;
 using BoardOil.Api.Extensions;
+using BoardOil.Abstractions.Image;
 using BoardOil.Abstractions.Users;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Users;
@@ -14,6 +15,24 @@ public static class UserEndpoints
     {
         app.MapGet("/api/users", (IUserService userService) =>
                 userService.GetUsersAsync().ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
+            .WithTags("Users");
+        app.MapPost("/api/users/me/profile-image", async (HttpRequest request, HttpContext httpContext, IUserProfileImageService userProfileImageService) =>
+            {
+                var uploadRequestResult = await TryReadUserProfileImageUploadRequestAsync(request);
+                if (!uploadRequestResult.Success || uploadRequestResult.Data is null)
+                {
+                    return uploadRequestResult.ToHttpResult();
+                }
+
+                await using var contentStream = new MemoryStream(uploadRequestResult.Data.Content, writable: false);
+                return (await userProfileImageService.UploadOwnProfileImageAsync(
+                    httpContext.GetActorUserId(),
+                    uploadRequestResult.Data.FileName,
+                    uploadRequestResult.Data.ContentType,
+                    contentStream))
+                    .ToHttpResult();
+            })
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
             .WithTags("Users");
 
@@ -47,4 +66,61 @@ public static class UserEndpoints
 
         return app;
     }
+
+    private static async Task<ApiResult<UserProfileImageUploadRequest>> TryReadUserProfileImageUploadRequestAsync(HttpRequest request)
+    {
+        if (!request.HasFormContentType)
+        {
+            return ValidationFailure("file", "Image upload must use multipart/form-data.");
+        }
+
+        IFormCollection form;
+        try
+        {
+            form = await request.ReadFormAsync();
+        }
+        catch (InvalidDataException)
+        {
+            return ValidationFailure("file", "Image upload could not be read.");
+        }
+
+        var imageFile = form.Files.GetFile("file");
+        if (imageFile is null)
+        {
+            return ValidationFailure("file", "Image file is required.");
+        }
+
+        if (imageFile.Length <= 0)
+        {
+            return ValidationFailure("file", "Image file cannot be empty.");
+        }
+
+        if (string.IsNullOrWhiteSpace(imageFile.ContentType))
+        {
+            return ValidationFailure("file", "Image content type is required.");
+        }
+
+        byte[] content;
+        await using (var fileStream = imageFile.OpenReadStream())
+        {
+            using var memoryStream = new MemoryStream();
+            await fileStream.CopyToAsync(memoryStream);
+            content = memoryStream.ToArray();
+        }
+
+        return ApiResults.Ok(new UserProfileImageUploadRequest(
+            imageFile.FileName,
+            imageFile.ContentType,
+            content));
+    }
+
+    private static ApiResult<UserProfileImageUploadRequest> ValidationFailure(string property, string message) =>
+        ApiResults.BadRequest<UserProfileImageUploadRequest>(
+            "Validation failed.",
+            new Dictionary<string, string[]>
+            {
+                [property] = [message]
+            });
+
+    private sealed record UserProfileImageUploadRequest(string FileName, string ContentType, byte[] Content);
 }
