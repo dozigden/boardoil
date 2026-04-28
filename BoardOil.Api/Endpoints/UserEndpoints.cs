@@ -17,12 +17,24 @@ public static class UserEndpoints
                 userService.GetUsersAsync().ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
             .WithTags("Users");
-        app.MapGet("/api/users/me/profile-image", (HttpContext httpContext, IUserProfileImageService userProfileImageService) =>
-                userProfileImageService.GetOwnProfileImageAsync(httpContext.GetActorUserId()).ToHttpResult())
+        app.MapGet("/api/users/me/profile-image", async (ClaimsPrincipal user, IUserProfileImageService userProfileImageService) =>
+            {
+                if (!user.TryGetUserId(out var actorUserId))
+                {
+                    return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
+                }
+
+                return (await userProfileImageService.GetOwnProfileImageAsync(actorUserId)).ToHttpResult();
+            })
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
             .WithTags("Users");
-        app.MapPost("/api/users/me/profile-image", async (HttpRequest request, HttpContext httpContext, IUserProfileImageService userProfileImageService) =>
+        app.MapPost("/api/users/me/profile-image", async (HttpRequest request, ClaimsPrincipal user, IUserProfileImageService userProfileImageService) =>
             {
+                if (!user.TryGetUserId(out var actorUserId))
+                {
+                    return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
+                }
+
                 var uploadRequestResult = await TryReadUserProfileImageUploadRequestAsync(request);
                 if (!uploadRequestResult.Success || uploadRequestResult.Data is null)
                 {
@@ -31,7 +43,7 @@ public static class UserEndpoints
 
                 await using var contentStream = new MemoryStream(uploadRequestResult.Data.Content, writable: false);
                 return (await userProfileImageService.UploadOwnProfileImageAsync(
-                    httpContext.GetActorUserId(),
+                    actorUserId,
                     uploadRequestResult.Data.FileName,
                     uploadRequestResult.Data.ContentType,
                     contentStream))
