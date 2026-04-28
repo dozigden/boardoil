@@ -30,12 +30,6 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
   },
   {
-    path: '/access-tokens',
-    name: 'access-tokens',
-    component: () => import('./site/views/AccessTokensView.vue'),
-    meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
-  },
-  {
     path: '/user-admin',
     component: () => import('./site/views/UserAdminView.vue'),
     meta: { requiresAuth: true, layout: APP_LAYOUT_ADMIN },
@@ -48,6 +42,11 @@ const routes: RouteRecordRaw[] = [
         path: 'profile',
         name: 'user-admin-profile',
         component: () => import('./site/views/UserProfileView.vue')
+      },
+      {
+        path: 'access-tokens',
+        name: 'user-admin-access-tokens',
+        component: () => import('./site/views/AccessTokensView.vue')
       }
     ]
   },

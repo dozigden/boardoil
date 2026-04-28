@@ -26,6 +26,10 @@ const navItems = [
   {
     label: 'Profile',
     to: { name: 'user-admin-profile' }
+  },
+  {
+    label: 'Access Tokens',
+    to: { name: 'user-admin-access-tokens' }
   }
 ];
 </script>
