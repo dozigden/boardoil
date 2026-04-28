@@ -47,6 +47,11 @@ const routes: RouteRecordRaw[] = [
         path: 'access-tokens',
         name: 'user-admin-access-tokens',
         component: () => import('./site/views/AccessTokensView.vue')
+      },
+      {
+        path: 'reset-password',
+        name: 'user-admin-reset-password',
+        component: () => import('./site/views/UserResetPasswordView.vue')
       }
     ]
   },
