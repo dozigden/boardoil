@@ -7,6 +7,7 @@ using BoardOil.Api.Realtime;
 using BoardOil.Api.Swagger;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Auth;
+using BoardOil.Abstractions.Image;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Auth;
@@ -29,6 +30,7 @@ var buildInfo = BoardOilBuildInfo.FromConfiguration(builder.Configuration, build
 builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
 var connectionString = runtimeOptions.ResolveConnectionString(builder.Configuration);
+var imageStorageOptions = BoardOilImageStorageOptions.Resolve(builder.Configuration, connectionString);
 builder.Services.AddBoardOilServices(connectionString);
 builder.Services.AddCors(options =>
 {
@@ -53,6 +55,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton(runtimeOptions);
+builder.Services.AddSingleton(imageStorageOptions);
 builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton(csrfOptions);
 builder.Services.AddSingleton(internalOptions);
