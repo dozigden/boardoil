@@ -22,6 +22,25 @@ public sealed class UserProfileImageService(
         "image/webp"
     ];
 
+    public async Task<ApiResult<UserProfileImageDto>> GetOwnProfileImageAsync(int actorUserId)
+    {
+        using var scope = scopeFactory.CreateReadOnly();
+
+        var user = userRepository.Get(actorUserId);
+        if (user is null || !user.IsActive)
+        {
+            return ApiErrors.Unauthorized("User is not active.");
+        }
+
+        var existing = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, actorUserId);
+        if (existing is null || existing.Width is null || existing.Height is null)
+        {
+            return ApiErrors.NotFound("User profile image was not found.");
+        }
+
+        return ToDto(existing);
+    }
+
     public async Task<ApiResult<UserProfileImageDto>> UploadOwnProfileImageAsync(
         int actorUserId,
         string originalFileName,
@@ -86,32 +105,38 @@ public sealed class UserProfileImageService(
             Content = uploadStream,
         }, cancellationToken);
 
-        var entity = new EntityImage
+        var existing = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, actorUserId);
+        var isCreate = existing is null;
+        var oldRelativePath = existing?.RelativePath;
+        var entity = existing ?? new EntityImage
         {
             EntityType = ImageEntityType.UserProfile,
             EntityId = actorUserId,
-            OriginalFileName = originalFileName,
-            ContentType = normalisedContentType,
-            RelativePath = saved.RelativePath,
-            ByteLength = saved.ByteLength,
-            Width = imageInfo.Width,
-            Height = imageInfo.Height,
             CreatedAtUtc = saved.CreatedAtUtc,
-            UpdatedAtUtc = saved.UpdatedAtUtc,
         };
 
-        imageRepository.Add(entity);
+        entity.OriginalFileName = originalFileName;
+        entity.ContentType = normalisedContentType;
+        entity.RelativePath = saved.RelativePath;
+        entity.ByteLength = saved.ByteLength;
+        entity.Width = imageInfo.Width;
+        entity.Height = imageInfo.Height;
+        entity.UpdatedAtUtc = saved.UpdatedAtUtc;
+
+        if (existing is null)
+        {
+            imageRepository.Add(entity);
+        }
+
         await scope.SaveChangesAsync();
 
-        return ApiResults.Created(new UserProfileImageDto(
-            entity.Id,
-            entity.ContentType,
-            entity.RelativePath,
-            entity.ByteLength,
-            entity.Width ?? imageInfo.Width,
-            entity.Height ?? imageInfo.Height,
-            entity.CreatedAtUtc,
-            entity.UpdatedAtUtc));
+        if (!string.IsNullOrWhiteSpace(oldRelativePath)
+            && !string.Equals(oldRelativePath, entity.RelativePath, StringComparison.Ordinal))
+        {
+            await imageStorageService.DeleteIfExistsAsync(oldRelativePath, cancellationToken);
+        }
+
+        return isCreate ? ApiResults.Created(ToDto(entity)) : ApiResults.Ok(ToDto(entity));
     }
 
     private static ApiResult<UserProfileImageDto> ValidationFailure(string property, string message) =>
@@ -121,4 +146,15 @@ public sealed class UserProfileImageService(
             {
                 [property] = [message]
             });
+
+    private static UserProfileImageDto ToDto(EntityImage entity) =>
+        new(
+            entity.Id,
+            entity.ContentType,
+            entity.RelativePath,
+            entity.ByteLength,
+            entity.Width ?? 0,
+            entity.Height ?? 0,
+            entity.CreatedAtUtc,
+            entity.UpdatedAtUtc);
 }

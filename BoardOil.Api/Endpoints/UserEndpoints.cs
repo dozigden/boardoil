@@ -17,6 +17,10 @@ public static class UserEndpoints
                 userService.GetUsersAsync().ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
             .WithTags("Users");
+        app.MapGet("/api/users/me/profile-image", (HttpContext httpContext, IUserProfileImageService userProfileImageService) =>
+                userProfileImageService.GetOwnProfileImageAsync(httpContext.GetActorUserId()).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
+            .WithTags("Users");
         app.MapPost("/api/users/me/profile-image", async (HttpRequest request, HttpContext httpContext, IUserProfileImageService userProfileImageService) =>
             {
                 var uploadRequestResult = await TryReadUserProfileImageUploadRequestAsync(request);
