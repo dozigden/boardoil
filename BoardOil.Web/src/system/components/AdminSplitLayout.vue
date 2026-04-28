@@ -16,12 +16,28 @@
         <h2 class="admin-mobile-page-title">{{ mobilePageTitle }}</h2>
       </div>
       <div class="admin-mobile-right">
+        <img
+          v-if="props.titleAvatarUrl"
+          :src="props.titleAvatarUrl"
+          alt=""
+          class="admin-title-avatar"
+          aria-hidden="true"
+        />
         <span class="admin-mobile-context">{{ props.title }}</span>
       </div>
     </header>
 
     <aside :id="mobileNavId" class="admin-nav" :class="{ 'admin-nav--open': mobileNavOpen }" :aria-label="`${props.title} sections`">
-      <h2 class="admin-nav-title">{{ props.title }}</h2>
+      <h2 class="admin-nav-title">
+        <img
+          v-if="props.titleAvatarUrl"
+          :src="props.titleAvatarUrl"
+          alt=""
+          class="admin-title-avatar"
+          aria-hidden="true"
+        />
+        <span>{{ props.title }}</span>
+      </h2>
       <nav class="admin-nav-links">
         <RouterLink
           v-for="item in props.items"
@@ -56,6 +72,7 @@ type AdminNavItem = {
 const props = defineProps<{
   title: string;
   items: AdminNavItem[];
+  titleAvatarUrl?: string | null;
 }>();
 
 const route = useRoute();
@@ -161,6 +178,18 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
 .admin-nav-title {
   margin: 0;
   font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-title-avatar {
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--bo-border-default);
+  background: var(--bo-surface-base);
 }
 
 .admin-nav-links {

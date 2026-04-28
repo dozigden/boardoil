@@ -36,6 +36,22 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
   },
   {
+    path: '/user-admin',
+    component: () => import('./site/views/UserAdminView.vue'),
+    meta: { requiresAuth: true, layout: APP_LAYOUT_ADMIN },
+    children: [
+      {
+        path: '',
+        redirect: { name: 'user-admin-profile' }
+      },
+      {
+        path: 'profile',
+        name: 'user-admin-profile',
+        component: () => import('./site/views/UserProfileView.vue')
+      }
+    ]
+  },
+  {
     path: '/',
     name: 'boards',
     component: () => import('./board/views/BoardsView.vue'),
