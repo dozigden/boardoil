@@ -9,6 +9,7 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.CardType;
 using BoardOil.Abstractions.Column;
+using BoardOil.Abstractions.Image;
 using BoardOil.Abstractions.Tag;
 using BoardOil.Abstractions.Users;
 using BoardOil.Persistence.Abstractions.Auth;
@@ -24,6 +25,7 @@ using BoardOil.Services.Board;
 using BoardOil.Services.Card;
 using BoardOil.Services.CardType;
 using BoardOil.Services.Column;
+using BoardOil.Services.Image;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Users;
 using BoardOil.TasksMd;
@@ -73,6 +75,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IClientAccountService, ClientAccountService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IImageStorageService, LocalImageStorageService>();
         services.AddHttpClient<ITasksMdClient, TasksMdClient>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(15);
