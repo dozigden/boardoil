@@ -30,6 +30,10 @@ const navItems = [
   {
     label: 'Access Tokens',
     to: { name: 'user-admin-access-tokens' }
+  },
+  {
+    label: 'Reset Password',
+    to: { name: 'user-admin-reset-password' }
   }
 ];
 </script>

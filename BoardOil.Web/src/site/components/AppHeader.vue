@@ -43,8 +43,6 @@
           <template #default="{ close }">
             <RouterLink :to="{ name: 'user-admin-profile' }" class="bo-dropdown-item" @click="close">Profile</RouterLink>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
-            <button type="button" class="bo-dropdown-item" @click="openPasswordResetDialog(close)">Reset password</button>
-            <span class="bo-dropdown-divider" aria-hidden="true"></span>
             <button type="button" class="bo-dropdown-item" @click="handleLogout(close)">Logout</button>
           </template>
         </BoDropdown>
@@ -82,34 +80,6 @@
     </div>
   </header>
   <AboutDialog :open="aboutDialogOpen" @close="closeAboutDialog" />
-  <PasswordResetDialog
-    :open="passwordResetDialogOpen"
-    :busy="busy"
-    mode="self"
-    @close="closePasswordResetDialog"
-    @submit="submitPasswordReset"
-  />
-  <ModalDialog
-    :open="passwordResetSuccessDialogOpen"
-    title="Password Reset Complete"
-    close-label="Continue to login"
-    @close="acknowledgePasswordReset"
-    @submit="acknowledgePasswordReset"
-  >
-    <p class="password-reset-success-copy">
-      Password reset successful. You are now signed out.
-    </p>
-
-    <template #actions>
-      <div class="editor-actions card-modal-actions">
-        <div class="card-modal-actions-left">
-          <button type="submit" class="btn" aria-label="Continue to login" title="Continue to login">
-            <span>OK</span>
-          </button>
-        </div>
-      </div>
-    </template>
-  </ModalDialog>
 </template>
 
 <script setup lang="ts">
@@ -122,22 +92,18 @@ import BoardOilDrop from './BoardOilDrop.vue';
 import BoardOilLogo from './BoardOilLogo.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import HeaderBoardPicker from './HeaderBoardPicker.vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
-import PasswordResetDialog from '../../shared/components/PasswordResetDialog.vue';
 import { getBrandTarget } from './appHeaderNavigation';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useUserProfileImageStore } from '../../shared/stores/userProfileImageStore';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useBoardStore } from '../../board/stores/boardStore';
 const aboutDialogOpen = ref(false);
-const passwordResetDialogOpen = ref(false);
-const passwordResetSuccessDialogOpen = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
 const boardCatalogueStore = useBoardCatalogueStore();
 const boardStore = useBoardStore();
-const { user, isAuthenticated, isAdmin, busy } = storeToRefs(authStore);
+const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
 const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
 const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId } = storeToRefs(boardStore);
@@ -167,33 +133,6 @@ function closeAboutDialog() {
   aboutDialogOpen.value = false;
 }
 
-async function openPasswordResetDialog(close?: () => void) {
-  close?.();
-  passwordResetDialogOpen.value = true;
-}
-
-function closePasswordResetDialog() {
-  passwordResetDialogOpen.value = false;
-}
-
-async function submitPasswordReset(payload: { currentPassword?: string; newPassword: string }) {
-  if (!payload.currentPassword) {
-    return;
-  }
-
-  const success = await authStore.changeOwnPassword(payload.currentPassword, payload.newPassword);
-  if (!success) {
-    return;
-  }
-
-  passwordResetDialogOpen.value = false;
-  passwordResetSuccessDialogOpen.value = true;
-}
-
-async function acknowledgePasswordReset() {
-  passwordResetSuccessDialogOpen.value = false;
-  await router.replace({ name: 'login', query: { passwordReset: '1' } });
-}
 </script>
 
 <style scoped>
@@ -339,11 +278,6 @@ async function acknowledgePasswordReset() {
 
 .menu-trigger::-webkit-details-marker {
   display: none;
-}
-
-.password-reset-success-copy {
-  margin: 0 0 0.75rem;
-  color: var(--bo-ink-muted);
 }
 
 @media (max-width: 720px) {
