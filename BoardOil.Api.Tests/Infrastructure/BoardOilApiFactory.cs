@@ -36,15 +36,20 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         var directory = Path.GetDirectoryName(_databasePath);
+        var imageRootPath = string.IsNullOrWhiteSpace(directory)
+            ? Path.Combine(".", "data", "images")
+            : Path.Combine(directory, "images");
         if (!string.IsNullOrWhiteSpace(directory))
         {
             Directory.CreateDirectory(directory);
         }
+        Directory.CreateDirectory(imageRootPath);
 
         builder.UseEnvironment("Testing");
         builder.UseSetting("ASPNETCORE_URLS", "http://127.0.0.1:5000");
         builder.UseSetting("ConnectionStrings:BoardOil", $"Data Source={_databasePath}");
         builder.UseSetting("BoardOil:DataPath", _databasePath);
+        builder.UseSetting("BoardOil:ImageRootPath", imageRootPath);
         builder.UseSetting("BoardOil:ExposeLan", "false");
         builder.UseSetting("BoardOil:Port", "5000");
         builder.UseSetting("BoardOilAuth:AllowInsecureCookies", _allowInsecureCookies.ToString().ToLowerInvariant());
@@ -67,6 +72,7 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
             {
                 ["ConnectionStrings:BoardOil"] = $"Data Source={_databasePath}",
                 ["BoardOil:DataPath"] = _databasePath,
+                ["BoardOil:ImageRootPath"] = imageRootPath,
                 ["BoardOil:ExposeLan"] = "false",
                 ["BoardOil:Port"] = "5000",
                 ["BoardOilAuth:AllowInsecureCookies"] = _allowInsecureCookies.ToString().ToLowerInvariant()
