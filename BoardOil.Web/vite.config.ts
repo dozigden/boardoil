@@ -26,6 +26,7 @@ export default defineConfig(({ command, mode }) => {
     server: {
       proxy: {
         '/api': 'http://localhost:5000',
+        '/images': 'http://localhost:5000',
         '/hubs': {
           target: 'http://localhost:5000',
           ws: true
