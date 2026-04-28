@@ -17,7 +17,9 @@
       :aria-haspopup="popup"
       @click="toggleOpen"
     >
-      <component v-if="icon" :is="icon" :size="iconSize" aria-hidden="true" />
+      <slot name="icon">
+        <component v-if="icon" :is="icon" :size="iconSize" aria-hidden="true" />
+      </slot>
       <span v-if="triggerText">{{ triggerText }}</span>
     </button>
     <div
