@@ -45,8 +45,6 @@
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
             <button type="button" class="bo-dropdown-item" @click="openPasswordResetDialog(close)">Reset password</button>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
-            <RouterLink :to="{ name: 'access-tokens' }" class="bo-dropdown-item" @click="close">Access tokens</RouterLink>
-            <span class="bo-dropdown-divider" aria-hidden="true"></span>
             <button type="button" class="bo-dropdown-item" @click="handleLogout(close)">Logout</button>
           </template>
         </BoDropdown>
