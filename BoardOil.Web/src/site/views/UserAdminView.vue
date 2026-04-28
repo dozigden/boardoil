@@ -14,9 +14,12 @@ import { computed } from 'vue';
 import { RouterView } from 'vue-router';
 import AdminSplitLayout from '../../system/components/AdminSplitLayout.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
+import { useUserProfileImageStore } from '../../shared/stores/userProfileImageStore';
 
 const authStore = useAuthStore();
-const { user, userProfileImageUrl } = storeToRefs(authStore);
+const userProfileImageStore = useUserProfileImageStore();
+const { user } = storeToRefs(authStore);
+const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
 const userName = computed(() => user.value?.userName ?? 'Profile');
 
 const navItems = [

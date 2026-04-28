@@ -63,9 +63,12 @@ import { storeToRefs } from 'pinia';
 import { computed, ref } from 'vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
+import { useUserProfileImageStore } from '../../shared/stores/userProfileImageStore';
 
 const authStore = useAuthStore();
-const { user, userProfileImageUrl } = storeToRefs(authStore);
+const userProfileImageStore = useUserProfileImageStore();
+const { user } = storeToRefs(authStore);
+const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
 const userImageInput = ref<HTMLInputElement | null>(null);
 
 const userName = computed(() => user.value?.userName ?? 'Unknown user');
@@ -84,7 +87,7 @@ async function onUserImageSelected(event: Event) {
     return;
   }
 
-  await authStore.uploadOwnProfileImage(file);
+  await userProfileImageStore.uploadOwnProfileImage(file);
   input.value = '';
 }
 
@@ -94,7 +97,7 @@ async function removeImage(close?: () => void) {
     return;
   }
 
-  await authStore.deleteOwnProfileImage();
+  await userProfileImageStore.deleteOwnProfileImage();
 }
 </script>
 
