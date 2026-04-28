@@ -20,23 +20,26 @@
         />
       </div>
       <div class="header-meta">
-        <img
-          v-if="isAuthenticated && userProfileImageUrl"
-          :src="userProfileImageUrl"
-          alt="User profile image"
-          class="user-avatar"
-        />
         <p v-if="isAuthenticated && userName" class="user-meta">
           {{ userName }}
         </p>
         <BoDropdown
           v-if="isAuthenticated"
-          class="header-menu"
+          class="header-menu header-menu--user"
           align="right"
           icon-only
           label="User menu"
           :icon="CircleUserRound"
         >
+          <template #icon>
+            <img
+              v-if="userProfileImageUrl"
+              :src="userProfileImageUrl"
+              alt="User profile image"
+              class="user-avatar"
+            />
+            <CircleUserRound v-else :size="18" aria-hidden="true" />
+          </template>
           <template #default="{ close }">
             <button type="button" class="bo-dropdown-item" @click="openUserImagePicker(close)">User image</button>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
@@ -328,16 +331,24 @@ async function acknowledgePasswordReset() {
 }
 
 .user-avatar {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
   object-fit: cover;
-  border: 1px solid var(--bo-border-default);
-  background: var(--bo-surface-panel);
+  border: 0;
+  background: var(--bo-surface-base);
 }
 
 .user-image-input {
   display: none;
+}
+
+.header-menu--user :deep(.bo-dropdown-trigger) {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 999px;
+  overflow: hidden;
 }
 
 .header-menu {
