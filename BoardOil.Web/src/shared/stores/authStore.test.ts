@@ -16,7 +16,8 @@ const authApi = {
 };
 const usersApi = {
   getMyProfileImage: vi.fn(),
-  uploadMyProfileImage: vi.fn()
+  uploadMyProfileImage: vi.fn(),
+  deleteMyProfileImage: vi.fn()
 };
 
 const setCsrfToken = vi.fn();
@@ -64,6 +65,7 @@ describe('authStore', () => {
       createdAtUtc: '2026-04-28T00:00:00Z',
       updatedAtUtc: '2026-04-28T00:00:00Z'
     }));
+    usersApi.deleteMyProfileImage.mockResolvedValue(ok(undefined));
     setUnauthorizedHandler.mockClear();
     router.replace.mockClear();
     router.currentRoute.value.name = 'boards';
@@ -234,6 +236,40 @@ describe('authStore', () => {
     expect(store.user).toBeNull();
     expect(store.isAuthenticated).toBe(false);
     expect(setCsrfToken).toHaveBeenLastCalledWith(null);
+  });
+
+  it('deleteOwnProfileImage clears profile image on success', async () => {
+    const store = useAuthStore();
+    authApi.getMe.mockResolvedValue(ok<AuthUser | null>({ id: 1, userName: 'admin', role: 'Admin' }));
+    usersApi.getMyProfileImage.mockResolvedValue(ok({
+      id: 1,
+      contentType: 'image/png',
+      relativePath: 'userprofile/1/a.png',
+      byteLength: 123,
+      width: 128,
+      height: 128,
+      createdAtUtc: '2026-04-28T00:00:00Z',
+      updatedAtUtc: '2026-04-28T00:00:00Z'
+    }));
+    await store.initialize();
+    expect(store.userProfileImage).not.toBeNull();
+
+    const success = await store.deleteOwnProfileImage();
+
+    expect(success).toBe(true);
+    expect(store.userProfileImage).toBeNull();
+    expect(usersApi.deleteMyProfileImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('deleteOwnProfileImage exposes API error message on failure', async () => {
+    const store = useAuthStore();
+    const apiError: AppError = { kind: 'api', message: 'Delete failed.' };
+    usersApi.deleteMyProfileImage.mockResolvedValue(err(apiError));
+
+    const success = await store.deleteOwnProfileImage();
+
+    expect(success).toBe(false);
+    expect(store.errorMessage).toBe('Delete failed.');
   });
 
   it('registers unauthorized handler that clears session and routes to unauthorized page', async () => {

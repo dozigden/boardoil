@@ -2,7 +2,7 @@ import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import type { UserDirectoryEntry, UserProfileImage } from '../types/authTypes';
 import { err, ok } from '../types/result';
-import { getEnvelope, postFormData } from './http';
+import { deleteJson, getEnvelope, postFormData } from './http';
 
 export type UsersApi = ReturnType<typeof createUsersApi>;
 
@@ -39,10 +39,15 @@ export function createUsersApi() {
     return postFormData<UserProfileImage>('/api/users/me/profile-image', formData);
   }
 
+  async function deleteMyProfileImage(): Promise<Result<void, AppError>> {
+    return deleteJson('/api/users/me/profile-image');
+  }
+
   return {
     getAllUsers,
     getMyProfileImage,
-    uploadMyProfileImage
+    uploadMyProfileImage,
+    deleteMyProfileImage
   };
 }
 

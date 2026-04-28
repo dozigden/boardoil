@@ -27,6 +27,14 @@
           >
             <template #default="{ close }">
               <button type="button" class="bo-dropdown-item" @click="openImagePicker(close)">Upload image</button>
+              <button
+                type="button"
+                class="bo-dropdown-item"
+                :disabled="!userProfileImageUrl"
+                @click="removeImage(close)"
+              >
+                Remove image
+              </button>
             </template>
           </BoDropdown>
         </div>
@@ -78,6 +86,15 @@ async function onUserImageSelected(event: Event) {
 
   await authStore.uploadOwnProfileImage(file);
   input.value = '';
+}
+
+async function removeImage(close?: () => void) {
+  close?.();
+  if (!userProfileImageUrl.value) {
+    return;
+  }
+
+  await authStore.deleteOwnProfileImage();
 }
 </script>
 

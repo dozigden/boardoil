@@ -12,4 +12,7 @@ public interface IUserProfileImageService
         string contentType,
         Stream content,
         CancellationToken cancellationToken = default);
+    Task<ApiResult> DeleteOwnProfileImageAsync(
+        int actorUserId,
+        CancellationToken cancellationToken = default);
 }

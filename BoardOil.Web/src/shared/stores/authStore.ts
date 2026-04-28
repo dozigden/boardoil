@@ -155,6 +155,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function deleteOwnProfileImage() {
+    busy.value = true;
+    errorMessage.value = null;
+    try {
+      const result = await usersApi.deleteMyProfileImage();
+      if (!result.ok) {
+        errorMessage.value = result.error.message;
+        return false;
+      }
+
+      userProfileImage.value = null;
+      return true;
+    } finally {
+      busy.value = false;
+    }
+  }
+
   function handleUnauthorized() {
     clearSession();
   }
@@ -182,6 +199,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     loadOwnProfileImage,
     uploadOwnProfileImage,
+    deleteOwnProfileImage,
     handleUnauthorized
   };
 });

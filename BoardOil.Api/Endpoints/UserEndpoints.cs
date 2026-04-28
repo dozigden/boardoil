@@ -51,6 +51,17 @@ public static class UserEndpoints
             })
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
             .WithTags("Users");
+        app.MapDelete("/api/users/me/profile-image", async (ClaimsPrincipal user, IUserProfileImageService userProfileImageService) =>
+            {
+                if (!user.TryGetUserId(out var actorUserId))
+                {
+                    return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
+                }
+
+                return (await userProfileImageService.DeleteOwnProfileImageAsync(actorUserId)).ToHttpResult();
+            })
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
+            .WithTags("Users");
 
         app.MapGet("/api/system/users", (IUserAdminService userAdminService) =>
                 userAdminService.GetUsersAsync().ToHttpResult())
