@@ -17,6 +17,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityRefreshToken> RefreshTokens => Set<EntityRefreshToken>();
     public DbSet<EntityPersonalAccessToken> PersonalAccessTokens => Set<EntityPersonalAccessToken>();
     public DbSet<EntityAppSetting> AppSettings => Set<EntityAppSetting>();
+    public DbSet<EntityImage> Images => Set<EntityImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -196,5 +197,20 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         appSetting.Property(x => x.UpdatedAtUtc).IsRequired();
         appSetting.ToTable("AppSettings");
         appSetting.HasIndex(x => x.Key).IsUnique();
+
+        var image = modelBuilder.Entity<EntityImage>();
+        image.HasKey(x => x.Id);
+        image.Property(x => x.EntityType).IsRequired();
+        image.Property(x => x.EntityId).IsRequired();
+        image.Property(x => x.OriginalFileName).HasMaxLength(260).IsRequired();
+        image.Property(x => x.ContentType).HasMaxLength(200).IsRequired();
+        image.Property(x => x.RelativePath).HasMaxLength(1024).IsRequired();
+        image.Property(x => x.ByteLength).IsRequired();
+        image.Property(x => x.Width).IsRequired(false);
+        image.Property(x => x.Height).IsRequired(false);
+        image.Property(x => x.CreatedAtUtc).IsRequired();
+        image.Property(x => x.UpdatedAtUtc).IsRequired();
+        image.ToTable("Images");
+        image.HasIndex(x => new { x.EntityType, x.EntityId });
     }
 }
