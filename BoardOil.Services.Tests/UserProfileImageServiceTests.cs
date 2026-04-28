@@ -78,6 +78,44 @@ public sealed class UserProfileImageServiceTests : TestBaseDb
         Assert.Equal(96, rows[0].Height);
     }
 
+    [Fact]
+    public async Task DeleteOwnProfileImageAsync_WhenImageExists_ShouldDeleteMetadataAndFile()
+    {
+        var service = ResolveService<IUserProfileImageService>();
+
+        var bytes = CreatePngBytes(96, 96);
+        await using (var stream = new MemoryStream(bytes, writable: false))
+        {
+            var uploadResult = await service.UploadOwnProfileImageAsync(ActorUserId, "avatar.png", "image/png", stream);
+            Assert.True(uploadResult.Success);
+        }
+
+        var existing = await DbContextForAssert.Images
+            .SingleAsync(x => x.EntityType == ImageEntityType.UserProfile && x.EntityId == ActorUserId);
+        var fullPath = Path.Combine(_imageRootPath, existing.RelativePath);
+        Assert.True(File.Exists(fullPath));
+
+        var result = await service.DeleteOwnProfileImageAsync(ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        var remaining = await DbContextForAssert.Images
+            .CountAsync(x => x.EntityType == ImageEntityType.UserProfile && x.EntityId == ActorUserId);
+        Assert.Equal(0, remaining);
+        Assert.False(File.Exists(fullPath));
+    }
+
+    [Fact]
+    public async Task DeleteOwnProfileImageAsync_WhenImageIsMissing_ShouldReturnNotFound()
+    {
+        var service = ResolveService<IUserProfileImageService>();
+
+        var result = await service.DeleteOwnProfileImageAsync(ActorUserId);
+
+        Assert.False(result.Success);
+        Assert.Equal(404, result.StatusCode);
+    }
+
     private static byte[] CreatePngBytes(int width, int height)
     {
         using var image = new Image<Rgba32>(width, height);

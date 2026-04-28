@@ -139,6 +139,36 @@ public sealed class UserProfileImageService(
         return isCreate ? ApiResults.Created(ToDto(entity)) : ApiResults.Ok(ToDto(entity));
     }
 
+    public async Task<ApiResult> DeleteOwnProfileImageAsync(
+        int actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        using var scope = scopeFactory.Create();
+
+        var user = userRepository.Get(actorUserId);
+        if (user is null || !user.IsActive)
+        {
+            return ApiErrors.Unauthorized("User is not active.");
+        }
+
+        var existing = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, actorUserId);
+        if (existing is null)
+        {
+            return ApiErrors.NotFound("User profile image was not found.");
+        }
+
+        var relativePath = existing.RelativePath;
+        imageRepository.Remove(existing);
+        await scope.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(relativePath))
+        {
+            await imageStorageService.DeleteIfExistsAsync(relativePath, cancellationToken);
+        }
+
+        return ApiResults.Ok();
+    }
+
     private static ApiResult<UserProfileImageDto> ValidationFailure(string property, string message) =>
         ApiResults.BadRequest<UserProfileImageDto>(
             "Validation failed.",
