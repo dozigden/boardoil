@@ -5,6 +5,7 @@ namespace BoardOil.Abstractions.Image;
 
 public interface IUserProfileImageService
 {
+    Task<ApiResult<UserProfileImageDto>> GetOwnProfileImageAsync(int actorUserId);
     Task<ApiResult<UserProfileImageDto>> UploadOwnProfileImageAsync(
         int actorUserId,
         string originalFileName,
