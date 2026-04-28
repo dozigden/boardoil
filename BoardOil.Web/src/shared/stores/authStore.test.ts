@@ -14,6 +14,10 @@ const authApi = {
   getCsrfToken: vi.fn(),
   getBootstrapStatus: vi.fn()
 };
+const usersApi = {
+  getMyProfileImage: vi.fn(),
+  uploadMyProfileImage: vi.fn()
+};
 
 const setCsrfToken = vi.fn();
 const setUnauthorizedHandler = vi.fn();
@@ -26,6 +30,10 @@ const { router } = vi.hoisted(() => ({
 
 vi.mock('../api/authApi', () => ({
   createAuthApi: () => authApi
+}));
+
+vi.mock('../api/usersApi', () => ({
+  createUsersApi: () => usersApi
 }));
 
 vi.mock('../api/http', () => ({
@@ -45,6 +53,17 @@ describe('authStore', () => {
     authApi.getCsrfToken.mockResolvedValue(ok('csrf-token'));
     authApi.getBootstrapStatus.mockResolvedValue(ok(false));
     authApi.logout.mockResolvedValue(ok(undefined));
+    usersApi.getMyProfileImage.mockResolvedValue(ok(null));
+    usersApi.uploadMyProfileImage.mockResolvedValue(ok({
+      id: 1,
+      contentType: 'image/png',
+      relativePath: 'userprofile/1/a.png',
+      byteLength: 123,
+      width: 128,
+      height: 128,
+      createdAtUtc: '2026-04-28T00:00:00Z',
+      updatedAtUtc: '2026-04-28T00:00:00Z'
+    }));
     setUnauthorizedHandler.mockClear();
     router.replace.mockClear();
     router.currentRoute.value.name = 'boards';
@@ -82,6 +101,7 @@ describe('authStore', () => {
     expect(store.isAdmin).toBe(true);
     expect(store.requiresInitialAdminSetup).toBe(false);
     expect(setCsrfToken).toHaveBeenCalledWith('csrf-token');
+    expect(usersApi.getMyProfileImage).toHaveBeenCalledTimes(1);
   });
 
   it('login stores user and csrf token on success', async () => {

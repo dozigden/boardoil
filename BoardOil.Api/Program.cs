@@ -14,6 +14,7 @@ using BoardOil.Services.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
@@ -294,6 +295,11 @@ app.MapHub<BoardHub>("/hubs/board")
     .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
 
 app.UseDefaultFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    RequestPath = "/images",
+    FileProvider = new PhysicalFileProvider(imageStorageOptions.RootPath)
+});
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = context =>

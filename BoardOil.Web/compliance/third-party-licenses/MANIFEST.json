@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-04-27T07:05:31.911Z",
+  "generatedAtUtc": "2026-04-28T07:55:52.304Z",
   "packageSource": "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -379,6 +379,15 @@
       "sourceType": "nuget-license-expression",
       "sourceFile": "~/.nuget/packages/newtonsoft.json/13.0.3/newtonsoft.json.nuspec",
       "outputFile": "compliance/third-party-licenses/nuget-newtonsoft.json-13.0.3.txt"
+    },
+    {
+      "ecosystem": "nuget",
+      "packageName": "SixLabors.ImageSharp",
+      "version": "3.1.11",
+      "declaredLicence": "LICENSE",
+      "sourceType": "nuget-package-file",
+      "sourceFile": "~/.nuget/packages/sixlabors.imagesharp/3.1.11/LICENSE",
+      "outputFile": "compliance/third-party-licenses/nuget-sixlabors.imagesharp-3.1.11.txt"
     },
     {
       "ecosystem": "nuget",
