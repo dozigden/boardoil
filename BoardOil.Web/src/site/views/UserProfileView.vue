@@ -44,8 +44,23 @@
         <p><strong>User:</strong> @{{ userName }}</p>
         <p><strong>Role:</strong> {{ userRole }}</p>
       </div>
-
     </section>
+
+    <form class="account-profile-form" @submit.prevent="saveProfile">
+      <label class="account-profile-field">
+        <span>Display name</span>
+        <input v-model="editDisplayName" type="text" maxlength="64" autocomplete="name" />
+      </label>
+      <label class="account-profile-field">
+        <span>Email</span>
+        <input v-model="editEmail" type="email" maxlength="320" autocomplete="email" />
+      </label>
+      <div class="account-profile-actions">
+        <button type="submit" class="btn" :disabled="saveBusy">Save profile</button>
+      </div>
+      <p v-if="saveErrorMessage" class="account-profile-error" role="alert">{{ saveErrorMessage }}</p>
+      <p v-else-if="saveSuccessMessage" class="account-profile-success">{{ saveSuccessMessage }}</p>
+    </form>
 
     <input
       ref="userImageInput"
@@ -60,21 +75,46 @@
 <script setup lang="ts">
 import { EllipsisVertical } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import { createUsersApi } from '../../shared/api/usersApi';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useUserProfileImageStore } from '../../shared/stores/userProfileImageStore';
 
 const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
+const usersApi = createUsersApi();
 const { user } = storeToRefs(authStore);
 const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
 const userImageInput = ref<HTMLInputElement | null>(null);
+const editDisplayName = ref('');
+const editEmail = ref('');
+const saveBusy = ref(false);
+const saveErrorMessage = ref<string | null>(null);
+const saveSuccessMessage = ref<string | null>(null);
 
 const userName = computed(() => user.value?.userName ?? 'Unknown user');
 const displayName = computed(() => user.value?.displayName ?? userName.value);
 const userRole = computed(() => user.value?.role ?? 'Unknown');
 const userInitials = computed(() => displayName.value.slice(0, 2).toUpperCase());
+
+watch(
+  () => user.value,
+  async (nextUser) => {
+    if (!nextUser) {
+      editDisplayName.value = '';
+      editEmail.value = '';
+      return;
+    }
+
+    editDisplayName.value = nextUser.displayName;
+    const profileResult = await usersApi.getMyProfile();
+    if (profileResult.ok) {
+      editEmail.value = profileResult.data.email;
+    }
+  },
+  { immediate: true }
+);
 
 function openImagePicker(close?: () => void) {
   close?.();
@@ -99,6 +139,26 @@ async function removeImage(close?: () => void) {
   }
 
   await userProfileImageStore.deleteOwnProfileImage();
+}
+
+async function saveProfile() {
+  saveBusy.value = true;
+  saveErrorMessage.value = null;
+  saveSuccessMessage.value = null;
+  try {
+    const result = await usersApi.updateMyProfile(editDisplayName.value, editEmail.value);
+    if (!result.ok) {
+      saveErrorMessage.value = result.error.message;
+      return;
+    }
+
+    authStore.setOwnProfile(result.data.displayName, result.data.userName, result.data.role);
+    editDisplayName.value = result.data.displayName;
+    editEmail.value = result.data.email;
+    saveSuccessMessage.value = 'Profile updated.';
+  } finally {
+    saveBusy.value = false;
+  }
 }
 </script>
 
@@ -196,5 +256,43 @@ async function removeImage(close?: () => void) {
 
 .account-profile-file-input {
   display: none;
+}
+
+.account-profile-form {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 32rem;
+}
+
+.account-profile-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.account-profile-field span {
+  font-size: 0.9rem;
+  color: var(--bo-ink-muted);
+}
+
+.account-profile-field input {
+  border: 1px solid var(--bo-border-default);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+}
+
+.account-profile-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.account-profile-error {
+  margin: 0;
+  color: var(--bo-colour-danger-ink);
+}
+
+.account-profile-success {
+  margin: 0;
+  color: var(--bo-colour-success-ink);
 }
 </style>

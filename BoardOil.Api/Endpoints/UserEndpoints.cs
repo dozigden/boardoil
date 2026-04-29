@@ -17,6 +17,28 @@ public static class UserEndpoints
                 userService.GetUsersAsync().ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
             .WithTags("Users");
+        app.MapGet("/api/users/me", async (ClaimsPrincipal user, IUserService userService) =>
+            {
+                if (!user.TryGetUserId(out var actorUserId))
+                {
+                    return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
+                }
+
+                return (await userService.GetOwnProfileAsync(actorUserId)).ToHttpResult();
+            })
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
+            .WithTags("Users");
+        app.MapPut("/api/users/me", async (UpdateOwnUserProfileRequest request, ClaimsPrincipal user, IUserService userService) =>
+            {
+                if (!user.TryGetUserId(out var actorUserId))
+                {
+                    return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
+                }
+
+                return (await userService.UpdateOwnProfileAsync(actorUserId, request)).ToHttpResult();
+            })
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
+            .WithTags("Users");
         app.MapGet("/api/users/me/profile-image", async (ClaimsPrincipal user, IUserProfileImageService userProfileImageService) =>
             {
                 if (!user.TryGetUserId(out var actorUserId))

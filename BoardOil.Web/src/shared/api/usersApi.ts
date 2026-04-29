@@ -1,8 +1,8 @@
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
-import type { UserDirectoryEntry, UserProfileImage } from '../types/authTypes';
+import type { OwnUserProfile, UserDirectoryEntry, UserProfileImage } from '../types/authTypes';
 import { err, ok } from '../types/result';
-import { deleteJson, getEnvelope, postFormData } from './http';
+import { deleteJson, getEnvelope, postFormData, putData } from './http';
 
 export type UsersApi = ReturnType<typeof createUsersApi>;
 
@@ -14,6 +14,22 @@ export function createUsersApi() {
     }
 
     return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function getMyProfile(): Promise<Result<OwnUserProfile, AppError>> {
+    const envelopeResult = await getEnvelope<OwnUserProfile>('/api/users/me');
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    if (!envelopeResult.data.data) {
+      return err({
+        kind: 'parse',
+        message: 'Expected response payload was missing.'
+      });
+    }
+
+    return ok(envelopeResult.data.data);
   }
 
   async function getMyProfileImage(): Promise<Result<UserProfileImage | null, AppError>> {
@@ -43,11 +59,17 @@ export function createUsersApi() {
     return deleteJson('/api/users/me/profile-image');
   }
 
+  async function updateMyProfile(displayName: string, email: string): Promise<Result<OwnUserProfile, AppError>> {
+    return putData<OwnUserProfile>('/api/users/me', { displayName, email });
+  }
+
   return {
     getAllUsers,
+    getMyProfile,
     getMyProfileImage,
     uploadMyProfileImage,
-    deleteMyProfileImage
+    deleteMyProfileImage,
+    updateMyProfile
   };
 }
 
