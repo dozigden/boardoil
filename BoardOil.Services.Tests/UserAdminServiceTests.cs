@@ -48,6 +48,39 @@ public sealed class UserAdminServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task GetUsersAsync_WhenUserHasProfileImage_ShouldReturnProfileImageRelativePath()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var user = await AddUserAsync("member", "member@localhost", "Password1234!");
+        var now = DateTime.UtcNow;
+        DbContextForArrange.Images.Add(new EntityImage
+        {
+            EntityType = ImageEntityType.UserProfile,
+            EntityId = user.Id,
+            OriginalFileName = "avatar.png",
+            ContentType = "image/png",
+            RelativePath = "users/1/avatar.png",
+            ByteLength = 1234,
+            Width = 128,
+            Height = 128,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IUserAdminService>();
+
+        // Act
+        var result = await service.GetUsersAsync();
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var managedUser = Assert.Single(result.Data!, x => x.Id == user.Id);
+        Assert.Equal("users/1/avatar.png", managedUser.ProfileImageRelativePath);
+    }
+
+    [Fact]
     public async Task CreateUserAsync_WhenDuplicateEmail_ShouldReturnBadRequest()
     {
         // Arrange

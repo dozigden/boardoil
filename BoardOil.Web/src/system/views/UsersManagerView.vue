@@ -14,10 +14,20 @@
     <section class="entity-rows-list">
       <article v-for="user in users" :key="user.id" class="entity-row">
         <div class="entity-row-main">
-          <span class="badge">#{{ user.id }}</span>
-          <strong class="entity-row-title">{{ user.displayName }}</strong>
-          <span class="user-username">@{{ user.userName }}</span>
-          <span class="user-email">{{ user.email }}</span>
+          <span class="users-row-leading">
+            <UserAvatar
+              :image-relative-path="user.profileImageRelativePath ?? null"
+              :display-name="user.displayName"
+              size="lg"
+              class="user-row-avatar"
+            />
+            <span class="users-row-meta">
+              <span class="badge">#{{ user.id }}</span>
+              <strong class="entity-row-title">{{ user.displayName }}</strong>
+              <span class="user-username">@{{ user.userName }}</span>
+              <span class="user-email">{{ user.email }}</span>
+            </span>
+          </span>
           <span class="entity-row-badges badge-group">
             <span class="badge">{{ user.identityType }}</span>
             <span class="badge">{{ user.role }}</span>
@@ -86,6 +96,7 @@ import { onMounted, ref } from 'vue';
 import { createSystemApi } from '../../shared/api/systemApi';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import PasswordResetDialog from '../../shared/components/PasswordResetDialog.vue';
+import UserAvatar from '../../shared/components/UserAvatar.vue';
 import UserCreateDialog from '../components/UserCreateDialog.vue';
 import UserEditDialog from '../components/UserEditDialog.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
@@ -270,6 +281,23 @@ onMounted(async () => {
 <style scoped>
 .users-header {
   align-items: flex-end;
+}
+
+.users-row-leading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.users-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.user-row-avatar {
+  flex-shrink: 0;
 }
 
 .user-email {

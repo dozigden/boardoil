@@ -9,6 +9,7 @@ public sealed record ManagedUserDto(
     string Email,
     string Role,
     string IdentityType,
+    string? ProfileImageRelativePath,
     bool IsActive,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
