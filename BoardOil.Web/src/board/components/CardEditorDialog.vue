@@ -81,32 +81,60 @@
 
           <div class="card-editor-select-field card-editor-assigned-user-picker">
             <span class="card-editor-field-label">Assigned to</span>
-            <BoDropdown
-              align="left"
-              label="Select assigned user"
-              :text="selectedAssignedUserLabel"
-            >
-              <template #default="{ close }">
-                <button
-                  type="button"
-                  class="bo-dropdown-item"
-                  @click="setDraftAssignedUserId(null, close)"
-                >
-                  <span class="bo-dropdown-item-main">Unassigned</span>
-                  <span v-if="cardDraft.assignedUserId === null" class="badge bo-dropdown-item-meta">Selected</span>
-                </button>
-                <button
-                  v-for="member in boardMembers"
-                  :key="member.userId"
-                  type="button"
-                  class="bo-dropdown-item"
-                  @click="setDraftAssignedUserId(member.userId, close)"
-                >
-                  <span class="bo-dropdown-item-main">{{ member.displayName }}</span>
-                  <span v-if="member.userId === cardDraft.assignedUserId" class="badge bo-dropdown-item-meta">Selected</span>
-                </button>
-              </template>
-            </BoDropdown>
+            <div class="card-editor-assigned-user-control">
+              <img
+                v-if="selectedAssignedUserImageUrl"
+                :src="selectedAssignedUserImageUrl"
+                alt=""
+                class="card-editor-assignee-avatar card-editor-assignee-avatar--selected"
+                aria-hidden="true"
+              />
+              <span
+                v-else-if="selectedAssignedMember"
+                class="card-editor-assignee-avatar card-editor-assignee-avatar--fallback card-editor-assignee-avatar--selected"
+                aria-hidden="true"
+              >
+                {{ getInitials(selectedAssignedMember.displayName) }}
+              </span>
+              <BoDropdown
+                align="left"
+                label="Select assigned user"
+                :text="selectedAssignedUserLabel"
+              >
+                <template #default="{ close }">
+                  <button
+                    type="button"
+                    class="bo-dropdown-item"
+                    @click="setDraftAssignedUserId(null, close)"
+                  >
+                    <span class="bo-dropdown-item-main">Unassigned</span>
+                    <span v-if="cardDraft.assignedUserId === null" class="badge bo-dropdown-item-meta">Selected</span>
+                  </button>
+                  <button
+                    v-for="member in boardMembers"
+                    :key="member.userId"
+                    type="button"
+                    class="bo-dropdown-item"
+                    @click="setDraftAssignedUserId(member.userId, close)"
+                  >
+                    <span class="bo-dropdown-item-main card-editor-assignee-option">
+                      <img
+                        v-if="getBoardMemberImageUrl(member.userId)"
+                        :src="getBoardMemberImageUrl(member.userId)!"
+                        alt=""
+                        class="card-editor-assignee-avatar"
+                        aria-hidden="true"
+                      />
+                      <span v-else class="card-editor-assignee-avatar card-editor-assignee-avatar--fallback" aria-hidden="true">
+                        {{ getInitials(member.displayName) }}
+                      </span>
+                      <span>{{ member.displayName }}</span>
+                    </span>
+                    <span v-if="member.userId === cardDraft.assignedUserId" class="badge bo-dropdown-item-meta">Selected</span>
+                  </button>
+                </template>
+              </BoDropdown>
+            </div>
           </div>
 
         </aside>
@@ -146,6 +174,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MdEditor from '../../shared/components/MdEditor.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import { buildApiUrl } from '../../shared/api/config';
 import CardTagEditor from './CardTagEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
@@ -237,6 +266,20 @@ const selectedAssignedUserLabel = computed(() => {
 
   return cardDraft.value.assignedUserName ?? `User #${cardDraft.value.assignedUserId}`;
 });
+const selectedAssignedMember = computed(() => {
+  if (!cardDraft.value || cardDraft.value.assignedUserId === null) {
+    return null;
+  }
+
+  return boardMembers.value.find(x => x.userId === cardDraft.value!.assignedUserId) ?? null;
+});
+const selectedAssignedUserImageUrl = computed(() => {
+  if (!selectedAssignedMember.value?.profileImageRelativePath) {
+    return null;
+  }
+
+  return buildApiUrl(`/images/${selectedAssignedMember.value.profileImageRelativePath}`);
+});
 const descriptionDraft = computed({
   get: () => {
     const draft = cardDraft.value;
@@ -311,6 +354,31 @@ function setDraftAssignedUserId(assignedUserId: number | null, close?: () => voi
     assignedUserName
   };
   close?.();
+}
+
+function getBoardMemberImageUrl(userId: number): string | null {
+  const member = boardMembers.value.find(x => x.userId === userId);
+  if (!member?.profileImageRelativePath) {
+    return null;
+  }
+
+  return buildApiUrl(`/images/${member.profileImageRelativePath}`);
+}
+
+function getInitials(name: string): string {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0);
+  if (parts.length === 0) {
+    return '?';
+  }
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 1).toUpperCase();
+  }
+
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 async function saveCard() {
@@ -561,6 +629,41 @@ watch(
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.card-editor-assignee-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.card-editor-assigned-user-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card-editor-assignee-avatar {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+.card-editor-assignee-avatar--selected {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
+.card-editor-assignee-avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bo-surface-brand);
+  color: var(--bo-link);
+  font-size: 0.6rem;
+  font-weight: 700;
 }
 
 @media (max-width: 900px) {

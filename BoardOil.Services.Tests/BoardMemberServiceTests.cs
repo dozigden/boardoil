@@ -10,6 +10,49 @@ namespace BoardOil.Services.Tests;
 public sealed class BoardMemberServiceTests : TestBaseDb
 {
     [Fact]
+    public async Task GetMembersAsync_WhenMemberHasProfileImage_ShouldIncludeProfileImageRelativePath()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var member = await AddUserAsync("member");
+        var now = DateTime.UtcNow;
+        DbContextForArrange.BoardMembers.Add(new EntityBoardMember
+        {
+            BoardId = board.BoardId,
+            UserId = member.Id,
+            Role = BoardMemberRole.Contributor,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+        DbContextForArrange.Images.Add(new EntityImage
+        {
+            EntityType = ImageEntityType.UserProfile,
+            EntityId = member.Id,
+            OriginalFileName = "avatar.png",
+            ContentType = "image/png",
+            RelativePath = "userprofile/2/avatar.png",
+            ByteLength = 1024,
+            Width = 256,
+            Height = 256,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IBoardMemberService>();
+
+        // Act
+        var result = await service.GetMembersAsync(board.BoardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var mappedMember = Assert.Single(result.Data!, x => x.UserId == member.Id);
+        Assert.Equal("userprofile/2/avatar.png", mappedMember.ProfileImageRelativePath);
+    }
+
+    [Fact]
     public async Task AddMemberAsync_WhenValid_ShouldCreateBoardMembership()
     {
         // Arrange
@@ -99,6 +142,7 @@ public sealed class BoardMemberServiceTests : TestBaseDb
         var user = new EntityUser
         {
             UserName = userName,
+            DisplayName = userName,
             Email = $"{userName}@localhost",
             NormalisedEmail = $"{userName}@localhost",
             PasswordHash = "hash",

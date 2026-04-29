@@ -4,6 +4,7 @@ public sealed record BoardMemberDto(
     int UserId,
     string UserName,
     string DisplayName,
+    string? ProfileImageRelativePath,
     string Role,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
