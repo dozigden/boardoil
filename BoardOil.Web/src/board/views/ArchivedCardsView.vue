@@ -379,15 +379,15 @@ function resolveColumnTitle(boardColumnId: number) {
 
 <style scoped>
 .archived-cards-page {
-  display: grid;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   max-width: none;
-  margin-top: 0.45rem;
+  margin-top: 0;
   margin-bottom: 1rem;
-  margin-inline-end: 0.75rem;
-  gap: 0.5rem;
+  gap: var(--bo-standard-gap);
   min-height: 0;
-  height: 100%;
-  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .archived-cards-page :deep(.board-filters) {
@@ -449,12 +449,6 @@ function resolveColumnTitle(boardColumnId: number) {
 .archived-detail-error {
   margin: 0;
   color: var(--bo-ink-muted);
-}
-
-@media (max-width: 720px) {
-  .archived-cards-page {
-    margin-inline-end: 0.5rem;
-  }
 }
 
 @media (max-width: 767px) {

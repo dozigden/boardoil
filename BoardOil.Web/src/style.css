@@ -62,6 +62,7 @@
   --bo-shadow-pop: 0 6px 20px rgba(53, 22, 90, 0.18);
   --bo-focus-ring: #69c1ce;
   --bo-link: #35165a;
+  --bo-standard-gap: 0.75rem;
 
   background: linear-gradient(165deg, var(--bo-bg-root-start) 0%, var(--bo-bg-root-end) 100%);
   color: var(--bo-ink-strong);
