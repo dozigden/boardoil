@@ -4,6 +4,7 @@ using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Image;
 using BoardOil.Persistence.Abstractions.Users;
 
 namespace BoardOil.Services.Board;
@@ -11,6 +12,7 @@ namespace BoardOil.Services.Board;
 public sealed class BoardMemberService(
     IBoardRepository boardRepository,
     IBoardMemberRepository boardMemberRepository,
+    IImageRepository imageRepository,
     IUserRepository userRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory) : IBoardMemberService
@@ -31,7 +33,10 @@ public sealed class BoardMemberService(
         }
 
         var members = await boardMemberRepository.GetMembersInBoardAsync(boardId);
-        return members.Select(x => x.ToDto()).ToList();
+        var memberUserIds = members.Select(x => x.UserId).Distinct().ToArray();
+        var userImages = await imageRepository.GetLatestForEntitiesAsync(ImageEntityType.UserProfile, memberUserIds);
+        var imageLookup = userImages.ToDictionary(x => x.EntityId, x => x.RelativePath);
+        return members.Select(x => x.ToDto(imageLookup)).ToList();
     }
 
     public async Task<ApiResult<BoardMemberDto>> AddMemberAsync(int boardId, AddBoardMemberRequest request, int actorUserId)
@@ -84,7 +89,8 @@ public sealed class BoardMemberService(
             return ApiErrors.InternalError("Created board membership could not be reloaded.");
         }
 
-        return ApiResults.Created(createdMembership.ToDto());
+        var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, createdMembership.UserId);
+        return ApiResults.Created(createdMembership.ToDto(image?.RelativePath));
     }
 
     public async Task<ApiResult<BoardMemberDto>> UpdateMemberRoleAsync(int boardId, int userId, UpdateBoardMemberRoleRequest request, int actorUserId)
@@ -129,7 +135,8 @@ public sealed class BoardMemberService(
             await scope.SaveChangesAsync();
         }
 
-        return existingMembership.ToDto();
+        var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, existingMembership.UserId);
+        return existingMembership.ToDto(image?.RelativePath);
     }
 
     public async Task<ApiResult> RemoveMemberAsync(int boardId, int userId, int actorUserId)
@@ -189,10 +196,17 @@ public sealed class BoardMemberService(
 internal static class BoardMemberMappingExtensions
 {
     public static BoardMemberDto ToDto(this EntityBoardMember member) =>
+        ToDto(member, profileImageRelativePath: null);
+
+    public static BoardMemberDto ToDto(this EntityBoardMember member, IReadOnlyDictionary<int, string> imageLookup) =>
+        ToDto(member, imageLookup.GetValueOrDefault(member.UserId));
+
+    public static BoardMemberDto ToDto(this EntityBoardMember member, string? profileImageRelativePath) =>
         new(
             member.UserId,
             member.User.UserName,
             member.User.DisplayName,
+            profileImageRelativePath,
             member.Role.ToString(),
             member.CreatedAtUtc,
             member.UpdatedAtUtc);

@@ -90,7 +90,7 @@ trap cleanup INT TERM EXIT
 echo "Starting API on http://127.0.0.1:5000 ..."
 mkdir -p "$DEV_DATA_DIR"
 echo "Building API ..."
-dotnet build "$API_PROJECT" -maxcpucount:1 -nodeReuse:false >/dev/null
+dotnet build "$API_PROJECT" -maxcpucount:1 -nodeReuse:false
 ASPNETCORE_ENVIRONMENT=Development \
 DOTNET_ENVIRONMENT=Development \
 ConnectionStrings__BoardOil="Data Source=$DEV_DB_PATH" \

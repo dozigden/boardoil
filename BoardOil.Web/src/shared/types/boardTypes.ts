@@ -116,6 +116,7 @@ export type BoardMember = {
   userId: number;
   userName: string;
   displayName: string;
+  profileImageRelativePath?: string | null;
   role: BoardMemberRole;
   createdAtUtc: string;
   updatedAtUtc: string;
