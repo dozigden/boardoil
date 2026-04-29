@@ -16,12 +16,12 @@
         <h2 class="admin-mobile-page-title">{{ mobilePageTitle }}</h2>
       </div>
       <div class="admin-mobile-right">
-        <img
+        <UserAvatar
           v-if="props.titleAvatarUrl"
-          :src="props.titleAvatarUrl"
-          alt=""
+          :image-url="props.titleAvatarUrl"
+          :display-name="props.title"
+          size="md"
           class="admin-title-avatar"
-          aria-hidden="true"
         />
         <span class="admin-mobile-context">{{ props.title }}</span>
       </div>
@@ -29,12 +29,12 @@
 
     <aside :id="mobileNavId" class="admin-nav" :class="{ 'admin-nav--open': mobileNavOpen }" :aria-label="`${props.title} sections`">
       <h2 class="admin-nav-title">
-        <img
+        <UserAvatar
           v-if="props.titleAvatarUrl"
-          :src="props.titleAvatarUrl"
-          alt=""
+          :image-url="props.titleAvatarUrl"
+          :display-name="props.title"
+          size="md"
           class="admin-title-avatar"
-          aria-hidden="true"
         />
         <span>{{ props.title }}</span>
       </h2>
@@ -62,6 +62,7 @@ import { Menu, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
 import { useRoute } from 'vue-router';
+import UserAvatar from '../../shared/components/UserAvatar.vue';
 
 type AdminNavItem = {
   label: string;

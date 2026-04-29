@@ -29,15 +29,11 @@
           :icon="CircleUserRound"
         >
           <template #icon>
-            <img
-              v-if="userProfileImageUrl"
-              :src="userProfileImageUrl"
-              alt="User profile image"
-              class="user-avatar"
+            <UserAvatar
+              :image-url="userProfileImageUrl"
+              :display-name="userName"
+              size="lg"
             />
-            <div v-else class="user-avatar user-avatar--fallback" aria-hidden="true">
-              {{ userInitials }}
-            </div>
           </template>
           <template #default="{ close }">
             <RouterLink :to="{ name: 'user-admin-profile' }" class="bo-dropdown-item" @click="close">User settings</RouterLink>
@@ -90,6 +86,7 @@ import AboutDialog from './AboutDialog.vue';
 import BoardOilDrop from './BoardOilDrop.vue';
 import BoardOilLogo from './BoardOilLogo.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import UserAvatar from '../../shared/components/UserAvatar.vue';
 import HeaderBoardPicker from './HeaderBoardPicker.vue';
 import { getBrandTarget } from './appHeaderNavigation';
 import { useAuthStore } from '../../shared/stores/authStore';
@@ -107,7 +104,6 @@ const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
 const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId } = storeToRefs(boardStore);
 const userName = computed(() => user.value?.displayName ?? user.value?.userName ?? '');
-const userInitials = computed(() => buildInitials(userName.value));
 const brandTarget = computed(() => getBrandTarget(boards.value));
 const boardAdminTarget = computed(() =>
   currentBoardId.value !== null && board.value
@@ -131,22 +127,6 @@ async function openAboutDialog(close?: () => void) {
 
 function closeAboutDialog() {
   aboutDialogOpen.value = false;
-}
-
-function buildInitials(name: string): string {
-  const parts = name
-    .trim()
-    .split(/\s+/)
-    .filter((part) => part.length > 0);
-  if (parts.length === 0) {
-    return '?';
-  }
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 1).toUpperCase();
-  }
-
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 </script>
@@ -249,25 +229,6 @@ function buildInitials(name: string): string {
 .app-header p {
   margin: 0.25rem 0 0;
   color: var(--bo-ink-default);
-}
-
-.user-avatar {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  object-fit: cover;
-  border: 0;
-  background: var(--bo-surface-base);
-}
-
-.user-avatar--fallback {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--bo-link);
-  background: var(--bo-surface-brand);
 }
 
 .header-menu--user :deep(.bo-dropdown-trigger) {
