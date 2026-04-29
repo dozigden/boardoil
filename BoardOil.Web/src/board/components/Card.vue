@@ -34,7 +34,14 @@
     </div>
 
     <p v-if="card.assignedUserName" class="card-assigned-to">
-      <CircleUserRound class="card-assigned-icon" aria-hidden="true" />
+      <img
+        v-if="assignedUserImageUrl"
+        :src="assignedUserImageUrl"
+        alt=""
+        class="card-assigned-avatar"
+        aria-hidden="true"
+      />
+      <span v-else class="card-assigned-avatar card-assigned-avatar--fallback" aria-hidden="true">{{ assignedUserInitials }}</span>
       <span>{{ card.assignedUserName }}</span>
     </p>
 
@@ -50,11 +57,11 @@
 </template>
 
 <script setup lang="ts">
-import { CircleUserRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import type { Card as BoardCard } from '../../shared/types/boardTypes';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { getCardSurfaceStyle } from '../../shared/utils/cardTypeStyles';
+import { buildApiUrl } from '../../shared/api/config';
 import Tag from './Tag.vue';
 
 const props = withDefaults(defineProps<{
@@ -81,6 +88,10 @@ const isDragging = ref(false);
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId));
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
 const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
+const assignedUserImageUrl = computed(() =>
+  props.card.assignedUserImageRelativePath ? buildApiUrl(`/images/${props.card.assignedUserImageRelativePath}`) : null
+);
+const assignedUserInitials = computed(() => buildInitials(props.card.assignedUserName ?? ''));
 
 function onDragStart(event: DragEvent) {
   if (props.selectionMode) {
@@ -117,6 +128,22 @@ function handlePrimaryAction() {
   }
 
   emit('edit-card', props.card.id);
+}
+
+function buildInitials(name: string): string {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0);
+  if (parts.length === 0) {
+    return '?';
+  }
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 1).toUpperCase();
+  }
+
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 </script>
 
@@ -209,10 +236,22 @@ function handlePrimaryAction() {
   width: 100%;
 }
 
-.card-assigned-icon {
-  width: 0.9rem;
-  height: 0.9rem;
+.card-assigned-avatar {
+  width: 1.44rem;
+  height: 1.44rem;
+  border-radius: 999px;
+  object-fit: cover;
   flex: 0 0 auto;
+}
+
+.card-assigned-avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bo-surface-brand);
+  color: var(--bo-link);
+  font-size: 0.55rem;
+  font-weight: 700;
 }
 
 .card-selection-indicator {

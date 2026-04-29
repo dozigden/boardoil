@@ -21,7 +21,8 @@ public sealed record CardDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     int? AssignedUserId = null,
-    string? AssignedUserName = null);
+    string? AssignedUserName = null,
+    string? AssignedUserImageRelativePath = null);
 
 public sealed record ArchivedCardDto(
     int Id,

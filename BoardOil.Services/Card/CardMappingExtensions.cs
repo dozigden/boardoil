@@ -29,6 +29,12 @@ public static class CardMappingExtensions
             card.AssignedUserId,
             card.AssignedUser?.DisplayName);
 
+    public static CardDto WithAssignedUserImageRelativePath(this CardDto card, string? assignedUserImageRelativePath) =>
+        card with
+        {
+            AssignedUserImageRelativePath = assignedUserImageRelativePath
+        };
+
     public static ArchivedCardDto ToArchivedCardDto(this EntityArchivedCard archivedCard) =>
         new(
             archivedCard.Id,

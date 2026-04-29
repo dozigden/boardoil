@@ -8,6 +8,7 @@ using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Card;
 using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Column;
+using BoardOil.Persistence.Abstractions.Image;
 using BoardOil.Services.Card;
 using BoardOil.Services.Ordering;
 
@@ -18,6 +19,7 @@ public sealed class BoardService(
     IBoardMemberRepository boardMemberRepository,
     IColumnRepository columnRepository,
     ICardRepository cardRepository,
+    IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory) : IBoardService
 {
@@ -61,13 +63,17 @@ public sealed class BoardService(
         var columnIds = columns.Select(x => x.Id).ToList();
         var cards = await cardRepository.GetCardsForColumnsOrderedAsync(columnIds);
 
-        var cardsByColumnId = cards
+        var cardDtos = cards
+            .Select(card => card.ToCardDto())
+            .ToList();
+        var assigneeImageLookup = await LoadAssigneeImageLookupAsync(cardDtos);
+        var cardsByColumnId = cardDtos
+            .Select(x => x.WithAssignedUserImageRelativePath(
+                x.AssignedUserId is null ? null : assigneeImageLookup.GetValueOrDefault(x.AssignedUserId.Value)))
             .GroupBy(x => x.BoardColumnId)
             .ToDictionary(
                 x => x.Key,
-                x => (IReadOnlyList<CardDto>)x
-                    .Select(card => card.ToCardDto())
-                    .ToList());
+                x => (IReadOnlyList<CardDto>)x.ToList());
 
         var columnDtos = columns
             .Select(x => new BoardColumnDto(
@@ -273,5 +279,21 @@ public sealed class BoardService(
         }
 
         return null;
+    }
+
+    private async Task<Dictionary<int, string>> LoadAssigneeImageLookupAsync(IReadOnlyList<CardDto> cards)
+    {
+        var assigneeIds = cards
+            .Where(x => x.AssignedUserId is not null)
+            .Select(x => x.AssignedUserId!.Value)
+            .Distinct()
+            .ToArray();
+        if (assigneeIds.Length == 0)
+        {
+            return [];
+        }
+
+        var images = await imageRepository.GetLatestForEntitiesAsync(ImageEntityType.UserProfile, assigneeIds);
+        return images.ToDictionary(x => x.EntityId, x => x.RelativePath);
     }
 }
