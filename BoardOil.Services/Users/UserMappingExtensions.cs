@@ -5,7 +5,7 @@ namespace BoardOil.Services.Users;
 
 public static class UserMappingExtensions
 {
-    public static ManagedUserDto ToManagedUserDto(this EntityUser user) =>
+    public static ManagedUserDto ToManagedUserDto(this EntityUser user, string? profileImageRelativePath = null) =>
         new(
             user.Id,
             user.UserName,
@@ -13,6 +13,7 @@ public static class UserMappingExtensions
             user.Email,
             user.Role.ToString(),
             user.IdentityType.ToString(),
+            profileImageRelativePath,
             user.IsActive,
             user.CreatedAtUtc,
             user.UpdatedAtUtc);

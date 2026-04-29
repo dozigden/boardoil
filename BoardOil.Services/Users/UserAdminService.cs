@@ -7,11 +7,13 @@ using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
 using BoardOil.Abstractions.Auth;
+using BoardOil.Persistence.Abstractions.Image;
 
 namespace BoardOil.Services.Users;
 
 public sealed class UserAdminService(
     IUserRepository userRepository,
+    IImageRepository imageRepository,
     IRefreshTokenRepository refreshTokenRepository,
     IPasswordHashService passwordHashService,
     TimeProvider timeProvider,
@@ -21,9 +23,16 @@ public sealed class UserAdminService(
     {
         using var scope = scopeFactory.CreateReadOnly();
 
-        var users = (await userRepository.GetUsersOrderedAsync())
+        var entities = (await userRepository.GetUsersOrderedAsync())
             .Where(x => x.IdentityType == UserIdentityType.User)
-            .Select(x => x.ToManagedUserDto())
+            .ToList();
+
+        var userIds = entities.Select(x => x.Id).ToArray();
+        var latestImages = await imageRepository.GetLatestForEntitiesAsync(ImageEntityType.UserProfile, userIds);
+        var imagePathByUserId = latestImages.ToDictionary(x => x.EntityId, x => x.RelativePath);
+
+        var users = entities
+            .Select(x => x.ToManagedUserDto(imagePathByUserId.GetValueOrDefault(x.Id)))
             .ToList();
 
         return users;
@@ -78,7 +87,7 @@ public sealed class UserAdminService(
         userRepository.Add(user);
         await scope.SaveChangesAsync();
 
-        return user.ToManagedUserDto();
+        return user.ToManagedUserDto(await ResolveProfileImageRelativePathAsync(user.Id));
     }
 
     public async Task<ApiResult<ManagedUserDto>> UpdateUserAsync(int id, UpdateUserRequest request)
@@ -123,7 +132,7 @@ public sealed class UserAdminService(
         user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
         await scope.SaveChangesAsync();
 
-        return user.ToManagedUserDto();
+        return user.ToManagedUserDto(await ResolveProfileImageRelativePathAsync(user.Id));
     }
 
     public async Task<ApiResult> ResetUserPasswordAsync(int id, ResetUserPasswordRequest request)
@@ -252,6 +261,12 @@ public sealed class UserAdminService(
         }
 
         return errors;
+    }
+
+    private async Task<string?> ResolveProfileImageRelativePathAsync(int userId)
+    {
+        var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, userId);
+        return image?.RelativePath;
     }
 
     private static IReadOnlyList<ValidationError> ValidatePassword(string password, string fieldName)

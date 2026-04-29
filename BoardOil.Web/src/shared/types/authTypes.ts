@@ -27,6 +27,7 @@ export type ManagedUser = {
   email: string;
   role: 'Admin' | 'Standard' | string;
   identityType: 'User' | 'Client' | string;
+  profileImageRelativePath?: string | null;
   isActive: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
