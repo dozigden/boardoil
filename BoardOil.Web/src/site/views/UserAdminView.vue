@@ -20,7 +20,7 @@ const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
 const { user } = storeToRefs(authStore);
 const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
-const userName = computed(() => user.value?.userName ?? 'Profile');
+const userName = computed(() => user.value?.displayName ?? 'Profile');
 
 const navItems = [
   {

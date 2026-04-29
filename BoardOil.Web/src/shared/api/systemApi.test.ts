@@ -27,10 +27,11 @@ describe('systemApi', () => {
   it('createUser posts email in the system user payload', async () => {
     const api = createSystemApi();
 
-    await api.createUser('member', 'member@example.test', 'Password1234!', 'Standard');
+    await api.createUser('member', 'Member', 'member@example.test', 'Password1234!', 'Standard');
 
     expect(postData).toHaveBeenCalledWith('/api/system/users', {
       userName: 'member',
+      displayName: 'Member',
       email: 'member@example.test',
       password: 'Password1234!',
       role: 'Standard'
@@ -41,12 +42,14 @@ describe('systemApi', () => {
     const api = createSystemApi();
 
     await api.updateUser(42, {
+      displayName: 'Member Updated',
       email: 'member@example.test',
       role: 'Admin',
       isActive: false
     });
 
     expect(putData).toHaveBeenCalledWith('/api/system/users/42', {
+      displayName: 'Member Updated',
       email: 'member@example.test',
       role: 'Admin',
       isActive: false
@@ -57,12 +60,14 @@ describe('systemApi', () => {
     const api = createSystemApi();
 
     await api.updateClientAccount(7, {
+      displayName: 'Client Updated',
       email: 'client@example.test',
       role: 'Standard',
       isActive: true
     });
 
     expect(putData).toHaveBeenCalledWith('/api/system/client-accounts/7', {
+      displayName: 'Client Updated',
       email: 'client@example.test',
       role: 'Standard',
       isActive: true

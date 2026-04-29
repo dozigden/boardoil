@@ -47,6 +47,7 @@ internal static class AdminAuthenticationHelper
             adminUser = new EntityUser
             {
                 UserName = AdminUserName,
+                DisplayName = AdminUserName,
                 Email = AdminEmail,
                 NormalisedEmail = AdminEmail,
                 PasswordHash = passwordHashService.HashPassword(AdminPassword),
@@ -61,6 +62,7 @@ internal static class AdminAuthenticationHelper
         }
         else
         {
+            adminUser.DisplayName = string.IsNullOrWhiteSpace(adminUser.DisplayName) ? AdminUserName : adminUser.DisplayName;
             adminUser.Email = AdminEmail;
             adminUser.NormalisedEmail = AdminEmail;
             adminUser.PasswordHash = passwordHashService.HashPassword(AdminPassword);

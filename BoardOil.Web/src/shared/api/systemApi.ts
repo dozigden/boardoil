@@ -82,8 +82,14 @@ export function createSystemApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
-  async function createUser(userName: string, email: string, password: string, role: 'Admin' | 'Standard'): Promise<Result<ManagedUser, AppError>> {
-    return postData<ManagedUser>('/api/system/users', { userName, email, password, role });
+  async function createUser(
+    userName: string,
+    displayName: string,
+    email: string,
+    password: string,
+    role: 'Admin' | 'Standard'
+  ): Promise<Result<ManagedUser, AppError>> {
+    return postData<ManagedUser>('/api/system/users', { userName, displayName, email, password, role });
   }
 
   async function updateUser(userId: number, request: UpdateManagedUserRequest): Promise<Result<ManagedUser, AppError>> {

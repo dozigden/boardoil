@@ -27,7 +27,7 @@ public static class CardMappingExtensions
             card.CreatedAtUtc,
             card.UpdatedAtUtc,
             card.AssignedUserId,
-            card.AssignedUser?.UserName);
+            card.AssignedUser?.DisplayName);
 
     public static ArchivedCardDto ToArchivedCardDto(this EntityArchivedCard archivedCard) =>
         new(

@@ -91,7 +91,7 @@ public sealed class SystemBoardApiIntegrationTests : ApiFactoryIntegrationTestBa
     {
         var response = await adminClient.PostAsJsonAsync(
             "/api/system/users",
-            new CreateUserRequest(userName, $"{userName}@localhost", password, role));
+            new CreateUserRequest(userName, userName, $"{userName}@localhost", password, role));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ManagedUserDto>>();
         Assert.NotNull(envelope);
@@ -111,7 +111,7 @@ public sealed class SystemBoardApiIntegrationTests : ApiFactoryIntegrationTestBa
     }
 
     private sealed record LoginRequest(string UserName, string Password);
-    private sealed record CreateUserRequest(string UserName, string Email, string Password, string Role);
+    private sealed record CreateUserRequest(string UserName, string DisplayName, string Email, string Password, string Role);
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

@@ -24,6 +24,7 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         DbContextForArrange.Users.Add(new EntityUser
         {
             UserName = "client-bot",
+            DisplayName = "client-bot",
             Email = "client-bot@localhost",
             NormalisedEmail = "client-bot@localhost",
             PasswordHash = "hash",
@@ -55,7 +56,7 @@ public sealed class ClientAccountServiceTests : TestBaseDb
 
         // Act
         var result = await service.CreateClientAccountAsync(
-            new CreateClientAccountRequest("client-two", " CLIENT-ONE@LOCALHOST ", "Standard"));
+            new CreateClientAccountRequest("client-two", "Client Two", " CLIENT-ONE@LOCALHOST ", "Standard"));
 
         // Assert
         Assert.False(result.Success);
@@ -74,6 +75,7 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         var result = await service.CreateClientAccountAsync(
             new CreateClientAccountRequest(
                 "client-bot",
+                "Client Bot",
                 "client-bot@localhost",
                 "Standard",
                 "Initial token",
@@ -110,7 +112,7 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         // Act
         var result = await service.UpdateClientAccountAsync(
             user.Id,
-            new UpdateClientAccountRequest("client-bot-updated@localhost", "Admin", false));
+            new UpdateClientAccountRequest("Client Bot Updated", "client-bot-updated@localhost", "Admin", false));
 
         // Assert
         Assert.True(result.Success);
@@ -241,6 +243,7 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         var user = new EntityUser
         {
             UserName = userName,
+            DisplayName = userName,
             Email = email,
             NormalisedEmail = email.Trim().ToLowerInvariant(),
             PasswordHash = "hash",

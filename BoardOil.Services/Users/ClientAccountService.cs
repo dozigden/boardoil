@@ -38,7 +38,7 @@ public sealed class ClientAccountService(
     {
         using var scope = scopeFactory.Create();
 
-        var validation = ValidateUserNameAndEmail(request.UserName, request.Email);
+        var validation = ValidateUserNameDisplayNameAndEmail(request.UserName, request.DisplayName, request.Email);
         if (validation.Count > 0)
         {
             return ApiErrors.BadRequest("Validation failed.", validation);
@@ -50,6 +50,7 @@ public sealed class ClientAccountService(
         }
 
         var userName = request.UserName.Trim();
+        var displayName = request.DisplayName.Trim();
         var email = request.Email.Trim();
         var normalisedEmail = EmailAddressRules.TryNormalise(email)!;
         var exists = await userRepository.UserNameExistsAsync(userName);
@@ -68,6 +69,7 @@ public sealed class ClientAccountService(
         var user = new EntityUser
         {
             UserName = userName,
+            DisplayName = displayName,
             Email = email,
             NormalisedEmail = normalisedEmail,
             PasswordHash = passwordHashService.HashPassword(CreateRandomPassword()),
@@ -110,10 +112,10 @@ public sealed class ClientAccountService(
             return ApiErrors.BadRequest("Role must be 'Admin' or 'Standard'.");
         }
 
-        var emailValidation = EmailAddressRules.Validate(request.Email, "email");
-        if (emailValidation.Count > 0)
+        var validation = ValidateDisplayNameAndEmail(request.DisplayName, request.Email);
+        if (validation.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", emailValidation);
+            return ApiErrors.BadRequest("Validation failed.", validation);
         }
 
         var user = userRepository.Get(clientAccountId);
@@ -129,6 +131,7 @@ public sealed class ClientAccountService(
             return ApiErrors.BadRequest("Email already exists.");
         }
 
+        user.DisplayName = request.DisplayName.Trim();
         user.Email = request.Email.Trim();
         user.NormalisedEmail = normalisedEmail;
         user.Role = role;
@@ -308,6 +311,35 @@ public sealed class ClientAccountService(
         }
 
         errors.AddRange(EmailAddressRules.Validate(email, "email"));
+
+        return errors;
+    }
+
+    private static IReadOnlyList<ValidationError> ValidateUserNameDisplayNameAndEmail(string userName, string displayName, string email)
+    {
+        var errors = ValidateUserNameAndEmail(userName, email).ToList();
+        errors.AddRange(ValidateDisplayName(displayName));
+        return errors;
+    }
+
+    private static IReadOnlyList<ValidationError> ValidateDisplayNameAndEmail(string displayName, string email)
+    {
+        var errors = ValidateDisplayName(displayName).ToList();
+        errors.AddRange(EmailAddressRules.Validate(email, "email"));
+        return errors;
+    }
+
+    private static IReadOnlyList<ValidationError> ValidateDisplayName(string displayName)
+    {
+        var errors = new List<ValidationError>();
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            errors.Add(new ValidationError("displayName", "Display name is required."));
+        }
+        else if (displayName.Trim().Length is < 1 or > 64)
+        {
+            errors.Add(new ValidationError("displayName", "Display name must be between 1 and 64 characters."));
+        }
 
         return errors;
     }

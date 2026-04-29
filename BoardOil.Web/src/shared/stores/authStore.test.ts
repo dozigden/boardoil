@@ -73,7 +73,7 @@ describe('authStore', () => {
 
   it('initialize restores session and csrf when /me returns a user', async () => {
     const store = useAuthStore();
-    authApi.getMe.mockResolvedValue(ok<AuthUser | null>({ id: 1, userName: 'admin', role: 'Admin' }));
+    authApi.getMe.mockResolvedValue(ok<AuthUser | null>({ id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' }));
 
     await store.initialize();
 
@@ -87,7 +87,7 @@ describe('authStore', () => {
   it('login stores user and csrf token on success', async () => {
     const store = useAuthStore();
     const session: AuthSession = {
-      user: { id: 2, userName: 'member', role: 'Standard' },
+      user: { id: 2, userName: 'member', displayName: 'Member', role: 'Standard' },
       accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
       refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
       csrfToken: 'csrf-login'
@@ -106,7 +106,7 @@ describe('authStore', () => {
   it('registerInitialAdmin stores user and csrf token on success', async () => {
     const store = useAuthStore();
     const session: AuthSession = {
-      user: { id: 1, userName: 'admin', role: 'Admin' },
+      user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
       accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
       refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
       csrfToken: 'csrf-bootstrap'
@@ -151,7 +151,7 @@ describe('authStore', () => {
     const store = useAuthStore();
     authApi.login.mockResolvedValue(
       ok<AuthSession>({
-        user: { id: 1, userName: 'admin', role: 'Admin' },
+        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
         refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
         csrfToken: 'csrf-login'
@@ -170,7 +170,7 @@ describe('authStore', () => {
     const store = useAuthStore();
     authApi.login.mockResolvedValue(
       ok<AuthSession>({
-        user: { id: 1, userName: 'admin', role: 'Admin' },
+        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
         refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
         csrfToken: 'csrf-login'
@@ -201,7 +201,7 @@ describe('authStore', () => {
     const store = useAuthStore();
     authApi.login.mockResolvedValue(
       ok<AuthSession>({
-        user: { id: 1, userName: 'admin', role: 'Admin' },
+        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
         refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
         csrfToken: 'csrf-login'
@@ -220,7 +220,7 @@ describe('authStore', () => {
     const store = useAuthStore();
     authApi.login.mockResolvedValue(
       ok<AuthSession>({
-        user: { id: 1, userName: 'admin', role: 'Admin' },
+        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
         refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
         csrfToken: 'csrf-login'

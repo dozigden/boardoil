@@ -107,7 +107,7 @@ const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
 const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
 const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId } = storeToRefs(boardStore);
-const userName = computed(() => user.value?.userName ?? '');
+const userName = computed(() => user.value?.displayName ?? user.value?.userName ?? '');
 const brandTarget = computed(() => getBrandTarget(boards.value));
 const boardAdminTarget = computed(() =>
   currentBoardId.value !== null && board.value

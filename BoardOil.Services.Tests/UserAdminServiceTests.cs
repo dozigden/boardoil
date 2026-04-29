@@ -24,6 +24,7 @@ public sealed class UserAdminServiceTests : TestBaseDb
         DbContextForArrange.Users.Add(new EntityUser
         {
             UserName = "client-bot",
+            DisplayName = "client-bot",
             Email = "client-bot@localhost",
             NormalisedEmail = "client-bot@localhost",
             PasswordHash = "hash",
@@ -56,7 +57,7 @@ public sealed class UserAdminServiceTests : TestBaseDb
 
         // Act
         var result = await service.CreateUserAsync(
-            new CreateUserRequest("member-two", " MEMBER@LOCALHOST ", "Password1234!", "Standard"));
+            new CreateUserRequest("member-two", "Member Two", " MEMBER@LOCALHOST ", "Password1234!", "Standard"));
 
         // Assert
         Assert.False(result.Success);
@@ -75,7 +76,7 @@ public sealed class UserAdminServiceTests : TestBaseDb
         // Act
         var result = await service.UpdateUserAsync(
             user.Id,
-            new UpdateUserRequest("member-updated@localhost", "Admin", false));
+            new UpdateUserRequest("Member Updated", "member-updated@localhost", "Admin", false));
 
         // Assert
         Assert.True(result.Success);
@@ -219,6 +220,7 @@ public sealed class UserAdminServiceTests : TestBaseDb
         var user = new EntityUser
         {
             UserName = userName,
+            DisplayName = userName,
             Email = email,
             NormalisedEmail = email.Trim().ToLowerInvariant(),
             PasswordHash = passwordHashService.HashPassword(password),

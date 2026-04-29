@@ -24,7 +24,7 @@ public sealed record CreateMachinePatRequest(
     int? ExpiresInDays = null,
     string[]? Scopes = null);
 
-public sealed record AuthUserDto(int Id, string UserName, string Role);
+public sealed record AuthUserDto(int Id, string UserName, string DisplayName, string Role);
 
 public sealed record AuthSessionDto(
     AuthUserDto User,

@@ -7,7 +7,7 @@
           {{ users.length === 0 ? 'No users available' : 'Select a user' }}
         </option>
         <option v-for="user in users" :key="user.id" :value="String(user.id)">
-          {{ user.userName }} (#{{ user.id }}){{ user.isActive ? '' : ' - Inactive' }}
+          {{ user.displayName }} (@{{ user.userName }}, #{{ user.id }}){{ user.isActive ? '' : ' - Inactive' }}
         </option>
       </select>
     </label>

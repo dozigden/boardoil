@@ -1,6 +1,7 @@
 export type AuthUser = {
   id: number;
   userName: string;
+  displayName: string;
   role: 'Admin' | 'Standard' | string;
 };
 
@@ -22,6 +23,7 @@ export type BootstrapStatusDto = {
 export type ManagedUser = {
   id: number;
   userName: string;
+  displayName: string;
   email: string;
   role: 'Admin' | 'Standard' | string;
   identityType: 'User' | 'Client' | string;
@@ -33,6 +35,7 @@ export type ManagedUser = {
 export type ClientAccount = {
   id: number;
   userName: string;
+  displayName: string;
   email: string;
   role: 'Admin' | 'Standard' | string;
   isActive: boolean;
@@ -43,6 +46,7 @@ export type ClientAccount = {
 export type UserDirectoryEntry = {
   id: number;
   userName: string;
+  displayName: string;
   isActive: boolean;
 };
 
@@ -83,6 +87,7 @@ export type CreateAccessTokenRequest = {
 
 export type CreateClientAccountRequest = {
   userName: string;
+  displayName: string;
   email: string;
   role: 'Admin' | 'Standard' | string;
   tokenName?: string | null;
@@ -91,12 +96,14 @@ export type CreateClientAccountRequest = {
 };
 
 export type UpdateManagedUserRequest = {
+  displayName: string;
   email: string;
   role: 'Admin' | 'Standard' | string;
   isActive: boolean;
 };
 
 export type UpdateClientAccountRequest = {
+  displayName: string;
   email: string;
   role: 'Admin' | 'Standard' | string;
   isActive: boolean;

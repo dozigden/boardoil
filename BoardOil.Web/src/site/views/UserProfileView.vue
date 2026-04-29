@@ -2,7 +2,6 @@
   <section class="account-profile">
     <header class="account-profile-header">
       <h2>Profile</h2>
-      <p>Manage your account details and profile image.</p>
     </header>
 
     <section class="account-profile-card">
@@ -41,7 +40,8 @@
       </div>
 
       <div class="account-profile-details">
-        <p><strong>User:</strong> {{ userName }}</p>
+        <p><strong>Name:</strong> {{ displayName }}</p>
+        <p><strong>User:</strong> @{{ userName }}</p>
         <p><strong>Role:</strong> {{ userRole }}</p>
       </div>
 
@@ -72,8 +72,9 @@ const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
 const userImageInput = ref<HTMLInputElement | null>(null);
 
 const userName = computed(() => user.value?.userName ?? 'Unknown user');
+const displayName = computed(() => user.value?.displayName ?? userName.value);
 const userRole = computed(() => user.value?.role ?? 'Unknown');
-const userInitials = computed(() => userName.value.slice(0, 2).toUpperCase());
+const userInitials = computed(() => displayName.value.slice(0, 2).toUpperCase());
 
 function openImagePicker(close?: () => void) {
   close?.();

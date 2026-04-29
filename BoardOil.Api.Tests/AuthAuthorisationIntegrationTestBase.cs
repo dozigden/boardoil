@@ -38,7 +38,7 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
     {
         var response = await adminClient.PostAsJsonAsync(
             "/api/system/users",
-            new CreateUserRequest(userName, $"{userName}@localhost", password, role));
+            new CreateUserRequest(userName, userName, $"{userName}@localhost", password, role));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardOil.Contracts.Users.ManagedUserDto>>();
         Assert.NotNull(envelope);
@@ -50,7 +50,7 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
     {
         var response = await adminClient.PostAsJsonAsync(
             "/api/system/client-accounts",
-            new CreateClientAccountRequest(userName, $"{userName}@localhost", role));
+            new CreateClientAccountRequest(userName, userName, $"{userName}@localhost", role));
         response.EnsureSuccessStatusCode();
     }
 
@@ -84,9 +84,9 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
     }
 
     protected sealed record LoginRequest(string UserName, string Password);
-    protected sealed record CreateUserRequest(string UserName, string Email, string Password, string Role);
+    protected sealed record CreateUserRequest(string UserName, string DisplayName, string Email, string Password, string Role);
     protected sealed record ResetUserPasswordRequest(string NewPassword);
-    protected sealed record CreateClientAccountRequest(string UserName, string Email, string Role);
+    protected sealed record CreateClientAccountRequest(string UserName, string DisplayName, string Email, string Role);
     protected sealed record UpdateUserRequest(string Email, string Role, bool IsActive);
     protected sealed record UpdateClientAccountRequest(string Email, string Role, bool IsActive);
     protected sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);

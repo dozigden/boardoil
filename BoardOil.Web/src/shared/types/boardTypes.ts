@@ -114,6 +114,7 @@ export type SystemBoardSummary = {
 export type BoardMember = {
   userId: number;
   userName: string;
+  displayName: string;
   role: BoardMemberRole;
   createdAtUtc: string;
   updatedAtUtc: string;

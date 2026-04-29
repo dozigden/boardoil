@@ -22,10 +22,11 @@
             type="button"
             class="entity-row-main entity-row-main-button"
             :disabled="busy"
-            :aria-label="`Edit member ${member.userName}`"
+            :aria-label="`Edit member ${member.displayName}`"
             @click="focusMemberRoleControl(member.userId)"
           >
-            <span class="entity-row-title">{{ member.userName }}</span>
+            <span class="entity-row-title">{{ member.displayName }}</span>
+            <span class="member-username">@{{ member.userName }}</span>
             <span class="badge">#{{ member.userId }}</span>
           </button>
           <div class="entity-row-actions">
@@ -148,7 +149,7 @@ async function updateRole(userId: number, role: string) {
 }
 
 async function removeMember(member: BoardMember) {
-  const shouldRemove = window.confirm(`Remove ${member.userName} from this board?`);
+  const shouldRemove = window.confirm(`Remove ${member.displayName} from this board?`);
   if (!shouldRemove) {
     return;
   }
@@ -187,10 +188,17 @@ async function loadUsers() {
       return false;
     }
 
-    users.value = [...result.data].sort((left, right) => left.userName.localeCompare(right.userName));
+    users.value = [...result.data].sort((left, right) => left.displayName.localeCompare(right.displayName));
     return true;
   } finally {
     usersBusy.value = false;
   }
 }
 </script>
+
+<style scoped>
+.member-username {
+  color: var(--bo-ink-muted);
+  font-size: 0.85rem;
+}
+</style>

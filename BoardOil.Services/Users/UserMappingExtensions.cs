@@ -9,6 +9,7 @@ public static class UserMappingExtensions
         new(
             user.Id,
             user.UserName,
+            user.DisplayName,
             user.Email,
             user.Role.ToString(),
             user.IdentityType.ToString(),
@@ -20,6 +21,7 @@ public static class UserMappingExtensions
         new(
             user.Id,
             user.UserName,
+            user.DisplayName,
             user.Email,
             user.Role.ToString(),
             user.IsActive,
