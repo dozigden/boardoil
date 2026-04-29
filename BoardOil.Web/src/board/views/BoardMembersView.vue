@@ -25,9 +25,19 @@
             :aria-label="`Edit member ${member.displayName}`"
             @click="focusMemberRoleControl(member.userId)"
           >
-            <span class="entity-row-title">{{ member.displayName }}</span>
-            <span class="member-username">@{{ member.userName }}</span>
-            <span class="badge">#{{ member.userId }}</span>
+            <span class="member-row-leading">
+              <UserAvatar
+                :image-relative-path="member.profileImageRelativePath ?? null"
+                :display-name="member.displayName"
+                size="lg"
+                class="member-avatar"
+              />
+              <span class="member-row-meta">
+                <span class="entity-row-title">{{ member.displayName }}</span>
+                <span class="member-username">@{{ member.userName }}</span>
+                <span class="badge">#{{ member.userId }}</span>
+              </span>
+            </span>
           </button>
           <div class="entity-row-actions">
             <select
@@ -67,6 +77,7 @@ import { storeToRefs } from 'pinia';
 import { onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { createUsersApi } from '../../shared/api/usersApi';
+import UserAvatar from '../../shared/components/UserAvatar.vue';
 import AddBoardMemberDialog from '../../system/components/AddBoardMemberDialog.vue';
 import { useBoardMembersStore } from '../stores/boardMembersStore';
 import { useBoardStore } from '../stores/boardStore';
@@ -197,6 +208,23 @@ async function loadUsers() {
 </script>
 
 <style scoped>
+.member-row-leading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.member-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.member-avatar {
+  flex-shrink: 0;
+}
+
 .member-username {
   color: var(--bo-ink-muted);
   font-size: 0.85rem;

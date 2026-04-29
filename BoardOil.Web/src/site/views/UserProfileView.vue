@@ -7,15 +7,12 @@
     <section class="account-profile-card">
       <div class="account-profile-avatar-wrap">
         <div class="account-profile-avatar-shell">
-          <img
-            v-if="userProfileImageUrl"
-            :src="userProfileImageUrl"
-            alt="User profile image"
+          <UserAvatar
+            :image-url="userProfileImageUrl"
+            :display-name="displayName"
+            size="xl"
             class="account-profile-avatar"
           />
-          <div v-else class="account-profile-avatar account-profile-avatar--empty" aria-hidden="true">
-            {{ userInitials }}
-          </div>
           <BoDropdown
             class="account-profile-avatar-menu"
             align="left"
@@ -77,6 +74,7 @@ import { EllipsisVertical } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import UserAvatar from '../../shared/components/UserAvatar.vue';
 import { createUsersApi } from '../../shared/api/usersApi';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useUserProfileImageStore } from '../../shared/stores/userProfileImageStore';
@@ -96,7 +94,6 @@ const saveSuccessMessage = ref<string | null>(null);
 const userName = computed(() => user.value?.userName ?? 'Unknown user');
 const displayName = computed(() => user.value?.displayName ?? userName.value);
 const userRole = computed(() => user.value?.role ?? 'Unknown');
-const userInitials = computed(() => buildInitials(displayName.value));
 
 watch(
   () => user.value,
@@ -161,21 +158,6 @@ async function saveProfile() {
   }
 }
 
-function buildInitials(name: string): string {
-  const parts = name
-    .trim()
-    .split(/\s+/)
-    .filter((part) => part.length > 0);
-  if (parts.length === 0) {
-    return '?';
-  }
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 1).toUpperCase();
-  }
-
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
 </script>
 
 <style scoped>
@@ -217,22 +199,8 @@ function buildInitials(name: string): string {
 }
 
 .account-profile-avatar {
-  width: 100%;
-  height: 100%;
   aspect-ratio: 1 / 1;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  object-fit: cover;
   border: 1px solid var(--bo-border-default);
-}
-
-.account-profile-avatar--empty {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bo-surface-brand);
-  color: var(--bo-link);
-  font-weight: 700;
 }
 
 .account-profile-details p {

@@ -20,9 +20,19 @@
           :aria-label="`Edit member ${member.displayName}`"
           @click="focusMemberRoleControl(member.userId)"
         >
-          <span class="entity-row-title">{{ member.displayName }}</span>
-          <span class="member-username">@{{ member.userName }}</span>
-          <span class="badge">#{{ member.userId }}</span>
+          <span class="member-row-leading">
+            <UserAvatar
+              :image-relative-path="member.profileImageRelativePath ?? null"
+              :display-name="member.displayName"
+              size="lg"
+              class="member-avatar"
+            />
+            <span class="member-row-meta">
+              <span class="entity-row-title">{{ member.displayName }}</span>
+              <span class="member-username">@{{ member.userName }}</span>
+              <span class="badge">#{{ member.userId }}</span>
+            </span>
+          </span>
         </button>
         <div class="entity-row-actions">
           <select
@@ -60,6 +70,7 @@
 import { storeToRefs } from 'pinia';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import UserAvatar from '../../shared/components/UserAvatar.vue';
 import { createSystemApi } from '../../shared/api/systemApi';
 import { createUsersApi } from '../../shared/api/usersApi';
 import AddBoardMemberDialog from '../components/AddBoardMemberDialog.vue';
@@ -231,6 +242,23 @@ async function loadBoardName(resolvedBoardId: number) {
 .system-members-title-separator {
   color: var(--bo-ink-muted);
   opacity: 0.45;
+}
+
+.member-row-leading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.member-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.member-avatar {
+  flex-shrink: 0;
 }
 
 .member-username {

@@ -82,20 +82,13 @@
           <div class="card-editor-select-field card-editor-assigned-user-picker">
             <span class="card-editor-field-label">Assigned to</span>
             <div class="card-editor-assigned-user-control">
-              <img
-                v-if="selectedAssignedUserImageUrl"
-                :src="selectedAssignedUserImageUrl"
-                alt=""
+              <UserAvatar
+                v-if="selectedAssignedMember"
+                :image-relative-path="selectedAssignedMember.profileImageRelativePath ?? null"
+                :display-name="selectedAssignedMember.displayName"
+                size="lg"
                 class="card-editor-assignee-avatar card-editor-assignee-avatar--selected"
-                aria-hidden="true"
               />
-              <span
-                v-else-if="selectedAssignedMember"
-                class="card-editor-assignee-avatar card-editor-assignee-avatar--fallback card-editor-assignee-avatar--selected"
-                aria-hidden="true"
-              >
-                {{ getInitials(selectedAssignedMember.displayName) }}
-              </span>
               <BoDropdown
                 align="left"
                 label="Select assigned user"
@@ -118,16 +111,12 @@
                     @click="setDraftAssignedUserId(member.userId, close)"
                   >
                     <span class="bo-dropdown-item-main card-editor-assignee-option">
-                      <img
-                        v-if="getBoardMemberImageUrl(member.userId)"
-                        :src="getBoardMemberImageUrl(member.userId)!"
-                        alt=""
+                      <UserAvatar
+                        :image-relative-path="member.profileImageRelativePath ?? null"
+                        :display-name="member.displayName"
+                        size="sm"
                         class="card-editor-assignee-avatar"
-                        aria-hidden="true"
                       />
-                      <span v-else class="card-editor-assignee-avatar card-editor-assignee-avatar--fallback" aria-hidden="true">
-                        {{ getInitials(member.displayName) }}
-                      </span>
                       <span>{{ member.displayName }}</span>
                     </span>
                     <span v-if="member.userId === cardDraft.assignedUserId" class="badge bo-dropdown-item-meta">Selected</span>
@@ -174,7 +163,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MdEditor from '../../shared/components/MdEditor.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
-import { buildApiUrl } from '../../shared/api/config';
+import UserAvatar from '../../shared/components/UserAvatar.vue';
 import CardTagEditor from './CardTagEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
@@ -273,13 +262,6 @@ const selectedAssignedMember = computed(() => {
 
   return boardMembers.value.find(x => x.userId === cardDraft.value!.assignedUserId) ?? null;
 });
-const selectedAssignedUserImageUrl = computed(() => {
-  if (!selectedAssignedMember.value?.profileImageRelativePath) {
-    return null;
-  }
-
-  return buildApiUrl(`/images/${selectedAssignedMember.value.profileImageRelativePath}`);
-});
 const descriptionDraft = computed({
   get: () => {
     const draft = cardDraft.value;
@@ -354,31 +336,6 @@ function setDraftAssignedUserId(assignedUserId: number | null, close?: () => voi
     assignedUserName
   };
   close?.();
-}
-
-function getBoardMemberImageUrl(userId: number): string | null {
-  const member = boardMembers.value.find(x => x.userId === userId);
-  if (!member?.profileImageRelativePath) {
-    return null;
-  }
-
-  return buildApiUrl(`/images/${member.profileImageRelativePath}`);
-}
-
-function getInitials(name: string): string {
-  const parts = name
-    .trim()
-    .split(/\s+/)
-    .filter((part) => part.length > 0);
-  if (parts.length === 0) {
-    return '?';
-  }
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 1).toUpperCase();
-  }
-
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 async function saveCard() {
@@ -644,26 +601,11 @@ watch(
 }
 
 .card-editor-assignee-avatar {
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 999px;
-  object-fit: cover;
-  flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
 .card-editor-assignee-avatar--selected {
-  width: 1.85rem;
-  height: 1.85rem;
-}
-
-.card-editor-assignee-avatar--fallback {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bo-surface-brand);
-  color: var(--bo-link);
-  font-size: 0.6rem;
-  font-weight: 700;
+  flex-shrink: 0;
 }
 
 @media (max-width: 900px) {
