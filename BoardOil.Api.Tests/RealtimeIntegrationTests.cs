@@ -1,14 +1,12 @@
 using System.Net.Http.Json;
-using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.CardType;
-using BoardOil.Contracts.Column;
 using Microsoft.AspNetCore.SignalR.Client;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class RealtimeIntegrationTests : TestBaseIntegration
+public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
 {
     [Fact]
     public async Task HubConnection_AnonymousClient_ShouldBeRejected()
@@ -29,7 +27,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
     public async Task CardCreated_ShouldBroadcastToTwoConnectedClients()
     {
         // Arrange
-        var column = await CreateColumnAsync("Todo");
+        var columnId = await SeedBoardColumnAsync("Todo");
 
         await using var connectionA = CreateHubConnection();
         await using var connectionB = CreateHubConnection();
@@ -45,7 +43,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
         // Act
         var createCardResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/cards",
-            new CreateCardRequest(column.Id, "Realtime Task", "Desc", null));
+            new CreateCardRequest(columnId, "Realtime Task", "Desc", null));
         createCardResponse.EnsureSuccessStatusCode();
 
         // Assert
@@ -63,23 +61,9 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
     public async Task CardUpdated_ShouldBroadcastCardTypeFields()
     {
         // Arrange
-        var column = await CreateColumnAsync("Todo");
-
-        var createTypeResponse = await Client.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("Bug", "🐞"));
-        createTypeResponse.EnsureSuccessStatusCode();
-        var createdTypeEnvelope = await createTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>();
-        Assert.NotNull(createdTypeEnvelope);
-        Assert.NotNull(createdTypeEnvelope!.Data);
-        var bugTypeId = createdTypeEnvelope.Data!.Id;
-
-        var createCardResponse = await Client.PostAsJsonAsync(
-            "/api/boards/1/cards",
-            new CreateCardRequest(column.Id, "Realtime Task", "Desc", null));
-        createCardResponse.EnsureSuccessStatusCode();
-        var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>();
-        Assert.NotNull(createdCardEnvelope);
-        Assert.NotNull(createdCardEnvelope!.Data);
-        var cardId = createdCardEnvelope.Data!.Id;
+        var columnId = await SeedBoardColumnAsync("Todo");
+        var bugTypeId = await SeedBoardCardTypeAsync("Bug", emoji: "🐞");
+        var cardId = await SeedBoardCardAsync(columnId, "Realtime Task", "Desc");
 
         await using var connection = CreateHubConnection();
         var updatedEvent = new TaskCompletionSource<CardDto>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -103,11 +87,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
     [Fact]
     public async Task CardTypeUpdated_ShouldRequestBoardResync()
     {
-        var createTypeResponse = await Client.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("Bug", "🐞"));
-        createTypeResponse.EnsureSuccessStatusCode();
-        var createdTypeEnvelope = await createTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>();
-        Assert.NotNull(createdTypeEnvelope);
-        Assert.NotNull(createdTypeEnvelope!.Data);
+        var cardTypeId = await SeedBoardCardTypeAsync("Bug", emoji: "🐞");
 
         await using var connection = CreateHubConnection();
         var resyncEvent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -115,7 +95,7 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
         await StartConnectionsAsync(1, connection);
 
         var updateTypeResponse = await Client.PutAsJsonAsync(
-            $"/api/boards/1/card-types/{createdTypeEnvelope.Data!.Id}",
+            $"/api/boards/1/card-types/{cardTypeId}",
             new UpdateCardTypeRequest("Defect", "⚠️"));
         updateTypeResponse.EnsureSuccessStatusCode();
 
@@ -125,32 +105,17 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
     [Fact]
     public async Task CardTypeDeleted_ShouldRequestBoardResync()
     {
-        var createTypeResponse = await Client.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("Bug", "🐞"));
-        createTypeResponse.EnsureSuccessStatusCode();
-        var createdTypeEnvelope = await createTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>();
-        Assert.NotNull(createdTypeEnvelope);
-        Assert.NotNull(createdTypeEnvelope!.Data);
+        var cardTypeId = await SeedBoardCardTypeAsync("Bug", emoji: "🐞");
 
         await using var connection = CreateHubConnection();
         var resyncEvent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         connection.On("ResyncRequested", () => resyncEvent.TrySetResult(true));
         await StartConnectionsAsync(1, connection);
 
-        var deleteTypeResponse = await Client.DeleteAsync($"/api/boards/1/card-types/{createdTypeEnvelope.Data!.Id}");
+        var deleteTypeResponse = await Client.DeleteAsync($"/api/boards/1/card-types/{cardTypeId}");
         deleteTypeResponse.EnsureSuccessStatusCode();
 
         await WaitAsync(resyncEvent.Task);
-    }
-
-    private async Task<ColumnDto> CreateColumnAsync(string title)
-    {
-        var response = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest(title));
-        response.EnsureSuccessStatusCode();
-
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
-        Assert.NotNull(envelope);
-        Assert.NotNull(envelope!.Data);
-        return envelope.Data!;
     }
 
     private static async Task StartConnectionsAsync(int boardId, params HubConnection[] connections)
@@ -161,6 +126,4 @@ public sealed class RealtimeIntegrationTests : TestBaseIntegration
             await connection.InvokeAsync("SubscribeBoard", boardId);
         }
     }
-
-    private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

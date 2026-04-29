@@ -186,7 +186,7 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
 
     protected async Task<int> SeedBoardCardTypeAsync(string name, int boardId = 1, string? emoji = null, bool isSystem = false)
     {
-        return await ArrangeAsync(async dbContext =>
+        return await UseDbContextAsync(async dbContext =>
         {
             var board = await dbContext.Boards.FindAsync(boardId);
             if (board is null)
@@ -208,6 +208,7 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
             };
 
             dbContext.CardTypes.Add(cardType);
+            await dbContext.SaveChangesAsync();
             return cardType.Id;
         });
     }
