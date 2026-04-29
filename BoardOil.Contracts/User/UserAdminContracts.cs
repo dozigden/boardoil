@@ -19,6 +19,13 @@ public sealed record UserDirectoryEntryDto(
     string DisplayName,
     bool IsActive);
 
+public sealed record OwnUserProfileDto(
+    int Id,
+    string UserName,
+    string DisplayName,
+    string Email,
+    string Role);
+
 public sealed record CreateUserRequest(string UserName, string DisplayName, string Email, string Password, string Role);
 
 public sealed record ClientAccountDto(
@@ -51,4 +58,5 @@ public sealed record CreatedClientAccountDto(
 
 public sealed record UpdateUserRequest(string DisplayName, string Email, string Role, bool IsActive);
 public sealed record UpdateClientAccountRequest(string DisplayName, string Email, string Role, bool IsActive);
+public sealed record UpdateOwnUserProfileRequest(string DisplayName, string Email);
 public sealed record ResetUserPasswordRequest(string NewPassword);

@@ -129,6 +129,19 @@ export const useAuthStore = defineStore('auth', () => {
     setCsrfToken(null);
   }
 
+  function setOwnProfile(displayName: string, userName: string, role: string) {
+    if (!user.value) {
+      return;
+    }
+
+    user.value = {
+      ...user.value,
+      userName,
+      displayName,
+      role
+    };
+  }
+
   return {
     user,
     busy,
@@ -142,6 +155,7 @@ export const useAuthStore = defineStore('auth', () => {
     registerInitialAdmin,
     changeOwnPassword,
     logout,
+    setOwnProfile,
     handleUnauthorized
   };
 });

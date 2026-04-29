@@ -50,6 +50,14 @@ export type UserDirectoryEntry = {
   isActive: boolean;
 };
 
+export type OwnUserProfile = {
+  id: number;
+  userName: string;
+  displayName: string;
+  email: string;
+  role: 'Admin' | 'Standard' | string;
+};
+
 export type UserProfileImage = {
   id: number;
   contentType: string;
