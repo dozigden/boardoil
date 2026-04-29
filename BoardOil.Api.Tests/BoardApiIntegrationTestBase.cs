@@ -6,7 +6,6 @@ using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tag;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -67,36 +66,6 @@ public abstract class BoardApiIntegrationTestBase : TestBaseIntegration
             dbContext.Tags.Add(tag);
             return tag.Id;
         });
-    }
-
-    protected async Task AssignCardTypeToCardAsync(int cardId, int cardTypeId)
-    {
-        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            UPDATE "Cards"
-            SET "CardTypeId" = $cardTypeId
-            WHERE "Id" = $cardId;
-            """;
-        command.Parameters.AddWithValue("$cardId", cardId);
-        command.Parameters.AddWithValue("$cardTypeId", cardTypeId);
-        await command.ExecuteNonQueryAsync();
-    }
-
-    protected async Task<int> GetCardTypeIdForCardAsync(int cardId)
-    {
-        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT "CardTypeId"
-            FROM "Cards"
-            WHERE "Id" = $cardId;
-            """;
-        command.Parameters.AddWithValue("$cardId", cardId);
-        var value = await command.ExecuteScalarAsync();
-        return Convert.ToInt32(value);
     }
 
     protected async Task<T> UseDbContextAsync<T>(Func<BoardOilDbContext, Task<T>> action)
@@ -215,6 +184,35 @@ public abstract class BoardApiIntegrationTestBase : TestBaseIntegration
             dbContext.Cards.Add(card);
             await dbContext.SaveChangesAsync();
             return card.Id;
+        });
+    }
+
+    protected async Task<int> SeedBoardCardTypeAsync(string name, int boardId = 1, string? emoji = null, bool isSystem = false)
+    {
+        return await UseDbContextAsync(async dbContext =>
+        {
+            var board = await dbContext.Boards.FindAsync(boardId);
+            if (board is null)
+            {
+                throw new InvalidOperationException($"Board with id {boardId} was not found.");
+            }
+
+            var now = DateTime.UtcNow;
+            var cardType = new EntityCardType
+            {
+                BoardId = boardId,
+                Name = name.Trim(),
+                Emoji = emoji,
+                StyleName = CardTypeDefaults.DefaultStyleName,
+                StylePropertiesJson = CardTypeDefaults.DefaultStylePropertiesJson,
+                IsSystem = isSystem,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            };
+
+            dbContext.CardTypes.Add(cardType);
+            await dbContext.SaveChangesAsync();
+            return cardType.Id;
         });
     }
 
