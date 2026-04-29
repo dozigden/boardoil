@@ -14,4 +14,21 @@ public sealed class ImageRepository(IAmbientDbContextLocator ambientDbContextLoc
             .OrderByDescending(x => x.CreatedAtUtc)
             .ThenByDescending(x => x.Id)
             .FirstOrDefaultAsync();
+
+    public async Task<IReadOnlyList<EntityImage>> GetLatestForEntitiesAsync(ImageEntityType entityType, IReadOnlyCollection<int> entityIds)
+    {
+        if (entityIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await Query()
+            .Where(x => x.EntityType == entityType && entityIds.Contains(x.EntityId))
+            .GroupBy(x => x.EntityId)
+            .Select(g => g
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .ThenByDescending(x => x.Id)
+                .First())
+            .ToListAsync();
+    }
 }

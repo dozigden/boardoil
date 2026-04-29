@@ -9,6 +9,7 @@ using BoardOil.Persistence.Abstractions.Card;
 using BoardOil.Persistence.Abstractions.CardType;
 using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Image;
 using BoardOil.Persistence.Abstractions.Tag;
 using BoardOil.Services.Ordering;
 using BoardOil.Services.Tag;
@@ -23,6 +24,7 @@ public sealed class CardArchiveService(
     ICardTypeRepository cardTypeRepository,
     IColumnRepository columnRepository,
     IBoardMemberRepository boardMemberRepository,
+    IImageRepository imageRepository,
     ITagRepository tagRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
@@ -189,7 +191,7 @@ public sealed class CardArchiveService(
         archivedCardRepository.Remove(archivedCard);
         await scope.SaveChangesAsync();
 
-        var dto = restoredCard.ToCardDto();
+        var dto = await EnrichAssignedUserImageAsync(restoredCard.ToCardDto());
         await boardEvents.CardCreatedAsync(boardId, dto);
         return ApiResults.Ok(dto);
     }
@@ -299,7 +301,8 @@ public sealed class CardArchiveService(
         return snapshotCard with
         {
             AssignedUserId = membership.UserId,
-            AssignedUserName = membership.User.DisplayName
+            AssignedUserName = membership.User.DisplayName,
+            AssignedUserImageRelativePath = (await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, membership.UserId))?.RelativePath
         };
     }
 
@@ -329,6 +332,17 @@ public sealed class CardArchiveService(
         }
 
         return membership.User;
+    }
+
+    private async Task<CardDto> EnrichAssignedUserImageAsync(CardDto card)
+    {
+        if (card.AssignedUserId is null)
+        {
+            return card.WithAssignedUserImageRelativePath(null);
+        }
+
+        var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, card.AssignedUserId.Value);
+        return card.WithAssignedUserImageRelativePath(image?.RelativePath);
     }
 
     private async Task<IReadOnlyList<EntityTag>> ResolveTagsForRestoreAsync(int boardId, IReadOnlyList<string> tagNames, DateTime now)

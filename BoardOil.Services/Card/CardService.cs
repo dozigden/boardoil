@@ -9,6 +9,7 @@ using BoardOil.Persistence.Abstractions.Card;
 using BoardOil.Persistence.Abstractions.CardType;
 using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Image;
 using BoardOil.Persistence.Abstractions.Tag;
 using BoardOil.Services.Ordering;
 using BoardOil.Services.Tag;
@@ -21,6 +22,7 @@ public sealed class CardService(
     IBoardMemberRepository boardMemberRepository,
     IColumnRepository columnRepository,
     ITagRepository tagRepository,
+    IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
     ICardValidator validator,
     IBoardEvents boardEvents,
@@ -48,7 +50,7 @@ public sealed class CardService(
             return ApiErrors.NotFound("Card not found.");
         }
 
-        return card.ToCardDto();
+        return await EnrichAssignedUserImageAsync(card.ToCardDto());
     }
 
     public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId)
@@ -135,7 +137,7 @@ public sealed class CardService(
 
         await scope.SaveChangesAsync();
 
-        var created = card.ToCardDto();
+        var created = await EnrichAssignedUserImageAsync(card.ToCardDto());
 
         await _boardEvents.CardCreatedAsync(boardId, created);
         return ApiResults.Created(created);
@@ -263,7 +265,7 @@ public sealed class CardService(
             await scope.SaveChangesAsync();
         }
 
-        var dto = existingCard.ToCardDto();
+        var dto = await EnrichAssignedUserImageAsync(existingCard.ToCardDto());
         if (movementChanged)
         {
             await _boardEvents.CardMovedAsync(boardId, dto);
@@ -315,7 +317,7 @@ public sealed class CardService(
         if (targetColumn.Id == sourceColumnId
             && request.PositionAfterCardId == currentPositionAfterCardId)
         {
-            var unchangedDto = existingCard.ToCardDto();
+            var unchangedDto = await EnrichAssignedUserImageAsync(existingCard.ToCardDto());
             await _boardEvents.CardMovedAsync(boardId, unchangedDto);
             return unchangedDto;
         }
@@ -362,7 +364,7 @@ public sealed class CardService(
             await scope.SaveChangesAsync();
         }
 
-        var dto = existingCard.ToCardDto();
+        var dto = await EnrichAssignedUserImageAsync(existingCard.ToCardDto());
         await _boardEvents.CardMovedAsync(boardId, dto);
 
         return dto;
@@ -462,6 +464,17 @@ public sealed class CardService(
             .Select(x => x.Tag.Name)
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
+
+    private async Task<CardDto> EnrichAssignedUserImageAsync(CardDto card)
+    {
+        if (card.AssignedUserId is null)
+        {
+            return card.WithAssignedUserImageRelativePath(null);
+        }
+
+        var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, card.AssignedUserId.Value);
+        return card.WithAssignedUserImageRelativePath(image?.RelativePath);
+    }
 
     private static void ReplaceTags(EntityBoardCard card, IReadOnlyList<EntityTag> tags)
     {

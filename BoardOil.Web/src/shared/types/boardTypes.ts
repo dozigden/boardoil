@@ -20,6 +20,7 @@ export type Card = {
   cardTypeEmoji: string | null;
   assignedUserId?: number | null;
   assignedUserName?: string | null;
+  assignedUserImageRelativePath?: string | null;
   title: string;
   description: string;
   sortKey: string;

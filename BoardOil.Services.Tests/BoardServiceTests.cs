@@ -233,6 +233,47 @@ public sealed class BoardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task GetBoardAsync_WhenAssignedUserHasProfileImage_ShouldIncludeAssignedUserImageRelativePath()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Assigned card")
+            .Build();
+        var cardId = board.GetCard("Todo", "Assigned card").Id;
+        var now = DateTime.UtcNow;
+
+        var card = DbContextForArrange.Cards.Single(x => x.Id == cardId);
+        card.AssignedUserId = ActorUserId;
+        card.UpdatedAtUtc = now;
+        DbContextForArrange.Images.Add(new EntityImage
+        {
+            EntityType = ImageEntityType.UserProfile,
+            EntityId = ActorUserId,
+            OriginalFileName = "avatar.png",
+            ContentType = "image/png",
+            RelativePath = "userprofile/1/avatar.png",
+            ByteLength = 1234,
+            Width = 256,
+            Height = 256,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+        await DbContextForArrange.SaveChangesAsync();
+
+        // Act
+        var service = CreateService();
+        var result = await service.GetBoardAsync(board.BoardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var todoCard = result.Data!.Columns[0].Cards[0];
+        Assert.Equal(ActorUserId, todoCard.AssignedUserId);
+        Assert.Equal("userprofile/1/avatar.png", todoCard.AssignedUserImageRelativePath);
+    }
+
+    [Fact]
     public async Task GetBoardsAsync_ShouldReturnOnlyActorMemberships()
     {
         // Arrange
