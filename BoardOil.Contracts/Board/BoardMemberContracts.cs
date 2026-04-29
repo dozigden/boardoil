@@ -3,6 +3,7 @@ namespace BoardOil.Contracts.Board;
 public sealed record BoardMemberDto(
     int UserId,
     string UserName,
+    string DisplayName,
     string Role,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);

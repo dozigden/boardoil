@@ -19,11 +19,12 @@
             type="button"
             class="entity-row-main entity-row-main-button"
             :disabled="isBusy"
-            :aria-label="`Manage tokens for client account ${client.userName}`"
+            :aria-label="`Manage tokens for client account ${client.displayName}`"
             @click="openClientTokens(client.id)"
           >
             <span class="badge">#{{ client.id }}</span>
-            <strong class="entity-row-title">{{ client.userName }}</strong>
+            <strong class="entity-row-title">{{ client.displayName }}</strong>
+            <span class="client-username">@{{ client.userName }}</span>
             <span class="client-email">{{ client.email }}</span>
             <span class="entity-row-badges badge-group">
               <span class="badge">{{ client.role }}</span>
@@ -160,14 +161,14 @@ async function createClientAccount(payload: CreateClientAccountRequest) {
     clients.value = [...clients.value, result.data.account].sort((a, b) => a.userName.localeCompare(b.userName));
     plainTextPat.value = result.data.token.plainTextToken;
     plainTextPatName.value = result.data.token.token.name;
-    successMessage.value = `Created client account ${result.data.account.userName}.`;
+    successMessage.value = `Created client account ${result.data.account.displayName}.`;
     isCreateDialogOpen.value = false;
   } finally {
     createBusy.value = false;
   }
 }
 
-async function submitClientEdit(payload: { email: string; role: 'Admin' | 'Standard'; isActive: boolean }) {
+async function submitClientEdit(payload: { displayName: string; email: string; role: 'Admin' | 'Standard'; isActive: boolean }) {
   const selectedClient = clientForEdit.value;
   if (!selectedClient) {
     return;
@@ -185,7 +186,7 @@ async function submitClientEdit(payload: { email: string; role: 'Admin' | 'Stand
 
     clients.value = clients.value.map(client => (client.id === selectedClient.id ? result.data : client));
     closeEditDialog();
-    successMessage.value = `Updated client account ${result.data.userName}.`;
+    successMessage.value = `Updated client account ${result.data.displayName}.`;
   } finally {
     editBusy.value = false;
   }
@@ -220,7 +221,7 @@ function openClientTokens(clientId: number) {
 }
 
 async function deleteClientAccount(client: ClientAccount) {
-  const confirmed = window.confirm(`Delete client account "${client.userName}"? This revokes its access and cannot be undone.`);
+  const confirmed = window.confirm(`Delete client account "${client.displayName}"? This revokes its access and cannot be undone.`);
   if (!confirmed) {
     return;
   }
@@ -236,7 +237,7 @@ async function deleteClientAccount(client: ClientAccount) {
     }
 
     clients.value = clients.value.filter(entry => entry.id !== client.id);
-    successMessage.value = `Deleted client account ${client.userName}.`;
+    successMessage.value = `Deleted client account ${client.displayName}.`;
   } finally {
     loading.value = false;
   }
@@ -305,5 +306,10 @@ onMounted(async () => {
 .client-email {
   color: var(--bo-ink-muted);
   font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+}
+
+.client-username {
+  color: var(--bo-ink-muted);
+  font-size: 0.85rem;
 }
 </style>

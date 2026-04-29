@@ -112,6 +112,7 @@ public sealed class CardServiceTests : TestBaseDb
         var assignedUser = new UserEntity
         {
             UserName = assignedUserName,
+            DisplayName = assignedUserName,
             Email = assignedEmail,
             NormalisedEmail = assignedEmail.ToUpperInvariant(),
             PasswordHash = "hash",
@@ -332,6 +333,7 @@ public sealed class CardServiceTests : TestBaseDb
         var assignedUser = new UserEntity
         {
             UserName = assignedUserName,
+            DisplayName = assignedUserName,
             Email = assignedEmail,
             NormalisedEmail = assignedEmail.ToUpperInvariant(),
             PasswordHash = "hash",
@@ -391,6 +393,7 @@ public sealed class CardServiceTests : TestBaseDb
         var outsider = new UserEntity
         {
             UserName = outsiderUserName,
+            DisplayName = outsiderUserName,
             Email = outsiderEmail,
             NormalisedEmail = outsiderEmail,
             PasswordHash = "hash",

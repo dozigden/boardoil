@@ -15,7 +15,7 @@ public sealed class UserService(
         using var scope = scopeFactory.CreateReadOnly();
 
         var users = (await userRepository.GetUsersOrderedAsync())
-            .Select(x => new UserDirectoryEntryDto(x.Id, x.UserName, x.IsActive))
+            .Select(x => new UserDirectoryEntryDto(x.Id, x.UserName, x.DisplayName, x.IsActive))
             .ToList();
 
         return users;

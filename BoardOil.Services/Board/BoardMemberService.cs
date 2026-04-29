@@ -192,6 +192,7 @@ internal static class BoardMemberMappingExtensions
         new(
             member.UserId,
             member.User.UserName,
+            member.User.DisplayName,
             member.Role.ToString(),
             member.CreatedAtUtc,
             member.UpdatedAtUtc);

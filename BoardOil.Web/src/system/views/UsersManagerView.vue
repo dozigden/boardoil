@@ -15,7 +15,8 @@
       <article v-for="user in users" :key="user.id" class="entity-row">
         <div class="entity-row-main">
           <span class="badge">#{{ user.id }}</span>
-          <strong class="entity-row-title">{{ user.userName }}</strong>
+          <strong class="entity-row-title">{{ user.displayName }}</strong>
+          <span class="user-username">@{{ user.userName }}</span>
           <span class="user-email">{{ user.email }}</span>
           <span class="entity-row-badges badge-group">
             <span class="badge">{{ user.identityType }}</span>
@@ -137,12 +138,12 @@ function closeResetPasswordDialog() {
   userForPasswordReset.value = null;
 }
 
-async function createUser(payload: { userName: string; email: string; password: string; role: 'Admin' | 'Standard' }) {
+async function createUser(payload: { userName: string; displayName: string; email: string; password: string; role: 'Admin' | 'Standard' }) {
   busy.value = true;
   errorMessage.value = null;
   successMessage.value = null;
   try {
-    const result = await systemApi.createUser(payload.userName, payload.email, payload.password, payload.role);
+    const result = await systemApi.createUser(payload.userName, payload.displayName, payload.email, payload.password, payload.role);
     if (!result.ok) {
       errorMessage.value = result.error.message;
       return;
@@ -150,7 +151,7 @@ async function createUser(payload: { userName: string; email: string; password: 
 
     users.value = [...users.value, result.data].sort((a, b) => a.userName.localeCompare(b.userName));
     isCreateDialogOpen.value = false;
-    successMessage.value = `Created user ${result.data.userName}.`;
+    successMessage.value = `Created user ${result.data.displayName}.`;
   } finally {
     busy.value = false;
   }
@@ -166,7 +167,7 @@ function closeEditDialog() {
   userForEdit.value = null;
 }
 
-async function submitUserEdit(payload: { email: string; role: 'Admin' | 'Standard'; isActive: boolean }) {
+async function submitUserEdit(payload: { displayName: string; email: string; role: 'Admin' | 'Standard'; isActive: boolean }) {
   const selectedUser = userForEdit.value;
   if (!selectedUser) {
     return;
@@ -184,7 +185,7 @@ async function submitUserEdit(payload: { email: string; role: 'Admin' | 'Standar
 
     users.value = users.value.map(user => (user.id === selectedUser.id ? result.data : user));
     closeEditDialog();
-    successMessage.value = `Updated ${result.data.userName}.`;
+    successMessage.value = `Updated ${result.data.displayName}.`;
   } finally {
     busy.value = false;
   }
@@ -208,7 +209,7 @@ async function submitResetPassword(payload: { currentPassword?: string; newPassw
 
     isResetPasswordDialogOpen.value = false;
     userForPasswordReset.value = null;
-    successMessage.value = `Password reset for ${selectedUser.userName}.`;
+    successMessage.value = `Password reset for ${selectedUser.displayName}.`;
   } finally {
     busy.value = false;
   }
@@ -220,7 +221,7 @@ async function deleteUser(user: ManagedUser) {
     return;
   }
 
-  const confirmed = window.confirm(`Delete user "${user.userName}"? This removes their access and cannot be undone.`);
+  const confirmed = window.confirm(`Delete user "${user.displayName}"? This removes their access and cannot be undone.`);
   if (!confirmed) {
     return;
   }
@@ -236,7 +237,7 @@ async function deleteUser(user: ManagedUser) {
     }
 
     users.value = users.value.filter(entry => entry.id !== user.id);
-    successMessage.value = `Deleted user ${user.userName}.`;
+    successMessage.value = `Deleted user ${user.displayName}.`;
   } finally {
     busy.value = false;
   }
@@ -274,5 +275,10 @@ onMounted(async () => {
 .user-email {
   color: var(--bo-ink-muted);
   font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+}
+
+.user-username {
+  color: var(--bo-ink-muted);
+  font-size: 0.85rem;
 }
 </style>

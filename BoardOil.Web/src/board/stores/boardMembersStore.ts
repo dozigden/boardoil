@@ -36,7 +36,7 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
         return false;
       }
 
-      members.value = [...result.data].sort((left, right) => left.userName.localeCompare(right.userName));
+      members.value = [...result.data].sort((left, right) => left.displayName.localeCompare(right.displayName));
       feedback.clearError();
       return true;
     } finally {

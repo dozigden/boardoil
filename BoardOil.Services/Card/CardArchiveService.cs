@@ -299,7 +299,7 @@ public sealed class CardArchiveService(
         return snapshotCard with
         {
             AssignedUserId = membership.UserId,
-            AssignedUserName = membership.User.UserName
+            AssignedUserName = membership.User.DisplayName
         };
     }
 

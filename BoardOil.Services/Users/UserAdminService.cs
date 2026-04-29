@@ -33,7 +33,7 @@ public sealed class UserAdminService(
     {
         using var scope = scopeFactory.Create();
 
-        var validation = ValidateCredentials(request.UserName, request.Email, request.Password);
+        var validation = ValidateCredentials(request.UserName, request.DisplayName, request.Email, request.Password);
         if (validation.Count > 0)
         {
             return ApiErrors.BadRequest("Validation failed.", validation);
@@ -45,6 +45,7 @@ public sealed class UserAdminService(
         }
 
         var userName = request.UserName.Trim();
+        var displayName = request.DisplayName.Trim();
         var email = request.Email.Trim();
         var normalisedEmail = EmailAddressRules.TryNormalise(email)!;
         var exists = await userRepository.UserNameExistsAsync(userName);
@@ -63,6 +64,7 @@ public sealed class UserAdminService(
         var user = new EntityUser
         {
             UserName = userName,
+            DisplayName = displayName,
             Email = email,
             NormalisedEmail = normalisedEmail,
             PasswordHash = passwordHashService.HashPassword(request.Password),
@@ -88,10 +90,10 @@ public sealed class UserAdminService(
             return ApiErrors.BadRequest("Role must be 'Admin' or 'Standard'.");
         }
 
-        var emailValidation = EmailAddressRules.Validate(request.Email, "email");
-        if (emailValidation.Count > 0)
+        var validation = ValidateDisplayNameAndEmail(request.DisplayName, request.Email);
+        if (validation.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", emailValidation);
+            return ApiErrors.BadRequest("Validation failed.", validation);
         }
 
         var user = userRepository.Get(id);
@@ -113,6 +115,7 @@ public sealed class UserAdminService(
             return adminGuardError;
         }
 
+        user.DisplayName = request.DisplayName.Trim();
         user.Email = request.Email.Trim();
         user.NormalisedEmail = normalisedEmail;
         user.Role = role;
@@ -218,6 +221,35 @@ public sealed class UserAdminService(
 
         errors.AddRange(EmailAddressRules.Validate(email, "email"));
         errors.AddRange(ValidatePassword(password, "password"));
+
+        return errors;
+    }
+
+    private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string displayName, string email, string password)
+    {
+        var errors = ValidateCredentials(userName, email, password).ToList();
+        errors.AddRange(ValidateDisplayName(displayName));
+        return errors;
+    }
+
+    private static IReadOnlyList<ValidationError> ValidateDisplayNameAndEmail(string displayName, string email)
+    {
+        var errors = ValidateDisplayName(displayName).ToList();
+        errors.AddRange(EmailAddressRules.Validate(email, "email"));
+        return errors;
+    }
+
+    private static IReadOnlyList<ValidationError> ValidateDisplayName(string displayName)
+    {
+        var errors = new List<ValidationError>();
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            errors.Add(new ValidationError("displayName", "Display name is required."));
+        }
+        else if (displayName.Trim().Length is < 1 or > 64)
+        {
+            errors.Add(new ValidationError("displayName", "Display name must be between 1 and 64 characters."));
+        }
 
         return errors;
     }

@@ -387,7 +387,7 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
     {
         var response = await adminClient.PostAsJsonAsync(
             "/api/system/client-accounts",
-            new CreateClientAccountRequest(userName, $"{userName}@localhost", role, "Initial token", 30, scopes));
+            new CreateClientAccountRequest(userName, userName, $"{userName}@localhost", role, "Initial token", 30, scopes));
         response.EnsureSuccessStatusCode();
 
         var created = await response.Content.ReadFromJsonAsync<ApiEnvelope<CreatedClientAccountEnvelope>>();
@@ -432,7 +432,7 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
     {
         var response = await adminClient.PostAsJsonAsync(
             "/api/system/users",
-            new CreateUserRequest(userName, $"{userName}@localhost", password, role));
+            new CreateUserRequest(userName, userName, $"{userName}@localhost", password, role));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<ManagedUserEnvelope>>();
         Assert.NotNull(envelope);
@@ -466,12 +466,13 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
         IReadOnlyList<string> Scopes);
     private sealed record CreateClientAccountRequest(
         string UserName,
+        string DisplayName,
         string Email,
         string Role,
         string? TokenName,
         int? ExpiresInDays,
         IReadOnlyList<string>? Scopes);
-    private sealed record CreateUserRequest(string UserName, string Email, string Password, string Role);
+    private sealed record CreateUserRequest(string UserName, string DisplayName, string Email, string Password, string Role);
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
     private sealed record ManagedUserEnvelope(int Id, string UserName, string Role, bool IsActive, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);

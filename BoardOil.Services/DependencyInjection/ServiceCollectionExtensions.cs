@@ -137,6 +137,7 @@ public static class ServiceCollectionExtensions
             CREATE TABLE IF NOT EXISTS "Users" (
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_Users" PRIMARY KEY AUTOINCREMENT,
                 "UserName" TEXT NOT NULL,
+                "DisplayName" TEXT NOT NULL DEFAULT '',
                 "Email" TEXT NOT NULL DEFAULT '',
                 "NormalisedEmail" TEXT NOT NULL DEFAULT '',
                 "PasswordHash" TEXT NOT NULL,

@@ -6,6 +6,11 @@
     </label>
 
     <label>
+      Display name
+      <input v-model="draftDisplayName" :disabled="busy" maxlength="64" required />
+    </label>
+
+    <label>
       Email
       <input v-model="draftEmail" :disabled="busy" type="email" autocomplete="email" maxlength="320" required />
     </label>
@@ -56,10 +61,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  submit: [payload: { email: string; role: 'Admin' | 'Standard'; isActive: boolean }];
+  submit: [payload: { displayName: string; email: string; role: 'Admin' | 'Standard'; isActive: boolean }];
 }>();
 
 const draftUserName = ref('');
+const draftDisplayName = ref('');
 const draftEmail = ref('');
 const draftRole = ref<'Admin' | 'Standard'>('Standard');
 const draftIsActive = ref(true);
@@ -67,6 +73,7 @@ const draftError = ref<string | null>(null);
 
 function resetDraft() {
   draftUserName.value = props.client?.userName ?? '';
+  draftDisplayName.value = props.client?.displayName ?? '';
   draftEmail.value = props.client?.email ?? '';
   draftRole.value = props.client?.role === 'Admin' ? 'Admin' : 'Standard';
   draftIsActive.value = props.client?.isActive ?? true;
@@ -75,6 +82,12 @@ function resetDraft() {
 
 function submit() {
   const trimmedEmail = draftEmail.value.trim();
+  const trimmedDisplayName = draftDisplayName.value.trim();
+  if (!trimmedDisplayName) {
+    draftError.value = 'Display name is required.';
+    return;
+  }
+
   const atIndex = trimmedEmail.indexOf('@');
   if (atIndex <= 0 || atIndex !== trimmedEmail.lastIndexOf('@') || atIndex >= trimmedEmail.length - 1) {
     draftError.value = "Email must contain '@' with characters before and after it.";
@@ -82,6 +95,7 @@ function submit() {
   }
 
   emit('submit', {
+    displayName: trimmedDisplayName,
     email: trimmedEmail,
     role: draftRole.value,
     isActive: draftIsActive.value

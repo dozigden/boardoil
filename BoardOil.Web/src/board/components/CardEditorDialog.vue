@@ -102,7 +102,7 @@
                   class="bo-dropdown-item"
                   @click="setDraftAssignedUserId(member.userId, close)"
                 >
-                  <span class="bo-dropdown-item-main">{{ member.userName }}</span>
+                  <span class="bo-dropdown-item-main">{{ member.displayName }}</span>
                   <span v-if="member.userId === cardDraft.assignedUserId" class="badge bo-dropdown-item-meta">Selected</span>
                 </button>
               </template>
@@ -232,7 +232,7 @@ const selectedAssignedUserLabel = computed(() => {
 
   const selectedMember = boardMembers.value.find(x => x.userId === cardDraft.value!.assignedUserId);
   if (selectedMember) {
-    return selectedMember.userName;
+    return selectedMember.displayName;
   }
 
   return cardDraft.value.assignedUserName ?? `User #${cardDraft.value.assignedUserId}`;

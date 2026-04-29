@@ -438,6 +438,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         var user = new UserEntity
         {
             UserName = userName,
+            DisplayName = userName,
             Email = email,
             NormalisedEmail = email.ToUpperInvariant(),
             PasswordHash = "hash",

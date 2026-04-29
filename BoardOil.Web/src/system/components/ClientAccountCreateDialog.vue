@@ -13,6 +13,10 @@
         <input v-model="userName" :disabled="busy" maxlength="64" required />
       </label>
       <label>
+        Display name
+        <input v-model="displayName" :disabled="busy" maxlength="64" required />
+      </label>
+      <label>
         Email
         <input v-model="email" :disabled="busy" type="email" autocomplete="email" maxlength="320" required />
       </label>
@@ -114,6 +118,7 @@ const emit = defineEmits<{
 }>();
 
 const userName = ref('');
+const displayName = ref('');
 const email = ref('');
 const role = ref<'Admin' | 'Standard'>('Standard');
 const tokenName = ref('Initial token');
@@ -130,6 +135,7 @@ const draftError = ref<string | null>(null);
 
 function resetDraft() {
   userName.value = '';
+  displayName.value = '';
   email.value = '';
   role.value = 'Standard';
   tokenName.value = 'Initial token';
@@ -149,6 +155,7 @@ function submit() {
   draftError.value = null;
 
   const trimmedUserName = userName.value.trim();
+  const trimmedDisplayName = displayName.value.trim();
   if (!trimmedUserName) {
     draftError.value = 'Username is required.';
     return;
@@ -156,6 +163,16 @@ function submit() {
 
   if (trimmedUserName.length < 1 || trimmedUserName.length > 64) {
     draftError.value = 'Username must be between 1 and 64 characters.';
+    return;
+  }
+
+  if (!trimmedDisplayName) {
+    draftError.value = 'Display name is required.';
+    return;
+  }
+
+  if (trimmedDisplayName.length < 1 || trimmedDisplayName.length > 64) {
+    draftError.value = 'Display name must be between 1 and 64 characters.';
     return;
   }
 
@@ -213,6 +230,7 @@ function submit() {
 
   const payload: CreateClientAccountRequest = {
     userName: trimmedUserName,
+    displayName: trimmedDisplayName,
     email: trimmedEmail,
     role: role.value,
     tokenName: trimmedTokenName,

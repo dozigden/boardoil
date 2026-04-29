@@ -135,6 +135,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         var user = modelBuilder.Entity<EntityUser>();
         user.HasKey(x => x.Id);
         user.Property(x => x.UserName).HasMaxLength(64).IsRequired();
+        user.Property(x => x.DisplayName).HasMaxLength(64).IsRequired();
         user.Property(x => x.Email).HasMaxLength(320).IsRequired();
         user.Property(x => x.NormalisedEmail).HasMaxLength(320).IsRequired();
         user.Property(x => x.PasswordHash).HasMaxLength(512).IsRequired();
