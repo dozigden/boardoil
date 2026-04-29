@@ -49,24 +49,14 @@ public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisa
         var standardClient = Factory.CreateClient();
         await RegisterInitialAdminAsync(adminClient);
         await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
-        var createdColumnResponse = await adminClient.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("Todo"));
-        createdColumnResponse.EnsureSuccessStatusCode();
-        var createdColumnEnvelope = await createdColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>();
-        Assert.NotNull(createdColumnEnvelope);
-        Assert.NotNull(createdColumnEnvelope!.Data);
-        var createdCardResponse = await adminClient.PostAsJsonAsync(
-            "/api/boards/1/cards",
-            new CreateCardRequest(createdColumnEnvelope.Data!.Id, "Archive target", "Desc", null));
-        createdCardResponse.EnsureSuccessStatusCode();
-        var createdCardEnvelope = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>();
-        Assert.NotNull(createdCardEnvelope);
-        Assert.NotNull(createdCardEnvelope!.Data);
+        var columnId = await SeedBoardColumnAsync("Todo");
+        var cardId = await SeedBoardCardAsync(columnId, "Archive target", "Desc");
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
         var response = await standardClient.PostAsJsonAsync(
             "/api/boards/1/cards/archive",
-            new ArchiveCardsRequest([createdCardEnvelope.Data!.Id]));
+            new ArchiveCardsRequest([cardId]));
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -81,10 +71,9 @@ public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisa
         await RegisterInitialAdminAsync(adminClient);
         var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
         await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
-        var columnId = await CreateColumnAsAdminAsync(adminClient, "Todo");
+        var columnId = await SeedBoardColumnAsync("Todo");
+        _ = await SeedBoardTagAsync("member");
         await LoginAsAsync(standardClient, "member", "Password1234!");
-        var createTagResponse = await standardClient.PostAsJsonAsync("/api/boards/1/tags", new CreateTagRequest("member"));
-        createTagResponse.EnsureSuccessStatusCode();
 
         // Act
         var response = await standardClient.PostAsJsonAsync(
@@ -104,12 +93,7 @@ public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisa
         await RegisterInitialAdminAsync(adminClient);
         var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
         await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
-        var createTypeResponse = await adminClient.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("Feature"));
-        createTypeResponse.EnsureSuccessStatusCode();
-        var createdTypeEnvelope = await createTypeResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>();
-        Assert.NotNull(createdTypeEnvelope);
-        Assert.NotNull(createdTypeEnvelope!.Data);
-        var cardTypeId = createdTypeEnvelope.Data!.Id;
+        var cardTypeId = await SeedBoardCardTypeAsync("Feature");
         await LoginAsAsync(standardClient, "member", "Password1234!");
 
         // Act
@@ -134,9 +118,9 @@ public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisa
         await RegisterInitialAdminAsync(adminClient);
         var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
         await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
-        await SeedTagAsync("member", "MEMBER", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
+        _ = await SeedBoardTagAsync("member");
         await LoginAsAsync(standardClient, "member", "Password1234!");
-        var tagsEnvelope = await standardClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags");
+        var tagsEnvelope = await standardClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardTagDto>>>("/api/boards/1/tags");
         Assert.NotNull(tagsEnvelope);
         Assert.NotNull(tagsEnvelope!.Data);
         var memberTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "member");
@@ -170,4 +154,6 @@ public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisa
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    private sealed record BoardTagDto(int Id, string Name);
 }
