@@ -209,7 +209,11 @@ type RouteSnapshot = {
 }
 
 .app-shell--board :deep(.app-header) {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--bo-standard-gap);
+}
+
+.app-shell--full-height :deep(.app-header) {
+  margin-bottom: var(--bo-standard-gap);
 }
 
 .app-shell--admin .app-content-stage {

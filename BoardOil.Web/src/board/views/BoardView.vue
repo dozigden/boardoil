@@ -369,11 +369,7 @@ watch(
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-}
-
-.board-view :deep(.board-conveyor) {
-  margin-inline: 1.5rem;
+  gap: var(--bo-standard-gap);
 }
 
 .board {
@@ -383,7 +379,7 @@ watch(
   grid-auto-flow: column;
   grid-auto-columns: minmax(var(--column-min-width), var(--column-max-width));
   grid-template-rows: 1fr;
-  gap: 1rem;
+  gap: var(--bo-standard-gap);
   margin-top: 0;
   align-items: stretch;
   min-height: 0;
@@ -391,7 +387,7 @@ watch(
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
-  padding-inline: 1.5rem;
+  padding-inline: 0;
   padding-bottom: 0;
   flex: 1;
 }
@@ -531,12 +527,8 @@ watch(
 }
 
 @media (max-width: 720px) {
-  .board-view :deep(.board-conveyor) {
-    margin-inline: 0.75rem;
-  }
-
   .board {
-    padding-inline: 0.75rem;
+    padding-inline: 0;
   }
 }
 </style>

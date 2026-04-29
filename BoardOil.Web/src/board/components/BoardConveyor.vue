@@ -86,7 +86,7 @@ const hasRightAction = computed(() => (props.rightLabel ?? '').trim().length > 0
   --bo-conveyor-tip-width: 22px;
   display: flex;
   align-items: stretch;
-  gap: 0.55rem;
+  gap: calc(var(--bo-standard-gap) / 2);
   margin-inline: 0;
 }
 
