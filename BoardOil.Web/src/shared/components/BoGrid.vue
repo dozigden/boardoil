@@ -65,7 +65,7 @@
           Showing {{ paginationRangeStart }}-{{ paginationRangeEnd }} of {{ paginationTotalCount }}
         </template>
       </p>
-      <div class="bo-grid-pagination-controls">
+      <div v-if="showPaginationControls" class="bo-grid-pagination-controls">
         <button type="button" class="btn btn--secondary" :disabled="!canGoPrevious" @click="onPreviousPage">Previous</button>
         <button type="button" class="btn btn--secondary" :disabled="!canGoNext" @click="onNextPage">Next</button>
       </div>
@@ -102,11 +102,13 @@ const props = withDefaults(defineProps<{
   totalCount: number;
   offset: number;
   limit: number;
+  showPaginationControls?: boolean;
 }>(), {
   isLoading: false,
   stickyHeader: null,
   emptyText: 'No results found.',
-  rowClickable: false
+  rowClickable: false,
+  showPaginationControls: true
 });
 
 const emit = defineEmits<{
@@ -355,10 +357,18 @@ function getCellClass(column: GridColumn) {
 }
 
 .bo-grid-cell-value {
+  display: flex;
+  align-items: center;
   min-width: 0;
+  min-height: 100%;
 }
 
 @media (max-width: 767px) {
+  :deep(.bo-dropdown--align-right .bo-dropdown-panel) {
+    left: 0;
+    right: auto;
+  }
+
   .bo-grid-row,
   .bo-grid-cell {
     display: block;
@@ -398,6 +408,7 @@ function getCellClass(column: GridColumn) {
 
   .bo-grid-cell-value {
     display: inline-block;
+    min-height: 0;
     width: 60%;
     padding-left: 0.5rem;
   }

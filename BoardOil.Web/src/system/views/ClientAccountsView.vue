@@ -1,5 +1,5 @@
 <template>
-  <section class="client-accounts-view">
+  <section class="client-accounts-view client-accounts-page">
     <header class="client-accounts-header">
       <div>
         <h2>Client Accounts</h2>
@@ -12,26 +12,45 @@
       <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
       <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
-      <section class="client-accounts-list">
-        <p v-if="clients.length === 0" class="client-accounts-empty">No client accounts have been created yet.</p>
-        <article v-for="client in clients" :key="client.id" class="entity-row client-account-row">
-          <button
-            type="button"
-            class="entity-row-main entity-row-main-button"
-            :disabled="isBusy"
-            :aria-label="`Manage tokens for client account ${client.displayName}`"
-            @click="openClientTokens(client.id)"
-          >
-            <span class="badge">#{{ client.id }}</span>
-            <strong class="entity-row-title">{{ client.displayName }}</strong>
-            <span class="client-username">@{{ client.userName }}</span>
-            <span class="client-email">{{ client.email }}</span>
-            <span class="entity-row-badges badge-group">
-              <span class="badge">{{ client.role }}</span>
-              <span class="badge">{{ client.isActive ? 'Active' : 'Inactive' }}</span>
-            </span>
-          </button>
-          <div class="entity-row-actions">
+      <section class="client-accounts-grid-wrap">
+        <BoGrid
+          class="client-accounts-grid"
+          :columns="gridFields"
+          :items="clients"
+          :is-loading="loading"
+          empty-text="No client accounts have been created yet."
+          sticky-header="100%"
+          :total-count="clients.length"
+          :offset="0"
+          :limit="clients.length > 0 ? clients.length : 1"
+          :show-pagination-controls="false"
+        >
+          <template #cell(id)="{ row }">
+            <button
+              type="button"
+              class="client-id-link client-cell-text"
+              :disabled="isBusy"
+              @click="openEditDialog(asClientAccount(row))"
+            >
+              #{{ row.id }}
+            </button>
+          </template>
+          <template #cell(displayName)="{ row }">
+            <span class="client-cell-text">{{ row.displayName }}</span>
+          </template>
+          <template #cell(userName)="{ row }">
+            <span class="client-cell-text">{{ row.userName }}</span>
+          </template>
+          <template #cell(email)="{ row }">
+            <span class="client-cell-text">{{ row.email }}</span>
+          </template>
+          <template #cell(role)="{ row }">
+            <span class="client-cell-text">{{ row.role }}</span>
+          </template>
+          <template #cell(isActive)="{ row }">
+            <span class="client-cell-text">{{ row.isActive ? 'Active' : 'Inactive' }}</span>
+          </template>
+          <template #cell(actions)="{ row }">
             <BoDropdown
               align="right"
               icon-only
@@ -40,21 +59,36 @@
               :disabled="isBusy"
             >
               <template #default="{ close }">
-                <button type="button" class="bo-dropdown-item" :disabled="isBusy" @click="openEditClientFromMenu(client, close)">
+                <button
+                  type="button"
+                  class="bo-dropdown-item"
+                  :disabled="isBusy"
+                  @click="openEditClientFromMenu(asClientAccount(row), close)"
+                >
                   Edit details
                 </button>
                 <span class="bo-dropdown-divider" aria-hidden="true"></span>
-                <button type="button" class="bo-dropdown-item" :disabled="isBusy" @click="openClientTokensFromMenu(client.id, close)">
+                <button
+                  type="button"
+                  class="bo-dropdown-item"
+                  :disabled="isBusy"
+                  @click="openClientTokensFromMenu(Number(row.id), close)"
+                >
                   Tokens
                 </button>
                 <span class="bo-dropdown-divider" aria-hidden="true"></span>
-                <button type="button" class="bo-dropdown-item" :disabled="isBusy" @click="deleteClientFromMenu(client, close)">
+                <button
+                  type="button"
+                  class="bo-dropdown-item"
+                  :disabled="isBusy"
+                  @click="deleteClientFromMenu(asClientAccount(row), close)"
+                >
                   Delete
                 </button>
               </template>
             </BoDropdown>
-          </div>
-        </article>
+          </template>
+        </BoGrid>
       </section>
     </div>
 
@@ -90,6 +124,7 @@ import { useRouter } from 'vue-router';
 import { createSystemApi } from '../../shared/api/systemApi';
 import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretModal.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import BoGrid from '../../shared/components/BoGrid.vue';
 import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.vue';
 import ClientAccountEditDialog from '../components/ClientAccountEditDialog.vue';
 import type { ClientAccount, CreateClientAccountRequest } from '../../shared/types/authTypes';
@@ -112,6 +147,21 @@ const router = useRouter();
 
 const isBusy = computed(() => loading.value || createBusy.value || editBusy.value);
 const isSecretModalOpen = computed(() => plainTextPat.value !== null);
+const gridFields: Array<{
+  key: string;
+  label: string;
+  rowKeyColumn?: boolean;
+  width?: string;
+  align?: 'end';
+}> = [
+  { key: 'id', label: 'Id', rowKeyColumn: true, width: '5.5rem' },
+  { key: 'displayName', label: 'Display Name', width: '17rem' },
+  { key: 'userName', label: 'User Name', width: '12rem' },
+  { key: 'email', label: 'Email' },
+  { key: 'role', label: 'Role', width: '8rem' },
+  { key: 'isActive', label: 'Status', width: '8rem' },
+  { key: 'actions', label: '', width: '4.5rem', align: 'end' }
+];
 
 function openCreateDialog() {
   isCreateDialogOpen.value = true;
@@ -258,6 +308,10 @@ function openEditClientFromMenu(client: ClientAccount, close: () => void) {
   openEditDialog(client);
 }
 
+function asClientAccount(row: Record<string, unknown>): ClientAccount {
+  return row as ClientAccount;
+}
+
 onMounted(async () => {
   await loadClients();
 });
@@ -265,9 +319,18 @@ onMounted(async () => {
 
 <style scoped>
 .client-accounts-view {
-  margin-top: 1rem;
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   gap: 0.9rem;
+}
+
+.client-accounts-page {
+  height: 100%;
+  margin-top: 1rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .client-accounts-header {
@@ -288,28 +351,48 @@ onMounted(async () => {
 }
 
 .client-accounts-layout {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   gap: 0.9rem;
-  align-items: start;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.client-accounts-list {
-  display: grid;
-  gap: 0.6rem;
+.client-accounts-grid-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.client-accounts-empty {
-  margin: 0;
+.client-accounts-grid {
+  height: 100%;
+  min-height: 0;
+}
+
+.client-cell-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-id-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--bo-link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.client-id-link:disabled {
+  cursor: default;
   color: var(--bo-ink-muted);
-}
-
-.client-email {
-  color: var(--bo-ink-muted);
-  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
-}
-
-.client-username {
-  color: var(--bo-ink-muted);
-  font-size: 0.85rem;
+  text-decoration: none;
 }
 </style>
