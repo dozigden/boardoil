@@ -1,9 +1,8 @@
 <template>
-  <section class="entity-rows-page entity-rows-page--compact">
+  <section class="entity-rows-page entity-rows-page--compact users-page">
     <header class="entity-rows-header users-header">
       <div class="entity-rows-header-copy">
         <h2>User Management</h2>
-        <p>Create and manage local BoardOil accounts.</p>
       </div>
       <button type="button" class="btn" :disabled="busy" @click="openCreateDialog">Create user</button>
     </header>
@@ -11,30 +10,53 @@
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
-    <section class="entity-rows-list">
-      <article v-for="user in users" :key="user.id" class="entity-row">
-        <div class="entity-row-main">
+    <section class="users-grid-wrap">
+      <BoGrid
+        class="users-grid"
+        :columns="gridFields"
+        :items="users"
+        :is-loading="busy"
+        empty-text="No users found."
+        sticky-header="100%"
+        :total-count="users.length"
+        :offset="0"
+        :limit="users.length > 0 ? users.length : 1"
+        :show-pagination-controls="false"
+      >
+        <template #cell(id)="{ row }">
+          <button
+            type="button"
+            class="users-id-link users-cell-text"
+            :disabled="busy"
+            @click="openEditDialog(asManagedUser(row))"
+          >
+            #{{ row.id }}
+          </button>
+        </template>
+        <template #cell(displayName)="{ row }">
           <span class="users-row-leading">
             <UserAvatar
-              :image-relative-path="user.profileImageRelativePath ?? null"
-              :display-name="user.displayName"
+              :image-relative-path="String(row.profileImageRelativePath ?? '') || null"
+              :display-name="String(row.displayName ?? '')"
               size="lg"
               class="user-row-avatar"
             />
-            <span class="users-row-meta">
-              <span class="badge">#{{ user.id }}</span>
-              <strong class="entity-row-title">{{ user.displayName }}</strong>
-              <span class="user-username">@{{ user.userName }}</span>
-              <span class="user-email">{{ user.email }}</span>
-            </span>
+            <span class="users-cell-text">{{ row.displayName }}</span>
           </span>
-          <span class="entity-row-badges badge-group">
-            <span class="badge">{{ user.identityType }}</span>
-            <span class="badge">{{ user.role }}</span>
-            <span class="badge">{{ user.isActive ? 'Active' : 'Inactive' }}</span>
-          </span>
-        </div>
-        <div class="entity-row-actions">
+        </template>
+        <template #cell(userName)="{ row }">
+          <span class="users-cell-text">{{ row.userName }}</span>
+        </template>
+        <template #cell(email)="{ row }">
+          <span class="users-cell-text">{{ row.email }}</span>
+        </template>
+        <template #cell(role)="{ row }">
+          <span class="users-cell-text">{{ row.role }}</span>
+        </template>
+        <template #cell(isActive)="{ row }">
+          <span class="users-cell-text">{{ row.isActive ? 'Active' : 'Inactive' }}</span>
+        </template>
+        <template #cell(actions)="{ row }">
           <BoDropdown
             align="right"
             icon-only
@@ -47,27 +69,32 @@
                 type="button"
                 class="bo-dropdown-item"
                 :disabled="busy"
-                @click="openEditUserFromMenu(user, close)"
+                @click="openEditUserFromMenu(asManagedUser(row), close)"
               >
                 Edit details
               </button>
               <span class="bo-dropdown-divider" aria-hidden="true"></span>
-              <button type="button" class="bo-dropdown-item" :disabled="busy" @click="openResetPasswordFromMenu(user, close)">
+              <button
+                type="button"
+                class="bo-dropdown-item"
+                :disabled="busy"
+                @click="openResetPasswordFromMenu(asManagedUser(row), close)"
+              >
                 Reset password
               </button>
               <span class="bo-dropdown-divider" aria-hidden="true"></span>
               <button
                 type="button"
                 class="bo-dropdown-item"
-                :disabled="busy || isCurrentUser(user.id)"
-                @click="deleteUserFromMenu(user, close)"
+                :disabled="busy || isCurrentUser(Number(row.id))"
+                @click="deleteUserFromMenu(asManagedUser(row), close)"
               >
                 Delete
               </button>
             </template>
           </BoDropdown>
-        </div>
-      </article>
+        </template>
+      </BoGrid>
     </section>
 
     <UserCreateDialog :open="isCreateDialogOpen" :busy="busy" @close="closeCreateDialog" @submit="createUser" />
@@ -95,6 +122,7 @@ import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
 import { createSystemApi } from '../../shared/api/systemApi';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import BoGrid from '../../shared/components/BoGrid.vue';
 import PasswordResetDialog from '../../shared/components/PasswordResetDialog.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import UserCreateDialog from '../components/UserCreateDialog.vue';
@@ -114,6 +142,21 @@ const isEditDialogOpen = ref(false);
 const isResetPasswordDialogOpen = ref(false);
 const userForEdit = ref<ManagedUser | null>(null);
 const userForPasswordReset = ref<ManagedUser | null>(null);
+const gridFields: Array<{
+  key: string;
+  label: string;
+  rowKeyColumn?: boolean;
+  width?: string;
+  align?: 'end';
+}> = [
+  { key: 'id', label: 'Id', rowKeyColumn: true, width: '5.5rem' },
+  { key: 'displayName', label: 'Display Name', width: '17rem' },
+  { key: 'userName', label: 'User Name', width: '10rem' },
+  { key: 'email', label: 'Email' },
+  { key: 'role', label: 'Role', width: '8rem' },
+  { key: 'isActive', label: 'Status', width: '8rem' },
+  { key: 'actions', label: '', width: '4.5rem', align: 'end' }
+];
 
 async function loadUsers() {
   busy.value = true;
@@ -258,6 +301,10 @@ function isCurrentUser(userId: number) {
   return currentUser.value?.id === userId;
 }
 
+function asManagedUser(row: Record<string, unknown>): ManagedUser {
+  return row as ManagedUser;
+}
+
 async function deleteUserFromMenu(user: ManagedUser, close: () => void) {
   close();
   await deleteUser(user);
@@ -283,30 +330,60 @@ onMounted(async () => {
   align-items: flex-end;
 }
 
+.users-page {
+  height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.users-grid-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.users-grid {
+  height: 100%;
+  min-height: 0;
+}
+
 .users-row-leading {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.users-row-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-width: 0;
-}
-
 .user-row-avatar {
   flex-shrink: 0;
 }
 
-.user-email {
-  color: var(--bo-ink-muted);
-  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+.users-cell-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.user-username {
-  color: var(--bo-ink-muted);
-  font-size: 0.85rem;
+.users-id-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--bo-link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
 }
+
+.users-id-link:disabled {
+  cursor: default;
+  color: var(--bo-ink-muted);
+  text-decoration: none;
+}
+
 </style>
