@@ -6,4 +6,5 @@ namespace BoardOil.Persistence.Abstractions.Card;
 public interface ICardCommentRepository : IRepositoryBase<EntityCardComment>
 {
     Task<IReadOnlyList<EntityCardComment>> GetForCardOrderedAsync(int cardId);
+    Task<EntityCardComment?> GetByIdWithAuthorAsync(int id);
 }

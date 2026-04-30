@@ -11,7 +11,13 @@ public sealed class CardCommentRepository(IAmbientDbContextLocator ambientDbCont
     public async Task<IReadOnlyList<EntityCardComment>> GetForCardOrderedAsync(int cardId) =>
         await DbSet
             .Where(x => x.CardId == cardId)
+            .Include(x => x.AuthorUser)
             .OrderByDescending(x => x.CreatedAtUtc)
             .ThenByDescending(x => x.Id)
             .ToListAsync();
+
+    public Task<EntityCardComment?> GetByIdWithAuthorAsync(int id) =>
+        DbSet
+            .Include(x => x.AuthorUser)
+            .FirstOrDefaultAsync(x => x.Id == id);
 }

@@ -51,6 +51,18 @@
                 :key="comment.id"
                 class="card-editor-comment"
               >
+                <header class="card-editor-comment-header">
+                  <span class="card-editor-comment-author">
+                    <UserAvatar
+                      :image-relative-path="comment.authorImageRelativePath ?? null"
+                      :display-name="comment.authorDisplayName ?? `User #${comment.authorUserId}`"
+                      size="sm"
+                      class="card-editor-comment-author-avatar"
+                    />
+                    <span class="card-editor-comment-author-name">{{ comment.authorDisplayName ?? `User #${comment.authorUserId}` }}</span>
+                  </span>
+                  <time class="card-editor-comment-timestamp" :datetime="comment.createdAtUtc">{{ formatCommentDateTime(comment.createdAtUtc) }}</time>
+                </header>
                 <p class="card-editor-comment-text">{{ comment.text }}</p>
               </article>
             </div>
@@ -311,6 +323,18 @@ const descriptionDraft = computed({
 
 function normaliseDescription(value: string) {
   return value.slice(0, maxDescriptionLength);
+}
+
+function formatCommentDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(date);
 }
 
 function clearDraft() {
@@ -613,6 +637,36 @@ watch(
   border-radius: 0.4rem;
   padding: 0.5rem 0.6rem;
   background: color-mix(in srgb, var(--bo-bg) 92%, var(--bo-muted-bg) 8%);
+}
+
+.card-editor-comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.card-editor-comment-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.card-editor-comment-author-avatar {
+  flex-shrink: 0;
+}
+
+.card-editor-comment-author-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.card-editor-comment-timestamp {
+  font-size: 0.8rem;
+  color: var(--bo-muted-text);
+  white-space: nowrap;
 }
 
 .card-editor-comment-text {

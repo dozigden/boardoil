@@ -72,13 +72,15 @@ public static class CardMappingExtensions
             tag.StylePropertiesJson,
             tag.Emoji);
 
-    public static CardCommentDto ToCardCommentDto(this EntityCardComment comment) =>
+    public static CardCommentDto ToCardCommentDto(this EntityCardComment comment, string? authorImageRelativePath = null) =>
         new(
             comment.Id,
             comment.CardId,
             comment.AuthorUserId,
             comment.Text,
-            comment.CreatedAtUtc);
+            comment.CreatedAtUtc,
+            comment.AuthorUser.DisplayName,
+            authorImageRelativePath);
 
     private static IReadOnlyList<string> ParseSearchTagsJson(string searchTagsJson)
     {
