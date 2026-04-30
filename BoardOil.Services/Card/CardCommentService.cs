@@ -5,12 +5,14 @@ using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Persistence.Abstractions.Card;
 using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Persistence.Abstractions.Image;
 
 namespace BoardOil.Services.Card;
 
 public sealed class CardCommentService(
     ICardRepository cardRepository,
     ICardCommentRepository cardCommentRepository,
+    IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory) : ICardCommentService
 {
@@ -34,8 +36,9 @@ public sealed class CardCommentService(
         }
 
         var comments = await cardCommentRepository.GetForCardOrderedAsync(cardId);
+        var imageByAuthorUserId = await LoadAuthorImageLookupAsync(comments);
         return comments
-            .Select(x => x.ToCardCommentDto())
+            .Select(x => x.ToCardCommentDto(imageByAuthorUserId.GetValueOrDefault(x.AuthorUserId)))
             .ToList();
     }
 
@@ -71,7 +74,14 @@ public sealed class CardCommentService(
         cardCommentRepository.Add(comment);
         await scope.SaveChangesAsync();
 
-        return ApiResults.Created(comment.ToCardCommentDto());
+        var savedComment = await cardCommentRepository.GetByIdWithAuthorAsync(comment.Id);
+        if (savedComment is null)
+        {
+            return ApiErrors.InternalError("Created comment could not be reloaded.");
+        }
+
+        var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, savedComment.AuthorUserId);
+        return ApiResults.Created(savedComment.ToCardCommentDto(image?.RelativePath));
     }
 
     private static IReadOnlyList<ValidationError> ValidateCreateRequest(CreateCardCommentRequest request)
@@ -90,5 +100,20 @@ public sealed class CardCommentService(
         }
 
         return errors;
+    }
+
+    private async Task<IReadOnlyDictionary<int, string>> LoadAuthorImageLookupAsync(IReadOnlyList<EntityCardComment> comments)
+    {
+        var authorUserIds = comments
+            .Select(x => x.AuthorUserId)
+            .Distinct()
+            .ToArray();
+        if (authorUserIds.Length == 0)
+        {
+            return new Dictionary<int, string>();
+        }
+
+        var images = await imageRepository.GetLatestForEntitiesAsync(ImageEntityType.UserProfile, authorUserIds);
+        return images.ToDictionary(x => x.EntityId, x => x.RelativePath);
     }
 }
