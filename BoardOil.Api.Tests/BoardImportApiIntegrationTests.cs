@@ -5,74 +5,13 @@ using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
 using BoardOil.Services.Board;
-using BoardOil.TasksMd;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
 
 public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
 {
-    private const int MaxCardDescriptionLength = 20_000;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    private readonly FakeTasksMdClient _tasksMdClient = new();
-
-    protected override BoardOilApiFactory CreateFactory(string databasePath) =>
-        new(
-            databasePath,
-            configureTestServices: services =>
-            {
-                services.RemoveAll<ITasksMdClient>();
-                services.AddSingleton<ITasksMdClient>(_tasksMdClient);
-            });
-
-    [Fact]
-    public async Task ImportTasksMdBoard_ShouldCreateBoardFromImportedModel()
-    {
-        _tasksMdClient.Model = new TasksMdBoardImportModel(
-            [
-                new TasksMdImportedColumn(
-                    "Todo",
-                    [
-                        new TasksMdImportedCard("Card A", "Clean description", ["Urgent", "Discovered"])
-                    ])
-            ],
-            [new TasksMdImportedTag("Urgent", "#bf616a")]);
-
-        var response = await Client.PostAsJsonAsync(
-            "/api/boards/import/tasksmd",
-            new ImportTasksMdBoardRequest("https://tasks.example.net/"));
-        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        Assert.NotNull(payload);
-        Assert.True(payload!.Success);
-        Assert.Equal(201, payload.StatusCode);
-        Assert.NotNull(payload.Data);
-        Assert.Equal("tasks.example.net", payload.Data!.Name);
-        Assert.True(payload.Data.Id > 0);
-    }
-
-    [Fact]
-    public async Task ImportTasksMdBoard_WhenCardDescriptionExceedsMaxLength_ShouldReturnBadRequest()
-    {
-        _tasksMdClient.Model = new TasksMdBoardImportModel(
-            [new TasksMdImportedColumn("Todo", [new TasksMdImportedCard("Card A", new string('D', MaxCardDescriptionLength + 1), [])])],
-            []);
-
-        var response = await Client.PostAsJsonAsync(
-            "/api/boards/import/tasksmd",
-            new ImportTasksMdBoardRequest("https://tasks.example.net/"));
-
-        Assert.Equal(400, (int)response.StatusCode);
-
-        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
-        Assert.NotNull(payload);
-        Assert.False(payload!.Success);
-        Assert.NotNull(payload.ValidationErrors);
-        Assert.Contains("columns[0].cards[0].description", payload.ValidationErrors!.Keys);
-    }
 
     [Fact]
     public async Task ImportBoardPackage_ShouldCreateBoardFromZipUpload()
@@ -149,18 +88,6 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
         Assert.False(payload!.Success);
         Assert.NotNull(payload.ValidationErrors);
         Assert.Contains("file", payload.ValidationErrors!.Keys);
-    }
-
-    private sealed class FakeTasksMdClient : ITasksMdClient
-    {
-        public TasksMdBoardImportModel Model { get; set; } = new([], []);
-
-        public Task<TasksMdBoardImportModel> LoadBoardAsync(Uri baseUri, CancellationToken cancellationToken = default)
-        {
-            _ = baseUri;
-            _ = cancellationToken;
-            return Task.FromResult(Model);
-        }
     }
 
     private static byte[] BuildBoardPackage(

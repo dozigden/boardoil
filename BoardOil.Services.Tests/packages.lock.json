@@ -387,14 +387,10 @@
           "BoardOil.Contracts": "[1.1.0, )",
           "BoardOil.Ef": "[1.1.0, )",
           "BoardOil.Persistence.Abstractions": "[1.1.0, )",
-          "BoardOil.TasksMd": "[1.1.0, )",
           "Microsoft.Extensions.Http": "[10.0.6, )",
           "Microsoft.Extensions.Identity.Core": "[10.0.6, )",
           "SixLabors.ImageSharp": "[3.1.11, )"
         }
-      },
-      "boardoil.tasksmd": {
-        "type": "Project"
       }
     }
   }

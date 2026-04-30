@@ -106,8 +106,6 @@ async function submitCreateBoard(payload: BoardCreateDialogSubmitPayload) {
   let created: Awaited<ReturnType<typeof boardCatalogueStore.createBoard>>;
   if (payload.mode === 'blank') {
     created = await boardCatalogueStore.createBoard(payload.name, payload.description);
-  } else if (payload.mode === 'tasksmd') {
-    created = await boardCatalogueStore.importTasksMdBoard(payload.url);
   } else {
     created = await boardCatalogueStore.importBoardPackage(payload.file, payload.name);
   }

@@ -1,15 +1,13 @@
-export type BoardCreateMode = 'blank' | 'tasksmd' | 'package';
+export type BoardCreateMode = 'blank' | 'package';
 
 export type BoardCreateDialogSubmitPayload =
   | { mode: 'blank'; name: string; description: string }
-  | { mode: 'tasksmd'; url: string }
   | { mode: 'package'; file: File; name?: string };
 
 export type BoardCreateDraft = {
   mode: BoardCreateMode;
   boardName: string;
   boardDescription: string;
-  tasksMdUrl: string;
   packageFile: File | null;
   packageBoardNameOverride: string;
 };
@@ -23,10 +21,6 @@ export function canSubmitBoardCreateDraft(draft: BoardCreateDraft, busy: boolean
     return draft.boardName.trim().length > 0;
   }
 
-  if (draft.mode === 'tasksmd') {
-    return draft.tasksMdUrl.trim().length > 0;
-  }
-
   return draft.packageFile !== null;
 }
 
@@ -37,10 +31,6 @@ export function buildBoardCreateSubmitPayload(draft: BoardCreateDraft): BoardCre
       name: draft.boardName.trim(),
       description: draft.boardDescription.trim()
     };
-  }
-
-  if (draft.mode === 'tasksmd') {
-    return { mode: 'tasksmd', url: draft.tasksMdUrl.trim() };
   }
 
   if (!draft.packageFile) {

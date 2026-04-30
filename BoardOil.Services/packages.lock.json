@@ -290,9 +290,6 @@
       },
       "boardoil.persistence.abstractions": {
         "type": "Project"
-      },
-      "boardoil.tasksmd": {
-        "type": "Project"
       }
     }
   }

@@ -8,7 +8,6 @@
     <ProjectReference Include="..\BoardOil.Contracts\BoardOil.Contracts.csproj" />
     <ProjectReference Include="..\BoardOil.Ef\BoardOil.Ef.csproj" />
     <ProjectReference Include="..\BoardOil.Persistence.Abstractions\BoardOil.Persistence.Abstractions.csproj" />
-    <ProjectReference Include="..\BoardOil.TasksMd\BoardOil.TasksMd.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

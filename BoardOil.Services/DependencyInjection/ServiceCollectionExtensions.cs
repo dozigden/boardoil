@@ -29,7 +29,6 @@ using BoardOil.Services.Column;
 using BoardOil.Services.Image;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Users;
-using BoardOil.TasksMd;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,7 +64,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBoardService, BoardService>();
         services.AddScoped<IBoardExportService, BoardExportService>();
         services.AddScoped<IBoardPackageImportService, BoardPackageImportService>();
-        services.AddScoped<IBoardTasksMdImportService, BoardTasksMdImportService>();
         services.AddScoped<ISystemBoardService, SystemBoardService>();
         services.AddScoped<IBoardAuthorisationService, BoardAuthorisationService>();
         services.AddScoped<IBoardMemberService, BoardMemberService>();
@@ -79,11 +77,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IImageStorageService, LocalImageStorageService>();
         services.AddScoped<IUserProfileImageService, UserProfileImageService>();
-        services.AddHttpClient<ITasksMdClient, TasksMdClient>(client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(15);
-        });
-
         return services;
     }
 
