@@ -6,6 +6,7 @@ import { createBoardRealtime } from '../realtime/boardRealtime';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useCardStore } from './cardStore';
 import { useCardTypeStore } from './cardTypeStore';
+import { useCommentStore } from './commentStore';
 import type { Board, BoardSummary, Column } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
@@ -22,6 +23,7 @@ export const useBoardStore = defineStore('board', () => {
   const feedback = useUiFeedbackStore();
   const cardStore = useCardStore();
   const cardTypeStore = useCardTypeStore();
+  const commentStore = useCommentStore();
   const api = createBoardApi();
   const board = computed<Board | null>(() => {
     if (!boardShell.value) {
@@ -89,6 +91,7 @@ export const useBoardStore = defineStore('board', () => {
     currentBoardId.value = null;
     isLoadingBoard.value = false;
     cardStore.dispose();
+    commentStore.dispose();
   }
 
   async function loadBoard(boardId: number) {
@@ -102,6 +105,7 @@ export const useBoardStore = defineStore('board', () => {
       boardShell.value = null;
       currentBoardId.value = null;
       cardStore.dispose();
+      commentStore.dispose();
       reportError(result.error);
       return false;
     }
@@ -110,6 +114,7 @@ export const useBoardStore = defineStore('board', () => {
     currentBoardId.value = boardId;
     boardShell.value = stripBoardCards(sortedBoard);
     cardStore.replaceBoardCards(boardId, sortedBoard.columns);
+    commentStore.dispose();
     feedback.clearError();
     return true;
   }

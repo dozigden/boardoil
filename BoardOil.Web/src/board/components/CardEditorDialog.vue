@@ -22,6 +22,39 @@
               min-height="12rem"
             />
           </div>
+          <section class="card-editor-comments-section" aria-label="Card comments">
+            <div class="card-editor-comment-entry">
+              <h3 class="card-editor-comments-title">Comments</h3>
+              <textarea
+                v-model="newCommentText"
+                class="card-editor-comment-input"
+                rows="3"
+                maxlength="4000"
+                placeholder="Add a comment"
+              />
+              <button
+                type="button"
+                class="btn"
+                :disabled="newCommentText.trim().length === 0"
+                @click="addComment"
+              >
+                Add comment
+              </button>
+            </div>
+
+            <div class="card-editor-comments-list">
+              <p v-if="cardComments.length === 0" class="card-editor-comments-empty">
+                No comments yet.
+              </p>
+              <article
+                v-for="comment in cardComments"
+                :key="comment.id"
+                class="card-editor-comment"
+              >
+                <p class="card-editor-comment-text">{{ comment.text }}</p>
+              </article>
+            </div>
+          </section>
         </div>
 
         <aside class="card-editor-options" aria-label="Card options">
@@ -171,6 +204,7 @@ import { useBoardStore } from '../stores/boardStore';
 import { useBoardMembersStore } from '../stores/boardMembersStore';
 import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
+import { useCommentStore } from '../stores/commentStore';
 import { useTagStore } from '../stores/tagStore';
 import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardTypeSelection';
 
@@ -180,15 +214,18 @@ const boardStore = useBoardStore();
 const boardMembersStore = useBoardMembersStore();
 const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
+const commentStore = useCommentStore();
 const tagStore = useTagStore();
 const { board } = storeToRefs(boardStore);
 const { members: boardMembers, activeBoardId: boardMembersActiveBoardId } = storeToRefs(boardMembersStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { saveCard: saveCardAction, deleteCard, archiveCard } = cardStore;
+const { loadCardComments, addCardComment: addCardCommentAction } = commentStore;
 const { loadMembers } = boardMembersStore;
 const { loadCardTypes } = cardTypeStore;
 const { ensureTagsExist } = tagStore;
 const maxDescriptionLength = 20_000;
+const maxCommentLength = 4_000;
 type CardDraft = {
   id: number;
   title: string;
@@ -201,6 +238,7 @@ type CardDraft = {
 };
 
 const cardDraft = ref<CardDraft | null>(null);
+const newCommentText = ref('');
 
 const routeCardId = computed<number | null>(() => {
   const raw = route.params.cardId;
@@ -215,6 +253,7 @@ const routeBoardId = computed<number | null>(() => {
 });
 
 const editingCard = computed(() => cardStore.getCardById(routeCardId.value));
+const cardComments = computed(() => commentStore.getCommentsForCard(cardDraft.value?.id ?? null));
 const boardColumns = computed(() => board.value?.columns ?? []);
 const selectedBoardColumnLabel = computed(() => {
   if (!cardDraft.value) {
@@ -276,6 +315,7 @@ function normaliseDescription(value: string) {
 
 function clearDraft() {
   cardDraft.value = null;
+  newCommentText.value = '';
 }
 
 async function closeCardEditor() {
@@ -361,6 +401,29 @@ async function ensureTagsExistForBoard(tagNames: string[]) {
   return ensureTagsExist(tagNames, routeBoardId.value);
 }
 
+async function addComment() {
+  if (!cardDraft.value) {
+    return;
+  }
+
+  const text = newCommentText.value.trim().slice(0, maxCommentLength);
+  if (text.length === 0) {
+    return;
+  }
+
+  const boardId = routeBoardId.value;
+  if (boardId === null) {
+    return;
+  }
+
+  const result = await addCardCommentAction(boardId, cardDraft.value.id, text);
+  if (!result?.ok) {
+    return;
+  }
+
+  newCommentText.value = '';
+}
+
 async function deleteEditingCard() {
   if (!cardDraft.value) {
     return;
@@ -425,16 +488,19 @@ watch(
       return;
     }
 
+    await loadCardComments(nextBoardId, nextCard.id);
+
     if (cardDraft.value?.id !== nextCard.id) {
+      const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
       cardDraft.value = {
-        id: nextCard.id,
-        title: nextCard.title,
-        description: normaliseDescription(nextCard.description),
-        tagNames: [...nextCard.tagNames],
-        cardTypeId: nextCard.cardTypeId,
-        boardColumnId: nextCard.boardColumnId,
-        assignedUserId: nextCard.assignedUserId ?? null,
-        assignedUserName: nextCard.assignedUserName ?? null
+        id: refreshedCard.id,
+        title: refreshedCard.title,
+        description: normaliseDescription(refreshedCard.description),
+        tagNames: [...refreshedCard.tagNames],
+        cardTypeId: refreshedCard.cardTypeId,
+        boardColumnId: refreshedCard.boardColumnId,
+        assignedUserId: refreshedCard.assignedUserId ?? null,
+        assignedUserName: refreshedCard.assignedUserName ?? null
       };
       return;
     }
@@ -499,7 +565,7 @@ watch(
 .card-editor-layout {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(14rem, 1fr);
-  gap: 0.85rem;
+  gap: 0;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -511,7 +577,58 @@ watch(
   gap: 0.5rem;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.75rem;
+  margin-right: 0.25rem;
+}
+
+.card-editor-comments-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--bo-border-soft);
+  padding-top: 0.5rem;
+}
+
+.card-editor-comments-title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.card-editor-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.card-editor-comments-empty {
+  margin: 0;
+  color: var(--bo-muted-text);
+  font-size: 0.9rem;
+}
+
+.card-editor-comment {
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  background: color-mix(in srgb, var(--bo-bg) 92%, var(--bo-muted-bg) 8%);
+}
+
+.card-editor-comment-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.card-editor-comment-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.card-editor-comment-input {
+  width: 100%;
+  resize: vertical;
 }
 
 .card-editor-select-field {
@@ -575,9 +692,31 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: hidden;
+  flex: 0 0 auto;
+  min-height: fit-content;
+  overflow: visible;
+  width: 100%;
+}
+
+.card-editor-description-field :deep(.md-editor),
+.card-editor-description-field :deep(.md-editor-input),
+.card-editor-description-field :deep(.md-editor-content) {
+  flex: 0 0 auto;
+  min-height: fit-content;
+  overflow: visible;
+  width: 100%;
+}
+
+.card-editor-description-field :deep(.md-editor-content .tiptap) {
+  height: auto;
+  max-height: none;
+  overflow-y: visible;
+  width: 100%;
+}
+
+.card-editor-description-field :deep(.md-editor-textarea) {
+  max-height: none;
+  overflow-y: hidden;
 }
 
 .card-editor-field-label {

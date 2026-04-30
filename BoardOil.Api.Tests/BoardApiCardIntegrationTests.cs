@@ -186,4 +186,34 @@ public sealed class BoardApiCardIntegrationTests
         Assert.Null(payload.Message);
     }
 
+    [Fact]
+    public async Task CardCommentsEndpoints_ShouldCreateAndListComments()
+    {
+        // Arrange
+        var columnId = await SeedBoardColumnAsync("Todo");
+        var cardId = await SeedBoardCardAsync(columnId, "Task A", "Desc");
+
+        // Act
+        var createResponse = await Client.PostAsJsonAsync(
+            $"/api/boards/1/cards/{cardId}/comments",
+            new CreateCardCommentRequest("First comment"));
+        var createdEnvelope = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardCommentDto>>(JsonOptions);
+        var listResponse = await Client.GetAsync($"/api/boards/1/cards/{cardId}/comments");
+        var listEnvelope = await listResponse.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<CardCommentDto>>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.NotNull(createdEnvelope);
+        Assert.True(createdEnvelope!.Success);
+        Assert.NotNull(createdEnvelope.Data);
+        Assert.Equal("First comment", createdEnvelope.Data!.Text);
+
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.NotNull(listEnvelope);
+        Assert.True(listEnvelope!.Success);
+        Assert.NotNull(listEnvelope.Data);
+        Assert.Single(listEnvelope.Data);
+        Assert.Equal("First comment", listEnvelope.Data[0].Text);
+    }
+
 }

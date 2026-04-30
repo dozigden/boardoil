@@ -12,6 +12,14 @@ export type CardTag = TagPresentation & {
   name: string;
 };
 
+export type CardComment = {
+  id: number;
+  cardId: number;
+  authorUserId: number;
+  text: string;
+  createdAtUtc: string;
+};
+
 export type Card = {
   id: number;
   boardColumnId: number;

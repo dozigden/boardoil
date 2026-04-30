@@ -12,6 +12,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityCardType> CardTypes => Set<EntityCardType>();
     public DbSet<EntityTag> Tags => Set<EntityTag>();
     public DbSet<EntityCardTag> CardTags => Set<EntityCardTag>();
+    public DbSet<EntityCardComment> CardComments => Set<EntityCardComment>();
     public DbSet<EntityBoardMember> BoardMembers => Set<EntityBoardMember>();
     public DbSet<EntityUser> Users => Set<EntityUser>();
     public DbSet<EntityRefreshToken> RefreshTokens => Set<EntityRefreshToken>();
@@ -78,6 +79,10 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .HasForeignKey(x => x.AssignedUserId)
             .OnDelete(DeleteBehavior.SetNull);
         card.HasMany(x => x.CardTags)
+            .WithOne(x => x.Card)
+            .HasForeignKey(x => x.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+        card.HasMany(x => x.Comments)
             .WithOne(x => x.Card)
             .HasForeignKey(x => x.CardId)
             .OnDelete(DeleteBehavior.Cascade);
@@ -157,6 +162,20 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .WithOne(x => x.User)
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+        user.HasMany(x => x.CardComments)
+            .WithOne(x => x.AuthorUser)
+            .HasForeignKey(x => x.AuthorUserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var cardComment = modelBuilder.Entity<EntityCardComment>();
+        cardComment.HasKey(x => x.Id);
+        cardComment.Property(x => x.CardId).IsRequired();
+        cardComment.Property(x => x.AuthorUserId).IsRequired();
+        cardComment.Property(x => x.Text).HasMaxLength(4_000).IsRequired();
+        cardComment.Property(x => x.CreatedAtUtc).IsRequired();
+        cardComment.ToTable("CardComments");
+        cardComment.HasIndex(x => new { x.CardId, x.CreatedAtUtc, x.Id });
+        cardComment.HasIndex(x => x.AuthorUserId);
 
         var boardMember = modelBuilder.Entity<EntityBoardMember>();
         boardMember.HasKey(x => x.Id);
