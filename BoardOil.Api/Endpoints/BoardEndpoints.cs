@@ -61,9 +61,6 @@ public static class BoardEndpoints
             return (await boardPackageImportService.ImportBoardPackageAsync(importRequestResult.Data!, httpContext.GetActorUserId())).ToHttpResult();
         });
 
-        boardEndpoints.MapPost("/import/tasksmd", async (ImportTasksMdBoardRequest request, IBoardTasksMdImportService boardTasksMdImportService, HttpContext httpContext) =>
-            (await boardTasksMdImportService.ImportTasksMdBoardAsync(request, httpContext.GetActorUserId())).ToHttpResult());
-
         boardEndpoints.MapPut("/{boardId:int}", async (int boardId, UpdateBoardRequest request, IBoardService boardService, HttpContext httpContext) =>
             (await boardService.UpdateBoardAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 

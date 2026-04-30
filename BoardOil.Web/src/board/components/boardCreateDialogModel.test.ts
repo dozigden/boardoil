@@ -10,7 +10,6 @@ function makeDraft(overrides: Partial<BoardCreateDraft> = {}): BoardCreateDraft 
     mode: 'blank',
     boardName: '',
     boardDescription: '',
-    tasksMdUrl: '',
     packageFile: null,
     packageBoardNameOverride: '',
     ...overrides
@@ -21,11 +20,6 @@ describe('boardCreateDialogModel', () => {
   it('allows blank mode submit only when board name is non-empty', () => {
     expect(canSubmitBoardCreateDraft(makeDraft({ mode: 'blank', boardName: '' }), false)).toBe(false);
     expect(canSubmitBoardCreateDraft(makeDraft({ mode: 'blank', boardName: '  Roadmap  ' }), false)).toBe(true);
-  });
-
-  it('allows tasksmd mode submit only when url is non-empty', () => {
-    expect(canSubmitBoardCreateDraft(makeDraft({ mode: 'tasksmd', tasksMdUrl: '' }), false)).toBe(false);
-    expect(canSubmitBoardCreateDraft(makeDraft({ mode: 'tasksmd', tasksMdUrl: 'https://tasks.example.net/' }), false)).toBe(true);
   });
 
   it('allows package mode submit only when file is selected', () => {

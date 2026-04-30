@@ -23,17 +23,6 @@
       >
         Import package
       </button>
-      <button
-        type="button"
-        class="btn btn--tab"
-        :class="{ 'is-active': mode === 'tasksmd' }"
-        role="tab"
-        :aria-selected="mode === 'tasksmd'"
-        :disabled="busy"
-        @click="mode = 'tasksmd'"
-      >
-        Import tasksmd
-      </button>
     </div>
 
     <label v-if="mode === 'blank'">
@@ -44,12 +33,6 @@
       Description (optional)
       <textarea v-model="boardDescription" :disabled="busy" maxlength="5000" rows="4"></textarea>
     </label>
-    <template v-else-if="mode === 'tasksmd'">
-      <label>
-        tasksmd URL
-        <input v-model="tasksMdUrl" :disabled="busy" maxlength="2000" required type="url" placeholder="https://tasks.example.net/" />
-      </label>
-    </template>
     <template v-else>
       <label>
         Package ZIP file
@@ -114,7 +97,6 @@ const emit = defineEmits<{
 const mode = ref<BoardCreateMode>('blank');
 const boardName = ref('');
 const boardDescription = ref('');
-const tasksMdUrl = ref('');
 const packageFile = ref<File | null>(null);
 const packageFileName = ref('');
 const packageBoardNameOverride = ref('');
@@ -125,7 +107,6 @@ const canSubmit = computed(() =>
     mode: mode.value,
     boardName: boardName.value,
     boardDescription: boardDescription.value,
-    tasksMdUrl: tasksMdUrl.value,
     packageFile: packageFile.value,
     packageBoardNameOverride: packageBoardNameOverride.value
   }, props.busy));
@@ -134,7 +115,6 @@ function resetDraft() {
   mode.value = 'blank';
   boardName.value = '';
   boardDescription.value = '';
-  tasksMdUrl.value = '';
   packageFile.value = null;
   packageFileName.value = '';
   packageBoardNameOverride.value = '';
@@ -152,7 +132,6 @@ function submit() {
     mode: mode.value,
     boardName: boardName.value,
     boardDescription: boardDescription.value,
-    tasksMdUrl: tasksMdUrl.value,
     packageFile: packageFile.value,
     packageBoardNameOverride: packageBoardNameOverride.value
   });

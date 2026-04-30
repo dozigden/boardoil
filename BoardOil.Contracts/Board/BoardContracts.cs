@@ -29,9 +29,6 @@ public sealed record CreateBoardRequest(
     string Name,
     string? Description = null);
 
-public sealed record ImportTasksMdBoardRequest(
-    string Url);
-
 public sealed record ImportBoardPackageRequest(
     string? Name,
     byte[] PackageContent);

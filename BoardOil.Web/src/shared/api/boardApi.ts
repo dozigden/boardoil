@@ -54,10 +54,6 @@ export function createBoardApi() {
     return postData<Board>('/api/boards', { name, description });
   }
 
-  async function importTasksMdBoard(url: string): Promise<Result<Board, AppError>> {
-    return postData<Board>('/api/boards/import/tasksmd', { url });
-  }
-
   async function importBoardPackage(file: File, name?: string): Promise<Result<Board, AppError>> {
     const formData = new FormData();
     formData.append('file', file);
@@ -375,7 +371,6 @@ export function createBoardApi() {
     getBoards,
     getBoard,
     createBoard,
-    importTasksMdBoard,
     importBoardPackage,
     exportBoard,
     saveBoard,

@@ -424,12 +424,8 @@
           "BoardOil.Contracts": "[1.1.0, )",
           "BoardOil.Ef": "[1.1.0, )",
           "BoardOil.Persistence.Abstractions": "[1.1.0, )",
-          "BoardOil.TasksMd": "[1.1.0, )",
           "SixLabors.ImageSharp": "[3.1.11, )"
         }
-      },
-      "boardoil.tasksmd": {
-        "type": "Project"
       }
     }
   }
