@@ -343,7 +343,7 @@ async function saveCard() {
     return;
   }
 
-  await saveCardAction(
+  const saved = await saveCardAction(
     cardDraft.value.id,
     cardDraft.value.title,
     cardDraft.value.description,
@@ -352,7 +352,9 @@ async function saveCard() {
     cardDraft.value.boardColumnId,
     cardDraft.value.assignedUserId
   );
-  await closeCardEditor();
+  if (saved) {
+    await closeCardEditor();
+  }
 }
 
 async function ensureTagsExistForBoard(tagNames: string[]) {

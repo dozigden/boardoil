@@ -92,7 +92,7 @@ export const useCardStore = defineStore('card', () => {
   ) {
     const resolvedBoardId = resolveBoardId(boardId);
     if (resolvedBoardId === null) {
-      return;
+      return false;
     }
 
     const result = await runBusy(() => api.saveCard(
@@ -106,10 +106,11 @@ export const useCardStore = defineStore('card', () => {
       assignedUserId
     ));
     if (!result.ok) {
-      return;
+      return false;
     }
 
     upsertCard(result.data);
+    return true;
   }
 
   async function deleteCard(cardId: number, boardId: number | null = activeBoardId.value) {
