@@ -13,7 +13,7 @@ type RealtimeHandlers = {
   onResync: () => Promise<unknown> | unknown;
 };
 
-const realtimeDebugEnabled = import.meta.env.DEV;
+const realtimeDebugEnabled = resolveRealtimeDebugEnabled();
 
 function logRealtime(message: string, details?: unknown) {
   if (!realtimeDebugEnabled) {
@@ -21,11 +21,29 @@ function logRealtime(message: string, details?: unknown) {
   }
 
   if (details === undefined) {
-    console.debug(`[board-realtime] ${message}`);
+    console.log(`[board-realtime] ${message}`);
     return;
   }
 
-  console.debug(`[board-realtime] ${message}`, details);
+  console.log(`[board-realtime] ${message}`, details);
+}
+
+function resolveRealtimeDebugEnabled() {
+  if (import.meta.env.DEV) {
+    return true;
+  }
+
+  try {
+    const localStorageValue = globalThis.localStorage?.getItem('boardoil:realtime-debug');
+    if (localStorageValue === '1' || localStorageValue === 'true') {
+      return true;
+    }
+  } catch {
+    // Ignore localStorage access errors and continue.
+  }
+
+  const search = typeof window !== 'undefined' ? window.location?.search ?? '' : '';
+  return search.includes('realtimeDebug=1') || search.includes('realtimeDebug=true');
 }
 
 export function createBoardRealtime(handlers: RealtimeHandlers) {
@@ -70,28 +88,43 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         .build();
 
       hubConnection.on('ColumnCreated', async (column: Column) => {
+        logRealtime('Event: ColumnCreated', { columnId: column.id });
         await handlers.onColumnCreated(column);
       });
       hubConnection.on('ColumnUpdated', async (column: Column) => {
+        logRealtime('Event: ColumnUpdated', { columnId: column.id });
         await handlers.onColumnUpdated(column);
       });
       hubConnection.on('ColumnDeleted', async (columnId: number) => {
+        logRealtime('Event: ColumnDeleted', { columnId });
         await handlers.onColumnDeleted(columnId);
       });
       hubConnection.on('CardCreated', async (card: Card) => {
+        logRealtime('Event: CardCreated', { cardId: card.id, boardColumnId: card.boardColumnId });
         await handlers.onCardCreated(card);
       });
       hubConnection.on('CardUpdated', async (card: Card) => {
+        logRealtime('Event: CardUpdated', { cardId: card.id, boardColumnId: card.boardColumnId });
         await handlers.onCardUpdated(card);
       });
       hubConnection.on('CardDeleted', async (cardId: number) => {
+        logRealtime('Event: CardDeleted', { cardId });
         await handlers.onCardDeleted(cardId);
       });
       hubConnection.on('CardMoved', async (card: Card) => {
+        logRealtime('Event: CardMoved', { cardId: card.id, boardColumnId: card.boardColumnId });
         await handlers.onCardMoved(card);
       });
       hubConnection.on('ResyncRequested', async () => {
+        logRealtime('Event: ResyncRequested');
         await handlers.onResync();
+      });
+
+      hubConnection.onreconnecting(error => {
+        logRealtime('Connection reconnecting.', {
+          subscribedBoardId,
+          error: error instanceof Error ? error.message : String(error)
+        });
       });
 
       hubConnection.onreconnected(async () => {
@@ -104,6 +137,13 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
 
         await handlers.onResync();
         logRealtime('Resync requested after reconnect.');
+      });
+
+      hubConnection.onclose(error => {
+        logRealtime('Connection closed.', {
+          subscribedBoardId,
+          error: error instanceof Error ? error.message : String(error)
+        });
       });
     }
 

@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type FakeConnection = {
   on: ReturnType<typeof vi.fn>;
+  onreconnecting: ReturnType<typeof vi.fn>;
   onreconnected: ReturnType<typeof vi.fn>;
+  onclose: ReturnType<typeof vi.fn>;
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
   invoke: ReturnType<typeof vi.fn>;
@@ -22,10 +24,12 @@ vi.mock('@microsoft/signalr', () => {
       connection.eventHandlers[event] = handler;
       return connection;
     }),
+    onreconnecting: vi.fn(() => connection),
     onreconnected: vi.fn((handler: () => Promise<unknown> | unknown) => {
       connection.reconnectHandler = handler;
       return connection;
     }),
+    onclose: vi.fn(() => connection),
     start: vi.fn(async () => {
       connection.state = 'Connected';
     }),
