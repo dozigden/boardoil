@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolveAuthNavigation } from './site/auth/navigationGuard';
 
-function makeTarget(options?: { name?: string; requiresAuth?: boolean; requiresAdmin?: boolean }) {
+function makeTarget(options?: { name?: string; fullPath?: string; requiresAuth?: boolean; requiresAdmin?: boolean }) {
   return {
     name: options?.name,
+    fullPath: options?.fullPath ?? '/',
     matched: [
       {
         meta: {
@@ -35,12 +36,12 @@ function makeAuthStore(overrides?: Partial<{
 describe('resolveAuthNavigation', () => {
   it('initializes auth store when needed before evaluating route', async () => {
     const authStore = makeAuthStore({ initialized: false });
-    const to = makeTarget({ name: 'boards', requiresAuth: true });
+    const to = makeTarget({ name: 'boards', fullPath: '/boards/7', requiresAuth: true });
 
     const result = await resolveAuthNavigation(to, authStore);
 
     expect(authStore.initialize).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ name: 'login' });
+    expect(result).toEqual({ name: 'login', query: { redirect: '/boards/7' } });
   });
 
   it('redirects authenticated users away from login', async () => {
@@ -63,11 +64,11 @@ describe('resolveAuthNavigation', () => {
 
   it('redirects anonymous users from protected routes to login', async () => {
     const authStore = makeAuthStore({ isAuthenticated: false });
-    const to = makeTarget({ name: 'boards', requiresAuth: true });
+    const to = makeTarget({ name: 'boards', fullPath: '/boards/2/card/18', requiresAuth: true });
 
     const result = await resolveAuthNavigation(to, authStore);
 
-    expect(result).toEqual({ name: 'login' });
+    expect(result).toEqual({ name: 'login', query: { redirect: '/boards/2/card/18' } });
   });
 
   it('redirects anonymous users to setup when initial admin setup is required', async () => {

@@ -25,6 +25,7 @@ import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../shared/stores/authStore';
+import { getSafeRedirectTarget } from '../auth/redirectTarget';
 
 const router = useRouter();
 const route = useRoute();
@@ -37,6 +38,12 @@ const passwordResetSuccessMessage = route.query.passwordReset === '1' ? 'Passwor
 async function submit() {
   const success = await authStore.login(userName.value, password.value);
   if (!success) {
+    return;
+  }
+
+  const target = getSafeRedirectTarget(route.query.redirect);
+  if (target) {
+    await router.replace(target);
     return;
   }
 

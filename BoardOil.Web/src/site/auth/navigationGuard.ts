@@ -1,5 +1,8 @@
+import { buildLoginRedirectQuery } from './redirectTarget';
+
 export type GuardTarget = {
   name?: string | symbol | null;
+  fullPath: string;
   matched: Array<{ meta: Record<string, unknown> }>;
 };
 
@@ -39,7 +42,7 @@ export async function resolveAuthNavigation(to: GuardTarget, authStore: GuardAut
   }
 
   if (requiresAuth && !authStore.isAuthenticated) {
-    return { name: 'login' };
+    return { name: 'login', query: buildLoginRedirectQuery(to.fullPath) };
   }
 
   const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin === true);
