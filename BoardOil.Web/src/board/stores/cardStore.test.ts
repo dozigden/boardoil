@@ -246,11 +246,23 @@ describe('cardStore', () => {
     };
     api.saveCard.mockResolvedValue(ok(updated));
 
-    await store.saveCard(101, 'Task A+', 'Updated', ['Bug'], 1, 1);
+    const saved = await store.saveCard(101, 'Task A+', 'Updated', ['Bug'], 1, 1);
 
+    expect(saved).toBe(true);
     expect(store.getCardById(101)?.title).toBe('Task A+');
     expect(store.getCardById(101)?.tagNames).toEqual(['Bug']);
     expect(api.saveCard).toHaveBeenCalledWith(1, 101, 'Task A+', 'Updated', ['Bug'], 1, 1, null);
+  });
+
+  it('saveCard returns false and keeps existing card when API save fails', async () => {
+    const store = useCardStore();
+    store.replaceBoardCards(1, makeBoard().columns);
+    api.saveCard.mockResolvedValue(err({ kind: 'http', message: 'Unauthorized', statusCode: 401 }));
+
+    const saved = await store.saveCard(101, 'Task A+', 'Updated', ['Bug'], 1, 1);
+
+    expect(saved).toBe(false);
+    expect(store.getCardById(101)?.title).toBe('Task A');
   });
 
   it('archiveCard removes card from active board cache', async () => {
