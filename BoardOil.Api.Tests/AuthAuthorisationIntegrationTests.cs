@@ -155,5 +155,26 @@ public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisa
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task StandardUser_WithoutBoardMembership_CreateComment_ShouldReturnForbidden()
+    {
+        // Arrange
+        var adminClient = Factory.CreateClient();
+        var standardClient = Factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        var columnId = await SeedBoardColumnAsync("Todo");
+        var cardId = await SeedBoardCardAsync(columnId, "Task A", "Desc");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var response = await standardClient.PostAsJsonAsync(
+            $"/api/boards/1/cards/{cardId}/comments",
+            new CreateCardCommentRequest("No access"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private sealed record BoardTagDto(int Id, string Name);
 }

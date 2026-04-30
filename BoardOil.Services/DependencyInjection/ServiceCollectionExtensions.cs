@@ -54,6 +54,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAppSettingRepository, AppSettingRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
+        services.AddScoped<ICardCommentRepository, CardCommentRepository>();
         services.AddScoped<IArchivedCardRepository, ArchivedCardRepository>();
         services.AddScoped<ICardTypeRepository, CardTypeRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
@@ -69,6 +70,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBoardMemberService, BoardMemberService>();
         services.AddScoped<IColumnService, ColumnService>();
         services.AddScoped<ICardService, CardService>();
+        services.AddScoped<ICardCommentService, CardCommentService>();
         services.AddScoped<ICardArchiveService, CardArchiveService>();
         services.AddScoped<ICardTypeService, CardTypeService>();
         services.AddScoped<ITagService, TagService>();

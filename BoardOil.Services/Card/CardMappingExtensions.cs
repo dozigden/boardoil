@@ -72,6 +72,14 @@ public static class CardMappingExtensions
             tag.StylePropertiesJson,
             tag.Emoji);
 
+    public static CardCommentDto ToCardCommentDto(this EntityCardComment comment) =>
+        new(
+            comment.Id,
+            comment.CardId,
+            comment.AuthorUserId,
+            comment.Text,
+            comment.CreatedAtUtc);
+
     private static IReadOnlyList<string> ParseSearchTagsJson(string searchTagsJson)
     {
         if (string.IsNullOrWhiteSpace(searchTagsJson))

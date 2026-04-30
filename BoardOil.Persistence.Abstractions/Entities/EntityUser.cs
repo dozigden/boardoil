@@ -17,4 +17,5 @@ public sealed class EntityUser
     public ICollection<EntityRefreshToken> RefreshTokens { get; set; } = new List<EntityRefreshToken>();
     public ICollection<EntityPersonalAccessToken> PersonalAccessTokens { get; set; } = new List<EntityPersonalAccessToken>();
     public ICollection<EntityBoardMember> BoardMemberships { get; set; } = new List<EntityBoardMember>();
+    public ICollection<EntityCardComment> CardComments { get; set; } = new List<EntityCardComment>();
 }

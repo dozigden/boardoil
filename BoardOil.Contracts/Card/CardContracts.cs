@@ -7,6 +7,13 @@ public sealed record CardTagDto(
     string StylePropertiesJson,
     string? Emoji);
 
+public sealed record CardCommentDto(
+    int Id,
+    int CardId,
+    int AuthorUserId,
+    string Text,
+    DateTime CreatedAtUtc);
+
 public sealed record CardDto(
     int Id,
     int BoardColumnId,
@@ -83,3 +90,6 @@ public sealed record UpdateCardRequest(
 public sealed record MoveCardRequest(
     int BoardColumnId,
     int? PositionAfterCardId);
+
+public sealed record CreateCardCommentRequest(
+    string Text);
