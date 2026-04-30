@@ -19,7 +19,7 @@ const setCsrfToken = vi.fn();
 const setUnauthorizedHandler = vi.fn();
 const { router } = vi.hoisted(() => ({
   router: {
-    currentRoute: { value: { name: 'boards' as string | null } },
+    currentRoute: { value: { name: 'boards' as string | null, fullPath: '/' } },
     replace: vi.fn(async () => undefined)
   }
 }));
@@ -48,6 +48,7 @@ describe('authStore', () => {
     setUnauthorizedHandler.mockClear();
     router.replace.mockClear();
     router.currentRoute.value.name = 'boards';
+    router.currentRoute.value.fullPath = '/';
   });
 
   it('initialize keeps anonymous state when /me returns no user', async () => {
@@ -233,10 +234,11 @@ describe('authStore', () => {
       | undefined;
     expect(typeof registered).toBe('function');
 
+    router.currentRoute.value.fullPath = '/boards/3/card/12';
     await registered?.();
 
     expect(store.user).toBeNull();
     expect(store.isAuthenticated).toBe(false);
-    expect(router.replace).toHaveBeenCalledWith({ name: 'unauthorized' });
+    expect(router.replace).toHaveBeenCalledWith({ name: 'unauthorized', query: { redirect: '/boards/3/card/12' } });
   });
 });

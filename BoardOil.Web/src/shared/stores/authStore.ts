@@ -4,6 +4,7 @@ import { createAuthApi } from '../api/authApi';
 import { setCsrfToken, setUnauthorizedHandler } from '../api/http';
 import { router } from '../../router';
 import type { AuthUser } from '../types/authTypes';
+import { buildLoginRedirectQuery } from '../../site/auth/redirectTarget';
 
 export const useAuthStore = defineStore('auth', () => {
   const api = createAuthApi();
@@ -17,11 +18,12 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role === 'Admin');
 
   setUnauthorizedHandler(async () => {
+    const currentPath = router.currentRoute.value.fullPath;
     handleUnauthorized();
 
     const routeName = router.currentRoute.value.name;
-    if (routeName !== 'unauthorized' && routeName !== 'setup-initial-admin') {
-      await router.replace({ name: 'unauthorized' });
+    if (routeName !== 'unauthorized' && routeName !== 'setup-initial-admin' && routeName !== 'login') {
+      await router.replace({ name: 'unauthorized', query: buildLoginRedirectQuery(currentPath) });
     }
   });
 
