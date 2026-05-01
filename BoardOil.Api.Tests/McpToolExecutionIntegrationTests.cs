@@ -83,6 +83,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         Assert.Contains("board_get", toolNames);
         Assert.Contains("card_get", toolNames);
         Assert.Contains("card_create", toolNames);
+        Assert.Contains("card_comment_create", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
 
         var cards = McpJsonRpcClient.GetStructuredContent(verifyPayload)
@@ -252,6 +253,116 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
 
         var cardData = McpJsonRpcClient.GetStructuredContent(cardGetPayload);
         Assert.Equal(fullDescription, cardData.GetProperty("description").GetString());
+        Assert.True(cardData.TryGetProperty("comments", out var comments));
+        Assert.Empty(comments.EnumerateArray());
+    }
+
+    [Fact]
+    public async Task CardCommentCreate_ThenCardGet_ShouldIncludeCommentInReverseChronologicalOrder()
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+
+        var boardGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-before-comment-create",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
+        using var boardGetPayload = await McpJsonRpcClient.ParseJsonAsync(boardGetResponse);
+
+        var todoColumnId = McpJsonRpcClient.GetStructuredContent(boardGetPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .Single(column => column.GetProperty("title").GetString() == "Todo")
+            .GetProperty("id")
+            .GetInt32();
+
+        var createCardResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = todoColumnId,
+                    title = "Comment target card",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-comment-target",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, createCardResponse.StatusCode);
+        using var createCardPayload = await McpJsonRpcClient.ParseJsonAsync(createCardResponse);
+        var cardId = McpJsonRpcClient.GetStructuredContent(createCardPayload).GetProperty("card").GetProperty("id").GetInt32();
+
+        var addFirstCommentResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card_comment_create",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = cardId,
+                    text = "First MCP comment"
+                }
+            },
+            "card-comment-create-first",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, addFirstCommentResponse.StatusCode);
+        using var addFirstCommentPayload = await McpJsonRpcClient.ParseJsonAsync(addFirstCommentResponse);
+        Assert.False(addFirstCommentPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+
+        var addSecondCommentResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card_comment_create",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = cardId,
+                    text = "Second MCP comment"
+                }
+            },
+            "card-comment-create-second",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, addSecondCommentResponse.StatusCode);
+        using var addSecondCommentPayload = await McpJsonRpcClient.ParseJsonAsync(addSecondCommentResponse);
+        Assert.False(addSecondCommentPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+
+        var cardGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.get",
+                arguments = new { boardId = 1, id = cardId }
+            },
+            "card-get-after-comment-create",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, cardGetResponse.StatusCode);
+        using var cardGetPayload = await McpJsonRpcClient.ParseJsonAsync(cardGetResponse);
+
+        var comments = McpJsonRpcClient.GetStructuredContent(cardGetPayload)
+            .GetProperty("comments")
+            .EnumerateArray()
+            .ToArray();
+        Assert.Equal(2, comments.Length);
+        Assert.Equal("Second MCP comment", comments[0].GetProperty("text").GetString());
+        Assert.Equal("First MCP comment", comments[1].GetProperty("text").GetString());
     }
 
     [Fact]
