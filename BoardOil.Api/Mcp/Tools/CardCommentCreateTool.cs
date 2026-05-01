@@ -1,25 +1,24 @@
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Auth;
+using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Mcp.Contracts;
 using BoardOil.Mcp.Contracts.Schemas;
 
 namespace BoardOil.Api.Mcp;
 
-public sealed class CardGetTool(
-    ICardService cardService,
+public sealed class CardCommentCreateTool(
     ICardCommentService cardCommentService,
-    IMcpAuthorisationService authorisationService) : McpToolBase<CardGetInput, McpCardSnapshot>(authorisationService)
+    IMcpAuthorisationService authorisationService) : McpToolBase<CardCommentCreateInput, CardCommentMutationOutput>(authorisationService)
 {
-    private readonly ICardService _cardService = cardService;
     private readonly ICardCommentService _cardCommentService = cardCommentService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardGet, "Get a card snapshot including description, tags, and comments.", ToolSchemas.CardGetInput, ToolSchemas.ObjectOutput);
+        new(ToolNames.CardCommentCreate, "Add a comment to a card.", ToolSchemas.CardCommentCreateInput, ToolSchemas.ObjectOutput);
 
-    protected override async Task<McpToolResult<McpCardSnapshot>> ExecuteCoreAsync(
+    protected override async Task<McpToolResult<CardCommentMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
-        CardGetInput input,
+        CardCommentCreateInput input,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -37,29 +36,22 @@ public sealed class CardGetTool(
         var boardId = input.BoardId!.Value;
         var cardId = input.Id!.Value;
 
-        var accessError = AuthorisationService.EnsurePatToolAccess(context.PatAccessContext, MachinePatScopes.McpRead, boardId);
+        var accessError = AuthorisationService.EnsurePatToolAccess(context.PatAccessContext, MachinePatScopes.McpWrite, boardId);
         if (accessError is not null)
         {
             return Failure(accessError);
         }
 
-        var result = await _cardService.GetCardAsync(boardId, cardId, context.ActorUserId);
+        var result = await _cardCommentService.CreateCommentAsync(
+            boardId,
+            cardId,
+            new CreateCardCommentRequest(input.Text),
+            context.ActorUserId);
         if (!result.Success || result.Data is null)
         {
             return Failure(result.ToMcpError());
         }
 
-        var commentsResult = await _cardCommentService.GetCommentsAsync(boardId, cardId, context.ActorUserId);
-        if (!commentsResult.Success || commentsResult.Data is null)
-        {
-            return Failure(commentsResult.ToMcpError());
-        }
-
-        var cardSnapshot = result.Data.ToMcp() with
-        {
-            Comments = commentsResult.Data.Select(comment => comment.ToMcp()).ToArray()
-        };
-
-        return Success(cardSnapshot);
+        return Success(new CardCommentMutationOutput(result.Data.ToMcp(), "created"));
     }
 }

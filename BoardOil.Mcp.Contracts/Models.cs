@@ -67,7 +67,17 @@ public sealed record McpCardSnapshot(
     IReadOnlyList<string> TagNames,
     DateTime UpdatedAtUtc,
     int? AssignedUserId,
-    string? AssignedUserName);
+    string? AssignedUserName,
+    IReadOnlyList<McpCardCommentSnapshot> Comments);
+
+public sealed record McpCardCommentSnapshot(
+    int Id,
+    int CardId,
+    int AuthorUserId,
+    string Text,
+    DateTime CreatedAtUtc,
+    string? AuthorDisplayName,
+    string? AuthorImageRelativePath);
 
 public sealed record McpCardTagSnapshot(
     int Id,
@@ -157,6 +167,17 @@ public sealed record CardDeleteInput
     public int? Id { get; init; }
 }
 
+public sealed record CardCommentCreateInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+    public string Text { get; init; } = string.Empty;
+}
+
 public sealed record CardMutationOutput(
     McpCardSnapshot? Card,
+    string Outcome);
+
+public sealed record CardCommentMutationOutput(
+    McpCardCommentSnapshot? Comment,
     string Outcome);
