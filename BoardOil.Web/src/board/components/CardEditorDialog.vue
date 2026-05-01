@@ -14,32 +14,50 @@
     <template v-if="cardDraft">
       <div class="card-editor-layout">
         <div class="card-editor-main">
+          <MdEditorToolbar
+            class="card-editor-shared-toolbar"
+            :state="activeToolbarState"
+            :is-plain-text-mode="activeIsPlainTextMode"
+            @action="runSharedToolbarAction"
+            @toggle-plain-text-mode="toggleSharedToolbarPlainTextMode"
+          />
           <div class="card-editor-description-field">
             <MdEditor
+              ref="descriptionEditorRef"
               v-model="descriptionDraft"
               aria-label="Card description"
               :max-length="maxDescriptionLength"
               min-height="12rem"
+              :show-toolbar="false"
+              @focus="setActiveEditor('description')"
+              @toolbar-state-change="updateToolbarState('description', $event)"
+              @plain-text-mode-change="updatePlainTextMode('description', $event)"
             />
           </div>
           <section class="card-editor-comments-section" aria-label="Card comments">
             <div class="card-editor-comment-entry">
               <h3 class="card-editor-comments-title">Comments</h3>
-              <textarea
-                v-model="newCommentText"
-                class="card-editor-comment-input"
-                rows="3"
-                maxlength="4000"
-                placeholder="Add a comment"
-              />
-              <button
-                type="button"
-                class="btn"
-                :disabled="newCommentText.trim().length === 0"
-                @click="addComment"
-              >
-                Add comment
-              </button>
+              <div class="card-editor-comment-entry-row">
+                <MdEditor
+                  ref="commentEditorRef"
+                  v-model="newCommentText"
+                  aria-label="Comment"
+                  :max-length="maxCommentLength"
+                  min-height="6rem"
+                  :show-toolbar="false"
+                  @focus="setActiveEditor('comment')"
+                  @toolbar-state-change="updateToolbarState('comment', $event)"
+                  @plain-text-mode-change="updatePlainTextMode('comment', $event)"
+                />
+                <button
+                  type="button"
+                  class="btn card-editor-comment-add-button"
+                  :disabled="newCommentText.trim().length === 0"
+                  @click="addComment"
+                >
+                  Add
+                </button>
+              </div>
             </div>
 
             <div class="card-editor-comments-list">
@@ -63,7 +81,13 @@
                   </span>
                   <time class="card-editor-comment-timestamp" :datetime="comment.createdAtUtc">{{ formatCommentDateTime(comment.createdAtUtc) }}</time>
                 </header>
-                <p class="card-editor-comment-text">{{ comment.text }}</p>
+                <MdViewer
+                  class="card-editor-comment-body"
+                  :model-value="comment.text"
+                  aria-label="Comment content"
+                  :max-length="maxCommentLength"
+                  min-height="1.5rem"
+                />
               </article>
             </div>
           </section>
@@ -207,6 +231,8 @@ import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MdEditor from '../../shared/components/MdEditor.vue';
+import MdEditorToolbar from '../../shared/components/MdEditorToolbar.vue';
+import MdViewer from '../../shared/components/MdViewer.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import CardTagEditor from './CardTagEditor.vue';
@@ -219,6 +245,8 @@ import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useCommentStore } from '../stores/commentStore';
 import { useTagStore } from '../stores/tagStore';
 import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardTypeSelection';
+import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
+import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
 
 const route = useRoute();
 const router = useRouter();
@@ -251,6 +279,13 @@ type CardDraft = {
 
 const cardDraft = ref<CardDraft | null>(null);
 const newCommentText = ref('');
+const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
+const commentEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
+const activeEditor = ref<'description' | 'comment'>('description');
+const descriptionToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>({});
+const commentToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>({});
+const descriptionIsPlainTextMode = ref(false);
+const commentIsPlainTextMode = ref(false);
 
 const routeCardId = computed<number | null>(() => {
   const raw = route.params.cardId;
@@ -320,6 +355,63 @@ const descriptionDraft = computed({
   },
   set: value => updateEditingCardDraft('description', value)
 });
+const disabledToolbarState = computed<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>(() => {
+  return createDisabledToolbarState(mdEditorToolbarActions.map(action => action.id));
+});
+const activeToolbarState = computed(() => {
+  return resolveActiveToolbarState(
+    activeEditor.value,
+    descriptionToolbarState.value,
+    commentToolbarState.value,
+    disabledToolbarState.value
+  );
+});
+const activeIsPlainTextMode = computed(() => {
+  return resolveActiveIsPlainTextMode(
+    activeEditor.value,
+    descriptionIsPlainTextMode.value,
+    commentIsPlainTextMode.value
+  );
+});
+
+function setActiveEditor(editor: 'description' | 'comment') {
+  activeEditor.value = editor;
+}
+
+function updateToolbarState(
+  editor: 'description' | 'comment',
+  state: Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>
+) {
+  if (editor === 'comment') {
+    commentToolbarState.value = state;
+    return;
+  }
+
+  descriptionToolbarState.value = state;
+}
+
+function updatePlainTextMode(editor: 'description' | 'comment', isPlainTextMode: boolean) {
+  if (editor === 'comment') {
+    commentIsPlainTextMode.value = isPlainTextMode;
+    return;
+  }
+
+  descriptionIsPlainTextMode.value = isPlainTextMode;
+}
+
+function runSharedToolbarAction(actionEvent: MdEditorToolbarActionEvent) {
+  const editor = activeEditor.value === 'comment'
+    ? commentEditorRef.value
+    : descriptionEditorRef.value;
+  editor?.runToolbarAction(actionEvent);
+}
+
+function toggleSharedToolbarPlainTextMode() {
+  const editor = activeEditor.value === 'comment'
+    ? commentEditorRef.value
+    : descriptionEditorRef.value;
+  editor?.togglePlainTextMode();
+}
 
 function normaliseDescription(value: string) {
   return value.slice(0, maxDescriptionLength);
@@ -340,6 +432,7 @@ function formatCommentDateTime(value: string) {
 function clearDraft() {
   cardDraft.value = null;
   newCommentText.value = '';
+  activeEditor.value = 'description';
 }
 
 async function closeCardEditor() {
@@ -607,12 +700,21 @@ watch(
   margin-right: 0.25rem;
 }
 
+.card-editor-shared-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.2rem 0 0.35rem;
+  background: var(--bo-surface-base);
+}
+
 .card-editor-comments-section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   border-top: 1px solid var(--bo-border-soft);
   padding-top: 0.5rem;
+  width: 100%;
 }
 
 .card-editor-comments-title {
@@ -624,6 +726,7 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  width: 100%;
 }
 
 .card-editor-comments-empty {
@@ -637,6 +740,8 @@ watch(
   border-radius: 0.4rem;
   padding: 0.5rem 0.6rem;
   background: color-mix(in srgb, var(--bo-bg) 92%, var(--bo-muted-bg) 8%);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .card-editor-comment-header {
@@ -669,20 +774,66 @@ watch(
   white-space: nowrap;
 }
 
-.card-editor-comment-text {
-  margin: 0;
-  white-space: pre-wrap;
-}
-
 .card-editor-comment-entry {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  width: 100%;
 }
 
-.card-editor-comment-input {
+.card-editor-comment-entry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.card-editor-comment-add-button {
+  align-self: end;
+}
+
+.card-editor-comment-entry :deep(.md-editor) {
+  flex: 0 0 auto;
+  min-height: fit-content;
   width: 100%;
-  resize: vertical;
+}
+
+.card-editor-comment-entry :deep(.md-editor-input),
+.card-editor-comment-entry :deep(.md-editor-content) {
+  flex: 0 0 auto;
+  min-height: fit-content;
+  overflow: visible;
+  width: 100%;
+}
+
+.card-editor-comment-entry :deep(.md-editor-content .tiptap),
+.card-editor-comment-entry :deep(.md-editor-textarea) {
+  height: auto;
+  max-height: none;
+  overflow-y: visible;
+  width: 100%;
+}
+
+.card-editor-comment-body :deep(.md-viewer) {
+  flex: 0 0 auto;
+  min-height: fit-content;
+  overflow: visible;
+}
+
+.card-editor-comment-body :deep(.md-viewer-content) {
+  overflow: visible;
+}
+
+.card-editor-comment-body :deep(.md-viewer-content .tiptap) {
+  height: auto;
+  max-height: none;
+  min-height: 1.5rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow-y: visible;
 }
 
 .card-editor-select-field {
