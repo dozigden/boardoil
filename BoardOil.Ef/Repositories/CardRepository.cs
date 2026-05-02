@@ -52,6 +52,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
 
         return await DbSet
             .Where(x => ids.Contains(x.Id))
+            .AsSplitQuery()
             .Include(x => x.CardType)
             .Include(x => x.AssignedUser)
             .Include(x => x.CardTags)
