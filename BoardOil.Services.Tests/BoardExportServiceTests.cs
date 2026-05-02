@@ -60,6 +60,20 @@ public sealed class BoardExportServiceTests : TestBaseDb
             CardId = card.Id,
             TagId = urgentTag.Id
         });
+        DbContextForArrange.CardComments.Add(new EntityCardComment
+        {
+            CardId = card.Id,
+            AuthorUserId = actor.Id,
+            Text = "Most recent comment",
+            CreatedAtUtc = now.AddMinutes(2)
+        });
+        DbContextForArrange.CardComments.Add(new EntityCardComment
+        {
+            CardId = card.Id,
+            AuthorUserId = null,
+            Text = "Older comment",
+            CreatedAtUtc = now.AddMinutes(1)
+        });
         var cardEntity = DbContextForArrange.Cards.Single(x => x.Id == card.Id);
         cardEntity.AssignedUserId = actor.Id;
         DbContextForArrange.ArchivedCards.Add(new EntityArchivedCard
@@ -128,10 +142,18 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.Equal("Story", exportedAssignedCard.CardTypeName);
         Assert.Equal(["Urgent"], exportedAssignedCard.TagNames);
         Assert.Equal(actor.Email, exportedAssignedCard.AssignedUserEmail);
+        Assert.NotNull(exportedAssignedCard.Comments);
+        Assert.Equal(2, exportedAssignedCard.Comments!.Count);
+        Assert.Equal("Most recent comment", exportedAssignedCard.Comments[0].Text);
+        Assert.Equal(actor.Email, exportedAssignedCard.Comments[0].AuthorEmail);
+        Assert.Equal("Older comment", exportedAssignedCard.Comments[1].Text);
+        Assert.Null(exportedAssignedCard.Comments[1].AuthorEmail);
         var exportedUnassignedCard = payload.Columns[0].Cards.Single(x => x.Title == unassignedCard.Title);
         Assert.Equal("Story", exportedUnassignedCard.CardTypeName);
         Assert.Equal([], exportedUnassignedCard.TagNames);
         Assert.Null(exportedUnassignedCard.AssignedUserEmail);
+        Assert.NotNull(exportedUnassignedCard.Comments);
+        Assert.Empty(exportedUnassignedCard.Comments!);
 
         var archiveEntry = archive.GetEntry("archive.json");
         Assert.NotNull(archiveEntry);
