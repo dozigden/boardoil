@@ -18,6 +18,7 @@ public sealed class BoardExportService(
     IBoardRepository boardRepository,
     IColumnRepository columnRepository,
     ICardRepository cardRepository,
+    ICardCommentRepository cardCommentRepository,
     IArchivedCardRepository archivedCardRepository,
     ICardTypeRepository cardTypeRepository,
     ITagRepository tagRepository,
@@ -50,9 +51,21 @@ public sealed class BoardExportService(
         var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
         var columnIds = columns.Select(x => x.Id).ToList();
         var cards = await cardRepository.GetCardsForColumnsOrderedAsync(columnIds);
+        var cardIds = cards.Select(x => x.Id).ToList();
+        var comments = await cardCommentRepository.GetForCardsOrderedAsync(cardIds);
         var archivedCards = await archivedCardRepository.ListForExportAsync(boardId);
         var cardTypes = await cardTypeRepository.GetAllForBoardAsync(boardId);
         var tags = await tagRepository.GetAllForBoardAsync(boardId);
+        var commentsByCardId = comments
+            .GroupBy(x => x.CardId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<BoardPackageCommentDto>)group
+                    .Select(comment => new BoardPackageCommentDto(
+                        comment.Text,
+                        comment.CreatedAtUtc,
+                        comment.AuthorUser?.Email))
+                    .ToList());
 
         var cardsByColumnId = cards
             .GroupBy(x => x.BoardColumnId)
@@ -68,7 +81,8 @@ public sealed class BoardExportService(
                             .OrderBy(cardTag => cardTag.Tag.Name)
                             .Select(cardTag => cardTag.Tag.Name)
                             .ToList(),
-                        card.AssignedUser?.Email))
+                        card.AssignedUser?.Email,
+                        commentsByCardId.GetValueOrDefault(card.Id, [])))
                     .ToList());
 
         var boardPayload = new BoardPackageBoardDto(

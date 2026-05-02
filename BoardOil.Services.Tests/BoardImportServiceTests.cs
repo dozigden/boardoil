@@ -82,6 +82,60 @@ public sealed class BoardImportServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task ImportBoardPackageAsync_WhenCardIncludesComments_ShouldImportAndMapAuthorsByEmailBestEffort()
+    {
+        var actor = DbContextForArrange.Users.Single(x => x.Id == ActorUserId);
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Comment Import Board",
+            "Comment import board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto(
+                            "Card with comments",
+                            "Description",
+                            "Story",
+                            [],
+                            null,
+                            [
+                                new BoardPackageCommentDto(
+                                    "  First imported comment  ",
+                                    new DateTime(2026, 05, 02, 8, 0, 0, DateTimeKind.Utc),
+                                    actor.Email.ToUpperInvariant()),
+                                new BoardPackageCommentDto(
+                                    "Second imported comment",
+                                    new DateTime(2026, 05, 02, 8, 1, 0, DateTimeKind.Utc),
+                                    "missing-user@example.com")
+                            ])
+                    ])
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId);
+        var importedComments = DbContextForAssert.CardComments
+            .Where(x => x.CardId == importedCard.Id)
+            .OrderBy(x => x.CreatedAtUtc)
+            .ToList();
+
+        Assert.Equal(2, importedComments.Count);
+        Assert.Equal("First imported comment", importedComments[0].Text);
+        Assert.Equal(actor.Id, importedComments[0].AuthorUserId);
+        Assert.Equal("Second imported comment", importedComments[1].Text);
+        Assert.Null(importedComments[1].AuthorUserId);
+    }
+
+    [Fact]
     public async Task ImportBoardPackageAsync_WhenAssignedUserEmailMatchesActiveUser_ShouldAssignCard()
     {
         var actor = DbContextForArrange.Users.Single(x => x.Id == ActorUserId);
