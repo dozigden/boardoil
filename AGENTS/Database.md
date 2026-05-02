@@ -30,3 +30,7 @@ This file explains how persistence is structured in BoardOil and the conventions
 - Primary keys use `int Id` consistently across tables/entities.
 - Naming convention preference in code/contracts/schema terms is British English where applicable (for example `NormalisedName`).
 - Add migrations for schema changes in `BoardOil.Ef/Migrations`; do not change schema without migration coverage.
+- EF CLI commands should use the repo-managed local tool manifest (`.config/dotnet-tools.json`):
+  - run `dotnet tool restore` from repo root before EF commands
+  - prefer `dotnet tool run dotnet-ef ...` for explicit local-tool usage
+  - in this environment, run `dotnet build -maxcpucount:1 -nodeReuse:false` first, then use `dotnet ef ... --no-build` to avoid intermittent EF internal build failures
