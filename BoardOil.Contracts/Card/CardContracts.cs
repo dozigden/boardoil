@@ -10,7 +10,7 @@ public sealed record CardTagDto(
 public sealed record CardCommentDto(
     int Id,
     int CardId,
-    int AuthorUserId,
+    int? AuthorUserId,
     string Text,
     DateTime CreatedAtUtc,
     string? AuthorDisplayName = null,

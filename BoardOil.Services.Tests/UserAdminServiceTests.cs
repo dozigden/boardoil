@@ -234,6 +234,36 @@ public sealed class UserAdminServiceTests : TestBaseDb
         Assert.NotNull(await DbContextForAssert.Users.SingleOrDefaultAsync(x => x.Id == actorAdmin.Id));
     }
 
+    [Fact]
+    public async Task DeleteUserAsync_WhenUserAuthoredComments_ShouldPreserveCommentsAndClearAuthor()
+    {
+        // Arrange
+        var targetAdmin = await AddUserAsync("target-admin", "target-admin@localhost", "Password1234!", UserRole.Admin, isActive: true);
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Task A", "Desc")
+            .Build();
+        var cardId = board.GetCard("Todo", "Task A").Id;
+        DbContextForArrange.CardComments.Add(new EntityCardComment
+        {
+            CardId = cardId,
+            AuthorUserId = targetAdmin.Id,
+            Text = "Preserve me",
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IUserAdminService>();
+
+        // Act
+        var result = await service.DeleteUserAsync(targetAdmin.Id, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var storedComment = await DbContextForAssert.CardComments.SingleAsync();
+        Assert.Equal("Preserve me", storedComment.Text);
+        Assert.Null(storedComment.AuthorUserId);
+    }
+
     private async Task RemoveAllUsersAsync()
     {
         DbContextForArrange.Users.RemoveRange(DbContextForArrange.Users);

@@ -15,7 +15,7 @@ export type CardTag = TagPresentation & {
 export type CardComment = {
   id: number;
   cardId: number;
-  authorUserId: number;
+  authorUserId: number | null;
   text: string;
   createdAtUtc: string;
   authorDisplayName?: string | null;

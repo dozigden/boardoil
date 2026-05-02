@@ -73,7 +73,7 @@ public sealed record McpCardSnapshot(
 public sealed record McpCardCommentSnapshot(
     int Id,
     int CardId,
-    int AuthorUserId,
+    int? AuthorUserId,
     string Text,
     DateTime CreatedAtUtc,
     string? AuthorDisplayName,
