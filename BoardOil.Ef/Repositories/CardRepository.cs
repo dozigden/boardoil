@@ -56,6 +56,8 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             .Include(x => x.AssignedUser)
             .Include(x => x.CardTags)
                 .ThenInclude(x => x.Tag)
+            .Include(x => x.Comments)
+                .ThenInclude(x => x.AuthorUser)
             .Include(x => x.BoardColumn)
             .ToListAsync();
     }

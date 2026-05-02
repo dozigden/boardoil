@@ -34,7 +34,16 @@ public static class ArchivedCardSnapshotSerialiser
                 .ToList(),
             card.CreatedAtUtc,
             card.UpdatedAtUtc,
-            card.AssignedUserId);
+            card.AssignedUserId,
+            card.Comments
+                .OrderBy(x => x.CreatedAtUtc)
+                .ThenBy(x => x.Id)
+                .Select(x => new ArchivedCardSnapshotCommentV1Payload(
+                    x.Text,
+                    x.CreatedAtUtc,
+                    x.AuthorUserId,
+                    x.AuthorUser?.Email))
+                .ToList());
 
         var envelope = new ArchivedCardSnapshotEnvelopeV1(
             SchemaName,
@@ -130,6 +139,22 @@ public static class ArchivedCardSnapshotSerialiser
     public static bool TryBuildCurrentCardDto(string snapshotJson, out CardDto? card, out string? error)
     {
         card = null;
+        var parsed = TryBuildCurrentSnapshot(snapshotJson, out var snapshot, out error);
+        if (!parsed || snapshot is null)
+        {
+            return false;
+        }
+
+        card = snapshot.Card;
+        return true;
+    }
+
+    public static bool TryBuildCurrentSnapshot(
+        string snapshotJson,
+        out ArchivedCardSnapshotCurrentDto? snapshot,
+        out string? error)
+    {
+        snapshot = null;
         var parsed = TryReadKnownPayload(snapshotJson, out var knownPayload, out error);
         if (!parsed || knownPayload is null)
         {
@@ -137,7 +162,7 @@ public static class ArchivedCardSnapshotSerialiser
         }
 
         var payload = knownPayload.Payload;
-        card = new CardDto(
+        var card = new CardDto(
             payload.OriginalCardId,
             payload.BoardColumnId,
             payload.CardTypeId,
@@ -152,6 +177,10 @@ public static class ArchivedCardSnapshotSerialiser
             payload.UpdatedAtUtc,
             payload.AssignedUserId,
             null);
+
+        snapshot = new ArchivedCardSnapshotCurrentDto(
+            card,
+            payload.Comments?.ToList() ?? []);
         return true;
     }
 }
@@ -177,10 +206,21 @@ public sealed record ArchivedCardSnapshotV1Payload(
     IReadOnlyList<string> TagNames,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
-    int? AssignedUserId = null);
+    int? AssignedUserId = null,
+    IReadOnlyList<ArchivedCardSnapshotCommentV1Payload>? Comments = null);
+
+public sealed record ArchivedCardSnapshotCommentV1Payload(
+    string Text,
+    DateTime CreatedAtUtc,
+    int? AuthorUserId = null,
+    string? AuthorEmail = null);
 
 public sealed record ArchivedCardSnapshotKnownPayload(
     string Schema,
     int Version,
     DateTime CapturedAtUtc,
     ArchivedCardSnapshotV1Payload Payload);
+
+public sealed record ArchivedCardSnapshotCurrentDto(
+    CardDto Card,
+    IReadOnlyList<ArchivedCardSnapshotCommentV1Payload> Comments);
