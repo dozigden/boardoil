@@ -1,5 +1,32 @@
 <template>
   <ModalDialog :open="editingCard !== null" title="Edit Card" size="fill" close-label="Cancel editing" @close="closeCardEditor" @submit="saveCard">
+    <template #headerActions>
+      <BoDropdown
+        v-if="cardDraft"
+        class="card-editor-actions-menu"
+        align="right"
+        label="Card actions"
+        :icon="Ellipsis"
+        :icon-only="true"
+        :icon-size="16"
+      >
+        <template #default="{ close }">
+          <button type="button" class="bo-dropdown-item" @click="archiveEditingCardFromMenu(close)">
+            <span class="bo-dropdown-item-main card-editor-menu-item">
+              <Archive :size="14" aria-hidden="true" />
+              <span>Archive</span>
+            </span>
+          </button>
+          <span class="bo-dropdown-divider" aria-hidden="true"></span>
+          <button type="button" class="bo-dropdown-item" @click="deleteEditingCardFromMenu(close)">
+            <span class="bo-dropdown-item-main card-editor-menu-item card-editor-menu-item--danger">
+              <Trash2 :size="14" aria-hidden="true" />
+              <span>Delete</span>
+            </span>
+          </button>
+        </template>
+      </BoDropdown>
+    </template>
     <template #title>
       <div class="dialog-title-with-pill">
         <template v-if="selectedCardTypeEmoji">{{ selectedCardTypeEmoji }}</template>
@@ -201,16 +228,6 @@
     <template #actions>
       <div v-if="cardDraft" class="editor-actions card-modal-actions">
         <div class="card-modal-actions-left">
-          <button type="button" class="btn btn--secondary" aria-label="Archive card" title="Archive card" @click="archiveEditingCard">
-            <Archive :size="16" aria-hidden="true" />
-            <span>Archive</span>
-          </button>
-          <button type="button" class="btn btn--danger" aria-label="Delete card" title="Delete card" @click="deleteEditingCard">
-            <Trash2 :size="16" aria-hidden="true" />
-            <span>Delete</span>
-          </button>
-        </div>
-        <div class="card-modal-actions-right">
           <button type="submit" class="btn" aria-label="Save card" title="Save card">
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
@@ -226,7 +243,7 @@
 </template>
 
 <script setup lang="ts">
-import { Archive, Check, Trash2, X } from 'lucide-vue-next';
+import { Archive, Check, Ellipsis, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -574,6 +591,16 @@ async function archiveEditingCard() {
   }
 }
 
+function deleteEditingCardFromMenu(close: () => void) {
+  close();
+  void deleteEditingCard();
+}
+
+function archiveEditingCardFromMenu(close: () => void) {
+  close();
+  void archiveEditingCard();
+}
+
 watch(
   [routeBoardId, routeCardId, editingCard, board],
   async ([nextBoardId, nextCardId, nextCard, nextBoard], _previous, onCleanup) => {
@@ -692,6 +719,32 @@ watch(
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding-right: 5.4rem;
+}
+
+.dialog-title-with-pill :deep(.card-title-editor) {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dialog-title-with-pill :deep(.card-title-button) {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dialog-title-with-pill :deep(.card-title-edit) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dialog-title-with-pill :deep(.card-title-edit input) {
+  width: 100%;
+  min-width: 0;
 }
 
 .card-editor-layout {
@@ -943,10 +996,23 @@ watch(
   font-size: 0.85rem;
 }
 
-.card-modal-actions-right {
+.card-editor-actions-menu :deep(.bo-dropdown-trigger) {
+  width: 2.2rem;
+  justify-content: center;
+}
+
+.card-editor-actions-menu {
+  flex: 0 0 auto;
+}
+
+.card-editor-menu-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
+}
+
+.card-editor-menu-item--danger {
+  color: var(--bo-danger);
 }
 
 .card-editor-assignee-option {
@@ -987,7 +1053,7 @@ watch(
   .dialog-title-with-pill {
     gap: 0.35rem;
     min-width: 0;
-    width: calc(100% - 2.1rem);
+    padding-right: 5.1rem;
   }
 
   .card-editor-layout {
