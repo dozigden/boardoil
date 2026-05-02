@@ -1,3 +1,4 @@
+using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
@@ -14,6 +15,7 @@ public sealed class CardCommentService(
     ICardCommentRepository cardCommentRepository,
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
+    IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardCommentService
 {
     private const int MaxCommentLength = 4_000;
@@ -91,7 +93,9 @@ public sealed class CardCommentService(
             imageRelativePath = image?.RelativePath;
         }
 
-        return ApiResults.Created(savedComment.ToCardCommentDto(savedComment.AuthorUser?.DisplayName, imageRelativePath));
+        var createdComment = savedComment.ToCardCommentDto(savedComment.AuthorUser?.DisplayName, imageRelativePath);
+        await boardEvents.CommentCreatedAsync(boardId, createdComment);
+        return ApiResults.Created(createdComment);
     }
 
     private static IReadOnlyList<ValidationError> ValidateCreateRequest(CreateCardCommentRequest request)

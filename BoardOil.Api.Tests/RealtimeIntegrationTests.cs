@@ -118,6 +118,39 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
         await WaitAsync(resyncEvent.Task);
     }
 
+    [Fact]
+    public async Task CommentCreated_ShouldBroadcastToSubscribedClients()
+    {
+        // Arrange
+        var columnId = await SeedBoardColumnAsync("Todo");
+        var cardId = await SeedBoardCardAsync(columnId, "Realtime Task", "Desc");
+
+        await using var connectionA = CreateHubConnection();
+        await using var connectionB = CreateHubConnection();
+
+        var eventA = new TaskCompletionSource<CardCommentDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var eventB = new TaskCompletionSource<CardCommentDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        connectionA.On<CardCommentDto>("CommentCreated", comment => eventA.TrySetResult(comment));
+        connectionB.On<CardCommentDto>("CommentCreated", comment => eventB.TrySetResult(comment));
+
+        await StartConnectionsAsync(1, connectionA, connectionB);
+
+        // Act
+        var createCommentResponse = await Client.PostAsJsonAsync(
+            $"/api/boards/1/cards/{cardId}/comments",
+            new CreateCardCommentRequest("Realtime comment"));
+        createCommentResponse.EnsureSuccessStatusCode();
+
+        // Assert
+        var commentA = await WaitAsync(eventA.Task);
+        var commentB = await WaitAsync(eventB.Task);
+
+        Assert.Equal(cardId, commentA.CardId);
+        Assert.Equal("Realtime comment", commentA.Text);
+        Assert.Equal(commentA.Id, commentB.Id);
+    }
+
     private static async Task StartConnectionsAsync(int boardId, params HubConnection[] connections)
     {
         foreach (var connection in connections)

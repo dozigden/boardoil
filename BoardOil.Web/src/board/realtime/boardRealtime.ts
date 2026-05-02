@@ -1,6 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { boardHubUrl } from '../../shared/api/config';
-import type { Card, Column } from '../../shared/types/boardTypes';
+import type { Card, CardComment, Column } from '../../shared/types/boardTypes';
 
 type RealtimeHandlers = {
   onColumnCreated: (column: Column) => Promise<unknown> | unknown;
@@ -10,6 +10,7 @@ type RealtimeHandlers = {
   onCardUpdated: (card: Card) => Promise<unknown> | unknown;
   onCardDeleted: (cardId: number) => Promise<unknown> | unknown;
   onCardMoved: (card: Card) => Promise<unknown> | unknown;
+  onCommentCreated: (comment: CardComment) => Promise<unknown> | unknown;
   onResync: () => Promise<unknown> | unknown;
 };
 
@@ -114,6 +115,10 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
       hubConnection.on('CardMoved', async (card: Card) => {
         logRealtime('Event: CardMoved', { cardId: card.id, boardColumnId: card.boardColumnId });
         await handlers.onCardMoved(card);
+      });
+      hubConnection.on('CommentCreated', async (comment: CardComment) => {
+        logRealtime('Event: CommentCreated', { commentId: comment.id, cardId: comment.cardId });
+        await handlers.onCommentCreated(comment);
       });
       hubConnection.on('ResyncRequested', async () => {
         logRealtime('Event: ResyncRequested');

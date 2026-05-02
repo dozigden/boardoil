@@ -1,5 +1,6 @@
 using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
+using BoardOil.Abstractions;
 using BoardOil.Abstractions.Card;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -18,6 +19,7 @@ public sealed class CardCommentServiceTests : TestBaseDb
             .Build();
         var cardId = board.GetCard("Todo", "Task A").Id;
         var service = ResolveService<ICardCommentService>();
+        var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
 
         // Act
         var result = await service.CreateCommentAsync(board.BoardId, cardId, new("  First comment  "), ActorUserId);
@@ -33,6 +35,11 @@ public sealed class CardCommentServiceTests : TestBaseDb
         Assert.Equal(cardId, stored.CardId);
         Assert.Equal(ActorUserId, stored.AuthorUserId);
         Assert.Equal("First comment", stored.Text);
+
+        var realtimeEvent = Assert.Single(boardEvents.CommentCreatedEvents);
+        Assert.Equal(board.BoardId, realtimeEvent.BoardId);
+        Assert.Equal(cardId, realtimeEvent.Comment.CardId);
+        Assert.Equal("First comment", realtimeEvent.Comment.Text);
     }
 
     [Fact]

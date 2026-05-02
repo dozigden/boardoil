@@ -91,6 +91,7 @@ describe('boardRealtime', () => {
       onCardUpdated: vi.fn(),
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(),
       onResync
     });
 
@@ -112,6 +113,7 @@ describe('boardRealtime', () => {
       onCardUpdated: vi.fn(),
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(),
       onResync
     });
 
@@ -119,6 +121,36 @@ describe('boardRealtime', () => {
     await connection.eventHandlers.ResyncRequested?.();
 
     expect(onResync).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards comment created events to handler', async () => {
+    const onCommentCreated = vi.fn(async () => undefined);
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(),
+      onColumnUpdated: vi.fn(),
+      onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(),
+      onCardUpdated: vi.fn(),
+      onCardDeleted: vi.fn(),
+      onCardMoved: vi.fn(),
+      onCommentCreated,
+      onResync: vi.fn()
+    });
+
+    const comment = {
+      id: 123,
+      cardId: 55,
+      authorUserId: 4,
+      text: 'hello',
+      createdAtUtc: '2026-05-02T07:00:00.0000000Z'
+    };
+
+    await realtime.connect(42);
+    await connection.eventHandlers.CommentCreated?.(comment);
+
+    expect(onCommentCreated).toHaveBeenCalledTimes(1);
+    expect(onCommentCreated).toHaveBeenCalledWith(comment);
   });
 
   it('still stops connection when unsubscribe fails during disconnect', async () => {
@@ -131,6 +163,7 @@ describe('boardRealtime', () => {
       onCardUpdated: vi.fn(),
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(),
       onResync: vi.fn()
     });
     connection.invoke.mockImplementation(async (method: string) => {
@@ -171,6 +204,7 @@ describe('boardRealtime', () => {
       onCardUpdated: vi.fn(),
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(),
       onResync: vi.fn()
     });
 
