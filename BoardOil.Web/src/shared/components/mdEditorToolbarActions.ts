@@ -7,6 +7,7 @@ export type MdEditorToolbarActionId =
   | 'heading'
   | 'bullet-list'
   | 'ordered-list'
+  | 'task-list'
   | 'quote'
   | 'code-block'
   | 'link'
@@ -107,6 +108,17 @@ export const mdEditorToolbarActions: MdEditorToolbarAction[] = [
     canRun: editor => editor.can().chain().focus().toggleOrderedList().run(),
     run: (editor) => {
       editor.chain().focus().toggleOrderedList().run();
+    }
+  },
+  {
+    id: 'task-list',
+    label: 'Checklist',
+    ariaLabel: 'Checklist',
+    title: 'Checklist',
+    isActive: editor => editor.isActive('taskList'),
+    canRun: editor => editor.can().chain().focus().toggleTaskList().run(),
+    run: (editor) => {
+      editor.chain().focus().toggleTaskList().run();
     }
   },
   {

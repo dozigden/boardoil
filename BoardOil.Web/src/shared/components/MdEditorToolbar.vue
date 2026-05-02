@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { Bold, ChevronDown, FileText, Heading1, Italic, Link, List, ListOrdered, Minus, Quote, SquareCode, Strikethrough } from 'lucide-vue-next';
+import { Bold, CheckSquare, ChevronDown, FileText, Heading1, Italic, Link, List, ListOrdered, Minus, Quote, SquareCode, Strikethrough } from 'lucide-vue-next';
 import { computed, ref, type Component } from 'vue';
 import { useClickOutside } from '../composables/useClickOutside';
 import { mdEditorToolbarActions, type MdEditorHeadingLevel, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';
@@ -95,6 +95,7 @@ const actionIcons: Record<MdEditorToolbarActionId, Component> = {
   heading: Heading1,
   'bullet-list': List,
   'ordered-list': ListOrdered,
+  'task-list': CheckSquare,
   quote: Quote,
   'code-block': SquareCode,
   link: Link,

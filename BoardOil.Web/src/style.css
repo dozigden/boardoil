@@ -98,7 +98,7 @@ body {
   font-size: 0.85rem;
 }
 
-input,
+input:not([type='checkbox']):not([type='radio']),
 textarea,
 select {
   width: 100%;
@@ -113,7 +113,7 @@ textarea {
   resize: vertical;
 }
 
-input:focus,
+input:not([type='checkbox']):not([type='radio']):focus,
 textarea:focus,
 select:focus {
   outline: none;

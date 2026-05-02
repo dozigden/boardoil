@@ -11,6 +11,7 @@
     <div class="md-editor-input">
       <textarea
         v-if="isPlainTextMode"
+        ref="plainTextAreaRef"
         class="md-editor-textarea"
         :value="plainTextDraft"
         :aria-label="`${props.ariaLabel} markdown`"
@@ -36,15 +37,18 @@
 
 <script setup lang="ts">
 import type { Editor as TiptapEditor } from '@tiptap/core';
+import { TaskItem } from '@tiptap/extension-list/task-item';
+import { TaskList } from '@tiptap/extension-list/task-list';
 import Link from '@tiptap/extension-link';
 import { Markdown } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import MdLinkDialog from './MdLinkDialog.vue';
 import MdEditorToolbar from './MdEditorToolbar.vue';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';
 import { runMdEditorToolbarAction } from './mdEditorController';
+import { syncPlainTextAreaHeight } from './mdEditorPlainTextSizing';
 import { isHttpOrHttpsUrl } from '../utils/linkUrl';
 
 const props = withDefaults(defineProps<{
@@ -71,6 +75,7 @@ const emit = defineEmits<{
 const normalisedModelValue = computed(() => normaliseMarkdown(props.modelValue ?? ''));
 const isPlainTextMode = ref(false);
 const plainTextDraft = ref(normalisedModelValue.value);
+const plainTextAreaRef = ref<HTMLTextAreaElement | null>(null);
 const isLinkDialogOpen = ref(false);
 const linkDraftText = ref('');
 const linkDraftUrl = ref('');
@@ -83,6 +88,10 @@ const tiptapEditor = useEditor({
   extensions: [
     StarterKit.configure({
       link: false
+    }),
+    TaskList,
+    TaskItem.configure({
+      nested: true
     }),
     Link.configure({
       openOnClick: false,
@@ -185,6 +194,9 @@ function togglePlainTextMode() {
     const editor = tiptapEditor.value;
     plainTextDraft.value = normaliseMarkdown(editor ? editor.getMarkdown() : normalisedModelValue.value);
     isPlainTextMode.value = true;
+    void nextTick(() => {
+      syncPlainTextAreaHeight(plainTextAreaRef.value);
+    });
     return;
   }
 
@@ -203,6 +215,7 @@ function togglePlainTextMode() {
 function onPlainTextInput(value: string) {
   const nextValue = normaliseMarkdown(value);
   plainTextDraft.value = nextValue;
+  syncPlainTextAreaHeight(plainTextAreaRef.value);
 
   if (nextValue === normalisedModelValue.value) {
     return;
@@ -317,11 +330,27 @@ watch(
   nextValue => {
     if (isPlainTextMode.value && plainTextDraft.value !== nextValue) {
       plainTextDraft.value = nextValue;
+      void nextTick(() => {
+        syncPlainTextAreaHeight(plainTextAreaRef.value);
+      });
     }
 
     setEditorContent(nextValue);
   },
   { immediate: true }
+);
+
+watch(
+  isPlainTextMode,
+  isEnabled => {
+    if (!isEnabled) {
+      return;
+    }
+
+    void nextTick(() => {
+      syncPlainTextAreaHeight(plainTextAreaRef.value);
+    });
+  }
 );
 
 watch(
@@ -377,15 +406,56 @@ watch(
   border-color: var(--bo-colour-secondary);
 }
 
+.md-editor-content :deep(.tiptap ul[data-type='taskList']) {
+  list-style: none;
+  margin: 0.45rem 0;
+  padding-left: 0.2rem;
+}
+
+.md-editor-content :deep(.tiptap ul[data-type='taskList'] > li) {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0.3rem 0;
+}
+
+.md-editor-content :deep(.tiptap ul[data-type='taskList'] > li > label) {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-top: 0.18rem;
+}
+
+.md-editor-content :deep(.tiptap ul[data-type='taskList'] > li > label > span) {
+  display: none;
+}
+
+.md-editor-content :deep(.tiptap ul[data-type='taskList'] > li > label > input[type='checkbox']) {
+  width: 1rem !important;
+  height: 1rem !important;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: 0 0 auto;
+}
+
+.md-editor-content :deep(.tiptap ul[data-type='taskList'] > li > div) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.md-editor-content :deep(.tiptap ul[data-type='taskList'] > li > div p) {
+  margin: 0;
+}
+
 .md-editor-textarea {
   flex: 1 1 0;
   min-height: var(--md-editor-min-height);
-  max-height: 100%;
   resize: none;
   border: 1px solid var(--bo-border-default);
   border-radius: 8px;
   padding: 0.5rem;
-  overflow-y: auto;
+  overflow-y: hidden;
   white-space: pre;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   line-height: 1.35;

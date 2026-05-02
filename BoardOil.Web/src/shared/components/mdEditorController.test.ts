@@ -4,6 +4,7 @@ import type { MdEditorToolbarActionEvent } from './mdEditorToolbarActions';
 
 function createFakeEditor(canRun = true) {
   const toggleHeading = vi.fn(() => ({ run: () => canRun }));
+  const toggleTaskList = vi.fn(() => ({ run: () => canRun }));
   const canChainRun = vi.fn(() => canRun);
   const actionChainRun = vi.fn(() => true);
 
@@ -12,7 +13,8 @@ function createFakeEditor(canRun = true) {
       toggleBold: () => ({
         run: canChainRun
       }),
-      toggleHeading
+      toggleHeading,
+      toggleTaskList
     })
   });
 
@@ -21,7 +23,8 @@ function createFakeEditor(canRun = true) {
       toggleBold: () => ({
         run: actionChainRun
       }),
-      toggleHeading
+      toggleHeading,
+      toggleTaskList
     })
   });
 
@@ -32,6 +35,7 @@ function createFakeEditor(canRun = true) {
     } as any,
     spies: {
       toggleHeading,
+      toggleTaskList,
       canChainRun,
       actionChainRun
     }
@@ -81,5 +85,12 @@ describe('runMdEditorToolbarAction', () => {
     const { editor } = createFakeEditor(false);
     const ran = runMdEditorToolbarAction({ id: 'bold' }, editor, false, vi.fn());
     expect(ran).toBe(false);
+  });
+
+  it('runs task-list action when available', () => {
+    const { editor, spies } = createFakeEditor(true);
+    const ran = runMdEditorToolbarAction({ id: 'task-list' }, editor, false, vi.fn());
+    expect(ran).toBe(true);
+    expect(spies.toggleTaskList).toHaveBeenCalled();
   });
 });
