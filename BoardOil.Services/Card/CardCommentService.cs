@@ -17,6 +17,7 @@ public sealed class CardCommentService(
     IDbContextScopeFactory scopeFactory) : ICardCommentService
 {
     private const int MaxCommentLength = 4_000;
+    private const string UnknownCommentAuthorDisplayName = "Unknown user";
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
     public async Task<ApiResult<IReadOnlyList<CardCommentDto>>> GetCommentsAsync(int boardId, int cardId, int actorUserId)
@@ -37,8 +38,11 @@ public sealed class CardCommentService(
 
         var comments = await cardCommentRepository.GetForCardOrderedAsync(cardId);
         var imageByAuthorUserId = await LoadAuthorImageLookupAsync(comments);
+        var displayNameByAuthorUserId = LoadAuthorDisplayNameLookup(comments);
         return comments
-            .Select(x => x.ToCardCommentDto(imageByAuthorUserId.GetValueOrDefault(x.AuthorUserId)))
+            .Select(x => x.ToCardCommentDto(
+                ResolveAuthorDisplayName(x, displayNameByAuthorUserId),
+                ResolveAuthorImageRelativePath(x, imageByAuthorUserId)))
             .ToList();
     }
 
@@ -80,8 +84,14 @@ public sealed class CardCommentService(
             return ApiErrors.InternalError("Created comment could not be reloaded.");
         }
 
-        var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, savedComment.AuthorUserId);
-        return ApiResults.Created(savedComment.ToCardCommentDto(image?.RelativePath));
+        string? imageRelativePath = null;
+        if (savedComment.AuthorUserId.HasValue)
+        {
+            var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, savedComment.AuthorUserId.Value);
+            imageRelativePath = image?.RelativePath;
+        }
+
+        return ApiResults.Created(savedComment.ToCardCommentDto(savedComment.AuthorUser?.DisplayName, imageRelativePath));
     }
 
     private static IReadOnlyList<ValidationError> ValidateCreateRequest(CreateCardCommentRequest request)
@@ -102,10 +112,43 @@ public sealed class CardCommentService(
         return errors;
     }
 
+    private static IReadOnlyDictionary<int, string> LoadAuthorDisplayNameLookup(IReadOnlyList<EntityCardComment> comments) =>
+        comments
+            .Where(x => x.AuthorUserId.HasValue && x.AuthorUser is not null)
+            .GroupBy(x => x.AuthorUserId!.Value)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(x => x.AuthorUser!.DisplayName).First());
+
+    private static string ResolveAuthorDisplayName(
+        EntityCardComment comment,
+        IReadOnlyDictionary<int, string> displayNameByAuthorUserId)
+    {
+        if (!comment.AuthorUserId.HasValue)
+        {
+            return UnknownCommentAuthorDisplayName;
+        }
+
+        return displayNameByAuthorUserId.GetValueOrDefault(comment.AuthorUserId.Value, UnknownCommentAuthorDisplayName);
+    }
+
+    private static string? ResolveAuthorImageRelativePath(
+        EntityCardComment comment,
+        IReadOnlyDictionary<int, string> imageByAuthorUserId)
+    {
+        if (!comment.AuthorUserId.HasValue)
+        {
+            return null;
+        }
+
+        return imageByAuthorUserId.GetValueOrDefault(comment.AuthorUserId.Value);
+    }
+
     private async Task<IReadOnlyDictionary<int, string>> LoadAuthorImageLookupAsync(IReadOnlyList<EntityCardComment> comments)
     {
         var authorUserIds = comments
-            .Select(x => x.AuthorUserId)
+            .Where(x => x.AuthorUserId.HasValue)
+            .Select(x => x.AuthorUserId!.Value)
             .Distinct()
             .ToArray();
         if (authorUserIds.Length == 0)

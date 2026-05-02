@@ -165,12 +165,12 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         user.HasMany(x => x.CardComments)
             .WithOne(x => x.AuthorUser)
             .HasForeignKey(x => x.AuthorUserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.SetNull);
 
         var cardComment = modelBuilder.Entity<EntityCardComment>();
         cardComment.HasKey(x => x.Id);
         cardComment.Property(x => x.CardId).IsRequired();
-        cardComment.Property(x => x.AuthorUserId).IsRequired();
+        cardComment.Property(x => x.AuthorUserId).IsRequired(false);
         cardComment.Property(x => x.Text).HasMaxLength(4_000).IsRequired();
         cardComment.Property(x => x.CreatedAtUtc).IsRequired();
         cardComment.ToTable("CardComments");

@@ -70,4 +70,35 @@ public sealed class CardCommentServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Equal(["B", "A"], result.Data!.Select(x => x.Text).ToArray());
     }
+
+    [Fact]
+    public async Task GetCommentsAsync_WhenAuthorCannotBeResolved_ShouldReturnUnknownUser()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Task A", "Desc")
+            .Build();
+        var cardId = board.GetCard("Todo", "Task A").Id;
+        DbContextForArrange.CardComments.Add(new()
+        {
+            CardId = cardId,
+            AuthorUserId = null,
+            Text = "Orphaned",
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<ICardCommentService>();
+
+        // Act
+        var result = await service.GetCommentsAsync(board.BoardId, cardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var comment = Assert.Single(result.Data!);
+        Assert.Null(comment.AuthorUserId);
+        Assert.Equal("Unknown user", comment.AuthorDisplayName);
+        Assert.Null(comment.AuthorImageRelativePath);
+    }
 }

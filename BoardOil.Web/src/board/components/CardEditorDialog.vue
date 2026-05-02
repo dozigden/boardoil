@@ -73,11 +73,11 @@
                   <span class="card-editor-comment-author">
                     <UserAvatar
                       :image-relative-path="comment.authorImageRelativePath ?? null"
-                      :display-name="comment.authorDisplayName ?? `User #${comment.authorUserId}`"
+                      :display-name="comment.authorDisplayName ?? 'Unknown user'"
                       size="sm"
                       class="card-editor-comment-author-avatar"
                     />
-                    <span class="card-editor-comment-author-name">{{ comment.authorDisplayName ?? `User #${comment.authorUserId}` }}</span>
+                    <span class="card-editor-comment-author-name">{{ comment.authorDisplayName ?? 'Unknown user' }}</span>
                   </span>
                   <time class="card-editor-comment-timestamp" :datetime="comment.createdAtUtc">{{ formatCommentDateTime(comment.createdAtUtc) }}</time>
                 </header>
