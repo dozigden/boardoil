@@ -98,6 +98,46 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
     }
 
     [Fact]
+    public async Task UnarchiveCardAsync_WhenArchivedCardV1CommentAuthorFallsBackToEmail_ShouldRelinkAuthor()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var boardId = board.BoardId;
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var capturedAtUtc = new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
+        var archivedCard = await SeedArchivedCardV1Async(
+            boardId,
+            originalCardId: 778,
+            boardColumnId: todoColumnId,
+            cardTypeId: await GetSystemCardTypeIdForBoardAsync(boardId),
+            title: "Archived with email-linked comment",
+            description: "Desc",
+            capturedAtUtc: capturedAtUtc,
+            comments:
+            [
+                new ArchivedCardSnapshotCommentV1Payload(
+                    "Email linked comment",
+                    capturedAtUtc,
+                    999_999,
+                    "ACTOR@LOCALHOST")
+            ]);
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var unarchiveResult = await service.UnarchiveCardAsync(boardId, archivedCard.Id, ActorUserId);
+
+        // Assert
+        Assert.True(unarchiveResult.Success);
+        Assert.NotNull(unarchiveResult.Data);
+        var restoredComment = await DbContextForAssert.CardComments
+            .SingleAsync(x => x.CardId == unarchiveResult.Data!.Id);
+        Assert.Equal("Email linked comment", restoredComment.Text);
+        Assert.Equal(ActorUserId, restoredComment.AuthorUserId);
+    }
+
+    [Fact]
     public async Task UnarchiveCardAsync_WhenArchivedCardMissing_ShouldReturnNotFound()
     {
         // Arrange
