@@ -28,6 +28,12 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.Id, knownPayload.Payload.OriginalCardId);
         Assert.Equal(card.Title, knownPayload.Payload.Title);
         Assert.Equal(["Bug"], knownPayload.Payload.TagNames);
+        Assert.NotNull(knownPayload.Payload.Comments);
+        var firstComment = Assert.Single(knownPayload.Payload.Comments!);
+        Assert.Equal("Archived note", firstComment.Text);
+        Assert.Equal(card.CreatedAtUtc, firstComment.CreatedAtUtc);
+        Assert.Equal(11, firstComment.AuthorUserId);
+        Assert.Equal("[email protected]", firstComment.AuthorEmail);
     }
 
     [Fact]
@@ -66,6 +72,13 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.Title, parsedCard.Title);
         Assert.Equal(card.Description, parsedCard.Description);
         Assert.Equal(["Bug"], parsedCard.TagNames);
+
+        var parsedSnapshot = ArchivedCardSnapshotSerialiser.TryBuildCurrentSnapshot(snapshotJson, out var snapshot, out error);
+        Assert.True(parsedSnapshot);
+        Assert.NotNull(snapshot);
+        var snapshotComment = Assert.Single(snapshot!.Comments);
+        Assert.Equal("Archived note", snapshotComment.Text);
+        Assert.Equal(11, snapshotComment.AuthorUserId);
     }
 
     private static EntityBoardCard BuildCardEntity()
@@ -104,6 +117,28 @@ public sealed class ArchivedCardSnapshotSerialiserTests
             SortKey = "B",
             CreatedAtUtc = new DateTime(2026, 4, 1, 10, 0, 0, DateTimeKind.Utc),
             UpdatedAtUtc = new DateTime(2026, 4, 2, 10, 0, 0, DateTimeKind.Utc),
+            Comments =
+            [
+                new EntityCardComment
+                {
+                    Id = 99,
+                    AuthorUserId = 11,
+                    AuthorUser = new EntityUser
+                    {
+                        Id = 11,
+                        UserName = "author",
+                        DisplayName = "author",
+                        Email = "[email protected]",
+                        NormalisedEmail = "[email protected]",
+                        PasswordHash = "hash",
+                        Role = UserRole.Standard,
+                        IdentityType = UserIdentityType.User,
+                        IsActive = true
+                    },
+                    Text = "Archived note",
+                    CreatedAtUtc = new DateTime(2026, 4, 1, 10, 0, 0, DateTimeKind.Utc)
+                }
+            ],
             CardTags =
             [
                 new EntityCardTag
