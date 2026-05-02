@@ -34,7 +34,7 @@ public sealed class CardArchiveService(
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardArchiveService
 {
-    private const int MaxArchiveSnapshotJsonBytes = 524_288;
+    private const int MaxArchiveSnapshotJsonBytes = 2_097_152;
     private const int MaxCardTitleLength = 200;
     private const int MaxCardDescriptionLength = 20_000;
     private const int MaxCommentLength = 4_000;
@@ -270,7 +270,9 @@ public sealed class CardArchiveService(
         var snapshotJson = ArchivedCardSnapshotSerialiser.CreateSnapshotJson(boardId, card, archivedAtUtc);
         if (Encoding.UTF8.GetByteCount(snapshotJson) > MaxArchiveSnapshotJsonBytes)
         {
-            return new ArchivedCardBuildResult(null, ApiErrors.InternalError("Archive snapshot exceeds configured size limit."));
+            return new ArchivedCardBuildResult(
+                null,
+                ApiErrors.BadRequest("This card is too large to archive."));
         }
 
         var searchTitle = card.Title.Trim();

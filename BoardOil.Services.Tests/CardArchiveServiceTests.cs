@@ -203,6 +203,46 @@ public sealed class CardArchiveServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task ArchiveCardAsync_WhenSnapshotWouldExceedLimit_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Keep this")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var now = DateTime.UtcNow;
+        var largeCommentText = new string('x', 4_000);
+        for (var i = 0; i < 540; i++)
+        {
+            DbContextForArrange.CardComments.Add(new()
+            {
+                CardId = cardId,
+                AuthorUserId = ActorUserId,
+                Text = largeCommentText,
+                CreatedAtUtc = now.AddSeconds(i)
+            });
+        }
+
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("This card is too large to archive.", result.Message);
+
+        var liveExists = await DbContextForAssert.Cards.AnyAsync(x => x.Id == cardId);
+        Assert.True(liveExists);
+        var archivedCount = await DbContextForAssert.Set<ArchivedCardEntity>().CountAsync();
+        Assert.Equal(0, archivedCount);
+    }
+
+    [Fact]
     public async Task GetArchivedCardsAsync_WhenMultipleCardsArchived_ShouldReturnNewestFirst()
     {
         // Arrange
