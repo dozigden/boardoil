@@ -439,23 +439,7 @@ public sealed class BoardPackageImportService(
         switch (schemaVersion)
         {
             case 1:
-            {
-                var legacyBoardPayload = JsonSerializer.Deserialize<BoardPackageBoardV1Dto>(boardJson, JsonOptions);
-                if (legacyBoardPayload is null)
-                {
-                    return new ParseBoardPayloadResult(null, null);
-                }
-
-                var boardPayload = new BoardPackageBoardDto(
-                    legacyBoardPayload.Name,
-                    string.Empty,
-                    legacyBoardPayload.CardTypes,
-                    legacyBoardPayload.Tags,
-                    legacyBoardPayload.Columns);
-                return new ParseBoardPayloadResult(boardPayload, null);
-            }
             case 2:
-            case 3:
             {
                 var boardPayload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
                 return new ParseBoardPayloadResult(boardPayload, null);
@@ -475,7 +459,6 @@ public sealed class BoardPackageImportService(
         {
             case 1:
             case 2:
-            case 3:
             {
                 var archivePayload = JsonSerializer.Deserialize<BoardPackageArchiveDto>(archiveJson, JsonOptions);
                 if (archivePayload is null)
@@ -1176,12 +1159,6 @@ public sealed class BoardPackageImportService(
         IReadOnlyList<TagImportDefinition> TagDefinitions,
         IReadOnlyList<ColumnImportDefinition> Columns,
         IReadOnlyList<ArchivedCardImportDefinition> ArchivedCards);
-
-    private sealed record BoardPackageBoardV1Dto(
-        string Name,
-        IReadOnlyList<BoardPackageCardTypeDto> CardTypes,
-        IReadOnlyList<BoardPackageTagDto> Tags,
-        IReadOnlyList<BoardPackageColumnDto> Columns);
 
     private sealed record CardTypeImportDefinition(
         string Name,
