@@ -30,6 +30,9 @@ public sealed class BoardRealtimeNotifier(
     public Task CardMovedAsync(int boardId, CardDto card) =>
         TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CardMoved", card), nameof(CardMovedAsync));
 
+    public Task CommentCreatedAsync(int boardId, CardCommentDto comment) =>
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CommentCreated", comment), nameof(CommentCreatedAsync));
+
     public Task ResyncRequestedAsync(int boardId) =>
         TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ResyncRequested"), nameof(ResyncRequestedAsync));
 

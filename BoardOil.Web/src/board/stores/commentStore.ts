@@ -35,8 +35,7 @@ export const useCommentStore = defineStore('comment', () => {
       return result;
     }
 
-    const existingComments = commentsByCardId.value[cardId] ?? [];
-    setCardComments(cardId, [result.data, ...existingComments]);
+    upsertCardComment(result.data);
     return result;
   }
 
@@ -51,8 +50,14 @@ export const useCommentStore = defineStore('comment', () => {
   function setCardComments(cardId: number, comments: CardComment[]) {
     commentsByCardId.value = {
       ...commentsByCardId.value,
-      [cardId]: comments.map(comment => ({ ...comment }))
+      [cardId]: normalizeComments(comments)
     };
+  }
+
+  function upsertCardComment(comment: CardComment) {
+    const existingComments = commentsByCardId.value[comment.cardId] ?? [];
+    const withoutExisting = existingComments.filter(existing => existing.id !== comment.id);
+    setCardComments(comment.cardId, [comment, ...withoutExisting]);
   }
 
   async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
@@ -77,6 +82,33 @@ export const useCommentStore = defineStore('comment', () => {
     dispose,
     loadCardComments,
     addCardComment,
-    getCommentsForCard
+    getCommentsForCard,
+    upsertCardComment
   };
 });
+
+function normalizeComments(comments: CardComment[]) {
+  return comments
+    .map(comment => ({ ...comment }))
+    .sort(compareCommentsDescending);
+}
+
+function compareCommentsDescending(left: CardComment, right: CardComment) {
+  if (left.createdAtUtc > right.createdAtUtc) {
+    return -1;
+  }
+
+  if (left.createdAtUtc < right.createdAtUtc) {
+    return 1;
+  }
+
+  if (left.id > right.id) {
+    return -1;
+  }
+
+  if (left.id < right.id) {
+    return 1;
+  }
+
+  return 0;
+}

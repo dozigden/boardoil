@@ -49,6 +49,7 @@ export const useBoardStore = defineStore('board', () => {
     onCardUpdated: cardStore.upsertCard,
     onCardDeleted: cardStore.removeCard,
     onCardMoved: cardStore.upsertCard,
+    onCommentCreated: commentStore.upsertCardComment,
     onResync: async () => {
       if (currentBoardId.value !== null) {
         await loadBoard(currentBoardId.value);
