@@ -52,7 +52,7 @@
                 <button
                   type="button"
                   class="btn card-editor-comment-add-button"
-                  :disabled="newCommentText.trim().length === 0"
+                  :disabled="newCommentText.trim().length === 0 || commentsBusy"
                   @click="addComment"
                 >
                   Add
@@ -259,6 +259,7 @@ const tagStore = useTagStore();
 const { board } = storeToRefs(boardStore);
 const { members: boardMembers, activeBoardId: boardMembersActiveBoardId } = storeToRefs(boardMembersStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
+const { busy: commentsBusy } = storeToRefs(commentStore);
 const { saveCard: saveCardAction, deleteCard, archiveCard } = cardStore;
 const { loadCardComments, addCardComment: addCardCommentAction } = commentStore;
 const { loadMembers } = boardMembersStore;
@@ -519,7 +520,7 @@ async function ensureTagsExistForBoard(tagNames: string[]) {
 }
 
 async function addComment() {
-  if (!cardDraft.value) {
+  if (!cardDraft.value || commentsBusy.value) {
     return;
   }
 
@@ -575,7 +576,12 @@ async function archiveEditingCard() {
 
 watch(
   [routeBoardId, routeCardId, editingCard, board],
-  async ([nextBoardId, nextCardId, nextCard, nextBoard]) => {
+  async ([nextBoardId, nextCardId, nextCard, nextBoard], _previous, onCleanup) => {
+    let cancelled = false;
+    onCleanup(() => {
+      cancelled = true;
+    });
+
     if (nextBoardId === null) {
       clearDraft();
       void router.replace({ name: 'boards' });
@@ -594,9 +600,15 @@ watch(
 
     if (cardTypes.value.length === 0) {
       await loadCardTypes(nextBoardId);
+      if (cancelled) {
+        return;
+      }
     }
     if (boardMembersActiveBoardId.value !== nextBoardId || boardMembers.value.length === 0) {
       await loadMembers(nextBoardId);
+      if (cancelled) {
+        return;
+      }
     }
 
     if (!nextCard) {
@@ -606,6 +618,9 @@ watch(
     }
 
     await loadCardComments(nextBoardId, nextCard.id);
+    if (cancelled) {
+      return;
+    }
 
     if (cardDraft.value?.id !== nextCard.id) {
       const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
