@@ -39,7 +39,7 @@ public sealed class BoardPackageImportService(
     private const int MaxTagNameLength = 40;
     private const int MaxCardTypeNameLength = 40;
     private const int MaxArchiveTitleLength = 200;
-    private const int MaxArchiveSnapshotJsonBytes = 524_288;
+    private const int MaxArchiveSnapshotJsonBytes = 2_097_152;
     private const int MaxArchiveSearchTagsJsonLength = 65_535;
     private const int MaxArchiveSearchTextNormalisedLength = 65_535;
 

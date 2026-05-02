@@ -92,7 +92,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         archivedCard.Property(x => x.BoardId).IsRequired();
         archivedCard.Property(x => x.OriginalCardId).IsRequired();
         archivedCard.Property(x => x.ArchivedAtUtc).IsRequired();
-        archivedCard.Property(x => x.SnapshotJson).HasMaxLength(524_288).IsRequired();
+        archivedCard.Property(x => x.SnapshotJson).HasMaxLength(2_097_152).IsRequired();
         archivedCard.Property(x => x.SearchTitle).HasMaxLength(200).IsRequired();
         archivedCard.Property(x => x.SearchTagsJson).HasMaxLength(65_535).IsRequired();
         archivedCard.Property(x => x.SearchTextNormalised).HasMaxLength(65_535).IsRequired();
