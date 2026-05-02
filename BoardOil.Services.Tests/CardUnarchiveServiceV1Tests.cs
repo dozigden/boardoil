@@ -48,6 +48,96 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
     }
 
     [Fact]
+    public async Task UnarchiveCardAsync_WhenArchivedCardV1ContainsComments_ShouldRestoreComments()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var boardId = board.BoardId;
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var capturedAtUtc = new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
+        var archivedCard = await SeedArchivedCardV1Async(
+            boardId,
+            originalCardId: 777,
+            boardColumnId: todoColumnId,
+            cardTypeId: await GetSystemCardTypeIdForBoardAsync(boardId),
+            title: "Archived with comments",
+            description: "Desc",
+            capturedAtUtc: capturedAtUtc,
+            comments:
+            [
+                new ArchivedCardSnapshotCommentV1Payload(
+                    "Known author comment",
+                    capturedAtUtc,
+                    ActorUserId,
+                    null),
+                new ArchivedCardSnapshotCommentV1Payload(
+                    "Unknown author comment",
+                    capturedAtUtc.AddMinutes(1),
+                    null,
+                    null)
+            ]);
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var unarchiveResult = await service.UnarchiveCardAsync(boardId, archivedCard.Id, ActorUserId);
+
+        // Assert
+        Assert.True(unarchiveResult.Success);
+        Assert.NotNull(unarchiveResult.Data);
+        var restoredComments = await DbContextForAssert.CardComments
+            .Where(x => x.CardId == unarchiveResult.Data!.Id)
+            .OrderBy(x => x.CreatedAtUtc)
+            .ToListAsync();
+        Assert.Equal(2, restoredComments.Count);
+        Assert.Equal("Known author comment", restoredComments[0].Text);
+        Assert.Equal(ActorUserId, restoredComments[0].AuthorUserId);
+        Assert.Equal("Unknown author comment", restoredComments[1].Text);
+        Assert.Null(restoredComments[1].AuthorUserId);
+    }
+
+    [Fact]
+    public async Task UnarchiveCardAsync_WhenArchivedCardV1CommentAuthorFallsBackToEmail_ShouldRelinkAuthor()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var boardId = board.BoardId;
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var capturedAtUtc = new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
+        var archivedCard = await SeedArchivedCardV1Async(
+            boardId,
+            originalCardId: 778,
+            boardColumnId: todoColumnId,
+            cardTypeId: await GetSystemCardTypeIdForBoardAsync(boardId),
+            title: "Archived with email-linked comment",
+            description: "Desc",
+            capturedAtUtc: capturedAtUtc,
+            comments:
+            [
+                new ArchivedCardSnapshotCommentV1Payload(
+                    "Email linked comment",
+                    capturedAtUtc,
+                    999_999,
+                    "ACTOR@LOCALHOST")
+            ]);
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var unarchiveResult = await service.UnarchiveCardAsync(boardId, archivedCard.Id, ActorUserId);
+
+        // Assert
+        Assert.True(unarchiveResult.Success);
+        Assert.NotNull(unarchiveResult.Data);
+        var restoredComment = await DbContextForAssert.CardComments
+            .SingleAsync(x => x.CardId == unarchiveResult.Data!.Id);
+        Assert.Equal("Email linked comment", restoredComment.Text);
+        Assert.Equal(ActorUserId, restoredComment.AuthorUserId);
+    }
+
+    [Fact]
     public async Task UnarchiveCardAsync_WhenArchivedCardMissing_ShouldReturnNotFound()
     {
         // Arrange
@@ -172,9 +262,11 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         int boardColumnId,
         int cardTypeId,
         string title,
-        string description)
+        string description,
+        DateTime? capturedAtUtc = null,
+        IReadOnlyList<ArchivedCardSnapshotCommentV1Payload>? comments = null)
     {
-        var archivedAtUtc = new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
+        var archivedAtUtc = capturedAtUtc ?? new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
         var snapshotJson = CreateSnapshotJsonV1(
             boardId,
             originalCardId,
@@ -182,7 +274,8 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
             cardTypeId,
             title,
             description,
-            archivedAtUtc);
+            archivedAtUtc,
+            comments);
         var archivedCard = DbContextForArrange.Set<ArchivedCardEntity>().Add(new ArchivedCardEntity
         {
             BoardId = boardId,
@@ -204,7 +297,8 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         int cardTypeId,
         string title,
         string description,
-        DateTime capturedAtUtc)
+        DateTime capturedAtUtc,
+        IReadOnlyList<ArchivedCardSnapshotCommentV1Payload>? comments = null)
     {
         var payload = new ArchivedCardSnapshotV1Payload(
             boardId,
@@ -221,7 +315,8 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
             [],
             capturedAtUtc,
             capturedAtUtc,
-            null);
+            null,
+            comments);
         var envelope = new ArchivedCardSnapshotEnvelopeV1(
             ArchivedCardSnapshotSerialiser.SchemaName,
             1,

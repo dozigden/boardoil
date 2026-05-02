@@ -3,6 +3,7 @@ using System;
 using BoardOil.Ef;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoardOil.Ef.Migrations
 {
     [DbContext(typeof(BoardOilDbContext))]
-    partial class BoardOilDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260430195155_AddCardComments")]
+    partial class AddCardComments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.6");
@@ -76,7 +79,7 @@ namespace BoardOil.Ef.Migrations
 
                     b.Property<string>("SnapshotJson")
                         .IsRequired()
-                        .HasMaxLength(2097152)
+                        .HasMaxLength(524288)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -236,7 +239,7 @@ namespace BoardOil.Ef.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("AuthorUserId")
+                    b.Property<int>("AuthorUserId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("CardId")
@@ -640,7 +643,8 @@ namespace BoardOil.Ef.Migrations
                     b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityUser", "AuthorUser")
                         .WithMany("CardComments")
                         .HasForeignKey("AuthorUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityBoardCard", "Card")
                         .WithMany("Comments")

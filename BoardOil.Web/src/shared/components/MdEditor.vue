@@ -1,6 +1,7 @@
 <template>
   <div class="md-editor" :style="{ '--md-editor-min-height': minHeight }">
     <MdEditorToolbar
+      v-if="showToolbar"
       :state="toolbarState"
       :is-plain-text-mode="isPlainTextMode"
       @action="onToolbarAction"
@@ -43,6 +44,7 @@ import { computed, ref, watch } from 'vue';
 import MdLinkDialog from './MdLinkDialog.vue';
 import MdEditorToolbar from './MdEditorToolbar.vue';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';
+import { runMdEditorToolbarAction } from './mdEditorController';
 import { isHttpOrHttpsUrl } from '../utils/linkUrl';
 
 const props = withDefaults(defineProps<{
@@ -50,16 +52,20 @@ const props = withDefaults(defineProps<{
   ariaLabel?: string;
   maxLength?: number;
   minHeight?: string;
+  showToolbar?: boolean;
 }>(), {
   ariaLabel: 'Markdown editor',
   maxLength: 20_000,
-  minHeight: '12rem'
+  minHeight: '12rem',
+  showToolbar: true
 });
 
 const emit = defineEmits<{
   'update:modelValue': [value: string];
   focus: [];
   blur: [];
+  'toolbar-state-change': [value: Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>];
+  'plain-text-mode-change': [value: boolean];
 }>();
 
 const normalisedModelValue = computed(() => normaliseMarkdown(props.modelValue ?? ''));
@@ -157,30 +163,20 @@ const toolbarState = computed<Partial<Record<MdEditorToolbarActionId, MdEditorTo
   return state;
 });
 
+watch(toolbarState, value => {
+  emit('toolbar-state-change', value);
+}, { immediate: true });
+
+watch(isPlainTextMode, value => {
+  emit('plain-text-mode-change', value);
+}, { immediate: true });
+
 function onToolbarAction(actionEvent: MdEditorToolbarActionEvent) {
-  if (isPlainTextMode.value) {
-    return;
-  }
+  runMdEditorToolbarAction(actionEvent, tiptapEditor.value ?? null, isPlainTextMode.value, openLinkDialog);
+}
 
-  const editor = tiptapEditor.value;
-  if (!editor) {
-    return;
-  }
-
-  const nextActionEvent: MdEditorToolbarActionEvent = actionEvent.id === 'heading'
-    ? { id: actionEvent.id, headingLevel: actionEvent.headingLevel ?? 1 }
-    : { id: actionEvent.id };
-
-  const action = mdEditorToolbarActions.find(x => x.id === nextActionEvent.id);
-  if (!action) {
-    return;
-  }
-
-  if (!action.canRun(editor, nextActionEvent)) {
-    return;
-  }
-
-  action.run(editor, { openLinkDialog }, nextActionEvent);
+function runToolbarAction(actionEvent: MdEditorToolbarActionEvent) {
+  onToolbarAction(actionEvent);
 }
 
 function togglePlainTextMode() {
@@ -214,6 +210,11 @@ function onPlainTextInput(value: string) {
 
   emit('update:modelValue', nextValue);
 }
+
+defineExpose({
+  runToolbarAction,
+  togglePlainTextMode
+});
 
 function openLinkDialog(editor: TiptapEditor) {
   editor.chain().focus().run();

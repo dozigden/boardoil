@@ -6,6 +6,8 @@ namespace BoardOil.Services.Card;
 
 public static class CardMappingExtensions
 {
+    private const string UnknownCommentAuthorDisplayName = "Unknown user";
+
     public static CardDto ToCardDto(this EntityBoardCard card) =>
         new(
             card.Id,
@@ -71,6 +73,19 @@ public static class CardMappingExtensions
             tag.StyleName,
             tag.StylePropertiesJson,
             tag.Emoji);
+
+    public static CardCommentDto ToCardCommentDto(
+        this EntityCardComment comment,
+        string? authorDisplayName = null,
+        string? authorImageRelativePath = null) =>
+        new(
+            comment.Id,
+            comment.CardId,
+            comment.AuthorUserId,
+            comment.Text,
+            comment.CreatedAtUtc,
+            authorDisplayName ?? comment.AuthorUser?.DisplayName ?? UnknownCommentAuthorDisplayName,
+            authorImageRelativePath);
 
     private static IReadOnlyList<string> ParseSearchTagsJson(string searchTagsJson)
     {

@@ -44,7 +44,18 @@ public static class McpMappingExtensions
             card.TagNames,
             card.UpdatedAtUtc,
             card.AssignedUserId,
-            card.AssignedUserName);
+            card.AssignedUserName,
+            []);
+
+    public static McpCardCommentSnapshot ToMcp(this CardCommentDto comment) =>
+        new(
+            comment.Id,
+            comment.CardId,
+            comment.AuthorUserId,
+            comment.Text,
+            comment.CreatedAtUtc,
+            comment.AuthorDisplayName,
+            comment.AuthorImageRelativePath);
 
     private static McpBoardCardSnapshot ToMcpBoardSnapshot(this CardDto card) =>
         new(

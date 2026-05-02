@@ -61,6 +61,57 @@ public sealed class CardArchiveServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_ShouldRestoreCommentsWithBestEffortAuthorLinkage()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Keep this")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var now = DateTime.UtcNow;
+        DbContextForArrange.CardComments.Add(new()
+        {
+            CardId = cardId,
+            AuthorUserId = ActorUserId,
+            Text = "Comment from known user",
+            CreatedAtUtc = now
+        });
+        DbContextForArrange.CardComments.Add(new()
+        {
+            CardId = cardId,
+            AuthorUserId = null,
+            Text = "Comment from unknown user",
+            CreatedAtUtc = now.AddSeconds(1)
+        });
+        await DbContextForArrange.SaveChangesAsync();
+
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var archiveResult = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+        Assert.True(archiveResult.Success);
+        Assert.NotNull(archiveResult.Data);
+
+        var unarchiveResult = await service.UnarchiveCardAsync(boardId, archiveResult.Data!.Id, ActorUserId);
+
+        // Assert
+        Assert.True(unarchiveResult.Success);
+        Assert.NotNull(unarchiveResult.Data);
+        var restoredCardId = unarchiveResult.Data!.Id;
+        var restoredComments = await DbContextForAssert.CardComments
+            .Where(x => x.CardId == restoredCardId)
+            .OrderBy(x => x.CreatedAtUtc)
+            .ToListAsync();
+        Assert.Equal(2, restoredComments.Count);
+        Assert.Equal("Comment from known user", restoredComments[0].Text);
+        Assert.Equal(ActorUserId, restoredComments[0].AuthorUserId);
+        Assert.Equal("Comment from unknown user", restoredComments[1].Text);
+        Assert.Null(restoredComments[1].AuthorUserId);
+    }
+
+    [Fact]
     public async Task ArchiveCardsAsync_WhenCardsExist_ShouldArchiveAllAndReturnSummary()
     {
         // Arrange
@@ -147,6 +198,46 @@ public sealed class CardArchiveServiceTests : TestBaseDb
             .Select(x => x.Id)
             .ToListAsync();
         Assert.Equal(2, liveCardIds.Count);
+        var archivedCount = await DbContextForAssert.Set<ArchivedCardEntity>().CountAsync();
+        Assert.Equal(0, archivedCount);
+    }
+
+    [Fact]
+    public async Task ArchiveCardAsync_WhenSnapshotWouldExceedLimit_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Keep this")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var now = DateTime.UtcNow;
+        var largeCommentText = new string('x', 4_000);
+        for (var i = 0; i < 540; i++)
+        {
+            DbContextForArrange.CardComments.Add(new()
+            {
+                CardId = cardId,
+                AuthorUserId = ActorUserId,
+                Text = largeCommentText,
+                CreatedAtUtc = now.AddSeconds(i)
+            });
+        }
+
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("This card is too large to archive.", result.Message);
+
+        var liveExists = await DbContextForAssert.Cards.AnyAsync(x => x.Id == cardId);
+        Assert.True(liveExists);
         var archivedCount = await DbContextForAssert.Set<ArchivedCardEntity>().CountAsync();
         Assert.Equal(0, archivedCount);
     }

@@ -23,6 +23,7 @@ public sealed class BoardPackageImportService(
     IBoardRepository boardRepository,
     IColumnRepository columnRepository,
     ICardRepository cardRepository,
+    ICardCommentRepository cardCommentRepository,
     IArchivedCardRepository archivedCardRepository,
     ICardTypeRepository cardTypeRepository,
     ITagRepository tagRepository,
@@ -34,10 +35,11 @@ public sealed class BoardPackageImportService(
     private const int MaxColumnNameLength = 200;
     private const int MaxCardTitleLength = 200;
     private const int MaxCardDescriptionLength = 20_000;
+    private const int MaxCardCommentLength = 4_000;
     private const int MaxTagNameLength = 40;
     private const int MaxCardTypeNameLength = 40;
     private const int MaxArchiveTitleLength = 200;
-    private const int MaxArchiveSnapshotJsonBytes = 524_288;
+    private const int MaxArchiveSnapshotJsonBytes = 2_097_152;
     private const int MaxArchiveSearchTagsJsonLength = 65_535;
     private const int MaxArchiveSearchTextNormalisedLength = 65_535;
 
@@ -141,6 +143,7 @@ public sealed class BoardPackageImportService(
         var createdColumns = new List<EntityBoardColumn>(importPlan.Columns.Count);
         var createdCardsByColumn = new Dictionary<EntityBoardColumn, List<EntityBoardCard>>();
         var assigneeByNormalisedEmail = new Dictionary<string, EntityUser?>(StringComparer.Ordinal);
+        var commentAuthorByNormalisedEmail = new Dictionary<string, EntityUser?>(StringComparer.Ordinal);
         string? previousColumnSortKey = null;
 
         foreach (var importedColumn in importPlan.Columns)
@@ -207,6 +210,21 @@ public sealed class BoardPackageImportService(
                 cardRepository.Add(createdCard);
                 createdCards.Add(createdCard);
                 previousCardSortKey = cardSortKey;
+
+                foreach (var importedComment in importedCard.Comments)
+                {
+                    var commentAuthor = await ResolveImportedCommentAuthorAsync(
+                        importedComment.AuthorNormalisedEmail,
+                        commentAuthorByNormalisedEmail);
+                    cardCommentRepository.Add(new EntityCardComment
+                    {
+                        Card = createdCard,
+                        AuthorUserId = commentAuthor?.Id,
+                        AuthorUser = commentAuthor,
+                        Text = importedComment.Text,
+                        CreatedAtUtc = importedComment.CreatedAtUtc
+                    });
+                }
             }
 
             createdCardsByColumn.Add(createdColumn, createdCards);
@@ -421,21 +439,6 @@ public sealed class BoardPackageImportService(
         switch (schemaVersion)
         {
             case 1:
-            {
-                var legacyBoardPayload = JsonSerializer.Deserialize<BoardPackageBoardV1Dto>(boardJson, JsonOptions);
-                if (legacyBoardPayload is null)
-                {
-                    return new ParseBoardPayloadResult(null, null);
-                }
-
-                var boardPayload = new BoardPackageBoardDto(
-                    legacyBoardPayload.Name,
-                    string.Empty,
-                    legacyBoardPayload.CardTypes,
-                    legacyBoardPayload.Tags,
-                    legacyBoardPayload.Columns);
-                return new ParseBoardPayloadResult(boardPayload, null);
-            }
             case 2:
             {
                 var boardPayload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
@@ -729,6 +732,10 @@ public sealed class BoardPackageImportService(
                     }
 
                     var canonicalTagNames = ValidateAndCanonicaliseCardTagNames(importedCard.TagNames, $"{cardPropertyPrefix}.tagNames", validationErrors);
+                    var plannedComments = ValidateAndCanonicaliseCardComments(
+                        importedCard.Comments,
+                        $"{cardPropertyPrefix}.comments",
+                        validationErrors);
 
                     if (validationErrors.Any(x => x.Property.StartsWith(cardPropertyPrefix, StringComparison.Ordinal)))
                     {
@@ -740,7 +747,8 @@ public sealed class BoardPackageImportService(
                         cardDescription,
                         cardTypeValidation.NormalisedName,
                         canonicalTagNames,
-                        ResolveAssignedUserNormalisedEmail(importedCard.AssignedUserEmail)));
+                        ResolveNormalisedEmailOrNull(importedCard.AssignedUserEmail),
+                        plannedComments));
                 }
 
                 if (validationErrors.Any(x => x.Property.StartsWith(columnPropertyPrefix, StringComparison.Ordinal)))
@@ -924,6 +932,58 @@ public sealed class BoardPackageImportService(
         return canonicalTagNames;
     }
 
+    private static IReadOnlyList<CommentImportDefinition> ValidateAndCanonicaliseCardComments(
+        IReadOnlyList<BoardPackageCommentDto>? comments,
+        string propertyPrefix,
+        ICollection<ValidationError> validationErrors)
+    {
+        if (comments is null)
+        {
+            return [];
+        }
+
+        var canonicalComments = new List<CommentImportDefinition>(comments.Count);
+        for (var commentIndex = 0; commentIndex < comments.Count; commentIndex++)
+        {
+            var importedComment = comments[commentIndex];
+            var commentPropertyPrefix = $"{propertyPrefix}[{commentIndex}]";
+            if (importedComment is null)
+            {
+                validationErrors.Add(new ValidationError(commentPropertyPrefix, "Comment entry is required."));
+                continue;
+            }
+
+            var canonicalText = importedComment.Text?.Trim() ?? string.Empty;
+            if (canonicalText.Length == 0)
+            {
+                validationErrors.Add(new ValidationError($"{commentPropertyPrefix}.text", "Comment text is required."));
+            }
+            else if (canonicalText.Length > MaxCardCommentLength)
+            {
+                validationErrors.Add(new ValidationError(
+                    $"{commentPropertyPrefix}.text",
+                    $"Comment text must be {MaxCardCommentLength} characters or fewer."));
+            }
+
+            if (importedComment.CreatedAtUtc == default)
+            {
+                validationErrors.Add(new ValidationError($"{commentPropertyPrefix}.createdAtUtc", "Comment created time is required."));
+            }
+
+            if (validationErrors.Any(x => x.Property.StartsWith(commentPropertyPrefix, StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            canonicalComments.Add(new CommentImportDefinition(
+                canonicalText,
+                importedComment.CreatedAtUtc,
+                ResolveNormalisedEmailOrNull(importedComment.AuthorEmail)));
+        }
+
+        return canonicalComments;
+    }
+
     private static TagNameValidationResult ValidateTagName(string? rawTagName, string property)
     {
         if (string.IsNullOrWhiteSpace(rawTagName))
@@ -999,16 +1059,16 @@ public sealed class BoardPackageImportService(
         return stylePropertiesJson.Trim();
     }
 
-    private static string? ResolveAssignedUserNormalisedEmail(string? assignedUserEmail)
+    private static string? ResolveNormalisedEmailOrNull(string? emailAddress)
     {
-        if (string.IsNullOrWhiteSpace(assignedUserEmail))
+        if (string.IsNullOrWhiteSpace(emailAddress))
         {
             return null;
         }
 
-        return EmailAddressRules.Validate(assignedUserEmail, "assignedUserEmail").Count > 0
+        return EmailAddressRules.Validate(emailAddress, "email").Count > 0
             ? null
-            : EmailAddressRules.TryNormalise(assignedUserEmail);
+            : EmailAddressRules.TryNormalise(emailAddress);
     }
 
     private async Task<EntityUser?> ResolveImportedAssignedUserAsync(
@@ -1029,6 +1089,25 @@ public sealed class BoardPackageImportService(
         var resolvedAssignee = user is { IsActive: true } ? user : null;
         assigneeByNormalisedEmail[assignedUserNormalisedEmail] = resolvedAssignee;
         return resolvedAssignee;
+    }
+
+    private async Task<EntityUser?> ResolveImportedCommentAuthorAsync(
+        string? authorNormalisedEmail,
+        IDictionary<string, EntityUser?> authorByNormalisedEmail)
+    {
+        if (string.IsNullOrWhiteSpace(authorNormalisedEmail))
+        {
+            return null;
+        }
+
+        if (authorByNormalisedEmail.TryGetValue(authorNormalisedEmail, out var cachedAuthor))
+        {
+            return cachedAuthor;
+        }
+
+        var user = await userRepository.GetByNormalisedEmailAsync(authorNormalisedEmail);
+        authorByNormalisedEmail[authorNormalisedEmail] = user;
+        return user;
     }
 
     private async Task<int> ResolveNextImportedArchivedOriginalCardIdAsync()
@@ -1081,12 +1160,6 @@ public sealed class BoardPackageImportService(
         IReadOnlyList<ColumnImportDefinition> Columns,
         IReadOnlyList<ArchivedCardImportDefinition> ArchivedCards);
 
-    private sealed record BoardPackageBoardV1Dto(
-        string Name,
-        IReadOnlyList<BoardPackageCardTypeDto> CardTypes,
-        IReadOnlyList<BoardPackageTagDto> Tags,
-        IReadOnlyList<BoardPackageColumnDto> Columns);
-
     private sealed record CardTypeImportDefinition(
         string Name,
         string NormalisedName,
@@ -1110,7 +1183,13 @@ public sealed class BoardPackageImportService(
         string Description,
         string CardTypeNormalisedName,
         IReadOnlyList<string> TagNames,
-        string? AssignedUserNormalisedEmail);
+        string? AssignedUserNormalisedEmail,
+        IReadOnlyList<CommentImportDefinition> Comments);
+
+    private sealed record CommentImportDefinition(
+        string Text,
+        DateTime CreatedAtUtc,
+        string? AuthorNormalisedEmail);
 
     private sealed record ArchivedCardImportDefinition(
         int OriginalCardId,

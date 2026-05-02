@@ -12,6 +12,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityCardType> CardTypes => Set<EntityCardType>();
     public DbSet<EntityTag> Tags => Set<EntityTag>();
     public DbSet<EntityCardTag> CardTags => Set<EntityCardTag>();
+    public DbSet<EntityCardComment> CardComments => Set<EntityCardComment>();
     public DbSet<EntityBoardMember> BoardMembers => Set<EntityBoardMember>();
     public DbSet<EntityUser> Users => Set<EntityUser>();
     public DbSet<EntityRefreshToken> RefreshTokens => Set<EntityRefreshToken>();
@@ -81,13 +82,17 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .WithOne(x => x.Card)
             .HasForeignKey(x => x.CardId)
             .OnDelete(DeleteBehavior.Cascade);
+        card.HasMany(x => x.Comments)
+            .WithOne(x => x.Card)
+            .HasForeignKey(x => x.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         var archivedCard = modelBuilder.Entity<EntityArchivedCard>();
         archivedCard.HasKey(x => x.Id);
         archivedCard.Property(x => x.BoardId).IsRequired();
         archivedCard.Property(x => x.OriginalCardId).IsRequired();
         archivedCard.Property(x => x.ArchivedAtUtc).IsRequired();
-        archivedCard.Property(x => x.SnapshotJson).HasMaxLength(524_288).IsRequired();
+        archivedCard.Property(x => x.SnapshotJson).HasMaxLength(2_097_152).IsRequired();
         archivedCard.Property(x => x.SearchTitle).HasMaxLength(200).IsRequired();
         archivedCard.Property(x => x.SearchTagsJson).HasMaxLength(65_535).IsRequired();
         archivedCard.Property(x => x.SearchTextNormalised).HasMaxLength(65_535).IsRequired();
@@ -157,6 +162,20 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             .WithOne(x => x.User)
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+        user.HasMany(x => x.CardComments)
+            .WithOne(x => x.AuthorUser)
+            .HasForeignKey(x => x.AuthorUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        var cardComment = modelBuilder.Entity<EntityCardComment>();
+        cardComment.HasKey(x => x.Id);
+        cardComment.Property(x => x.CardId).IsRequired();
+        cardComment.Property(x => x.AuthorUserId).IsRequired(false);
+        cardComment.Property(x => x.Text).HasMaxLength(4_000).IsRequired();
+        cardComment.Property(x => x.CreatedAtUtc).IsRequired();
+        cardComment.ToTable("CardComments");
+        cardComment.HasIndex(x => new { x.CardId, x.CreatedAtUtc, x.Id });
+        cardComment.HasIndex(x => x.AuthorUserId);
 
         var boardMember = modelBuilder.Entity<EntityBoardMember>();
         boardMember.HasKey(x => x.Id);

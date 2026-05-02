@@ -13,6 +13,7 @@ public interface IBoardEvents
     Task CardUpdatedAsync(int boardId, CardDto card);
     Task CardDeletedAsync(int boardId, int cardId);
     Task CardMovedAsync(int boardId, CardDto card);
+    Task CommentCreatedAsync(int boardId, CardCommentDto comment);
 
     Task ResyncRequestedAsync(int boardId);
 }

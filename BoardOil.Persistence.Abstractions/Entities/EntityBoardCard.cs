@@ -16,4 +16,5 @@ public sealed class EntityBoardCard
     public EntityCardType CardType { get; set; } = null!;
     public EntityUser? AssignedUser { get; set; }
     public ICollection<EntityCardTag> CardTags { get; set; } = new List<EntityCardTag>();
+    public ICollection<EntityCardComment> Comments { get; set; } = new List<EntityCardComment>();
 }

@@ -102,6 +102,19 @@ public static class ToolSchemas
     }
     """;
 
+    public const string CardCommentCreateInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "id": { "type": "integer", "minimum": 1 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 4000 }
+      },
+      "required": ["boardId", "id", "text"],
+      "additionalProperties": false
+    }
+    """;
+
     public const string ObjectOutput = """
     {
       "type": "object"

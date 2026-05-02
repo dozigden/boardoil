@@ -11,8 +11,10 @@ using BoardOil.Persistence.Abstractions.Column;
 using BoardOil.Persistence.Abstractions.Entities;
 using BoardOil.Persistence.Abstractions.Image;
 using BoardOil.Persistence.Abstractions.Tag;
+using BoardOil.Persistence.Abstractions.Users;
 using BoardOil.Services.Ordering;
 using BoardOil.Services.Tag;
+using BoardOil.Services.Users;
 using System.Text;
 using System.Text.Json;
 
@@ -20,19 +22,22 @@ namespace BoardOil.Services.Card;
 
 public sealed class CardArchiveService(
     ICardRepository cardRepository,
+    ICardCommentRepository cardCommentRepository,
     IArchivedCardRepository archivedCardRepository,
     ICardTypeRepository cardTypeRepository,
     IColumnRepository columnRepository,
     IBoardMemberRepository boardMemberRepository,
+    IUserRepository userRepository,
     IImageRepository imageRepository,
     ITagRepository tagRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardArchiveService
 {
-    private const int MaxArchiveSnapshotJsonBytes = 524_288;
+    private const int MaxArchiveSnapshotJsonBytes = 2_097_152;
     private const int MaxCardTitleLength = 200;
     private const int MaxCardDescriptionLength = 20_000;
+    private const int MaxCommentLength = 4_000;
     private const int DefaultListLimit = 50;
     private const int MaxListLimit = 200;
 
@@ -135,11 +140,12 @@ public sealed class CardArchiveService(
             return ApiErrors.NotFound("Archived card not found.");
         }
 
-        var parsed = ArchivedCardSnapshotSerialiser.TryBuildCurrentCardDto(archivedCard.SnapshotJson, out var snapshotCard, out var snapshotReadError);
-        if (!parsed || snapshotCard is null)
+        var parsed = ArchivedCardSnapshotSerialiser.TryBuildCurrentSnapshot(archivedCard.SnapshotJson, out var snapshot, out var snapshotReadError);
+        if (!parsed || snapshot is null)
         {
             return ApiErrors.BadRequest($"Archived card snapshot cannot be restored. {snapshotReadError ?? "Snapshot is invalid."}");
         }
+        var snapshotCard = snapshot.Card;
 
         var targetColumn = await ResolveRestoreColumnAsync(boardId, snapshotCard.BoardColumnId);
         if (targetColumn is null)
@@ -155,6 +161,7 @@ public sealed class CardArchiveService(
         }
 
         var validationErrors = ValidateSnapshotCardData(snapshotCard);
+        validationErrors.AddRange(ValidateSnapshotComments(snapshot.Comments));
         if (validationErrors.Count > 0)
         {
             return ApiErrors.BadRequest("Archived card snapshot cannot be restored.", validationErrors);
@@ -186,6 +193,20 @@ public sealed class CardArchiveService(
             UpdatedAtUtc = snapshotCard.UpdatedAtUtc == default ? now : snapshotCard.UpdatedAtUtc
         };
         ReplaceTags(restoredCard, resolvedTags);
+        var commentAuthorByUserId = new Dictionary<int, EntityUser?>();
+        var commentAuthorByNormalisedEmail = new Dictionary<string, EntityUser?>(StringComparer.Ordinal);
+        foreach (var snapshotComment in snapshot.Comments)
+        {
+            var author = await ResolveCommentAuthorForRestoreAsync(snapshotComment, commentAuthorByUserId, commentAuthorByNormalisedEmail);
+            cardCommentRepository.Add(new EntityCardComment
+            {
+                Card = restoredCard,
+                AuthorUserId = author?.Id,
+                AuthorUser = author,
+                Text = snapshotComment.Text,
+                CreatedAtUtc = snapshotComment.CreatedAtUtc
+            });
+        }
 
         cardRepository.Add(restoredCard);
         archivedCardRepository.Remove(archivedCard);
@@ -249,7 +270,9 @@ public sealed class CardArchiveService(
         var snapshotJson = ArchivedCardSnapshotSerialiser.CreateSnapshotJson(boardId, card, archivedAtUtc);
         if (Encoding.UTF8.GetByteCount(snapshotJson) > MaxArchiveSnapshotJsonBytes)
         {
-            return new ArchivedCardBuildResult(null, ApiErrors.InternalError("Archive snapshot exceeds configured size limit."));
+            return new ArchivedCardBuildResult(
+                null,
+                ApiErrors.BadRequest("This card is too large to archive."));
         }
 
         var searchTitle = card.Title.Trim();
@@ -399,6 +422,58 @@ public sealed class CardArchiveService(
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
 
+    private async Task<EntityUser?> ResolveCommentAuthorForRestoreAsync(
+        ArchivedCardSnapshotCommentV1Payload snapshotComment,
+        IDictionary<int, EntityUser?> authorByUserId,
+        IDictionary<string, EntityUser?> authorByNormalisedEmail)
+    {
+        if (snapshotComment.AuthorUserId.HasValue)
+        {
+            var authorUserId = snapshotComment.AuthorUserId.Value;
+            if (authorByUserId.TryGetValue(authorUserId, out var cachedAuthor))
+            {
+                return cachedAuthor;
+            }
+
+            var user = userRepository.Get(authorUserId);
+            authorByUserId[authorUserId] = user;
+            if (user is not null && !string.IsNullOrWhiteSpace(user.NormalisedEmail))
+            {
+                authorByNormalisedEmail.TryAdd(user.NormalisedEmail, user);
+            }
+
+            if (user is not null)
+            {
+                return user;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(snapshotComment.AuthorEmail))
+        {
+            return null;
+        }
+
+        var normalisedEmail = EmailAddressRules.TryNormalise(snapshotComment.AuthorEmail);
+        if (string.IsNullOrWhiteSpace(normalisedEmail))
+        {
+            return null;
+        }
+
+        if (authorByNormalisedEmail.TryGetValue(normalisedEmail, out var cachedByEmail))
+        {
+            return cachedByEmail;
+        }
+
+        var emailUser = await userRepository.GetByNormalisedEmailAsync(normalisedEmail);
+        authorByNormalisedEmail[normalisedEmail] = emailUser;
+        if (emailUser is not null)
+        {
+            authorByUserId[emailUser.Id] = emailUser;
+        }
+
+        return emailUser;
+    }
+
     private static List<ValidationError> ValidateSnapshotCardData(CardDto snapshotCard)
     {
         var errors = new List<ValidationError>();
@@ -419,6 +494,36 @@ public sealed class CardArchiveService(
         if (snapshotCard.Description.Length > MaxCardDescriptionLength)
         {
             errors.Add(new ValidationError("snapshot.description", $"Card description must be {MaxCardDescriptionLength} characters or fewer."));
+        }
+
+        return errors;
+    }
+
+    private static IReadOnlyList<ValidationError> ValidateSnapshotComments(IReadOnlyList<ArchivedCardSnapshotCommentV1Payload> comments)
+    {
+        var errors = new List<ValidationError>();
+        for (var commentIndex = 0; commentIndex < comments.Count; commentIndex++)
+        {
+            var comment = comments[commentIndex];
+            var propertyPrefix = $"snapshot.comments[{commentIndex}]";
+            var text = comment.Text?.Trim() ?? string.Empty;
+            if (text.Length == 0)
+            {
+                errors.Add(new ValidationError($"{propertyPrefix}.text", "Comment text is required."));
+                continue;
+            }
+
+            if (text.Length > MaxCommentLength)
+            {
+                errors.Add(new ValidationError(
+                    $"{propertyPrefix}.text",
+                    $"Comment text must be {MaxCommentLength} characters or fewer."));
+            }
+
+            if (comment.CreatedAtUtc == default)
+            {
+                errors.Add(new ValidationError($"{propertyPrefix}.createdAtUtc", "Comment created time is required."));
+            }
         }
 
         return errors;

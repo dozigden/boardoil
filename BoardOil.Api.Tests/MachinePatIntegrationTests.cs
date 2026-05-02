@@ -49,6 +49,7 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
         Assert.Contains("board_get", toolNames);
         Assert.Contains("card_get", toolNames);
         Assert.Contains("card_create", toolNames);
+        Assert.Contains("card_comment_create", toolNames);
     }
 
     [Fact]
@@ -242,6 +243,44 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, createCardResponse.StatusCode);
+        AssertMcpForbidden(payload);
+    }
+
+    [Fact]
+    public async Task PatWithReadOnlyScope_CardCommentCreate_ShouldReturnForbiddenToolError()
+    {
+        // Arrange
+        var adminClient = CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/auth/access-tokens",
+            new CreateMachinePatRequest("read-only-comment-token", 30, ["mcp:read"]));
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
+        Assert.NotNull(created);
+        Assert.NotNull(created!.Data);
+
+        // Act
+        var createCommentResponse = await SendMcpRequestAsync(
+            adminClient,
+            created.Data!.PlainTextToken,
+            "tools/call",
+            new
+            {
+                name = "card_comment_create",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = 1,
+                    text = "Blocked by scope"
+                }
+            },
+            "card-comment-create-forbidden");
+        using var payload = await ParseMcpJsonAsync(createCommentResponse);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, createCommentResponse.StatusCode);
         AssertMcpForbidden(payload);
     }
 

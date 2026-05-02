@@ -179,6 +179,12 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.DoesNotContain("columnId", cardUpdateRequired);
         Assert.Contains("cardTypeId", cardUpdateRequired);
         Assert.DoesNotContain("assignedUserId", cardUpdateRequired);
+
+        var cardCommentCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardCommentCreate);
+        var cardCommentCreateProperties = cardCommentCreateTool.GetProperty("inputSchema").GetProperty("properties");
+        Assert.True(cardCommentCreateProperties.TryGetProperty("boardId", out _));
+        Assert.True(cardCommentCreateProperties.TryGetProperty("id", out _));
+        Assert.True(cardCommentCreateProperties.TryGetProperty("text", out _));
     }
 
     private sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);

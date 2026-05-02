@@ -39,7 +39,13 @@ public sealed record BoardPackageCardDto(
     string Description,
     string CardTypeName,
     IReadOnlyList<string> TagNames,
-    string? AssignedUserEmail = null);
+    string? AssignedUserEmail = null,
+    IReadOnlyList<BoardPackageCommentDto>? Comments = null);
+
+public sealed record BoardPackageCommentDto(
+    string Text,
+    DateTime CreatedAtUtc,
+    string? AuthorEmail = null);
 
 public sealed record BoardPackageArchiveDto(
     IReadOnlyList<BoardPackageArchivedCardDto> Cards);

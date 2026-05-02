@@ -7,6 +7,7 @@ import type {
   BoardMemberRole,
   BoardSummary,
   Card,
+  CardComment,
   CardType,
   Column,
   Tag,
@@ -190,6 +191,19 @@ export function createBoardApi() {
 
   async function deleteCard(boardId: number, cardId: number): Promise<Result<void, AppError>> {
     return deleteJson(`/api/boards/${boardId}/cards/${cardId}`);
+  }
+
+  async function getCardComments(boardId: number, cardId: number): Promise<Result<CardComment[], AppError>> {
+    const envelopeResult = await getEnvelope<CardComment[]>(`/api/boards/${boardId}/cards/${cardId}/comments`);
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function createCardComment(boardId: number, cardId: number, text: string): Promise<Result<CardComment, AppError>> {
+    return postData<CardComment>(`/api/boards/${boardId}/cards/${cardId}/comments`, { text });
   }
 
   async function archiveCard(boardId: number, cardId: number): Promise<Result<void, AppError>> {
@@ -388,6 +402,8 @@ export function createBoardApi() {
     saveCard,
     moveCard,
     deleteCard,
+    getCardComments,
+    createCardComment,
     archiveCard,
     archiveCards,
     unarchiveCard,
