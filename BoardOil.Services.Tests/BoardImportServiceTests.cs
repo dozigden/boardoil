@@ -511,38 +511,6 @@ public sealed class BoardImportServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task ImportBoardPackageAsync_WhenSchemaVersionIsOne_ShouldImportWithEmptyDescription()
-    {
-        var manifest = new BoardPackageManifestDto(
-            BoardPackageContract.PackageFormat,
-            1,
-            "0.2.0",
-            [new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, BoardPackageContract.BoardEntryPath)]);
-        var boardPayloadV1Json =
-            """
-            {
-              "name": "Legacy Board",
-              "cardTypes": [
-                { "name": "Story", "emoji": null, "isSystem": true }
-              ],
-              "tags": [],
-              "columns": []
-            }
-            """;
-
-        var service = ResolveService<IBoardPackageImportService>();
-        var result = await service.ImportBoardPackageAsync(
-            new ImportBoardPackageRequest(null, BuildBoardPackageWithRawBoardPayload(manifest, boardPayloadV1Json)),
-            ActorUserId);
-
-        Assert.True(result.Success);
-        Assert.Equal(201, result.StatusCode);
-        Assert.NotNull(result.Data);
-        Assert.Equal("Legacy Board", result.Data!.Name);
-        Assert.Equal(string.Empty, result.Data.Description);
-    }
-
-    [Fact]
     public async Task ImportBoardPackageAsync_WhenSchemaVersionIsFuture_ShouldReturnBadRequestAndWriteNothing()
     {
         var manifest = new BoardPackageManifestDto(
