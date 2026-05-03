@@ -43,11 +43,73 @@
         </div>
       </div>
 
+      <template v-else-if="action.id === 'bullet-list'">
+        <button
+          type="button"
+          class="btn btn--toolbar md-editor-toolbar-button md-editor-toolbar-list-action"
+          :class="{ 'is-active': action.isActive }"
+          :disabled="action.disabled"
+          :aria-label="action.ariaLabel"
+          :title="action.title"
+          @click="emitAction({ id: action.id })"
+        >
+          <component :is="action.icon" :size="14" aria-hidden="true" />
+          <span class="md-editor-toolbar-sr">{{ action.label }}</span>
+        </button>
+
+        <div v-if="listSplitAction" ref="listSplitRef" class="md-editor-toolbar-split md-editor-toolbar-mobile-list-split">
+          <button
+            type="button"
+            class="btn btn--toolbar md-editor-toolbar-button"
+            :class="{ 'is-active': listSplitAction.isActive }"
+            :disabled="listSplitAction.disabled"
+            aria-label="Bullet list"
+            title="Bullet list"
+            @click="emitAction({ id: 'bullet-list' })"
+          >
+            <List :size="14" aria-hidden="true" />
+            <span class="md-editor-toolbar-sr">Bullet list</span>
+          </button>
+
+          <button
+            type="button"
+            class="btn btn--toolbar md-editor-toolbar-button md-editor-toolbar-button-caret"
+            :disabled="listSplitAction.disabled"
+            :aria-label="isListMenuOpen ? 'Close list styles' : 'Open list styles'"
+            title="List styles"
+            @click.stop="toggleListMenu"
+          >
+            <ChevronDown :size="14" aria-hidden="true" />
+            <span class="md-editor-toolbar-sr">List styles</span>
+          </button>
+
+          <div v-if="isListMenuOpen" class="md-editor-toolbar-menu" role="menu" aria-label="List styles">
+            <button
+              v-for="menuAction in listMenuActions"
+              :key="menuAction.id"
+              type="button"
+              class="btn btn--toolbar-menu md-editor-toolbar-menu-item"
+              role="menuitem"
+              :disabled="menuAction.disabled"
+              :title="menuAction.label"
+              @click="emitAction({ id: menuAction.id })"
+            >
+              {{ menuAction.label }}
+            </button>
+          </div>
+        </div>
+      </template>
+
       <button
         v-else
         type="button"
         class="btn btn--toolbar md-editor-toolbar-button"
-        :class="{ 'is-active': action.isActive }"
+        :class="[
+          { 'is-active': action.isActive },
+          action.id === 'ordered-list' || action.id === 'task-list'
+            ? 'md-editor-toolbar-list-action'
+            : ''
+        ]"
         :disabled="action.disabled"
         :aria-label="action.ariaLabel"
         :title="action.title"
@@ -105,6 +167,8 @@ const actionIcons: Record<MdEditorToolbarActionId, Component> = {
 const headingMenuLevels: MdEditorHeadingLevel[] = [2, 3];
 const isHeadingMenuOpen = ref(false);
 const headingSplitRef = ref<HTMLElement | null>(null);
+const isListMenuOpen = ref(false);
+const listSplitRef = ref<HTMLElement | null>(null);
 
 const resolvedActions = computed(() => {
   return mdEditorToolbarActions.map(action => ({
@@ -115,23 +179,52 @@ const resolvedActions = computed(() => {
   }));
 });
 
+const listMenuActions = computed(() => resolvedActions.value.filter(action =>
+  action.id === 'bullet-list' || action.id === 'ordered-list' || action.id === 'task-list'
+));
+
+const listSplitAction = computed(() => {
+  const bulletAction = listMenuActions.value.find(action => action.id === 'bullet-list');
+  if (!bulletAction) {
+    return null;
+  }
+
+  const isActive = listMenuActions.value.some(action => action.isActive);
+  return {
+    ...bulletAction,
+    isActive
+  };
+});
+
 function emitAction(event: MdEditorToolbarActionEvent) {
   isHeadingMenuOpen.value = false;
+  isListMenuOpen.value = false;
   emit('action', event);
 }
 
 function toggleHeadingMenu() {
+  isListMenuOpen.value = false;
   isHeadingMenuOpen.value = !isHeadingMenuOpen.value;
+}
+
+function toggleListMenu() {
+  isHeadingMenuOpen.value = false;
+  isListMenuOpen.value = !isListMenuOpen.value;
 }
 
 function emitToggleMode() {
   isHeadingMenuOpen.value = false;
+  isListMenuOpen.value = false;
   emit('toggle-plain-text-mode');
 }
 
 useClickOutside(headingSplitRef, () => {
   isHeadingMenuOpen.value = false;
 }, () => isHeadingMenuOpen.value);
+
+useClickOutside(listSplitRef, () => {
+  isListMenuOpen.value = false;
+}, () => isListMenuOpen.value);
 </script>
 
 <style scoped>
@@ -207,5 +300,19 @@ useClickOutside(headingSplitRef, () => {
   gap: 0.3rem;
   padding: 0.2rem 0.45rem;
   font-size: 0.78rem;
+}
+
+.md-editor-toolbar-mobile-list-split {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .md-editor-toolbar-list-action {
+    display: none;
+  }
+
+  .md-editor-toolbar-mobile-list-split {
+    display: inline-flex;
+  }
 }
 </style>

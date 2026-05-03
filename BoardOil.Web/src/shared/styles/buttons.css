@@ -204,3 +204,15 @@ button:disabled {
   border-top-right-radius: 8px;
   border-bottom-right-radius: 8px;
 }
+
+@media (max-width: 720px) {
+  .btn > svg + span:not(.md-editor-toolbar-sr) {
+    display: none;
+  }
+
+  .btn:has(> svg + span:not(.md-editor-toolbar-sr)) {
+    min-width: 2rem;
+    padding: 0.35rem;
+    gap: 0;
+  }
+}
