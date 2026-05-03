@@ -70,7 +70,7 @@
                   v-model="newCommentText"
                   aria-label="Comment"
                   :max-length="maxCommentLength"
-                  min-height="6rem"
+                  :min-height="newCommentText.trim().length === 0 ? '3rem' : '6rem'"
                   :show-toolbar="false"
                   @focus="setActiveEditor('comment')"
                   @toolbar-state-change="updateToolbarState('comment', $event)"
@@ -880,6 +880,24 @@ watch(
   max-height: none;
   overflow-y: visible;
   width: 100%;
+}
+
+.card-editor-comment-entry :deep(.md-editor-content .tiptap),
+.card-editor-comment-entry :deep(.md-editor-textarea),
+.card-editor-description-field :deep(.md-editor-content .tiptap),
+.card-editor-description-field :deep(.md-editor-textarea) {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+
+.card-editor-comment-entry :deep(.md-editor-content .tiptap > :first-child),
+.card-editor-description-field :deep(.md-editor-content .tiptap > :first-child) {
+  margin-top: 0;
+}
+
+.card-editor-comment-entry :deep(.md-editor-content .tiptap > :last-child),
+.card-editor-description-field :deep(.md-editor-content .tiptap > :last-child) {
+  margin-bottom: 0;
 }
 
 .card-editor-comment-body :deep(.md-viewer) {
