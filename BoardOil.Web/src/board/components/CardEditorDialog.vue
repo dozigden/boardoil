@@ -96,7 +96,7 @@
                 :key="comment.id"
                 class="card-editor-comment"
               >
-                <header class="card-editor-comment-header">
+                <aside class="card-editor-comment-author-rail" aria-label="Comment author">
                   <span class="card-editor-comment-author">
                     <UserAvatar
                       :image-relative-path="comment.authorImageRelativePath ?? null"
@@ -106,15 +106,17 @@
                     />
                     <span class="card-editor-comment-author-name">{{ comment.authorDisplayName ?? 'Unknown user' }}</span>
                   </span>
+                </aside>
+                <div class="card-editor-comment-content">
+                  <MdViewer
+                    class="card-editor-comment-body"
+                    :model-value="comment.text"
+                    aria-label="Comment content"
+                    :max-length="maxCommentLength"
+                    min-height="1.5rem"
+                  />
                   <time class="card-editor-comment-timestamp" :datetime="comment.createdAtUtc">{{ formatCommentDateTime(comment.createdAtUtc) }}</time>
-                </header>
-                <MdViewer
-                  class="card-editor-comment-body"
-                  :model-value="comment.text"
-                  aria-label="Comment content"
-                  :max-length="maxCommentLength"
-                  min-height="1.5rem"
-                />
+                </div>
               </article>
             </div>
           </section>
@@ -804,6 +806,10 @@ watch(
 }
 
 .card-editor-comment {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: stretch;
   border: 1px solid var(--bo-border-soft);
   border-radius: 0.4rem;
   padding: 0.5rem 0.6rem;
@@ -812,18 +818,20 @@ watch(
   box-sizing: border-box;
 }
 
-.card-editor-comment-header {
+.card-editor-comment-author-rail {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.35rem;
+  align-items: flex-start;
+  align-self: stretch;
+  min-width: 0;
+  padding-right: 0.65rem;
+  border-right: 1px solid var(--bo-border-soft);
 }
 
 .card-editor-comment-author {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
   min-width: 0;
 }
 
@@ -832,13 +840,27 @@ watch(
 }
 
 .card-editor-comment-author-name {
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.card-editor-comment-content {
+  position: relative;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 100%;
+  padding-right: 3.9rem;
 }
 
 .card-editor-comment-timestamp {
+  position: absolute;
+  right: 0;
+  bottom: 0;
   font-size: 0.8rem;
   color: var(--bo-muted-text);
+  line-height: 1.1;
   white-space: nowrap;
 }
 
@@ -920,6 +942,26 @@ watch(
   border-radius: 0;
   background: transparent;
   overflow-y: visible;
+}
+
+@media (max-width: 720px) {
+  .card-editor-comment {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .card-editor-comment-author-rail {
+    border-right: none;
+    padding-right: 0;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--bo-border-soft);
+  }
+
+  .card-editor-comment-author {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.45rem;
+  }
 }
 
 .card-editor-select-field {
