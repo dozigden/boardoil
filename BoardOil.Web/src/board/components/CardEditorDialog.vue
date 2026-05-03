@@ -1097,8 +1097,19 @@ watch(
 
 @media (max-width: 900px) {
   .card-editor-layout {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.1rem;
+    gap: 0.6rem;
+  }
+
+  .card-editor-main {
+    flex: 0 0 auto;
+    overflow: visible;
+    padding-right: 0;
+    margin-right: 0;
   }
 
   .card-editor-options {
