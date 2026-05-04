@@ -24,3 +24,4 @@ Read area guidance before working in that part of the system:
 - If `dotnet test` fails with sandbox socket/pipe permission errors (for example `SocketException (13): Permission denied`), rerun with escalation.
 - Follow C# coding conventions in `AGENTS/CSharpCodingConventions.md`.
 - Do not update `README.md` unless the user explicitly asks for a README change.
+- If the user gives you a number, eg #123 it is probably refering to a story on the board oil mcp server, look there first.
