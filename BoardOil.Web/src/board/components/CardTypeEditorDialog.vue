@@ -162,6 +162,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
+import { useConfirm } from '../../shared/composables/useConfirm';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import {
   createCardTypeStyleDraft,
@@ -175,6 +176,7 @@ import { useStyleDraft } from '../composables/useStyleDraft';
 const route = useRoute();
 const router = useRouter();
 const cardTypeStore = useCardTypeStore();
+const { confirm } = useConfirm();
 const { busy } = storeToRefs(cardTypeStore);
 const { createCardType, updateCardType, deleteCardType, getCardTypeById, loadCardTypes } = cardTypeStore;
 
@@ -357,9 +359,12 @@ async function deleteEditingCardType() {
     return;
   }
 
-  const confirmed = window.confirm(
-    `Delete card type "${editingCardType.value.name}"?\n\nCards using this type will be reassigned to the board default type.`
-  );
+  const confirmed = await confirm({
+    title: 'Delete card type',
+    message: `Delete card type "${editingCardType.value.name}"?\n\nCards using this type will be reassigned to the board default type.`,
+    confirmLabel: 'Delete',
+    danger: true
+  });
   if (!confirmed) {
     return;
   }

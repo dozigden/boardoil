@@ -125,6 +125,7 @@ import BoDropdown from '../../shared/components/BoDropdown.vue';
 import BoGrid from '../../shared/components/BoGrid.vue';
 import PasswordResetDialog from '../../shared/components/PasswordResetDialog.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
+import { useConfirm } from '../../shared/composables/useConfirm';
 import UserCreateDialog from '../components/UserCreateDialog.vue';
 import UserEditDialog from '../components/UserEditDialog.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
@@ -132,6 +133,7 @@ import type { ManagedUser } from '../../shared/types/authTypes';
 
 const systemApi = createSystemApi();
 const authStore = useAuthStore();
+const { confirm } = useConfirm();
 const { user: currentUser } = storeToRefs(authStore);
 const users = ref<ManagedUser[]>([]);
 const busy = ref(false);
@@ -275,7 +277,12 @@ async function deleteUser(user: ManagedUser) {
     return;
   }
 
-  const confirmed = window.confirm(`Delete user "${user.displayName}"? This removes their access and cannot be undone.`);
+  const confirmed = await confirm({
+    title: 'Delete user',
+    message: `Delete user "${user.displayName}"? This removes their access and cannot be undone.`,
+    confirmLabel: 'Delete',
+    danger: true
+  });
   if (!confirmed) {
     return;
   }

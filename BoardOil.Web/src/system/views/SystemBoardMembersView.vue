@@ -73,6 +73,7 @@ import { useRoute, useRouter } from 'vue-router';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import { createSystemApi } from '../../shared/api/systemApi';
 import { createUsersApi } from '../../shared/api/usersApi';
+import { useConfirm } from '../../shared/composables/useConfirm';
 import AddBoardMemberDialog from '../components/AddBoardMemberDialog.vue';
 import { useSystemBoardMembersStore } from '../stores/systemBoardMembersStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
@@ -84,6 +85,7 @@ const router = useRouter();
 const boardMembersStore = useSystemBoardMembersStore();
 const systemApi = createSystemApi();
 const usersApi = createUsersApi();
+const { confirm } = useConfirm();
 const feedback = useUiFeedbackStore();
 const { members, busy } = storeToRefs(boardMembersStore);
 const users = ref<UserDirectoryEntry[]>([]);
@@ -163,7 +165,12 @@ async function updateRole(userId: number, role: string) {
 }
 
 async function removeMember(member: BoardMember) {
-  const shouldRemove = window.confirm(`Remove ${member.displayName} from this board?`);
+  const shouldRemove = await confirm({
+    title: 'Remove board member',
+    message: `Remove ${member.displayName} from this board?`,
+    confirmLabel: 'Remove',
+    danger: true
+  });
   if (!shouldRemove) {
     return;
   }

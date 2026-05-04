@@ -125,11 +125,13 @@ import { createSystemApi } from '../../shared/api/systemApi';
 import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretModal.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import BoGrid from '../../shared/components/BoGrid.vue';
+import { useConfirm } from '../../shared/composables/useConfirm';
 import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.vue';
 import ClientAccountEditDialog from '../components/ClientAccountEditDialog.vue';
 import type { ClientAccount, CreateClientAccountRequest } from '../../shared/types/authTypes';
 
 const systemApi = createSystemApi();
+const { confirm } = useConfirm();
 const clients = ref<ClientAccount[]>([]);
 
 const loading = ref(false);
@@ -271,7 +273,12 @@ function openClientTokens(clientId: number) {
 }
 
 async function deleteClientAccount(client: ClientAccount) {
-  const confirmed = window.confirm(`Delete client account "${client.displayName}"? This revokes its access and cannot be undone.`);
+  const confirmed = await confirm({
+    title: 'Delete client account',
+    message: `Delete client account "${client.displayName}"? This revokes its access and cannot be undone.`,
+    confirmLabel: 'Delete',
+    danger: true
+  });
   if (!confirmed) {
     return;
   }

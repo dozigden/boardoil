@@ -164,11 +164,13 @@ import {
 import { useStyleDraft } from '../composables/useStyleDraft';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
+import { useConfirm } from '../../shared/composables/useConfirm';
 
 const route = useRoute();
 const router = useRouter();
 const cardStore = useCardStore();
 const tagStore = useTagStore();
+const { confirm } = useConfirm();
 const feedbackStore = useUiFeedbackStore();
 const { busy } = storeToRefs(tagStore);
 const { createTag, updateTagStyle, deleteTag, getTagById, getTagByName, loadTags } = tagStore;
@@ -340,7 +342,12 @@ async function deleteEditingTag() {
     return;
   }
 
-  const confirmed = window.confirm(`Delete tag "${editingTag.value.name}"?\n\nThis removes the tag from all cards and cannot be undone.`);
+  const confirmed = await confirm({
+    title: 'Delete tag',
+    message: `Delete tag "${editingTag.value.name}"?\n\nThis removes the tag from all cards and cannot be undone.`,
+    confirmLabel: 'Delete',
+    danger: true
+  });
   if (!confirmed) {
     return;
   }

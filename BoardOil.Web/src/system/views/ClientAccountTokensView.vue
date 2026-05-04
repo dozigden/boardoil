@@ -62,9 +62,11 @@ import { createSystemApi } from '../../shared/api/systemApi';
 import AccessTokenCreateDialog from '../../shared/components/AccessTokenCreateDialog.vue';
 import AccessTokenListItem from '../../shared/components/AccessTokenListItem.vue';
 import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretModal.vue';
+import { useConfirm } from '../../shared/composables/useConfirm';
 import type { AccessToken, ClientAccount, CreateAccessTokenRequest, CreateClientAccessTokenRequest } from '../../shared/types/authTypes';
 
 const systemApi = createSystemApi();
+const { confirm } = useConfirm();
 const route = useRoute();
 const router = useRouter();
 
@@ -182,7 +184,13 @@ async function revokeToken(token: AccessToken) {
     return;
   }
 
-  if (!window.confirm(`Revoke access token "${token.name}"? This cannot be undone.`)) {
+  const confirmed = await confirm({
+    title: 'Revoke access token',
+    message: `Revoke access token "${token.name}"? This cannot be undone.`,
+    confirmLabel: 'Revoke',
+    danger: true
+  });
+  if (!confirmed) {
     return;
   }
 

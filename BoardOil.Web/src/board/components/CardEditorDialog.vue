@@ -257,6 +257,7 @@ import UserAvatar from '../../shared/components/UserAvatar.vue';
 import CardTagEditor from './CardTagEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
+import { useConfirm } from '../../shared/composables/useConfirm';
 import { useBoardStore } from '../stores/boardStore';
 import { useBoardMembersStore } from '../stores/boardMembersStore';
 import { useCardStore } from '../stores/cardStore';
@@ -284,6 +285,7 @@ const { loadCardComments, addCardComment: addCardCommentAction } = commentStore;
 const { loadMembers } = boardMembersStore;
 const { loadCardTypes } = cardTypeStore;
 const { ensureTagsExist } = tagStore;
+const { confirm } = useConfirm();
 const maxDescriptionLength = 20_000;
 const maxCommentLength = 4_000;
 type CardDraft = {
@@ -566,7 +568,12 @@ async function deleteEditingCard() {
     return;
   }
 
-  const shouldDelete = window.confirm(`Delete card "${cardDraft.value.title}"?`);
+  const shouldDelete = await confirm({
+    title: 'Delete card',
+    message: `Delete card "${cardDraft.value.title}"?`,
+    confirmLabel: 'Delete',
+    danger: true
+  });
   if (!shouldDelete) {
     return;
   }
@@ -582,7 +589,11 @@ async function archiveEditingCard() {
     return;
   }
 
-  const shouldArchive = window.confirm(`Archive card "${cardDraft.value.title}"?`);
+  const shouldArchive = await confirm({
+    title: 'Archive card',
+    message: `Archive card "${cardDraft.value.title}"?`,
+    confirmLabel: 'Archive'
+  });
   if (!shouldArchive) {
     return;
   }

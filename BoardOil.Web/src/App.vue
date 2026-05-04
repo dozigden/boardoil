@@ -12,6 +12,7 @@
       </RouterView>
     </section>
     <RouterView name="dialog" />
+    <ConfirmDialogHost />
   </main>
 </template>
 
@@ -20,6 +21,7 @@ import { storeToRefs } from 'pinia';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterView, useRoute, type RouteLocationNormalizedLoaded } from 'vue-router';
 import AppHeader from './site/components/AppHeader.vue';
+import ConfirmDialogHost from './shared/components/ConfirmDialogHost.vue';
 import { useBoardCatalogueStore } from './shared/stores/boardCatalogueStore';
 import { useBoardStore } from './board/stores/boardStore';
 import { useTagStore } from './board/stores/tagStore';
