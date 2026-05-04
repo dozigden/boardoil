@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   publish:
-    name: Build and Publish Nightly to GHCR
+    name: Build and Publish Nightly to GHCR and Docker Hub
     runs-on: ubuntu-latest
 
     steps:
@@ -33,8 +33,14 @@ jobs:
       - name: Compute image name
         id: image
         run: |
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
-          echo "name=${IMAGE}" >> "$GITHUB_OUTPUT"
+          REPO_LOWER="${GITHUB_REPOSITORY,,}"
+          REPO_NAME_LOWER="${GITHUB_REPOSITORY##*/}"
+          REPO_NAME_LOWER="${REPO_NAME_LOWER,,}"
+          GHCR_IMAGE="ghcr.io/${REPO_LOWER}"
+          DOCKERHUB_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${REPO_NAME_LOWER}"
+
+          echo "ghcr_name=${GHCR_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "dockerhub_name=${DOCKERHUB_IMAGE}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve app version
         id: app_version
@@ -80,12 +86,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        if: steps.changes.outputs.should_build == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Generate Docker metadata
         if: steps.changes.outputs.should_build == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ steps.image.outputs.name }}
+          images: |
+            ${{ steps.image.outputs.ghcr_name }}
+            ${{ steps.image.outputs.dockerhub_name }}
           tags: |
             type=raw,value=nightly
             type=raw,value=nightly-${{ steps.changes.outputs.short_sha }}
