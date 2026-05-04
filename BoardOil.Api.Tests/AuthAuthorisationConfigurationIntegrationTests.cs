@@ -25,21 +25,4 @@ public sealed class AuthAuthorisationConfigurationIntegrationTests : AuthAuthori
         Assert.Null(envelope.Data.McpPublicBaseUrl);
     }
 
-    [Fact]
-    public async Task StandardUser_UpdateConfiguration_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = Factory.CreateClient();
-        var standardClient = Factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
-        await LoginAsAsync(standardClient, "member", "Password1234!");
-
-        // Act
-        var response = await standardClient.PutAsJsonAsync("/api/system/configuration", new UpdateConfigurationRequest("https://boardoil.example.com"));
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
 }

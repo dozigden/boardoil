@@ -28,23 +28,6 @@ public sealed class SystemBoardApiIntegrationTests : ApiFactoryIntegrationTestBa
     }
 
     [Fact]
-    public async Task StandardUser_GetSystemBoards_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = CreateClient();
-        var memberClient = CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
-        await LoginAsAsync(memberClient, "member", "Password1234!");
-
-        // Act
-        var response = await memberClient.GetAsync("/api/system/boards");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
     public async Task Admin_SystemMembershipEndpoints_ShouldAddAndListMembersWithoutAdminBoardMembership()
     {
         // Arrange

@@ -12,16 +12,24 @@ namespace BoardOil.Api.Tests;
 public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisationIntegrationTestBase
 {
     [Fact]
-    public async Task AnonymousUser_GetBoard_ShouldReturnUnauthorized()
+    public async Task AnonymousUser_ProtectedRoutes_ShouldReturnUnauthorized()
     {
         // Arrange
         var client = Factory.CreateClient();
+        var protectedRoutes = new[]
+        {
+            "/api/boards/1",
+            "/api/users",
+            "/api/system/users",
+            "/api/users/me/profile-image"
+        };
 
-        // Act
-        var response = await client.GetAsync("/api/boards/1");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        // Act + Assert
+        foreach (var route in protectedRoutes)
+        {
+            var response = await client.GetAsync(route);
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
     }
 
     [Fact]

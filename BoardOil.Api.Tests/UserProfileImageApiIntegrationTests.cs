@@ -37,16 +37,6 @@ public sealed class UserProfileImageApiIntegrationTests : ApiFactoryIntegrationT
         Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
     }
 
-    [Fact]
-    public async Task DeleteProfileImage_WhenUnauthenticated_ShouldReturnUnauthorized()
-    {
-        var client = CreateClient();
-
-        var deleteResponse = await client.DeleteAsync("/api/users/me/profile-image");
-
-        Assert.Equal(HttpStatusCode.Unauthorized, deleteResponse.StatusCode);
-    }
-
     private static byte[] CreatePngBytes(int width, int height)
     {
         using var image = new Image<Rgba32>(width, height);

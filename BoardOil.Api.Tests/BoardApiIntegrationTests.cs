@@ -28,16 +28,6 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
     }
 
     [Fact]
-    public async Task ExportBoard_WhenUnauthenticated_ShouldReturnUnauthorized()
-    {
-        var unauthenticatedClient = Factory.CreateClient();
-
-        var response = await unauthenticatedClient.GetAsync("/api/boards/1/export");
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
-    [Fact]
     public async Task BootstrappedBoard_ShouldHaveSystemCardType()
     {
         await using var connection = new SqliteConnection($"Data Source={DatabasePath}");

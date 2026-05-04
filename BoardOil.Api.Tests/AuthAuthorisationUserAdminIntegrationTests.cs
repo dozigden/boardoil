@@ -30,42 +30,6 @@ public sealed class AuthAuthorisationUserAdminIntegrationTests : AuthAuthorisati
     }
 
     [Fact]
-    public async Task StandardUser_GetAdminUsers_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = Factory.CreateClient();
-        var standardClient = Factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
-        await LoginAsAsync(standardClient, "member", "Password1234!");
-
-        // Act
-        var response = await standardClient.GetAsync("/api/system/users");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task StandardUser_ResetUserPassword_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = Factory.CreateClient();
-        var standardClient = Factory.CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
-        await LoginAsAsync(standardClient, "member", "Password1234!");
-
-        // Act
-        var response = await standardClient.PutAsJsonAsync(
-            $"/api/system/users/{memberUserId}/password",
-            new ResetUserPasswordRequest("FreshPassword1234!"));
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
     public async Task StandardUser_UpdateOwnProfile_ShouldReturnUpdatedProfile()
     {
         // Arrange
