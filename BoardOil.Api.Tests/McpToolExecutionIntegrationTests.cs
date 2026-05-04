@@ -366,7 +366,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
     }
 
     [Fact]
-    public async Task BoardSnapshotsAndMutations_ShouldExposeCanonicalIdFields()
+    public async Task CanonicalIdContracts_AndMutations_ShouldSucceed()
     {
         // Arrange
         var client = CreateClient();
@@ -382,7 +382,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                 name = "board.get",
                 arguments = new { id = 1 }
             },
-            "board-get-compat-output",
+            "board-get-canonical-contract",
             patToken);
         Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
         using var boardGetPayload = await McpJsonRpcClient.ParseJsonAsync(boardGetResponse);
@@ -409,12 +409,12 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                 {
                     boardId = 1,
                     columnId = todoColumn.GetProperty("id").GetInt32(),
-                    title = "Compat output MCP card",
+                    title = "Canonical contract MCP card",
                     description = "",
                     tagNames = Array.Empty<string>()
                 }
             },
-            "card-create-compat-output",
+            "card-create-canonical-contract",
             patToken);
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
@@ -437,7 +437,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                 name = "board.get",
                 arguments = new { id = 1 }
             },
-            "board-get-verify-compat-output",
+            "board-get-verify-canonical-contract",
             patToken);
         Assert.Equal(HttpStatusCode.OK, verifyResponse.StatusCode);
         using var verifyPayload = await McpJsonRpcClient.ParseJsonAsync(verifyResponse);
@@ -446,7 +446,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             .GetProperty("columns")
             .EnumerateArray()
             .SelectMany(column => column.GetProperty("cards").EnumerateArray())
-            .Single(card => card.GetProperty("title").GetString() == "Compat output MCP card");
+            .Single(card => card.GetProperty("title").GetString() == "Canonical contract MCP card");
 
         // Assert
         Assert.True(boardCard.TryGetProperty("id", out _));
@@ -457,60 +457,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         Assert.True(boardCard.TryGetProperty("tags", out _));
         Assert.False(boardCard.TryGetProperty("cardId", out _));
         Assert.False(boardCard.TryGetProperty("boardColumnId", out _));
-    }
 
-    [Fact]
-    public async Task ToolsAndMutations_WithCanonicalIds_ShouldSucceed()
-    {
-        // Arrange
-        var client = CreateClient();
-        await RegisterInitialAdminAsync(client);
-        var patToken = await CreateMachinePatAsync(client);
-
-        // Act
-        var boardGetResponse = await McpJsonRpcClient.SendRequestAsync(
-            client,
-            "tools/call",
-            new
-            {
-                name = "board.get",
-                arguments = new { id = 1 }
-            },
-            "board-get-canonical-id",
-            patToken);
-        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
-        using var boardGetPayload = await McpJsonRpcClient.ParseJsonAsync(boardGetResponse);
-
-        var todoColumnId = McpJsonRpcClient.GetStructuredContent(boardGetPayload)
-            .GetProperty("columns")
-            .EnumerateArray()
-            .Single(column => column.GetProperty("title").GetString() == "Todo")
-            .GetProperty("id")
-            .GetInt32();
-
-        var createResponse = await McpJsonRpcClient.SendRequestAsync(
-            client,
-            "tools/call",
-            new
-            {
-                name = "card.create",
-                arguments = new
-                {
-                    boardId = 1,
-                    columnId = todoColumnId,
-                    title = "Canonical MCP card",
-                    description = "created with canonical ids",
-                    tagNames = Array.Empty<string>()
-                }
-            },
-            "card-create-canonical-id",
-            patToken);
-        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
-        using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
-
-        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
-        var createdCardId = createdCard.GetProperty("id").GetInt32();
-        var createdCardTypeId = createdCard.GetProperty("cardTypeId").GetInt32();
+        var createdCardId = boardCard.GetProperty("id").GetInt32();
+        var createdCardTypeId = boardCard.GetProperty("cardTypeId").GetInt32();
 
         var updateResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -523,12 +472,12 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     boardId = 1,
                     id = createdCardId,
                     cardTypeId = createdCardTypeId,
-                    title = "Canonical MCP card updated",
+                    title = "Canonical contract MCP card updated",
                     description = "updated with canonical ids",
                     tagNames = Array.Empty<string>()
                 }
             },
-            "card-update-canonical-id",
+            "card-update-canonical-contract",
             patToken);
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
 
@@ -544,10 +493,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     id = createdCardId
                 }
             },
-            "card-delete-canonical-id",
+            "card-delete-canonical-contract",
             patToken);
-
-        // Assert
         Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
     }
 
@@ -955,161 +902,43 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
     }
 
     [Fact]
-    public async Task CardCreate_WhenMultipleIdentifierInputsAreInvalid_ShouldReturnAllValidationErrors()
+    public async Task Mutations_WhenMultipleIdentifierInputsAreInvalid_ShouldReturnAllValidationErrors()
     {
-        // Arrange
         var client = CreateClient();
         await RegisterInitialAdminAsync(client);
         var patToken = await CreateMachinePatAsync(client);
 
-        // Act
-        var response = await McpJsonRpcClient.SendRequestAsync(
-            client,
-            "tools/call",
-            new
-            {
-                name = "card.create",
-                arguments = new
+        var cases = new (string ToolName, object Arguments, string RequestId, string[] ExpectedValidationKeys)[]
+        {
+            ("card.create", new { boardId = 0, columnId = 0, title = "Invalid create", description = "validation test", tagNames = Array.Empty<string>() }, "card-create-multi-validation", ["boardId", "columnId"]),
+            ("card.update", new { boardId = 0, id = 0, cardTypeId = 0, title = "Invalid update", description = "validation test", tagNames = Array.Empty<string>() }, "card-update-multi-validation", ["boardId", "id", "cardTypeId"]),
+            ("card.move", new { boardId = 0, id = 0, columnId = 0, afterId = 0 }, "card-move-multi-validation", ["boardId", "id", "columnId", "afterId"]),
+            ("card.delete", new { boardId = 0, id = 0 }, "card-delete-multi-validation", ["boardId", "id"])
+        };
+
+        foreach (var scenario in cases)
+        {
+            var response = await McpJsonRpcClient.SendRequestAsync(
+                client,
+                "tools/call",
+                new
                 {
-                    boardId = 0,
-                    columnId = 0,
-                    title = "Invalid create",
-                    description = "validation test",
-                    tagNames = Array.Empty<string>()
-                }
-            },
-            "card-create-multi-validation",
-            patToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+                    name = scenario.ToolName,
+                    arguments = scenario.Arguments
+                },
+                scenario.RequestId,
+                patToken);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
 
-        // Assert
-        var structuredContent = McpJsonRpcClient.GetStructuredContent(payload);
-        Assert.Equal("validation_failed", structuredContent.GetProperty("code").GetString());
-        var validationErrors = structuredContent.GetProperty("validationErrors");
-        Assert.True(validationErrors.TryGetProperty("boardId", out var boardIdErrors));
-        Assert.True(validationErrors.TryGetProperty("columnId", out var columnIdErrors));
-        Assert.NotEmpty(boardIdErrors.EnumerateArray());
-        Assert.NotEmpty(columnIdErrors.EnumerateArray());
-    }
-
-    [Fact]
-    public async Task CardUpdate_WhenMultipleIdentifierInputsAreInvalid_ShouldReturnAllValidationErrors()
-    {
-        // Arrange
-        var client = CreateClient();
-        await RegisterInitialAdminAsync(client);
-        var patToken = await CreateMachinePatAsync(client);
-
-        // Act
-        var response = await McpJsonRpcClient.SendRequestAsync(
-            client,
-            "tools/call",
-            new
+            var structuredContent = McpJsonRpcClient.GetStructuredContent(payload);
+            Assert.Equal("validation_failed", structuredContent.GetProperty("code").GetString());
+            var validationErrors = structuredContent.GetProperty("validationErrors");
+            foreach (var key in scenario.ExpectedValidationKeys)
             {
-                name = "card.update",
-                arguments = new
-                {
-                    boardId = 0,
-                    id = 0,
-                    cardTypeId = 0,
-                    title = "Invalid update",
-                    description = "validation test",
-                    tagNames = Array.Empty<string>()
-                }
-            },
-            "card-update-multi-validation",
-            patToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
-
-        // Assert
-        var structuredContent = McpJsonRpcClient.GetStructuredContent(payload);
-        Assert.Equal("validation_failed", structuredContent.GetProperty("code").GetString());
-        var validationErrors = structuredContent.GetProperty("validationErrors");
-        Assert.True(validationErrors.TryGetProperty("boardId", out var boardIdErrors));
-        Assert.True(validationErrors.TryGetProperty("id", out var idErrors));
-        Assert.True(validationErrors.TryGetProperty("cardTypeId", out var cardTypeIdErrors));
-        Assert.NotEmpty(boardIdErrors.EnumerateArray());
-        Assert.NotEmpty(idErrors.EnumerateArray());
-        Assert.NotEmpty(cardTypeIdErrors.EnumerateArray());
-    }
-
-    [Fact]
-    public async Task CardMove_WhenMultipleInputsAreInvalid_ShouldReturnAllValidationErrors()
-    {
-        // Arrange
-        var client = CreateClient();
-        await RegisterInitialAdminAsync(client);
-        var patToken = await CreateMachinePatAsync(client);
-
-        // Act
-        var response = await McpJsonRpcClient.SendRequestAsync(
-            client,
-            "tools/call",
-            new
-            {
-                name = "card.move",
-                arguments = new
-                {
-                    boardId = 0,
-                    id = 0,
-                    columnId = 0,
-                    afterId = 0
-                }
-            },
-            "card-move-multi-validation",
-            patToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
-
-        // Assert
-        var structuredContent = McpJsonRpcClient.GetStructuredContent(payload);
-        Assert.Equal("validation_failed", structuredContent.GetProperty("code").GetString());
-        var validationErrors = structuredContent.GetProperty("validationErrors");
-        Assert.True(validationErrors.TryGetProperty("boardId", out var boardIdErrors));
-        Assert.True(validationErrors.TryGetProperty("id", out var idErrors));
-        Assert.True(validationErrors.TryGetProperty("columnId", out var columnIdErrors));
-        Assert.True(validationErrors.TryGetProperty("afterId", out var afterIdErrors));
-        Assert.NotEmpty(boardIdErrors.EnumerateArray());
-        Assert.NotEmpty(idErrors.EnumerateArray());
-        Assert.NotEmpty(columnIdErrors.EnumerateArray());
-        Assert.NotEmpty(afterIdErrors.EnumerateArray());
-    }
-
-    [Fact]
-    public async Task CardDelete_WhenMultipleIdentifierInputsAreInvalid_ShouldReturnAllValidationErrors()
-    {
-        // Arrange
-        var client = CreateClient();
-        await RegisterInitialAdminAsync(client);
-        var patToken = await CreateMachinePatAsync(client);
-
-        // Act
-        var response = await McpJsonRpcClient.SendRequestAsync(
-            client,
-            "tools/call",
-            new
-            {
-                name = "card.delete",
-                arguments = new
-                {
-                    boardId = 0,
-                    id = 0
-                }
-            },
-            "card-delete-multi-validation",
-            patToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
-
-        // Assert
-        var structuredContent = McpJsonRpcClient.GetStructuredContent(payload);
-        Assert.Equal("validation_failed", structuredContent.GetProperty("code").GetString());
-        var validationErrors = structuredContent.GetProperty("validationErrors");
-        Assert.True(validationErrors.TryGetProperty("boardId", out var boardIdErrors));
-        Assert.True(validationErrors.TryGetProperty("id", out var idErrors));
-        Assert.NotEmpty(boardIdErrors.EnumerateArray());
-        Assert.NotEmpty(idErrors.EnumerateArray());
+                Assert.True(validationErrors.TryGetProperty(key, out var keyErrors), $"Expected validation key '{key}' for {scenario.ToolName}.");
+                Assert.NotEmpty(keyErrors.EnumerateArray());
+            }
+        }
     }
 }
