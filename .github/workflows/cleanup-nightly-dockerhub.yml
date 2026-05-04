@@ -1,0 +1,96 @@
+name: Cleanup Nightly Docker Hub Tags
+
+on:
+  schedule:
+    - cron: "45 3 * * *"
+  workflow_dispatch:
+    inputs:
+      keep_count:
+        description: "How many nightly-<sha> Docker Hub tags to keep"
+        required: true
+        default: "10"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Cleanup old nightly Docker Hub tags
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete old nightly tags from Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          REPO_NAMESPACE: ${{ secrets.DOCKERHUB_USERNAME }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          KEEP_COUNT: ${{ github.event.inputs.keep_count || '10' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DOCKERHUB_USERNAME:-}" ] || [ -z "${DOCKERHUB_TOKEN:-}" ]; then
+            echo "Missing Docker Hub credentials. Set DOCKERHUB_USERNAME and DOCKERHUB_TOKEN repository secrets."
+            exit 1
+          fi
+
+          if ! [[ "$KEEP_COUNT" =~ ^[0-9]+$ ]] || [ "$KEEP_COUNT" -lt 1 ]; then
+            echo "Invalid keep_count: '$KEEP_COUNT'. Must be an integer >= 1."
+            exit 1
+          fi
+
+          REPO_NAME_LOWER="$(echo "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
+
+          login_response="$(curl -fsS -X POST 'https://hub.docker.com/v2/users/login/' \
+            -H 'Content-Type: application/json' \
+            -d "{\"username\":\"${DOCKERHUB_USERNAME}\",\"password\":\"${DOCKERHUB_TOKEN}\"}")"
+
+          jwt_token="$(echo "$login_response" | jq -r '.token // empty')"
+          if [ -z "$jwt_token" ]; then
+            echo "Failed to authenticate to Docker Hub."
+            exit 1
+          fi
+
+          tmp_file="$(mktemp)"
+          next_url="https://hub.docker.com/v2/namespaces/${REPO_NAMESPACE}/repositories/${REPO_NAME_LOWER}/tags?page_size=100"
+
+          while [ -n "$next_url" ] && [ "$next_url" != "null" ]; do
+            page_json="$(curl -fsS "$next_url" -H "Authorization: JWT ${jwt_token}")"
+            echo "$page_json" | jq -c '.results[]?' >> "$tmp_file"
+            next_url="$(echo "$page_json" | jq -r '.next // empty')"
+          done
+
+          if [ ! -s "$tmp_file" ]; then
+            echo "No tags returned from Docker Hub for ${REPO_NAMESPACE}/${REPO_NAME_LOWER}."
+            exit 0
+          fi
+
+          nightly_tags="$({
+            jq -s -c '
+              map(select(.name | test("^nightly-[0-9a-f]+$")))
+              | sort_by(.last_updated)
+              | reverse
+            ' "$tmp_file"
+          })"
+
+          total_nightly="$(echo "$nightly_tags" | jq 'length')"
+          echo "Found ${total_nightly} nightly-<sha> Docker Hub tags."
+
+          if [ "$total_nightly" -le "$KEEP_COUNT" ]; then
+            echo "Nothing to delete (keep_count=${KEEP_COUNT})."
+            exit 0
+          fi
+
+          delete_tags="$(echo "$nightly_tags" | jq -r --argjson keep "$KEEP_COUNT" '.[ $keep: ] | .[] | .name')"
+          delete_count="$(wc -w <<<"$delete_tags" | tr -d ' ')"
+          echo "Deleting ${delete_count} old nightly tags..."
+
+          for tag in $delete_tags; do
+            echo "Deleting tag ${tag}"
+            curl -fsS -X DELETE \
+              "https://hub.docker.com/v2/namespaces/${REPO_NAMESPACE}/repositories/${REPO_NAME_LOWER}/tags/${tag}/" \
+              -H "Authorization: JWT ${jwt_token}"
+          done
+
+          echo "Docker Hub nightly cleanup complete."
