@@ -58,6 +58,20 @@ When runtime becomes slow, prune in this order:
 2. keep API contract/auth/middleware representatives intact
 3. keep migrations/realtime/MCP integration suites intact unless explicitly superseded
 
+## Auth and MCP Policy Patterns
+
+For API auth coverage, prefer policy-level sentinels over endpoint-by-endpoint `401/403` assertions:
+
+- Keep a small set of representative auth boundary tests per policy shape (`authenticated`, `admin`, board membership variations).
+- Avoid duplicating anonymous/forbidden assertions on every endpoint when the route uses an already-covered policy.
+- Keep one endpoint metadata guard test that inspects mapped `/api/*` routes and fails if protected routes are missing authorization metadata.
+
+For security-behaviour suites, keep integration depth where transport/auth semantics are the behaviour:
+
+- Keep MCP bearer/path/auth-mode suites as integration tests.
+- Keep PAT scope behaviour and machine-token auth flow suites as integration tests.
+- Keep CSRF and internal API-key boundary checks as integration tests.
+
 ## Naming Expectations
 
 Use names that make ownership clear:
