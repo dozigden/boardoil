@@ -13,6 +13,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import { computed, watch } from 'vue';
 import { isHttpOrHttpsUrl } from '../utils/linkUrl';
+import { normaliseMarkdown as normaliseMarkdownValue } from '../utils/markdown';
 
 const props = withDefaults(defineProps<{
   modelValue: string;
@@ -80,11 +81,7 @@ const tiptapEditor = useEditor({
 });
 
 function normaliseMarkdown(value: string) {
-  if (!Number.isFinite(props.maxLength) || props.maxLength <= 0) {
-    return value;
-  }
-
-  return value.slice(0, props.maxLength);
+  return normaliseMarkdownValue(value, props.maxLength);
 }
 
 function setEditorContent(value: string) {

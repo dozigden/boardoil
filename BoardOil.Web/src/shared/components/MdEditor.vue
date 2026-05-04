@@ -50,6 +50,7 @@ import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorT
 import { runMdEditorToolbarAction } from './mdEditorController';
 import { syncPlainTextAreaHeight } from './mdEditorPlainTextSizing';
 import { isHttpOrHttpsUrl } from '../utils/linkUrl';
+import { normaliseMarkdown as normaliseMarkdownValue } from '../utils/markdown';
 
 const props = withDefaults(defineProps<{
   modelValue: string;
@@ -303,11 +304,7 @@ function removeLinkFromDialog() {
 }
 
 function normaliseMarkdown(value: string) {
-  if (!Number.isFinite(props.maxLength) || props.maxLength <= 0) {
-    return value;
-  }
-
-  return value.slice(0, props.maxLength);
+  return normaliseMarkdownValue(value, props.maxLength);
 }
 
 function setEditorContent(value: string) {
