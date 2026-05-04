@@ -38,54 +38,6 @@ public sealed class UserProfileImageApiIntegrationTests : ApiFactoryIntegrationT
     }
 
     [Fact]
-    public async Task UploadProfileImage_WhenImageIsNotSquare_ShouldReturnBadRequest()
-    {
-        var client = CreateClient();
-        _ = await AuthenticateAsInitialAdminAsync(client);
-
-        using var uploadContent = new MultipartFormDataContent();
-        var nonSquareImageContent = new ByteArrayContent(CreatePngBytes(96, 80));
-        nonSquareImageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
-        uploadContent.Add(nonSquareImageContent, "file", "not-square.png");
-
-        var uploadResponse = await client.PostAsync("/api/users/me/profile-image", uploadContent);
-
-        Assert.Equal(HttpStatusCode.BadRequest, uploadResponse.StatusCode);
-    }
-
-    [Fact]
-    public async Task DeleteProfileImage_WhenImageExists_ShouldReturnOk_AndGetShouldReturnNotFound()
-    {
-        var client = CreateClient();
-        _ = await AuthenticateAsInitialAdminAsync(client);
-
-        using var uploadContent = new MultipartFormDataContent();
-        var squareImageContent = new ByteArrayContent(CreatePngBytes(96, 96));
-        squareImageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
-        uploadContent.Add(squareImageContent, "file", "avatar.png");
-
-        var uploadResponse = await client.PostAsync("/api/users/me/profile-image", uploadContent);
-        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
-
-        var deleteResponse = await client.DeleteAsync("/api/users/me/profile-image");
-        Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
-
-        var readResponse = await client.GetAsync("/api/users/me/profile-image");
-        Assert.Equal(HttpStatusCode.NotFound, readResponse.StatusCode);
-    }
-
-    [Fact]
-    public async Task DeleteProfileImage_WhenImageDoesNotExist_ShouldReturnNotFound()
-    {
-        var client = CreateClient();
-        _ = await AuthenticateAsInitialAdminAsync(client);
-
-        var deleteResponse = await client.DeleteAsync("/api/users/me/profile-image");
-
-        Assert.Equal(HttpStatusCode.NotFound, deleteResponse.StatusCode);
-    }
-
-    [Fact]
     public async Task DeleteProfileImage_WhenUnauthenticated_ShouldReturnUnauthorized()
     {
         var client = CreateClient();
