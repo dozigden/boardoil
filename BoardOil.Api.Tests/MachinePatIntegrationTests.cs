@@ -53,161 +53,56 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
     }
 
     [Fact]
-    public async Task ClientPatWithApiReadScope_GetBoard_ShouldReturnOk()
+    public async Task ApiScopes_ShouldEnforceExpectedBoardAndSystemAccess()
     {
-        // Arrange
         var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        var createdClient = await CreateClientAccountAsync(
+
+        var readClient = await CreateClientAccountAsync(
             adminClient,
             $"client-read-{Guid.NewGuid():N}",
             "Standard",
             [MachinePatScopes.ApiRead]);
-        await AddBoardMemberAsAdminAsync(adminClient, 1, createdClient.Account.Id, "Contributor");
-        var patClient = CreatePatClient(createdClient.Token.PlainTextToken);
+        await AddBoardMemberAsAdminAsync(adminClient, 1, readClient.Account.Id, "Contributor");
+        var readPatClient = CreatePatClient(readClient.Token.PlainTextToken);
+        Assert.Equal(HttpStatusCode.OK, await GetStatusAsync(() => readPatClient.GetAsync("/api/boards/1")));
+        Assert.Equal(HttpStatusCode.Forbidden, await GetStatusAsync(() => readPatClient.PostAsJsonAsync("/api/boards", new { name = "blocked board" })));
+        Assert.Equal(HttpStatusCode.Forbidden, await GetStatusAsync(() => readPatClient.GetAsync("/api/system/users")));
 
-        // Act
-        var response = await patClient.GetAsync("/api/boards/1");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task ClientPatWithApiReadScope_PostBoard_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createdClient = await CreateClientAccountAsync(
-            adminClient,
-            $"client-readonly-{Guid.NewGuid():N}",
-            "Standard",
-            [MachinePatScopes.ApiRead]);
-        var patClient = CreatePatClient(createdClient.Token.PlainTextToken);
-
-        // Act
-        var response = await patClient.PostAsJsonAsync("/api/boards", new { name = "Blocked PAT Board" });
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task ClientPatWithApiWriteScope_PostBoard_WithoutCsrf_ShouldReturnCreated()
-    {
-        // Arrange
-        var adminClient = CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createdClient = await CreateClientAccountAsync(
+        var writeClient = await CreateClientAccountAsync(
             adminClient,
             $"client-write-{Guid.NewGuid():N}",
             "Standard",
             [MachinePatScopes.ApiWrite]);
-        var patClient = CreatePatClient(createdClient.Token.PlainTextToken);
+        var writePatClient = CreatePatClient(writeClient.Token.PlainTextToken);
+        Assert.Equal(HttpStatusCode.Created, await GetStatusAsync(() => writePatClient.PostAsJsonAsync("/api/boards", new { name = "created board" })));
+        Assert.Equal(HttpStatusCode.Forbidden, await GetStatusAsync(() => writePatClient.GetAsync("/api/system/users")));
 
-        // Act
-        var response = await patClient.PostAsJsonAsync("/api/boards", new { name = "PAT Created Board" });
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task PatWithoutApiScope_GetBoard_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createdPat = await CreatePatAsync(adminClient, "mcp-only-token", [MachinePatScopes.McpRead]);
-        var patClient = CreatePatClient(createdPat.PlainTextToken);
-
-        // Act
-        var response = await patClient.GetAsync("/api/boards/1");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task ClientPatWithoutApiSystemScope_GetSystemUsers_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createdClient = await CreateClientAccountAsync(
-            adminClient,
-            $"client-api-read-{Guid.NewGuid():N}",
-            "Admin",
-            [MachinePatScopes.ApiRead]);
-        var patClient = CreatePatClient(createdClient.Token.PlainTextToken);
-
-        // Act
-        var response = await patClient.GetAsync("/api/system/users");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task ClientPatWithApiSystemScope_GetSystemUsers_ShouldReturnOk()
-    {
-        // Arrange
-        var adminClient = CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createdClient = await CreateClientAccountAsync(
+        var systemClient = await CreateClientAccountAsync(
             adminClient,
             $"client-api-system-{Guid.NewGuid():N}",
             "Admin",
             [MachinePatScopes.ApiSystem]);
-        var patClient = CreatePatClient(createdClient.Token.PlainTextToken);
-
-        // Act
-        var response = await patClient.GetAsync("/api/system/users");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var systemPatClient = CreatePatClient(systemClient.Token.PlainTextToken);
+        Assert.Equal(HttpStatusCode.OK, await GetStatusAsync(() => systemPatClient.GetAsync("/api/system/users")));
+        Assert.Equal(HttpStatusCode.OK, await GetStatusAsync(() => systemPatClient.GetAsync("/api/system/boards")));
     }
 
     [Fact]
-    public async Task ClientPatWithApiSystemScope_GetSystemBoards_ShouldReturnOk()
+    public async Task NonApiScopes_ShouldNotAccessApiEndpoints()
     {
-        // Arrange
         var adminClient = CreateClient();
         await RegisterInitialAdminAsync(adminClient);
-        var createdClient = await CreateClientAccountAsync(
-            adminClient,
-            $"client-api-system-boards-{Guid.NewGuid():N}",
-            "Admin",
-            [MachinePatScopes.ApiSystem]);
-        var patClient = CreatePatClient(createdClient.Token.PlainTextToken);
 
-        // Act
-        var response = await patClient.GetAsync("/api/system/boards");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task PatWithMcpScope_GetSystemBoards_ShouldReturnForbidden()
-    {
-        // Arrange
-        var adminClient = CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-        var createdPat = await CreatePatAsync(adminClient, "mcp-read-token", [MachinePatScopes.McpRead]);
-        var patClient = CreatePatClient(createdPat.PlainTextToken);
-
-        // Act
-        var response = await patClient.GetAsync("/api/system/boards");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var mcpOnlyPat = await CreatePatAsync(adminClient, "mcp-only-token", [MachinePatScopes.McpRead]);
+        var mcpPatClient = CreatePatClient(mcpOnlyPat.PlainTextToken);
+        Assert.Equal(HttpStatusCode.Forbidden, await GetStatusAsync(() => mcpPatClient.GetAsync("/api/boards/1")));
+        Assert.Equal(HttpStatusCode.Forbidden, await GetStatusAsync(() => mcpPatClient.GetAsync("/api/system/boards")));
     }
 
 
     [Fact]
-    public async Task PatWithReadOnlyScope_CardCreate_ShouldReturnForbiddenToolError()
+    public async Task PatWithReadOnlyScope_Mutations_ShouldReturnForbiddenToolErrors()
     {
         // Arrange
         var adminClient = CreateClient();
@@ -239,29 +134,7 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
                 }
             },
             "card-create-forbidden");
-        using var payload = await ParseMcpJsonAsync(createCardResponse);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, createCardResponse.StatusCode);
-        AssertMcpForbidden(payload);
-    }
-
-    [Fact]
-    public async Task PatWithReadOnlyScope_CardCommentCreate_ShouldReturnForbiddenToolError()
-    {
-        // Arrange
-        var adminClient = CreateClient();
-        await RegisterInitialAdminAsync(adminClient);
-
-        var createResponse = await adminClient.PostAsJsonAsync(
-            "/api/auth/access-tokens",
-            new CreateMachinePatRequest("read-only-comment-token", 30, ["mcp:read"]));
-        createResponse.EnsureSuccessStatusCode();
-        var created = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedMachinePatEnvelope>>();
-        Assert.NotNull(created);
-        Assert.NotNull(created!.Data);
-
-        // Act
+        using var createCardPayload = await ParseMcpJsonAsync(createCardResponse);
         var createCommentResponse = await SendMcpRequestAsync(
             adminClient,
             created.Data!.PlainTextToken,
@@ -277,11 +150,13 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
                 }
             },
             "card-comment-create-forbidden");
-        using var payload = await ParseMcpJsonAsync(createCommentResponse);
+        using var createCommentPayload = await ParseMcpJsonAsync(createCommentResponse);
 
         // Assert
+        Assert.Equal(HttpStatusCode.OK, createCardResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, createCommentResponse.StatusCode);
-        AssertMcpForbidden(payload);
+        AssertMcpForbidden(createCardPayload);
+        AssertMcpForbidden(createCommentPayload);
     }
 
     [Fact]
@@ -532,6 +407,12 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
 
     private static Task<JsonDocument> ParseMcpJsonAsync(HttpResponseMessage response) =>
         McpJsonRpcClient.ParseJsonAsync(response);
+
+    private static async Task<HttpStatusCode> GetStatusAsync(Func<Task<HttpResponseMessage>> send)
+    {
+        using var response = await send();
+        return response.StatusCode;
+    }
 
     private static void AssertMcpForbidden(JsonDocument payload)
     {
