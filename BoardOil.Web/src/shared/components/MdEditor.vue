@@ -453,7 +453,8 @@ watch(
   border-radius: 8px;
   padding: 0.5rem;
   overflow-y: hidden;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   line-height: 1.35;
 }
