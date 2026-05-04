@@ -5,6 +5,7 @@ This file defines how agents should manage work tracking and source control in t
 ## MCP Board Operations
 
 - Story `#82` established direct MCP board operations as the preferred and default workflow.
+- This repository's default board is BoardOil Development (`boardId: 1`).
 - Repository proxy scripts for board MCP operations have been removed.
 - Use direct MCP tools for board operations.
 - For card description-only updates, `card.update` is a full-state update. Always provide:

@@ -16,6 +16,7 @@ Read area guidance before working in that part of the system:
 
 - Board MCP operations:
   - use direct MCP board operations
+  - this repository uses BoardOil Development (`boardId: 1`) as the default board
   - repository proxy scripts for board MCP operations have been removed
   - for card description-only updates via `card.update`, include full required payload (`boardId`, `id`, `cardTypeId`, `title`, `description`, `tagNames`)
 - For any changes under `BoardOil.Web`, run `npm run check` in `BoardOil.Web` before committing.
