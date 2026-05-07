@@ -8,7 +8,7 @@
       'card--drop-after': dropIndicator === 'after'
     }"
     :style="cardStyle"
-    :draggable="!selectionMode"
+    :draggable="!selectionMode || selected"
     :role="selectionMode ? 'checkbox' : 'button'"
     :aria-checked="selectionMode ? selected : undefined"
     tabindex="0"
@@ -92,7 +92,7 @@ const assignedUserImageUrl = computed(() =>
 );
 
 function onDragStart(event: DragEvent) {
-  if (props.selectionMode) {
+  if (props.selectionMode && !props.selected) {
     event.preventDefault();
     return;
   }

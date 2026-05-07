@@ -2,6 +2,12 @@ import { computed, ref, watch, type Ref } from 'vue';
 import type { Board, Card as BoardCard } from '../../shared/types/boardTypes';
 
 type ArchiveCardsOperation = (cardIds: number[], boardId: number | null) => Promise<boolean>;
+type BulkMoveCardsOperation = (
+  cardIds: number[],
+  targetColumnId: number,
+  targetCardId: number | null,
+  boardId: number | null
+) => Promise<boolean>;
 
 type BoardIdResolver = () => number | null;
 
@@ -10,6 +16,7 @@ type OpenArchivedCardsAction = () => Promise<void>;
 export function useBoardCardSelection(
   board: Ref<Board | null>,
   archiveCards: ArchiveCardsOperation,
+  bulkMoveCards: BulkMoveCardsOperation,
   resolveBoardId: BoardIdResolver,
   openArchivedCards: OpenArchivedCardsAction
 ) {
@@ -17,6 +24,7 @@ export function useBoardCardSelection(
   const selectedCardIds = ref<number[]>([]);
   const isArchiveConfirmOpen = ref(false);
   const isArchivingSelectedCards = ref(false);
+  const isMovingSelectedCards = ref(false);
 
   const cardsById = computed(() => {
     if (!board.value) {
@@ -62,6 +70,7 @@ export function useBoardCardSelection(
 
   const archiveConveyorDisabled = computed(() =>
     isArchivingSelectedCards.value
+    || isMovingSelectedCards.value
     || (isCardSelectionMode.value && selectedCardCount.value === 0)
   );
 
@@ -127,7 +136,7 @@ export function useBoardCardSelection(
   }
 
   function closeArchiveConfirm() {
-    if (isArchivingSelectedCards.value) {
+    if (isArchivingSelectedCards.value || isMovingSelectedCards.value) {
       return;
     }
 
@@ -161,11 +170,42 @@ export function useBoardCardSelection(
     }
   }
 
+  async function moveSelectedCardsByDropTarget(targetColumnId: number, targetCardId: number | null) {
+    if (!isCardSelectionMode.value || isArchivingSelectedCards.value || isMovingSelectedCards.value) {
+      return false;
+    }
+
+    const boardId = resolveBoardId();
+    if (boardId === null) {
+      return false;
+    }
+
+    const cardIds = selectedCards.value.map(card => card.id);
+    if (cardIds.length === 0) {
+      return true;
+    }
+
+    isMovingSelectedCards.value = true;
+    try {
+      const moved = await bulkMoveCards(cardIds, targetColumnId, targetCardId, boardId);
+      if (!moved) {
+        return false;
+      }
+
+      isCardSelectionMode.value = false;
+      clearCardSelection();
+      return true;
+    } finally {
+      isMovingSelectedCards.value = false;
+    }
+  }
+
   function resetSelectionState() {
     isCardSelectionMode.value = false;
     clearCardSelection();
     isArchiveConfirmOpen.value = false;
     isArchivingSelectedCards.value = false;
+    isMovingSelectedCards.value = false;
   }
 
   watch(cardsById, currentCardsById => {
@@ -179,6 +219,7 @@ export function useBoardCardSelection(
     selectedCardCount,
     isArchiveConfirmOpen,
     isArchivingSelectedCards,
+    isMovingSelectedCards,
     archiveConveyorLabel,
     archiveConveyorAriaLabel,
     archiveConveyorDisabled,
@@ -191,6 +232,7 @@ export function useBoardCardSelection(
     handleArchiveConveyorClick,
     closeArchiveConfirm,
     confirmArchiveSelectedCards,
+    moveSelectedCardsByDropTarget,
     resetSelectionState
   };
 }

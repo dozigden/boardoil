@@ -189,6 +189,17 @@ export function createBoardApi() {
     });
   }
 
+  async function editCards(
+    boardId: number,
+    cardIds: number[],
+    move: { targetColumnId: number; positionAfterCardId: number | null } | null
+  ): Promise<Result<Card[], AppError>> {
+    return patchData<Card[]>(`/api/boards/${boardId}/cards/edit`, {
+      cardIds,
+      move
+    });
+  }
+
   async function deleteCard(boardId: number, cardId: number): Promise<Result<void, AppError>> {
     return deleteJson(`/api/boards/${boardId}/cards/${cardId}`);
   }
@@ -401,6 +412,7 @@ export function createBoardApi() {
     createCard,
     saveCard,
     moveCard,
+    editCards,
     deleteCard,
     getCardComments,
     createCardComment,

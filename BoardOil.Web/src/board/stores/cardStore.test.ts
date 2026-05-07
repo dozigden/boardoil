@@ -10,6 +10,7 @@ const api = {
   createCard: vi.fn(),
   saveCard: vi.fn(),
   moveCard: vi.fn(),
+  editCards: vi.fn(),
   deleteCard: vi.fn(),
   archiveCard: vi.fn(),
   archiveCards: vi.fn()
@@ -116,6 +117,52 @@ describe('cardStore', () => {
     expect(store.getCardsForColumn(1)).toHaveLength(0);
     expect(store.getCardsForColumn(2).map(x => x.id)).toEqual([101]);
     expect(api.moveCard).toHaveBeenCalledWith(1, 101, 2, null);
+  });
+
+  it('moves multiple cards with a single bulk edit call', async () => {
+    const store = useCardStore();
+    const board = makeBoard();
+    board.columns[0].cards.push({
+      id: 102,
+      boardColumnId: 1,
+      cardTypeId: 1,
+      cardTypeName: 'Story',
+      cardTypeEmoji: null,
+      title: 'Task B',
+      description: '',
+      sortKey: '00000000000000000002',
+      tags: [],
+      tagNames: [],
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:00:00Z'
+    });
+    board.columns[1].cards.push({
+      id: 201,
+      boardColumnId: 2,
+      cardTypeId: 1,
+      cardTypeName: 'Story',
+      cardTypeEmoji: null,
+      title: 'Task C',
+      description: '',
+      sortKey: '00000000000000000003',
+      tags: [],
+      tagNames: [],
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:00:00Z'
+    });
+    store.replaceBoardCards(board.id, board.columns);
+
+    api.editCards.mockResolvedValue(ok([
+      { ...store.getCardById(101)!, boardColumnId: 2, sortKey: '00000000000000000004' },
+      { ...store.getCardById(102)!, boardColumnId: 2, sortKey: '00000000000000000005' }
+    ]));
+
+    const moved = await store.bulkMoveCards([101, 102], 2, null);
+
+    expect(moved).toBe(true);
+    expect(api.editCards).toHaveBeenCalledWith(1, [101, 102], { targetColumnId: 2, positionAfterCardId: 201 });
+    expect(store.getCardsForColumn(1)).toHaveLength(0);
+    expect(store.getCardsForColumn(2).map(x => x.id)).toEqual([201, 101, 102]);
   });
 
   it('translates drop-before-card into predecessor anchor', async () => {

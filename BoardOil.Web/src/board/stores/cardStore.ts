@@ -162,6 +162,48 @@ export const useCardStore = defineStore('card', () => {
     return true;
   }
 
+  async function bulkMoveCards(
+    cardIds: number[],
+    targetColumnId: number,
+    targetCardId: number | null,
+    boardId: number | null = activeBoardId.value
+  ) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
+      return false;
+    }
+
+    const uniqueCardIds = [...new Set(cardIds)];
+    if (uniqueCardIds.length === 0) {
+      return true;
+    }
+
+    const positionAfterCardId = resolvePositionAfterCardIdForBulkMove(
+      cardsById.value,
+      cardIdsByColumnId.value,
+      uniqueCardIds,
+      targetColumnId,
+      targetCardId
+    );
+    if (positionAfterCardId === undefined) {
+      return false;
+    }
+
+    const result = await runBusy(() => api.editCards(resolvedBoardId, uniqueCardIds, {
+      targetColumnId,
+      positionAfterCardId
+    }));
+    if (!result.ok) {
+      return false;
+    }
+
+    for (const card of result.data) {
+      upsertCard(card);
+    }
+
+    return true;
+  }
+
   function startDrag(cardId: number, fromColumnId: number) {
     dragState = { cardId, fromColumnId };
   }
@@ -334,6 +376,7 @@ export const useCardStore = defineStore('card', () => {
     deleteCard,
     archiveCard,
     archiveCards,
+    bulkMoveCards,
     startDrag,
     dropCard,
     upsertCard,
@@ -424,6 +467,45 @@ function resolvePositionAfterCardId(
 
   const targetIndex = filteredTargetCardIds.findIndex(cardId => cardId === targetCardId);
   if (targetIndex < 0 || !cardsById[targetCardId]) {
+    return undefined;
+  }
+
+  return targetIndex === 0 ? null : filteredTargetCardIds[targetIndex - 1];
+}
+
+function resolvePositionAfterCardIdForBulkMove(
+  cardsById: CardMap,
+  cardIdsByColumnId: CardIdsByColumnMap,
+  movingCardIds: number[],
+  targetColumnId: number,
+  targetCardId: number | null
+): number | null | undefined {
+  const targetCardIds = cardIdsByColumnId[targetColumnId];
+  if (!targetCardIds) {
+    return targetCardId === null ? null : undefined;
+  }
+
+  const movingCardIdSet = new Set(movingCardIds);
+  const filteredTargetCardIds = targetCardIds.filter(cardId => !movingCardIdSet.has(cardId));
+
+  let resolvedTargetCardId = targetCardId;
+  if (resolvedTargetCardId !== null && movingCardIdSet.has(resolvedTargetCardId)) {
+    const originalIndex = targetCardIds.findIndex(cardId => cardId === resolvedTargetCardId);
+    if (originalIndex < 0) {
+      return undefined;
+    }
+
+    resolvedTargetCardId = targetCardIds
+      .slice(originalIndex + 1)
+      .find(cardId => !movingCardIdSet.has(cardId)) ?? null;
+  }
+
+  if (resolvedTargetCardId === null) {
+    return filteredTargetCardIds.length === 0 ? null : filteredTargetCardIds[filteredTargetCardIds.length - 1];
+  }
+
+  const targetIndex = filteredTargetCardIds.findIndex(cardId => cardId === resolvedTargetCardId);
+  if (targetIndex < 0 || !cardsById[resolvedTargetCardId]) {
     return undefined;
   }
 

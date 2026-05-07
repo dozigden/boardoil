@@ -370,6 +370,105 @@ public sealed class CardService(
         return dto;
     }
 
+    public async Task<ApiResult<IReadOnlyList<CardDto>>> BulkEditCardsAsync(int boardId, BulkEditCardsRequest request, int actorUserId)
+    {
+        using var scope = _scopeFactory.Create();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardMove);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        var uniqueCardIds = (request.CardIds ?? [])
+            .Distinct()
+            .ToList();
+        if (uniqueCardIds.Count == 0 || request.Move is null)
+        {
+            return ApiResults.Ok<IReadOnlyList<CardDto>>([]);
+        }
+
+        var moveRequest = request.Move!;
+        var selectedCardIdSet = uniqueCardIds.ToHashSet();
+        if (moveRequest.PositionAfterCardId is int positionAfterCardId && selectedCardIdSet.Contains(positionAfterCardId))
+        {
+            return ValidationFail([new ValidationError("move.positionAfterCardId", "Anchor card cannot be one of the moved cards.")]);
+        }
+
+        var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(uniqueCardIds);
+        if (cards.Count != uniqueCardIds.Count || cards.Any(x => x.BoardColumn.BoardId != boardId))
+        {
+            return ValidationFail([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
+        }
+
+        var targetColumn = columnRepository.Get(moveRequest.TargetColumnId);
+        if (targetColumn is null || targetColumn.BoardId != boardId)
+        {
+            return ValidationFail([new ValidationError("move.targetColumnId", "Column does not exist in board.")]);
+        }
+
+        var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
+        var columnOrder = columns
+            .Select((column, index) => (column.Id, index))
+            .ToDictionary(x => x.Id, x => x.index);
+        var orderedCards = cards
+            .OrderBy(x => columnOrder.GetValueOrDefault(x.BoardColumnId, int.MaxValue))
+            .ThenBy(x => x.SortKey, StringComparer.Ordinal)
+            .ToList();
+
+        var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id))
+            .Where(x => !selectedCardIdSet.Contains(x.Id))
+            .ToList();
+        var anchorResolution = ResolveAnchor(moveRequest.PositionAfterCardId, targetCards);
+        if (anchorResolution.Error is not null)
+        {
+            return anchorResolution.Error;
+        }
+
+        var previousKey = anchorResolution.PreviousKey;
+        var nextKey = anchorResolution.NextKey;
+        var now = DateTime.UtcNow;
+        var movedDtos = new List<CardDto>(orderedCards.Count);
+        var changedDtos = new List<CardDto>(orderedCards.Count);
+
+        foreach (var card in orderedCards)
+        {
+            if (!TryGenerateSortKey(previousKey, nextKey, out var targetSortKey, out var allocationError))
+            {
+                return allocationError!;
+            }
+
+            var movementChanged = card.BoardColumnId != targetColumn.Id
+                || card.SortKey != targetSortKey;
+            if (movementChanged)
+            {
+                card.BoardColumnId = targetColumn.Id;
+                card.SortKey = targetSortKey!;
+                card.UpdatedAtUtc = now;
+            }
+
+            var dto = await EnrichAssignedUserImageAsync(card.ToCardDto());
+            movedDtos.Add(dto);
+            if (movementChanged)
+            {
+                changedDtos.Add(dto);
+            }
+
+            previousKey = targetSortKey;
+        }
+
+        if (changedDtos.Count > 0)
+        {
+            await scope.SaveChangesAsync();
+            foreach (var dto in changedDtos)
+            {
+                await _boardEvents.CardMovedAsync(boardId, dto);
+            }
+        }
+
+        return movedDtos;
+    }
+
     public async Task<ApiResult> DeleteCardAsync(int boardId, int id, int actorUserId)
     {
         using var scope = _scopeFactory.Create();

@@ -86,6 +86,32 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_Edit_WithBulkMove_ShouldReturnSuccessContract()
+    {
+        // Arrange
+        var createdTodoColumnId = await SeedBoardColumnAsync("Todo");
+        var createdDoingColumnId = await SeedBoardColumnAsync("Doing");
+        var firstCardId = await SeedBoardCardAsync(createdTodoColumnId, "Task A", "Desc");
+        var secondCardId = await SeedBoardCardAsync(createdTodoColumnId, "Task B", "Desc");
+
+        // Act
+        var response = await Client.PatchAsJsonAsync(
+            "/api/boards/1/cards/edit",
+            new BulkEditCardsRequest(
+                [secondCardId, firstCardId],
+                new BulkMoveCardsRequest(createdDoingColumnId, null)));
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<CardDto>>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.True(envelope!.Success);
+        Assert.NotNull(envelope.Data);
+        Assert.Equal([firstCardId, secondCardId], envelope.Data!.Select(x => x.Id).ToArray());
+        Assert.All(envelope.Data, card => Assert.Equal(createdDoingColumnId, card.BoardColumnId));
+    }
+
+    [Fact]
     public async Task CardEndpoints_Archive_ShouldReturnSuccessContract()
     {
         // Arrange

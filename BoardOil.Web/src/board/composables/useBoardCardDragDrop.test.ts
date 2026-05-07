@@ -7,8 +7,9 @@ describe('useBoardCardDragDrop', () => {
   it('sets tail drop point to append when dragging over the column tail zone', () => {
     const startDrag = vi.fn();
     const dropCard = vi.fn(async () => undefined);
+    const dropSelectedCards = vi.fn(async () => true);
     const selectionMode = ref(false);
-    const model = useBoardCardDragDrop(computed(() => makeColumns()), selectionMode, startDrag, dropCard);
+    const model = useBoardCardDragDrop(computed(() => makeColumns()), selectionMode, ref([]), startDrag, dropCard, dropSelectedCards);
 
     model.onCardDragStart(101, 1);
     model.onColumnTailDragOver(2);
@@ -19,8 +20,9 @@ describe('useBoardCardDragDrop', () => {
   it('drops to column tail using null target card id', async () => {
     const startDrag = vi.fn();
     const dropCard = vi.fn(async () => undefined);
+    const dropSelectedCards = vi.fn(async () => true);
     const selectionMode = ref(false);
-    const model = useBoardCardDragDrop(computed(() => makeColumns()), selectionMode, startDrag, dropCard);
+    const model = useBoardCardDragDrop(computed(() => makeColumns()), selectionMode, ref([]), startDrag, dropCard, dropSelectedCards);
 
     model.onCardDragStart(101, 1);
     model.onColumnTailDragOver(2);
@@ -31,11 +33,12 @@ describe('useBoardCardDragDrop', () => {
     expect(model.activeDropPoint.value).toBeNull();
   });
 
-  it('ignores tail drag/drop while card selection mode is enabled', async () => {
+  it('drops selected cards while selection mode is enabled', async () => {
     const startDrag = vi.fn();
     const dropCard = vi.fn(async () => undefined);
+    const dropSelectedCards = vi.fn(async () => true);
     const selectionMode = ref(true);
-    const model = useBoardCardDragDrop(computed(() => makeColumns()), selectionMode, startDrag, dropCard);
+    const model = useBoardCardDragDrop(computed(() => makeColumns()), selectionMode, ref([101]), startDrag, dropCard, dropSelectedCards);
 
     model.onCardDragStart(101, 1);
     model.onColumnTailDragOver(2);
@@ -44,13 +47,15 @@ describe('useBoardCardDragDrop', () => {
     expect(model.draggingCardId.value).toBeNull();
     expect(model.activeDropPoint.value).toBeNull();
     expect(dropCard).not.toHaveBeenCalled();
+    expect(dropSelectedCards).toHaveBeenCalledWith(2, null);
   });
 
   it('allows dropping on own column tail and still appends with null target', async () => {
     const startDrag = vi.fn();
     const dropCard = vi.fn(async () => undefined);
+    const dropSelectedCards = vi.fn(async () => true);
     const selectionMode = ref(false);
-    const model = useBoardCardDragDrop(computed(() => makeColumns()), selectionMode, startDrag, dropCard);
+    const model = useBoardCardDragDrop(computed(() => makeColumns()), selectionMode, ref([]), startDrag, dropCard, dropSelectedCards);
 
     model.onCardDragStart(101, 1);
     model.onColumnTailDragOver(1);

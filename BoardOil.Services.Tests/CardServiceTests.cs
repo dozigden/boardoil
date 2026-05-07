@@ -622,6 +622,118 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task BulkEditCardsAsync_WhenMovingMultipleCards_ShouldMoveInBoardOrderAfterAnchor()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .AddColumn("Doing")
+            .AddCard("Target", "3")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var cardAId = board.GetCard("Todo", "A").Id;
+        var cardBId = board.GetCard("Todo", "B").Id;
+        var targetCardId = board.GetCard("Doing", "Target").Id;
+
+        // Act
+        var service = CreateService();
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardBId, cardAId], new BulkMoveCardsRequest(doingColumnId, targetCardId)),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal([cardAId, cardBId], result.Data!.Select(x => x.Id).ToArray());
+        var todoTitles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Empty(todoTitles);
+        Assert.Equal(["Target", "A", "B"], doingTitles);
+    }
+
+    [Fact]
+    public async Task BulkEditCardsAsync_WhenMoveOperationMissing_ShouldReturnSuccessWithoutChanges()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .Build();
+        var cardId = board.GetCard("Todo", "A").Id;
+
+        // Act
+        var service = CreateService();
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardId], Move: null),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data!);
+        var titles = await GetOrderedTitlesAsync(DbContextForAssert, board.GetColumn("Todo").Id);
+        Assert.Equal(["A"], titles);
+    }
+
+    [Fact]
+    public async Task BulkEditCardsAsync_WhenCardIdsMissing_ShouldReturnSuccessWithoutChanges()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .Build();
+
+        // Act
+        var service = CreateService();
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([], new BulkMoveCardsRequest(board.GetColumn("Todo").Id, null)),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data!);
+        var titles = await GetOrderedTitlesAsync(DbContextForAssert, board.GetColumn("Todo").Id);
+        Assert.Equal(["A"], titles);
+    }
+
+    [Fact]
+    public async Task BulkEditCardsAsync_WhenAnchorCardIsSelected_ShouldReturnValidationErrorAndLeaveCardsUnchanged()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var cardAId = board.GetCard("Todo", "A").Id;
+        var cardBId = board.GetCard("Todo", "B").Id;
+
+        // Act
+        var service = CreateService();
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardAId, cardBId], new BulkMoveCardsRequest(todoColumnId, cardAId)),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("move.positionAfterCardId"));
+        var titles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
+        Assert.Equal(["A", "B"], titles);
+    }
+
+    [Fact]
     public async Task UpdateCardAsync_WhenCardMissing_ShouldReturnNotFound()
     {
         // Arrange

@@ -40,6 +40,9 @@ public static class CardEndpoints
         cardEndpoints.MapPatch("/{id:int}/move", async (int boardId, int id, MoveCardRequest request, ICardService cardService, HttpContext httpContext) =>
             (await cardService.MoveCardAsync(boardId, id, request, httpContext.GetActorUserId())).ToHttpResult());
 
+        cardEndpoints.MapPatch("/edit", async (int boardId, BulkEditCardsRequest request, ICardService cardService, HttpContext httpContext) =>
+            (await cardService.BulkEditCardsAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
+
         cardEndpoints.MapPost("/{id:int}/archive", async (int boardId, int id, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
             (await cardArchiveService.ArchiveCardAsync(boardId, id, httpContext.GetActorUserId())).ToHttpResult());
 

@@ -93,5 +93,13 @@ public sealed record MoveCardRequest(
     int BoardColumnId,
     int? PositionAfterCardId);
 
+public sealed record BulkMoveCardsRequest(
+    int TargetColumnId,
+    int? PositionAfterCardId);
+
+public sealed record BulkEditCardsRequest(
+    IReadOnlyList<int>? CardIds,
+    BulkMoveCardsRequest? Move);
+
 public sealed record CreateCardCommentRequest(
     string Text);

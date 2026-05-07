@@ -147,7 +147,7 @@ const tagStore = useTagStore();
 const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { tags } = storeToRefs(tagStore);
-const { createCard, startDrag, dropCard, archiveCards } = cardStore;
+const { createCard, startDrag, dropCard, archiveCards, bulkMoveCards } = cardStore;
 
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 
@@ -172,6 +172,7 @@ async function openArchivedCards() {
 
 const {
   isCardSelectionMode,
+  selectedCardIds,
   selectedCards,
   selectedCardCount,
   isArchiveConfirmOpen,
@@ -187,8 +188,9 @@ const {
   handleArchiveConveyorClick,
   closeArchiveConfirm,
   confirmArchiveSelectedCards,
+  moveSelectedCardsByDropTarget,
   resetSelectionState
-} = useBoardCardSelection(board, archiveCards, resolveBoardId, openArchivedCards);
+} = useBoardCardSelection(board, archiveCards, bulkMoveCards, resolveBoardId, openArchivedCards);
 
 const {
   onCardDragStart,
@@ -203,7 +205,14 @@ const {
   isDropAtColumnStart,
   resolveCardDropIndicator,
   clearDragInteraction
-} = useBoardCardDragDrop(filteredColumns, isCardSelectionMode, startDrag, dropCard);
+} = useBoardCardDragDrop(
+  filteredColumns,
+  isCardSelectionMode,
+  selectedCardIds,
+  startDrag,
+  dropCard,
+  moveSelectedCardsByDropTarget
+);
 
 function toggleCardSelectionMode() {
   clearDragInteraction();

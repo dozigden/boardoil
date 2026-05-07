@@ -4,20 +4,29 @@ import type { BoardColumn } from '../../shared/types/boardTypes';
 type StartDragOperation = (cardId: number, fromColumnId: number) => void;
 
 type DropCardOperation = (targetColumnId: number, targetCardId: number | null) => Promise<void>;
+type DropSelectedCardsOperation = (targetColumnId: number, targetCardId: number | null) => Promise<boolean>;
 
 type DropIndicator = 'none' | 'before' | 'after';
 
 export function useBoardCardDragDrop(
   filteredColumns: ComputedRef<BoardColumn[]>,
   isCardSelectionMode: Ref<boolean>,
+  selectedCardIds: Ref<number[]>,
   startDrag: StartDragOperation,
-  dropCard: DropCardOperation
+  dropCard: DropCardOperation,
+  dropSelectedCards: DropSelectedCardsOperation
 ) {
   const draggingCardId = ref<number | null>(null);
   const activeDropPoint = ref<{ columnId: number; targetCardId: number | null } | null>(null);
 
   function onCardDragStart(cardId: number, fromColumnId: number) {
     if (isCardSelectionMode.value) {
+      if (!selectedCardIds.value.includes(cardId)) {
+        return;
+      }
+
+      draggingCardId.value = cardId;
+      activeDropPoint.value = null;
       return;
     }
 
@@ -31,11 +40,11 @@ export function useBoardCardDragDrop(
   }
 
   function onCardDragOver(columnId: number, cardId: number, event: DragEvent) {
-    if (isCardSelectionMode.value) {
+    if (draggingCardId.value === null) {
       return;
     }
 
-    if (draggingCardId.value === null || cardId === draggingCardId.value) {
+    if (!isCardSelectionMode.value && cardId === draggingCardId.value) {
       return;
     }
 
@@ -48,7 +57,7 @@ export function useBoardCardDragDrop(
   }
 
   async function onCardDrop(columnId: number, cardId: number, event: DragEvent) {
-    if (isCardSelectionMode.value) {
+    if (draggingCardId.value === null) {
       return;
     }
 
@@ -60,7 +69,7 @@ export function useBoardCardDragDrop(
   }
 
   function onColumnTailDragOver(columnId: number) {
-    if (isCardSelectionMode.value) {
+    if (draggingCardId.value === null) {
       return;
     }
 
@@ -68,7 +77,7 @@ export function useBoardCardDragDrop(
   }
 
   async function onColumnTailDrop(columnId: number) {
-    if (isCardSelectionMode.value) {
+    if (draggingCardId.value === null) {
       return;
     }
 
@@ -76,7 +85,7 @@ export function useBoardCardDragDrop(
   }
 
   function handleColumnDragOver(columnId: number, event: DragEvent) {
-    if (isCardSelectionMode.value) {
+    if (draggingCardId.value === null) {
       return;
     }
 
@@ -85,7 +94,7 @@ export function useBoardCardDragDrop(
   }
 
   async function handleColumnDrop(columnId: number) {
-    if (isCardSelectionMode.value) {
+    if (draggingCardId.value === null) {
       return;
     }
 
@@ -100,7 +109,7 @@ export function useBoardCardDragDrop(
       return;
     }
 
-    if (targetCardId === draggingCardId.value) {
+    if (!isCardSelectionMode.value && targetCardId === draggingCardId.value) {
       return;
     }
 
@@ -122,7 +131,7 @@ export function useBoardCardDragDrop(
   }
 
   function resolveCardDropIndicator(columnId: number, cardId: number): DropIndicator {
-    if (isCardSelectionMode.value || draggingCardId.value === null || cardId === draggingCardId.value) {
+    if (draggingCardId.value === null || (!isCardSelectionMode.value && cardId === draggingCardId.value)) {
       return 'none';
     }
 
@@ -237,6 +246,11 @@ export function useBoardCardDragDrop(
 
   async function dropAt(columnId: number, targetCardId: number | null) {
     try {
+      if (isCardSelectionMode.value) {
+        await dropSelectedCards(columnId, targetCardId);
+        return;
+      }
+
       await dropCard(columnId, targetCardId);
     } finally {
       clearDragInteraction();
