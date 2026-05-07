@@ -160,9 +160,40 @@ describe('cardStore', () => {
     const moved = await store.bulkMoveCards([101, 102], 2, null);
 
     expect(moved).toBe(true);
-    expect(api.editCards).toHaveBeenCalledWith(1, [101, 102], { targetColumnId: 2, positionAfterCardId: 201 });
+    expect(api.editCards).toHaveBeenCalledWith(1, {
+      cardIds: [101, 102],
+      move: { targetColumnId: 2, positionAfterCardId: 201 },
+      addTagNames: [],
+      removeTagNames: []
+    });
     expect(store.getCardsForColumn(1)).toHaveLength(0);
     expect(store.getCardsForColumn(2).map(x => x.id)).toEqual([201, 101, 102]);
+  });
+
+  it('bulk edits selected cards with tag operations and no move', async () => {
+    const store = useCardStore();
+    store.replaceBoardCards(1, makeBoard().columns);
+    api.editCards.mockResolvedValue(ok([
+      {
+        ...store.getCardById(101)!,
+        tagNames: ['Feature'],
+        tags: []
+      }
+    ]));
+
+    const edited = await store.bulkEditCards([101], {
+      addTagNames: ['Feature'],
+      removeTagNames: ['Old']
+    });
+
+    expect(edited).toBe(true);
+    expect(api.editCards).toHaveBeenCalledWith(1, {
+      cardIds: [101],
+      move: null,
+      addTagNames: ['Feature'],
+      removeTagNames: ['Old']
+    });
+    expect(store.getCardById(101)?.tagNames).toEqual(['Feature']);
   });
 
   it('translates drop-before-card into predecessor anchor', async () => {

@@ -178,20 +178,63 @@ export const useCardStore = defineStore('card', () => {
       return true;
     }
 
-    const positionAfterCardId = resolvePositionAfterCardIdForBulkMove(
-      cardsById.value,
-      cardIdsByColumnId.value,
+    return bulkEditCards(
       uniqueCardIds,
-      targetColumnId,
-      targetCardId
+      {
+        moveTargetColumnId: targetColumnId,
+        moveTargetCardId: targetCardId
+      },
+      resolvedBoardId
     );
-    if (positionAfterCardId === undefined) {
+  }
+
+  async function bulkEditCards(
+    cardIds: number[],
+    options: {
+      moveTargetColumnId?: number | null;
+      moveTargetCardId?: number | null;
+      addTagNames?: string[];
+      removeTagNames?: string[];
+    },
+    boardId: number | null = activeBoardId.value
+  ) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
       return false;
     }
 
-    const result = await runBusy(() => api.editCards(resolvedBoardId, uniqueCardIds, {
-      targetColumnId,
-      positionAfterCardId
+    const uniqueCardIds = [...new Set(cardIds)];
+    if (uniqueCardIds.length === 0) {
+      return true;
+    }
+
+    const normalisedAddTagNames = normaliseTagNames(options.addTagNames ?? []);
+    const normalisedRemoveTagNames = normaliseTagNames(options.removeTagNames ?? []);
+
+    let movePayload: { targetColumnId: number; positionAfterCardId: number | null } | null = null;
+    if (typeof options.moveTargetColumnId === 'number') {
+      const positionAfterCardId = resolvePositionAfterCardIdForBulkMove(
+        cardsById.value,
+        cardIdsByColumnId.value,
+        uniqueCardIds,
+        options.moveTargetColumnId,
+        options.moveTargetCardId ?? null
+      );
+      if (positionAfterCardId === undefined) {
+        return false;
+      }
+
+      movePayload = {
+        targetColumnId: options.moveTargetColumnId,
+        positionAfterCardId
+      };
+    }
+
+    const result = await runBusy(() => api.editCards(resolvedBoardId, {
+      cardIds: uniqueCardIds,
+      move: movePayload,
+      addTagNames: normalisedAddTagNames,
+      removeTagNames: normalisedRemoveTagNames
     }));
     if (!result.ok) {
       return false;
@@ -202,6 +245,14 @@ export const useCardStore = defineStore('card', () => {
     }
 
     return true;
+  }
+
+  function normaliseTagNames(tagNames: string[]) {
+    return [...new Set(
+      tagNames
+        .map(tagName => tagName.trim())
+        .filter(tagName => tagName.length > 0)
+    )];
   }
 
   function startDrag(cardId: number, fromColumnId: number) {
@@ -377,6 +428,7 @@ export const useCardStore = defineStore('card', () => {
     archiveCard,
     archiveCards,
     bulkMoveCards,
+    bulkEditCards,
     startDrag,
     dropCard,
     upsertCard,

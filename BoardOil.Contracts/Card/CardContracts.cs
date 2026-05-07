@@ -99,7 +99,9 @@ public sealed record BulkMoveCardsRequest(
 
 public sealed record BulkEditCardsRequest(
     IReadOnlyList<int>? CardIds,
-    BulkMoveCardsRequest? Move);
+    BulkMoveCardsRequest? Move,
+    IReadOnlyList<string>? AddTagNames = null,
+    IReadOnlyList<string>? RemoveTagNames = null);
 
 public sealed record CreateCardCommentRequest(
     string Text);

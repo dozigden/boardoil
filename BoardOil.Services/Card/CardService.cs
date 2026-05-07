@@ -374,23 +374,39 @@ public sealed class CardService(
     {
         using var scope = _scopeFactory.Create();
 
-        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardMove);
-        if (!hasPermission)
-        {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
-        }
-
         var uniqueCardIds = (request.CardIds ?? [])
             .Distinct()
             .ToList();
-        if (uniqueCardIds.Count == 0 || request.Move is null)
+        var hasMoveOperation = request.Move is not null;
+        var addTagNames = NormalizeTags(request.AddTagNames ?? []);
+        var removeTagNames = NormalizeTags(request.RemoveTagNames ?? []);
+        var hasTagEditOperation = addTagNames.Count > 0 || removeTagNames.Count > 0;
+
+        if (uniqueCardIds.Count == 0 || (!hasMoveOperation && !hasTagEditOperation))
         {
             return ApiResults.Ok<IReadOnlyList<CardDto>>([]);
         }
 
-        var moveRequest = request.Move!;
+        if (hasMoveOperation)
+        {
+            var hasMovePermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardMove);
+            if (!hasMovePermission)
+            {
+                return ApiErrors.Forbidden("You do not have permission for this action.");
+            }
+        }
+
+        if (hasTagEditOperation)
+        {
+            var hasUpdatePermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate);
+            if (!hasUpdatePermission)
+            {
+                return ApiErrors.Forbidden("You do not have permission for this action.");
+            }
+        }
+
         var selectedCardIdSet = uniqueCardIds.ToHashSet();
-        if (moveRequest.PositionAfterCardId is int positionAfterCardId && selectedCardIdSet.Contains(positionAfterCardId))
+        if (hasMoveOperation && request.Move!.PositionAfterCardId is int positionAfterCardId && selectedCardIdSet.Contains(positionAfterCardId))
         {
             return ValidationFail([new ValidationError("move.positionAfterCardId", "Anchor card cannot be one of the moved cards.")]);
         }
@@ -401,10 +417,14 @@ public sealed class CardService(
             return ValidationFail([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
         }
 
-        var targetColumn = columnRepository.Get(moveRequest.TargetColumnId);
-        if (targetColumn is null || targetColumn.BoardId != boardId)
+        EntityBoardColumn? targetColumn = null;
+        if (hasMoveOperation)
         {
-            return ValidationFail([new ValidationError("move.targetColumnId", "Column does not exist in board.")]);
+            targetColumn = columnRepository.Get(request.Move!.TargetColumnId);
+            if (targetColumn is null || targetColumn.BoardId != boardId)
+            {
+                return ValidationFail([new ValidationError("move.targetColumnId", "Column does not exist in board.")]);
+            }
         }
 
         var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
@@ -416,57 +436,123 @@ public sealed class CardService(
             .ThenBy(x => x.SortKey, StringComparer.Ordinal)
             .ToList();
 
-        var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id))
-            .Where(x => !selectedCardIdSet.Contains(x.Id))
-            .ToList();
-        var anchorResolution = ResolveAnchor(moveRequest.PositionAfterCardId, targetCards);
-        if (anchorResolution.Error is not null)
+        var addTagEntities = hasTagEditOperation
+            ? await ResolveTagsAsync(boardId, addTagNames, DateTime.UtcNow)
+            : [];
+        var removeTagNameSet = hasTagEditOperation
+            ? removeTagNames.Select(NormaliseTagName).ToHashSet(StringComparer.Ordinal)
+            : [];
+
+        string? previousKey = null;
+        string? nextKey = null;
+        if (hasMoveOperation)
         {
-            return anchorResolution.Error;
+            var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn!.Id))
+                .Where(x => !selectedCardIdSet.Contains(x.Id))
+                .ToList();
+            var anchorResolution = ResolveAnchor(request.Move!.PositionAfterCardId, targetCards);
+            if (anchorResolution.Error is not null)
+            {
+                return anchorResolution.Error;
+            }
+
+            previousKey = anchorResolution.PreviousKey;
+            nextKey = anchorResolution.NextKey;
         }
 
-        var previousKey = anchorResolution.PreviousKey;
-        var nextKey = anchorResolution.NextKey;
         var now = DateTime.UtcNow;
+        var resultDtos = new List<CardDto>(orderedCards.Count);
         var movedDtos = new List<CardDto>(orderedCards.Count);
-        var changedDtos = new List<CardDto>(orderedCards.Count);
+        var updatedDtos = new List<CardDto>(orderedCards.Count);
 
         foreach (var card in orderedCards)
         {
-            if (!TryGenerateSortKey(previousKey, nextKey, out var targetSortKey, out var allocationError))
+            var movementChanged = false;
+            string? targetSortKey = card.SortKey;
+            if (hasMoveOperation)
             {
-                return allocationError!;
+                if (!TryGenerateSortKey(previousKey, nextKey, out targetSortKey, out var allocationError))
+                {
+                    return allocationError!;
+                }
+
+                movementChanged = card.BoardColumnId != targetColumn!.Id
+                    || card.SortKey != targetSortKey;
+                if (movementChanged)
+                {
+                    card.BoardColumnId = targetColumn!.Id;
+                    card.SortKey = targetSortKey!;
+                }
+
+                previousKey = targetSortKey;
             }
 
-            var movementChanged = card.BoardColumnId != targetColumn.Id
-                || card.SortKey != targetSortKey;
-            if (movementChanged)
+            var tagsChanged = false;
+            if (hasTagEditOperation)
             {
-                card.BoardColumnId = targetColumn.Id;
-                card.SortKey = targetSortKey!;
+                var existingTagMap = card.CardTags
+                    .Select(x => x.Tag)
+                    .ToDictionary(tag => NormaliseTagName(tag.Name), tag => tag, StringComparer.Ordinal);
+                var initialTagNames = existingTagMap.Keys.OrderBy(x => x, StringComparer.Ordinal).ToArray();
+
+                foreach (var removeTagName in removeTagNameSet)
+                {
+                    existingTagMap.Remove(removeTagName);
+                }
+
+                foreach (var addTag in addTagEntities)
+                {
+                    var normalisedName = NormaliseTagName(addTag.Name);
+                    existingTagMap[normalisedName] = addTag;
+                }
+
+                var finalTags = existingTagMap.Values
+                    .OrderBy(x => x.Name, StringComparer.Ordinal)
+                    .ToList();
+                var finalTagNames = finalTags
+                    .Select(x => NormaliseTagName(x.Name))
+                    .OrderBy(x => x, StringComparer.Ordinal)
+                    .ToArray();
+
+                tagsChanged = !initialTagNames.SequenceEqual(finalTagNames, StringComparer.Ordinal);
+                if (tagsChanged)
+                {
+                    ReplaceTags(card, finalTags);
+                }
+            }
+
+            if (movementChanged || tagsChanged)
+            {
                 card.UpdatedAtUtc = now;
             }
 
             var dto = await EnrichAssignedUserImageAsync(card.ToCardDto());
-            movedDtos.Add(dto);
+            resultDtos.Add(dto);
             if (movementChanged)
             {
-                changedDtos.Add(dto);
+                movedDtos.Add(dto);
             }
-
-            previousKey = targetSortKey;
+            else if (tagsChanged)
+            {
+                updatedDtos.Add(dto);
+            }
         }
 
-        if (changedDtos.Count > 0)
+        if (movedDtos.Count > 0 || updatedDtos.Count > 0)
         {
             await scope.SaveChangesAsync();
-            foreach (var dto in changedDtos)
+            foreach (var dto in movedDtos)
             {
                 await _boardEvents.CardMovedAsync(boardId, dto);
             }
+
+            foreach (var dto in updatedDtos)
+            {
+                await _boardEvents.CardUpdatedAsync(boardId, dto);
+            }
         }
 
-        return movedDtos;
+        return resultDtos;
     }
 
     public async Task<ApiResult> DeleteCardAsync(int boardId, int id, int actorUserId)

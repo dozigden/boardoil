@@ -734,6 +734,54 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task BulkEditCardsAsync_WhenEditingTags_ShouldApplyIdempotentAddAndRemove()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .Build();
+        var cardAId = board.GetCard("Todo", "A").Id;
+        var cardBId = board.GetCard("Todo", "B").Id;
+        var now = DateTime.UtcNow;
+        await SeedTagsForArrangeAsync(board.BoardId, "Existing", "RemoveMe");
+        var existingTag = await DbContextForArrange.Tags.SingleAsync(x => x.Name == "Existing");
+        var removeTag = await DbContextForArrange.Tags.SingleAsync(x => x.Name == "RemoveMe");
+        DbContextForArrange.CardTags.Add(new BoardOil.Persistence.Abstractions.Entities.EntityCardTag
+        {
+            CardId = cardAId,
+            TagId = existingTag.Id
+        });
+        DbContextForArrange.CardTags.Add(new BoardOil.Persistence.Abstractions.Entities.EntityCardTag
+        {
+            CardId = cardAId,
+            TagId = removeTag.Id
+        });
+        await DbContextForArrange.SaveChangesAsync();
+
+        // Act
+        var service = CreateService();
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardAId, cardBId], Move: null, AddTagNames: ["Existing", "Added"], RemoveTagNames: ["RemoveMe", "Missing"]),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var updatedCards = await DbContextForAssert.Cards
+            .Include(x => x.CardTags)
+            .ThenInclude(x => x.Tag)
+            .Where(x => x.Id == cardAId || x.Id == cardBId)
+            .ToListAsync();
+        var cardATagNames = updatedCards.Single(x => x.Id == cardAId).CardTags.Select(x => x.Tag.Name).OrderBy(x => x).ToArray();
+        var cardBTagNames = updatedCards.Single(x => x.Id == cardBId).CardTags.Select(x => x.Tag.Name).OrderBy(x => x).ToArray();
+        Assert.Equal(["Added", "Existing"], cardATagNames);
+        Assert.Equal(["Added", "Existing"], cardBTagNames);
+    }
+
+    [Fact]
     public async Task UpdateCardAsync_WhenCardMissing_ShouldReturnNotFound()
     {
         // Arrange

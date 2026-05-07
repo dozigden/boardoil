@@ -41,6 +41,16 @@
     </div>
 
     <div v-if="showSelectionToggle" class="board-selection-pane">
+      <button
+        v-if="selectionMode"
+        type="button"
+        class="btn board-selection-edit"
+        :class="{ 'btn--secondary': selectedCount === 0 }"
+        :disabled="disableBulkEditAction"
+        @click="emit('openBulkEdit')"
+      >
+        Edit
+      </button>
       <label
         class="board-selection-toggle"
         :title="selectionMode ? 'Done selecting cards' : 'Select cards'"
@@ -78,11 +88,13 @@ const props = withDefaults(defineProps<{
   hasActiveFilters: boolean;
   selectionMode?: boolean;
   selectedCount?: number;
+  disableBulkEditAction?: boolean;
   showSelectionToggle?: boolean;
   embedded?: boolean;
 }>(), {
   selectionMode: false,
   selectedCount: 0,
+  disableBulkEditAction: false,
   showSelectionToggle: true,
   embedded: false
 });
@@ -93,6 +105,7 @@ const emit = defineEmits<{
   'update:pickerOpen': [value: boolean];
   clear: [];
   toggleSelectionMode: [];
+  openBulkEdit: [];
 }>();
 
 const rootClasses = computed(() => (
@@ -234,6 +247,14 @@ const hasActiveTagFilters = computed(() => Object.keys(props.filterStates).lengt
 .board-selection-pane {
   margin-left: auto;
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.board-selection-edit {
+  min-height: var(--bo-board-filter-control-height);
+  padding: 0 0.65rem;
 }
 
 .board-selection-toggle-count {

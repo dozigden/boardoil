@@ -83,6 +83,29 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
     }
 
     [Fact]
+    public async Task BulkEditCardsAsync_WhenTagEditPermissionDenied_ShouldCheckCardUpdatePermission()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Tag me", "Desc")
+            .Build();
+        var cardId = board.GetCard("Todo", "Tag me").Id;
+        var service = ResolveService<ICardService>();
+
+        // Act
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardId], Move: null, AddTagNames: ["Feature"], RemoveTagNames: null),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(403, result.StatusCode);
+        Assert.Equal(BoardPermission.CardUpdate, _boardAuthorisationService.LastPermission);
+    }
+
+    [Fact]
     public async Task GetArchivedCardsAsync_WhenPermissionDenied_ShouldCheckBoardAccessPermission()
     {
         // Arrange

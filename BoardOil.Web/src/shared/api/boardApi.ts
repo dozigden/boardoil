@@ -191,13 +191,14 @@ export function createBoardApi() {
 
   async function editCards(
     boardId: number,
-    cardIds: number[],
-    move: { targetColumnId: number; positionAfterCardId: number | null } | null
+    request: {
+      cardIds: number[];
+      move: { targetColumnId: number; positionAfterCardId: number | null } | null;
+      addTagNames?: string[] | null;
+      removeTagNames?: string[] | null;
+    }
   ): Promise<Result<Card[], AppError>> {
-    return patchData<Card[]>(`/api/boards/${boardId}/cards/edit`, {
-      cardIds,
-      move
-    });
+    return patchData<Card[]>(`/api/boards/${boardId}/cards/edit`, request);
   }
 
   async function deleteCard(boardId: number, cardId: number): Promise<Result<void, AppError>> {

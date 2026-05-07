@@ -21,11 +21,13 @@
         :has-active-filters="hasActiveCardFilters"
         :selection-mode="isCardSelectionMode"
         :selected-count="selectedCardCount"
+        :disable-bulk-edit-action="isApplyingBulkEdit || selectedCardCount === 0"
         @update:search-text="cardSearchText = $event"
         @update:filter-states="tagFilterStates = $event"
         @update:picker-open="isTagFilterMenuOpen = $event"
         @clear="clearCardFilters"
         @toggle-selection-mode="toggleCardSelectionMode"
+        @open-bulk-edit="openBulkEditDialog"
       />
     </BoardConveyor>
 
@@ -110,6 +112,21 @@
       @close="closeArchiveConfirm"
       @confirm="confirmArchiveSelectedCards"
     />
+
+    <BoardBulkEditSelectedCardsDialog
+      :open="isBulkEditDialogOpen"
+      :selected-count="selectedCardCount"
+      :is-saving="isApplyingBulkEdit"
+      :available-tag-names="availableTagNames"
+      :columns="filteredColumns.map(column => ({ id: column.id, title: column.title }))"
+      :filter-states="bulkEditTagStates"
+      :target-column-id="bulkEditTargetColumnId"
+      :has-changes="hasBulkEditChanges"
+      @update:filter-states="bulkEditTagStates = $event"
+      @update:target-column-id="bulkEditTargetColumnId = $event"
+      @close="closeBulkEditDialog"
+      @confirm="confirmBulkEdit"
+    />
   </section>
 </template>
 
@@ -118,6 +135,7 @@ import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoardArchiveSelectedCardsDialog from '../components/BoardArchiveSelectedCardsDialog.vue';
+import BoardBulkEditSelectedCardsDialog from '../components/BoardBulkEditSelectedCardsDialog.vue';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
 import BoardColumnHeader from '../components/BoardColumnHeader.vue';
 import BoardConveyor from '../components/BoardConveyor.vue';
@@ -131,12 +149,17 @@ import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../../shared/types/appError';
+import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import { formatColumnCardCount } from '../utils/columnCardCount';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
 const newCardDraftErrors = ref<Record<number, string>>({});
+const isBulkEditDialogOpen = ref(false);
+const isApplyingBulkEdit = ref(false);
+const bulkEditTagStates = ref<TagFilterStateMap>({});
+const bulkEditTargetColumnId = ref<number | null>(null);
 
 const route = useRoute();
 const router = useRouter();
@@ -148,7 +171,7 @@ const tagStore = useTagStore();
 const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { tags } = storeToRefs(tagStore);
-const { createCard, startDrag, dropCard, archiveCards, bulkMoveCards } = cardStore;
+const { createCard, startDrag, dropCard, archiveCards, bulkMoveCards, bulkEditCards } = cardStore;
 
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 
@@ -218,7 +241,15 @@ const {
 function toggleCardSelectionMode() {
   clearDragInteraction();
   toggleCardSelectionModeInternal();
+  if (!isCardSelectionMode.value) {
+    closeBulkEditDialog();
+  }
 }
+
+const hasBulkEditChanges = computed(() =>
+  bulkEditTargetColumnId.value !== null
+  || Object.keys(bulkEditTagStates.value).length > 0
+);
 
 function selectAllVisibleInColumn(columnId: number) {
   const column = filteredColumns.value.find(x => x.id === columnId);
@@ -254,6 +285,81 @@ function canClearVisibleInColumn(columnId: number) {
   }
 
   return column.cards.some(card => isCardSelected(card.id));
+}
+
+function openBulkEditDialog() {
+  if (!isCardSelectionMode.value || selectedCardCount.value === 0 || isApplyingBulkEdit.value) {
+    return;
+  }
+
+  isBulkEditDialogOpen.value = true;
+}
+
+function closeBulkEditDialog(force = false) {
+  if (isApplyingBulkEdit.value && !force) {
+    return;
+  }
+
+  isBulkEditDialogOpen.value = false;
+  bulkEditTagStates.value = {};
+  bulkEditTargetColumnId.value = null;
+}
+
+async function confirmBulkEdit() {
+  const boardId = resolveBoardId();
+  if (boardId === null) {
+    return;
+  }
+
+  const cardIds = selectedCards.value.map(card => card.id);
+  if (cardIds.length === 0) {
+    closeBulkEditDialog();
+    return;
+  }
+
+  const addTagNames = resolveTagNamesForState('include');
+  const removeTagNames = resolveTagNamesForState('exclude');
+  isApplyingBulkEdit.value = true;
+  try {
+    const edited = await bulkEditCards(
+      cardIds,
+      {
+        moveTargetColumnId: bulkEditTargetColumnId.value,
+        moveTargetCardId: null,
+        addTagNames,
+        removeTagNames
+      },
+      boardId
+    );
+    if (!edited) {
+      return;
+    }
+
+    closeBulkEditDialog(true);
+    clearDragInteraction();
+    toggleCardSelectionModeInternal();
+  } finally {
+    isApplyingBulkEdit.value = false;
+  }
+}
+
+function resolveTagNamesForState(state: 'exclude' | 'include') {
+  const namesByNormalised = new Map(
+    availableTagNames.value.map(tagName => [tagName.trim().toLocaleLowerCase(), tagName] as const)
+  );
+  const tagNames: string[] = [];
+  for (const [normalisedName, tagState] of Object.entries(bulkEditTagStates.value)) {
+    if (tagState !== state) {
+      continue;
+    }
+
+    const tagName = namesByNormalised.get(normalisedName);
+    if (tagName) {
+      tagNames.push(tagName);
+    }
+  }
+
+  return tagNames;
 }
 
 async function openNewCardDraft(columnId: number, cardTypeId: number | null = defaultCreateCardTypeId.value) {
@@ -346,6 +452,7 @@ watch(
     clearDragInteraction();
     clearCardFilters();
     resetSelectionState();
+    closeBulkEditDialog();
 
     const boardId = resolveBoardId();
     if (boardId === null) {
