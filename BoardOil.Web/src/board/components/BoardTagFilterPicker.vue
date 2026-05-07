@@ -16,7 +16,14 @@
           <span class="board-tag-filter-toggle-label">Tags</span>
         </button>
 
-        <section v-if="open" :id="menuId" class="panel panel--compact board-tag-filter-menu" aria-label="Tag filter matrix">
+        <section
+          v-if="open"
+          ref="menuRef"
+          :id="menuId"
+          class="panel panel--compact board-tag-filter-menu"
+          :style="menuStyle"
+          aria-label="Tag filter matrix"
+        >
           <TagTriStateMatrix
             :available-tag-names="availableTagNames"
             :states="filterStates"
@@ -37,7 +44,7 @@
 
 <script setup lang="ts">
 import { Filter } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import { useClickOutside } from '../../shared/composables/useClickOutside';
 import TagTriStateMatrix from './TagTriStateMatrix.vue';
@@ -56,6 +63,58 @@ const emit = defineEmits<{
 
 const menuId = 'board-tag-filter-menu';
 const dropdownRoot = ref<HTMLElement | null>(null);
+const menuRef = ref<HTMLElement | null>(null);
+const menuShiftPx = ref(0);
+
+const menuStyle = computed(() => ({
+  '--bo-tag-filter-shift-x': `${menuShiftPx.value}px`
+}));
+
+function updateMenuShift() {
+  const menu = menuRef.value;
+  if (!menu) {
+    menuShiftPx.value = 0;
+    return;
+  }
+
+  const viewportPadding = 12;
+  const rect = menu.getBoundingClientRect();
+  let shift = 0;
+  if (rect.left < viewportPadding) {
+    shift = viewportPadding - rect.left;
+  } else if (rect.right > window.innerWidth - viewportPadding) {
+    shift = (window.innerWidth - viewportPadding) - rect.right;
+  }
+
+  menuShiftPx.value = Math.round(shift);
+}
+
+watch(() => props.open, async (isOpen) => {
+  if (!isOpen) {
+    menuShiftPx.value = 0;
+    return;
+  }
+
+  await nextTick();
+  updateMenuShift();
+});
+
+watch(() => props.availableTagNames.length, async () => {
+  if (!props.open) {
+    return;
+  }
+
+  await nextTick();
+  updateMenuShift();
+});
+
+onMounted(() => {
+  window.addEventListener('resize', updateMenuShift);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateMenuShift);
+});
 
 useClickOutside(dropdownRoot, () => {
   emit('update:open', false);
@@ -102,7 +161,7 @@ useClickOutside(dropdownRoot, () => {
   position: absolute;
   top: calc(100% + 0.35rem);
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(calc(-50% + var(--bo-tag-filter-shift-x, 0px)));
   z-index: 12;
   background: var(--bo-surface-base);
   padding: 0;
@@ -130,9 +189,9 @@ useClickOutside(dropdownRoot, () => {
   }
 
   .board-tag-filter-menu {
-    left: 0;
+    left: 50%;
     right: auto;
-    transform: none;
+    transform: translateX(calc(-50% + var(--bo-tag-filter-shift-x, 0px)));
     width: min(21rem, calc(100vw - 1.5rem));
     max-width: calc(100vw - 1.5rem);
   }
