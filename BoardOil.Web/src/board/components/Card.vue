@@ -4,6 +4,7 @@
     :class="{
       'card--selected': selected,
       'card--dragging': isDragging,
+      'card--multi-dragging': isDragging && selectionMode && selectedCount > 1,
       'card--drop-before': dropIndicator === 'before',
       'card--drop-after': dropIndicator === 'after'
     }"
@@ -69,10 +70,12 @@ const props = withDefaults(defineProps<{
   dropIndicator?: 'none' | 'before' | 'after';
   selectionMode?: boolean;
   selected?: boolean;
+  selectedCount?: number;
 }>(), {
   dropIndicator: 'none',
   selectionMode: false,
-  selected: false
+  selected: false,
+  selectedCount: 0
 });
 
 const emit = defineEmits<{
@@ -152,6 +155,16 @@ function handlePrimaryAction() {
 .card--dragging {
   opacity: 0.7;
   border-style: dashed;
+}
+
+.card--multi-dragging {
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--bo-colour-brand) 55%, var(--bo-border-default)),
+    10px 10px 0 -2px color-mix(in oklab, var(--bo-surface-base) 88%, var(--bo-border-soft) 12%),
+    10px 10px 0 0 color-mix(in oklab, var(--bo-border-default) 78%, transparent),
+    20px 20px 0 -4px color-mix(in oklab, var(--bo-surface-base) 88%, var(--bo-border-soft) 12%),
+    20px 20px 0 -2px color-mix(in oklab, var(--bo-border-default) 78%, transparent),
+    0 8px 20px color-mix(in oklab, var(--bo-colour-brand-strong) 24%, transparent);
 }
 
 .card--drop-before::before,

@@ -77,6 +77,7 @@
               :drop-indicator="resolveCardDropIndicator(column.id, card.id)"
               :selection-mode="isCardSelectionMode"
               :selected="isCardSelected(card.id)"
+              :selected-count="selectedCardCount"
               @start-drag="onCardDragStart"
               @end-drag="onCardDragEnd"
               @dragover.prevent.stop="onCardDragOver(column.id, card.id, $event)"
