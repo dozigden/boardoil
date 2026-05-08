@@ -38,8 +38,8 @@ if $run_backend; then
   echo "[test-full] Backend: restore + build + tests"
   dotnet restore BoardOil.slnx --locked-mode -maxcpucount:1 -nodeReuse:false
   dotnet build BoardOil.slnx --configuration Release --no-restore -maxcpucount:1 -nodeReuse:false
-  dotnet test BoardOil.Api.Tests/BoardOil.Api.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false
-  dotnet test BoardOil.Services.Tests/BoardOil.Services.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false
+  dotnet BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll
+  dotnet BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll
 fi
 
 if $run_web; then

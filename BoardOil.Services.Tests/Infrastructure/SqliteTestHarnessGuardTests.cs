@@ -8,12 +8,12 @@ public sealed class SqliteTestHarnessGuardTests : IAsyncLifetime
 {
     private SqliteTestHarness _harness = null!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _harness = await SqliteTestHarness.CreateAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await _harness.DisposeAsync();
     }

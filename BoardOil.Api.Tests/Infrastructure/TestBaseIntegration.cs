@@ -9,7 +9,7 @@ public abstract class TestBaseIntegration : ApiFactoryIntegrationTestBase
     protected HttpClient Client { get; private set; } = null!;
     protected string HubAccessToken { get; private set; } = string.Empty;
 
-    public override async Task InitializeAsync()
+    public override async ValueTask InitializeAsync()
     {
         await base.InitializeAsync();
         Client = CreateClient();

@@ -54,7 +54,7 @@ public abstract class TestBaseDb : IAsyncLifetime
     private ServiceProvider ServiceProvider =>
         _serviceProvider ?? throw new InvalidOperationException("Service provider has not been initialized.");
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _harness = await SqliteTestHarness.CreateAsync();
 
@@ -89,7 +89,7 @@ public abstract class TestBaseDb : IAsyncLifetime
         _serviceProvider = services.BuildServiceProvider();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         foreach (var serviceScope in _serviceScopes)
         {

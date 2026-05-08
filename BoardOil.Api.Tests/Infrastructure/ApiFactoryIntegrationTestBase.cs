@@ -9,14 +9,14 @@ public abstract class ApiFactoryIntegrationTestBase : IAsyncLifetime
     protected string DatabasePath { get; private set; } = string.Empty;
     protected BoardOilApiFactory Factory { get; private set; } = null!;
 
-    public virtual Task InitializeAsync()
+    public virtual ValueTask InitializeAsync()
     {
         DatabasePath = BuildDbPath(DbNamePrefix);
         Factory = CreateFactory(DatabasePath);
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public virtual async Task DisposeAsync()
+    public virtual async ValueTask DisposeAsync()
     {
         if (Factory is not null)
         {

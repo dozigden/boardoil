@@ -13,15 +13,15 @@ public sealed class InternalRealtimeEndpointsTests : IAsyncLifetime
     private BoardOilApiFactory _factory = null!;
     private HttpClient _client = null!;
 
-    public Task InitializeAsync()
+    public ValueTask InitializeAsync()
     {
         var databasePath = BuildDbPath("boardoil-internal-realtime-tests");
         _factory = new BoardOilApiFactory(databasePath, mcpEventRelayApiKey: RelayApiKey);
         _client = _factory.CreateClient();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_factory is not null)
         {

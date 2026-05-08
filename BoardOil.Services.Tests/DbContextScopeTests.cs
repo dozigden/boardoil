@@ -16,7 +16,7 @@ public sealed class DbContextScopeTests : IAsyncLifetime
     private IDbContextScopeFactory _scopeFactory = null!;
     private IAmbientDbContextLocator _locator = null!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _harness = await SqliteTestHarness.CreateAsync();
         var dbContextFactory = new TestDbContextFactory(_harness.Options);
@@ -24,7 +24,7 @@ public sealed class DbContextScopeTests : IAsyncLifetime
         _locator = new AmbientDbContextLocator();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await _harness.DisposeAsync();
     }

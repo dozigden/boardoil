@@ -35,12 +35,15 @@ jobs:
       - name: Build
         run: dotnet build BoardOil.slnx --configuration Release --no-restore -maxcpucount:1 -nodeReuse:false
 
+      - name: Prepare test results directory
+        run: mkdir -p TestResults
+
       - name: Test API
-        run: dotnet test BoardOil.Api.Tests/BoardOil.Api.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false --logger "trx;LogFileName=BoardOil.Api.Tests.trx" --results-directory TestResults
+        run: dotnet BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll --report-xunit-trx --report-xunit-trx-filename TestResults/BoardOil.Api.Tests.trx
 
       - name: Test Services
         if: always()
-        run: dotnet test BoardOil.Services.Tests/BoardOil.Services.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false --logger "trx;LogFileName=BoardOil.Services.Tests.trx" --results-directory TestResults
+        run: dotnet BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll --report-xunit-trx --report-xunit-trx-filename TestResults/BoardOil.Services.Tests.trx
 
       - name: Publish .NET test report
         if: always()
@@ -65,7 +68,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: BoardOil.Web/package-lock.json
 

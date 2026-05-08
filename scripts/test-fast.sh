@@ -49,20 +49,20 @@ run_web=false
 run_backend_release_tests() {
   echo "[test-fast] Running backend tests (Release, no-build)"
   dotnet build BoardOil.slnx --configuration Release -maxcpucount:1 -nodeReuse:false
-  dotnet test BoardOil.Api.Tests/BoardOil.Api.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false
-  dotnet test BoardOil.Services.Tests/BoardOil.Services.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false
+  dotnet BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll
+  dotnet BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll
 }
 
 run_api_release_tests() {
   echo "[test-fast] Running API tests (Release, no-build)"
   dotnet build BoardOil.slnx --configuration Release -maxcpucount:1 -nodeReuse:false
-  dotnet test BoardOil.Api.Tests/BoardOil.Api.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false
+  dotnet BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll
 }
 
 run_services_release_tests() {
   echo "[test-fast] Running Services tests (Release, no-build)"
   dotnet build BoardOil.slnx --configuration Release -maxcpucount:1 -nodeReuse:false
-  dotnet test BoardOil.Services.Tests/BoardOil.Services.Tests.csproj --configuration Release --no-build -maxcpucount:1 -nodeReuse:false
+  dotnet BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll
 }
 
 run_web_checks() {
