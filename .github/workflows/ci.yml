@@ -39,11 +39,11 @@ jobs:
         run: mkdir -p TestResults
 
       - name: Test API
-        run: dotnet BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll --report-xunit-trx --report-xunit-trx-filename TestResults/BoardOil.Api.Tests.trx
+        run: dotnet BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll --results-directory TestResults --report-xunit-trx --report-xunit-trx-filename BoardOil.Api.Tests.trx
 
       - name: Test Services
         if: always()
-        run: dotnet BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll --report-xunit-trx --report-xunit-trx-filename TestResults/BoardOil.Services.Tests.trx
+        run: dotnet BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll --results-directory TestResults --report-xunit-trx --report-xunit-trx-filename BoardOil.Services.Tests.trx
 
       - name: Publish .NET test report
         if: always()
