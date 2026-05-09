@@ -120,7 +120,6 @@
 import { MoreVertical } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
-import { createSystemApi } from '../../shared/api/systemApi';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import BoGrid from '../../shared/components/BoGrid.vue';
 import PasswordResetDialog from '../../shared/components/PasswordResetDialog.vue';
@@ -130,15 +129,13 @@ import UserCreateDialog from '../components/UserCreateDialog.vue';
 import UserEditDialog from '../components/UserEditDialog.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
 import type { ManagedUser } from '../../shared/types/authTypes';
+import { useSystemUsersManagerStore } from '../stores/systemUsersManagerStore';
 
-const systemApi = createSystemApi();
 const authStore = useAuthStore();
+const usersManagerStore = useSystemUsersManagerStore();
 const { confirm } = useConfirm();
 const { user: currentUser } = storeToRefs(authStore);
-const users = ref<ManagedUser[]>([]);
-const busy = ref(false);
-const errorMessage = ref<string | null>(null);
-const successMessage = ref<string | null>(null);
+const { users, busy, errorMessage, successMessage } = storeToRefs(usersManagerStore);
 const isCreateDialogOpen = ref(false);
 const isEditDialogOpen = ref(false);
 const isResetPasswordDialogOpen = ref(false);
@@ -160,22 +157,6 @@ const gridFields: Array<{
   { key: 'actions', label: '', width: '4.5rem', align: 'end' }
 ];
 
-async function loadUsers() {
-  busy.value = true;
-  errorMessage.value = null;
-  try {
-    const result = await systemApi.getUsers();
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    users.value = result.data;
-  } finally {
-    busy.value = false;
-  }
-}
-
 function openCreateDialog() {
   isCreateDialogOpen.value = true;
 }
@@ -195,22 +176,12 @@ function closeResetPasswordDialog() {
 }
 
 async function createUser(payload: { userName: string; displayName: string; email: string; password: string; role: 'Admin' | 'Standard' }) {
-  busy.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.createUser(payload.userName, payload.displayName, payload.email, payload.password, payload.role);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    users.value = [...users.value, result.data].sort((a, b) => a.userName.localeCompare(b.userName));
-    isCreateDialogOpen.value = false;
-    successMessage.value = `Created user ${result.data.displayName}.`;
-  } finally {
-    busy.value = false;
+  const created = await usersManagerStore.createUser(payload);
+  if (!created) {
+    return;
   }
+
+  isCreateDialogOpen.value = false;
 }
 
 function openEditDialog(user: ManagedUser) {
@@ -229,22 +200,12 @@ async function submitUserEdit(payload: { displayName: string; email: string; rol
     return;
   }
 
-  busy.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.updateUser(selectedUser.id, payload);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    users.value = users.value.map(user => (user.id === selectedUser.id ? result.data : user));
-    closeEditDialog();
-    successMessage.value = `Updated ${result.data.displayName}.`;
-  } finally {
-    busy.value = false;
+  const updated = await usersManagerStore.updateUser(selectedUser.id, payload);
+  if (!updated) {
+    return;
   }
+
+  closeEditDialog();
 }
 
 async function submitResetPassword(payload: { currentPassword?: string; newPassword: string }) {
@@ -253,22 +214,13 @@ async function submitResetPassword(payload: { currentPassword?: string; newPassw
     return;
   }
 
-  busy.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.resetUserPassword(selectedUser.id, payload.newPassword);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    isResetPasswordDialogOpen.value = false;
-    userForPasswordReset.value = null;
-    successMessage.value = `Password reset for ${selectedUser.displayName}.`;
-  } finally {
-    busy.value = false;
+  const reset = await usersManagerStore.resetUserPassword(selectedUser.id, selectedUser.displayName, payload.newPassword);
+  if (!reset) {
+    return;
   }
+
+  isResetPasswordDialogOpen.value = false;
+  userForPasswordReset.value = null;
 }
 
 async function deleteUser(user: ManagedUser) {
@@ -287,21 +239,7 @@ async function deleteUser(user: ManagedUser) {
     return;
   }
 
-  busy.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.deleteUser(user.id);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    users.value = users.value.filter(entry => entry.id !== user.id);
-    successMessage.value = `Deleted user ${user.displayName}.`;
-  } finally {
-    busy.value = false;
-  }
+  await usersManagerStore.deleteUser(user.id, user.displayName);
 }
 
 function isCurrentUser(userId: number) {
@@ -328,7 +266,8 @@ function openResetPasswordFromMenu(user: ManagedUser, close: () => void) {
 }
 
 onMounted(async () => {
-  await loadUsers();
+  usersManagerStore.clearMessages();
+  await usersManagerStore.loadUsers();
 });
 </script>
 
