@@ -41,16 +41,36 @@
     </div>
 
     <div v-if="showSelectionToggle" class="board-selection-pane">
-      <button
-        v-if="selectionMode"
-        type="button"
-        class="btn board-selection-edit"
-        :class="{ 'btn--secondary': selectedCount === 0 }"
-        :disabled="disableBulkEditAction"
-        @click="emit('openBulkEdit')"
-      >
-        Edit
-      </button>
+      <div v-if="selectionMode" class="btn-group board-selection-edit-group">
+        <button
+          type="button"
+          class="btn board-selection-edit-main"
+          :class="{ 'btn--secondary': selectedCount === 0 }"
+          :disabled="disableBulkEditAction"
+          @click="emit('openBulkEdit')"
+        >
+          Edit
+        </button>
+        <BoDropdown
+          label="More selected card actions"
+          :icon="ChevronDown"
+          :icon-size="14"
+          icon-only
+          align="right"
+          button-class="board-selection-edit-caret"
+          :disabled="disableSelectionMenuAction"
+        >
+          <template #default="{ close }">
+            <button type="button" class="bo-dropdown-item" @click="openInvertSelectionFromMenu(close)">
+              <span class="bo-dropdown-item-main">Invert selection</span>
+            </button>
+            <span class="bo-dropdown-divider" aria-hidden="true"></span>
+            <button type="button" class="bo-dropdown-item" :disabled="selectedCount === 0" @click="openBulkDeleteFromMenu(close)">
+              <span class="bo-dropdown-item-main board-selection-delete-item">Delete selected</span>
+            </button>
+          </template>
+        </BoDropdown>
+      </div>
       <label
         class="board-selection-toggle"
         :title="selectionMode ? 'Done selecting cards' : 'Select cards'"
@@ -75,8 +95,9 @@
 </template>
 
 <script setup lang="ts">
-import { X } from 'lucide-vue-next';
+import { ChevronDown, X } from 'lucide-vue-next';
 import { computed } from 'vue';
+import BoDropdown from '../../shared/components/BoDropdown.vue';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import BoardTagFilterPicker from './BoardTagFilterPicker.vue';
 
@@ -89,12 +110,14 @@ const props = withDefaults(defineProps<{
   selectionMode?: boolean;
   selectedCount?: number;
   disableBulkEditAction?: boolean;
+  disableSelectionMenuAction?: boolean;
   showSelectionToggle?: boolean;
   embedded?: boolean;
 }>(), {
   selectionMode: false,
   selectedCount: 0,
   disableBulkEditAction: false,
+  disableSelectionMenuAction: false,
   showSelectionToggle: true,
   embedded: false
 });
@@ -106,7 +129,19 @@ const emit = defineEmits<{
   clear: [];
   toggleSelectionMode: [];
   openBulkEdit: [];
+  openBulkDelete: [];
+  invertSelection: [];
 }>();
+
+function openBulkDeleteFromMenu(close: () => void) {
+  close();
+  emit('openBulkDelete');
+}
+
+function openInvertSelectionFromMenu(close: () => void) {
+  close();
+  emit('invertSelection');
+}
 
 const rootClasses = computed(() => (
   props.embedded
@@ -252,9 +287,30 @@ const hasActiveTagFilters = computed(() => Object.keys(props.filterStates).lengt
   gap: 0.45rem;
 }
 
-.board-selection-edit {
+.board-selection-edit-group {
+  min-height: var(--bo-board-filter-control-height);
+}
+
+.board-selection-edit-main {
   min-height: var(--bo-board-filter-control-height);
   padding: 0 0.65rem;
+}
+
+:deep(.board-selection-edit-caret) {
+  --bo-btn-bg: var(--bo-colour-brand);
+  --bo-btn-border: var(--bo-colour-brand);
+  --bo-btn-ink: var(--bo-ink-on-brand);
+  --bo-btn-bg-hover: var(--bo-colour-brand-strong);
+  --bo-btn-border-hover: var(--bo-colour-brand-strong);
+  --bo-btn-ink-hover: var(--bo-ink-on-brand);
+  min-height: var(--bo-board-filter-control-height);
+  min-width: 2rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.board-selection-delete-item {
+  color: var(--bo-colour-danger-strong);
 }
 
 .board-selection-toggle-count {

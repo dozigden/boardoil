@@ -22,12 +22,15 @@
         :selection-mode="isCardSelectionMode"
         :selected-count="selectedCardCount"
         :disable-bulk-edit-action="isApplyingBulkEdit || selectedCardCount === 0"
+        :disable-selection-menu-action="isApplyingBulkEdit"
         @update:search-text="cardSearchText = $event"
         @update:filter-states="tagFilterStates = $event"
         @update:picker-open="isTagFilterMenuOpen = $event"
         @clear="clearCardFilters"
         @toggle-selection-mode="toggleCardSelectionMode"
         @open-bulk-edit="openBulkEditDialog"
+        @open-bulk-delete="confirmDeleteSelectedCards"
+        @invert-selection="invertVisibleSelection"
       />
     </BoardConveyor>
 
@@ -151,6 +154,7 @@ import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../../shared/types/appError';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import { formatColumnCardCount } from '../utils/columnCardCount';
+import { useConfirm } from '../../shared/composables/useConfirm';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
@@ -171,7 +175,8 @@ const tagStore = useTagStore();
 const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { tags } = storeToRefs(tagStore);
-const { createCard, startDrag, dropCard, archiveCards, bulkMoveCards, bulkEditCards } = cardStore;
+const { createCard, startDrag, dropCard, archiveCards, bulkMoveCards, bulkEditCards, deleteCards } = cardStore;
+const { confirm } = useConfirm();
 
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 
@@ -209,6 +214,7 @@ const {
   toggleCardSelection,
   selectCardIds,
   unselectCardIds,
+  invertCardIds,
   handleArchiveConveyorClick,
   closeArchiveConfirm,
   confirmArchiveSelectedCards,
@@ -267,6 +273,20 @@ function clearVisibleInColumn(columnId: number) {
   }
 
   unselectCardIds(column.cards.map(card => card.id));
+}
+
+function invertVisibleSelection() {
+  if (!isCardSelectionMode.value || isApplyingBulkEdit.value) {
+    return;
+  }
+
+  const visibleCardIds = filteredColumns.value
+    .flatMap(column => column.cards.map(card => card.id));
+  if (visibleCardIds.length === 0) {
+    return;
+  }
+
+  invertCardIds(visibleCardIds);
 }
 
 function canSelectAllVisibleInColumn(columnId: number) {
@@ -338,6 +358,46 @@ async function confirmBulkEdit() {
     closeBulkEditDialog(true);
     clearDragInteraction();
     toggleCardSelectionModeInternal();
+  } finally {
+    isApplyingBulkEdit.value = false;
+  }
+}
+
+async function confirmDeleteSelectedCards() {
+  if (!isCardSelectionMode.value || selectedCardCount.value === 0 || isApplyingBulkEdit.value) {
+    return;
+  }
+
+  const shouldDelete = await confirm({
+    title: 'Delete selected cards',
+    message: `Delete ${selectedCardCount.value} selected card${selectedCardCount.value === 1 ? '' : 's'}? This cannot be undone.`,
+    confirmLabel: 'Delete',
+    danger: true
+  });
+  if (!shouldDelete) {
+    return;
+  }
+
+  const boardId = resolveBoardId();
+  if (boardId === null) {
+    return;
+  }
+
+  const cardIds = selectedCards.value.map(card => card.id);
+  if (cardIds.length === 0) {
+    return;
+  }
+
+  isApplyingBulkEdit.value = true;
+  try {
+    const deleted = await deleteCards(cardIds, boardId);
+    if (!deleted) {
+      return;
+    }
+
+    clearDragInteraction();
+    resetSelectionState();
+    closeBulkEditDialog();
   } finally {
     isApplyingBulkEdit.value = false;
   }

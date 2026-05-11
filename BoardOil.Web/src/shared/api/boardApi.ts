@@ -10,6 +10,7 @@ import type {
   CardComment,
   CardType,
   Column,
+  DeleteCardsSummary,
   Tag,
   TagStyleName
 } from '../types/boardTypes';
@@ -203,6 +204,10 @@ export function createBoardApi() {
 
   async function deleteCard(boardId: number, cardId: number): Promise<Result<void, AppError>> {
     return deleteJson(`/api/boards/${boardId}/cards/${cardId}`);
+  }
+
+  async function deleteCards(boardId: number, cardIds: number[]): Promise<Result<DeleteCardsSummary, AppError>> {
+    return postData<DeleteCardsSummary>(`/api/boards/${boardId}/cards/delete`, { cardIds });
   }
 
   async function getCardComments(boardId: number, cardId: number): Promise<Result<CardComment[], AppError>> {
@@ -415,6 +420,7 @@ export function createBoardApi() {
     moveCard,
     editCards,
     deleteCard,
+    deleteCards,
     getCardComments,
     createCardComment,
     archiveCard,

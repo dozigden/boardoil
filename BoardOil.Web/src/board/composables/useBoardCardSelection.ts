@@ -126,6 +126,23 @@ export function useBoardCardSelection(
     selectedCardIds.value = selectedCardIds.value.filter(cardId => !cardIdSet.has(cardId));
   }
 
+  function invertCardIds(cardIds: number[]) {
+    if (!isCardSelectionMode.value || cardIds.length === 0) {
+      return;
+    }
+
+    const nextSelectedCardIds = new Set(selectedCardIds.value);
+    for (const cardId of cardIds) {
+      if (nextSelectedCardIds.has(cardId)) {
+        nextSelectedCardIds.delete(cardId);
+      } else {
+        nextSelectedCardIds.add(cardId);
+      }
+    }
+
+    selectedCardIds.value = [...nextSelectedCardIds];
+  }
+
   function handleArchiveConveyorClick() {
     if (!isCardSelectionMode.value) {
       void openArchivedCards();
@@ -229,6 +246,7 @@ export function useBoardCardSelection(
     toggleCardSelection,
     selectCardIds,
     unselectCardIds,
+    invertCardIds,
     handleArchiveConveyorClick,
     closeArchiveConfirm,
     confirmArchiveSelectedCards,

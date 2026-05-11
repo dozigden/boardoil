@@ -213,6 +213,30 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_DeleteBulk_ShouldReturnSummaryContract()
+    {
+        // Arrange
+        var createdColumnId = await SeedBoardColumnAsync("Todo");
+        var firstCardId = await SeedBoardCardAsync(createdColumnId, "Delete A", "Desc");
+        var secondCardId = await SeedBoardCardAsync(createdColumnId, "Delete B", "Desc");
+
+        // Act
+        var response = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards/delete",
+            new BulkDeleteCardsRequest([firstCardId, secondCardId]));
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BulkDeleteCardsSummaryDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.True(envelope!.Success);
+        Assert.NotNull(envelope.Data);
+        Assert.Equal(1, envelope.Data!.BoardId);
+        Assert.Equal(2, envelope.Data.RequestedCount);
+        Assert.Equal(2, envelope.Data.DeletedCount);
+    }
+
+    [Fact]
     public async Task CardCommentsEndpoints_ShouldCreateAndListComments()
     {
         // Arrange

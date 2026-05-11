@@ -106,6 +106,29 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
     }
 
     [Fact]
+    public async Task BulkDeleteCardsAsync_WhenPermissionDenied_ShouldCheckCardDeletePermission()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Delete me", "Desc")
+            .Build();
+        var cardId = board.GetCard("Todo", "Delete me").Id;
+        var service = ResolveService<ICardService>();
+
+        // Act
+        var result = await service.BulkDeleteCardsAsync(
+            board.BoardId,
+            new BulkDeleteCardsRequest([cardId]),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(403, result.StatusCode);
+        Assert.Equal(BoardPermission.CardDelete, _boardAuthorisationService.LastPermission);
+    }
+
+    [Fact]
     public async Task GetArchivedCardsAsync_WhenPermissionDenied_ShouldCheckBoardAccessPermission()
     {
         // Arrange

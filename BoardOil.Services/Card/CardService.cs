@@ -555,6 +555,41 @@ public sealed class CardService(
         return resultDtos;
     }
 
+    public async Task<ApiResult<BulkDeleteCardsSummaryDto>> BulkDeleteCardsAsync(int boardId, BulkDeleteCardsRequest request, int actorUserId)
+    {
+        using var scope = _scopeFactory.Create();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardDelete);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        var uniqueCardIds = (request.CardIds ?? [])
+            .Distinct()
+            .ToList();
+        if (uniqueCardIds.Count == 0)
+        {
+            return ApiResults.Ok(new BulkDeleteCardsSummaryDto(boardId, 0, 0));
+        }
+
+        var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(uniqueCardIds);
+        if (cards.Count != uniqueCardIds.Count || cards.Any(x => x.BoardColumn.BoardId != boardId))
+        {
+            return ValidationFail([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
+        }
+
+        cardRepository.RemoveRange(cards);
+        await scope.SaveChangesAsync();
+
+        foreach (var cardId in uniqueCardIds)
+        {
+            await _boardEvents.CardDeletedAsync(boardId, cardId);
+        }
+
+        return ApiResults.Ok(new BulkDeleteCardsSummaryDto(boardId, uniqueCardIds.Count, uniqueCardIds.Count));
+    }
+
     public async Task<ApiResult> DeleteCardAsync(int boardId, int id, int actorUserId)
     {
         using var scope = _scopeFactory.Create();

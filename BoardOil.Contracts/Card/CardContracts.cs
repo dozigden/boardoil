@@ -103,5 +103,13 @@ public sealed record BulkEditCardsRequest(
     IReadOnlyList<string>? AddTagNames = null,
     IReadOnlyList<string>? RemoveTagNames = null);
 
+public sealed record BulkDeleteCardsRequest(
+    IReadOnlyList<int>? CardIds);
+
+public sealed record BulkDeleteCardsSummaryDto(
+    int BoardId,
+    int RequestedCount,
+    int DeletedCount);
+
 public sealed record CreateCardCommentRequest(
     string Text);

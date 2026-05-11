@@ -953,6 +953,59 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task BulkDeleteCardsAsync_WhenCardsExist_ShouldDeleteAllAndReturnSummary()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Delete me A", "Desc")
+            .AddCard("Delete me B", "Desc")
+            .Build();
+        var firstCardId = board.GetCard("Todo", "Delete me A").Id;
+        var secondCardId = board.GetCard("Todo", "Delete me B").Id;
+        var service = CreateService();
+
+        // Act
+        var result = await service.BulkDeleteCardsAsync(
+            board.BoardId,
+            new BulkDeleteCardsRequest([firstCardId, secondCardId]),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(board.BoardId, result.Data!.BoardId);
+        Assert.Equal(2, result.Data.RequestedCount);
+        Assert.Equal(2, result.Data.DeletedCount);
+        Assert.Equal(0, await DbContextForAssert.Cards.CountAsync());
+    }
+
+    [Fact]
+    public async Task BulkDeleteCardsAsync_WhenAnyCardMissing_ShouldReturnValidationErrorAndDeleteNothing()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Delete me", "Desc")
+            .Build();
+        var cardId = board.GetCard("Todo", "Delete me").Id;
+        var service = CreateService();
+
+        // Act
+        var result = await service.BulkDeleteCardsAsync(
+            board.BoardId,
+            new BulkDeleteCardsRequest([cardId, 999_999]),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("cardIds"));
+        Assert.Equal(1, await DbContextForAssert.Cards.CountAsync());
+    }
+
+    [Fact]
     public async Task CreateCardAsync_WhenTitleHasInvalidCharacters_ShouldReturnValidationErrorForTitle()
     {
         // Arrange

@@ -66,6 +66,12 @@ export type ArchiveCardsSummary = {
   archivedCount: number;
 };
 
+export type DeleteCardsSummary = {
+  boardId: number;
+  requestedCount: number;
+  deletedCount: number;
+};
+
 export type Tag = TagPresentation & {
   id: number;
   name: string;

@@ -128,6 +128,25 @@ export const useCardStore = defineStore('card', () => {
     return true;
   }
 
+  async function deleteCards(cardIds: number[], boardId: number | null = activeBoardId.value) {
+    const resolvedBoardId = resolveBoardId(boardId);
+    if (resolvedBoardId === null) {
+      return false;
+    }
+
+    const uniqueCardIds = [...new Set(cardIds)];
+    const result = await runBusy(() => api.deleteCards(resolvedBoardId, uniqueCardIds));
+    if (!result.ok) {
+      return false;
+    }
+
+    for (const cardId of uniqueCardIds) {
+      removeCard(cardId);
+    }
+
+    return true;
+  }
+
   async function archiveCard(cardId: number, boardId: number | null = activeBoardId.value) {
     const resolvedBoardId = resolveBoardId(boardId);
     if (resolvedBoardId === null) {
@@ -425,6 +444,7 @@ export const useCardStore = defineStore('card', () => {
     createCard,
     saveCard,
     deleteCard,
+    deleteCards,
     archiveCard,
     archiveCards,
     bulkMoveCards,

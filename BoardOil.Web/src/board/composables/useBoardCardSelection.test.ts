@@ -24,6 +24,23 @@ describe('useBoardCardSelection', () => {
     expect(model.isCardSelectionMode.value).toBe(false);
     expect(model.selectedCardCount.value).toBe(0);
   });
+
+  it('inverts only the provided visible card ids while in selection mode', () => {
+    const board = ref<Board | null>(makeBoard());
+    const archiveCards = vi.fn(async () => true);
+    const bulkMoveCards = vi.fn(async () => true);
+    const resolveBoardId = vi.fn(() => 1);
+    const openArchivedCards = vi.fn(async () => undefined);
+
+    const model = useBoardCardSelection(board, archiveCards, bulkMoveCards, resolveBoardId, openArchivedCards);
+
+    model.toggleCardSelectionMode();
+    model.toggleCardSelection(101);
+    model.invertCardIds([101, 102]);
+
+    expect(model.selectedCardIds.value).toEqual([102]);
+    expect(model.selectedCardCount.value).toBe(1);
+  });
 });
 
 function makeBoard(): Board {

@@ -12,6 +12,7 @@ const api = {
   moveCard: vi.fn(),
   editCards: vi.fn(),
   deleteCard: vi.fn(),
+  deleteCards: vi.fn(),
   archiveCard: vi.fn(),
   archiveCards: vi.fn()
 };
@@ -384,6 +385,39 @@ describe('cardStore', () => {
 
     expect(archived).toBe(true);
     expect(api.archiveCards).toHaveBeenCalledWith(1, [101, 102]);
+    expect(store.getCardById(101)).toBeNull();
+    expect(store.getCardById(102)).toBeNull();
+    expect(store.getCardsForColumn(1)).toHaveLength(0);
+  });
+
+  it('deleteCards removes all deleted cards from active board cache', async () => {
+    const store = useCardStore();
+    const board = makeBoard();
+    board.columns[0].cards.push({
+      id: 102,
+      boardColumnId: 1,
+      cardTypeId: 1,
+      cardTypeName: 'Story',
+      cardTypeEmoji: null,
+      title: 'Task B',
+      description: 'Seed',
+      sortKey: '00000000000000000002',
+      tags: [],
+      tagNames: [],
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:00:00Z'
+    });
+    store.replaceBoardCards(1, board.columns);
+    api.deleteCards.mockResolvedValue(ok({
+      boardId: 1,
+      requestedCount: 2,
+      deletedCount: 2
+    }));
+
+    const deleted = await store.deleteCards([101, 102, 102]);
+
+    expect(deleted).toBe(true);
+    expect(api.deleteCards).toHaveBeenCalledWith(1, [101, 102]);
     expect(store.getCardById(101)).toBeNull();
     expect(store.getCardById(102)).toBeNull();
     expect(store.getCardsForColumn(1)).toHaveLength(0);
