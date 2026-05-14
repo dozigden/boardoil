@@ -20,13 +20,20 @@ describe('stylePersistence', () => {
     expect(model).toEqual({ styleName: 'auto' });
   });
 
-  it('falls back to auto model on invalid solid payload', () => {
+  it('supports legacy solid payloads with missing custom color fields', () => {
     const model = deserializeStyle({
       styleName: 'solid',
       stylePropertiesJson: '{"backgroundColor":"#69C1CE","textColorMode":"custom","borderMode":"custom"}'
     });
 
-    expect(model).toEqual({ styleName: 'auto' });
+    expect(model).toEqual({
+      styleName: 'solid',
+      backgroundColor: '#69C1CE',
+      textColorMode: 'custom',
+      borderMode: 'custom',
+      textColor: '#111827',
+      borderColor: '#D8CDEC'
+    });
   });
 
   it('falls back to auto model when style json is unparsable', () => {
