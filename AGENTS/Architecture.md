@@ -62,3 +62,5 @@ Default: one save per service operation unless a specific transactional reason r
 - Realtime notifications are emitted from services through `IBoardEvents`.
 - Clients should treat realtime as incremental and resync-safe after reconnects.
 - API auth uses JWT/cookies for user sessions.
+- MCP-specific auth policy and bearer challenge behavior are composed through `BoardOil.Api/Mcp/McpAuthExtensions.cs`.
+- `Program.cs` should remain orchestration-focused; MCP transport/auth wiring should live in `BoardOil.Api/Mcp/*` extension modules.
