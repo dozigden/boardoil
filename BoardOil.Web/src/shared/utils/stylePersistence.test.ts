@@ -38,6 +38,39 @@ describe('stylePersistence', () => {
     expect(model).toEqual({ styleName: 'auto' });
   });
 
+  it('supports historical solid payloads that omit borderMode', () => {
+    const model = deserializeStyle({
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#69C1CE","textColorMode":"auto"}'
+    });
+
+    expect(model).toEqual({
+      styleName: 'solid',
+      backgroundColor: '#69C1CE',
+      textColorMode: 'auto',
+      borderMode: 'auto',
+      textColor: '#111827',
+      borderColor: '#D8CDEC'
+    });
+  });
+
+  it('supports historical gradient payloads that used backgroundColor only', () => {
+    const model = deserializeStyle({
+      styleName: 'gradient',
+      stylePropertiesJson: '{"backgroundColor":"#69C1CE","textColorMode":"auto"}'
+    });
+
+    expect(model).toEqual({
+      styleName: 'gradient',
+      leftColor: '#69C1CE',
+      rightColor: '#69C1CE',
+      textColorMode: 'auto',
+      borderMode: 'auto',
+      textColor: '#111827',
+      borderColor: '#D8CDEC'
+    });
+  });
+
   it('serializes presets with preset index only', () => {
     const json = serializeStyleModel({ styleName: 'presets', presetIndex: 4 });
     expect(json).toContain('"presetIndex":4');
