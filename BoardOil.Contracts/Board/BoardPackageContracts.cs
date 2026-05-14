@@ -44,7 +44,7 @@ public sealed record BoardPackageCardDto(
 
 public sealed record BoardPackageCommentDto(
     string Text,
-    DateTime CreatedAtUtc,
+    DateTime PostedAtUtc,
     string? AuthorEmail = null);
 
 public sealed record BoardPackageArchiveDto(

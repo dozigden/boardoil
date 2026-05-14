@@ -61,6 +61,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
             CardId = card.Id,
             AuthorUserId = actor.Id,
             Text = "Most recent comment",
+            PostedAtUtc = now.AddMinutes(1),
             CreatedAtUtc = now.AddMinutes(1)
         });
         DbContextForArrange.CardComments.Add(new EntityCardComment
@@ -68,6 +69,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
             CardId = card.Id,
             AuthorUserId = null,
             Text = "Older comment",
+            PostedAtUtc = now,
             CreatedAtUtc = now
         });
         var cardEntity = DbContextForArrange.Cards.Single(x => x.Id == card.Id);

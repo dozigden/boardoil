@@ -83,6 +83,7 @@ public static class CardMappingExtensions
             comment.CardId,
             comment.AuthorUserId,
             comment.Text,
+            comment.PostedAtUtc,
             comment.CreatedAtUtc,
             authorDisplayName ?? comment.AuthorUser?.DisplayName ?? UnknownCommentAuthorDisplayName,
             authorImageRelativePath);

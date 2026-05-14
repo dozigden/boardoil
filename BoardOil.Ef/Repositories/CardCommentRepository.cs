@@ -12,7 +12,7 @@ public sealed class CardCommentRepository(IAmbientDbContextLocator ambientDbCont
         await DbSet
             .Where(x => x.CardId == cardId)
             .Include(x => x.AuthorUser)
-            .OrderByDescending(x => x.CreatedAtUtc)
+            .OrderByDescending(x => x.PostedAtUtc)
             .ThenByDescending(x => x.Id)
             .ToListAsync();
 
@@ -27,7 +27,7 @@ public sealed class CardCommentRepository(IAmbientDbContextLocator ambientDbCont
             .Where(x => cardIds.Contains(x.CardId))
             .Include(x => x.AuthorUser)
             .OrderBy(x => x.CardId)
-            .ThenByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.PostedAtUtc)
             .ThenByDescending(x => x.Id)
             .ToListAsync();
     }

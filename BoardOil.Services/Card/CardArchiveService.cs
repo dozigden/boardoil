@@ -202,6 +202,7 @@ public sealed class CardArchiveService(
                 AuthorUserId = author?.Id,
                 AuthorUser = author,
                 Text = snapshotComment.Text,
+                PostedAtUtc = snapshotComment.CreatedAtUtc,
                 CreatedAtUtc = snapshotComment.CreatedAtUtc
             };
             cardCommentRepository.Add(restoredComment);

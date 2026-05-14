@@ -36,11 +36,11 @@ public static class ArchivedCardSnapshotSerialiser
             card.UpdatedAtUtc,
             card.AssignedUserId,
             card.Comments
-                .OrderBy(x => x.CreatedAtUtc)
+                .OrderBy(x => x.PostedAtUtc)
                 .ThenBy(x => x.Id)
                 .Select(x => new ArchivedCardSnapshotCommentV1Payload(
                     x.Text,
-                    x.CreatedAtUtc,
+                    x.PostedAtUtc,
                     x.AuthorUserId,
                     x.AuthorUser?.Email))
                 .ToList());

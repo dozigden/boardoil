@@ -208,6 +208,7 @@ public sealed class BoardPackageImportService(
                         AuthorUserId = commentAuthor?.Id,
                         AuthorUser = commentAuthor,
                         Text = importedComment.Text,
+                        PostedAtUtc = importedComment.PostedAtUtc
                     });
                 }
             }
@@ -958,9 +959,9 @@ public sealed class BoardPackageImportService(
                     $"Comment text must be {MaxCardCommentLength} characters or fewer."));
             }
 
-            if (importedComment.CreatedAtUtc == default)
+            if (importedComment.PostedAtUtc == default)
             {
-                validationErrors.Add(new ValidationError($"{commentPropertyPrefix}.createdAtUtc", "Comment created time is required."));
+                validationErrors.Add(new ValidationError($"{commentPropertyPrefix}.postedAtUtc", "Comment posted time is required."));
             }
 
             if (validationErrors.Any(x => x.Property.StartsWith(commentPropertyPrefix, StringComparison.Ordinal)))
@@ -970,7 +971,7 @@ public sealed class BoardPackageImportService(
 
             canonicalComments.Add(new CommentImportDefinition(
                 canonicalText,
-                importedComment.CreatedAtUtc,
+                importedComment.PostedAtUtc,
                 ResolveNormalisedEmailOrNull(importedComment.AuthorEmail)));
         }
 
@@ -1189,7 +1190,7 @@ public sealed class BoardPackageImportService(
 
     private sealed record CommentImportDefinition(
         string Text,
-        DateTime CreatedAtUtc,
+        DateTime PostedAtUtc,
         string? AuthorNormalisedEmail);
 
     private sealed record ArchivedCardImportDefinition(

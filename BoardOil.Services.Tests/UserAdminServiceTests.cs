@@ -243,6 +243,7 @@ public sealed class UserAdminServiceTests : TestBaseDb
             CardId = cardId,
             AuthorUserId = targetAdmin.Id,
             Text = "Preserve me",
+            PostedAtUtc = DateTime.UtcNow,
         });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<IUserAdminService>();

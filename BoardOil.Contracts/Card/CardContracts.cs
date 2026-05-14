@@ -12,6 +12,7 @@ public sealed record CardCommentDto(
     int CardId,
     int? AuthorUserId,
     string Text,
+    DateTime PostedAtUtc,
     DateTime CreatedAtUtc,
     string? AuthorDisplayName = null,
     string? AuthorImageRelativePath = null);

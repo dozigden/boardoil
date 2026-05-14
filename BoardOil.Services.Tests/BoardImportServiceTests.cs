@@ -124,7 +124,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId);
         var importedComments = DbContextForAssert.CardComments
             .Where(x => x.CardId == importedCard.Id)
-            .OrderBy(x => x.CreatedAtUtc)
+            .OrderBy(x => x.PostedAtUtc)
             .ToList();
 
         Assert.Equal(2, importedComments.Count);

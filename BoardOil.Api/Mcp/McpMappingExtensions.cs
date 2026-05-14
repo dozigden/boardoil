@@ -53,7 +53,7 @@ public static class McpMappingExtensions
             comment.CardId,
             comment.AuthorUserId,
             comment.Text,
-            comment.CreatedAtUtc,
+            comment.PostedAtUtc,
             comment.AuthorDisplayName,
             comment.AuthorImageRelativePath);
 

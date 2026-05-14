@@ -88,7 +88,7 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         Assert.NotNull(unarchiveResult.Data);
         var restoredComments = await DbContextForAssert.CardComments
             .Where(x => x.CardId == unarchiveResult.Data!.Id)
-            .OrderBy(x => x.CreatedAtUtc)
+            .OrderBy(x => x.PostedAtUtc)
             .ToListAsync();
         Assert.Equal(2, restoredComments.Count);
         Assert.Equal("Known author comment", restoredComments[0].Text);

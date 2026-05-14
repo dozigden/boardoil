@@ -6,6 +6,7 @@ public sealed class EntityCardComment : ISupportCreatedAt
     public int CardId { get; set; }
     public int? AuthorUserId { get; set; }
     public string Text { get; set; } = string.Empty;
+    public DateTime PostedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; }
 
     public EntityBoardCard Card { get; set; } = null!;

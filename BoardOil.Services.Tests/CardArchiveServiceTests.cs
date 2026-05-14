@@ -76,12 +76,14 @@ public sealed class CardArchiveServiceTests : TestBaseDb
             CardId = cardId,
             AuthorUserId = ActorUserId,
             Text = "Comment from known user",
+            PostedAtUtc = now,
         });
         DbContextForArrange.CardComments.Add(new()
         {
             CardId = cardId,
             AuthorUserId = null,
             Text = "Comment from unknown user",
+            PostedAtUtc = now.AddMinutes(1),
         });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -100,7 +102,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         var restoredCardId = unarchiveResult.Data!.Id;
         var restoredComments = await DbContextForAssert.CardComments
             .Where(x => x.CardId == restoredCardId)
-            .OrderBy(x => x.CreatedAtUtc)
+            .OrderBy(x => x.PostedAtUtc)
             .ToListAsync();
         Assert.Equal(2, restoredComments.Count);
         Assert.Equal("Comment from known user", restoredComments[0].Text);
@@ -219,6 +221,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
                 CardId = cardId,
                 AuthorUserId = ActorUserId,
                 Text = largeCommentText,
+                PostedAtUtc = now.AddSeconds(i),
             });
         }
 

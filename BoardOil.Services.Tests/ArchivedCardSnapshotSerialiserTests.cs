@@ -31,7 +31,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.NotNull(knownPayload.Payload.Comments);
         var firstComment = Assert.Single(knownPayload.Payload.Comments!);
         Assert.Equal("Archived note", firstComment.Text);
-        Assert.Equal(card.CreatedAtUtc, firstComment.CreatedAtUtc);
+        Assert.Equal(card.Comments.Single().PostedAtUtc, firstComment.CreatedAtUtc);
         Assert.Equal(11, firstComment.AuthorUserId);
         Assert.Equal("[email protected]", firstComment.AuthorEmail);
     }
@@ -134,6 +134,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
                         IsActive = true
                     },
                     Text = "Archived note",
+                    PostedAtUtc = new DateTime(2026, 4, 1, 10, 30, 0, DateTimeKind.Utc),
                 }
             ],
             CardTags =

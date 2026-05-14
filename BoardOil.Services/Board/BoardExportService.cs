@@ -63,7 +63,7 @@ public sealed class BoardExportService(
                 group => (IReadOnlyList<BoardPackageCommentDto>)group
                     .Select(comment => new BoardPackageCommentDto(
                         comment.Text,
-                        comment.CreatedAtUtc,
+                        comment.PostedAtUtc,
                         comment.AuthorUser?.Email))
                     .ToList());
 
