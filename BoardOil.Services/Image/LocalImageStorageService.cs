@@ -48,8 +48,6 @@ public sealed class LocalImageStorageService(ImageStorageOptions options) : IIma
         {
             RelativePath = relativePath.Replace('\\', '/'),
             ByteLength = byteLength,
-            CreatedAtUtc = nowUtc,
-            UpdatedAtUtc = nowUtc,
         };
     }
 

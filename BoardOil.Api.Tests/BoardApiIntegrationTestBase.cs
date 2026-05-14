@@ -33,8 +33,6 @@ public abstract class BoardApiIntegrationTestBase : TestBaseIntegration
                 NormalisedName = normalisedName,
                 StyleName = styleName,
                 StylePropertiesJson = stylePropertiesJson,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             });
         });
     }
@@ -59,8 +57,6 @@ public abstract class BoardApiIntegrationTestBase : TestBaseIntegration
                 StyleName = TagStyleSchemaValidator.SolidStyleName,
                 StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
                 Emoji = emoji,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
 
             dbContext.Tags.Add(tag);
@@ -126,8 +122,6 @@ public abstract class BoardApiIntegrationTestBase : TestBaseIntegration
                 BoardId = boardId,
                 Title = title,
                 SortKey = SortKeyGenerator.Between(previousSortKey, null),
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
 
             dbContext.Columns.Add(column);
@@ -177,8 +171,6 @@ public abstract class BoardApiIntegrationTestBase : TestBaseIntegration
                 Title = title,
                 Description = description,
                 SortKey = SortKeyGenerator.Between(previousSortKey, null),
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
 
             dbContext.Cards.Add(card);
@@ -206,8 +198,6 @@ public abstract class BoardApiIntegrationTestBase : TestBaseIntegration
                 StyleName = CardTypeDefaults.DefaultStyleName,
                 StylePropertiesJson = CardTypeDefaults.DefaultStylePropertiesJson,
                 IsSystem = isSystem,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
 
             dbContext.CardTypes.Add(cardType);

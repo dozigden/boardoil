@@ -99,8 +99,6 @@ public sealed class SystemBoardServiceTests : TestBaseDb
             PasswordHash = "test-hash",
             Role = role,
             IsActive = isActive,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(user);
         await DbContextForArrange.SaveChangesAsync();
@@ -115,15 +113,11 @@ public sealed class SystemBoardServiceTests : TestBaseDb
         var board = new EntityBoard
         {
             Name = boardName,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         board.Members.Add(new EntityBoardMember
         {
             UserId = ownerUserId,
             Role = BoardMemberRole.Owner,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         DbContextForArrange.Boards.Add(board);
         await DbContextForArrange.SaveChangesAsync();

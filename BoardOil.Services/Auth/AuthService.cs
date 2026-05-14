@@ -60,14 +60,11 @@ public sealed class AuthService(
             Role = UserRole.Admin,
             IdentityType = UserIdentityType.User,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now,
             RefreshTokens =
             [
                 new EntityRefreshToken
                 {
                     TokenHash = HashRefreshToken(refreshToken),
-                    CreatedAtUtc = now,
                     ExpiresAtUtc = refreshTokenExpiresAtUtc
                 }
             ],
@@ -76,8 +73,6 @@ public sealed class AuthService(
                 {
                     BoardId = board.Id,
                     Role = BoardMemberRole.Owner,
-                    CreatedAtUtc = now,
-                    UpdatedAtUtc = now
                 })
                 .ToList()
         };
@@ -154,7 +149,6 @@ public sealed class AuthService(
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         user.PasswordHash = passwordHashService.HashPassword(request.NewPassword);
-        user.UpdatedAtUtc = now;
         await refreshTokenRepository.RevokeActiveTokensByUserIdAsync(user.Id, now);
         await scope.SaveChangesAsync();
 
@@ -220,7 +214,6 @@ public sealed class AuthService(
             TokenHash = HashToken(plainTextToken),
             TokenPrefix = plainTextToken[..12],
             ScopesCsv = string.Join(',', scopes),
-            CreatedAtUtc = now,
             ExpiresAtUtc = request.ExpiresInDays is null ? null : now.AddDays(request.ExpiresInDays.Value)
         };
 
@@ -371,7 +364,6 @@ public sealed class AuthService(
         {
             UserId = user.Id,
             TokenHash = HashRefreshToken(refreshToken),
-            CreatedAtUtc = now,
             ExpiresAtUtc = refreshTokenExpiresAtUtc
         });
 

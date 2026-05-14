@@ -31,8 +31,6 @@ public sealed class ClientAccountServiceTests : TestBaseDb
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.Client,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<IClientAccountService>();
@@ -250,8 +248,6 @@ public sealed class ClientAccountServiceTests : TestBaseDb
             Role = role,
             IdentityType = identityType,
             IsActive = isActive,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(user);
         await DbContextForArrange.SaveChangesAsync();
@@ -271,7 +267,6 @@ public sealed class ClientAccountServiceTests : TestBaseDb
             TokenHash = $"{name}-hash",
             TokenPrefix = $"bo_pat_{name[..Math.Min(name.Length, 5)].ToUpperInvariant()}",
             ScopesCsv = scopesCsv,
-            CreatedAtUtc = createdAtUtc,
             ExpiresAtUtc = createdAtUtc.AddDays(7)
         };
         DbContextForArrange.PersonalAccessTokens.Add(token);

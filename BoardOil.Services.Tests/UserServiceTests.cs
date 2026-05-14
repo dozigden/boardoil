@@ -24,8 +24,6 @@ public sealed class UserServiceTests : TestBaseDb
                 Role = UserRole.Standard,
                 IdentityType = UserIdentityType.User,
                 IsActive = true,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             },
             new EntityUser
             {
@@ -37,8 +35,6 @@ public sealed class UserServiceTests : TestBaseDb
                 Role = UserRole.Standard,
                 IdentityType = UserIdentityType.Client,
                 IsActive = true,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<IUserService>();

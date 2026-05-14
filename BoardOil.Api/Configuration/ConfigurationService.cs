@@ -8,7 +8,6 @@ namespace BoardOil.Api.Configuration;
 
 public sealed class ConfigurationService(
     JwtAuthOptions jwtOptions,
-    TimeProvider timeProvider,
     IDbContextScopeFactory scopeFactory,
     IAppSettingRepository appSettingRepository) : IConfigurationService
 {
@@ -31,7 +30,6 @@ public sealed class ConfigurationService(
 
         using var scope = scopeFactory.Create();
         var existingSetting = await appSettingRepository.GetByKeyAsync(McpPublicBaseUrlKey);
-        var now = timeProvider.GetUtcNow().UtcDateTime;
         var normalisedBaseUrl = normalisedBaseUrlResult.Value;
         if (normalisedBaseUrl is null)
         {
@@ -48,15 +46,13 @@ public sealed class ConfigurationService(
                 appSettingRepository.Add(new EntityAppSetting
                 {
                     Key = McpPublicBaseUrlKey,
-                    Value = normalisedBaseUrl,
-                    UpdatedAtUtc = now
+                    Value = normalisedBaseUrl
                 });
                 await scope.SaveChangesAsync();
             }
             else if (!string.Equals(existingSetting.Value, normalisedBaseUrl, StringComparison.Ordinal))
             {
                 existingSetting.Value = normalisedBaseUrl;
-                existingSetting.UpdatedAtUtc = now;
                 await scope.SaveChangesAsync();
             }
         }

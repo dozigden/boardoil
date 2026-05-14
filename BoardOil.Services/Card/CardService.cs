@@ -128,8 +128,6 @@ public sealed class CardService(
             Title = request.Title.Trim(),
             Description = description,
             SortKey = sortKey!,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         ReplaceTags(card, tags);
 
@@ -261,7 +259,6 @@ public sealed class CardService(
                 existingCard.SortKey = targetSortKey!;
             }
 
-            existingCard.UpdatedAtUtc = now;
             await scope.SaveChangesAsync();
         }
 
@@ -359,7 +356,6 @@ public sealed class CardService(
         {
             existingCard.BoardColumnId = targetColumn.Id;
             existingCard.SortKey = targetSortKey;
-            existingCard.UpdatedAtUtc = DateTime.UtcNow;
 
             await scope.SaveChangesAsync();
         }
@@ -523,7 +519,6 @@ public sealed class CardService(
 
             if (movementChanged || tagsChanged)
             {
-                card.UpdatedAtUtc = now;
             }
 
             var dto = await EnrichAssignedUserImageAsync(card.ToCardDto());
@@ -731,8 +726,6 @@ public sealed class CardService(
                 NormalisedName = normalisedName,
                 StyleName = TagStyleSchemaValidator.PresetsStyleName,
                 StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
             _tagRepository.Add(createdTag);
             resolvedTags.Add(createdTag);

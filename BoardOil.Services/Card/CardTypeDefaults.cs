@@ -17,7 +17,5 @@ namespace BoardOil.Services.Card;
             StyleName = DefaultStyleName,
             StylePropertiesJson = DefaultStylePropertiesJson,
             IsSystem = true,
-            CreatedAtUtc = nowUtc,
-            UpdatedAtUtc = nowUtc
         };
 }

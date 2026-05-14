@@ -60,8 +60,6 @@ public sealed class DbContextScopeTests : IAsyncLifetime
         dbContext!.Boards.Add(new BoardEntity
         {
             Name = "Board A",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
         });
 
         await scope.SaveChangesAsync();
@@ -99,16 +97,12 @@ public sealed class DbContextScopeTests : IAsyncLifetime
             dbContext!.Boards.Add(new BoardEntity
             {
                 Name = "Board 1",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
             });
             await transactionScope.SaveChangesAsync();
 
             dbContext.Boards.Add(new BoardEntity
             {
                 Name = "Board 2",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
             });
             await transactionScope.SaveChangesAsync();
 

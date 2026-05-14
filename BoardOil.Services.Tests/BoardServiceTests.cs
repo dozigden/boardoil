@@ -203,8 +203,6 @@ public sealed class BoardServiceTests : TestBaseDb
             NormalisedName = "BUG",
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Tags.Add(tag);
         await DbContextForArrange.SaveChangesAsync();
@@ -245,7 +243,6 @@ public sealed class BoardServiceTests : TestBaseDb
 
         var card = DbContextForArrange.Cards.Single(x => x.Id == cardId);
         card.AssignedUserId = ActorUserId;
-        card.UpdatedAtUtc = now;
         DbContextForArrange.Images.Add(new EntityImage
         {
             EntityType = ImageEntityType.UserProfile,
@@ -256,8 +253,6 @@ public sealed class BoardServiceTests : TestBaseDb
             ByteLength = 1234,
             Width = 256,
             Height = 256,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -310,8 +305,6 @@ public sealed class BoardServiceTests : TestBaseDb
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(owner);
         await DbContextForArrange.SaveChangesAsync();
@@ -319,15 +312,11 @@ public sealed class BoardServiceTests : TestBaseDb
         var board = new EntityBoard
         {
             Name = boardName,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         board.Members.Add(new EntityBoardMember
         {
             UserId = owner.Id,
             Role = BoardMemberRole.Owner,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         DbContextForArrange.Boards.Add(board);
         await DbContextForArrange.SaveChangesAsync();

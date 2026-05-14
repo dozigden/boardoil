@@ -117,8 +117,6 @@ public sealed class CardServiceTests : TestBaseDb
             NormalisedEmail = assignedEmail.ToUpperInvariant(),
             PasswordHash = "hash",
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(assignedUser);
         await DbContextForArrange.SaveChangesAsync();
@@ -127,8 +125,6 @@ public sealed class CardServiceTests : TestBaseDb
             BoardId = board.BoardId,
             UserId = assignedUser.Id,
             Role = BoardOil.Persistence.Abstractions.Entities.BoardMemberRole.Contributor,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -225,8 +221,6 @@ public sealed class CardServiceTests : TestBaseDb
             Name = "Bug",
             Emoji = "🐞",
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.CardTypes.Add(customType);
         await DbContextForArrange.SaveChangesAsync();
@@ -338,8 +332,6 @@ public sealed class CardServiceTests : TestBaseDb
             NormalisedEmail = assignedEmail.ToUpperInvariant(),
             PasswordHash = "hash",
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(assignedUser);
         await DbContextForArrange.SaveChangesAsync();
@@ -348,8 +340,6 @@ public sealed class CardServiceTests : TestBaseDb
             BoardId = board.BoardId,
             UserId = assignedUser.Id,
             Role = BoardOil.Persistence.Abstractions.Entities.BoardMemberRole.Contributor,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -398,8 +388,6 @@ public sealed class CardServiceTests : TestBaseDb
             NormalisedEmail = outsiderEmail,
             PasswordHash = "hash",
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(outsider);
         await DbContextForArrange.SaveChangesAsync();
@@ -1255,8 +1243,6 @@ public sealed class CardServiceTests : TestBaseDb
             NormalisedName = tagName.ToUpperInvariant(),
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         }));
         await DbContextForArrange.SaveChangesAsync();
     }

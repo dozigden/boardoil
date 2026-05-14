@@ -33,15 +33,11 @@ public sealed class FluentBoardBuilder
         _board = new BoardEntity
         {
             Name = boardName,
-            CreatedAtUtc = _nowUtc,
-            UpdatedAtUtc = _nowUtc
         };
         _board.Members.Add(new EntityBoardMember
         {
             UserId = _ownerUserId,
             Role = BoardMemberRole.Owner,
-            CreatedAtUtc = _nowUtc,
-            UpdatedAtUtc = _nowUtc
         });
         _systemCardType = new EntityCardType
         {
@@ -51,8 +47,6 @@ public sealed class FluentBoardBuilder
             StyleName = CardTypeDefaults.DefaultStyleName,
             StylePropertiesJson = CardTypeDefaults.DefaultStylePropertiesJson,
             IsSystem = true,
-            CreatedAtUtc = _nowUtc,
-            UpdatedAtUtc = _nowUtc
         };
         _board.CardTypes.Add(_systemCardType);
 
@@ -74,8 +68,6 @@ public sealed class FluentBoardBuilder
         {
             Title = title,
             SortKey = GenerateBetween(previousKey, null),
-            CreatedAtUtc = _nowUtc,
-            UpdatedAtUtc = _nowUtc,
             Board = _board
         };
 
@@ -117,8 +109,6 @@ public sealed class FluentBoardBuilder
             Title = title,
             Description = description,
             SortKey = sortKey,
-            CreatedAtUtc = _nowUtc,
-            UpdatedAtUtc = _nowUtc,
             BoardColumn = _currentColumn
         };
 

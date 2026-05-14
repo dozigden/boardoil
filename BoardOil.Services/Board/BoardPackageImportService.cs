@@ -78,16 +78,12 @@ public sealed class BoardPackageImportService(
         {
             Name = importPlan.BoardName,
             Description = importPlan.BoardDescription,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
 
         board.Members.Add(new EntityBoardMember
         {
             UserId = actorUserId,
             Role = BoardMemberRole.Owner,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
 
         boardRepository.Add(board);
@@ -113,8 +109,6 @@ public sealed class BoardPackageImportService(
                 StyleName = cardType.StyleName,
                 StylePropertiesJson = cardType.StylePropertiesJson,
                 IsSystem = false,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
 
             cardTypeRepository.Add(createdCardType);
@@ -132,8 +126,6 @@ public sealed class BoardPackageImportService(
                 StyleName = tagDefinition.StyleName,
                 StylePropertiesJson = tagDefinition.StylePropertiesJson,
                 Emoji = tagDefinition.Emoji,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
 
             tagRepository.Add(createdTag);
@@ -154,8 +146,6 @@ public sealed class BoardPackageImportService(
                 Board = board,
                 Title = importedColumn.Title,
                 SortKey = columnSortKey,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
             columnRepository.Add(createdColumn);
             createdColumns.Add(createdColumn);
@@ -179,8 +169,6 @@ public sealed class BoardPackageImportService(
                     Title = importedCard.Title,
                     Description = importedCard.Description,
                     SortKey = cardSortKey,
-                    CreatedAtUtc = now,
-                    UpdatedAtUtc = now
                 };
 
                 foreach (var importedTagName in importedCard.TagNames)
@@ -196,8 +184,6 @@ public sealed class BoardPackageImportService(
                             StyleName = TagStyleSchemaValidator.PresetsStyleName,
                             StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
                             Emoji = null,
-                            CreatedAtUtc = now,
-                            UpdatedAtUtc = now
                         };
 
                         tagRepository.Add(tag);
@@ -222,7 +208,6 @@ public sealed class BoardPackageImportService(
                         AuthorUserId = commentAuthor?.Id,
                         AuthorUser = commentAuthor,
                         Text = importedComment.Text,
-                        CreatedAtUtc = importedComment.CreatedAtUtc
                     });
                 }
             }

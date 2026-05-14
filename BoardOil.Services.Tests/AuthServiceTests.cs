@@ -75,15 +75,11 @@ public sealed class AuthServiceTests : TestBaseDb
             {
                 Name = "Board A",
                 Description = string.Empty,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             },
             new EntityBoard
             {
                 Name = "Board B",
                 Description = string.Empty,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<IAuthService>();
@@ -240,7 +236,6 @@ public sealed class AuthServiceTests : TestBaseDb
             {
                 UserId = user.Id,
                 TokenHash = HashToken("active-token"),
-                CreatedAtUtc = now.AddHours(-1),
                 ExpiresAtUtc = now.AddDays(1),
                 RevokedAtUtc = null
             },
@@ -248,7 +243,6 @@ public sealed class AuthServiceTests : TestBaseDb
             {
                 UserId = user.Id,
                 TokenHash = HashToken("already-revoked-token"),
-                CreatedAtUtc = now.AddHours(-2),
                 ExpiresAtUtc = now.AddDays(1),
                 RevokedAtUtc = previouslyRevokedAtUtc
             });
@@ -304,7 +298,6 @@ public sealed class AuthServiceTests : TestBaseDb
         {
             UserId = user.Id,
             TokenHash = oldRefreshTokenHash,
-            CreatedAtUtc = now.AddHours(-1),
             ExpiresAtUtc = now.AddDays(1)
         });
         await DbContextForArrange.SaveChangesAsync();
@@ -359,7 +352,6 @@ public sealed class AuthServiceTests : TestBaseDb
         {
             UserId = user.Id,
             TokenHash = refreshTokenHash,
-            CreatedAtUtc = now.AddHours(-1),
             ExpiresAtUtc = now.AddDays(1)
         });
         await DbContextForArrange.SaveChangesAsync();
@@ -436,8 +428,8 @@ public sealed class AuthServiceTests : TestBaseDb
                 TokenHash = HashToken("older"),
                 TokenPrefix = "bo_pat_OLDER",
                 ScopesCsv = MachinePatScopes.McpRead,
-                CreatedAtUtc = now.AddMinutes(-5),
-                ExpiresAtUtc = now.AddDays(1)
+                ExpiresAtUtc = now.AddDays(1),
+                CreatedAtUtc = now
             },
             new EntityPersonalAccessToken
             {
@@ -446,8 +438,8 @@ public sealed class AuthServiceTests : TestBaseDb
                 TokenHash = HashToken("newer"),
                 TokenPrefix = "bo_pat_NEWER",
                 ScopesCsv = $"{MachinePatScopes.McpRead},{MachinePatScopes.McpWrite}",
-                CreatedAtUtc = now,
-                ExpiresAtUtc = now.AddDays(1)
+                ExpiresAtUtc = now.AddDays(1),
+                CreatedAtUtc = now.AddMinutes(1)
             });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<IAuthService>();
@@ -475,7 +467,6 @@ public sealed class AuthServiceTests : TestBaseDb
             TokenHash = HashToken("revoke-me"),
             TokenPrefix = "bo_pat_REVOK",
             ScopesCsv = MachinePatScopes.McpRead,
-            CreatedAtUtc = now,
             ExpiresAtUtc = now.AddDays(1)
         };
         DbContextForArrange.PersonalAccessTokens.Add(token);
@@ -509,8 +500,6 @@ public sealed class AuthServiceTests : TestBaseDb
             Role = UserRole.Admin,
             IdentityType = UserIdentityType.User,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         var otherUser = new EntityUser
         {
@@ -521,8 +510,6 @@ public sealed class AuthServiceTests : TestBaseDb
             Role = UserRole.Admin,
             IdentityType = UserIdentityType.User,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.AddRange(owner, otherUser);
         await DbContextForArrange.SaveChangesAsync();
@@ -534,7 +521,6 @@ public sealed class AuthServiceTests : TestBaseDb
             TokenHash = HashToken("owner-token"),
             TokenPrefix = "bo_pat_OWNER",
             ScopesCsv = MachinePatScopes.McpRead,
-            CreatedAtUtc = now,
             ExpiresAtUtc = now.AddDays(1)
         };
         DbContextForArrange.PersonalAccessTokens.Add(token);
@@ -573,8 +559,6 @@ public sealed class AuthServiceTests : TestBaseDb
             Role = role,
             IdentityType = identityType,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(user);
         await DbContextForArrange.SaveChangesAsync();

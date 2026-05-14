@@ -23,8 +23,6 @@ public sealed class BoardMemberServiceTests : TestBaseDb
             BoardId = board.BoardId,
             UserId = member.Id,
             Role = BoardMemberRole.Contributor,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         DbContextForArrange.Images.Add(new EntityImage
         {
@@ -36,8 +34,6 @@ public sealed class BoardMemberServiceTests : TestBaseDb
             ByteLength = 1024,
             Width = 256,
             Height = 256,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<IBoardMemberService>();
@@ -149,8 +145,6 @@ public sealed class BoardMemberServiceTests : TestBaseDb
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.User,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(user);
         await DbContextForArrange.SaveChangesAsync();

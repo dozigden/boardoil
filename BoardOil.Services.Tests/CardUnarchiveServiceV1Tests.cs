@@ -200,8 +200,6 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         }).Entity;
         await DbContextForArrange.SaveChangesAsync();
 

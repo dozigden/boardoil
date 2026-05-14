@@ -1,6 +1,6 @@
 namespace BoardOil.Persistence.Abstractions.Entities;
 
-public sealed class EntityRefreshToken
+public sealed class EntityRefreshToken : ISupportCreatedAt
 {
     public int Id { get; set; }
     public int UserId { get; set; }

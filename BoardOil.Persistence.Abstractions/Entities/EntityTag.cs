@@ -1,6 +1,6 @@
 namespace BoardOil.Persistence.Abstractions.Entities;
 
-public sealed class EntityTag
+public sealed class EntityTag : ISupportCreatedAt, ISupportUpdatedAt
 {
     public int Id { get; set; }
     public int BoardId { get; set; }
@@ -10,7 +10,7 @@ public sealed class EntityTag
     public string StylePropertiesJson { get; set; } = string.Empty;
     public string? Emoji { get; set; }
     public DateTime CreatedAtUtc { get; set; }
-    public DateTime UpdatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; internal set; }
 
     public EntityBoard Board { get; set; } = null!;
     public ICollection<EntityCardTag> CardTags { get; set; } = new List<EntityCardTag>();

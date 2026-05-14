@@ -54,8 +54,6 @@ internal static class AdminAuthenticationHelper
                 Role = UserRole.Admin,
                 IdentityType = UserIdentityType.User,
                 IsActive = true,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
             dbContext.Users.Add(adminUser);
             await dbContext.SaveChangesAsync();
@@ -69,7 +67,6 @@ internal static class AdminAuthenticationHelper
             adminUser.Role = UserRole.Admin;
             adminUser.IdentityType = UserIdentityType.User;
             adminUser.IsActive = true;
-            adminUser.UpdatedAtUtc = now;
             await dbContext.SaveChangesAsync();
         }
 
@@ -89,8 +86,6 @@ internal static class AdminAuthenticationHelper
                 BoardId = boardId,
                 UserId = adminUser.Id,
                 Role = BoardMemberRole.Owner,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             })
             .ToArray();
         if (missingMemberships.Length > 0)

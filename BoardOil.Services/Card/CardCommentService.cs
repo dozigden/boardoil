@@ -75,7 +75,6 @@ public sealed class CardCommentService(
             CardId = cardId,
             AuthorUserId = actorUserId,
             Text = request.Text.Trim(),
-            CreatedAtUtc = DateTime.UtcNow
         };
         cardCommentRepository.Add(comment);
         await scope.SaveChangesAsync();

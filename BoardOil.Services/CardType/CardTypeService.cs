@@ -108,8 +108,6 @@ public sealed class CardTypeService(
             StyleName = styleResolution.StyleName,
             StylePropertiesJson = styleResolution.StylePropertiesJson,
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         cardTypeRepository.Add(entity);
 
@@ -182,7 +180,6 @@ public sealed class CardTypeService(
         existing.Emoji = emojiValidation.CanonicalEmoji;
         existing.StyleName = styleResolution.StyleName;
         existing.StylePropertiesJson = styleResolution.StylePropertiesJson;
-        existing.UpdatedAtUtc = DateTime.UtcNow;
 
         await scope.SaveChangesAsync();
         await _boardEvents.ResyncRequestedAsync(boardId);
@@ -222,12 +219,12 @@ public sealed class CardTypeService(
             return ApiErrors.InternalError("System card type not found for board.");
         }
 
-        var now = DateTime.UtcNow;
         var dbContext = scope.DbContexts.Get<BoardOilDbContext>();
 
         await dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE CardTypes SET IsSystem = 0, UpdatedAtUtc = {0} WHERE Id = {1}; UPDATE CardTypes SET IsSystem = 1, UpdatedAtUtc = {0} WHERE Id = {2};",
-            now, currentDefaultCardType.Id, nextDefaultCardType.Id);
+            "UPDATE CardTypes SET IsSystem = 0 WHERE Id = {0}; UPDATE CardTypes SET IsSystem = 1 WHERE Id = {1};",
+            currentDefaultCardType.Id,
+            nextDefaultCardType.Id);
 
         await scope.SaveChangesAsync();
         await _boardEvents.ResyncRequestedAsync(boardId);
@@ -272,7 +269,6 @@ public sealed class CardTypeService(
         foreach (var card in cardsToReassign)
         {
             card.CardTypeId = systemCardType.Id;
-            card.UpdatedAtUtc = now;
         }
 
         cardTypeRepository.Remove(existing);

@@ -59,7 +59,6 @@ public sealed class ConfigurationServiceTests
         {
             Key = "mcp_public_base_url",
             Value = "https://old.example.com",
-            UpdatedAtUtc = DateTime.UtcNow
         });
         var scopes = new FakeDbContextScopeFactory();
         var service = CreateService(repository, scopes);
@@ -84,7 +83,6 @@ public sealed class ConfigurationServiceTests
         {
             Key = "mcp_public_base_url",
             Value = "https://stable.example.com",
-            UpdatedAtUtc = DateTime.UtcNow
         });
         var scopes = new FakeDbContextScopeFactory();
         var service = CreateService(repository, scopes);
@@ -108,7 +106,7 @@ public sealed class ConfigurationServiceTests
         {
             AllowInsecureCookies = true
         };
-        return new ConfigurationService(jwtOptions, TimeProvider.System, scopes, repository);
+        return new ConfigurationService(jwtOptions, scopes, repository);
     }
 
     private sealed class InMemoryAppSettingRepository : IAppSettingRepository

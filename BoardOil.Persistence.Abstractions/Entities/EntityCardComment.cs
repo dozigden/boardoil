@@ -1,6 +1,6 @@
 namespace BoardOil.Persistence.Abstractions.Entities;
 
-public sealed class EntityCardComment
+public sealed class EntityCardComment : ISupportCreatedAt
 {
     public int Id { get; set; }
     public int CardId { get; set; }

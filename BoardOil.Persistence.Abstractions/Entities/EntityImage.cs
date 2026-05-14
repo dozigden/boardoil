@@ -1,6 +1,6 @@
 namespace BoardOil.Persistence.Abstractions.Entities;
 
-public sealed class EntityImage
+public sealed class EntityImage : ISupportCreatedAt, ISupportUpdatedAt
 {
     public int Id { get; set; }
     public ImageEntityType EntityType { get; set; }
@@ -12,5 +12,5 @@ public sealed class EntityImage
     public int? Width { get; set; }
     public int? Height { get; set; }
     public DateTime CreatedAtUtc { get; set; }
-    public DateTime UpdatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; internal set; }
 }

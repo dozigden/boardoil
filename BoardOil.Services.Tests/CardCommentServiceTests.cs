@@ -57,14 +57,12 @@ public sealed class CardCommentServiceTests : TestBaseDb
             CardId = cardId,
             AuthorUserId = ActorUserId,
             Text = "A",
-            CreatedAtUtc = now
         });
         DbContextForArrange.CardComments.Add(new()
         {
             CardId = cardId,
             AuthorUserId = ActorUserId,
             Text = "B",
-            CreatedAtUtc = now.AddSeconds(1)
         });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<ICardCommentService>();
@@ -92,7 +90,6 @@ public sealed class CardCommentServiceTests : TestBaseDb
             CardId = cardId,
             AuthorUserId = null,
             Text = "Orphaned",
-            CreatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<ICardCommentService>();

@@ -68,8 +68,6 @@ public abstract class TestBaseDb : IAsyncLifetime
                 PasswordHash = "test-hash",
                 Role = UserRole.Admin,
                 IsActive = true,
-                CreatedAtUtc = FixedNow,
-                UpdatedAtUtc = FixedNow
             };
             setupDb.Users.Add(actorUser);
             await setupDb.SaveChangesAsync();

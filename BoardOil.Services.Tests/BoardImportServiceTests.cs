@@ -178,8 +178,6 @@ public sealed class BoardImportServiceTests : TestBaseDb
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.Client,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(clientUser);
         await DbContextForArrange.SaveChangesAsync();
@@ -224,8 +222,6 @@ public sealed class BoardImportServiceTests : TestBaseDb
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.User,
             IsActive = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(inactiveUser);
         await DbContextForArrange.SaveChangesAsync();

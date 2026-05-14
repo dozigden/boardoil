@@ -76,8 +76,6 @@ public sealed class ClientAccountService(
             Role = role,
             IdentityType = UserIdentityType.Client,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
 
         var tokenName = string.IsNullOrWhiteSpace(request.TokenName) ? "Initial token" : request.TokenName.Trim();
@@ -136,7 +134,6 @@ public sealed class ClientAccountService(
         user.NormalisedEmail = normalisedEmail;
         user.Role = role;
         user.IsActive = request.IsActive;
-        user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
         await scope.SaveChangesAsync();
 
         return user.ToClientAccountDto();
@@ -281,7 +278,6 @@ public sealed class ClientAccountService(
             TokenHash = HashToken(plainTextToken),
             TokenPrefix = plainTextToken[..12],
             ScopesCsv = string.Join(',', scopes),
-            CreatedAtUtc = now,
             ExpiresAtUtc = request.ExpiresInDays is null ? null : now.AddDays(request.ExpiresInDays.Value)
         };
 

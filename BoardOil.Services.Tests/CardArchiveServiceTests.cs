@@ -76,14 +76,12 @@ public sealed class CardArchiveServiceTests : TestBaseDb
             CardId = cardId,
             AuthorUserId = ActorUserId,
             Text = "Comment from known user",
-            CreatedAtUtc = now
         });
         DbContextForArrange.CardComments.Add(new()
         {
             CardId = cardId,
             AuthorUserId = null,
             Text = "Comment from unknown user",
-            CreatedAtUtc = now.AddSeconds(1)
         });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -221,7 +219,6 @@ public sealed class CardArchiveServiceTests : TestBaseDb
                 CardId = cardId,
                 AuthorUserId = ActorUserId,
                 Text = largeCommentText,
-                CreatedAtUtc = now.AddSeconds(i)
             });
         }
 
@@ -515,8 +512,6 @@ public sealed class CardArchiveServiceTests : TestBaseDb
             NormalisedName = tagName.ToUpperInvariant(),
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         }));
         await DbContextForArrange.SaveChangesAsync();
     }
@@ -534,8 +529,6 @@ public sealed class CardArchiveServiceTests : TestBaseDb
             NormalisedEmail = email.ToUpperInvariant(),
             PasswordHash = "hash",
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(user);
         await DbContextForArrange.SaveChangesAsync();
@@ -545,8 +538,6 @@ public sealed class CardArchiveServiceTests : TestBaseDb
             BoardId = boardId,
             UserId = user.Id,
             Role = BoardOil.Persistence.Abstractions.Entities.BoardMemberRole.Contributor,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
 

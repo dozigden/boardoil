@@ -33,8 +33,6 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
                 NormalisedName = normalisedName,
                 StyleName = styleName,
                 StylePropertiesJson = stylePropertiesJson,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             });
         });
     }
@@ -58,8 +56,6 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
                 NormalisedName = canonicalName.ToUpperInvariant(),
                 StyleName = TagStyleSchemaValidator.SolidStyleName,
                 StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
 
             dbContext.Tags.Add(tag);
@@ -123,8 +119,6 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
                 BoardId = boardId,
                 Title = title,
                 SortKey = SortKeyGenerator.Between(previousSortKey, null),
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
 
             dbContext.Columns.Add(column);
@@ -174,8 +168,6 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
                 Title = title,
                 Description = description,
                 SortKey = SortKeyGenerator.Between(previousSortKey, null),
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
 
             dbContext.Cards.Add(card);
@@ -203,8 +195,6 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
                 StyleName = CardTypeDefaults.DefaultStyleName,
                 StylePropertiesJson = CardTypeDefaults.DefaultStylePropertiesJson,
                 IsSystem = isSystem,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
 
             dbContext.CardTypes.Add(cardType);

@@ -77,8 +77,6 @@ public sealed class BoardMemberService(
             BoardId = boardId,
             UserId = request.UserId,
             Role = role,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         boardMemberRepository.Add(membership);
         await scope.SaveChangesAsync();
@@ -131,7 +129,6 @@ public sealed class BoardMemberService(
         if (existingMembership.Role != role)
         {
             existingMembership.Role = role;
-            existingMembership.UpdatedAtUtc = DateTime.UtcNow;
             await scope.SaveChangesAsync();
         }
 

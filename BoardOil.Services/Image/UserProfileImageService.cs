@@ -112,7 +112,6 @@ public sealed class UserProfileImageService(
         {
             EntityType = ImageEntityType.UserProfile,
             EntityId = actorUserId,
-            CreatedAtUtc = saved.CreatedAtUtc,
         };
 
         entity.OriginalFileName = originalFileName;
@@ -121,7 +120,6 @@ public sealed class UserProfileImageService(
         entity.ByteLength = saved.ByteLength;
         entity.Width = imageInfo.Width;
         entity.Height = imageInfo.Height;
-        entity.UpdatedAtUtc = saved.UpdatedAtUtc;
 
         if (existing is null)
         {

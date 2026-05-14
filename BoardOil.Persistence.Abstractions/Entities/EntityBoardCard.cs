@@ -1,6 +1,6 @@
 namespace BoardOil.Persistence.Abstractions.Entities;
 
-public sealed class EntityBoardCard
+public sealed class EntityBoardCard : ISupportCreatedAt, ISupportUpdatedAt
 {
     public int Id { get; set; }
     public int BoardColumnId { get; set; }
@@ -10,7 +10,7 @@ public sealed class EntityBoardCard
     public string Description { get; set; } = string.Empty;
     public string SortKey { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
-    public DateTime UpdatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; internal set; }
 
     public EntityBoardColumn BoardColumn { get; set; } = null!;
     public EntityCardType CardType { get; set; } = null!;

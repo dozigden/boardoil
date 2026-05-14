@@ -82,8 +82,6 @@ public sealed class TagServiceTests : TestBaseDb
             NormalisedName = "BUG",
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -141,8 +139,6 @@ public sealed class TagServiceTests : TestBaseDb
                 NormalisedName = "BUG",
                 StyleName = "solid",
                 StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
             },
             new TagEntity
             {
@@ -151,8 +147,6 @@ public sealed class TagServiceTests : TestBaseDb
                 NormalisedName = "URGENT",
                 StyleName = "solid",
                 StylePropertiesJson = """{"backgroundColor":"#AA3322","textColorMode":"auto"}""",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
             },
             new TagEntity
             {
@@ -161,8 +155,6 @@ public sealed class TagServiceTests : TestBaseDb
                 NormalisedName = "OTHER",
                 StyleName = "solid",
                 StylePropertiesJson = """{"backgroundColor":"#117733","textColorMode":"auto"}""",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
             });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -192,8 +184,6 @@ public sealed class TagServiceTests : TestBaseDb
             NormalisedName = "BUG",
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
         var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
@@ -227,8 +217,6 @@ public sealed class TagServiceTests : TestBaseDb
             NormalisedName = "BUG",
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
         var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
@@ -263,8 +251,6 @@ public sealed class TagServiceTests : TestBaseDb
             NormalisedName = "BUG",
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
         var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
@@ -299,8 +285,6 @@ public sealed class TagServiceTests : TestBaseDb
             NormalisedName = "BUG",
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
         var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
@@ -341,8 +325,6 @@ public sealed class TagServiceTests : TestBaseDb
             NormalisedName = "BUG",
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
         var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
@@ -381,8 +363,6 @@ public sealed class TagServiceTests : TestBaseDb
                 NormalisedName = "BUG",
                 StyleName = "solid",
                 StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
             },
             new TagEntity
             {
@@ -391,8 +371,6 @@ public sealed class TagServiceTests : TestBaseDb
                 NormalisedName = "URGENT",
                 StyleName = "solid",
                 StylePropertiesJson = """{"backgroundColor":"#223344","textColorMode":"auto"}""",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
             });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -431,8 +409,6 @@ public sealed class TagServiceTests : TestBaseDb
             NormalisedName = "BUG",
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
         var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
@@ -469,8 +445,6 @@ public sealed class TagServiceTests : TestBaseDb
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
             Emoji = "🔥",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
         var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
@@ -518,8 +492,6 @@ public sealed class TagServiceTests : TestBaseDb
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
             Emoji = "🔥",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
         var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
@@ -561,8 +533,6 @@ public sealed class TagServiceTests : TestBaseDb
                 NormalisedName = "BUG",
                 StyleName = "solid",
                 StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
             },
             new TagEntity
             {
@@ -571,8 +541,6 @@ public sealed class TagServiceTests : TestBaseDb
                 NormalisedName = "BUG",
                 StyleName = "solid",
                 StylePropertiesJson = """{"backgroundColor":"#553311","textColorMode":"auto"}""",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
             });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -656,8 +624,6 @@ public sealed class TagServiceTests : TestBaseDb
             NormalisedName = "BUG",
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
         var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();

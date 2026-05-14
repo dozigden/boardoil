@@ -189,8 +189,6 @@ public sealed class CardArchiveService(
             Title = title,
             Description = snapshotCard.Description,
             SortKey = sortKeyValue!,
-            CreatedAtUtc = snapshotCard.CreatedAtUtc == default ? now : snapshotCard.CreatedAtUtc,
-            UpdatedAtUtc = snapshotCard.UpdatedAtUtc == default ? now : snapshotCard.UpdatedAtUtc
         };
         ReplaceTags(restoredCard, resolvedTags);
         var commentAuthorByUserId = new Dictionary<int, EntityUser?>();
@@ -198,14 +196,15 @@ public sealed class CardArchiveService(
         foreach (var snapshotComment in snapshot.Comments)
         {
             var author = await ResolveCommentAuthorForRestoreAsync(snapshotComment, commentAuthorByUserId, commentAuthorByNormalisedEmail);
-            cardCommentRepository.Add(new EntityCardComment
+            var restoredComment = new EntityCardComment
             {
                 Card = restoredCard,
                 AuthorUserId = author?.Id,
                 AuthorUser = author,
                 Text = snapshotComment.Text,
                 CreatedAtUtc = snapshotComment.CreatedAtUtc
-            });
+            };
+            cardCommentRepository.Add(restoredComment);
         }
 
         cardRepository.Add(restoredCard);
@@ -394,8 +393,6 @@ public sealed class CardArchiveService(
                 NormalisedName = normalisedName,
                 StyleName = TagStyleSchemaValidator.PresetsStyleName,
                 StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
             tagRepository.Add(createdTag);
             resolvedTags.Add(createdTag);

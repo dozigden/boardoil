@@ -31,8 +31,6 @@ public sealed class UserAdminServiceTests : TestBaseDb
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.Client,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<IUserAdminService>();
@@ -64,8 +62,6 @@ public sealed class UserAdminServiceTests : TestBaseDb
             ByteLength = 1234,
             Width = 128,
             Height = 128,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<IUserAdminService>();
@@ -149,14 +145,12 @@ public sealed class UserAdminServiceTests : TestBaseDb
             {
                 UserId = user.Id,
                 TokenHash = "active-token",
-                CreatedAtUtc = now.AddHours(-2),
                 ExpiresAtUtc = now.AddDays(2)
             },
             new EntityRefreshToken
             {
                 UserId = user.Id,
                 TokenHash = "revoked-token",
-                CreatedAtUtc = now.AddHours(-3),
                 ExpiresAtUtc = now.AddDays(2),
                 RevokedAtUtc = now.AddHours(-1)
             });
@@ -249,7 +243,6 @@ public sealed class UserAdminServiceTests : TestBaseDb
             CardId = cardId,
             AuthorUserId = targetAdmin.Id,
             Text = "Preserve me",
-            CreatedAtUtc = DateTime.UtcNow
         });
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<IUserAdminService>();
@@ -290,8 +283,6 @@ public sealed class UserAdminServiceTests : TestBaseDb
             Role = role,
             IdentityType = identityType,
             IsActive = isActive,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(user);
         await DbContextForArrange.SaveChangesAsync();

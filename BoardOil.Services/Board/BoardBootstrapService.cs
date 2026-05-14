@@ -27,8 +27,6 @@ public sealed class BoardBootstrapService(
         var board = new EntityBoard
         {
             Name = "BoardOil",
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
 
         var activeUsers = (await userRepository.GetUsersOrderedAsync())
@@ -40,8 +38,6 @@ public sealed class BoardBootstrapService(
             {
                 UserId = user.Id,
                 Role = BoardMemberRole.Owner,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             });
         }
 
@@ -58,8 +54,6 @@ public sealed class BoardBootstrapService(
                 Board = board,
                 Title = title,
                 SortKey = sortKey,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             });
             previousSortKey = sortKey;
         }

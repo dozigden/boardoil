@@ -85,8 +85,6 @@ public sealed class TagService(
             StyleName = TagStyleSchemaValidator.PresetsStyleName,
             StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
             Emoji = emojiValidation.CanonicalEmoji,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
 
         await scope.SaveChangesAsync();
@@ -167,7 +165,6 @@ public sealed class TagService(
         existing.StyleName = normalisedStyleName;
         existing.StylePropertiesJson = request.StylePropertiesJson;
         existing.Emoji = emojiValidation.CanonicalEmoji;
-        existing.UpdatedAtUtc = updatedAtUtc;
 
         await scope.SaveChangesAsync();
 

@@ -80,8 +80,6 @@ public sealed class ColumnService(
             BoardId = boardId,
             Title = request.Title.Trim(),
             SortKey = sortKey!,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         columnRepository.Add(column);
 
@@ -127,7 +125,6 @@ public sealed class ColumnService(
         if (titleChanged)
         {
             target.Title = updatedTitle;
-            target.UpdatedAtUtc = DateTime.UtcNow;
 
             await scope.SaveChangesAsync();
         }
@@ -196,7 +193,6 @@ public sealed class ColumnService(
         if (target.SortKey != targetSortKey)
         {
             target.SortKey = targetSortKey;
-            target.UpdatedAtUtc = DateTime.UtcNow;
             await scope.SaveChangesAsync();
         }
 

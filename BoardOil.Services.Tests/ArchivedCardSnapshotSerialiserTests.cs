@@ -115,8 +115,6 @@ public sealed class ArchivedCardSnapshotSerialiserTests
             Title = "Archive me",
             Description = "Desc",
             SortKey = "B",
-            CreatedAtUtc = new DateTime(2026, 4, 1, 10, 0, 0, DateTimeKind.Utc),
-            UpdatedAtUtc = new DateTime(2026, 4, 2, 10, 0, 0, DateTimeKind.Utc),
             Comments =
             [
                 new EntityCardComment
@@ -136,7 +134,6 @@ public sealed class ArchivedCardSnapshotSerialiserTests
                         IsActive = true
                     },
                     Text = "Archived note",
-                    CreatedAtUtc = new DateTime(2026, 4, 1, 10, 0, 0, DateTimeKind.Utc)
                 }
             ],
             CardTags =

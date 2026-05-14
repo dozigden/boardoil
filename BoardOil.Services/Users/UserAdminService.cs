@@ -80,8 +80,6 @@ public sealed class UserAdminService(
             Role = role,
             IdentityType = UserIdentityType.User,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
 
         userRepository.Add(user);
@@ -129,7 +127,6 @@ public sealed class UserAdminService(
         user.NormalisedEmail = normalisedEmail;
         user.Role = role;
         user.IsActive = request.IsActive;
-        user.UpdatedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
         await scope.SaveChangesAsync();
 
         return user.ToManagedUserDto(await ResolveProfileImageRelativePathAsync(user.Id));
@@ -153,7 +150,6 @@ public sealed class UserAdminService(
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         user.PasswordHash = passwordHashService.HashPassword(request.NewPassword);
-        user.UpdatedAtUtc = now;
         await refreshTokenRepository.RevokeActiveTokensByUserIdAsync(user.Id, now);
         await scope.SaveChangesAsync();
 

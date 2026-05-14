@@ -11,6 +11,48 @@ public sealed class EfEntityConventionTests
     private const string PersistenceEntityPrefix = "Entity";
 
     [Fact]
+    public void SaveChanges_ShouldPopulateCreatedAndUpdatedAt_ForEntitiesSupportingBoth()
+    {
+        using var context = CreateOpenDbContext();
+        context.Database.EnsureCreated();
+
+        var entity = new EntityBoard
+        {
+            Name = "Timestamp test board",
+            Description = "Timestamp test board description"
+        };
+
+        context.Boards.Add(entity);
+        context.SaveChanges();
+
+        Assert.NotEqual(default, entity.CreatedAtUtc);
+        Assert.NotEqual(default, entity.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void SaveChanges_ShouldUpdateUpdatedAt_ForModifiedEntitiesSupportingUpdatedAt()
+    {
+        using var context = CreateOpenDbContext();
+        context.Database.EnsureCreated();
+
+        var entity = new EntityAppSetting
+        {
+            Key = "timestamp:test",
+            Value = "v1"
+        };
+
+        context.AppSettings.Add(entity);
+        context.SaveChanges();
+        var initialUpdatedAt = entity.UpdatedAtUtc;
+
+        Thread.Sleep(5);
+        entity.Value = "v2";
+        context.SaveChanges();
+
+        Assert.True(entity.UpdatedAtUtc > initialUpdatedAt);
+    }
+
+    [Fact]
     public void EfEntities_ShouldUseEntityPrefix()
     {
         var efEntityTypeNames = GetEfEntityTypeNames();
@@ -85,5 +127,12 @@ public sealed class EfEntityConventionTests
             .Options;
 
         return new BoardOilDbContext(options);
+    }
+
+    private static BoardOilDbContext CreateOpenDbContext()
+    {
+        var context = CreateDbContext();
+        context.Database.OpenConnection();
+        return context;
     }
 }

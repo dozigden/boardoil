@@ -1,6 +1,6 @@
 namespace BoardOil.Persistence.Abstractions.Entities;
 
-public sealed class EntityUser
+public sealed class EntityUser : ISupportCreatedAt, ISupportUpdatedAt
 {
     public int Id { get; set; }
     public string UserName { get; set; } = string.Empty;
@@ -12,7 +12,7 @@ public sealed class EntityUser
     public UserIdentityType IdentityType { get; set; } = UserIdentityType.User;
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; }
-    public DateTime UpdatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; internal set; }
 
     public ICollection<EntityRefreshToken> RefreshTokens { get; set; } = new List<EntityRefreshToken>();
     public ICollection<EntityPersonalAccessToken> PersonalAccessTokens { get; set; } = new List<EntityPersonalAccessToken>();

@@ -120,16 +120,12 @@ public sealed class BoardService(
         {
             Name = name,
             Description = description,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
 
         board.Members.Add(new EntityBoardMember
         {
             UserId = actorUserId,
             Role = BoardMemberRole.Owner,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
 
         boardRepository.Add(board);
@@ -146,8 +142,6 @@ public sealed class BoardService(
                 Board = board,
                 Title = title,
                 SortKey = sortKey,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
             };
             columnRepository.Add(column);
             createdColumns.Add(column);
@@ -212,7 +206,6 @@ public sealed class BoardService(
         {
             board.Name = updatedName;
             board.Description = updatedDescription;
-            board.UpdatedAtUtc = DateTime.UtcNow;
             await scope.SaveChangesAsync();
         }
 

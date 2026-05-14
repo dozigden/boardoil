@@ -24,8 +24,6 @@ public sealed class CardTypeServiceTests : TestBaseDb
             Name = "Bug",
             Emoji = "🐞",
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
         var contributorUserId = await AddContributorAsync(boardId, "contributor-tags");
@@ -76,8 +74,6 @@ public sealed class CardTypeServiceTests : TestBaseDb
             Name = "Feature",
             Emoji = null,
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
         var service = CreateService();
@@ -228,8 +224,6 @@ public sealed class CardTypeServiceTests : TestBaseDb
             Name = "Feature",
             Emoji = null,
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.CardTypes.Add(cardType);
         await DbContextForArrange.SaveChangesAsync();
@@ -259,8 +253,6 @@ public sealed class CardTypeServiceTests : TestBaseDb
             Name = "Feature",
             Emoji = null,
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.CardTypes.Add(cardType);
         await DbContextForArrange.SaveChangesAsync();
@@ -290,8 +282,6 @@ public sealed class CardTypeServiceTests : TestBaseDb
             Name = "Bug",
             Emoji = "🐞",
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.CardTypes.Add(customType);
         await DbContextForArrange.SaveChangesAsync();
@@ -348,8 +338,6 @@ public sealed class CardTypeServiceTests : TestBaseDb
             Name = "Feature",
             Emoji = null,
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.CardTypes.Add(cardType);
         await DbContextForArrange.SaveChangesAsync();
@@ -382,15 +370,12 @@ public sealed class CardTypeServiceTests : TestBaseDb
             Name = "Bug",
             Emoji = "🐞",
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.CardTypes.Add(bugType);
         await DbContextForArrange.SaveChangesAsync();
 
         var card = await DbContextForArrange.Cards.SingleAsync(x => x.Id == cardId);
         card.CardTypeId = bugType.Id;
-        card.UpdatedAtUtc = now;
         await DbContextForArrange.SaveChangesAsync();
 
         var service = CreateService();
@@ -423,8 +408,6 @@ public sealed class CardTypeServiceTests : TestBaseDb
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(user);
         await DbContextForArrange.SaveChangesAsync();
@@ -434,8 +417,6 @@ public sealed class CardTypeServiceTests : TestBaseDb
             BoardId = boardId,
             UserId = user.Id,
             Role = BoardMemberRole.Contributor,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         await DbContextForArrange.SaveChangesAsync();
 

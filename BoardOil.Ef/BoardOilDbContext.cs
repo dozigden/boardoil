@@ -24,4 +24,43 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BoardOilDbContext).Assembly);
     }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplyEntityTimestamps();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ApplyEntityTimestamps();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void ApplyEntityTimestamps()
+    {
+        var nowUtc = DateTime.UtcNow;
+
+        foreach (var entry in ChangeTracker.Entries<ISupportCreatedAt>())
+        {
+            if (entry.State == EntityState.Added && entry.Entity.CreatedAtUtc == default)
+            {
+                entry.Property(nameof(ISupportCreatedAt.CreatedAtUtc)).CurrentValue = nowUtc;
+            }
+        }
+
+        foreach (var entry in ChangeTracker.Entries<ISupportUpdatedAt>())
+        {
+            if (entry.State == EntityState.Modified)
+            {
+                entry.Property(nameof(ISupportUpdatedAt.UpdatedAtUtc)).CurrentValue = nowUtc;
+                continue;
+            }
+
+            if (entry.State == EntityState.Added && entry.Entity.UpdatedAtUtc == default)
+            {
+                entry.Property(nameof(ISupportUpdatedAt.UpdatedAtUtc)).CurrentValue = nowUtc;
+            }
+        }
+    }
 }

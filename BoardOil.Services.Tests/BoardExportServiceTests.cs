@@ -37,8 +37,6 @@ public sealed class BoardExportServiceTests : TestBaseDb
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#FEEFC3","textColorMode":"auto"}""",
             IsSystem = false,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.CardTypes.Add(customCardType);
 
@@ -50,8 +48,6 @@ public sealed class BoardExportServiceTests : TestBaseDb
             StyleName = "solid",
             StylePropertiesJson = """{"backgroundColor":"#ED333B","textColorMode":"auto"}""",
             Emoji = "!",
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Tags.Add(urgentTag);
         await DbContextForArrange.SaveChangesAsync();
@@ -65,14 +61,14 @@ public sealed class BoardExportServiceTests : TestBaseDb
             CardId = card.Id,
             AuthorUserId = actor.Id,
             Text = "Most recent comment",
-            CreatedAtUtc = now.AddMinutes(2)
+            CreatedAtUtc = now.AddMinutes(1)
         });
         DbContextForArrange.CardComments.Add(new EntityCardComment
         {
             CardId = card.Id,
             AuthorUserId = null,
             Text = "Older comment",
-            CreatedAtUtc = now.AddMinutes(1)
+            CreatedAtUtc = now
         });
         var cardEntity = DbContextForArrange.Cards.Single(x => x.Id == card.Id);
         cardEntity.AssignedUserId = actor.Id;
@@ -206,8 +202,6 @@ public sealed class BoardExportServiceTests : TestBaseDb
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         DbContextForArrange.Users.Add(owner);
         await DbContextForArrange.SaveChangesAsync();
@@ -215,15 +209,11 @@ public sealed class BoardExportServiceTests : TestBaseDb
         var board = new EntityBoard
         {
             Name = boardName,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         };
         board.Members.Add(new EntityBoardMember
         {
             UserId = owner.Id,
             Role = BoardMemberRole.Owner,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
         });
         DbContextForArrange.Boards.Add(board);
         board.CardTypes.Add(CardTypeDefaults.CreateSystemForBoard(board, now));
