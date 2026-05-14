@@ -40,19 +40,19 @@ describe('isClickOutsideElement', () => {
 });
 
 describe('resolveClickOutsideElement', () => {
-  it('returns null for nullish values', () => {
-    expect(resolveClickOutsideElement(null)).toBeNull();
-    expect(resolveClickOutsideElement(undefined)).toBeNull();
+  it('returns an empty array for nullish values', () => {
+    expect(resolveClickOutsideElement(null)).toEqual([]);
+    expect(resolveClickOutsideElement(undefined)).toEqual([]);
   });
 
-  it('returns the element when value is a single element', () => {
+  it('returns an array containing the element when value is a single element', () => {
     const element = {} as HTMLElement;
-    expect(resolveClickOutsideElement(element)).toBe(element);
+    expect(resolveClickOutsideElement(element)).toEqual([element]);
   });
 
-  it('returns first html element when value is an array ref', () => {
+  it('returns all elements when value is an array ref', () => {
     const first = {} as HTMLElement;
     const second = {} as HTMLElement;
-    expect(resolveClickOutsideElement([first, second])).toBe(first);
+    expect(resolveClickOutsideElement([first, second])).toEqual([first, second]);
   });
 });
