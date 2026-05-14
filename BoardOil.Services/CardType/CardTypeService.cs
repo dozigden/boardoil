@@ -222,9 +222,10 @@ public sealed class CardTypeService(
         var dbContext = scope.DbContexts.Get<BoardOilDbContext>();
 
         await dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE CardTypes SET IsSystem = 0 WHERE Id = {0}; UPDATE CardTypes SET IsSystem = 1 WHERE Id = {1};",
+            "UPDATE CardTypes SET IsSystem = 0, UpdatedAtUtc = {2} WHERE Id = {0}; UPDATE CardTypes SET IsSystem = 1, UpdatedAtUtc = {2} WHERE Id = {1};",
             currentDefaultCardType.Id,
-            nextDefaultCardType.Id);
+            nextDefaultCardType.Id,
+            DateTime.UtcNow);
 
         await scope.SaveChangesAsync();
         await _boardEvents.ResyncRequestedAsync(boardId);

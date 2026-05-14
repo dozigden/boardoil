@@ -285,6 +285,8 @@ public sealed class CardTypeServiceTests : TestBaseDb
         };
         DbContextForArrange.CardTypes.Add(customType);
         await DbContextForArrange.SaveChangesAsync();
+        var originalCustomUpdatedAt = customType.UpdatedAtUtc;
+        var originalSystemTypeUpdatedAt = (await DbContextForArrange.CardTypes.SingleAsync(x => x.BoardId == boardId && x.IsSystem)).UpdatedAtUtc;
 
         var service = CreateService();
 
@@ -301,6 +303,8 @@ public sealed class CardTypeServiceTests : TestBaseDb
             .ToListAsync();
         Assert.Single(cardTypes, x => x.IsSystem);
         Assert.True(cardTypes.Single(x => x.Id == customType.Id).IsSystem);
+        Assert.True(cardTypes.Single(x => x.Id == customType.Id).UpdatedAtUtc > originalCustomUpdatedAt);
+        Assert.True(cardTypes.Single(x => x.Id != customType.Id && x.Name == "Story").UpdatedAtUtc > originalSystemTypeUpdatedAt);
     }
 
     [Fact]
