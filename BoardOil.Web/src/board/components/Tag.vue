@@ -7,7 +7,7 @@
     :aria-label="displayTagName"
   >
     <span v-if="tagEmoji" class="tag-emoji" aria-hidden="true">{{ tagEmoji }}</span>
-    <span>{{ displayTagName }}</span>
+    <span class="tag-label">{{ displayTagName }}</span>
     <slot />
   </span>
 </template>
