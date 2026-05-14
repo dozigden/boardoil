@@ -7,6 +7,7 @@
     @keydown.escape.prevent.stop="close"
   >
     <button
+      ref="triggerRef"
       type="button"
       class="btn btn--secondary bo-dropdown-trigger"
       :class="[buttonClass, { 'btn--icon': isIconOnly }]"
@@ -23,19 +24,21 @@
       </slot>
       <span v-if="triggerText">{{ triggerText }}</span>
     </button>
-    <div
-      v-if="isOpen"
-      ref="panelRef"
-      :id="menuId"
-      class="bo-dropdown-panel"
-      :role="panelRole"
-      :aria-label="label"
-      :style="panelStyle"
-    >
-      <div class="bo-dropdown-content">
-        <slot :close="close" :open="isOpen" />
+    <Teleport to="body">
+      <div
+        v-if="isOpen"
+        ref="panelRef"
+        :id="menuId"
+        class="bo-dropdown-panel"
+        :role="panelRole"
+        :aria-label="label"
+        :style="panelStyle"
+      >
+        <div class="bo-dropdown-content">
+          <slot :close="close" :open="isOpen" />
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -68,10 +71,12 @@ const props = withDefaults(defineProps<{
 });
 
 const rootRef = ref<HTMLElement | null>(null);
+const triggerRef = ref<HTMLElement | null>(null);
 const panelRef = ref<HTMLElement | null>(null);
 const isOpen = ref(false);
 const verticalPlacement = ref<'top' | 'bottom'>('bottom');
-const shiftX = ref(0);
+const panelTop = ref(0);
+const panelLeft = ref(0);
 const panelMaxHeightPx = ref<number | null>(null);
 const menuId = `bo-dropdown-${Math.random().toString(36).slice(2, 10)}`;
 const triggerText = computed(() => {
@@ -84,7 +89,8 @@ const triggerText = computed(() => {
 const isIconOnly = computed(() => props.iconOnly || !triggerText.value);
 const triggerAriaLabel = computed(() => (isIconOnly.value ? props.label : undefined));
 const panelStyle = computed(() => ({
-  '--bo-dropdown-shift-x': `${shiftX.value}px`,
+  top: `${panelTop.value}px`,
+  left: `${panelLeft.value}px`,
   '--bo-dropdown-max-height': panelMaxHeightPx.value === null ? undefined : `${panelMaxHeightPx.value}px`
 }));
 
@@ -106,46 +112,55 @@ function close() {
 
 function resetPlacementState() {
   verticalPlacement.value = 'bottom';
-  shiftX.value = 0;
+  panelTop.value = 0;
+  panelLeft.value = 0;
   panelMaxHeightPx.value = null;
 }
 
 function updatePlacement() {
-  const root = rootRef.value;
+  const trigger = triggerRef.value;
   const panel = panelRef.value;
-  if (!root || !panel) {
+  if (!trigger || !panel) {
     return;
   }
 
   const viewportPadding = 12;
   const gap = 6;
-  const rootRect = root.getBoundingClientRect();
+  const triggerRect = trigger.getBoundingClientRect();
   const panelRect = panel.getBoundingClientRect();
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
 
-  const spaceBelow = viewportHeight - rootRect.bottom - gap - viewportPadding;
-  const spaceAbove = rootRect.top - gap - viewportPadding;
+  const spaceBelow = viewportHeight - triggerRect.bottom - gap - viewportPadding;
+  const spaceAbove = triggerRect.top - gap - viewportPadding;
   const fitsBelow = panelRect.height <= spaceBelow;
   const fitsAbove = panelRect.height <= spaceAbove;
   const shouldOpenUp = !fitsBelow && (fitsAbove || spaceAbove > spaceBelow);
   verticalPlacement.value = shouldOpenUp ? 'top' : 'bottom';
 
-  const maxHeightFromPlacement = Math.max(
-    120,
-    Math.floor((shouldOpenUp ? spaceAbove : spaceBelow))
-  );
-  panelMaxHeightPx.value = maxHeightFromPlacement;
+  panelMaxHeightPx.value = Math.max(120, Math.floor(shouldOpenUp ? spaceAbove : spaceBelow));
 
-  const updatedRect = panel.getBoundingClientRect();
-  let nextShiftX = 0;
-  if (updatedRect.left < viewportPadding) {
-    nextShiftX = viewportPadding - updatedRect.left;
-  } else if (updatedRect.right > viewportWidth - viewportPadding) {
-    nextShiftX = (viewportWidth - viewportPadding) - updatedRect.right;
+  const measuredRect = panel.getBoundingClientRect();
+  const panelWidth = measuredRect.width;
+  const panelHeight = measuredRect.height;
+
+  let nextLeft = triggerRect.left;
+  if (props.align === 'right') {
+    nextLeft = triggerRect.right - panelWidth;
+  }
+  if (props.align === 'center') {
+    nextLeft = triggerRect.left + ((triggerRect.width - panelWidth) / 2);
   }
 
-  shiftX.value = Math.round(nextShiftX);
+  const minLeft = viewportPadding;
+  const maxLeft = viewportWidth - viewportPadding - panelWidth;
+  panelLeft.value = Math.round(Math.min(Math.max(nextLeft, minLeft), Math.max(minLeft, maxLeft)));
+
+  panelTop.value = Math.round(
+    shouldOpenUp
+      ? triggerRect.top - gap - panelHeight
+      : triggerRect.bottom + gap
+  );
 }
 
 watch(isOpen, async open => {
@@ -158,7 +173,11 @@ watch(isOpen, async open => {
   updatePlacement();
 });
 
-useClickOutside(rootRef, close, () => isOpen.value);
+useClickOutside(
+  () => [rootRef.value, panelRef.value].filter((element): element is HTMLElement => element !== null),
+  close,
+  () => isOpen.value
+);
 
 watch(
   () => props.disabled,
@@ -171,10 +190,12 @@ watch(
 
 onMounted(() => {
   window.addEventListener('resize', updatePlacement);
+  window.addEventListener('scroll', updatePlacement, true);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updatePlacement);
+  window.removeEventListener('scroll', updatePlacement, true);
 });
 </script>
 
@@ -192,8 +213,7 @@ onBeforeUnmount(() => {
 }
 
 .bo-dropdown-panel {
-  position: absolute;
-  top: calc(100% + 0.35rem);
+  position: fixed;
   min-width: 11rem;
   max-width: calc(100vw - 1.5rem);
   max-height: var(--bo-dropdown-max-height, min(56vh, 22rem));
@@ -204,26 +224,6 @@ onBeforeUnmount(() => {
   padding: 0.35rem;
   box-shadow: var(--bo-shadow-pop);
   z-index: 10;
-}
-
-.bo-dropdown--align-left .bo-dropdown-panel {
-  left: 0;
-  transform: translateX(var(--bo-dropdown-shift-x, 0px));
-}
-
-.bo-dropdown--align-right .bo-dropdown-panel {
-  right: 0;
-  transform: translateX(var(--bo-dropdown-shift-x, 0px));
-}
-
-.bo-dropdown--align-center .bo-dropdown-panel {
-  left: 50%;
-  transform: translateX(calc(-50% + var(--bo-dropdown-shift-x, 0px)));
-}
-
-.bo-dropdown[data-placement='top'] .bo-dropdown-panel {
-  top: auto;
-  bottom: calc(100% + 0.35rem);
 }
 
 .bo-dropdown-content {

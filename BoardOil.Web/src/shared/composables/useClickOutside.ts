@@ -6,26 +6,27 @@ type ClickOutsideEvent = Pick<PointerEvent, 'target'> & {
 
 export function resolveClickOutsideElement(
   value: HTMLElement | HTMLElement[] | null | undefined
-): HTMLElement | null {
+): HTMLElement[] {
   if (!value) {
-    return null;
+    return [];
   }
 
   if (Array.isArray(value)) {
-    return value.find(candidate => candidate !== null && candidate !== undefined) ?? null;
+    return value.filter(candidate => candidate !== null && candidate !== undefined);
   }
 
-  return value;
+  return [value];
 }
 
-export function isClickOutsideElement(event: ClickOutsideEvent, element: HTMLElement | null): boolean {
-  if (!element) {
+export function isClickOutsideElement(event: ClickOutsideEvent, elements: HTMLElement | HTMLElement[]): boolean {
+  const candidates = Array.isArray(elements) ? elements : [elements];
+  if (candidates.length === 0) {
     return false;
   }
 
   const composedPath = typeof event.composedPath === 'function' ? event.composedPath() : null;
   if (composedPath) {
-    return !composedPath.includes(element);
+    return candidates.every(element => !composedPath.includes(element));
   }
 
   const target = event.target;
@@ -33,7 +34,7 @@ export function isClickOutsideElement(event: ClickOutsideEvent, element: HTMLEle
     return true;
   }
 
-  return !element.contains(target as Node);
+  return candidates.every(element => !element.contains(target as Node));
 }
 
 export function useClickOutside(
