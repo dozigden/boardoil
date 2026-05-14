@@ -88,14 +88,25 @@ public sealed class CardTypeService(
             return ValidationFail(validationErrors);
         }
 
+        var styleResolution = ResolveAndValidateStyle(
+            request.StyleName,
+            request.StylePropertiesJson,
+            existingStyleName: null,
+            existingStylePropertiesJson: null);
+        if (styleResolution.Error is not null)
+        {
+            validationErrors.Add(styleResolution.Error);
+            return ValidationFail(validationErrors);
+        }
+
         var now = DateTime.UtcNow;
         var entity = new EntityCardType
         {
             BoardId = boardId,
             Name = nameValidation.CanonicalName,
             Emoji = emojiValidation.CanonicalEmoji,
-            StyleName = ResolveStyleName(request.StyleName),
-            StylePropertiesJson = ResolveStylePropertiesJson(request.StylePropertiesJson),
+            StyleName = styleResolution.StyleName,
+            StylePropertiesJson = styleResolution.StylePropertiesJson,
             IsSystem = false,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
@@ -156,10 +167,21 @@ public sealed class CardTypeService(
             return ValidationFail(validationErrors);
         }
 
+        var styleResolution = ResolveAndValidateStyle(
+            request.StyleName,
+            request.StylePropertiesJson,
+            existing.StyleName,
+            existing.StylePropertiesJson);
+        if (styleResolution.Error is not null)
+        {
+            validationErrors.Add(styleResolution.Error);
+            return ValidationFail(validationErrors);
+        }
+
         existing.Name = nameValidation.CanonicalName;
         existing.Emoji = emojiValidation.CanonicalEmoji;
-        existing.StyleName = ResolveStyleName(request.StyleName, existing.StyleName);
-        existing.StylePropertiesJson = ResolveStylePropertiesJson(request.StylePropertiesJson, existing.StylePropertiesJson);
+        existing.StyleName = styleResolution.StyleName;
+        existing.StylePropertiesJson = styleResolution.StylePropertiesJson;
         existing.UpdatedAtUtc = DateTime.UtcNow;
 
         await scope.SaveChangesAsync();
@@ -285,38 +307,59 @@ public sealed class CardTypeService(
     private static string NormaliseName(string name) =>
         name.ToUpperInvariant();
 
-    private static string ResolveStyleName(string? requestedStyleName, string? existingStyleName = null)
+    private static StyleResolutionResult ResolveAndValidateStyle(
+        string? requestedStyleName,
+        string? requestedStylePropertiesJson,
+        string? existingStyleName,
+        string? existingStylePropertiesJson)
     {
-        if (!string.IsNullOrWhiteSpace(requestedStyleName))
+        var hasRequestedStyleName = !string.IsNullOrWhiteSpace(requestedStyleName);
+        var hasRequestedStyleProperties = !string.IsNullOrWhiteSpace(requestedStylePropertiesJson);
+
+        var resolvedStyleName = hasRequestedStyleName
+            ? requestedStyleName!.Trim()
+            : (string.IsNullOrWhiteSpace(existingStyleName) ? CardTypeDefaults.DefaultStyleName : existingStyleName.Trim());
+        var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(resolvedStyleName);
+        if (normalisedStyleName is null)
         {
-            return requestedStyleName.Trim();
+            return new StyleResolutionResult(
+                string.Empty,
+                string.Empty,
+                new ValidationError("styleName", "Style name must be 'solid', 'gradient', 'auto', or 'presets'."));
         }
 
-        if (!string.IsNullOrWhiteSpace(existingStyleName))
+        string resolvedStylePropertiesJson;
+        if (hasRequestedStyleProperties)
         {
-            return existingStyleName.Trim();
+            resolvedStylePropertiesJson = requestedStylePropertiesJson!.Trim();
+        }
+        else if (hasRequestedStyleName || string.IsNullOrWhiteSpace(existingStylePropertiesJson))
+        {
+            resolvedStylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(normalisedStyleName);
+        }
+        else
+        {
+            resolvedStylePropertiesJson = existingStylePropertiesJson.Trim();
         }
 
-        return CardTypeDefaults.DefaultStyleName;
-    }
-
-    private static string ResolveStylePropertiesJson(string? requestedStylePropertiesJson, string? existingStylePropertiesJson = null)
-    {
-        if (!string.IsNullOrWhiteSpace(requestedStylePropertiesJson))
+        if (!TagStyleSchemaValidator.IsValidJsonObject(resolvedStylePropertiesJson))
         {
-            return requestedStylePropertiesJson.Trim();
+            return new StyleResolutionResult(
+                string.Empty,
+                string.Empty,
+                new ValidationError("stylePropertiesJson", "Style properties must be valid JSON object."));
         }
 
-        if (!string.IsNullOrWhiteSpace(existingStylePropertiesJson))
-        {
-            return existingStylePropertiesJson.Trim();
-        }
-
-        return CardTypeDefaults.DefaultStylePropertiesJson;
+        return new StyleResolutionResult(normalisedStyleName, resolvedStylePropertiesJson, null);
     }
 
     private sealed record CardTypeNameValidationResult(
         string CanonicalName,
         string NormalisedName,
+        ValidationError? Error);
+
+    private sealed record StyleResolutionResult(
+        string StyleName,
+        string StylePropertiesJson,
         ValidationError? Error);
 }

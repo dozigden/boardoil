@@ -1,5 +1,5 @@
 <template>
-  <article class="create-card-inline" :style="draftStyle">
+  <article class="create-card-inline" :class="draftStyleClasses" :style="draftStyle">
     <div class="create-card-inline-input-row">
       <span v-if="draftEmoji" class="create-card-inline-emoji" aria-hidden="true">{{ draftEmoji }}</span>
       <textarea
@@ -35,7 +35,7 @@
 import { Check, X } from 'lucide-vue-next';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useCardTypeStore } from '../stores/cardTypeStore';
-import { getCardSurfaceStyle, normaliseCardTypeEmojiForRender } from '../../shared/utils/cardTypeStyles';
+import { getCardSurfaceClassList, getCardSurfaceStyle, normaliseCardTypeEmojiForRender } from '../../shared/utils/cardTypeStyles';
 
 const props = defineProps<{
   title: string;
@@ -54,6 +54,7 @@ const cardTypeStore = useCardTypeStore();
 const titleInputRef = ref<HTMLTextAreaElement | null>(null);
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.cardTypeId));
 const draftStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
+const draftStyleClasses = computed(() => getCardSurfaceClassList(resolvedCardType.value));
 const draftEmoji = computed(() => normaliseCardTypeEmojiForRender(resolvedCardType.value?.emoji));
 const hasError = computed(() => Boolean(props.errorMessage));
 

@@ -35,6 +35,14 @@
   --bo-colour-energy-strong: #ff8b4d;
   --bo-colour-success: #32cda0;
   --bo-colour-success-ink: #17613d;
+  --bo-preset-0: var(--bo-colour-brand);
+  --bo-preset-1: var(--bo-colour-brand-mid);
+  --bo-preset-2: var(--bo-colour-secondary);
+  --bo-preset-3: var(--bo-colour-warning);
+  --bo-preset-4: var(--bo-colour-danger);
+  --bo-preset-5: var(--bo-colour-info);
+  --bo-preset-6: var(--bo-colour-energy);
+  --bo-preset-7: var(--bo-colour-success);
 
   --bo-bg-root-start: #f3efe8;
   --bo-bg-root-end: #e6eef9;
@@ -67,6 +75,46 @@
   background: linear-gradient(165deg, var(--bo-bg-root-start) 0%, var(--bo-bg-root-end) 100%);
   color: var(--bo-ink-strong);
 }
+
+.bo-tag-style-auto {
+  background: #f1ebfb;
+  color: #2b1247;
+  border-color: #d8cdec;
+}
+
+.bo-tag-style-presets {
+  color: var(--bo-ink-strong);
+  border-color: var(--bo-border-soft);
+}
+
+.bo-tag-style-presets-0 { background: var(--bo-preset-0); }
+.bo-tag-style-presets-1 { background: var(--bo-preset-1); }
+.bo-tag-style-presets-2 { background: var(--bo-preset-2); }
+.bo-tag-style-presets-3 { background: var(--bo-preset-3); }
+.bo-tag-style-presets-4 { background: var(--bo-preset-4); }
+.bo-tag-style-presets-5 { background: var(--bo-preset-5); }
+.bo-tag-style-presets-6 { background: var(--bo-preset-6); }
+.bo-tag-style-presets-7 { background: var(--bo-preset-7); }
+
+.bo-card-style-auto {
+  background: var(--bo-surface-base);
+  color: inherit;
+  border-color: var(--bo-border-soft);
+}
+
+.bo-card-style-presets {
+  color: var(--bo-ink-strong);
+  border-color: var(--bo-border-soft);
+}
+
+.bo-card-style-presets-0 { background: var(--bo-preset-0); }
+.bo-card-style-presets-1 { background: var(--bo-preset-1); }
+.bo-card-style-presets-2 { background: var(--bo-preset-2); }
+.bo-card-style-presets-3 { background: var(--bo-preset-3); }
+.bo-card-style-presets-4 { background: var(--bo-preset-4); }
+.bo-card-style-presets-5 { background: var(--bo-preset-5); }
+.bo-card-style-presets-6 { background: var(--bo-preset-6); }
+.bo-card-style-presets-7 { background: var(--bo-preset-7); }
 
 * {
   box-sizing: border-box;

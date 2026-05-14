@@ -25,5 +25,10 @@ Read area guidance before working in that part of the system:
 - If `dotnet test` fails with sandbox socket/pipe permission errors (for example `SocketException (13): Permission denied`), rerun with escalation.
 - For local iteration, prefer `scripts/test-fast.sh` (changed-area detection); before push, run `scripts/test-full.sh` (`--backend-only` is acceptable for backend-only changes).
 - Follow C# coding conventions in `AGENTS/CSharpCodingConventions.md`.
+- Do not use nested ternary expressions. Use explicit branching (`if`/`switch`) or small helper functions instead.
+- Style handling policy:
+  - backend runtime validation for `stylePropertiesJson` is transport-only: valid `styleName` + valid JSON object text.
+  - backend services/import must not enforce style-internal JSON schema keys (`backgroundColor`, `presetIndex`, `textColorMode`, etc.).
+  - style-internal interpretation belongs to frontend style modules; backend should only inspect style JSON internals in migration/upgrade code.
 - Do not update `README.md` unless the user explicitly asks for a README change.
 - If the user gives you a number, eg #123 it is probably refering to a story on the board oil mcp server, look there first.

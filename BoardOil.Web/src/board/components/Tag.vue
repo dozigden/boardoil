@@ -1,5 +1,11 @@
 <template>
-  <span v-if="displayTagName" class="tag" :class="{ 'tag--with-emoji': tagEmoji }" :style="tagStyle" :aria-label="displayTagName">
+  <span
+    v-if="displayTagName"
+    class="tag"
+    :class="[tagStyleClasses, { 'tag--with-emoji': tagEmoji }]"
+    :style="tagStyle"
+    :aria-label="displayTagName"
+  >
     <span v-if="tagEmoji" class="tag-emoji" aria-hidden="true">{{ tagEmoji }}</span>
     <span>{{ displayTagName }}</span>
     <slot />
@@ -9,7 +15,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useTagStore } from '../stores/tagStore';
-import { getTagPillStyle, normaliseTagEmojiForRender } from '../../shared/utils/tagStyles';
+import { getTagPillClassList, getTagPillStyle, normaliseTagEmojiForRender } from '../../shared/utils/tagStyles';
 
 const props = withDefaults(defineProps<{
   tagName?: string;
@@ -50,5 +56,6 @@ const displayTagName = computed(() => resolvedTagFromStore.value?.name ?? fallba
 const tagStyleSource = computed(() => resolvedTagFromStore.value);
 
 const tagStyle = computed(() => getTagPillStyle(tagStyleSource.value));
+const tagStyleClasses = computed(() => getTagPillClassList(tagStyleSource.value));
 const tagEmoji = computed(() => normaliseTagEmojiForRender(tagStyleSource.value?.emoji));
 </script>

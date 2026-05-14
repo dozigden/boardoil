@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { useStyleDraft } from './useStyleDraft';
-import type { StyleDraft } from '../../shared/utils/stylePresentation';
+import type { StyleDraft } from '../../shared/utils/styleTypes';
 
 describe('useStyleDraft', () => {
   it('updates draft through shared mutators and produces style properties json', () => {
@@ -8,6 +8,7 @@ describe('useStyleDraft', () => {
       styleName: 'solid',
       textColorMode: 'auto',
       borderMode: 'auto',
+      presetIndex: 2,
       backgroundColor: '#69C1CE',
       leftColor: '#69C1CE',
       rightColor: '#69C1CE',
@@ -43,6 +44,13 @@ describe('useStyleDraft', () => {
       borderColor: '#AABBCC',
       textColor: '#FFFFFF'
     });
+
+    model.setStyleName('presets');
+    expect(model.draft.value?.styleName).toBe('presets');
+    expect(model.draft.value?.textColorMode).toBe('auto');
+    expect(model.draft.value?.borderMode).toBe('auto');
+    expect(model.draft.value?.backgroundColor).toBe('#69C1CE');
+    expect(model.stylePropertiesJson.value).toContain('"presetIndex":2');
 
     model.clearDraft();
     expect(model.draft.value).toBeNull();

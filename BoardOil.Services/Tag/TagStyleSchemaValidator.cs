@@ -9,9 +9,12 @@ public static class TagStyleSchemaValidator
 {
     public const string SolidStyleName = "solid";
     public const string GradientStyleName = "gradient";
+    public const string AutoStyleName = "auto";
+    public const string PresetsStyleName = "presets";
+    public const int DefaultPresetIndex = 2;
 
     private static readonly Regex HexColorRegex = new("^#[0-9A-Fa-f]{6}$", RegexOptions.Compiled);
-    private static readonly string[] DefaultTagPalette =
+    private static readonly string[] PresetPalette =
     [
         "#35165A", // Brand
         "#9D8ABF", // Brand Mid
@@ -23,55 +26,52 @@ public static class TagStyleSchemaValidator
         "#32CDA0"  // Success
     ];
 
-    public static IReadOnlyList<ValidationError> Validate(string styleName, string stylePropertiesJson)
+    public static bool IsValidJsonObject(string stylePropertiesJson)
     {
-        var errors = new List<ValidationError>();
-        var normalisedStyleName = NormaliseStyleName(styleName);
-        if (normalisedStyleName is null)
+        if (string.IsNullOrWhiteSpace(stylePropertiesJson))
         {
-            errors.Add(new ValidationError("styleName", "Style name must be 'solid' or 'gradient'."));
-            return errors;
+            return false;
         }
 
-        JsonDocument document;
         try
         {
-            document = JsonDocument.Parse(stylePropertiesJson);
+            using var document = JsonDocument.Parse(stylePropertiesJson);
+            return document.RootElement.ValueKind == JsonValueKind.Object;
         }
         catch (JsonException)
         {
-            errors.Add(new ValidationError("stylePropertiesJson", "Style properties must be valid JSON."));
-            return errors;
+            return false;
         }
-
-        using (document)
+        catch (ArgumentException)
         {
-            if (document.RootElement.ValueKind != JsonValueKind.Object)
-            {
-                errors.Add(new ValidationError("stylePropertiesJson", "Style properties must be a JSON object."));
-                return errors;
-            }
-
-            if (normalisedStyleName == SolidStyleName)
-            {
-                ValidateSolid(document.RootElement, errors);
-            }
-            else
-            {
-                ValidateGradient(document.RootElement, errors);
-            }
-
-            ValidateTextColor(document.RootElement, errors);
-            return errors;
+            return false;
         }
     }
 
-    public static string BuildDefaultStylePropertiesJson() =>
-        JsonSerializer.Serialize(new
+    public static string BuildDefaultStylePropertiesJson(string styleName = SolidStyleName)
+    {
+        var normalisedStyleName = NormaliseStyleName(styleName) ?? SolidStyleName;
+        if (normalisedStyleName == PresetsStyleName)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                presetIndex = DefaultPresetIndex,
+                textColorMode = "auto"
+            });
+        }
+
+        if (normalisedStyleName == AutoStyleName)
+        {
+            return "{}";
+        }
+
+        return JsonSerializer.Serialize(new
         {
             backgroundColor = PickDefaultTagColor(),
-            textColorMode = "auto"
+            textColorMode = "auto",
+            borderMode = "auto"
         });
+    }
 
     public static string? NormaliseStyleName(string? styleName)
     {
@@ -81,99 +81,35 @@ public static class TagStyleSchemaValidator
         }
 
         var normalised = styleName.Trim().ToLowerInvariant();
-        return normalised is SolidStyleName or GradientStyleName
+        return normalised is SolidStyleName or GradientStyleName or AutoStyleName or PresetsStyleName
             ? normalised
             : null;
     }
 
-    private static void ValidateSolid(JsonElement root, ICollection<ValidationError> errors)
+    public static bool TryResolvePresetIndex(string? colorHex, out int presetIndex)
     {
-        if (!TryGetStringProperty(root, "backgroundColor", out var backgroundColor))
-        {
-            errors.Add(new ValidationError("stylePropertiesJson", "Solid style requires 'backgroundColor'."));
-            return;
-        }
-
-        if (!IsHexColor(backgroundColor))
-        {
-            errors.Add(new ValidationError("stylePropertiesJson", "'backgroundColor' must be a #RRGGBB value."));
-        }
-    }
-
-    private static void ValidateGradient(JsonElement root, ICollection<ValidationError> errors)
-    {
-        if (!TryGetStringProperty(root, "leftColor", out var leftColor))
-        {
-            errors.Add(new ValidationError("stylePropertiesJson", "Gradient style requires 'leftColor'."));
-        }
-        else if (!IsHexColor(leftColor))
-        {
-            errors.Add(new ValidationError("stylePropertiesJson", "'leftColor' must be a #RRGGBB value."));
-        }
-
-        if (!TryGetStringProperty(root, "rightColor", out var rightColor))
-        {
-            errors.Add(new ValidationError("stylePropertiesJson", "Gradient style requires 'rightColor'."));
-        }
-        else if (!IsHexColor(rightColor))
-        {
-            errors.Add(new ValidationError("stylePropertiesJson", "'rightColor' must be a #RRGGBB value."));
-        }
-    }
-
-    private static void ValidateTextColor(JsonElement root, ICollection<ValidationError> errors)
-    {
-        if (!TryGetStringProperty(root, "textColorMode", out var textColorMode))
-        {
-            errors.Add(new ValidationError("stylePropertiesJson", "Style properties require 'textColorMode'."));
-            return;
-        }
-
-        var mode = textColorMode.Trim().ToLowerInvariant();
-        if (mode is not ("auto" or "custom"))
-        {
-            errors.Add(new ValidationError("stylePropertiesJson", "'textColorMode' must be 'auto' or 'custom'."));
-            return;
-        }
-
-        if (mode != "custom")
-        {
-            return;
-        }
-
-        if (!TryGetStringProperty(root, "textColor", out var textColor))
-        {
-            errors.Add(new ValidationError("stylePropertiesJson", "Custom text color mode requires 'textColor'."));
-            return;
-        }
-
-        if (!IsHexColor(textColor))
-        {
-            errors.Add(new ValidationError("stylePropertiesJson", "'textColor' must be a #RRGGBB value."));
-        }
-    }
-
-    private static bool TryGetStringProperty(JsonElement root, string propertyName, out string value)
-    {
-        value = string.Empty;
-        if (!root.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.String)
+        presetIndex = -1;
+        if (!IsHexColor(colorHex ?? string.Empty))
         {
             return false;
         }
 
-        var stringValue = property.GetString();
-        if (string.IsNullOrWhiteSpace(stringValue))
+        var normalised = colorHex!.Trim().ToUpperInvariant();
+        for (var index = 0; index < PresetPalette.Length; index++)
         {
-            return false;
+            if (PresetPalette[index] == normalised)
+            {
+                presetIndex = index;
+                return true;
+            }
         }
 
-        value = stringValue.Trim();
-        return true;
+        return false;
     }
 
     private static bool IsHexColor(string value) =>
         HexColorRegex.IsMatch(value);
 
     private static string PickDefaultTagColor() =>
-        DefaultTagPalette[RandomNumberGenerator.GetInt32(DefaultTagPalette.Length)];
+        PresetPalette[RandomNumberGenerator.GetInt32(PresetPalette.Length)];
 }

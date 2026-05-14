@@ -1,13 +1,16 @@
 <template>
   <div
     class="card"
-    :class="{
-      'card--selected': selected,
-      'card--dragging': isDragging,
-      'card--multi-dragging': isDragging && selectionMode && selectedCount > 1,
-      'card--drop-before': dropIndicator === 'before',
-      'card--drop-after': dropIndicator === 'after'
-    }"
+    :class="[
+      cardStyleClasses,
+      {
+        'card--selected': selected,
+        'card--dragging': isDragging,
+        'card--multi-dragging': isDragging && selectionMode && selectedCount > 1,
+        'card--drop-before': dropIndicator === 'before',
+        'card--drop-after': dropIndicator === 'after'
+      }
+    ]"
     :style="cardStyle"
     :draggable="!selectionMode || selected"
     :role="selectionMode ? 'checkbox' : 'button'"
@@ -59,7 +62,7 @@
 import { computed, ref } from 'vue';
 import type { Card as BoardCard } from '../../shared/types/boardTypes';
 import { useCardTypeStore } from '../stores/cardTypeStore';
-import { getCardSurfaceStyle } from '../../shared/utils/cardTypeStyles';
+import { getCardSurfaceClassList, getCardSurfaceStyle } from '../../shared/utils/cardTypeStyles';
 import { buildApiUrl } from '../../shared/api/config';
 import Tag from './Tag.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
@@ -90,6 +93,7 @@ const isDragging = ref(false);
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId));
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
 const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
+const cardStyleClasses = computed(() => getCardSurfaceClassList(resolvedCardType.value));
 const assignedUserImageUrl = computed(() =>
   props.card.assignedUserImageRelativePath ? buildApiUrl(`/images/${props.card.assignedUserImageRelativePath}`) : null
 );

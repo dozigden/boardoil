@@ -65,8 +65,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
             cardTypes,
             x => x.Name == "Story"
                 && x.IsSystem
-                && x.StyleName == "solid"
-                && x.StylePropertiesJson == """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}""");
+                && x.StyleName == "solid");
         Assert.Contains(
             cardTypes,
             x => x.Name == "Bug"
@@ -78,7 +77,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var tags = DbContextForAssert.Tags.Where(x => x.BoardId == boardId).OrderBy(x => x.Name).ToList();
         Assert.Equal(["NeedsReview", "Urgent"], tags.Select(x => x.Name).ToArray());
         Assert.Contains(tags, x => x.Name == "Urgent" && x.StyleName == "solid" && x.Emoji == "🟥");
-        Assert.Contains(tags, x => x.Name == "NeedsReview" && x.StyleName == TagStyleSchemaValidator.SolidStyleName);
+        Assert.Contains(tags, x => x.Name == "NeedsReview" && x.StyleName == TagStyleSchemaValidator.PresetsStyleName);
     }
 
     [Fact]
@@ -623,6 +622,44 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.NotNull(result.ValidationErrors);
         Assert.Contains("archive", result.ValidationErrors!.Keys);
         Assert.Empty(DbContextForAssert.Boards.Where(x => x.Name == "Archive Null Board"));
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenStyleJsonObjectsHaveUnexpectedShape_ShouldImport()
+    {
+        var payload = new BoardPackageBoardDto(
+            "Loose Style Board",
+            "Style json shape is frontend-owned",
+            [new BoardPackageCardTypeDto("Story", null, true, "solid", """{"unexpected":"value"}""")],
+            [new BoardPackageTagDto("Urgent", "presets", """{"any":"thing","nested":{"x":1}}""", null)],
+            [new BoardPackageColumnDto("Todo", [])]);
+        var packageContent = BuildBoardPackage(BoardPackageContract.CreateManifest("0.3.0"), payload);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(new ImportBoardPackageRequest("Loose Style Board", packageContent), ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenStyleJsonIsNotObject_ShouldReturnBadRequest()
+    {
+        var payload = new BoardPackageBoardDto(
+            "Bad Style Json Board",
+            "Style json must be object",
+            [new BoardPackageCardTypeDto("Story", null, true, "solid", """["bad"]""")],
+            [],
+            [new BoardPackageColumnDto("Todo", [])]);
+        var packageContent = BuildBoardPackage(BoardPackageContract.CreateManifest("0.3.0"), payload);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(new ImportBoardPackageRequest("Bad Style Json Board", packageContent), ActorUserId);
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.Contains(result.ValidationErrors!.Keys, key => key.Contains("stylePropertiesJson", StringComparison.Ordinal));
     }
 
     private static byte[] BuildBoardPackage(

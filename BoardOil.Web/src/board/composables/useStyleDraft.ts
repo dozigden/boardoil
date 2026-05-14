@@ -1,5 +1,11 @@
 import { computed, ref } from 'vue';
-import { buildStylePropertiesJsonFromDraft, type BorderMode, type StyleDraft, type TextColorMode } from '../../shared/utils/stylePresentation';
+import { buildStylePropertiesJsonFromDraft } from '../../shared/utils/styleDraftAdapter';
+import type { BorderMode, StyleDraft, TextColorMode } from '../../shared/utils/styleTypes';
+import { DEFAULT_PRESET_INDEX } from '../../shared/utils/presetTheme';
+
+const DEFAULT_BACKGROUND_COLOR = '#69C1CE';
+const DEFAULT_TEXT_COLOR = '#111827';
+const DEFAULT_BORDER_COLOR = '#D8CDEC';
 
 export function useStyleDraft(initialDraft: StyleDraft | null = null) {
   const draft = ref<StyleDraft | null>(initialDraft);
@@ -20,14 +26,22 @@ export function useStyleDraft(initialDraft: StyleDraft | null = null) {
     draft.value = null;
   }
 
-  function setStyleName(value: string) {
+  function setStyleName(styleName: StyleDraft['styleName']) {
     if (!draft.value) {
       return;
     }
 
     draft.value = {
       ...draft.value,
-      styleName: value === 'gradient' ? 'gradient' : 'solid'
+      styleName,
+      textColorMode: 'auto',
+      borderMode: 'auto',
+      presetIndex: styleName === 'presets' ? DEFAULT_PRESET_INDEX : draft.value.presetIndex,
+      backgroundColor: DEFAULT_BACKGROUND_COLOR,
+      leftColor: DEFAULT_BACKGROUND_COLOR,
+      rightColor: DEFAULT_BACKGROUND_COLOR,
+      textColor: DEFAULT_TEXT_COLOR,
+      borderColor: DEFAULT_BORDER_COLOR
     };
   }
 
@@ -48,11 +62,7 @@ export function useStyleDraft(initialDraft: StyleDraft | null = null) {
       return;
     }
 
-    const borderMode: BorderMode = value === 'custom'
-      ? 'custom'
-      : value === 'none'
-        ? 'none'
-        : 'auto';
+    const borderMode = resolveBorderMode(value);
 
     draft.value = {
       ...draft.value,
@@ -81,4 +91,24 @@ export function useStyleDraft(initialDraft: StyleDraft | null = null) {
     setBorderMode,
     setField
   };
+}
+
+export function parseStyleNameInput(value: string): StyleDraft['styleName'] {
+  return isTagStyleName(value) ? value : 'solid';
+}
+
+function isTagStyleName(value: string): value is StyleDraft['styleName'] {
+  return value === 'solid' || value === 'gradient' || value === 'auto' || value === 'presets';
+}
+
+function resolveBorderMode(value: string): BorderMode {
+  switch (value) {
+    case 'custom':
+      return 'custom';
+    case 'none':
+      return 'none';
+    case 'auto':
+    default:
+      return 'auto';
+  }
 }

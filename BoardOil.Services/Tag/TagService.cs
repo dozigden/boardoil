@@ -82,8 +82,8 @@ public sealed class TagService(
             BoardId = boardId,
             Name = tagValidation.CanonicalName,
             NormalisedName = tagValidation.NormalisedName,
-            StyleName = TagStyleSchemaValidator.SolidStyleName,
-            StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(),
+            StyleName = TagStyleSchemaValidator.PresetsStyleName,
+            StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
             Emoji = emojiValidation.CanonicalEmoji,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
@@ -125,7 +125,7 @@ public sealed class TagService(
         var validationErrors = new List<ValidationError>();
         if (normalisedStyleName is null)
         {
-            validationErrors.Add(new ValidationError("styleName", "Style name must be 'solid' or 'gradient'."));
+            validationErrors.Add(new ValidationError("styleName", "Style name must be 'solid', 'gradient', 'auto', or 'presets'."));
         }
 
         var emojiValidation = TagEmojiValidator.ValidateAndNormalise(request.Emoji, "emoji");
@@ -136,7 +136,10 @@ public sealed class TagService(
 
         if (normalisedStyleName is not null)
         {
-            validationErrors.AddRange(TagStyleSchemaValidator.Validate(normalisedStyleName, request.StylePropertiesJson));
+            if (!TagStyleSchemaValidator.IsValidJsonObject(request.StylePropertiesJson))
+            {
+                validationErrors.Add(new ValidationError("stylePropertiesJson", "Style properties must be valid JSON object."));
+            }
         }
 
         var tagNameValidation = ValidateTagName(request.Name, "name");

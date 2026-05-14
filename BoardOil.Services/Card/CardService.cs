@@ -729,8 +729,8 @@ public sealed class CardService(
                 BoardId = boardId,
                 Name = tagName,
                 NormalisedName = normalisedName,
-                StyleName = TagStyleSchemaValidator.SolidStyleName,
-                StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(),
+                StyleName = TagStyleSchemaValidator.PresetsStyleName,
+                StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             };

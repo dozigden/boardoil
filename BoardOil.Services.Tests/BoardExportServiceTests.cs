@@ -125,8 +125,8 @@ public sealed class BoardExportServiceTests : TestBaseDb
             payload.CardTypes,
             x => x.Name == "Story"
                 && x.IsSystem
-                && x.StyleName == "solid"
-                && !string.IsNullOrWhiteSpace(x.StylePropertiesJson));
+                && x.StyleName == "auto"
+                && x.StylePropertiesJson == "{}");
         Assert.Contains(
             payload.CardTypes,
             x => x.Name == "Bug"

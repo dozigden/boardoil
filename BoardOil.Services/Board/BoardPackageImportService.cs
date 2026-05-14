@@ -193,8 +193,8 @@ public sealed class BoardPackageImportService(
                             Board = board,
                             Name = importedTagName,
                             NormalisedName = normalisedTagName,
-                            StyleName = TagStyleSchemaValidator.SolidStyleName,
-                            StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(),
+                            StyleName = TagStyleSchemaValidator.PresetsStyleName,
+                            StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
                             Emoji = null,
                             CreatedAtUtc = now,
                             UpdatedAtUtc = now
@@ -544,6 +544,13 @@ public sealed class BoardPackageImportService(
                     continue;
                 }
 
+                var styleValidation = ResolveCardTypeStyle(importedCardType.StyleName, importedCardType.StylePropertiesJson, cardTypePropertyPrefix);
+                if (styleValidation.Error is not null)
+                {
+                    validationErrors.Add(styleValidation.Error);
+                    continue;
+                }
+
                 if (!knownCardTypeNames.Add(cardTypeNameValidation.NormalisedName))
                 {
                     validationErrors.Add(new ValidationError(
@@ -566,8 +573,8 @@ public sealed class BoardPackageImportService(
                     systemCardTypeName = cardTypeNameValidation.CanonicalName;
                     systemCardTypeNormalisedName = cardTypeNameValidation.NormalisedName;
                     systemCardTypeEmoji = emojiValidation.CanonicalEmoji;
-                    systemCardTypeStyleName = ResolveCardTypeStyleName(importedCardType.StyleName);
-                    systemCardTypeStylePropertiesJson = ResolveCardTypeStylePropertiesJson(importedCardType.StylePropertiesJson);
+                    systemCardTypeStyleName = styleValidation.StyleName;
+                    systemCardTypeStylePropertiesJson = styleValidation.StylePropertiesJson;
                     continue;
                 }
 
@@ -575,8 +582,8 @@ public sealed class BoardPackageImportService(
                     cardTypeNameValidation.CanonicalName,
                     cardTypeNameValidation.NormalisedName,
                     emojiValidation.CanonicalEmoji,
-                    ResolveCardTypeStyleName(importedCardType.StyleName),
-                    ResolveCardTypeStylePropertiesJson(importedCardType.StylePropertiesJson)));
+                    styleValidation.StyleName,
+                    styleValidation.StylePropertiesJson));
             }
         }
 
@@ -607,7 +614,7 @@ public sealed class BoardPackageImportService(
                 {
                     validationErrors.Add(new ValidationError(
                         $"{tagPropertyPrefix}.styleName",
-                        "Style name must be 'solid' or 'gradient'."));
+                        "Style name must be 'solid', 'gradient', 'auto', or 'presets'."));
                     continue;
                 }
 
@@ -615,15 +622,16 @@ public sealed class BoardPackageImportService(
                 {
                     validationErrors.Add(new ValidationError(
                         $"{tagPropertyPrefix}.stylePropertiesJson",
-                        "Style properties must be valid JSON."));
+                        "Style properties must be valid JSON object."));
                     continue;
                 }
 
-                var styleErrors = TagStyleSchemaValidator.Validate(normalisedStyleName, importedTag.StylePropertiesJson)
-                    .Select(styleError => new ValidationError(
-                        $"{tagPropertyPrefix}.{styleError.Property}",
-                        styleError.Message));
-                validationErrors.AddRange(styleErrors);
+                if (!TagStyleSchemaValidator.IsValidJsonObject(importedTag.StylePropertiesJson))
+                {
+                    validationErrors.Add(new ValidationError(
+                        $"{tagPropertyPrefix}.stylePropertiesJson",
+                        "Style properties must be valid JSON object."));
+                }
 
                 var emojiValidation = TagEmojiValidator.ValidateAndNormalise(importedTag.Emoji, $"{tagPropertyPrefix}.emoji");
                 if (emojiValidation.Error is not null)
@@ -1039,24 +1047,32 @@ public sealed class BoardPackageImportService(
     private static string NormaliseName(string value) =>
         value.ToUpperInvariant();
 
-    private static string ResolveCardTypeStyleName(string? styleName)
+    private static CardTypeStyleResolution ResolveCardTypeStyle(string? styleName, string? stylePropertiesJson, string propertyPrefix)
     {
-        if (string.IsNullOrWhiteSpace(styleName))
+        var resolvedStyleName = string.IsNullOrWhiteSpace(styleName)
+            ? CardTypeDefaults.DefaultStyleName
+            : styleName.Trim();
+        var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(resolvedStyleName);
+        if (normalisedStyleName is null)
         {
-            return CardTypeDefaults.DefaultStyleName;
+            return new CardTypeStyleResolution(
+                string.Empty,
+                string.Empty,
+                new ValidationError($"{propertyPrefix}.styleName", "Style name must be 'solid', 'gradient', 'auto', or 'presets'."));
         }
 
-        return styleName.Trim();
-    }
-
-    private static string ResolveCardTypeStylePropertiesJson(string? stylePropertiesJson)
-    {
-        if (string.IsNullOrWhiteSpace(stylePropertiesJson))
+        var resolvedStylePropertiesJson = string.IsNullOrWhiteSpace(stylePropertiesJson)
+            ? TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(normalisedStyleName)
+            : stylePropertiesJson.Trim();
+        if (!TagStyleSchemaValidator.IsValidJsonObject(resolvedStylePropertiesJson))
         {
-            return CardTypeDefaults.DefaultStylePropertiesJson;
+            return new CardTypeStyleResolution(
+                string.Empty,
+                string.Empty,
+                new ValidationError($"{propertyPrefix}.stylePropertiesJson", "Style properties must be valid JSON object."));
         }
 
-        return stylePropertiesJson.Trim();
+        return new CardTypeStyleResolution(normalisedStyleName, resolvedStylePropertiesJson, null);
     }
 
     private static string? ResolveNormalisedEmailOrNull(string? emailAddress)
@@ -1206,5 +1222,10 @@ public sealed class BoardPackageImportService(
     private sealed record CardTypeNameValidationResult(
         string CanonicalName,
         string NormalisedName,
+        ValidationError? Error);
+
+    private sealed record CardTypeStyleResolution(
+        string StyleName,
+        string StylePropertiesJson,
         ValidationError? Error);
 }

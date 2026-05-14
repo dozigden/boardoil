@@ -48,6 +48,18 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
 - Keep non-`.btn` controls limited to intentional interaction widgets:
   - chip/suggestion controls inside tag editors (`.tag-pill-remove`, `.card-tag-editor-suggestion`)
   - inline title edit trigger (`.card-title-button`)
+- Do not use nested ternary expressions in frontend code. Prefer explicit `if`/`switch` branches or helper functions.
+
+## Style Architecture Conventions
+
+- Treat style payloads as discriminated style models as early as possible in frontend flows.
+- Keep style responsibilities split by module boundary:
+  - persistence modules parse/serialize style JSON and handle fallback policy.
+  - draft adapter modules handle UI draft defaults and mode-switch defaults.
+  - renderer modules consume typed style models only and decide classes/inline style output.
+- Keep semantic styles (`auto`, `presets`) class-driven in UI rendering. Avoid introducing inline color authority for those modes.
+- Keep manual styles (`solid`, `gradient`) as the only modes that emit inline color presentation from user-authored values.
+- If parsing fails, fall back to `auto` style with no properties.
 
 ## Contract and Store Authority
 

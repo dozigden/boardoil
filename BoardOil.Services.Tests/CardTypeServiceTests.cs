@@ -108,12 +108,12 @@ public sealed class CardTypeServiceTests : TestBaseDb
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        Assert.Equal("solid", result.Data!.StyleName);
-        Assert.Equal("""{"backgroundColor":"#FFFFFF","textColorMode":"auto"}""", result.Data.StylePropertiesJson);
+        Assert.Equal("auto", result.Data!.StyleName);
+        Assert.Equal("{}", result.Data.StylePropertiesJson);
 
         var stored = await DbContextForAssert.CardTypes.SingleAsync(x => x.Id == result.Data.Id);
-        Assert.Equal("solid", stored.StyleName);
-        Assert.Equal("""{"backgroundColor":"#FFFFFF","textColorMode":"auto"}""", stored.StylePropertiesJson);
+        Assert.Equal("auto", stored.StyleName);
+        Assert.Equal("{}", stored.StylePropertiesJson);
     }
 
     [Fact]
@@ -153,6 +153,64 @@ public sealed class CardTypeServiceTests : TestBaseDb
         Assert.Equal("gradient", stored.StyleName);
         Assert.Equal("""{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""", stored.StylePropertiesJson);
         Assert.True(stored.IsSystem);
+    }
+
+    [Fact]
+    public async Task UpdateCardTypeAsync_WhenStyleJsonObjectHasUnexpectedShape_ShouldSucceed()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var systemType = await DbContextForArrange.CardTypes.SingleAsync(x => x.BoardId == boardId && x.IsSystem);
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateCardTypeAsync(
+            boardId,
+            systemType.Id,
+            new UpdateCardTypeRequest(
+                "Epic",
+                "🚀",
+                "presets",
+                """{"presetIndex":999,"textColorMode":"auto"}"""),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("presets", result.Data!.StyleName);
+        Assert.Equal("""{"presetIndex":999,"textColorMode":"auto"}""", result.Data.StylePropertiesJson);
+    }
+
+    [Fact]
+    public async Task UpdateCardTypeAsync_WhenStyleJsonIsNotObject_ShouldReturnValidationError()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var systemType = await DbContextForArrange.CardTypes.SingleAsync(x => x.BoardId == boardId && x.IsSystem);
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateCardTypeAsync(
+            boardId,
+            systemType.Id,
+            new UpdateCardTypeRequest(
+                "Epic",
+                "🚀",
+                "solid",
+                """["not-an-object"]"""),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("stylePropertiesJson"));
     }
 
     [Fact]

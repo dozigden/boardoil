@@ -9,7 +9,7 @@
     <template v-if="draftName !== null && draftStyle !== null">
       <div class="card-types-dialog-preview">
         <span class="badge">Preview</span>
-        <article class="card-type-preview-card" :style="previewCardStyle">
+        <article class="card-type-preview-card" :class="previewCardStyleClasses" :style="previewCardStyle">
           <div class="card-header">
             <strong class="card-title">{{ previewTitle }}</strong>
             <span class="card-id">#123</span>
@@ -37,13 +37,35 @@
 
       <label>
         Style
-        <select :value="draftStyle.styleName" :disabled="busy" @change="setStyleName(($event.target as HTMLSelectElement).value)">
+        <select :value="draftStyle.styleName" :disabled="busy" @change="setStyleName(parseStyleNameInput(($event.target as HTMLSelectElement).value))">
+          <option value="auto">Auto</option>
+          <option value="presets">Presets</option>
           <option value="solid">Solid</option>
           <option value="gradient">Gradient</option>
         </select>
       </label>
 
-      <template v-if="draftStyle.styleName === 'solid'">
+      <template v-if="draftStyle.styleName === 'presets'">
+        <label>
+          Preset
+          <div class="card-types-preset-picker" role="radiogroup" aria-label="Card type preset colour">
+            <button
+              v-for="preset in presetColours"
+              :key="preset.cssVar"
+              type="button"
+              class="card-types-preset-swatch"
+              :class="{ 'card-types-preset-swatch--selected': draftStyle.presetIndex === preset.index }"
+              :style="{ backgroundColor: preset.cssValue }"
+              :disabled="busy"
+              :aria-pressed="draftStyle.presetIndex === preset.index"
+              :aria-label="`Preset ${preset.index + 1}`"
+              @click="setDraftStyleField('presetIndex', preset.index)"
+            />
+          </div>
+        </label>
+      </template>
+
+      <template v-else-if="draftStyle.styleName === 'solid'">
         <label>
           Background Color
           <input
@@ -56,7 +78,7 @@
         </label>
       </template>
 
-      <template v-else>
+      <template v-else-if="draftStyle.styleName === 'gradient'">
         <label>
           Left Color
           <input
@@ -79,7 +101,7 @@
         </label>
       </template>
 
-      <label>
+      <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
         Text Color Mode
         <select :value="draftStyle.textColorMode" :disabled="busy" @change="setTextMode(($event.target as HTMLSelectElement).value)">
           <option value="auto">Auto Contrast</option>
@@ -87,7 +109,7 @@
         </select>
       </label>
 
-      <label v-if="draftStyle.textColorMode === 'custom'">
+      <label v-if="(draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient') && draftStyle.textColorMode === 'custom'">
         Text Color
         <input
           type="color"
@@ -98,7 +120,7 @@
         />
       </label>
 
-      <label>
+      <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
         Border
         <select :value="draftStyle.borderMode" :disabled="busy" @change="setBorderMode(($event.target as HTMLSelectElement).value)">
           <option value="auto">Auto</option>
@@ -107,7 +129,7 @@
         </select>
       </label>
 
-      <label v-if="draftStyle.borderMode === 'custom'">
+      <label v-if="(draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient') && draftStyle.borderMode === 'custom'">
         Border Color
         <input
           type="color"
@@ -168,10 +190,12 @@ import {
   createCardTypeStyleDraft,
   DEFAULT_CARD_TYPE_STYLE_NAME,
   DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON,
+  getCardSurfaceClassList,
   getCardSurfaceStyle,
   normaliseCardTypeEmojiForRender
 } from '../../shared/utils/cardTypeStyles';
-import { useStyleDraft } from '../composables/useStyleDraft';
+import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
+import { parseStyleNameInput, useStyleDraft } from '../composables/useStyleDraft';
 
 const route = useRoute();
 const router = useRouter();
@@ -193,6 +217,7 @@ const {
   setField: setDraftStyleField
 } = useStyleDraft();
 const draftSourceKey = ref<string | null>(null);
+const presetColours = PRESET_TOKENS;
 
 const isCreateMode = computed(() => route.name === 'card-types-new');
 const routeBoardId = computed<number | null>(() => {
@@ -233,6 +258,16 @@ const previewCardStyle = computed(() => {
   }
 
   return getCardSurfaceStyle({
+    styleName: draftStyle.value.styleName,
+    stylePropertiesJson: stylePropertiesJson.value ?? DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON
+  });
+});
+const previewCardStyleClasses = computed(() => {
+  if (!draftStyle.value) {
+    return getCardSurfaceClassList(editingCardType.value);
+  }
+
+  return getCardSurfaceClassList({
     styleName: draftStyle.value.styleName,
     stylePropertiesJson: stylePropertiesJson.value ?? DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON
   });
@@ -432,5 +467,25 @@ function clearDraft() {
   flex: 0 0 auto;
   font-weight: 600;
   line-height: 1.25;
+}
+
+.card-types-preset-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.card-types-preset-swatch {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--bo-border-default);
+  cursor: pointer;
+  padding: 0;
+}
+
+.card-types-preset-swatch--selected {
+  outline: 2px solid var(--bo-focus-ring);
+  outline-offset: 1px;
 }
 </style>

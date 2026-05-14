@@ -9,7 +9,12 @@
     <template v-if="draft">
       <div class="tags-dialog-preview">
         <span class="badge">Preview</span>
-        <span class="tag" :class="{ 'tag--with-emoji': previewEmoji }" :style="previewStyle" :aria-label="previewTagName">
+        <span
+          class="tag"
+          :class="[previewStyleClasses, { 'tag--with-emoji': previewEmoji }]"
+          :style="previewStyle"
+          :aria-label="previewTagName"
+        >
           <span v-if="previewEmoji" class="tag-emoji" aria-hidden="true">{{ previewEmoji }}</span>
           {{ previewTagName }}
         </span>
@@ -35,13 +40,35 @@
 
       <label>
         Style
-        <select :value="draft.styleName" :disabled="busy" @change="setStyleName(($event.target as HTMLSelectElement).value)">
+        <select :value="draft.styleName" :disabled="busy" @change="setStyleName(parseStyleNameInput(($event.target as HTMLSelectElement).value))">
+          <option value="auto">Auto</option>
+          <option value="presets">Presets</option>
           <option value="solid">Solid</option>
           <option value="gradient">Gradient</option>
         </select>
       </label>
 
-      <template v-if="draft.styleName === 'solid'">
+      <template v-if="draft.styleName === 'presets'">
+        <label>
+          Preset
+          <div class="tags-preset-picker" role="radiogroup" aria-label="Tag preset colour">
+            <button
+              v-for="preset in presetColours"
+              :key="preset.cssVar"
+              type="button"
+              class="tags-preset-swatch"
+              :class="{ 'tags-preset-swatch--selected': draft.presetIndex === preset.index }"
+              :style="{ backgroundColor: preset.cssValue }"
+              :disabled="busy"
+              :aria-pressed="draft.presetIndex === preset.index"
+              :aria-label="`Preset ${preset.index + 1}`"
+              @click="setDraftField('presetIndex', preset.index)"
+            />
+          </div>
+        </label>
+      </template>
+
+      <template v-else-if="draft.styleName === 'solid'">
         <label>
           Background Color
           <input
@@ -54,7 +81,7 @@
         </label>
       </template>
 
-      <template v-else>
+      <template v-else-if="draft.styleName === 'gradient'">
         <label>
           Left Color
           <input
@@ -77,7 +104,7 @@
         </label>
       </template>
 
-      <label>
+      <label v-if="draft.styleName === 'solid' || draft.styleName === 'gradient'">
         Text Color Mode
         <select :value="draft.textColorMode" :disabled="busy" @change="setTextMode(($event.target as HTMLSelectElement).value)">
           <option value="auto">Auto Contrast</option>
@@ -85,7 +112,7 @@
         </select>
       </label>
 
-      <label v-if="draft.textColorMode === 'custom'">
+      <label v-if="(draft.styleName === 'solid' || draft.styleName === 'gradient') && draft.textColorMode === 'custom'">
         Text Color
         <input
           type="color"
@@ -96,7 +123,7 @@
         />
       </label>
 
-      <label>
+      <label v-if="draft.styleName === 'solid' || draft.styleName === 'gradient'">
         Border
         <select :value="draft.borderMode" :disabled="busy" @change="setBorderMode(($event.target as HTMLSelectElement).value)">
           <option value="auto">Auto</option>
@@ -105,7 +132,7 @@
         </select>
       </label>
 
-      <label v-if="draft.borderMode === 'custom'">
+      <label v-if="(draft.styleName === 'solid' || draft.styleName === 'gradient') && draft.borderMode === 'custom'">
         Border Color
         <input
           type="color"
@@ -157,11 +184,13 @@ import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { Tag, TagStyleName } from '../../shared/types/boardTypes';
 import {
   DEFAULT_TAG_STYLE_PROPERTIES_JSON,
+  getTagPillClassList,
   createTagStyleDraft,
   getTagPillStyle,
   normaliseTagEmojiForRender
 } from '../../shared/utils/tagStyles';
-import { useStyleDraft } from '../composables/useStyleDraft';
+import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
+import { parseStyleNameInput, useStyleDraft } from '../composables/useStyleDraft';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
@@ -187,6 +216,7 @@ const {
 const draftEmoji = ref<string | null>(null);
 const draftTagName = ref('');
 const draftSourceKey = ref<string | null>(null);
+const presetColours = PRESET_TOKENS;
 
 const isCreateMode = computed(() => route.name === 'tags-new');
 const routeTagId = computed<number | null>(() => {
@@ -257,6 +287,24 @@ const previewStyle = computed(() => {
   };
 
   return getTagPillStyle(previewTag);
+});
+const previewStyleClasses = computed(() => {
+  if (!draft.value) {
+    return getTagPillClassList(editingTag.value);
+  }
+
+  const sourceTag = editingTag.value;
+  const previewTag: Tag = {
+    id: sourceTag?.id ?? 0,
+    name: previewTagName.value,
+    styleName: draft.value.styleName,
+    stylePropertiesJson: stylePropertiesJson.value ?? DEFAULT_TAG_STYLE_PROPERTIES_JSON,
+    emoji: normaliseTagEmojiForRender(draftEmoji.value),
+    createdAtUtc: sourceTag?.createdAtUtc ?? '1970-01-01T00:00:00Z',
+    updatedAtUtc: sourceTag?.updatedAtUtc ?? '1970-01-01T00:00:00Z'
+  };
+
+  return getTagPillClassList(previewTag);
 });
 const previewEmoji = computed(() => normaliseTagEmojiForRender(draftEmoji.value));
 
@@ -373,9 +421,13 @@ function initialiseCreateDraftState() {
     return;
   }
 
+  const randomPresetIndex = Math.floor(Math.random() * presetColours.length);
   setDraft(createTagStyleDraft({
-    styleName: 'solid',
-    stylePropertiesJson: DEFAULT_TAG_STYLE_PROPERTIES_JSON,
+    styleName: 'presets',
+    stylePropertiesJson: JSON.stringify({
+      presetIndex: randomPresetIndex,
+      textColorMode: 'auto'
+    }),
     emoji: null
   }));
   draftEmoji.value = null;
@@ -452,5 +504,25 @@ watch(
 
 .tags-emoji-picker-wrap {
   margin-top: 0.3rem;
+}
+
+.tags-preset-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tags-preset-swatch {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--bo-border-default);
+  cursor: pointer;
+  padding: 0;
+}
+
+.tags-preset-swatch--selected {
+  outline: 2px solid var(--bo-focus-ring);
+  outline-offset: 1px;
 }
 </style>

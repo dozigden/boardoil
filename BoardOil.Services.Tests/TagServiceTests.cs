@@ -11,18 +11,6 @@ namespace BoardOil.Services.Tests;
 
 public sealed class TagServiceTests : TestBaseDb
 {
-    private static readonly HashSet<string> DefaultTagPalette = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "#35165A",
-        "#9D8ABF",
-        "#69C1CE",
-        "#E8C07D",
-        "#CD474E",
-        "#9BBEF8",
-        "#F17437",
-        "#32CDA0"
-    };
-
     [Fact]
     public async Task CreateTagAsync_WhenTagMissing_ShouldCreateTagWithDefaultStyle()
     {
@@ -41,18 +29,18 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal(201, result.StatusCode);
         Assert.NotNull(result.Data);
         Assert.Equal("Bug", result.Data!.Name);
-        Assert.Equal("solid", result.Data.StyleName);
+        Assert.Equal("presets", result.Data.StyleName);
 
         var stored = await DbContextForAssert.Tags.SingleAsync();
         Assert.Equal(boardId, stored.BoardId);
         Assert.Equal("Bug", stored.Name);
         Assert.Equal("BUG", stored.NormalisedName);
-        Assert.Equal("solid", stored.StyleName);
+        Assert.Equal("presets", stored.StyleName);
         Assert.NotEmpty(stored.StylePropertiesJson);
 
         using var styleProperties = JsonDocument.Parse(stored.StylePropertiesJson);
-        Assert.True(styleProperties.RootElement.TryGetProperty("backgroundColor", out var backgroundColor));
-        Assert.Contains(backgroundColor.GetString() ?? string.Empty, DefaultTagPalette);
+        Assert.True(styleProperties.RootElement.TryGetProperty("presetIndex", out var presetIndex));
+        Assert.Equal(2, presetIndex.GetInt32());
         Assert.True(styleProperties.RootElement.TryGetProperty("textColorMode", out var textColorMode));
         Assert.Equal("auto", textColorMode.GetString());
     }
@@ -189,7 +177,7 @@ public sealed class TagServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task UpdateTagStyleAsync_WhenStyleInvalid_ShouldReturnValidationError()
+    public async Task UpdateTagStyleAsync_WhenStyleJsonObjectHasUnexpectedShape_ShouldSucceed()
     {
         // Arrange
         var boardId = CreateBoard("BoardOil")
@@ -218,10 +206,81 @@ public sealed class TagServiceTests : TestBaseDb
             StylePropertiesJson: """{"backgroundColor":"blue","textColorMode":"auto"}"""), ActorUserId);
 
         // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("""{"backgroundColor":"blue","textColorMode":"auto"}""", result.Data!.StylePropertiesJson);
+    }
+
+    [Fact]
+    public async Task UpdateTagStyleAsync_WhenStyleJsonIsNotObject_ShouldReturnValidationError()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            Name: "Bug",
+            StyleName: "solid",
+            StylePropertiesJson: """["not-an-object"]"""), ActorUserId);
+
+        // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
         Assert.NotNull(result.ValidationErrors);
         Assert.True(result.ValidationErrors!.ContainsKey("stylePropertiesJson"));
+    }
+
+    [Fact]
+    public async Task UpdateTagStyleAsync_WhenPresetsStyleValid_ShouldPersistPresetIndex()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagStyleRequest(
+            Name: "Bug",
+            StyleName: "presets",
+            StylePropertiesJson: """{"presetIndex":3,"textColorMode":"auto","borderMode":"auto"}"""), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("presets", result.Data!.StyleName);
+        Assert.Equal("""{"presetIndex":3,"textColorMode":"auto","borderMode":"auto"}""", result.Data.StylePropertiesJson);
     }
 
     [Fact]

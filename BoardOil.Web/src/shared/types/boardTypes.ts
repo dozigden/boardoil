@@ -1,4 +1,4 @@
-export type TagStyleName = 'solid' | 'gradient';
+export type TagStyleName = 'solid' | 'gradient' | 'auto' | 'presets';
 export type BoardMemberRole = 'Owner' | 'Contributor' | string;
 
 export type TagPresentation = {
