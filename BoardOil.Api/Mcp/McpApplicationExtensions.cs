@@ -67,6 +67,18 @@ public static class McpApplicationExtensions
         return app;
     }
 
+    public static WebApplication LogMcpStartupWarnings(this WebApplication app)
+    {
+        var mcpOptions = app.Services.GetRequiredService<BoardOilMcpOptions>();
+        if (mcpOptions.AuthMode is McpAuthMode.None)
+        {
+            app.Logger.LogWarning(
+                "MCP auth mode is configured as 'none'. MCP endpoints are unauthenticated and should only be exposed in trusted environments.");
+        }
+
+        return app;
+    }
+
     private static bool IsUnsupportedMcpStylePath(PathString path, BoardOilMcpOptions mcpOptions) =>
         (!mcpOptions.SupportsLegacySseTransport
             && path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase))

@@ -114,11 +114,7 @@ if (jwtOptions.AllowInsecureCookies)
 {
     app.Logger.LogWarning("Auth cookies are configured with Secure=false. This should only be used for local/home-lab HTTP setups.");
 }
-if (mcpOptions.AuthMode is McpAuthMode.None)
-{
-    app.Logger.LogWarning(
-        "MCP auth mode is configured as 'none'. MCP endpoints are unauthenticated and should only be exposed in trusted environments.");
-}
+app.LogMcpStartupWarnings();
 
 await app.Services.InitializeBoardOilAsync();
 app.UseCors("BoardOilDevClient");
