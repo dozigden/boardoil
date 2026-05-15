@@ -1,22 +1,25 @@
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Persistence.Abstractions.Board;
 using BoardOil.Persistence.Abstractions.Card;
 namespace BoardOil.Services.Card;
 
 public sealed class CardValidator(
-    ICardRepository cardRepository) : ICardValidator
+    ICardRepository cardRepository,
+    IBoardMemberRepository boardMemberRepository) : ICardValidator
 {
     private const int MaxDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
     private readonly ICardRepository _cardRepository = cardRepository;
+    private readonly IBoardMemberRepository _boardMemberRepository = boardMemberRepository;
 
-    public async Task<IReadOnlyList<ValidationError>> ValidateCreateAsync(CreateCardRequest request)
+    public async Task<IReadOnlyList<ValidationError>> ValidateCreateAsync(int boardId, CreateCardRequest request)
     {
         var errors = new List<ValidationError>();
         ValidateTitle(request.Title, errors);
         ValidateDescription(request.Description ?? string.Empty, errors);
-        ValidateAssignedUserId(request.AssignedUserId, errors);
+        await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
         if (errors.Count > 0)
         {
             return errors;
@@ -36,7 +39,7 @@ public sealed class CardValidator(
         return tagValidationErrors;
     }
 
-    public async Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(UpdateCardRequest request)
+    public async Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(int boardId, UpdateCardRequest request)
     {
         var errors = new List<ValidationError>();
         if (request.Title.IsTrimmedNullOrEmpty())
@@ -67,7 +70,7 @@ public sealed class CardValidator(
             errors.Add(new ValidationError("cardTypeId", "Card type is required."));
         }
 
-        ValidateAssignedUserId(request.AssignedUserId, errors);
+        await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
 
         if (request.BoardColumnId is int boardColumnId)
         {
@@ -99,7 +102,7 @@ public sealed class CardValidator(
         return Array.Empty<ValidationError>();
     }
 
-    private static void ValidateAssignedUserId(int? assignedUserId, ICollection<ValidationError> errors)
+    private async Task ValidateAssignedUserIdAsync(int boardId, int? assignedUserId, ICollection<ValidationError> errors)
     {
         if (assignedUserId is null)
         {
@@ -109,6 +112,13 @@ public sealed class CardValidator(
         if (assignedUserId.Value <= 0)
         {
             errors.Add(new ValidationError("assignedUserId", "Assigned user is invalid."));
+            return;
+        }
+
+        var membership = await _boardMemberRepository.GetByBoardAndUserAsync(boardId, assignedUserId.Value);
+        if (membership is null || !membership.User.IsActive)
+        {
+            errors.Add(new ValidationError("assignedUserId", "Assigned user must be an active board member."));
         }
     }
 

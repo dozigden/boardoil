@@ -19,7 +19,6 @@ namespace BoardOil.Services.Card;
 public sealed class CardService(
     ICardRepository cardRepository,
     ICardTypeRepository cardTypeRepository,
-    IBoardMemberRepository boardMemberRepository,
     IColumnRepository columnRepository,
     ITagRepository tagRepository,
     IImageRepository imageRepository,
@@ -31,7 +30,6 @@ public sealed class CardService(
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
     private readonly ICardTypeRepository _cardTypeRepository = cardTypeRepository;
-    private readonly IBoardMemberRepository _boardMemberRepository = boardMemberRepository;
     private readonly ITagRepository _tagRepository = tagRepository;
 
     public async Task<ApiResult<CardDto>> GetCardAsync(int boardId, int id, int actorUserId)
@@ -63,7 +61,7 @@ public sealed class CardService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var validationErrors = await validator.ValidateCreateAsync(request);
+        var validationErrors = await validator.ValidateCreateAsync(boardId, request);
         if (validationErrors.Count > 0)
         {
             return ValidationFail(validationErrors);
@@ -100,12 +98,6 @@ public sealed class CardService(
         }
 
         var selectedCardType = requestedCardType ?? systemCardType;
-        var assignmentResolution = await ResolveAssignedUserAsync(boardId, request.AssignedUserId);
-        if (assignmentResolution.Error is not null)
-        {
-            return assignmentResolution.Error;
-        }
-
         var cards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id)).ToList();
 
         var previousKey = (string?)null;
@@ -124,7 +116,6 @@ public sealed class CardService(
             CardTypeId = selectedCardType.Id,
             CardType = selectedCardType,
             AssignedUserId = request.AssignedUserId,
-            AssignedUser = assignmentResolution.AssignedUser,
             Title = request.Title.Trim(),
             Description = description,
             SortKey = sortKey!,
@@ -157,7 +148,7 @@ public sealed class CardService(
             return ApiErrors.NotFound("Card not found.");
         }
 
-        var updateValidationErrors = await validator.ValidateUpdateAsync(request);
+        var updateValidationErrors = await validator.ValidateUpdateAsync(boardId, request);
         if (updateValidationErrors.Count > 0)
         {
             return ValidationFail(updateValidationErrors);
@@ -193,18 +184,7 @@ public sealed class CardService(
             return ValidationFail([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
         }
 
-        EntityUser? resolvedAssignedUser = existingCard.AssignedUser;
         var assignmentChanged = request.AssignedUserId != existingCard.AssignedUserId;
-        if (assignmentChanged)
-        {
-            var assignmentResolution = await ResolveAssignedUserAsync(boardId, request.AssignedUserId);
-            if (assignmentResolution.Error is not null)
-            {
-                return assignmentResolution.Error;
-            }
-
-            resolvedAssignedUser = assignmentResolution.AssignedUser;
-        }
 
         var movementChanged = requestedColumnId != currentColumnId;
         string? targetSortKey = null;
@@ -250,7 +230,7 @@ public sealed class CardService(
             if (assignmentChanged)
             {
                 existingCard.AssignedUserId = request.AssignedUserId;
-                existingCard.AssignedUser = resolvedAssignedUser;
+                existingCard.AssignedUser = null;
             }
 
             if (movementChanged)
@@ -746,22 +726,6 @@ public sealed class CardService(
             .Select(x => x.Trim())
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
-    }
-
-    private async Task<(ApiError? Error, EntityUser? AssignedUser)> ResolveAssignedUserAsync(int boardId, int? assignedUserId)
-    {
-        if (assignedUserId is null)
-        {
-            return (null, null);
-        }
-
-        var membership = await _boardMemberRepository.GetByBoardAndUserAsync(boardId, assignedUserId.Value);
-        if (membership is null || !membership.User.IsActive)
-        {
-            return (ValidationFail([new ValidationError("assignedUserId", "Assigned user must be an active board member.")]), null);
-        }
-
-        return (null, membership.User);
     }
 
 }
