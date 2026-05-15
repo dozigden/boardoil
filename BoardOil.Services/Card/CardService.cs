@@ -25,6 +25,7 @@ public sealed class CardService(
     IBoardAuthorisationService boardAuthorisationService,
     CreateCardService createCardService,
     UpdateCardService updateCardService,
+    MoveCardService moveCardService,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardService
 {
@@ -64,93 +65,7 @@ public sealed class CardService(
 
     public async Task<ApiResult<CardDto>> MoveCardAsync(int boardId, int id, MoveCardRequest request, int actorUserId)
     {
-        using var scope = _scopeFactory.Create();
-
-        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardMove);
-        if (!hasPermission)
-        {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
-        }
-
-        var existingCard = await cardRepository.GetWithTagsAndBoardAsync(id);
-        if (existingCard is null || existingCard.BoardColumn.BoardId != boardId)
-        {
-            return ApiErrors.NotFound("Card not found.");
-        }
-
-        var sourceColumnId = existingCard.BoardColumnId;
-        var targetColumn = columnRepository.Get(request.BoardColumnId);
-        if (targetColumn is null || targetColumn.BoardId != boardId)
-        {
-            return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
-        }
-
-        if (request.PositionAfterCardId == id)
-        {
-            return ValidationFail([new ValidationError("positionAfterCardId", "Card cannot be positioned after itself.")]);
-        }
-
-        var sourceCards = (await cardRepository.GetCardsInColumnOrderedAsync(sourceColumnId)).ToList();
-        var sourceIndex = FindCardIndex(sourceCards, id);
-        if (sourceIndex < 0)
-        {
-            return ApiErrors.NotFound("Card not found.");
-        }
-
-        var currentPositionAfterCardId = sourceIndex > 0 ? sourceCards[sourceIndex - 1].Id : (int?)null;
-        if (targetColumn.Id == sourceColumnId
-            && request.PositionAfterCardId == currentPositionAfterCardId)
-        {
-            var unchangedDto = await EnrichAssignedUserImageAsync(existingCard.ToCardDto());
-            await _boardEvents.CardMovedAsync(boardId, unchangedDto);
-            return unchangedDto;
-        }
-
-        List<EntityBoardCard> targetCards;
-        if (targetColumn.Id == sourceColumnId)
-        {
-            targetCards = sourceCards
-                .Where(x => x.Id != id)
-                .ToList();
-        }
-        else
-        {
-            targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id))
-                .Where(x => x.Id != id)
-                .ToList();
-        }
-
-        var anchorResolution = ResolveAnchor(request.PositionAfterCardId, targetCards);
-        if (anchorResolution.Error is not null)
-        {
-            return anchorResolution.Error;
-        }
-
-        if (!TryGenerateSortKey(
-                anchorResolution.PreviousKey,
-                anchorResolution.NextKey,
-                out var targetSortKeyValue,
-                out var allocationError))
-        {
-            return allocationError!;
-        }
-
-        var targetSortKey = targetSortKeyValue!;
-
-        var movementChanged = targetColumn.Id != existingCard.BoardColumnId
-            || targetSortKey != existingCard.SortKey;
-        if (movementChanged)
-        {
-            existingCard.BoardColumnId = targetColumn.Id;
-            existingCard.SortKey = targetSortKey;
-
-            await scope.SaveChangesAsync();
-        }
-
-        var dto = await EnrichAssignedUserImageAsync(existingCard.ToCardDto());
-        await _boardEvents.CardMovedAsync(boardId, dto);
-
-        return dto;
+        return await moveCardService.ExecuteAsync(boardId, id, request, actorUserId);
     }
 
     public async Task<ApiResult<IReadOnlyList<CardDto>>> BulkEditCardsAsync(int boardId, BulkEditCardsRequest request, int actorUserId)
