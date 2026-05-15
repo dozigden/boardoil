@@ -23,7 +23,8 @@ public sealed class CardService(
     ITagRepository tagRepository,
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
-    ICardValidator validator,
+    CreateCardService createCardService,
+    UpdateCardService updateCardService,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardService
 {
@@ -53,206 +54,12 @@ public sealed class CardService(
 
     public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId)
     {
-        using var scope = _scopeFactory.Create();
-
-        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardCreate);
-        if (!hasPermission)
-        {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
-        }
-
-        var validationErrors = await validator.ValidateCreateAsync(boardId, request);
-        if (validationErrors.Count > 0)
-        {
-            return ValidationFail(validationErrors);
-        }
-
-        var targetColumn = request.BoardColumnId is int boardColumnId
-            ? columnRepository.Get(boardColumnId)
-            : (await columnRepository.GetColumnsInBoardOrderedAsync(boardId)).FirstOrDefault();
-        if (targetColumn is null)
-        {
-            var message = request.BoardColumnId is null
-                ? "Board does not contain any columns."
-                : "Column does not exist in board.";
-            return ValidationFail([new ValidationError("boardColumnId", message)]);
-        }
-
-        if (targetColumn.BoardId != boardId)
-        {
-            return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
-        }
-
-        var requestedCardType = request.CardTypeId is null
-            ? null
-            : await _cardTypeRepository.GetByIdInBoardAsync(boardId, request.CardTypeId.Value);
-        if (request.CardTypeId is not null && requestedCardType is null)
-        {
-            return ValidationFail([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
-        }
-
-        var systemCardType = await _cardTypeRepository.GetSystemByBoardIdAsync(boardId);
-        if (systemCardType is null)
-        {
-            return ApiErrors.InternalError("System card type not found for board.");
-        }
-
-        var selectedCardType = requestedCardType ?? systemCardType;
-        var cards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id)).ToList();
-
-        var previousKey = (string?)null;
-        var nextKey = cards.Count > 0 ? cards[0].SortKey : null;
-        if (!TryGenerateSortKey(previousKey, nextKey, out var sortKey, out var allocationError))
-        {
-            return allocationError!;
-        }
-
-        var now = DateTime.UtcNow;
-        var description = request.Description ?? string.Empty;
-        var tags = await ResolveTagsAsync(boardId, request.TagNames ?? Array.Empty<string>(), now);
-        var card = new EntityBoardCard
-        {
-            BoardColumnId = targetColumn.Id,
-            CardTypeId = selectedCardType.Id,
-            CardType = selectedCardType,
-            AssignedUserId = request.AssignedUserId,
-            Title = request.Title.Trim(),
-            Description = description,
-            SortKey = sortKey!,
-        };
-        ReplaceTags(card, tags);
-
-        cardRepository.Add(card);
-
-        await scope.SaveChangesAsync();
-
-        var created = await EnrichAssignedUserImageAsync(card.ToCardDto());
-
-        await _boardEvents.CardCreatedAsync(boardId, created);
-        return ApiResults.Created(created);
+        return await createCardService.ExecuteAsync(boardId, request, actorUserId);
     }
 
     public async Task<ApiResult<CardDto>> UpdateCardAsync(int boardId, int id, UpdateCardRequest request, int actorUserId)
     {
-        using var scope = _scopeFactory.Create();
-
-        var hasUpdatePermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate);
-        if (!hasUpdatePermission)
-        {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
-        }
-
-        var existingCard = await cardRepository.GetWithTagsAndBoardAsync(id);
-        if (existingCard is null || existingCard.BoardColumn.BoardId != boardId)
-        {
-            return ApiErrors.NotFound("Card not found.");
-        }
-
-        var updateValidationErrors = await validator.ValidateUpdateAsync(boardId, request);
-        if (updateValidationErrors.Count > 0)
-        {
-            return ValidationFail(updateValidationErrors);
-        }
-
-        var currentColumnId = existingCard.BoardColumnId;
-        var requestedColumnId = request.BoardColumnId ?? currentColumnId;
-        if (request.BoardColumnId is int explicitColumnId && explicitColumnId != currentColumnId)
-        {
-            var hasMovePermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardMove);
-            if (!hasMovePermission)
-            {
-                return ApiErrors.Forbidden("You do not have permission for this action.");
-            }
-        }
-
-        if (request.BoardColumnId is int updateColumnId)
-        {
-            var targetColumn = columnRepository.Get(updateColumnId);
-            if (targetColumn is null || targetColumn.BoardId != boardId)
-            {
-                return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
-            }
-        }
-
-        var updatedTitle = request.Title.Trim();
-        var updatedDescription = request.Description;
-        var now = DateTime.UtcNow;
-        var updatedTags = await ResolveTagsAsync(boardId, request.TagNames, now);
-        var selectedCardType = await _cardTypeRepository.GetByIdInBoardAsync(boardId, request.CardTypeId);
-        if (selectedCardType is null)
-        {
-            return ValidationFail([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
-        }
-
-        var assignmentChanged = request.AssignedUserId != existingCard.AssignedUserId;
-
-        var movementChanged = requestedColumnId != currentColumnId;
-        string? targetSortKey = null;
-        if (movementChanged)
-        {
-            var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(requestedColumnId))
-                .Where(x => x.Id != id)
-                .ToList();
-            var nextKey = targetCards.Count > 0 ? targetCards[0].SortKey : null;
-            if (!TryGenerateSortKey(null, nextKey, out targetSortKey, out var allocationError))
-            {
-                return allocationError!;
-            }
-        }
-
-        var updatedTagNames = updatedTags
-            .Select(x => x.Name)
-            .OrderBy(x => x, StringComparer.Ordinal)
-            .ToList();
-        var existingTagNames = GetOrderedTagNames(existingCard);
-        var tagsChanged = !existingTagNames.SequenceEqual(updatedTagNames, StringComparer.Ordinal);
-        var cardTypeChanged = selectedCardType.Id != existingCard.CardTypeId;
-        var metadataChanged = updatedTitle != existingCard.Title
-            || updatedDescription != existingCard.Description
-            || tagsChanged
-            || cardTypeChanged
-            || assignmentChanged;
-        if (metadataChanged || movementChanged)
-        {
-            existingCard.Title = updatedTitle;
-            existingCard.Description = updatedDescription;
-            if (tagsChanged)
-            {
-                ReplaceTags(existingCard, updatedTags);
-            }
-
-            if (cardTypeChanged)
-            {
-                existingCard.CardTypeId = selectedCardType.Id;
-                existingCard.CardType = selectedCardType;
-            }
-
-            if (assignmentChanged)
-            {
-                existingCard.AssignedUserId = request.AssignedUserId;
-                existingCard.AssignedUser = null;
-            }
-
-            if (movementChanged)
-            {
-                existingCard.BoardColumnId = requestedColumnId;
-                existingCard.SortKey = targetSortKey!;
-            }
-
-            await scope.SaveChangesAsync();
-        }
-
-        var dto = await EnrichAssignedUserImageAsync(existingCard.ToCardDto());
-        if (movementChanged)
-        {
-            await _boardEvents.CardMovedAsync(boardId, dto);
-        }
-        else
-        {
-            await _boardEvents.CardUpdatedAsync(boardId, dto);
-        }
-
-        return dto;
+        return await updateCardService.ExecuteAsync(boardId, id, request, actorUserId);
     }
 
     public async Task<ApiResult<CardDto>> MoveCardAsync(int boardId, int id, MoveCardRequest request, int actorUserId)

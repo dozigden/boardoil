@@ -45,6 +45,10 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IAmbientDbContextLocator, AmbientDbContextLocator>();
         services.AddScoped<IColumnValidator, ColumnValidator>();
         services.AddScoped<ICardValidator, CardValidator>();
+        services.AddScoped<CreateCardPlanner>();
+        services.AddScoped<CreateCardService>();
+        services.AddScoped<UpdateCardPlanner>();
+        services.AddScoped<UpdateCardService>();
         services.AddSingleton<IPasswordHashService, PasswordHashService>();
         services.AddScoped<IBoardRepository, BoardRepository>();
         services.AddScoped<IBoardMemberRepository, BoardMemberRepository>();
