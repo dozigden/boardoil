@@ -1,6 +1,7 @@
 # Build outputs
 **/bin/
 **/obj/
+*.csproj.lscache
 BoardOil.Web/node_modules/
 BoardOil.Web/dist/
 
