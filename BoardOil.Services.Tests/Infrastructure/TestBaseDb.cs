@@ -1,6 +1,7 @@
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Ef;
+using BoardOil.Ef.DependencyInjection;
 using BoardOil.Services.Board;
 using BoardOil.Services.Card;
 using BoardOil.Services.CardType;
@@ -9,7 +10,7 @@ using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Tag;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using Xunit;
 
 namespace BoardOil.Services.Tests.Infrastructure;
@@ -75,7 +76,8 @@ public abstract class TestBaseDb : IAsyncLifetime
         }
 
         var services = new ServiceCollection();
-        services.AddBoardOilServices("DataSource=:memory:");
+        services.AddBoardOilServices();
+        services.AddBoardOilEfInfrastructure("DataSource=:memory:");
         services.AddScoped<BoardService>();
         services.AddScoped<ColumnService>();
         services.AddScoped<CardService>();

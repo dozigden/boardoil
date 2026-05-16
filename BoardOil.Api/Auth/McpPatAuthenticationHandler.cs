@@ -6,7 +6,7 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Api.Configuration;
 using BoardOil.Api.Mcp;
 using BoardOil.Contracts.Auth;
-using BoardOil.Persistence.Abstractions.Auth;
+using BoardOil.Data.Abstractions.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 

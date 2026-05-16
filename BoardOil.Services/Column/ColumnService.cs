@@ -4,9 +4,9 @@ using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Contracts;
-using BoardOil.Persistence.Abstractions.Board;
-using BoardOil.Persistence.Abstractions.Column;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Board;
+using BoardOil.Data.Abstractions.Column;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Column;

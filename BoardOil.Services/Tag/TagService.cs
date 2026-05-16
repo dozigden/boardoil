@@ -3,9 +3,9 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Tag;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Tag;
-using BoardOil.Persistence.Abstractions.Board;
-using BoardOil.Persistence.Abstractions.Entities;
-using BoardOil.Persistence.Abstractions.Tag;
+using BoardOil.Data.Abstractions.Board;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Tag;
 
 namespace BoardOil.Services.Tag;
 

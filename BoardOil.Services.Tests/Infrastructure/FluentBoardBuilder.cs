@@ -1,8 +1,8 @@
 using System.Numerics;
 using BoardOil.Ef;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
-using BoardEntity = BoardOil.Persistence.Abstractions.Entities.EntityBoard;
+using BoardEntity = BoardOil.Data.Abstractions.Entities.EntityBoard;
 
 namespace BoardOil.Services.Tests.Infrastructure;
 

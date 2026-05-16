@@ -139,7 +139,7 @@ while IFS= read -r file; do
       run_api=true
       ;;
 
-    BoardOil.Contracts/*|BoardOil.Abstractions/*|BoardOil.Ef/*|BoardOil.Persistence.Abstractions/*)
+    BoardOil.Contracts/*|BoardOil.Abstractions/*|BoardOil.Ef/*|BoardOil.Data.Abstractions/*)
       run_api=true
       run_services=true
       ;;

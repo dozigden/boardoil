@@ -4,8 +4,8 @@ using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Xunit;
-using CardTagEntity = BoardOil.Persistence.Abstractions.Entities.EntityCardTag;
-using TagEntity = BoardOil.Persistence.Abstractions.Entities.EntityTag;
+using CardTagEntity = BoardOil.Data.Abstractions.Entities.EntityCardTag;
+using TagEntity = BoardOil.Data.Abstractions.Entities.EntityTag;
 
 namespace BoardOil.Services.Tests;
 

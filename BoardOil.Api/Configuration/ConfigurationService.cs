@@ -1,8 +1,8 @@
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Configuration;
 using BoardOil.Contracts.Contracts;
-using BoardOil.Persistence.Abstractions.Configuration;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Configuration;
+using BoardOil.Data.Abstractions.Entities;
 
 namespace BoardOil.Api.Configuration;
 

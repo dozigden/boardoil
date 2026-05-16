@@ -3,7 +3,7 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Ordering;
 using BoardOil.Ef;
 using BoardOil.Api.Tests.Infrastructure;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tag;
 using Microsoft.EntityFrameworkCore;

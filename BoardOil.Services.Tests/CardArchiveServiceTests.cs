@@ -4,10 +4,10 @@ using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
-using ArchivedCardEntity = BoardOil.Persistence.Abstractions.Entities.EntityArchivedCard;
-using BoardMemberEntity = BoardOil.Persistence.Abstractions.Entities.EntityBoardMember;
-using TagEntity = BoardOil.Persistence.Abstractions.Entities.EntityTag;
-using UserEntity = BoardOil.Persistence.Abstractions.Entities.EntityUser;
+using ArchivedCardEntity = BoardOil.Data.Abstractions.Entities.EntityArchivedCard;
+using BoardMemberEntity = BoardOil.Data.Abstractions.Entities.EntityBoardMember;
+using TagEntity = BoardOil.Data.Abstractions.Entities.EntityTag;
+using UserEntity = BoardOil.Data.Abstractions.Entities.EntityUser;
 
 namespace BoardOil.Services.Tests;
 
@@ -540,7 +540,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         {
             BoardId = boardId,
             UserId = user.Id,
-            Role = BoardOil.Persistence.Abstractions.Entities.BoardMemberRole.Contributor,
+            Role = BoardOil.Data.Abstractions.Entities.BoardMemberRole.Contributor,
         });
         await DbContextForArrange.SaveChangesAsync();
 

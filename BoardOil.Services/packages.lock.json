@@ -272,24 +272,24 @@
       "boardoil.abstractions": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Contracts": "[1.1.0, )",
+          "BoardOil.Contracts": "[1.2.2, )",
           "Microsoft.EntityFrameworkCore": "[10.0.6, )"
         }
       },
       "boardoil.contracts": {
         "type": "Project"
       },
+      "boardoil.data.abstractions": {
+        "type": "Project"
+      },
       "boardoil.ef": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Abstractions": "[1.1.0, )",
-          "BoardOil.Persistence.Abstractions": "[1.1.0, )",
+          "BoardOil.Abstractions": "[1.2.2, )",
+          "BoardOil.Data.Abstractions": "[1.2.2, )",
           "Microsoft.EntityFrameworkCore": "[10.0.6, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.6, )"
         }
-      },
-      "boardoil.persistence.abstractions": {
-        "type": "Project"
       }
     }
   }

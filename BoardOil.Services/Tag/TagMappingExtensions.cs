@@ -1,4 +1,4 @@
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Contracts.Tag;
 
 namespace BoardOil.Services.Tag;

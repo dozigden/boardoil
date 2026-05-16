@@ -5,7 +5,7 @@ This file explains how persistence is structured in BoardOil and the conventions
 ## Persistence Architecture
 
 - `BoardOilDbContext` (in `BoardOil.Ef`) defines sets, table mappings, indexes, and relationships.
-- Repository interfaces live in `BoardOil.Persistence.Abstractions`.
+- Repository interfaces live in `BoardOil.Data.Abstractions`.
 - Repository implementations live in `BoardOil.Ef/Repositories`.
 - Services (in `BoardOil.Services`) orchestrate workflows and call repositories.
 
@@ -25,7 +25,7 @@ This file explains how persistence is structured in BoardOil and the conventions
 
 ## Conventions
 
-- Entity classes are named with `Entity*` and live in `BoardOil.Persistence.Abstractions/Entities`.
+- Entity classes are named with `Entity*` and live in `BoardOil.Data.Abstractions/Entities`.
 - Tables are explicitly mapped in `OnModelCreating`.
 - Primary keys use `int Id` consistently across tables/entities.
 - Naming convention preference in code/contracts/schema terms is British English where applicable (for example `NormalisedName`).

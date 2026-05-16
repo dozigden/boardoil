@@ -1,7 +1,7 @@
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.Users;
 using BoardOil.Contracts.Users;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,5 +1,5 @@
 using BoardOil.Contracts.CardType;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.CardType;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;

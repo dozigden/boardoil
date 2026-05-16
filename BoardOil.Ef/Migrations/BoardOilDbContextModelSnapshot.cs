@@ -17,7 +17,7 @@ namespace BoardOil.Ef.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.6");
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityAppSetting", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityAppSetting", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -44,7 +44,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("AppSettings", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityArchivedCard", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityArchivedCard", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -89,7 +89,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("ArchivedCards", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityBoard", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoard", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -116,7 +116,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Boards", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityBoardCard", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoardCard", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -164,7 +164,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Cards", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityBoardColumn", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoardColumn", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -197,7 +197,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Columns", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityBoardMember", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoardMember", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -230,7 +230,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("BoardMembers", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityCardComment", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardComment", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -262,7 +262,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("CardComments", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityCardTag", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardTag", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -284,7 +284,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("CardTags", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityCardType", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardType", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -329,7 +329,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("CardTypes", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityImage", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityImage", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -378,7 +378,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Images", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityPersonalAccessToken", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityPersonalAccessToken", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -429,7 +429,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("PersonalAccessTokens", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityRefreshToken", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityRefreshToken", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -466,7 +466,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("RefreshTokens", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityTag", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityTag", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -514,7 +514,7 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Tags", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityUser", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityUser", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -571,9 +571,9 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityArchivedCard", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityArchivedCard", b =>
                 {
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityBoard", "Board")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoard", "Board")
                         .WithMany("ArchivedCards")
                         .HasForeignKey("BoardId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -582,20 +582,20 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Board");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityBoardCard", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoardCard", b =>
                 {
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityUser", "AssignedUser")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "AssignedUser")
                         .WithMany()
                         .HasForeignKey("AssignedUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityBoardColumn", "BoardColumn")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoardColumn", "BoardColumn")
                         .WithMany("Cards")
                         .HasForeignKey("BoardColumnId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityCardType", "CardType")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityCardType", "CardType")
                         .WithMany("Cards")
                         .HasForeignKey("CardTypeId")
                         .OnDelete(DeleteBehavior.NoAction)
@@ -608,9 +608,9 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("CardType");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityBoardColumn", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoardColumn", b =>
                 {
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityBoard", "Board")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoard", "Board")
                         .WithMany("Columns")
                         .HasForeignKey("BoardId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -619,15 +619,15 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Board");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityBoardMember", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoardMember", b =>
                 {
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityBoard", "Board")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoard", "Board")
                         .WithMany("Members")
                         .HasForeignKey("BoardId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityUser", "User")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "User")
                         .WithMany("BoardMemberships")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -638,14 +638,14 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityCardComment", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardComment", b =>
                 {
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityUser", "AuthorUser")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "AuthorUser")
                         .WithMany("CardComments")
                         .HasForeignKey("AuthorUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityBoardCard", "Card")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoardCard", "Card")
                         .WithMany("Comments")
                         .HasForeignKey("CardId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -656,15 +656,15 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Card");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityCardTag", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardTag", b =>
                 {
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityBoardCard", "Card")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoardCard", "Card")
                         .WithMany("CardTags")
                         .HasForeignKey("CardId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityTag", "Tag")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityTag", "Tag")
                         .WithMany("CardTags")
                         .HasForeignKey("TagId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -675,9 +675,9 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Tag");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityCardType", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardType", b =>
                 {
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityBoard", "Board")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoard", "Board")
                         .WithMany("CardTypes")
                         .HasForeignKey("BoardId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -686,9 +686,9 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Board");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityPersonalAccessToken", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityPersonalAccessToken", b =>
                 {
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityUser", "User")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "User")
                         .WithMany("PersonalAccessTokens")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -697,9 +697,9 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityRefreshToken", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityRefreshToken", b =>
                 {
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityUser", "User")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "User")
                         .WithMany("RefreshTokens")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -708,9 +708,9 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityTag", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityTag", b =>
                 {
-                    b.HasOne("BoardOil.Persistence.Abstractions.Entities.EntityBoard", "Board")
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoard", "Board")
                         .WithMany("Tags")
                         .HasForeignKey("BoardId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -719,7 +719,7 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Board");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityBoard", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoard", b =>
                 {
                     b.Navigation("ArchivedCards");
 
@@ -732,29 +732,29 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Tags");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityBoardCard", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoardCard", b =>
                 {
                     b.Navigation("CardTags");
 
                     b.Navigation("Comments");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityBoardColumn", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoardColumn", b =>
                 {
                     b.Navigation("Cards");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityCardType", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardType", b =>
                 {
                     b.Navigation("Cards");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityTag", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityTag", b =>
                 {
                     b.Navigation("CardTags");
                 });
 
-            modelBuilder.Entity("BoardOil.Persistence.Abstractions.Entities.EntityUser", b =>
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityUser", b =>
                 {
                     b.Navigation("BoardMemberships");
 

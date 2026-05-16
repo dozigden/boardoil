@@ -11,12 +11,14 @@ This file captures the current runtime architecture so agents can orient quickly
   - API contracts (`*Request`, `*Dto`, `ApiResult`, `ValidationError`) shared across API/services/tests.
 - `BoardOil.Abstractions`
   - Cross-cutting service and infrastructure abstractions (service interfaces, db scope abstractions, auth abstractions).
-- `BoardOil.Persistence.Abstractions`
+- `BoardOil.Data.Abstractions`
   - Persistence-facing contracts and EF entity types (`Entity*`) plus repository interfaces.
 - `BoardOil.Ef`
   - EF Core implementation (`BoardOilDbContext`), repository implementations, ambient db scope implementation, migrations.
+  - Infrastructure composition and startup initialisation extensions for EF wiring/migrations/bootstrap.
 - `BoardOil.Services`
   - Business workflows, invariants, validation orchestration, persistence coordination, mapping to contracts, realtime event publishing.
+  - Service-layer DI registrations only; no EF registration or migration/bootstrap startup ownership.
 - `BoardOil.Web`
   - Vue 3 + Pinia frontend, typed API client, route guards, realtime board updates.
 

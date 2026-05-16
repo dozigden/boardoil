@@ -9,6 +9,7 @@ using BoardOil.Abstractions;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.Image;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Ef.DependencyInjection;
 using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
@@ -28,7 +29,8 @@ builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
 var connectionString = runtimeOptions.ResolveConnectionString(builder.Configuration);
 var imageStorageOptions = BoardOilImageStorageOptions.Resolve(builder.Configuration, connectionString);
-builder.Services.AddBoardOilServices(connectionString);
+builder.Services.AddBoardOilServices();
+builder.Services.AddBoardOilEfInfrastructure(connectionString);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("BoardOilDevClient", policy =>
@@ -116,7 +118,7 @@ if (jwtOptions.AllowInsecureCookies)
 }
 app.LogMcpStartupWarnings();
 
-await app.Services.InitializeBoardOilAsync();
+await app.Services.InitializeBoardOilEfInfrastructureAsync();
 app.UseCors("BoardOilDevClient");
 app.UseAuthentication();
 app.MapBoardOilMcp();

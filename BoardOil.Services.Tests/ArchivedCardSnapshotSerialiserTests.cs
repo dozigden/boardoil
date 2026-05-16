@@ -1,5 +1,5 @@
 using BoardOil.Services.Card;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using Xunit;
 
 namespace BoardOil.Services.Tests;

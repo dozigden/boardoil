@@ -1,8 +1,8 @@
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Api.Configuration;
 using BoardOil.Contracts.Configuration;
-using BoardOil.Persistence.Abstractions.Configuration;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Configuration;
+using BoardOil.Data.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 

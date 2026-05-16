@@ -1,6 +1,6 @@
 using BoardOil.Contracts.Card;
-using BoardOil.Persistence.Abstractions.Entities;
-using BoardOil.Persistence.Abstractions.Image;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Image;
 
 namespace BoardOil.Services.Card;
 

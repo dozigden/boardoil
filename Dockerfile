@@ -22,7 +22,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
 WORKDIR /src
 COPY BoardOil.Api/ BoardOil.Api/
 COPY BoardOil.Abstractions/ BoardOil.Abstractions/
-COPY BoardOil.Persistence.Abstractions/ BoardOil.Persistence.Abstractions/
+COPY BoardOil.Data.Abstractions/ BoardOil.Data.Abstractions/
 COPY BoardOil.Contracts/ BoardOil.Contracts/
 COPY BoardOil.Services/ BoardOil.Services/
 COPY BoardOil.TasksMd/ BoardOil.TasksMd/

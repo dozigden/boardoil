@@ -1,5 +1,5 @@
 using BoardOil.Contracts.Card;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using System.Text.Json;
 
 namespace BoardOil.Services.Card;

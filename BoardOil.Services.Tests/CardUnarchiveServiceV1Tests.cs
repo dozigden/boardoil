@@ -1,14 +1,14 @@
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Card;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using Xunit;
-using ArchivedCardEntity = BoardOil.Persistence.Abstractions.Entities.EntityArchivedCard;
+using ArchivedCardEntity = BoardOil.Data.Abstractions.Entities.EntityArchivedCard;
 
 namespace BoardOil.Services.Tests;
 

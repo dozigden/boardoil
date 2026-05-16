@@ -6,8 +6,7 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
     <ProjectReference Include="..\BoardOil.Abstractions\BoardOil.Abstractions.csproj" />
     <ProjectReference Include="..\BoardOil.Contracts\BoardOil.Contracts.csproj" />
-    <ProjectReference Include="..\BoardOil.Ef\BoardOil.Ef.csproj" />
-    <ProjectReference Include="..\BoardOil.Persistence.Abstractions\BoardOil.Persistence.Abstractions.csproj" />
+    <ProjectReference Include="..\BoardOil.Data.Abstractions\BoardOil.Data.Abstractions.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

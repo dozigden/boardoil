@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Contracts.Auth;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Auth;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;

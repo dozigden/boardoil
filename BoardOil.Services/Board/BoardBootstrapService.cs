@@ -1,10 +1,10 @@
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
-using BoardOil.Persistence.Abstractions.Board;
-using BoardOil.Persistence.Abstractions.Column;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Board;
+using BoardOil.Data.Abstractions.Column;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
-using BoardOil.Persistence.Abstractions.Users;
+using BoardOil.Data.Abstractions.Users;
 using BoardOil.Services.Ordering;
 
 namespace BoardOil.Services.Board;

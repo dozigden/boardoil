@@ -2,9 +2,9 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Image;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Users;
-using BoardOil.Persistence.Abstractions.Entities;
-using BoardOil.Persistence.Abstractions.Image;
-using BoardOil.Persistence.Abstractions.Users;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Image;
+using BoardOil.Data.Abstractions.Users;
 using SixLabors.ImageSharp;
 
 namespace BoardOil.Services.Image;

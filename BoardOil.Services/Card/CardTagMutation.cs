@@ -1,5 +1,5 @@
-using BoardOil.Persistence.Abstractions.Entities;
-using BoardOil.Persistence.Abstractions.Tag;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Tag;
 
 namespace BoardOil.Services.Card;

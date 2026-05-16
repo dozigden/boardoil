@@ -1,8 +1,8 @@
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
-using BoardOil.Persistence.Abstractions.Board;
-using BoardOil.Persistence.Abstractions.Card;
+using BoardOil.Data.Abstractions.Board;
+using BoardOil.Data.Abstractions.Card;
 namespace BoardOil.Services.Card;
 
 public sealed class CardValidator(

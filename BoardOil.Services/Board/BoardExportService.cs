@@ -5,11 +5,11 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Contracts;
-using BoardOil.Persistence.Abstractions.Board;
-using BoardOil.Persistence.Abstractions.Card;
-using BoardOil.Persistence.Abstractions.CardType;
-using BoardOil.Persistence.Abstractions.Column;
-using BoardOil.Persistence.Abstractions.Tag;
+using BoardOil.Data.Abstractions.Board;
+using BoardOil.Data.Abstractions.Card;
+using BoardOil.Data.Abstractions.CardType;
+using BoardOil.Data.Abstractions.Column;
+using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Card;
 
 namespace BoardOil.Services.Board;

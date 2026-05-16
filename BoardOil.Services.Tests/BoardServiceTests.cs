@@ -7,7 +7,7 @@ using BoardOil.Services.Board;
 using BoardOil.Services.Card;
 using BoardOil.Services.Column;
 using BoardOil.Services.Tests.Infrastructure;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using Xunit;
 
 namespace BoardOil.Services.Tests;

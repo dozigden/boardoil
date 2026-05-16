@@ -4,12 +4,10 @@ using BoardOil.Abstractions.CardType;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Contracts;
-using BoardOil.Ef;
-using BoardOil.Persistence.Abstractions.Board;
-using BoardOil.Persistence.Abstractions.Card;
-using BoardOil.Persistence.Abstractions.CardType;
-using BoardOil.Persistence.Abstractions.Entities;
-using Microsoft.EntityFrameworkCore;
+using BoardOil.Data.Abstractions.Board;
+using BoardOil.Data.Abstractions.Card;
+using BoardOil.Data.Abstractions.CardType;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tag;
 
@@ -219,13 +217,8 @@ public sealed class CardTypeService(
             return ApiErrors.InternalError("System card type not found for board.");
         }
 
-        var dbContext = scope.DbContexts.Get<BoardOilDbContext>();
-
-        await dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE CardTypes SET IsSystem = 0, UpdatedAtUtc = {2} WHERE Id = {0}; UPDATE CardTypes SET IsSystem = 1, UpdatedAtUtc = {2} WHERE Id = {1};",
-            currentDefaultCardType.Id,
-            nextDefaultCardType.Id,
-            DateTime.UtcNow);
+        currentDefaultCardType.IsSystem = false;
+        nextDefaultCardType.IsSystem = true;
 
         await scope.SaveChangesAsync();
         await _boardEvents.ResyncRequestedAsync(boardId);

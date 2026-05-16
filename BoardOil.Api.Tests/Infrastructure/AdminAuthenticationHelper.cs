@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Ef;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;

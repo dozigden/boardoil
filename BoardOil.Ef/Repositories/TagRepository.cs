@@ -1,6 +1,6 @@
 using BoardOil.Abstractions.DataAccess;
-using BoardOil.Persistence.Abstractions.Entities;
-using BoardOil.Persistence.Abstractions.Tag;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Tag;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Repositories;

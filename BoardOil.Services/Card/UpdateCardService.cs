@@ -4,12 +4,12 @@ using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
-using BoardOil.Persistence.Abstractions.Card;
-using BoardOil.Persistence.Abstractions.CardType;
-using BoardOil.Persistence.Abstractions.Column;
-using BoardOil.Persistence.Abstractions.Entities;
-using BoardOil.Persistence.Abstractions.Image;
-using BoardOil.Persistence.Abstractions.Tag;
+using BoardOil.Data.Abstractions.Card;
+using BoardOil.Data.Abstractions.CardType;
+using BoardOil.Data.Abstractions.Column;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Image;
+using BoardOil.Data.Abstractions.Tag;
 
 namespace BoardOil.Services.Card;
 

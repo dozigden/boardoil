@@ -97,7 +97,7 @@ For security-behaviour suites, keep integration depth where transport/auth seman
 - `BoardOil.Services/**` -> `BoardOil.Services.Tests`
 - `BoardOil.Api/**` or `BoardOil.Api.Tests/**` -> `BoardOil.Api.Tests`
 - `BoardOil.Web/**` -> `npm run check` and `npm test` (in `BoardOil.Web`)
-- shared backend layers (`BoardOil.Contracts`, `BoardOil.Abstractions`, `BoardOil.Ef`, `BoardOil.Persistence.Abstractions`) -> API + Services tests
+- shared backend layers (`BoardOil.Contracts`, `BoardOil.Abstractions`, `BoardOil.Ef`, `BoardOil.Data.Abstractions`) -> API + Services tests
 - global tooling/workflow files (`BoardOil.slnx`, `Directory.*`, `global.json`, `NuGet.config`, `.github/workflows/*`, `scripts/*`) -> API + Services tests
 
 ## Naming Expectations

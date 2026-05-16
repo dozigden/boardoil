@@ -1,5 +1,5 @@
 using BoardOil.Contracts.Auth;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 
 namespace BoardOil.Services.Auth;
 

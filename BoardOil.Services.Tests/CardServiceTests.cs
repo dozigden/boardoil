@@ -7,11 +7,11 @@ using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
-using ArchivedCardEntity = BoardOil.Persistence.Abstractions.Entities.EntityArchivedCard;
-using CardTypeEntity = BoardOil.Persistence.Abstractions.Entities.EntityCardType;
-using BoardMemberEntity = BoardOil.Persistence.Abstractions.Entities.EntityBoardMember;
-using TagEntity = BoardOil.Persistence.Abstractions.Entities.EntityTag;
-using UserEntity = BoardOil.Persistence.Abstractions.Entities.EntityUser;
+using ArchivedCardEntity = BoardOil.Data.Abstractions.Entities.EntityArchivedCard;
+using CardTypeEntity = BoardOil.Data.Abstractions.Entities.EntityCardType;
+using BoardMemberEntity = BoardOil.Data.Abstractions.Entities.EntityBoardMember;
+using TagEntity = BoardOil.Data.Abstractions.Entities.EntityTag;
+using UserEntity = BoardOil.Data.Abstractions.Entities.EntityUser;
 
 namespace BoardOil.Services.Tests;
 
@@ -124,7 +124,7 @@ public sealed class CardServiceTests : TestBaseDb
         {
             BoardId = board.BoardId,
             UserId = assignedUser.Id,
-            Role = BoardOil.Persistence.Abstractions.Entities.BoardMemberRole.Contributor,
+            Role = BoardOil.Data.Abstractions.Entities.BoardMemberRole.Contributor,
         });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -339,7 +339,7 @@ public sealed class CardServiceTests : TestBaseDb
         {
             BoardId = board.BoardId,
             UserId = assignedUser.Id,
-            Role = BoardOil.Persistence.Abstractions.Entities.BoardMemberRole.Contributor,
+            Role = BoardOil.Data.Abstractions.Entities.BoardMemberRole.Contributor,
         });
         await DbContextForArrange.SaveChangesAsync();
 
@@ -736,12 +736,12 @@ public sealed class CardServiceTests : TestBaseDb
         await SeedTagsForArrangeAsync(board.BoardId, "Existing", "RemoveMe");
         var existingTag = await DbContextForArrange.Tags.SingleAsync(x => x.Name == "Existing");
         var removeTag = await DbContextForArrange.Tags.SingleAsync(x => x.Name == "RemoveMe");
-        DbContextForArrange.CardTags.Add(new BoardOil.Persistence.Abstractions.Entities.EntityCardTag
+        DbContextForArrange.CardTags.Add(new BoardOil.Data.Abstractions.Entities.EntityCardTag
         {
             CardId = cardAId,
             TagId = existingTag.Id
         });
-        DbContextForArrange.CardTags.Add(new BoardOil.Persistence.Abstractions.Entities.EntityCardTag
+        DbContextForArrange.CardTags.Add(new BoardOil.Data.Abstractions.Entities.EntityCardTag
         {
             CardId = cardAId,
             TagId = removeTag.Id

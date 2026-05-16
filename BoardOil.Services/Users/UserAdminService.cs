@@ -1,13 +1,13 @@
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Users;
-using BoardOil.Persistence.Abstractions.Auth;
-using BoardOil.Persistence.Abstractions.Entities;
-using BoardOil.Persistence.Abstractions.Users;
+using BoardOil.Data.Abstractions.Auth;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Users;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
 using BoardOil.Abstractions.Auth;
-using BoardOil.Persistence.Abstractions.Image;
+using BoardOil.Data.Abstractions.Image;
 
 namespace BoardOil.Services.Users;
 

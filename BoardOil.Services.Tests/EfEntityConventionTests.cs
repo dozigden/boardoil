@@ -1,5 +1,5 @@
 using BoardOil.Ef;
-using BoardOil.Persistence.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 

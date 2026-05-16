@@ -1,5 +1,5 @@
-using BoardOil.Persistence.Abstractions.Entities;
-using BoardOil.Persistence.Abstractions.Users;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Users;
 
 namespace BoardOil.Services.Board.Import;
 
