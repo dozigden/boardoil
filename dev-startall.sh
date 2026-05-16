@@ -5,7 +5,104 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_PROJECT="$ROOT_DIR/BoardOil.Api/BoardOil.Api.csproj"
 WEB_DIR="$ROOT_DIR/BoardOil.Web"
 DEV_DATA_DIR="$ROOT_DIR/.data/dev"
-DEV_DB_PATH="$DEV_DATA_DIR/boardoil.dev.db"
+MAIN_DB_PATH="$DEV_DATA_DIR/boardoil.dev.db"
+
+get_current_branch_name() {
+  local branch_name=""
+  branch_name=$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+  if [[ -z "$branch_name" ]]; then
+    echo "unknown"
+    return
+  fi
+
+  if [[ "$branch_name" == "HEAD" ]]; then
+    local short_sha=""
+    short_sha=$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || true)
+    if [[ -n "$short_sha" ]]; then
+      echo "detached-$short_sha"
+      return
+    fi
+
+    echo "detached"
+    return
+  fi
+
+  echo "$branch_name"
+}
+
+sanitise_branch_name_for_path() {
+  local branch_name="$1"
+  local sanitised=""
+  sanitised=$(printf '%s' "$branch_name" | sed -E 's#[^A-Za-z0-9._-]+#_#g; s#_+#_#g; s#^_##; s#_$##')
+  if [[ -z "$sanitised" ]]; then
+    sanitised="unknown"
+  fi
+  echo "$sanitised"
+}
+
+copy_sqlite_database() {
+  local source_db_path="$1"
+  local destination_db_path="$2"
+
+  if command -v sqlite3 >/dev/null 2>&1; then
+    sqlite3 "$source_db_path" ".backup '$destination_db_path'"
+    return
+  fi
+
+  cp "$source_db_path" "$destination_db_path"
+  if [[ -f "${source_db_path}-wal" ]]; then
+    cp "${source_db_path}-wal" "${destination_db_path}-wal"
+  fi
+  if [[ -f "${source_db_path}-shm" ]]; then
+    cp "${source_db_path}-shm" "${destination_db_path}-shm"
+  fi
+}
+
+resolve_dev_database_path() {
+  local db_mode="${BOARDOIL_DEV_DB_MODE:-branch}"
+  local main_branch_name="${BOARDOIL_MAIN_BRANCH_NAME:-main}"
+  local current_branch_name=""
+  current_branch_name=$(get_current_branch_name)
+
+  if [[ "$db_mode" == "shared" ]]; then
+    echo "$MAIN_DB_PATH"
+    return
+  fi
+
+  if [[ "$current_branch_name" == "$main_branch_name" ]]; then
+    echo "$MAIN_DB_PATH"
+    return
+  fi
+
+  local branch_dir_name=""
+  branch_dir_name=$(sanitise_branch_name_for_path "$current_branch_name")
+  echo "$DEV_DATA_DIR/branches/$branch_dir_name/boardoil.dev.db"
+}
+
+seed_branch_database_from_main_if_needed() {
+  local target_db_path="$1"
+  local seed_from_main="${BOARDOIL_DEV_DB_SEED_FROM_MAIN:-1}"
+
+  if [[ "$target_db_path" == "$MAIN_DB_PATH" ]]; then
+    return
+  fi
+
+  if [[ "$seed_from_main" != "1" ]]; then
+    return
+  fi
+
+  if [[ -f "$target_db_path" ]]; then
+    return
+  fi
+
+  if [[ ! -f "$MAIN_DB_PATH" ]]; then
+    return
+  fi
+
+  mkdir -p "$(dirname "$target_db_path")"
+  echo "Seeding branch database from main database snapshot..."
+  copy_sqlite_database "$MAIN_DB_PATH" "$target_db_path"
+}
 
 if ! command -v dotnet >/dev/null 2>&1; then
   echo "Error: dotnet is required but not found on PATH." >&2
@@ -89,6 +186,10 @@ trap cleanup INT TERM EXIT
 
 echo "Starting API on http://127.0.0.1:5000 ..."
 mkdir -p "$DEV_DATA_DIR"
+DEV_DB_PATH="$(resolve_dev_database_path)"
+mkdir -p "$(dirname "$DEV_DB_PATH")"
+seed_branch_database_from_main_if_needed "$DEV_DB_PATH"
+echo "Using development database: $DEV_DB_PATH"
 echo "Building API ..."
 dotnet build "$API_PROJECT" -maxcpucount:1 -nodeReuse:false
 ASPNETCORE_ENVIRONMENT=Development \
