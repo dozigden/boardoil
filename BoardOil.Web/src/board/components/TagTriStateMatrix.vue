@@ -199,7 +199,7 @@ function normaliseTagName(tagName: string) {
 }
 
 .tag-tri-state--fluid .tag-tri-state-grid {
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   justify-content: stretch;
 }
 
@@ -224,6 +224,7 @@ function normaliseTagName(tagName: string) {
 
 .tag-tri-state-btn {
   width: 100%;
+  min-width: 0;
   justify-content: center;
   padding: 0.16rem 0.5rem;
   min-height: 1.68rem;

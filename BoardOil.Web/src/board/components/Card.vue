@@ -223,7 +223,17 @@ function handlePrimaryAction() {
 }
 
 .card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
   margin-top: 0.4rem;
+}
+
+.card-tags :deep(.tag) {
+  max-width: 100%;
 }
 
 .card-assigned-to {
