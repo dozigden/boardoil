@@ -1,4 +1,5 @@
 using BoardOil.Api.Extensions;
+using BoardOil.Abstractions.Image;
 using BoardOil.Abstractions.Users;
 using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
@@ -35,6 +36,30 @@ public static class ClientAccountEndpoints
 
         app.MapDelete("/api/system/client-accounts/{id:int}", (int id, IClientAccountService clientAccountService) =>
                 clientAccountService.DeleteClientAccountAsync(id).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("System Client Accounts");
+
+        app.MapPost("/api/system/client-accounts/{id:int}/profile-image", async (int id, HttpRequest request, IUserProfileImageService userProfileImageService) =>
+            {
+                var uploadRequestResult = await ProfileImageUploadRequestReader.TryReadAsync(request);
+                if (!uploadRequestResult.Success || uploadRequestResult.Data is null)
+                {
+                    return uploadRequestResult.ToHttpResult();
+                }
+
+                await using var contentStream = new MemoryStream(uploadRequestResult.Data.Content, writable: false);
+                return (await userProfileImageService.UploadClientAccountProfileImageAsync(
+                        id,
+                        uploadRequestResult.Data.FileName,
+                        uploadRequestResult.Data.ContentType,
+                        contentStream))
+                    .ToHttpResult();
+            })
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("System Client Accounts");
+
+        app.MapDelete("/api/system/client-accounts/{id:int}/profile-image", (int id, IUserProfileImageService userProfileImageService) =>
+                userProfileImageService.DeleteClientAccountProfileImageAsync(id).ToHttpResult())
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("System Client Accounts");
 

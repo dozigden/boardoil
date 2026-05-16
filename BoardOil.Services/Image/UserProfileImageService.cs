@@ -56,6 +56,85 @@ public sealed class UserProfileImageService(
             return ApiErrors.Unauthorized("User is not active.");
         }
 
+        return await UploadProfileImageAsync(
+            scope,
+            actorUserId,
+            originalFileName,
+            contentType,
+            content,
+            cancellationToken);
+    }
+
+    public async Task<ApiResult> DeleteOwnProfileImageAsync(
+        int actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        using var scope = scopeFactory.Create();
+
+        var user = userRepository.Get(actorUserId);
+        if (user is null || !user.IsActive)
+        {
+            return ApiErrors.Unauthorized("User is not active.");
+        }
+
+        return await DeleteProfileImageAsync(
+            scope,
+            actorUserId,
+            "User profile image was not found.",
+            cancellationToken);
+    }
+
+    public async Task<ApiResult<UserProfileImageDto>> UploadClientAccountProfileImageAsync(
+        int clientAccountId,
+        string originalFileName,
+        string contentType,
+        Stream content,
+        CancellationToken cancellationToken = default)
+    {
+        using var scope = scopeFactory.Create();
+
+        var user = userRepository.Get(clientAccountId);
+        if (user is null || user.IdentityType != UserIdentityType.Client)
+        {
+            return ApiErrors.NotFound("Client account not found.");
+        }
+
+        return await UploadProfileImageAsync(
+            scope,
+            clientAccountId,
+            originalFileName,
+            contentType,
+            content,
+            cancellationToken);
+    }
+
+    public async Task<ApiResult> DeleteClientAccountProfileImageAsync(
+        int clientAccountId,
+        CancellationToken cancellationToken = default)
+    {
+        using var scope = scopeFactory.Create();
+
+        var user = userRepository.Get(clientAccountId);
+        if (user is null || user.IdentityType != UserIdentityType.Client)
+        {
+            return ApiErrors.NotFound("Client account not found.");
+        }
+
+        return await DeleteProfileImageAsync(
+            scope,
+            clientAccountId,
+            "Client account profile image was not found.",
+            cancellationToken);
+    }
+
+    private async Task<ApiResult<UserProfileImageDto>> UploadProfileImageAsync(
+        IDbContextScope scope,
+        int userId,
+        string originalFileName,
+        string contentType,
+        Stream content,
+        CancellationToken cancellationToken)
+    {
         var normalisedContentType = contentType.Trim().ToLowerInvariant();
         if (!AllowedContentTypes.Contains(normalisedContentType))
         {
@@ -99,19 +178,19 @@ public sealed class UserProfileImageService(
         var saved = await imageStorageService.SaveAsync(new ImageStorageSaveRequest
         {
             EntityType = ImageStorageEntityType.UserProfile,
-            EntityId = actorUserId,
+            EntityId = userId,
             OriginalFileName = originalFileName,
             ContentType = normalisedContentType,
             Content = uploadStream,
         }, cancellationToken);
 
-        var existing = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, actorUserId);
+        var existing = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, userId);
         var isCreate = existing is null;
         var oldRelativePath = existing?.RelativePath;
         var entity = existing ?? new EntityImage
         {
             EntityType = ImageEntityType.UserProfile,
-            EntityId = actorUserId,
+            EntityId = userId,
         };
 
         entity.OriginalFileName = originalFileName;
@@ -137,22 +216,16 @@ public sealed class UserProfileImageService(
         return isCreate ? ApiResults.Created(ToDto(entity)) : ApiResults.Ok(ToDto(entity));
     }
 
-    public async Task<ApiResult> DeleteOwnProfileImageAsync(
-        int actorUserId,
-        CancellationToken cancellationToken = default)
+    private async Task<ApiResult> DeleteProfileImageAsync(
+        IDbContextScope scope,
+        int userId,
+        string notFoundMessage,
+        CancellationToken cancellationToken)
     {
-        using var scope = scopeFactory.Create();
-
-        var user = userRepository.Get(actorUserId);
-        if (user is null || !user.IsActive)
-        {
-            return ApiErrors.Unauthorized("User is not active.");
-        }
-
-        var existing = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, actorUserId);
+        var existing = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, userId);
         if (existing is null)
         {
-            return ApiErrors.NotFound("User profile image was not found.");
+            return ApiErrors.NotFound(notFoundMessage);
         }
 
         var relativePath = existing.RelativePath;

@@ -9,12 +9,13 @@ import type {
   CreatedAccessToken,
   CreatedClientAccount,
   ManagedUser,
+  UserProfileImage,
   UpdateClientAccountRequest,
   UpdateManagedUserRequest
 } from '../types/authTypes';
 import type { ConfigurationDto, UpdateConfigurationRequest } from '../types/configurationTypes';
 import { err, ok } from '../types/result';
-import { deleteJson, getEnvelope, patchData, postData, putData, putJson } from './http';
+import { deleteJson, getEnvelope, patchData, postData, postFormData, putData, putJson } from './http';
 
 export type SystemApi = ReturnType<typeof createSystemApi>;
 
@@ -145,6 +146,19 @@ export function createSystemApi() {
     return deleteJson(`/api/system/client-accounts/${clientAccountId}`);
   }
 
+  async function uploadClientAccountProfileImage(
+    clientAccountId: number,
+    file: File
+  ): Promise<Result<UserProfileImage, AppError>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return postFormData<UserProfileImage>(`/api/system/client-accounts/${clientAccountId}/profile-image`, formData);
+  }
+
+  async function deleteClientAccountProfileImage(clientAccountId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/system/client-accounts/${clientAccountId}/profile-image`);
+  }
+
   return {
     getConfiguration,
     updateConfiguration,
@@ -164,7 +178,9 @@ export function createSystemApi() {
     getClientAccountTokens,
     createClientAccountToken,
     revokeClientAccountToken,
-    deleteClientAccount
+    deleteClientAccount,
+    uploadClientAccountProfileImage,
+    deleteClientAccountProfileImage
   };
 }
 

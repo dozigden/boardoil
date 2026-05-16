@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.Users;
+using BoardOil.Abstractions.Image;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Users;
 using BoardOil.Data.Abstractions.Entities;
@@ -14,6 +15,10 @@ public sealed class ClientAccountServiceTests : TestBaseDb
     protected override void ConfigureTestServices(IServiceCollection services)
     {
         services.AddSingleton<TimeProvider>(TimeProvider.System);
+        services.AddSingleton(new ImageStorageOptions
+        {
+            RootPath = Path.Combine(Path.GetTempPath(), "boardoil-services-tests-client-images")
+        });
     }
 
     [Fact]
@@ -42,6 +47,26 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(["client-bot"], result.Data!.Select(x => x.UserName).ToArray());
+    }
+
+    [Fact]
+    public async Task GetClientAccountsAsync_WhenClientHasProfileImage_ShouldIncludeProfileImageRelativePath()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var client = await AddUserAsync("client-bot", "client-bot@localhost", UserIdentityType.Client);
+        await AddProfileImageAsync(client.Id, "userprofile/client-bot/avatar.png");
+        var service = ResolveService<IClientAccountService>();
+
+        // Act
+        var result = await service.GetClientAccountsAsync();
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var account = Assert.Single(result.Data!);
+        Assert.Equal(client.Id, account.Id);
+        Assert.Equal("userprofile/client-bot/avatar.png", account.ProfileImageRelativePath);
     }
 
     [Fact]
@@ -208,11 +233,12 @@ public sealed class ClientAccountServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task DeleteClientAccountAsync_WhenClientExists_ShouldDeleteUser()
+    public async Task DeleteClientAccountAsync_WhenClientExists_ShouldDeleteUserAndProfileImage()
     {
         // Arrange
         await RemoveAllUsersAsync();
         var client = await AddUserAsync("client-bot", "client-bot@localhost", UserIdentityType.Client);
+        await AddProfileImageAsync(client.Id, "userprofile/client-bot/avatar.png");
         var service = ResolveService<IClientAccountService>();
 
         // Act
@@ -222,6 +248,7 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.Equal(200, result.StatusCode);
         Assert.Null(await DbContextForAssert.Users.SingleOrDefaultAsync(x => x.Id == client.Id));
+        Assert.False(await DbContextForAssert.Images.AnyAsync(x => x.EntityType == ImageEntityType.UserProfile && x.EntityId == client.Id));
     }
 
     private async Task RemoveAllUsersAsync()
@@ -272,5 +299,21 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         DbContextForArrange.PersonalAccessTokens.Add(token);
         await DbContextForArrange.SaveChangesAsync();
         return token;
+    }
+
+    private async Task AddProfileImageAsync(int userId, string relativePath)
+    {
+        DbContextForArrange.Images.Add(new EntityImage
+        {
+            EntityType = ImageEntityType.UserProfile,
+            EntityId = userId,
+            OriginalFileName = "avatar.png",
+            ContentType = "image/png",
+            RelativePath = relativePath,
+            ByteLength = 123,
+            Width = 96,
+            Height = 96
+        });
+        await DbContextForArrange.SaveChangesAsync();
     }
 }

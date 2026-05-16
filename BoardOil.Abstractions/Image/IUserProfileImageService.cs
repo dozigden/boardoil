@@ -15,4 +15,13 @@ public interface IUserProfileImageService
     Task<ApiResult> DeleteOwnProfileImageAsync(
         int actorUserId,
         CancellationToken cancellationToken = default);
+    Task<ApiResult<UserProfileImageDto>> UploadClientAccountProfileImageAsync(
+        int clientAccountId,
+        string originalFileName,
+        string contentType,
+        Stream content,
+        CancellationToken cancellationToken = default);
+    Task<ApiResult> DeleteClientAccountProfileImageAsync(
+        int clientAccountId,
+        CancellationToken cancellationToken = default);
 }

@@ -35,6 +35,7 @@ public sealed record ClientAccountDto(
     string DisplayName,
     string Email,
     string Role,
+    string? ProfileImageRelativePath,
     bool IsActive,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);

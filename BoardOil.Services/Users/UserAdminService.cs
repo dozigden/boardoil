@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Abstractions.Image;
 using BoardOil.Abstractions.Users;
 using BoardOil.Data.Abstractions.Auth;
 using BoardOil.Data.Abstractions.Entities;
@@ -8,12 +9,14 @@ using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Data.Abstractions.Image;
+using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Services.Users;
 
 public sealed class UserAdminService(
     IUserRepository userRepository,
     IImageRepository imageRepository,
+    IImageStorageService imageStorageService,
     IRefreshTokenRepository refreshTokenRepository,
     IPasswordHashService passwordHashService,
     TimeProvider timeProvider,
@@ -180,8 +183,27 @@ public sealed class UserAdminService(
             }
         }
 
+        var profileImages = await imageRepository.Query()
+            .Where(x => x.EntityType == ImageEntityType.UserProfile && x.EntityId == id)
+            .ToListAsync();
+        if (profileImages.Count > 0)
+        {
+            imageRepository.RemoveRange(profileImages);
+        }
+
+        var imagePathsToDelete = profileImages
+            .Select(x => x.RelativePath)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
         userRepository.Remove(user);
         await scope.SaveChangesAsync();
+
+        foreach (var imagePath in imagePathsToDelete)
+        {
+            await imageStorageService.DeleteIfExistsAsync(imagePath);
+        }
 
         return ApiResults.Ok();
     }

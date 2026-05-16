@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.Auth;
+using BoardOil.Abstractions.Image;
 using BoardOil.Abstractions.Users;
 using BoardOil.Contracts.Users;
 using BoardOil.Data.Abstractions.Entities;
@@ -14,6 +15,10 @@ public sealed class UserAdminServiceTests : TestBaseDb
     protected override void ConfigureTestServices(IServiceCollection services)
     {
         services.AddSingleton<TimeProvider>(TimeProvider.System);
+        services.AddSingleton(new ImageStorageOptions
+        {
+            RootPath = Path.Combine(Path.GetTempPath(), "boardoil-services-tests-user-images")
+        });
     }
 
     [Fact]
@@ -210,12 +215,13 @@ public sealed class UserAdminServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task DeleteUserAsync_WhenAnotherActiveAdminExists_ShouldDeleteUser()
+    public async Task DeleteUserAsync_WhenAnotherActiveAdminExists_ShouldDeleteUserAndProfileImage()
     {
         // Arrange
         await RemoveAllUsersAsync();
         var targetAdmin = await AddUserAsync("target-admin", "target-admin@localhost", "Password1234!", UserRole.Admin, isActive: true);
         var actorAdmin = await AddUserAsync("actor-admin", "actor-admin@localhost", "Password1234!", UserRole.Admin, isActive: true);
+        await AddProfileImageAsync(targetAdmin.Id, "userprofile/target-admin/avatar.png");
         var service = ResolveService<IUserAdminService>();
 
         // Act
@@ -226,6 +232,7 @@ public sealed class UserAdminServiceTests : TestBaseDb
         Assert.Equal(200, result.StatusCode);
         Assert.Null(await DbContextForAssert.Users.SingleOrDefaultAsync(x => x.Id == targetAdmin.Id));
         Assert.NotNull(await DbContextForAssert.Users.SingleOrDefaultAsync(x => x.Id == actorAdmin.Id));
+        Assert.False(await DbContextForAssert.Images.AnyAsync(x => x.EntityType == ImageEntityType.UserProfile && x.EntityId == targetAdmin.Id));
     }
 
     [Fact]
@@ -288,5 +295,21 @@ public sealed class UserAdminServiceTests : TestBaseDb
         DbContextForArrange.Users.Add(user);
         await DbContextForArrange.SaveChangesAsync();
         return user;
+    }
+
+    private async Task AddProfileImageAsync(int userId, string relativePath)
+    {
+        DbContextForArrange.Images.Add(new EntityImage
+        {
+            EntityType = ImageEntityType.UserProfile,
+            EntityId = userId,
+            OriginalFileName = "avatar.png",
+            ContentType = "image/png",
+            RelativePath = relativePath,
+            ByteLength = 123,
+            Width = 96,
+            Height = 96
+        });
+        await DbContextForArrange.SaveChangesAsync();
     }
 }

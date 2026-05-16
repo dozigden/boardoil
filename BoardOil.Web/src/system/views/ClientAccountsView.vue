@@ -36,7 +36,15 @@
             </button>
           </template>
           <template #cell(displayName)="{ row }">
-            <span class="client-cell-text">{{ row.displayName }}</span>
+            <span class="client-row-leading">
+              <UserAvatar
+                :image-relative-path="String(row.profileImageRelativePath ?? '') || null"
+                :display-name="String(row.displayName ?? '')"
+                size="lg"
+                class="client-row-avatar"
+              />
+              <span class="client-cell-text">{{ row.displayName }}</span>
+            </span>
           </template>
           <template #cell(userName)="{ row }">
             <span class="client-cell-text">{{ row.userName }}</span>
@@ -81,6 +89,23 @@
                   type="button"
                   class="bo-dropdown-item"
                   :disabled="isBusy"
+                  @click="openClientImagePicker(asClientAccount(row), close)"
+                >
+                  Upload image
+                </button>
+                <button
+                  type="button"
+                  class="bo-dropdown-item"
+                  :disabled="isBusy || !asClientAccount(row).profileImageRelativePath"
+                  @click="removeClientImageFromMenu(asClientAccount(row), close)"
+                >
+                  Remove image
+                </button>
+                <span class="bo-dropdown-divider" aria-hidden="true"></span>
+                <button
+                  type="button"
+                  class="bo-dropdown-item"
+                  :disabled="isBusy"
                   @click="deleteClientFromMenu(asClientAccount(row), close)"
                 >
                   Delete
@@ -114,6 +139,23 @@
       @close="dismissPlainTextPat"
       @copy="copyPlainTextPat"
     />
+
+    <input
+      ref="clientImageInput"
+      type="file"
+      accept="image/png,image/jpeg,image/webp"
+      class="client-image-file-input"
+      @change="onClientImageSelected"
+    />
+
+    <ProfileImageCropDialog
+      :open="cropDialogOpen"
+      :source-file="pendingClientImageFile"
+      :busy="imageBusy"
+      :error-message="errorMessage"
+      @close="closeCropDialog"
+      @confirm="uploadCroppedClientImage"
+    />
   </section>
 </template>
 
@@ -125,7 +167,9 @@ import { createSystemApi } from '../../shared/api/systemApi';
 import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretModal.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import BoGrid from '../../shared/components/BoGrid.vue';
+import UserAvatar from '../../shared/components/UserAvatar.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
+import ProfileImageCropDialog from '../../site/components/ProfileImageCropDialog.vue';
 import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.vue';
 import ClientAccountEditDialog from '../components/ClientAccountEditDialog.vue';
 import type { ClientAccount, CreateClientAccountRequest } from '../../shared/types/authTypes';
@@ -137,6 +181,7 @@ const clients = ref<ClientAccount[]>([]);
 const loading = ref(false);
 const createBusy = ref(false);
 const editBusy = ref(false);
+const imageBusy = ref(false);
 const isCreateDialogOpen = ref(false);
 const isEditDialogOpen = ref(false);
 const errorMessage = ref<string | null>(null);
@@ -144,10 +189,14 @@ const successMessage = ref<string | null>(null);
 const plainTextPat = ref<string | null>(null);
 const plainTextPatName = ref<string>('');
 const clientForEdit = ref<ClientAccount | null>(null);
+const clientImageInput = ref<HTMLInputElement | null>(null);
+const cropDialogOpen = ref(false);
+const pendingClientImageClientId = ref<number | null>(null);
+const pendingClientImageFile = ref<File | null>(null);
 
 const router = useRouter();
 
-const isBusy = computed(() => loading.value || createBusy.value || editBusy.value);
+const isBusy = computed(() => loading.value || createBusy.value || editBusy.value || imageBusy.value);
 const isSecretModalOpen = computed(() => plainTextPat.value !== null);
 const gridFields: Array<{
   key: string;
@@ -300,6 +349,94 @@ async function deleteClientAccount(client: ClientAccount) {
   }
 }
 
+function openClientImagePicker(client: ClientAccount, close: () => void) {
+  if (isBusy.value) {
+    return;
+  }
+
+  close();
+  pendingClientImageClientId.value = client.id;
+  pendingClientImageFile.value = null;
+  clientImageInput.value?.click();
+}
+
+function onClientImageSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file || pendingClientImageClientId.value === null) {
+    input.value = '';
+    return;
+  }
+
+  pendingClientImageFile.value = file;
+  cropDialogOpen.value = true;
+  input.value = '';
+}
+
+function closeCropDialog() {
+  if (imageBusy.value) {
+    return;
+  }
+
+  resetCropDialogState();
+}
+
+function resetCropDialogState() {
+  cropDialogOpen.value = false;
+  pendingClientImageFile.value = null;
+  pendingClientImageClientId.value = null;
+}
+
+async function uploadCroppedClientImage(file: File) {
+  const clientId = pendingClientImageClientId.value;
+  if (clientId === null) {
+    return;
+  }
+
+  imageBusy.value = true;
+  errorMessage.value = null;
+  successMessage.value = null;
+  try {
+    const result = await systemApi.uploadClientAccountProfileImage(clientId, file);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    clients.value = clients.value.map(client =>
+      client.id === clientId
+        ? { ...client, profileImageRelativePath: result.data.relativePath }
+        : client
+    );
+    resetCropDialogState();
+    successMessage.value = 'Updated client account image.';
+  } finally {
+    imageBusy.value = false;
+  }
+}
+
+async function removeClientImage(client: ClientAccount) {
+  imageBusy.value = true;
+  errorMessage.value = null;
+  successMessage.value = null;
+  try {
+    const result = await systemApi.deleteClientAccountProfileImage(client.id);
+    if (!result.ok) {
+      errorMessage.value = result.error.message;
+      return;
+    }
+
+    clients.value = clients.value.map(entry =>
+      entry.id === client.id
+        ? { ...entry, profileImageRelativePath: null }
+        : entry
+    );
+    successMessage.value = `Removed image for ${client.displayName}.`;
+  } finally {
+    imageBusy.value = false;
+  }
+}
+
 function openClientTokensFromMenu(clientId: number, close: () => void) {
   close();
   openClientTokens(clientId);
@@ -308,6 +445,11 @@ function openClientTokensFromMenu(clientId: number, close: () => void) {
 async function deleteClientFromMenu(client: ClientAccount, close: () => void) {
   close();
   await deleteClientAccount(client);
+}
+
+async function removeClientImageFromMenu(client: ClientAccount, close: () => void) {
+  close();
+  await removeClientImage(client);
 }
 
 function openEditClientFromMenu(client: ClientAccount, close: () => void) {
@@ -401,5 +543,20 @@ onMounted(async () => {
   cursor: default;
   color: var(--bo-ink-muted);
   text-decoration: none;
+}
+
+.client-row-leading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.client-row-avatar {
+  flex: 0 0 auto;
+}
+
+.client-image-file-input {
+  display: none;
 }
 </style>

@@ -18,13 +18,14 @@ public static class UserMappingExtensions
             user.CreatedAtUtc,
             user.UpdatedAtUtc);
 
-    public static ClientAccountDto ToClientAccountDto(this EntityUser user) =>
+    public static ClientAccountDto ToClientAccountDto(this EntityUser user, string? profileImageRelativePath = null) =>
         new(
             user.Id,
             user.UserName,
             user.DisplayName,
             user.Email,
             user.Role.ToString(),
+            profileImageRelativePath,
             user.IsActive,
             user.CreatedAtUtc,
             user.UpdatedAtUtc);

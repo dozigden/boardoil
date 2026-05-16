@@ -39,6 +39,7 @@ export type ClientAccount = {
   displayName: string;
   email: string;
   role: 'Admin' | 'Standard' | string;
+  profileImageRelativePath?: string | null;
   isActive: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;

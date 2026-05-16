@@ -3,13 +3,16 @@ import { ok } from '../types/result';
 
 const putJson = vi.fn();
 const postData = vi.fn();
+const postFormData = vi.fn();
 const putData = vi.fn();
+const deleteJson = vi.fn();
 
 vi.mock('./http', () => ({
-  deleteJson: vi.fn(),
+  deleteJson: (...args: unknown[]) => deleteJson(...args),
   getEnvelope: vi.fn(),
   patchData: vi.fn(),
   postData: (...args: unknown[]) => postData(...args),
+  postFormData: (...args: unknown[]) => postFormData(...args),
   putData: (...args: unknown[]) => putData(...args),
   putJson: (...args: unknown[]) => putJson(...args)
 }));
@@ -21,7 +24,9 @@ describe('systemApi', () => {
     vi.clearAllMocks();
     putJson.mockResolvedValue(ok(undefined));
     postData.mockResolvedValue(ok(undefined));
+    postFormData.mockResolvedValue(ok(undefined));
     putData.mockResolvedValue(ok(undefined));
+    deleteJson.mockResolvedValue(ok(undefined));
   });
 
   it('createUser posts email in the system user payload', async () => {
@@ -82,5 +87,26 @@ describe('systemApi', () => {
     expect(putJson).toHaveBeenCalledWith('/api/system/users/42/password', {
       newPassword: 'FreshPassword1234!'
     });
+  });
+
+  it('uploadClientAccountProfileImage posts multipart form-data to the profile-image endpoint', async () => {
+    const api = createSystemApi();
+    const file = new File(['image'], 'avatar.png', { type: 'image/png' });
+
+    await api.uploadClientAccountProfileImage(7, file);
+
+    expect(postFormData).toHaveBeenCalledTimes(1);
+    expect(postFormData).toHaveBeenCalledWith(
+      '/api/system/client-accounts/7/profile-image',
+      expect.any(FormData)
+    );
+  });
+
+  it('deleteClientAccountProfileImage deletes from the profile-image endpoint', async () => {
+    const api = createSystemApi();
+
+    await api.deleteClientAccountProfileImage(7);
+
+    expect(deleteJson).toHaveBeenCalledWith('/api/system/client-accounts/7/profile-image');
   });
 });

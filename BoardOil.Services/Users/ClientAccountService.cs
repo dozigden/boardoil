@@ -2,19 +2,24 @@ using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Abstractions.Image;
 using BoardOil.Abstractions.Users;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Contracts.Users;
 using BoardOil.Data.Abstractions.Auth;
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Services.Auth;
+using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Services.Users;
 
 public sealed class ClientAccountService(
     IUserRepository userRepository,
+    IImageRepository imageRepository,
+    IImageStorageService imageStorageService,
     IPersonalAccessTokenRepository personalAccessTokenRepository,
     IPasswordHashService passwordHashService,
     TimeProvider timeProvider,
@@ -26,9 +31,16 @@ public sealed class ClientAccountService(
     {
         using var scope = scopeFactory.CreateReadOnly();
 
-        var users = (await userRepository.GetUsersOrderedAsync())
+        var clientUsers = (await userRepository.GetUsersOrderedAsync())
             .Where(x => x.IdentityType == UserIdentityType.Client)
-            .Select(x => x.ToClientAccountDto())
+            .ToList();
+
+        var clientIds = clientUsers.Select(x => x.Id).ToArray();
+        var latestImages = await imageRepository.GetLatestForEntitiesAsync(ImageEntityType.UserProfile, clientIds);
+        var imagePathByClientId = latestImages.ToDictionary(x => x.EntityId, x => x.RelativePath);
+
+        var users = clientUsers
+            .Select(x => x.ToClientAccountDto(imagePathByClientId.GetValueOrDefault(x.Id)))
             .ToList();
 
         return users;
@@ -98,7 +110,9 @@ public sealed class ClientAccountService(
             MachinePatRules.ToMachinePatDto(patResult.Data.Token),
             patResult.Data.PlainTextToken);
 
-        return ApiResults.Created(new CreatedClientAccountDto(user.ToClientAccountDto(), createdToken));
+        return ApiResults.Created(new CreatedClientAccountDto(
+            user.ToClientAccountDto(await ResolveProfileImageRelativePathAsync(user.Id)),
+            createdToken));
     }
 
     public async Task<ApiResult<ClientAccountDto>> UpdateClientAccountAsync(int clientAccountId, UpdateClientAccountRequest request)
@@ -136,7 +150,7 @@ public sealed class ClientAccountService(
         user.IsActive = request.IsActive;
         await scope.SaveChangesAsync();
 
-        return user.ToClientAccountDto();
+        return user.ToClientAccountDto(await ResolveProfileImageRelativePathAsync(user.Id));
     }
 
     public async Task<ApiResult<IReadOnlyList<MachinePatDto>>> ListClientAccessTokensAsync(int clientAccountId)
@@ -218,8 +232,27 @@ public sealed class ClientAccountService(
             return ApiErrors.NotFound("Client account not found.");
         }
 
+        var profileImages = await imageRepository.Query()
+            .Where(x => x.EntityType == ImageEntityType.UserProfile && x.EntityId == clientAccountId)
+            .ToListAsync();
+        if (profileImages.Count > 0)
+        {
+            imageRepository.RemoveRange(profileImages);
+        }
+
+        var imagePathsToDelete = profileImages
+            .Select(x => x.RelativePath)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
         userRepository.Remove(user);
         await scope.SaveChangesAsync();
+
+        foreach (var imagePath in imagePathsToDelete)
+        {
+            await imageStorageService.DeleteIfExistsAsync(imagePath);
+        }
 
         return ApiResults.Ok();
     }
@@ -356,5 +389,11 @@ public sealed class ClientAccountService(
 
         role = default;
         return false;
+    }
+
+    private async Task<string?> ResolveProfileImageRelativePathAsync(int userId)
+    {
+        var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, userId);
+        return image?.RelativePath;
     }
 }
