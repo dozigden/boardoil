@@ -24,7 +24,7 @@
       </slot>
       <span v-if="triggerText">{{ triggerText }}</span>
     </button>
-    <Teleport to="body">
+    <Teleport v-if="teleport" to="body">
       <div
         v-if="isOpen"
         ref="panelRef"
@@ -39,6 +39,19 @@
         </div>
       </div>
     </Teleport>
+    <div
+      v-else-if="isOpen"
+      ref="panelRef"
+      :id="menuId"
+      class="bo-dropdown-panel"
+      :role="panelRole"
+      :aria-label="label"
+      :style="panelStyle"
+    >
+      <div class="bo-dropdown-content">
+        <slot :close="close" :open="isOpen" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -58,6 +71,7 @@ const props = withDefaults(defineProps<{
   buttonClass?: string | string[] | Record<string, boolean> | null;
   panelRole?: string;
   popup?: boolean | 'menu' | 'dialog';
+  teleport?: boolean;
 }>(), {
   align: 'left',
   iconOnly: false,
@@ -67,7 +81,8 @@ const props = withDefaults(defineProps<{
   iconSize: 18,
   buttonClass: null,
   panelRole: 'menu',
-  popup: 'menu'
+  popup: 'menu',
+  teleport: true
 });
 
 const rootRef = ref<HTMLElement | null>(null);

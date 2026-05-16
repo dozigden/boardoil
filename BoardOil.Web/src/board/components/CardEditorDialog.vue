@@ -6,6 +6,7 @@
         class="card-editor-actions-menu"
         align="right"
         label="Card actions"
+        :teleport="false"
         :icon="Ellipsis"
         :icon-only="true"
         :icon-size="16"
@@ -136,6 +137,7 @@
               class="card-editor-column-dropdown"
               align="left"
               label="Select column"
+              :teleport="false"
               :text="selectedBoardColumnLabel"
             >
               <template #default="{ close }">
@@ -158,6 +160,7 @@
             <BoDropdown
               align="left"
               label="Select card type"
+              :teleport="false"
               :text="selectedCardTypeLabel"
             >
               <template #default="{ close }">
@@ -190,6 +193,7 @@
               <BoDropdown
                 align="left"
                 label="Select assigned user"
+                :teleport="false"
                 :text="selectedAssignedUserLabel"
               >
                 <template #default="{ close }">
@@ -997,8 +1001,8 @@ watch(
 .card-editor-column-picker :deep(.bo-dropdown-panel),
 .card-editor-type-picker :deep(.bo-dropdown-panel),
 .card-editor-assigned-user-picker :deep(.bo-dropdown-panel) {
-  width: 100%;
-  min-width: 0;
+  width: auto;
+  min-width: 11rem;
 }
 
 .card-editor-option-section {
