@@ -51,7 +51,7 @@ public sealed class ColumnService(
         var validationErrors = validator.ValidateCreate(request);
         if (validationErrors.Count > 0)
         {
-            return ValidationFail(validationErrors);
+            return ApiErrors.ValidationFailed(validationErrors);
         }
 
         if (boardRepository.Get(boardId) is null)
@@ -116,7 +116,7 @@ public sealed class ColumnService(
         var updateValidationErrors = validator.ValidateUpdate(request);
         if (updateValidationErrors.Count > 0)
         {
-            return ValidationFail(updateValidationErrors);
+            return ApiErrors.ValidationFailed(updateValidationErrors);
         }
 
         var updatedTitle = request.Title.Trim();
@@ -158,7 +158,7 @@ public sealed class ColumnService(
 
         if (request.PositionAfterColumnId == id)
         {
-            return ValidationFail([new ValidationError("positionAfterColumnId", "Column cannot be positioned after itself.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("positionAfterColumnId", "Column cannot be positioned after itself.")]);
         }
 
         var currentIndex = FindColumnIndex(columns, id);
@@ -233,10 +233,6 @@ public sealed class ColumnService(
         await _boardEvents.ColumnDeletedAsync(boardId, id);
         return ApiResults.Ok();
     }
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-
     private static (ApiError? Error, string? PreviousKey, string? NextKey) ResolveAnchor(
         int? positionAfterColumnId,
         IReadOnlyList<EntityBoardColumn> targetColumns)
@@ -250,7 +246,7 @@ public sealed class ColumnService(
         var anchorIndex = FindColumnIndex(targetColumns, positionAfterColumnId.Value);
         if (anchorIndex < 0)
         {
-            return (ValidationFail([new ValidationError("positionAfterColumnId", "Column does not exist in board.")]), null, null);
+            return (ApiErrors.ValidationFailed([new ValidationError("positionAfterColumnId", "Column does not exist in board.")]), null, null);
         }
 
         var previousKey = targetColumns[anchorIndex].SortKey;

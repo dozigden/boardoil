@@ -67,7 +67,7 @@ public sealed class CardCommentService(
         var validationErrors = ValidateCreateRequest(request);
         if (validationErrors.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", validationErrors);
+            return ApiErrors.ValidationFailed(validationErrors);
         }
 
         var comment = new EntityCardComment

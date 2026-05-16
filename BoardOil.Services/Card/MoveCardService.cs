@@ -39,12 +39,12 @@ public sealed class MoveCardService(
         var targetColumn = columnRepository.Get(request.BoardColumnId);
         if (targetColumn is null || targetColumn.BoardId != boardId)
         {
-            return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("boardColumnId", "Column does not exist in board.")]);
         }
 
         if (request.PositionAfterCardId == id)
         {
-            return ValidationFail([new ValidationError("positionAfterCardId", "Card cannot be positioned after itself.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("positionAfterCardId", "Card cannot be positioned after itself.")]);
         }
 
         var sourceCards = (await cardRepository.GetCardsInColumnOrderedAsync(sourceColumnId)).ToList();
@@ -105,8 +105,4 @@ public sealed class MoveCardService(
         await boardEvents.CardMovedAsync(boardId, dto);
 
         return dto;
-    }
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-}
+    }}

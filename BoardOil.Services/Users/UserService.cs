@@ -63,7 +63,7 @@ public sealed class UserService(
         var validationErrors = ValidateDisplayNameAndEmail(request.DisplayName, request.Email);
         if (validationErrors.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", validationErrors);
+            return ApiErrors.ValidationFailed(validationErrors);
         }
 
         var normalisedEmail = EmailAddressRules.TryNormalise(request.Email)!;

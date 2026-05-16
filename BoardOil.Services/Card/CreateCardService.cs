@@ -40,7 +40,7 @@ public sealed class CreateCardService(
         var validationErrors = await validator.ValidateCreateAsync(boardId, request);
         if (validationErrors.Count > 0)
         {
-            return ValidationFail(validationErrors);
+            return ApiErrors.ValidationFailed(validationErrors);
         }
 
         var targetColumn = request.BoardColumnId is int requestedBoardColumnId
@@ -51,12 +51,12 @@ public sealed class CreateCardService(
             var message = request.BoardColumnId is null
                 ? "Board does not contain any columns."
                 : "Column does not exist in board.";
-            return ValidationFail([new ValidationError("boardColumnId", message)]);
+            return ApiErrors.ValidationFailed([new ValidationError("boardColumnId", message)]);
         }
 
         if (targetColumn.BoardId != boardId)
         {
-            return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("boardColumnId", "Column does not exist in board.")]);
         }
 
         EntityCardType? requestedCardType = null;
@@ -106,8 +106,4 @@ public sealed class CreateCardService(
         var created = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
         await boardEvents.CardCreatedAsync(boardId, created);
         return ApiResults.Created(created);
-    }
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-}
+    }}

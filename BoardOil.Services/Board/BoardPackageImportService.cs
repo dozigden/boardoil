@@ -49,7 +49,7 @@ public sealed class BoardPackageImportService(
     {
         if (request.PackageContent is null || request.PackageContent.Length == 0)
         {
-            return ValidationFail([new ValidationError("file", "Board package ZIP file is required.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("file", "Board package ZIP file is required.")]);
         }
 
         var readPackageResult = TryReadBoardPackage(request.PackageContent);
@@ -295,7 +295,7 @@ public sealed class BoardPackageImportService(
                     null,
                     null,
                     null,
-                    ValidationFail([new ValidationError("manifest", $"Board package is missing '{BoardPackageContract.ManifestPath}'.")]));
+                    ApiErrors.ValidationFailed([new ValidationError("manifest", $"Board package is missing '{BoardPackageContract.ManifestPath}'.")]));
             }
 
             BoardPackageManifestDto? manifest;
@@ -311,7 +311,7 @@ public sealed class BoardPackageImportService(
                     null,
                     null,
                     null,
-                    ValidationFail([new ValidationError("manifest", "Board package manifest is invalid JSON.")]));
+                    ApiErrors.ValidationFailed([new ValidationError("manifest", "Board package manifest is invalid JSON.")]));
             }
 
             if (manifest.Entries is null)
@@ -320,7 +320,7 @@ public sealed class BoardPackageImportService(
                     null,
                     null,
                     null,
-                    ValidationFail([new ValidationError("manifest.entries", "Manifest entries are required.")]));
+                    ApiErrors.ValidationFailed([new ValidationError("manifest.entries", "Manifest entries are required.")]));
             }
 
             var manifestValidationError = BoardPackageContract.ValidateManifest(manifest);
@@ -340,7 +340,7 @@ public sealed class BoardPackageImportService(
                     null,
                     null,
                     null,
-                    ValidationFail([new ValidationError("board", $"Board package is missing '{BoardPackageContract.BoardEntryPath}'.")]));
+                    ApiErrors.ValidationFailed([new ValidationError("board", $"Board package is missing '{BoardPackageContract.BoardEntryPath}'.")]));
             }
 
             BoardPackageBoardDto? boardPayload;
@@ -366,7 +366,7 @@ public sealed class BoardPackageImportService(
                     null,
                     null,
                     null,
-                    ValidationFail([new ValidationError("board", "Board payload is invalid JSON.")]));
+                    ApiErrors.ValidationFailed([new ValidationError("board", "Board payload is invalid JSON.")]));
             }
 
             BoardPackageArchiveDto? archivePayload = null;
@@ -382,7 +382,7 @@ public sealed class BoardPackageImportService(
                         manifest,
                         boardPayload,
                         null,
-                        ValidationFail([new ValidationError("archive", $"Board package is missing '{BoardPackageContract.ArchiveEntryPath}'.")]));
+                        ApiErrors.ValidationFailed([new ValidationError("archive", $"Board package is missing '{BoardPackageContract.ArchiveEntryPath}'.")]));
                 }
 
                 using var archiveReader = new StreamReader(archiveEntry.Open());
@@ -408,7 +408,7 @@ public sealed class BoardPackageImportService(
                 null,
                 null,
                 null,
-                ValidationFail([new ValidationError("file", "Uploaded file is not a valid ZIP archive.")]));
+                ApiErrors.ValidationFailed([new ValidationError("file", "Uploaded file is not a valid ZIP archive.")]));
         }
         catch (JsonException)
         {
@@ -416,7 +416,7 @@ public sealed class BoardPackageImportService(
                 null,
                 null,
                 null,
-                ValidationFail([new ValidationError("file", "Board package JSON content is invalid.")]));
+                ApiErrors.ValidationFailed([new ValidationError("file", "Board package JSON content is invalid.")]));
         }
     }
 
@@ -433,7 +433,7 @@ public sealed class BoardPackageImportService(
             default:
                 return new ParseBoardPayloadResult(
                     null,
-                    ValidationFail([new ValidationError(
+                    ApiErrors.ValidationFailed([new ValidationError(
                         "manifest.schemaVersion",
                         $"Schema version '{schemaVersion}' does not have an import payload handler configured.")]));
         }
@@ -451,7 +451,7 @@ public sealed class BoardPackageImportService(
                 {
                     return new ParseArchivePayloadResult(
                         null,
-                        ValidationFail([new ValidationError("archive", "Archive payload is invalid JSON.")]));
+                        ApiErrors.ValidationFailed([new ValidationError("archive", "Archive payload is invalid JSON.")]));
                 }
 
                 return new ParseArchivePayloadResult(archivePayload, null);
@@ -459,7 +459,7 @@ public sealed class BoardPackageImportService(
             default:
                 return new ParseArchivePayloadResult(
                     null,
-                    ValidationFail([new ValidationError(
+                    ApiErrors.ValidationFailed([new ValidationError(
                         "manifest.schemaVersion",
                         $"Schema version '{schemaVersion}' does not have an archive payload handler configured.")]));
         }
@@ -839,7 +839,7 @@ public sealed class BoardPackageImportService(
 
         if (validationErrors.Count > 0)
         {
-            return new BuildImportPlanResult(null, ValidationFail(validationErrors));
+            return new BuildImportPlanResult(null, ApiErrors.ValidationFailed(validationErrors));
         }
 
         return new BuildImportPlanResult(
@@ -1127,10 +1127,6 @@ public sealed class BoardPackageImportService(
 
     private static string NormaliseSearchValue(string value) =>
         value.Trim().ToUpperInvariant();
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-
     private sealed record ReadBoardPackageResult(
         BoardPackageManifestDto? Manifest,
         BoardPackageBoardDto? BoardPayload,

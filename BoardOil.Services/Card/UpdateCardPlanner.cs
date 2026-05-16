@@ -10,7 +10,7 @@ public sealed class UpdateCardPlanner
     {
         if (selectedCardType is null)
         {
-            return new UpdateCardTypeSelectionResult(null, ValidationFail([new ValidationError("cardTypeId", "Card type does not exist in board.")]));
+            return new UpdateCardTypeSelectionResult(null, ApiErrors.ValidationFailed([new ValidationError("cardTypeId", "Card type does not exist in board.")]));
         }
 
         return new UpdateCardTypeSelectionResult(selectedCardType, null);
@@ -62,11 +62,7 @@ public sealed class UpdateCardPlanner
         {
             return new UpdateCardSortKeyAllocationResult(null, ApiErrors.InternalError("Unable to assign card order key."));
         }
-    }
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-}
+    }}
 
 public readonly record struct UpdateCardTypeSelectionResult(EntityCardType? SelectedCardType, ApiError? Error);
 public readonly record struct UpdateCardMovementPlanResult(bool MovementChanged, string? TargetSortKey, ApiError? Error);

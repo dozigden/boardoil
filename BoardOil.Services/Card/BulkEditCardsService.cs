@@ -61,13 +61,13 @@ public sealed class BulkEditCardsService(
         var selectedCardIdSet = uniqueCardIds.ToHashSet();
         if (hasMoveOperation && request.Move!.PositionAfterCardId is int positionAfterCardId && selectedCardIdSet.Contains(positionAfterCardId))
         {
-            return ValidationFail([new ValidationError("move.positionAfterCardId", "Anchor card cannot be one of the moved cards.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("move.positionAfterCardId", "Anchor card cannot be one of the moved cards.")]);
         }
 
         var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(uniqueCardIds);
         if (cards.Count != uniqueCardIds.Count || cards.Any(x => x.BoardColumn.BoardId != boardId))
         {
-            return ValidationFail([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
         }
 
         EntityBoardColumn? targetColumn = null;
@@ -76,7 +76,7 @@ public sealed class BulkEditCardsService(
             targetColumn = columnRepository.Get(request.Move!.TargetColumnId);
             if (targetColumn is null || targetColumn.BoardId != boardId)
             {
-                return ValidationFail([new ValidationError("move.targetColumnId", "Column does not exist in board.")]);
+                return ApiErrors.ValidationFailed([new ValidationError("move.targetColumnId", "Column does not exist in board.")]);
             }
         }
 
@@ -203,10 +203,6 @@ public sealed class BulkEditCardsService(
 
         return resultDtos;
     }
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-
     private static (ApiError? Error, string? PreviousKey, string? NextKey) ResolveAnchor(
         int? positionAfterCardId,
         IReadOnlyList<EntityBoardCard> targetCards)
@@ -220,7 +216,7 @@ public sealed class BulkEditCardsService(
         var anchorIndex = FindCardIndex(targetCards, positionAfterCardId.Value);
         if (anchorIndex < 0)
         {
-            return (ValidationFail([new ValidationError("positionAfterCardId", "Card does not exist in target column.")]), null, null);
+            return (ApiErrors.ValidationFailed([new ValidationError("positionAfterCardId", "Card does not exist in target column.")]), null, null);
         }
 
         var previousKey = targetCards[anchorIndex].SortKey;

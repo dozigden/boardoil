@@ -45,7 +45,7 @@ public sealed class UserAdminService(
         var validation = ValidateCredentials(request.UserName, request.DisplayName, request.Email, request.Password);
         if (validation.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", validation);
+            return ApiErrors.ValidationFailed(validation);
         }
 
         if (!TryParseRole(request.Role, out var role))
@@ -100,7 +100,7 @@ public sealed class UserAdminService(
         var validation = ValidateDisplayNameAndEmail(request.DisplayName, request.Email);
         if (validation.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", validation);
+            return ApiErrors.ValidationFailed(validation);
         }
 
         var user = userRepository.Get(id);
@@ -145,7 +145,7 @@ public sealed class UserAdminService(
         var passwordValidation = ValidatePassword(request.NewPassword, "newPassword");
         if (passwordValidation.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", passwordValidation);
+            return ApiErrors.ValidationFailed(passwordValidation);
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;

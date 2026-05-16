@@ -41,7 +41,7 @@ public sealed class ClientAccountService(
         var validation = ValidateUserNameDisplayNameAndEmail(request.UserName, request.DisplayName, request.Email);
         if (validation.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", validation);
+            return ApiErrors.ValidationFailed(validation);
         }
 
         if (!TryParseRole(request.Role, out var role))
@@ -113,7 +113,7 @@ public sealed class ClientAccountService(
         var validation = ValidateDisplayNameAndEmail(request.DisplayName, request.Email);
         if (validation.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", validation);
+            return ApiErrors.ValidationFailed(validation);
         }
 
         var user = userRepository.Get(clientAccountId);

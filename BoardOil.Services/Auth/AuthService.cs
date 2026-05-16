@@ -30,7 +30,7 @@ public sealed class AuthService(
         var validation = ValidateCredentials(request.UserName, request.UserName, request.Email, request.Password);
         if (validation.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", validation);
+            return ApiErrors.ValidationFailed(validation);
         }
 
         if (await authUserRepository.AnyAsync())
@@ -133,7 +133,7 @@ public sealed class AuthService(
 
         if (string.IsNullOrWhiteSpace(request.CurrentPassword))
         {
-            return ApiErrors.BadRequest("Validation failed.", [new ValidationError("currentPassword", "Current password is required.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("currentPassword", "Current password is required.")]);
         }
 
         if (!passwordHashService.VerifyPassword(request.CurrentPassword, user.PasswordHash))
@@ -144,7 +144,7 @@ public sealed class AuthService(
         var passwordValidation = ValidatePassword(request.NewPassword, "newPassword");
         if (passwordValidation.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", passwordValidation);
+            return ApiErrors.ValidationFailed(passwordValidation);
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;

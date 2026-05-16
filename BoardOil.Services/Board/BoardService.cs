@@ -244,16 +244,12 @@ public sealed class BoardService(
     {
         if (string.IsNullOrWhiteSpace(boardName))
         {
-            return ApiErrors.BadRequest(
-                "Validation failed.",
-                [new ValidationError("name", "Board name is required.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("name", "Board name is required.")]);
         }
 
         if (boardName.Length > MaxBoardNameLength)
         {
-            return ApiErrors.BadRequest(
-                "Validation failed.",
-                [new ValidationError("name", $"Board name must be {MaxBoardNameLength} characters or fewer.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("name", $"Board name must be {MaxBoardNameLength} characters or fewer.")]);
         }
 
         return null;
@@ -266,9 +262,7 @@ public sealed class BoardService(
     {
         if (boardDescription.Length > MaxBoardDescriptionLength)
         {
-            return ApiErrors.BadRequest(
-                "Validation failed.",
-                [new ValidationError("description", $"Board description must be {MaxBoardDescriptionLength} characters or fewer.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("description", $"Board description must be {MaxBoardDescriptionLength} characters or fewer.")]);
         }
 
         return null;

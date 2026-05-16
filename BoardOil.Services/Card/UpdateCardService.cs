@@ -46,7 +46,7 @@ public sealed class UpdateCardService(
         var updateValidationErrors = await validator.ValidateUpdateAsync(boardId, request);
         if (updateValidationErrors.Count > 0)
         {
-            return ValidationFail(updateValidationErrors);
+            return ApiErrors.ValidationFailed(updateValidationErrors);
         }
 
         var currentColumnId = existingCard.BoardColumnId;
@@ -65,7 +65,7 @@ public sealed class UpdateCardService(
             var targetColumn = columnRepository.Get(updateColumnId);
             if (targetColumn is null || targetColumn.BoardId != boardId)
             {
-                return ValidationFail([new ValidationError("boardColumnId", "Column does not exist in board.")]);
+                return ApiErrors.ValidationFailed([new ValidationError("boardColumnId", "Column does not exist in board.")]);
             }
         }
 
@@ -138,8 +138,4 @@ public sealed class UpdateCardService(
         }
 
         return dto;
-    }
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-}
+    }}

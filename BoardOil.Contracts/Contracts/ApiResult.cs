@@ -65,6 +65,9 @@ public static class ApiErrors
     public static ApiError BadRequest(string message, IReadOnlyList<ValidationError> validationErrors) =>
         new(400, message, ToValidationDictionary(validationErrors));
 
+    public static ApiError ValidationFailed(IReadOnlyList<ValidationError> validationErrors) =>
+        new(400, "Validation failed.", ToValidationDictionary(validationErrors));
+
     public static ApiError Unauthorized(string message) =>
         new(401, message);
 

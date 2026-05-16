@@ -85,7 +85,7 @@ public sealed class CardTypeService(
 
         if (validationErrors.Count > 0)
         {
-            return ValidationFail(validationErrors);
+            return ApiErrors.ValidationFailed(validationErrors);
         }
 
         var styleResolution = ResolveAndValidateStyle(
@@ -96,7 +96,7 @@ public sealed class CardTypeService(
         if (styleResolution.Error is not null)
         {
             validationErrors.Add(styleResolution.Error);
-            return ValidationFail(validationErrors);
+            return ApiErrors.ValidationFailed(validationErrors);
         }
 
         var now = DateTime.UtcNow;
@@ -162,7 +162,7 @@ public sealed class CardTypeService(
 
         if (validationErrors.Count > 0)
         {
-            return ValidationFail(validationErrors);
+            return ApiErrors.ValidationFailed(validationErrors);
         }
 
         var styleResolution = ResolveAndValidateStyle(
@@ -173,7 +173,7 @@ public sealed class CardTypeService(
         if (styleResolution.Error is not null)
         {
             validationErrors.Add(styleResolution.Error);
-            return ValidationFail(validationErrors);
+            return ApiErrors.ValidationFailed(validationErrors);
         }
 
         existing.Name = nameValidation.CanonicalName;
@@ -278,10 +278,6 @@ public sealed class CardTypeService(
 
         return ApiResults.Ok();
     }
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-
     private static CardTypeNameValidationResult ValidateCardTypeName(string? rawName, string propertyName)
     {
         if (string.IsNullOrWhiteSpace(rawName))

@@ -34,7 +34,7 @@ public sealed class BulkDeleteCardsService(
         var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(uniqueCardIds);
         if (cards.Count != uniqueCardIds.Count || cards.Any(x => x.BoardColumn.BoardId != boardId))
         {
-            return ValidationFail([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
+            return ApiErrors.ValidationFailed([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
         }
 
         cardRepository.RemoveRange(cards);
@@ -46,8 +46,4 @@ public sealed class BulkDeleteCardsService(
         }
 
         return ApiResults.Ok(new BulkDeleteCardsSummaryDto(boardId, uniqueCardIds.Count, uniqueCardIds.Count));
-    }
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-}
+    }}

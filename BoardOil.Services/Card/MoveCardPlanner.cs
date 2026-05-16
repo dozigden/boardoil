@@ -18,7 +18,7 @@ public sealed class MoveCardPlanner
         if (anchorIndex < 0)
         {
             return new MoveCardAnchorResolution(
-                ValidationFail([new ValidationError("positionAfterCardId", "Card does not exist in target column.")]),
+                ApiErrors.ValidationFailed([new ValidationError("positionAfterCardId", "Card does not exist in target column.")]),
                 null,
                 null);
         }
@@ -57,11 +57,7 @@ public sealed class MoveCardPlanner
         }
 
         return -1;
-    }
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-}
+    }}
 
 public readonly record struct MoveCardAnchorResolution(ApiError? Error, string? PreviousKey, string? NextKey);
 public readonly record struct MoveCardSortKeyResult(string? SortKey, ApiError? Error);

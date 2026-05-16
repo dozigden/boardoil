@@ -67,7 +67,7 @@ public sealed class TagService(
 
         if (createValidationErrors.Count > 0)
         {
-            return ValidationFail(createValidationErrors);
+            return ApiErrors.ValidationFailed(createValidationErrors);
         }
 
         var existing = await tagRepository.GetByNormalisedNameAsync(boardId, tagValidation.NormalisedName);
@@ -156,7 +156,7 @@ public sealed class TagService(
 
         if (validationErrors.Count > 0 || normalisedStyleName is null)
         {
-            return ValidationFail(validationErrors);
+            return ApiErrors.ValidationFailed(validationErrors);
         }
 
         var updatedAtUtc = DateTime.UtcNow;
@@ -197,10 +197,6 @@ public sealed class TagService(
 
         return ApiResults.Ok();
     }
-
-    private static ApiError ValidationFail(IReadOnlyList<ValidationError> validationErrors) =>
-        ApiErrors.BadRequest("Validation failed.", validationErrors);
-
     private static TagNameValidationResult ValidateTagName(string? rawName, string propertyName)
     {
         if (string.IsNullOrWhiteSpace(rawName))

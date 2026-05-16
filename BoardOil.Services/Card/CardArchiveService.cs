@@ -112,7 +112,7 @@ public sealed class CardArchiveService(
         var validationErrors = ValidateArchiveCardIds(cardIds);
         if (validationErrors.Count > 0)
         {
-            return ApiErrors.BadRequest("Validation failed.", validationErrors);
+            return ApiErrors.ValidationFailed(validationErrors);
         }
 
         var archiveResult = await ExecuteArchiveCardsAsync(boardId, cardIds!, actorUserId);
