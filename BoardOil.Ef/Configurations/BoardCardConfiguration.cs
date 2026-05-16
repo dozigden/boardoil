@@ -11,6 +11,7 @@ public sealed class BoardCardConfiguration : IEntityTypeConfiguration<EntityBoar
         card.HasKey(x => x.Id);
         card.Property(x => x.CardTypeId).IsRequired();
         card.Property(x => x.AssignedUserId).IsRequired(false);
+        card.Property(x => x.SlickId).IsRequired(false);
         card.Property(x => x.Title).HasMaxLength(200).IsRequired();
         card.Property(x => x.Description).HasMaxLength(20_000).IsRequired();
         card.Property(x => x.SortKey).HasMaxLength(20).IsRequired();
@@ -18,6 +19,7 @@ public sealed class BoardCardConfiguration : IEntityTypeConfiguration<EntityBoar
         card.HasIndex(x => new { x.BoardColumnId, x.SortKey }).IsUnique();
         card.HasIndex(x => x.CardTypeId);
         card.HasIndex(x => x.AssignedUserId);
+        card.HasIndex(x => x.SlickId);
         card.HasOne(x => x.CardType)
             .WithMany(x => x.Cards)
             .HasForeignKey(x => x.CardTypeId)
@@ -25,6 +27,10 @@ public sealed class BoardCardConfiguration : IEntityTypeConfiguration<EntityBoar
         card.HasOne(x => x.AssignedUser)
             .WithMany()
             .HasForeignKey(x => x.AssignedUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        card.HasOne(x => x.Slick)
+            .WithMany(x => x.Cards)
+            .HasForeignKey(x => x.SlickId)
             .OnDelete(DeleteBehavior.SetNull);
         card.HasMany(x => x.CardTags)
             .WithOne(x => x.Card)

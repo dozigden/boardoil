@@ -10,6 +10,7 @@ using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Tag;
+using BoardOil.Data.Abstractions.Slick;
 
 namespace BoardOil.Services.Card;
 
@@ -18,6 +19,7 @@ public sealed class UpdateCardService(
     ICardTypeRepository cardTypeRepository,
     IColumnRepository columnRepository,
     ITagRepository tagRepository,
+    ISlickRepository slickRepository,
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
     ICardValidator validator,
@@ -80,6 +82,18 @@ public sealed class UpdateCardService(
             return cardTypeSelection.Error;
         }
 
+        int? selectedSlickId = null;
+        if (request.SlickId is int requestSlickId)
+        {
+            var selectedSlick = await slickRepository.GetByIdInBoardAsync(boardId, requestSlickId);
+            if (selectedSlick is null)
+            {
+                return ApiErrors.ValidationFailed([new ValidationError("slickId", "Slick does not exist in board.")]);
+            }
+
+            selectedSlickId = selectedSlick.Id;
+        }
+
         var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(requestedColumnId))
             .Where(x => x.Id != id)
             .ToList();
@@ -90,13 +104,15 @@ public sealed class UpdateCardService(
         }
 
         var assignmentChanged = request.AssignedUserId != existingCard.AssignedUserId;
+        var slickChanged = selectedSlickId != existingCard.SlickId;
         var tagsChanged = planner.TagsChanged(existingCard, updatedTags);
         var cardTypeChanged = selectedCardType!.Id != existingCard.CardTypeId;
         var metadataChanged = updatedTitle != existingCard.Title
             || updatedDescription != existingCard.Description
             || tagsChanged
             || cardTypeChanged
-            || assignmentChanged;
+            || assignmentChanged
+            || slickChanged;
         if (metadataChanged || movementPlan.MovementChanged)
         {
             existingCard.Title = updatedTitle;
@@ -116,6 +132,12 @@ public sealed class UpdateCardService(
             {
                 existingCard.AssignedUserId = request.AssignedUserId;
                 existingCard.AssignedUser = null;
+            }
+
+            if (slickChanged)
+            {
+                existingCard.SlickId = selectedSlickId;
+                existingCard.Slick = null;
             }
 
             if (movementPlan.MovementChanged)

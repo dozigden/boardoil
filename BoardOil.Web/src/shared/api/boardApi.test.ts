@@ -175,7 +175,85 @@ describe('boardApi saveCard', () => {
       tagNames: ['Bug'],
       cardTypeId: 1,
       boardColumnId: 3,
-      assignedUserId: null
+      assignedUserId: null,
+      slickId: null
+    });
+  });
+});
+
+describe('boardApi slicks', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('loads slicks for a board', async () => {
+    vi.mocked(getEnvelope).mockResolvedValue(ok({
+      success: true,
+      data: [
+        {
+          id: 7,
+          name: 'Release Train',
+          styleName: 'auto',
+          stylePropertiesJson: '{}',
+          createdAtUtc: '2026-05-16T00:00:00Z',
+          updatedAtUtc: '2026-05-16T00:00:00Z'
+        }
+      ],
+      statusCode: 200
+    }));
+
+    const api = createBoardApi();
+    const result = await api.getSlicks(3);
+
+    expect(result.ok).toBe(true);
+    expect(getEnvelope).toHaveBeenCalledWith('/api/boards/3/slicks');
+  });
+
+  it('creates a slick', async () => {
+    vi.mocked(postData).mockResolvedValue(ok({
+      id: 7,
+      name: 'Release Train',
+      styleName: 'auto',
+      stylePropertiesJson: '{}',
+      createdAtUtc: '2026-05-16T00:00:00Z',
+      updatedAtUtc: '2026-05-16T00:00:00Z'
+    }));
+
+    const api = createBoardApi();
+    const result = await api.createSlick(3, 'Release Train', 'auto', '{}');
+
+    expect(result.ok).toBe(true);
+    expect(postData).toHaveBeenCalledWith('/api/boards/3/slicks', {
+      name: 'Release Train',
+      styleName: 'auto',
+      stylePropertiesJson: '{}'
+    });
+  });
+
+  it('updates a slick', async () => {
+    vi.mocked(putData).mockResolvedValue(ok({
+      id: 7,
+      name: 'Release Train',
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}',
+      createdAtUtc: '2026-05-16T00:00:00Z',
+      updatedAtUtc: '2026-05-16T00:00:00Z'
+    }));
+
+    const api = createBoardApi();
+    const result = await api.updateSlick(
+      3,
+      7,
+      'Release Train',
+      'solid',
+      '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
+    );
+
+    expect(result.ok).toBe(true);
+    expect(putData).toHaveBeenCalledWith('/api/boards/3/slicks/7', {
+      name: 'Release Train',
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
     });
   });
 });

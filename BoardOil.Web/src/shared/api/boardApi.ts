@@ -11,6 +11,7 @@ import type {
   CardType,
   Column,
   DeleteCardsSummary,
+  Slick,
   Tag,
   TagStyleName
 } from '../types/boardTypes';
@@ -146,7 +147,8 @@ export function createBoardApi() {
     columnId: number,
     title: string,
     cardTypeId?: number | null,
-    assignedUserId?: number | null
+    assignedUserId?: number | null,
+    slickId?: number | null
   ): Promise<Result<Card, AppError>> {
     return postData<Card>(`/api/boards/${boardId}/cards`, {
       boardColumnId: columnId,
@@ -154,7 +156,8 @@ export function createBoardApi() {
       description: '',
       tagNames: [],
       cardTypeId,
-      assignedUserId
+      assignedUserId,
+      slickId
     });
   }
 
@@ -166,7 +169,8 @@ export function createBoardApi() {
     tagNames: string[],
     cardTypeId: number,
     boardColumnId: number,
-    assignedUserId: number | null = null
+    assignedUserId: number | null = null,
+    slickId: number | null = null
   ): Promise<Result<Card, AppError>> {
     return putData<Card>(`/api/boards/${boardId}/cards/${cardId}`, {
       title,
@@ -174,7 +178,8 @@ export function createBoardApi() {
       tagNames,
       cardTypeId,
       boardColumnId,
-      assignedUserId
+      assignedUserId,
+      slickId
     });
   }
 
@@ -398,6 +403,54 @@ export function createBoardApi() {
     return deleteJson(`/api/boards/${boardId}/card-types/${cardTypeId}`);
   }
 
+  async function getSlicks(boardId: number): Promise<Result<Slick[], AppError>> {
+    const envelopeResult = await getEnvelope<Slick[]>(`/api/boards/${boardId}/slicks`);
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function createSlick(
+    boardId: number,
+    name: string,
+    styleName?: TagStyleName,
+    stylePropertiesJson?: string
+  ): Promise<Result<Slick, AppError>> {
+    const payload: {
+      name: string;
+      styleName?: TagStyleName;
+      stylePropertiesJson?: string;
+    } = { name };
+    if (styleName !== undefined) {
+      payload.styleName = styleName;
+    }
+    if (stylePropertiesJson !== undefined) {
+      payload.stylePropertiesJson = stylePropertiesJson;
+    }
+
+    return postData<Slick>(`/api/boards/${boardId}/slicks`, payload);
+  }
+
+  async function updateSlick(
+    boardId: number,
+    slickId: number,
+    name: string,
+    styleName: TagStyleName,
+    stylePropertiesJson: string
+  ): Promise<Result<Slick, AppError>> {
+    return putData<Slick>(`/api/boards/${boardId}/slicks/${slickId}`, {
+      name,
+      styleName,
+      stylePropertiesJson
+    });
+  }
+
+  async function deleteSlick(boardId: number, slickId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/boards/${boardId}/slicks/${slickId}`);
+  }
+
   return {
     getBoards,
     getBoard,
@@ -436,7 +489,11 @@ export function createBoardApi() {
     createCardType,
     updateCardType,
     setDefaultCardType,
-    deleteCardType
+    deleteCardType,
+    getSlicks,
+    createSlick,
+    updateSlick,
+    deleteSlick
   };
 }
 

@@ -32,7 +32,8 @@ public sealed record CardDto(
     DateTime UpdatedAtUtc,
     int? AssignedUserId = null,
     string? AssignedUserName = null,
-    string? AssignedUserImageRelativePath = null);
+    string? AssignedUserImageRelativePath = null,
+    int? SlickId = null);
 
 public sealed record ArchivedCardDto(
     int Id,
@@ -80,7 +81,8 @@ public sealed record CreateCardRequest(
     string? Description,
     IReadOnlyList<string>? TagNames,
     int? CardTypeId = null,
-    int? AssignedUserId = null);
+    int? AssignedUserId = null,
+    int? SlickId = null);
 
 public sealed record UpdateCardRequest(
     string Title,
@@ -88,7 +90,8 @@ public sealed record UpdateCardRequest(
     IReadOnlyList<string> TagNames,
     int CardTypeId,
     int? BoardColumnId = null,
-    int? AssignedUserId = null);
+    int? AssignedUserId = null,
+    int? SlickId = null);
 
 public sealed record MoveCardRequest(
     int BoardColumnId,

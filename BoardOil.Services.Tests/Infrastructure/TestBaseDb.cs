@@ -8,6 +8,7 @@ using BoardOil.Services.CardType;
 using BoardOil.Services.Column;
 using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Tag;
+using BoardOil.Services.Slick;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using BoardOil.Data.Abstractions.Entities;
@@ -83,6 +84,7 @@ public abstract class TestBaseDb : IAsyncLifetime
         services.AddScoped<CardService>();
         services.AddScoped<CardTypeService>();
         services.AddScoped<TagService>();
+        services.AddScoped<SlickService>();
         services.AddSingleton<IBoardEvents, TestBoardEvents>();
         services.AddSingleton<IDbContextFactory>(_ => new TestDbContextFactory(Harness.Options));
         ConfigureTestServices(services);

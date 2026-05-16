@@ -11,6 +11,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityArchivedCard> ArchivedCards => Set<EntityArchivedCard>();
     public DbSet<EntityCardType> CardTypes => Set<EntityCardType>();
     public DbSet<EntityTag> Tags => Set<EntityTag>();
+    public DbSet<EntitySlick> Slicks => Set<EntitySlick>();
     public DbSet<EntityCardTag> CardTags => Set<EntityCardTag>();
     public DbSet<EntityCardComment> CardComments => Set<EntityCardComment>();
     public DbSet<EntityBoardMember> BoardMembers => Set<EntityBoardMember>();

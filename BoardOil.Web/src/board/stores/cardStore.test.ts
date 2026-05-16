@@ -330,7 +330,7 @@ describe('cardStore', () => {
     expect(saved).toBe(true);
     expect(store.getCardById(101)?.title).toBe('Task A+');
     expect(store.getCardById(101)?.tagNames).toEqual(['Bug']);
-    expect(api.saveCard).toHaveBeenCalledWith(1, 101, 'Task A+', 'Updated', ['Bug'], 1, 1, null);
+    expect(api.saveCard).toHaveBeenCalledWith(1, 101, 'Task A+', 'Updated', ['Bug'], 1, 1, null, null);
   });
 
   it('saveCard returns false and keeps existing card when API save fails', async () => {
@@ -449,6 +449,17 @@ describe('cardStore', () => {
 
     expect(store.getCardById(101)?.tagNames).toEqual(['urgent']);
     expect(store.getCardById(101)?.tags.map(tag => tag.name)).toEqual(['urgent']);
+  });
+
+  it('removeSlickFromCards clears slick membership from matching cards', () => {
+    const store = useCardStore();
+    const board = makeBoard();
+    board.columns[0].cards[0].slickId = 15;
+    store.replaceBoardCards(board.id, board.columns);
+
+    store.removeSlickFromCards(15);
+
+    expect(store.getCardById(101)?.slickId).toBeNull();
   });
 
   it('sets feedback error when API returns failure', async () => {

@@ -88,6 +88,7 @@ export const useCardStore = defineStore('card', () => {
     cardTypeId: number,
     boardColumnId: number,
     assignedUserId: number | null = null,
+    slickId: number | null = null,
     boardId: number | null = activeBoardId.value
   ) {
     const resolvedBoardId = resolveBoardId(boardId);
@@ -103,7 +104,8 @@ export const useCardStore = defineStore('card', () => {
       tagNames,
       cardTypeId,
       boardColumnId,
-      assignedUserId
+      assignedUserId,
+      slickId
     ));
     if (!result.ok) {
       return false;
@@ -397,6 +399,32 @@ export const useCardStore = defineStore('card', () => {
     }
   }
 
+  function removeSlickFromCards(slickId: number) {
+    if (slickId <= 0) {
+      return;
+    }
+
+    const nextCardsById: CardMap = {};
+    let hasChanges = false;
+
+    for (const [key, card] of Object.entries(cardsById.value)) {
+      if (card.slickId === slickId) {
+        hasChanges = true;
+        nextCardsById[Number(key)] = {
+          ...card,
+          slickId: null
+        };
+        continue;
+      }
+
+      nextCardsById[Number(key)] = card;
+    }
+
+    if (hasChanges) {
+      cardsById.value = nextCardsById;
+    }
+  }
+
   async function runBusy<T>(
     operation: () => Promise<Result<T, AppError>>,
     options?: { suppressError?: (error: AppError) => boolean }
@@ -455,7 +483,8 @@ export const useCardStore = defineStore('card', () => {
     removeCard,
     getCardById,
     getCardsForColumn,
-    removeTagFromCards
+    removeTagFromCards,
+    removeSlickFromCards
   };
 });
 

@@ -28,6 +28,10 @@ public sealed class BoardConfiguration : IEntityTypeConfiguration<EntityBoard>
             .WithOne(x => x.Board)
             .HasForeignKey(x => x.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
+        board.HasMany(x => x.Slicks)
+            .WithOne(x => x.Board)
+            .HasForeignKey(x => x.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
         board.HasMany(x => x.Members)
             .WithOne(x => x.Board)
             .HasForeignKey(x => x.BoardId)

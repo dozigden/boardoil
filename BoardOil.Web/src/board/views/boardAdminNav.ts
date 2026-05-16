@@ -14,6 +14,11 @@ export function buildBoardAdminNavItems(boardId: number, currentUserRole: string
       label: 'Tags',
       to: { name: 'tags', params: { boardId } },
       activeRouteNames: ['tags', 'tags-new', 'tags-tag']
+    },
+    {
+      label: 'Slicks',
+      to: { name: 'slicks', params: { boardId } },
+      activeRouteNames: ['slicks', 'slicks-new', 'slicks-slick']
     }
   ];
 

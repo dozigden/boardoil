@@ -10,6 +10,7 @@ using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Tag;
+using BoardOil.Data.Abstractions.Slick;
 
 namespace BoardOil.Services.Card;
 
@@ -18,6 +19,7 @@ public sealed class CreateCardService(
     ICardTypeRepository cardTypeRepository,
     IColumnRepository columnRepository,
     ITagRepository tagRepository,
+    ISlickRepository slickRepository,
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
     ICardValidator validator,
@@ -88,12 +90,25 @@ public sealed class CreateCardService(
 
         var draft = draftResult.Draft!.Value;
         var tags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames ?? Array.Empty<string>(), _tagRepository);
+        int? selectedSlickId = null;
+        if (request.SlickId is int requestedSlickId)
+        {
+            var selectedSlick = await slickRepository.GetByIdInBoardAsync(boardId, requestedSlickId);
+            if (selectedSlick is null)
+            {
+                return ApiErrors.ValidationFailed([new ValidationError("slickId", "Slick does not exist in board.")]);
+            }
+
+            selectedSlickId = selectedSlick.Id;
+        }
+
         var card = new EntityBoardCard
         {
             BoardColumnId = draft.TargetColumnId,
             CardTypeId = draft.CardTypeId,
             CardType = selectedCardType,
             AssignedUserId = draft.AssignedUserId,
+            SlickId = selectedSlickId,
             Title = draft.Title,
             Description = draft.Description,
             SortKey = draft.SortKey,

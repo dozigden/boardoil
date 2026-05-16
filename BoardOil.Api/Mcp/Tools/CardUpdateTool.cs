@@ -46,18 +46,20 @@ public sealed class CardUpdateTool(
         }
 
         int? assignedUserId = input.AssignedUserId;
+        int? slickId = null;
+        var existingCardResult = await _cardService.GetCardAsync(boardId, cardId, context.ActorUserId);
+        if (!existingCardResult.Success || existingCardResult.Data is null)
+        {
+            return Failure(existingCardResult.ToMcpError());
+        }
+
+        slickId = existingCardResult.Data.SlickId;
         if (!input.AssignedUserIdSpecified)
         {
-            var existingCardResult = await _cardService.GetCardAsync(boardId, cardId, context.ActorUserId);
-            if (!existingCardResult.Success || existingCardResult.Data is null)
-            {
-                return Failure(existingCardResult.ToMcpError());
-            }
-
             assignedUserId = existingCardResult.Data.AssignedUserId;
         }
 
-        var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames, input.CardTypeId!.Value, input.ColumnId, assignedUserId);
+        var request = new UpdateCardRequest(input.Title, input.Description, input.TagNames, input.CardTypeId!.Value, input.ColumnId, assignedUserId, slickId);
         var result = await _cardService.UpdateCardAsync(boardId, cardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {

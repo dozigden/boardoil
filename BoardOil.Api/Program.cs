@@ -190,6 +190,7 @@ app.MapColumnEndpoints();
 app.MapCardEndpoints();
 app.MapCardTypeEndpoints();
 app.MapTagEndpoints();
+app.MapSlickEndpoints();
 app.MapInternalRealtimeEndpoints();
 app.MapConfigurationEndpoints();
 app.MapUserEndpoints();

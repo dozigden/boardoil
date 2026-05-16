@@ -132,6 +132,27 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'slicks',
+        name: 'slicks',
+        component: () => import('./board/views/SlicksManagerView.vue')
+      },
+      {
+        path: 'slicks/new',
+        name: 'slicks-new',
+        components: {
+          default: () => import('./board/views/SlicksManagerView.vue'),
+          dialog: () => import('./board/components/SlickEditorDialog.vue')
+        }
+      },
+      {
+        path: 'slicks/:slickId(\\d+)',
+        name: 'slicks-slick',
+        components: {
+          default: () => import('./board/views/SlicksManagerView.vue'),
+          dialog: () => import('./board/components/SlickEditorDialog.vue')
+        }
+      },
+      {
         path: 'card-types',
         name: 'card-types',
         component: () => import('./board/views/CardTypesManagerView.vue')

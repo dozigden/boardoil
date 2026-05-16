@@ -12,5 +12,6 @@ public sealed class EntityBoard : ISupportCreatedAt, ISupportUpdatedAt
     public ICollection<EntityCardType> CardTypes { get; set; } = new List<EntityCardType>();
     public ICollection<EntityArchivedCard> ArchivedCards { get; set; } = new List<EntityArchivedCard>();
     public ICollection<EntityTag> Tags { get; set; } = new List<EntityTag>();
+    public ICollection<EntitySlick> Slicks { get; set; } = new List<EntitySlick>();
     public ICollection<EntityBoardMember> Members { get; set; } = new List<EntityBoardMember>();
 }

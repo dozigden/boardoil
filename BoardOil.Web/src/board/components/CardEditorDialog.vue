@@ -228,6 +228,37 @@
             </div>
           </div>
 
+          <div class="card-editor-select-field card-editor-slick-picker">
+            <span class="card-editor-field-label">Slick</span>
+            <BoDropdown
+              align="left"
+              label="Select slick"
+              :teleport="false"
+              :text="selectedSlickLabel"
+            >
+              <template #default="{ close }">
+                <button
+                  type="button"
+                  class="bo-dropdown-item"
+                  @click="setDraftSlickId(null, close)"
+                >
+                  <span class="bo-dropdown-item-main">None</span>
+                  <span v-if="cardDraft.slickId === null" class="badge bo-dropdown-item-meta">Selected</span>
+                </button>
+                <button
+                  v-for="slick in slicks"
+                  :key="slick.id"
+                  type="button"
+                  class="bo-dropdown-item"
+                  @click="setDraftSlickId(slick.id, close)"
+                >
+                  <span class="bo-dropdown-item-main">{{ slick.name }}</span>
+                  <span v-if="slick.id === cardDraft.slickId" class="badge bo-dropdown-item-meta">Selected</span>
+                </button>
+              </template>
+            </BoDropdown>
+          </div>
+
         </aside>
       </div>
     </template>
@@ -267,6 +298,7 @@ import { useBoardMembersStore } from '../stores/boardMembersStore';
 import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useCommentStore } from '../stores/commentStore';
+import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
 import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardTypeSelection';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
@@ -279,15 +311,18 @@ const boardMembersStore = useBoardMembersStore();
 const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
 const commentStore = useCommentStore();
+const slickStore = useSlickStore();
 const tagStore = useTagStore();
 const { board } = storeToRefs(boardStore);
 const { members: boardMembers, activeBoardId: boardMembersActiveBoardId } = storeToRefs(boardMembersStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
+const { slicks, activeBoardId: slicksActiveBoardId } = storeToRefs(slickStore);
 const { busy: commentsBusy } = storeToRefs(commentStore);
 const { saveCard: saveCardAction, deleteCard, archiveCard } = cardStore;
 const { loadCardComments, addCardComment: addCardCommentAction } = commentStore;
 const { loadMembers } = boardMembersStore;
 const { loadCardTypes } = cardTypeStore;
+const { loadSlicks } = slickStore;
 const { ensureTagsExist } = tagStore;
 const { confirm } = useConfirm();
 const maxDescriptionLength = 20_000;
@@ -301,6 +336,7 @@ type CardDraft = {
   boardColumnId: number;
   assignedUserId: number | null;
   assignedUserName: string | null;
+  slickId: number | null;
 };
 
 const cardDraft = ref<CardDraft | null>(null);
@@ -373,6 +409,13 @@ const selectedAssignedMember = computed(() => {
   }
 
   return boardMembers.value.find(x => x.userId === cardDraft.value!.assignedUserId) ?? null;
+});
+const selectedSlickLabel = computed(() => {
+  if (!cardDraft.value || cardDraft.value.slickId === null) {
+    return 'None';
+  }
+
+  return slicks.value.find(x => x.id === cardDraft.value!.slickId)?.name ?? 'None';
 });
 const descriptionDraft = computed({
   get: () => {
@@ -521,6 +564,18 @@ function setDraftAssignedUserId(assignedUserId: number | null, close?: () => voi
   close?.();
 }
 
+function setDraftSlickId(slickId: number | null, close?: () => void) {
+  if (!cardDraft.value) {
+    return;
+  }
+
+  cardDraft.value = {
+    ...cardDraft.value,
+    slickId
+  };
+  close?.();
+}
+
 async function saveCard() {
   if (!cardDraft.value || cardDraft.value.cardTypeId === null) {
     return;
@@ -533,7 +588,8 @@ async function saveCard() {
     cardDraft.value.tagNames,
     cardDraft.value.cardTypeId,
     cardDraft.value.boardColumnId,
-    cardDraft.value.assignedUserId
+    cardDraft.value.assignedUserId,
+    cardDraft.value.slickId
   );
   if (saved) {
     await closeCardEditor();
@@ -654,6 +710,12 @@ watch(
         return;
       }
     }
+    if (slicksActiveBoardId.value !== nextBoardId || slicks.value.length === 0) {
+      await loadSlicks(nextBoardId);
+      if (cancelled) {
+        return;
+      }
+    }
 
     if (!nextCard) {
       clearDraft();
@@ -676,7 +738,8 @@ watch(
         cardTypeId: refreshedCard.cardTypeId,
         boardColumnId: refreshedCard.boardColumnId,
         assignedUserId: refreshedCard.assignedUserId ?? null,
-        assignedUserName: refreshedCard.assignedUserName ?? null
+        assignedUserName: refreshedCard.assignedUserName ?? null,
+        slickId: refreshedCard.slickId ?? null
       };
       return;
     }
@@ -723,6 +786,21 @@ watch(
         cardDraft.value = {
           ...finalDraft,
           assignedUserName: selectedMember.userName
+        };
+      }
+    }
+
+    const draftAfterAssigneeUpdate = cardDraft.value;
+    if (!draftAfterAssigneeUpdate) {
+      return;
+    }
+
+    if (draftAfterAssigneeUpdate.slickId !== null) {
+      const selectedSlick = slicks.value.find(x => x.id === draftAfterAssigneeUpdate.slickId);
+      if (!selectedSlick) {
+        cardDraft.value = {
+          ...draftAfterAssigneeUpdate,
+          slickId: null
         };
       }
     }

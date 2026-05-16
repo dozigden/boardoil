@@ -7,6 +7,7 @@ using BoardOil.Data.Abstractions.CardType;
 using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Configuration;
 using BoardOil.Data.Abstractions.Image;
+using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Ef.Context;
@@ -38,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IArchivedCardRepository, ArchivedCardRepository>();
         services.AddScoped<ICardTypeRepository, CardTypeRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
+        services.AddScoped<ISlickRepository, SlickRepository>();
         services.AddScoped<IImageRepository, ImageRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         return services;

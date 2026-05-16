@@ -4,6 +4,7 @@ using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Column;
+using BoardOil.Contracts.Slick;
 using BoardOil.Contracts.Tag;
 using Xunit;
 
@@ -124,5 +125,37 @@ public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisa
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Fact]
+    public async Task StandardUser_CreateUpdateAndDeleteSlick_ShouldReturnSuccess()
+    {
+        // Arrange
+        var adminClient = Factory.CreateClient();
+        var standardClient = Factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var memberUserId = await CreateUserAsAdminAsync(adminClient, "member", "Password1234!", "Standard");
+        await AddBoardMemberAsAdminAsync(adminClient, 1, memberUserId, "Contributor");
+        await LoginAsAsync(standardClient, "member", "Password1234!");
+
+        // Act
+        var createResponse = await standardClient.PostAsJsonAsync(
+            "/api/boards/1/slicks",
+            new CreateSlickRequest("Release train", "auto", "{}"));
+        createResponse.EnsureSuccessStatusCode();
+        var listEnvelope = await standardClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardSlickDto>>>("/api/boards/1/slicks");
+        Assert.NotNull(listEnvelope);
+        Assert.NotNull(listEnvelope!.Data);
+        var slick = Assert.Single(listEnvelope.Data!, x => x.Name == "Release train");
+
+        var updateResponse = await standardClient.PutAsJsonAsync(
+            $"/api/boards/1/slicks/{slick.Id}",
+            new UpdateSlickRequest("Release train", "solid", """{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}"""));
+        var deleteResponse = await standardClient.DeleteAsync($"/api/boards/1/slicks/{slick.Id}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+    }
+
     private sealed record BoardTagDto(int Id, string Name);
+    private sealed record BoardSlickDto(int Id, string Name);
 }

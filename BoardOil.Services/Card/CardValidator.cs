@@ -3,16 +3,19 @@ using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
+using BoardOil.Data.Abstractions.Slick;
 namespace BoardOil.Services.Card;
 
 public sealed class CardValidator(
     ICardRepository cardRepository,
-    IBoardMemberRepository boardMemberRepository) : ICardValidator
+    IBoardMemberRepository boardMemberRepository,
+    ISlickRepository slickRepository) : ICardValidator
 {
     private const int MaxDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
     private readonly ICardRepository _cardRepository = cardRepository;
     private readonly IBoardMemberRepository _boardMemberRepository = boardMemberRepository;
+    private readonly ISlickRepository _slickRepository = slickRepository;
 
     public async Task<IReadOnlyList<ValidationError>> ValidateCreateAsync(int boardId, CreateCardRequest request)
     {
@@ -20,6 +23,7 @@ public sealed class CardValidator(
         ValidateTitle(request.Title, errors);
         ValidateDescription(request.Description ?? string.Empty, errors);
         await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
+        await ValidateSlickIdAsync(boardId, request.SlickId, errors);
         if (errors.Count > 0)
         {
             return errors;
@@ -71,6 +75,7 @@ public sealed class CardValidator(
         }
 
         await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
+        await ValidateSlickIdAsync(boardId, request.SlickId, errors);
 
         if (request.BoardColumnId is int boardColumnId)
         {
@@ -100,6 +105,26 @@ public sealed class CardValidator(
         }
 
         return Array.Empty<ValidationError>();
+    }
+
+    private async Task ValidateSlickIdAsync(int boardId, int? slickId, ICollection<ValidationError> errors)
+    {
+        if (slickId is null)
+        {
+            return;
+        }
+
+        if (slickId.Value <= 0)
+        {
+            errors.Add(new ValidationError("slickId", "Slick is invalid."));
+            return;
+        }
+
+        var slick = await _slickRepository.GetByIdInBoardAsync(boardId, slickId.Value);
+        if (slick is null)
+        {
+            errors.Add(new ValidationError("slickId", "Slick does not exist in board."));
+        }
     }
 
     private async Task ValidateAssignedUserIdAsync(int boardId, int? assignedUserId, ICollection<ValidationError> errors)

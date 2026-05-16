@@ -26,6 +26,7 @@ export type Card = {
   id: number;
   boardColumnId: number;
   cardTypeId: number;
+  slickId?: number | null;
   cardTypeName: string;
   cardTypeEmoji: string | null;
   assignedUserId?: number | null;
@@ -75,6 +76,15 @@ export type DeleteCardsSummary = {
 export type Tag = TagPresentation & {
   id: number;
   name: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
+export type Slick = {
+  id: number;
+  name: string;
+  styleName: TagStyleName;
+  stylePropertiesJson: string;
   createdAtUtc: string;
   updatedAtUtc: string;
 };
