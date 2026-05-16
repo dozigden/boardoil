@@ -1,5 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { boardHubUrl } from '../../shared/api/config';
+import { attemptSessionRefresh } from '../../shared/api/http';
 import type { Card, CardComment, Column } from '../../shared/types/boardTypes';
 
 type RealtimeHandlers = {
@@ -15,6 +16,8 @@ type RealtimeHandlers = {
 };
 
 const realtimeDebugEnabled = resolveRealtimeDebugEnabled();
+const signalRLogLevel = realtimeDebugEnabled ? LogLevel.Information : LogLevel.Warning;
+const unauthorizedStartRetryDelaysMs = [0, 1_000, 3_000, 7_000];
 
 function logRealtime(message: string, details?: unknown) {
   if (!realtimeDebugEnabled) {
@@ -69,7 +72,17 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     }
 
     logRealtime('Starting realtime connection.');
-    startPromise = hubConnection.start().finally(() => {
+    startPromise = (async () => {
+      try {
+        await hubConnection.start();
+      } catch (error) {
+        if (!isUnauthorizedNegotiationError(error)) {
+          throw error;
+        }
+
+        await retryUnauthorizedStart(hubConnection, error);
+      }
+    })().finally(() => {
       startPromise = null;
     });
 
@@ -85,7 +98,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
       hubConnection = new HubConnectionBuilder()
         .withUrl(boardHubUrl)
         .withAutomaticReconnect()
-        .configureLogging(LogLevel.Warning)
+        .configureLogging(signalRLogLevel)
         .build();
 
       hubConnection.on('ColumnCreated', async (column: Column) => {
@@ -235,4 +248,54 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     connect,
     disconnect,
   };
+}
+
+function isUnauthorizedNegotiationError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return message.includes("status code '401'")
+    || message.includes('status code 401')
+    || message.includes('unauthorized');
+}
+
+async function retryUnauthorizedStart(connection: HubConnection, initialError: unknown) {
+  let latestUnauthorizedError = initialError;
+
+  for (const delayMs of unauthorizedStartRetryDelaysMs) {
+    if (delayMs > 0) {
+      logRealtime('Waiting before unauthorized realtime retry.', { delayMs });
+      await wait(delayMs);
+    }
+
+    logRealtime('Attempting session refresh before realtime retry.');
+    const refreshed = await attemptSessionRefresh();
+    if (!refreshed) {
+      logRealtime('Session refresh failed before realtime retry.');
+      continue;
+    }
+
+    try {
+      logRealtime('Retrying realtime start after session refresh.');
+      await connection.start();
+      return;
+    } catch (retryError) {
+      if (!isUnauthorizedNegotiationError(retryError)) {
+        throw retryError;
+      }
+
+      latestUnauthorizedError = retryError;
+      logRealtime('Realtime retry still unauthorized.');
+    }
+  }
+
+  throw latestUnauthorizedError;
+}
+
+async function wait(delayMs: number) {
+  await new Promise(resolve => {
+    setTimeout(resolve, delayMs);
+  });
 }

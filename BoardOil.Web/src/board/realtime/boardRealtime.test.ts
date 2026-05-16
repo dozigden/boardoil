@@ -14,6 +14,11 @@ type FakeConnection = {
 };
 
 let connection: FakeConnection;
+const attemptSessionRefresh = vi.fn(async () => false);
+
+vi.mock('../../shared/api/http', () => ({
+  attemptSessionRefresh
+}));
 
 vi.mock('@microsoft/signalr', () => {
   connection = {
@@ -63,7 +68,9 @@ vi.mock('@microsoft/signalr', () => {
       Connected: 'Connected'
     },
     LogLevel: {
-      Warning: 'Warning'
+      Warning: 'Warning',
+      Information: 'Information',
+      None: 'None'
     }
   };
 });
@@ -73,6 +80,8 @@ describe('boardRealtime', () => {
     vi.useRealTimers();
     vi.clearAllMocks();
     vi.resetModules();
+    attemptSessionRefresh.mockReset();
+    attemptSessionRefresh.mockResolvedValue(false);
     vi.stubGlobal('window', {
       location: {
         origin: 'http://localhost:5173'
@@ -219,6 +228,96 @@ describe('boardRealtime', () => {
     expect(connection.start).toHaveBeenCalledTimes(1);
     expect(connection.invoke).toHaveBeenCalledTimes(1);
     expect(connection.invoke).toHaveBeenCalledWith('SubscribeBoard', 42);
+  });
+
+  it('refreshes session and retries connect once when negotiate returns 401', async () => {
+    connection.state = 'Disconnected';
+    connection.start
+      .mockRejectedValueOnce(new Error("Failed to complete negotiation with the server: Status code '401'"))
+      .mockImplementationOnce(async () => {
+        connection.state = 'Connected';
+      });
+    attemptSessionRefresh.mockResolvedValueOnce(true);
+
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(),
+      onColumnUpdated: vi.fn(),
+      onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(),
+      onCardUpdated: vi.fn(),
+      onCardDeleted: vi.fn(),
+      onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(),
+      onResync: vi.fn()
+    });
+
+    await realtime.connect(42);
+
+    expect(attemptSessionRefresh).toHaveBeenCalledTimes(1);
+    expect(connection.start).toHaveBeenCalledTimes(2);
+    expect(connection.invoke).toHaveBeenCalledWith('SubscribeBoard', 42);
+  });
+
+  it('retries unauthorized negotiate over time and eventually connects', async () => {
+    vi.useFakeTimers();
+    connection.state = 'Disconnected';
+    connection.start
+      .mockRejectedValueOnce(new Error("Failed to complete negotiation with the server: Status code '401'"))
+      .mockRejectedValueOnce(new Error("Failed to complete negotiation with the server: Status code '401'"))
+      .mockImplementationOnce(async () => {
+        connection.state = 'Connected';
+      });
+    attemptSessionRefresh.mockResolvedValue(true);
+
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(),
+      onColumnUpdated: vi.fn(),
+      onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(),
+      onCardUpdated: vi.fn(),
+      onCardDeleted: vi.fn(),
+      onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(),
+      onResync: vi.fn()
+    });
+
+    const connectPromise = realtime.connect(42);
+    await vi.runAllTimersAsync();
+    await connectPromise;
+
+    expect(attemptSessionRefresh).toHaveBeenCalledTimes(2);
+    expect(connection.start).toHaveBeenCalledTimes(3);
+    expect(connection.invoke).toHaveBeenCalledWith('SubscribeBoard', 42);
+  });
+
+  it('fails after timed unauthorized retries are exhausted', async () => {
+    vi.useFakeTimers();
+    connection.state = 'Disconnected';
+    const unauthorizedError = new Error("Failed to complete negotiation with the server: Status code '401'");
+    connection.start.mockRejectedValue(unauthorizedError);
+    attemptSessionRefresh.mockResolvedValue(true);
+
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(),
+      onColumnUpdated: vi.fn(),
+      onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(),
+      onCardUpdated: vi.fn(),
+      onCardDeleted: vi.fn(),
+      onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(),
+      onResync: vi.fn()
+    });
+
+    const connectPromise = realtime.connect(42);
+    const rejectionExpectation = expect(connectPromise).rejects.toThrow(/status code '401'/i);
+    await vi.runAllTimersAsync();
+    await rejectionExpectation;
+    expect(attemptSessionRefresh).toHaveBeenCalledTimes(4);
+    expect(connection.start).toHaveBeenCalledTimes(5);
   });
 
   afterEach(() => {

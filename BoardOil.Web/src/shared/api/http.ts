@@ -23,6 +23,10 @@ export function setUnauthorizedHandler(handler: (() => void | Promise<void>) | n
   unauthorizedHandler = handler;
 }
 
+export async function attemptSessionRefresh() {
+  return tryRefreshSession();
+}
+
 export async function getEnvelope<T>(path: string): Promise<Result<ApiEnvelope<T>, AppError>> {
   const responseResult = await request(path, { method: 'GET' });
   if (!responseResult.ok) {
