@@ -23,6 +23,7 @@ using BoardOil.Persistence.Abstractions.Image;
 using BoardOil.Persistence.Abstractions.Users;
 using BoardOil.Services.Auth;
 using BoardOil.Services.Board;
+using BoardOil.Services.Board.Import;
 using BoardOil.Services.Card;
 using BoardOil.Services.CardType;
 using BoardOil.Services.Column;
@@ -72,6 +73,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBoardService, BoardService>();
         services.AddScoped<IBoardExportService, BoardExportService>();
+        services.AddScoped<BoardPackageImportReader>();
+        services.AddScoped<BoardPackageImportPlanner>();
+        services.AddScoped<ImportedUserResolver>();
+        services.AddScoped<BoardPackageImportWriter>();
         services.AddScoped<IBoardPackageImportService, BoardPackageImportService>();
         services.AddScoped<ISystemBoardService, SystemBoardService>();
         services.AddScoped<IBoardAuthorisationService, BoardAuthorisationService>();
