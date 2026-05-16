@@ -22,11 +22,13 @@
             :icon-size="14"
           >
             <template #default="{ close }">
-              <button type="button" class="bo-dropdown-item" @click="openImagePicker(close)">Upload image</button>
+              <button type="button" class="bo-dropdown-item" :disabled="imageBusy" @click="openImagePicker(close)">
+                Upload image
+              </button>
               <button
                 type="button"
                 class="bo-dropdown-item"
-                :disabled="!userProfileImageUrl"
+                :disabled="!userProfileImageUrl || imageBusy"
                 @click="removeImage(close)"
               >
                 Remove image
@@ -40,6 +42,7 @@
         <p><strong>Name:</strong> {{ displayName }}</p>
         <p><strong>User:</strong> @{{ userName }}</p>
         <p><strong>Role:</strong> {{ userRole }}</p>
+        <p v-if="imageErrorMessage" class="account-profile-error" role="alert">{{ imageErrorMessage }}</p>
       </div>
     </section>
 
@@ -66,6 +69,15 @@
       class="account-profile-file-input"
       @change="onUserImageSelected"
     />
+
+    <ProfileImageCropDialog
+      :open="cropDialogOpen"
+      :source-file="pendingProfileImageFile"
+      :busy="imageBusy"
+      :error-message="imageErrorMessage"
+      @close="closeCropDialog"
+      @confirm="uploadCroppedImage"
+    />
   </section>
 </template>
 
@@ -73,6 +85,7 @@
 import { EllipsisVertical } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
+import ProfileImageCropDialog from '../components/ProfileImageCropDialog.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import { createUsersApi } from '../../shared/api/usersApi';
@@ -83,8 +96,10 @@ const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
 const usersApi = createUsersApi();
 const { user } = storeToRefs(authStore);
-const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
+const { userProfileImageUrl, busy: imageBusy, errorMessage: imageErrorMessage } = storeToRefs(userProfileImageStore);
 const userImageInput = ref<HTMLInputElement | null>(null);
+const cropDialogOpen = ref(false);
+const pendingProfileImageFile = ref<File | null>(null);
 const editDisplayName = ref('');
 const editEmail = ref('');
 const saveBusy = ref(false);
@@ -114,6 +129,10 @@ watch(
 );
 
 function openImagePicker(close?: () => void) {
+  if (imageBusy.value) {
+    return;
+  }
+
   close?.();
   userImageInput.value?.click();
 }
@@ -125,17 +144,40 @@ async function onUserImageSelected(event: Event) {
     return;
   }
 
-  await userProfileImageStore.uploadOwnProfileImage(file);
+  pendingProfileImageFile.value = file;
+  cropDialogOpen.value = true;
   input.value = '';
 }
 
 async function removeImage(close?: () => void) {
+  if (imageBusy.value) {
+    return;
+  }
+
   close?.();
   if (!userProfileImageUrl.value) {
     return;
   }
 
   await userProfileImageStore.deleteOwnProfileImage();
+}
+
+function closeCropDialog() {
+  if (imageBusy.value) {
+    return;
+  }
+
+  cropDialogOpen.value = false;
+  pendingProfileImageFile.value = null;
+}
+
+async function uploadCroppedImage(file: File) {
+  const success = await userProfileImageStore.uploadOwnProfileImage(file);
+  if (!success) {
+    return;
+  }
+
+  closeCropDialog();
 }
 
 async function saveProfile() {
