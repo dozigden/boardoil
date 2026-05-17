@@ -11,7 +11,7 @@ describe('slickGooAdapter', () => {
     const columns = makeColumns();
     const slicksById = new Map<number, Slick>([
       [10, makeSlick(10, 'solid', '{"backgroundColor":"#AABBCC","textColorMode":"auto","borderMode":"auto"}')],
-      [20, makeSlick(20, 'auto', '{}')]
+      [20, makeSlick(20, 'presets', '{"presetIndex":4}')]
     ]);
 
     const descriptors = buildSlickGooDescriptors(columns, slicksById);
@@ -21,19 +21,19 @@ describe('slickGooAdapter', () => {
     expect(descriptors.map(x => x.groupKey).sort()).toEqual(['slick-10', 'slick-20']);
   });
 
-  it('uses styled background when available and falls back to hashed colour for auto style', () => {
+  it('uses styled background for solid and preset css variable for presets style', () => {
     const columns = makeColumns();
     const slicksById = new Map<number, Slick>([
       [10, makeSlick(10, 'solid', '{"backgroundColor":"#AABBCC","textColorMode":"auto","borderMode":"auto"}')],
-      [20, makeSlick(20, 'auto', '{}')]
+      [20, makeSlick(20, 'presets', '{"presetIndex":4}')]
     ]);
 
     const descriptors = buildSlickGooDescriptors(columns, slicksById);
     const solidDescriptor = descriptors.find(x => x.cardId === 101);
-    const autoDescriptor = descriptors.find(x => x.cardId === 201);
+    const presetDescriptor = descriptors.find(x => x.cardId === 201);
 
     expect(solidDescriptor?.colour).toBe('#AABBCC');
-    expect(autoDescriptor?.colour).toBe('hsl(220 72% 46%)');
+    expect(presetDescriptor?.colour).toBe('var(--bo-preset-4)');
   });
 
   it('builds deterministic membership signatures from card memberships', () => {
@@ -44,12 +44,12 @@ describe('slickGooAdapter', () => {
 
   it('builds deterministic style signatures sorted by slick id', () => {
     const styleSignature = buildSlickGooStyleSignature([
-      makeSlick(20, 'auto', '{}'),
+      makeSlick(20, 'presets', '{"presetIndex":4}'),
       makeSlick(10, 'solid', '{"backgroundColor":"#AABBCC","textColorMode":"auto","borderMode":"auto"}')
     ]);
 
     expect(styleSignature).toBe(
-      '10:solid:{"backgroundColor":"#AABBCC","textColorMode":"auto","borderMode":"auto"}|20:auto:{}'
+      '10:solid:{"backgroundColor":"#AABBCC","textColorMode":"auto","borderMode":"auto"}|20:presets:{"presetIndex":4}'
     );
   });
 });

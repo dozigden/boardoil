@@ -193,8 +193,8 @@ describe('boardApi slicks', () => {
         {
           id: 7,
           name: 'Release Train',
-          styleName: 'auto',
-          stylePropertiesJson: '{}',
+          styleName: 'presets',
+          stylePropertiesJson: '{"presetIndex":2}',
           createdAtUtc: '2026-05-16T00:00:00Z',
           updatedAtUtc: '2026-05-16T00:00:00Z'
         }
@@ -213,20 +213,20 @@ describe('boardApi slicks', () => {
     vi.mocked(postData).mockResolvedValue(ok({
       id: 7,
       name: 'Release Train',
-      styleName: 'auto',
-      stylePropertiesJson: '{}',
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":2}',
       createdAtUtc: '2026-05-16T00:00:00Z',
       updatedAtUtc: '2026-05-16T00:00:00Z'
     }));
 
     const api = createBoardApi();
-    const result = await api.createSlick(3, 'Release Train', 'auto', '{}');
+    const result = await api.createSlick(3, 'Release Train', 'presets', '{"presetIndex":2}');
 
     expect(result.ok).toBe(true);
     expect(postData).toHaveBeenCalledWith('/api/boards/3/slicks', {
       name: 'Release Train',
-      styleName: 'auto',
-      stylePropertiesJson: '{}'
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":2}'
     });
   });
 

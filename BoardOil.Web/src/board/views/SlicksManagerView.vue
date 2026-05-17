@@ -22,7 +22,7 @@
           <span class="entity-row-title">{{ slick.name }}</span>
           <span class="entity-row-badges">
             <span class="tag" :class="getSlickStyleClasses(slick)" :style="getSlickStyle(slick)">
-              {{ slick.styleName === 'auto' ? 'Auto' : 'Solid' }}
+              {{ slick.styleName === 'presets' ? 'Preset' : 'Solid' }}
             </span>
           </span>
         </button>

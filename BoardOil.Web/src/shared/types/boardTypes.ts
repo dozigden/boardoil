@@ -1,4 +1,5 @@
 export type TagStyleName = 'solid' | 'gradient' | 'auto' | 'presets';
+export type SlickStyleName = 'solid' | 'presets';
 export type BoardMemberRole = 'Owner' | 'Contributor' | string;
 
 export type TagPresentation = {
@@ -83,7 +84,7 @@ export type Tag = TagPresentation & {
 export type Slick = {
   id: number;
   name: string;
-  styleName: TagStyleName;
+  styleName: SlickStyleName;
   stylePropertiesJson: string;
   createdAtUtc: string;
   updatedAtUtc: string;

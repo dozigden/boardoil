@@ -12,6 +12,7 @@ import type {
   Column,
   DeleteCardsSummary,
   Slick,
+  SlickStyleName,
   Tag,
   TagStyleName
 } from '../types/boardTypes';
@@ -415,12 +416,12 @@ export function createBoardApi() {
   async function createSlick(
     boardId: number,
     name: string,
-    styleName?: TagStyleName,
+    styleName?: SlickStyleName,
     stylePropertiesJson?: string
   ): Promise<Result<Slick, AppError>> {
     const payload: {
       name: string;
-      styleName?: TagStyleName;
+      styleName?: SlickStyleName;
       stylePropertiesJson?: string;
     } = { name };
     if (styleName !== undefined) {
@@ -437,7 +438,7 @@ export function createBoardApi() {
     boardId: number,
     slickId: number,
     name: string,
-    styleName: TagStyleName,
+    styleName: SlickStyleName,
     stylePropertiesJson: string
   ): Promise<Result<Slick, AppError>> {
     return putData<Slick>(`/api/boards/${boardId}/slicks/${slickId}`, {

@@ -20,14 +20,17 @@ public sealed class SlickServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.CreateSlickAsync(boardId, new CreateSlickRequest("Release train", "auto", "{}"), ActorUserId);
+        var result = await service.CreateSlickAsync(
+            boardId,
+            new CreateSlickRequest("Release train", "presets", """{"presetIndex":2}"""),
+            ActorUserId);
 
         // Assert
         Assert.True(result.Success);
         Assert.Equal(201, result.StatusCode);
         Assert.NotNull(result.Data);
         Assert.Equal("Release train", result.Data!.Name);
-        Assert.Equal("auto", result.Data.StyleName);
+        Assert.Equal("presets", result.Data.StyleName);
         var stored = await DbContextForAssert.Slicks.SingleAsync();
         Assert.Equal("RELEASE TRAIN", stored.NormalisedName);
     }
@@ -68,8 +71,8 @@ public sealed class SlickServiceTests : TestBaseDb
             BoardId = boardId,
             Name = "Release train",
             NormalisedName = "RELEASE TRAIN",
-            StyleName = "auto",
-            StylePropertiesJson = "{}"
+            StyleName = "presets",
+            StylePropertiesJson = """{"presetIndex":2}"""
         };
         DbContextForArrange.Slicks.Add(slick);
         await DbContextForArrange.SaveChangesAsync();
@@ -103,8 +106,8 @@ public sealed class SlickServiceTests : TestBaseDb
             BoardId = board.BoardId,
             Name = "Release train",
             NormalisedName = "RELEASE TRAIN",
-            StyleName = "auto",
-            StylePropertiesJson = "{}"
+            StyleName = "presets",
+            StylePropertiesJson = """{"presetIndex":2}"""
         };
         DbContextForArrange.Slicks.Add(slick);
         await DbContextForArrange.SaveChangesAsync();

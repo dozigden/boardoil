@@ -20,14 +20,14 @@ describe('slickStore', () => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     api.getSlicks.mockResolvedValue(ok([]));
-    api.createSlick.mockResolvedValue(ok(makeSlick(7, 'Release Train', 'auto', '{}')));
+    api.createSlick.mockResolvedValue(ok(makeSlick(7, 'Release Train', 'presets', '{"presetIndex":2}')));
     api.updateSlick.mockResolvedValue(ok(makeSlick(7, 'Release Train', 'solid', '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}')));
     api.deleteSlick.mockResolvedValue(ok(undefined));
   });
 
   it('loads slicks for the selected board', async () => {
     const store = useSlickStore();
-    api.getSlicks.mockResolvedValueOnce(ok([makeSlick(7, 'Release Train', 'auto', '{}')]));
+    api.getSlicks.mockResolvedValueOnce(ok([makeSlick(7, 'Release Train', 'presets', '{"presetIndex":2}')]));
 
     const loaded = await store.loadSlicks(3);
 
@@ -40,16 +40,16 @@ describe('slickStore', () => {
     const store = useSlickStore();
     store.activeBoardId = 3;
 
-    const created = await store.createSlick('Release Train', 'auto', '{}');
+    const created = await store.createSlick('Release Train', 'presets', '{"presetIndex":2}');
 
     expect(created?.id).toBe(7);
-    expect(api.createSlick).toHaveBeenCalledWith(3, 'Release Train', 'auto', '{}');
+    expect(api.createSlick).toHaveBeenCalledWith(3, 'Release Train', 'presets', '{"presetIndex":2}');
     expect(store.slicks.map(x => x.name)).toEqual(['Release Train']);
   });
 
   it('updates slick in cache', async () => {
     const store = useSlickStore();
-    store.slicks = [makeSlick(7, 'Release Train', 'auto', '{}')];
+    store.slicks = [makeSlick(7, 'Release Train', 'presets', '{"presetIndex":2}')];
     store.activeBoardId = 3;
 
     const updated = await store.updateSlick(7, 'Release Train', 'solid', '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}');
@@ -60,7 +60,7 @@ describe('slickStore', () => {
 
   it('deletes slick from cache', async () => {
     const store = useSlickStore();
-    store.slicks = [makeSlick(7, 'Release Train', 'auto', '{}')];
+    store.slicks = [makeSlick(7, 'Release Train', 'presets', '{"presetIndex":2}')];
     store.activeBoardId = 3;
 
     const deleted = await store.deleteSlick(7);
@@ -82,7 +82,7 @@ describe('slickStore', () => {
   });
 });
 
-function makeSlick(id: number, name: string, styleName: 'auto' | 'solid', stylePropertiesJson: string) {
+function makeSlick(id: number, name: string, styleName: 'solid' | 'presets', stylePropertiesJson: string) {
   return {
     id,
     name,

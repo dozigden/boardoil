@@ -201,13 +201,13 @@ public sealed class SlickService(
     private static SlickStyleValidationResult ResolveAndValidateStyle(string? styleName, string? stylePropertiesJson)
     {
         var requestedStyleName = styleName?.Trim();
-        var normalisedStyleName = NormaliseSlickStyleName(requestedStyleName ?? TagStyleSchemaValidator.AutoStyleName);
+        var normalisedStyleName = NormaliseSlickStyleName(requestedStyleName ?? TagStyleSchemaValidator.PresetsStyleName);
         if (normalisedStyleName is null)
         {
             return new SlickStyleValidationResult(
                 string.Empty,
                 string.Empty,
-                new ValidationError("styleName", "Style name must be 'auto' or 'solid'."));
+                new ValidationError("styleName", "Style name must be 'solid' or 'presets'."));
         }
 
         var resolvedStylePropertiesJson = string.IsNullOrWhiteSpace(stylePropertiesJson)
@@ -227,8 +227,8 @@ public sealed class SlickService(
     private static string? NormaliseSlickStyleName(string styleName)
     {
         var normalised = TagStyleSchemaValidator.NormaliseStyleName(styleName);
-        if (normalised is not TagStyleSchemaValidator.AutoStyleName
-            && normalised is not TagStyleSchemaValidator.SolidStyleName)
+        if (normalised is not TagStyleSchemaValidator.SolidStyleName
+            && normalised is not TagStyleSchemaValidator.PresetsStyleName)
         {
             return null;
         }

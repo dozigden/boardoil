@@ -1,4 +1,6 @@
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
+import { getPresetCssValue } from '../../shared/utils/presetTheme';
+import { deserializeStyle } from '../../shared/utils/stylePersistence';
 import { getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { GooLayerDescriptor } from '../composables/useGooLayer';
 
@@ -42,6 +44,11 @@ export function buildSlickGooStyleSignature(slicks: Slick[]): string {
 
 function resolveSlickGooColour(slick: Slick | undefined, slickId: number): string {
   if (slick) {
+    const styleModel = deserializeStyle(slick);
+    if (styleModel.styleName === 'presets') {
+      return getPresetCssValue(styleModel.presetIndex);
+    }
+
     const surfaceStyle = getSurfaceStyle(slick, {
       fallbackBackground: hashedSlickColour(slickId),
       fallbackColor: '#111827',

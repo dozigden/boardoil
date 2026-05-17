@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { Slick, TagStyleName } from '../../shared/types/boardTypes';
+import type { Slick, SlickStyleName } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -40,7 +40,7 @@ export const useSlickStore = defineStore('slick', () => {
 
   async function createSlick(
     name: string,
-    styleName?: TagStyleName,
+    styleName?: SlickStyleName,
     stylePropertiesJson?: string,
     boardId: number | null = activeBoardId.value
   ) {
@@ -61,7 +61,7 @@ export const useSlickStore = defineStore('slick', () => {
   async function updateSlick(
     slickId: number,
     name: string,
-    styleName: TagStyleName,
+    styleName: SlickStyleName,
     stylePropertiesJson: string,
     boardId: number | null = activeBoardId.value
   ) {

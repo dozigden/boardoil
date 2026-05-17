@@ -28,8 +28,8 @@
       <label>
         Style
         <select :value="draft.styleName" :disabled="busy" @change="setStyleName(parseSlickStyleNameInput(($event.target as HTMLSelectElement).value))">
-          <option value="auto">Auto</option>
           <option value="solid">Solid</option>
+          <option value="presets">Preset</option>
         </select>
       </label>
 
@@ -125,7 +125,7 @@ import { useSlickStore } from '../stores/slickStore';
 import { useStyleDraft } from '../composables/useStyleDraft';
 import { createStyleDraft } from '../../shared/utils/styleDraftAdapter';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
-import type { Slick } from '../../shared/types/boardTypes';
+import type { Slick, SlickStyleName } from '../../shared/types/boardTypes';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 
@@ -253,9 +253,10 @@ async function saveSlick() {
   if (!name) {
     return;
   }
+  const draftSlickStyleName = resolveDraftSlickStyleName(draft.value.styleName);
 
   if (isCreateMode.value) {
-    const created = await createSlick(name, draft.value.styleName, stylePropertiesJson.value, boardId);
+    const created = await createSlick(name, draftSlickStyleName, stylePropertiesJson.value, boardId);
     if (!created) {
       return;
     }
@@ -271,7 +272,7 @@ async function saveSlick() {
   const updated = await updateSlick(
     editingSlick.value.id,
     name,
-    draft.value.styleName,
+    draftSlickStyleName,
     stylePropertiesJson.value,
     boardId
   );
@@ -311,8 +312,8 @@ function initialiseCreateDraftState() {
   draftSlickName.value = '';
   draftSourceKey.value = 'create';
   setDraft(createStyleDraft({
-    styleName: 'auto',
-    stylePropertiesJson: '{}'
+    styleName: 'presets',
+    stylePropertiesJson: '{"presetIndex":2}'
   }));
 }
 
@@ -369,8 +370,16 @@ watch(
   { immediate: true }
 );
 
-function parseSlickStyleNameInput(value: string): 'auto' | 'solid' {
-  return value === 'solid' ? 'solid' : 'auto';
+function parseSlickStyleNameInput(value: string): 'solid' | 'presets' {
+  return value === 'solid' ? 'solid' : 'presets';
+}
+
+function resolveDraftSlickStyleName(styleName: string): SlickStyleName {
+  if (styleName === 'solid') {
+    return 'solid';
+  }
+
+  return 'presets';
 }
 </script>
 

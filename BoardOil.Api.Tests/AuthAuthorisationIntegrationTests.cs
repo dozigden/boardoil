@@ -139,7 +139,7 @@ public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisa
         // Act
         var createResponse = await standardClient.PostAsJsonAsync(
             "/api/boards/1/slicks",
-            new CreateSlickRequest("Release train", "auto", "{}"));
+            new CreateSlickRequest("Release train", "presets", """{"presetIndex":2}"""));
         createResponse.EnsureSuccessStatusCode();
         var listEnvelope = await standardClient.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<BoardSlickDto>>>("/api/boards/1/slicks");
         Assert.NotNull(listEnvelope);

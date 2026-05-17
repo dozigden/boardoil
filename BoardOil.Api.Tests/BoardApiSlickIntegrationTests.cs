@@ -14,7 +14,7 @@ public sealed class BoardApiSlickIntegrationTests : BoardApiIntegrationTestBase
         // Create
         var createResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/slicks",
-            new CreateSlickRequest("Release train", "auto", "{}"));
+            new CreateSlickRequest("Release train", "presets", """{"presetIndex":2}"""));
         createResponse.EnsureSuccessStatusCode();
         var createdEnvelope = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<SlickDto>>(JsonOptions);
 
@@ -68,7 +68,7 @@ public sealed class BoardApiSlickIntegrationTests : BoardApiIntegrationTestBase
     {
         var slickCreateResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/slicks",
-            new CreateSlickRequest("Release train", "auto", "{}"));
+            new CreateSlickRequest("Release train", "presets", """{"presetIndex":2}"""));
         slickCreateResponse.EnsureSuccessStatusCode();
         var slickEnvelope = await slickCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<SlickDto>>(JsonOptions);
         Assert.NotNull(slickEnvelope);
