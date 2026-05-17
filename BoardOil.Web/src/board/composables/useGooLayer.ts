@@ -1,6 +1,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComputedRef } from 'vue';
 import { gooConfig } from '../utils/gooConfig';
 import { buildGooGroups, type GooItem, type GooRenderGroup, type RectLike } from '../utils/gooLayout';
+import {
+  buildTrackedCardGeometry,
+  intersectsExpandedRect,
+  projectTrackedCardRect,
+  resolveGooCullingMarginPx,
+  type TrackedGooCardGeometry
+} from '../utils/gooGeometry';
 
 export type GooLayerDescriptor = {
   cardId: number;
@@ -21,18 +28,18 @@ type TrackedGooCard = {
   geometry: TrackedGooCardGeometry | null;
 };
 
-type TrackedGooCardGeometry = {
-  leftInClip: number;
-  topInClip: number;
-  width: number;
-  height: number;
-};
-
 type ClipPadding = {
   left: number;
   right: number;
   top: number;
   bottom: number;
+};
+
+type GooPerfSample = {
+  frameCount: number;
+  refreshMs: number;
+  buildMs: number;
+  itemCount: number;
 };
 
 export function useGooLayer(
@@ -51,6 +58,7 @@ export function useGooLayer(
   );
 
   const boardElement = ref<HTMLElement | null>(null);
+  const gooPerfDebugEnabled = resolveGooPerfDebugEnabled();
   let gooRafId: number | null = null;
   let queuedRefreshReason: GooRefreshReason | null = null;
   let gooStructureDirty = true;
@@ -59,6 +67,13 @@ export function useGooLayer(
   const clipPaddingCache = new Map<HTMLElement, ClipPadding>();
   const observedGooCardElements = new Set<HTMLElement>();
   let cardResizeObserver: ResizeObserver | null = null;
+  let perfSample: GooPerfSample = {
+    frameCount: 0,
+    refreshMs: 0,
+    buildMs: 0,
+    itemCount: 0
+  };
+  let lastPerfLogMs = 0;
   let trackedGooCards: TrackedGooCard[] = [];
 
   function setBoardRef(element: unknown) {
@@ -118,6 +133,7 @@ export function useGooLayer(
   }
 
   function refreshGooLayer(reason: GooRefreshReason) {
+    const refreshStart = gooPerfDebugEnabled ? performance.now() : 0;
     const boardSurface = boardElement.value;
     if (!boardSurface) {
       gooGroups.value = [];
@@ -183,10 +199,19 @@ export function useGooLayer(
 
     if (items.length === 0) {
       gooGroups.value = [];
+      if (gooPerfDebugEnabled) {
+        recordPerfSample(performance.now() - refreshStart, 0, 0);
+      }
       return;
     }
 
+    const buildStart = gooPerfDebugEnabled ? performance.now() : 0;
     gooGroups.value = buildGooGroups(items, boardRect, gooConfig);
+    if (gooPerfDebugEnabled) {
+      const buildMs = performance.now() - buildStart;
+      const refreshMs = performance.now() - refreshStart;
+      recordPerfSample(refreshMs, buildMs, items.length);
+    }
   }
 
   function rebuildTrackedGooCards(boardSurface: HTMLElement) {
@@ -280,12 +305,7 @@ export function useGooLayer(
     const clipElement = trackedCard.clipElement;
     if (preferFastPath && clipElement && trackedCard.geometry) {
       const clipRect = resolveClipContentRect(clipElement, clipRectByElement);
-      return {
-        left: clipRect.left + trackedCard.geometry.leftInClip - clipElement.scrollLeft,
-        top: clipRect.top + trackedCard.geometry.topInClip - clipElement.scrollTop,
-        width: trackedCard.geometry.width,
-        height: trackedCard.geometry.height
-      };
+      return projectTrackedCardRect(clipRect, trackedCard.geometry, clipElement.scrollLeft, clipElement.scrollTop);
     }
 
     if (!trackedCard.cardElement.isConnected) {
@@ -308,12 +328,7 @@ export function useGooLayer(
     clipRectByElement: Map<HTMLElement, RectLike>
   ) {
     const clipRect = resolveClipContentRect(clipElement, clipRectByElement);
-    trackedCard.geometry = {
-      leftInClip: cardRect.left - clipRect.left + clipElement.scrollLeft,
-      topInClip: cardRect.top - clipRect.top + clipElement.scrollTop,
-      width: cardRect.width,
-      height: cardRect.height
-    };
+    trackedCard.geometry = buildTrackedCardGeometry(cardRect, clipRect, clipElement.scrollLeft, clipElement.scrollTop);
   }
 
   function measureTrackedCardGeometry(
@@ -323,12 +338,7 @@ export function useGooLayer(
   ): TrackedGooCardGeometry {
     const cardRect = cardElement.getBoundingClientRect();
     const clipRect = resolveClipContentRect(clipElement, clipRectByElement);
-    return {
-      leftInClip: cardRect.left - clipRect.left + clipElement.scrollLeft,
-      topInClip: cardRect.top - clipRect.top + clipElement.scrollTop,
-      width: cardRect.width,
-      height: cardRect.height
-    };
+    return buildTrackedCardGeometry(cardRect, clipRect, clipElement.scrollLeft, clipElement.scrollTop);
   }
 
   function resolveClipPadding(clipElement: HTMLElement): ClipPadding {
@@ -395,31 +405,58 @@ export function useGooLayer(
   }
 
   function resolveCullingMarginPx(): number {
-    return Math.max(
-      24,
-      gooConfig.bridgeMaxGapPx,
-      Math.abs(gooConfig.widthAdjustPx),
-      Math.abs(gooConfig.heightAdjustPx)
-    );
+    return resolveGooCullingMarginPx(gooConfig);
   }
 
-  function intersectsExpandedRect(rect: RectLike, clipRect: RectLike, marginPx: number): boolean {
-    const left = clipRect.left - marginPx;
-    const top = clipRect.top - marginPx;
-    const right = clipRect.left + clipRect.width + marginPx;
-    const bottom = clipRect.top + clipRect.height + marginPx;
+  function recordPerfSample(refreshMs: number, buildMs: number, itemCount: number) {
+    perfSample.frameCount += 1;
+    perfSample.refreshMs += refreshMs;
+    perfSample.buildMs += buildMs;
+    perfSample.itemCount += itemCount;
 
-    const rectRight = rect.left + rect.width;
-    const rectBottom = rect.top + rect.height;
-    if (rectRight < left || rect.left > right) {
-      return false;
+    const now = performance.now();
+    if ((now - lastPerfLogMs) < 1_000) {
+      return;
     }
 
-    if (rectBottom < top || rect.top > bottom) {
-      return false;
+    const avgRefresh = perfSample.refreshMs / perfSample.frameCount;
+    const avgBuild = perfSample.buildMs / perfSample.frameCount;
+    const avgItems = perfSample.itemCount / perfSample.frameCount;
+    console.log('[goo-perf] avg(ms)', {
+      avgRefresh: Number(avgRefresh.toFixed(2)),
+      avgBuild: Number(avgBuild.toFixed(2)),
+      avgItems: Number(avgItems.toFixed(1)),
+      samples: perfSample.frameCount
+    });
+
+    perfSample = {
+      frameCount: 0,
+      refreshMs: 0,
+      buildMs: 0,
+      itemCount: 0
+    };
+    lastPerfLogMs = now;
+  }
+
+  function resolveGooPerfDebugEnabled() {
+    if (import.meta.env.DEV) {
+      try {
+        const localStorageValue = globalThis.localStorage?.getItem('boardoil:goo-perf-debug');
+        if (localStorageValue === '1' || localStorageValue === 'true') {
+          return true;
+        }
+      } catch {
+        // Ignore localStorage access errors and continue.
+      }
+
+      const search = typeof window !== 'undefined' ? window.location?.search ?? '' : '';
+      if (search.includes('gooPerfDebug=1') || search.includes('gooPerfDebug=true')) {
+        return true;
+      }
     }
 
-    return true;
+    const envValue = (import.meta.env.VITE_GOO_PERF_DEBUG as string | undefined)?.trim().toLowerCase() ?? '';
+    return envValue === '1' || envValue === 'true';
   }
 
   function mergeRefreshReason(existing: GooRefreshReason | null, incoming: GooRefreshReason): GooRefreshReason {
