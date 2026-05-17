@@ -1,12 +1,12 @@
 <template>
-  <svg width="0" height="0" class="slick-goo-filter-defs" aria-hidden="true" focusable="false">
+  <svg width="0" height="0" class="goo-filter-defs" aria-hidden="true" focusable="false">
     <defs>
-      <filter id="slick-goo">
-        <feGaussianBlur in="SourceGraphic" :stdDeviation="slickGooBlurStdDeviation" result="blur" />
+      <filter id="goo">
+        <feGaussianBlur in="SourceGraphic" :stdDeviation="gooBlurStdDeviation" result="blur" />
         <feColorMatrix
           in="blur"
           type="matrix"
-          :values="slickGooColorMatrixValues"
+          :values="gooColorMatrixValues"
           result="goo"
         />
       </filter>
@@ -49,17 +49,17 @@
     </BoardConveyor>
 
     <section class="board" :ref="setBoardRef">
-      <div v-if="slickGooGroups.length > 0" class="slick-goo-layer" aria-hidden="true">
+      <div v-if="gooGroups.length > 0" class="goo-layer" aria-hidden="true">
         <div
-          v-for="group in slickGooGroups"
+          v-for="group in gooGroups"
           :key="group.id"
-          class="slick-goo-group"
-          :style="{ '--slick-goo-colour': group.colour }"
+          class="goo-group"
+          :style="{ '--goo-colour': group.colour }"
         >
           <span
             v-for="blob in group.blobs"
             :key="blob.id"
-            class="slick-goo-blob"
+            class="goo-blob"
             :style="{
               top: `${blob.top}px`,
               left: `${blob.left}px`,
@@ -203,16 +203,16 @@ const isBulkEditDialogOpen = ref(false);
 const isApplyingBulkEdit = ref(false);
 const bulkEditTagStates = ref<TagFilterStateMap>({});
 const bulkEditTargetColumnId = ref<number | null>(null);
-const slickGooGroups = ref<GooRenderGroup[]>([]);
+const gooGroups = ref<GooRenderGroup[]>([]);
 const boardElement = ref<HTMLElement | null>(null);
-const slickGooBlurStdDeviation = gooConfig.blurStdDeviation;
-const slickGooColorMatrixValues = computed(() =>
+const gooBlurStdDeviation = gooConfig.blurStdDeviation;
+const gooColorMatrixValues = computed(() =>
   `1 0 0 0 0
 0 1 0 0 0
 0 0 1 0 0
 0 0 0 ${gooConfig.alphaMultiplier} ${gooConfig.alphaOffset}`
 );
-let slickGooRafId: number | null = null;
+let gooRafId: number | null = null;
 
 const route = useRoute();
 const router = useRouter();
@@ -306,7 +306,7 @@ function toggleCardSelectionMode() {
 
 function setBoardRef(element: unknown) {
   if (boardElement.value) {
-    boardElement.value.removeEventListener('scroll', scheduleSlickGooRefresh, true);
+    boardElement.value.removeEventListener('scroll', scheduleGooRefresh, true);
   }
 
   if (!(element instanceof HTMLElement)) {
@@ -316,24 +316,24 @@ function setBoardRef(element: unknown) {
 
   boardElement.value = element;
   // Capture scroll from nested column scrollers so goo follows cards while inner columns scroll.
-  boardElement.value.addEventListener('scroll', scheduleSlickGooRefresh, { passive: true, capture: true });
+  boardElement.value.addEventListener('scroll', scheduleGooRefresh, { passive: true, capture: true });
 }
 
-function scheduleSlickGooRefresh() {
-  if (slickGooRafId !== null) {
-    cancelAnimationFrame(slickGooRafId);
+function scheduleGooRefresh() {
+  if (gooRafId !== null) {
+    cancelAnimationFrame(gooRafId);
   }
 
-  slickGooRafId = requestAnimationFrame(() => {
-    slickGooRafId = null;
-    refreshSlickGooLayer();
+  gooRafId = requestAnimationFrame(() => {
+    gooRafId = null;
+    refreshGooLayer();
   });
 }
 
-function refreshSlickGooLayer() {
+function refreshGooLayer() {
   const boardSurface = boardElement.value;
   if (!boardSurface) {
-    slickGooGroups.value = [];
+    gooGroups.value = [];
     return;
   }
 
@@ -366,11 +366,11 @@ function refreshSlickGooLayer() {
   }
 
   if (items.length === 0) {
-    slickGooGroups.value = [];
+    gooGroups.value = [];
     return;
   }
 
-  slickGooGroups.value = buildGooGroups(items, boardRect, gooConfig);
+  gooGroups.value = buildGooGroups(items, boardRect, gooConfig);
 }
 
 function resolveSlickGooColour(slick: Slick | undefined, slickId: number): string {
@@ -672,33 +672,33 @@ watch(
     await cardTypeStore.loadCardTypes(boardId);
     await slickStore.loadSlicks(boardId);
     await nextTick();
-    scheduleSlickGooRefresh();
+    scheduleGooRefresh();
   },
   { immediate: true }
 );
 
 watch(filteredColumns, async () => {
   await nextTick();
-  scheduleSlickGooRefresh();
+  scheduleGooRefresh();
 }, { deep: true });
 
 watch(slicks, async () => {
   await nextTick();
-  scheduleSlickGooRefresh();
+  scheduleGooRefresh();
 }, { deep: true });
 
 onMounted(() => {
-  window.addEventListener('resize', scheduleSlickGooRefresh);
+  window.addEventListener('resize', scheduleGooRefresh);
 });
 
 onBeforeUnmount(() => {
   if (boardElement.value) {
-    boardElement.value.removeEventListener('scroll', scheduleSlickGooRefresh, true);
+    boardElement.value.removeEventListener('scroll', scheduleGooRefresh, true);
   }
-  window.removeEventListener('resize', scheduleSlickGooRefresh);
-  if (slickGooRafId !== null) {
-    cancelAnimationFrame(slickGooRafId);
-    slickGooRafId = null;
+  window.removeEventListener('resize', scheduleGooRefresh);
+  if (gooRafId !== null) {
+    cancelAnimationFrame(gooRafId);
+    gooRafId = null;
   }
 });
 </script>
@@ -883,11 +883,11 @@ onBeforeUnmount(() => {
   border-color: color-mix(in srgb, var(--bo-focus-ring) 60%, transparent);
 }
 
-.slick-goo-filter-defs {
+.goo-filter-defs {
   position: absolute;
 }
 
-.slick-goo-layer {
+.goo-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -895,16 +895,16 @@ onBeforeUnmount(() => {
   overflow: visible;
 }
 
-.slick-goo-group {
+.goo-group {
   position: absolute;
   inset: 0;
-  filter: url(#slick-goo);
+  filter: url(#goo);
 }
 
-.slick-goo-blob {
+.goo-blob {
   position: absolute;
   border-radius: 12px;
-  background: var(--slick-goo-colour);
+  background: var(--goo-colour);
   opacity: 0.9;
   transform: translateY(-50%);
 }
