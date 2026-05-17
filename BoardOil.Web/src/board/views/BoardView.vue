@@ -213,6 +213,20 @@ const gooColorMatrixValues = computed(() =>
 0 0 0 ${gooConfig.alphaMultiplier} ${gooConfig.alphaOffset}`
 );
 let gooRafId: number | null = null;
+let gooStructureDirty = true;
+let gooStylesDirty = true;
+const gooCardElementCache = new Map<number, HTMLElement>();
+type GooRefreshReason = 'geometry' | 'structure' | 'styles';
+type TrackedGooCard = {
+  cardId: number;
+  slickId: number;
+  colour: string;
+  groupKey: string;
+  itemId: string;
+  cardElement: HTMLElement;
+  clipElement: HTMLElement | null;
+};
+let trackedGooCards: TrackedGooCard[] = [];
 
 const route = useRoute();
 const router = useRouter();
@@ -306,20 +320,39 @@ function toggleCardSelectionMode() {
 
 function setBoardRef(element: unknown) {
   if (boardElement.value) {
-    boardElement.value.removeEventListener('scroll', scheduleGooRefresh, true);
+    boardElement.value.removeEventListener('scroll', onBoardScroll, true);
   }
 
   if (!(element instanceof HTMLElement)) {
     boardElement.value = null;
+    gooGroups.value = [];
+    trackedGooCards = [];
+    gooCardElementCache.clear();
     return;
   }
 
   boardElement.value = element;
   // Capture scroll from nested column scrollers so goo follows cards while inner columns scroll.
-  boardElement.value.addEventListener('scroll', scheduleGooRefresh, { passive: true, capture: true });
+  boardElement.value.addEventListener('scroll', onBoardScroll, { passive: true, capture: true });
+  scheduleGooRefresh('structure');
 }
 
-function scheduleGooRefresh() {
+function onBoardScroll() {
+  scheduleGooRefresh('geometry');
+}
+
+function onWindowResize() {
+  scheduleGooRefresh('geometry');
+}
+
+function scheduleGooRefresh(reason: GooRefreshReason = 'geometry') {
+  if (reason === 'structure') {
+    gooStructureDirty = true;
+    gooStylesDirty = true;
+  } else if (reason === 'styles') {
+    gooStylesDirty = true;
+  }
+
   if (gooRafId !== null) {
     cancelAnimationFrame(gooRafId);
   }
@@ -334,35 +367,51 @@ function refreshGooLayer() {
   const boardSurface = boardElement.value;
   if (!boardSurface) {
     gooGroups.value = [];
+    trackedGooCards = [];
+    gooCardElementCache.clear();
+    gooStructureDirty = true;
+    gooStylesDirty = true;
+    return;
+  }
+
+  if (gooStructureDirty) {
+    rebuildTrackedGooCards(boardSurface);
+  } else if (gooStylesDirty) {
+    refreshTrackedGooColours();
+  }
+
+  if (trackedGooCards.length === 0) {
+    gooGroups.value = [];
     return;
   }
 
   const boardRect = boardSurface.getBoundingClientRect();
   const items: GooItem[] = [];
-  for (const column of filteredColumns.value) {
-    for (const card of column.cards) {
-      if (card.slickId === null || card.slickId === undefined) {
-        continue;
-      }
-
-      const cardElement = boardSurface.querySelector<HTMLElement>(`.card[data-card-id="${card.id}"]`);
-      if (!cardElement) {
-        continue;
-      }
-
-      const slickId = card.slickId;
-      const colour = resolveSlickGooColour(slicksById.value.get(slickId), slickId);
-      const rect = cardElement.getBoundingClientRect();
-      const columnContent = cardElement.closest<HTMLElement>('.column-content');
-      const columnContentRect = columnContent?.getBoundingClientRect() ?? null;
-      items.push({
-        id: `card-${card.id}`,
-        groupKey: `slick-${slickId}`,
-        colour,
-        rect,
-        clipRect: columnContentRect
-      });
+  let sawDetachedCard = false;
+  for (const trackedCard of trackedGooCards) {
+    if (!trackedCard.cardElement.isConnected) {
+      gooCardElementCache.delete(trackedCard.cardId);
+      sawDetachedCard = true;
+      continue;
     }
+
+    if (trackedCard.clipElement && !trackedCard.clipElement.isConnected) {
+      trackedCard.clipElement = trackedCard.cardElement.closest<HTMLElement>('.column-content');
+    }
+
+    const rect = trackedCard.cardElement.getBoundingClientRect();
+    const columnContentRect = trackedCard.clipElement?.getBoundingClientRect() ?? null;
+    items.push({
+      id: trackedCard.itemId,
+      groupKey: trackedCard.groupKey,
+      colour: trackedCard.colour,
+      rect,
+      clipRect: columnContentRect
+    });
+  }
+
+  if (sawDetachedCard) {
+    gooStructureDirty = true;
   }
 
   if (items.length === 0) {
@@ -371,6 +420,67 @@ function refreshGooLayer() {
   }
 
   gooGroups.value = buildGooGroups(items, boardRect, gooConfig);
+}
+
+function rebuildTrackedGooCards(boardSurface: HTMLElement) {
+  const cardElementsById = new Map<number, HTMLElement>();
+  const cardElements = boardSurface.querySelectorAll<HTMLElement>('.card[data-card-id]');
+  for (const cardElement of cardElements) {
+    const rawCardId = cardElement.dataset.cardId;
+    if (!rawCardId) {
+      continue;
+    }
+
+    const cardId = Number.parseInt(rawCardId, 10);
+    if (!Number.isFinite(cardId)) {
+      continue;
+    }
+
+    cardElementsById.set(cardId, cardElement);
+    gooCardElementCache.set(cardId, cardElement);
+  }
+
+  const nextTrackedCards: TrackedGooCard[] = [];
+  for (const column of filteredColumns.value) {
+    for (const card of column.cards) {
+      if (card.slickId === null || card.slickId === undefined) {
+        continue;
+      }
+
+      const slickId = card.slickId;
+      let cardElement = cardElementsById.get(card.id) ?? gooCardElementCache.get(card.id) ?? null;
+      if (!cardElement || !cardElement.isConnected) {
+        gooCardElementCache.delete(card.id);
+        continue;
+      }
+
+      const clipElement = cardElement.closest<HTMLElement>('.column-content');
+      nextTrackedCards.push({
+        cardId: card.id,
+        slickId,
+        colour: resolveSlickGooColour(slicksById.value.get(slickId), slickId),
+        groupKey: `slick-${slickId}`,
+        itemId: `card-${card.id}`,
+        cardElement,
+        clipElement
+      });
+    }
+  }
+
+  trackedGooCards = nextTrackedCards;
+  gooStructureDirty = false;
+  gooStylesDirty = false;
+}
+
+function refreshTrackedGooColours() {
+  for (const trackedCard of trackedGooCards) {
+    trackedCard.colour = resolveSlickGooColour(
+      slicksById.value.get(trackedCard.slickId),
+      trackedCard.slickId
+    );
+  }
+
+  gooStylesDirty = false;
 }
 
 function resolveSlickGooColour(slick: Slick | undefined, slickId: number): string {
@@ -648,6 +758,22 @@ function resolveBoardId() {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+const gooCardMembershipSignature = computed(() =>
+  filteredColumns.value
+    .flatMap(column =>
+      column.cards
+        .filter(card => card.slickId !== null && card.slickId !== undefined)
+        .map(card => `${card.id}:${card.slickId}`)
+    )
+    .join('|')
+);
+
+const gooSlickStyleSignature = computed(() =>
+  slicks.value
+    .map(slick => `${slick.id}:${slick.styleName}:${slick.stylePropertiesJson}`)
+    .join('|')
+);
+
 watch(
   () => route.params.boardId,
   async () => {
@@ -672,30 +798,30 @@ watch(
     await cardTypeStore.loadCardTypes(boardId);
     await slickStore.loadSlicks(boardId);
     await nextTick();
-    scheduleGooRefresh();
+    scheduleGooRefresh('structure');
   },
   { immediate: true }
 );
 
-watch(filteredColumns, async () => {
+watch(gooCardMembershipSignature, async () => {
   await nextTick();
-  scheduleGooRefresh();
-}, { deep: true });
+  scheduleGooRefresh('structure');
+});
 
-watch(slicks, async () => {
+watch(gooSlickStyleSignature, async () => {
   await nextTick();
-  scheduleGooRefresh();
-}, { deep: true });
+  scheduleGooRefresh('styles');
+});
 
 onMounted(() => {
-  window.addEventListener('resize', scheduleGooRefresh);
+  window.addEventListener('resize', onWindowResize);
 });
 
 onBeforeUnmount(() => {
   if (boardElement.value) {
-    boardElement.value.removeEventListener('scroll', scheduleGooRefresh, true);
+    boardElement.value.removeEventListener('scroll', onBoardScroll, true);
   }
-  window.removeEventListener('resize', scheduleGooRefresh);
+  window.removeEventListener('resize', onWindowResize);
   if (gooRafId !== null) {
     cancelAnimationFrame(gooRafId);
     gooRafId = null;
