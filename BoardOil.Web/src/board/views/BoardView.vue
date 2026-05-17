@@ -111,8 +111,9 @@
             />
 
             <Card
-              v-for="card in column.cards"
+              v-for="(card, cardIndex) in column.cards"
               :key="card.id"
+              :class="resolveCardBoundaryClass(column.cards, cardIndex)"
               :card="card"
               :column-id="column.id"
               :data-card-id="card.id"
@@ -191,6 +192,7 @@ import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../../shared/types/appError';
+import type { Card as BoardCardModel } from '../../shared/types/boardTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import { formatColumnCardCount } from '../utils/columnCardCount';
 import {
@@ -565,6 +567,50 @@ function resolveBoardId() {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function resolveCardBoundaryClass(cards: BoardCardModel[], cardIndex: number): string | null {
+  if (cardIndex <= 0) {
+    return null;
+  }
+
+  const previousCard = cards[cardIndex - 1];
+  const currentCard = cards[cardIndex];
+  if (!previousCard || !currentCard) {
+    return null;
+  }
+
+  const boundaryType = resolveSlickBoundaryType(previousCard, currentCard);
+  if (boundaryType === 'between-slicks') {
+    return 'card--slick-gap-strong';
+  }
+
+  if (boundaryType === 'with-none') {
+    return 'card--slick-gap';
+  }
+
+  return null;
+}
+
+function resolveSlickBoundaryType(
+  previousCard: BoardCardModel,
+  currentCard: BoardCardModel
+): 'none' | 'with-none' | 'between-slicks' {
+  const previousSlickId = previousCard.slickId ?? null;
+  const currentSlickId = currentCard.slickId ?? null;
+  if (previousSlickId === currentSlickId) {
+    return 'none';
+  }
+
+  if (previousSlickId !== null && currentSlickId !== null) {
+    return 'between-slicks';
+  }
+
+  if (previousSlickId !== null || currentSlickId !== null) {
+    return 'with-none';
+  }
+
+  return 'none';
+}
+
 watch(
   () => route.params.boardId,
   async () => {
@@ -686,10 +732,11 @@ watch(
 }
 
 .column-content {
+  --column-card-gap: 0.5rem;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  gap: 0.5rem;
+  gap: var(--column-card-gap);
   min-height: 0;
   overflow-y: auto;
   padding-right: 0.5rem;
@@ -715,6 +762,14 @@ watch(
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--bo-focus-ring) 30%, transparent);
   pointer-events: none;
   z-index: 2;
+}
+
+.column-content > .card--slick-gap {
+  margin-top: var(--column-card-gap);
+}
+
+.column-content > .card--slick-gap-strong {
+  margin-top: calc(var(--column-card-gap) * 2);
 }
 
 .column-content > .card {
