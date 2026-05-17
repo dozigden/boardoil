@@ -37,6 +37,7 @@ export type GooConfig = {
   bridgeMaxGapPx: number;
   bridgeMaxVerticalDeltaPx: number;
   bridgeOverlapPx: number;
+  bridgeHeightRatio: number;
   minBlobSizePx: number;
 };
 
@@ -173,7 +174,7 @@ function appendBridgeBlobs(group: GooComputedGroup, config: GooConfig) {
       const bridgeWidth = gap + (config.bridgeOverlapPx * 2);
       const bridgeHeight = Math.max(
         config.minBlobSizePx,
-        Math.min(first.height, second.height) * 0.52
+        Math.min(first.height, second.height) * config.bridgeHeightRatio
       );
       const bridgeLeft = firstRight - config.bridgeOverlapPx;
       const bridgeCenterY = (first.centerY + second.centerY) / 2;

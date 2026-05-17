@@ -10,6 +10,6 @@ export const gooConfig: GooConfig = {
   bridgeMaxGapPx: 240,
   bridgeMaxVerticalDeltaPx: 120,
   bridgeOverlapPx: 12,
+  bridgeHeightRatio: 0.52,
   minBlobSizePx: 8
 };
-
