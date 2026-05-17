@@ -166,31 +166,45 @@ function createBlob(id: string, left: number, top: number, width: number, height
 }
 
 function appendBridgeBlobs(group: GooComputedGroup, config: GooConfig) {
-  const baseBlobs = [...group.blobs];
+  const baseBlobs = [...group.blobs]
+    .sort((left, right) => {
+      if (left.left !== right.left) {
+        return left.left - right.left;
+      }
+
+      if (left.centerX !== right.centerX) {
+        return left.centerX - right.centerX;
+      }
+
+      return left.id.localeCompare(right.id);
+    });
   let bridgeIndex = 0;
   for (let i = 0; i < baseBlobs.length; i += 1) {
     const leftBlob = baseBlobs[i]!;
+    const leftRight = leftBlob.left + leftBlob.width;
     for (let j = i + 1; j < baseBlobs.length; j += 1) {
       const rightBlob = baseBlobs[j]!;
       if (Math.abs(leftBlob.centerY - rightBlob.centerY) > config.bridgeMaxVerticalDeltaPx) {
         continue;
       }
 
-      const first = leftBlob.centerX <= rightBlob.centerX ? leftBlob : rightBlob;
-      const second = first === leftBlob ? rightBlob : leftBlob;
-      const firstRight = first.left + first.width;
-      const gap = second.left - firstRight;
-      if (gap <= 0 || gap > config.bridgeMaxGapPx) {
+      const gap = rightBlob.left - leftRight;
+      if (gap > config.bridgeMaxGapPx) {
+        // Blobs are sorted by centerX/left, so later candidates can only increase this gap.
+        break;
+      }
+
+      if (gap <= 0) {
         continue;
       }
 
       const bridgeWidth = gap + (config.bridgeOverlapPx * 2);
       const bridgeHeight = Math.max(
         config.minBlobSizePx,
-        Math.min(first.height, second.height) * config.bridgeHeightRatio
+        Math.min(leftBlob.height, rightBlob.height) * config.bridgeHeightRatio
       );
-      const bridgeLeft = firstRight - config.bridgeOverlapPx;
-      const bridgeCenterY = (first.centerY + second.centerY) / 2;
+      const bridgeLeft = leftRight - config.bridgeOverlapPx;
+      const bridgeCenterY = (leftBlob.centerY + rightBlob.centerY) / 2;
 
       group.blobs.push({
         id: `${group.id}-bridge-${bridgeIndex}`,
