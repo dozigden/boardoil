@@ -13,20 +13,18 @@ export type GooItem = {
   clipRect: RectLike | null;
 };
 
-export type GooBlob = {
+export type GooRenderBlob = {
   id: string;
   top: number;
   left: number;
   width: number;
   height: number;
-  centerX: number;
-  centerY: number;
 };
 
 export type GooRenderGroup = {
   id: string;
   colour: string;
-  blobs: GooBlob[];
+  blobs: GooRenderBlob[];
 };
 
 export type GooConfig = {
@@ -43,7 +41,7 @@ export type GooConfig = {
 };
 
 export function buildGooGroups(items: GooItem[], boardRect: RectLike, config: GooConfig): GooRenderGroup[] {
-  const groups = new Map<string, GooRenderGroup>();
+  const groups = new Map<string, GooComputedGroup>();
   for (const item of items) {
     const group = getOrCreateGroup(groups, item.groupKey, item.colour);
     const blobWidth = Math.max(config.minBlobSizePx, item.rect.width + config.widthAdjustPx);
@@ -69,17 +67,34 @@ export function buildGooGroups(items: GooItem[], boardRect: RectLike, config: Go
   }
 
   return [...groups.values()]
-    .map(group => ({ ...group, blobs: group.blobs.sort((left, right) => left.top - right.top) }))
+    .map(group => ({
+      id: group.id,
+      colour: group.colour,
+      blobs: group.blobs
+        .sort((left, right) => left.top - right.top)
+        .map(toRenderBlob)
+    }))
     .filter(group => group.blobs.length > 0);
 }
 
-function getOrCreateGroup(groups: Map<string, GooRenderGroup>, groupKey: string, colour: string): GooRenderGroup {
+type GooComputedBlob = GooRenderBlob & {
+  centerX: number;
+  centerY: number;
+};
+
+type GooComputedGroup = {
+  id: string;
+  colour: string;
+  blobs: GooComputedBlob[];
+};
+
+function getOrCreateGroup(groups: Map<string, GooComputedGroup>, groupKey: string, colour: string): GooComputedGroup {
   const existing = groups.get(groupKey);
   if (existing) {
     return existing;
   }
 
-  const created: GooRenderGroup = {
+  const created: GooComputedGroup = {
     id: groupKey,
     colour,
     blobs: []
@@ -96,7 +111,7 @@ function toClippedBlob(
   boardRect: RectLike,
   clipRect: RectLike | null,
   config: GooConfig
-): GooBlob | null {
+): GooComputedBlob | null {
   const desiredLeft = rect.left - boardRect.left + ((rect.width - blobWidth) / 2);
   const desiredTop = rect.top - boardRect.top + (rect.height * 0.5) + config.verticalOffsetPx - (blobHeight / 2);
   const desiredRight = desiredLeft + blobWidth;
@@ -124,7 +139,7 @@ function toClippedBlob(
   return createBlob(id, left, top, width, height);
 }
 
-function createBlob(id: string, left: number, top: number, width: number, height: number): GooBlob {
+function createBlob(id: string, left: number, top: number, width: number, height: number): GooComputedBlob {
   return {
     id,
     left,
@@ -136,7 +151,7 @@ function createBlob(id: string, left: number, top: number, width: number, height
   };
 }
 
-function appendBridgeBlobs(group: GooRenderGroup, config: GooConfig) {
+function appendBridgeBlobs(group: GooComputedGroup, config: GooConfig) {
   const baseBlobs = [...group.blobs];
   let bridgeIndex = 0;
   for (let i = 0; i < baseBlobs.length; i += 1) {
@@ -177,3 +192,12 @@ function appendBridgeBlobs(group: GooRenderGroup, config: GooConfig) {
   }
 }
 
+function toRenderBlob(blob: GooComputedBlob): GooRenderBlob {
+  return {
+    id: blob.id,
+    top: blob.top,
+    left: blob.left,
+    width: blob.width,
+    height: blob.height
+  };
+}
