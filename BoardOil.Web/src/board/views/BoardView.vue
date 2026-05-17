@@ -1,4 +1,18 @@
 <template>
+  <svg width="0" height="0" class="slick-goo-filter-defs" aria-hidden="true" focusable="false">
+    <defs>
+      <filter id="slick-goo">
+        <feGaussianBlur in="SourceGraphic" :stdDeviation="slickGooBlurStdDeviation" result="blur" />
+        <feColorMatrix
+          in="blur"
+          type="matrix"
+          :values="slickGooColorMatrixValues"
+          result="goo"
+        />
+      </filter>
+    </defs>
+  </svg>
+
   <section v-if="isLoadingBoard" class="board-loading" aria-live="polite">
     <span class="board-loading-indicator" aria-hidden="true" />
     <p class="board-loading-label">Loading board...</p>
@@ -34,7 +48,27 @@
       />
     </BoardConveyor>
 
-    <section class="board">
+    <section class="board" :ref="setBoardRef">
+      <div v-if="slickGooGroups.length > 0" class="slick-goo-layer" aria-hidden="true">
+        <div
+          v-for="group in slickGooGroups"
+          :key="group.id"
+          class="slick-goo-group"
+          :style="{ '--slick-goo-colour': group.colour }"
+        >
+          <span
+            v-for="blob in group.blobs"
+            :key="blob.id"
+            class="slick-goo-blob"
+            :style="{
+              top: `${blob.top}px`,
+              left: `${blob.left}px`,
+              width: `${blob.width}px`,
+              height: `${blob.height}px`
+            }"
+          />
+        </div>
+      </div>
       <div v-for="column in filteredColumns" :key="column.id" class="column-stack">
         <article
           class="column"
@@ -135,7 +169,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoardArchiveSelectedCardsDialog from '../components/BoardArchiveSelectedCardsDialog.vue';
 import BoardBulkEditSelectedCardsDialog from '../components/BoardBulkEditSelectedCardsDialog.vue';
@@ -150,9 +184,14 @@ import { useBoardCardSelection } from '../composables/useBoardCardSelection';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
+import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../../shared/types/appError';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
+import type { Slick } from '../../shared/types/boardTypes';
+import { gooConfig } from '../utils/gooConfig';
+import { buildGooGroups, type GooItem, type GooRenderGroup } from '../utils/gooLayout';
+import { getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import { formatColumnCardCount } from '../utils/columnCardCount';
 import { useConfirm } from '../../shared/composables/useConfirm';
 
@@ -164,19 +203,32 @@ const isBulkEditDialogOpen = ref(false);
 const isApplyingBulkEdit = ref(false);
 const bulkEditTagStates = ref<TagFilterStateMap>({});
 const bulkEditTargetColumnId = ref<number | null>(null);
+const slickGooGroups = ref<GooRenderGroup[]>([]);
+const boardElement = ref<HTMLElement | null>(null);
+const slickGooBlurStdDeviation = gooConfig.blurStdDeviation;
+const slickGooColorMatrixValues = computed(() =>
+  `1 0 0 0 0
+0 1 0 0 0
+0 0 1 0 0
+0 0 0 ${gooConfig.alphaMultiplier} ${gooConfig.alphaOffset}`
+);
+let slickGooRafId: number | null = null;
 
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
+const slickStore = useSlickStore();
 const tagStore = useTagStore();
 
 const { board, isLoadingBoard } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
+const { slicks } = storeToRefs(slickStore);
 const { tags } = storeToRefs(tagStore);
 const { createCard, startDrag, dropCard, archiveCards, bulkMoveCards, bulkEditCards, deleteCards } = cardStore;
 const { confirm } = useConfirm();
+const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
 
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 
@@ -250,6 +302,96 @@ function toggleCardSelectionMode() {
   if (!isCardSelectionMode.value) {
     closeBulkEditDialog();
   }
+}
+
+function setBoardRef(element: unknown) {
+  if (boardElement.value) {
+    boardElement.value.removeEventListener('scroll', scheduleSlickGooRefresh, true);
+  }
+
+  if (!(element instanceof HTMLElement)) {
+    boardElement.value = null;
+    return;
+  }
+
+  boardElement.value = element;
+  // Capture scroll from nested column scrollers so goo follows cards while inner columns scroll.
+  boardElement.value.addEventListener('scroll', scheduleSlickGooRefresh, { passive: true, capture: true });
+}
+
+function scheduleSlickGooRefresh() {
+  if (slickGooRafId !== null) {
+    cancelAnimationFrame(slickGooRafId);
+  }
+
+  slickGooRafId = requestAnimationFrame(() => {
+    slickGooRafId = null;
+    refreshSlickGooLayer();
+  });
+}
+
+function refreshSlickGooLayer() {
+  const boardSurface = boardElement.value;
+  if (!boardSurface) {
+    slickGooGroups.value = [];
+    return;
+  }
+
+  const boardRect = boardSurface.getBoundingClientRect();
+  const items: GooItem[] = [];
+  for (const column of filteredColumns.value) {
+    for (const card of column.cards) {
+      if (card.slickId === null || card.slickId === undefined) {
+        continue;
+      }
+
+      const cardElement = boardSurface.querySelector<HTMLElement>(`.card[data-card-id="${card.id}"]`);
+      if (!cardElement) {
+        continue;
+      }
+
+      const slickId = card.slickId;
+      const colour = resolveSlickGooColour(slicksById.value.get(slickId), slickId);
+      const rect = cardElement.getBoundingClientRect();
+      const columnContent = cardElement.closest<HTMLElement>('.column-content');
+      const columnContentRect = columnContent?.getBoundingClientRect() ?? null;
+      items.push({
+        id: `card-${card.id}`,
+        groupKey: `slick-${slickId}`,
+        colour,
+        rect,
+        clipRect: columnContentRect
+      });
+    }
+  }
+
+  if (items.length === 0) {
+    slickGooGroups.value = [];
+    return;
+  }
+
+  slickGooGroups.value = buildGooGroups(items, boardRect, gooConfig);
+}
+
+function resolveSlickGooColour(slick: Slick | undefined, slickId: number): string {
+  if (slick) {
+    const surfaceStyle = getSurfaceStyle(slick, {
+      fallbackBackground: hashedSlickColour(slickId),
+      fallbackColor: '#111827',
+      fallbackBorderColor: '#000000'
+    });
+    const styledBackground = surfaceStyle.background;
+    if (typeof styledBackground === 'string' && styledBackground.trim().length > 0) {
+      return styledBackground;
+    }
+  }
+
+  return hashedSlickColour(slickId);
+}
+
+function hashedSlickColour(slickId: number): string {
+  const hue = Math.abs((slickId * 47) % 360);
+  return `hsl(${hue} 72% 46%)`;
 }
 
 const hasBulkEditChanges = computed(() =>
@@ -528,9 +670,37 @@ watch(
 
     await tagStore.loadTags(boardId);
     await cardTypeStore.loadCardTypes(boardId);
+    await slickStore.loadSlicks(boardId);
+    await nextTick();
+    scheduleSlickGooRefresh();
   },
   { immediate: true }
 );
+
+watch(filteredColumns, async () => {
+  await nextTick();
+  scheduleSlickGooRefresh();
+}, { deep: true });
+
+watch(slicks, async () => {
+  await nextTick();
+  scheduleSlickGooRefresh();
+}, { deep: true });
+
+onMounted(() => {
+  window.addEventListener('resize', scheduleSlickGooRefresh);
+});
+
+onBeforeUnmount(() => {
+  if (boardElement.value) {
+    boardElement.value.removeEventListener('scroll', scheduleSlickGooRefresh, true);
+  }
+  window.removeEventListener('resize', scheduleSlickGooRefresh);
+  if (slickGooRafId !== null) {
+    cancelAnimationFrame(slickGooRafId);
+    slickGooRafId = null;
+  }
+});
 </script>
 
 <style scoped>
@@ -552,6 +722,7 @@ watch(
 .board {
   --column-min-width: 280px;
   --column-max-width: 360px;
+  position: relative;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(var(--column-min-width), var(--column-max-width));
@@ -595,9 +766,10 @@ watch(
 }
 
 .column {
-  background: var(--bo-surface-panel);
+  background: transparent;
   border: 1px solid var(--bo-border-soft);
   border-radius: 14px;
+  position: relative;
   padding: 0.75rem 0.25rem 0.75rem 0.75rem;
   display: flex;
   flex-direction: column;
@@ -613,6 +785,12 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  position: relative;
+}
+
+.column > * {
+  position: relative;
+  z-index: 3;
 }
 
 .column-content {
@@ -623,7 +801,7 @@ watch(
   min-height: 0;
   overflow-y: auto;
   padding-right: 0.5rem;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: none;
   scrollbar-width: none;
   position: relative;
 }
@@ -649,6 +827,8 @@ watch(
 
 .column-content > .card {
   margin-bottom: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .column-content:hover,
@@ -701,6 +881,32 @@ watch(
 .column-tail-drop-zone--active {
   background: color-mix(in srgb, var(--bo-focus-ring) 14%, transparent);
   border-color: color-mix(in srgb, var(--bo-focus-ring) 60%, transparent);
+}
+
+.slick-goo-filter-defs {
+  position: absolute;
+}
+
+.slick-goo-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: visible;
+}
+
+.slick-goo-group {
+  position: absolute;
+  inset: 0;
+  filter: url(#slick-goo);
+}
+
+.slick-goo-blob {
+  position: absolute;
+  border-radius: 12px;
+  background: var(--slick-goo-colour);
+  opacity: 0.9;
+  transform: translateY(-50%);
 }
 
 @media (max-width: 720px) {
