@@ -192,7 +192,6 @@ import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../../shared/types/appError';
-import type { Card as BoardCardModel } from '../../shared/types/boardTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import { formatColumnCardCount } from '../utils/columnCardCount';
 import {
@@ -200,6 +199,7 @@ import {
   buildSlickGooMembershipSignature,
   buildSlickGooStyleSignature
 } from '../utils/slickGooAdapter';
+import { resolveCardBoundaryClass } from '../utils/slickCardBoundary';
 import { useConfirm } from '../../shared/composables/useConfirm';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
@@ -565,50 +565,6 @@ function resolveCreateCardErrorMessage(error: AppError) {
 function resolveBoardId() {
   const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function resolveCardBoundaryClass(cards: BoardCardModel[], cardIndex: number): string | null {
-  if (cardIndex <= 0) {
-    return null;
-  }
-
-  const previousCard = cards[cardIndex - 1];
-  const currentCard = cards[cardIndex];
-  if (!previousCard || !currentCard) {
-    return null;
-  }
-
-  const boundaryType = resolveSlickBoundaryType(previousCard, currentCard);
-  if (boundaryType === 'between-slicks') {
-    return 'card--slick-gap-strong';
-  }
-
-  if (boundaryType === 'with-none') {
-    return 'card--slick-gap';
-  }
-
-  return null;
-}
-
-function resolveSlickBoundaryType(
-  previousCard: BoardCardModel,
-  currentCard: BoardCardModel
-): 'none' | 'with-none' | 'between-slicks' {
-  const previousSlickId = previousCard.slickId ?? null;
-  const currentSlickId = currentCard.slickId ?? null;
-  if (previousSlickId === currentSlickId) {
-    return 'none';
-  }
-
-  if (previousSlickId !== null && currentSlickId !== null) {
-    return 'between-slicks';
-  }
-
-  if (previousSlickId !== null || currentSlickId !== null) {
-    return 'with-none';
-  }
-
-  return 'none';
 }
 
 watch(
