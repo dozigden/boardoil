@@ -29,6 +29,7 @@ export type GooRenderGroup = {
 
 export type GooConfig = {
   widthAdjustPx: number;
+  horizontalOffsetPx: number;
   heightAdjustPx: number;
   verticalOffsetPx: number;
   blurStdDeviation: number;
@@ -39,6 +40,8 @@ export type GooConfig = {
   bridgeOverlapPx: number;
   bridgeHeightRatio: number;
   minBlobSizePx: number;
+  blobBorderRadiusPx: number;
+  clipHorizontalInsetPx: number;
 };
 
 export function buildGooGroups(items: GooItem[], boardRect: RectLike, config: GooConfig): GooRenderGroup[] {
@@ -113,10 +116,12 @@ function toClippedBlob(
   clipRect: RectLike | null,
   config: GooConfig
 ): GooComputedBlob | null {
-  const desiredLeft = rect.left - boardRect.left + ((rect.width - blobWidth) / 2);
+  const desiredLeft = rect.left - boardRect.left + ((rect.width - blobWidth) / 2) + config.horizontalOffsetPx;
   const desiredTop = rect.top - boardRect.top + (rect.height * 0.5) + config.verticalOffsetPx - (blobHeight / 2);
   const desiredRight = desiredLeft + blobWidth;
   const desiredBottom = desiredTop + blobHeight;
+  const desiredCenterX = desiredLeft + (blobWidth / 2);
+  const desiredCenterY = desiredTop + (blobHeight / 2);
 
   if (!clipRect) {
     return createBlob(id, desiredLeft, desiredTop, blobWidth, blobHeight);
@@ -127,15 +132,23 @@ function toClippedBlob(
   const clipRight = clipLeft + clipRect.width;
   const clipBottom = clipTop + clipRect.height;
 
-  const left = Math.max(desiredLeft, clipLeft);
-  const top = Math.max(desiredTop, clipTop);
-  const right = Math.min(desiredRight, clipRight);
-  const bottom = Math.min(desiredBottom, clipBottom);
-  const width = right - left;
-  const height = bottom - top;
+  const clampedLeft = Math.max(desiredLeft, clipLeft);
+  const clampedTop = Math.max(desiredTop, clipTop);
+  const clampedRight = Math.min(desiredRight, clipRight);
+  const clampedBottom = Math.min(desiredBottom, clipBottom);
+  const width = clampedRight - clampedLeft;
+  const height = clampedBottom - clampedTop;
   if (width < config.minBlobSizePx || height < config.minBlobSizePx) {
     return null;
   }
+
+  // Keep the visible blob centered on the card as much as possible after clipping.
+  const maxLeft = clipRight - width;
+  const maxTop = clipBottom - height;
+  const centeredLeft = desiredCenterX - (width / 2);
+  const centeredTop = desiredCenterY - (height / 2);
+  const left = clamp(centeredLeft, clipLeft, maxLeft);
+  const top = clamp(centeredTop, clipTop, maxTop);
 
   return createBlob(id, left, top, width, height);
 }
@@ -201,4 +214,8 @@ function toRenderBlob(blob: GooComputedBlob): GooRenderBlob {
     width: blob.width,
     height: blob.height
   };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }

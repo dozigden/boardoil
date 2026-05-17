@@ -1,15 +1,18 @@
 import type { GooConfig } from './gooLayout';
 
 export const gooConfig: GooConfig = {
-  widthAdjustPx: 26,
-  heightAdjustPx: 8,
+  widthAdjustPx: 6,
+  horizontalOffsetPx: 0,
+  heightAdjustPx: 6,
   verticalOffsetPx: 0,
-  blurStdDeviation: 12,
-  alphaMultiplier: 49,
-  alphaOffset: -11,
-  bridgeMaxGapPx: 240,
-  bridgeMaxVerticalDeltaPx: 120,
-  bridgeOverlapPx: 12,
-  bridgeHeightRatio: 0.52,
-  minBlobSizePx: 8
+  blurStdDeviation: 9,
+  alphaMultiplier: 43,
+  alphaOffset: -12,
+  bridgeMaxGapPx: 180,
+  bridgeMaxVerticalDeltaPx: 96,
+  bridgeOverlapPx: 8,
+  bridgeHeightRatio: 0.38,
+  minBlobSizePx: 8,
+  blobBorderRadiusPx: 10,
+  clipHorizontalInsetPx: 6
 };

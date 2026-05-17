@@ -54,7 +54,10 @@
           v-for="group in gooGroups"
           :key="group.id"
           class="goo-group"
-          :style="{ '--goo-colour': group.colour }"
+          :style="{
+            '--goo-colour': group.colour,
+            '--goo-radius': `${gooBlobBorderRadiusPx}px`
+          }"
         >
           <span
             v-for="blob in group.blobs"
@@ -294,6 +297,7 @@ const gooSlickStyleSignature = computed(() => buildSlickGooStyleSignature(slicks
 const {
   gooGroups,
   gooBlurStdDeviation,
+  gooBlobBorderRadiusPx,
   gooColorMatrixValues,
   setBoardRef,
   scheduleGooStructureRefresh
@@ -791,9 +795,8 @@ watch(
 
 .goo-blob {
   position: absolute;
-  border-radius: 12px;
+  border-radius: var(--goo-radius);
   background: var(--goo-colour);
-  opacity: 0.9;
   transform: translateY(-50%);
 }
 

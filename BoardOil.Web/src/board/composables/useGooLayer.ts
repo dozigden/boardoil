@@ -1,6 +1,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComputedRef } from 'vue';
 import { gooConfig } from '../utils/gooConfig';
-import { buildGooGroups, type GooItem, type GooRenderGroup } from '../utils/gooLayout';
+import { buildGooGroups, type GooItem, type GooRenderGroup, type RectLike } from '../utils/gooLayout';
 
 export type GooLayerDescriptor = {
   cardId: number;
@@ -27,6 +27,7 @@ export function useGooLayer(
 ) {
   const gooGroups = ref<GooRenderGroup[]>([]);
   const gooBlurStdDeviation = gooConfig.blurStdDeviation;
+  const gooBlobBorderRadiusPx = gooConfig.blobBorderRadiusPx;
   const gooColorMatrixValues = computed(() =>
     `1 0 0 0 0
 0 1 0 0 0
@@ -114,6 +115,7 @@ export function useGooLayer(
 
     const boardRect = boardSurface.getBoundingClientRect();
     const items: GooItem[] = [];
+    const clipRectByElement = new Map<HTMLElement, RectLike>();
     let sawDetachedCard = false;
     for (const trackedCard of trackedGooCards) {
       if (!trackedCard.cardElement.isConnected) {
@@ -127,7 +129,9 @@ export function useGooLayer(
       }
 
       const rect = trackedCard.cardElement.getBoundingClientRect();
-      const columnContentRect = trackedCard.clipElement?.getBoundingClientRect() ?? null;
+      const columnContentRect = trackedCard.clipElement
+        ? resolveClipContentRect(trackedCard.clipElement, clipRectByElement)
+        : null;
       items.push({
         id: trackedCard.itemId,
         groupKey: trackedCard.groupKey,
@@ -204,6 +208,32 @@ export function useGooLayer(
     gooStylesDirty = false;
   }
 
+  function resolveClipContentRect(
+    clipElement: HTMLElement,
+    cache: Map<HTMLElement, RectLike>
+  ): RectLike {
+    const cached = cache.get(clipElement);
+    if (cached) {
+      return cached;
+    }
+
+    const rect = clipElement.getBoundingClientRect();
+    const style = getComputedStyle(clipElement);
+    const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+    const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+    const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+    const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+
+    const contentRect: RectLike = {
+      left: rect.left + paddingLeft - gooConfig.clipHorizontalInsetPx,
+      top: rect.top + paddingTop,
+      width: Math.max(0, rect.width - paddingLeft - paddingRight + (gooConfig.clipHorizontalInsetPx * 2)),
+      height: Math.max(0, rect.height - paddingTop - paddingBottom)
+    };
+    cache.set(clipElement, contentRect);
+    return contentRect;
+  }
+
   watch(structureSignature, async () => {
     await nextTick();
     scheduleGooRefresh('structure');
@@ -232,6 +262,7 @@ export function useGooLayer(
   return {
     gooGroups,
     gooBlurStdDeviation,
+    gooBlobBorderRadiusPx,
     gooColorMatrixValues,
     setBoardRef,
     scheduleGooStructureRefresh
