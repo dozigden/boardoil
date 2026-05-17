@@ -169,7 +169,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoardArchiveSelectedCardsDialog from '../components/BoardArchiveSelectedCardsDialog.vue';
 import BoardBulkEditSelectedCardsDialog from '../components/BoardBulkEditSelectedCardsDialog.vue';
@@ -180,6 +180,7 @@ import Card from '../components/Card.vue';
 import CreateCardInline from '../components/CreateCardInline.vue';
 import { useBoardCardDragDrop } from '../composables/useBoardCardDragDrop';
 import { useBoardCardFilters } from '../composables/useBoardCardFilters';
+import { useGooLayer } from '../composables/useGooLayer';
 import { useBoardCardSelection } from '../composables/useBoardCardSelection';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardStore } from '../stores/cardStore';
@@ -188,11 +189,12 @@ import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../../shared/types/appError';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
-import type { Slick } from '../../shared/types/boardTypes';
-import { gooConfig } from '../utils/gooConfig';
-import { buildGooGroups, type GooItem, type GooRenderGroup } from '../utils/gooLayout';
-import { getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import { formatColumnCardCount } from '../utils/columnCardCount';
+import {
+  buildSlickGooDescriptors,
+  buildSlickGooMembershipSignature,
+  buildSlickGooStyleSignature
+} from '../utils/slickGooAdapter';
 import { useConfirm } from '../../shared/composables/useConfirm';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
@@ -203,30 +205,6 @@ const isBulkEditDialogOpen = ref(false);
 const isApplyingBulkEdit = ref(false);
 const bulkEditTagStates = ref<TagFilterStateMap>({});
 const bulkEditTargetColumnId = ref<number | null>(null);
-const gooGroups = ref<GooRenderGroup[]>([]);
-const boardElement = ref<HTMLElement | null>(null);
-const gooBlurStdDeviation = gooConfig.blurStdDeviation;
-const gooColorMatrixValues = computed(() =>
-  `1 0 0 0 0
-0 1 0 0 0
-0 0 1 0 0
-0 0 0 ${gooConfig.alphaMultiplier} ${gooConfig.alphaOffset}`
-);
-let gooRafId: number | null = null;
-let gooStructureDirty = true;
-let gooStylesDirty = true;
-const gooCardElementCache = new Map<number, HTMLElement>();
-type GooRefreshReason = 'geometry' | 'structure' | 'styles';
-type TrackedGooCard = {
-  cardId: number;
-  slickId: number;
-  colour: string;
-  groupKey: string;
-  itemId: string;
-  cardElement: HTMLElement;
-  clipElement: HTMLElement | null;
-};
-let trackedGooCards: TrackedGooCard[] = [];
 
 const route = useRoute();
 const router = useRouter();
@@ -310,198 +288,23 @@ const {
   moveSelectedCardsByDropTarget
 );
 
+const gooDescriptors = computed(() => buildSlickGooDescriptors(filteredColumns.value, slicksById.value));
+const gooCardMembershipSignature = computed(() => buildSlickGooMembershipSignature(filteredColumns.value));
+const gooSlickStyleSignature = computed(() => buildSlickGooStyleSignature(slicks.value));
+const {
+  gooGroups,
+  gooBlurStdDeviation,
+  gooColorMatrixValues,
+  setBoardRef,
+  scheduleGooStructureRefresh
+} = useGooLayer(gooDescriptors, gooCardMembershipSignature, gooSlickStyleSignature);
+
 function toggleCardSelectionMode() {
   clearDragInteraction();
   toggleCardSelectionModeInternal();
   if (!isCardSelectionMode.value) {
     closeBulkEditDialog();
   }
-}
-
-function setBoardRef(element: unknown) {
-  if (boardElement.value) {
-    boardElement.value.removeEventListener('scroll', onBoardScroll, true);
-  }
-
-  if (!(element instanceof HTMLElement)) {
-    boardElement.value = null;
-    gooGroups.value = [];
-    trackedGooCards = [];
-    gooCardElementCache.clear();
-    return;
-  }
-
-  boardElement.value = element;
-  // Capture scroll from nested column scrollers so goo follows cards while inner columns scroll.
-  boardElement.value.addEventListener('scroll', onBoardScroll, { passive: true, capture: true });
-  scheduleGooRefresh('structure');
-}
-
-function onBoardScroll() {
-  scheduleGooRefresh('geometry');
-}
-
-function onWindowResize() {
-  scheduleGooRefresh('geometry');
-}
-
-function scheduleGooRefresh(reason: GooRefreshReason = 'geometry') {
-  if (reason === 'structure') {
-    gooStructureDirty = true;
-    gooStylesDirty = true;
-  } else if (reason === 'styles') {
-    gooStylesDirty = true;
-  }
-
-  if (gooRafId !== null) {
-    cancelAnimationFrame(gooRafId);
-  }
-
-  gooRafId = requestAnimationFrame(() => {
-    gooRafId = null;
-    refreshGooLayer();
-  });
-}
-
-function refreshGooLayer() {
-  const boardSurface = boardElement.value;
-  if (!boardSurface) {
-    gooGroups.value = [];
-    trackedGooCards = [];
-    gooCardElementCache.clear();
-    gooStructureDirty = true;
-    gooStylesDirty = true;
-    return;
-  }
-
-  if (gooStructureDirty) {
-    rebuildTrackedGooCards(boardSurface);
-  } else if (gooStylesDirty) {
-    refreshTrackedGooColours();
-  }
-
-  if (trackedGooCards.length === 0) {
-    gooGroups.value = [];
-    return;
-  }
-
-  const boardRect = boardSurface.getBoundingClientRect();
-  const items: GooItem[] = [];
-  let sawDetachedCard = false;
-  for (const trackedCard of trackedGooCards) {
-    if (!trackedCard.cardElement.isConnected) {
-      gooCardElementCache.delete(trackedCard.cardId);
-      sawDetachedCard = true;
-      continue;
-    }
-
-    if (trackedCard.clipElement && !trackedCard.clipElement.isConnected) {
-      trackedCard.clipElement = trackedCard.cardElement.closest<HTMLElement>('.column-content');
-    }
-
-    const rect = trackedCard.cardElement.getBoundingClientRect();
-    const columnContentRect = trackedCard.clipElement?.getBoundingClientRect() ?? null;
-    items.push({
-      id: trackedCard.itemId,
-      groupKey: trackedCard.groupKey,
-      colour: trackedCard.colour,
-      rect,
-      clipRect: columnContentRect
-    });
-  }
-
-  if (sawDetachedCard) {
-    gooStructureDirty = true;
-  }
-
-  if (items.length === 0) {
-    gooGroups.value = [];
-    return;
-  }
-
-  gooGroups.value = buildGooGroups(items, boardRect, gooConfig);
-}
-
-function rebuildTrackedGooCards(boardSurface: HTMLElement) {
-  const cardElementsById = new Map<number, HTMLElement>();
-  const cardElements = boardSurface.querySelectorAll<HTMLElement>('.card[data-card-id]');
-  for (const cardElement of cardElements) {
-    const rawCardId = cardElement.dataset.cardId;
-    if (!rawCardId) {
-      continue;
-    }
-
-    const cardId = Number.parseInt(rawCardId, 10);
-    if (!Number.isFinite(cardId)) {
-      continue;
-    }
-
-    cardElementsById.set(cardId, cardElement);
-    gooCardElementCache.set(cardId, cardElement);
-  }
-
-  const nextTrackedCards: TrackedGooCard[] = [];
-  for (const column of filteredColumns.value) {
-    for (const card of column.cards) {
-      if (card.slickId === null || card.slickId === undefined) {
-        continue;
-      }
-
-      const slickId = card.slickId;
-      let cardElement = cardElementsById.get(card.id) ?? gooCardElementCache.get(card.id) ?? null;
-      if (!cardElement || !cardElement.isConnected) {
-        gooCardElementCache.delete(card.id);
-        continue;
-      }
-
-      const clipElement = cardElement.closest<HTMLElement>('.column-content');
-      nextTrackedCards.push({
-        cardId: card.id,
-        slickId,
-        colour: resolveSlickGooColour(slicksById.value.get(slickId), slickId),
-        groupKey: `slick-${slickId}`,
-        itemId: `card-${card.id}`,
-        cardElement,
-        clipElement
-      });
-    }
-  }
-
-  trackedGooCards = nextTrackedCards;
-  gooStructureDirty = false;
-  gooStylesDirty = false;
-}
-
-function refreshTrackedGooColours() {
-  for (const trackedCard of trackedGooCards) {
-    trackedCard.colour = resolveSlickGooColour(
-      slicksById.value.get(trackedCard.slickId),
-      trackedCard.slickId
-    );
-  }
-
-  gooStylesDirty = false;
-}
-
-function resolveSlickGooColour(slick: Slick | undefined, slickId: number): string {
-  if (slick) {
-    const surfaceStyle = getSurfaceStyle(slick, {
-      fallbackBackground: hashedSlickColour(slickId),
-      fallbackColor: '#111827',
-      fallbackBorderColor: '#000000'
-    });
-    const styledBackground = surfaceStyle.background;
-    if (typeof styledBackground === 'string' && styledBackground.trim().length > 0) {
-      return styledBackground;
-    }
-  }
-
-  return hashedSlickColour(slickId);
-}
-
-function hashedSlickColour(slickId: number): string {
-  const hue = Math.abs((slickId * 47) % 360);
-  return `hsl(${hue} 72% 46%)`;
 }
 
 const hasBulkEditChanges = computed(() =>
@@ -758,22 +561,6 @@ function resolveBoardId() {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-const gooCardMembershipSignature = computed(() =>
-  filteredColumns.value
-    .flatMap(column =>
-      column.cards
-        .filter(card => card.slickId !== null && card.slickId !== undefined)
-        .map(card => `${card.id}:${card.slickId}`)
-    )
-    .join('|')
-);
-
-const gooSlickStyleSignature = computed(() =>
-  slicks.value
-    .map(slick => `${slick.id}:${slick.styleName}:${slick.stylePropertiesJson}`)
-    .join('|')
-);
-
 watch(
   () => route.params.boardId,
   async () => {
@@ -798,35 +585,10 @@ watch(
     await cardTypeStore.loadCardTypes(boardId);
     await slickStore.loadSlicks(boardId);
     await nextTick();
-    scheduleGooRefresh('structure');
+    scheduleGooStructureRefresh();
   },
   { immediate: true }
 );
-
-watch(gooCardMembershipSignature, async () => {
-  await nextTick();
-  scheduleGooRefresh('structure');
-});
-
-watch(gooSlickStyleSignature, async () => {
-  await nextTick();
-  scheduleGooRefresh('styles');
-});
-
-onMounted(() => {
-  window.addEventListener('resize', onWindowResize);
-});
-
-onBeforeUnmount(() => {
-  if (boardElement.value) {
-    boardElement.value.removeEventListener('scroll', onBoardScroll, true);
-  }
-  window.removeEventListener('resize', onWindowResize);
-  if (gooRafId !== null) {
-    cancelAnimationFrame(gooRafId);
-    gooRafId = null;
-  }
-});
 </script>
 
 <style scoped>
