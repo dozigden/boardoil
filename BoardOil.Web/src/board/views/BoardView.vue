@@ -704,7 +704,7 @@ watch(
 }
 
 .column {
-  background: transparent;
+  background: var(--bo-surface-panel);
   border: 1px solid var(--bo-border-soft);
   border-radius: 14px;
   position: relative;
