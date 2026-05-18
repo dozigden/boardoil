@@ -7,6 +7,7 @@ Read area guidance before working in that part of the system:
 - [AGENTS/CSharpCodingConventions.md](AGENTS/CSharpCodingConventions.md)
 - [AGENTS/Database.md](AGENTS/Database.md)
 - [AGENTS/Frontend.md](AGENTS/Frontend.md)
+- [AGENTS/GooAndSlicks.md](AGENTS/GooAndSlicks.md) - Read before changing slick/goo rendering in board view
 - [AGENTS/StoryBoardAndSourceControl.md](AGENTS/StoryBoardAndSourceControl.md) - Read when working with stories or planning any new work
 - [AGENTS/Testing.md](AGENTS/Testing.md)
 
