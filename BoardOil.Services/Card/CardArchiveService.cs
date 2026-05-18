@@ -10,6 +10,7 @@ using BoardOil.Data.Abstractions.CardType;
 using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Image;
+using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Services.Ordering;
@@ -29,6 +30,7 @@ public sealed class CardArchiveService(
     IBoardMemberRepository boardMemberRepository,
     IUserRepository userRepository,
     IImageRepository imageRepository,
+    ISlickRepository slickRepository,
     ITagRepository tagRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
@@ -177,6 +179,7 @@ public sealed class CardArchiveService(
         }
 
         var resolvedAssignedUser = await ResolveAssignedUserForRestoreAsync(boardId, snapshotCard.AssignedUserId);
+        var resolvedSlickId = await ResolveSlickIdInBoardAsync(boardId, snapshotCard.SlickId);
         var resolvedTags = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames, now);
         var restoredCard = new EntityBoardCard
         {
@@ -186,6 +189,7 @@ public sealed class CardArchiveService(
             CardType = selectedCardType,
             AssignedUserId = resolvedAssignedUser?.Id,
             AssignedUser = resolvedAssignedUser,
+            SlickId = resolvedSlickId,
             Title = title,
             Description = snapshotCard.Description,
             SortKey = sortKeyValue!,
@@ -310,22 +314,34 @@ public sealed class CardArchiveService(
 
     private async Task<CardDto> ResolveCurrentSnapshotCardAsync(int boardId, CardDto snapshotCard)
     {
+        var resolvedSlickId = await ResolveSlickIdInBoardAsync(boardId, snapshotCard.SlickId);
         if (snapshotCard.AssignedUserId is null)
         {
-            return snapshotCard with { AssignedUserId = null, AssignedUserName = null };
+            return snapshotCard with
+            {
+                AssignedUserId = null,
+                AssignedUserName = null,
+                SlickId = resolvedSlickId
+            };
         }
 
         var membership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, snapshotCard.AssignedUserId.Value);
         if (membership?.User is null)
         {
-            return snapshotCard with { AssignedUserId = null, AssignedUserName = null };
+            return snapshotCard with
+            {
+                AssignedUserId = null,
+                AssignedUserName = null,
+                SlickId = resolvedSlickId
+            };
         }
 
         return snapshotCard with
         {
             AssignedUserId = membership.UserId,
             AssignedUserName = membership.User.DisplayName,
-            AssignedUserImageRelativePath = (await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, membership.UserId))?.RelativePath
+            AssignedUserImageRelativePath = (await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, membership.UserId))?.RelativePath,
+            SlickId = resolvedSlickId
         };
     }
 
@@ -355,6 +371,17 @@ public sealed class CardArchiveService(
         }
 
         return membership.User;
+    }
+
+    private async Task<int?> ResolveSlickIdInBoardAsync(int boardId, int? slickId)
+    {
+        if (slickId is null)
+        {
+            return null;
+        }
+
+        var selectedSlick = await slickRepository.GetByIdInBoardAsync(boardId, slickId.Value);
+        return selectedSlick?.Id;
     }
 
     private async Task<CardDto> EnrichAssignedUserImageAsync(CardDto card)

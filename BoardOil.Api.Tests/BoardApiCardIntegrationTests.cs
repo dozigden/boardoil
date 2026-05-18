@@ -4,6 +4,7 @@ using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Column;
+using BoardOil.Contracts.Slick;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -147,11 +148,69 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_GetArchivedById_ShouldIncludeSlickIdInCardContract()
+    {
+        // Arrange
+        var slickCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/slicks",
+            new CreateSlickRequest("Release train", "presets", """{"presetIndex":2}"""));
+        slickCreateResponse.EnsureSuccessStatusCode();
+        var slickEnvelope = await slickCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<SlickDto>>(JsonOptions);
+        Assert.NotNull(slickEnvelope);
+        Assert.NotNull(slickEnvelope!.Data);
+        var slickId = slickEnvelope.Data!.Id;
+
+        var createdColumnId = await SeedBoardColumnAsync("Todo");
+        var createCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumnId, "Archive me", "Desc", [], null, null, slickId));
+        createCardResponse.EnsureSuccessStatusCode();
+        var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdCardEnvelope);
+        Assert.NotNull(createdCardEnvelope!.Data);
+
+        var archiveResponse = await Client.PostAsync($"/api/boards/1/cards/{createdCardEnvelope.Data!.Id}/archive", content: null);
+        archiveResponse.EnsureSuccessStatusCode();
+        var archivedCardEnvelope = await archiveResponse.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(JsonOptions);
+        Assert.NotNull(archivedCardEnvelope);
+        Assert.NotNull(archivedCardEnvelope!.Data);
+        var archivedCardId = archivedCardEnvelope.Data!.Id;
+
+        // Act
+        var response = await Client.GetAsync($"/api/boards/1/cards/archived/{archivedCardId}");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDetailDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.True(payload!.Success);
+        Assert.NotNull(payload.Data);
+        Assert.Equal(slickId, payload.Data!.Card.SlickId);
+    }
+
+    [Fact]
     public async Task CardEndpoints_Unarchive_ShouldReturnRestoredCardContract()
     {
         // Arrange
         var createdColumnId = await SeedBoardColumnAsync("Todo");
-        var createdCardId = await SeedBoardCardAsync(createdColumnId, "Archive me", "Desc");
+        var slickCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/slicks",
+            new CreateSlickRequest("Release train", "presets", """{"presetIndex":2}"""));
+        slickCreateResponse.EnsureSuccessStatusCode();
+        var slickEnvelope = await slickCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<SlickDto>>(JsonOptions);
+        Assert.NotNull(slickEnvelope);
+        Assert.NotNull(slickEnvelope!.Data);
+        var slickId = slickEnvelope.Data!.Id;
+
+        var createCardResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(createdColumnId, "Archive me", "Desc", [], null, null, slickId));
+        createCardResponse.EnsureSuccessStatusCode();
+        var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        Assert.NotNull(createdCardEnvelope);
+        Assert.NotNull(createdCardEnvelope!.Data);
+        var createdCardId = createdCardEnvelope.Data!.Id;
+
         var archiveResponse = await Client.PostAsync($"/api/boards/1/cards/{createdCardId}/archive", content: null);
         archiveResponse.EnsureSuccessStatusCode();
         var archivedCardEnvelope = await archiveResponse.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(JsonOptions);
@@ -171,6 +230,7 @@ public sealed class BoardApiCardIntegrationTests
         Assert.NotEqual(createdCardId, payload.Data!.Id);
         Assert.Equal("Archive me", payload.Data.Title);
         Assert.Equal(createdColumnId, payload.Data.BoardColumnId);
+        Assert.Equal(slickId, payload.Data.SlickId);
     }
 
     [Fact]

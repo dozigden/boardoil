@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Xunit;
 using ArchivedCardEntity = BoardOil.Data.Abstractions.Entities.EntityArchivedCard;
 using BoardMemberEntity = BoardOil.Data.Abstractions.Entities.EntityBoardMember;
+using SlickEntity = BoardOil.Data.Abstractions.Entities.EntitySlick;
 using TagEntity = BoardOil.Data.Abstractions.Entities.EntityTag;
 using UserEntity = BoardOil.Data.Abstractions.Entities.EntityUser;
 
@@ -109,6 +110,88 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.Equal(ActorUserId, restoredComments[0].AuthorUserId);
         Assert.Equal("Comment from unknown user", restoredComments[1].Text);
         Assert.Null(restoredComments[1].AuthorUserId);
+    }
+
+    [Fact]
+    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_WhenCardHasSlick_ShouldRestoreSlickMembership()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Keep this")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var slick = new SlickEntity
+        {
+            BoardId = boardId,
+            Name = "Release train",
+            NormalisedName = "RELEASE TRAIN",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#2E8B57","textColorMode":"auto"}"""
+        };
+        DbContextForArrange.Slicks.Add(slick);
+        await DbContextForArrange.SaveChangesAsync();
+        var card = await DbContextForArrange.Cards.SingleAsync(x => x.Id == cardId);
+        card.SlickId = slick.Id;
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var archiveResult = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+        Assert.True(archiveResult.Success);
+        Assert.NotNull(archiveResult.Data);
+        var unarchiveResult = await service.UnarchiveCardAsync(boardId, archiveResult.Data!.Id, ActorUserId);
+
+        // Assert
+        Assert.True(unarchiveResult.Success);
+        Assert.NotNull(unarchiveResult.Data);
+        Assert.Equal(slick.Id, unarchiveResult.Data!.SlickId);
+        var restoredCard = await DbContextForAssert.Cards.SingleAsync(x => x.Id == unarchiveResult.Data.Id);
+        Assert.Equal(slick.Id, restoredCard.SlickId);
+    }
+
+    [Fact]
+    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_WhenSnapshotSlickNoLongerExists_ShouldRestoreWithoutSlick()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Keep this")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var slick = new SlickEntity
+        {
+            BoardId = boardId,
+            Name = "Release train",
+            NormalisedName = "RELEASE TRAIN",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#2E8B57","textColorMode":"auto"}"""
+        };
+        DbContextForArrange.Slicks.Add(slick);
+        await DbContextForArrange.SaveChangesAsync();
+        var card = await DbContextForArrange.Cards.SingleAsync(x => x.Id == cardId);
+        card.SlickId = slick.Id;
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var archiveResult = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+        Assert.True(archiveResult.Success);
+        Assert.NotNull(archiveResult.Data);
+        DbContextForArrange.ChangeTracker.Clear();
+        var slickToDelete = await DbContextForArrange.Slicks.SingleAsync(x => x.Id == slick.Id);
+        DbContextForArrange.Slicks.Remove(slickToDelete);
+        await DbContextForArrange.SaveChangesAsync();
+        var unarchiveResult = await service.UnarchiveCardAsync(boardId, archiveResult.Data!.Id, ActorUserId);
+
+        // Assert
+        Assert.True(unarchiveResult.Success);
+        Assert.NotNull(unarchiveResult.Data);
+        Assert.Null(unarchiveResult.Data!.SlickId);
+        var restoredCard = await DbContextForAssert.Cards.SingleAsync(x => x.Id == unarchiveResult.Data.Id);
+        Assert.Null(restoredCard.SlickId);
     }
 
     [Fact]
@@ -503,6 +586,49 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Null(result.Data!.Card.AssignedUserId);
         Assert.Null(result.Data.Card.AssignedUserName);
+    }
+
+    [Fact]
+    public async Task GetArchivedCardAsync_WhenSnapshotSlickNoLongerExists_ShouldReturnNullSlickId()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Desc")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var slick = new SlickEntity
+        {
+            BoardId = boardId,
+            Name = "Release train",
+            NormalisedName = "RELEASE TRAIN",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#2E8B57","textColorMode":"auto"}"""
+        };
+        DbContextForArrange.Slicks.Add(slick);
+        await DbContextForArrange.SaveChangesAsync();
+        var card = await DbContextForArrange.Cards.SingleAsync(x => x.Id == cardId);
+        card.SlickId = slick.Id;
+        await DbContextForArrange.SaveChangesAsync();
+
+        var service = ResolveService<ICardArchiveService>();
+        var archiveResult = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+        Assert.True(archiveResult.Success);
+        Assert.NotNull(archiveResult.Data);
+
+        DbContextForArrange.ChangeTracker.Clear();
+        var slickToDelete = await DbContextForArrange.Slicks.SingleAsync(x => x.Id == slick.Id);
+        DbContextForArrange.Slicks.Remove(slickToDelete);
+        await DbContextForArrange.SaveChangesAsync();
+
+        // Act
+        var result = await service.GetArchivedCardAsync(boardId, archiveResult.Data!.Id, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Null(result.Data!.Card.SlickId);
     }
 
     private async Task SeedTagsForArrangeAsync(int boardId, params string[] tagNames)

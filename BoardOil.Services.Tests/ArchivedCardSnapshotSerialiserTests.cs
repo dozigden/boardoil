@@ -28,6 +28,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.Id, knownPayload.Payload.OriginalCardId);
         Assert.Equal(card.Title, knownPayload.Payload.Title);
         Assert.Equal(["Bug"], knownPayload.Payload.TagNames);
+        Assert.Equal(card.SlickId, knownPayload.Payload.SlickId);
         Assert.NotNull(knownPayload.Payload.Comments);
         var firstComment = Assert.Single(knownPayload.Payload.Comments!);
         Assert.Equal("Archived note", firstComment.Text);
@@ -72,6 +73,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.Title, parsedCard.Title);
         Assert.Equal(card.Description, parsedCard.Description);
         Assert.Equal(["Bug"], parsedCard.TagNames);
+        Assert.Equal(card.SlickId, parsedCard.SlickId);
 
         var parsedSnapshot = ArchivedCardSnapshotSerialiser.TryBuildCurrentSnapshot(snapshotJson, out var snapshot, out error);
         Assert.True(parsedSnapshot);
@@ -115,6 +117,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
             Title = "Archive me",
             Description = "Desc",
             SortKey = "B",
+            SlickId = 77,
             Comments =
             [
                 new EntityCardComment
