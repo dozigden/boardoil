@@ -38,6 +38,8 @@ public sealed class BoardPackageImportPlanner
             validationErrors.Add(new ValidationError("board.columns", "Board columns are required."));
         }
 
+        var packageSlicks = boardPayload.Slicks;
+
         var plannedCardTypes = new List<CardTypeImportDefinition>();
         var systemCardTypeName = CardTypeDefaults.SystemTypeName;
         var systemCardTypeNormalisedName = BoardPackageImportNormalisation.NormaliseName(CardTypeDefaults.SystemTypeName);
@@ -190,6 +192,56 @@ public sealed class BoardPackageImportPlanner
             }
         }
 
+        var plannedSlickDefinitionsByNormalisedName = new Dictionary<string, SlickImportDefinition>(StringComparer.Ordinal);
+        if (packageSlicks is not null)
+        {
+            for (var slickIndex = 0; slickIndex < packageSlicks.Count; slickIndex++)
+            {
+                var importedSlick = packageSlicks[slickIndex];
+                var slickPropertyPrefix = $"board.slicks[{slickIndex}]";
+                var errorCountBeforeSlick = validationErrors.Count;
+
+                if (importedSlick is null)
+                {
+                    validationErrors.Add(new ValidationError(slickPropertyPrefix, "Slick entry is required."));
+                    continue;
+                }
+
+                var slickNameValidation = ValidateSlickName(importedSlick.Name, $"{slickPropertyPrefix}.name");
+                if (slickNameValidation.Error is not null)
+                {
+                    validationErrors.Add(slickNameValidation.Error);
+                }
+
+                var slickStyleValidation = ResolveSlickStyle(importedSlick.StyleName, importedSlick.StylePropertiesJson, slickPropertyPrefix);
+                if (slickStyleValidation.Error is not null)
+                {
+                    validationErrors.Add(slickStyleValidation.Error);
+                }
+
+                if (validationErrors.Count > errorCountBeforeSlick)
+                {
+                    continue;
+                }
+
+                if (plannedSlickDefinitionsByNormalisedName.ContainsKey(slickNameValidation.NormalisedName))
+                {
+                    validationErrors.Add(new ValidationError(
+                        $"{slickPropertyPrefix}.name",
+                        $"Slick '{slickNameValidation.CanonicalName}' collides with another slick by case-insensitive name."));
+                    continue;
+                }
+
+                plannedSlickDefinitionsByNormalisedName.Add(
+                    slickNameValidation.NormalisedName,
+                    new SlickImportDefinition(
+                        slickNameValidation.CanonicalName,
+                        slickNameValidation.NormalisedName,
+                        slickStyleValidation.StyleName,
+                        slickStyleValidation.StylePropertiesJson));
+            }
+        }
+
         var plannedColumns = new List<ColumnImportDefinition>();
 
         if (packageColumns is not null)
@@ -270,6 +322,11 @@ public sealed class BoardPackageImportPlanner
                     }
 
                     var canonicalTagNames = ValidateAndCanonicaliseCardTagNames(importedCard.TagNames, $"{cardPropertyPrefix}.tagNames", validationErrors);
+                    var cardSlickNormalisedName = ResolveCardSlickNormalisedName(
+                        importedCard.SlickName,
+                        $"{cardPropertyPrefix}.slickName",
+                        plannedSlickDefinitionsByNormalisedName,
+                        validationErrors);
                     var plannedComments = ValidateAndCanonicaliseCardComments(
                         importedCard.Comments,
                         $"{cardPropertyPrefix}.comments",
@@ -285,6 +342,7 @@ public sealed class BoardPackageImportPlanner
                         cardDescription,
                         cardTypeValidation.NormalisedName,
                         canonicalTagNames,
+                        cardSlickNormalisedName,
                         BoardPackageImportNormalisation.ResolveNormalisedEmailOrNull(importedCard.AssignedUserEmail),
                         plannedComments));
                 }
@@ -399,6 +457,7 @@ public sealed class BoardPackageImportPlanner
                 systemCardTypeStylePropertiesJson,
                 plannedCardTypes,
                 plannedTagDefinitionsByNormalisedName.Values.ToList(),
+                plannedSlickDefinitionsByNormalisedName.Values.ToList(),
                 plannedColumns,
                 plannedArchivedCards),
             null);
@@ -589,5 +648,93 @@ public sealed class BoardPackageImportPlanner
         }
 
         return new CardTypeStyleResolution(normalisedStyleName, resolvedStylePropertiesJson, null);
+    }
+
+    private static SlickNameValidationResult ValidateSlickName(string? rawSlickName, string property)
+    {
+        if (string.IsNullOrWhiteSpace(rawSlickName))
+        {
+            return new SlickNameValidationResult(
+                string.Empty,
+                string.Empty,
+                new ValidationError(property, "Slick name is required."));
+        }
+
+        var canonicalSlickName = rawSlickName.Trim();
+        if (canonicalSlickName.Length > BoardPackageImportLimits.MaxSlickNameLength)
+        {
+            return new SlickNameValidationResult(
+                string.Empty,
+                string.Empty,
+                new ValidationError(property, $"Slick '{canonicalSlickName}' must be {BoardPackageImportLimits.MaxSlickNameLength} characters or fewer."));
+        }
+
+        return new SlickNameValidationResult(
+            canonicalSlickName,
+            BoardPackageImportNormalisation.NormaliseName(canonicalSlickName),
+            null);
+    }
+
+    private static SlickStyleResolution ResolveSlickStyle(string? styleName, string? stylePropertiesJson, string propertyPrefix)
+    {
+        var resolvedStyleName = styleName;
+        if (string.IsNullOrWhiteSpace(resolvedStyleName))
+        {
+            resolvedStyleName = TagStyleSchemaValidator.PresetsStyleName;
+        }
+
+        var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(resolvedStyleName.Trim());
+        if (normalisedStyleName is not TagStyleSchemaValidator.SolidStyleName
+            && normalisedStyleName is not TagStyleSchemaValidator.PresetsStyleName)
+        {
+            return new SlickStyleResolution(
+                string.Empty,
+                string.Empty,
+                new ValidationError($"{propertyPrefix}.styleName", "Style name must be 'solid' or 'presets'."));
+        }
+
+        var resolvedStylePropertiesJson = stylePropertiesJson;
+        if (string.IsNullOrWhiteSpace(resolvedStylePropertiesJson))
+        {
+            resolvedStylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(normalisedStyleName);
+        }
+        else
+        {
+            resolvedStylePropertiesJson = resolvedStylePropertiesJson.Trim();
+        }
+
+        if (!TagStyleSchemaValidator.IsValidJsonObject(resolvedStylePropertiesJson))
+        {
+            return new SlickStyleResolution(
+                string.Empty,
+                string.Empty,
+                new ValidationError($"{propertyPrefix}.stylePropertiesJson", "Style properties must be valid JSON object."));
+        }
+
+        return new SlickStyleResolution(normalisedStyleName, resolvedStylePropertiesJson, null);
+    }
+
+    private static string? ResolveCardSlickNormalisedName(
+        string? slickName,
+        string property,
+        IReadOnlyDictionary<string, SlickImportDefinition> slickDefinitionsByNormalisedName,
+        ICollection<ValidationError> validationErrors)
+    {
+        if (string.IsNullOrWhiteSpace(slickName))
+        {
+            return null;
+        }
+
+        var canonicalSlickName = slickName.Trim();
+        var normalisedSlickName = BoardPackageImportNormalisation.NormaliseName(canonicalSlickName);
+        if (!slickDefinitionsByNormalisedName.ContainsKey(normalisedSlickName))
+        {
+            validationErrors.Add(new ValidationError(
+                property,
+                $"Slick '{canonicalSlickName}' does not exist in the package slick list."));
+            return null;
+        }
+
+        return normalisedSlickName;
     }
 }

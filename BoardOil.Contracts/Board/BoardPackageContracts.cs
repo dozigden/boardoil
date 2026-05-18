@@ -15,7 +15,8 @@ public sealed record BoardPackageBoardDto(
     string? Description,
     IReadOnlyList<BoardPackageCardTypeDto> CardTypes,
     IReadOnlyList<BoardPackageTagDto> Tags,
-    IReadOnlyList<BoardPackageColumnDto> Columns);
+    IReadOnlyList<BoardPackageColumnDto> Columns,
+    IReadOnlyList<BoardPackageSlickDto>? Slicks = null);
 
 public sealed record BoardPackageCardTypeDto(
     string Name,
@@ -40,7 +41,13 @@ public sealed record BoardPackageCardDto(
     string CardTypeName,
     IReadOnlyList<string> TagNames,
     string? AssignedUserEmail = null,
-    IReadOnlyList<BoardPackageCommentDto>? Comments = null);
+    IReadOnlyList<BoardPackageCommentDto>? Comments = null,
+    string? SlickName = null);
+
+public sealed record BoardPackageSlickDto(
+    string Name,
+    string StyleName,
+    string StylePropertiesJson);
 
 public sealed record BoardPackageCommentDto(
     string Text,

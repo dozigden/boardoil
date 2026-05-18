@@ -7,6 +7,7 @@ using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.CardType;
 using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Card;
 using BoardOil.Services.Ordering;
@@ -22,6 +23,7 @@ public sealed class BoardPackageImportWriter(
     IArchivedCardRepository archivedCardRepository,
     ICardTypeRepository cardTypeRepository,
     ITagRepository tagRepository,
+    ISlickRepository slickRepository,
     ImportedUserResolver importedUserResolver,
     IDbContextScopeFactory scopeFactory)
 {
@@ -89,6 +91,22 @@ public sealed class BoardPackageImportWriter(
             tagsByNormalisedName.Add(tagDefinition.NormalisedName, createdTag);
         }
 
+        var slicksByNormalisedName = new Dictionary<string, EntitySlick>(StringComparer.Ordinal);
+        foreach (var slickDefinition in importPlan.SlickDefinitions)
+        {
+            var createdSlick = new EntitySlick
+            {
+                Board = board,
+                Name = slickDefinition.Name,
+                NormalisedName = slickDefinition.NormalisedName,
+                StyleName = slickDefinition.StyleName,
+                StylePropertiesJson = slickDefinition.StylePropertiesJson,
+            };
+
+            slickRepository.Add(createdSlick);
+            slicksByNormalisedName.Add(slickDefinition.NormalisedName, createdSlick);
+        }
+
         var createdColumns = new List<EntityBoardColumn>(importPlan.Columns.Count);
         var createdCardsByColumn = new Dictionary<EntityBoardColumn, List<EntityBoardCard>>();
         string? previousColumnSortKey = null;
@@ -119,6 +137,9 @@ public sealed class BoardPackageImportWriter(
                     CardType = cardTypesByNormalisedName[importedCard.CardTypeNormalisedName],
                     AssignedUserId = assignedUser?.Id,
                     AssignedUser = assignedUser,
+                    Slick = importedCard.SlickNormalisedName is null
+                        ? null
+                        : slicksByNormalisedName[importedCard.SlickNormalisedName],
                     Title = importedCard.Title,
                     Description = importedCard.Description,
                     SortKey = cardSortKey,

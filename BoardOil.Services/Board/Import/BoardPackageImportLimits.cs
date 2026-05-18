@@ -9,6 +9,7 @@ public static class BoardPackageImportLimits
     public const int MaxCardDescriptionLength = 20_000;
     public const int MaxCardCommentLength = 4_000;
     public const int MaxTagNameLength = 40;
+    public const int MaxSlickNameLength = 40;
     public const int MaxCardTypeNameLength = 40;
     public const int MaxArchiveTitleLength = 200;
     public const int MaxArchiveSnapshotJsonBytes = 2_097_152;

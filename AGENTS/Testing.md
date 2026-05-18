@@ -106,3 +106,9 @@ Use names that make ownership clear:
 
 - Contract/middleware intent in API tests (for example `...ShouldReturnBadRequest`, `...ShouldReturnForbidden`, `...ShouldMark...`)
 - Rule/invariant intent in service tests (for example `...ShouldReassign...`, `...ShouldBeAtomic...`)
+
+## Board Package Schema Compatibility
+
+- Treat currently supported board package schema versions as a compatibility set unless a story explicitly introduces versioned divergence.
+- When adding fields to board package payloads without a schema bump, add service tests that exercise those fields across all currently supported schema versions.
+- For BoardOil board package imports where schema `1` and `2` are intentionally equivalent, preserve regression coverage for both versions before introducing `3`.

@@ -9,6 +9,7 @@ using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.CardType;
 using BoardOil.Data.Abstractions.Column;
+using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Card;
 
@@ -22,6 +23,7 @@ public sealed class BoardExportService(
     IArchivedCardRepository archivedCardRepository,
     ICardTypeRepository cardTypeRepository,
     ITagRepository tagRepository,
+    ISlickRepository slickRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory) : IBoardExportService
 {
@@ -56,6 +58,8 @@ public sealed class BoardExportService(
         var archivedCards = await archivedCardRepository.ListForExportAsync(boardId);
         var cardTypes = await cardTypeRepository.GetAllForBoardAsync(boardId);
         var tags = await tagRepository.GetAllForBoardAsync(boardId);
+        var slicks = await slickRepository.GetAllForBoardAsync(boardId);
+        var slickNamesById = slicks.ToDictionary(x => x.Id, x => x.Name);
         var commentsByCardId = comments
             .GroupBy(x => x.CardId)
             .ToDictionary(
@@ -82,7 +86,8 @@ public sealed class BoardExportService(
                             .Select(cardTag => cardTag.Tag.Name)
                             .ToList(),
                         card.AssignedUser?.Email,
-                        commentsByCardId.GetValueOrDefault(card.Id, [])))
+                        commentsByCardId.GetValueOrDefault(card.Id, []),
+                        card.SlickId is null ? null : slickNamesById.GetValueOrDefault(card.SlickId.Value)))
                     .ToList());
 
         var boardPayload = new BoardPackageBoardDto(
@@ -98,6 +103,12 @@ public sealed class BoardExportService(
                 .Select(x => new BoardPackageColumnDto(
                     x.Title,
                     cardsByColumnId.GetValueOrDefault(x.Id, [])))
+                .ToList(),
+            slicks
+                .Select(x => new BoardPackageSlickDto(
+                    x.Name,
+                    x.StyleName,
+                    x.StylePropertiesJson))
                 .ToList());
         var archivePayload = new BoardPackageArchiveDto(
             archivedCards

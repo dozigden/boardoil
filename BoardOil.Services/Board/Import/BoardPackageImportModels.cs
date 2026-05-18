@@ -22,6 +22,7 @@ public sealed record BoardPackageImportPlan(
     string SystemCardTypeStylePropertiesJson,
     IReadOnlyList<CardTypeImportDefinition> CardTypes,
     IReadOnlyList<TagImportDefinition> TagDefinitions,
+    IReadOnlyList<SlickImportDefinition> SlickDefinitions,
     IReadOnlyList<ColumnImportDefinition> Columns,
     IReadOnlyList<ArchivedCardImportDefinition> ArchivedCards);
 
@@ -39,6 +40,12 @@ public sealed record TagImportDefinition(
     string StylePropertiesJson,
     string? Emoji);
 
+public sealed record SlickImportDefinition(
+    string Name,
+    string NormalisedName,
+    string StyleName,
+    string StylePropertiesJson);
+
 public sealed record ColumnImportDefinition(
     string Title,
     IReadOnlyList<CardImportDefinition> Cards);
@@ -48,6 +55,7 @@ public sealed record CardImportDefinition(
     string Description,
     string CardTypeNormalisedName,
     IReadOnlyList<string> TagNames,
+    string? SlickNormalisedName,
     string? AssignedUserNormalisedEmail,
     IReadOnlyList<CommentImportDefinition> Comments);
 
@@ -74,6 +82,16 @@ public sealed record CardTypeNameValidationResult(
     ValidationError? Error);
 
 public sealed record CardTypeStyleResolution(
+    string StyleName,
+    string StylePropertiesJson,
+    ValidationError? Error);
+
+public sealed record SlickNameValidationResult(
+    string CanonicalName,
+    string NormalisedName,
+    ValidationError? Error);
+
+public sealed record SlickStyleResolution(
     string StyleName,
     string StylePropertiesJson,
     ValidationError? Error);

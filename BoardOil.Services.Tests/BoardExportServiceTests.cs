@@ -50,6 +50,15 @@ public sealed class BoardExportServiceTests : TestBaseDb
             Emoji = "!",
         };
         DbContextForArrange.Tags.Add(urgentTag);
+        var releaseSlick = new EntitySlick
+        {
+            BoardId = board.BoardId,
+            Name = "Release train",
+            NormalisedName = "RELEASE TRAIN",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#2E8B57","textColorMode":"auto"}""",
+        };
+        DbContextForArrange.Slicks.Add(releaseSlick);
         await DbContextForArrange.SaveChangesAsync();
         DbContextForArrange.CardTags.Add(new EntityCardTag
         {
@@ -74,6 +83,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         });
         var cardEntity = DbContextForArrange.Cards.Single(x => x.Id == card.Id);
         cardEntity.AssignedUserId = actor.Id;
+        cardEntity.SlickId = releaseSlick.Id;
         DbContextForArrange.ArchivedCards.Add(new EntityArchivedCard
         {
             BoardId = board.BoardId,
@@ -133,6 +143,12 @@ public sealed class BoardExportServiceTests : TestBaseDb
                 && x.StyleName == "solid"
                 && x.StylePropertiesJson == """{"backgroundColor":"#FEEFC3","textColorMode":"auto"}""");
         Assert.Contains(payload.Tags, x => x.Name == "Urgent" && x.StyleName == "solid" && x.Emoji == "!");
+        Assert.NotNull(payload.Slicks);
+        Assert.Contains(
+            payload.Slicks!,
+            x => x.Name == "Release train"
+                && x.StyleName == "solid"
+                && x.StylePropertiesJson == """{"backgroundColor":"#2E8B57","textColorMode":"auto"}""");
         Assert.Single(payload.Columns);
         Assert.Equal("Todo", payload.Columns[0].Title);
         Assert.Equal(2, payload.Columns[0].Cards.Count);
@@ -142,6 +158,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.Equal(actor.Email, exportedAssignedCard.AssignedUserEmail);
         Assert.NotNull(exportedAssignedCard.Comments);
         Assert.Equal(2, exportedAssignedCard.Comments!.Count);
+        Assert.Equal("Release train", exportedAssignedCard.SlickName);
         Assert.Equal("Most recent comment", exportedAssignedCard.Comments[0].Text);
         Assert.Equal(actor.Email, exportedAssignedCard.Comments[0].AuthorEmail);
         Assert.Equal("Older comment", exportedAssignedCard.Comments[1].Text);
@@ -150,6 +167,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.Equal("Story", exportedUnassignedCard.CardTypeName);
         Assert.Equal([], exportedUnassignedCard.TagNames);
         Assert.Null(exportedUnassignedCard.AssignedUserEmail);
+        Assert.Null(exportedUnassignedCard.SlickName);
         Assert.NotNull(exportedUnassignedCard.Comments);
         Assert.Empty(exportedUnassignedCard.Comments!);
 

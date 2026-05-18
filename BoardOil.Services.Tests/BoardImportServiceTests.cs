@@ -32,13 +32,16 @@ public sealed class BoardImportServiceTests : TestBaseDb
                 new BoardPackageColumnDto(
                     "Todo",
                     [
-                        new BoardPackageCardDto("Fix login", "Investigate and fix", "Bug", ["Urgent", "NeedsReview"])
+                        new BoardPackageCardDto("Fix login", "Investigate and fix", "Bug", ["Urgent", "NeedsReview"], SlickName: "Release train")
                     ]),
                 new BoardPackageColumnDto(
                     "Done",
                     [
                         new BoardPackageCardDto("Ship release", "Already done", "Story", [])
                     ])
+            ],
+            [
+                new BoardPackageSlickDto("Release train", "solid", """{"backgroundColor":"#2E8B57","textColorMode":"auto"}""")
             ]);
 
         var service = ResolveService<IBoardPackageImportService>();
@@ -78,6 +81,16 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.Equal(["NeedsReview", "Urgent"], tags.Select(x => x.Name).ToArray());
         Assert.Contains(tags, x => x.Name == "Urgent" && x.StyleName == "solid" && x.Emoji == "🟥");
         Assert.Contains(tags, x => x.Name == "NeedsReview" && x.StyleName == TagStyleSchemaValidator.PresetsStyleName);
+
+        var slicks = DbContextForAssert.Slicks.Where(x => x.BoardId == boardId).ToList();
+        var releaseTrainSlick = Assert.Single(slicks);
+        Assert.Equal("Release train", releaseTrainSlick.Name);
+        Assert.Equal("RELEASE TRAIN", releaseTrainSlick.NormalisedName);
+        Assert.Equal("solid", releaseTrainSlick.StyleName);
+        Assert.Equal("""{"backgroundColor":"#2E8B57","textColorMode":"auto"}""", releaseTrainSlick.StylePropertiesJson);
+
+        var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId && x.Title == "Fix login");
+        Assert.Equal(releaseTrainSlick.Id, importedCard.SlickId);
     }
 
     [Fact]
@@ -580,6 +593,36 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.NotNull(result.ValidationErrors);
         Assert.Contains("board.tags[1].name", result.ValidationErrors!.Keys);
         Assert.Empty(DbContextForAssert.Boards.Where(x => x.Name == "Collision Board"));
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenCardSlickNameDoesNotExistInSlickList_ShouldReturnBadRequestAndWriteNothing()
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var payload = new BoardPackageBoardDto(
+            "Missing Slick Board",
+            "Missing slick board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Card A", "Description", "Story", [], SlickName: "Release train")
+                    ])
+            ],
+            []);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.Contains("board.columns[0].cards[0].slickName", result.ValidationErrors!.Keys);
+        Assert.Empty(DbContextForAssert.Boards.Where(x => x.Name == "Missing Slick Board"));
     }
 
     [Fact]

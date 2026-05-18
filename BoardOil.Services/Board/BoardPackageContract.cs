@@ -7,6 +7,8 @@ public static class BoardPackageContract
 {
     public const string PackageFormat = "boardoil-board-package";
     public const int MinSupportedSchemaVersion = 1;
+    // Additive payload fields without a schema bump must be covered by compatibility tests
+    // across all currently supported schema versions.
     public const int CurrentSchemaVersion = 2;
     public const string ManifestPath = "manifest.json";
     public const string BoardEntryKind = "board";

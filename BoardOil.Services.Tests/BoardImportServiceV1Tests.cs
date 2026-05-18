@@ -47,6 +47,75 @@ public sealed class BoardImportServiceV1Tests : TestBaseDb
         Assert.Equal(string.Empty, result.Data.Description);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    // Schema 1 and 2 intentionally share board payload compatibility until version 3 introduces divergence.
+    public async Task ImportBoardPackageAsync_WhenSchemaVersionIsOneOrTwo_WithSlickPayload_ShouldImportSlicksAndMembership(int schemaVersion)
+    {
+        var manifestJson = CreateManifestJson(schemaVersion);
+        const string boardPayloadJson =
+            """
+            {
+              "name": "Legacy Slick Board",
+              "cardTypes": [
+                { "name": "Story", "emoji": null, "isSystem": true }
+              ],
+              "tags": [],
+              "columns": [
+                {
+                  "title": "Todo",
+                  "cards": [
+                    {
+                      "title": "Card A",
+                      "description": "Description",
+                      "cardTypeName": "Story",
+                      "tagNames": [],
+                      "slickName": "Release train"
+                    }
+                  ]
+                }
+              ],
+              "slicks": [
+                {
+                  "name": "Release train",
+                  "styleName": "solid",
+                  "stylePropertiesJson": "{\"backgroundColor\":\"#2E8B57\",\"textColorMode\":\"auto\"}"
+                }
+              ]
+            }
+            """;
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackageWithRawEntries(manifestJson, boardPayloadJson)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+
+        var slick = DbContextForAssert.Slicks.Single(x => x.BoardId == boardId);
+        Assert.Equal("Release train", slick.Name);
+        Assert.Equal("RELEASE TRAIN", slick.NormalisedName);
+        Assert.Equal("solid", slick.StyleName);
+
+        var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId && x.Title == "Card A");
+        Assert.Equal(slick.Id, importedCard.SlickId);
+    }
+
+    private static string CreateManifestJson(int schemaVersion) =>
+        $$"""
+          {
+            "format": "boardoil-board-package",
+            "schemaVersion": {{schemaVersion}},
+            "exportedByVersion": "0.2.0",
+            "entries": [
+              { "kind": "board", "path": "board.json" }
+            ]
+          }
+          """;
+
     private static byte[] BuildBoardPackageWithRawEntries(string manifestJson, string boardJson)
     {
         using var stream = new MemoryStream();

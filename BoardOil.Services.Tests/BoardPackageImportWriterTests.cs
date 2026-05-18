@@ -83,6 +83,7 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
                                 "Description",
                                 BoardPackageImportNormalisation.NormaliseName(CardTypeDefaults.SystemTypeName),
                                 [],
+                                null,
                                 activeUser.NormalisedEmail,
                                 [
                                     new CommentImportDefinition("Active author", new DateTime(2026, 05, 02, 8, 0, 0, DateTimeKind.Utc), activeUser.NormalisedEmail),
@@ -121,6 +122,7 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
             null,
             CardTypeDefaults.DefaultStyleName,
             CardTypeDefaults.DefaultStylePropertiesJson,
+            [],
             [],
             [],
             columns ?? [],
