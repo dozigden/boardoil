@@ -20,9 +20,9 @@
           @click="openEditor(slick.id)"
         >
           <span class="entity-row-title">{{ slick.name }}</span>
-          <span class="entity-row-badges">
-            <span class="tag" :class="getSlickStyleClasses(slick)" :style="getSlickStyle(slick)">
-              {{ slick.styleName === 'presets' ? 'Preset' : 'Solid' }}
+          <span class="entity-row-badges slicks-row-preview">
+            <span class="slicks-row-swatch" :class="getSlickStyleClasses(slick)" :style="getSlickStyle(slick)">
+              <span class="slicks-row-swatch-label">{{ slick.name }}</span>
             </span>
           </span>
         </button>
@@ -106,3 +106,26 @@ function resolveBoardId() {
   return Number.isFinite(parsed) ? parsed : null;
 }
 </script>
+
+<style scoped>
+.slicks-row-preview {
+  min-width: 0;
+}
+
+.slicks-row-swatch {
+  display: inline-flex;
+  align-items: center;
+  width: min(20rem, 100%);
+  min-width: 7rem;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+}
+
+.slicks-row-swatch-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>

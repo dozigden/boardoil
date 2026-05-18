@@ -10,7 +10,7 @@
       ref="triggerRef"
       type="button"
       class="btn btn--secondary bo-dropdown-trigger"
-      :class="[buttonClass, { 'btn--icon': isIconOnly }]"
+      :class="[buttonClass, { 'btn--icon': effectiveIsIconOnly }]"
       :disabled="disabled"
       :aria-expanded="isOpen"
       :aria-controls="menuId"
@@ -22,7 +22,9 @@
       <slot name="icon">
         <component v-if="icon" :is="icon" :size="iconSize" aria-hidden="true" />
       </slot>
-      <span v-if="triggerText">{{ triggerText }}</span>
+      <slot name="trigger">
+        <span v-if="triggerText">{{ triggerText }}</span>
+      </slot>
     </button>
     <Teleport v-if="teleport" to="body">
       <div
@@ -56,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue';
 import type { Component } from 'vue';
 import { useClickOutside } from '../composables/useClickOutside';
 
@@ -84,6 +86,7 @@ const props = withDefaults(defineProps<{
   popup: 'menu',
   teleport: true
 });
+const slots = useSlots();
 
 const rootRef = ref<HTMLElement | null>(null);
 const triggerRef = ref<HTMLElement | null>(null);
@@ -102,7 +105,9 @@ const triggerText = computed(() => {
   return props.iconOnly ? null : props.label;
 });
 const isIconOnly = computed(() => props.iconOnly || !triggerText.value);
-const triggerAriaLabel = computed(() => (isIconOnly.value ? props.label : undefined));
+const hasCustomTrigger = computed(() => slots.trigger !== undefined);
+const effectiveIsIconOnly = computed(() => isIconOnly.value && !hasCustomTrigger.value);
+const triggerAriaLabel = computed(() => (effectiveIsIconOnly.value ? props.label : undefined));
 const panelStyle = computed(() => ({
   top: `${panelTop.value}px`,
   left: `${panelLeft.value}px`,

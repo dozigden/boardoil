@@ -234,8 +234,18 @@
               align="left"
               label="Select slick"
               :teleport="false"
-              :text="selectedSlickLabel"
             >
+              <template #trigger>
+                <span
+                  v-if="selectedSlick"
+                  class="card-editor-slick-swatch card-editor-slick-swatch--trigger"
+                  :class="getSlickStyleClasses(selectedSlick)"
+                  :style="getSlickStyle(selectedSlick)"
+                >
+                  <span class="card-editor-slick-swatch-label">{{ selectedSlick.name }}</span>
+                </span>
+                <span v-else>{{ selectedSlickLabel }}</span>
+              </template>
               <template #default="{ close }">
                 <button
                   type="button"
@@ -243,7 +253,6 @@
                   @click="setDraftSlickId(null, close)"
                 >
                   <span class="bo-dropdown-item-main">None</span>
-                  <span v-if="cardDraft.slickId === null" class="badge bo-dropdown-item-meta">Selected</span>
                 </button>
                 <button
                   v-for="slick in slicks"
@@ -252,8 +261,11 @@
                   class="bo-dropdown-item"
                   @click="setDraftSlickId(slick.id, close)"
                 >
-                  <span class="bo-dropdown-item-main">{{ slick.name }}</span>
-                  <span v-if="slick.id === cardDraft.slickId" class="badge bo-dropdown-item-meta">Selected</span>
+                  <span class="bo-dropdown-item-main card-editor-slick-option">
+                    <span class="card-editor-slick-swatch" :class="getSlickStyleClasses(slick)" :style="getSlickStyle(slick)">
+                      <span class="card-editor-slick-swatch-label">{{ slick.name }}</span>
+                    </span>
+                  </span>
                 </button>
               </template>
             </BoDropdown>
@@ -303,6 +315,8 @@ import { useTagStore } from '../stores/tagStore';
 import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardTypeSelection';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
 import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
+import type { Slick } from '../../shared/types/boardTypes';
+import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 
 const route = useRoute();
 const router = useRouter();
@@ -416,6 +430,13 @@ const selectedSlickLabel = computed(() => {
   }
 
   return slicks.value.find(x => x.id === cardDraft.value!.slickId)?.name ?? 'None';
+});
+const selectedSlick = computed<Slick | null>(() => {
+  if (!cardDraft.value || cardDraft.value.slickId === null) {
+    return null;
+  }
+
+  return slicks.value.find(x => x.id === cardDraft.value!.slickId) ?? null;
 });
 const descriptionDraft = computed({
   get: () => {
@@ -574,6 +595,18 @@ function setDraftSlickId(slickId: number | null, close?: () => void) {
     slickId
   };
   close?.();
+}
+
+function getSlickStyle(slick: Slick) {
+  return getSurfaceStyle(slick, {
+    fallbackBackground: 'var(--bo-surface-base)',
+    fallbackColor: 'var(--bo-ink-strong)',
+    fallbackBorderColor: 'var(--bo-border-soft)'
+  });
+}
+
+function getSlickStyleClasses(slick: Slick) {
+  return getSemanticStyleClasses(slick, 'tag');
 }
 
 async function saveCard() {
@@ -1065,22 +1098,53 @@ watch(
 
 .card-editor-column-picker :deep(.bo-dropdown),
 .card-editor-type-picker :deep(.bo-dropdown),
-.card-editor-assigned-user-picker :deep(.bo-dropdown) {
+.card-editor-assigned-user-picker :deep(.bo-dropdown),
+.card-editor-slick-picker :deep(.bo-dropdown) {
   width: 100%;
 }
 
 .card-editor-column-picker :deep(.bo-dropdown-trigger),
 .card-editor-type-picker :deep(.bo-dropdown-trigger),
-.card-editor-assigned-user-picker :deep(.bo-dropdown-trigger) {
+.card-editor-assigned-user-picker :deep(.bo-dropdown-trigger),
+.card-editor-slick-picker :deep(.bo-dropdown-trigger) {
   width: 100%;
   justify-content: space-between;
 }
 
 .card-editor-column-picker :deep(.bo-dropdown-panel),
 .card-editor-type-picker :deep(.bo-dropdown-panel),
-.card-editor-assigned-user-picker :deep(.bo-dropdown-panel) {
+.card-editor-assigned-user-picker :deep(.bo-dropdown-panel),
+.card-editor-slick-picker :deep(.bo-dropdown-panel) {
   width: auto;
   min-width: 11rem;
+}
+
+.card-editor-slick-option {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+}
+
+.card-editor-slick-swatch {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  max-width: 100%;
+}
+
+.card-editor-slick-swatch-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-editor-slick-swatch--trigger {
+  flex: 1;
 }
 
 .card-editor-option-section {

@@ -29,11 +29,31 @@
         Style
         <select :value="draft.styleName" :disabled="busy" @change="setStyleName(parseSlickStyleNameInput(($event.target as HTMLSelectElement).value))">
           <option value="solid">Solid</option>
-          <option value="presets">Preset</option>
+          <option value="presets">Presets</option>
         </select>
       </label>
 
-      <template v-if="draft.styleName === 'solid'">
+      <template v-if="draft.styleName === 'presets'">
+        <label>
+          Preset
+          <div class="slicks-preset-picker" role="radiogroup" aria-label="Slick preset colour">
+            <button
+              v-for="preset in presetColours"
+              :key="preset.cssVar"
+              type="button"
+              class="slicks-preset-swatch"
+              :class="{ 'slicks-preset-swatch--selected': draft.presetIndex === preset.index }"
+              :style="{ backgroundColor: preset.cssValue }"
+              :disabled="busy"
+              :aria-pressed="draft.presetIndex === preset.index"
+              :aria-label="`Preset ${preset.index + 1}`"
+              @click="setDraftField('presetIndex', preset.index)"
+            />
+          </div>
+        </label>
+      </template>
+
+      <template v-else-if="draft.styleName === 'solid'">
         <label>
           Background Color
           <input
@@ -123,6 +143,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useCardStore } from '../stores/cardStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useStyleDraft } from '../composables/useStyleDraft';
+import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
 import { createStyleDraft } from '../../shared/utils/styleDraftAdapter';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { Slick, SlickStyleName } from '../../shared/types/boardTypes';
@@ -149,6 +170,7 @@ const {
 } = useStyleDraft();
 const draftSlickName = ref('');
 const draftSourceKey = ref<string | null>(null);
+const presetColours = PRESET_TOKENS;
 
 const isCreateMode = computed(() => route.name === 'slicks-new');
 const routeSlickId = computed<number | null>(() => {
@@ -392,5 +414,25 @@ function resolveDraftSlickStyleName(styleName: string): SlickStyleName {
 
 .slicks-colour-input {
   width: 100%;
+}
+
+.slicks-preset-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.slicks-preset-swatch {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--bo-border-default);
+  cursor: pointer;
+  padding: 0;
+}
+
+.slicks-preset-swatch--selected {
+  outline: 2px solid var(--bo-focus-ring);
+  outline-offset: 1px;
 }
 </style>
