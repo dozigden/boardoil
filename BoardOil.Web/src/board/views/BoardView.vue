@@ -13,7 +13,7 @@
     </defs>
   </svg>
 
-  <section v-if="isLoadingBoard" class="board-loading" aria-live="polite">
+  <section v-if="isLoading" class="board-loading" aria-live="polite">
     <span class="board-loading-indicator" aria-hidden="true" />
     <p class="board-loading-label">Loading board...</p>
   </section>
@@ -49,7 +49,7 @@
     </BoardConveyor>
 
     <section class="board" :ref="setBoardRef">
-      <div v-if="gooGroups.length > 0" class="goo-layer" aria-hidden="true">
+      <div v-if="!isLoading && gooGroups.length > 0" class="goo-layer" aria-hidden="true">
         <div
           v-for="group in gooGroups"
           :key="group.id"
@@ -206,6 +206,7 @@ const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
 const newCardDraftErrors = ref<Record<number, string>>({});
+const isLoading = ref(false);
 const isBulkEditDialogOpen = ref(false);
 const isApplyingBulkEdit = ref(false);
 const bulkEditTagStates = ref<TagFilterStateMap>({});
@@ -219,7 +220,7 @@ const cardTypeStore = useCardTypeStore();
 const slickStore = useSlickStore();
 const tagStore = useTagStore();
 
-const { board, isLoadingBoard } = storeToRefs(boardStore);
+const { board } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { slicks } = storeToRefs(slickStore);
 const { tags } = storeToRefs(tagStore);
@@ -567,9 +568,12 @@ function resolveBoardId() {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+let boardViewLoadRequestVersion = 0;
+
 watch(
   () => route.params.boardId,
   async () => {
+    const requestVersion = ++boardViewLoadRequestVersion;
     clearDragInteraction();
     clearCardFilters();
     resetSelectionState();
@@ -581,17 +585,32 @@ watch(
       return;
     }
 
-    const loaded = await boardStore.initialize(boardId);
-    if (!loaded && resolveBoardId() === boardId) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
+    isLoading.value = true;
+    try {
+      const loaded = await boardStore.initialize(boardId);
+      if (requestVersion !== boardViewLoadRequestVersion) {
+        return;
+      }
 
-    await tagStore.loadTags(boardId);
-    await cardTypeStore.loadCardTypes(boardId);
-    await slickStore.loadSlicks(boardId);
-    await nextTick();
-    scheduleGooStructureRefresh();
+      if (!loaded && resolveBoardId() === boardId) {
+        await router.replace({ name: 'boards' });
+        return;
+      }
+
+      await tagStore.loadTags(boardId);
+      await cardTypeStore.loadCardTypes(boardId);
+      await slickStore.loadSlicks(boardId);
+      if (requestVersion !== boardViewLoadRequestVersion) {
+        return;
+      }
+
+      await nextTick();
+      scheduleGooStructureRefresh();
+    } finally {
+      if (requestVersion === boardViewLoadRequestVersion) {
+        isLoading.value = false;
+      }
+    }
   },
   { immediate: true }
 );
