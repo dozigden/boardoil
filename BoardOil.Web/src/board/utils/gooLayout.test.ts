@@ -92,10 +92,10 @@ describe('gooLayout', () => {
 
   it('keeps blob geometry and applies clip path within clip bounds', () => {
     const clipRect: RectLike = {
-      left: 40,
-      top: 40,
-      width: 80,
-      height: 80
+      left: 60,
+      top: 60,
+      width: 60,
+      height: 60
     };
     const items: GooItem[] = [
       makeItem('clipped', 'slick-1', '#ff0000', { left: 20, top: 20, width: 100, height: 100 }, clipRect)
