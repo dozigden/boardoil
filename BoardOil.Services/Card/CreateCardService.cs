@@ -90,17 +90,7 @@ public sealed class CreateCardService(
 
         var draft = draftResult.Draft!.Value;
         var tags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames ?? Array.Empty<string>(), _tagRepository);
-        int? selectedSlickId = null;
-        if (request.SlickId is int requestedSlickId)
-        {
-            var selectedSlick = await slickRepository.GetByIdInBoardAsync(boardId, requestedSlickId);
-            if (selectedSlick is null)
-            {
-                return ApiErrors.ValidationFailed([new ValidationError("slickId", "Slick does not exist in board.")]);
-            }
-
-            selectedSlickId = selectedSlick.Id;
-        }
+        var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickId, request.SlickName, slickRepository);
 
         var card = new EntityBoardCard
         {
@@ -108,7 +98,7 @@ public sealed class CreateCardService(
             CardTypeId = draft.CardTypeId,
             CardType = selectedCardType,
             AssignedUserId = draft.AssignedUserId,
-            SlickId = selectedSlickId,
+            Slick = selectedSlick,
             Title = draft.Title,
             Description = draft.Description,
             SortKey = draft.SortKey,

@@ -13,6 +13,7 @@ public sealed class CardValidator(
 {
     private const int MaxDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
+    private const int MaxSlickNameLength = 40;
     private readonly ICardRepository _cardRepository = cardRepository;
     private readonly IBoardMemberRepository _boardMemberRepository = boardMemberRepository;
     private readonly ISlickRepository _slickRepository = slickRepository;
@@ -24,6 +25,8 @@ public sealed class CardValidator(
         ValidateDescription(request.Description ?? string.Empty, errors);
         await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
         await ValidateSlickIdAsync(boardId, request.SlickId, errors);
+        ValidateSlickName(request.SlickName, errors);
+        ValidateSlickSelection(request.SlickId, request.SlickName, errors);
         if (errors.Count > 0)
         {
             return errors;
@@ -76,6 +79,8 @@ public sealed class CardValidator(
 
         await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
         await ValidateSlickIdAsync(boardId, request.SlickId, errors);
+        ValidateSlickName(request.SlickName, errors);
+        ValidateSlickSelection(request.SlickId, request.SlickName, errors);
 
         if (request.BoardColumnId is int boardColumnId)
         {
@@ -105,6 +110,30 @@ public sealed class CardValidator(
         }
 
         return Array.Empty<ValidationError>();
+    }
+
+    private static void ValidateSlickName(string? slickName, ICollection<ValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(slickName))
+        {
+            return;
+        }
+
+        var canonicalName = slickName.Trim();
+        if (canonicalName.Length > MaxSlickNameLength)
+        {
+            errors.Add(new ValidationError("slickName", $"Slick '{canonicalName}' must be {MaxSlickNameLength} characters or fewer."));
+        }
+    }
+
+    private static void ValidateSlickSelection(int? slickId, string? slickName, ICollection<ValidationError> errors)
+    {
+        if (slickId is null || string.IsNullOrWhiteSpace(slickName))
+        {
+            return;
+        }
+
+        errors.Add(new ValidationError("slickName", "Provide either slickId or slickName, not both."));
     }
 
     private async Task ValidateSlickIdAsync(int boardId, int? slickId, ICollection<ValidationError> errors)

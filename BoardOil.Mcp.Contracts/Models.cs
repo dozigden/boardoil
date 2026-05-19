@@ -52,7 +52,9 @@ public sealed record McpBoardCardSnapshot(
     IReadOnlyList<string> TagNames,
     DateTime UpdatedAtUtc,
     int? AssignedUserId,
-    string? AssignedUserName);
+    string? AssignedUserName,
+    int? SlickId,
+    McpCardSlickSnapshot? Slick);
 
 public sealed record McpCardSnapshot(
     int Id,
@@ -68,6 +70,8 @@ public sealed record McpCardSnapshot(
     DateTime UpdatedAtUtc,
     int? AssignedUserId,
     string? AssignedUserName,
+    int? SlickId,
+    McpCardSlickSnapshot? Slick,
     IReadOnlyList<McpCardCommentSnapshot> Comments);
 
 public sealed record McpCardCommentSnapshot(
@@ -85,6 +89,12 @@ public sealed record McpCardTagSnapshot(
     string StyleName,
     string StylePropertiesJson,
     string? Emoji);
+
+public sealed record McpCardSlickSnapshot(
+    int Id,
+    string Name,
+    string StyleName,
+    string StylePropertiesJson);
 
 public sealed record BoardGetInput
 {
@@ -122,6 +132,7 @@ public sealed record CardCreateInput
     public int? ColumnId { get; init; }
     public int? CardTypeId { get; init; }
     public int? AssignedUserId { get; init; }
+    public string? SlickName { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyList<string>? TagNames { get; init; }
@@ -145,6 +156,7 @@ public sealed record CardUpdateInput
             _assignedUserIdSpecified = true;
         }
     }
+    public string? SlickName { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyList<string> TagNames { get; init; } = [];

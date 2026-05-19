@@ -161,9 +161,11 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         var cardCreateProperties = cardCreateTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(cardCreateProperties.TryGetProperty("cardTypeId", out _));
         Assert.True(cardCreateProperties.TryGetProperty("assignedUserId", out _));
+        Assert.True(cardCreateProperties.TryGetProperty("slickName", out _));
         var cardCreateRequired = cardCreateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
         Assert.DoesNotContain("cardTypeId", cardCreateRequired);
         Assert.DoesNotContain("assignedUserId", cardCreateRequired);
+        Assert.DoesNotContain("slickName", cardCreateRequired);
 
         var cardGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardGet);
         var cardGetProperties = cardGetTool.GetProperty("inputSchema").GetProperty("properties");
@@ -175,10 +177,12 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.True(cardUpdateProperties.TryGetProperty("columnId", out _));
         Assert.True(cardUpdateProperties.TryGetProperty("cardTypeId", out _));
         Assert.True(cardUpdateProperties.TryGetProperty("assignedUserId", out _));
+        Assert.True(cardUpdateProperties.TryGetProperty("slickName", out _));
         var cardUpdateRequired = cardUpdateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
         Assert.DoesNotContain("columnId", cardUpdateRequired);
         Assert.Contains("cardTypeId", cardUpdateRequired);
         Assert.DoesNotContain("assignedUserId", cardUpdateRequired);
+        Assert.DoesNotContain("slickName", cardUpdateRequired);
 
         var cardCommentCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardCommentCreate);
         var cardCommentCreateProperties = cardCommentCreateTool.GetProperty("inputSchema").GetProperty("properties");

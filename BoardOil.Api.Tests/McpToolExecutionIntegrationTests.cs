@@ -761,6 +761,217 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
     }
 
     [Fact]
+    public async Task CardMutations_WithSlickName_ShouldAutoCreateExposeAndClearSlickMembership()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+
+        var boardGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-before-slick-name-mutation",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
+        using var boardGetPayload = await McpJsonRpcClient.ParseJsonAsync(boardGetResponse);
+        var todoColumnId = McpJsonRpcClient.GetStructuredContent(boardGetPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .Single(column => column.GetProperty("title").GetString() == "Todo")
+            .GetProperty("id")
+            .GetInt32();
+
+        var createResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = todoColumnId,
+                    title = "MCP slick-name card",
+                    description = "",
+                    tagNames = Array.Empty<string>(),
+                    slickName = "Release train"
+                }
+            },
+            "card-create-with-slick-name",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
+        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
+        var cardId = createdCard.GetProperty("id").GetInt32();
+        var cardTypeId = createdCard.GetProperty("cardTypeId").GetInt32();
+        Assert.True(createdCard.TryGetProperty("slickId", out var createdSlickIdElement));
+        Assert.True(createdCard.TryGetProperty("slick", out var createdSlickElement));
+        Assert.Equal("Release train", createdSlickElement.GetProperty("name").GetString());
+        var createdSlickId = createdSlickIdElement.GetInt32();
+        Assert.Equal(createdSlickId, createdSlickElement.GetProperty("id").GetInt32());
+
+        var verifyBoardResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-after-slick-name-create",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, verifyBoardResponse.StatusCode);
+        using var verifyBoardPayload = await McpJsonRpcClient.ParseJsonAsync(verifyBoardResponse);
+        var boardCard = McpJsonRpcClient.GetStructuredContent(verifyBoardPayload)
+            .GetProperty("columns")
+            .EnumerateArray()
+            .SelectMany(column => column.GetProperty("cards").EnumerateArray())
+            .Single(card => card.GetProperty("id").GetInt32() == cardId);
+        Assert.Equal(createdSlickId, boardCard.GetProperty("slickId").GetInt32());
+        Assert.Equal("Release train", boardCard.GetProperty("slick").GetProperty("name").GetString());
+
+        // Act: update with a different slick name.
+        var updateWithDifferentSlickResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.update",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = cardId,
+                    cardTypeId,
+                    title = "MCP slick-name card",
+                    description = "",
+                    tagNames = Array.Empty<string>(),
+                    slickName = "Release candidate"
+                }
+            },
+            "card-update-with-new-slick-name",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, updateWithDifferentSlickResponse.StatusCode);
+
+        var cardGetAfterUpdateResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.get",
+                arguments = new { boardId = 1, id = cardId }
+            },
+            "card-get-after-slick-name-update",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, cardGetAfterUpdateResponse.StatusCode);
+        using var cardGetAfterUpdatePayload = await McpJsonRpcClient.ParseJsonAsync(cardGetAfterUpdateResponse);
+        var cardAfterUpdate = McpJsonRpcClient.GetStructuredContent(cardGetAfterUpdatePayload);
+        Assert.Equal("Release candidate", cardAfterUpdate.GetProperty("slick").GetProperty("name").GetString());
+        Assert.NotEqual(createdSlickId, cardAfterUpdate.GetProperty("slickId").GetInt32());
+
+        // Act: explicit null clears slick membership.
+        var clearWithNullResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.update",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = cardId,
+                    cardTypeId,
+                    title = "MCP slick-name card",
+                    description = "",
+                    tagNames = Array.Empty<string>(),
+                    slickName = (string?)null
+                }
+            },
+            "card-update-clear-slick-with-null",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, clearWithNullResponse.StatusCode);
+
+        var cardGetAfterNullClearResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.get",
+                arguments = new { boardId = 1, id = cardId }
+            },
+            "card-get-after-null-slick-clear",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, cardGetAfterNullClearResponse.StatusCode);
+        using var cardGetAfterNullClearPayload = await McpJsonRpcClient.ParseJsonAsync(cardGetAfterNullClearResponse);
+        var cardAfterNullClear = McpJsonRpcClient.GetStructuredContent(cardGetAfterNullClearPayload);
+        Assert.Equal(JsonValueKind.Null, cardAfterNullClear.GetProperty("slickId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, cardAfterNullClear.GetProperty("slick").ValueKind);
+
+        // Act: omitted slickName clears membership too (tag-modeled behaviour).
+        var setAgainResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.update",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = cardId,
+                    cardTypeId,
+                    title = "MCP slick-name card",
+                    description = "",
+                    tagNames = Array.Empty<string>(),
+                    slickName = "Release train"
+                }
+            },
+            "card-update-set-slick-before-omit-clear",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, setAgainResponse.StatusCode);
+
+        var clearWithOmittedFieldResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.update",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = cardId,
+                    cardTypeId,
+                    title = "MCP slick-name card",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-update-clear-slick-with-omitted-field",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, clearWithOmittedFieldResponse.StatusCode);
+
+        var cardGetAfterOmittedClearResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.get",
+                arguments = new { boardId = 1, id = cardId }
+            },
+            "card-get-after-omitted-slick-clear",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, cardGetAfterOmittedClearResponse.StatusCode);
+        using var cardGetAfterOmittedClearPayload = await McpJsonRpcClient.ParseJsonAsync(cardGetAfterOmittedClearResponse);
+        var cardAfterOmittedClear = McpJsonRpcClient.GetStructuredContent(cardGetAfterOmittedClearPayload);
+        Assert.Equal(JsonValueKind.Null, cardAfterOmittedClear.GetProperty("slickId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, cardAfterOmittedClear.GetProperty("slick").ValueKind);
+    }
+
+    [Fact]
     public async Task LegacyMutationInputs_ShouldBeRejected()
     {
         // Arrange

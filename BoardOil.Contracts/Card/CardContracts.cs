@@ -82,7 +82,8 @@ public sealed record CreateCardRequest(
     IReadOnlyList<string>? TagNames,
     int? CardTypeId = null,
     int? AssignedUserId = null,
-    int? SlickId = null);
+    int? SlickId = null,
+    string? SlickName = null);
 
 public sealed record UpdateCardRequest(
     string Title,
@@ -91,7 +92,8 @@ public sealed record UpdateCardRequest(
     int CardTypeId,
     int? BoardColumnId = null,
     int? AssignedUserId = null,
-    int? SlickId = null);
+    int? SlickId = null,
+    string? SlickName = null);
 
 public sealed record MoveCardRequest(
     int BoardColumnId,

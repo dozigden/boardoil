@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.Board;
+using BoardOil.Abstractions.Slick;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Mcp.Contracts;
@@ -8,9 +9,11 @@ namespace BoardOil.Api.Mcp;
 
 public sealed class BoardGetTool(
     IBoardService boardService,
+    ISlickService slickService,
     IMcpAuthorisationService authorisationService) : McpToolBase<BoardGetInput, McpBoardSnapshot>(authorisationService)
 {
     private readonly IBoardService _boardService = boardService;
+    private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
         new(ToolNames.BoardGet, "Get a board snapshot including columns and cards. Card descriptions are omitted; use card.get for full text.", ToolSchemas.BoardGetInput, ToolSchemas.ObjectOutput);
@@ -45,6 +48,12 @@ public sealed class BoardGetTool(
             return Failure(result.ToMcpError());
         }
 
-        return Success(result.Data.ToMcp());
+        var slicksResult = await McpSlickHelpers.LoadBoardSlicksByIdAsync(_slickService, boardId, context.ActorUserId, cancellationToken);
+        if (!slicksResult.Success)
+        {
+            return Failure((slicksResult.Error ?? ApiErrors.InternalError("Failed to load slicks.")).ToMcpError());
+        }
+
+        return Success(result.Data.ToMcp(slicksResult.SlicksById));
     }
 }

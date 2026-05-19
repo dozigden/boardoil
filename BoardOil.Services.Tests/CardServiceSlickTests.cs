@@ -1,5 +1,6 @@
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Card;
+using BoardOil.Services.Tag;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -122,6 +123,138 @@ public sealed class CardServiceSlickTests : TestBaseDb
         Assert.Null(clearResult.Data!.SlickId);
         var stored = await DbContextForAssert.Cards.SingleAsync(x => x.Id == cardId);
         Assert.Null(stored.SlickId);
+    }
+
+    [Fact]
+    public async Task CreateCardAsync_WhenSlickNameProvided_ShouldAutoCreateAndAssignSlick()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var service = CreateService();
+
+        // Act
+        var result = await service.CreateCardAsync(
+            board.BoardId,
+            new CreateCardRequest(todoColumnId, "Card A", "Desc", [], null, null, null, "Release train"),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.NotNull(result.Data!.SlickId);
+
+        var createdSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.BoardId == board.BoardId);
+        Assert.Equal("Release train", createdSlick.Name);
+        Assert.Equal("RELEASE TRAIN", createdSlick.NormalisedName);
+        Assert.Equal(TagStyleSchemaValidator.PresetsStyleName, createdSlick.StyleName);
+
+        var storedCard = await DbContextForAssert.Cards.SingleAsync();
+        Assert.Equal(createdSlick.Id, storedCard.SlickId);
+    }
+
+    [Fact]
+    public async Task UpdateCardAsync_WhenSlickNameProvided_ShouldAutoCreateAndAssignSlick()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Card A", "Desc")
+            .Build();
+        var cardId = board.GetCard("Card A").Id;
+        var systemCardTypeId = await DbContextForArrange.CardTypes.Where(x => x.BoardId == board.BoardId && x.IsSystem).Select(x => x.Id).SingleAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateCardAsync(
+            board.BoardId,
+            cardId,
+            new UpdateCardRequest("Card A", "Desc", [], systemCardTypeId, null, null, null, "Release candidate"),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.NotNull(result.Data!.SlickId);
+
+        var createdSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.BoardId == board.BoardId);
+        Assert.Equal("Release candidate", createdSlick.Name);
+        Assert.Equal("RELEASE CANDIDATE", createdSlick.NormalisedName);
+        Assert.Equal(TagStyleSchemaValidator.PresetsStyleName, createdSlick.StyleName);
+
+        var storedCard = await DbContextForAssert.Cards.SingleAsync(x => x.Id == cardId);
+        Assert.Equal(createdSlick.Id, storedCard.SlickId);
+    }
+
+    [Fact]
+    public async Task CreateCardAsync_WhenSlickIdAndSlickNameProvided_ShouldReturnValidationError()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var slick = new SlickEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Release train",
+            NormalisedName = "RELEASE TRAIN",
+            StyleName = "auto",
+            StylePropertiesJson = "{}"
+        };
+        DbContextForArrange.Slicks.Add(slick);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.CreateCardAsync(
+            board.BoardId,
+            new CreateCardRequest(todoColumnId, "Card A", "Desc", [], null, null, slick.Id, "Other slick"),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("slickName"));
+    }
+
+    [Fact]
+    public async Task UpdateCardAsync_WhenSlickIdAndSlickNameProvided_ShouldReturnValidationError()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Card A", "Desc")
+            .Build();
+        var cardId = board.GetCard("Card A").Id;
+        var slick = new SlickEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Release train",
+            NormalisedName = "RELEASE TRAIN",
+            StyleName = "auto",
+            StylePropertiesJson = "{}"
+        };
+        DbContextForArrange.Slicks.Add(slick);
+        await DbContextForArrange.SaveChangesAsync();
+        var systemCardTypeId = await DbContextForArrange.CardTypes.Where(x => x.BoardId == board.BoardId && x.IsSystem).Select(x => x.Id).SingleAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateCardAsync(
+            board.BoardId,
+            cardId,
+            new UpdateCardRequest("Card A", "Desc", [], systemCardTypeId, null, null, slick.Id, "Other slick"),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("slickName"));
     }
 
     private ICardService CreateService() => ResolveService<ICardService>();

@@ -82,17 +82,8 @@ public sealed class UpdateCardService(
             return cardTypeSelection.Error;
         }
 
-        int? selectedSlickId = null;
-        if (request.SlickId is int requestSlickId)
-        {
-            var selectedSlick = await slickRepository.GetByIdInBoardAsync(boardId, requestSlickId);
-            if (selectedSlick is null)
-            {
-                return ApiErrors.ValidationFailed([new ValidationError("slickId", "Slick does not exist in board.")]);
-            }
-
-            selectedSlickId = selectedSlick.Id;
-        }
+        var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickId, request.SlickName, slickRepository);
+        var selectedSlickId = selectedSlick?.Id;
 
         var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(requestedColumnId))
             .Where(x => x.Id != id)
@@ -136,8 +127,8 @@ public sealed class UpdateCardService(
 
             if (slickChanged)
             {
-                existingCard.SlickId = selectedSlickId;
-                existingCard.Slick = null;
+                existingCard.Slick = selectedSlick;
+                existingCard.SlickId = selectedSlickId > 0 ? selectedSlickId : null;
             }
 
             if (movementPlan.MovementChanged)

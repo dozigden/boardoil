@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.Card;
+using BoardOil.Abstractions.Slick;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
@@ -9,9 +10,11 @@ namespace BoardOil.Api.Mcp;
 
 public sealed class CardCreateTool(
     ICardService cardService,
+    ISlickService slickService,
     IMcpAuthorisationService authorisationService) : McpToolBase<CardCreateInput, CardMutationOutput>(authorisationService)
 {
     private readonly ICardService _cardService = cardService;
+    private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
         new(ToolNames.CardCreate, "Create a card in a specific column.", ToolSchemas.CardCreateInput, ToolSchemas.ObjectOutput);
@@ -43,13 +46,33 @@ public sealed class CardCreateTool(
             return Failure(accessError);
         }
 
-        var request = new CreateCardRequest(columnId, input.Title, input.Description, input.TagNames, input.CardTypeId, input.AssignedUserId);
+        var request = new CreateCardRequest(
+            columnId,
+            input.Title,
+            input.Description,
+            input.TagNames,
+            input.CardTypeId,
+            input.AssignedUserId,
+            null,
+            input.SlickName);
         var result = await _cardService.CreateCardAsync(boardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {
             return Failure(result.ToMcpError());
         }
 
-        return Success(new CardMutationOutput(result.Data.ToMcp(), "created"));
+        IReadOnlyDictionary<int, McpCardSlickSnapshot>? slicksById = null;
+        if (result.Data.SlickId is not null)
+        {
+            var slicksResult = await McpSlickHelpers.LoadBoardSlicksByIdAsync(_slickService, boardId, context.ActorUserId, cancellationToken);
+            if (!slicksResult.Success)
+            {
+                return Failure((slicksResult.Error ?? ApiErrors.InternalError("Failed to load slicks.")).ToMcpError());
+            }
+
+            slicksById = slicksResult.SlicksById;
+        }
+
+        return Success(new CardMutationOutput(result.Data.ToMcp(slicksById), "created"));
     }
 }

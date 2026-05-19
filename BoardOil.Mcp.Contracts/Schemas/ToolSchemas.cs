@@ -43,6 +43,7 @@ public static class ToolSchemas
         "columnId": { "type": "integer", "minimum": 1 },
         "cardTypeId": { "type": ["integer", "null"], "minimum": 1 },
         "assignedUserId": { "type": ["integer", "null"], "minimum": 1 },
+        "slickName": { "type": ["string", "null"], "maxLength": 40 },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
         "description": { "type": "string", "maxLength": 20000 },
         "tagNames": {
@@ -64,6 +65,7 @@ public static class ToolSchemas
         "columnId": { "type": ["integer", "null"], "minimum": 1 },
         "cardTypeId": { "type": "integer", "minimum": 1 },
         "assignedUserId": { "type": ["integer", "null"], "minimum": 1 },
+        "slickName": { "type": ["string", "null"], "maxLength": 40 },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
         "description": { "type": "string", "maxLength": 20000 },
         "tagNames": {

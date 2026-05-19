@@ -1,6 +1,7 @@
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Slick;
 using BoardOil.Mcp.Contracts;
 
 namespace BoardOil.Api.Mcp;
@@ -16,7 +17,7 @@ public static class McpMappingExtensions
             board.UpdatedAtUtc,
             board.CurrentUserRole);
 
-    public static McpBoardSnapshot ToMcp(this BoardDto board) =>
+    public static McpBoardSnapshot ToMcp(this BoardDto board, IReadOnlyDictionary<int, McpCardSlickSnapshot>? slicksById = null) =>
         new(
             board.Id,
             board.Name,
@@ -27,10 +28,10 @@ public static class McpMappingExtensions
                     column.Id,
                     column.Title,
                     column.SortKey,
-                    column.Cards.Select(card => card.ToMcpBoardSnapshot()).ToArray()))
+                    column.Cards.Select(card => card.ToMcpBoardSnapshot(slicksById)).ToArray()))
                 .ToArray());
 
-    public static McpCardSnapshot ToMcp(this CardDto card) =>
+    public static McpCardSnapshot ToMcp(this CardDto card, IReadOnlyDictionary<int, McpCardSlickSnapshot>? slicksById = null) =>
         new(
             card.Id,
             card.BoardColumnId,
@@ -45,6 +46,8 @@ public static class McpMappingExtensions
             card.UpdatedAtUtc,
             card.AssignedUserId,
             card.AssignedUserName,
+            card.SlickId,
+            ResolveSlickSnapshot(card.SlickId, slicksById),
             []);
 
     public static McpCardCommentSnapshot ToMcp(this CardCommentDto comment) =>
@@ -57,7 +60,14 @@ public static class McpMappingExtensions
             comment.AuthorDisplayName,
             comment.AuthorImageRelativePath);
 
-    private static McpBoardCardSnapshot ToMcpBoardSnapshot(this CardDto card) =>
+    public static McpCardSlickSnapshot ToMcp(this SlickDto slick) =>
+        new(
+            slick.Id,
+            slick.Name,
+            slick.StyleName,
+            slick.StylePropertiesJson);
+
+    private static McpBoardCardSnapshot ToMcpBoardSnapshot(this CardDto card, IReadOnlyDictionary<int, McpCardSlickSnapshot>? slicksById) =>
         new(
             card.Id,
             card.BoardColumnId,
@@ -70,7 +80,9 @@ public static class McpMappingExtensions
             card.TagNames,
             card.UpdatedAtUtc,
             card.AssignedUserId,
-            card.AssignedUserName);
+            card.AssignedUserName,
+            card.SlickId,
+            ResolveSlickSnapshot(card.SlickId, slicksById));
 
     private static McpCardTagSnapshot ToMcp(this CardTagDto tag) =>
         new(
@@ -79,6 +91,18 @@ public static class McpMappingExtensions
             tag.StyleName,
             tag.StylePropertiesJson,
             tag.Emoji);
+
+    private static McpCardSlickSnapshot? ResolveSlickSnapshot(
+        int? slickId,
+        IReadOnlyDictionary<int, McpCardSlickSnapshot>? slicksById)
+    {
+        if (slickId is null || slicksById is null)
+        {
+            return null;
+        }
+
+        return slicksById.GetValueOrDefault(slickId.Value);
+    }
 
     public static McpToolError ToMcpError(this ApiResult apiResult)
     {
