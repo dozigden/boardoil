@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useBoardStore } from './boardStore';
+import { useCardTypeStore } from './cardTypeStore';
+import { useTagStore } from './tagStore';
+import { useSlickStore } from './slickStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { AppError } from '../../shared/types/appError';
 import type { Board, Column } from '../../shared/types/boardTypes';
@@ -19,19 +22,24 @@ const realtime = {
   connect: vi.fn(),
   disconnect: vi.fn()
 };
+let realtimeHandlers: { onResync: () => Promise<unknown> | unknown } | null = null;
 
 vi.mock('../../shared/api/boardApi', () => ({
   createBoardApi: () => api
 }));
 
 vi.mock('../realtime/boardRealtime', () => ({
-  createBoardRealtime: vi.fn(() => realtime)
+  createBoardRealtime: vi.fn(handlers => {
+    realtimeHandlers = handlers;
+    return realtime;
+  })
 }));
 
 describe('boardStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
+    realtimeHandlers = null;
     api.getBoard.mockResolvedValue(ok(makeBoard()));
     realtime.connect.mockResolvedValue(undefined);
     realtime.disconnect.mockResolvedValue(undefined);
@@ -164,6 +172,26 @@ describe('boardStore', () => {
     await store.createColumn('Bad');
 
     expect(feedback.errorMessage).toBe('Column create failed.');
+  });
+
+  it('reloads tags and slicks when realtime resync is requested', async () => {
+    const store = useBoardStore();
+    const cardTypeStore = useCardTypeStore();
+    const tagStore = useTagStore();
+    const slickStore = useSlickStore();
+    const loadCardTypesSpy = vi.spyOn(cardTypeStore, 'loadCardTypes').mockResolvedValue(true);
+    const loadTagsSpy = vi.spyOn(tagStore, 'loadTags').mockResolvedValue(true);
+    const loadSlicksSpy = vi.spyOn(slickStore, 'loadSlicks').mockResolvedValue(true);
+
+    await store.initialize(1);
+    expect(realtimeHandlers).not.toBeNull();
+
+    await realtimeHandlers!.onResync();
+
+    expect(api.getBoard).toHaveBeenCalledTimes(2);
+    expect(loadCardTypesSpy).toHaveBeenCalledWith(1);
+    expect(loadTagsSpy).toHaveBeenCalledWith(1);
+    expect(loadSlicksSpy).toHaveBeenCalledWith(1);
   });
 });
 

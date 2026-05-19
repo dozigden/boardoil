@@ -7,6 +7,8 @@ import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useCardStore } from './cardStore';
 import { useCardTypeStore } from './cardTypeStore';
 import { useCommentStore } from './commentStore';
+import { useTagStore } from './tagStore';
+import { useSlickStore } from './slickStore';
 import type { Board, BoardSummary, Column } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
@@ -24,6 +26,8 @@ export const useBoardStore = defineStore('board', () => {
   const cardStore = useCardStore();
   const cardTypeStore = useCardTypeStore();
   const commentStore = useCommentStore();
+  const tagStore = useTagStore();
+  const slickStore = useSlickStore();
   const api = createBoardApi();
   const board = computed<Board | null>(() => {
     if (!boardShell.value) {
@@ -54,6 +58,8 @@ export const useBoardStore = defineStore('board', () => {
       if (currentBoardId.value !== null) {
         await loadBoard(currentBoardId.value);
         await cardTypeStore.loadCardTypes(currentBoardId.value);
+        await tagStore.loadTags(currentBoardId.value);
+        await slickStore.loadSlicks(currentBoardId.value);
       }
     }
   });
