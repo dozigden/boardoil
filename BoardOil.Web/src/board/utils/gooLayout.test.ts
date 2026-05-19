@@ -90,7 +90,7 @@ describe('gooLayout', () => {
     expect(group!.blobs.some(blob => blob.id.includes('-bridge-'))).toBe(false);
   });
 
-  it('keeps clipped blobs within clip bounds', () => {
+  it('keeps blob geometry and applies clip path within clip bounds', () => {
     const clipRect: RectLike = {
       left: 40,
       top: 40,
@@ -105,14 +105,11 @@ describe('gooLayout', () => {
     const blob = groups[0]?.blobs[0];
     expect(blob).toBeDefined();
 
-    const renderedTop = blob!.top - (blob!.height / 2);
-    const renderedRight = blob!.left + blob!.width;
-    const renderedBottom = renderedTop + blob!.height;
-
-    expect(blob!.left).toBeGreaterThanOrEqual(clipRect.left);
-    expect(renderedTop).toBeGreaterThanOrEqual(clipRect.top);
-    expect(renderedRight).toBeLessThanOrEqual(clipRect.left + clipRect.width);
-    expect(renderedBottom).toBeLessThanOrEqual(clipRect.top + clipRect.height);
+    expect(blob!.left).toBe(20);
+    expect(blob!.top - (blob!.height / 2)).toBe(20);
+    expect(blob!.width).toBe(100);
+    expect(blob!.height).toBe(100);
+    expect(blob!.clipPath).toBe('inset(20px 0px 0px 20px)');
   });
 
   it('drops clipped blobs that become smaller than min blob size', () => {

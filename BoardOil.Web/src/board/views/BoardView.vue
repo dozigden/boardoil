@@ -67,7 +67,9 @@
               top: `${blob.top}px`,
               left: `${blob.left}px`,
               width: `${blob.width}px`,
-              height: `${blob.height}px`
+              height: `${blob.height}px`,
+              clipPath: blob.clipPath,
+              borderRadius: blob.borderRadius
             }"
           />
         </div>
@@ -679,6 +681,7 @@ watch(
 }
 
 .column {
+  --column-bottom-mask-height: 1rem;
   background: var(--bo-surface-panel);
   border: 1px solid var(--bo-border-soft);
   border-radius: 14px;
@@ -686,11 +689,25 @@ watch(
   padding: 0.75rem 0.25rem 0.75rem 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0;
   min-height: 0;
   height: auto;
   max-height: 100%;
   overflow: hidden;
+}
+
+.column::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--column-bottom-mask-height);
+  background: var(--bo-surface-panel);
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+  pointer-events: none;
+  z-index: 3;
 }
 
 .column-stack {
@@ -715,6 +732,7 @@ watch(
   min-height: 0;
   overflow-y: auto;
   padding-right: 0.5rem;
+  padding-bottom: 5px;
   overscroll-behavior-y: none;
   scrollbar-width: none;
   position: relative;
@@ -743,6 +761,10 @@ watch(
   margin-top: var(--column-card-gap);
 }
 
+.column-content > .card--slick-gap-top {
+  margin-top: var(--column-card-gap);
+}
+
 .column-content > .card--slick-gap-strong {
   margin-top: calc(var(--column-card-gap) * 2);
 }
@@ -751,6 +773,10 @@ watch(
   margin-bottom: 0;
   position: relative;
   z-index: 1;
+}
+
+.column-content > .card--slick-gap-bottom {
+  margin-bottom: var(--column-card-gap);
 }
 
 .column-content:hover,

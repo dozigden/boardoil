@@ -3,26 +3,42 @@ import type { Card as BoardCardModel } from '../../shared/types/boardTypes';
 export type SlickBoundaryType = 'none' | 'with-none' | 'between-slicks';
 
 export function resolveCardBoundaryClass(cards: BoardCardModel[], cardIndex: number): string | null {
-  if (cardIndex <= 0) {
+  if (cardIndex < 0) {
     return null;
+  }
+
+  const currentCard = cards[cardIndex];
+  if (!currentCard) {
+    return null;
+  }
+
+  const classNames: string[] = [];
+  const currentHasSlick = currentCard.slickId !== null && currentCard.slickId !== undefined;
+  if (cardIndex === 0 && currentHasSlick) {
+    classNames.push('card--slick-gap-top');
+  }
+
+  if (cardIndex === cards.length - 1 && currentHasSlick) {
+    classNames.push('card--slick-gap-bottom');
   }
 
   const previousCard = cards[cardIndex - 1];
-  const currentCard = cards[cardIndex];
-  if (!previousCard || !currentCard) {
+  if (previousCard) {
+    const boundaryType = resolveSlickBoundaryType(previousCard, currentCard);
+    if (boundaryType === 'between-slicks') {
+      classNames.push('card--slick-gap-strong');
+    }
+
+    if (boundaryType === 'with-none') {
+      classNames.push('card--slick-gap');
+    }
+  }
+
+  if (classNames.length === 0) {
     return null;
   }
 
-  const boundaryType = resolveSlickBoundaryType(previousCard, currentCard);
-  if (boundaryType === 'between-slicks') {
-    return 'card--slick-gap-strong';
-  }
-
-  if (boundaryType === 'with-none') {
-    return 'card--slick-gap';
-  }
-
-  return null;
+  return classNames.join(' ');
 }
 
 export function resolveSlickBoundaryType(previousCard: BoardCardModel, currentCard: BoardCardModel): SlickBoundaryType {

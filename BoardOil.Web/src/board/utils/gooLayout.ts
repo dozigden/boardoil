@@ -19,6 +19,8 @@ export type GooRenderBlob = {
   left: number;
   width: number;
   height: number;
+  clipPath?: string;
+  borderRadius?: string;
 };
 
 export type GooRenderGroup = {
@@ -120,8 +122,6 @@ function toClippedBlob(
   const desiredTop = rect.top - boardRect.top + (rect.height * 0.5) + config.verticalOffsetPx - (blobHeight / 2);
   const desiredRight = desiredLeft + blobWidth;
   const desiredBottom = desiredTop + blobHeight;
-  const desiredCenterX = desiredLeft + (blobWidth / 2);
-  const desiredCenterY = desiredTop + (blobHeight / 2);
 
   if (!clipRect) {
     return createBlob(id, desiredLeft, desiredTop, blobWidth, blobHeight);
@@ -142,24 +142,35 @@ function toClippedBlob(
     return null;
   }
 
-  // Keep the visible blob centered on the card as much as possible after clipping.
-  const maxLeft = clipRight - width;
-  const maxTop = clipBottom - height;
-  const centeredLeft = desiredCenterX - (width / 2);
-  const centeredTop = desiredCenterY - (height / 2);
-  const left = clamp(centeredLeft, clipLeft, maxLeft);
-  const top = clamp(centeredTop, clipTop, maxTop);
+  const clipBleedPx = 20;
+  const clipBottomBleedPx = 6;
+  const clipInsetTop = Math.max(0, (clipTop - desiredTop) - clipBleedPx);
+  const clipInsetRight = Math.max(0, (desiredRight - clipRight) - clipBleedPx);
+  const clipInsetBottom = Math.max(0, (desiredBottom - clipBottom) - clipBottomBleedPx);
+  const clipInsetLeft = Math.max(0, (clipLeft - desiredLeft) - clipBleedPx);
+  const clipPath = toClipInsetPath(clipInsetTop, clipInsetRight, clipInsetBottom, clipInsetLeft);
+  const borderRadius = toClipAwareBorderRadius(clipInsetTop, clipInsetRight, clipInsetBottom, clipInsetLeft);
 
-  return createBlob(id, left, top, width, height);
+  return createBlob(id, desiredLeft, desiredTop, blobWidth, blobHeight, clipPath, borderRadius);
 }
 
-function createBlob(id: string, left: number, top: number, width: number, height: number): GooComputedBlob {
+function createBlob(
+  id: string,
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+  clipPath?: string,
+  borderRadius?: string
+): GooComputedBlob {
   return {
     id,
     left,
     top: top + (height / 2),
     width,
     height,
+    clipPath,
+    borderRadius,
     centerX: left + (width / 2),
     centerY: top + (height / 2)
   };
@@ -226,10 +237,29 @@ function toRenderBlob(blob: GooComputedBlob): GooRenderBlob {
     top: blob.top,
     left: blob.left,
     width: blob.width,
-    height: blob.height
+    height: blob.height,
+    clipPath: blob.clipPath,
+    borderRadius: blob.borderRadius
   };
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
+function toClipInsetPath(top: number, right: number, bottom: number, left: number): string | undefined {
+  if (top <= 0 && right <= 0 && bottom <= 0 && left <= 0) {
+    return undefined;
+  }
+
+  return `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+}
+
+function toClipAwareBorderRadius(top: number, right: number, bottom: number, left: number): string | undefined {
+  if (top <= 0 && right <= 0 && bottom <= 0 && left <= 0) {
+    return undefined;
+  }
+
+  const radiusToken = 'var(--goo-radius)';
+  const topLeft = top > 0 || left > 0 ? '0px' : radiusToken;
+  const topRight = top > 0 || right > 0 ? '0px' : radiusToken;
+  const bottomRight = bottom > 0 || right > 0 ? '0px' : radiusToken;
+  const bottomLeft = bottom > 0 || left > 0 ? '0px' : radiusToken;
+  return `${topLeft} ${topRight} ${bottomRight} ${bottomLeft}`;
 }

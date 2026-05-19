@@ -54,7 +54,7 @@
   --bo-surface-muted: #edf3fc;
   --bo-surface-brand: #f1ebfb;
   --bo-surface-energy: #fde9dc;
-  --bo-surface-panel: rgba(255, 255, 255, 0.92);
+  --bo-surface-panel: rgba(255, 255, 255, 1);
   --bo-surface-panel-strong: rgba(255, 255, 255, 0.95);
 
   --bo-ink-strong: #1f2937;

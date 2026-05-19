@@ -87,11 +87,15 @@ const emit = defineEmits<{
 
 <style scoped>
 .column-header {
+  background: var(--bo-surface-panel);
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
   align-items: center;
-  padding-right: 0.5rem;
+  margin: -0.75rem -0.25rem 0 -0.75rem;
+  padding: 0.75rem 0.75rem 0.5rem 0.75rem;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
 }
 
 .column-heading {
