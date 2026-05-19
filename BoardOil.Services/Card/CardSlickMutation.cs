@@ -8,15 +8,9 @@ internal static class CardSlickMutation
 {
     public static async Task<EntitySlick?> ResolveSlickAsync(
         int boardId,
-        int? slickId,
         string? slickName,
         ISlickRepository slickRepository)
     {
-        if (slickId is int requestedSlickId)
-        {
-            return await slickRepository.GetByIdInBoardAsync(boardId, requestedSlickId);
-        }
-
         if (string.IsNullOrWhiteSpace(slickName))
         {
             return null;

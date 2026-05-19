@@ -82,7 +82,7 @@ public sealed class UpdateCardService(
             return cardTypeSelection.Error;
         }
 
-        var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickId, request.SlickName, slickRepository);
+        var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository);
         var selectedSlickId = selectedSlick?.Id;
 
         var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(requestedColumnId))

@@ -90,7 +90,7 @@ public sealed class CreateCardService(
 
         var draft = draftResult.Draft!.Value;
         var tags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames ?? Array.Empty<string>(), _tagRepository);
-        var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickId, request.SlickName, slickRepository);
+        var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository);
 
         var card = new EntityBoardCard
         {

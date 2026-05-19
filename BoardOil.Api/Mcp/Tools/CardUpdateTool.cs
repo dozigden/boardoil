@@ -67,7 +67,6 @@ public sealed class CardUpdateTool(
             input.CardTypeId!.Value,
             input.ColumnId,
             assignedUserId,
-            null,
             input.SlickName);
         var result = await _cardService.UpdateCardAsync(boardId, cardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)

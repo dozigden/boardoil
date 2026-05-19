@@ -53,7 +53,6 @@ public sealed class CardCreateTool(
             input.TagNames,
             input.CardTypeId,
             input.AssignedUserId,
-            null,
             input.SlickName);
         var result = await _cardService.CreateCardAsync(boardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)

@@ -79,7 +79,7 @@ public sealed class BoardApiSlickIntegrationTests : BoardApiIntegrationTestBase
 
         var createCardResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/cards",
-            new CreateCardRequest(columnId, "Card A", "Desc", [], null, null, slickId));
+            new CreateCardRequest(columnId, "Card A", "Desc", [], null, null, slickEnvelope.Data.Name));
         createCardResponse.EnsureSuccessStatusCode();
         var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
         Assert.NotNull(createdCardEnvelope);

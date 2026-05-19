@@ -163,7 +163,7 @@ public sealed class BoardApiCardIntegrationTests
         var createdColumnId = await SeedBoardColumnAsync("Todo");
         var createCardResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/cards",
-            new CreateCardRequest(createdColumnId, "Archive me", "Desc", [], null, null, slickId));
+            new CreateCardRequest(createdColumnId, "Archive me", "Desc", [], null, null, slickEnvelope.Data.Name));
         createCardResponse.EnsureSuccessStatusCode();
         var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
         Assert.NotNull(createdCardEnvelope);
@@ -204,7 +204,7 @@ public sealed class BoardApiCardIntegrationTests
 
         var createCardResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/cards",
-            new CreateCardRequest(createdColumnId, "Archive me", "Desc", [], null, null, slickId));
+            new CreateCardRequest(createdColumnId, "Archive me", "Desc", [], null, null, slickEnvelope.Data.Name));
         createCardResponse.EnsureSuccessStatusCode();
         var createdCardEnvelope = await createCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
         Assert.NotNull(createdCardEnvelope);

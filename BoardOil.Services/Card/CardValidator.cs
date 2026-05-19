@@ -3,20 +3,17 @@ using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
-using BoardOil.Data.Abstractions.Slick;
 namespace BoardOil.Services.Card;
 
 public sealed class CardValidator(
     ICardRepository cardRepository,
-    IBoardMemberRepository boardMemberRepository,
-    ISlickRepository slickRepository) : ICardValidator
+    IBoardMemberRepository boardMemberRepository) : ICardValidator
 {
     private const int MaxDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
     private const int MaxSlickNameLength = 40;
     private readonly ICardRepository _cardRepository = cardRepository;
     private readonly IBoardMemberRepository _boardMemberRepository = boardMemberRepository;
-    private readonly ISlickRepository _slickRepository = slickRepository;
 
     public async Task<IReadOnlyList<ValidationError>> ValidateCreateAsync(int boardId, CreateCardRequest request)
     {
@@ -24,9 +21,7 @@ public sealed class CardValidator(
         ValidateTitle(request.Title, errors);
         ValidateDescription(request.Description ?? string.Empty, errors);
         await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
-        await ValidateSlickIdAsync(boardId, request.SlickId, errors);
         ValidateSlickName(request.SlickName, errors);
-        ValidateSlickSelection(request.SlickId, request.SlickName, errors);
         if (errors.Count > 0)
         {
             return errors;
@@ -78,9 +73,7 @@ public sealed class CardValidator(
         }
 
         await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
-        await ValidateSlickIdAsync(boardId, request.SlickId, errors);
         ValidateSlickName(request.SlickName, errors);
-        ValidateSlickSelection(request.SlickId, request.SlickName, errors);
 
         if (request.BoardColumnId is int boardColumnId)
         {
@@ -123,36 +116,6 @@ public sealed class CardValidator(
         if (canonicalName.Length > MaxSlickNameLength)
         {
             errors.Add(new ValidationError("slickName", $"Slick '{canonicalName}' must be {MaxSlickNameLength} characters or fewer."));
-        }
-    }
-
-    private static void ValidateSlickSelection(int? slickId, string? slickName, ICollection<ValidationError> errors)
-    {
-        if (slickId is null || string.IsNullOrWhiteSpace(slickName))
-        {
-            return;
-        }
-
-        errors.Add(new ValidationError("slickName", "Provide either slickId or slickName, not both."));
-    }
-
-    private async Task ValidateSlickIdAsync(int boardId, int? slickId, ICollection<ValidationError> errors)
-    {
-        if (slickId is null)
-        {
-            return;
-        }
-
-        if (slickId.Value <= 0)
-        {
-            errors.Add(new ValidationError("slickId", "Slick is invalid."));
-            return;
-        }
-
-        var slick = await _slickRepository.GetByIdInBoardAsync(boardId, slickId.Value);
-        if (slick is null)
-        {
-            errors.Add(new ValidationError("slickId", "Slick does not exist in board."));
         }
     }
 
