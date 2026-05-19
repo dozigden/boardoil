@@ -88,7 +88,7 @@ export const useCardStore = defineStore('card', () => {
     cardTypeId: number,
     boardColumnId: number,
     assignedUserId: number | null = null,
-    slickId: number | null = null,
+    slickName: string | null = null,
     boardId: number | null = activeBoardId.value
   ) {
     const resolvedBoardId = resolveBoardId(boardId);
@@ -105,7 +105,7 @@ export const useCardStore = defineStore('card', () => {
       cardTypeId,
       boardColumnId,
       assignedUserId,
-      slickId
+      slickName
     ));
     if (!result.ok) {
       return false;

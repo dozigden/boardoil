@@ -228,48 +228,7 @@
             </div>
           </div>
 
-          <div class="card-editor-select-field card-editor-slick-picker">
-            <span class="card-editor-field-label">Slick</span>
-            <BoDropdown
-              align="left"
-              label="Select slick"
-              :teleport="false"
-            >
-              <template #trigger>
-                <span
-                  v-if="selectedSlick"
-                  class="card-editor-slick-swatch card-editor-slick-swatch--trigger"
-                  :class="getSlickStyleClasses(selectedSlick)"
-                  :style="getSlickStyle(selectedSlick)"
-                >
-                  <span class="card-editor-slick-swatch-label">{{ selectedSlick.name }}</span>
-                </span>
-                <span v-else>{{ selectedSlickLabel }}</span>
-              </template>
-              <template #default="{ close }">
-                <button
-                  type="button"
-                  class="bo-dropdown-item"
-                  @click="setDraftSlickId(null, close)"
-                >
-                  <span class="bo-dropdown-item-main">None</span>
-                </button>
-                <button
-                  v-for="slick in slicks"
-                  :key="slick.id"
-                  type="button"
-                  class="bo-dropdown-item"
-                  @click="setDraftSlickId(slick.id, close)"
-                >
-                  <span class="bo-dropdown-item-main card-editor-slick-option">
-                    <span class="card-editor-slick-swatch" :class="getSlickStyleClasses(slick)" :style="getSlickStyle(slick)">
-                      <span class="card-editor-slick-swatch-label">{{ slick.name }}</span>
-                    </span>
-                  </span>
-                </button>
-              </template>
-            </BoDropdown>
-          </div>
+          <CardSlickPicker v-model:slick-name="cardDraft.slickName" :slicks="slicks" />
 
         </aside>
       </div>
@@ -302,6 +261,7 @@ import MdViewer from '../../shared/components/MdViewer.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import CardTagEditor from './CardTagEditor.vue';
+import CardSlickPicker from './CardSlickPicker.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
@@ -315,8 +275,6 @@ import { useTagStore } from '../stores/tagStore';
 import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardTypeSelection';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
 import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
-import type { Slick } from '../../shared/types/boardTypes';
-import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 
 const route = useRoute();
 const router = useRouter();
@@ -350,7 +308,7 @@ type CardDraft = {
   boardColumnId: number;
   assignedUserId: number | null;
   assignedUserName: string | null;
-  slickId: number | null;
+  slickName: string | null;
 };
 
 const cardDraft = ref<CardDraft | null>(null);
@@ -423,20 +381,6 @@ const selectedAssignedMember = computed(() => {
   }
 
   return boardMembers.value.find(x => x.userId === cardDraft.value!.assignedUserId) ?? null;
-});
-const selectedSlickLabel = computed(() => {
-  if (!cardDraft.value || cardDraft.value.slickId === null) {
-    return 'None';
-  }
-
-  return slicks.value.find(x => x.id === cardDraft.value!.slickId)?.name ?? 'None';
-});
-const selectedSlick = computed<Slick | null>(() => {
-  if (!cardDraft.value || cardDraft.value.slickId === null) {
-    return null;
-  }
-
-  return slicks.value.find(x => x.id === cardDraft.value!.slickId) ?? null;
 });
 const descriptionDraft = computed({
   get: () => {
@@ -585,28 +529,34 @@ function setDraftAssignedUserId(assignedUserId: number | null, close?: () => voi
   close?.();
 }
 
-function setDraftSlickId(slickId: number | null, close?: () => void) {
-  if (!cardDraft.value) {
-    return;
+function normaliseSlickNameForSave(slickName: string | null) {
+  if (slickName === null) {
+    return null;
   }
 
-  cardDraft.value = {
-    ...cardDraft.value,
-    slickId
-  };
-  close?.();
+  const canonicalName = slickName.trim();
+  if (canonicalName.length === 0) {
+    return null;
+  }
+
+  return canonicalName;
 }
 
-function getSlickStyle(slick: Slick) {
-  return getSurfaceStyle(slick, {
-    fallbackBackground: 'var(--bo-surface-base)',
-    fallbackColor: 'var(--bo-ink-strong)',
-    fallbackBorderColor: 'var(--bo-border-soft)'
-  });
+function normaliseSlickNameKey(slickName: string) {
+  return slickName.trim().toUpperCase();
 }
 
-function getSlickStyleClasses(slick: Slick) {
-  return getSemanticStyleClasses(slick, 'tag');
+function resolveDraftSlickName(slickId: number | null) {
+  if (slickId === null) {
+    return null;
+  }
+
+  const slick = slicks.value.find(x => x.id === slickId);
+  if (!slick) {
+    return null;
+  }
+
+  return slick.name;
 }
 
 async function saveCard() {
@@ -622,7 +572,7 @@ async function saveCard() {
     cardDraft.value.cardTypeId,
     cardDraft.value.boardColumnId,
     cardDraft.value.assignedUserId,
-    cardDraft.value.slickId
+    normaliseSlickNameForSave(cardDraft.value.slickName)
   );
   if (saved) {
     await closeCardEditor();
@@ -763,19 +713,19 @@ watch(
 
     if (cardDraft.value?.id !== nextCard.id) {
       const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
-      cardDraft.value = {
-        id: refreshedCard.id,
-        title: refreshedCard.title,
-        description: normaliseDescription(refreshedCard.description),
-        tagNames: [...refreshedCard.tagNames],
-        cardTypeId: refreshedCard.cardTypeId,
-        boardColumnId: refreshedCard.boardColumnId,
-        assignedUserId: refreshedCard.assignedUserId ?? null,
-        assignedUserName: refreshedCard.assignedUserName ?? null,
-        slickId: refreshedCard.slickId ?? null
-      };
-      return;
-    }
+        cardDraft.value = {
+          id: refreshedCard.id,
+          title: refreshedCard.title,
+          description: normaliseDescription(refreshedCard.description),
+          tagNames: [...refreshedCard.tagNames],
+          cardTypeId: refreshedCard.cardTypeId,
+          boardColumnId: refreshedCard.boardColumnId,
+          assignedUserId: refreshedCard.assignedUserId ?? null,
+          assignedUserName: refreshedCard.assignedUserName ?? null,
+          slickName: resolveDraftSlickName(refreshedCard.slickId ?? null)
+        };
+        return;
+      }
 
     const draft = cardDraft.value;
     if (!draft) {
@@ -828,14 +778,18 @@ watch(
       return;
     }
 
-    if (draftAfterAssigneeUpdate.slickId !== null) {
-      const selectedSlick = slicks.value.find(x => x.id === draftAfterAssigneeUpdate.slickId);
-      if (!selectedSlick) {
-        cardDraft.value = {
-          ...draftAfterAssigneeUpdate,
-          slickId: null
-        };
-      }
+    if (!draftAfterAssigneeUpdate.slickName) {
+      return;
+    }
+
+    const selectedSlickByName = slicks.value.find(
+      slick => normaliseSlickNameKey(slick.name) === normaliseSlickNameKey(draftAfterAssigneeUpdate.slickName!)
+    );
+    if (selectedSlickByName && selectedSlickByName.name !== draftAfterAssigneeUpdate.slickName) {
+      cardDraft.value = {
+        ...draftAfterAssigneeUpdate,
+        slickName: selectedSlickByName.name
+      };
     }
   },
   { immediate: true }
@@ -1098,53 +1052,22 @@ watch(
 
 .card-editor-column-picker :deep(.bo-dropdown),
 .card-editor-type-picker :deep(.bo-dropdown),
-.card-editor-assigned-user-picker :deep(.bo-dropdown),
-.card-editor-slick-picker :deep(.bo-dropdown) {
+.card-editor-assigned-user-picker :deep(.bo-dropdown) {
   width: 100%;
 }
 
 .card-editor-column-picker :deep(.bo-dropdown-trigger),
 .card-editor-type-picker :deep(.bo-dropdown-trigger),
-.card-editor-assigned-user-picker :deep(.bo-dropdown-trigger),
-.card-editor-slick-picker :deep(.bo-dropdown-trigger) {
+.card-editor-assigned-user-picker :deep(.bo-dropdown-trigger) {
   width: 100%;
   justify-content: space-between;
 }
 
 .card-editor-column-picker :deep(.bo-dropdown-panel),
 .card-editor-type-picker :deep(.bo-dropdown-panel),
-.card-editor-assigned-user-picker :deep(.bo-dropdown-panel),
-.card-editor-slick-picker :deep(.bo-dropdown-panel) {
+.card-editor-assigned-user-picker :deep(.bo-dropdown-panel) {
   width: auto;
   min-width: 11rem;
-}
-
-.card-editor-slick-option {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-}
-
-.card-editor-slick-swatch {
-  display: inline-flex;
-  align-items: center;
-  width: 100%;
-  min-width: 0;
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 6px;
-  padding: 0.2rem 0.5rem;
-  max-width: 100%;
-}
-
-.card-editor-slick-swatch-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.card-editor-slick-swatch--trigger {
-  flex: 1;
 }
 
 .card-editor-option-section {

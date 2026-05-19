@@ -176,7 +176,7 @@ describe('boardApi saveCard', () => {
       cardTypeId: 1,
       boardColumnId: 3,
       assignedUserId: null,
-      slickId: null
+      slickName: null
     });
   });
 });

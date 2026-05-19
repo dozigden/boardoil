@@ -149,7 +149,7 @@ export function createBoardApi() {
     title: string,
     cardTypeId?: number | null,
     assignedUserId?: number | null,
-    slickId?: number | null
+    slickName?: string | null
   ): Promise<Result<Card, AppError>> {
     return postData<Card>(`/api/boards/${boardId}/cards`, {
       boardColumnId: columnId,
@@ -158,7 +158,7 @@ export function createBoardApi() {
       tagNames: [],
       cardTypeId,
       assignedUserId,
-      slickId
+      slickName
     });
   }
 
@@ -171,7 +171,7 @@ export function createBoardApi() {
     cardTypeId: number,
     boardColumnId: number,
     assignedUserId: number | null = null,
-    slickId: number | null = null
+    slickName: string | null = null
   ): Promise<Result<Card, AppError>> {
     return putData<Card>(`/api/boards/${boardId}/cards/${cardId}`, {
       title,
@@ -180,7 +180,7 @@ export function createBoardApi() {
       cardTypeId,
       boardColumnId,
       assignedUserId,
-      slickId
+      slickName
     });
   }
 
