@@ -76,15 +76,23 @@ watch(
 </script>
 
 <style scoped>
+.card-title-editor {
+  --card-title-control-height: 1.5rem;
+}
+
 .card-title-heading {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
   line-height: 1.2;
+  min-height: var(--card-title-control-height);
 }
 
 .card-title-button {
+  display: inline-flex;
+  align-items: center;
   width: auto;
+  height: var(--card-title-control-height);
   min-width: 0;
   margin: 0;
   border: none;
@@ -113,6 +121,7 @@ watch(
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  min-height: var(--card-title-control-height);
 }
 
 .card-title-id {
@@ -122,6 +131,13 @@ watch(
 .card-title-edit input {
   width: min(42rem, calc(100vw - 12rem));
   min-width: 14rem;
+  height: var(--card-title-control-height);
   margin: 0;
+  box-sizing: border-box;
+  padding: 0 0.3rem;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 4px;
+  font: inherit;
+  line-height: 1.2;
 }
 </style>

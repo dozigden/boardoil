@@ -798,11 +798,13 @@ watch(
 
 <style scoped>
 .dialog-title-with-pill {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
-  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   padding-right: 5.4rem;
 }
 
@@ -820,13 +822,27 @@ watch(
 }
 
 .dialog-title-with-pill :deep(.card-title-edit) {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
   min-width: 0;
-  max-width: 100%;
+  max-width: min(56rem, calc(100vw - 12rem));
+  flex: 1 1 auto;
 }
 
 .dialog-title-with-pill :deep(.card-title-edit input) {
   width: 100%;
+  flex: 1 1 auto;
+  max-width: 100%;
   min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .dialog-title-with-pill {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .card-editor-layout {
