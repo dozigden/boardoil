@@ -1,0 +1,3 @@
+BoardOil.Web/compliance/third-party-licenses/** text eol=lf
+BoardOil.Web/public/third-party-licenses/** text eol=lf
+BoardOil.Web/scripts/*.mjs text eol=lf

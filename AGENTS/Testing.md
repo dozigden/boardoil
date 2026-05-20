@@ -12,19 +12,19 @@ This document defines how to split test coverage between service tests and API i
 
 Use repository scripts to keep local feedback fast and consistent:
 
-- `scripts/test-fast.sh`
+- `scripts/test-fast.sh` (Linux/macOS) or `scripts/test-fast.ps1` (Windows PowerShell)
   - default mode is changed-area detection from git diff
   - runs only impacted test/check suites (API, Services, Web)
   - supports overrides: `--api-only`, `--services-only`, `--web-only`, `--backend-only`, `--full`
-- `scripts/test-full.sh`
+- `scripts/test-full.sh` (Linux/macOS) or `scripts/test-full.ps1` (Windows PowerShell)
   - CI-like full local run (backend restore/build/tests + web check/test)
   - supports `--backend-only` and `--web-only`
 
 Recommended flow:
 
-1. During implementation, run `scripts/test-fast.sh`.
-2. Before pushing risky backend/API auth/MCP/migration changes, run `scripts/test-full.sh --backend-only`.
-3. Before pushing mixed backend+frontend changes, run full `scripts/test-full.sh`.
+1. During implementation, run `scripts/test-fast.sh` (or `scripts/test-fast.ps1` on Windows).
+2. Before pushing risky backend/API auth/MCP/migration changes, run `scripts/test-full.sh --backend-only` (or `scripts/test-full.ps1 -BackendOnly` on Windows).
+3. Before pushing mixed backend+frontend changes, run full `scripts/test-full.sh` (or `scripts/test-full.ps1` on Windows).
 
 ## Ownership by Layer
 
@@ -92,7 +92,7 @@ For security-behaviour suites, keep integration depth where transport/auth seman
 
 ## Changed-Area Mapping
 
-`scripts/test-fast.sh` maps changed paths to suites:
+`scripts/test-fast.sh` / `scripts/test-fast.ps1` map changed paths to suites:
 
 - `BoardOil.Services/**` -> `BoardOil.Services.Tests`
 - `BoardOil.Api/**` or `BoardOil.Api.Tests/**` -> `BoardOil.Api.Tests`
