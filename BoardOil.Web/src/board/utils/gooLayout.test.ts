@@ -126,6 +126,24 @@ describe('gooLayout', () => {
     const groups = buildGooGroups(items, boardRect, config);
     expect(groups).toHaveLength(0);
   });
+
+  it('keeps blob coordinates aligned to scrollable board content when board is horizontally scrolled', () => {
+    const boardViewportRect: RectLike = {
+      left: 100,
+      top: 0,
+      width: 1200,
+      height: 900
+    };
+    const items: GooItem[] = [
+      makeItem('card-1', 'slick-1', '#ff0000', { left: 250, top: 80, width: 100, height: 40 })
+    ];
+
+    const groups = buildGooGroups(items, boardViewportRect, config, { left: 50, top: 0 });
+    const blob = groups[0]?.blobs[0];
+
+    expect(blob).toBeDefined();
+    expect(blob!.left).toBe(200);
+  });
 });
 
 function makeItem(

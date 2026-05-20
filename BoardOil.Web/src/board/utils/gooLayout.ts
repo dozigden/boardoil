@@ -46,7 +46,17 @@ export type GooConfig = {
   clipHorizontalInsetPx: number;
 };
 
-export function buildGooGroups(items: GooItem[], boardRect: RectLike, config: GooConfig): GooRenderGroup[] {
+type BoardScrollOffset = {
+  left: number;
+  top: number;
+};
+
+export function buildGooGroups(
+  items: GooItem[],
+  boardRect: RectLike,
+  config: GooConfig,
+  boardScrollOffset: BoardScrollOffset = { left: 0, top: 0 }
+): GooRenderGroup[] {
   const groups = new Map<string, GooComputedGroup>();
   for (const item of items) {
     const group = getOrCreateGroup(groups, item.groupKey, item.colour);
@@ -58,6 +68,7 @@ export function buildGooGroups(items: GooItem[], boardRect: RectLike, config: Go
       blobWidth,
       blobHeight,
       boardRect,
+      boardScrollOffset,
       item.clipRect,
       config
     );
@@ -115,11 +126,12 @@ function toClippedBlob(
   blobWidth: number,
   blobHeight: number,
   boardRect: RectLike,
+  boardScrollOffset: BoardScrollOffset,
   clipRect: RectLike | null,
   config: GooConfig
 ): GooComputedBlob | null {
-  const desiredLeft = rect.left - boardRect.left + ((rect.width - blobWidth) / 2) + config.horizontalOffsetPx;
-  const desiredTop = rect.top - boardRect.top + (rect.height * 0.5) + config.verticalOffsetPx - (blobHeight / 2);
+  const desiredLeft = rect.left - boardRect.left + boardScrollOffset.left + ((rect.width - blobWidth) / 2) + config.horizontalOffsetPx;
+  const desiredTop = rect.top - boardRect.top + boardScrollOffset.top + (rect.height * 0.5) + config.verticalOffsetPx - (blobHeight / 2);
   const desiredRight = desiredLeft + blobWidth;
   const desiredBottom = desiredTop + blobHeight;
 
@@ -127,8 +139,8 @@ function toClippedBlob(
     return createBlob(id, desiredLeft, desiredTop, blobWidth, blobHeight);
   }
 
-  const clipLeft = clipRect.left - boardRect.left;
-  const clipTop = clipRect.top - boardRect.top;
+  const clipLeft = clipRect.left - boardRect.left + boardScrollOffset.left;
+  const clipTop = clipRect.top - boardRect.top + boardScrollOffset.top;
   const clipRight = clipLeft + clipRect.width;
   const clipBottom = clipTop + clipRect.height;
 

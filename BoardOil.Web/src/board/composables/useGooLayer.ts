@@ -206,7 +206,10 @@ export function useGooLayer(
     }
 
     const buildStart = gooPerfDebugEnabled ? performance.now() : 0;
-    gooGroups.value = buildGooGroups(items, boardRect, gooConfig);
+    gooGroups.value = buildGooGroups(items, boardRect, gooConfig, {
+      left: boardSurface.scrollLeft,
+      top: boardSurface.scrollTop
+    });
     if (gooPerfDebugEnabled) {
       const buildMs = performance.now() - buildStart;
       const refreshMs = performance.now() - refreshStart;

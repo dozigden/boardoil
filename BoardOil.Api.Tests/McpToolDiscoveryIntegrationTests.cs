@@ -182,7 +182,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.DoesNotContain("columnId", cardUpdateRequired);
         Assert.Contains("cardTypeId", cardUpdateRequired);
         Assert.DoesNotContain("assignedUserId", cardUpdateRequired);
-        Assert.DoesNotContain("slickName", cardUpdateRequired);
+        Assert.Contains("slickName", cardUpdateRequired);
 
         var cardCommentCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardCommentCreate);
         var cardCommentCreateProperties = cardCommentCreateTool.GetProperty("inputSchema").GetProperty("properties");

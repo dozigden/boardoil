@@ -472,6 +472,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     boardId = 1,
                     id = createdCardId,
                     cardTypeId = createdCardTypeId,
+                    slickName = (string?)null,
                     title = "Canonical contract MCP card updated",
                     description = "updated with canonical ids",
                     tagNames = Array.Empty<string>()
@@ -609,6 +610,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     id = createdCardId,
                     columnId = doingColumnId,
                     cardTypeId = createdCardTypeId,
+                    slickName = (string?)null,
                     title = "Move me updated",
                     description = "",
                     tagNames = Array.Empty<string>()
@@ -728,6 +730,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     id = createdCardId,
                     columnId = todoColumnId,
                     cardTypeId = createdCardTypeId,
+                    slickName = (string?)null,
                     title = "Assigned by MCP (updated)",
                     description = "",
                     tagNames = Array.Empty<string>()
@@ -912,7 +915,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         Assert.Equal(JsonValueKind.Null, cardAfterNullClear.GetProperty("slickId").ValueKind);
         Assert.Equal(JsonValueKind.Null, cardAfterNullClear.GetProperty("slick").ValueKind);
 
-        // Act: omitted slickName clears membership too (tag-modeled behaviour).
+        // Act: slick can be set again.
         var setAgainResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
@@ -934,7 +937,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             patToken);
         Assert.Equal(HttpStatusCode.OK, setAgainResponse.StatusCode);
 
-        var clearWithOmittedFieldResponse = await McpJsonRpcClient.SendRequestAsync(
+        // Act: omitted slickName is rejected because slickName is required on card.update.
+        var updateWithOmittedSlickNameResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
             new
@@ -950,11 +954,18 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     tagNames = Array.Empty<string>()
                 }
             },
-            "card-update-clear-slick-with-omitted-field",
+            "card-update-omitted-slick-required",
             patToken);
-        Assert.Equal(HttpStatusCode.OK, clearWithOmittedFieldResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateWithOmittedSlickNameResponse.StatusCode);
+        using var updateWithOmittedSlickNamePayload = await McpJsonRpcClient.ParseJsonAsync(updateWithOmittedSlickNameResponse);
 
-        var cardGetAfterOmittedClearResponse = await McpJsonRpcClient.SendRequestAsync(
+        var omittedSlickValidation = McpJsonRpcClient.GetStructuredContent(updateWithOmittedSlickNamePayload);
+        Assert.Equal("validation_failed", omittedSlickValidation.GetProperty("code").GetString());
+        var omittedSlickValidationErrors = omittedSlickValidation.GetProperty("validationErrors");
+        Assert.True(omittedSlickValidationErrors.TryGetProperty("slickName", out var slickErrors));
+        Assert.NotEmpty(slickErrors.EnumerateArray());
+
+        var cardGetAfterRejectedOmittedSlickResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
             new
@@ -962,13 +973,13 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                 name = "card.get",
                 arguments = new { boardId = 1, id = cardId }
             },
-            "card-get-after-omitted-slick-clear",
+            "card-get-after-omitted-slick-rejected",
             patToken);
-        Assert.Equal(HttpStatusCode.OK, cardGetAfterOmittedClearResponse.StatusCode);
-        using var cardGetAfterOmittedClearPayload = await McpJsonRpcClient.ParseJsonAsync(cardGetAfterOmittedClearResponse);
-        var cardAfterOmittedClear = McpJsonRpcClient.GetStructuredContent(cardGetAfterOmittedClearPayload);
-        Assert.Equal(JsonValueKind.Null, cardAfterOmittedClear.GetProperty("slickId").ValueKind);
-        Assert.Equal(JsonValueKind.Null, cardAfterOmittedClear.GetProperty("slick").ValueKind);
+        Assert.Equal(HttpStatusCode.OK, cardGetAfterRejectedOmittedSlickResponse.StatusCode);
+        using var cardGetAfterRejectedOmittedSlickPayload = await McpJsonRpcClient.ParseJsonAsync(cardGetAfterRejectedOmittedSlickResponse);
+        var cardAfterRejectedOmittedSlick = McpJsonRpcClient.GetStructuredContent(cardGetAfterRejectedOmittedSlickPayload);
+        Assert.NotEqual(JsonValueKind.Null, cardAfterRejectedOmittedSlick.GetProperty("slickId").ValueKind);
+        Assert.Equal("Release train", cardAfterRejectedOmittedSlick.GetProperty("slick").GetProperty("name").GetString());
     }
 
     [Fact]
@@ -1122,7 +1133,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         var cases = new (string ToolName, object Arguments, string RequestId, string[] ExpectedValidationKeys)[]
         {
             ("card.create", new { boardId = 0, columnId = 0, title = "Invalid create", description = "validation test", tagNames = Array.Empty<string>() }, "card-create-multi-validation", ["boardId", "columnId"]),
-            ("card.update", new { boardId = 0, id = 0, cardTypeId = 0, title = "Invalid update", description = "validation test", tagNames = Array.Empty<string>() }, "card-update-multi-validation", ["boardId", "id", "cardTypeId"]),
+            ("card.update", new { boardId = 0, id = 0, cardTypeId = 0, slickName = (string?)null, title = "Invalid update", description = "validation test", tagNames = Array.Empty<string>() }, "card-update-multi-validation", ["boardId", "id", "cardTypeId"]),
             ("card.move", new { boardId = 0, id = 0, columnId = 0, afterId = 0 }, "card-move-multi-validation", ["boardId", "id", "columnId", "afterId"]),
             ("card.delete", new { boardId = 0, id = 0 }, "card-delete-multi-validation", ["boardId", "id"])
         };

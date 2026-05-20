@@ -17,7 +17,7 @@ public sealed class CardUpdateTool(
     private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardUpdate, "Update card title, description, tags, and optional target column.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput);
+        new(ToolNames.CardUpdate, "Update card title, description, tags, slick selection, and optional target column.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -34,6 +34,10 @@ public sealed class CardUpdateTool(
             ..McpToolCallHelpers.ValidateOptionalIdentifier(input.AssignedUserId, "assignedUserId"),
             ..McpToolCallHelpers.ValidateRequiredIdentifier(input.CardTypeId, "cardTypeId")
         ];
+        if (!input.SlickNameSpecified)
+        {
+            validationErrors = [..validationErrors, new ValidationError("slickName", "Slick selection is required. Provide slickName or null.")];
+        }
         if (validationErrors.Count > 0)
         {
             return Failure(validationErrors);

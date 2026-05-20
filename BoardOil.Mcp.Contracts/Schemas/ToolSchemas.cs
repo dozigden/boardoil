@@ -73,7 +73,7 @@ public static class ToolSchemas
           "items": { "type": "string", "minLength": 1, "maxLength": 80 }
         }
       },
-      "required": ["boardId", "id", "cardTypeId", "title", "description", "tagNames"],
+      "required": ["boardId", "id", "cardTypeId", "slickName", "title", "description", "tagNames"],
       "additionalProperties": false
     }
     """;

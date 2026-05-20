@@ -142,6 +142,8 @@ public sealed record CardUpdateInput
 {
     private int? _assignedUserId;
     private bool _assignedUserIdSpecified;
+    private string? _slickName;
+    private bool _slickNameSpecified;
 
     public int? BoardId { get; init; }
     public int? Id { get; init; }
@@ -156,13 +158,24 @@ public sealed record CardUpdateInput
             _assignedUserIdSpecified = true;
         }
     }
-    public string? SlickName { get; init; }
+    public string? SlickName
+    {
+        get => _slickName;
+        init
+        {
+            _slickName = value;
+            _slickNameSpecified = true;
+        }
+    }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyList<string> TagNames { get; init; } = [];
 
     [JsonIgnore]
     public bool AssignedUserIdSpecified => _assignedUserIdSpecified;
+
+    [JsonIgnore]
+    public bool SlickNameSpecified => _slickNameSpecified;
 }
 
 public sealed record CardMoveInput
