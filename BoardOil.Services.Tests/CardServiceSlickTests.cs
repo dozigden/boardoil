@@ -151,5 +151,107 @@ public sealed class CardServiceSlickTests : TestBaseDb
         Assert.Equal(createdSlick.Id, storedCard.SlickId);
     }
 
+    [Fact]
+    public async Task BulkEditCardsAsync_WhenSlickNameProvided_ShouldAutoCreateAndAssignSlick()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Card A", "Desc")
+            .AddCard("Card B", "Desc")
+            .Build();
+        var cardAId = board.GetCard("Todo", "Card A").Id;
+        var cardBId = board.GetCard("Todo", "Card B").Id;
+        var service = CreateService();
+
+        // Act
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardAId, cardBId], Move: null, Slick: new BulkEditSlickRequest("Release candidate")),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.All(result.Data!, card => Assert.NotNull(card.SlickId));
+
+        var createdSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.BoardId == board.BoardId);
+        Assert.Equal("Release candidate", createdSlick.Name);
+        Assert.Equal("RELEASE CANDIDATE", createdSlick.NormalisedName);
+        Assert.Equal(TagStyleSchemaValidator.PresetsStyleName, createdSlick.StyleName);
+
+        var storedCards = await DbContextForAssert.Cards.Where(x => x.Id == cardAId || x.Id == cardBId).ToListAsync();
+        Assert.All(storedCards, card => Assert.Equal(createdSlick.Id, card.SlickId));
+    }
+
+    [Fact]
+    public async Task BulkEditCardsAsync_WhenClearingSlick_ShouldRemoveMembership()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Card A", "Desc")
+            .AddCard("Card B", "Desc")
+            .Build();
+        var cardAId = board.GetCard("Todo", "Card A").Id;
+        var cardBId = board.GetCard("Todo", "Card B").Id;
+        var slick = new SlickEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Release train",
+            NormalisedName = "RELEASE TRAIN",
+            StyleName = TagStyleSchemaValidator.PresetsStyleName,
+            StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName)
+        };
+        DbContextForArrange.Slicks.Add(slick);
+        await DbContextForArrange.SaveChangesAsync();
+        var cardsForArrange = await DbContextForArrange.Cards.Where(x => x.Id == cardAId || x.Id == cardBId).ToListAsync();
+        foreach (var card in cardsForArrange)
+        {
+            card.SlickId = slick.Id;
+        }
+
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardAId, cardBId], Move: null, Slick: new BulkEditSlickRequest(null)),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.All(result.Data!, card => Assert.Null(card.SlickId));
+        var storedCards = await DbContextForAssert.Cards.Where(x => x.Id == cardAId || x.Id == cardBId).ToListAsync();
+        Assert.All(storedCards, card => Assert.Null(card.SlickId));
+    }
+
+    [Fact]
+    public async Task BulkEditCardsAsync_WhenSlickNameTooLong_ShouldReturnValidationError()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Card A", "Desc")
+            .Build();
+        var cardId = board.GetCard("Todo", "Card A").Id;
+        var service = CreateService();
+        var overlongSlickName = new string('X', 41);
+
+        // Act
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardId], Move: null, Slick: new BulkEditSlickRequest(overlongSlickName)),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("slick.name"));
+    }
+
     private ICardService CreateService() => ResolveService<ICardService>();
 }

@@ -7,8 +7,10 @@ using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Image;
+using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Ordering;
+using BoardOil.Services.Slick;
 
 namespace BoardOil.Services.Card;
 
@@ -16,6 +18,7 @@ public sealed class BulkEditCardsService(
     ICardRepository cardRepository,
     IColumnRepository columnRepository,
     ITagRepository tagRepository,
+    ISlickRepository slickRepository,
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
@@ -34,8 +37,9 @@ public sealed class BulkEditCardsService(
         var addTagNames = NormalizeTags(request.AddTagNames ?? []);
         var removeTagNames = NormalizeTags(request.RemoveTagNames ?? []);
         var hasTagEditOperation = addTagNames.Count > 0 || removeTagNames.Count > 0;
+        var hasSlickEditOperation = request.Slick is not null;
 
-        if (uniqueCardIds.Count == 0 || (!hasMoveOperation && !hasTagEditOperation))
+        if (uniqueCardIds.Count == 0 || (!hasMoveOperation && !hasTagEditOperation && !hasSlickEditOperation))
         {
             return ApiResults.Ok<IReadOnlyList<CardDto>>([]);
         }
@@ -49,12 +53,21 @@ public sealed class BulkEditCardsService(
             }
         }
 
-        if (hasTagEditOperation)
+        if (hasTagEditOperation || hasSlickEditOperation)
         {
             var hasUpdatePermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate);
             if (!hasUpdatePermission)
             {
                 return ApiErrors.Forbidden("You do not have permission for this action.");
+            }
+        }
+
+        if (hasSlickEditOperation)
+        {
+            var slickNameValidationError = SlickNameValidation.ValidateOptional(request.Slick!.Name, "slick.name");
+            if (slickNameValidationError is not null)
+            {
+                return ApiErrors.ValidationFailed([slickNameValidationError]);
             }
         }
 
@@ -95,6 +108,10 @@ public sealed class BulkEditCardsService(
         var removeTagNameSet = hasTagEditOperation
             ? removeTagNames.Select(NormaliseTagName).ToHashSet(StringComparer.Ordinal)
             : [];
+        var selectedSlick = hasSlickEditOperation
+            ? await CardSlickMutation.ResolveSlickAsync(boardId, request.Slick!.Name, slickRepository)
+            : null;
+        var selectedSlickId = selectedSlick?.Id;
 
         string? previousKey = null;
         string? nextKey = null;
@@ -113,9 +130,8 @@ public sealed class BulkEditCardsService(
             nextKey = anchorResolution.NextKey;
         }
 
-        var resultDtos = new List<CardDto>(orderedCards.Count);
-        var movedDtos = new List<CardDto>(orderedCards.Count);
-        var updatedDtos = new List<CardDto>(orderedCards.Count);
+        var movedCardIdSet = new HashSet<int>();
+        var updatedCardIdSet = new HashSet<int>();
 
         foreach (var card in orderedCards)
         {
@@ -175,34 +191,62 @@ public sealed class BulkEditCardsService(
                 }
             }
 
+            var slickChanged = false;
+            if (hasSlickEditOperation)
+            {
+                slickChanged = selectedSlickId != card.SlickId;
+                if (slickChanged)
+                {
+                    card.Slick = selectedSlick;
+                    card.SlickId = selectedSlickId > 0 ? selectedSlickId : null;
+                }
+            }
+
+            if (movementChanged)
+            {
+                movedCardIdSet.Add(card.Id);
+            }
+            else if (tagsChanged || slickChanged)
+            {
+                updatedCardIdSet.Add(card.Id);
+            }
+        }
+
+        if (movedCardIdSet.Count > 0 || updatedCardIdSet.Count > 0)
+        {
+            await scope.SaveChangesAsync();
+        }
+
+        var resultDtos = new List<CardDto>(orderedCards.Count);
+        var movedDtos = new List<CardDto>(movedCardIdSet.Count);
+        var updatedDtos = new List<CardDto>(updatedCardIdSet.Count);
+        foreach (var card in orderedCards)
+        {
             var dto = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
             resultDtos.Add(dto);
-            if (movementChanged)
+            if (movedCardIdSet.Contains(card.Id))
             {
                 movedDtos.Add(dto);
             }
-            else if (tagsChanged)
+            else if (updatedCardIdSet.Contains(card.Id))
             {
                 updatedDtos.Add(dto);
             }
         }
 
-        if (movedDtos.Count > 0 || updatedDtos.Count > 0)
+        foreach (var dto in movedDtos)
         {
-            await scope.SaveChangesAsync();
-            foreach (var dto in movedDtos)
-            {
-                await boardEvents.CardMovedAsync(boardId, dto);
-            }
+            await boardEvents.CardMovedAsync(boardId, dto);
+        }
 
-            foreach (var dto in updatedDtos)
-            {
-                await boardEvents.CardUpdatedAsync(boardId, dto);
-            }
+        foreach (var dto in updatedDtos)
+        {
+            await boardEvents.CardUpdatedAsync(boardId, dto);
         }
 
         return resultDtos;
     }
+
     private static (ApiError? Error, string? PreviousKey, string? NextKey) ResolveAnchor(
         int? positionAfterCardId,
         IReadOnlyList<EntityBoardCard> targetCards)

@@ -25,6 +25,37 @@
       </select>
     </section>
 
+    <section class="bulk-edit-field">
+      <label for="bulk-edit-slick-operation" class="bulk-edit-field-label">Slick</label>
+      <select
+        id="bulk-edit-slick-operation"
+        :value="slickOperation"
+        class="bulk-edit-slick-operation-select"
+        :disabled="isSaving"
+        @change="onSlickOperationChange"
+      >
+        <option value="none">No change</option>
+        <option value="clear">No slick</option>
+        <option value="set">Set slick</option>
+      </select>
+    </section>
+
+    <section v-if="slickOperation === 'set'" class="bulk-edit-field">
+      <label for="bulk-edit-slick-name" class="bulk-edit-field-label">Slick to set</label>
+      <select
+        id="bulk-edit-slick-name"
+        :value="targetSlickNameValue"
+        class="bulk-edit-slick-name-select"
+        :disabled="isSaving"
+        @change="onSlickNameChange"
+      >
+        <option value="">Select slick</option>
+        <option v-for="slick in slicks" :key="slick.id" :value="slick.name">
+          {{ slick.name }}
+        </option>
+      </select>
+    </section>
+
     <TagTriStateMatrix
       v-if="availableTagNames.length > 0"
       class="bulk-edit-tags"
@@ -58,6 +89,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
+import type { BulkEditSlickOperation } from '../../shared/types/bulkEditTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import TagTriStateMatrix from './TagTriStateMatrix.vue';
 
@@ -69,6 +101,9 @@ const props = defineProps<{
   columns: Array<{ id: number; title: string }>;
   filterStates: TagFilterStateMap;
   targetColumnId: number | null;
+  slicks: Array<{ id: number; name: string }>;
+  slickOperation: BulkEditSlickOperation;
+  targetSlickName: string | null;
   hasChanges: boolean;
 }>();
 
@@ -77,9 +112,12 @@ const emit = defineEmits<{
   confirm: [];
   'update:filterStates': [value: TagFilterStateMap];
   'update:targetColumnId': [value: number | null];
+  'update:slickOperation': [value: BulkEditSlickOperation];
+  'update:targetSlickName': [value: string | null];
 }>();
 
 const targetColumnValue = computed(() => props.targetColumnId === null ? '' : String(props.targetColumnId));
+const targetSlickNameValue = computed(() => props.targetSlickName ?? '');
 
 function onColumnChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value;
@@ -90,6 +128,28 @@ function onColumnChange(event: Event) {
 
   const parsed = Number.parseInt(value, 10);
   emit('update:targetColumnId', Number.isFinite(parsed) ? parsed : null);
+}
+
+function onSlickOperationChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value;
+  if (value !== 'none' && value !== 'clear' && value !== 'set') {
+    return;
+  }
+
+  emit('update:slickOperation', value);
+  if (value !== 'set') {
+    emit('update:targetSlickName', null);
+  }
+}
+
+function onSlickNameChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value;
+  if (value.length === 0) {
+    emit('update:targetSlickName', null);
+    return;
+  }
+
+  emit('update:targetSlickName', value);
 }
 </script>
 
@@ -111,6 +171,11 @@ function onColumnChange(event: Event) {
 }
 
 .bulk-edit-column-select {
+  min-height: 2.1rem;
+}
+
+.bulk-edit-slick-operation-select,
+.bulk-edit-slick-name-select {
   min-height: 2.1rem;
 }
 

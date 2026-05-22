@@ -113,6 +113,81 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_Edit_WithBulkSlickChange_ShouldReturnUpdatedSlickMembershipContract()
+    {
+        // Arrange
+        var createdTodoColumnId = await SeedBoardColumnAsync("Todo");
+        var firstCardId = await SeedBoardCardAsync(createdTodoColumnId, "Task A", "Desc");
+        var secondCardId = await SeedBoardCardAsync(createdTodoColumnId, "Task B", "Desc");
+
+        // Act
+        var setResponse = await Client.PatchAsJsonAsync(
+            "/api/boards/1/cards/edit",
+            new BulkEditCardsRequest(
+                [firstCardId, secondCardId],
+                Move: null,
+                Slick: new BulkEditSlickRequest("Release train")));
+        var setEnvelope = await setResponse.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<CardDto>>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, setResponse.StatusCode);
+        Assert.NotNull(setEnvelope);
+        Assert.True(setEnvelope!.Success);
+        Assert.NotNull(setEnvelope.Data);
+        Assert.All(setEnvelope.Data!, card =>
+        {
+            Assert.NotNull(card.SlickId);
+            Assert.Equal("Release train", card.SlickName);
+        });
+
+        // Act
+        var clearResponse = await Client.PatchAsJsonAsync(
+            "/api/boards/1/cards/edit",
+            new BulkEditCardsRequest(
+                [firstCardId, secondCardId],
+                Move: null,
+                Slick: new BulkEditSlickRequest(null)));
+        var clearEnvelope = await clearResponse.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<CardDto>>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, clearResponse.StatusCode);
+        Assert.NotNull(clearEnvelope);
+        Assert.True(clearEnvelope!.Success);
+        Assert.NotNull(clearEnvelope.Data);
+        Assert.All(clearEnvelope.Data!, card =>
+        {
+            Assert.Null(card.SlickId);
+            Assert.Null(card.SlickName);
+        });
+    }
+
+    [Fact]
+    public async Task CardEndpoints_Edit_WithOverlongBulkSlickName_ShouldReturnValidationError()
+    {
+        // Arrange
+        var createdTodoColumnId = await SeedBoardColumnAsync("Todo");
+        var firstCardId = await SeedBoardCardAsync(createdTodoColumnId, "Task A", "Desc");
+        var overlongSlickName = new string('X', 41);
+
+        // Act
+        var response = await Client.PatchAsJsonAsync(
+            "/api/boards/1/cards/edit",
+            new BulkEditCardsRequest(
+                [firstCardId],
+                Move: null,
+                Slick: new BulkEditSlickRequest(overlongSlickName)));
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<CardDto>>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.False(envelope!.Success);
+        Assert.Equal(400, envelope.StatusCode);
+        Assert.NotNull(envelope.ValidationErrors);
+        Assert.Contains("slick.name", envelope.ValidationErrors!.Keys);
+    }
+
+    [Fact]
     public async Task CardEndpoints_Archive_ShouldReturnSuccessContract()
     {
         // Arrange

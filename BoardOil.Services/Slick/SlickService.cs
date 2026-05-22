@@ -15,8 +15,6 @@ public sealed class SlickService(
     IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory) : ISlickService
 {
-    private const int MaxSlickNameLength = 40;
-
     public async Task<ApiResult<IReadOnlyList<SlickDto>>> GetSlicksAsync(int boardId, int actorUserId)
     {
         using var scope = scopeFactory.CreateReadOnly();
@@ -51,7 +49,7 @@ public sealed class SlickService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var nameValidation = ValidateSlickName(request.Name, "name");
+        var nameValidation = SlickNameValidation.ValidateRequired(request.Name, "name");
         var validationErrors = new List<ValidationError>();
         if (nameValidation.Error is not null)
         {
@@ -118,7 +116,7 @@ public sealed class SlickService(
             return ApiErrors.NotFound("Slick not found.");
         }
 
-        var nameValidation = ValidateSlickName(request.Name, "name");
+        var nameValidation = SlickNameValidation.ValidateRequired(request.Name, "name");
         var validationErrors = new List<ValidationError>();
         if (nameValidation.Error is not null)
         {
@@ -179,25 +177,6 @@ public sealed class SlickService(
         return ApiResults.Ok();
     }
 
-    private static SlickNameValidationResult ValidateSlickName(string? rawName, string propertyName)
-    {
-        if (string.IsNullOrWhiteSpace(rawName))
-        {
-            return new SlickNameValidationResult(string.Empty, string.Empty, new ValidationError(propertyName, "Slick name is required."));
-        }
-
-        var canonicalName = rawName.Trim();
-        if (canonicalName.Length > MaxSlickNameLength)
-        {
-            return new SlickNameValidationResult(
-                string.Empty,
-                string.Empty,
-                new ValidationError(propertyName, $"Slick '{canonicalName}' must be {MaxSlickNameLength} characters or fewer."));
-        }
-
-        return new SlickNameValidationResult(canonicalName, canonicalName.ToUpperInvariant(), null);
-    }
-
     private static SlickStyleValidationResult ResolveAndValidateStyle(string? styleName, string? stylePropertiesJson)
     {
         var requestedStyleName = styleName?.Trim();
@@ -235,11 +214,6 @@ public sealed class SlickService(
 
         return normalised;
     }
-
-    private sealed record SlickNameValidationResult(
-        string CanonicalName,
-        string NormalisedName,
-        ValidationError? Error);
 
     private sealed record SlickStyleValidationResult(
         string StyleName,

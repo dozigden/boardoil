@@ -203,6 +203,7 @@ export function createBoardApi() {
       move: { targetColumnId: number; positionAfterCardId: number | null } | null;
       addTagNames?: string[] | null;
       removeTagNames?: string[] | null;
+      slick?: { name: string | null } | null;
     }
   ): Promise<Result<Card[], AppError>> {
     return patchData<Card[]>(`/api/boards/${boardId}/cards/edit`, request);

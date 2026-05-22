@@ -106,6 +106,29 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
     }
 
     [Fact]
+    public async Task BulkEditCardsAsync_WhenSlickEditPermissionDenied_ShouldCheckCardUpdatePermission()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Slick me", "Desc")
+            .Build();
+        var cardId = board.GetCard("Todo", "Slick me").Id;
+        var service = ResolveService<ICardService>();
+
+        // Act
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardId], Move: null, Slick: new BulkEditSlickRequest("Release train")),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(403, result.StatusCode);
+        Assert.Equal(BoardPermission.CardUpdate, _boardAuthorisationService.LastPermission);
+    }
+
+    [Fact]
     public async Task BulkDeleteCardsAsync_WhenPermissionDenied_ShouldCheckCardDeletePermission()
     {
         // Arrange

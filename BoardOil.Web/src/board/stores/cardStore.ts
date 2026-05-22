@@ -216,6 +216,7 @@ export const useCardStore = defineStore('card', () => {
       moveTargetCardId?: number | null;
       addTagNames?: string[];
       removeTagNames?: string[];
+      slickName?: string | null;
     },
     boardId: number | null = activeBoardId.value
   ) {
@@ -231,6 +232,10 @@ export const useCardStore = defineStore('card', () => {
 
     const normalisedAddTagNames = normaliseTagNames(options.addTagNames ?? []);
     const normalisedRemoveTagNames = normaliseTagNames(options.removeTagNames ?? []);
+    const hasSlickEditOperation = Object.prototype.hasOwnProperty.call(options, 'slickName');
+    const slickPayload = hasSlickEditOperation
+      ? { name: normaliseSlickName(options.slickName ?? null) }
+      : undefined;
 
     let movePayload: { targetColumnId: number; positionAfterCardId: number | null } | null = null;
     if (typeof options.moveTargetColumnId === 'number') {
@@ -255,7 +260,8 @@ export const useCardStore = defineStore('card', () => {
       cardIds: uniqueCardIds,
       move: movePayload,
       addTagNames: normalisedAddTagNames,
-      removeTagNames: normalisedRemoveTagNames
+      removeTagNames: normalisedRemoveTagNames,
+      slick: slickPayload
     }));
     if (!result.ok) {
       return false;
@@ -274,6 +280,19 @@ export const useCardStore = defineStore('card', () => {
         .map(tagName => tagName.trim())
         .filter(tagName => tagName.length > 0)
     )];
+  }
+
+  function normaliseSlickName(slickName: string | null) {
+    if (slickName === null) {
+      return null;
+    }
+
+    const canonicalName = slickName.trim();
+    if (canonicalName.length === 0) {
+      return null;
+    }
+
+    return canonicalName;
   }
 
   function startDrag(cardId: number, fromColumnId: number) {

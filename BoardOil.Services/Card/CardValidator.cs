@@ -3,6 +3,7 @@ using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
+using BoardOil.Services.Slick;
 namespace BoardOil.Services.Card;
 
 public sealed class CardValidator(
@@ -11,7 +12,6 @@ public sealed class CardValidator(
 {
     private const int MaxDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
-    private const int MaxSlickNameLength = 40;
     private readonly ICardRepository _cardRepository = cardRepository;
     private readonly IBoardMemberRepository _boardMemberRepository = boardMemberRepository;
 
@@ -21,7 +21,12 @@ public sealed class CardValidator(
         ValidateTitle(request.Title, errors);
         ValidateDescription(request.Description ?? string.Empty, errors);
         await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
-        ValidateSlickName(request.SlickName, errors);
+        var createSlickValidationError = SlickNameValidation.ValidateOptional(request.SlickName, "slickName");
+        if (createSlickValidationError is not null)
+        {
+            errors.Add(createSlickValidationError);
+        }
+
         if (errors.Count > 0)
         {
             return errors;
@@ -73,7 +78,11 @@ public sealed class CardValidator(
         }
 
         await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
-        ValidateSlickName(request.SlickName, errors);
+        var updateSlickValidationError = SlickNameValidation.ValidateOptional(request.SlickName, "slickName");
+        if (updateSlickValidationError is not null)
+        {
+            errors.Add(updateSlickValidationError);
+        }
 
         if (request.BoardColumnId is int boardColumnId)
         {
@@ -103,20 +112,6 @@ public sealed class CardValidator(
         }
 
         return Array.Empty<ValidationError>();
-    }
-
-    private static void ValidateSlickName(string? slickName, ICollection<ValidationError> errors)
-    {
-        if (string.IsNullOrWhiteSpace(slickName))
-        {
-            return;
-        }
-
-        var canonicalName = slickName.Trim();
-        if (canonicalName.Length > MaxSlickNameLength)
-        {
-            errors.Add(new ValidationError("slickName", $"Slick '{canonicalName}' must be {MaxSlickNameLength} characters or fewer."));
-        }
     }
 
     private async Task ValidateAssignedUserIdAsync(int boardId, int? assignedUserId, ICollection<ValidationError> errors)

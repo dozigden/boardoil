@@ -165,7 +165,8 @@ describe('cardStore', () => {
       cardIds: [101, 102],
       move: { targetColumnId: 2, positionAfterCardId: 201 },
       addTagNames: [],
-      removeTagNames: []
+      removeTagNames: [],
+      slick: undefined
     });
     expect(store.getCardsForColumn(1)).toHaveLength(0);
     expect(store.getCardsForColumn(2).map(x => x.id)).toEqual([201, 101, 102]);
@@ -192,9 +193,62 @@ describe('cardStore', () => {
       cardIds: [101],
       move: null,
       addTagNames: ['Feature'],
-      removeTagNames: ['Old']
+      removeTagNames: ['Old'],
+      slick: undefined
     });
     expect(store.getCardById(101)?.tagNames).toEqual(['Feature']);
+  });
+
+  it('bulk edits selected cards with slick clear operation', async () => {
+    const store = useCardStore();
+    store.replaceBoardCards(1, makeBoard().columns);
+    api.editCards.mockResolvedValue(ok([
+      {
+        ...store.getCardById(101)!,
+        slickId: null,
+        slickName: null
+      }
+    ]));
+
+    const edited = await store.bulkEditCards([101], {
+      slickName: null
+    });
+
+    expect(edited).toBe(true);
+    expect(api.editCards).toHaveBeenCalledWith(1, {
+      cardIds: [101],
+      move: null,
+      addTagNames: [],
+      removeTagNames: [],
+      slick: { name: null }
+    });
+    expect(store.getCardById(101)?.slickId).toBeNull();
+  });
+
+  it('bulk edits selected cards with slick set operation', async () => {
+    const store = useCardStore();
+    store.replaceBoardCards(1, makeBoard().columns);
+    api.editCards.mockResolvedValue(ok([
+      {
+        ...store.getCardById(101)!,
+        slickId: 8,
+        slickName: 'Release train'
+      }
+    ]));
+
+    const edited = await store.bulkEditCards([101], {
+      slickName: '  Release train  '
+    });
+
+    expect(edited).toBe(true);
+    expect(api.editCards).toHaveBeenCalledWith(1, {
+      cardIds: [101],
+      move: null,
+      addTagNames: [],
+      removeTagNames: [],
+      slick: { name: 'Release train' }
+    });
+    expect(store.getCardById(101)?.slickName).toBe('Release train');
   });
 
   it('translates drop-before-card into predecessor anchor', async () => {

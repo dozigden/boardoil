@@ -102,11 +102,15 @@ public sealed record BulkMoveCardsRequest(
     int TargetColumnId,
     int? PositionAfterCardId);
 
+public sealed record BulkEditSlickRequest(
+    string? Name);
+
 public sealed record BulkEditCardsRequest(
     IReadOnlyList<int>? CardIds,
     BulkMoveCardsRequest? Move,
     IReadOnlyList<string>? AddTagNames = null,
-    IReadOnlyList<string>? RemoveTagNames = null);
+    IReadOnlyList<string>? RemoveTagNames = null,
+    BulkEditSlickRequest? Slick = null);
 
 public sealed record BulkDeleteCardsRequest(
     IReadOnlyList<int>? CardIds);
