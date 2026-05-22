@@ -44,7 +44,8 @@ public static class ArchivedCardSnapshotSerialiser
                     x.AuthorUserId,
                     x.AuthorUser?.Email))
                 .ToList(),
-            card.SlickId);
+            null,
+            card.Slick?.Name);
 
         var envelope = new ArchivedCardSnapshotEnvelopeV1(
             SchemaName,
@@ -179,13 +180,15 @@ public static class ArchivedCardSnapshotSerialiser
             payload.AssignedUserId,
             null,
             null,
-            payload.SlickId);
+            payload.SlickId,
+            payload.SlickName);
 
         snapshot = new ArchivedCardSnapshotCurrentDto(
             card,
             payload.Comments?.ToList() ?? []);
         return true;
     }
+
 }
 
 public sealed record ArchivedCardSnapshotEnvelopeV1(
@@ -211,7 +214,8 @@ public sealed record ArchivedCardSnapshotV1Payload(
     DateTime UpdatedAtUtc,
     int? AssignedUserId = null,
     IReadOnlyList<ArchivedCardSnapshotCommentV1Payload>? Comments = null,
-    int? SlickId = null);
+    int? SlickId = null,
+    string? SlickName = null);
 
 public sealed record ArchivedCardSnapshotCommentV1Payload(
     string Text,

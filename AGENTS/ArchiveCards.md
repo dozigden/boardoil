@@ -26,6 +26,12 @@ Notes:
 - `SearchTagsJson` should store a JSON array of tag names.
 - Avoid CSV for tags because tag names may contain commas.
 
+## Snapshot Reference Identity
+
+- For mutable board-scoped entities referenced inside archive snapshots (for example slicks), prefer canonical names over numeric IDs.
+- IDs are environment-local and can drift after deletes/recreates; names are better for restore intent and cross-environment readability.
+- On restore, resolve by canonical name and create when missing if that best preserves archived semantics.
+
 ## Search Rules
 
 - Archive search is substring (`contains`) and case-insensitive.

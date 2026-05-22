@@ -39,6 +39,7 @@ public sealed class CardArchiveService(
     private const int MaxArchiveSnapshotJsonBytes = 2_097_152;
     private const int MaxCardTitleLength = 200;
     private const int MaxCardDescriptionLength = 20_000;
+    private const int MaxSlickNameLength = 40;
     private const int MaxCommentLength = 4_000;
     private const int DefaultListLimit = 50;
     private const int MaxListLimit = 200;
@@ -179,7 +180,7 @@ public sealed class CardArchiveService(
         }
 
         var resolvedAssignedUser = await ResolveAssignedUserForRestoreAsync(boardId, snapshotCard.AssignedUserId);
-        var resolvedSlickId = await ResolveSlickIdInBoardAsync(boardId, snapshotCard.SlickId);
+        var resolvedSlick = await ResolveSlickForRestoreAsync(boardId, snapshotCard.SlickId, snapshotCard.SlickName);
         var resolvedTags = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames, now);
         var restoredCard = new EntityBoardCard
         {
@@ -189,7 +190,8 @@ public sealed class CardArchiveService(
             CardType = selectedCardType,
             AssignedUserId = resolvedAssignedUser?.Id,
             AssignedUser = resolvedAssignedUser,
-            SlickId = resolvedSlickId,
+            SlickId = resolvedSlick?.Id,
+            Slick = resolvedSlick,
             Title = title,
             Description = snapshotCard.Description,
             SortKey = sortKeyValue!,
@@ -314,14 +316,15 @@ public sealed class CardArchiveService(
 
     private async Task<CardDto> ResolveCurrentSnapshotCardAsync(int boardId, CardDto snapshotCard)
     {
-        var resolvedSlickId = await ResolveSlickIdInBoardAsync(boardId, snapshotCard.SlickId);
+        var resolvedSlick = await ResolveSnapshotSlickReferenceAsync(boardId, snapshotCard.SlickId, snapshotCard.SlickName);
         if (snapshotCard.AssignedUserId is null)
         {
             return snapshotCard with
             {
                 AssignedUserId = null,
                 AssignedUserName = null,
-                SlickId = resolvedSlickId
+                SlickId = resolvedSlick.SlickId,
+                SlickName = resolvedSlick.SlickName
             };
         }
 
@@ -332,7 +335,8 @@ public sealed class CardArchiveService(
             {
                 AssignedUserId = null,
                 AssignedUserName = null,
-                SlickId = resolvedSlickId
+                SlickId = resolvedSlick.SlickId,
+                SlickName = resolvedSlick.SlickName
             };
         }
 
@@ -341,7 +345,8 @@ public sealed class CardArchiveService(
             AssignedUserId = membership.UserId,
             AssignedUserName = membership.User.DisplayName,
             AssignedUserImageRelativePath = (await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, membership.UserId))?.RelativePath,
-            SlickId = resolvedSlickId
+            SlickId = resolvedSlick.SlickId,
+            SlickName = resolvedSlick.SlickName
         };
     }
 
@@ -373,15 +378,44 @@ public sealed class CardArchiveService(
         return membership.User;
     }
 
-    private async Task<int?> ResolveSlickIdInBoardAsync(int boardId, int? slickId)
+    private async Task<EntitySlick?> ResolveSlickForRestoreAsync(int boardId, int? snapshotSlickId, string? snapshotSlickName)
     {
-        if (slickId is null)
+        if (!string.IsNullOrWhiteSpace(snapshotSlickName))
+        {
+            return await CardSlickMutation.ResolveSlickAsync(boardId, snapshotSlickName, slickRepository);
+        }
+
+        if (snapshotSlickId is null)
         {
             return null;
         }
 
-        var selectedSlick = await slickRepository.GetByIdInBoardAsync(boardId, slickId.Value);
-        return selectedSlick?.Id;
+        return await slickRepository.GetByIdInBoardAsync(boardId, snapshotSlickId.Value);
+    }
+
+    private async Task<ResolvedSlickReference> ResolveSnapshotSlickReferenceAsync(int boardId, int? snapshotSlickId, string? snapshotSlickName)
+    {
+        if (!string.IsNullOrWhiteSpace(snapshotSlickName))
+        {
+            var canonicalSlickName = snapshotSlickName.Trim();
+            var existingByName = await slickRepository.GetByNormalisedNameAsync(boardId, canonicalSlickName.ToUpperInvariant());
+            if (existingByName is null)
+            {
+                return new ResolvedSlickReference(null, canonicalSlickName);
+            }
+
+            return new ResolvedSlickReference(existingByName.Id, existingByName.Name);
+        }
+
+        if (snapshotSlickId is null)
+        {
+            return new ResolvedSlickReference(null, null);
+        }
+
+        var selectedSlick = await slickRepository.GetByIdInBoardAsync(boardId, snapshotSlickId.Value);
+        return selectedSlick is null
+            ? new ResolvedSlickReference(null, null)
+            : new ResolvedSlickReference(selectedSlick.Id, selectedSlick.Name);
     }
 
     private async Task<CardDto> EnrichAssignedUserImageAsync(CardDto card)
@@ -521,6 +555,12 @@ public sealed class CardArchiveService(
             errors.Add(new ValidationError("snapshot.description", $"Card description must be {MaxCardDescriptionLength} characters or fewer."));
         }
 
+        var slickName = snapshotCard.SlickName?.Trim();
+        if (!string.IsNullOrEmpty(slickName) && slickName.Length > MaxSlickNameLength)
+        {
+            errors.Add(new ValidationError("snapshot.slickName", $"Slick name must be {MaxSlickNameLength} characters or fewer."));
+        }
+
         return errors;
     }
 
@@ -643,6 +683,8 @@ public sealed class CardArchiveService(
     private sealed record ArchiveExecutionResult(
         ApiError? Error,
         IReadOnlyList<EntityArchivedCard>? ArchivedCards);
+
+    private readonly record struct ResolvedSlickReference(int? SlickId, string? SlickName);
 
     private sealed record ArchivedCardBuildResult(
         EntityArchivedCard? ArchivedCard,

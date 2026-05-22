@@ -7,7 +7,7 @@ namespace BoardOil.Services.Tests;
 public sealed class ArchivedCardSnapshotSerialiserTests
 {
     [Fact]
-    public void CreateSnapshotJson_AndTryReadKnownPayload_ShouldRoundTripV1()
+    public void CreateSnapshotJson_AndTryReadKnownPayload_ShouldRoundTripCurrentVersion()
     {
         // Arrange
         var capturedAtUtc = new DateTime(2026, 4, 19, 16, 0, 0, DateTimeKind.Utc);
@@ -22,13 +22,13 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Null(error);
         Assert.NotNull(knownPayload);
         Assert.Equal(ArchivedCardSnapshotSerialiser.SchemaName, knownPayload!.Schema);
-        Assert.Equal(1, knownPayload.Version);
+        Assert.Equal(ArchivedCardSnapshotSerialiser.CurrentVersion, knownPayload.Version);
         Assert.Equal(capturedAtUtc, knownPayload.CapturedAtUtc);
         Assert.Equal(99, knownPayload.Payload.BoardId);
         Assert.Equal(card.Id, knownPayload.Payload.OriginalCardId);
         Assert.Equal(card.Title, knownPayload.Payload.Title);
         Assert.Equal(["Bug"], knownPayload.Payload.TagNames);
-        Assert.Equal(card.SlickId, knownPayload.Payload.SlickId);
+        Assert.Equal(card.Slick!.Name, knownPayload.Payload.SlickName);
         Assert.NotNull(knownPayload.Payload.Comments);
         var firstComment = Assert.Single(knownPayload.Payload.Comments!);
         Assert.Equal("Archived note", firstComment.Text);
@@ -73,7 +73,8 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.Title, parsedCard.Title);
         Assert.Equal(card.Description, parsedCard.Description);
         Assert.Equal(["Bug"], parsedCard.TagNames);
-        Assert.Equal(card.SlickId, parsedCard.SlickId);
+        Assert.Null(parsedCard.SlickId);
+        Assert.Equal(card.Slick!.Name, parsedCard.SlickName);
 
         var parsedSnapshot = ArchivedCardSnapshotSerialiser.TryBuildCurrentSnapshot(snapshotJson, out var snapshot, out error);
         Assert.True(parsedSnapshot);
@@ -118,6 +119,15 @@ public sealed class ArchivedCardSnapshotSerialiserTests
             Description = "Desc",
             SortKey = "B",
             SlickId = 77,
+            Slick = new EntitySlick
+            {
+                Id = 77,
+                BoardId = board.Id,
+                Name = "Release train",
+                NormalisedName = "RELEASE TRAIN",
+                StyleName = "solid",
+                StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}"""
+            },
             Comments =
             [
                 new EntityCardComment

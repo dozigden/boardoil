@@ -33,7 +33,8 @@ public sealed record CardDto(
     int? AssignedUserId = null,
     string? AssignedUserName = null,
     string? AssignedUserImageRelativePath = null,
-    int? SlickId = null);
+    int? SlickId = null,
+    string? SlickName = null);
 
 public sealed record ArchivedCardDto(
     int Id,

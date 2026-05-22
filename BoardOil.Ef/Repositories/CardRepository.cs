@@ -25,6 +25,12 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
                 .Reference(x => x.AssignedUser)
                 .LoadAsync();
         }
+        if (card.SlickId is not null)
+        {
+            await DbContext.Entry(card)
+                .Reference(x => x.Slick)
+                .LoadAsync();
+        }
 
         await DbContext.Entry(card)
             .Collection(x => x.CardTags)
@@ -38,6 +44,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
         DbSet
             .Include(x => x.CardType)
             .Include(x => x.AssignedUser)
+            .Include(x => x.Slick)
             .Include(x => x.CardTags)
                 .ThenInclude(x => x.Tag)
             .Include(x => x.BoardColumn)
@@ -55,6 +62,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             .AsSplitQuery()
             .Include(x => x.CardType)
             .Include(x => x.AssignedUser)
+            .Include(x => x.Slick)
             .Include(x => x.CardTags)
                 .ThenInclude(x => x.Tag)
             .Include(x => x.Comments)
@@ -77,6 +85,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             .OrderBy(x => x.SortKey)
             .Include(x => x.CardType)
             .Include(x => x.AssignedUser)
+            .Include(x => x.Slick)
             .Include(x => x.CardTags)
                 .ThenInclude(x => x.Tag)
             .ToListAsync();
@@ -93,6 +102,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             .OrderBy(x => x.SortKey)
             .Include(x => x.CardType)
             .Include(x => x.AssignedUser)
+            .Include(x => x.Slick)
             .Include(x => x.CardTags)
                 .ThenInclude(x => x.Tag)
             .ToListAsync();

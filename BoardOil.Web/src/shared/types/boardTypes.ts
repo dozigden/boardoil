@@ -28,6 +28,7 @@ export type Card = {
   boardColumnId: number;
   cardTypeId: number;
   slickId?: number | null;
+  slickName?: string | null;
   cardTypeName: string;
   cardTypeEmoji: string | null;
   assignedUserId?: number | null;

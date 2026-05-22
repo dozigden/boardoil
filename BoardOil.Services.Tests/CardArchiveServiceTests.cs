@@ -59,6 +59,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.Contains("ARCHIVE ME", archived.SearchTextNormalised);
         Assert.Contains("URGENT", archived.SearchTextNormalised);
         Assert.Contains("\"version\":1", archived.SnapshotJson, StringComparison.Ordinal);
+        Assert.Contains("\"slickName\":null", archived.SnapshotJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -152,7 +153,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_WhenSnapshotSlickNoLongerExists_ShouldRestoreWithoutSlick()
+    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_WhenSnapshotSlickNoLongerExists_ShouldRecreateAndRestoreSlick()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -189,9 +190,11 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         // Assert
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
-        Assert.Null(unarchiveResult.Data!.SlickId);
+        Assert.NotNull(unarchiveResult.Data!.SlickId);
         var restoredCard = await DbContextForAssert.Cards.SingleAsync(x => x.Id == unarchiveResult.Data.Id);
-        Assert.Null(restoredCard.SlickId);
+        Assert.NotNull(restoredCard.SlickId);
+        var recreatedSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.Id == restoredCard.SlickId);
+        Assert.Equal("Release train", recreatedSlick.Name);
     }
 
     [Fact]
@@ -629,6 +632,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Null(result.Data!.Card.SlickId);
+        Assert.Equal("Release train", result.Data.Card.SlickName);
     }
 
     private async Task SeedTagsForArrangeAsync(int boardId, params string[] tagNames)

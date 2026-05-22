@@ -31,7 +31,8 @@ public static class CardMappingExtensions
             card.AssignedUserId,
             card.AssignedUser?.DisplayName,
             null,
-            card.SlickId);
+            card.SlickId,
+            card.Slick?.Name);
 
     public static CardDto WithAssignedUserImageRelativePath(this CardDto card, string? assignedUserImageRelativePath) =>
         card with

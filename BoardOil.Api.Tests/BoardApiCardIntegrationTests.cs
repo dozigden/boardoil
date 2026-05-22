@@ -148,7 +148,7 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
-    public async Task CardEndpoints_GetArchivedById_ShouldIncludeSlickIdInCardContract()
+    public async Task CardEndpoints_GetArchivedById_ShouldIncludeSlickMembershipInCardContract()
     {
         // Arrange
         var slickCreateResponse = await Client.PostAsJsonAsync(
@@ -186,6 +186,7 @@ public sealed class BoardApiCardIntegrationTests
         Assert.True(payload!.Success);
         Assert.NotNull(payload.Data);
         Assert.Equal(slickId, payload.Data!.Card.SlickId);
+        Assert.Equal("Release train", payload.Data.Card.SlickName);
     }
 
     [Fact]
@@ -231,6 +232,7 @@ public sealed class BoardApiCardIntegrationTests
         Assert.Equal("Archive me", payload.Data.Title);
         Assert.Equal(createdColumnId, payload.Data.BoardColumnId);
         Assert.Equal(slickId, payload.Data.SlickId);
+        Assert.Equal("Release train", payload.Data.SlickName);
     }
 
     [Fact]

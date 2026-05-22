@@ -46,6 +46,11 @@
       </div>
 
       <div class="card-editor-option-section">
+        <span class="card-editor-field-label">Slick</span>
+        <span>{{ slickLabel }}</span>
+      </div>
+
+      <div class="card-editor-option-section">
         <span class="card-editor-field-label">Archived</span>
         <span>{{ formatDateTime(archivedCard.archivedAtUtc) }}</span>
       </div>
@@ -102,6 +107,19 @@ const assignedUserLabel = computed(() => {
   }
 
   return 'Unassigned';
+});
+
+const slickLabel = computed(() => {
+  const slickName = card.value.slickName?.trim();
+  if (slickName && slickName.length > 0) {
+    return slickName;
+  }
+
+  if (card.value.slickId !== null && card.value.slickId !== undefined) {
+    return `#${card.value.slickId}`;
+  }
+
+  return '-';
 });
 
 const descriptionForDisplay = computed(() => {
