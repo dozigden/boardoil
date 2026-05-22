@@ -1,16 +1,23 @@
 import { computed, ref, type Ref } from 'vue';
-import type { Board, BoardColumn, Tag } from '../../shared/types/boardTypes';
+import type { Board, BoardColumn, Slick, Tag } from '../../shared/types/boardTypes';
 import type { TagFilterState, TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import { createCardSearchAndTagMatcher, type CardSearchAndTagFilter } from '../utils/cardFilters';
 
-export function useBoardCardFilters(board: Ref<Board | null>, tags: Ref<Tag[]>) {
+export function useBoardCardFilters(board: Ref<Board | null>, tags: Ref<Tag[]>, slicks: Ref<Slick[]>) {
   const cardSearchText = ref('');
   const tagFilterStates = ref<TagFilterStateMap>({});
+  const slickFilterStates = ref<TagFilterStateMap>({});
   const isTagFilterMenuOpen = ref(false);
 
   const availableTagNames = computed(() =>
     tags.value
       .map(tag => tag.name)
+      .sort((left, right) => left.localeCompare(right))
+  );
+
+  const availableSlickNames = computed(() =>
+    slicks.value
+      .map(slick => slick.name)
       .sort((left, right) => left.localeCompare(right))
   );
 
@@ -22,10 +29,20 @@ export function useBoardCardFilters(board: Ref<Board | null>, tags: Ref<Tag[]>) 
     availableTagNames.value.filter(tagName => resolveTagFilterState(tagFilterStates.value, tagName) === 'exclude')
   );
 
+  const includedSlickNames = computed(() =>
+    availableSlickNames.value.filter(slickName => resolveTagFilterState(slickFilterStates.value, slickName) === 'include')
+  );
+
+  const excludedSlickNames = computed(() =>
+    availableSlickNames.value.filter(slickName => resolveTagFilterState(slickFilterStates.value, slickName) === 'exclude')
+  );
+
   const cardFilters = computed<CardSearchAndTagFilter>(() => ({
     searchText: cardSearchText.value,
     includedTagNames: [...includedTagNames.value],
-    excludedTagNames: [...excludedTagNames.value]
+    excludedTagNames: [...excludedTagNames.value],
+    includedSlickNames: [...includedSlickNames.value],
+    excludedSlickNames: [...excludedSlickNames.value]
   }));
 
   const filteredColumns = computed<BoardColumn[]>(() => {
@@ -44,21 +61,27 @@ export function useBoardCardFilters(board: Ref<Board | null>, tags: Ref<Tag[]>) 
     cardSearchText.value.trim().length > 0
     || includedTagNames.value.length > 0
     || excludedTagNames.value.length > 0
+    || includedSlickNames.value.length > 0
+    || excludedSlickNames.value.length > 0
   );
 
   function clearCardFilters() {
     cardSearchText.value = '';
     tagFilterStates.value = {};
+    slickFilterStates.value = {};
     isTagFilterMenuOpen.value = false;
   }
 
   return {
     cardSearchText,
     tagFilterStates,
+    slickFilterStates,
     isTagFilterMenuOpen,
     availableTagNames,
     includedTagNames,
     excludedTagNames,
+    includedSlickNames,
+    excludedSlickNames,
     cardFilters,
     filteredColumns,
     hasActiveCardFilters,

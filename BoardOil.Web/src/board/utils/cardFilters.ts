@@ -4,16 +4,22 @@ export type CardSearchAndTagFilter = {
   searchText: string;
   includedTagNames: string[];
   excludedTagNames: string[];
+  includedSlickNames: string[];
+  excludedSlickNames: string[];
 };
 
-type FilterableCard = Pick<Card, 'title' | 'description' | 'tagNames'>;
+type FilterableCard = Pick<Card, 'title' | 'description' | 'tagNames' | 'slickName'>;
 
 export function createCardSearchAndTagMatcher(filter: CardSearchAndTagFilter) {
   const normalisedSearchText = normaliseSearchText(filter.searchText);
   const includedTagNames = normaliseTagNameSet(filter.includedTagNames);
   const excludedTagNames = normaliseTagNameSet(filter.excludedTagNames);
+  const includedSlickNames = normaliseTagNameSet(filter.includedSlickNames);
+  const excludedSlickNames = normaliseTagNameSet(filter.excludedSlickNames);
   const hasIncludeFilter = includedTagNames.size > 0;
   const hasExcludeFilter = excludedTagNames.size > 0;
+  const hasIncludeSlickFilter = includedSlickNames.size > 0;
+  const hasExcludeSlickFilter = excludedSlickNames.size > 0;
 
   return (card: FilterableCard) => {
     if (normalisedSearchText.length > 0) {
@@ -23,17 +29,26 @@ export function createCardSearchAndTagMatcher(filter: CardSearchAndTagFilter) {
       }
     }
 
-    if (!hasIncludeFilter && !hasExcludeFilter) {
+    if (!hasIncludeFilter && !hasExcludeFilter && !hasIncludeSlickFilter && !hasExcludeSlickFilter) {
       return true;
     }
 
     const cardTagNames = normaliseTagNameSet(card.tagNames);
+    const cardSlickNames = normaliseOptionalName(card.slickName);
 
     if (hasIncludeFilter && !hasAnyTag(cardTagNames, includedTagNames)) {
       return false;
     }
 
     if (hasExcludeFilter && hasAnyTag(cardTagNames, excludedTagNames)) {
+      return false;
+    }
+
+    if (hasIncludeSlickFilter && !hasAnyTag(cardSlickNames, includedSlickNames)) {
+      return false;
+    }
+
+    if (hasExcludeSlickFilter && hasAnyTag(cardSlickNames, excludedSlickNames)) {
       return false;
     }
 
@@ -67,4 +82,12 @@ function normaliseTagNameSet(tagNames: string[]) {
   }
 
   return normalised;
+}
+
+function normaliseOptionalName(value: string | null | undefined) {
+  if (typeof value !== 'string') {
+    return new Set<string>();
+  }
+
+  return normaliseTagNameSet([value]);
 }

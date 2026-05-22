@@ -3,8 +3,10 @@
     class="tag-tri-state"
     :class="{
       'tag-tri-state--fluid': fluid,
-      'tag-tri-state--directional-cursor': showDirectionalCursor
+      'tag-tri-state--directional-cursor': showDirectionalCursor,
+      'tag-tri-state--parent-scroll': scrollMode === 'parent'
     }"
+    :style="rootStyle"
     :aria-label="ariaLabel"
   >
     <div class="tag-tri-state-grid tag-tri-state-grid--header">
@@ -24,7 +26,19 @@
         @mouseleave="clearHoverTarget(tagName)"
         @click="setState(tagName, leftState)"
       >
-        <Tag v-if="getState(tagName) === leftState" :tag-name="tagName" :class="getTagNudgeClass(tagName, leftState)" />
+        <Tag
+          v-if="getState(tagName) === leftState && !shouldRenderStyledItem(tagName)"
+          :tag-name="tagName"
+          :class="getTagNudgeClass(tagName, leftState)"
+        />
+        <span
+          v-else-if="getState(tagName) === leftState"
+          class="tag tag-tri-state-styled-item"
+          :class="[...getStyledItemClasses(tagName), getTagNudgeClass(tagName, leftState)]"
+          :style="getStyledItemStyle(tagName)"
+        >
+          <span class="tag-label">{{ tagName }}</span>
+        </span>
         <span v-else class="tag-tri-state-placeholder" aria-hidden="true"></span>
       </button>
 
@@ -38,7 +52,19 @@
         @mouseleave="clearHoverTarget(tagName)"
         @click="setState(tagName, 'none')"
       >
-        <Tag v-if="getState(tagName) === 'none'" :tag-name="tagName" :class="getTagNudgeClass(tagName, 'none')" />
+        <Tag
+          v-if="getState(tagName) === 'none' && !shouldRenderStyledItem(tagName)"
+          :tag-name="tagName"
+          :class="getTagNudgeClass(tagName, 'none')"
+        />
+        <span
+          v-else-if="getState(tagName) === 'none'"
+          class="tag tag-tri-state-styled-item"
+          :class="[...getStyledItemClasses(tagName), getTagNudgeClass(tagName, 'none')]"
+          :style="getStyledItemStyle(tagName)"
+        >
+          <span class="tag-label">{{ tagName }}</span>
+        </span>
         <span v-else class="tag-tri-state-placeholder" aria-hidden="true"></span>
       </button>
 
@@ -52,7 +78,19 @@
         @mouseleave="clearHoverTarget(tagName)"
         @click="setState(tagName, rightState)"
       >
-        <Tag v-if="getState(tagName) === rightState" :tag-name="tagName" :class="getTagNudgeClass(tagName, rightState)" />
+        <Tag
+          v-if="getState(tagName) === rightState && !shouldRenderStyledItem(tagName)"
+          :tag-name="tagName"
+          :class="getTagNudgeClass(tagName, rightState)"
+        />
+        <span
+          v-else-if="getState(tagName) === rightState"
+          class="tag tag-tri-state-styled-item"
+          :class="[...getStyledItemClasses(tagName), getTagNudgeClass(tagName, rightState)]"
+          :style="getStyledItemStyle(tagName)"
+        >
+          <span class="tag-label">{{ tagName }}</span>
+        </span>
         <span v-else class="tag-tri-state-placeholder" aria-hidden="true"></span>
       </button>
     </div>
@@ -60,8 +98,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import type { TagFilterState, TagFilterStateMap } from '../../shared/types/tagFilterTypes';
+import type { StylePresentation } from '../../shared/utils/styleTypes';
+import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import Tag from './Tag.vue';
 
 const props = withDefaults(defineProps<{
@@ -78,13 +118,19 @@ const props = withDefaults(defineProps<{
   fluid?: boolean;
   showDirectionalCursor?: boolean;
   enableBounce?: boolean;
+  scrollMode?: 'self' | 'parent';
+  stickyTopOffsetPx?: number;
+  styledItemsByName?: Record<string, StylePresentation>;
 }>(), {
   leftState: 'exclude',
   rightState: 'include',
   disabled: false,
   fluid: false,
   showDirectionalCursor: true,
-  enableBounce: true
+  enableBounce: true,
+  scrollMode: 'self',
+  stickyTopOffsetPx: 0,
+  styledItemsByName: () => ({})
 });
 
 const emit = defineEmits<{
@@ -92,6 +138,35 @@ const emit = defineEmits<{
 }>();
 
 const hoverTargetStates = ref<Record<string, TagFilterState | null>>({});
+const rootStyle = computed(() => ({
+  '--bo-tag-tri-header-top': `${props.stickyTopOffsetPx}px`
+}));
+
+function shouldRenderStyledItem(tagName: string) {
+  return resolveStyledItem(tagName) !== null;
+}
+
+function getStyledItemClasses(tagName: string) {
+  const styledItem = resolveStyledItem(tagName);
+  if (!styledItem) {
+    return [];
+  }
+
+  return getSemanticStyleClasses(styledItem, 'tag');
+}
+
+function getStyledItemStyle(tagName: string) {
+  const styledItem = resolveStyledItem(tagName);
+  if (!styledItem) {
+    return {};
+  }
+
+  return getSurfaceStyle(styledItem, {
+    fallbackBackground: 'var(--bo-surface-base)',
+    fallbackColor: 'var(--bo-ink-strong)',
+    fallbackBorderColor: 'var(--bo-border-soft)'
+  });
+}
 
 function getState(tagName: string): TagFilterState {
   const normalised = normaliseTagName(tagName);
@@ -181,6 +256,15 @@ function getOrder(state: TagFilterState) {
 function normaliseTagName(tagName: string) {
   return tagName.trim().toLocaleLowerCase();
 }
+
+function resolveStyledItem(tagName: string): StylePresentation | null {
+  const normalisedTagName = normaliseTagName(tagName);
+  if (!normalisedTagName) {
+    return null;
+  }
+
+  return props.styledItemsByName[normalisedTagName] ?? null;
+}
 </script>
 
 <style scoped>
@@ -188,6 +272,10 @@ function normaliseTagName(tagName: string) {
   border: 1px solid var(--bo-border-soft);
   border-radius: 10px;
   overflow: auto;
+}
+
+.tag-tri-state--parent-scroll {
+  overflow: visible;
 }
 
 .tag-tri-state-grid {
@@ -205,7 +293,7 @@ function normaliseTagName(tagName: string) {
 
 .tag-tri-state-grid--header {
   position: sticky;
-  top: 0;
+  top: var(--bo-tag-tri-header-top, 0px);
   z-index: 1;
   background: var(--bo-surface-panel-strong);
   border-bottom: 1px solid var(--bo-border-soft);
@@ -283,6 +371,10 @@ function normaliseTagName(tagName: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tag-tri-state-styled-item {
+  max-width: 100%;
 }
 
 .tag-tri-state-placeholder {

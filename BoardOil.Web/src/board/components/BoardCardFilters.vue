@@ -14,13 +14,16 @@
       </div>
 
       <div class="board-controls-pane">
-        <BoardTagFilterPicker
-          v-if="availableTagNames.length > 0"
+        <BoardCardFilterPicker
+          v-if="availableTagNames.length > 0 || availableSlicks.length > 0"
           :available-tag-names="availableTagNames"
-          :filter-states="filterStates"
-          :has-active-tag-filters="hasActiveTagFilters"
+          :available-slicks="availableSlicks"
+          :tag-filter-states="tagFilterStates"
+          :slick-filter-states="slickFilterStates"
+          :has-active-filters="hasActiveOptionFilters"
           :open="pickerOpen"
-          @update:filter-states="emit('update:filterStates', $event)"
+          @update:tag-filter-states="emit('update:tagFilterStates', $event)"
+          @update:slick-filter-states="emit('update:slickFilterStates', $event)"
           @update:open="emit('update:pickerOpen', $event)"
         />
 
@@ -98,13 +101,16 @@
 import { ChevronDown, X } from 'lucide-vue-next';
 import { computed } from 'vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import type { Slick } from '../../shared/types/boardTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
-import BoardTagFilterPicker from './BoardTagFilterPicker.vue';
+import BoardCardFilterPicker from './BoardCardFilterPicker.vue';
 
 const props = withDefaults(defineProps<{
   searchText: string;
   availableTagNames: string[];
-  filterStates: TagFilterStateMap;
+  availableSlicks?: Slick[];
+  tagFilterStates: TagFilterStateMap;
+  slickFilterStates?: TagFilterStateMap;
   pickerOpen: boolean;
   hasActiveFilters: boolean;
   selectionMode?: boolean;
@@ -119,12 +125,15 @@ const props = withDefaults(defineProps<{
   disableBulkEditAction: false,
   disableSelectionMenuAction: false,
   showSelectionToggle: true,
-  embedded: false
+  embedded: false,
+  availableSlicks: () => [],
+  slickFilterStates: () => ({})
 });
 
 const emit = defineEmits<{
   'update:searchText': [value: string];
-  'update:filterStates': [value: TagFilterStateMap];
+  'update:tagFilterStates': [value: TagFilterStateMap];
+  'update:slickFilterStates': [value: TagFilterStateMap];
   'update:pickerOpen': [value: boolean];
   clear: [];
   toggleSelectionMode: [];
@@ -149,7 +158,9 @@ const rootClasses = computed(() => (
     : ['panel', 'panel--compact', 'board-filters']
 ));
 
-const hasActiveTagFilters = computed(() => Object.keys(props.filterStates).length > 0);
+const hasActiveOptionFilters = computed(() =>
+  Object.keys(props.tagFilterStates).length > 0 || Object.keys(props.slickFilterStates).length > 0
+);
 </script>
 
 <style scoped>

@@ -30,7 +30,9 @@
         embedded
         :search-text="cardSearchText"
         :available-tag-names="availableTagNames"
-        :filter-states="tagFilterStates"
+        :available-slicks="slicks"
+        :tag-filter-states="tagFilterStates"
+        :slick-filter-states="slickFilterStates"
         :picker-open="isTagFilterMenuOpen"
         :has-active-filters="hasActiveCardFilters"
         :selection-mode="isCardSelectionMode"
@@ -38,7 +40,8 @@
         :disable-bulk-edit-action="isApplyingBulkEdit || selectedCardCount === 0"
         :disable-selection-menu-action="isApplyingBulkEdit"
         @update:search-text="cardSearchText = $event"
-        @update:filter-states="tagFilterStates = $event"
+        @update:tag-filter-states="tagFilterStates = $event"
+        @update:slick-filter-states="slickFilterStates = $event"
         @update:picker-open="isTagFilterMenuOpen = $event"
         @clear="clearCardFilters"
         @toggle-selection-mode="toggleCardSelectionMode"
@@ -243,12 +246,13 @@ const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardT
 const {
   cardSearchText,
   tagFilterStates,
+  slickFilterStates,
   isTagFilterMenuOpen,
   availableTagNames,
   filteredColumns,
   hasActiveCardFilters,
   clearCardFilters
-} = useBoardCardFilters(board, tags);
+} = useBoardCardFilters(board, tags, slicks);
 
 async function openArchivedCards() {
   const boardId = resolveBoardId();

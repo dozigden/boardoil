@@ -5,12 +5,12 @@
         embedded
         :search-text="searchDraft"
         :available-tag-names="[]"
-        :filter-states="filterStates"
+        :tag-filter-states="filterStates"
         :picker-open="isTagFilterMenuOpen"
         :has-active-filters="hasActiveFilters"
         :show-selection-toggle="false"
         @update:search-text="handleSearchTextChanged"
-        @update:filter-states="filterStates = $event"
+        @update:tag-filter-states="filterStates = $event"
         @update:picker-open="isTagFilterMenuOpen = $event"
         @clear="clearSearch"
       />
