@@ -64,6 +64,29 @@ describe('useBoardCardDragDrop', () => {
 
     expect(dropCard).toHaveBeenCalledWith(1, null);
   });
+
+  it('invokes cross-column callback after successful non-selection drop', async () => {
+    const startDrag = vi.fn();
+    const dropCard = vi.fn(async () => undefined);
+    const dropSelectedCards = vi.fn(async () => true);
+    const onCrossColumnDrop = vi.fn();
+    const selectionMode = ref(false);
+    const model = useBoardCardDragDrop(
+      computed(() => makeColumns()),
+      selectionMode,
+      ref([]),
+      startDrag,
+      dropCard,
+      dropSelectedCards,
+      onCrossColumnDrop
+    );
+
+    model.onCardDragStart(101, 1);
+    model.onColumnTailDragOver(2);
+    await model.onColumnTailDrop(2);
+
+    expect(onCrossColumnDrop).toHaveBeenCalledWith(101, 1, 2);
+  });
 });
 
 function makeColumns(): BoardColumn[] {

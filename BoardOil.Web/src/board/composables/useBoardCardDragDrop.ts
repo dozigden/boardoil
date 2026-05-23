@@ -5,6 +5,7 @@ type StartDragOperation = (cardId: number, fromColumnId: number) => void;
 
 type DropCardOperation = (targetColumnId: number, targetCardId: number | null) => Promise<void>;
 type DropSelectedCardsOperation = (targetColumnId: number, targetCardId: number | null) => Promise<boolean>;
+type CrossColumnDropCallback = (cardId: number, fromColumnId: number, toColumnId: number) => void;
 
 type DropIndicator = 'none' | 'before' | 'after';
 
@@ -14,9 +15,11 @@ export function useBoardCardDragDrop(
   selectedCardIds: Ref<number[]>,
   startDrag: StartDragOperation,
   dropCard: DropCardOperation,
-  dropSelectedCards: DropSelectedCardsOperation
+  dropSelectedCards: DropSelectedCardsOperation,
+  onCrossColumnDrop?: CrossColumnDropCallback
 ) {
   const draggingCardId = ref<number | null>(null);
+  const draggingFromColumnId = ref<number | null>(null);
   const activeDropPoint = ref<{ columnId: number; targetCardId: number | null } | null>(null);
 
   function onCardDragStart(cardId: number, fromColumnId: number) {
@@ -26,11 +29,13 @@ export function useBoardCardDragDrop(
       }
 
       draggingCardId.value = cardId;
+      draggingFromColumnId.value = fromColumnId;
       activeDropPoint.value = null;
       return;
     }
 
     draggingCardId.value = cardId;
+    draggingFromColumnId.value = fromColumnId;
     activeDropPoint.value = null;
     startDrag(cardId, fromColumnId);
   }
@@ -156,6 +161,7 @@ export function useBoardCardDragDrop(
 
   function clearDragInteraction() {
     draggingCardId.value = null;
+    draggingFromColumnId.value = null;
     activeDropPoint.value = null;
   }
 
@@ -245,6 +251,8 @@ export function useBoardCardDragDrop(
   }
 
   async function dropAt(columnId: number, targetCardId: number | null) {
+    const movedCardId = draggingCardId.value;
+    const fromColumnId = draggingFromColumnId.value;
     try {
       if (isCardSelectionMode.value) {
         await dropSelectedCards(columnId, targetCardId);
@@ -252,6 +260,9 @@ export function useBoardCardDragDrop(
       }
 
       await dropCard(columnId, targetCardId);
+      if (movedCardId !== null && fromColumnId !== null && fromColumnId !== columnId) {
+        onCrossColumnDrop?.(movedCardId, fromColumnId, columnId);
+      }
     } finally {
       clearDragInteraction();
     }

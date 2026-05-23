@@ -3,6 +3,7 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Image;
@@ -11,11 +12,13 @@ using BoardOil.Data.Abstractions.Entities;
 namespace BoardOil.Services.Card;
 
 public sealed class MoveCardService(
+    IBoardRepository boardRepository,
     ICardRepository cardRepository,
     IColumnRepository columnRepository,
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
     MoveCardPlanner planner,
+    SlickCohesionPlacementResolver cohesionPlacementResolver,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory)
 {
@@ -77,7 +80,15 @@ public sealed class MoveCardService(
                 .ToList();
         }
 
-        var anchorResolution = planner.ResolveAnchor(request.PositionAfterCardId, targetCards);
+        var board = boardRepository.Get(boardId);
+        var effectivePositionAfterCardId = cohesionPlacementResolver.ResolveEffectivePositionAfterCardId(
+            board?.SlickCohesionModeEnabled ?? true,
+            targetColumn.Id != sourceColumnId,
+            request.PositionAfterCardId,
+            targetCards,
+            [existingCard]);
+
+        var anchorResolution = planner.ResolveAnchor(effectivePositionAfterCardId, targetCards);
         if (anchorResolution.Error is not null)
         {
             return anchorResolution.Error;

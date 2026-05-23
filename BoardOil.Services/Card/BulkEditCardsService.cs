@@ -3,6 +3,7 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Entities;
@@ -15,12 +16,14 @@ using BoardOil.Services.Slick;
 namespace BoardOil.Services.Card;
 
 public sealed class BulkEditCardsService(
+    IBoardRepository boardRepository,
     ICardRepository cardRepository,
     IColumnRepository columnRepository,
     ITagRepository tagRepository,
     ISlickRepository slickRepository,
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
+    SlickCohesionPlacementResolver cohesionPlacementResolver,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory)
 {
@@ -120,7 +123,15 @@ public sealed class BulkEditCardsService(
             var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn!.Id))
                 .Where(x => !selectedCardIdSet.Contains(x.Id))
                 .ToList();
-            var anchorResolution = ResolveAnchor(request.Move!.PositionAfterCardId, targetCards);
+            var board = boardRepository.Get(boardId);
+            var isCrossColumnMove = orderedCards.Any(x => x.BoardColumnId != targetColumn!.Id);
+            var effectivePositionAfterCardId = cohesionPlacementResolver.ResolveEffectivePositionAfterCardId(
+                board?.SlickCohesionModeEnabled ?? true,
+                isCrossColumnMove,
+                request.Move!.PositionAfterCardId,
+                targetCards,
+                orderedCards);
+            var anchorResolution = ResolveAnchor(effectivePositionAfterCardId, targetCards);
             if (anchorResolution.Error is not null)
             {
                 return anchorResolution.Error;

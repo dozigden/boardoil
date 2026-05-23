@@ -12,6 +12,7 @@ using CardTypeEntity = BoardOil.Data.Abstractions.Entities.EntityCardType;
 using BoardMemberEntity = BoardOil.Data.Abstractions.Entities.EntityBoardMember;
 using TagEntity = BoardOil.Data.Abstractions.Entities.EntityTag;
 using UserEntity = BoardOil.Data.Abstractions.Entities.EntityUser;
+using SlickEntity = BoardOil.Data.Abstractions.Entities.EntitySlick;
 
 namespace BoardOil.Services.Tests;
 
@@ -519,6 +520,43 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task UpdateCardAsync_WhenCohesionEnabledAndMovingAcrossColumns_ShouldSnapToStartOfMatchingSlickBlock()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("Gap", "1")
+            .AddCard("Slick A", "2")
+            .AddCard("Slick B", "3")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var slickAId = board.GetCard("Doing", "Slick A").Id;
+        var slickBId = board.GetCard("Doing", "Slick B").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+        var slickId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        await AssignCardSlickAsync(movingCardId, slickId);
+        await AssignCardSlickAsync(slickAId, slickId);
+        await AssignCardSlickAsync(slickBId, slickId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: true);
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateCardAsync(
+            board.BoardId,
+            movingCardId,
+            new UpdateCardRequest("Move me", "source", [], systemCardTypeId, BoardColumnId: doingColumnId),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Equal(["Gap", "Move me", "Slick A", "Slick B"], doingTitles);
+    }
+
+    [Fact]
     public async Task MoveCardAsync_WhenReorderingWithinSameColumn_ShouldReorder()
     {
         // Arrange
@@ -610,6 +648,187 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task MoveCardAsync_WhenCohesionEnabledWithAnchor_ShouldSnapNearNearestMatchingSlick()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("Slick A", "1")
+            .AddCard("Gap", "2")
+            .AddCard("Slick B", "3")
+            .AddCard("Tail", "4")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var tailCardId = board.GetCard("Doing", "Tail").Id;
+        var slickAId = board.GetCard("Doing", "Slick A").Id;
+        var slickBId = board.GetCard("Doing", "Slick B").Id;
+        var slickId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        await AssignCardSlickAsync(movingCardId, slickId);
+        await AssignCardSlickAsync(slickAId, slickId);
+        await AssignCardSlickAsync(slickBId, slickId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: true);
+
+        // Act
+        var service = CreateService();
+        var result = await service.MoveCardAsync(
+            board.BoardId,
+            movingCardId,
+            new MoveCardRequest(doingColumnId, tailCardId),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Equal(["Slick A", "Gap", "Slick B", "Move me", "Tail"], doingTitles);
+    }
+
+    [Fact]
+    public async Task MoveCardAsync_WhenCohesionEnabledWithoutAnchor_ShouldSnapToStartOfMatchingSlickBlock()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("Gap", "1")
+            .AddCard("Slick A", "2")
+            .AddCard("Slick B", "3")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var slickAId = board.GetCard("Doing", "Slick A").Id;
+        var slickBId = board.GetCard("Doing", "Slick B").Id;
+        var slickId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        await AssignCardSlickAsync(movingCardId, slickId);
+        await AssignCardSlickAsync(slickAId, slickId);
+        await AssignCardSlickAsync(slickBId, slickId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: true);
+
+        // Act
+        var service = CreateService();
+        var result = await service.MoveCardAsync(
+            board.BoardId,
+            movingCardId,
+            new MoveCardRequest(doingColumnId, null),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Equal(["Gap", "Move me", "Slick A", "Slick B"], doingTitles);
+    }
+
+    [Fact]
+    public async Task MoveCardAsync_WhenCohesionDisabled_ShouldKeepRequestedAnchorPlacement()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("Slick A", "1")
+            .AddCard("Gap", "2")
+            .AddCard("Slick B", "3")
+            .AddCard("Tail", "4")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var tailCardId = board.GetCard("Doing", "Tail").Id;
+        var slickAId = board.GetCard("Doing", "Slick A").Id;
+        var slickBId = board.GetCard("Doing", "Slick B").Id;
+        var slickId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        await AssignCardSlickAsync(movingCardId, slickId);
+        await AssignCardSlickAsync(slickAId, slickId);
+        await AssignCardSlickAsync(slickBId, slickId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: false);
+
+        // Act
+        var service = CreateService();
+        var result = await service.MoveCardAsync(
+            board.BoardId,
+            movingCardId,
+            new MoveCardRequest(doingColumnId, tailCardId),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Equal(["Slick A", "Gap", "Slick B", "Tail", "Move me"], doingTitles);
+    }
+
+    [Fact]
+    public async Task MoveCardAsync_WhenCohesionEnabledWithoutMatchingTargetSlick_ShouldKeepRequestedAnchorPlacement()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var anchorCardId = board.GetCard("Doing", "B").Id;
+        var slickId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        await AssignCardSlickAsync(movingCardId, slickId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: true);
+
+        // Act
+        var service = CreateService();
+        var result = await service.MoveCardAsync(
+            board.BoardId,
+            movingCardId,
+            new MoveCardRequest(doingColumnId, anchorCardId),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Equal(["A", "B", "Move me"], doingTitles);
+    }
+
+    [Fact]
+    public async Task MoveCardAsync_WhenCohesionEnabledAndMovingWithinSameColumn_ShouldBypassCohesion()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Doing")
+            .AddCard("Move me", "1")
+            .AddCard("Slick A", "2")
+            .AddCard("Gap", "3")
+            .AddCard("Slick B", "4")
+            .AddCard("Tail", "5")
+            .Build();
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var movingCardId = board.GetCard("Doing", "Move me").Id;
+        var tailCardId = board.GetCard("Doing", "Tail").Id;
+        var slickAId = board.GetCard("Doing", "Slick A").Id;
+        var slickBId = board.GetCard("Doing", "Slick B").Id;
+        var slickId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        await AssignCardSlickAsync(movingCardId, slickId);
+        await AssignCardSlickAsync(slickAId, slickId);
+        await AssignCardSlickAsync(slickBId, slickId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: true);
+
+        // Act
+        var service = CreateService();
+        var result = await service.MoveCardAsync(
+            board.BoardId,
+            movingCardId,
+            new MoveCardRequest(doingColumnId, tailCardId),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Equal(["Slick A", "Gap", "Slick B", "Tail", "Move me"], doingTitles);
+    }
+
+    [Fact]
     public async Task BulkEditCardsAsync_WhenMovingMultipleCards_ShouldMoveInBoardOrderAfterAnchor()
     {
         // Arrange
@@ -641,6 +860,121 @@ public sealed class CardServiceTests : TestBaseDb
         var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
         Assert.Empty(todoTitles);
         Assert.Equal(["Target", "A", "B"], doingTitles);
+    }
+
+    [Fact]
+    public async Task BulkEditCardsAsync_WhenCohesionEnabledWithUniformSlick_ShouldSnapNearMatchingSlickBlock()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .AddColumn("Doing")
+            .AddCard("Slick A", "3")
+            .AddCard("Gap", "4")
+            .AddCard("Slick B", "5")
+            .AddCard("Tail", "6")
+            .Build();
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var cardAId = board.GetCard("Todo", "A").Id;
+        var cardBId = board.GetCard("Todo", "B").Id;
+        var slickAId = board.GetCard("Doing", "Slick A").Id;
+        var slickBId = board.GetCard("Doing", "Slick B").Id;
+        var tailId = board.GetCard("Doing", "Tail").Id;
+        var slickId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        await AssignCardSlickAsync(cardAId, slickId);
+        await AssignCardSlickAsync(cardBId, slickId);
+        await AssignCardSlickAsync(slickAId, slickId);
+        await AssignCardSlickAsync(slickBId, slickId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: true);
+
+        // Act
+        var service = CreateService();
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardBId, cardAId], new BulkMoveCardsRequest(doingColumnId, tailId)),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Equal(["Slick A", "Gap", "Slick B", "A", "B", "Tail"], doingTitles);
+    }
+
+    [Fact]
+    public async Task BulkEditCardsAsync_WhenSelectionHasMixedSlicks_ShouldBypassCohesion()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .AddColumn("Doing")
+            .AddCard("Slick A", "3")
+            .AddCard("Gap", "4")
+            .AddCard("Slick B", "5")
+            .AddCard("Tail", "6")
+            .Build();
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var cardAId = board.GetCard("Todo", "A").Id;
+        var cardBId = board.GetCard("Todo", "B").Id;
+        var tailId = board.GetCard("Doing", "Tail").Id;
+        var releaseId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        var opsId = await CreateSlickForBoardAsync(board.BoardId, "Ops");
+        await AssignCardSlickAsync(cardAId, releaseId);
+        await AssignCardSlickAsync(cardBId, opsId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: true);
+
+        // Act
+        var service = CreateService();
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardBId, cardAId], new BulkMoveCardsRequest(doingColumnId, tailId)),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Equal(["Slick A", "Gap", "Slick B", "Tail", "A", "B"], doingTitles);
+    }
+
+    [Fact]
+    public async Task BulkEditCardsAsync_WhenSelectionIsUnslicked_ShouldBypassCohesion()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .AddColumn("Doing")
+            .AddCard("Slick A", "3")
+            .AddCard("Gap", "4")
+            .AddCard("Slick B", "5")
+            .AddCard("Tail", "6")
+            .Build();
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var cardAId = board.GetCard("Todo", "A").Id;
+        var cardBId = board.GetCard("Todo", "B").Id;
+        var tailId = board.GetCard("Doing", "Tail").Id;
+        var releaseId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        var slickAId = board.GetCard("Doing", "Slick A").Id;
+        var slickBId = board.GetCard("Doing", "Slick B").Id;
+        await AssignCardSlickAsync(slickAId, releaseId);
+        await AssignCardSlickAsync(slickBId, releaseId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: true);
+
+        // Act
+        var service = CreateService();
+        var result = await service.BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([cardBId, cardAId], new BulkMoveCardsRequest(doingColumnId, tailId)),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
+        Assert.Equal(["Slick A", "Gap", "Slick B", "Tail", "A", "B"], doingTitles);
     }
 
     [Fact]
@@ -888,6 +1222,40 @@ public sealed class CardServiceTests : TestBaseDb
             new MoveCardRequest(
                 BoardColumnId: doingColumnId,
                 PositionAfterCardId: foreignCardId), ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("positionAfterCardId"));
+    }
+
+    [Fact]
+    public async Task MoveCardAsync_WhenCohesionEnabledButNotApplicableAndAnchorInvalid_ShouldReturnValidationError()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "Desc")
+            .AddColumn("Doing")
+            .AddCard("Target", "Desc")
+            .AddColumn("Done")
+            .AddCard("Foreign", "Desc")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var foreignCardId = board.GetCard("Done", "Foreign").Id;
+        var slickId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        await AssignCardSlickAsync(movingCardId, slickId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: true);
+
+        // Act
+        var service = CreateService();
+        var result = await service.MoveCardAsync(
+            board.BoardId,
+            movingCardId,
+            new MoveCardRequest(doingColumnId, foreignCardId),
+            ActorUserId);
 
         // Assert
         Assert.False(result.Success);
@@ -1231,6 +1599,35 @@ public sealed class CardServiceTests : TestBaseDb
     private CardService CreateService()
     {
         return ResolveService<CardService>();
+    }
+
+    private async Task SetBoardSlickCohesionModeAsync(int boardId, bool enabled)
+    {
+        var board = await DbContextForArrange.Boards.SingleAsync(x => x.Id == boardId);
+        board.SlickCohesionModeEnabled = enabled;
+        await DbContextForArrange.SaveChangesAsync();
+    }
+
+    private async Task<int> CreateSlickForBoardAsync(int boardId, string name)
+    {
+        var slick = new SlickEntity
+        {
+            BoardId = boardId,
+            Name = name,
+            NormalisedName = name.ToUpperInvariant(),
+            StyleName = "presets",
+            StylePropertiesJson = """{"presetIndex":2}"""
+        };
+        DbContextForArrange.Slicks.Add(slick);
+        await DbContextForArrange.SaveChangesAsync();
+        return slick.Id;
+    }
+
+    private async Task AssignCardSlickAsync(int cardId, int? slickId)
+    {
+        var card = await DbContextForArrange.Cards.SingleAsync(x => x.Id == cardId);
+        card.SlickId = slickId;
+        await DbContextForArrange.SaveChangesAsync();
     }
 
     private async Task SeedTagsForArrangeAsync(int boardId, params string[] tagNames)

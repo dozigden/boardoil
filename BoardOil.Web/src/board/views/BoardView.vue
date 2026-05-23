@@ -263,6 +263,17 @@ async function openArchivedCards() {
   await router.push({ name: 'board-archived', params: { boardId } });
 }
 
+function handleCrossColumnDrop(cardId: number) {
+  if (!board.value?.slickCohesionModeEnabled) {
+    return;
+  }
+
+  void nextTick(() => {
+    const cardElement = document.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`);
+    cardElement?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+}
+
 const {
   isCardSelectionMode,
   selectedCardIds,
@@ -305,7 +316,8 @@ const {
   selectedCardIds,
   startDrag,
   dropCard,
-  moveSelectedCardsByDropTarget
+  moveSelectedCardsByDropTarget,
+  handleCrossColumnDrop
 );
 
 const gooDescriptors = computed(() => buildSlickGooDescriptors(filteredColumns.value, slicksById.value));

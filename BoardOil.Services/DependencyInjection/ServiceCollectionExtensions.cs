@@ -31,6 +31,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CreateCardPlanner>();
         services.AddScoped<CreateCardService>();
         services.AddScoped<UpdateCardPlanner>();
+        services.AddScoped<SlickCohesionPlacementResolver>();
         services.AddScoped<UpdateCardService>();
         services.AddScoped<MoveCardPlanner>();
         services.AddScoped<MoveCardService>();

@@ -4,6 +4,7 @@ using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Contracts;
+using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.CardType;
 using BoardOil.Data.Abstractions.Column;
@@ -15,6 +16,7 @@ using BoardOil.Data.Abstractions.Slick;
 namespace BoardOil.Services.Card;
 
 public sealed class UpdateCardService(
+    IBoardRepository boardRepository,
     ICardRepository cardRepository,
     ICardTypeRepository cardTypeRepository,
     IColumnRepository columnRepository,
@@ -24,6 +26,7 @@ public sealed class UpdateCardService(
     IBoardAuthorisationService boardAuthorisationService,
     ICardValidator validator,
     UpdateCardPlanner planner,
+    SlickCohesionPlacementResolver cohesionPlacementResolver,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory)
 {
@@ -88,7 +91,14 @@ public sealed class UpdateCardService(
         var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(requestedColumnId))
             .Where(x => x.Id != id)
             .ToList();
-        var movementPlan = planner.PlanMovement(currentColumnId, requestedColumnId, targetCards);
+        var board = boardRepository.Get(boardId);
+        var effectivePositionAfterCardId = cohesionPlacementResolver.ResolveEffectivePositionAfterCardId(
+            board?.SlickCohesionModeEnabled ?? true,
+            requestedColumnId != currentColumnId,
+            requestedPositionAfterCardId: null,
+            targetCards,
+            [existingCard]);
+        var movementPlan = planner.PlanMovement(currentColumnId, requestedColumnId, targetCards, effectivePositionAfterCardId);
         if (movementPlan.Error is not null)
         {
             return movementPlan.Error;

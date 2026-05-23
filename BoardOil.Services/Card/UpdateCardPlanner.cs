@@ -16,7 +16,11 @@ public sealed class UpdateCardPlanner
         return new UpdateCardTypeSelectionResult(selectedCardType, null);
     }
 
-    public UpdateCardMovementPlanResult PlanMovement(int currentColumnId, int requestedColumnId, IReadOnlyList<EntityBoardCard> targetCards)
+    public UpdateCardMovementPlanResult PlanMovement(
+        int currentColumnId,
+        int requestedColumnId,
+        IReadOnlyList<EntityBoardCard> targetCards,
+        int? positionAfterCardId)
     {
         var movementChanged = requestedColumnId != currentColumnId;
         if (!movementChanged)
@@ -24,8 +28,13 @@ public sealed class UpdateCardPlanner
             return new UpdateCardMovementPlanResult(false, null, null);
         }
 
-        var nextSortKey = targetCards.Count > 0 ? targetCards[0].SortKey : null;
-        var sortKeyResult = AllocateSortKey(nextSortKey);
+        var anchorResolution = ResolveAnchor(positionAfterCardId, targetCards);
+        if (anchorResolution.Error is not null)
+        {
+            return new UpdateCardMovementPlanResult(false, null, anchorResolution.Error);
+        }
+
+        var sortKeyResult = AllocateSortKey(anchorResolution.PreviousKey, anchorResolution.NextKey);
         if (sortKeyResult.Error is not null)
         {
             return new UpdateCardMovementPlanResult(false, null, sortKeyResult.Error);
@@ -47,11 +56,48 @@ public sealed class UpdateCardPlanner
         return !existingTagNames.SequenceEqual(updatedTagNames, StringComparer.Ordinal);
     }
 
-    private static UpdateCardSortKeyAllocationResult AllocateSortKey(string? nextSortKey)
+    private static UpdateCardAnchorResolution ResolveAnchor(int? positionAfterCardId, IReadOnlyList<EntityBoardCard> targetCards)
+    {
+        if (positionAfterCardId is null)
+        {
+            var firstSortKey = targetCards.Count > 0 ? targetCards[0].SortKey : null;
+            return new UpdateCardAnchorResolution(null, null, firstSortKey);
+        }
+
+        var anchorIndex = FindCardIndex(targetCards, positionAfterCardId.Value);
+        if (anchorIndex < 0)
+        {
+            return new UpdateCardAnchorResolution(
+                ApiErrors.ValidationFailed([new ValidationError("positionAfterCardId", "Card does not exist in target column.")]),
+                null,
+                null);
+        }
+
+        var previousKey = targetCards[anchorIndex].SortKey;
+        var nextKey = anchorIndex < targetCards.Count - 1
+            ? targetCards[anchorIndex + 1].SortKey
+            : null;
+        return new UpdateCardAnchorResolution(null, previousKey, nextKey);
+    }
+
+    private static int FindCardIndex(IReadOnlyList<EntityBoardCard> cards, int targetId)
+    {
+        for (var i = 0; i < cards.Count; i++)
+        {
+            if (cards[i].Id == targetId)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static UpdateCardSortKeyAllocationResult AllocateSortKey(string? previousKey, string? nextKey)
     {
         try
         {
-            var sortKey = SortKeyGenerator.Between(null, nextSortKey);
+            var sortKey = SortKeyGenerator.Between(previousKey, nextKey);
             return new UpdateCardSortKeyAllocationResult(sortKey, null);
         }
         catch (InvalidOperationException)
@@ -66,4 +112,5 @@ public sealed class UpdateCardPlanner
 
 public readonly record struct UpdateCardTypeSelectionResult(EntityCardType? SelectedCardType, ApiError? Error);
 public readonly record struct UpdateCardMovementPlanResult(bool MovementChanged, string? TargetSortKey, ApiError? Error);
+public readonly record struct UpdateCardAnchorResolution(ApiError? Error, string? PreviousKey, string? NextKey);
 public readonly record struct UpdateCardSortKeyAllocationResult(string? SortKey, ApiError? Error);
