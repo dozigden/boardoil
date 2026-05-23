@@ -43,6 +43,16 @@ export type Card = {
   updatedAtUtc: string;
 };
 
+export type CardEditModel = {
+  title: string;
+  description: string;
+  tagNames: string[];
+  cardTypeId: number | null;
+  boardColumnId: number;
+  assignedUserId: number | null;
+  slickName: string | null;
+};
+
 export type ArchivedCardListItem = {
   id: number;
   boardId: number;

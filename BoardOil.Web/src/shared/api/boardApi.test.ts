@@ -166,7 +166,15 @@ describe('boardApi saveCard', () => {
     vi.mocked(putData).mockResolvedValue(ok(card));
 
     const api = createBoardApi();
-    const result = await api.saveCard(1, 99, 'Updated card', 'Updated', ['Bug'], 1, 3);
+    const result = await api.saveCard(1, 99, {
+      title: 'Updated card',
+      description: 'Updated',
+      tagNames: ['Bug'],
+      cardTypeId: 1,
+      boardColumnId: 3,
+      assignedUserId: null,
+      slickName: null
+    });
 
     expect(result.ok).toBe(true);
     expect(putData).toHaveBeenCalledWith('/api/boards/1/cards/99', {

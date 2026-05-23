@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { BoardColumn, Card } from '../../shared/types/boardTypes';
+import type { BoardColumn, Card, CardEditModel } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -82,13 +82,7 @@ export const useCardStore = defineStore('card', () => {
 
   async function saveCard(
     cardId: number,
-    title: string,
-    description: string,
-    tagNames: string[],
-    cardTypeId: number,
-    boardColumnId: number,
-    assignedUserId: number | null = null,
-    slickName: string | null = null,
+    model: CardEditModel,
     boardId: number | null = activeBoardId.value
   ) {
     const resolvedBoardId = resolveBoardId(boardId);
@@ -96,17 +90,7 @@ export const useCardStore = defineStore('card', () => {
       return false;
     }
 
-    const result = await runBusy(() => api.saveCard(
-      resolvedBoardId,
-      cardId,
-      title,
-      description,
-      tagNames,
-      cardTypeId,
-      boardColumnId,
-      assignedUserId,
-      slickName
-    ));
+    const result = await runBusy(() => api.saveCard(resolvedBoardId, cardId, model));
     if (!result.ok) {
       return false;
     }

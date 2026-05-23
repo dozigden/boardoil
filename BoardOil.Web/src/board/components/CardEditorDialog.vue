@@ -12,14 +12,14 @@
         :icon-size="16"
       >
         <template #default="{ close }">
-          <button type="button" class="bo-dropdown-item" @click="archiveEditingCardFromMenu(close)">
+          <button type="button" class="bo-dropdown-item" @click="close(); void archiveEditingCard()">
             <span class="bo-dropdown-item-main card-editor-menu-item">
               <Archive :size="14" aria-hidden="true" />
               <span>Archive</span>
             </span>
           </button>
           <span class="bo-dropdown-divider" aria-hidden="true"></span>
-          <button type="button" class="bo-dropdown-item" @click="deleteEditingCardFromMenu(close)">
+          <button type="button" class="bo-dropdown-item" @click="close(); void deleteEditingCard()">
             <span class="bo-dropdown-item-main card-editor-menu-item card-editor-menu-item--danger">
               <Trash2 :size="14" aria-hidden="true" />
               <span>Delete</span>
@@ -33,7 +33,7 @@
         <template v-if="selectedCardTypeEmoji">{{ selectedCardTypeEmoji }}</template>
         <CardTitleEditor
           v-if="cardDraft"
-          :card-id="cardDraft.id"
+          :card-id="cardDraftId ?? 0"
           v-model:title="cardDraft.title"
         />
         <span v-else>Edit Card</span>
@@ -127,7 +127,7 @@
           <div class="card-editor-option-section">
             <CardTagEditor
               v-model:tag-names="cardDraft.tagNames"
-              :ensure-tags-exist="ensureTagsExistForBoard"
+              :ensure-tags-exist="tagNames => ensureTagsExist(tagNames, routeBoardId)"
             />
           </div>
 
@@ -275,6 +275,7 @@ import { useTagStore } from '../stores/tagStore';
 import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardTypeSelection';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
 import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
+import type { CardEditModel } from '../../shared/types/boardTypes';
 
 const route = useRoute();
 const router = useRouter();
@@ -299,19 +300,8 @@ const { ensureTagsExist } = tagStore;
 const { confirm } = useConfirm();
 const maxDescriptionLength = 20_000;
 const maxCommentLength = 4_000;
-type CardDraft = {
-  id: number;
-  title: string;
-  description: string;
-  tagNames: string[];
-  cardTypeId: number | null;
-  boardColumnId: number;
-  assignedUserId: number | null;
-  assignedUserName: string | null;
-  slickName: string | null;
-};
-
-const cardDraft = ref<CardDraft | null>(null);
+const cardDraft = ref<CardEditModel | null>(null);
+const cardDraftId = ref<number | null>(null);
 const newCommentText = ref('');
 const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const commentEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
@@ -334,7 +324,7 @@ const routeBoardId = computed<number | null>(() => {
 });
 
 const editingCard = computed(() => cardStore.getCardById(routeCardId.value));
-const cardComments = computed(() => commentStore.getCommentsForCard(cardDraft.value?.id ?? null));
+const cardComments = computed(() => commentStore.getCommentsForCard(routeCardId.value));
 const boardColumns = computed(() => board.value?.columns ?? []);
 const selectedBoardColumnLabel = computed(() => {
   if (!cardDraft.value) {
@@ -373,7 +363,8 @@ const selectedAssignedUserLabel = computed(() => {
     return selectedMember.displayName;
   }
 
-  return cardDraft.value.assignedUserName ?? `User #${cardDraft.value.assignedUserId}`;
+  const cardAssignedUserName = editingCard.value?.assignedUserName;
+  return cardAssignedUserName ?? `User #${cardDraft.value.assignedUserId}`;
 });
 const selectedAssignedMember = computed(() => {
   if (!cardDraft.value || cardDraft.value.assignedUserId === null) {
@@ -447,10 +438,6 @@ function toggleSharedToolbarPlainTextMode() {
   editor?.togglePlainTextMode();
 }
 
-function normaliseDescription(value: string) {
-  return value.slice(0, maxDescriptionLength);
-}
-
 function formatCommentDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -465,6 +452,7 @@ function formatCommentDateTime(value: string) {
 
 function clearDraft() {
   cardDraft.value = null;
+  cardDraftId.value = null;
   newCommentText.value = '';
   activeEditor.value = 'description';
 }
@@ -485,8 +473,7 @@ function updateEditingCardDraft(field: 'title' | 'description', value: string) {
     return;
   }
 
-  const nextValue = field === 'description' ? normaliseDescription(value) : value;
-  cardDraft.value = { ...cardDraft.value, [field]: nextValue };
+  cardDraft.value = { ...cardDraft.value, [field]: value };
 }
 
 function setDraftCardTypeId(cardTypeId: number, close?: () => void) {
@@ -518,32 +505,11 @@ function setDraftAssignedUserId(assignedUserId: number | null, close?: () => voi
     return;
   }
 
-  const assignedUserName = assignedUserId === null
-    ? null
-    : (boardMembers.value.find(x => x.userId === assignedUserId)?.userName ?? cardDraft.value.assignedUserName);
   cardDraft.value = {
     ...cardDraft.value,
-    assignedUserId,
-    assignedUserName
+    assignedUserId
   };
   close?.();
-}
-
-function normaliseSlickNameForSave(slickName: string | null) {
-  if (slickName === null) {
-    return null;
-  }
-
-  const canonicalName = slickName.trim();
-  if (canonicalName.length === 0) {
-    return null;
-  }
-
-  return canonicalName;
-}
-
-function normaliseSlickNameKey(slickName: string) {
-  return slickName.trim().toUpperCase();
 }
 
 function resolveDraftSlickName(slickId: number | null) {
@@ -560,31 +526,21 @@ function resolveDraftSlickName(slickId: number | null) {
 }
 
 async function saveCard() {
-  if (!cardDraft.value || cardDraft.value.cardTypeId === null) {
+  const draft = cardDraft.value;
+  const cardId = routeCardId.value;
+  if (!draft || draft.cardTypeId === null || cardId === null) {
     return;
   }
 
-  const saved = await saveCardAction(
-    cardDraft.value.id,
-    cardDraft.value.title,
-    cardDraft.value.description,
-    cardDraft.value.tagNames,
-    cardDraft.value.cardTypeId,
-    cardDraft.value.boardColumnId,
-    cardDraft.value.assignedUserId,
-    normaliseSlickNameForSave(cardDraft.value.slickName)
-  );
+  const saved = await saveCardAction(cardId, draft);
   if (saved) {
     await closeCardEditor();
   }
 }
 
-async function ensureTagsExistForBoard(tagNames: string[]) {
-  return ensureTagsExist(tagNames, routeBoardId.value);
-}
-
 async function addComment() {
-  if (!cardDraft.value || commentsBusy.value) {
+  const cardId = routeCardId.value;
+  if (!cardDraft.value || commentsBusy.value || cardId === null) {
     return;
   }
 
@@ -598,7 +554,7 @@ async function addComment() {
     return;
   }
 
-  const result = await addCardCommentAction(boardId, cardDraft.value.id, text);
+  const result = await addCardCommentAction(boardId, cardId, text);
   if (!result?.ok) {
     return;
   }
@@ -607,7 +563,8 @@ async function addComment() {
 }
 
 async function deleteEditingCard() {
-  if (!cardDraft.value) {
+  const cardId = routeCardId.value;
+  if (!cardDraft.value || cardId === null) {
     return;
   }
 
@@ -621,14 +578,15 @@ async function deleteEditingCard() {
     return;
   }
 
-  const deleted = await deleteCard(cardDraft.value.id);
+  const deleted = await deleteCard(cardId);
   if (deleted) {
     await closeCardEditor();
   }
 }
 
 async function archiveEditingCard() {
-  if (!cardDraft.value) {
+  const cardId = routeCardId.value;
+  if (!cardDraft.value || cardId === null) {
     return;
   }
 
@@ -641,20 +599,10 @@ async function archiveEditingCard() {
     return;
   }
 
-  const archived = await archiveCard(cardDraft.value.id);
+  const archived = await archiveCard(cardId);
   if (archived) {
     await closeCardEditor();
   }
-}
-
-function deleteEditingCardFromMenu(close: () => void) {
-  close();
-  void deleteEditingCard();
-}
-
-function archiveEditingCardFromMenu(close: () => void) {
-  close();
-  void archiveEditingCard();
 }
 
 watch(
@@ -711,21 +659,20 @@ watch(
       return;
     }
 
-    if (cardDraft.value?.id !== nextCard.id) {
+    if (cardDraftId.value !== nextCard.id) {
       const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
-        cardDraft.value = {
-          id: refreshedCard.id,
-          title: refreshedCard.title,
-          description: normaliseDescription(refreshedCard.description),
-          tagNames: [...refreshedCard.tagNames],
-          cardTypeId: refreshedCard.cardTypeId,
-          boardColumnId: refreshedCard.boardColumnId,
-          assignedUserId: refreshedCard.assignedUserId ?? null,
-          assignedUserName: refreshedCard.assignedUserName ?? null,
-          slickName: resolveDraftSlickName(refreshedCard.slickId ?? null)
-        };
-        return;
-      }
+      cardDraftId.value = refreshedCard.id;
+      cardDraft.value = {
+        title: refreshedCard.title,
+        description: refreshedCard.description,
+        tagNames: [...refreshedCard.tagNames],
+        cardTypeId: refreshedCard.cardTypeId,
+        boardColumnId: refreshedCard.boardColumnId,
+        assignedUserId: refreshedCard.assignedUserId ?? null,
+        slickName: resolveDraftSlickName(refreshedCard.slickId ?? null)
+      };
+      return;
+    }
 
     const draft = cardDraft.value;
     if (!draft) {
@@ -763,31 +710,18 @@ watch(
       return;
     }
 
-    if (finalDraft.assignedUserId !== null) {
-      const selectedMember = boardMembers.value.find(x => x.userId === finalDraft.assignedUserId);
-      if (selectedMember && selectedMember.userName !== finalDraft.assignedUserName) {
-        cardDraft.value = {
-          ...finalDraft,
-          assignedUserName: selectedMember.userName
-        };
-      }
-    }
-
-    const draftAfterAssigneeUpdate = cardDraft.value;
-    if (!draftAfterAssigneeUpdate) {
+    const draftSlickName = finalDraft.slickName;
+    if (!draftSlickName) {
       return;
     }
 
-    if (!draftAfterAssigneeUpdate.slickName) {
-      return;
-    }
-
+    const draftSlickNameNormalised = draftSlickName.trim().toUpperCase();
     const selectedSlickByName = slicks.value.find(
-      slick => normaliseSlickNameKey(slick.name) === normaliseSlickNameKey(draftAfterAssigneeUpdate.slickName!)
+      slick => slick.name.trim().toUpperCase() === draftSlickNameNormalised
     );
-    if (selectedSlickByName && selectedSlickByName.name !== draftAfterAssigneeUpdate.slickName) {
+    if (selectedSlickByName && selectedSlickByName.name !== draftSlickName) {
       cardDraft.value = {
-        ...draftAfterAssigneeUpdate,
+        ...finalDraft,
         slickName: selectedSlickByName.name
       };
     }

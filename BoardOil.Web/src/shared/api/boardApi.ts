@@ -7,6 +7,7 @@ import type {
   BoardMemberRole,
   BoardSummary,
   Card,
+  CardEditModel,
   CardComment,
   CardType,
   Column,
@@ -165,23 +166,9 @@ export function createBoardApi() {
   async function saveCard(
     boardId: number,
     cardId: number,
-    title: string,
-    description: string,
-    tagNames: string[],
-    cardTypeId: number,
-    boardColumnId: number,
-    assignedUserId: number | null = null,
-    slickName: string | null = null
+    model: CardEditModel
   ): Promise<Result<Card, AppError>> {
-    return putData<Card>(`/api/boards/${boardId}/cards/${cardId}`, {
-      title,
-      description,
-      tagNames,
-      cardTypeId,
-      boardColumnId,
-      assignedUserId,
-      slickName
-    });
+    return putData<Card>(`/api/boards/${boardId}/cards/${cardId}`, model);
   }
 
   async function moveCard(

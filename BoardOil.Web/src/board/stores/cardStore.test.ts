@@ -379,12 +379,28 @@ describe('cardStore', () => {
     };
     api.saveCard.mockResolvedValue(ok(updated));
 
-    const saved = await store.saveCard(101, 'Task A+', 'Updated', ['Bug'], 1, 1);
+    const saved = await store.saveCard(101, {
+      title: 'Task A+',
+      description: 'Updated',
+      tagNames: ['Bug'],
+      cardTypeId: 1,
+      boardColumnId: 1,
+      assignedUserId: null,
+      slickName: null
+    });
 
     expect(saved).toBe(true);
     expect(store.getCardById(101)?.title).toBe('Task A+');
     expect(store.getCardById(101)?.tagNames).toEqual(['Bug']);
-    expect(api.saveCard).toHaveBeenCalledWith(1, 101, 'Task A+', 'Updated', ['Bug'], 1, 1, null, null);
+    expect(api.saveCard).toHaveBeenCalledWith(1, 101, {
+      title: 'Task A+',
+      description: 'Updated',
+      tagNames: ['Bug'],
+      cardTypeId: 1,
+      boardColumnId: 1,
+      assignedUserId: null,
+      slickName: null
+    });
   });
 
   it('saveCard returns false and keeps existing card when API save fails', async () => {
@@ -392,7 +408,15 @@ describe('cardStore', () => {
     store.replaceBoardCards(1, makeBoard().columns);
     api.saveCard.mockResolvedValue(err({ kind: 'http', message: 'Unauthorized', statusCode: 401 }));
 
-    const saved = await store.saveCard(101, 'Task A+', 'Updated', ['Bug'], 1, 1);
+    const saved = await store.saveCard(101, {
+      title: 'Task A+',
+      description: 'Updated',
+      tagNames: ['Bug'],
+      cardTypeId: 1,
+      boardColumnId: 1,
+      assignedUserId: null,
+      slickName: null
+    });
 
     expect(saved).toBe(false);
     expect(store.getCardById(101)?.title).toBe('Task A');
