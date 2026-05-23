@@ -151,9 +151,7 @@ function handlePrimaryAction() {
 .card--selected {
   border-color: color-mix(in oklab, var(--bo-colour-brand) 58%, var(--bo-border-default));
   background: color-mix(in oklab, var(--bo-colour-brand) 4%, var(--bo-surface-base));
-  box-shadow:
-    inset 6px 0 0 color-mix(in oklab, var(--bo-colour-brand) 84%, var(--bo-colour-brand-strong)),
-    inset 0 0 0 1px color-mix(in oklab, var(--bo-colour-brand) 26%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--bo-colour-brand) 26%, transparent);
 }
 
 .card--dragging {

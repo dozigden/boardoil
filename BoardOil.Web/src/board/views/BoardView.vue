@@ -51,32 +51,15 @@
       />
     </BoardConveyor>
 
-    <section class="board" :ref="setBoardRef">
-      <div v-if="!isLoading && gooGroups.length > 0" class="goo-layer" aria-hidden="true">
-        <div
-          v-for="group in gooGroups"
-          :key="group.id"
-          class="goo-group"
-          :style="{
-            '--goo-colour': group.colour,
-            '--goo-radius': `${gooBlobBorderRadiusPx}px`
-          }"
-        >
-          <span
-            v-for="blob in group.blobs"
-            :key="blob.id"
-            class="goo-blob"
-            :style="{
-              top: `${blob.top}px`,
-              left: `${blob.left}px`,
-              width: `${blob.width}px`,
-              height: `${blob.height}px`,
-              clipPath: blob.clipPath,
-              borderRadius: blob.borderRadius
-            }"
-          />
-        </div>
-      </div>
+    <section class="board" :ref="setBoardRefs">
+      <GooLayer v-if="!isLoading" :groups="gooGroups" :blob-border-radius-px="gooBlobBorderRadiusPx" />
+      <GooLayer
+        v-if="!isLoading && selectionGooGroup"
+        :groups="[selectionGooGroup]"
+        :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
+        layer-class="goo-layer--selection"
+        blob-class="goo-blob--selection"
+      />
       <div v-for="column in filteredColumns" :key="column.id" class="column-stack">
         <article
           class="column"
@@ -192,6 +175,7 @@ import BoardColumnHeader from '../components/BoardColumnHeader.vue';
 import BoardConveyor from '../components/BoardConveyor.vue';
 import Card from '../components/Card.vue';
 import CreateCardInline from '../components/CreateCardInline.vue';
+import GooLayer from '../components/GooLayer.vue';
 import { useBoardCardDragDrop } from '../composables/useBoardCardDragDrop';
 import { useBoardCardFilters } from '../composables/useBoardCardFilters';
 import { useGooLayer } from '../composables/useGooLayer';
@@ -210,6 +194,11 @@ import {
   buildSlickGooMembershipSignature,
   buildSlickGooStyleSignature
 } from '../utils/slickGooAdapter';
+import {
+  buildSelectionGooDescriptors,
+  buildSelectionGooMembershipSignature,
+  createSelectionGooStyle
+} from '../utils/selectionGooAdapter';
 import { resolveCardBoundaryClass } from '../utils/slickCardBoundary';
 import { useConfirm } from '../../shared/composables/useConfirm';
 
@@ -240,6 +229,7 @@ const { tags } = storeToRefs(tagStore);
 const { createCard, startDrag, dropCard, archiveCards, bulkMoveCards, bulkEditCards, deleteCards } = cardStore;
 const { confirm } = useConfirm();
 const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
+const selectionGooStyle = createSelectionGooStyle();
 
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 
@@ -296,6 +286,7 @@ const {
   moveSelectedCardsByDropTarget,
   resetSelectionState
 } = useBoardCardSelection(board, archiveCards, bulkMoveCards, resolveBoardId, openArchivedCards);
+const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
 
 const {
   onCardDragStart,
@@ -328,9 +319,32 @@ const {
   gooBlurStdDeviation,
   gooBlobBorderRadiusPx,
   gooColorMatrixValues,
-  setBoardRef,
+  setBoardRef: setSlickGooBoardRef,
   scheduleGooStructureRefresh
 } = useGooLayer(gooDescriptors, gooCardMembershipSignature, gooSlickStyleSignature);
+const selectionGooDescriptors = computed(() => {
+  if (!isCardSelectionMode.value) {
+    return [];
+  }
+
+  return buildSelectionGooDescriptors(filteredColumns.value, selectedCardIdSet.value, selectionGooStyle.colour);
+});
+const selectionGooCardMembershipSignature = computed(() =>
+  buildSelectionGooMembershipSignature(filteredColumns.value, selectedCardIdSet.value, isCardSelectionMode.value)
+);
+const selectionGooStyleSignature = computed(() => selectionGooStyle.styleSignature);
+const {
+  gooGroups: selectionGooGroups,
+  gooBlobBorderRadiusPx: selectionGooBlobBorderRadiusPx,
+  setBoardRef: setSelectionGooBoardRef,
+  scheduleGooStructureRefresh: scheduleSelectionGooStructureRefresh
+} = useGooLayer(selectionGooDescriptors, selectionGooCardMembershipSignature, selectionGooStyleSignature);
+const selectionGooGroup = computed(() => selectionGooGroups.value[0] ?? null);
+
+function setBoardRefs(element: unknown) {
+  setSlickGooBoardRef(element);
+  setSelectionGooBoardRef(element);
+}
 
 function toggleCardSelectionMode() {
   clearDragInteraction();
@@ -647,6 +661,7 @@ watch(
 
       await nextTick();
       scheduleGooStructureRefresh();
+      scheduleSelectionGooStructureRefresh();
     } finally {
       if (requestVersion === boardViewLoadRequestVersion) {
         isLoading.value = false;
@@ -872,27 +887,6 @@ watch(
 
 .goo-filter-defs {
   position: absolute;
-}
-
-.goo-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-  overflow: visible;
-}
-
-.goo-group {
-  position: absolute;
-  inset: 0;
-  filter: url(#goo);
-}
-
-.goo-blob {
-  position: absolute;
-  border-radius: var(--goo-radius);
-  background: var(--goo-colour);
-  transform: translateY(-50%);
 }
 
 @media (max-width: 720px) {
