@@ -223,6 +223,7 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
 .admin-content {
   min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-right: 0.25rem;
   scrollbar-width: thin;
   scrollbar-color: var(--bo-border-default) transparent;
@@ -231,7 +232,9 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
 @media (max-width: 720px) {
   .admin-shell {
     grid-template-columns: 1fr;
-    height: auto;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    min-height: 0;
+    height: 100%;
     gap: 0.6rem;
   }
 
@@ -260,7 +263,9 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
   }
 
   .admin-content {
-    overflow: visible;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding-right: 0;
     padding-inline: 0.75rem;
   }
