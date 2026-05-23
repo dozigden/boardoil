@@ -77,6 +77,13 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
   - avoid introducing client complexity just because a richer read model exists
 - For future entity/store design (not just tags), treat “authoritative source” and “convenience read shape” as separate design decisions and record both when adding new contracts.
 
+## API Trust and Defensive Coding
+
+- Treat backend API contracts as authoritative for frontend read/write flows.
+- Do not add client-side fallback/normalization code that re-derives API fields “just in case” without a concrete, current failure mode.
+- If a guard is required, document the exact reason in code (what can fail, where it was observed) and keep the guard narrowly scoped.
+- Prefer removing speculative defensive code when it only adds complexity and duplicates backend guarantees.
+
 ## Realtime Conventions
 
 - `boardStore` owns realtime connect/disconnect for board workspace views.

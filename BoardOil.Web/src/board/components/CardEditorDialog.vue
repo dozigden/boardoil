@@ -272,10 +272,11 @@ import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useCommentStore } from '../stores/commentStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
-import { resolveDraftCardTypeId, resolveSelectedCardTypeEmoji } from './cardTypeSelection';
+import { resolveSelectedCardTypeEmoji } from './cardTypeSelection';
+import { createEditModelFromCard } from '../mappers/cardEditModel';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
 import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
-import type { CardEditModel } from '../../shared/types/boardTypes';
+import type { Card, CardEditModel } from '../../shared/types/boardTypes';
 
 const route = useRoute();
 const router = useRouter();
@@ -512,17 +513,50 @@ function setDraftAssignedUserId(assignedUserId: number | null, close?: () => voi
   close?.();
 }
 
-function resolveDraftSlickName(slickId: number | null) {
-  if (slickId === null) {
-    return null;
+function redirectToBoardList() {
+  clearDraft();
+  void router.replace({ name: 'boards' });
+}
+
+function redirectToBoard(boardId: number) {
+  clearDraft();
+  void router.replace({ name: 'board', params: { boardId } });
+}
+
+async function ensureEditorLookupsLoaded(boardId: number, isCancelled: () => boolean) {
+  if (cardTypes.value.length === 0) {
+    await loadCardTypes(boardId);
+    if (isCancelled()) {
+      return false;
+    }
   }
 
-  const slick = slicks.value.find(x => x.id === slickId);
-  if (!slick) {
-    return null;
+  if (boardMembersActiveBoardId.value !== boardId || boardMembers.value.length === 0) {
+    await loadMembers(boardId);
+    if (isCancelled()) {
+      return false;
+    }
   }
 
-  return slick.name;
+  if (slicksActiveBoardId.value !== boardId || slicks.value.length === 0) {
+    await loadSlicks(boardId);
+    if (isCancelled()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function initializeDraftForCard(nextCard: Card) {
+  if (cardDraftId.value === nextCard.id) {
+    return false;
+  }
+
+  const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
+  cardDraftId.value = refreshedCard.id;
+  cardDraft.value = createEditModelFromCard(refreshedCard);
+  return true;
 }
 
 async function saveCard() {
@@ -614,14 +648,12 @@ watch(
     });
 
     if (nextBoardId === null) {
-      clearDraft();
-      void router.replace({ name: 'boards' });
+      redirectToBoardList();
       return;
     }
 
     if (nextCardId === null) {
-      clearDraft();
-      void router.replace({ name: 'board', params: { boardId: nextBoardId } });
+      redirectToBoard(nextBoardId);
       return;
     }
 
@@ -629,28 +661,13 @@ watch(
       return;
     }
 
-    if (cardTypes.value.length === 0) {
-      await loadCardTypes(nextBoardId);
-      if (cancelled) {
-        return;
-      }
-    }
-    if (boardMembersActiveBoardId.value !== nextBoardId || boardMembers.value.length === 0) {
-      await loadMembers(nextBoardId);
-      if (cancelled) {
-        return;
-      }
-    }
-    if (slicksActiveBoardId.value !== nextBoardId || slicks.value.length === 0) {
-      await loadSlicks(nextBoardId);
-      if (cancelled) {
-        return;
-      }
+    const lookupsLoaded = await ensureEditorLookupsLoaded(nextBoardId, () => cancelled);
+    if (!lookupsLoaded) {
+      return;
     }
 
     if (!nextCard) {
-      clearDraft();
-      void router.replace({ name: 'board', params: { boardId: nextBoardId } });
+      redirectToBoard(nextBoardId);
       return;
     }
 
@@ -659,52 +676,10 @@ watch(
       return;
     }
 
-    if (cardDraftId.value !== nextCard.id) {
-      const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
-      cardDraftId.value = refreshedCard.id;
-      cardDraft.value = {
-        title: refreshedCard.title,
-        description: refreshedCard.description,
-        tagNames: [...refreshedCard.tagNames],
-        cardTypeId: refreshedCard.cardTypeId,
-        boardColumnId: refreshedCard.boardColumnId,
-        assignedUserId: refreshedCard.assignedUserId ?? null,
-        slickName: resolveDraftSlickName(refreshedCard.slickId ?? null)
-      };
+    const draftInitialized = initializeDraftForCard(nextCard);
+    if (draftInitialized) {
       return;
     }
-
-    const draft = cardDraft.value;
-    if (!draft) {
-      return;
-    }
-
-    const draftColumnExists = nextBoard.columns.some(x => x.id === draft.boardColumnId);
-    if (!draftColumnExists) {
-      cardDraft.value = {
-        ...draft,
-        boardColumnId: nextCard.boardColumnId
-      };
-    }
-
-    const nextDraft = cardDraft.value;
-    if (!nextDraft) {
-      return;
-    }
-
-    const draftCardTypeExists = nextDraft.cardTypeId !== null
-      && cardTypes.value.some(x => x.id === nextDraft.cardTypeId);
-    if (!draftCardTypeExists) {
-      cardDraft.value = {
-        ...nextDraft,
-        cardTypeId: resolveDraftCardTypeId(
-          null,
-          systemCardType.value?.id ?? null,
-          cardTypes.value[0]?.id ?? null
-        )
-      };
-    }
-
   },
   { immediate: true }
 );
