@@ -705,26 +705,6 @@ watch(
       };
     }
 
-    const finalDraft = cardDraft.value;
-    if (!finalDraft) {
-      return;
-    }
-
-    const draftSlickName = finalDraft.slickName;
-    if (!draftSlickName) {
-      return;
-    }
-
-    const draftSlickNameNormalised = draftSlickName.trim().toUpperCase();
-    const selectedSlickByName = slicks.value.find(
-      slick => slick.name.trim().toUpperCase() === draftSlickNameNormalised
-    );
-    if (selectedSlickByName && selectedSlickByName.name !== draftSlickName) {
-      cardDraft.value = {
-        ...finalDraft,
-        slickName: selectedSlickByName.name
-      };
-    }
   },
   { immediate: true }
 );
