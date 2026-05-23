@@ -34,7 +34,7 @@
       <label>
         Emoji
         <div class="tags-emoji-picker-wrap">
-          <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" placeholder="Select emoji" />
+          <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" :teleport="false" placeholder="Select emoji" />
         </div>
       </label>
 

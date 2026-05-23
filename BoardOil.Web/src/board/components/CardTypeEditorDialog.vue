@@ -31,7 +31,7 @@
       <label>
         Emoji
         <div class="card-types-emoji-picker-wrap">
-          <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" placeholder="Select emoji" />
+          <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" :teleport="false" placeholder="Select emoji" />
         </div>
       </label>
 

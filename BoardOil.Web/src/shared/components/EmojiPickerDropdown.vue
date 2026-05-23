@@ -4,6 +4,7 @@
     label="Emoji picker"
     :text="selectedEmoji ?? placeholder"
     :disabled="disabled"
+    :teleport="teleport"
     panel-role="dialog"
     popup="dialog"
   >
@@ -33,9 +34,11 @@ const props = withDefaults(defineProps<{
   modelValue: string | null;
   disabled?: boolean;
   placeholder?: string;
+  teleport?: boolean;
 }>(), {
   disabled: false,
-  placeholder: 'Select emoji'
+  placeholder: 'Select emoji',
+  teleport: true
 });
 
 const emit = defineEmits<{
