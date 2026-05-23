@@ -384,5 +384,13 @@ const hasActiveOptionFilters = computed(() =>
   .board-clear-filters {
     padding: 0 0.5rem;
   }
+
+  .board-selection-pane {
+    padding-left: 0.3rem;
+  }
+
+  .board-selection-toggle-label {
+    display: none;
+  }
 }
 </style>
