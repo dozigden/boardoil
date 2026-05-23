@@ -191,7 +191,17 @@ mkdir -p "$(dirname "$DEV_DB_PATH")"
 seed_branch_database_from_main_if_needed "$DEV_DB_PATH"
 echo "Using development database: $DEV_DB_PATH"
 echo "Building API ..."
-dotnet build "$API_PROJECT" -maxcpucount:1 -nodeReuse:false
+dotnet_build_args=(
+  -maxcpucount:1
+  -nodeReuse:false
+)
+
+nuget_audit_enabled="${BOARDOIL_DEV_NUGET_AUDIT:-0}"
+if [[ "$nuget_audit_enabled" != "1" ]]; then
+  dotnet_build_args+=(-p:NuGetAudit=false)
+fi
+
+dotnet build "$API_PROJECT" "${dotnet_build_args[@]}"
 ASPNETCORE_ENVIRONMENT=Development \
 DOTNET_ENVIRONMENT=Development \
 ConnectionStrings__BoardOil="Data Source=$DEV_DB_PATH" \
