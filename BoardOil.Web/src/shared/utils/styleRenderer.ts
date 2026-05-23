@@ -45,7 +45,7 @@ export function getSurfaceStyle(
 
 export function getSemanticStyleClasses(
   style: StylePresentation | null | undefined,
-  scope: 'tag' | 'card'
+  scope: 'tag' | 'card' | 'slick'
 ): string[] {
   if (!style) {
     return [];

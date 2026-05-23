@@ -1,5 +1,5 @@
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
-import { getPresetCssValue } from '../../shared/utils/presetTheme';
+import { getSlickPresetCssValue } from '../../shared/utils/presetTheme';
 import { deserializeStyle } from '../../shared/utils/stylePersistence';
 import { getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { GooLayerDescriptor } from '../composables/useGooLayer';
@@ -46,7 +46,7 @@ function resolveSlickGooColour(slick: Slick | undefined, slickId: number): strin
   if (slick) {
     const styleModel = deserializeStyle(slick);
     if (styleModel.styleName === 'presets') {
-      return getPresetCssValue(styleModel.presetIndex);
+      return getSlickPresetCssValue(styleModel.presetIndex);
     }
 
     const surfaceStyle = getSurfaceStyle(slick, {

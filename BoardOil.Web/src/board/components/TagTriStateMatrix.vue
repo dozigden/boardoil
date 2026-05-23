@@ -121,6 +121,7 @@ const props = withDefaults(defineProps<{
   scrollMode?: 'self' | 'parent';
   stickyTopOffsetPx?: number;
   styledItemsByName?: Record<string, StylePresentation>;
+  semanticScope?: 'tag' | 'slick';
 }>(), {
   leftState: 'exclude',
   rightState: 'include',
@@ -130,7 +131,8 @@ const props = withDefaults(defineProps<{
   enableBounce: true,
   scrollMode: 'self',
   stickyTopOffsetPx: 0,
-  styledItemsByName: () => ({})
+  styledItemsByName: () => ({}),
+  semanticScope: 'tag'
 });
 
 const emit = defineEmits<{
@@ -152,7 +154,7 @@ function getStyledItemClasses(tagName: string) {
     return [];
   }
 
-  return getSemanticStyleClasses(styledItem, 'tag');
+  return getSemanticStyleClasses(styledItem, props.semanticScope);
 }
 
 function getStyledItemStyle(tagName: string) {

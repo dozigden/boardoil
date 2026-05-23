@@ -43,6 +43,14 @@
   --bo-preset-5: var(--bo-colour-info);
   --bo-preset-6: var(--bo-colour-energy);
   --bo-preset-7: var(--bo-colour-success);
+  --bo-slick-preset-0: color-mix(in srgb, var(--bo-preset-0) 74%, #ffffff 26%);
+  --bo-slick-preset-1: color-mix(in srgb, var(--bo-preset-1) 74%, #ffffff 26%);
+  --bo-slick-preset-2: color-mix(in srgb, var(--bo-preset-2) 74%, #ffffff 26%);
+  --bo-slick-preset-3: color-mix(in srgb, var(--bo-preset-3) 74%, #ffffff 26%);
+  --bo-slick-preset-4: color-mix(in srgb, var(--bo-preset-4) 74%, #ffffff 26%);
+  --bo-slick-preset-5: color-mix(in srgb, var(--bo-preset-5) 74%, #ffffff 26%);
+  --bo-slick-preset-6: color-mix(in srgb, var(--bo-preset-6) 74%, #ffffff 26%);
+  --bo-slick-preset-7: color-mix(in srgb, var(--bo-preset-7) 74%, #ffffff 26%);
 
   --bo-bg-root-start: #f3efe8;
   --bo-bg-root-end: #e6eef9;
@@ -148,6 +156,59 @@
   background: var(--bo-preset-7);
   color: var(--bo-ink-strong);
   border-color: color-mix(in srgb, var(--bo-preset-7) 50%, #111827 50%);
+}
+
+.bo-slick-style-presets {
+  color: var(--bo-ink-strong);
+  border-color: var(--bo-border-soft);
+}
+
+.bo-slick-style-presets-0 {
+  background: var(--bo-slick-preset-0);
+  color: var(--bo-ink-on-brand);
+  border-color: color-mix(in srgb, var(--bo-slick-preset-0) 60%, #ffffff 40%);
+}
+
+.bo-slick-style-presets-1 {
+  background: var(--bo-slick-preset-1);
+  color: var(--bo-ink-on-brand);
+  border-color: color-mix(in srgb, var(--bo-slick-preset-1) 60%, #ffffff 40%);
+}
+
+.bo-slick-style-presets-2 {
+  background: var(--bo-slick-preset-2);
+  color: var(--bo-ink-strong);
+  border-color: color-mix(in srgb, var(--bo-slick-preset-2) 50%, #111827 50%);
+}
+
+.bo-slick-style-presets-3 {
+  background: var(--bo-slick-preset-3);
+  color: var(--bo-ink-strong);
+  border-color: color-mix(in srgb, var(--bo-slick-preset-3) 50%, #111827 50%);
+}
+
+.bo-slick-style-presets-4 {
+  background: var(--bo-slick-preset-4);
+  color: var(--bo-ink-on-brand);
+  border-color: color-mix(in srgb, var(--bo-slick-preset-4) 60%, #ffffff 40%);
+}
+
+.bo-slick-style-presets-5 {
+  background: var(--bo-slick-preset-5);
+  color: var(--bo-ink-strong);
+  border-color: color-mix(in srgb, var(--bo-slick-preset-5) 50%, #111827 50%);
+}
+
+.bo-slick-style-presets-6 {
+  background: var(--bo-slick-preset-6);
+  color: var(--bo-ink-on-brand);
+  border-color: color-mix(in srgb, var(--bo-slick-preset-6) 60%, #ffffff 40%);
+}
+
+.bo-slick-style-presets-7 {
+  background: var(--bo-slick-preset-7);
+  color: var(--bo-ink-strong);
+  border-color: color-mix(in srgb, var(--bo-slick-preset-7) 50%, #111827 50%);
 }
 
 * {

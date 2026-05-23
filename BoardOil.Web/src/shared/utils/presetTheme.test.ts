@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PRESET_INDEX, getPresetCssValue, PRESET_TOKEN_COUNT, PRESET_TOKENS, resolvePresetIndex } from './presetTheme';
+import {
+  DEFAULT_PRESET_INDEX,
+  getPresetCssValue,
+  getSlickPresetCssValue,
+  PRESET_TOKEN_COUNT,
+  PRESET_TOKENS,
+  resolvePresetIndex,
+  SLICK_PRESET_TOKENS
+} from './presetTheme';
 
 describe('presetTheme', () => {
   it('exposes preset token list with stable CSS var names', () => {
     expect(PRESET_TOKEN_COUNT).toBe(8);
     expect(PRESET_TOKENS).toHaveLength(PRESET_TOKEN_COUNT);
+    expect(SLICK_PRESET_TOKENS).toHaveLength(PRESET_TOKEN_COUNT);
     expect(PRESET_TOKENS[0].cssVar).toBe('--bo-preset-0');
     expect(PRESET_TOKENS[7].cssValue).toBe('var(--bo-preset-7)');
+    expect(SLICK_PRESET_TOKENS[0].cssVar).toBe('--bo-slick-preset-0');
+    expect(SLICK_PRESET_TOKENS[7].cssValue).toBe('var(--bo-slick-preset-7)');
   });
 
   it('clamps invalid preset index values to default', () => {
@@ -18,5 +29,7 @@ describe('presetTheme', () => {
   it('returns CSS var values for preset backgrounds', () => {
     expect(getPresetCssValue(3)).toBe('var(--bo-preset-3)');
     expect(getPresetCssValue('3')).toBe('var(--bo-preset-3)');
+    expect(getSlickPresetCssValue(3)).toBe('var(--bo-slick-preset-3)');
+    expect(getSlickPresetCssValue('3')).toBe('var(--bo-slick-preset-3)');
   });
 });

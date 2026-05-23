@@ -59,6 +59,18 @@ describe('styleRenderer', () => {
     ).toEqual(['bo-card-style-presets', 'bo-card-style-presets-4']);
   });
 
+  it('renders slick presets using slick semantic class scope', () => {
+    expect(
+      getSemanticStyleClasses(
+        {
+          styleName: 'presets',
+          stylePropertiesJson: '{"presetIndex":2}'
+        },
+        'slick'
+      )
+    ).toEqual(['bo-slick-style-presets', 'bo-slick-style-presets-2']);
+  });
+
   it('renders auto as semantic class and no inline style', () => {
     const style = getSurfaceStyle(
       {

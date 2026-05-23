@@ -47,6 +47,7 @@
                 :states="slickFilterStates"
                 :labels="{ left: 'Exclude', middle: 'Slick', right: 'Include' }"
                 :ariaLabel="'Slick filter matrix'"
+                semantic-scope="slick"
                 left-action-prefix="Move to exclude"
                 middle-action-prefix="Move to slick"
                 right-action-prefix="Move to include"

@@ -21,7 +21,7 @@ describe('slickGooAdapter', () => {
     expect(descriptors.map(x => x.groupKey).sort()).toEqual(['slick-10', 'slick-20']);
   });
 
-  it('uses styled background for solid and preset css variable for presets style', () => {
+  it('uses styled background for solid and slick preset css variable for presets style', () => {
     const columns = makeColumns();
     const slicksById = new Map<number, Slick>([
       [10, makeSlick(10, 'solid', '{"backgroundColor":"#AABBCC","textColorMode":"auto","borderMode":"auto"}')],
@@ -33,7 +33,7 @@ describe('slickGooAdapter', () => {
     const presetDescriptor = descriptors.find(x => x.cardId === 201);
 
     expect(solidDescriptor?.colour).toBe('#AABBCC');
-    expect(presetDescriptor?.colour).toBe('var(--bo-preset-4)');
+    expect(presetDescriptor?.colour).toBe('var(--bo-slick-preset-4)');
   });
 
   it('builds deterministic membership signatures from card memberships', () => {

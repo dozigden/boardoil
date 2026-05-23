@@ -143,7 +143,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useCardStore } from '../stores/cardStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useStyleDraft } from '../composables/useStyleDraft';
-import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
+import { SLICK_PRESET_TOKENS } from '../../shared/utils/presetTheme';
 import { createStyleDraft } from '../../shared/utils/styleDraftAdapter';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { Slick, SlickStyleName } from '../../shared/types/boardTypes';
@@ -170,7 +170,7 @@ const {
 } = useStyleDraft();
 const draftSlickName = ref('');
 const draftSourceKey = ref<string | null>(null);
-const presetColours = PRESET_TOKENS;
+const presetColours = SLICK_PRESET_TOKENS;
 
 const isCreateMode = computed(() => route.name === 'slicks-new');
 const routeSlickId = computed<number | null>(() => {
@@ -244,7 +244,7 @@ const previewStyleClasses = computed(() => {
         stylePropertiesJson: stylePropertiesJson.value ?? '{}'
       }
     : editingSlick.value;
-  return getSemanticStyleClasses(style, 'tag');
+  return getSemanticStyleClasses(style, 'slick');
 });
 
 async function closeSlickEditor() {

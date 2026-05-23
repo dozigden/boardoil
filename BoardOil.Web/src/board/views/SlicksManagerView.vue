@@ -82,7 +82,7 @@ function getSlickStyle(slick: Slick) {
 }
 
 function getSlickStyleClasses(slick: Slick) {
-  return getSemanticStyleClasses(slick, 'tag');
+  return getSemanticStyleClasses(slick, 'slick');
 }
 
 async function openEditor(slickId: number) {
