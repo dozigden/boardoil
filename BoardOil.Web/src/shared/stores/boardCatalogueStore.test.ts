@@ -57,6 +57,7 @@ function makeBoard(id: number, name: string) {
     id,
     name,
     description: '',
+    slickCohesionModeEnabled: true,
     createdAtUtc: '2026-04-03T17:00:00Z',
     updatedAtUtc: '2026-04-03T17:00:00Z',
     currentUserRole: 'Owner',
@@ -69,6 +70,7 @@ function makeSummary(id: number, name: string) {
     id,
     name,
     description: '',
+    slickCohesionModeEnabled: true,
     createdAtUtc: '2026-04-03T17:00:00Z',
     updatedAtUtc: '2026-04-03T17:00:00Z',
     currentUserRole: 'Owner'

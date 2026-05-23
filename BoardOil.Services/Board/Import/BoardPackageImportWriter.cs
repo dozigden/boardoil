@@ -37,6 +37,7 @@ public sealed class BoardPackageImportWriter(
         {
             Name = importPlan.BoardName,
             Description = importPlan.BoardDescription,
+            SlickCohesionModeEnabled = importPlan.SlickCohesionModeEnabled
         };
 
         board.Members.Add(new EntityBoardMember
@@ -230,6 +231,7 @@ public sealed class BoardPackageImportWriter(
             board.Id,
             board.Name,
             board.Description,
+            board.SlickCohesionModeEnabled,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             BoardMemberRole.Owner.ToString(),

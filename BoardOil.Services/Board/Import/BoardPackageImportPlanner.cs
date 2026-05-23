@@ -12,6 +12,7 @@ public sealed class BoardPackageImportPlanner
     public BoardPackageImportPlanResult BuildBoardPackageImportPlan(
         string boardName,
         string boardDescription,
+        bool slickCohesionModeEnabled,
         BoardPackageBoardDto boardPayload,
         BoardPackageArchiveDto? archivePayload)
     {
@@ -450,6 +451,7 @@ public sealed class BoardPackageImportPlanner
             new BoardPackageImportPlan(
                 boardName,
                 boardDescription,
+                slickCohesionModeEnabled,
                 systemCardTypeName,
                 systemCardTypeNormalisedName,
                 systemCardTypeEmoji,

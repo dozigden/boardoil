@@ -21,6 +21,14 @@
           rows="8"
         ></textarea>
       </label>
+      <label class="board-details-toggle">
+        <input
+          v-model="slickCohesionModeEnabledDraft"
+          type="checkbox"
+          :disabled="!isOwner || busy"
+        />
+        <span>Enable slick cohesion mode</span>
+      </label>
 
       <p v-if="!isOwner" class="board-details-owner-note">Owner permission required to edit this board.</p>
 
@@ -67,15 +75,18 @@ const { applyBoardSummaryUpdate } = boardStore;
 const { busy } = storeToRefs(boardCatalogueStore);
 const boardNameDraft = ref('');
 const boardDescriptionDraft = ref('');
+const slickCohesionModeEnabledDraft = ref(true);
 const exporting = ref(false);
 
 const boardId = computed(() => resolveBoardId());
 const boardName = computed(() => board.value?.name ?? '');
 const boardDescription = computed(() => board.value?.description ?? '');
+const slickCohesionModeEnabled = computed(() => board.value?.slickCohesionModeEnabled ?? true);
 const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
 const hasChanges = computed(() =>
   boardNameDraft.value.trim() !== boardName.value.trim()
-  || boardDescriptionDraft.value.trim() !== boardDescription.value.trim());
+  || boardDescriptionDraft.value.trim() !== boardDescription.value.trim()
+  || slickCohesionModeEnabledDraft.value !== slickCohesionModeEnabled.value);
 const canSave = computed(() => isOwner.value && !busy.value && boardNameDraft.value.trim().length > 0 && hasChanges.value);
 const canExport = computed(() => isOwner.value && !exporting.value);
 
@@ -95,6 +106,7 @@ watch(
 
     boardNameDraft.value = board.value?.name ?? '';
     boardDescriptionDraft.value = board.value?.description ?? '';
+    slickCohesionModeEnabledDraft.value = board.value?.slickCohesionModeEnabled ?? true;
   },
   { immediate: true }
 );
@@ -102,6 +114,7 @@ watch(
 function resetDraft() {
   boardNameDraft.value = boardName.value;
   boardDescriptionDraft.value = boardDescription.value;
+  slickCohesionModeEnabledDraft.value = slickCohesionModeEnabled.value;
 }
 
 async function saveBoardDetails() {
@@ -113,6 +126,7 @@ async function saveBoardDetails() {
   const saved = await boardCatalogueStore.saveBoard(
     nextBoardId,
     boardNameDraft.value.trim(),
+    slickCohesionModeEnabledDraft.value,
     boardDescriptionDraft.value.trim());
   if (!saved) {
     return;
@@ -124,6 +138,7 @@ async function saveBoardDetails() {
 
   boardNameDraft.value = saved.name;
   boardDescriptionDraft.value = saved.description;
+  slickCohesionModeEnabledDraft.value = saved.slickCohesionModeEnabled;
 }
 
 async function exportBoardPackage() {
@@ -189,6 +204,12 @@ function resolveBoardId() {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.board-details-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .board-export-section {

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
@@ -21,6 +22,7 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         Assert.True(result!.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("BoardOil", result.Data!.Name);
+        Assert.True(result.Data.SlickCohesionModeEnabled);
         Assert.Equal(3, result.Data.Columns.Count);
         Assert.Equal("Todo", result.Data.Columns[0].Title);
         Assert.Equal("In Progress", result.Data.Columns[1].Title);
@@ -70,11 +72,12 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         Assert.NotNull(created!.Data);
         Assert.Equal(201, (int)createResponse.StatusCode);
         Assert.True(created.Success);
+        Assert.True(created.Data.SlickCohesionModeEnabled);
 
         // Act
         var updateResponse = await Client.PutAsJsonAsync(
             $"/api/boards/{created.Data.Id}",
-            new UpdateBoardRequest("Roadmap", "  Updated board guidance  "));
+            new UpdateBoardRequest("Roadmap", false, "  Updated board guidance  "));
         var updated = await updateResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardSummaryDto>>(JsonOptions);
         Assert.NotNull(updated);
 
@@ -83,6 +86,28 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         Assert.True(updated!.Success);
         Assert.NotNull(updated.Data);
         Assert.Equal(created.Data.Id, updated.Data!.Id);
+        Assert.False(updated.Data.SlickCohesionModeEnabled);
+    }
+
+    [Fact]
+    public async Task UpdateBoard_WhenSlickCohesionModeFieldIsMissing_ShouldDefaultToFalse()
+    {
+        // Arrange
+        var payload = """{"name":"Roadmap","description":"Updated board guidance"}""";
+
+        // Act
+        var response = await Client.PutAsync(
+            "/api/boards/1",
+            new StringContent(payload, Encoding.UTF8, "application/json"));
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<BoardSummaryDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.True(body!.Success);
+        Assert.Equal(200, body.StatusCode);
+        Assert.NotNull(body.Data);
+        Assert.False(body.Data!.SlickCohesionModeEnabled);
     }
 
     [Fact]

@@ -128,6 +128,7 @@ export type Board = {
   id: number;
   name: string;
   description: string;
+  slickCohesionModeEnabled: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
   currentUserRole?: BoardMemberRole | null;
@@ -138,6 +139,7 @@ export type BoardSummary = {
   id: number;
   name: string;
   description: string;
+  slickCohesionModeEnabled: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
   currentUserRole?: BoardMemberRole | null;

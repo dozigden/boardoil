@@ -28,6 +28,7 @@ public sealed class BoardPackageImportService(
         var planResult = importPlanner.BuildBoardPackageImportPlan(
             boardName,
             boardDescription,
+            readPackageResult.BoardPayload.SlickCohesionModeEnabled,
             readPackageResult.BoardPayload,
             readPackageResult.ArchivePayload);
         if (planResult.Error is not null)

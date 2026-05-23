@@ -34,6 +34,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
       id: result.data.id,
       name: result.data.name,
       description: result.data.description,
+      slickCohesionModeEnabled: result.data.slickCohesionModeEnabled,
       createdAtUtc: result.data.createdAtUtc,
       updatedAtUtc: result.data.updatedAtUtc,
       currentUserRole: result.data.currentUserRole ?? null
@@ -52,6 +53,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
       id: result.data.id,
       name: result.data.name,
       description: result.data.description,
+      slickCohesionModeEnabled: result.data.slickCohesionModeEnabled,
       createdAtUtc: result.data.createdAtUtc,
       updatedAtUtc: result.data.updatedAtUtc,
       currentUserRole: result.data.currentUserRole ?? null
@@ -60,8 +62,8 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     return created;
   }
 
-  async function saveBoard(boardId: number, name: string, description?: string) {
-    const result = await runBusy(() => api.saveBoard(boardId, name, description));
+  async function saveBoard(boardId: number, name: string, slickCohesionModeEnabled: boolean, description?: string) {
+    const result = await runBusy(() => api.saveBoard(boardId, name, slickCohesionModeEnabled, description));
     if (!result.ok) {
       return null;
     }

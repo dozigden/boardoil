@@ -132,5 +132,4 @@ public static class BoardEndpoints
             {
                 [property] = [message]
             });
-
 }

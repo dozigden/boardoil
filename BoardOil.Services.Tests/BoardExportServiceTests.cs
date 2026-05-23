@@ -129,6 +129,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.NotNull(payload);
         Assert.Equal("Export Board", payload!.Name);
         Assert.Equal("Export board description", payload.Description);
+        Assert.True(payload.SlickCohesionModeEnabled);
         Assert.Contains(
             payload.CardTypes,
             x => x.Name == "Story"

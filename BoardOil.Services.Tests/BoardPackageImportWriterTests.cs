@@ -117,6 +117,7 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
         return new BoardPackageImportPlan(
             boardName,
             $"{boardName} description",
+            true,
             CardTypeDefaults.SystemTypeName,
             BoardPackageImportNormalisation.NormaliseName(CardTypeDefaults.SystemTypeName),
             null,

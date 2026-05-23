@@ -187,7 +187,7 @@ export const useBoardStore = defineStore('board', () => {
     removeColumn(columnId);
   }
 
-  function applyBoardSummaryUpdate(summary: Pick<BoardSummary, 'id' | 'name' | 'description' | 'updatedAtUtc'>) {
+  function applyBoardSummaryUpdate(summary: Pick<BoardSummary, 'id' | 'name' | 'description' | 'slickCohesionModeEnabled' | 'updatedAtUtc'>) {
     mutateBoardShell(draft => {
       if (draft.id !== summary.id) {
         return;
@@ -195,6 +195,7 @@ export const useBoardStore = defineStore('board', () => {
 
       draft.name = summary.name;
       draft.description = summary.description;
+      draft.slickCohesionModeEnabled = summary.slickCohesionModeEnabled;
       draft.updatedAtUtc = summary.updatedAtUtc;
     });
   }

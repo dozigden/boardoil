@@ -15,6 +15,7 @@ public sealed record BoardPackageImportPlanResult(
 public sealed record BoardPackageImportPlan(
     string BoardName,
     string BoardDescription,
+    bool SlickCohesionModeEnabled,
     string SystemCardTypeName,
     string SystemCardTypeNormalisedName,
     string? SystemCardTypeEmoji,

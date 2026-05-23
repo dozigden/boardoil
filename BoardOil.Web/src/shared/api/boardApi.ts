@@ -82,8 +82,13 @@ export function createBoardApi() {
     });
   }
 
-  async function saveBoard(boardId: number, name: string, description?: string): Promise<Result<BoardSummary, AppError>> {
-    return putData<BoardSummary>(`/api/boards/${boardId}`, { name, description });
+  async function saveBoard(
+    boardId: number,
+    name: string,
+    slickCohesionModeEnabled: boolean,
+    description?: string
+  ): Promise<Result<BoardSummary, AppError>> {
+    return putData<BoardSummary>(`/api/boards/${boardId}`, { name, description, slickCohesionModeEnabled });
   }
 
   async function deleteBoard(boardId: number): Promise<Result<void, AppError>> {

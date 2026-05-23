@@ -73,6 +73,7 @@ describe('boardApi importBoardPackage', () => {
       id: 42,
       name: 'Imported Board',
       description: '',
+      slickCohesionModeEnabled: true,
       createdAtUtc: '2026-04-08T00:00:00Z',
       updatedAtUtc: '2026-04-08T00:00:00Z',
       currentUserRole: 'Owner',
@@ -106,6 +107,7 @@ describe('boardApi createBoard', () => {
       id: 1,
       name: 'Roadmap',
       description: 'Planning board',
+      slickCohesionModeEnabled: true,
       createdAtUtc: '2026-04-18T00:00:00Z',
       updatedAtUtc: '2026-04-18T00:00:00Z',
       currentUserRole: 'Owner',
@@ -130,16 +132,21 @@ describe('boardApi saveBoard', () => {
       id: 1,
       name: 'Roadmap',
       description: 'Updated description',
+      slickCohesionModeEnabled: true,
       createdAtUtc: '2026-04-18T00:00:00Z',
       updatedAtUtc: '2026-04-18T00:00:00Z',
       currentUserRole: 'Owner'
     }));
 
     const api = createBoardApi();
-    const result = await api.saveBoard(1, 'Roadmap', 'Updated description');
+    const result = await api.saveBoard(1, 'Roadmap', true, 'Updated description');
 
     expect(result.ok).toBe(true);
-    expect(putData).toHaveBeenCalledWith('/api/boards/1', { name: 'Roadmap', description: 'Updated description' });
+    expect(putData).toHaveBeenCalledWith('/api/boards/1', {
+      name: 'Roadmap',
+      description: 'Updated description',
+      slickCohesionModeEnabled: true
+    });
   });
 });
 

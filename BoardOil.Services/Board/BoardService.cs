@@ -36,6 +36,7 @@ public sealed class BoardService(
                 x.Board.Id,
                 x.Board.Name,
                 x.Board.Description,
+                x.Board.SlickCohesionModeEnabled,
                 x.Board.CreatedAtUtc,
                 x.Board.UpdatedAtUtc,
                 x.Role.ToString()))
@@ -92,6 +93,7 @@ public sealed class BoardService(
             board.Id,
             board.Name,
             board.Description,
+            board.SlickCohesionModeEnabled,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             currentUserRole,
@@ -120,6 +122,7 @@ public sealed class BoardService(
         {
             Name = name,
             Description = description,
+            SlickCohesionModeEnabled = true
         };
 
         board.Members.Add(new EntityBoardMember
@@ -165,6 +168,7 @@ public sealed class BoardService(
             board.Id,
             board.Name,
             board.Description,
+            board.SlickCohesionModeEnabled,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             BoardMemberRole.Owner.ToString(),
@@ -202,10 +206,12 @@ public sealed class BoardService(
 
         var hasNameChanged = !string.Equals(board.Name, updatedName, StringComparison.Ordinal);
         var hasDescriptionChanged = !string.Equals(board.Description, updatedDescription, StringComparison.Ordinal);
-        if (hasNameChanged || hasDescriptionChanged)
+        var hasSlickCohesionModeChanged = board.SlickCohesionModeEnabled != request.SlickCohesionModeEnabled;
+        if (hasNameChanged || hasDescriptionChanged || hasSlickCohesionModeChanged)
         {
             board.Name = updatedName;
             board.Description = updatedDescription;
+            board.SlickCohesionModeEnabled = request.SlickCohesionModeEnabled;
             await scope.SaveChangesAsync();
         }
 
@@ -214,6 +220,7 @@ public sealed class BoardService(
             board.Id,
             board.Name,
             board.Description,
+            board.SlickCohesionModeEnabled,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             membership?.Role.ToString());

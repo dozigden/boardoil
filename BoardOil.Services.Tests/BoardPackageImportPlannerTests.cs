@@ -20,7 +20,7 @@ public sealed class BoardPackageImportPlannerTests
             [new BoardPackageColumnDto("Todo", [])]);
 
         var planner = new BoardPackageImportPlanner();
-        var result = planner.BuildBoardPackageImportPlan("Collision Board", "Collision board description", payload, null);
+        var result = planner.BuildBoardPackageImportPlan("Collision Board", "Collision board description", true, payload, null);
 
         Assert.NotNull(result.Error);
         Assert.NotNull(result.Error!.ValidationErrors);
@@ -38,7 +38,7 @@ public sealed class BoardPackageImportPlannerTests
             [new BoardPackageColumnDto("Todo", [])]);
 
         var planner = new BoardPackageImportPlanner();
-        var result = planner.BuildBoardPackageImportPlan("Bad Style Json Board", "Style json must be object", payload, null);
+        var result = planner.BuildBoardPackageImportPlan("Bad Style Json Board", "Style json must be object", true, payload, null);
 
         Assert.NotNull(result.Error);
         Assert.NotNull(result.Error!.ValidationErrors);
@@ -68,7 +68,7 @@ public sealed class BoardPackageImportPlannerTests
             ]);
 
         var planner = new BoardPackageImportPlanner();
-        var result = planner.BuildBoardPackageImportPlan("Canonical Board", "Canonical board description", payload, null);
+        var result = planner.BuildBoardPackageImportPlan("Canonical Board", "Canonical board description", true, payload, null);
 
         Assert.Null(result.Error);
         Assert.NotNull(result.Plan);

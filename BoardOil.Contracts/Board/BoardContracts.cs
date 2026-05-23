@@ -6,6 +6,7 @@ public sealed record BoardSummaryDto(
     int Id,
     string Name,
     string Description,
+    bool SlickCohesionModeEnabled,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     string? CurrentUserRole);
@@ -20,6 +21,7 @@ public sealed record BoardDto(
     int Id,
     string Name,
     string Description,
+    bool SlickCohesionModeEnabled,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     string? CurrentUserRole,
@@ -35,6 +37,7 @@ public sealed record ImportBoardPackageRequest(
 
 public sealed record UpdateBoardRequest(
     string Name,
+    bool SlickCohesionModeEnabled,
     string? Description = null);
 
 public sealed record BoardColumnDto(

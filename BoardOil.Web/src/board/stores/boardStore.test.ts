@@ -200,6 +200,7 @@ function makeBoard(id = 1, name = 'Board'): Board {
     id,
     name,
     description: '',
+    slickCohesionModeEnabled: true,
     createdAtUtc: '2026-03-15T00:00:00Z',
     updatedAtUtc: '2026-03-15T00:00:00Z',
     columns: [

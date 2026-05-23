@@ -9,6 +9,7 @@ describe('appHeaderNavigation', () => {
         id: 7,
         name: 'Solo board',
         description: '',
+        slickCohesionModeEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -23,6 +24,7 @@ describe('appHeaderNavigation', () => {
         id: 7,
         name: 'Solo board',
         description: '',
+        slickCohesionModeEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       },
@@ -30,6 +32,7 @@ describe('appHeaderNavigation', () => {
         id: 8,
         name: 'Second board',
         description: '',
+        slickCohesionModeEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -44,6 +47,7 @@ describe('appHeaderNavigation', () => {
         id: 7,
         name: 'Solo board',
         description: '',
+        slickCohesionModeEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       },
@@ -51,6 +55,7 @@ describe('appHeaderNavigation', () => {
         id: 8,
         name: 'Zulu',
         description: '',
+        slickCohesionModeEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       },
@@ -58,6 +63,7 @@ describe('appHeaderNavigation', () => {
         id: 9,
         name: 'Alpha',
         description: '',
+        slickCohesionModeEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -76,6 +82,7 @@ describe('appHeaderNavigation', () => {
       id: 7,
       name: 'Loaded board',
       description: '',
+      slickCohesionModeEnabled: true,
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:00:00Z',
       columns: []
@@ -85,6 +92,7 @@ describe('appHeaderNavigation', () => {
         id: 7,
         name: 'Catalogue board',
         description: '',
+        slickCohesionModeEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -99,6 +107,7 @@ describe('appHeaderNavigation', () => {
       id: 7,
       name: 'Loaded board',
       description: '',
+      slickCohesionModeEnabled: true,
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:00:00Z',
       columns: []
@@ -108,6 +117,7 @@ describe('appHeaderNavigation', () => {
         id: 7,
         name: 'Catalogue board',
         description: '',
+        slickCohesionModeEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }

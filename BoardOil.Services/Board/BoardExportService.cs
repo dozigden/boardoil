@@ -109,7 +109,8 @@ public sealed class BoardExportService(
                     x.Name,
                     x.StyleName,
                     x.StylePropertiesJson))
-                .ToList());
+                .ToList(),
+            board.SlickCohesionModeEnabled);
         var archivePayload = new BoardPackageArchiveDto(
             archivedCards
                 .Select(x => x.ToArchivedCardDto())

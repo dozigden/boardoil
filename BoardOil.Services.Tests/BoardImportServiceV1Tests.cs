@@ -45,6 +45,7 @@ public sealed class BoardImportServiceV1Tests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Equal("Legacy Board", result.Data!.Name);
         Assert.Equal(string.Empty, result.Data.Description);
+        Assert.True(result.Data.SlickCohesionModeEnabled);
     }
 
     [Theory]
@@ -94,6 +95,7 @@ public sealed class BoardImportServiceV1Tests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         var boardId = result.Data!.Id;
+        Assert.True(result.Data.SlickCohesionModeEnabled);
 
         var slick = DbContextForAssert.Slicks.Single(x => x.BoardId == boardId);
         Assert.Equal("Release train", slick.Name);

@@ -19,7 +19,7 @@ public sealed class BoardServiceTests : TestBaseDb
     {
         // Act
         var service = CreateService();
-        var result = await service.UpdateBoardAsync(999, new UpdateBoardRequest("Renamed"), ActorUserId);
+        var result = await service.UpdateBoardAsync(999, new UpdateBoardRequest("Renamed", true), ActorUserId);
 
         // Assert
         Assert.False(result.Success);
@@ -36,7 +36,7 @@ public sealed class BoardServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.UpdateBoardAsync(board.BoardId, new UpdateBoardRequest("  Roadmap  "), ActorUserId);
+        var result = await service.UpdateBoardAsync(board.BoardId, new UpdateBoardRequest("  Roadmap  ", true), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -44,6 +44,7 @@ public sealed class BoardServiceTests : TestBaseDb
         Assert.Equal(board.BoardId, result.Data!.Id);
         Assert.Equal("Roadmap", result.Data.Name);
         Assert.Equal(string.Empty, result.Data.Description);
+        Assert.True(result.Data.SlickCohesionModeEnabled);
 
         var persisted = DbContextForAssert.Boards.Single(x => x.Id == board.BoardId);
         Assert.Equal("Roadmap", persisted.Name);
@@ -61,16 +62,56 @@ public sealed class BoardServiceTests : TestBaseDb
         // Act
         var result = await service.UpdateBoardAsync(
             board.BoardId,
-            new UpdateBoardRequest("BoardOil", "  Service-level board guidance  "),
+            new UpdateBoardRequest("BoardOil", true, "  Service-level board guidance  "),
             ActorUserId);
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("Service-level board guidance", result.Data!.Description);
+        Assert.True(result.Data.SlickCohesionModeEnabled);
 
         var persisted = DbContextForAssert.Boards.Single(x => x.Id == board.BoardId);
         Assert.Equal("Service-level board guidance", persisted.Description);
+    }
+
+    [Fact]
+    public async Task UpdateBoardAsync_ShouldPersistSlickCohesionMode()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .Build();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateBoardAsync(
+            board.BoardId,
+            new UpdateBoardRequest("BoardOil", false, "Board description"),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data!.SlickCohesionModeEnabled);
+
+        var persisted = DbContextForAssert.Boards.Single(x => x.Id == board.BoardId);
+        Assert.False(persisted.SlickCohesionModeEnabled);
+    }
+
+    [Fact]
+    public async Task CreateBoardAsync_ShouldDefaultSlickCohesionModeEnabledToTrue()
+    {
+        // Act
+        var service = CreateService();
+        var result = await service.CreateBoardAsync(new CreateBoardRequest("Roadmap"), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data!.SlickCohesionModeEnabled);
+
+        var persisted = DbContextForAssert.Boards.Single(x => x.Id == result.Data.Id);
+        Assert.True(persisted.SlickCohesionModeEnabled);
     }
 
     [Fact]
