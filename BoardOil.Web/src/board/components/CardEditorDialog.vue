@@ -254,7 +254,7 @@
 import { Archive, Check, Ellipsis, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import MdEditor from '../../shared/components/MdEditor.vue';
 import MdEditorToolbar from '../../shared/components/MdEditorToolbar.vue';
 import MdViewer from '../../shared/components/MdViewer.vue';
@@ -302,6 +302,7 @@ const { confirm } = useConfirm();
 const maxDescriptionLength = 20_000;
 const maxCommentLength = 4_000;
 const cardDraft = ref<CardEditModel | null>(null);
+const originalCardDraft = ref<CardEditModel | null>(null);
 const cardDraftId = ref<number | null>(null);
 const newCommentText = ref('');
 const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
@@ -399,6 +400,19 @@ const activeIsPlainTextMode = computed(() => {
     commentIsPlainTextMode.value
   );
 });
+const hasUnsavedChanges = computed(() => {
+  const draft = cardDraft.value;
+  const originalDraft = originalCardDraft.value;
+  if (!draft || !originalDraft) {
+    return false;
+  }
+
+  if (cardEditModelKey(draft) !== cardEditModelKey(originalDraft)) {
+    return true;
+  }
+
+  return newCommentText.value.trim().length > 0;
+});
 
 function setActiveEditor(editor: 'description' | 'comment') {
   activeEditor.value = editor;
@@ -453,12 +467,60 @@ function formatCommentDateTime(value: string) {
 
 function clearDraft() {
   cardDraft.value = null;
+  originalCardDraft.value = null;
   cardDraftId.value = null;
   newCommentText.value = '';
   activeEditor.value = 'description';
 }
 
+function cloneCardEditModel(model: CardEditModel): CardEditModel {
+  return {
+    ...model,
+    tagNames: [...model.tagNames]
+  };
+}
+
+function cardEditModelKey(model: CardEditModel) {
+  return JSON.stringify([
+    model.title,
+    model.description,
+    model.cardTypeId,
+    model.boardColumnId,
+    model.assignedUserId,
+    model.slickName,
+    model.tagNames
+  ]);
+}
+
+async function confirmDiscardUnsavedChanges() {
+  if (!hasUnsavedChanges.value) {
+    return true;
+  }
+
+  return await confirm({
+    title: 'Discard unsaved changes',
+    message: 'You have unsaved changes in this card. Discard them and leave?',
+    confirmLabel: 'Discard',
+    danger: true
+  });
+}
+
 async function closeCardEditor() {
+  await closeCardEditorInternal(false);
+}
+
+async function closeCardEditorWithoutPrompt() {
+  await closeCardEditorInternal(true);
+}
+
+async function closeCardEditorInternal(skipUnsavedGuard: boolean) {
+  if (!skipUnsavedGuard) {
+    const shouldDiscard = await confirmDiscardUnsavedChanges();
+    if (!shouldDiscard) {
+      return;
+    }
+  }
+
   clearDraft();
   const boardId = routeBoardId.value;
   if (boardId === null) {
@@ -555,7 +617,9 @@ function initializeDraftForCard(nextCard: Card) {
 
   const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
   cardDraftId.value = refreshedCard.id;
-  cardDraft.value = createEditModelFromCard(refreshedCard);
+  const draft = createEditModelFromCard(refreshedCard);
+  cardDraft.value = draft;
+  originalCardDraft.value = cloneCardEditModel(draft);
   return true;
 }
 
@@ -568,7 +632,7 @@ async function saveCard() {
 
   const saved = await saveCardAction(cardId, draft);
   if (saved) {
-    await closeCardEditor();
+    await closeCardEditorWithoutPrompt();
   }
 }
 
@@ -614,7 +678,7 @@ async function deleteEditingCard() {
 
   const deleted = await deleteCard(cardId);
   if (deleted) {
-    await closeCardEditor();
+    await closeCardEditorWithoutPrompt();
   }
 }
 
@@ -635,7 +699,7 @@ async function archiveEditingCard() {
 
   const archived = await archiveCard(cardId);
   if (archived) {
-    await closeCardEditor();
+    await closeCardEditorWithoutPrompt();
   }
 }
 
@@ -683,6 +747,49 @@ watch(
   },
   { immediate: true }
 );
+
+async function shouldBlockRouteNavigation(toName: unknown, fromName: unknown, toCardId: unknown, fromCardId: unknown) {
+  if (fromName !== 'board-card') {
+    return false;
+  }
+
+  const navigatingToDifferentRoute = toName !== 'board-card';
+  const navigatingToDifferentCard = toCardId !== fromCardId;
+  if (!navigatingToDifferentRoute && !navigatingToDifferentCard) {
+    return false;
+  }
+
+  const shouldDiscard = await confirmDiscardUnsavedChanges();
+  return !shouldDiscard;
+}
+
+onBeforeRouteLeave(async (to, from) => {
+  const shouldBlock = await shouldBlockRouteNavigation(
+    to.name,
+    from.name,
+    to.params.cardId,
+    from.params.cardId
+  );
+  if (shouldBlock) {
+    return false;
+  }
+
+  return true;
+});
+
+onBeforeRouteUpdate(async (to, from) => {
+  const shouldBlock = await shouldBlockRouteNavigation(
+    to.name,
+    from.name,
+    to.params.cardId,
+    from.params.cardId
+  );
+  if (shouldBlock) {
+    return false;
+  }
+
+  return true;
+});
 </script>
 
 <style scoped>
