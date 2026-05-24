@@ -6,10 +6,11 @@ const postData = vi.fn();
 const postFormData = vi.fn();
 const putData = vi.fn();
 const deleteJson = vi.fn();
+const getEnvelope = vi.fn();
 
 vi.mock('./http', () => ({
   deleteJson: (...args: unknown[]) => deleteJson(...args),
-  getEnvelope: vi.fn(),
+  getEnvelope: (...args: unknown[]) => getEnvelope(...args),
   patchData: vi.fn(),
   postData: (...args: unknown[]) => postData(...args),
   postFormData: (...args: unknown[]) => postFormData(...args),
@@ -27,6 +28,7 @@ describe('systemApi', () => {
     postFormData.mockResolvedValue(ok(undefined));
     putData.mockResolvedValue(ok(undefined));
     deleteJson.mockResolvedValue(ok(undefined));
+    getEnvelope.mockReset();
   });
 
   it('createUser posts email in the system user payload', async () => {
@@ -108,5 +110,23 @@ describe('systemApi', () => {
     await api.deleteClientAccountProfileImage(7);
 
     expect(deleteJson).toHaveBeenCalledWith('/api/system/client-accounts/7/profile-image');
+  });
+
+  it('getSystemInfoMessage reads from the system-info endpoint', async () => {
+    getEnvelope.mockResolvedValueOnce(ok({
+      success: true,
+      statusCode: 200,
+      message: null,
+      data: null
+    }));
+    const api = createSystemApi();
+
+    const result = await api.getSystemInfoMessage();
+
+    expect(getEnvelope).toHaveBeenCalledWith('/api/system/system-info-message');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toBeNull();
+    }
   });
 });

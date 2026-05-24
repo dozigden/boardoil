@@ -5,3 +5,11 @@ public sealed record ConfigurationDto(
     string? McpPublicBaseUrl);
 
 public sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);
+
+public sealed record SystemInfoMessageDto(
+    bool Enabled,
+    string? Emoji,
+    string Title,
+    string Description,
+    string StyleName,
+    string StylePropertiesJson);

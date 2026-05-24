@@ -1,4 +1,5 @@
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Configuration;
 using BoardOil.Contracts.Column;
 
 namespace BoardOil.Abstractions;
@@ -16,4 +17,5 @@ public interface IBoardEvents
     Task CommentCreatedAsync(int boardId, CardCommentDto comment);
 
     Task ResyncRequestedAsync(int boardId);
+    Task SystemInfoMessageUpdatedAsync(SystemInfoMessageDto? systemInfoMessage);
 }

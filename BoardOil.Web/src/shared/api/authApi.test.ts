@@ -32,4 +32,5 @@ describe('authApi', () => {
       newPassword: 'NewPassword1234!'
     });
   });
+
 });

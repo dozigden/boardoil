@@ -189,6 +189,7 @@ app.MapTagEndpoints();
 app.MapSlickEndpoints();
 app.MapInternalRealtimeEndpoints();
 app.MapConfigurationEndpoints();
+app.MapSystemInfoMessageEndpoints();
 app.MapUserEndpoints();
 app.MapClientAccountEndpoints();
 

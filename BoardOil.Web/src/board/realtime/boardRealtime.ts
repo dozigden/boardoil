@@ -2,6 +2,7 @@ import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } fro
 import { boardHubUrl } from '../../shared/api/config';
 import { attemptSessionRefresh } from '../../shared/api/http';
 import type { Card, CardComment, Column } from '../../shared/types/boardTypes';
+import type { SystemInfoMessageDto } from '../../shared/types/configurationTypes';
 
 type RealtimeHandlers = {
   onColumnCreated: (column: Column) => Promise<unknown> | unknown;
@@ -12,6 +13,7 @@ type RealtimeHandlers = {
   onCardDeleted: (cardId: number) => Promise<unknown> | unknown;
   onCardMoved: (card: Card) => Promise<unknown> | unknown;
   onCommentCreated: (comment: CardComment) => Promise<unknown> | unknown;
+  onSystemInfoMessageUpdated: (systemInfoMessage: SystemInfoMessageDto | null) => Promise<unknown> | unknown;
   onResync: () => Promise<unknown> | unknown;
 };
 
@@ -136,6 +138,10 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
       hubConnection.on('ResyncRequested', async () => {
         logRealtime('Event: ResyncRequested');
         await handlers.onResync();
+      });
+      hubConnection.on('SystemInfoMessageUpdated', async (systemInfoMessage: SystemInfoMessageDto | null) => {
+        logRealtime('Event: SystemInfoMessageUpdated');
+        await handlers.onSystemInfoMessageUpdated(systemInfoMessage);
       });
 
       hubConnection.onreconnecting(error => {

@@ -1,4 +1,5 @@
 using BoardOil.Abstractions;
+using BoardOil.Abstractions.Configuration;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
@@ -9,6 +10,7 @@ using BoardOil.Abstractions.Tag;
 using BoardOil.Abstractions.Users;
 using BoardOil.Abstractions.Slick;
 using BoardOil.Services.Auth;
+using BoardOil.Services.Configuration;
 using BoardOil.Services.Board;
 using BoardOil.Services.Board.Import;
 using BoardOil.Services.Card;
@@ -50,6 +52,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISystemBoardService, SystemBoardService>();
         services.AddScoped<IBoardAuthorisationService, BoardAuthorisationService>();
         services.AddScoped<IBoardMemberService, BoardMemberService>();
+        services.AddScoped<ISystemInfoMessageService, SystemInfoMessageService>();
         services.AddScoped<IColumnService, ColumnService>();
         services.AddScoped<ICardService, CardService>();
         services.AddScoped<ICardCommentService, CardCommentService>();

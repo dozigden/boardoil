@@ -25,4 +25,28 @@ public sealed class AuthAuthorisationConfigurationIntegrationTests : AuthAuthori
         Assert.Null(envelope.Data.McpPublicBaseUrl);
     }
 
+    [Fact]
+    public async Task AuthenticatedUser_GetSystemInfoMessage_ShouldReturnOk()
+    {
+        // Arrange
+        var adminClient = Factory.CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+
+        // Act
+        var response = await adminClient.GetAsync("/api/system/system-info-message");
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<SystemInfoMessageEnvelope>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.Null(envelope!.Data);
+    }
+
+    private sealed record SystemInfoMessageEnvelope(
+        bool Enabled,
+        string? Emoji,
+        string Title,
+        string Description,
+        string StyleName,
+        string StylePropertiesJson);
 }

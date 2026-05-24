@@ -520,6 +520,51 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Slicks", (string)null);
                 });
 
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntitySystemInfoMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Emoji")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StyleName")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StylePropertiesJson")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SystemInfoMessage", (string)null);
+
+                    b.ToTable(t => t.HasCheckConstraint("CK_SystemInfoMessage_StyleName", "\"StyleName\" IN ('auto', 'presets', 'solid')"));
+                });
+
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityTag", b =>
                 {
                     b.Property<int>("Id")

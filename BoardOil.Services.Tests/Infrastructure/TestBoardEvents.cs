@@ -1,5 +1,6 @@
 using BoardOil.Abstractions;
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Configuration;
 using BoardOil.Contracts.Column;
 
 namespace BoardOil.Services.Tests.Infrastructure;
@@ -23,4 +24,10 @@ public sealed class TestBoardEvents : IBoardEvents
     }
 
     public Task ResyncRequestedAsync(int boardId) => Task.CompletedTask;
+
+    public Task SystemInfoMessageUpdatedAsync(SystemInfoMessageDto? systemInfoMessage)
+    {
+        _ = systemInfoMessage;
+        return Task.CompletedTask;
+    }
 }

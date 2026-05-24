@@ -73,14 +73,48 @@
         </BoDropdown>
       </div>
     </div>
+    <button
+      v-if="activeSystemInfoMessage"
+      type="button"
+      class="system-info-chip system-info-trigger"
+      :class="systemInfoStyleClasses"
+      :style="systemInfoStyle"
+      @click="openSystemInfoDialog"
+    >
+      <span v-if="activeSystemInfoMessage.emoji" class="system-info-chip-emoji">{{ activeSystemInfoMessage.emoji }}</span>
+      <strong>{{ activeSystemInfoMessage.title }}</strong>
+    </button>
   </header>
   <AboutDialog :open="aboutDialogOpen" @close="closeAboutDialog" />
+  <ModalDialog
+    :open="systemInfoDialogOpen"
+    title="System information"
+    close-label="Close system information"
+    @close="closeSystemInfoDialog"
+  >
+    <section v-if="activeSystemInfoMessage" class="system-info-dialog">
+      <header class="system-info-dialog-header">
+        <p
+          class="system-info-chip"
+          :class="systemInfoStyleClasses"
+          :style="systemInfoStyle"
+        >
+          <span v-if="activeSystemInfoMessage.emoji" class="system-info-chip-emoji">{{ activeSystemInfoMessage.emoji }}</span>
+          <strong>{{ activeSystemInfoMessage.title }}</strong>
+        </p>
+      </header>
+      <MdViewer
+        :model-value="activeSystemInfoMessage.description"
+        aria-label="System information"
+      />
+    </section>
+  </ModalDialog>
 </template>
 
 <script setup lang="ts">
 import { CircleUserRound, Settings } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import AboutDialog from './AboutDialog.vue';
 import BoardOilDrop from './BoardOilDrop.vue';
@@ -88,23 +122,54 @@ import BoardOilLogo from './BoardOilLogo.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import HeaderBoardPicker from './HeaderBoardPicker.vue';
+import MdViewer from '../../shared/components/MdViewer.vue';
+import ModalDialog from '../../shared/components/ModalDialog.vue';
 import { getBrandTarget } from './appHeaderNavigation';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useUserProfileImageStore } from '../../shared/stores/userProfileImageStore';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useBoardStore } from '../../board/stores/boardStore';
+import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
+import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
+import type { StylePresentation } from '../../shared/utils/styleTypes';
 const aboutDialogOpen = ref(false);
+const systemInfoDialogOpen = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
 const boardCatalogueStore = useBoardCatalogueStore();
 const boardStore = useBoardStore();
+const systemInfoMessageStore = useSystemInfoMessageStore();
 const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
 const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
 const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId } = storeToRefs(boardStore);
+const { message: systemInfoMessage } = storeToRefs(systemInfoMessageStore);
 const userName = computed(() => user.value?.displayName ?? user.value?.userName ?? '');
 const brandTarget = computed(() => getBrandTarget(boards.value));
+const activeSystemInfoMessage = computed(() => {
+  if (!systemInfoMessage.value?.enabled) {
+    return null;
+  }
+
+  return systemInfoMessage.value;
+});
+const systemInfoStylePresentation = computed<StylePresentation | null>(() => {
+  if (!activeSystemInfoMessage.value) {
+    return null;
+  }
+
+  return {
+    styleName: activeSystemInfoMessage.value.styleName,
+    stylePropertiesJson: activeSystemInfoMessage.value.stylePropertiesJson
+  };
+});
+const systemInfoStyle = computed(() => getSurfaceStyle(systemInfoStylePresentation.value, {
+  fallbackBackground: 'var(--bo-surface-chip)',
+  fallbackColor: 'var(--bo-ink-default)',
+  fallbackBorderColor: 'var(--bo-border-soft)'
+}));
+const systemInfoStyleClasses = computed(() => getSemanticStyleClasses(systemInfoStylePresentation.value, 'tag'));
 const boardAdminTarget = computed(() =>
   currentBoardId.value !== null && board.value
     ? {
@@ -128,6 +193,36 @@ async function openAboutDialog(close?: () => void) {
 function closeAboutDialog() {
   aboutDialogOpen.value = false;
 }
+
+function openSystemInfoDialog() {
+  if (!activeSystemInfoMessage.value) {
+    return;
+  }
+
+  systemInfoDialogOpen.value = true;
+}
+
+function closeSystemInfoDialog() {
+  systemInfoDialogOpen.value = false;
+}
+
+onMounted(async () => {
+  if (!isAuthenticated.value) {
+    return;
+  }
+
+  await systemInfoMessageStore.load();
+});
+
+watch(isAuthenticated, async authenticated => {
+  if (!authenticated) {
+    systemInfoMessageStore.clear();
+    systemInfoDialogOpen.value = false;
+    return;
+  }
+
+  await systemInfoMessageStore.load();
+});
 
 </script>
 
@@ -170,6 +265,38 @@ function closeAboutDialog() {
   min-height: 2rem;
   margin-left: auto;
   flex: 0 0 auto;
+}
+
+.system-info-chip {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
+  background: var(--bo-surface-chip);
+  color: var(--bo-ink-default);
+}
+
+.system-info-chip-emoji {
+  line-height: 1;
+}
+
+.system-info-trigger {
+  margin: 0.4rem 0 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.system-info-dialog {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.system-info-dialog-header {
+  margin: 0;
 }
 
 .brand-title {
@@ -264,7 +391,7 @@ function closeAboutDialog() {
 
   .header-top {
     align-items: center;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 0.35rem;
   }
 
@@ -302,6 +429,11 @@ function closeAboutDialog() {
 
   .header-board-admin-link {
     margin-left: 0;
+  }
+
+  .system-info-chip {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.55rem;
   }
 }
 </style>

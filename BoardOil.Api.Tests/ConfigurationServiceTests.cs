@@ -16,7 +16,7 @@ public sealed class ConfigurationServiceTests
         // Arrange
         var repository = new InMemoryAppSettingRepository();
         var scopes = new FakeDbContextScopeFactory();
-        var service = CreateService(repository, scopes);
+        var service = CreateConfigurationService(repository, scopes);
 
         // Act
         var result = await service.GetConfigurationAsync();
@@ -34,7 +34,7 @@ public sealed class ConfigurationServiceTests
         // Arrange
         var repository = new InMemoryAppSettingRepository();
         var scopes = new FakeDbContextScopeFactory();
-        var service = CreateService(repository, scopes);
+        var service = CreateConfigurationService(repository, scopes);
 
         // Act
         var result = await service.UpdateConfigurationAsync(new UpdateConfigurationRequest("https://boardoil.example.com/"));
@@ -58,10 +58,10 @@ public sealed class ConfigurationServiceTests
         repository.Add(new EntityAppSetting
         {
             Key = "mcp_public_base_url",
-            Value = "https://old.example.com",
+            Value = "https://old.example.com"
         });
         var scopes = new FakeDbContextScopeFactory();
-        var service = CreateService(repository, scopes);
+        var service = CreateConfigurationService(repository, scopes);
 
         // Act
         var result = await service.UpdateConfigurationAsync(new UpdateConfigurationRequest(null));
@@ -82,10 +82,10 @@ public sealed class ConfigurationServiceTests
         repository.Add(new EntityAppSetting
         {
             Key = "mcp_public_base_url",
-            Value = "https://stable.example.com",
+            Value = "https://stable.example.com"
         });
         var scopes = new FakeDbContextScopeFactory();
-        var service = CreateService(repository, scopes);
+        var service = CreateConfigurationService(repository, scopes);
 
         // Act
         var result = await service.UpdateConfigurationAsync(new UpdateConfigurationRequest("relative/path"));
@@ -100,13 +100,16 @@ public sealed class ConfigurationServiceTests
         Assert.Equal("https://stable.example.com", persisted!.Value);
     }
 
-    private static ConfigurationService CreateService(InMemoryAppSettingRepository repository, FakeDbContextScopeFactory scopes)
+    private static ConfigurationService CreateConfigurationService(
+        InMemoryAppSettingRepository appSettingRepository,
+        FakeDbContextScopeFactory scopes)
     {
         var jwtOptions = new JwtAuthOptions
         {
             AllowInsecureCookies = true
         };
-        return new ConfigurationService(jwtOptions, scopes, repository);
+
+        return new ConfigurationService(jwtOptions, scopes, appSettingRepository);
     }
 
     private sealed class InMemoryAppSettingRepository : IAppSettingRepository

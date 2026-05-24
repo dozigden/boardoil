@@ -9,6 +9,7 @@ import { useCardTypeStore } from './cardTypeStore';
 import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
 import { useSlickStore } from './slickStore';
+import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
 import type { Board, BoardSummary, Column } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
@@ -29,6 +30,7 @@ export const useBoardStore = defineStore('board', () => {
   const tagStore = useTagStore();
   const slickStore = useSlickStore();
   const api = createBoardApi();
+  const systemInfoMessageStore = useSystemInfoMessageStore();
   const board = computed<Board | null>(() => {
     if (!boardShell.value) {
       return null;
@@ -54,12 +56,14 @@ export const useBoardStore = defineStore('board', () => {
     onCardDeleted: cardStore.removeCard,
     onCardMoved: cardStore.upsertCard,
     onCommentCreated: commentStore.upsertCardComment,
+    onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
     onResync: async () => {
       if (currentBoardId.value !== null) {
         await loadBoard(currentBoardId.value);
         await cardTypeStore.loadCardTypes(currentBoardId.value);
         await tagStore.loadTags(currentBoardId.value);
         await slickStore.loadSlicks(currentBoardId.value);
+        await systemInfoMessageStore.load(true);
       }
     }
   });

@@ -19,6 +19,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityRefreshToken> RefreshTokens => Set<EntityRefreshToken>();
     public DbSet<EntityPersonalAccessToken> PersonalAccessTokens => Set<EntityPersonalAccessToken>();
     public DbSet<EntityAppSetting> AppSettings => Set<EntityAppSetting>();
+    public DbSet<EntitySystemInfoMessage> SystemInfoMessages => Set<EntitySystemInfoMessage>();
     public DbSet<EntityImage> Images => Set<EntityImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

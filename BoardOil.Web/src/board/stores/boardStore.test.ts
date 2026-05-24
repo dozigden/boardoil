@@ -23,6 +23,10 @@ const realtime = {
   disconnect: vi.fn()
 };
 let realtimeHandlers: { onResync: () => Promise<unknown> | unknown } | null = null;
+const systemInfoMessageStore = {
+  setMessage: vi.fn(),
+  load: vi.fn(async () => true)
+};
 
 vi.mock('../../shared/api/boardApi', () => ({
   createBoardApi: () => api
@@ -35,11 +39,17 @@ vi.mock('../realtime/boardRealtime', () => ({
   })
 }));
 
+vi.mock('../../shared/stores/systemInfoMessageStore', () => ({
+  useSystemInfoMessageStore: () => systemInfoMessageStore
+}));
+
 describe('boardStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     realtimeHandlers = null;
+    systemInfoMessageStore.setMessage.mockReset();
+    systemInfoMessageStore.load.mockClear();
     api.getBoard.mockResolvedValue(ok(makeBoard()));
     realtime.connect.mockResolvedValue(undefined);
     realtime.disconnect.mockResolvedValue(undefined);

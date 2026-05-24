@@ -13,7 +13,7 @@ import type {
   UpdateClientAccountRequest,
   UpdateManagedUserRequest
 } from '../types/authTypes';
-import type { ConfigurationDto, UpdateConfigurationRequest } from '../types/configurationTypes';
+import type { ConfigurationDto, SystemInfoMessageDto, UpdateConfigurationRequest } from '../types/configurationTypes';
 import { err, ok } from '../types/result';
 import { deleteJson, getEnvelope, patchData, postData, postFormData, putData, putJson } from './http';
 
@@ -38,6 +38,19 @@ export function createSystemApi() {
 
   async function updateConfiguration(request: UpdateConfigurationRequest): Promise<Result<ConfigurationDto, AppError>> {
     return putData<ConfigurationDto>('/api/system/configuration', request);
+  }
+
+  async function getSystemInfoMessage(): Promise<Result<SystemInfoMessageDto | null, AppError>> {
+    const result = await getEnvelope<SystemInfoMessageDto | null>('/api/system/system-info-message');
+    if (!result.ok) {
+      return result;
+    }
+
+    return ok(result.data.data ?? null);
+  }
+
+  async function updateSystemInfoMessage(request: SystemInfoMessageDto | null): Promise<Result<SystemInfoMessageDto | null, AppError>> {
+    return putData<SystemInfoMessageDto | null>('/api/system/system-info-message', request);
   }
 
   async function getBoards(): Promise<Result<SystemBoardSummary[], AppError>> {
@@ -162,6 +175,8 @@ export function createSystemApi() {
   return {
     getConfiguration,
     updateConfiguration,
+    getSystemInfoMessage,
+    updateSystemInfoMessage,
     getBoards,
     getBoardMembers,
     addBoardMember,

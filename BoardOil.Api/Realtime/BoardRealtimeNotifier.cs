@@ -1,5 +1,6 @@
 using BoardOil.Abstractions;
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Configuration;
 using BoardOil.Contracts.Column;
 using Microsoft.AspNetCore.SignalR;
 
@@ -35,6 +36,9 @@ public sealed class BoardRealtimeNotifier(
 
     public Task ResyncRequestedAsync(int boardId) =>
         TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ResyncRequested"), nameof(ResyncRequestedAsync));
+
+    public Task SystemInfoMessageUpdatedAsync(SystemInfoMessageDto? systemInfoMessage) =>
+        TryPublishAsync(() => hubContext.Clients.All.SendAsync("SystemInfoMessageUpdated", systemInfoMessage), nameof(SystemInfoMessageUpdatedAsync));
 
     private async Task TryPublishAsync(Func<Task> publish, string eventName)
     {

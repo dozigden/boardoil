@@ -101,6 +101,7 @@ describe('boardRealtime', () => {
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
+      onSystemInfoMessageUpdated: vi.fn(),
       onResync
     });
 
@@ -123,6 +124,7 @@ describe('boardRealtime', () => {
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
+      onSystemInfoMessageUpdated: vi.fn(),
       onResync
     });
 
@@ -144,6 +146,7 @@ describe('boardRealtime', () => {
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
       onCommentCreated,
+      onSystemInfoMessageUpdated: vi.fn(),
       onResync: vi.fn()
     });
 
@@ -162,6 +165,38 @@ describe('boardRealtime', () => {
     expect(onCommentCreated).toHaveBeenCalledWith(comment);
   });
 
+  it('forwards system info message update events to handler', async () => {
+    const onSystemInfoMessageUpdated = vi.fn(async () => undefined);
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(),
+      onColumnUpdated: vi.fn(),
+      onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(),
+      onCardUpdated: vi.fn(),
+      onCardDeleted: vi.fn(),
+      onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(),
+      onSystemInfoMessageUpdated,
+      onResync: vi.fn()
+    });
+
+    const payload = {
+      enabled: true,
+      emoji: '⚠️',
+      title: 'Maintenance',
+      description: 'Service update incoming.',
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":4}'
+    };
+
+    await realtime.connect(42);
+    await connection.eventHandlers.SystemInfoMessageUpdated?.(payload);
+
+    expect(onSystemInfoMessageUpdated).toHaveBeenCalledTimes(1);
+    expect(onSystemInfoMessageUpdated).toHaveBeenCalledWith(payload);
+  });
+
   it('still stops connection when unsubscribe fails during disconnect', async () => {
     const { createBoardRealtime } = await import('./boardRealtime');
     const realtime = createBoardRealtime({
@@ -173,6 +208,7 @@ describe('boardRealtime', () => {
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
+      onSystemInfoMessageUpdated: vi.fn(),
       onResync: vi.fn()
     });
     connection.invoke.mockImplementation(async (method: string) => {
@@ -214,6 +250,7 @@ describe('boardRealtime', () => {
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
+      onSystemInfoMessageUpdated: vi.fn(),
       onResync: vi.fn()
     });
 
@@ -249,6 +286,7 @@ describe('boardRealtime', () => {
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
+      onSystemInfoMessageUpdated: vi.fn(),
       onResync: vi.fn()
     });
 
@@ -280,6 +318,7 @@ describe('boardRealtime', () => {
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
+      onSystemInfoMessageUpdated: vi.fn(),
       onResync: vi.fn()
     });
 
@@ -309,6 +348,7 @@ describe('boardRealtime', () => {
       onCardDeleted: vi.fn(),
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
+      onSystemInfoMessageUpdated: vi.fn(),
       onResync: vi.fn()
     });
 
