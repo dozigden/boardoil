@@ -283,10 +283,10 @@ import { useCommentStore } from '../stores/commentStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
 import { resolveSelectedCardTypeEmoji } from './cardTypeSelection';
-import { createEditModelFromCard } from '../mappers/cardEditModel';
+import { useCardEditDraft } from '../composables/useCardEditDraft';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
 import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
-import type { Card, CardEditModel } from '../../shared/types/boardTypes';
+import type { Card } from '../../shared/types/boardTypes';
 
 const route = useRoute();
 const router = useRouter();
@@ -311,10 +311,16 @@ const { ensureTagsExist } = tagStore;
 const { confirm } = useConfirm();
 const maxDescriptionLength = 20_000;
 const maxCommentLength = 4_000;
-const cardDraft = ref<CardEditModel | null>(null);
-const cardDraftId = ref<number | null>(null);
+const {
+  cardDraft,
+  cardDraftId,
+  isDirty: isCardDraftDirty,
+  clearDraft: clearCardDraft,
+  initializeDraftFromCard,
+  patchDraft
+} = useCardEditDraft();
 const newCommentText = ref('');
-const isDirty = ref(false);
+const isCommentDraftDirty = ref(false);
 const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const commentEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const activeEditor = ref<'description' | 'comment'>('description');
@@ -405,7 +411,7 @@ const activeIsPlainTextMode = computed(() => {
     commentIsPlainTextMode.value
   );
 });
-const hasUnsavedChanges = computed(() => isDirty.value);
+const hasUnsavedChanges = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value);
 
 function setActiveEditor(editor: 'description' | 'comment') {
   activeEditor.value = editor;
@@ -459,13 +465,16 @@ function formatCommentDateTime(value: string) {
 }
 
 function clearDraft() {
-  cardDraft.value = null;
-  cardDraftId.value = null;
-  newCommentText.value = '';
-  isDirty.value = false;
+  clearCardDraft();
+  resetCommentDraft();
   activeEditor.value = 'description';
   descriptionEditorFocused.value = false;
   commentEditorFocused.value = false;
+}
+
+function resetCommentDraft() {
+  newCommentText.value = '';
+  isCommentDraftDirty.value = false;
 }
 
 async function confirmDiscardUnsavedChanges() {
@@ -507,63 +516,38 @@ async function closeCardEditorInternal(skipUnsavedGuard: boolean) {
   await router.push({ name: 'board', params: { boardId } });
 }
 
-function updateEditingCardDraft(field: 'title' | 'description', value: string) {
+function updateDraftTitleFromEditor(value: string) {
+  if (cardDraft.value?.title === value) {
+    return;
+  }
+
+  patchDraft({ title: value }, true);
+}
+
+function updateDraftDescriptionFromEditor(value: string) {
   if (!cardDraft.value) {
     return;
   }
 
-  cardDraft.value = { ...cardDraft.value, [field]: value };
-}
-
-function updateDraftTitleFromEditor(value: string) {
-  if (cardDraft.value?.title !== value) {
-    isDirty.value = true;
-  }
-  updateEditingCardDraft('title', value);
-}
-
-function updateDraftDescriptionFromEditor(value: string) {
-  if (descriptionEditorFocused.value && cardDraft.value?.description !== value) {
-    isDirty.value = true;
-  }
-  updateEditingCardDraft('description', value);
+  const hasChanged = cardDraft.value.description !== value;
+  patchDraft({ description: value }, descriptionEditorFocused.value && hasChanged);
 }
 
 function updateCommentDraftFromEditor(value: string) {
   if (commentEditorFocused.value && newCommentText.value !== value) {
-    isDirty.value = true;
+    isCommentDraftDirty.value = true;
   }
   newCommentText.value = value;
 }
 
 function updateDraftTagNamesFromEditor(tagNames: string[]) {
-  if (!cardDraft.value) {
-    return;
-  }
-
-  const currentTagNames = cardDraft.value.tagNames;
-  cardDraft.value = {
-    ...cardDraft.value,
+  patchDraft({
     tagNames: [...tagNames]
-  };
-  if (currentTagNames.join('\u0001') !== tagNames.join('\u0001')) {
-    isDirty.value = true;
-  }
+  }, true);
 }
 
 function updateDraftSlickNameFromEditor(slickName: string | null) {
-  if (!cardDraft.value) {
-    return;
-  }
-
-  if (cardDraft.value.slickName !== slickName) {
-    isDirty.value = true;
-  }
-
-  cardDraft.value = {
-    ...cardDraft.value,
-    slickName
-  };
+  patchDraft({ slickName }, true);
 }
 
 function handleDescriptionEditorFocus() {
@@ -585,50 +569,17 @@ function handleCommentEditorBlur() {
 }
 
 function setDraftCardTypeId(cardTypeId: number, close?: () => void) {
-  if (!cardDraft.value) {
-    return;
-  }
-
-  if (cardDraft.value.cardTypeId !== cardTypeId) {
-    isDirty.value = true;
-  }
-
-  cardDraft.value = {
-    ...cardDraft.value,
-    cardTypeId
-  };
+  patchDraft({ cardTypeId }, true);
   close?.();
 }
 
 function setDraftBoardColumnId(boardColumnId: number, close?: () => void) {
-  if (!cardDraft.value) {
-    return;
-  }
-
-  if (cardDraft.value.boardColumnId !== boardColumnId) {
-    isDirty.value = true;
-  }
-
-  cardDraft.value = {
-    ...cardDraft.value,
-    boardColumnId
-  };
+  patchDraft({ boardColumnId }, true);
   close?.();
 }
 
 function setDraftAssignedUserId(assignedUserId: number | null, close?: () => void) {
-  if (!cardDraft.value) {
-    return;
-  }
-
-  if (cardDraft.value.assignedUserId !== assignedUserId) {
-    isDirty.value = true;
-  }
-
-  cardDraft.value = {
-    ...cardDraft.value,
-    assignedUserId
-  };
+  patchDraft({ assignedUserId }, true);
   close?.();
 }
 
@@ -668,16 +619,13 @@ async function ensureEditorLookupsLoaded(boardId: number, isCancelled: () => boo
 }
 
 function initializeDraftForCard(nextCard: Card) {
-  if (cardDraftId.value === nextCard.id) {
+  const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
+  const draftInitialized = initializeDraftFromCard(refreshedCard);
+  if (!draftInitialized) {
     return false;
   }
 
-  const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
-  cardDraftId.value = refreshedCard.id;
-  const draft = createEditModelFromCard(refreshedCard);
-  newCommentText.value = '';
-  cardDraft.value = draft;
-  isDirty.value = false;
+  resetCommentDraft();
   return true;
 }
 
@@ -715,7 +663,7 @@ async function addComment() {
     return;
   }
 
-  newCommentText.value = '';
+  resetCommentDraft();
 }
 
 async function deleteEditingCard() {
