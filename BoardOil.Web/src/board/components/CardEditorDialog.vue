@@ -58,7 +58,7 @@
               :max-length="maxDescriptionLength"
               min-height="12rem"
               :show-toolbar="false"
-              @update:model-value="updateDraftDescriptionFromEditor"
+              @update:model-value="handleDescriptionEditorValueUpdate"
               @focus="handleDescriptionEditorFocus"
               @blur="handleDescriptionEditorBlur"
               @toolbar-state-change="updateToolbarState('description', $event)"
@@ -317,7 +317,8 @@ const {
   isDirty: isCardDraftDirty,
   clearDraft: clearCardDraft,
   initializeDraftFromCard,
-  patchDraft
+  patchFromUser,
+  patchFromSystem
 } = useCardEditDraft();
 const newCommentText = ref('');
 const isCommentDraftDirty = ref(false);
@@ -521,16 +522,34 @@ function updateDraftTitleFromEditor(value: string) {
     return;
   }
 
-  patchDraft({ title: value }, true);
+  patchFromUser({ title: value });
 }
 
-function updateDraftDescriptionFromEditor(value: string) {
+function applyUserDescriptionEdit(value: string) {
+  patchFromUser({ description: value });
+}
+
+function syncDescriptionFromEditor(value: string) {
+  patchFromSystem({ description: value });
+}
+
+function handleDescriptionEditorValueUpdate(value: string) {
   if (!cardDraft.value) {
     return;
   }
 
   const hasChanged = cardDraft.value.description !== value;
-  patchDraft({ description: value }, descriptionEditorFocused.value && hasChanged);
+  if (!hasChanged) {
+    return;
+  }
+
+  if (descriptionEditorFocused.value) {
+    applyUserDescriptionEdit(value);
+    return;
+  }
+
+  // Rich editor lifecycle updates can emit model changes without direct typing.
+  syncDescriptionFromEditor(value);
 }
 
 function updateCommentDraftFromEditor(value: string) {
@@ -541,13 +560,13 @@ function updateCommentDraftFromEditor(value: string) {
 }
 
 function updateDraftTagNamesFromEditor(tagNames: string[]) {
-  patchDraft({
+  patchFromUser({
     tagNames: [...tagNames]
-  }, true);
+  });
 }
 
 function updateDraftSlickNameFromEditor(slickName: string | null) {
-  patchDraft({ slickName }, true);
+  patchFromUser({ slickName });
 }
 
 function handleDescriptionEditorFocus() {
@@ -569,17 +588,17 @@ function handleCommentEditorBlur() {
 }
 
 function setDraftCardTypeId(cardTypeId: number, close?: () => void) {
-  patchDraft({ cardTypeId }, true);
+  patchFromUser({ cardTypeId });
   close?.();
 }
 
 function setDraftBoardColumnId(boardColumnId: number, close?: () => void) {
-  patchDraft({ boardColumnId }, true);
+  patchFromUser({ boardColumnId });
   close?.();
 }
 
 function setDraftAssignedUserId(assignedUserId: number | null, close?: () => void) {
-  patchDraft({ assignedUserId }, true);
+  patchFromUser({ assignedUserId });
   close?.();
 }
 

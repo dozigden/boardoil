@@ -26,7 +26,7 @@ function makeCard(overrides?: Partial<Card>): Card {
 }
 
 describe('useCardEditDraft', () => {
-  it('keeps dirty false for no-op patches and marks dirty only when asked and changed', () => {
+  it('keeps dirty false for system patches and marks dirty for user changes', () => {
     const model = useCardEditDraft();
     const card = makeCard();
 
@@ -34,16 +34,13 @@ describe('useCardEditDraft', () => {
     expect(initialised).toBe(true);
     expect(model.isDirty.value).toBe(false);
 
-    model.patchDraft({ description: card.description }, true);
+    model.patchFromSystem({ description: 'System-normalised description' });
     expect(model.isDirty.value).toBe(false);
 
-    model.patchDraft({ title: 'Changed title' });
+    model.patchFromSystem({ description: card.description });
     expect(model.isDirty.value).toBe(false);
 
-    model.patchDraft({ title: 'Changed title' }, true);
-    expect(model.isDirty.value).toBe(false);
-
-    model.patchDraft({ title: 'Changed title 2' }, true);
+    model.patchFromUser({ title: 'Changed title' });
     expect(model.isDirty.value).toBe(true);
   });
 
@@ -52,7 +49,7 @@ describe('useCardEditDraft', () => {
     const card = makeCard({ id: 33 });
 
     expect(model.initializeDraftFromCard(card)).toBe(true);
-    model.patchDraft({ slickName: 'Roadmap' }, true);
+    model.patchFromUser({ slickName: 'Roadmap' });
     expect(model.isDirty.value).toBe(true);
 
     expect(model.initializeDraftFromCard(card)).toBe(false);

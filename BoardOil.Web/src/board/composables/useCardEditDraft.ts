@@ -36,11 +36,13 @@ function cloneCardEditModel(model: CardEditModel): CardEditModel {
 export function useCardEditDraft() {
   const cardDraft = ref<CardEditModel | null>(null);
   const cardDraftId = ref<number | null>(null);
+  const baselineDraft = ref<CardEditModel | null>(null);
   const isDirty = ref(false);
 
   function clearDraft() {
     cardDraft.value = null;
     cardDraftId.value = null;
+    baselineDraft.value = null;
     isDirty.value = false;
   }
 
@@ -51,23 +53,36 @@ export function useCardEditDraft() {
 
     const nextDraft = createEditModelFromCard(card);
     cardDraft.value = cloneCardEditModel(nextDraft);
+    baselineDraft.value = cloneCardEditModel(nextDraft);
     cardDraftId.value = card.id;
     isDirty.value = false;
     return true;
   }
 
-  function patchDraft(update: Partial<CardEditModel>, markDirty = false) {
+  function patchFromSystem(update: Partial<CardEditModel>) {
+    if (cardDraft.value === null) {
+      return;
+    }
+
+    cardDraft.value = {
+      ...cardDraft.value,
+      ...update
+    };
+  }
+
+  function patchFromUser(update: Partial<CardEditModel>) {
     if (cardDraft.value === null) {
       return;
     }
 
     const previousDraft = cardDraft.value;
-    cardDraft.value = {
+    const nextDraft = {
       ...previousDraft,
       ...update
     };
+    cardDraft.value = nextDraft;
 
-    if (markDirty && !areCardEditModelsEqual(cardDraft.value, previousDraft)) {
+    if (!isDirty.value && !areCardEditModelsEqual(nextDraft, previousDraft)) {
       isDirty.value = true;
     }
   }
@@ -78,6 +93,7 @@ export function useCardEditDraft() {
     isDirty,
     clearDraft,
     initializeDraftFromCard,
-    patchDraft
+    patchFromUser,
+    patchFromSystem
   };
 }

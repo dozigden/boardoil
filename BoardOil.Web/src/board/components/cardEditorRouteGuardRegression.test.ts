@@ -7,7 +7,11 @@ function countOccurrences(content: string, fragment: string) {
 
 describe('CardEditorDialog unsaved-change guard wiring', () => {
   it('keeps description and comment dirty tracking focus-gated', () => {
-    expect(dialogSfc.includes('patchDraft({ description: value }, descriptionEditorFocused.value && hasChanged);')).toBe(true);
+    expect(dialogSfc.includes('function applyUserDescriptionEdit(value: string) {')).toBe(true);
+    expect(dialogSfc.includes('function syncDescriptionFromEditor(value: string) {')).toBe(true);
+    expect(dialogSfc.includes('if (descriptionEditorFocused.value) {')).toBe(true);
+    expect(dialogSfc.includes('applyUserDescriptionEdit(value);')).toBe(true);
+    expect(dialogSfc.includes('syncDescriptionFromEditor(value);')).toBe(true);
     expect(dialogSfc.includes('if (commentEditorFocused.value && newCommentText.value !== value) {')).toBe(true);
   });
 
