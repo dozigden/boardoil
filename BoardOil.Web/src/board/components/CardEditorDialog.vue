@@ -34,7 +34,8 @@
         <CardTitleEditor
           v-if="cardDraft"
           :card-id="cardDraftId ?? 0"
-          v-model:title="cardDraft.title"
+          :title="cardDraft.title"
+          @update:title="updateDraftTitleFromEditor"
         />
         <span v-else>Edit Card</span>
       </div>
@@ -52,12 +53,14 @@
           <div class="card-editor-description-field">
             <MdEditor
               ref="descriptionEditorRef"
-              v-model="descriptionDraft"
+              :model-value="cardDraft.description"
               aria-label="Card description"
               :max-length="maxDescriptionLength"
               min-height="12rem"
               :show-toolbar="false"
-              @focus="setActiveEditor('description')"
+              @update:model-value="updateDraftDescriptionFromEditor"
+              @focus="handleDescriptionEditorFocus"
+              @blur="handleDescriptionEditorBlur"
               @toolbar-state-change="updateToolbarState('description', $event)"
               @plain-text-mode-change="updatePlainTextMode('description', $event)"
             />
@@ -68,12 +71,14 @@
               <div class="card-editor-comment-entry-row">
                 <MdEditor
                   ref="commentEditorRef"
-                  v-model="newCommentText"
+                  :model-value="newCommentText"
                   aria-label="Comment"
                   :max-length="maxCommentLength"
                   :min-height="newCommentText.trim().length === 0 ? '3rem' : '6rem'"
                   :show-toolbar="false"
-                  @focus="setActiveEditor('comment')"
+                  @update:model-value="updateCommentDraftFromEditor"
+                  @focus="handleCommentEditorFocus"
+                  @blur="handleCommentEditorBlur"
                   @toolbar-state-change="updateToolbarState('comment', $event)"
                   @plain-text-mode-change="updatePlainTextMode('comment', $event)"
                 />
@@ -126,7 +131,8 @@
         <aside class="card-editor-options" aria-label="Card options">
           <div class="card-editor-option-section">
             <CardTagEditor
-              v-model:tag-names="cardDraft.tagNames"
+              :tag-names="cardDraft.tagNames"
+              @update:tag-names="updateDraftTagNamesFromEditor"
               :ensure-tags-exist="tagNames => ensureTagsExist(tagNames, routeBoardId)"
             />
           </div>
@@ -228,7 +234,11 @@
             </div>
           </div>
 
-          <CardSlickPicker v-model:slick-name="cardDraft.slickName" :slicks="slicks" />
+          <CardSlickPicker
+            :slick-name="cardDraft.slickName"
+            :slicks="slicks"
+            @update:slick-name="updateDraftSlickNameFromEditor"
+          />
 
         </aside>
       </div>
@@ -302,12 +312,14 @@ const { confirm } = useConfirm();
 const maxDescriptionLength = 20_000;
 const maxCommentLength = 4_000;
 const cardDraft = ref<CardEditModel | null>(null);
-const originalCardDraft = ref<CardEditModel | null>(null);
 const cardDraftId = ref<number | null>(null);
 const newCommentText = ref('');
+const isDirty = ref(false);
 const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const commentEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const activeEditor = ref<'description' | 'comment'>('description');
+const descriptionEditorFocused = ref(false);
+const commentEditorFocused = ref(false);
 const descriptionToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>({});
 const commentToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>({});
 const descriptionIsPlainTextMode = ref(false);
@@ -375,13 +387,6 @@ const selectedAssignedMember = computed(() => {
 
   return boardMembers.value.find(x => x.userId === cardDraft.value!.assignedUserId) ?? null;
 });
-const descriptionDraft = computed({
-  get: () => {
-    const draft = cardDraft.value;
-    return draft === null ? '' : draft.description;
-  },
-  set: value => updateEditingCardDraft('description', value)
-});
 const disabledToolbarState = computed<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>(() => {
   return createDisabledToolbarState(mdEditorToolbarActions.map(action => action.id));
 });
@@ -400,19 +405,7 @@ const activeIsPlainTextMode = computed(() => {
     commentIsPlainTextMode.value
   );
 });
-const hasUnsavedChanges = computed(() => {
-  const draft = cardDraft.value;
-  const originalDraft = originalCardDraft.value;
-  if (!draft || !originalDraft) {
-    return false;
-  }
-
-  if (cardEditModelKey(draft) !== cardEditModelKey(originalDraft)) {
-    return true;
-  }
-
-  return newCommentText.value.trim().length > 0;
-});
+const hasUnsavedChanges = computed(() => isDirty.value);
 
 function setActiveEditor(editor: 'description' | 'comment') {
   activeEditor.value = editor;
@@ -467,29 +460,12 @@ function formatCommentDateTime(value: string) {
 
 function clearDraft() {
   cardDraft.value = null;
-  originalCardDraft.value = null;
   cardDraftId.value = null;
   newCommentText.value = '';
+  isDirty.value = false;
   activeEditor.value = 'description';
-}
-
-function cloneCardEditModel(model: CardEditModel): CardEditModel {
-  return {
-    ...model,
-    tagNames: [...model.tagNames]
-  };
-}
-
-function cardEditModelKey(model: CardEditModel) {
-  return JSON.stringify([
-    model.title,
-    model.description,
-    model.cardTypeId,
-    model.boardColumnId,
-    model.assignedUserId,
-    model.slickName,
-    model.tagNames
-  ]);
+  descriptionEditorFocused.value = false;
+  commentEditorFocused.value = false;
 }
 
 async function confirmDiscardUnsavedChanges() {
@@ -539,9 +515,82 @@ function updateEditingCardDraft(field: 'title' | 'description', value: string) {
   cardDraft.value = { ...cardDraft.value, [field]: value };
 }
 
+function updateDraftTitleFromEditor(value: string) {
+  if (cardDraft.value?.title !== value) {
+    isDirty.value = true;
+  }
+  updateEditingCardDraft('title', value);
+}
+
+function updateDraftDescriptionFromEditor(value: string) {
+  if (descriptionEditorFocused.value && cardDraft.value?.description !== value) {
+    isDirty.value = true;
+  }
+  updateEditingCardDraft('description', value);
+}
+
+function updateCommentDraftFromEditor(value: string) {
+  if (commentEditorFocused.value && newCommentText.value !== value) {
+    isDirty.value = true;
+  }
+  newCommentText.value = value;
+}
+
+function updateDraftTagNamesFromEditor(tagNames: string[]) {
+  if (!cardDraft.value) {
+    return;
+  }
+
+  const currentTagNames = cardDraft.value.tagNames;
+  cardDraft.value = {
+    ...cardDraft.value,
+    tagNames: [...tagNames]
+  };
+  if (currentTagNames.join('\u0001') !== tagNames.join('\u0001')) {
+    isDirty.value = true;
+  }
+}
+
+function updateDraftSlickNameFromEditor(slickName: string | null) {
+  if (!cardDraft.value) {
+    return;
+  }
+
+  if (cardDraft.value.slickName !== slickName) {
+    isDirty.value = true;
+  }
+
+  cardDraft.value = {
+    ...cardDraft.value,
+    slickName
+  };
+}
+
+function handleDescriptionEditorFocus() {
+  descriptionEditorFocused.value = true;
+  setActiveEditor('description');
+}
+
+function handleDescriptionEditorBlur() {
+  descriptionEditorFocused.value = false;
+}
+
+function handleCommentEditorFocus() {
+  commentEditorFocused.value = true;
+  setActiveEditor('comment');
+}
+
+function handleCommentEditorBlur() {
+  commentEditorFocused.value = false;
+}
+
 function setDraftCardTypeId(cardTypeId: number, close?: () => void) {
   if (!cardDraft.value) {
     return;
+  }
+
+  if (cardDraft.value.cardTypeId !== cardTypeId) {
+    isDirty.value = true;
   }
 
   cardDraft.value = {
@@ -556,6 +605,10 @@ function setDraftBoardColumnId(boardColumnId: number, close?: () => void) {
     return;
   }
 
+  if (cardDraft.value.boardColumnId !== boardColumnId) {
+    isDirty.value = true;
+  }
+
   cardDraft.value = {
     ...cardDraft.value,
     boardColumnId
@@ -566,6 +619,10 @@ function setDraftBoardColumnId(boardColumnId: number, close?: () => void) {
 function setDraftAssignedUserId(assignedUserId: number | null, close?: () => void) {
   if (!cardDraft.value) {
     return;
+  }
+
+  if (cardDraft.value.assignedUserId !== assignedUserId) {
+    isDirty.value = true;
   }
 
   cardDraft.value = {
@@ -618,8 +675,9 @@ function initializeDraftForCard(nextCard: Card) {
   const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
   cardDraftId.value = refreshedCard.id;
   const draft = createEditModelFromCard(refreshedCard);
+  newCommentText.value = '';
   cardDraft.value = draft;
-  originalCardDraft.value = cloneCardEditModel(draft);
+  isDirty.value = false;
   return true;
 }
 
