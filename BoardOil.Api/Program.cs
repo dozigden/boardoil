@@ -112,10 +112,6 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 app.InitialiseMcpServiceProvider();
 
-if (jwtOptions.AllowInsecureCookies)
-{
-    app.Logger.LogWarning("Auth cookies are configured with Secure=false. This should only be used for local/home-lab HTTP setups.");
-}
 app.LogMcpStartupWarnings();
 
 await app.Services.InitializeBoardOilEfInfrastructureAsync();
