@@ -4,19 +4,15 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 mode="auto"
-base_ref=""
 
 for arg in "$@"; do
   case "$arg" in
     --api-only|--services-only|--web-only|--backend-only|--full)
       mode="${arg#--}"
       ;;
-    --base=*)
-      base_ref="${arg#--base=}"
-      ;;
     --help|-h)
       cat <<'USAGE'
-Usage: scripts/test-fast.sh [--api-only|--services-only|--web-only|--backend-only|--full] [--base=<git-ref>]
+Usage: scripts/test-fast.sh [--api-only|--services-only|--web-only|--backend-only|--full]
 
 Default mode is auto (changed-area detection):
 - BoardOil.Services/**                  -> Services tests
@@ -25,11 +21,9 @@ Default mode is auto (changed-area detection):
 - Shared backend (Contracts/Abstractions/Ef/Persistence) -> API + Services tests
 - Tooling/workflow/global files         -> API + Services tests
 
-Diff source priority:
-1) --base=<ref> if provided
-2) origin/main...HEAD if origin/main exists
-3) merge-base(main, HEAD)...HEAD if main exists
-4) staged + unstaged working tree changes
+Diff source:
+- staged + unstaged working tree changes
+- untracked files
 USAGE
       exit 0
       ;;
@@ -47,22 +41,19 @@ run_services=false
 run_web=false
 
 run_backend_release_tests() {
-  echo "[test-fast] Running backend tests (Release, no-build)"
-  dotnet build BoardOil.slnx --configuration Release -maxcpucount:1 -nodeReuse:false
-  dotnet BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll
-  dotnet BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll
+  echo "[test-fast] Running backend tests (Release, targeted projects)"
+  dotnet test BoardOil.Api.Tests/BoardOil.Api.Tests.csproj --configuration Release -maxcpucount:1 -nodeReuse:false
+  dotnet test BoardOil.Services.Tests/BoardOil.Services.Tests.csproj --configuration Release -maxcpucount:1 -nodeReuse:false
 }
 
 run_api_release_tests() {
-  echo "[test-fast] Running API tests (Release, no-build)"
-  dotnet build BoardOil.slnx --configuration Release -maxcpucount:1 -nodeReuse:false
-  dotnet BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll
+  echo "[test-fast] Running API tests (Release, targeted project)"
+  dotnet test BoardOil.Api.Tests/BoardOil.Api.Tests.csproj --configuration Release -maxcpucount:1 -nodeReuse:false
 }
 
 run_services_release_tests() {
-  echo "[test-fast] Running Services tests (Release, no-build)"
-  dotnet build BoardOil.slnx --configuration Release -maxcpucount:1 -nodeReuse:false
-  dotnet BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll
+  echo "[test-fast] Running Services tests (Release, targeted project)"
+  dotnet test BoardOil.Services.Tests/BoardOil.Services.Tests.csproj --configuration Release -maxcpucount:1 -nodeReuse:false
 }
 
 run_web_checks() {
@@ -99,25 +90,13 @@ if [[ "$mode" != "auto" ]]; then
   exit 0
 fi
 
-changed_files=""
-if [[ -n "$base_ref" ]]; then
-  changed_files="$(git diff --name-only "$base_ref"...HEAD || true)"
-elif git rev-parse --verify origin/main >/dev/null 2>&1; then
-  changed_files="$(git diff --name-only origin/main...HEAD || true)"
-elif git rev-parse --verify main >/dev/null 2>&1; then
-  mb="$(git merge-base main HEAD)"
-  changed_files="$(git diff --name-only "$mb"...HEAD || true)"
-fi
+staged="$(git diff --name-only --cached || true)"
+unstaged="$(git diff --name-only || true)"
+untracked="$(git ls-files --others --exclude-standard || true)"
+changed_files="$(printf "%s\n%s\n%s\n" "$staged" "$unstaged" "$untracked" | awk 'NF' | sort -u)"
 
 if [[ -z "$changed_files" ]]; then
-  staged="$(git diff --name-only --cached || true)"
-  unstaged="$(git diff --name-only || true)"
-  changed_files="$(printf "%s\n%s\n" "$staged" "$unstaged" | awk 'NF' | sort -u)"
-fi
-
-if [[ -z "$changed_files" ]]; then
-  echo "[test-fast] No changed files found; running backend fast baseline."
-  run_backend_release_tests
+  echo "[test-fast] No changed files found; nothing to run."
   exit 0
 fi
 

@@ -1,7 +1,6 @@
 param(
     [ValidateSet("auto", "api-only", "services-only", "web-only", "backend-only", "full")]
-    [string]$Mode = "auto",
-    [string]$Base = ""
+    [string]$Mode = "auto"
 )
 
 Set-StrictMode -Version Latest
@@ -15,22 +14,19 @@ function Require-Command {
 }
 
 function Invoke-BackendReleaseTests {
-    Write-Host "[test-fast] Running backend tests (Release, no-build)"
-    & dotnet build BoardOil.slnx --configuration Release -maxcpucount:1 -nodeReuse:false
-    & dotnet BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll
-    & dotnet BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll
+    Write-Host "[test-fast] Running backend tests (Release, targeted projects)"
+    & dotnet test BoardOil.Api.Tests/BoardOil.Api.Tests.csproj --configuration Release -maxcpucount:1 -nodeReuse:false
+    & dotnet test BoardOil.Services.Tests/BoardOil.Services.Tests.csproj --configuration Release -maxcpucount:1 -nodeReuse:false
 }
 
 function Invoke-ApiReleaseTests {
-    Write-Host "[test-fast] Running API tests (Release, no-build)"
-    & dotnet build BoardOil.slnx --configuration Release -maxcpucount:1 -nodeReuse:false
-    & dotnet BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll
+    Write-Host "[test-fast] Running API tests (Release, targeted project)"
+    & dotnet test BoardOil.Api.Tests/BoardOil.Api.Tests.csproj --configuration Release -maxcpucount:1 -nodeReuse:false
 }
 
 function Invoke-ServicesReleaseTests {
-    Write-Host "[test-fast] Running Services tests (Release, no-build)"
-    & dotnet build BoardOil.slnx --configuration Release -maxcpucount:1 -nodeReuse:false
-    & dotnet BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll
+    Write-Host "[test-fast] Running Services tests (Release, targeted project)"
+    & dotnet test BoardOil.Services.Tests/BoardOil.Services.Tests.csproj --configuration Release -maxcpucount:1 -nodeReuse:false
 }
 
 function Invoke-WebChecks {
@@ -72,29 +68,13 @@ if ($Mode -ne "auto") {
 }
 
 $changedFiles = @()
-
-if (-not [string]::IsNullOrWhiteSpace($Base)) {
-    $changedFiles = (& git diff --name-only "$Base...HEAD" 2>$null)
-}
-elseif ((& git rev-parse --verify origin/main 2>$null) -and $LASTEXITCODE -eq 0) {
-    $changedFiles = (& git diff --name-only "origin/main...HEAD" 2>$null)
-}
-elseif ((& git rev-parse --verify main 2>$null) -and $LASTEXITCODE -eq 0) {
-    $mergeBase = (& git merge-base main HEAD).Trim()
-    if (-not [string]::IsNullOrWhiteSpace($mergeBase)) {
-        $changedFiles = (& git diff --name-only "$mergeBase...HEAD" 2>$null)
-    }
-}
+$staged = (& git diff --name-only --cached 2>$null)
+$unstaged = (& git diff --name-only 2>$null)
+$untracked = (& git ls-files --others --exclude-standard 2>$null)
+$changedFiles = @($staged + $unstaged + $untracked | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
 
 if (-not $changedFiles -or $changedFiles.Count -eq 0) {
-    $staged = (& git diff --name-only --cached 2>$null)
-    $unstaged = (& git diff --name-only 2>$null)
-    $changedFiles = @($staged + $unstaged | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
-}
-
-if (-not $changedFiles -or $changedFiles.Count -eq 0) {
-    Write-Host "[test-fast] No changed files found; running backend fast baseline."
-    Invoke-BackendReleaseTests
+    Write-Host "[test-fast] No changed files found; nothing to run."
     exit 0
 }
 
