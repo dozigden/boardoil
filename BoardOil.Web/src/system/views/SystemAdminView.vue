@@ -25,6 +25,10 @@ const navItems = [
   {
     label: 'Configuration',
     to: { name: 'configuration' }
+  },
+  {
+    label: 'System Message',
+    to: { name: 'system-info-message' }
   }
 ];
 </script>

@@ -18,6 +18,17 @@
           :boards="boards"
           :current-board-id="currentBoardId"
         />
+        <button
+          v-if="activeSystemInfoMessage"
+          type="button"
+          class="system-info-chip system-info-trigger"
+          :class="systemInfoStyleClasses"
+          :style="systemInfoStyle"
+          @click="openSystemInfoDialog"
+        >
+          <span v-if="activeSystemInfoMessage.emoji" class="system-info-chip-emoji">{{ activeSystemInfoMessage.emoji }}</span>
+          <strong>{{ activeSystemInfoMessage.title }}</strong>
+        </button>
       </div>
       <div class="header-meta">
         <BoDropdown
@@ -73,36 +84,15 @@
         </BoDropdown>
       </div>
     </div>
-    <button
-      v-if="activeSystemInfoMessage"
-      type="button"
-      class="system-info-chip system-info-trigger"
-      :class="systemInfoStyleClasses"
-      :style="systemInfoStyle"
-      @click="openSystemInfoDialog"
-    >
-      <span v-if="activeSystemInfoMessage.emoji" class="system-info-chip-emoji">{{ activeSystemInfoMessage.emoji }}</span>
-      <strong>{{ activeSystemInfoMessage.title }}</strong>
-    </button>
   </header>
   <AboutDialog :open="aboutDialogOpen" @close="closeAboutDialog" />
   <ModalDialog
     :open="systemInfoDialogOpen"
-    title="System information"
+    :title="systemInfoDialogTitle"
     close-label="Close system information"
     @close="closeSystemInfoDialog"
   >
     <section v-if="activeSystemInfoMessage" class="system-info-dialog">
-      <header class="system-info-dialog-header">
-        <p
-          class="system-info-chip"
-          :class="systemInfoStyleClasses"
-          :style="systemInfoStyle"
-        >
-          <span v-if="activeSystemInfoMessage.emoji" class="system-info-chip-emoji">{{ activeSystemInfoMessage.emoji }}</span>
-          <strong>{{ activeSystemInfoMessage.title }}</strong>
-        </p>
-      </header>
       <MdViewer
         :model-value="activeSystemInfoMessage.description"
         aria-label="System information"
@@ -169,7 +159,16 @@ const systemInfoStyle = computed(() => getSurfaceStyle(systemInfoStylePresentati
   fallbackColor: 'var(--bo-ink-default)',
   fallbackBorderColor: 'var(--bo-border-soft)'
 }));
-const systemInfoStyleClasses = computed(() => getSemanticStyleClasses(systemInfoStylePresentation.value, 'tag'));
+const systemInfoStyleClasses = computed(() => getSemanticStyleClasses(systemInfoStylePresentation.value, 'card'));
+const systemInfoDialogTitle = computed(() => {
+  const title = activeSystemInfoMessage.value?.title ?? '';
+  const emoji = activeSystemInfoMessage.value?.emoji?.trim();
+  if (emoji && emoji.length > 0) {
+    return `${emoji} ${title}`;
+  }
+
+  return title;
+});
 const boardAdminTarget = computed(() =>
   currentBoardId.value !== null && board.value
     ? {
@@ -272,12 +271,10 @@ watch(isAuthenticated, async authenticated => {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 999px;
-  padding: 0.35rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  padding: 0.5rem 0.8rem;
   font-size: 0.85rem;
-  background: var(--bo-surface-chip);
-  color: var(--bo-ink-default);
 }
 
 .system-info-chip-emoji {
@@ -285,18 +282,13 @@ watch(isAuthenticated, async authenticated => {
 }
 
 .system-info-trigger {
-  margin: 0.4rem 0 0;
-  background: transparent;
+  margin: 0;
   cursor: pointer;
 }
 
 .system-info-dialog {
   display: grid;
   gap: 0.6rem;
-}
-
-.system-info-dialog-header {
-  margin: 0;
 }
 
 .brand-title {
@@ -433,7 +425,7 @@ watch(isAuthenticated, async authenticated => {
 
   .system-info-chip {
     font-size: 0.8rem;
-    padding: 0.3rem 0.55rem;
+    padding: 0.4rem 0.65rem;
   }
 }
 </style>
