@@ -36,10 +36,10 @@ describe('slickGooAdapter', () => {
     expect(presetDescriptor?.colour).toBe('var(--bo-slick-preset-4)');
   });
 
-  it('builds deterministic membership signatures from card memberships', () => {
+  it('builds deterministic signatures from visible card layout and slick membership', () => {
     const columns = makeColumns();
     const signature = buildSlickGooMembershipSignature(columns);
-    expect(signature).toBe('101:10:1|201:20:2');
+    expect(signature).toBe('101:10:1|102:none:1|201:20:2');
   });
 
   it('changes membership signature when a slick card moves columns', () => {
@@ -54,8 +54,24 @@ describe('slickGooAdapter', () => {
     const initial = buildSlickGooMembershipSignature(columns);
     const moved = buildSlickGooMembershipSignature(movedColumns);
 
-    expect(initial).toBe('101:10:1|201:20:2');
-    expect(moved).toBe('101:10:2|201:20:2');
+    expect(initial).toBe('101:10:1|102:none:1|201:20:2');
+    expect(moved).toBe('102:none:1|101:10:2|201:20:2');
+  });
+
+  it('changes membership signature when an unslick card moves and slick geometry must refresh', () => {
+    const columns = makeColumns();
+    const movedColumns = columns.map(column => ({
+      ...column,
+      cards: column.id === 1
+        ? column.cards.filter(card => card.id !== 102)
+        : [makeCard(102, 2, null), ...column.cards]
+    }));
+
+    const initial = buildSlickGooMembershipSignature(columns);
+    const moved = buildSlickGooMembershipSignature(movedColumns);
+
+    expect(initial).toBe('101:10:1|102:none:1|201:20:2');
+    expect(moved).toBe('101:10:1|102:none:2|201:20:2');
   });
 
   it('builds deterministic style signatures sorted by slick id', () => {

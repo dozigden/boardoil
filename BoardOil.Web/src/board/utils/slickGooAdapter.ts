@@ -29,8 +29,7 @@ export function buildSlickGooMembershipSignature(columns: BoardColumn[]): string
   return columns
     .flatMap(column =>
       column.cards
-        .filter(card => card.slickId !== null && card.slickId !== undefined)
-        .map(card => `${card.id}:${card.slickId}:${column.id}`)
+        .map(card => `${card.id}:${card.slickId ?? 'none'}:${column.id}`)
     )
     .join('|');
 }
