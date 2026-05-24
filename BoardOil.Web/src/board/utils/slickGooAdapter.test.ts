@@ -39,7 +39,23 @@ describe('slickGooAdapter', () => {
   it('builds deterministic membership signatures from card memberships', () => {
     const columns = makeColumns();
     const signature = buildSlickGooMembershipSignature(columns);
-    expect(signature).toBe('101:10|201:20');
+    expect(signature).toBe('101:10:1|201:20:2');
+  });
+
+  it('changes membership signature when a slick card moves columns', () => {
+    const columns = makeColumns();
+    const movedColumns = columns.map(column => ({
+      ...column,
+      cards: column.id === 1
+        ? column.cards.filter(card => card.id !== 101)
+        : [makeCard(101, 2, 10), ...column.cards]
+    }));
+
+    const initial = buildSlickGooMembershipSignature(columns);
+    const moved = buildSlickGooMembershipSignature(movedColumns);
+
+    expect(initial).toBe('101:10:1|201:20:2');
+    expect(moved).toBe('101:10:2|201:20:2');
   });
 
   it('builds deterministic style signatures sorted by slick id', () => {
