@@ -12,19 +12,21 @@ This document defines how to split test coverage between service tests and API i
 
 Use repository scripts to keep local feedback fast and consistent:
 
-- `scripts/test-fast.sh` (Linux/macOS) or `scripts/test-fast.ps1` (Windows PowerShell)
+- `scripts/test-fast.sh`
   - default mode is changed-area detection from git diff
-  - runs only impacted test/check suites (API, Services, Web)
+  - runs only impacted fast suites/checks (API, Services, Web)
+  - excludes slow API integration classes by design
   - supports overrides: `--api-only`, `--services-only`, `--web-only`, `--backend-only`, `--full`
-- `scripts/test-full.sh` (Linux/macOS) or `scripts/test-full.ps1` (Windows PowerShell)
+- `scripts/test-full.sh`
   - CI-like full local run (backend restore/build/tests + web check/test)
   - supports `--backend-only` and `--web-only`
 
 Recommended flow:
 
-1. During implementation, run `scripts/test-fast.sh` (or `scripts/test-fast.ps1` on Windows).
-2. Before pushing risky backend/API auth/MCP/migration changes, run `scripts/test-full.sh --backend-only` (or `scripts/test-full.ps1 -BackendOnly` on Windows).
-3. Before pushing mixed backend+frontend changes, run full `scripts/test-full.sh` (or `scripts/test-full.ps1` on Windows).
+1. During implementation, run `scripts/test-fast.sh`.
+2. Before pushing risky backend/API auth/MCP/migration changes, run `scripts/test-full.sh --backend-only`.
+3. Before pushing mixed backend+frontend changes, run full `scripts/test-full.sh`.
+4. Avoid ad-hoc direct test commands during normal iteration; use the repository scripts so behavior stays consistent.
 
 ## Ownership by Layer
 
@@ -92,13 +94,14 @@ For security-behaviour suites, keep integration depth where transport/auth seman
 
 ## Changed-Area Mapping
 
-`scripts/test-fast.sh` / `scripts/test-fast.ps1` map changed paths to suites:
+`scripts/test-fast.sh` maps changed paths to suites:
 
 - `BoardOil.Services/**` -> `BoardOil.Services.Tests`
 - `BoardOil.Api/**` or `BoardOil.Api.Tests/**` -> `BoardOil.Api.Tests`
 - `BoardOil.Web/**` -> `npm run check` and `npm test` (in `BoardOil.Web`)
-- shared backend layers (`BoardOil.Contracts`, `BoardOil.Abstractions`, `BoardOil.Ef`, `BoardOil.Data.Abstractions`) -> API + Services tests
-- global tooling/workflow files (`BoardOil.slnx`, `Directory.*`, `global.json`, `NuGet.config`, `.github/workflows/*`, `scripts/*`) -> API + Services tests
+- shared backend layers (`BoardOil.Contracts`, `BoardOil.Abstractions`, `BoardOil.Ef`, `BoardOil.Data.Abstractions`, `BoardOil.Mcp.Contracts`) -> API + Services tests
+- global tooling/workflow files (`BoardOil.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `NuGet.config`, `.github/workflows/*`, `scripts/*`) -> API + Services tests
+- unknown/non-code paths default to no tests in fast mode
 
 ## Naming Expectations
 

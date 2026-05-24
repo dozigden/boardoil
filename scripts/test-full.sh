@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Decision log:
+# - This script is the full-fidelity test lane for local confidence before push.
+# - Backend coverage here is authoritative (restore + build + full API + full Services).
+# - scripts/test-fast.sh intentionally excludes slow tests and should delegate here for full runs.
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 run_backend=true

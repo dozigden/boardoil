@@ -26,7 +26,9 @@ Read area guidance before working in that part of the system:
 - For CSS in `BoardOil.Web`: only put shared/global classes in `src/style.css` or `src/styles/*.css`; keep page/component-specific classes in the relevant `.vue` file (`<style scoped>`).
 - For `dotnet` commands in this environment, prefer `-maxcpucount:1 -nodeReuse:false` to avoid named-pipe issues.
 - If `dotnet test` fails with sandbox socket/pipe permission errors (for example `SocketException (13): Permission denied`), rerun with escalation.
-- For local iteration, prefer `scripts/test-fast.sh` (or `scripts/test-fast.ps1` on Windows) for changed-area detection; before push, run `scripts/test-full.sh` (or `scripts/test-full.ps1` on Windows) (`--backend-only` is acceptable for backend-only changes).
+- For local iteration, use `scripts/test-fast.sh` for changed-area detection; before push, run `scripts/test-full.sh` (`--backend-only` is acceptable for backend-only changes).
+- `scripts/test-fast.sh` is intentionally speed-first and excludes slow tests; use `scripts/test-full.sh` for complete backend coverage.
+- Avoid ad-hoc direct test commands during normal iteration; prefer the repository test scripts so behavior stays consistent.
 - Follow C# coding conventions in `AGENTS/CSharpCodingConventions.md`.
 - Do not use nested ternary expressions. Use explicit branching (`if`/`switch`) or small helper functions instead.
 - Style handling policy:
