@@ -1,6 +1,6 @@
-import { ref } from 'vue';
 import type { Card, CardEditModel } from '../../shared/types/boardTypes';
 import { createEditModelFromCard } from '../mappers/cardEditModel';
+import { useEntityEditDraft } from '../../shared/composables/useEntityEditDraft';
 
 function areStringArraysEqual(left: string[], right: string[]) {
   if (left.length !== right.length) {
@@ -34,65 +34,27 @@ function cloneCardEditModel(model: CardEditModel): CardEditModel {
 }
 
 export function useCardEditDraft() {
-  const cardDraft = ref<CardEditModel | null>(null);
-  const cardDraftId = ref<number | null>(null);
-  const baselineDraft = ref<CardEditModel | null>(null);
-  const isDirty = ref(false);
-
-  function clearDraft() {
-    cardDraft.value = null;
-    cardDraftId.value = null;
-    baselineDraft.value = null;
-    isDirty.value = false;
-  }
-
-  function initializeDraftFromCard(card: Card) {
-    if (cardDraftId.value === card.id) {
-      return false;
-    }
-
-    const nextDraft = createEditModelFromCard(card);
-    cardDraft.value = cloneCardEditModel(nextDraft);
-    baselineDraft.value = cloneCardEditModel(nextDraft);
-    cardDraftId.value = card.id;
-    isDirty.value = false;
-    return true;
-  }
-
-  function patchFromSystem(update: Partial<CardEditModel>) {
-    if (cardDraft.value === null) {
-      return;
-    }
-
-    cardDraft.value = {
-      ...cardDraft.value,
-      ...update
-    };
-  }
-
-  function patchFromUser(update: Partial<CardEditModel>) {
-    if (cardDraft.value === null) {
-      return;
-    }
-
-    const previousDraft = cardDraft.value;
-    const nextDraft = {
-      ...previousDraft,
-      ...update
-    };
-    cardDraft.value = nextDraft;
-
-    if (!isDirty.value && !areCardEditModelsEqual(nextDraft, previousDraft)) {
-      isDirty.value = true;
-    }
-  }
+  const {
+    draft,
+    sourceId,
+    isDirty,
+    initFromSource,
+    patchFromUser,
+    patchFromSystem,
+    clear
+  } = useEntityEditDraft<Card, CardEditModel, number>({
+    getId: card => card.id,
+    toDraft: createEditModelFromCard,
+    cloneDraft: cloneCardEditModel,
+    areEqual: areCardEditModelsEqual
+  });
 
   return {
-    cardDraft,
-    cardDraftId,
+    cardDraft: draft,
+    cardDraftId: sourceId,
     isDirty,
-    clearDraft,
-    initializeDraftFromCard,
+    clearDraft: clear,
+    initializeDraftFromCard: initFromSource,
     patchFromUser,
     patchFromSystem
   };
