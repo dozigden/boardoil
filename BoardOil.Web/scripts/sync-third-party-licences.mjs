@@ -115,8 +115,8 @@ async function loadRuntimeNuGetDependencies(projectRoot) {
     } catch (error) {
       sourceIssues.push({
         sourceName: dependencySource.sourceName,
-        reason: `Could not read lock file at ${path.relative(projectRoot, lockFilePath)}`,
-        expectedSourceFile: path.relative(projectRoot, lockFilePath),
+        reason: `Could not read lock file at ${getProjectRelativePath(projectRoot, lockFilePath)}`,
+        expectedSourceFile: getProjectRelativePath(projectRoot, lockFilePath),
         resolutionHint: "Run dotnet restore to generate lock files, or add a manual licence file at"
       });
       continue;
@@ -125,8 +125,8 @@ async function loadRuntimeNuGetDependencies(projectRoot) {
     if (!lockFile.dependencies || typeof lockFile.dependencies !== "object") {
       sourceIssues.push({
         sourceName: dependencySource.sourceName,
-        reason: `Lock file is missing dependency metadata at ${path.relative(projectRoot, lockFilePath)}`,
-        expectedSourceFile: path.relative(projectRoot, lockFilePath),
+        reason: `Lock file is missing dependency metadata at ${getProjectRelativePath(projectRoot, lockFilePath)}`,
+        expectedSourceFile: getProjectRelativePath(projectRoot, lockFilePath),
         resolutionHint: "Regenerate the lock file, or add a manual licence file at"
       });
       continue;
@@ -167,7 +167,7 @@ async function loadRuntimeNuGetDependencies(projectRoot) {
         packagesByKey.set(key, {
           packageName,
           version,
-          lockFile: path.relative(projectRoot, lockFilePath),
+          lockFile: getProjectRelativePath(projectRoot, lockFilePath),
           frameworks: new Set([framework])
         });
       }
@@ -199,6 +199,7 @@ async function loadPreviouslyManagedOutputFiles(licencesOutputDirectory) {
       (existingManifest.copiedLicences ?? [])
         .map(entry => entry.outputFile)
         .filter(outputFile => typeof outputFile === "string")
+        .map(outputFile => toPosixPath(outputFile))
     );
   } catch (error) {
     if (error && error.code === "ENOENT") {
@@ -304,7 +305,11 @@ function getNuGetPackageRoot(packageName, version) {
 }
 
 function toPosixPath(filePath) {
-  return filePath.split(path.sep).join("/");
+  return filePath.replace(/\\/g, "/");
+}
+
+function getProjectRelativePath(projectRoot, targetPath) {
+  return toPosixPath(path.relative(projectRoot, targetPath));
 }
 
 function getNuGetManifestSourceFile(packageName, version, packageRoot, sourcePath) {
@@ -432,7 +437,7 @@ async function main() {
     const outputFile = getNpmOutputFileName(packageName);
     const outputPath = path.join(licencesOutputDirectory, outputFile);
     const manualSourcePath = path.join(manualLicencesDirectory, outputFile);
-    currentlyManagedOutputFiles.add(path.relative(projectRoot, outputPath));
+    currentlyManagedOutputFiles.add(getProjectRelativePath(projectRoot, outputPath));
 
     let packageJson;
     try {
@@ -444,7 +449,7 @@ async function main() {
         packageName,
         version: "unknown",
         declaredLicence: "unknown",
-        reason: `Missing package metadata at ${path.relative(projectRoot, packageJsonPath)}`
+        reason: `Missing package metadata at ${getProjectRelativePath(projectRoot, packageJsonPath)}`
       });
       continue;
     }
@@ -461,8 +466,8 @@ async function main() {
         version: packageJson.version ?? "unknown",
         declaredLicence: packageJson.license ?? "unknown",
         sourceType: "manual",
-        sourceFile: path.relative(projectRoot, manualSourcePath),
-        outputFile: path.relative(projectRoot, outputPath)
+        sourceFile: getProjectRelativePath(projectRoot, manualSourcePath),
+        outputFile: getProjectRelativePath(projectRoot, outputPath)
       });
       continue;
     }
@@ -476,7 +481,7 @@ async function main() {
         declaredLicence: packageJson.license ?? "unknown",
         reason:
           "No standalone licence file found in installed package and no manual override was provided",
-        expectedSourceFile: path.relative(projectRoot, manualSourcePath),
+        expectedSourceFile: getProjectRelativePath(projectRoot, manualSourcePath),
         resolutionHint: "Add a manual licence file at"
       });
       continue;
@@ -489,15 +494,15 @@ async function main() {
       version: packageJson.version ?? "unknown",
       declaredLicence: packageJson.license ?? "unknown",
       sourceType: "package",
-      sourceFile: path.relative(projectRoot, sourcePath),
-      outputFile: path.relative(projectRoot, outputPath)
+      sourceFile: getProjectRelativePath(projectRoot, sourcePath),
+      outputFile: getProjectRelativePath(projectRoot, outputPath)
     });
   }
 
   for (const bundledAsset of bundledAssetLicences) {
     const sourcePath = path.join(projectRoot, bundledAsset.sourceFile);
     const outputPath = path.join(licencesOutputDirectory, bundledAsset.outputFile);
-    currentlyManagedOutputFiles.add(path.relative(projectRoot, outputPath));
+    currentlyManagedOutputFiles.add(getProjectRelativePath(projectRoot, outputPath));
 
     if (!(await fileExists(sourcePath))) {
       await removeFileIfPresent(outputPath);
@@ -507,7 +512,7 @@ async function main() {
         version: bundledAsset.version,
         declaredLicence: bundledAsset.declaredLicence,
         reason: "Bundled asset licence source file was not found",
-        expectedSourceFile: path.relative(projectRoot, sourcePath),
+        expectedSourceFile: getProjectRelativePath(projectRoot, sourcePath),
         resolutionHint: "Add or restore the bundled asset licence file at"
       });
       continue;
@@ -521,7 +526,7 @@ async function main() {
       declaredLicence: bundledAsset.declaredLicence,
       sourceType: "asset",
       sourceFile: bundledAsset.sourceFile,
-      outputFile: path.relative(projectRoot, outputPath)
+      outputFile: getProjectRelativePath(projectRoot, outputPath)
     });
   }
 
@@ -541,7 +546,7 @@ async function main() {
     const outputFile = getNuGetOutputFileName(nugetPackage.packageName, nugetPackage.version);
     const outputPath = path.join(licencesOutputDirectory, outputFile);
     const manualSourcePath = path.join(nugetManualLicencesDirectory, outputFile);
-    currentlyManagedOutputFiles.add(path.relative(projectRoot, outputPath));
+    currentlyManagedOutputFiles.add(getProjectRelativePath(projectRoot, outputPath));
 
     const hasManualLicence = await fileExists(manualSourcePath);
     const packageRoot = getNuGetPackageRoot(nugetPackage.packageName, nugetPackage.version);
@@ -554,8 +559,8 @@ async function main() {
         version: nugetPackage.version,
         declaredLicence: "manual override",
         sourceType: "manual",
-        sourceFile: path.relative(projectRoot, manualSourcePath),
-        outputFile: path.relative(projectRoot, outputPath)
+        sourceFile: getProjectRelativePath(projectRoot, manualSourcePath),
+        outputFile: getProjectRelativePath(projectRoot, outputPath)
       });
       continue;
     }
@@ -568,7 +573,7 @@ async function main() {
         version: nugetPackage.version,
         declaredLicence: "unknown",
         reason: `Package was not found in local NuGet cache at ${packageRoot}`,
-        expectedSourceFile: path.relative(projectRoot, manualSourcePath),
+        expectedSourceFile: getProjectRelativePath(projectRoot, manualSourcePath),
         resolutionHint:
           "Run dotnet restore so package metadata exists locally, or add a manual licence file at"
       });
@@ -585,7 +590,7 @@ async function main() {
         version: nugetPackage.version,
         declaredLicence: "unknown",
         reason: `Could not find a .nuspec file in ${packageRoot}`,
-        expectedSourceFile: path.relative(projectRoot, manualSourcePath),
+        expectedSourceFile: getProjectRelativePath(projectRoot, manualSourcePath),
         resolutionHint: "Add a manual licence file at"
       });
       continue;
@@ -602,7 +607,7 @@ async function main() {
         version: nugetPackage.version,
         declaredLicence: "unknown",
         reason: `Could not read NuGet metadata at ${nuspecPath}`,
-        expectedSourceFile: path.relative(projectRoot, manualSourcePath),
+        expectedSourceFile: getProjectRelativePath(projectRoot, manualSourcePath),
         resolutionHint: "Add a manual licence file at"
       });
       continue;
@@ -635,7 +640,7 @@ async function main() {
           version: nugetPackage.version,
           declaredLicence,
           reason: `NuGet metadata points to missing licence file: ${relativeLicencePath}`,
-          expectedSourceFile: path.relative(projectRoot, manualSourcePath),
+          expectedSourceFile: getProjectRelativePath(projectRoot, manualSourcePath),
           resolutionHint: "Add a manual licence file at"
         });
         continue;
@@ -654,7 +659,7 @@ async function main() {
           packageRoot,
           sourcePath
         ),
-        outputFile: path.relative(projectRoot, outputPath)
+        outputFile: getProjectRelativePath(projectRoot, outputPath)
       });
       continue;
     }
@@ -680,7 +685,7 @@ async function main() {
         declaredLicence,
         sourceType: "nuget-license-expression",
         sourceFile: nugetManifestNuspecPath,
-        outputFile: path.relative(projectRoot, outputPath)
+        outputFile: getProjectRelativePath(projectRoot, outputPath)
       });
       continue;
     }
@@ -700,7 +705,7 @@ async function main() {
           packageRoot,
           sourcePath
         ),
-        outputFile: path.relative(projectRoot, outputPath)
+        outputFile: getProjectRelativePath(projectRoot, outputPath)
       });
       continue;
     }
@@ -721,7 +726,7 @@ async function main() {
         declaredLicence,
         sourceType: "nuget-license-url",
         sourceFile: nugetManifestNuspecPath,
-        outputFile: path.relative(projectRoot, outputPath)
+        outputFile: getProjectRelativePath(projectRoot, outputPath)
       });
       continue;
     }
@@ -733,7 +738,7 @@ async function main() {
       version: nugetPackage.version,
       declaredLicence,
       reason: "NuGet metadata did not include a licence expression, licence file, or recognised licence file name",
-      expectedSourceFile: path.relative(projectRoot, manualSourcePath),
+      expectedSourceFile: getProjectRelativePath(projectRoot, manualSourcePath),
       resolutionHint: "Add a manual licence file at"
     });
   }
@@ -874,3 +879,4 @@ async function main() {
 }
 
 await main();
+
