@@ -12,20 +12,23 @@ This document defines how to split test coverage between service tests and API i
 
 Use repository scripts to keep local feedback fast and consistent:
 
-- `scripts/test-fast.sh`
+- `node scripts/test-fast.mjs`
   - default mode is changed-area detection from git diff
   - runs only impacted fast suites/checks (API, Services, Web)
   - excludes slow API integration classes by design
   - supports overrides: `--api-only`, `--services-only`, `--web-only`, `--backend-only`, `--full`
-- `scripts/test-full.sh`
+- `node scripts/test-full.mjs`
   - CI-like full local run (backend restore/build/tests + web check/test)
   - supports `--backend-only` and `--web-only`
 
+Convenience wrappers:
+- `scripts/test-fast.sh`, `scripts/test-full.sh`, `scripts/test-fast.ps1`, and `scripts/test-full.ps1` delegate to the `.mjs` scripts.
+
 Recommended flow:
 
-1. During implementation, run `scripts/test-fast.sh`.
-2. Before pushing risky backend/API auth/MCP/migration changes, run `scripts/test-full.sh --backend-only`.
-3. Before pushing mixed backend+frontend changes, run full `scripts/test-full.sh`.
+1. During implementation, run `node scripts/test-fast.mjs`.
+2. Before pushing risky backend/API auth/MCP/migration changes, run `node scripts/test-full.mjs --backend-only`.
+3. Before pushing mixed backend+frontend changes, run full `node scripts/test-full.mjs`.
 4. Avoid ad-hoc direct test commands during normal iteration; use the repository scripts so behavior stays consistent.
 
 ## Ownership by Layer
@@ -94,7 +97,7 @@ For security-behaviour suites, keep integration depth where transport/auth seman
 
 ## Changed-Area Mapping
 
-`scripts/test-fast.sh` maps changed paths to suites:
+`scripts/test-fast.mjs` maps changed paths to suites:
 
 - `BoardOil.Services/**` -> `BoardOil.Services.Tests`
 - `BoardOil.Api/**` or `BoardOil.Api.Tests/**` -> `BoardOil.Api.Tests`

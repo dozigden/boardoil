@@ -32,7 +32,7 @@ function Stop-ProcessListeningOnPort {
 
     $connections = @()
     try {
-        $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop
+        $connections = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop)
     }
     catch {
         return
