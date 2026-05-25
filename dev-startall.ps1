@@ -59,6 +59,26 @@ function Stop-ProcessListeningOnPort {
     }
 }
 
+function Stop-ExistingBoardOilApiProcesses {
+    $apiProcesses = @()
+    try {
+        $apiProcesses = @(Get-Process -Name "BoardOil.Api" -ErrorAction Stop)
+    }
+    catch {
+        return
+    }
+
+    foreach ($apiProcess in $apiProcesses) {
+        try {
+            Write-Host "Stopping existing BoardOil.Api process (PID $($apiProcess.Id))"
+            Stop-Process -Id $apiProcess.Id -Force -ErrorAction Stop
+        }
+        catch {
+            Write-Host "Warning: failed to stop BoardOil.Api process PID $($apiProcess.Id)."
+        }
+    }
+}
+
 function Get-CurrentBranchName {
     try {
         $branchName = (& git -C $rootDir rev-parse --abbrev-ref HEAD 2>$null).Trim()
@@ -154,6 +174,8 @@ Seed-BranchDatabaseFromMainIfNeeded -TargetDbPath $devDbPath
 Write-Host "Using development database: $devDbPath"
 
 # Stop existing dev listeners early so API binaries are not locked during build.
+Stop-ExistingBoardOilApiProcesses
+Start-Sleep -Milliseconds 300
 if (Test-LocalPortInUse -Port 5000) {
     Stop-ProcessListeningOnPort -Port 5000
     Start-Sleep -Milliseconds 500
