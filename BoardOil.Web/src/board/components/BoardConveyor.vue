@@ -212,16 +212,36 @@ const hasRightAction = computed(() => (props.rightLabel ?? '').trim().length > 0
   cursor: not-allowed;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .board-conveyor {
     --bo-conveyor-min-height: 40px;
-    --bo-conveyor-tip-width: 20px;
-    gap: 0.35rem;
+    --bo-conveyor-tip-width: 0px;
+    gap: 0;
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--bo-border-soft);
+    border-radius: 0;
+    background: var(--bo-surface-panel);
+    overflow: visible;
+    padding-bottom: 0.15rem;
+  }
+
+  .board-conveyor-main {
+    border: none;
+    border-radius: 0;
+    background: transparent;
   }
 
   .board-conveyor-end {
-    min-width: 2.65rem;
+    min-width: 2.4rem;
     font-size: 0.82rem;
+    border-left: none;
+    background: transparent;
+  }
+
+  .board-conveyor-end--left {
+    border-left: none;
+    border-right: none;
   }
 
   .board-conveyor-end-label {
@@ -229,7 +249,30 @@ const hasRightAction = computed(() => (props.rightLabel ?? '').trim().length > 0
   }
 
   .board-conveyor-end-content {
-    padding-inline: 0.55rem;
+    padding-inline: 0.5rem;
+  }
+
+  .board-conveyor-tip,
+  .board-conveyor-end-shape-body {
+    display: none;
+  }
+
+  .board-conveyor-end:is(:hover, :focus-visible):not(:disabled) {
+    --bo-conveyor-end-fill: transparent;
+    --bo-conveyor-end-stroke: transparent;
+  }
+
+  .board-conveyor--highlighted .board-conveyor-end {
+    --bo-conveyor-end-fill: transparent;
+    --bo-conveyor-end-stroke: transparent;
+    color: var(--bo-link);
+    text-shadow: none;
+  }
+
+  .board-conveyor--highlighted .board-conveyor-end:is(:hover, :focus-visible):not(:disabled) {
+    --bo-conveyor-end-fill: transparent;
+    --bo-conveyor-end-stroke: transparent;
+    color: var(--bo-colour-energy);
   }
 }
 </style>

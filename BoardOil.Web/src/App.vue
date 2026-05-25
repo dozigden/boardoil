@@ -1,5 +1,5 @@
 <template>
-  <main :class="['app-shell', `app-shell--${layoutMode}`]">
+  <main :class="['app-shell', `app-shell--${layoutMode}`, { 'app-shell--route-board-archived': isArchivedRoute }]">
     <AppHeader />
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     <section class="app-content-stage">
@@ -48,6 +48,7 @@ const { board, currentBoardId } = storeToRefs(boardStore);
 const pageTransitionName = ref('route-none');
 const previousRouteSnapshot = ref<RouteSnapshot | null>(null);
 const layoutMode = computed(() => resolveAppLayout(route.meta.layout));
+const isArchivedRoute = computed(() => route.name === 'board-archived');
 const layoutComponent = computed(() => {
   if (layoutMode.value === APP_LAYOUT_BOARD) {
     return BoardWorkspaceLayout;
@@ -211,11 +212,35 @@ type RouteSnapshot = {
 }
 
 .app-shell--board :deep(.app-header) {
-  margin-bottom: var(--bo-standard-gap);
+  margin-bottom: 0 !important;
+}
+
+.app-shell--route-board-archived :deep(.app-header) {
+  margin-bottom: 0 !important;
+}
+
+@media (max-width: 767px) {
+  .app-shell--board :deep(.app-header) {
+    border-bottom: none;
+    padding-bottom: 0.35rem;
+  }
+
+  .app-shell--route-board-archived :deep(.app-header) {
+    border-bottom: none !important;
+    padding-bottom: 0.35rem;
+  }
+
+  .app-shell--route-board-archived :deep(.app-layout--full-height) {
+    padding-inline: 0;
+  }
 }
 
 .app-shell--full-height :deep(.app-header) {
   margin-bottom: var(--bo-standard-gap);
+}
+
+.app-shell--route-board-archived.app-shell--full-height :deep(.app-header) {
+  margin-bottom: 0 !important;
 }
 
 .app-shell--admin .app-content-stage {

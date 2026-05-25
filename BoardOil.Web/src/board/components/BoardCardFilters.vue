@@ -343,7 +343,7 @@ const hasActiveOptionFilters = computed(() =>
   min-height: var(--bo-board-filter-control-height);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .board-filters:not(.board-filters--embedded) {
     margin-inline: 0;
     gap: 0.5rem;
@@ -356,8 +356,8 @@ const hasActiveOptionFilters = computed(() =>
   }
 
   .board-filters--embedded {
-    padding: 0.32rem 0.45rem;
-    gap: 0.45rem;
+    padding: 0.1rem 0.4rem 0.12rem;
+    gap: 0.35rem;
   }
 
   .board-main-controls {
@@ -392,5 +392,6 @@ const hasActiveOptionFilters = computed(() =>
   .board-selection-toggle-label {
     display: none;
   }
+
 }
 </style>

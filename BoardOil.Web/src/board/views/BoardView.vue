@@ -680,12 +680,17 @@ watch(
 }
 
 .board-view {
+  --board-content-inline-margin: 1.5rem;
   flex: 1;
   min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--bo-standard-gap);
+}
+
+.board-view > :not(.board) {
+  margin-inline: var(--board-content-inline-margin);
 }
 
 .board {
@@ -704,7 +709,8 @@ watch(
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
-  padding-inline: 0;
+  box-sizing: border-box;
+  padding-inline: var(--board-content-inline-margin);
   padding-bottom: 0;
   flex: 1;
 }
@@ -889,9 +895,15 @@ watch(
   position: absolute;
 }
 
-@media (max-width: 720px) {
-  .board {
-    padding-inline: 0;
+@media (max-width: 767px) {
+  .board-view {
+    --board-content-inline-margin: 0.375rem;
+    gap: 0.3rem;
+  }
+
+  .board-view > :not(.board) {
+    margin-inline: 0;
   }
 }
+
 </style>

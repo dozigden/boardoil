@@ -375,9 +375,8 @@ watch(isAuthenticated, async authenticated => {
   display: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .app-header {
-    margin-bottom: 0;
     padding: 0.6rem 0.75rem;
   }
 
