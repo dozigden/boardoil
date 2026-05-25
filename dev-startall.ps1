@@ -152,6 +152,17 @@ New-Item -ItemType Directory -Path $devDbDir -Force | Out-Null
 Seed-BranchDatabaseFromMainIfNeeded -TargetDbPath $devDbPath
 
 Write-Host "Using development database: $devDbPath"
+
+# Stop existing dev listeners early so API binaries are not locked during build.
+if (Test-LocalPortInUse -Port 5000) {
+    Stop-ProcessListeningOnPort -Port 5000
+    Start-Sleep -Milliseconds 500
+}
+if (Test-LocalPortInUse -Port 5173) {
+    Stop-ProcessListeningOnPort -Port 5173
+    Start-Sleep -Milliseconds 300
+}
+
 Write-Host "Building API ..."
 & dotnet build $apiProject -maxcpucount:1 -nodeReuse:false
 
