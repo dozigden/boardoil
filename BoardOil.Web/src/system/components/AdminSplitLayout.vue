@@ -224,7 +224,9 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-right: 0.25rem;
+  padding-inline: var(--bo-admin-scroll-inline-padding, 0);
+  padding-block-start: var(--bo-admin-scroll-block-start-padding, 0);
+  padding-block-end: var(--bo-admin-scroll-block-end-padding, 0);
   scrollbar-width: thin;
   scrollbar-color: var(--bo-border-default) transparent;
 }
@@ -266,8 +268,6 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding-right: 0;
-    padding-inline: 0.75rem;
   }
 }
 </style>

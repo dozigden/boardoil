@@ -79,9 +79,23 @@
   --bo-focus-ring: #69c1ce;
   --bo-link: #35165a;
   --bo-standard-gap: 0.75rem;
+  --bo-header-margin-normal: 1rem;
+  --bo-header-margin-conveyor-mobile: 0;
+  --bo-board-scroll-inline-padding: 0;
+  --bo-admin-scroll-inline-padding: 0;
+  --bo-admin-scroll-block-start-padding: 0;
+  --bo-admin-scroll-block-end-padding: 0;
 
   background: linear-gradient(165deg, var(--bo-bg-root-start) 0%, var(--bo-bg-root-end) 100%);
   color: var(--bo-ink-strong);
+}
+
+.app-layout-with-header {
+  --bo-header-margin-active: var(--bo-header-margin-normal);
+}
+
+.app-layout-with-header > .app-header {
+  margin-bottom: var(--bo-header-margin-active);
 }
 
 .bo-tag-style-auto {

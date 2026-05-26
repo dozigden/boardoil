@@ -19,13 +19,7 @@
   </section>
 
   <section v-else-if="board" class="board-view">
-    <BoardConveyor
-      :highlighted="isCardSelectionMode"
-      :right-label="archiveConveyorLabel"
-      :right-aria-label="archiveConveyorAriaLabel"
-      :right-disabled="archiveConveyorDisabled"
-      @right-click="handleArchiveConveyorClick"
-    >
+    <Teleport :to="`#${boardLayoutRegistry.conveyorContentTargetId}`">
       <BoardCardFilters
         embedded
         :search-text="cardSearchText"
@@ -49,7 +43,7 @@
         @open-bulk-delete="confirmDeleteSelectedCards"
         @invert-selection="invertVisibleSelection"
       />
-    </BoardConveyor>
+    </Teleport>
 
     <section class="board" :ref="setBoardRefs">
       <GooLayer v-if="!isLoading" :groups="gooGroups" :blob-border-radius-px="gooBlobBorderRadiusPx" />
@@ -166,13 +160,12 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoardArchiveSelectedCardsDialog from '../components/BoardArchiveSelectedCardsDialog.vue';
 import BoardBulkEditSelectedCardsDialog from '../components/BoardBulkEditSelectedCardsDialog.vue';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
 import BoardColumnHeader from '../components/BoardColumnHeader.vue';
-import BoardConveyor from '../components/BoardConveyor.vue';
 import Card from '../components/Card.vue';
 import CreateCardInline from '../components/CreateCardInline.vue';
 import GooLayer from '../components/GooLayer.vue';
@@ -201,6 +194,7 @@ import {
 } from '../utils/selectionGooAdapter';
 import { resolveCardBoundaryClass } from '../utils/slickCardBoundary';
 import { useConfirm } from '../../shared/composables/useConfirm';
+import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
@@ -221,6 +215,7 @@ const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
 const slickStore = useSlickStore();
 const tagStore = useTagStore();
+const boardLayoutRegistry = useBoardLayoutRegistry();
 
 const { board } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
@@ -287,6 +282,17 @@ const {
   resetSelectionState
 } = useBoardCardSelection(board, archiveCards, bulkMoveCards, resolveBoardId, openArchivedCards);
 const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
+const conveyorRegistration = boardLayoutRegistry.registerConveyor({
+  highlighted: false,
+  leftLabel: null,
+  leftAriaLabel: null,
+  leftDisabled: false,
+  rightLabel: archiveConveyorLabel.value,
+  rightAriaLabel: archiveConveyorAriaLabel.value,
+  rightDisabled: archiveConveyorDisabled.value,
+  onLeftClick: null,
+  onRightClick: handleArchiveConveyorClick
+});
 
 const {
   onCardDragStart,
@@ -345,6 +351,28 @@ function setBoardRefs(element: unknown) {
   setSlickGooBoardRef(element);
   setSelectionGooBoardRef(element);
 }
+
+watch(
+  [isCardSelectionMode, archiveConveyorLabel, archiveConveyorAriaLabel, archiveConveyorDisabled],
+  ([highlighted, rightLabel, rightAriaLabel, rightDisabled]) => {
+    conveyorRegistration.update({
+      highlighted,
+      leftLabel: null,
+      leftAriaLabel: null,
+      leftDisabled: false,
+      rightLabel,
+      rightAriaLabel,
+      rightDisabled,
+      onLeftClick: null,
+      onRightClick: handleArchiveConveyorClick
+    });
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(() => {
+  conveyorRegistration.dispose();
+});
 
 function toggleCardSelectionMode() {
   clearDragInteraction();
@@ -680,17 +708,12 @@ watch(
 }
 
 .board-view {
-  --board-content-inline-margin: 1.5rem;
   flex: 1;
+  height: 0;
   min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--bo-standard-gap);
-}
-
-.board-view > :not(.board) {
-  margin-inline: var(--board-content-inline-margin);
 }
 
 .board {
@@ -705,12 +728,13 @@ watch(
   margin-top: 0;
   align-items: stretch;
   min-height: 0;
-  height: 100%;
+  height: auto;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   box-sizing: border-box;
-  padding-inline: var(--board-content-inline-margin);
+  padding-inline: var(--bo-board-scroll-inline-padding, 0);
+  scroll-padding-inline: var(--bo-board-scroll-inline-padding, 0);
   padding-bottom: 0;
   flex: 1;
 }
@@ -893,17 +917,6 @@ watch(
 
 .goo-filter-defs {
   position: absolute;
-}
-
-@media (max-width: 767px) {
-  .board-view {
-    --board-content-inline-margin: 0.375rem;
-    gap: 0.3rem;
-  }
-
-  .board-view > :not(.board) {
-    margin-inline: 0;
-  }
 }
 
 </style>

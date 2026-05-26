@@ -1,6 +1,6 @@
 <template>
   <section class="archived-cards-page">
-    <BoardConveyor left-label="Board" left-aria-label="Back to board" @left-click="goToBoard">
+    <Teleport :to="`#${boardLayoutRegistry.conveyorContentTargetId}`">
       <BoardCardFilters
         embedded
         :search-text="searchDraft"
@@ -14,7 +14,7 @@
         @update:picker-open="isTagFilterMenuOpen = $event"
         @clear="clearSearch"
       />
-    </BoardConveyor>
+    </Teleport>
 
     <section class="archived-cards-grid-region">
       <p v-if="listErrorMessage" class="archived-cards-empty">{{ listErrorMessage }}</p>
@@ -57,31 +57,30 @@
         </template>
       </BoGrid>
     </section>
+    <ModalDialog
+      :open="isDetailModalOpen"
+      :title="detailModalTitle"
+      size="fill"
+      close-label="Close archived card"
+      @close="closeDetailModal"
+    >
+      <p v-if="isLoadingDetail" class="archived-detail-loading">Loading archived card...</p>
+      <p v-else-if="detailErrorMessage" class="archived-detail-error">{{ detailErrorMessage }}</p>
+      <ArchivedCardDetailContent
+        v-else-if="selectedArchivedCard"
+        :archived-card="selectedArchivedCard"
+        :column-title="resolveColumnTitle(selectedArchivedCard.card.boardColumnId)"
+      />
+      <template #actions>
+        <div v-if="selectedArchivedCard" class="card-modal-actions">
+          <span />
+          <button type="button" class="btn" :disabled="isUnarchiving" @click="unarchiveSelectedCard">
+            {{ isUnarchiving ? 'Unarchiving...' : 'Unarchive' }}
+          </button>
+        </div>
+      </template>
+    </ModalDialog>
   </section>
-
-  <ModalDialog
-    :open="isDetailModalOpen"
-    :title="detailModalTitle"
-    size="fill"
-    close-label="Close archived card"
-    @close="closeDetailModal"
-  >
-    <p v-if="isLoadingDetail" class="archived-detail-loading">Loading archived card...</p>
-    <p v-else-if="detailErrorMessage" class="archived-detail-error">{{ detailErrorMessage }}</p>
-    <ArchivedCardDetailContent
-      v-else-if="selectedArchivedCard"
-      :archived-card="selectedArchivedCard"
-      :column-title="resolveColumnTitle(selectedArchivedCard.card.boardColumnId)"
-    />
-    <template #actions>
-      <div v-if="selectedArchivedCard" class="card-modal-actions">
-        <span />
-        <button type="button" class="btn" :disabled="isUnarchiving" @click="unarchiveSelectedCard">
-          {{ isUnarchiving ? 'Unarchiving...' : 'Unarchive' }}
-        </button>
-      </div>
-    </template>
-  </ModalDialog>
 </template>
 
 <script setup lang="ts">
@@ -89,7 +88,6 @@ import { storeToRefs } from 'pinia';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
-import BoardConveyor from '../components/BoardConveyor.vue';
 import BoGrid from '../../shared/components/BoGrid.vue';
 import ArchivedCardDetailContent from '../components/ArchivedCardDetailContent.vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
@@ -99,6 +97,7 @@ import type { ArchivedCard, ArchivedCardList, ArchivedCardListItem } from '../..
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import Tag from '../components/Tag.vue';
 import { useTagStore } from '../stores/tagStore';
+import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 
 const PageLimit = 25;
 
@@ -108,6 +107,18 @@ const route = useRoute();
 const router = useRouter();
 const { currentBoardId, board } = storeToRefs(boardStore);
 const tagStore = useTagStore();
+const boardLayoutRegistry = useBoardLayoutRegistry();
+const conveyorRegistration = boardLayoutRegistry.registerConveyor({
+  highlighted: false,
+  leftLabel: 'Board',
+  leftAriaLabel: 'Back to board',
+  leftDisabled: false,
+  rightLabel: null,
+  rightAriaLabel: null,
+  rightDisabled: false,
+  onLeftClick: goToBoard,
+  onRightClick: null
+});
 
 const searchDraft = ref('');
 const filterStates = ref<TagFilterStateMap>({});
@@ -179,6 +190,7 @@ watch(
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 onBeforeUnmount(() => {
+  conveyorRegistration.dispose();
   if (searchDebounceTimer !== null) {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = null;
@@ -379,20 +391,14 @@ function resolveColumnTitle(boardColumnId: number) {
 
 <style scoped>
 .archived-cards-page {
-  --board-content-inline-margin: 1.5rem;
   flex: 1;
   display: flex;
   flex-direction: column;
   max-width: none;
   margin-top: 0;
   margin-bottom: 0;
-  gap: var(--bo-standard-gap);
   min-height: 0;
   overflow: hidden;
-}
-
-.archived-cards-page > * {
-  margin-inline: var(--board-content-inline-margin);
 }
 
 .archived-cards-page :deep(.board-filters) {
@@ -409,6 +415,7 @@ function resolveColumnTitle(boardColumnId: number) {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  padding-inline: var(--bo-board-scroll-inline-padding, 0);
 }
 
 .archived-card-title {
@@ -457,15 +464,6 @@ function resolveColumnTitle(boardColumnId: number) {
 }
 
 @media (max-width: 767px) {
-  .archived-cards-page {
-    --board-content-inline-margin: 0.375rem;
-    gap: 0.3rem;
-  }
-
-  .archived-cards-page > * {
-    margin-inline: 0;
-  }
-
   .archived-card-date {
     text-align: left;
   }

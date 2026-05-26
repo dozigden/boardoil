@@ -2,32 +2,32 @@ import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import { resolveAuthNavigation } from './site/auth/navigationGuard';
 import { useAuthStore } from './shared/stores/authStore';
-import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, APP_LAYOUT_FULL_HEIGHT, APP_LAYOUT_PAGE } from './site/layouts/appLayout';
+import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD_WITH_CONVEYOR, APP_LAYOUT_STANDARD } from './site/layouts/appLayout';
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     name: 'login',
     component: () => import('./site/views/LoginView.vue'),
-    meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
+    meta: { requiresAuth: false, layout: APP_LAYOUT_STANDARD }
   },
   {
     path: '/setup-initial-admin',
     name: 'setup-initial-admin',
     component: () => import('./site/views/SetupInitialAdminView.vue'),
-    meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
+    meta: { requiresAuth: false, layout: APP_LAYOUT_STANDARD }
   },
   {
     path: '/unauthorized',
     name: 'unauthorized',
     component: () => import('./site/views/UnauthorizedView.vue'),
-    meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
+    meta: { requiresAuth: false, layout: APP_LAYOUT_STANDARD }
   },
   {
     path: '/licences',
     name: 'licences',
     component: () => import('./site/views/LicencesView.vue'),
-    meta: { requiresAuth: false, layout: APP_LAYOUT_PAGE }
+    meta: { requiresAuth: false, layout: APP_LAYOUT_STANDARD }
   },
   {
     path: '/user-admin',
@@ -59,19 +59,19 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     name: 'boards',
     component: () => import('./board/views/BoardsView.vue'),
-    meta: { requiresAuth: true, layout: APP_LAYOUT_PAGE }
+    meta: { requiresAuth: true, layout: APP_LAYOUT_STANDARD }
   },
   {
     path: '/boards/:boardId(\\d+)',
     name: 'board',
     component: () => import('./board/views/BoardView.vue'),
-    meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD }
+    meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
   },
   {
     path: '/boards/:boardId(\\d+)/archived',
     name: 'board-archived',
     component: () => import('./board/views/ArchivedCardsView.vue'),
-    meta: { requiresAuth: true, layout: APP_LAYOUT_FULL_HEIGHT }
+    meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
   },
   {
     path: '/boards/:boardId(\\d+)/card/:cardId(\\d+)',
@@ -80,7 +80,7 @@ const routes: RouteRecordRaw[] = [
       default: () => import('./board/views/BoardView.vue'),
       dialog: () => import('./board/components/CardEditorDialog.vue')
     },
-    meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD }
+    meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
   },
   {
     path: '/boards/:boardId(\\d+)/admin',

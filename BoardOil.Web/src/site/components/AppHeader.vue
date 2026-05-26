@@ -1,5 +1,5 @@
 <template>
-  <header class="app-header">
+  <header class="app-header" :class="{ 'app-header--compact-mobile': compactMobile }">
     <div class="header-top">
       <div class="header-primary">
         <h1 class="brand-title">
@@ -122,6 +122,13 @@ import { useBoardStore } from '../../board/stores/boardStore';
 import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { StylePresentation } from '../../shared/utils/styleTypes';
+
+type AppHeaderProps = {
+  compactMobile?: boolean;
+};
+
+const { compactMobile = false } = defineProps<AppHeaderProps>();
+
 const aboutDialogOpen = ref(false);
 const systemInfoDialogOpen = ref(false);
 const router = useRouter();
@@ -227,7 +234,7 @@ watch(isAuthenticated, async authenticated => {
 
 <style scoped>
 .app-header {
-  margin: 0 0 1rem;
+  margin: 0;
   padding: 1rem 1.5rem;
   background: var(--bo-surface-panel-strong);
   border-bottom: 1px solid var(--bo-border-brand);
@@ -376,6 +383,11 @@ watch(isAuthenticated, async authenticated => {
 }
 
 @media (max-width: 767px) {
+  .app-header--compact-mobile {
+    border-bottom: none;
+    padding-bottom: 0.35rem;
+  }
+
   .app-header {
     padding: 0.6rem 0.75rem;
   }
