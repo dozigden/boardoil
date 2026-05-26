@@ -19,11 +19,15 @@ const { errorMessage } = storeToRefs(feedbackStore);
 
 <style scoped>
 .app-layout--standard {
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
+  --bo-header-margin-active: 0;
 }
 
 .app-layout-standard-content {
@@ -31,6 +35,9 @@ const { errorMessage } = storeToRefs(feedbackStore);
   min-height: 0;
   min-width: 0;
   padding-inline: 1rem;
+  padding-top: 0.75rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   position: relative;
 }
 

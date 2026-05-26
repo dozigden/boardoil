@@ -1,5 +1,5 @@
 <template>
-  <section class="admin-shell">
+  <section class="admin-shell" :class="{ 'admin-shell--mobile-nav-open': mobileNavOpen }">
     <header class="admin-mobile-bar">
       <div class="admin-mobile-left">
         <button
@@ -123,9 +123,11 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
 .admin-shell {
   display: grid;
   grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 1rem;
   min-height: 0;
   height: 100%;
+  overflow: hidden;
 }
 
 .admin-mobile-bar {
@@ -167,13 +169,13 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
 
 .admin-nav {
   background: var(--bo-surface-panel);
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 14px;
+  border-right: 1px solid var(--bo-border-soft);
   padding: 0.75rem;
   display: grid;
   align-content: start;
   gap: 0.75rem;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .admin-nav-title {
@@ -224,6 +226,7 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   padding-inline: var(--bo-admin-scroll-inline-padding, 0);
   padding-block-start: var(--bo-admin-scroll-block-start-padding, 0);
   padding-block-end: var(--bo-admin-scroll-block-end-padding, 0);
@@ -237,7 +240,7 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
     grid-template-rows: auto auto minmax(0, 1fr);
     min-height: 0;
     height: 100%;
-    gap: 0.6rem;
+    gap: 0;
   }
 
   .admin-mobile-bar {
@@ -257,17 +260,29 @@ function tryGetTargetRouteName(target: RouteLocationRaw) {
     border-right: none;
     border-radius: 0 0 10px 10px;
     padding: 0.5rem 0.75rem;
-    overflow: visible;
+    max-height: min(50vh, calc(100dvh - 8rem));
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .admin-nav--open {
     display: grid;
+    max-height: none;
+    min-height: 0;
   }
 
   .admin-content {
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-shell--mobile-nav-open {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .admin-shell--mobile-nav-open .admin-content {
+    display: none;
   }
 }
 </style>

@@ -235,6 +235,18 @@ body {
   background: radial-gradient(circle at 20% 20%, var(--bo-bg-body-start) 0%, var(--bo-bg-body-mid) 44%, var(--bo-bg-body-end) 100%);
 }
 
+html.bo-lock-page-scroll-root,
+body.bo-lock-page-scroll {
+  overflow: hidden;
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body.bo-lock-page-scroll #app {
+  height: 100%;
+  overflow: hidden;
+}
+
 .toolbar {
   margin-top: 1rem;
 }

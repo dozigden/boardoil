@@ -247,7 +247,7 @@ watch(isAuthenticated, async authenticated => {
 
 .header-top {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
@@ -256,17 +256,18 @@ watch(isAuthenticated, async authenticated => {
 .header-primary {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.75rem;
   flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
 }
 
 .header-meta {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   min-height: 2rem;
   margin-left: auto;
@@ -282,15 +283,30 @@ watch(isAuthenticated, async authenticated => {
   border-radius: 0.35rem;
   padding: 0.5rem 0.8rem;
   font-size: 0.85rem;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.system-info-chip strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .system-info-chip-emoji {
   line-height: 1;
+  flex: 0 0 auto;
 }
 
 .system-info-trigger {
   margin: 0;
   cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .system-info-dialog {
@@ -394,7 +410,7 @@ watch(isAuthenticated, async authenticated => {
 
   .header-top {
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.35rem;
   }
 
