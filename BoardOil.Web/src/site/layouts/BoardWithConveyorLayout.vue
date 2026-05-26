@@ -62,6 +62,8 @@ function handleRightClick() {
 }
 
 .board-layout-conveyor-region {
+  --bo-board-conveyor-slot-min-height: 3.2rem;
+  --bo-conveyor-min-height: var(--bo-board-conveyor-slot-min-height);
   margin-inline: var(--bo-board-layout-inline-gutter);
 }
 
@@ -81,6 +83,7 @@ function handleRightClick() {
 .board-layout-conveyor-content-target {
   min-width: 0;
   width: 100%;
+  min-height: var(--bo-board-conveyor-slot-min-height);
 }
 
 @media (max-width: 767px) {
@@ -89,6 +92,10 @@ function handleRightClick() {
     --bo-board-scroll-inline-padding: 0.375rem;
     --bo-board-layout-gap: 0.3rem;
     --bo-header-margin-active: var(--bo-header-margin-conveyor-mobile);
+  }
+
+  .board-layout-conveyor-region {
+    --bo-board-conveyor-slot-min-height: 2.5rem;
   }
 }
 </style>
