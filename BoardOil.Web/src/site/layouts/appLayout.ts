@@ -1,26 +1,20 @@
-export const APP_LAYOUT_PAGE = 'page' as const;
-export const APP_LAYOUT_BOARD = 'board' as const;
+export const APP_LAYOUT_STANDARD = 'standard' as const;
+export const APP_LAYOUT_BOARD_WITH_CONVEYOR = 'board-with-conveyor' as const;
 export const APP_LAYOUT_ADMIN = 'admin' as const;
-export const APP_LAYOUT_FULL_HEIGHT = 'full-height' as const;
 
 export type AppLayoutMode =
-  | typeof APP_LAYOUT_PAGE
-  | typeof APP_LAYOUT_BOARD
-  | typeof APP_LAYOUT_ADMIN
-  | typeof APP_LAYOUT_FULL_HEIGHT;
+  | typeof APP_LAYOUT_STANDARD
+  | typeof APP_LAYOUT_BOARD_WITH_CONVEYOR
+  | typeof APP_LAYOUT_ADMIN;
 
 export function resolveAppLayout(layout: unknown): AppLayoutMode {
-  if (layout === APP_LAYOUT_BOARD) {
-    return APP_LAYOUT_BOARD;
+  if (layout === APP_LAYOUT_BOARD_WITH_CONVEYOR) {
+    return APP_LAYOUT_BOARD_WITH_CONVEYOR;
   }
 
   if (layout === APP_LAYOUT_ADMIN) {
     return APP_LAYOUT_ADMIN;
   }
 
-  if (layout === APP_LAYOUT_FULL_HEIGHT) {
-    return APP_LAYOUT_FULL_HEIGHT;
-  }
-
-  return APP_LAYOUT_PAGE;
+  return APP_LAYOUT_STANDARD;
 }

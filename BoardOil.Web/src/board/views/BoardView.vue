@@ -1,178 +1,173 @@
 <template>
-  <svg width="0" height="0" class="goo-filter-defs" aria-hidden="true" focusable="false">
-    <defs>
-      <filter id="goo">
-        <feGaussianBlur in="SourceGraphic" :stdDeviation="gooBlurStdDeviation" result="blur" />
-        <feColorMatrix
-          in="blur"
-          type="matrix"
-          :values="gooColorMatrixValues"
-          result="goo"
-        />
-      </filter>
-    </defs>
-  </svg>
-
-  <section v-if="isLoading" class="board-loading" aria-live="polite">
-    <span class="board-loading-indicator" aria-hidden="true" />
-    <p class="board-loading-label">Loading board...</p>
-  </section>
-
-  <section v-else-if="board" class="board-view">
-    <BoardConveyor
-      :highlighted="isCardSelectionMode"
-      :right-label="archiveConveyorLabel"
-      :right-aria-label="archiveConveyorAriaLabel"
-      :right-disabled="archiveConveyorDisabled"
-      @right-click="handleArchiveConveyorClick"
-    >
-      <BoardCardFilters
-        embedded
-        :search-text="cardSearchText"
-        :available-tag-names="availableTagNames"
-        :available-slicks="slicks"
-        :tag-filter-states="tagFilterStates"
-        :slick-filter-states="slickFilterStates"
-        :picker-open="isTagFilterMenuOpen"
-        :has-active-filters="hasActiveCardFilters"
-        :selection-mode="isCardSelectionMode"
-        :selected-count="selectedCardCount"
-        :disable-bulk-edit-action="isApplyingBulkEdit || selectedCardCount === 0"
-        :disable-selection-menu-action="isApplyingBulkEdit"
-        @update:search-text="cardSearchText = $event"
-        @update:tag-filter-states="tagFilterStates = $event"
-        @update:slick-filter-states="slickFilterStates = $event"
-        @update:picker-open="isTagFilterMenuOpen = $event"
-        @clear="clearCardFilters"
-        @toggle-selection-mode="toggleCardSelectionMode"
-        @open-bulk-edit="openBulkEditDialog"
-        @open-bulk-delete="confirmDeleteSelectedCards"
-        @invert-selection="invertVisibleSelection"
-      />
-    </BoardConveyor>
-
-    <section class="board" :ref="setBoardRefs">
-      <GooLayer v-if="!isLoading" :groups="gooGroups" :blob-border-radius-px="gooBlobBorderRadiusPx" />
-      <GooLayer
-        v-if="!isLoading && selectionGooGroup"
-        :groups="[selectionGooGroup]"
-        :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
-        layer-class="goo-layer--selection"
-        blob-class="goo-blob--selection"
-      />
-      <div v-for="column in filteredColumns" :key="column.id" class="column-stack">
-        <article
-          class="column"
-          @dragover.prevent="handleColumnDragOver(column.id, $event)"
-          @drop.prevent="handleColumnDrop(column.id)"
-        >
-          <BoardColumnHeader
-            :column-id="column.id"
-            :title="column.title"
-            :count-label="formatColumnCardCount(column.cards.length)"
-            :card-types="cardTypes"
-            :selection-mode="isCardSelectionMode"
-            :disable-select-all="!canSelectAllVisibleInColumn(column.id)"
-            :disable-clear-visible="!canClearVisibleInColumn(column.id)"
-            @open-default-card-draft="openDefaultCardDraft"
-            @open-card-draft-for-type="openNewCardDraft"
-            @select-all-visible="selectAllVisibleInColumn"
-            @clear-visible="clearVisibleInColumn"
+  <section class="board-view-route-shell">
+    <svg width="0" height="0" class="goo-filter-defs" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="goo">
+          <feGaussianBlur in="SourceGraphic" :stdDeviation="gooBlurStdDeviation" result="blur" />
+          <feColorMatrix
+            in="blur"
+            type="matrix"
+            :values="gooColorMatrixValues"
+            result="goo"
           />
+        </filter>
+      </defs>
+    </svg>
 
-          <div
-            class="column-content"
-            :class="{
-              'column-content--drop-tail': isDropPoint(column.id, null),
-              'column-content--drop-head': isDropAtColumnStart(column.id)
-            }"
-          >
-            <CreateCardInline
-              v-if="newCardDraftTitles[column.id] !== undefined"
-              :title="newCardDraftTitles[column.id] ?? ''"
-              :card-type-id="newCardDraftCardTypeIds[column.id] ?? defaultCreateCardTypeId"
-              :error-message="newCardDraftErrors[column.id] ?? ''"
-              :input-ref="element => setNewCardDraftInput(column.id, element)"
-              @update:title="updateNewCardDraftTitle(column.id, $event)"
-              @save="saveNewCardDraft(column.id)"
-              @cancel="closeNewCardDraft(column.id)"
-            />
-
-            <Card
-              v-for="(card, cardIndex) in column.cards"
-              :key="card.id"
-              :class="resolveCardBoundaryClass(column.cards, cardIndex)"
-              :card="card"
-              :column-id="column.id"
-              :data-card-id="card.id"
-              :drop-indicator="resolveCardDropIndicator(column.id, card.id)"
-              :selection-mode="isCardSelectionMode"
-              :selected="isCardSelected(card.id)"
-              :selected-count="selectedCardCount"
-              @start-drag="onCardDragStart"
-              @end-drag="onCardDragEnd"
-              @dragover.prevent.stop="onCardDragOver(column.id, card.id, $event)"
-              @drop.prevent.stop="onCardDrop(column.id, card.id, $event)"
-              @edit-card="openCardEditor"
-              @toggle-select="toggleCardSelection"
-            />
-
-            <p v-if="hasActiveCardFilters && column.cards.length === 0 && newCardDraftTitles[column.id] === undefined" class="column-filter-empty">
-              No matching cards.
-            </p>
-          </div>
-        </article>
-
-        <div
-          class="column-tail-drop-zone"
-          :class="{ 'column-tail-drop-zone--active': isDropPoint(column.id, null) }"
-          aria-hidden="true"
-          @dragover.prevent.stop="onColumnTailDragOver(column.id)"
-          @drop.prevent.stop="onColumnTailDrop(column.id)"
-        />
-      </div>
+    <section v-if="isLoading" class="board-loading" aria-live="polite">
+      <span class="board-loading-indicator" aria-hidden="true" />
+      <p class="board-loading-label">Loading board...</p>
     </section>
 
-    <BoardArchiveSelectedCardsDialog
-      :open="isArchiveConfirmOpen"
-      :selected-cards="selectedCards"
-      :selected-count="selectedCardCount"
-      :is-archiving="isArchivingSelectedCards"
-      @close="closeArchiveConfirm"
-      @confirm="confirmArchiveSelectedCards"
-    />
+    <section v-else-if="board" class="board-view">
+      <Teleport :to="`#${boardLayoutRegistry.conveyorContentTargetId}`">
+        <BoardCardFilters
+          embedded
+          :search-text="cardSearchText"
+          :available-tag-names="availableTagNames"
+          :available-slicks="slicks"
+          :tag-filter-states="tagFilterStates"
+          :slick-filter-states="slickFilterStates"
+          :picker-open="isTagFilterMenuOpen"
+          :has-active-filters="hasActiveCardFilters"
+          :selection-mode="isCardSelectionMode"
+          :selected-count="selectedCardCount"
+          :disable-bulk-edit-action="isApplyingBulkEdit || selectedCardCount === 0"
+          :disable-selection-menu-action="isApplyingBulkEdit"
+          @update:search-text="cardSearchText = $event"
+          @update:tag-filter-states="tagFilterStates = $event"
+          @update:slick-filter-states="slickFilterStates = $event"
+          @update:picker-open="isTagFilterMenuOpen = $event"
+          @clear="clearCardFilters"
+          @toggle-selection-mode="toggleCardSelectionMode"
+          @open-bulk-edit="openBulkEditDialog"
+          @open-bulk-delete="confirmDeleteSelectedCards"
+          @invert-selection="invertVisibleSelection"
+        />
+      </Teleport>
 
-    <BoardBulkEditSelectedCardsDialog
-      :open="isBulkEditDialogOpen"
-      :selected-count="selectedCardCount"
-      :is-saving="isApplyingBulkEdit"
-      :available-tag-names="availableTagNames"
-      :columns="filteredColumns.map(column => ({ id: column.id, title: column.title }))"
-      :slicks="slicks.map(slick => ({ id: slick.id, name: slick.name }))"
-      :filter-states="bulkEditTagStates"
-      :target-column-id="bulkEditTargetColumnId"
-      :slick-operation="bulkEditSlickOperation"
-      :target-slick-name="bulkEditTargetSlickName"
-      :has-changes="hasBulkEditChanges"
-      @update:filter-states="bulkEditTagStates = $event"
-      @update:target-column-id="bulkEditTargetColumnId = $event"
-      @update:slick-operation="bulkEditSlickOperation = $event"
-      @update:target-slick-name="bulkEditTargetSlickName = $event"
-      @close="closeBulkEditDialog"
-      @confirm="confirmBulkEdit"
-    />
+      <section class="board" :ref="setBoardRefs">
+        <GooLayer v-if="!isLoading" :groups="gooGroups" :blob-border-radius-px="gooBlobBorderRadiusPx" />
+        <GooLayer
+          v-if="!isLoading && selectionGooGroup"
+          :groups="[selectionGooGroup]"
+          :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
+          layer-class="goo-layer--selection"
+          blob-class="goo-blob--selection"
+        />
+        <div v-for="column in filteredColumns" :key="column.id" class="column-stack">
+          <article
+            class="column"
+            @dragover.prevent="handleColumnDragOver(column.id, $event)"
+            @drop.prevent="handleColumnDrop(column.id)"
+          >
+            <BoardColumnHeader
+              :column-id="column.id"
+              :title="column.title"
+              :count-label="formatColumnCardCount(column.cards.length)"
+              :card-types="cardTypes"
+              :selection-mode="isCardSelectionMode"
+              :disable-select-all="!canSelectAllVisibleInColumn(column.id)"
+              :disable-clear-visible="!canClearVisibleInColumn(column.id)"
+              @open-default-card-draft="openDefaultCardDraft"
+              @open-card-draft-for-type="openNewCardDraft"
+              @select-all-visible="selectAllVisibleInColumn"
+              @clear-visible="clearVisibleInColumn"
+            />
+
+            <div
+              class="column-content"
+              :class="{
+                'column-content--drop-tail': isDropPoint(column.id, null),
+                'column-content--drop-head': isDropAtColumnStart(column.id)
+              }"
+            >
+              <CreateCardInline
+                v-if="newCardDraftTitles[column.id] !== undefined"
+                :title="newCardDraftTitles[column.id] ?? ''"
+                :card-type-id="newCardDraftCardTypeIds[column.id] ?? defaultCreateCardTypeId"
+                :error-message="newCardDraftErrors[column.id] ?? ''"
+                :input-ref="element => setNewCardDraftInput(column.id, element)"
+                @update:title="updateNewCardDraftTitle(column.id, $event)"
+                @save="saveNewCardDraft(column.id)"
+                @cancel="closeNewCardDraft(column.id)"
+              />
+
+              <Card
+                v-for="(card, cardIndex) in column.cards"
+                :key="card.id"
+                :class="resolveCardBoundaryClass(column.cards, cardIndex)"
+                :card="card"
+                :column-id="column.id"
+                :data-card-id="card.id"
+                :drop-indicator="resolveCardDropIndicator(column.id, card.id)"
+                :selection-mode="isCardSelectionMode"
+                :selected="isCardSelected(card.id)"
+                :selected-count="selectedCardCount"
+                @start-drag="onCardDragStart"
+                @end-drag="onCardDragEnd"
+                @dragover.prevent.stop="onCardDragOver(column.id, card.id, $event)"
+                @drop.prevent.stop="onCardDrop(column.id, card.id, $event)"
+                @edit-card="openCardEditor"
+                @toggle-select="toggleCardSelection"
+              />
+
+              <p v-if="hasActiveCardFilters && column.cards.length === 0 && newCardDraftTitles[column.id] === undefined" class="column-filter-empty">
+                No matching cards.
+              </p>
+            </div>
+          </article>
+
+          <div
+            class="column-tail-drop-zone"
+            :class="{ 'column-tail-drop-zone--active': isDropPoint(column.id, null) }"
+            aria-hidden="true"
+            @dragover.prevent.stop="onColumnTailDragOver(column.id)"
+            @drop.prevent.stop="onColumnTailDrop(column.id)"
+          />
+        </div>
+      </section>
+
+      <BoardArchiveSelectedCardsDialog
+        :open="isArchiveConfirmOpen"
+        :selected-cards="selectedCards"
+        :selected-count="selectedCardCount"
+        :is-archiving="isArchivingSelectedCards"
+        @close="closeArchiveConfirm"
+        @confirm="confirmArchiveSelectedCards"
+      />
+
+      <BoardBulkEditSelectedCardsDialog
+        :open="isBulkEditDialogOpen"
+        :selected-count="selectedCardCount"
+        :is-saving="isApplyingBulkEdit"
+        :available-tag-names="availableTagNames"
+        :columns="filteredColumns.map(column => ({ id: column.id, title: column.title }))"
+        :slicks="slicks.map(slick => ({ id: slick.id, name: slick.name }))"
+        :filter-states="bulkEditTagStates"
+        :target-column-id="bulkEditTargetColumnId"
+        :slick-operation="bulkEditSlickOperation"
+        :target-slick-name="bulkEditTargetSlickName"
+        :has-changes="hasBulkEditChanges"
+        @update:filter-states="bulkEditTagStates = $event"
+        @update:target-column-id="bulkEditTargetColumnId = $event"
+        @update:slick-operation="bulkEditSlickOperation = $event"
+        @update:target-slick-name="bulkEditTargetSlickName = $event"
+        @close="closeBulkEditDialog"
+        @confirm="confirmBulkEdit"
+      />
+    </section>
   </section>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoardArchiveSelectedCardsDialog from '../components/BoardArchiveSelectedCardsDialog.vue';
 import BoardBulkEditSelectedCardsDialog from '../components/BoardBulkEditSelectedCardsDialog.vue';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
 import BoardColumnHeader from '../components/BoardColumnHeader.vue';
-import BoardConveyor from '../components/BoardConveyor.vue';
 import Card from '../components/Card.vue';
 import CreateCardInline from '../components/CreateCardInline.vue';
 import GooLayer from '../components/GooLayer.vue';
@@ -201,6 +196,7 @@ import {
 } from '../utils/selectionGooAdapter';
 import { resolveCardBoundaryClass } from '../utils/slickCardBoundary';
 import { useConfirm } from '../../shared/composables/useConfirm';
+import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 
 const newCardDraftTitles = ref<Record<number, string>>({});
 const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
@@ -221,6 +217,7 @@ const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
 const slickStore = useSlickStore();
 const tagStore = useTagStore();
+const boardLayoutRegistry = useBoardLayoutRegistry();
 
 const { board } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
@@ -287,6 +284,17 @@ const {
   resetSelectionState
 } = useBoardCardSelection(board, archiveCards, bulkMoveCards, resolveBoardId, openArchivedCards);
 const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
+const conveyorRegistration = boardLayoutRegistry.registerConveyor({
+  highlighted: false,
+  leftLabel: null,
+  leftAriaLabel: null,
+  leftDisabled: false,
+  rightLabel: archiveConveyorLabel.value,
+  rightAriaLabel: archiveConveyorAriaLabel.value,
+  rightDisabled: archiveConveyorDisabled.value,
+  onLeftClick: null,
+  onRightClick: handleArchiveConveyorClick
+});
 
 const {
   onCardDragStart,
@@ -345,6 +353,28 @@ function setBoardRefs(element: unknown) {
   setSlickGooBoardRef(element);
   setSelectionGooBoardRef(element);
 }
+
+watch(
+  [isCardSelectionMode, archiveConveyorLabel, archiveConveyorAriaLabel, archiveConveyorDisabled],
+  ([highlighted, rightLabel, rightAriaLabel, rightDisabled]) => {
+    conveyorRegistration.update({
+      highlighted,
+      leftLabel: null,
+      leftAriaLabel: null,
+      leftDisabled: false,
+      rightLabel,
+      rightAriaLabel,
+      rightDisabled,
+      onLeftClick: null,
+      onRightClick: handleArchiveConveyorClick
+    });
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(() => {
+  conveyorRegistration.dispose();
+});
 
 function toggleCardSelectionMode() {
   clearDragInteraction();
@@ -673,6 +703,14 @@ watch(
 </script>
 
 <style scoped>
+.board-view-route-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 @keyframes bo-spin {
   to {
     transform: rotate(360deg);
@@ -680,17 +718,12 @@ watch(
 }
 
 .board-view {
-  --board-content-inline-margin: 1.5rem;
   flex: 1;
+  height: 0;
   min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--bo-standard-gap);
-}
-
-.board-view > :not(.board) {
-  margin-inline: var(--board-content-inline-margin);
 }
 
 .board {
@@ -705,12 +738,13 @@ watch(
   margin-top: 0;
   align-items: stretch;
   min-height: 0;
-  height: 100%;
+  height: auto;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   box-sizing: border-box;
-  padding-inline: var(--board-content-inline-margin);
+  padding-inline: var(--bo-board-scroll-inline-padding, 0);
+  scroll-padding-inline: var(--bo-board-scroll-inline-padding, 0);
   padding-bottom: 0;
   flex: 1;
 }
@@ -893,17 +927,6 @@ watch(
 
 .goo-filter-defs {
   position: absolute;
-}
-
-@media (max-width: 767px) {
-  .board-view {
-    --board-content-inline-margin: 0.375rem;
-    gap: 0.3rem;
-  }
-
-  .board-view > :not(.board) {
-    margin-inline: 0;
-  }
 }
 
 </style>

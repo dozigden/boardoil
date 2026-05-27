@@ -133,3 +133,9 @@ async function openDeleteFromMenu(boardId: number, close: () => void) {
   await router.push({ name: 'board-delete', params: { boardId } });
 }
 </script>
+
+<style scoped>
+.entity-rows-page {
+  margin-top: 0;
+}
+</style>

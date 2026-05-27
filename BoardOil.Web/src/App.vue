@@ -1,38 +1,29 @@
 <template>
-  <main :class="['app-shell', `app-shell--${layoutMode}`]">
-    <AppHeader />
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <section class="app-content-stage">
-      <RouterView v-slot="{ Component, route: viewRoute }">
-        <Transition :name="pageTransitionName">
-          <component :is="layoutComponent" :key="getViewKey(viewRoute)" class="app-content">
-            <component :is="Component" />
-          </component>
-        </Transition>
-      </RouterView>
-    </section>
-    <RouterView name="dialog" />
-    <ConfirmDialogHost />
-  </main>
+  <RouterView v-slot="{ Component, route: viewRoute }">
+    <component :is="layoutComponent" :key="layoutMode" class="app-layout-host">
+      <Transition :name="pageTransitionName">
+        <component :is="Component" :key="getViewKey(viewRoute)" />
+      </Transition>
+    </component>
+  </RouterView>
+  <RouterView name="dialog" />
+  <ConfirmDialogHost />
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterView, useRoute, type RouteLocationNormalizedLoaded } from 'vue-router';
-import AppHeader from './site/components/AppHeader.vue';
 import ConfirmDialogHost from './shared/components/ConfirmDialogHost.vue';
 import { useBoardCatalogueStore } from './shared/stores/boardCatalogueStore';
 import { useBoardStore } from './board/stores/boardStore';
 import { useTagStore } from './board/stores/tagStore';
 import { useAuthStore } from './shared/stores/authStore';
 import { useUserProfileImageStore } from './shared/stores/userProfileImageStore';
-import { useUiFeedbackStore } from './shared/stores/uiFeedbackStore';
-import BoardWorkspaceLayout from './site/layouts/BoardWorkspaceLayout.vue';
+import StandardLayout from './site/layouts/StandardLayout.vue';
+import BoardWithConveyorLayout from './site/layouts/BoardWithConveyorLayout.vue';
 import AdminWorkspaceLayout from './site/layouts/AdminWorkspaceLayout.vue';
-import FullHeightLayout from './site/layouts/FullHeightLayout.vue';
-import PageScrollLayout from './site/layouts/PageScrollLayout.vue';
-import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD, APP_LAYOUT_FULL_HEIGHT, resolveAppLayout } from './site/layouts/appLayout';
+import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD_WITH_CONVEYOR, resolveAppLayout } from './site/layouts/appLayout';
 import { getPageTitle } from './site/components/appHeaderNavigation';
 
 const boardStore = useBoardStore();
@@ -40,28 +31,22 @@ const boardCatalogueStore = useBoardCatalogueStore();
 const tagStore = useTagStore();
 const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
-const feedbackStore = useUiFeedbackStore();
 const route = useRoute();
-const { errorMessage } = storeToRefs(feedbackStore);
 const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId } = storeToRefs(boardStore);
 const pageTransitionName = ref('route-none');
 const previousRouteSnapshot = ref<RouteSnapshot | null>(null);
 const layoutMode = computed(() => resolveAppLayout(route.meta.layout));
 const layoutComponent = computed(() => {
-  if (layoutMode.value === APP_LAYOUT_BOARD) {
-    return BoardWorkspaceLayout;
+  if (layoutMode.value === APP_LAYOUT_BOARD_WITH_CONVEYOR) {
+    return BoardWithConveyorLayout;
   }
 
   if (layoutMode.value === APP_LAYOUT_ADMIN) {
     return AdminWorkspaceLayout;
   }
 
-  if (layoutMode.value === APP_LAYOUT_FULL_HEIGHT) {
-    return FullHeightLayout;
-  }
-
-  return PageScrollLayout;
+  return StandardLayout;
 });
 const routeBoardId = computed(() => {
   const boardId = Number.parseInt(String(route.params.boardId ?? ''), 10);
@@ -139,15 +124,22 @@ function resolvePageTransition(previous: RouteSnapshot | null, current: RouteSna
   }
 
   const isSameBoard = previous.boardId !== null && previous.boardId === current.boardId;
-  if (isSameBoard && previous.name === 'board' && current.name === 'board-archived') {
+  const previousIsBoardWorkspace = isBoardWorkspaceRoute(previous.name);
+  const currentIsBoardWorkspace = isBoardWorkspaceRoute(current.name);
+
+  if (isSameBoard && previousIsBoardWorkspace && current.name === 'board-archived') {
     return 'conveyor-slide-left';
   }
 
-  if (isSameBoard && previous.name === 'board-archived' && current.name === 'board') {
+  if (isSameBoard && previous.name === 'board-archived' && currentIsBoardWorkspace) {
     return 'conveyor-slide-right';
   }
 
   return 'route-none';
+}
+
+function isBoardWorkspaceRoute(routeName: string) {
+  return routeName === 'board' || routeName === 'board-card';
 }
 
 type RouteSnapshot = {
@@ -157,82 +149,12 @@ type RouteSnapshot = {
 </script>
 
 <style scoped>
-.app-shell {
+.app-layout-host {
   min-height: 100vh;
   min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 0;
-}
-
-.app-shell--board {
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-}
-
-.app-shell--admin {
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-}
-
-.app-shell--full-height {
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-}
-
-.app-shell--page {
-  overflow-x: hidden;
-}
-
-.app-content {
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
-.app-content-stage {
-  flex: 1;
-  min-height: 0;
   min-width: 0;
   position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.app-shell--board .app-content-stage {
   overflow: hidden;
-}
-
-.app-shell--board :deep(.app-header) {
-  margin-bottom: var(--bo-standard-gap);
-}
-
-.app-shell--full-height :deep(.app-header) {
-  margin-bottom: var(--bo-standard-gap);
-}
-
-.app-shell--admin .app-content-stage {
-  overflow: hidden;
-}
-
-.app-shell--full-height .app-content-stage {
-  overflow: hidden;
-}
-
-.app-shell--page .app-content-stage {
-  overflow: visible;
-}
-
-.app-content > * {
-  min-height: 0;
-  min-width: 0;
 }
 
 .conveyor-slide-left-enter-active,

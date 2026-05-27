@@ -1,5 +1,5 @@
 <template>
-  <header class="app-header">
+  <header class="app-header" :class="{ 'app-header--compact-mobile': compactMobile }">
     <div class="header-top">
       <div class="header-primary">
         <h1 class="brand-title">
@@ -122,6 +122,13 @@ import { useBoardStore } from '../../board/stores/boardStore';
 import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { StylePresentation } from '../../shared/utils/styleTypes';
+
+type AppHeaderProps = {
+  compactMobile?: boolean;
+};
+
+const { compactMobile = false } = defineProps<AppHeaderProps>();
+
 const aboutDialogOpen = ref(false);
 const systemInfoDialogOpen = ref(false);
 const router = useRouter();
@@ -227,7 +234,7 @@ watch(isAuthenticated, async authenticated => {
 
 <style scoped>
 .app-header {
-  margin: 0 0 1rem;
+  margin: 0;
   padding: 1rem 1.5rem;
   background: var(--bo-surface-panel-strong);
   border-bottom: 1px solid var(--bo-border-brand);
@@ -240,7 +247,7 @@ watch(isAuthenticated, async authenticated => {
 
 .header-top {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
@@ -249,17 +256,18 @@ watch(isAuthenticated, async authenticated => {
 .header-primary {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.75rem;
   flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
 }
 
 .header-meta {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   min-height: 2rem;
   margin-left: auto;
@@ -275,15 +283,30 @@ watch(isAuthenticated, async authenticated => {
   border-radius: 0.35rem;
   padding: 0.5rem 0.8rem;
   font-size: 0.85rem;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.system-info-chip strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .system-info-chip-emoji {
   line-height: 1;
+  flex: 0 0 auto;
 }
 
 .system-info-trigger {
   margin: 0;
   cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .system-info-dialog {
@@ -375,15 +398,19 @@ watch(isAuthenticated, async authenticated => {
   display: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767px) {
+  .app-header--compact-mobile {
+    border-bottom: none;
+    padding-bottom: 0.35rem;
+  }
+
   .app-header {
-    margin-bottom: 0;
     padding: 0.6rem 0.75rem;
   }
 
   .header-top {
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.35rem;
   }
 
