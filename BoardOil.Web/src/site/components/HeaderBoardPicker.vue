@@ -54,11 +54,26 @@ const shouldRender = computed(() => props.isAuthenticated && props.currentBoardI
 </script>
 
 <style scoped>
+.board-switcher {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.2rem;
+  min-width: 0;
+  max-width: min(30rem, 62vw);
+  overflow: hidden;
+}
+
+.board-switcher-dropdown {
+  flex: 0 0 auto;
+}
+
 .board-current-link {
   display: inline-flex;
   align-items: center;
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: min(24rem, 58vw);
+  max-width: 100%;
   height: 2rem;
   padding: 0.35rem 0.3rem 0.35rem 0.1rem;
   border: none;
@@ -88,6 +103,10 @@ const shouldRender = computed(() => props.isAuthenticated && props.currentBoardI
 }
 
 @media (max-width: 720px) {
+  .board-switcher {
+    max-width: 100%;
+  }
+
   .board-current-link {
     flex: 1 1 auto;
     min-width: 0;
