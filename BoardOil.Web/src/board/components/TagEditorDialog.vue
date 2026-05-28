@@ -27,6 +27,8 @@
           maxlength="40"
           :placeholder="isCreateMode ? 'New tag name' : 'Tag name'"
           :disabled="busy"
+          autocomplete="off"
+          data-lpignore="true"
           @input="setDraftTagName(($event.target as HTMLInputElement).value)"
         />
       </label>

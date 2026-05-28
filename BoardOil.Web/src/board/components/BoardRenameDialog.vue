@@ -2,7 +2,7 @@
   <ModalDialog :open="open" title="Rename Board" close-label="Cancel rename" @close="emit('close')" @submit="submit">
     <label>
       Board name
-      <input v-model="boardName" :disabled="busy" maxlength="120" required />
+      <input v-model="boardName" :disabled="busy" maxlength="120" autocomplete="off" data-lpignore="true" required />
     </label>
 
     <template #actions>

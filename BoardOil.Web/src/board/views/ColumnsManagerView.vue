@@ -17,6 +17,8 @@
             ref="newColumnDraftInput"
             :value="newColumnDraftTitle"
             maxlength="200"
+            autocomplete="off"
+            data-lpignore="true"
             placeholder="New column title"
             @input="updateNewColumnDraft(($event.target as HTMLInputElement).value)"
             @keydown.enter.prevent="saveNewColumnDraft"

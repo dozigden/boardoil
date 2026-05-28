@@ -6,6 +6,8 @@
         <input
           :value="columnDraftTitle ?? editingColumn.title"
           maxlength="200"
+          autocomplete="off"
+          data-lpignore="true"
           @input="updateColumnDraft(($event.target as HTMLInputElement).value)"
         />
       </label>

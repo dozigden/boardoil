@@ -21,6 +21,8 @@
           maxlength="40"
           :placeholder="isCreateMode ? 'New slick name' : 'Slick name'"
           :disabled="busy"
+          autocomplete="off"
+          data-lpignore="true"
           @input="setDraftSlickName(($event.target as HTMLInputElement).value)"
         />
       </label>

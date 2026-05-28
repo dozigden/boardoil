@@ -27,7 +27,7 @@
 
     <label v-if="mode === 'blank'">
       Board name
-      <input v-model="boardName" :disabled="busy" maxlength="120" required />
+      <input v-model="boardName" :disabled="busy" maxlength="120" autocomplete="off" data-lpignore="true" required />
     </label>
     <label v-if="mode === 'blank'">
       Description (optional)
@@ -51,6 +51,8 @@
           v-model="packageBoardNameOverride"
           :disabled="busy"
           maxlength="120"
+          autocomplete="off"
+          data-lpignore="true"
           placeholder="Leave empty to use package board name"
         />
       </label>

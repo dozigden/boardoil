@@ -24,6 +24,8 @@
           maxlength="40"
           :placeholder="isCreateMode ? 'New card type name' : 'Card type name'"
           :disabled="busy"
+          autocomplete="off"
+          data-lpignore="true"
           @input="draftName = ($event.target as HTMLInputElement).value"
         />
       </label>
