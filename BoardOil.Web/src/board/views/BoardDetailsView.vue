@@ -6,7 +6,7 @@
       <label>
         Board name
         <input
-          v-model="boardNameDraft"
+          v-model="boardDetailsDraft.name"
           :disabled="!isOwner || busy"
           maxlength="120"
           required
@@ -15,7 +15,7 @@
       <label>
         Description (optional)
         <textarea
-          v-model="boardDescriptionDraft"
+          v-model="boardDetailsDraft.description"
           :disabled="!isOwner || busy"
           maxlength="5000"
           rows="8"
@@ -23,7 +23,7 @@
       </label>
       <label class="board-details-toggle">
         <input
-          v-model="slickCohesionModeEnabledDraft"
+          v-model="boardDetailsDraft.slickCohesionModeEnabled"
           type="checkbox"
           :disabled="!isOwner || busy"
         />
@@ -63,6 +63,7 @@ import { createBoardApi } from '../../shared/api/boardApi';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useBoardStore } from '../stores/boardStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import type { BoardEditModel } from '../../shared/types/boardTypes';
 
 const route = useRoute();
 const router = useRouter();
@@ -73,10 +74,12 @@ const boardApi = createBoardApi();
 const { board } = storeToRefs(boardStore);
 const { applyBoardSummaryUpdate } = boardStore;
 const { busy } = storeToRefs(boardCatalogueStore);
-const boardNameDraft = ref('');
-const boardDescriptionDraft = ref('');
-const slickCohesionModeEnabledDraft = ref(true);
 const exporting = ref(false);
+const boardDetailsDraft = ref<BoardEditModel>({
+  name: '',
+  description: '',
+  slickCohesionModeEnabled: true
+});
 
 const boardId = computed(() => resolveBoardId());
 const boardName = computed(() => board.value?.name ?? '');
@@ -84,10 +87,13 @@ const boardDescription = computed(() => board.value?.description ?? '');
 const slickCohesionModeEnabled = computed(() => board.value?.slickCohesionModeEnabled ?? true);
 const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
 const hasChanges = computed(() =>
-  boardNameDraft.value.trim() !== boardName.value.trim()
-  || boardDescriptionDraft.value.trim() !== boardDescription.value.trim()
-  || slickCohesionModeEnabledDraft.value !== slickCohesionModeEnabled.value);
-const canSave = computed(() => isOwner.value && !busy.value && boardNameDraft.value.trim().length > 0 && hasChanges.value);
+  board.value !== null
+  && (
+    boardDetailsDraft.value.name.trim() !== boardName.value.trim()
+    || boardDetailsDraft.value.description.trim() !== boardDescription.value.trim()
+    || boardDetailsDraft.value.slickCohesionModeEnabled !== slickCohesionModeEnabled.value
+  ));
+const canSave = computed(() => isOwner.value && !busy.value && boardDetailsDraft.value.name.trim().length > 0 && hasChanges.value);
 const canExport = computed(() => isOwner.value && !exporting.value);
 
 watch(
@@ -104,17 +110,13 @@ watch(
       return;
     }
 
-    boardNameDraft.value = board.value?.name ?? '';
-    boardDescriptionDraft.value = board.value?.description ?? '';
-    slickCohesionModeEnabledDraft.value = board.value?.slickCohesionModeEnabled ?? true;
+    resetDraftFromBoard();
   },
   { immediate: true }
 );
 
 function resetDraft() {
-  boardNameDraft.value = boardName.value;
-  boardDescriptionDraft.value = boardDescription.value;
-  slickCohesionModeEnabledDraft.value = slickCohesionModeEnabled.value;
+  resetDraftFromBoard();
 }
 
 async function saveBoardDetails() {
@@ -123,11 +125,14 @@ async function saveBoardDetails() {
     return;
   }
 
+  const saveModel: BoardEditModel = {
+    name: boardDetailsDraft.value.name.trim(),
+    description: boardDetailsDraft.value.description.trim(),
+    slickCohesionModeEnabled: boardDetailsDraft.value.slickCohesionModeEnabled
+  };
   const saved = await boardCatalogueStore.saveBoard(
     nextBoardId,
-    boardNameDraft.value.trim(),
-    slickCohesionModeEnabledDraft.value,
-    boardDescriptionDraft.value.trim());
+    saveModel);
   if (!saved) {
     return;
   }
@@ -136,9 +141,23 @@ async function saveBoardDetails() {
     applyBoardSummaryUpdate(saved);
   }
 
-  boardNameDraft.value = saved.name;
-  boardDescriptionDraft.value = saved.description;
-  slickCohesionModeEnabledDraft.value = saved.slickCohesionModeEnabled;
+  boardDetailsDraft.value = {
+    name: saved.name,
+    description: saved.description,
+    slickCohesionModeEnabled: saved.slickCohesionModeEnabled
+  };
+}
+
+function resetDraftFromBoard() {
+  if (board.value === null) {
+    return;
+  }
+
+  boardDetailsDraft.value = {
+    name: board.value.name,
+    description: board.value.description,
+    slickCohesionModeEnabled: board.value.slickCohesionModeEnabled
+  };
 }
 
 async function exportBoardPackage() {

@@ -3,6 +3,7 @@ import type {
   ArchivedCard,
   ArchivedCardList,
   Board,
+  BoardEditModel,
   BoardMember,
   BoardMemberRole,
   BoardSummary,
@@ -84,11 +85,9 @@ export function createBoardApi() {
 
   async function saveBoard(
     boardId: number,
-    name: string,
-    slickCohesionModeEnabled: boolean,
-    description?: string
+    model: BoardEditModel
   ): Promise<Result<BoardSummary, AppError>> {
-    return putData<BoardSummary>(`/api/boards/${boardId}`, { name, description, slickCohesionModeEnabled });
+    return putData<BoardSummary>(`/api/boards/${boardId}`, model);
   }
 
   async function deleteBoard(boardId: number): Promise<Result<void, AppError>> {

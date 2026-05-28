@@ -139,7 +139,11 @@ describe('boardApi saveBoard', () => {
     }));
 
     const api = createBoardApi();
-    const result = await api.saveBoard(1, 'Roadmap', true, 'Updated description');
+    const result = await api.saveBoard(1, {
+      name: 'Roadmap',
+      description: 'Updated description',
+      slickCohesionModeEnabled: true
+    });
 
     expect(result.ok).toBe(true);
     expect(putData).toHaveBeenCalledWith('/api/boards/1', {

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../api/boardApi';
 import { useUiFeedbackStore } from './uiFeedbackStore';
-import type { BoardSummary } from '../types/boardTypes';
+import type { BoardEditModel, BoardSummary } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 
@@ -62,8 +62,8 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     return created;
   }
 
-  async function saveBoard(boardId: number, name: string, slickCohesionModeEnabled: boolean, description?: string) {
-    const result = await runBusy(() => api.saveBoard(boardId, name, slickCohesionModeEnabled, description));
+  async function saveBoard(boardId: number, model: BoardEditModel) {
+    const result = await runBusy(() => api.saveBoard(boardId, model));
     if (!result.ok) {
       return null;
     }
