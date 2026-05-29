@@ -60,6 +60,11 @@ export type OwnUserProfile = {
   role: 'Admin' | 'Standard' | string;
 };
 
+export type UserProfileEditModel = {
+  displayName: string;
+  email: string;
+};
+
 export type UserProfileImage = {
   id: number;
   contentType: string;

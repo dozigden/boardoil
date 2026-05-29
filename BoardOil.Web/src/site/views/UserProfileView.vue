@@ -88,22 +88,22 @@ import { computed, ref, watch } from 'vue';
 import ProfileImageCropDialog from '../components/ProfileImageCropDialog.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
-import { createUsersApi } from '../../shared/api/usersApi';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useUserProfileImageStore } from '../../shared/stores/userProfileImageStore';
+import { useUserProfileStore } from '../../shared/stores/userProfileStore';
+import type { UserProfileEditModel } from '../../shared/types/authTypes';
 
 const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
-const usersApi = createUsersApi();
+const userProfileStore = useUserProfileStore();
 const { user } = storeToRefs(authStore);
 const { userProfileImageUrl, busy: imageBusy, errorMessage: imageErrorMessage } = storeToRefs(userProfileImageStore);
+const { busy: saveBusy, errorMessage: saveErrorMessage } = storeToRefs(userProfileStore);
 const userImageInput = ref<HTMLInputElement | null>(null);
 const cropDialogOpen = ref(false);
 const pendingProfileImageFile = ref<File | null>(null);
 const editDisplayName = ref('');
 const editEmail = ref('');
-const saveBusy = ref(false);
-const saveErrorMessage = ref<string | null>(null);
 const saveSuccessMessage = ref<string | null>(null);
 
 const userName = computed(() => user.value?.userName ?? 'Unknown user');
@@ -120,9 +120,9 @@ watch(
     }
 
     editDisplayName.value = nextUser.displayName;
-    const profileResult = await usersApi.getMyProfile();
-    if (profileResult.ok) {
-      editEmail.value = profileResult.data.email;
+    const profile = await userProfileStore.loadOwnProfile();
+    if (profile) {
+      editEmail.value = profile.email;
     }
   },
   { immediate: true }
@@ -181,23 +181,20 @@ async function uploadCroppedImage(file: File) {
 }
 
 async function saveProfile() {
-  saveBusy.value = true;
-  saveErrorMessage.value = null;
   saveSuccessMessage.value = null;
-  try {
-    const result = await usersApi.updateMyProfile(editDisplayName.value, editEmail.value);
-    if (!result.ok) {
-      saveErrorMessage.value = result.error.message;
-      return;
-    }
-
-    authStore.setOwnProfile(result.data.displayName, result.data.userName, result.data.role);
-    editDisplayName.value = result.data.displayName;
-    editEmail.value = result.data.email;
-    saveSuccessMessage.value = 'Profile updated.';
-  } finally {
-    saveBusy.value = false;
+  const saveModel: UserProfileEditModel = {
+    displayName: editDisplayName.value,
+    email: editEmail.value
+  };
+  const result = await userProfileStore.saveOwnProfile(saveModel);
+  if (!result) {
+    return;
   }
+
+  authStore.setOwnProfile(result.displayName, result.userName, result.role);
+  editDisplayName.value = result.displayName;
+  editEmail.value = result.email;
+  saveSuccessMessage.value = 'Profile updated.';
 }
 
 </script>

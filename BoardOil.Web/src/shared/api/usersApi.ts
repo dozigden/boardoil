@@ -1,6 +1,11 @@
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
-import type { OwnUserProfile, UserDirectoryEntry, UserProfileImage } from '../types/authTypes';
+import type {
+  OwnUserProfile,
+  UserDirectoryEntry,
+  UserProfileEditModel,
+  UserProfileImage
+} from '../types/authTypes';
 import { err, ok } from '../types/result';
 import { deleteJson, getEnvelope, postFormData, putData } from './http';
 
@@ -59,8 +64,8 @@ export function createUsersApi() {
     return deleteJson('/api/users/me/profile-image');
   }
 
-  async function updateMyProfile(displayName: string, email: string): Promise<Result<OwnUserProfile, AppError>> {
-    return putData<OwnUserProfile>('/api/users/me', { displayName, email });
+  async function updateMyProfile(model: UserProfileEditModel): Promise<Result<OwnUserProfile, AppError>> {
+    return putData<OwnUserProfile>('/api/users/me', model);
   }
 
   return {
