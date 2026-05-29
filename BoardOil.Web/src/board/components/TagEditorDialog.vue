@@ -183,7 +183,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useCardStore } from '../stores/cardStore';
 import { useTagStore } from '../stores/tagStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { Tag, TagStyleName } from '../../shared/types/boardTypes';
+import type { Tag, TagEditModel } from '../../shared/types/boardTypes';
 import {
   DEFAULT_TAG_STYLE_PROPERTIES_JSON,
   getTagPillClassList,
@@ -204,7 +204,7 @@ const tagStore = useTagStore();
 const { confirm } = useConfirm();
 const feedbackStore = useUiFeedbackStore();
 const { busy } = storeToRefs(tagStore);
-const { createTag, updateTagStyle, deleteTag, getTagById, getTagByName, loadTags } = tagStore;
+const { saveTag: saveTagAction, deleteTag, getTagById, getTagByName, loadTags } = tagStore;
 const {
   draft,
   stylePropertiesJson,
@@ -335,32 +335,31 @@ async function saveTag() {
   }
 
   const canonicalTagName = draftTagName.value.trim();
-  if (isCreateMode.value) {
-    if (!canonicalTagName) {
-      return;
-    }
+  if (!canonicalTagName) {
+    return;
+  }
 
+  const saveModel: TagEditModel = {
+    name: canonicalTagName,
+    emoji: draftEmoji.value,
+    styleName: draft.value.styleName,
+    stylePropertiesJson: nextStylePropertiesJson
+  };
+
+  if (isCreateMode.value) {
     const existingTag = getTagByName(canonicalTagName);
     if (existingTag) {
       feedbackStore.setError(`Tag '${existingTag.name}' already exists.`);
       return;
     }
 
-    const createdTag = await createTag(canonicalTagName, routeBoardId.value, draftEmoji.value);
-    if (!createdTag) {
+    const saveResult = await saveTagAction(null, saveModel);
+    if (!saveResult) {
       return;
     }
 
-    const styledTag = await updateTagStyle(
-      createdTag.id,
-      canonicalTagName,
-      draft.value.styleName,
-      nextStylePropertiesJson,
-      draftEmoji.value,
-      routeBoardId.value
-    );
-    if (!styledTag) {
-      await router.replace({ name: 'tags-tag', params: { boardId: routeBoardId.value, tagId: createdTag.id } });
+    if (!saveResult.savedTag && saveResult.createdTag) {
+      await router.replace({ name: 'tags-tag', params: { boardId: routeBoardId.value, tagId: saveResult.createdTag.id } });
       return;
     }
 
@@ -372,15 +371,8 @@ async function saveTag() {
     return;
   }
 
-  const updatedTag = await updateTagStyle(
-    editingTag.value.id,
-    canonicalTagName,
-    draft.value.styleName,
-    nextStylePropertiesJson,
-    draftEmoji.value,
-    routeBoardId.value
-  );
-  if (!updatedTag) {
+  const saveResult = await saveTagAction(editingTag.value.id, saveModel);
+  if (!saveResult?.savedTag) {
     return;
   }
 
@@ -402,7 +394,7 @@ async function deleteEditingTag() {
     return;
   }
 
-  const deleted = await deleteTag(editingTag.value.id, routeBoardId.value);
+  const deleted = await deleteTag(editingTag.value.id);
   if (!deleted) {
     return;
   }
@@ -458,6 +450,13 @@ watch(
       return;
     }
 
+    if (tagStore.activeBoardId !== nextBoardId || tagStore.tags.length === 0) {
+      const loaded = await loadTags(nextBoardId);
+      if (!loaded) {
+        return;
+      }
+    }
+
     if (nextIsCreate) {
       initialiseCreateDraftState();
       return;
@@ -469,15 +468,7 @@ watch(
       return;
     }
 
-    let nextTag = getTagById(nextTagId);
-    if (!nextTag) {
-      const loaded = await loadTags(nextBoardId);
-      if (!loaded) {
-        return;
-      }
-
-      nextTag = getTagById(nextTagId);
-    }
+    const nextTag = getTagById(nextTagId);
 
     if (!nextTag) {
       clearDraftState();

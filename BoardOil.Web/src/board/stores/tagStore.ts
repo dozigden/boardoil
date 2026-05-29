@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { Tag, TagStyleName } from '../../shared/types/boardTypes';
+import type { Tag, TagEditModel } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -12,25 +12,36 @@ export const useTagStore = defineStore('tag', () => {
   const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
-
-  function initialize() {
-  }
+  let loadRequestVersion = 0;
 
   function dispose() {
+    loadRequestVersion += 1;
     activeBoardId.value = null;
     tags.value = [];
     busy.value = false;
   }
 
   async function loadTags(boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
+    const requestVersion = ++loadRequestVersion;
+    const resolvedBoardId = boardId ?? activeBoardId.value;
     if (resolvedBoardId === null) {
-      tags.value = [];
+      if (requestVersion === loadRequestVersion) {
+        activeBoardId.value = null;
+        tags.value = [];
+      }
       return false;
+    }
+
+    if (activeBoardId.value !== resolvedBoardId) {
+      tags.value = [];
     }
 
     activeBoardId.value = resolvedBoardId;
     const result = await api.getTags(resolvedBoardId);
+    if (requestVersion !== loadRequestVersion) {
+      return false;
+    }
+
     if (!result.ok) {
       reportError(result.error);
       return false;
@@ -41,24 +52,18 @@ export const useTagStore = defineStore('tag', () => {
     return true;
   }
 
-  async function createTag(tagName: string, boardId: number | null = activeBoardId.value, emoji?: string | null) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function createTag(tagName: string, emoji?: string | null) {
+    const boardId = getActiveBoardId();
+    if (boardId === null) {
       return null;
     }
 
-    const result = await runBusy(() => api.createTag(resolvedBoardId, tagName, emoji));
-    if (!result.ok) {
-      return null;
-    }
-
-    upsertTag(result.data);
-    return result.data;
+    return createTagForBoard(boardId, tagName, emoji);
   }
 
-  async function ensureTagsExist(tagNames: string[], boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function ensureTagsExist(tagNames: string[]) {
+    const boardId = getActiveBoardId();
+    if (boardId === null) {
       return [];
     }
 
@@ -75,7 +80,7 @@ export const useTagStore = defineStore('tag', () => {
         continue;
       }
 
-      const created = await createTag(trimmedTagName, resolvedBoardId);
+      const created = await createTagForBoard(boardId, trimmedTagName);
       if (created) {
         resolvedTagNames.push(created.name);
       }
@@ -86,33 +91,50 @@ export const useTagStore = defineStore('tag', () => {
 
   async function updateTagStyle(
     tagId: number,
-    name: string,
-    styleName: TagStyleName,
-    stylePropertiesJson: string,
-    emoji?: string | null,
-    boardId: number | null = activeBoardId.value
+    model: TagEditModel
   ) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+    const boardId = getActiveBoardId();
+    if (boardId === null) {
       return null;
     }
 
-    const result = await runBusy(() => api.updateTagStyle(resolvedBoardId, tagId, name, styleName, stylePropertiesJson, emoji));
-    if (!result.ok) {
-      return null;
-    }
-
-    upsertTag(result.data);
-    return result.data;
+    return updateTagStyleForBoard(boardId, tagId, model);
   }
 
-  async function deleteTag(tagId: number, boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function saveTag(
+    tagId: number | null,
+    model: TagEditModel
+  ) {
+    const boardId = getActiveBoardId();
+    if (boardId === null) {
+      return null;
+    }
+
+    if (tagId === null) {
+      const createdTag = await createTagForBoard(boardId, model.name, model.emoji);
+      if (!createdTag) {
+        return null;
+      }
+
+      const styledTag = await updateTagStyleForBoard(boardId, createdTag.id, model);
+      return { createdTag, savedTag: styledTag };
+    }
+
+    const updatedTag = await updateTagStyleForBoard(boardId, tagId, model);
+    if (!updatedTag) {
+      return null;
+    }
+
+    return { createdTag: null, savedTag: updatedTag };
+  }
+
+  async function deleteTag(tagId: number) {
+    const boardId = getActiveBoardId();
+    if (boardId === null) {
       return false;
     }
 
-    const result = await runBusy(() => api.deleteTag(resolvedBoardId, tagId));
+    const result = await runBusy(() => api.deleteTag(boardId, tagId));
     if (!result.ok) {
       return false;
     }
@@ -175,26 +197,40 @@ export const useTagStore = defineStore('tag', () => {
     feedback.setError(error.message);
   }
 
-  function resolveBoardId(boardId: number | null) {
-    const resolved = boardId ?? activeBoardId.value;
-    if (resolved === null) {
-      feedback.setError('No board selected.');
+  async function createTagForBoard(boardId: number, tagName: string, emoji?: string | null) {
+    const result = await runBusy(() => api.createTag(boardId, tagName, emoji));
+    if (!result.ok) {
       return null;
     }
 
-    return resolved;
+    upsertTag(result.data);
+    return result.data;
+  }
+
+  async function updateTagStyleForBoard(boardId: number, tagId: number, model: TagEditModel) {
+    const result = await runBusy(() => api.updateTagStyle(boardId, tagId, model));
+    if (!result.ok) {
+      return null;
+    }
+
+    upsertTag(result.data);
+    return result.data;
+  }
+
+  function getActiveBoardId() {
+    return activeBoardId.value;
   }
 
   return {
     tags,
     busy,
     activeBoardId,
-    initialize,
     dispose,
     loadTags,
     createTag,
     ensureTagsExist,
     updateTagStyle,
+    saveTag,
     deleteTag,
     getTagById,
     getTagByName

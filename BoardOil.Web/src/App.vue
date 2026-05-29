@@ -69,7 +69,6 @@ watch(
   async authenticated => {
     if (authenticated) {
       await Promise.all([
-        tagStore.initialize(),
         boardCatalogueStore.loadBoards(),
         userProfileImageStore.loadOwnProfileImage()
       ]);

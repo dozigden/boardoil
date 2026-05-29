@@ -223,6 +223,61 @@ describe('boardApi saveColumn', () => {
   });
 });
 
+describe('boardApi tags', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('creates a tag with name and emoji payload', async () => {
+    vi.mocked(postData).mockResolvedValue(ok({
+      id: 7,
+      name: 'Release',
+      styleName: 'auto',
+      stylePropertiesJson: '{}',
+      emoji: '🚀',
+      createdAtUtc: '2026-05-16T00:00:00Z',
+      updatedAtUtc: '2026-05-16T00:00:00Z'
+    }));
+
+    const api = createBoardApi();
+    const result = await api.createTag(3, 'Release', '🚀');
+
+    expect(result.ok).toBe(true);
+    expect(postData).toHaveBeenCalledWith('/api/boards/3/tags', {
+      name: 'Release',
+      emoji: '🚀'
+    });
+  });
+
+  it('updates tag style with typed edit payload', async () => {
+    vi.mocked(putData).mockResolvedValue(ok({
+      id: 7,
+      name: 'Release',
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}',
+      emoji: '🚀',
+      createdAtUtc: '2026-05-16T00:00:00Z',
+      updatedAtUtc: '2026-05-16T00:00:00Z'
+    }));
+
+    const api = createBoardApi();
+    const result = await api.updateTagStyle(3, 7, {
+      name: 'Release',
+      emoji: '🚀',
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
+    });
+
+    expect(result.ok).toBe(true);
+    expect(putData).toHaveBeenCalledWith('/api/boards/3/tags/7', {
+      name: 'Release',
+      emoji: '🚀',
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
+    });
+  });
+});
+
 describe('boardApi card types', () => {
   beforeEach(() => {
     vi.clearAllMocks();

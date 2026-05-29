@@ -19,6 +19,7 @@ import type {
   SlickEditModel,
   SlickStyleName,
   Tag,
+  TagEditModel,
   TagStyleName
 } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
@@ -308,21 +309,9 @@ export function createBoardApi() {
   async function updateTagStyle(
     boardId: number,
     tagId: number,
-    name: string,
-    styleName: TagStyleName,
-    stylePropertiesJson: string,
-    emoji?: string | null
+    model: TagEditModel
   ): Promise<Result<Tag, AppError>> {
-    const payload: { name: string; styleName: TagStyleName; stylePropertiesJson: string; emoji?: string | null } = {
-      name,
-      styleName,
-      stylePropertiesJson
-    };
-    if (emoji !== undefined) {
-      payload.emoji = emoji;
-    }
-
-    return putData<Tag>(`/api/boards/${boardId}/tags/${tagId}`, payload);
+    return putData<Tag>(`/api/boards/${boardId}/tags/${tagId}`, model);
   }
 
   async function deleteTag(boardId: number, tagId: number): Promise<Result<void, AppError>> {

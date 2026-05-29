@@ -133,7 +133,7 @@
             <CardTagEditor
               :tag-names="cardDraft.tagNames"
               @update:tag-names="updateDraftTagNamesFromEditor"
-              :ensure-tags-exist="tagNames => ensureTagsExist(tagNames, routeBoardId)"
+              :ensure-tags-exist="tagNames => ensureTagsExist(tagNames)"
             />
           </div>
 
