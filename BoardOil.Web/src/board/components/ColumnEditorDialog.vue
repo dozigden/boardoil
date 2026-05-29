@@ -4,11 +4,10 @@
       <label>
         Title
         <input
-          :value="columnDraftTitle ?? editingColumn.title"
+          v-model="columnDraft.title"
           maxlength="200"
           autocomplete="off"
           data-lpignore="true"
-          @input="updateColumnDraft(($event.target as HTMLInputElement).value)"
         />
       </label>
     </template>
@@ -38,6 +37,7 @@ import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
+import type { ColumnEditModel } from '../../shared/types/boardTypes';
 import { useBoardStore } from '../stores/boardStore';
 
 const route = useRoute();
@@ -45,7 +45,9 @@ const router = useRouter();
 const boardStore = useBoardStore();
 const { board } = storeToRefs(boardStore);
 const { saveColumn: saveColumnAction, deleteColumn } = boardStore;
-const columnDraftTitle = ref<string | null>(null);
+const columnDraft = ref<ColumnEditModel>({
+  title: ''
+});
 
 const routeColumnId = computed<number | null>(() => {
   const raw = route.params.columnId;
@@ -71,18 +73,16 @@ async function closeColumnEditor() {
   await router.push({ name: 'columns', params: { boardId } });
 }
 
-function updateColumnDraft(value: string) {
-  columnDraftTitle.value = value;
-}
-
 async function saveColumn() {
   const columnId = routeColumnId.value;
-  const title = columnDraftTitle.value;
-  if (columnId === null || title === null || !title.trim()) {
+  if (columnId === null || !columnDraft.value.title.trim()) {
     return;
   }
 
-  await saveColumnAction(columnId, title);
+  const saveModel: ColumnEditModel = {
+    title: columnDraft.value.title.trim()
+  };
+  await saveColumnAction(columnId, saveModel);
   await closeColumnEditor();
 }
 
@@ -118,8 +118,10 @@ watch(
       return;
     }
 
-    if (previousColumnId !== nextColumnId || columnDraftTitle.value === null) {
-      columnDraftTitle.value = nextColumn.title;
+    if (previousColumnId !== nextColumnId) {
+      columnDraft.value = {
+        title: nextColumn.title
+      };
     }
   },
   { immediate: true }

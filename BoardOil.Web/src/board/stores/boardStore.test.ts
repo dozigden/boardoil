@@ -149,6 +149,25 @@ describe('boardStore', () => {
     expect(store.board?.columns.map(x => x.title)).toEqual(['Backlog', 'Doing', 'Done']);
   });
 
+  it('saves a column incrementally using typed edit model payload', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+
+    const saved: Column = {
+      id: 2,
+      title: 'In Progress',
+      sortKey: '00000000000000000020',
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:02:00Z'
+    };
+    api.saveColumn.mockResolvedValue(ok(saved));
+
+    await store.saveColumn(2, { title: 'In Progress' });
+
+    expect(api.saveColumn).toHaveBeenCalledWith(1, 2, { title: 'In Progress' });
+    expect(store.board?.columns.map(x => x.title)).toEqual(['Backlog', 'In Progress']);
+  });
+
   it('reorders a column incrementally when updated sort key is returned', async () => {
     const store = useBoardStore();
     await store.initialize(1);

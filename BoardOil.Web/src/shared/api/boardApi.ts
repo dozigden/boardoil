@@ -12,6 +12,7 @@ import type {
   CardComment,
   CardType,
   Column,
+  ColumnEditModel,
   DeleteCardsSummary,
   Slick,
   SlickStyleName,
@@ -135,9 +136,9 @@ export function createBoardApi() {
   async function saveColumn(
     boardId: number,
     columnId: number,
-    title: string
+    model: ColumnEditModel
   ): Promise<Result<Column, AppError>> {
-    return putData<Column>(`/api/boards/${boardId}/columns/${columnId}`, { title });
+    return putData<Column>(`/api/boards/${boardId}/columns/${columnId}`, model);
   }
 
   async function moveColumn(boardId: number, columnId: number, positionAfterColumnId: number | null): Promise<Result<Column, AppError>> {

@@ -200,6 +200,29 @@ describe('boardApi saveCard', () => {
   });
 });
 
+describe('boardApi saveColumn', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('sends typed column edit payload', async () => {
+    const column = {
+      id: 3,
+      title: 'Doing',
+      sortKey: '00000000000000000020',
+      createdAtUtc: '2026-04-17T00:00:00Z',
+      updatedAtUtc: '2026-04-17T00:00:00Z'
+    };
+    vi.mocked(putData).mockResolvedValue(ok(column));
+
+    const api = createBoardApi();
+    const result = await api.saveColumn(1, 3, { title: 'Doing' });
+
+    expect(result.ok).toBe(true);
+    expect(putData).toHaveBeenCalledWith('/api/boards/1/columns/3', { title: 'Doing' });
+  });
+});
+
 describe('boardApi slicks', () => {
   beforeEach(() => {
     vi.clearAllMocks();

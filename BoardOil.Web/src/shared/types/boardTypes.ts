@@ -59,6 +59,10 @@ export type BoardEditModel = {
   slickCohesionModeEnabled: boolean;
 };
 
+export type ColumnEditModel = {
+  title: string;
+};
+
 export type ArchivedCardListItem = {
   id: number;
   boardId: number;

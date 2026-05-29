@@ -10,7 +10,7 @@ import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
 import { useSlickStore } from './slickStore';
 import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
-import type { Board, BoardSummary, Column } from '../../shared/types/boardTypes';
+import type { Board, BoardSummary, Column, ColumnEditModel } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -149,13 +149,13 @@ export const useBoardStore = defineStore('board', () => {
     upsertColumn(result.data);
   }
 
-  async function saveColumn(columnId: number, title: string) {
+  async function saveColumn(columnId: number, model: ColumnEditModel) {
     const boardId = getCurrentBoardIdOrReport();
     if (boardId === null) {
       return;
     }
 
-    const result = await runBusy(() => api.saveColumn(boardId, columnId, title));
+    const result = await runBusy(() => api.saveColumn(boardId, columnId, model));
     if (!result.ok) {
       return;
     }
