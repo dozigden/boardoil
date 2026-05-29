@@ -59,6 +59,11 @@ export type BoardEditModel = {
   slickCohesionModeEnabled: boolean;
 };
 
+export type BoardMemberEditModel = {
+  userId: number;
+  role: BoardMemberRole;
+};
+
 export type ColumnEditModel = {
   title: string;
 };

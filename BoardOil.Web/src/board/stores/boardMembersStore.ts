@@ -2,7 +2,10 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { BoardMember, BoardMemberRole } from '../../shared/types/boardTypes';
+import type {
+  BoardMember,
+  BoardMemberEditModel
+} from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -20,16 +23,15 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
   }
 
   async function loadMembers(boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+    if (boardId === null) {
       members.value = [];
       return false;
     }
 
-    activeBoardId.value = resolvedBoardId;
+    activeBoardId.value = boardId;
     busy.value = true;
     try {
-      const result = await api.getBoardMembers(resolvedBoardId);
+      const result = await api.getBoardMembers(boardId);
       if (!result.ok) {
         reportError(result.error);
         members.value = [];
@@ -44,57 +46,49 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
     }
   }
 
-  async function addMember(
-    userId: number,
-    role: BoardMemberRole,
-    boardId: number | null = activeBoardId.value
-  ) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function addMember(model: BoardMemberEditModel) {
+    const boardId = activeBoardId.value;
+    if (boardId === null) {
       return null;
     }
 
-    const result = await runBusy(() => api.addBoardMember(resolvedBoardId, userId, role));
+    const result = await runBusy(() => api.addBoardMember(boardId, model));
     if (!result.ok) {
       return null;
     }
 
-    await loadMembers(resolvedBoardId);
+    await loadMembers(boardId);
     return result.data;
   }
 
-  async function updateMemberRole(
-    userId: number,
-    role: BoardMemberRole,
-    boardId: number | null = activeBoardId.value
-  ) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function updateMemberRole(model: BoardMemberEditModel) {
+    const boardId = activeBoardId.value;
+    if (boardId === null) {
       return null;
     }
 
-    const result = await runBusy(() => api.updateBoardMemberRole(resolvedBoardId, userId, role));
+    const result = await runBusy(() => api.updateBoardMemberRole(boardId, model));
     if (!result.ok) {
-      await loadMembers(resolvedBoardId);
+      await loadMembers(boardId);
       return null;
     }
 
-    await loadMembers(resolvedBoardId);
+    await loadMembers(boardId);
     return result.data;
   }
 
-  async function removeMember(userId: number, boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function removeMember(userId: number) {
+    const boardId = activeBoardId.value;
+    if (boardId === null) {
       return false;
     }
 
-    const result = await runBusy(() => api.removeBoardMember(resolvedBoardId, userId));
+    const result = await runBusy(() => api.removeBoardMember(boardId, userId));
     if (!result.ok) {
       return false;
     }
 
-    await loadMembers(resolvedBoardId);
+    await loadMembers(boardId);
     return true;
   }
 
@@ -116,16 +110,6 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
 
   function reportError(error: AppError) {
     feedback.setError(error.message);
-  }
-
-  function resolveBoardId(boardId: number | null) {
-    const resolved = boardId ?? activeBoardId.value;
-    if (resolved === null) {
-      feedback.setError('No board selected.');
-      return null;
-    }
-
-    return resolved;
   }
 
   return {

@@ -41,7 +41,7 @@
 import { Check, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import type { UserDirectoryEntry } from '../../shared/types/authTypes';
-import type { BoardMemberRole } from '../../shared/types/boardTypes';
+import type { BoardMemberEditModel, BoardMemberRole } from '../../shared/types/boardTypes';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
 
 const props = defineProps<{
@@ -52,7 +52,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  submit: [payload: { userId: number; role: BoardMemberRole }];
+  submit: [payload: BoardMemberEditModel];
 }>();
 
 const selectedUserIdText = ref('');

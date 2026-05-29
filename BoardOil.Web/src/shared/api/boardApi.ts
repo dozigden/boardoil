@@ -4,8 +4,8 @@ import type {
   ArchivedCardList,
   Board,
   BoardEditModel,
+  BoardMemberEditModel,
   BoardMember,
-  BoardMemberRole,
   BoardSummary,
   Card,
   CardEditModel,
@@ -107,16 +107,12 @@ export function createBoardApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
-  async function addBoardMember(boardId: number, userId: number, role: BoardMemberRole): Promise<Result<BoardMember, AppError>> {
-    return postData<BoardMember>(`/api/boards/${boardId}/members`, { userId, role });
+  async function addBoardMember(boardId: number, model: BoardMemberEditModel): Promise<Result<BoardMember, AppError>> {
+    return postData<BoardMember>(`/api/boards/${boardId}/members`, { userId: model.userId, role: model.role });
   }
 
-  async function updateBoardMemberRole(
-    boardId: number,
-    userId: number,
-    role: BoardMemberRole
-  ): Promise<Result<BoardMember, AppError>> {
-    return patchData<BoardMember>(`/api/boards/${boardId}/members/${userId}`, { role });
+  async function updateBoardMemberRole(boardId: number, model: BoardMemberEditModel): Promise<Result<BoardMember, AppError>> {
+    return patchData<BoardMember>(`/api/boards/${boardId}/members/${model.userId}`, { role: model.role });
   }
 
   async function removeBoardMember(boardId: number, userId: number): Promise<Result<void, AppError>> {

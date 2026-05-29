@@ -48,6 +48,8 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
 - Keep non-`.btn` controls limited to intentional interaction widgets:
   - chip/suggestion controls inside tag editors (`.tag-pill-remove`, `.card-tag-editor-suggestion`)
   - inline title edit trigger (`.card-title-button`)
+- Do not use `$event` in Vue templates. Bind named handlers (for example `@change="onRoleChange"`) and parse event details in script.
+- For delete operations where the request only needs identity, pass the primitive id (for example `userId`) instead of introducing single-field `*RemoveModel` types.
 - Do not use nested ternary expressions in frontend code. Prefer explicit `if`/`switch` branches or helper functions.
 
 ## Style Architecture Conventions
