@@ -70,6 +70,12 @@ export type CardTypeEditModel = {
   stylePropertiesJson: string;
 };
 
+export type SlickEditModel = {
+  name: string;
+  styleName: SlickStyleName;
+  stylePropertiesJson: string;
+};
+
 export type ArchivedCardListItem = {
   id: number;
   boardId: number;

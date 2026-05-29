@@ -326,7 +326,11 @@ describe('boardApi slicks', () => {
     }));
 
     const api = createBoardApi();
-    const result = await api.createSlick(3, 'Release Train', 'presets', '{"presetIndex":2}');
+    const result = await api.createSlick(3, {
+      name: 'Release Train',
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":2}'
+    });
 
     expect(result.ok).toBe(true);
     expect(postData).toHaveBeenCalledWith('/api/boards/3/slicks', {
@@ -347,13 +351,11 @@ describe('boardApi slicks', () => {
     }));
 
     const api = createBoardApi();
-    const result = await api.updateSlick(
-      3,
-      7,
-      'Release Train',
-      'solid',
-      '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
-    );
+    const result = await api.updateSlick(3, 7, {
+      name: 'Release Train',
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
+    });
 
     expect(result.ok).toBe(true);
     expect(putData).toHaveBeenCalledWith('/api/boards/3/slicks/7', {

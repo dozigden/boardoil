@@ -148,7 +148,7 @@ import { useStyleDraft } from '../composables/useStyleDraft';
 import { SLICK_PRESET_TOKENS } from '../../shared/utils/presetTheme';
 import { createStyleDraft } from '../../shared/utils/styleDraftAdapter';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
-import type { Slick, SlickStyleName } from '../../shared/types/boardTypes';
+import type { Slick, SlickEditModel, SlickStyleName } from '../../shared/types/boardTypes';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 
@@ -277,10 +277,14 @@ async function saveSlick() {
   if (!name) {
     return;
   }
-  const draftSlickStyleName = resolveDraftSlickStyleName(draft.value.styleName);
+  const saveModel: SlickEditModel = {
+    name,
+    styleName: resolveDraftSlickStyleName(draft.value.styleName),
+    stylePropertiesJson: stylePropertiesJson.value
+  };
 
   if (isCreateMode.value) {
-    const created = await createSlick(name, draftSlickStyleName, stylePropertiesJson.value, boardId);
+    const created = await createSlick(saveModel, boardId);
     if (!created) {
       return;
     }
@@ -293,13 +297,7 @@ async function saveSlick() {
     return;
   }
 
-  const updated = await updateSlick(
-    editingSlick.value.id,
-    name,
-    draftSlickStyleName,
-    stylePropertiesJson.value,
-    boardId
-  );
+  const updated = await updateSlick(editingSlick.value.id, saveModel, boardId);
   if (!updated) {
     return;
   }

@@ -40,10 +40,18 @@ describe('slickStore', () => {
     const store = useSlickStore();
     store.activeBoardId = 3;
 
-    const created = await store.createSlick('Release Train', 'presets', '{"presetIndex":2}');
+    const created = await store.createSlick({
+      name: 'Release Train',
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":2}'
+    });
 
     expect(created?.id).toBe(7);
-    expect(api.createSlick).toHaveBeenCalledWith(3, 'Release Train', 'presets', '{"presetIndex":2}');
+    expect(api.createSlick).toHaveBeenCalledWith(3, {
+      name: 'Release Train',
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":2}'
+    });
     expect(store.slicks.map(x => x.name)).toEqual(['Release Train']);
   });
 
@@ -52,7 +60,11 @@ describe('slickStore', () => {
     store.slicks = [makeSlick(7, 'Release Train', 'presets', '{"presetIndex":2}')];
     store.activeBoardId = 3;
 
-    const updated = await store.updateSlick(7, 'Release Train', 'solid', '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}');
+    const updated = await store.updateSlick(7, {
+      name: 'Release Train',
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
+    });
 
     expect(updated?.styleName).toBe('solid');
     expect(store.slicks[0]?.styleName).toBe('solid');

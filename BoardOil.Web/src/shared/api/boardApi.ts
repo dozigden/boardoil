@@ -16,6 +16,7 @@ import type {
   ColumnEditModel,
   DeleteCardsSummary,
   Slick,
+  SlickEditModel,
   SlickStyleName,
   Tag,
   TagStyleName
@@ -371,37 +372,17 @@ export function createBoardApi() {
 
   async function createSlick(
     boardId: number,
-    name: string,
-    styleName?: SlickStyleName,
-    stylePropertiesJson?: string
+    model: SlickEditModel
   ): Promise<Result<Slick, AppError>> {
-    const payload: {
-      name: string;
-      styleName?: SlickStyleName;
-      stylePropertiesJson?: string;
-    } = { name };
-    if (styleName !== undefined) {
-      payload.styleName = styleName;
-    }
-    if (stylePropertiesJson !== undefined) {
-      payload.stylePropertiesJson = stylePropertiesJson;
-    }
-
-    return postData<Slick>(`/api/boards/${boardId}/slicks`, payload);
+    return postData<Slick>(`/api/boards/${boardId}/slicks`, model);
   }
 
   async function updateSlick(
     boardId: number,
     slickId: number,
-    name: string,
-    styleName: SlickStyleName,
-    stylePropertiesJson: string
+    model: SlickEditModel
   ): Promise<Result<Slick, AppError>> {
-    return putData<Slick>(`/api/boards/${boardId}/slicks/${slickId}`, {
-      name,
-      styleName,
-      stylePropertiesJson
-    });
+    return putData<Slick>(`/api/boards/${boardId}/slicks/${slickId}`, model);
   }
 
   async function deleteSlick(boardId: number, slickId: number): Promise<Result<void, AppError>> {

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { Slick, SlickStyleName } from '../../shared/types/boardTypes';
+import type { Slick, SlickEditModel } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -39,9 +39,7 @@ export const useSlickStore = defineStore('slick', () => {
   }
 
   async function createSlick(
-    name: string,
-    styleName?: SlickStyleName,
-    stylePropertiesJson?: string,
+    model: SlickEditModel,
     boardId: number | null = activeBoardId.value
   ) {
     const resolvedBoardId = resolveBoardId(boardId);
@@ -49,7 +47,7 @@ export const useSlickStore = defineStore('slick', () => {
       return null;
     }
 
-    const result = await runBusy(() => api.createSlick(resolvedBoardId, name, styleName, stylePropertiesJson));
+    const result = await runBusy(() => api.createSlick(resolvedBoardId, model));
     if (!result.ok) {
       return null;
     }
@@ -60,9 +58,7 @@ export const useSlickStore = defineStore('slick', () => {
 
   async function updateSlick(
     slickId: number,
-    name: string,
-    styleName: SlickStyleName,
-    stylePropertiesJson: string,
+    model: SlickEditModel,
     boardId: number | null = activeBoardId.value
   ) {
     const resolvedBoardId = resolveBoardId(boardId);
@@ -70,7 +66,7 @@ export const useSlickStore = defineStore('slick', () => {
       return null;
     }
 
-    const result = await runBusy(() => api.updateSlick(resolvedBoardId, slickId, name, styleName, stylePropertiesJson));
+    const result = await runBusy(() => api.updateSlick(resolvedBoardId, slickId, model));
     if (!result.ok) {
       return null;
     }
