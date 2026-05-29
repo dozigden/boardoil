@@ -39,7 +39,7 @@
             :id="`system-board-member-role-${member.userId}`"
             :value="member.role"
             :disabled="busy"
-            @change="updateRole(member.userId, ($event.target as HTMLSelectElement).value)"
+            @change="onRoleChange(member.userId)"
           >
             <option value="Contributor">Contributor</option>
             <option value="Owner">Owner</option>
@@ -78,7 +78,11 @@ import AddBoardMemberDialog from '../components/AddBoardMemberDialog.vue';
 import { useSystemBoardMembersStore } from '../stores/systemBoardMembersStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { UserDirectoryEntry } from '../../shared/types/authTypes';
-import type { BoardMember, BoardMemberRole } from '../../shared/types/boardTypes';
+import type {
+  BoardMember,
+  BoardMemberEditModel,
+  BoardMemberRole
+} from '../../shared/types/boardTypes';
 
 const route = useRoute();
 const router = useRouter();
@@ -128,11 +132,6 @@ watch(
 );
 
 async function openAddMemberDialog() {
-  const resolvedBoardId = resolveBoardId();
-  if (resolvedBoardId === null) {
-    return;
-  }
-
   await loadUsers();
   isAddMemberDialogOpen.value = true;
 }
@@ -141,13 +140,8 @@ function closeAddMemberDialog() {
   isAddMemberDialogOpen.value = false;
 }
 
-async function addMember(payload: { userId: number; role: BoardMemberRole }) {
-  const resolvedBoardId = resolveBoardId();
-  if (resolvedBoardId === null) {
-    return;
-  }
-
-  const added = await boardMembersStore.addMember(payload.userId, payload.role, resolvedBoardId);
+async function addMember(model: BoardMemberEditModel) {
+  const added = await boardMembersStore.addMember(model);
   if (!added) {
     return;
   }
@@ -155,13 +149,21 @@ async function addMember(payload: { userId: number; role: BoardMemberRole }) {
   isAddMemberDialogOpen.value = false;
 }
 
-async function updateRole(userId: number, role: string) {
-  const resolvedBoardId = resolveBoardId();
-  if (resolvedBoardId === null) {
+async function updateRole(userId: number, role: BoardMemberRole) {
+  const model: BoardMemberEditModel = {
+    userId,
+    role
+  };
+  await boardMembersStore.updateMemberRole(model);
+}
+
+function onRoleChange(userId: number) {
+  const roleControl = document.getElementById(`system-board-member-role-${userId}`);
+  if (!(roleControl instanceof HTMLSelectElement)) {
     return;
   }
 
-  await boardMembersStore.updateMemberRole(userId, role, resolvedBoardId);
+  void updateRole(userId, roleControl.value as BoardMemberRole);
 }
 
 async function removeMember(member: BoardMember) {
@@ -175,12 +177,7 @@ async function removeMember(member: BoardMember) {
     return;
   }
 
-  const resolvedBoardId = resolveBoardId();
-  if (resolvedBoardId === null) {
-    return;
-  }
-
-  await boardMembersStore.removeMember(member.userId, resolvedBoardId);
+  await boardMembersStore.removeMember(member.userId);
 }
 
 function focusMemberRoleControl(userId: number) {

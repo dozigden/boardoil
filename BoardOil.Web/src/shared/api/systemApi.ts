@@ -1,6 +1,6 @@
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
-import type { BoardMember, BoardMemberRole, SystemBoardSummary } from '../types/boardTypes';
+import type { BoardMember, BoardMemberEditModel, BoardMemberRole, SystemBoardSummary } from '../types/boardTypes';
 import type {
   AccessToken,
   ClientAccount,
@@ -71,16 +71,12 @@ export function createSystemApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
-  async function addBoardMember(boardId: number, userId: number, role: BoardMemberRole): Promise<Result<BoardMember, AppError>> {
-    return postData<BoardMember>(`/api/system/boards/${boardId}/members`, { userId, role });
+  async function addBoardMember(boardId: number, model: BoardMemberEditModel): Promise<Result<BoardMember, AppError>> {
+    return postData<BoardMember>(`/api/system/boards/${boardId}/members`, { userId: model.userId, role: model.role });
   }
 
-  async function updateBoardMemberRole(
-    boardId: number,
-    userId: number,
-    role: BoardMemberRole
-  ): Promise<Result<BoardMember, AppError>> {
-    return patchData<BoardMember>(`/api/system/boards/${boardId}/members/${userId}`, { role });
+  async function updateBoardMemberRole(boardId: number, model: BoardMemberEditModel): Promise<Result<BoardMember, AppError>> {
+    return patchData<BoardMember>(`/api/system/boards/${boardId}/members/${model.userId}`, { role: model.role });
   }
 
   async function removeBoardMember(boardId: number, userId: number): Promise<Result<void, AppError>> {

@@ -12,22 +12,17 @@ import type { Result } from '../../shared/types/result';
 export const useBoardMembersStore = defineStore('boardMembers', () => {
   const members = ref<BoardMember[]>([]);
   const busy = ref(false);
-  const activeBoardId = ref<number | null>(null);
+  const activeBoardId = ref(0);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
 
   function dispose() {
-    activeBoardId.value = null;
+    activeBoardId.value = 0;
     members.value = [];
     busy.value = false;
   }
 
-  async function loadMembers(boardId: number | null = activeBoardId.value) {
-    if (boardId === null) {
-      members.value = [];
-      return false;
-    }
-
+  async function loadMembers(boardId: number) {
     activeBoardId.value = boardId;
     busy.value = true;
     try {
@@ -47,48 +42,33 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
   }
 
   async function addMember(model: BoardMemberEditModel) {
-    const boardId = activeBoardId.value;
-    if (boardId === null) {
-      return null;
-    }
-
-    const result = await runBusy(() => api.addBoardMember(boardId, model));
+    const result = await runBusy(() => api.addBoardMember(activeBoardId.value, model));
     if (!result.ok) {
       return null;
     }
 
-    await loadMembers(boardId);
+    await loadMembers(activeBoardId.value);
     return result.data;
   }
 
   async function updateMemberRole(model: BoardMemberEditModel) {
-    const boardId = activeBoardId.value;
-    if (boardId === null) {
-      return null;
-    }
-
-    const result = await runBusy(() => api.updateBoardMemberRole(boardId, model));
+    const result = await runBusy(() => api.updateBoardMemberRole(activeBoardId.value, model));
     if (!result.ok) {
-      await loadMembers(boardId);
+      await loadMembers(activeBoardId.value);
       return null;
     }
 
-    await loadMembers(boardId);
+    await loadMembers(activeBoardId.value);
     return result.data;
   }
 
   async function removeMember(userId: number) {
-    const boardId = activeBoardId.value;
-    if (boardId === null) {
-      return false;
-    }
-
-    const result = await runBusy(() => api.removeBoardMember(boardId, userId));
+    const result = await runBusy(() => api.removeBoardMember(activeBoardId.value, userId));
     if (!result.ok) {
       return false;
     }
 
-    await loadMembers(boardId);
+    await loadMembers(activeBoardId.value);
     return true;
   }
 
