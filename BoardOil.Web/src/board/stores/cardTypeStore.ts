@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
-import type { CardType, TagStyleName } from '../../shared/types/boardTypes';
+import type { CardType, CardTypeEditModel } from '../../shared/types/boardTypes';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
@@ -41,10 +41,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
   }
 
   async function createCardType(
-    name: string,
-    emoji: string | null | undefined,
-    styleName: TagStyleName,
-    stylePropertiesJson: string,
+    model: CardTypeEditModel,
     boardId: number | null = activeBoardId.value
   ) {
     const resolvedBoardId = resolveBoardId(boardId);
@@ -52,7 +49,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
       return null;
     }
 
-    const result = await runBusy(() => api.createCardType(resolvedBoardId, name, emoji, styleName, stylePropertiesJson));
+    const result = await runBusy(() => api.createCardType(resolvedBoardId, model));
     if (!result.ok) {
       return null;
     }
@@ -63,10 +60,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
 
   async function updateCardType(
     cardTypeId: number,
-    name: string,
-    emoji: string | null | undefined,
-    styleName: TagStyleName,
-    stylePropertiesJson: string,
+    model: CardTypeEditModel,
     boardId: number | null = activeBoardId.value
   ) {
     const resolvedBoardId = resolveBoardId(boardId);
@@ -74,14 +68,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
       return null;
     }
 
-    const result = await runBusy(() => api.updateCardType(
-      resolvedBoardId,
-      cardTypeId,
-      name,
-      emoji,
-      styleName,
-      stylePropertiesJson
-    ));
+    const result = await runBusy(() => api.updateCardType(resolvedBoardId, cardTypeId, model));
     if (!result.ok) {
       return null;
     }

@@ -223,6 +223,70 @@ describe('boardApi saveColumn', () => {
   });
 });
 
+describe('boardApi card types', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('creates a card type with typed edit payload', async () => {
+    vi.mocked(postData).mockResolvedValue(ok({
+      id: 7,
+      name: 'Bug',
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}',
+      emoji: '🕷️',
+      isSystem: false,
+      createdAtUtc: '2026-05-16T00:00:00Z',
+      updatedAtUtc: '2026-05-16T00:00:00Z'
+    }));
+
+    const api = createBoardApi();
+    const result = await api.createCardType(3, {
+      name: 'Bug',
+      emoji: '🕷️',
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
+    });
+
+    expect(result.ok).toBe(true);
+    expect(postData).toHaveBeenCalledWith('/api/boards/3/card-types', {
+      name: 'Bug',
+      emoji: '🕷️',
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
+    });
+  });
+
+  it('updates a card type with typed edit payload', async () => {
+    vi.mocked(putData).mockResolvedValue(ok({
+      id: 7,
+      name: 'Bug',
+      styleName: 'gradient',
+      stylePropertiesJson: '{"leftColor":"#112233","rightColor":"#445566","textColorMode":"auto","borderMode":"auto"}',
+      emoji: '🕷️',
+      isSystem: false,
+      createdAtUtc: '2026-05-16T00:00:00Z',
+      updatedAtUtc: '2026-05-16T00:00:00Z'
+    }));
+
+    const api = createBoardApi();
+    const result = await api.updateCardType(3, 7, {
+      name: 'Bug',
+      emoji: '🕷️',
+      styleName: 'gradient',
+      stylePropertiesJson: '{"leftColor":"#112233","rightColor":"#445566","textColorMode":"auto","borderMode":"auto"}'
+    });
+
+    expect(result.ok).toBe(true);
+    expect(putData).toHaveBeenCalledWith('/api/boards/3/card-types/7', {
+      name: 'Bug',
+      emoji: '🕷️',
+      styleName: 'gradient',
+      stylePropertiesJson: '{"leftColor":"#112233","rightColor":"#445566","textColorMode":"auto","borderMode":"auto"}'
+    });
+  });
+});
+
 describe('boardApi slicks', () => {
   beforeEach(() => {
     vi.clearAllMocks();

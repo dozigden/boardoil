@@ -187,6 +187,7 @@ import { useRoute, useRouter } from 'vue-router';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
+import type { CardTypeEditModel } from '../../shared/types/boardTypes';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import {
   createCardTypeStyleDraft,
@@ -356,14 +357,15 @@ async function saveCardType() {
     return;
   }
 
+  const saveModel: CardTypeEditModel = {
+    name: canonicalName,
+    emoji: draftEmoji.value,
+    styleName: draftStyle.value.styleName,
+    stylePropertiesJson: nextStylePropertiesJson
+  };
+
   if (isCreateMode.value) {
-    const created = await createCardType(
-      canonicalName,
-      draftEmoji.value,
-      draftStyle.value.styleName,
-      nextStylePropertiesJson,
-      boardId
-    );
+    const created = await createCardType(saveModel, boardId);
     if (!created) {
       return;
     }
@@ -376,14 +378,7 @@ async function saveCardType() {
     return;
   }
 
-  const updated = await updateCardType(
-    editingCardType.value.id,
-    canonicalName,
-    draftEmoji.value,
-    draftStyle.value.styleName,
-    nextStylePropertiesJson,
-    boardId
-  );
+  const updated = await updateCardType(editingCardType.value.id, saveModel, boardId);
   if (!updated) {
     return;
   }

@@ -10,6 +10,7 @@ import type {
   Card,
   CardEditModel,
   CardComment,
+  CardTypeEditModel,
   CardType,
   Column,
   ColumnEditModel,
@@ -338,55 +339,17 @@ export function createBoardApi() {
 
   async function createCardType(
     boardId: number,
-    name: string,
-    emoji?: string | null,
-    styleName?: TagStyleName,
-    stylePropertiesJson?: string
+    model: CardTypeEditModel
   ): Promise<Result<CardType, AppError>> {
-    const payload: {
-      name: string;
-      emoji?: string | null;
-      styleName?: TagStyleName;
-      stylePropertiesJson?: string;
-    } = { name };
-    if (emoji !== undefined) {
-      payload.emoji = emoji;
-    }
-    if (styleName !== undefined) {
-      payload.styleName = styleName;
-    }
-    if (stylePropertiesJson !== undefined) {
-      payload.stylePropertiesJson = stylePropertiesJson;
-    }
-
-    return postData<CardType>(`/api/boards/${boardId}/card-types`, payload);
+    return postData<CardType>(`/api/boards/${boardId}/card-types`, model);
   }
 
   async function updateCardType(
     boardId: number,
     cardTypeId: number,
-    name: string,
-    emoji?: string | null,
-    styleName?: TagStyleName,
-    stylePropertiesJson?: string
+    model: CardTypeEditModel
   ): Promise<Result<CardType, AppError>> {
-    const payload: {
-      name: string;
-      emoji?: string | null;
-      styleName?: TagStyleName;
-      stylePropertiesJson?: string;
-    } = { name };
-    if (emoji !== undefined) {
-      payload.emoji = emoji;
-    }
-    if (styleName !== undefined) {
-      payload.styleName = styleName;
-    }
-    if (stylePropertiesJson !== undefined) {
-      payload.stylePropertiesJson = stylePropertiesJson;
-    }
-
-    return putData<CardType>(`/api/boards/${boardId}/card-types/${cardTypeId}`, payload);
+    return putData<CardType>(`/api/boards/${boardId}/card-types/${cardTypeId}`, model);
   }
 
   async function setDefaultCardType(boardId: number, cardTypeId: number): Promise<Result<void, AppError>> {

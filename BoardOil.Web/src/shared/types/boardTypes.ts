@@ -63,6 +63,13 @@ export type ColumnEditModel = {
   title: string;
 };
 
+export type CardTypeEditModel = {
+  name: string;
+  emoji: string | null;
+  styleName: TagStyleName;
+  stylePropertiesJson: string;
+};
+
 export type ArchivedCardListItem = {
   id: number;
   boardId: number;
