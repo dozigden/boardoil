@@ -272,7 +272,7 @@ useClickOutside(listSplitRef, () => {
   border: 1px solid var(--bo-border-brand);
   border-radius: 8px;
   background: var(--bo-surface-base);
-  box-shadow: 0 6px 18px rgba(53, 22, 90, 0.18);
+  box-shadow: var(--bo-shadow-pop);
   z-index: 5;
 }
 

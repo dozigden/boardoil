@@ -40,7 +40,7 @@ const boardOilLogoMarkup = boardOilLogoSvg.replace('<svg', '<svg aria-hidden="tr
 }
 
 .boardoil-logo :deep(.drop) {
-  fill: var(--bo-colour-brand-mid, #7d63ab);
+  fill: var(--bo-brand-drop-fill, #6f4bb2);
 }
 
 .boardoil-logo :deep(.c2r1) {

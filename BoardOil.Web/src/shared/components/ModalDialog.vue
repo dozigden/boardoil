@@ -123,7 +123,7 @@ onBeforeUnmount(() => {
 }
 
 .card-modal::backdrop {
-  background: rgba(53, 22, 90, 0.45);
+  background: var(--bo-overlay-backdrop);
 }
 
 .card-modal-content {

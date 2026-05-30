@@ -261,7 +261,7 @@ const hasActiveOptionFilters = computed(() =>
   height: calc(1.25rem - 4px);
   border-radius: 50%;
   background: var(--bo-surface-panel);
-  box-shadow: 0 1px 2px color-mix(in srgb, #000 20%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--bo-mix-dark) 20%, transparent);
   transition: transform 140ms ease;
 }
 
@@ -287,7 +287,7 @@ const hasActiveOptionFilters = computed(() =>
 .board-selection-toggle-label {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--bo-text-default);
+  color: var(--bo-text-default, var(--bo-ink-default));
 }
 
 .board-selection-pane {

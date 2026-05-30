@@ -245,7 +245,7 @@ async function resetTagEntry() {
   min-width: 1.1rem;
   border: none;
   border-radius: 999px;
-  background: rgba(53, 22, 90, 0.16);
+  background: color-mix(in srgb, var(--bo-colour-brand) 16%, transparent);
   color: inherit;
   padding: 0.02rem 0.26rem;
   line-height: 1;

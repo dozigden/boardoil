@@ -193,7 +193,7 @@ const hasRightAction = computed(() => (props.rightLabel ?? '').trim().length > 0
   --bo-conveyor-end-fill: color-mix(in oklab, var(--bo-colour-brand) 92%, var(--bo-colour-brand-strong));
   --bo-conveyor-end-stroke: var(--bo-colour-brand-strong);
   color: var(--bo-ink-on-brand);
-  text-shadow: 0 1px 0 color-mix(in srgb, #000 24%, transparent);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--bo-mix-dark) 24%, transparent);
 }
 
 .board-conveyor--highlighted .board-conveyor-end:is(:hover, :focus-visible):not(:disabled) {

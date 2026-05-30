@@ -22,6 +22,7 @@ import { useBoardStore } from './board/stores/boardStore';
 import { useTagStore } from './board/stores/tagStore';
 import { useAuthStore } from './shared/stores/authStore';
 import { useUserProfileImageStore } from './shared/stores/userProfileImageStore';
+import { useThemeStore } from './shared/stores/themeStore';
 import StandardLayout from './site/layouts/StandardLayout.vue';
 import BoardWithConveyorLayout from './site/layouts/BoardWithConveyorLayout.vue';
 import SystemAdminLayout from './site/layouts/SystemAdminLayout.vue';
@@ -39,6 +40,7 @@ const boardCatalogueStore = useBoardCatalogueStore();
 const tagStore = useTagStore();
 const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
+const themeStore = useThemeStore();
 const route = useRoute();
 const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId, isLoadingBoard } = storeToRefs(boardStore);
@@ -90,6 +92,7 @@ onMounted(async () => {
 });
 
 onUnmounted(async () => {
+  themeStore.dispose();
   await boardStore.dispose();
   boardCatalogueStore.dispose();
   tagStore.dispose();

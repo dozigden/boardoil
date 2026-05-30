@@ -28,6 +28,10 @@ const navItems = [
     to: { name: 'user-admin-profile' }
   },
   {
+    label: 'Theme',
+    to: { name: 'user-admin-theme' }
+  },
+  {
     label: 'Access Tokens',
     to: { name: 'user-admin-access-tokens' }
   },

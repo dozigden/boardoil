@@ -3,6 +3,60 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+      }
+
+      html {
+        background-color: #f3efe8;
+      }
+
+      body {
+        background-color: #ffffff;
+      }
+
+      html[data-theme='dark'] {
+        background-color: #131820;
+      }
+
+      html[data-theme='dark'] body {
+        background-color: #171d27;
+      }
+    </style>
+    <script>
+      (() => {
+        const storageKey = 'boardoil:theme-mode';
+        const darkMediaQuery = '(prefers-color-scheme: dark)';
+
+        try {
+          const storedMode = globalThis.localStorage?.getItem(storageKey);
+          const mode = storedMode === 'light' || storedMode === 'dark' || storedMode === 'system'
+            ? storedMode
+            : 'system';
+          const systemPrefersDark =
+            typeof globalThis.matchMedia === 'function' && globalThis.matchMedia(darkMediaQuery).matches;
+          const isDark = mode === 'dark' || (mode === 'system' && systemPrefersDark);
+          const root = globalThis.document?.documentElement;
+
+          if (!root) {
+            return;
+          }
+
+          root.dataset.themeMode = mode;
+          root.dataset.theme = isDark ? 'dark' : 'light';
+          root.style.colorScheme = isDark ? 'dark' : 'light';
+          const body = globalThis.document?.body;
+          if (body) {
+            body.style.backgroundColor = isDark ? '#171d27' : '#ffffff';
+          }
+        } catch {
+          // Ignore storage/media-query failures; app store initialization will handle fallback.
+        }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicons/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png" />

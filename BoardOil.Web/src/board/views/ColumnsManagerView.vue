@@ -274,6 +274,6 @@ function onColumnDragEnd() {
 
 .draggable-column.drag-over {
   border-color: var(--bo-colour-secondary);
-  box-shadow: 0 0 0 2px rgba(105, 193, 206, 0.28);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bo-focus-ring) 28%, transparent);
 }
 </style>

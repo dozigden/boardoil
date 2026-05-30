@@ -101,7 +101,7 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(53, 22, 90, 0.45);
+  background: var(--bo-overlay-backdrop);
 }
 
 .md-link-dialog {

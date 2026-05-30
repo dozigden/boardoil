@@ -49,6 +49,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('./site/views/UserProfileView.vue')
       },
       {
+        path: 'theme',
+        name: 'user-admin-theme',
+        component: () => import('./site/views/UserThemeView.vue')
+      },
+      {
         path: 'access-tokens',
         name: 'user-admin-access-tokens',
         component: () => import('./site/views/AccessTokensView.vue')

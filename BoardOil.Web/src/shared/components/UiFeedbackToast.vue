@@ -25,10 +25,10 @@ const { warningMessage } = storeToRefs(feedbackStore);
   margin: 0;
   padding: 0.65rem 0.75rem;
   border-radius: 0.65rem;
-  border: 1px solid color-mix(in srgb, var(--bo-colour-warning) 70%, #8f5a10 30%);
-  background: color-mix(in srgb, var(--bo-colour-warning) 20%, #fff8ef 80%);
-  color: #5d3a0a;
-  box-shadow: 0 10px 22px rgba(43, 21, 0, 0.18);
+  border: 1px solid var(--bo-toast-warning-border);
+  background: var(--bo-toast-warning-bg);
+  color: var(--bo-toast-warning-text);
+  box-shadow: var(--bo-toast-warning-shadow);
   z-index: 1200;
 }
 
