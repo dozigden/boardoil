@@ -2,29 +2,29 @@
   <ModalDialog :open="open" title="Edit Client Account" close-label="Cancel client changes" @close="emit('close')" @submit="submit">
     <label>
       Username
-      <input :value="draftUserName" disabled />
+      <input :value="props.client?.userName ?? ''" disabled />
     </label>
 
     <label>
       Display name
-      <input v-model="draftDisplayName" :disabled="busy" maxlength="64" required />
+      <input v-model="draft.displayName" :disabled="busy" maxlength="64" required />
     </label>
 
     <label>
       Email
-      <input v-model="draftEmail" :disabled="busy" type="email" autocomplete="email" maxlength="320" required />
+      <input v-model="draft.email" :disabled="busy" type="email" autocomplete="email" maxlength="320" required />
     </label>
 
     <label>
       Role
-      <select v-model="draftRole" :disabled="busy">
+      <select v-model="draft.role" :disabled="busy">
         <option value="Standard">Standard</option>
         <option value="Admin">Admin</option>
       </select>
     </label>
 
     <label class="client-edit-dialog-check">
-      <input v-model="draftIsActive" :disabled="busy" type="checkbox" />
+      <input v-model="draft.isActive" :disabled="busy" type="checkbox" />
       <span>Active account</span>
     </label>
 
@@ -51,7 +51,7 @@
 import { Check, X } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
-import type { ClientAccount } from '../../shared/types/authTypes';
+import type { ClientAccount, UpdateClientAccountRequest } from '../../shared/types/authTypes';
 
 const props = defineProps<{
   open: boolean;
@@ -61,45 +61,48 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  submit: [payload: { displayName: string; email: string; role: 'Admin' | 'Standard'; isActive: boolean }];
+  submit: [payload: UpdateClientAccountRequest];
 }>();
 
-const draftUserName = ref('');
-const draftDisplayName = ref('');
-const draftEmail = ref('');
-const draftRole = ref<'Admin' | 'Standard'>('Standard');
-const draftIsActive = ref(true);
+const draft = ref<UpdateClientAccountRequest>(createDefaultDraft());
 const draftError = ref<string | null>(null);
 
+function createDefaultDraft(): UpdateClientAccountRequest {
+  return {
+    displayName: '',
+    email: '',
+    role: 'Standard',
+    isActive: true
+  };
+}
+
 function resetDraft() {
-  draftUserName.value = props.client?.userName ?? '';
-  draftDisplayName.value = props.client?.displayName ?? '';
-  draftEmail.value = props.client?.email ?? '';
-  draftRole.value = props.client?.role === 'Admin' ? 'Admin' : 'Standard';
-  draftIsActive.value = props.client?.isActive ?? true;
+  draft.value = {
+    displayName: props.client?.displayName ?? '',
+    email: props.client?.email ?? '',
+    role: props.client?.role === 'Admin' ? 'Admin' : 'Standard',
+    isActive: props.client?.isActive ?? true
+  };
   draftError.value = null;
 }
 
 function submit() {
-  const trimmedEmail = draftEmail.value.trim();
-  const trimmedDisplayName = draftDisplayName.value.trim();
-  if (!trimmedDisplayName) {
+  const editModel = draft.value;
+  editModel.displayName = editModel.displayName.trim();
+  editModel.email = editModel.email.trim();
+
+  if (!editModel.displayName) {
     draftError.value = 'Display name is required.';
     return;
   }
 
-  const atIndex = trimmedEmail.indexOf('@');
-  if (atIndex <= 0 || atIndex !== trimmedEmail.lastIndexOf('@') || atIndex >= trimmedEmail.length - 1) {
+  const atIndex = editModel.email.indexOf('@');
+  if (atIndex <= 0 || atIndex !== editModel.email.lastIndexOf('@') || atIndex >= editModel.email.length - 1) {
     draftError.value = "Email must contain '@' with characters before and after it.";
     return;
   }
 
-  emit('submit', {
-    displayName: trimmedDisplayName,
-    email: trimmedEmail,
-    role: draftRole.value,
-    isActive: draftIsActive.value
-  });
+  emit('submit', editModel);
 }
 
 watch(

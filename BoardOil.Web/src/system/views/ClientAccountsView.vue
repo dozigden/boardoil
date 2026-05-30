@@ -5,7 +5,7 @@
         <h2>Client Accounts</h2>
         <p>Client accounts are used for REST API access from other applications, or MCP if you want the agent to have its own identity.</p>
       </div>
-      <button type="button" class="btn" :disabled="isBusy" @click="openCreateDialog">Create client account</button>
+      <button type="button" class="btn" :disabled="busy" @click="openCreateDialog">Create client account</button>
     </header>
 
     <div class="client-accounts-layout">
@@ -17,7 +17,7 @@
           class="client-accounts-grid"
           :columns="gridFields"
           :items="clients"
-          :is-loading="loading"
+          :is-loading="busy"
           empty-text="No client accounts have been created yet."
           sticky-header="100%"
           :total-count="clients.length"
@@ -29,7 +29,7 @@
             <button
               type="button"
               class="client-id-link client-cell-text"
-              :disabled="isBusy"
+              :disabled="busy"
               @click="openEditDialog(asClientAccount(row))"
             >
               #{{ row.id }}
@@ -64,13 +64,13 @@
               icon-only
               label="Client account actions"
               :icon="MoreVertical"
-              :disabled="isBusy"
+              :disabled="busy"
             >
               <template #default="{ close }">
                 <button
                   type="button"
                   class="bo-dropdown-item"
-                  :disabled="isBusy"
+                  :disabled="busy"
                   @click="openEditClientFromMenu(asClientAccount(row), close)"
                 >
                   Edit details
@@ -79,7 +79,7 @@
                 <button
                   type="button"
                   class="bo-dropdown-item"
-                  :disabled="isBusy"
+                  :disabled="busy"
                   @click="openClientTokensFromMenu(Number(row.id), close)"
                 >
                   Tokens
@@ -88,7 +88,7 @@
                 <button
                   type="button"
                   class="bo-dropdown-item"
-                  :disabled="isBusy"
+                  :disabled="busy"
                   @click="openClientImagePicker(asClientAccount(row), close)"
                 >
                   Upload image
@@ -96,7 +96,7 @@
                 <button
                   type="button"
                   class="bo-dropdown-item"
-                  :disabled="isBusy || !asClientAccount(row).profileImageRelativePath"
+                  :disabled="busy || !asClientAccount(row).profileImageRelativePath"
                   @click="removeClientImageFromMenu(asClientAccount(row), close)"
                 >
                   Remove image
@@ -105,7 +105,7 @@
                 <button
                   type="button"
                   class="bo-dropdown-item"
-                  :disabled="isBusy"
+                  :disabled="busy"
                   @click="deleteClientFromMenu(asClientAccount(row), close)"
                 >
                   Delete
@@ -119,13 +119,13 @@
 
     <ClientAccountCreateDialog
       :open="isCreateDialogOpen"
-      :busy="isBusy"
+      :busy="busy"
       @close="closeCreateDialog"
       @submit="createClientAccount"
     />
     <ClientAccountEditDialog
       :open="isEditDialogOpen"
-      :busy="isBusy"
+      :busy="busy"
       :client="clientForEdit"
       @close="closeEditDialog"
       @submit="submitClientEdit"
@@ -133,7 +133,7 @@
 
     <AccessTokenSecretModal
       :open="isSecretModalOpen"
-      :busy="isBusy"
+      :busy="busy"
       :token="plainTextPat"
       :token-name="plainTextPatName"
       @close="dismissPlainTextPat"
@@ -151,7 +151,7 @@
     <ProfileImageCropDialog
       :open="cropDialogOpen"
       :source-file="pendingClientImageFile"
-      :busy="imageBusy"
+      :busy="busy"
       :error-message="errorMessage"
       @close="closeCropDialog"
       @confirm="uploadCroppedClientImage"
@@ -161,9 +161,9 @@
 
 <script setup lang="ts">
 import { MoreVertical } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { createSystemApi } from '../../shared/api/systemApi';
 import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretModal.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import BoGrid from '../../shared/components/BoGrid.vue';
@@ -172,20 +172,18 @@ import { useConfirm } from '../../shared/composables/useConfirm';
 import ProfileImageCropDialog from '../../site/components/ProfileImageCropDialog.vue';
 import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.vue';
 import ClientAccountEditDialog from '../components/ClientAccountEditDialog.vue';
-import type { ClientAccount, CreateClientAccountRequest } from '../../shared/types/authTypes';
+import type {
+  ClientAccount,
+  CreateClientAccountRequest,
+  UpdateClientAccountRequest
+} from '../../shared/types/authTypes';
+import { useSystemClientAccountsStore } from '../stores/systemClientAccountsStore';
 
-const systemApi = createSystemApi();
+const clientAccountsStore = useSystemClientAccountsStore();
 const { confirm } = useConfirm();
-const clients = ref<ClientAccount[]>([]);
-
-const loading = ref(false);
-const createBusy = ref(false);
-const editBusy = ref(false);
-const imageBusy = ref(false);
+const { clients, busy, errorMessage, successMessage } = storeToRefs(clientAccountsStore);
 const isCreateDialogOpen = ref(false);
 const isEditDialogOpen = ref(false);
-const errorMessage = ref<string | null>(null);
-const successMessage = ref<string | null>(null);
 const plainTextPat = ref<string | null>(null);
 const plainTextPatName = ref<string>('');
 const clientForEdit = ref<ClientAccount | null>(null);
@@ -196,7 +194,6 @@ const pendingClientImageFile = ref<File | null>(null);
 
 const router = useRouter();
 
-const isBusy = computed(() => loading.value || createBusy.value || editBusy.value || imageBusy.value);
 const isSecretModalOpen = computed(() => plainTextPat.value !== null);
 const gridFields: Array<{
   key: string;
@@ -233,64 +230,32 @@ function closeEditDialog() {
 }
 
 async function loadClients() {
-  loading.value = true;
-  errorMessage.value = null;
-  try {
-    const result = await systemApi.getClientAccounts();
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    clients.value = result.data;
-  } finally {
-    loading.value = false;
-  }
+  await clientAccountsStore.loadClients();
 }
 
 async function createClientAccount(payload: CreateClientAccountRequest) {
-  createBusy.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.createClientAccount(payload);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    clients.value = [...clients.value, result.data.account].sort((a, b) => a.userName.localeCompare(b.userName));
-    plainTextPat.value = result.data.token.plainTextToken;
-    plainTextPatName.value = result.data.token.token.name;
-    successMessage.value = `Created client account ${result.data.account.displayName}.`;
-    isCreateDialogOpen.value = false;
-  } finally {
-    createBusy.value = false;
+  const createdClient = await clientAccountsStore.createClientAccount(payload);
+  if (!createdClient) {
+    return;
   }
+
+  plainTextPat.value = createdClient.token.plainTextToken;
+  plainTextPatName.value = createdClient.token.token.name;
+  isCreateDialogOpen.value = false;
 }
 
-async function submitClientEdit(payload: { displayName: string; email: string; role: 'Admin' | 'Standard'; isActive: boolean }) {
+async function submitClientEdit(payload: UpdateClientAccountRequest) {
   const selectedClient = clientForEdit.value;
   if (!selectedClient) {
     return;
   }
 
-  editBusy.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.updateClientAccount(selectedClient.id, payload);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    clients.value = clients.value.map(client => (client.id === selectedClient.id ? result.data : client));
-    closeEditDialog();
-    successMessage.value = `Updated client account ${result.data.displayName}.`;
-  } finally {
-    editBusy.value = false;
+  const updated = await clientAccountsStore.updateClientAccount(selectedClient.id, payload);
+  if (!updated) {
+    return;
   }
+
+  closeEditDialog();
 }
 
 async function copyPlainTextPat() {
@@ -332,25 +297,11 @@ async function deleteClientAccount(client: ClientAccount) {
     return;
   }
 
-  loading.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.deleteClientAccount(client.id);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    clients.value = clients.value.filter(entry => entry.id !== client.id);
-    successMessage.value = `Deleted client account ${client.displayName}.`;
-  } finally {
-    loading.value = false;
-  }
+  await clientAccountsStore.deleteClientAccount(client.id, client.displayName);
 }
 
 function openClientImagePicker(client: ClientAccount, close: () => void) {
-  if (isBusy.value) {
+  if (busy.value) {
     return;
   }
 
@@ -374,7 +325,7 @@ function onClientImageSelected(event: Event) {
 }
 
 function closeCropDialog() {
-  if (imageBusy.value) {
+  if (busy.value) {
     return;
   }
 
@@ -393,48 +344,16 @@ async function uploadCroppedClientImage(file: File) {
     return;
   }
 
-  imageBusy.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.uploadClientAccountProfileImage(clientId, file);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    clients.value = clients.value.map(client =>
-      client.id === clientId
-        ? { ...client, profileImageRelativePath: result.data.relativePath }
-        : client
-    );
-    resetCropDialogState();
-    successMessage.value = 'Updated client account image.';
-  } finally {
-    imageBusy.value = false;
+  const updated = await clientAccountsStore.uploadClientProfileImage(clientId, file);
+  if (!updated) {
+    return;
   }
+
+  resetCropDialogState();
 }
 
 async function removeClientImage(client: ClientAccount) {
-  imageBusy.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  try {
-    const result = await systemApi.deleteClientAccountProfileImage(client.id);
-    if (!result.ok) {
-      errorMessage.value = result.error.message;
-      return;
-    }
-
-    clients.value = clients.value.map(entry =>
-      entry.id === client.id
-        ? { ...entry, profileImageRelativePath: null }
-        : entry
-    );
-    successMessage.value = `Removed image for ${client.displayName}.`;
-  } finally {
-    imageBusy.value = false;
-  }
+  await clientAccountsStore.removeClientProfileImage(client.id, client.displayName);
 }
 
 function openClientTokensFromMenu(clientId: number, close: () => void) {
@@ -462,6 +381,7 @@ function asClientAccount(row: Record<string, unknown>): ClientAccount {
 }
 
 onMounted(async () => {
+  clientAccountsStore.clearMessages();
   await loadClients();
 });
 </script>
