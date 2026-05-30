@@ -17,13 +17,9 @@ import { buildBoardAdminNavItems } from './boardAdminNav';
 
 const boardStore = useBoardStore();
 const { board, currentBoardId } = storeToRefs(boardStore);
-const boardId = computed(() => currentBoardId.value);
+const boardId = computed(() => currentBoardId.value!);
 
 const navItems = computed(() => {
-  if (boardId.value === null) {
-    return [];
-  }
-
   return buildBoardAdminNavItems(boardId.value, board.value?.currentUserRole);
 });
 

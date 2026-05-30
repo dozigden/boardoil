@@ -87,7 +87,7 @@
 <script setup lang="ts">
 import { GripVertical, Pencil, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 import type { ColumnCreateModel } from '../../shared/types/boardTypes';
@@ -129,11 +129,7 @@ async function saveNewColumnDraft() {
 }
 
 async function openColumnEditor(columnId: number) {
-  const boardId = currentBoardId.value;
-  if (boardId === null) {
-    return;
-  }
-
+  const boardId = currentBoardId.value!;
   await router.push({ name: 'columns-column', params: { boardId, columnId } });
 }
 
@@ -211,12 +207,6 @@ function onColumnDragEnd() {
   draggingColumnId.value = null;
   dragOverColumnId.value = null;
 }
-
-onMounted(() => {
-  if (currentBoardId.value === null || board.value === null) {
-    void router.replace({ name: 'boards' });
-  }
-});
 </script>
 
 <style scoped>

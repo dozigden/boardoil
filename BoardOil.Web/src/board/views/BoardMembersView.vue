@@ -75,7 +75,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { createUsersApi } from '../../shared/api/usersApi';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import AddBoardMemberDialog from '../../system/components/AddBoardMemberDialog.vue';
@@ -90,7 +89,6 @@ import type {
   BoardMemberRole,
 } from '../../shared/types/boardTypes';
 
-const router = useRouter();
 const boardStore = useBoardStore();
 const boardMembersStore = useBoardMembersStore();
 const { confirm } = useConfirm();
@@ -188,12 +186,7 @@ async function loadUsers() {
 }
 
 async function initializeView() {
-  const boardId = currentBoardId.value;
-  if (boardId === null) {
-    await router.replace({ name: 'boards' });
-    return;
-  }
-
+  const boardId = currentBoardId.value!;
   await boardMembersStore.loadMembers(boardId);
   await loadUsers();
 }

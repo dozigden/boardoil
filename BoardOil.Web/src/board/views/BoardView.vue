@@ -241,11 +241,7 @@ const {
 } = useBoardCardFilters(board, tags, slicks);
 
 async function openArchivedCards() {
-  const boardId = currentBoardId.value;
-  if (boardId === null) {
-    return;
-  }
-
+  const boardId = currentBoardId.value!;
   await router.push({ name: 'board-archived', params: { boardId } });
 }
 
@@ -624,11 +620,7 @@ async function saveNewCardDraft(columnId: number) {
 }
 
 async function openCardEditor(cardId: number) {
-  const boardId = currentBoardId.value;
-  if (boardId === null) {
-    return;
-  }
-
+  const boardId = currentBoardId.value!;
   await router.push({ name: 'board-card', params: { boardId, cardId } });
 }
 
@@ -652,11 +644,7 @@ async function initializeView() {
   resetSelectionState();
   closeBulkEditDialog();
 
-  const boardId = currentBoardId.value;
-  if (boardId === null) {
-    await router.replace({ name: 'boards' });
-    return;
-  }
+  const boardId = currentBoardId.value!;
 
   isLoading.value = true;
   try {

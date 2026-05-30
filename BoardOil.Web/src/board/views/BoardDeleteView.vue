@@ -51,25 +51,20 @@ const { board, currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(boardCatalogueStore);
 const confirmationName = ref('');
 
-const boardId = computed(() => currentBoardId.value);
+const boardId = computed(() => currentBoardId.value!);
 const boardName = computed(() => board.value?.name ?? 'this board');
 const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
 const canDelete = computed(() => isOwner.value && !busy.value && confirmationName.value.trim() === boardName.value.trim());
 
 onMounted(() => {
-  if (boardId.value === null) {
-    void router.replace({ name: 'boards' });
-    return;
-  }
-
   confirmationName.value = '';
 });
 
 async function deleteBoard() {
-  const nextBoardId = boardId.value;
-  if (nextBoardId === null || !canDelete.value) {
+  if (!canDelete.value) {
     return;
   }
+  const nextBoardId = boardId.value;
 
   const deleted = await boardCatalogueStore.deleteBoard(nextBoardId);
   if (!deleted) {

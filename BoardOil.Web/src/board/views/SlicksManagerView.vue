@@ -60,7 +60,7 @@ const { currentBoardId } = storeToRefs(boardStore);
 const { slicks, busy } = storeToRefs(slickStore);
 const { loadSlicks } = slickStore;
 
-const routeBoardId = computed(() => currentBoardId.value);
+const boardId = computed(() => currentBoardId.value!);
 
 onMounted(() => {
   void initializeView();
@@ -79,29 +79,15 @@ function getSlickStyleClasses(slick: Slick) {
 }
 
 async function openEditor(slickId: number) {
-  if (routeBoardId.value === null) {
-    return;
-  }
-
-  await router.push({ name: 'slicks-slick', params: { boardId: routeBoardId.value, slickId } });
+  await router.push({ name: 'slicks-slick', params: { boardId: boardId.value, slickId } });
 }
 
 async function openCreateEditor() {
-  if (routeBoardId.value === null) {
-    return;
-  }
-
-  await router.push({ name: 'slicks-new', params: { boardId: routeBoardId.value } });
+  await router.push({ name: 'slicks-new', params: { boardId: boardId.value } });
 }
 
 async function initializeView() {
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    await router.replace({ name: 'boards' });
-    return;
-  }
-
-  await loadSlicks(boardId);
+  await loadSlicks(boardId.value);
 }
 </script>
 

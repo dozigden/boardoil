@@ -73,49 +73,31 @@ const { loadCardTypes, setDefaultCardType } = cardTypeStore;
 
 const isOwner = computed(() => currentUserRole.value === 'Owner');
 
-const routeBoardId = computed(() => currentBoardId.value);
+const boardId = computed(() => currentBoardId.value!);
 
 onMounted(() => {
   void initializeView();
 });
 
 async function initializeView() {
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    await router.replace({ name: 'boards' });
-    return;
-  }
-
   if (!isOwner.value) {
-    await router.replace({ name: 'board', params: { boardId } });
+    await router.replace({ name: 'board', params: { boardId: boardId.value } });
     return;
   }
 
-  await loadCardTypes(boardId);
+  await loadCardTypes(boardId.value);
 }
 
 async function openEditor(cardTypeId: number) {
-  if (routeBoardId.value === null) {
-    return;
-  }
-
-  await router.push({ name: 'card-types-card-type', params: { boardId: routeBoardId.value, cardTypeId } });
+  await router.push({ name: 'card-types-card-type', params: { boardId: boardId.value, cardTypeId } });
 }
 
 async function openCreateEditor() {
-  if (routeBoardId.value === null) {
-    return;
-  }
-
-  await router.push({ name: 'card-types-new', params: { boardId: routeBoardId.value } });
+  await router.push({ name: 'card-types-new', params: { boardId: boardId.value } });
 }
 
 async function setAsDefault(cardTypeId: number) {
-  if (routeBoardId.value === null) {
-    return;
-  }
-
-  await setDefaultCardType(cardTypeId, routeBoardId.value);
+  await setDefaultCardType(cardTypeId, boardId.value);
 }
 
 async function openEditorFromMenu(cardTypeId: number, close: () => void) {

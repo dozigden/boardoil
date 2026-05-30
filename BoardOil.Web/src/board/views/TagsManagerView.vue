@@ -56,7 +56,7 @@ const tagStore = useTagStore();
 const { currentBoardId } = storeToRefs(boardStore);
 const { tags, busy } = storeToRefs(tagStore);
 const { loadTags, getTagByName } = tagStore;
-const routeBoardId = computed(() => currentBoardId.value);
+const boardId = computed(() => currentBoardId.value!);
 
 const tagNames = computed(() => tags.value.map(tag => tag.name).sort((left, right) => left.localeCompare(right)));
 
@@ -70,28 +70,14 @@ async function openEditor(tagName: string) {
     return;
   }
 
-  if (routeBoardId.value === null) {
-    return;
-  }
-
-  await router.push({ name: 'tags-tag', params: { boardId: routeBoardId.value, tagId: existingTag.id } });
+  await router.push({ name: 'tags-tag', params: { boardId: boardId.value, tagId: existingTag.id } });
 }
 
 async function openCreateEditor() {
-  if (routeBoardId.value === null) {
-    return;
-  }
-
-  await router.push({ name: 'tags-new', params: { boardId: routeBoardId.value } });
+  await router.push({ name: 'tags-new', params: { boardId: boardId.value } });
 }
 
 async function initializeView() {
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    await router.replace({ name: 'boards' });
-    return;
-  }
-
-  await loadTags(boardId);
+  await loadTags(boardId.value);
 }
 </script>

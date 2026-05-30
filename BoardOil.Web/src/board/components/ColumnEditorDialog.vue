@@ -58,12 +58,7 @@ const routeColumnId = computed<number | null>(() => {
 const editingColumn = computed(() => boardStore.getColumnById(routeColumnId.value));
 
 async function closeColumnEditor() {
-  const boardId = currentBoardId.value;
-  if (boardId === null) {
-    await router.push({ name: 'boards' });
-    return;
-  }
-
+  const boardId = currentBoardId.value!;
   await router.push({ name: 'columns', params: { boardId } });
 }
 
@@ -91,14 +86,9 @@ async function deleteEditingColumn() {
 }
 
 onMounted(() => {
-  const boardId = currentBoardId.value;
+  const boardId = currentBoardId.value!;
   const columnId = routeColumnId.value;
   const column = editingColumn.value;
-
-  if (boardId === null) {
-    void router.replace({ name: 'boards' });
-    return;
-  }
 
   if (columnId === null) {
     void router.replace({ name: 'columns', params: { boardId } });

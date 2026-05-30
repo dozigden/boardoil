@@ -58,14 +58,12 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useBoardStore } from '../stores/boardStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { BoardEditModel } from '../../shared/types/boardTypes';
 
-const router = useRouter();
 const boardStore = useBoardStore();
 const boardCatalogueStore = useBoardCatalogueStore();
 const feedbackStore = useUiFeedbackStore();
@@ -80,7 +78,7 @@ const boardDetailsDraft = ref<BoardEditModel>({
   slickCohesionModeEnabled: true
 });
 
-const boardId = computed(() => currentBoardId.value);
+const boardId = computed(() => currentBoardId.value!);
 const boardName = computed(() => board.value?.name ?? '');
 const boardDescription = computed(() => board.value?.description ?? '');
 const slickCohesionModeEnabled = computed(() => board.value?.slickCohesionModeEnabled ?? true);
@@ -96,11 +94,6 @@ const canSave = computed(() => isOwner.value && !busy.value && boardDetailsDraft
 const canExport = computed(() => isOwner.value && !exporting.value);
 
 onMounted(() => {
-  if (boardId.value === null) {
-    void router.replace({ name: 'boards' });
-    return;
-  }
-
   resetDraftFromBoard();
 });
 
@@ -109,10 +102,10 @@ function resetDraft() {
 }
 
 async function saveBoardDetails() {
-  const nextBoardId = boardId.value;
-  if (nextBoardId === null || !canSave.value) {
+  if (!canSave.value) {
     return;
   }
+  const nextBoardId = boardId.value;
 
   const saveModel: BoardEditModel = {
     name: boardDetailsDraft.value.name.trim(),
@@ -150,10 +143,10 @@ function resetDraftFromBoard() {
 }
 
 async function exportBoardPackage() {
-  const nextBoardId = boardId.value;
-  if (nextBoardId === null || !canExport.value) {
+  if (!canExport.value) {
     return;
   }
+  const nextBoardId = boardId.value;
 
   exporting.value = true;
   try {
