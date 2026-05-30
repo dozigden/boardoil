@@ -112,6 +112,42 @@ function saveThemeMode() {
   color: var(--bo-ink-default);
 }
 
+.user-theme-option input[type='radio'] {
+  appearance: none;
+  margin: 0;
+  inline-size: 1rem;
+  block-size: 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--bo-border-default);
+  background: var(--bo-surface-base);
+  display: grid;
+  place-content: center;
+}
+
+.user-theme-option input[type='radio']::before {
+  content: '';
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 999px;
+  transform: scale(0);
+  transition: transform 120ms ease-in-out;
+  background: var(--bo-colour-brand-strong);
+}
+
+.user-theme-option input[type='radio']:checked {
+  border-color: var(--bo-colour-brand-strong);
+}
+
+.user-theme-option input[type='radio']:checked::before {
+  transform: scale(1);
+}
+
+.user-theme-option input[type='radio']:focus-visible {
+  outline: none;
+  border-color: var(--bo-focus-ring);
+  box-shadow: 0 0 0 2px var(--bo-focus-ring-shadow);
+}
+
 .user-theme-active {
   margin: 0;
   color: var(--bo-ink-default);
