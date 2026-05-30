@@ -23,6 +23,7 @@
           <span class="entity-row-badges tag-group">
             <Tag :tag-name="tagName" />
           </span>
+          <span class="entity-row-card-count">{{ formatCardCount(tagUsageCountByName[tagName] ?? 0) }}</span>
         </button>
         <div class="entity-row-actions">
           <button
@@ -49,16 +50,18 @@ import { useRouter } from 'vue-router';
 import Tag from '../components/Tag.vue';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
+import { countCardsByTagName, formatCardCount } from '../utils/cardUsageCounts';
 
 const router = useRouter();
 const boardStore = useBoardStore();
 const tagStore = useTagStore();
-const { currentBoardId } = storeToRefs(boardStore);
+const { board, currentBoardId } = storeToRefs(boardStore);
 const { tags, busy } = storeToRefs(tagStore);
 const { loadTags, getTagByName } = tagStore;
 const boardId = computed(() => currentBoardId.value!);
 
 const tagNames = computed(() => tags.value.map(tag => tag.name).sort((left, right) => left.localeCompare(right)));
+const tagUsageCountByName = computed<Record<string, number>>(() => countCardsByTagName(board.value));
 
 onMounted(() => {
   void initializeView();

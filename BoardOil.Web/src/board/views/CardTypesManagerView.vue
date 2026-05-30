@@ -26,6 +26,7 @@
           <span class="entity-row-badges">
             <span v-if="cardType.isSystem" class="badge">Default</span>
           </span>
+          <span class="entity-row-card-count">{{ formatCardCount(cardTypeUsageCountById[cardType.id] ?? 0) }}</span>
         </button>
         <div class="entity-row-actions">
           <BoDropdown
@@ -63,17 +64,18 @@ import { useRouter } from 'vue-router';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
+import { countCardsByCardTypeId, formatCardCount } from '../utils/cardUsageCounts';
 
 const router = useRouter();
 const boardStore = useBoardStore();
 const cardTypeStore = useCardTypeStore();
-const { currentUserRole, currentBoardId } = storeToRefs(boardStore);
+const { board, currentUserRole, currentBoardId } = storeToRefs(boardStore);
 const { cardTypes, busy } = storeToRefs(cardTypeStore);
 const { loadCardTypes, setDefaultCardType } = cardTypeStore;
 
 const isOwner = computed(() => currentUserRole.value === 'Owner');
-
 const boardId = computed(() => currentBoardId.value!);
+const cardTypeUsageCountById = computed<Record<number, number>>(() => countCardsByCardTypeId(board.value));
 
 onMounted(() => {
   void initializeView();

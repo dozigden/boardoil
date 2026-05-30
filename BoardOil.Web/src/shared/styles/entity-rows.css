@@ -104,6 +104,13 @@
   gap: 0.35rem;
 }
 
+.entity-row-card-count {
+  margin-left: 0.5rem;
+  color: var(--bo-ink-subtle);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 .entity-row-actions {
   display: inline-flex;
   align-items: center;

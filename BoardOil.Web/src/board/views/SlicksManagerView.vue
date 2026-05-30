@@ -25,6 +25,7 @@
               <span class="slicks-row-swatch-label">{{ slick.name }}</span>
             </span>
           </span>
+          <span class="entity-row-card-count">{{ formatCardCount(slickUsageCountById[slick.id] ?? 0) }}</span>
         </button>
         <div class="entity-row-actions">
           <button
@@ -48,19 +49,21 @@ import { Pencil, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useBoardStore } from '../stores/boardStore';
-import { useSlickStore } from '../stores/slickStore';
 import type { Slick } from '../../shared/types/boardTypes';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
+import { useBoardStore } from '../stores/boardStore';
+import { useSlickStore } from '../stores/slickStore';
+import { countCardsBySlickId, formatCardCount } from '../utils/cardUsageCounts';
 
 const router = useRouter();
 const boardStore = useBoardStore();
 const slickStore = useSlickStore();
-const { currentBoardId } = storeToRefs(boardStore);
+const { board, currentBoardId } = storeToRefs(boardStore);
 const { slicks, busy } = storeToRefs(slickStore);
 const { loadSlicks } = slickStore;
 
 const boardId = computed(() => currentBoardId.value!);
+const slickUsageCountById = computed<Record<number, number>>(() => countCardsBySlickId(board.value));
 
 onMounted(() => {
   void initializeView();
