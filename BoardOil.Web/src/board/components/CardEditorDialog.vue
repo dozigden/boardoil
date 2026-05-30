@@ -61,8 +61,8 @@
               @update:model-value="handleDescriptionEditorValueUpdate"
               @focus="handleDescriptionEditorFocus"
               @blur="handleDescriptionEditorBlur"
-              @toolbar-state-change="updateToolbarState('description', $event)"
-              @plain-text-mode-change="updatePlainTextMode('description', $event)"
+              @toolbar-state-change="handleDescriptionToolbarStateChange"
+              @plain-text-mode-change="handleDescriptionPlainTextModeChange"
             />
           </div>
           <section class="card-editor-comments-section" aria-label="Card comments">
@@ -79,8 +79,8 @@
                   @update:model-value="updateCommentDraftFromEditor"
                   @focus="handleCommentEditorFocus"
                   @blur="handleCommentEditorBlur"
-                  @toolbar-state-change="updateToolbarState('comment', $event)"
-                  @plain-text-mode-change="updatePlainTextMode('comment', $event)"
+                  @toolbar-state-change="handleCommentToolbarStateChange"
+                  @plain-text-mode-change="handleCommentPlainTextModeChange"
                 />
                 <button
                   type="button"
@@ -283,10 +283,9 @@ import { useCommentStore } from '../stores/commentStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
 import { resolveSelectedCardTypeEmoji } from './cardTypeSelection';
-import { useCardEditDraft } from '../composables/useCardEditDraft';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
 import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
-import type { Card } from '../../shared/types/boardTypes';
+import type { Card, CardEditModel } from '../../shared/types/boardTypes';
 
 const route = useRoute();
 const router = useRouter();
@@ -311,15 +310,10 @@ const { ensureTagsExist } = tagStore;
 const { confirm } = useConfirm();
 const maxDescriptionLength = 20_000;
 const maxCommentLength = 4_000;
-const {
-  cardDraft,
-  cardDraftId,
-  isDirty: isCardDraftDirty,
-  clearDraft: clearCardDraft,
-  initializeDraftFromCard,
-  patchFromUser,
-  patchFromSystem
-} = useCardEditDraft();
+const cardDraft = ref<CardEditModel | null>(null);
+const cardDraftId = ref<number | null>(null);
+const cardDraftSource = ref<CardEditModel | null>(null);
+const isCardDraftDirty = ref(false);
 const newCommentText = ref('');
 const isCommentDraftDirty = ref(false);
 const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
@@ -437,6 +431,26 @@ function updatePlainTextMode(editor: 'description' | 'comment', isPlainTextMode:
   }
 
   descriptionIsPlainTextMode.value = isPlainTextMode;
+}
+
+function handleDescriptionToolbarStateChange(
+  state: Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>
+) {
+  updateToolbarState('description', state);
+}
+
+function handleCommentToolbarStateChange(
+  state: Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>
+) {
+  updateToolbarState('comment', state);
+}
+
+function handleDescriptionPlainTextModeChange(isPlainTextMode: boolean) {
+  updatePlainTextMode('description', isPlainTextMode);
+}
+
+function handleCommentPlainTextModeChange(isPlainTextMode: boolean) {
+  updatePlainTextMode('comment', isPlainTextMode);
 }
 
 function runSharedToolbarAction(actionEvent: MdEditorToolbarActionEvent) {
@@ -600,6 +614,53 @@ function setDraftBoardColumnId(boardColumnId: number, close?: () => void) {
 function setDraftAssignedUserId(assignedUserId: number | null, close?: () => void) {
   patchFromUser({ assignedUserId });
   close?.();
+}
+
+function clearCardDraft() {
+  cardDraft.value = null;
+  cardDraftId.value = null;
+  cardDraftSource.value = null;
+  isCardDraftDirty.value = false;
+}
+
+function initializeDraftFromCard(card: Card) {
+  if (cardDraftId.value === card.id) {
+    return false;
+  }
+
+  const initialModel = createEditModelFromCard(card);
+  cardDraft.value = initialModel;
+  cardDraftSource.value = cloneCardEditModel(initialModel);
+  cardDraftId.value = card.id;
+  isCardDraftDirty.value = false;
+  return true;
+}
+
+function patchFromSystem(update: Partial<CardEditModel>) {
+  if (!cardDraft.value) {
+    return;
+  }
+
+  cardDraft.value = {
+    ...cardDraft.value,
+    ...update
+  };
+}
+
+function patchFromUser(update: Partial<CardEditModel>) {
+  if (!cardDraft.value) {
+    return;
+  }
+
+  const nextDraft = {
+    ...cardDraft.value,
+    ...update
+  };
+  cardDraft.value = nextDraft;
+
+  if (!isCardDraftDirty.value && cardDraftSource.value && !areCardEditModelsEqual(nextDraft, cardDraftSource.value)) {
+    isCardDraftDirty.value = true;
+  }
 }
 
 function redirectToBoardList() {
@@ -815,6 +876,55 @@ onBeforeRouteUpdate(async (to, from) => {
 
   return true;
 });
+
+function createEditModelFromCard(card: Card): CardEditModel {
+  return {
+    title: card.title,
+    description: card.description,
+    tagNames: [...card.tagNames],
+    cardTypeId: card.cardTypeId,
+    boardColumnId: card.boardColumnId,
+    assignedUserId: card.assignedUserId ?? null,
+    slickName: card.slickName ?? null
+  };
+}
+
+function cloneCardEditModel(model: CardEditModel): CardEditModel {
+  return {
+    ...model,
+    tagNames: [...model.tagNames]
+  };
+}
+
+function areCardEditModelsEqual(left: CardEditModel, right: CardEditModel) {
+  if (left.title !== right.title || left.description !== right.description) {
+    return false;
+  }
+
+  if (left.cardTypeId !== right.cardTypeId || left.boardColumnId !== right.boardColumnId) {
+    return false;
+  }
+
+  if (left.assignedUserId !== right.assignedUserId || left.slickName !== right.slickName) {
+    return false;
+  }
+
+  return areStringArraysEqual(left.tagNames, right.tagNames);
+}
+
+function areStringArraysEqual(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
 </script>
 
 <style scoped>
