@@ -60,6 +60,20 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
   let subscribedBoardId: number | null = null;
   let startPromise: Promise<void> | null = null;
   let subscribePromise: Promise<void> | null = null;
+  let pageUnloading = false;
+
+  registerPageUnloadListeners(() => {
+    pageUnloading = true;
+  });
+
+  function emitConnectionWarning() {
+    if (pageUnloading) {
+      logRealtime('Suppressing realtime warning during page unload.');
+      return;
+    }
+
+    return handlers.onConnectionWarning?.(realtimeDisconnectedMessage);
+  }
 
   async function ensureConnectionStarted() {
     if (!hubConnection) {
@@ -83,7 +97,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         await handlers.onConnectionRecovered?.();
       } catch (error) {
         if (!isUnauthorizedNegotiationError(error)) {
-          await handlers.onConnectionWarning?.(realtimeDisconnectedMessage);
+          await emitConnectionWarning();
           throw error;
         }
 
@@ -155,7 +169,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
           error: error instanceof Error ? error.message : String(error)
         });
 
-        void handlers.onConnectionWarning?.(realtimeDisconnectedMessage);
+        void emitConnectionWarning();
       });
 
       hubConnection.onreconnected(async () => {
@@ -178,7 +192,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         });
 
         if (error) {
-          void handlers.onConnectionWarning?.(realtimeDisconnectedMessage);
+          void emitConnectionWarning();
         }
       });
     }
@@ -322,4 +336,14 @@ async function wait(delayMs: number) {
   await new Promise(resolve => {
     setTimeout(resolve, delayMs);
   });
+}
+
+function registerPageUnloadListeners(onUnload: () => void) {
+  const windowRef = globalThis.window;
+  if (!windowRef || typeof windowRef.addEventListener !== 'function') {
+    return;
+  }
+
+  windowRef.addEventListener('beforeunload', onUnload);
+  windowRef.addEventListener('pagehide', onUnload);
 }
