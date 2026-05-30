@@ -81,9 +81,11 @@ function parsePresetsStyle(styleProperties: ParsedStyleProperties, styleName: St
 }
 
 function parseSolidStyle(styleProperties: ParsedStyleProperties, styleName: StylePresentation['styleName']): StyleModel {
-  const backgroundColor = parseHexColorValue(styleProperties.backgroundColor)
-    ?? parseHexColorValue(styleProperties.leftColor)
-    ?? parseHexColorValue(styleProperties.rightColor);
+  const backgroundColor = parseHexColorValue(styleProperties.backgroundColor);
+  // Legacy compatibility (disabled intentionally):
+  // const backgroundColor = parseHexColorValue(styleProperties.backgroundColor)
+  //   ?? parseHexColorValue(styleProperties.leftColor)
+  //   ?? parseHexColorValue(styleProperties.rightColor);
   const manual = parseManualOptions(styleProperties);
   if (!backgroundColor || !manual) {
     console.warn('[BoardOil style-parse fallback]', { reason: 'invalid_solid_payload', styleName });
@@ -98,15 +100,18 @@ function parseSolidStyle(styleProperties: ParsedStyleProperties, styleName: Styl
 }
 
 function parseGradientStyle(styleProperties: ParsedStyleProperties, styleName: StylePresentation['styleName']): StyleModel {
-  const fallbackColor = parseHexColorValue(styleProperties.backgroundColor);
-  let leftColor = parseHexColorValue(styleProperties.leftColor) ?? fallbackColor;
-  let rightColor = parseHexColorValue(styleProperties.rightColor) ?? fallbackColor;
-  if (!leftColor && rightColor) {
-    leftColor = rightColor;
-  }
-  if (!rightColor && leftColor) {
-    rightColor = leftColor;
-  }
+  const leftColor = parseHexColorValue(styleProperties.leftColor);
+  const rightColor = parseHexColorValue(styleProperties.rightColor);
+  // Legacy compatibility (disabled intentionally):
+  // const fallbackColor = parseHexColorValue(styleProperties.backgroundColor);
+  // let leftColor = parseHexColorValue(styleProperties.leftColor) ?? fallbackColor;
+  // let rightColor = parseHexColorValue(styleProperties.rightColor) ?? fallbackColor;
+  // if (!leftColor && rightColor) {
+  //   leftColor = rightColor;
+  // }
+  // if (!rightColor && leftColor) {
+  //   rightColor = leftColor;
+  // }
   const manual = parseManualOptions(styleProperties);
   if (!leftColor || !rightColor || !manual) {
     console.warn('[BoardOil style-parse fallback]', { reason: 'invalid_gradient_payload', styleName });
@@ -122,15 +127,34 @@ function parseGradientStyle(styleProperties: ParsedStyleProperties, styleName: S
 }
 
 function parseManualOptions(styleProperties: ParsedStyleProperties): Pick<SolidStyleModel, 'textColorMode' | 'borderMode' | 'textColor' | 'borderColor'> | null {
-  const textColorMode = parseTextColorMode(styleProperties.textColorMode) ?? 'auto';
-  const borderMode = parseBorderMode(styleProperties.borderMode) ?? 'auto';
+  const textColorMode = parseTextColorMode(styleProperties.textColorMode);
+  const borderMode = parseBorderMode(styleProperties.borderMode);
+  if (!textColorMode || !borderMode) {
+    return null;
+  }
 
-  const textColor = textColorMode === 'custom'
-    ? (parseHexColorValue(styleProperties.textColor) ?? DEFAULT_TEXT_COLOR)
-    : DEFAULT_TEXT_COLOR;
-  const borderColor = borderMode === 'custom'
-    ? (parseHexColorValue(styleProperties.borderColor) ?? DEFAULT_BORDER_COLOR)
-    : DEFAULT_BORDER_COLOR;
+  let textColor = DEFAULT_TEXT_COLOR;
+  if (textColorMode === 'custom') {
+    textColor = parseHexColorValue(styleProperties.textColor) ?? '';
+    if (!textColor) {
+      return null;
+    }
+  }
+
+  let borderColor = DEFAULT_BORDER_COLOR;
+  if (borderMode === 'custom') {
+    borderColor = parseHexColorValue(styleProperties.borderColor) ?? '';
+    if (!borderColor) {
+      return null;
+    }
+  }
+  // Legacy compatibility (disabled intentionally):
+  // const textColor = textColorMode === 'custom'
+  //   ? (parseHexColorValue(styleProperties.textColor) ?? DEFAULT_TEXT_COLOR)
+  //   : DEFAULT_TEXT_COLOR;
+  // const borderColor = borderMode === 'custom'
+  //   ? (parseHexColorValue(styleProperties.borderColor) ?? DEFAULT_BORDER_COLOR)
+  //   : DEFAULT_BORDER_COLOR;
 
   return {
     textColorMode,

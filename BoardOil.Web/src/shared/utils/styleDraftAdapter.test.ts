@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { buildStylePropertiesJsonFromDraft, createStyleDraft } from './styleDraftAdapter';
 
 describe('styleDraftAdapter', () => {
-  it('creates draft with auto border mode when missing in input', () => {
+  it('maps non-canonical solid payloads to auto draft', () => {
     const draft = createStyleDraft({
       styleName: 'solid',
       stylePropertiesJson: '{"backgroundColor":"#FFFFFF","textColorMode":"auto"}'
     });
 
-    expect(draft.borderMode).toBe('auto');
+    expect(draft.styleName).toBe('auto');
   });
 
   it('maps invalid payload to auto draft', () => {
