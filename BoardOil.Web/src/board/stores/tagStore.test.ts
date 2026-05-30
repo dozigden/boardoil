@@ -110,6 +110,62 @@ describe('tagStore', () => {
     expect(result?.savedTag).toBeNull();
     expect(feedback.errorMessage).toBe('Could not update style.');
   });
+
+  it('ignores stale createTag mutation response when active board changes', async () => {
+    const store = useTagStore();
+    const createRequest = createDeferred<ReturnType<typeof ok<Tag>>>();
+    store.activeBoardId = 1;
+    store.tags = [makeTag(100, 'Board 2 Existing', 'auto', '{}', null)];
+
+    api.createTag.mockImplementationOnce(() => createRequest.promise);
+    const pendingCreate = store.createTag(1, 'Release', '🚀');
+
+    store.activeBoardId = 2;
+    createRequest.resolve(ok(makeTag(7, 'Release', 'auto', '{}', '🚀')));
+    const created = await pendingCreate;
+
+    expect(created?.id).toBe(7);
+    expect(store.tags.map(x => x.name)).toEqual(['Board 2 Existing']);
+  });
+
+  it('ignores stale updateTagStyle mutation response when active board changes', async () => {
+    const store = useTagStore();
+    const updateRequest = createDeferred<ReturnType<typeof ok<Tag>>>();
+    store.activeBoardId = 1;
+    store.tags = [makeTag(100, 'Board 2 Existing', 'auto', '{}', null)];
+
+    api.updateTagStyle.mockImplementationOnce(() => updateRequest.promise);
+    const pendingUpdate = store.updateTagStyle(1, 7, {
+      name: 'Release',
+      emoji: null,
+      styleName: 'solid',
+      stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
+    });
+
+    store.activeBoardId = 2;
+    updateRequest.resolve(ok(makeTag(7, 'Release', 'solid', '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}', null)));
+    const updated = await pendingUpdate;
+
+    expect(updated?.id).toBe(7);
+    expect(store.tags.map(x => x.name)).toEqual(['Board 2 Existing']);
+  });
+
+  it('ignores stale deleteTag mutation response when active board changes', async () => {
+    const store = useTagStore();
+    const deleteRequest = createDeferred<ReturnType<typeof ok<void>>>();
+    store.activeBoardId = 1;
+    store.tags = [makeTag(7, 'Release', 'auto', '{}', null), makeTag(100, 'Board 2 Existing', 'auto', '{}', null)];
+
+    api.deleteTag.mockImplementationOnce(() => deleteRequest.promise);
+    const pendingDelete = store.deleteTag(1, 7);
+
+    store.activeBoardId = 2;
+    deleteRequest.resolve(ok(undefined));
+    const deleted = await pendingDelete;
+
+    expect(deleted).toBe(true);
+    expect(store.tags.map(x => x.id)).toEqual([7, 100]);
+  });
 });
 
 function makeTag(

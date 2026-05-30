@@ -107,6 +107,10 @@ export const useTagStore = defineStore('tag', () => {
       return false;
     }
 
+    if (activeBoardId.value !== boardId) {
+      return true;
+    }
+
     removeTag(tagId);
     return true;
   }
@@ -171,6 +175,10 @@ export const useTagStore = defineStore('tag', () => {
       return null;
     }
 
+    if (activeBoardId.value !== boardId) {
+      return result.data;
+    }
+
     upsertTag(result.data);
     return result.data;
   }
@@ -179,6 +187,10 @@ export const useTagStore = defineStore('tag', () => {
     const result = await runBusy(() => api.updateTagStyle(boardId, tagId, model));
     if (!result.ok) {
       return null;
+    }
+
+    if (activeBoardId.value !== boardId) {
+      return result.data;
     }
 
     upsertTag(result.data);
