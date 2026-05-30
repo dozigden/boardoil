@@ -12,24 +12,29 @@ export const useCardTypeStore = defineStore('cardType', () => {
   const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
+  let loadRequestVersion = 0;
 
   const systemCardType = computed(() => cardTypes.value.find(x => x.isSystem) ?? null);
 
   function dispose() {
+    loadRequestVersion += 1;
     cardTypes.value = [];
     busy.value = false;
     activeBoardId.value = null;
   }
 
-  async function loadCardTypes(boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function loadCardTypes(boardId: number) {
+    const requestVersion = ++loadRequestVersion;
+    if (activeBoardId.value !== boardId) {
       cardTypes.value = [];
+    }
+
+    activeBoardId.value = boardId;
+    const result = await api.getCardTypes(boardId);
+    if (requestVersion !== loadRequestVersion) {
       return false;
     }
 
-    activeBoardId.value = resolvedBoardId;
-    const result = await api.getCardTypes(resolvedBoardId);
     if (!result.ok) {
       reportError(result.error);
       return false;
@@ -42,16 +47,15 @@ export const useCardTypeStore = defineStore('cardType', () => {
 
   async function createCardType(
     model: CardTypeEditModel,
-    boardId: number | null = activeBoardId.value
+    boardId: number
   ) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+    const result = await runBusy(() => api.createCardType(boardId, model));
+    if (!result.ok) {
       return null;
     }
 
-    const result = await runBusy(() => api.createCardType(resolvedBoardId, model));
-    if (!result.ok) {
-      return null;
+    if (activeBoardId.value !== boardId) {
+      return result.data;
     }
 
     upsertCardType(result.data);
@@ -61,49 +65,46 @@ export const useCardTypeStore = defineStore('cardType', () => {
   async function updateCardType(
     cardTypeId: number,
     model: CardTypeEditModel,
-    boardId: number | null = activeBoardId.value
+    boardId: number
   ) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+    const result = await runBusy(() => api.updateCardType(boardId, cardTypeId, model));
+    if (!result.ok) {
       return null;
     }
 
-    const result = await runBusy(() => api.updateCardType(resolvedBoardId, cardTypeId, model));
-    if (!result.ok) {
-      return null;
+    if (activeBoardId.value !== boardId) {
+      return result.data;
     }
 
     upsertCardType(result.data);
     return result.data;
   }
 
-  async function deleteCardType(cardTypeId: number, boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function deleteCardType(cardTypeId: number, boardId: number) {
+    const result = await runBusy(() => api.deleteCardType(boardId, cardTypeId));
+    if (!result.ok) {
       return false;
     }
 
-    const result = await runBusy(() => api.deleteCardType(resolvedBoardId, cardTypeId));
-    if (!result.ok) {
-      return false;
+    if (activeBoardId.value !== boardId) {
+      return true;
     }
 
     removeCardType(cardTypeId);
     return true;
   }
 
-  async function setDefaultCardType(cardTypeId: number, boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
-      return false;
-    }
-
-    const result = await runBusy(() => api.setDefaultCardType(resolvedBoardId, cardTypeId));
+  async function setDefaultCardType(cardTypeId: number, boardId: number) {
+    const result = await runBusy(() => api.setDefaultCardType(boardId, cardTypeId));
     if (!result.ok) {
       return false;
     }
 
-    await loadCardTypes(resolvedBoardId);
+    if (activeBoardId.value !== boardId) {
+      return true;
+    }
+
+    await loadCardTypes(boardId);
     return true;
   }
 
@@ -149,16 +150,6 @@ export const useCardTypeStore = defineStore('cardType', () => {
 
   function reportError(error: AppError) {
     feedback.setError(error.message);
-  }
-
-  function resolveBoardId(boardId: number | null) {
-    const resolved = boardId ?? activeBoardId.value;
-    if (resolved === null) {
-      feedback.setError('No board selected.');
-      return null;
-    }
-
-    return resolved;
   }
 
   return {

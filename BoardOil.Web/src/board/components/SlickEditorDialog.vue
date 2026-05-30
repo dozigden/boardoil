@@ -143,6 +143,7 @@ import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCardStore } from '../stores/cardStore';
+import { useBoardStore } from '../stores/boardStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useStyleDraft } from '../composables/useStyleDraft';
 import { SLICK_PRESET_TOKENS } from '../../shared/utils/presetTheme';
@@ -155,8 +156,10 @@ import { useConfirm } from '../../shared/composables/useConfirm';
 const route = useRoute();
 const router = useRouter();
 const cardStore = useCardStore();
+const boardStore = useBoardStore();
 const slickStore = useSlickStore();
 const { confirm } = useConfirm();
+const { currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(slickStore);
 const { createSlick, updateSlick, deleteSlick, getSlickById, loadSlicks } = slickStore;
 const { removeSlickFromCards } = cardStore;
@@ -187,17 +190,7 @@ const routeSlickId = computed<number | null>(() => {
   return parsedSlickId;
 });
 
-const routeBoardId = computed<number | null>(() => {
-  const rawBoardId = route.params.boardId;
-  const parsedBoardId = typeof rawBoardId === 'string'
-    ? Number.parseInt(rawBoardId, 10)
-    : Number.NaN;
-  if (!Number.isFinite(parsedBoardId)) {
-    return null;
-  }
-
-  return parsedBoardId;
-});
+const boardId = computed(() => currentBoardId.value!);
 
 const editingSlick = computed(() => getSlickById(routeSlickId.value));
 const dialogTitle = computed(() => {
@@ -254,13 +247,7 @@ async function closeSlickEditor() {
   draftSlickName.value = '';
   draftSourceKey.value = null;
 
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    await router.push({ name: 'boards' });
-    return;
-  }
-
-  await router.push({ name: 'slicks', params: { boardId } });
+  await router.push({ name: 'slicks', params: { boardId: boardId.value } });
 }
 
 function setDraftSlickName(value: string) {
@@ -268,8 +255,7 @@ function setDraftSlickName(value: string) {
 }
 
 async function saveSlick() {
-  const boardId = routeBoardId.value;
-  if (!draft.value || boardId === null || !stylePropertiesJson.value) {
+  if (!draft.value || !stylePropertiesJson.value) {
     return;
   }
 
@@ -284,7 +270,7 @@ async function saveSlick() {
   };
 
   if (isCreateMode.value) {
-    const created = await createSlick(saveModel, boardId);
+    const created = await createSlick(saveModel, boardId.value);
     if (!created) {
       return;
     }
@@ -297,7 +283,7 @@ async function saveSlick() {
     return;
   }
 
-  const updated = await updateSlick(editingSlick.value.id, saveModel, boardId);
+  const updated = await updateSlick(editingSlick.value.id, saveModel, boardId.value);
   if (!updated) {
     return;
   }
@@ -306,7 +292,7 @@ async function saveSlick() {
 }
 
 async function deleteEditingSlick() {
-  if (!editingSlick.value || routeBoardId.value === null) {
+  if (!editingSlick.value) {
     return;
   }
 
@@ -321,7 +307,7 @@ async function deleteEditingSlick() {
   }
 
   const slickId = editingSlick.value.id;
-  const deleted = await deleteSlick(slickId, routeBoardId.value);
+  const deleted = await deleteSlick(slickId, boardId.value);
   if (!deleted) {
     return;
   }
@@ -349,13 +335,8 @@ function initialiseEditDraftState(slick: Slick, slickId: number) {
 }
 
 watch(
-  [routeBoardId, routeSlickId, isCreateMode],
+  [boardId, routeSlickId, isCreateMode],
   async ([nextBoardId, nextSlickId, nextIsCreate]) => {
-    if (nextBoardId === null) {
-      await closeSlickEditor();
-      return;
-    }
-
     if (!nextIsCreate && nextSlickId === null) {
       clearDraft();
       draftSlickName.value = '';

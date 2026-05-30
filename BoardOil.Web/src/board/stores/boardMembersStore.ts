@@ -12,21 +12,32 @@ import type { Result } from '../../shared/types/result';
 export const useBoardMembersStore = defineStore('boardMembers', () => {
   const members = ref<BoardMember[]>([]);
   const busy = ref(false);
-  const activeBoardId = ref(0);
+  const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
+  let loadRequestVersion = 0;
 
   function dispose() {
-    activeBoardId.value = 0;
+    loadRequestVersion += 1;
+    activeBoardId.value = null;
     members.value = [];
     busy.value = false;
   }
 
   async function loadMembers(boardId: number) {
+    const requestVersion = ++loadRequestVersion;
+    if (activeBoardId.value !== boardId) {
+      members.value = [];
+    }
+
     activeBoardId.value = boardId;
     busy.value = true;
     try {
       const result = await api.getBoardMembers(boardId);
+      if (requestVersion !== loadRequestVersion) {
+        return false;
+      }
+
       if (!result.ok) {
         reportError(result.error);
         members.value = [];
@@ -37,38 +48,40 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
       feedback.clearError();
       return true;
     } finally {
-      busy.value = false;
+      if (requestVersion === loadRequestVersion) {
+        busy.value = false;
+      }
     }
   }
 
-  async function addMember(model: BoardMemberEditModel) {
-    const result = await runBusy(() => api.addBoardMember(activeBoardId.value, model));
+  async function addMember(boardId: number, model: BoardMemberEditModel) {
+    const result = await runBusy(() => api.addBoardMember(boardId, model));
     if (!result.ok) {
       return null;
     }
 
-    await loadMembers(activeBoardId.value);
+    await loadMembers(boardId);
     return result.data;
   }
 
-  async function updateMemberRole(model: BoardMemberEditModel) {
-    const result = await runBusy(() => api.updateBoardMemberRole(activeBoardId.value, model));
+  async function updateMemberRole(boardId: number, model: BoardMemberEditModel) {
+    const result = await runBusy(() => api.updateBoardMemberRole(boardId, model));
     if (!result.ok) {
-      await loadMembers(activeBoardId.value);
+      await loadMembers(boardId);
       return null;
     }
 
-    await loadMembers(activeBoardId.value);
+    await loadMembers(boardId);
     return result.data;
   }
 
-  async function removeMember(userId: number) {
-    const result = await runBusy(() => api.removeBoardMember(activeBoardId.value, userId));
+  async function removeMember(boardId: number, userId: number) {
+    const result = await runBusy(() => api.removeBoardMember(boardId, userId));
     if (!result.ok) {
       return false;
     }
 
-    await loadMembers(activeBoardId.value);
+    await loadMembers(boardId);
     return true;
   }
 

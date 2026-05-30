@@ -181,6 +181,7 @@ import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCardStore } from '../stores/cardStore';
+import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { Tag, TagEditModel } from '../../shared/types/boardTypes';
@@ -200,9 +201,11 @@ import { useConfirm } from '../../shared/composables/useConfirm';
 const route = useRoute();
 const router = useRouter();
 const cardStore = useCardStore();
+const boardStore = useBoardStore();
 const tagStore = useTagStore();
 const { confirm } = useConfirm();
 const feedbackStore = useUiFeedbackStore();
+const { currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(tagStore);
 const { saveTag: saveTagAction, deleteTag, getTagById, getTagByName, loadTags } = tagStore;
 const {
@@ -233,17 +236,7 @@ const routeTagId = computed<number | null>(() => {
   return parsedTagId;
 });
 
-const routeBoardId = computed<number | null>(() => {
-  const rawBoardId = route.params.boardId;
-  const parsedBoardId = typeof rawBoardId === 'string'
-    ? Number.parseInt(rawBoardId, 10)
-    : Number.NaN;
-  if (!Number.isFinite(parsedBoardId)) {
-    return null;
-  }
-
-  return parsedBoardId;
-});
+const boardId = computed(() => currentBoardId.value!);
 
 const editingTag = computed(() => getTagById(routeTagId.value));
 const dialogTitle = computed(() => {
@@ -311,13 +304,7 @@ const previewStyleClasses = computed(() => {
 const previewEmoji = computed(() => normaliseTagEmojiForRender(draftEmoji.value));
 
 async function closeTagEditor() {
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    await router.push({ name: 'boards' });
-    return;
-  }
-
-  await router.push({ name: 'tags', params: { boardId } });
+  await router.push({ name: 'tags', params: { boardId: boardId.value } });
 }
 
 function setDraftTagName(value: string) {
@@ -325,7 +312,7 @@ function setDraftTagName(value: string) {
 }
 
 async function saveTag() {
-  if (!draft.value || routeBoardId.value === null) {
+  if (!draft.value) {
     return;
   }
 
@@ -353,13 +340,13 @@ async function saveTag() {
       return;
     }
 
-    const saveResult = await saveTagAction(null, saveModel);
+    const saveResult = await saveTagAction(boardId.value, null, saveModel);
     if (!saveResult) {
       return;
     }
 
     if (!saveResult.savedTag && saveResult.createdTag) {
-      await router.replace({ name: 'tags-tag', params: { boardId: routeBoardId.value, tagId: saveResult.createdTag.id } });
+      await router.replace({ name: 'tags-tag', params: { boardId: boardId.value, tagId: saveResult.createdTag.id } });
       return;
     }
 
@@ -371,7 +358,7 @@ async function saveTag() {
     return;
   }
 
-  const saveResult = await saveTagAction(editingTag.value.id, saveModel);
+  const saveResult = await saveTagAction(boardId.value, editingTag.value.id, saveModel);
   if (!saveResult?.savedTag) {
     return;
   }
@@ -380,7 +367,7 @@ async function saveTag() {
 }
 
 async function deleteEditingTag() {
-  if (!editingTag.value || routeBoardId.value === null) {
+  if (!editingTag.value) {
     return;
   }
 
@@ -394,7 +381,7 @@ async function deleteEditingTag() {
     return;
   }
 
-  const deleted = await deleteTag(editingTag.value.id);
+  const deleted = await deleteTag(boardId.value, editingTag.value.id);
   if (!deleted) {
     return;
   }
@@ -442,14 +429,8 @@ function initialiseEditDraftState(tag: Tag, tagId: number) {
 }
 
 watch(
-  [routeBoardId, routeTagId, isCreateMode],
+  [boardId, routeTagId, isCreateMode],
   async ([nextBoardId, nextTagId, nextIsCreate]) => {
-    if (nextBoardId === null) {
-      clearDraftState();
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
     if (tagStore.activeBoardId !== nextBoardId || tagStore.tags.length === 0) {
       const loaded = await loadTags(nextBoardId);
       if (!loaded) {

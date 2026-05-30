@@ -12,22 +12,27 @@ export const useSlickStore = defineStore('slick', () => {
   const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
+  let loadRequestVersion = 0;
 
   function dispose() {
+    loadRequestVersion += 1;
     activeBoardId.value = null;
     slicks.value = [];
     busy.value = false;
   }
 
-  async function loadSlicks(boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function loadSlicks(boardId: number) {
+    const requestVersion = ++loadRequestVersion;
+    if (activeBoardId.value !== boardId) {
       slicks.value = [];
+    }
+
+    activeBoardId.value = boardId;
+    const result = await api.getSlicks(boardId);
+    if (requestVersion !== loadRequestVersion) {
       return false;
     }
 
-    activeBoardId.value = resolvedBoardId;
-    const result = await api.getSlicks(resolvedBoardId);
     if (!result.ok) {
       reportError(result.error);
       return false;
@@ -40,16 +45,15 @@ export const useSlickStore = defineStore('slick', () => {
 
   async function createSlick(
     model: SlickEditModel,
-    boardId: number | null = activeBoardId.value
+    boardId: number
   ) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+    const result = await runBusy(() => api.createSlick(boardId, model));
+    if (!result.ok) {
       return null;
     }
 
-    const result = await runBusy(() => api.createSlick(resolvedBoardId, model));
-    if (!result.ok) {
-      return null;
+    if (activeBoardId.value !== boardId) {
+      return result.data;
     }
 
     upsertSlick(result.data);
@@ -59,31 +63,29 @@ export const useSlickStore = defineStore('slick', () => {
   async function updateSlick(
     slickId: number,
     model: SlickEditModel,
-    boardId: number | null = activeBoardId.value
+    boardId: number
   ) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+    const result = await runBusy(() => api.updateSlick(boardId, slickId, model));
+    if (!result.ok) {
       return null;
     }
 
-    const result = await runBusy(() => api.updateSlick(resolvedBoardId, slickId, model));
-    if (!result.ok) {
-      return null;
+    if (activeBoardId.value !== boardId) {
+      return result.data;
     }
 
     upsertSlick(result.data);
     return result.data;
   }
 
-  async function deleteSlick(slickId: number, boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function deleteSlick(slickId: number, boardId: number) {
+    const result = await runBusy(() => api.deleteSlick(boardId, slickId));
+    if (!result.ok) {
       return false;
     }
 
-    const result = await runBusy(() => api.deleteSlick(resolvedBoardId, slickId));
-    if (!result.ok) {
-      return false;
+    if (activeBoardId.value !== boardId) {
+      return true;
     }
 
     slicks.value = slicks.value.filter(x => x.id !== slickId);
@@ -128,16 +130,6 @@ export const useSlickStore = defineStore('slick', () => {
 
   function reportError(error: AppError) {
     feedback.setError(error.message);
-  }
-
-  function resolveBoardId(boardId: number | null) {
-    const resolved = boardId ?? activeBoardId.value;
-    if (resolved === null) {
-      feedback.setError('No board selected.');
-      return null;
-    }
-
-    return resolved;
   }
 
   return {

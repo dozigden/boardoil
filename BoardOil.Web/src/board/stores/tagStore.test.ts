@@ -61,7 +61,6 @@ describe('tagStore', () => {
 
   it('saveTag create flow uses one typed model through create and style update', async () => {
     const store = useTagStore();
-    store.activeBoardId = 3;
     const model = {
       name: 'Release',
       emoji: '🚀',
@@ -69,7 +68,7 @@ describe('tagStore', () => {
       stylePropertiesJson: '{"presetIndex":2,"textColorMode":"auto"}'
     };
 
-    const result = await store.saveTag(null, model);
+    const result = await store.saveTag(3, null, model);
 
     expect(result?.createdTag?.id).toBe(7);
     expect(result?.savedTag?.id).toBe(7);
@@ -79,7 +78,6 @@ describe('tagStore', () => {
 
   it('saveTag update flow updates existing tag from typed model', async () => {
     const store = useTagStore();
-    store.activeBoardId = 3;
     const model = {
       name: 'Release',
       emoji: null,
@@ -88,7 +86,7 @@ describe('tagStore', () => {
     };
     api.updateTagStyle.mockResolvedValueOnce(ok(makeTag(7, 'Release', 'solid', model.stylePropertiesJson, null)));
 
-    const result = await store.saveTag(7, model);
+    const result = await store.saveTag(3, 7, model);
 
     expect(result?.createdTag).toBeNull();
     expect(result?.savedTag?.styleName).toBe('solid');
@@ -98,7 +96,6 @@ describe('tagStore', () => {
   it('returns created tag when create succeeded but style update failed', async () => {
     const store = useTagStore();
     const feedback = useUiFeedbackStore();
-    store.activeBoardId = 3;
     const model = {
       name: 'Release',
       emoji: null,
@@ -107,7 +104,7 @@ describe('tagStore', () => {
     };
     api.updateTagStyle.mockResolvedValueOnce(err({ kind: 'api', message: 'Could not update style.' }));
 
-    const result = await store.saveTag(null, model);
+    const result = await store.saveTag(3, null, model);
 
     expect(result?.createdTag?.id).toBe(7);
     expect(result?.savedTag).toBeNull();

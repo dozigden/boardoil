@@ -64,13 +64,16 @@ export const useBoardStore = defineStore('board', () => {
     onCommentCreated: commentStore.upsertCardComment,
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
     onResync: async () => {
-      if (currentBoardId.value !== null) {
-        await loadBoard(currentBoardId.value);
-        await cardTypeStore.loadCardTypes(currentBoardId.value);
-        await tagStore.loadTags(currentBoardId.value);
-        await slickStore.loadSlicks(currentBoardId.value);
-        await systemInfoMessageStore.load(true);
+      const boardId = currentBoardId.value;
+      if (boardId === null) {
+        return;
       }
+
+      await loadBoard(boardId);
+      await cardTypeStore.loadCardTypes(boardId);
+      await tagStore.loadTags(boardId);
+      await slickStore.loadSlicks(boardId);
+      await systemInfoMessageStore.load(true);
     }
   });
   let loadRequestVersion = 0;

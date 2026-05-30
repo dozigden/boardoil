@@ -133,7 +133,7 @@
             <CardTagEditor
               :tag-names="cardDraft.tagNames"
               @update:tag-names="updateDraftTagNamesFromEditor"
-              :ensure-tags-exist="tagNames => ensureTagsExist(tagNames)"
+              :ensure-tags-exist="tagNames => ensureTagsExist(boardId, tagNames)"
             />
           </div>
 
@@ -296,7 +296,7 @@ const cardTypeStore = useCardTypeStore();
 const commentStore = useCommentStore();
 const slickStore = useSlickStore();
 const tagStore = useTagStore();
-const { board } = storeToRefs(boardStore);
+const { board, currentBoardId } = storeToRefs(boardStore);
 const { members: boardMembers, activeBoardId: boardMembersActiveBoardId } = storeToRefs(boardMembersStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { slicks, activeBoardId: slicksActiveBoardId } = storeToRefs(slickStore);
@@ -332,11 +332,7 @@ const routeCardId = computed<number | null>(() => {
   return Number.isFinite(parsed) ? parsed : null;
 });
 
-const routeBoardId = computed<number | null>(() => {
-  const raw = route.params.boardId;
-  const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : Number.NaN;
-  return Number.isFinite(parsed) ? parsed : null;
-});
+const boardId = computed(() => currentBoardId.value!);
 
 const editingCard = computed(() => cardStore.getCardById(routeCardId.value));
 const cardComments = computed(() => commentStore.getCommentsForCard(routeCardId.value));
@@ -522,13 +518,7 @@ async function closeCardEditorInternal(skipUnsavedGuard: boolean) {
   }
 
   clearDraft();
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    await router.push({ name: 'boards' });
-    return;
-  }
-
-  await router.push({ name: 'board', params: { boardId } });
+  await router.push({ name: 'board', params: { boardId: boardId.value } });
 }
 
 function updateDraftTitleFromEditor(value: string) {
@@ -663,11 +653,6 @@ function patchFromUser(update: Partial<CardEditModel>) {
   }
 }
 
-function redirectToBoardList() {
-  clearDraft();
-  void router.replace({ name: 'boards' });
-}
-
 function redirectToBoard(boardId: number) {
   clearDraft();
   void router.replace({ name: 'board', params: { boardId } });
@@ -733,12 +718,7 @@ async function addComment() {
     return;
   }
 
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    return;
-  }
-
-  const result = await addCardCommentAction(boardId, cardId, text);
+  const result = await addCardCommentAction(boardId.value, cardId, text);
   if (!result?.ok) {
     return;
   }
@@ -790,17 +770,12 @@ async function archiveEditingCard() {
 }
 
 watch(
-  [routeBoardId, routeCardId, editingCard, board],
+  [boardId, routeCardId, editingCard, board],
   async ([nextBoardId, nextCardId, nextCard, nextBoard], _previous, onCleanup) => {
     let cancelled = false;
     onCleanup(() => {
       cancelled = true;
     });
-
-    if (nextBoardId === null) {
-      redirectToBoardList();
-      return;
-    }
 
     if (nextCardId === null) {
       redirectToBoard(nextBoardId);

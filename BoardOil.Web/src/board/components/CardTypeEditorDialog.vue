@@ -188,6 +188,7 @@ import ModalDialog from '../../shared/components/ModalDialog.vue';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardTypeEditModel } from '../../shared/types/boardTypes';
+import { useBoardStore } from '../stores/boardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import {
   createCardTypeStyleDraft,
@@ -202,8 +203,10 @@ import { parseStyleNameInput, useStyleDraft } from '../composables/useStyleDraft
 
 const route = useRoute();
 const router = useRouter();
+const boardStore = useBoardStore();
 const cardTypeStore = useCardTypeStore();
 const { confirm } = useConfirm();
+const { currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(cardTypeStore);
 const { createCardType, updateCardType, deleteCardType, getCardTypeById, loadCardTypes } = cardTypeStore;
 
@@ -223,10 +226,7 @@ const draftSourceKey = ref<string | null>(null);
 const presetColours = PRESET_TOKENS;
 
 const isCreateMode = computed(() => route.name === 'card-types-new');
-const routeBoardId = computed<number | null>(() => {
-  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
-  return Number.isFinite(parsed) ? parsed : null;
-});
+const boardId = computed(() => currentBoardId.value!);
 const routeCardTypeId = computed<number | null>(() => {
   const parsed = Number.parseInt(String(route.params.cardTypeId ?? ''), 10);
   return Number.isFinite(parsed) ? parsed : null;
@@ -277,14 +277,8 @@ const previewCardStyleClasses = computed(() => {
 });
 
 watch(
-  [routeBoardId, routeCardTypeId, isCreateMode],
+  [boardId, routeCardTypeId, isCreateMode],
   async ([nextBoardId, nextCardTypeId, nextIsCreate]) => {
-    if (nextBoardId === null) {
-      clearDraft();
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
     if (nextIsCreate) {
       if (draftSourceKey.value === 'create') {
         return;
@@ -336,19 +330,12 @@ watch(
 );
 
 async function closeDialog() {
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    await router.push({ name: 'boards' });
-    return;
-  }
-
-  await router.push({ name: 'card-types', params: { boardId } });
+  await router.push({ name: 'card-types', params: { boardId: boardId.value } });
 }
 
 async function saveCardType() {
-  const boardId = routeBoardId.value;
   const canonicalName = (draftName.value ?? '').trim();
-  if (boardId === null || !canonicalName || !draftStyle.value) {
+  if (!canonicalName || !draftStyle.value) {
     return;
   }
 
@@ -365,7 +352,7 @@ async function saveCardType() {
   };
 
   if (isCreateMode.value) {
-    const created = await createCardType(saveModel, boardId);
+    const created = await createCardType(saveModel, boardId.value);
     if (!created) {
       return;
     }
@@ -378,7 +365,7 @@ async function saveCardType() {
     return;
   }
 
-  const updated = await updateCardType(editingCardType.value.id, saveModel, boardId);
+  const updated = await updateCardType(editingCardType.value.id, saveModel, boardId.value);
   if (!updated) {
     return;
   }
@@ -387,7 +374,7 @@ async function saveCardType() {
 }
 
 async function deleteEditingCardType() {
-  if (!editingCardType.value || routeBoardId.value === null || editingCardType.value.isSystem) {
+  if (!editingCardType.value || editingCardType.value.isSystem) {
     return;
   }
 
@@ -401,7 +388,7 @@ async function deleteEditingCardType() {
     return;
   }
 
-  const deleted = await deleteCardType(editingCardType.value.id, routeBoardId.value);
+  const deleted = await deleteCardType(editingCardType.value.id, boardId.value);
   if (!deleted) {
     return;
   }

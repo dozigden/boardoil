@@ -118,7 +118,7 @@ function closeAddMemberDialog() {
 }
 
 async function addMember(model: BoardMemberEditModel) {
-  const added = await boardMembersStore.addMember(model);
+  const added = await boardMembersStore.addMember(currentBoardId.value!, model);
   if (!added) {
     return;
   }
@@ -131,7 +131,7 @@ async function updateRole(userId: number, role: BoardMemberRole) {
     userId,
     role
   };
-  await boardMembersStore.updateMemberRole(model);
+  await boardMembersStore.updateMemberRole(currentBoardId.value!, model);
 }
 
 function onRoleChange(userId: number) {
@@ -154,7 +154,7 @@ async function removeMember(member: BoardMember) {
     return;
   }
 
-  await boardMembersStore.removeMember(member.userId);
+  await boardMembersStore.removeMember(currentBoardId.value!, member.userId);
 }
 
 function focusMemberRoleControl(userId: number) {
