@@ -2,29 +2,29 @@
   <ModalDialog :open="open" title="Edit User" close-label="Cancel user changes" @close="emit('close')" @submit="submit">
     <label>
       Username
-      <input :value="draftUserName" disabled />
+      <input :value="props.user?.userName ?? ''" disabled />
     </label>
 
     <label>
       Display name
-      <input v-model="draftDisplayName" :disabled="busy" maxlength="64" required />
+      <input v-model="draft.displayName" :disabled="busy" maxlength="64" required />
     </label>
 
     <label>
       Email
-      <input v-model="draftEmail" :disabled="busy" type="email" autocomplete="email" maxlength="320" required />
+      <input v-model="draft.email" :disabled="busy" type="email" autocomplete="email" maxlength="320" required />
     </label>
 
     <label>
       Role
-      <select v-model="draftRole" :disabled="busy">
+      <select v-model="draft.role" :disabled="busy">
         <option value="Standard">Standard</option>
         <option value="Admin">Admin</option>
       </select>
     </label>
 
     <label class="user-edit-dialog-check">
-      <input v-model="draftIsActive" :disabled="busy" type="checkbox" />
+      <input v-model="draft.isActive" :disabled="busy" type="checkbox" />
       <span>Active account</span>
     </label>
 
@@ -51,7 +51,7 @@
 import { Check, X } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
-import type { ManagedUser } from '../../shared/types/authTypes';
+import type { ManagedUser, UpdateManagedUserRequest } from '../../shared/types/authTypes';
 
 const props = defineProps<{
   open: boolean;
@@ -61,45 +61,47 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  submit: [payload: { displayName: string; email: string; role: 'Admin' | 'Standard'; isActive: boolean }];
+  submit: [payload: UpdateManagedUserRequest];
 }>();
 
-const draftUserName = ref('');
-const draftDisplayName = ref('');
-const draftEmail = ref('');
-const draftRole = ref<'Admin' | 'Standard'>('Standard');
-const draftIsActive = ref(true);
+const draft = ref<UpdateManagedUserRequest>(createDefaultDraft());
 const draftError = ref<string | null>(null);
 
+function createDefaultDraft(): UpdateManagedUserRequest {
+  return {
+    displayName: '',
+    email: '',
+    role: 'Standard',
+    isActive: true
+  };
+}
+
 function resetDraft() {
-  draftUserName.value = props.user?.userName ?? '';
-  draftDisplayName.value = props.user?.displayName ?? '';
-  draftEmail.value = props.user?.email ?? '';
-  draftRole.value = props.user?.role === 'Admin' ? 'Admin' : 'Standard';
-  draftIsActive.value = props.user?.isActive ?? true;
+  draft.value = {
+    displayName: props.user?.displayName ?? '',
+    email: props.user?.email ?? '',
+    role: props.user?.role === 'Admin' ? 'Admin' : 'Standard',
+    isActive: props.user?.isActive ?? true
+  };
   draftError.value = null;
 }
 
 function submit() {
-  const trimmedEmail = draftEmail.value.trim();
-  const trimmedDisplayName = draftDisplayName.value.trim();
-  if (!trimmedDisplayName) {
+  draft.value.displayName = draft.value.displayName.trim();
+  draft.value.email = draft.value.email.trim();
+
+  if (!draft.value.displayName) {
     draftError.value = 'Display name is required.';
     return;
   }
 
-  const atIndex = trimmedEmail.indexOf('@');
-  if (atIndex <= 0 || atIndex !== trimmedEmail.lastIndexOf('@') || atIndex >= trimmedEmail.length - 1) {
+  const atIndex = draft.value.email.indexOf('@');
+  if (atIndex <= 0 || atIndex !== draft.value.email.lastIndexOf('@') || atIndex >= draft.value.email.length - 1) {
     draftError.value = "Email must contain '@' with characters before and after it.";
     return;
   }
 
-  emit('submit', {
-    displayName: trimmedDisplayName,
-    email: trimmedEmail,
-    role: draftRole.value,
-    isActive: draftIsActive.value
-  });
+  emit('submit', draft.value);
 }
 
 watch(

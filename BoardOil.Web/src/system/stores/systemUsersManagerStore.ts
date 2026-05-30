@@ -1,7 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createSystemApi } from '../../shared/api/systemApi';
-import type { ManagedUser } from '../../shared/types/authTypes';
+import type {
+  CreateManagedUserRequest,
+  ManagedUser,
+  UpdateManagedUserRequest
+} from '../../shared/types/authTypes';
 
 export const useSystemUsersManagerStore = defineStore('systemUsersManager', () => {
   const users = ref<ManagedUser[]>([]);
@@ -39,17 +43,11 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
     }
   }
 
-  async function createUser(payload: {
-    userName: string;
-    displayName: string;
-    email: string;
-    password: string;
-    role: 'Admin' | 'Standard';
-  }) {
+  async function createUser(payload: CreateManagedUserRequest) {
     busy.value = true;
     clearMessages();
     try {
-      const result = await api.createUser(payload.userName, payload.displayName, payload.email, payload.password, payload.role);
+      const result = await api.createUser(payload);
       if (!result.ok) {
         errorMessage.value = result.error.message;
         return false;
@@ -63,10 +61,7 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
     }
   }
 
-  async function updateUser(
-    userId: number,
-    payload: { displayName: string; email: string; role: 'Admin' | 'Standard'; isActive: boolean }
-  ) {
+  async function updateUser(userId: number, payload: UpdateManagedUserRequest) {
     busy.value = true;
     clearMessages();
     try {

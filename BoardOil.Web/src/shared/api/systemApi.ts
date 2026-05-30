@@ -4,6 +4,7 @@ import type { BoardMember, BoardMemberEditModel, BoardMemberRole, SystemBoardSum
 import type {
   AccessToken,
   ClientAccount,
+  CreateManagedUserRequest,
   CreateClientAccessTokenRequest,
   CreateClientAccountRequest,
   CreatedAccessToken,
@@ -92,14 +93,8 @@ export function createSystemApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
-  async function createUser(
-    userName: string,
-    displayName: string,
-    email: string,
-    password: string,
-    role: 'Admin' | 'Standard'
-  ): Promise<Result<ManagedUser, AppError>> {
-    return postData<ManagedUser>('/api/system/users', { userName, displayName, email, password, role });
+  async function createUser(request: CreateManagedUserRequest): Promise<Result<ManagedUser, AppError>> {
+    return postData<ManagedUser>('/api/system/users', request);
   }
 
   async function updateUser(userId: number, request: UpdateManagedUserRequest): Promise<Result<ManagedUser, AppError>> {

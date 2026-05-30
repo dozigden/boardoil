@@ -34,7 +34,13 @@ describe('systemApi', () => {
   it('createUser posts email in the system user payload', async () => {
     const api = createSystemApi();
 
-    await api.createUser('member', 'Member', 'member@example.test', 'Password1234!', 'Standard');
+    await api.createUser({
+      userName: 'member',
+      displayName: 'Member',
+      email: 'member@example.test',
+      password: 'Password1234!',
+      role: 'Standard'
+    });
 
     expect(postData).toHaveBeenCalledWith('/api/system/users', {
       userName: 'member',

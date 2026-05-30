@@ -128,7 +128,11 @@ import { useConfirm } from '../../shared/composables/useConfirm';
 import UserCreateDialog from '../components/UserCreateDialog.vue';
 import UserEditDialog from '../components/UserEditDialog.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
-import type { ManagedUser } from '../../shared/types/authTypes';
+import type {
+  CreateManagedUserRequest,
+  ManagedUser,
+  UpdateManagedUserRequest
+} from '../../shared/types/authTypes';
 import { useSystemUsersManagerStore } from '../stores/systemUsersManagerStore';
 
 const authStore = useAuthStore();
@@ -175,7 +179,7 @@ function closeResetPasswordDialog() {
   userForPasswordReset.value = null;
 }
 
-async function createUser(payload: { userName: string; displayName: string; email: string; password: string; role: 'Admin' | 'Standard' }) {
+async function createUser(payload: CreateManagedUserRequest) {
   const created = await usersManagerStore.createUser(payload);
   if (!created) {
     return;
@@ -194,7 +198,7 @@ function closeEditDialog() {
   userForEdit.value = null;
 }
 
-async function submitUserEdit(payload: { displayName: string; email: string; role: 'Admin' | 'Standard'; isActive: boolean }) {
+async function submitUserEdit(payload: UpdateManagedUserRequest) {
   const selectedUser = userForEdit.value;
   if (!selectedUser) {
     return;

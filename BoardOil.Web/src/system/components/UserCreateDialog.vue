@@ -2,22 +2,22 @@
   <ModalDialog :open="open" title="Create User" close-label="Cancel creation" @close="emit('close')" @submit="submit">
     <label>
       Username
-      <input v-model="userName" :disabled="busy" maxlength="64" required />
+      <input v-model="draft.userName" :disabled="busy" maxlength="64" required />
     </label>
 
     <label>
       Display name
-      <input v-model="displayName" :disabled="busy" maxlength="64" required />
+      <input v-model="draft.displayName" :disabled="busy" maxlength="64" required />
     </label>
 
     <label>
       Email
-      <input v-model="email" :disabled="busy" type="email" autocomplete="email" maxlength="320" required />
+      <input v-model="draft.email" :disabled="busy" type="email" autocomplete="email" maxlength="320" required />
     </label>
 
     <label>
       Password
-      <input v-model="password" :disabled="busy" type="password" autocomplete="new-password" required />
+      <input v-model="draft.password" :disabled="busy" type="password" autocomplete="new-password" required />
     </label>
 
     <label>
@@ -27,7 +27,7 @@
 
     <label>
       Role
-      <select v-model="role" :disabled="busy">
+      <select v-model="draft.role" :disabled="busy">
         <option value="Standard">Standard</option>
         <option value="Admin">Admin</option>
       </select>
@@ -56,6 +56,7 @@
 import { Check, X } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
+import type { CreateManagedUserRequest } from '../../shared/types/authTypes';
 import { PASSWORD_CONFIRMATION_ERROR, validatePasswordConfirmation } from '../../shared/utils/passwordConfirmation';
 
 const props = defineProps<{
@@ -65,53 +66,51 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  submit: [payload: { userName: string; displayName: string; email: string; password: string; role: 'Admin' | 'Standard' }];
+  submit: [payload: CreateManagedUserRequest];
 }>();
 
-const userName = ref('');
-const displayName = ref('');
-const email = ref('');
-const password = ref('');
+const draft = ref<CreateManagedUserRequest>(createDefaultDraft());
 const confirmPassword = ref('');
-const role = ref<'Admin' | 'Standard'>('Standard');
 const draftError = ref<string | null>(null);
 
+function createDefaultDraft(): CreateManagedUserRequest {
+  return {
+    userName: '',
+    displayName: '',
+    email: '',
+    password: '',
+    role: 'Standard'
+  };
+}
+
 function resetDraft() {
-  userName.value = '';
-  displayName.value = '';
-  email.value = '';
-  password.value = '';
+  draft.value = createDefaultDraft();
   confirmPassword.value = '';
-  role.value = 'Standard';
   draftError.value = null;
 }
 
 function submit() {
-  const trimmedEmail = email.value.trim();
-  const trimmedDisplayName = displayName.value.trim();
-  const atIndex = trimmedEmail.indexOf('@');
-  if (atIndex <= 0 || atIndex !== trimmedEmail.lastIndexOf('@') || atIndex >= trimmedEmail.length - 1) {
+  draft.value.userName = draft.value.userName.trim();
+  draft.value.displayName = draft.value.displayName.trim();
+  draft.value.email = draft.value.email.trim();
+
+  const atIndex = draft.value.email.indexOf('@');
+  if (atIndex <= 0 || atIndex !== draft.value.email.lastIndexOf('@') || atIndex >= draft.value.email.length - 1) {
     draftError.value = "Email must contain '@' with characters before and after it.";
     return;
   }
 
-  draftError.value = validatePasswordConfirmation(password.value, confirmPassword.value);
+  draftError.value = validatePasswordConfirmation(draft.value.password, confirmPassword.value);
   if (draftError.value) {
     return;
   }
 
-  if (!trimmedDisplayName) {
+  if (!draft.value.displayName) {
     draftError.value = 'Display name is required.';
     return;
   }
 
-  emit('submit', {
-    userName: userName.value,
-    displayName: trimmedDisplayName,
-    email: trimmedEmail,
-    password: password.value,
-    role: role.value
-  });
+  emit('submit', draft.value);
 }
 
 watch(
@@ -123,9 +122,12 @@ watch(
   }
 );
 
-watch([password, confirmPassword], () => {
-  if (draftError.value === PASSWORD_CONFIRMATION_ERROR && validatePasswordConfirmation(password.value, confirmPassword.value) === null) {
-    draftError.value = null;
+watch(
+  () => [draft.value.password, confirmPassword.value] as const,
+  ([password]) => {
+    if (draftError.value === PASSWORD_CONFIRMATION_ERROR && validatePasswordConfirmation(password, confirmPassword.value) === null) {
+      draftError.value = null;
+    }
   }
-});
+);
 </script>

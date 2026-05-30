@@ -110,6 +110,14 @@ export type CreateClientAccountRequest = {
   scopes?: AccessTokenScope[] | null;
 };
 
+export type CreateManagedUserRequest = {
+  userName: string;
+  displayName: string;
+  email: string;
+  password: string;
+  role: 'Admin' | 'Standard' | string;
+};
+
 export type UpdateManagedUserRequest = {
   displayName: string;
   email: string;
