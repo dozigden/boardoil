@@ -20,22 +20,71 @@
     </section>
 
     <section class="board-layout-content">
-      <slot />
+      <section v-if="!hasBoardContext" class="board-context-loading" aria-live="polite">
+        <span class="board-context-loading-indicator" aria-hidden="true" />
+        <p class="board-context-loading-label">Loading board...</p>
+      </section>
+      <slot v-else />
     </section>
   </section>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import AppHeader from '../components/AppHeader.vue';
 import BoardConveyor from '../../board/components/BoardConveyor.vue';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useBoardStore } from '../../board/stores/boardStore';
 import { provideBoardLayoutRegistry } from './boardLayoutRegistry';
 
 const feedbackStore = useUiFeedbackStore();
 const { errorMessage } = storeToRefs(feedbackStore);
+const route = useRoute();
+const router = useRouter();
+const boardStore = useBoardStore();
+const { board, currentBoardId, isLoadingBoard } = storeToRefs(boardStore);
+const routeBoardId = computed(() => parseRouteIntParam(route.params.boardId));
+const hasBoardContext = computed(() => {
+  if (routeBoardId.value === null) {
+    return false;
+  }
+
+  return (
+    !isLoadingBoard.value &&
+    currentBoardId.value === routeBoardId.value &&
+    board.value?.id === routeBoardId.value
+  );
+});
+let boardContextRequestVersion = 0;
 const registry = provideBoardLayoutRegistry();
 const conveyorConfig = registry.conveyorConfig;
+
+watch(
+  routeBoardId,
+  async boardId => {
+    const requestVersion = ++boardContextRequestVersion;
+    if (boardId === null) {
+      await router.replace({ name: 'boards' });
+      return;
+    }
+
+    if (currentBoardId.value === boardId && board.value?.id === boardId) {
+      return;
+    }
+
+    const loaded = await boardStore.initialize(boardId);
+    if (requestVersion !== boardContextRequestVersion) {
+      return;
+    }
+
+    if (!loaded) {
+      await router.replace({ name: 'boards' });
+    }
+  },
+  { immediate: true }
+);
 
 function handleLeftClick() {
   void registry.conveyorConfig.value.onLeftClick?.();
@@ -43,6 +92,12 @@ function handleLeftClick() {
 
 function handleRightClick() {
   void registry.conveyorConfig.value.onRightClick?.();
+}
+
+function parseRouteIntParam(value: unknown) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = Number.parseInt(String(raw ?? ''), 10);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 </script>
 
@@ -84,6 +139,37 @@ function handleRightClick() {
   min-width: 0;
   width: 100%;
   min-height: var(--bo-board-conveyor-slot-min-height);
+}
+
+.board-context-loading {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+}
+
+.board-context-loading-indicator {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 3px solid var(--bo-border-soft);
+  border-top-color: var(--bo-link);
+  animation: bo-layout-spin 0.9s linear infinite;
+}
+
+.board-context-loading-label {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+
+@keyframes bo-layout-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 767px) {

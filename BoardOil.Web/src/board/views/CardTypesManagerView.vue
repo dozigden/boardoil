@@ -58,51 +58,41 @@
 <script setup lang="ts">
 import { MoreVertical, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 
 const router = useRouter();
-const route = useRoute();
 const boardStore = useBoardStore();
 const cardTypeStore = useCardTypeStore();
-const { currentUserRole } = storeToRefs(boardStore);
-const { initialize } = boardStore;
+const { currentUserRole, currentBoardId } = storeToRefs(boardStore);
 const { cardTypes, busy } = storeToRefs(cardTypeStore);
 const { loadCardTypes, setDefaultCardType } = cardTypeStore;
 
 const isOwner = computed(() => currentUserRole.value === 'Owner');
 
-const routeBoardId = computed(() => {
-  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
-  return Number.isFinite(parsed) ? parsed : null;
+const routeBoardId = computed(() => currentBoardId.value);
+
+onMounted(() => {
+  void initializeView();
 });
 
-watch(
-  routeBoardId,
-  async nextBoardId => {
-    if (nextBoardId === null) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
+async function initializeView() {
+  const boardId = routeBoardId.value;
+  if (boardId === null) {
+    await router.replace({ name: 'boards' });
+    return;
+  }
 
-    const loaded = await initialize(nextBoardId);
-    if (!loaded && routeBoardId.value === nextBoardId) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
+  if (!isOwner.value) {
+    await router.replace({ name: 'board', params: { boardId } });
+    return;
+  }
 
-    if (!isOwner.value) {
-      await router.replace({ name: 'board', params: { boardId: nextBoardId } });
-      return;
-    }
-
-    await loadCardTypes(nextBoardId);
-  },
-  { immediate: true }
-);
+  await loadCardTypes(boardId);
+}
 
 async function openEditor(cardTypeId: number) {
   if (routeBoardId.value === null) {

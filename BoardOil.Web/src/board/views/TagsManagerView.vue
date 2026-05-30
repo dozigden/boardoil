@@ -44,33 +44,25 @@
 <script setup lang="ts">
 import { Pencil, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import Tag from '../components/Tag.vue';
+import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
 
 const router = useRouter();
-const route = useRoute();
+const boardStore = useBoardStore();
 const tagStore = useTagStore();
+const { currentBoardId } = storeToRefs(boardStore);
 const { tags, busy } = storeToRefs(tagStore);
 const { loadTags, getTagByName } = tagStore;
-const routeBoardId = computed(() => resolveBoardId());
+const routeBoardId = computed(() => currentBoardId.value);
 
 const tagNames = computed(() => tags.value.map(tag => tag.name).sort((left, right) => left.localeCompare(right)));
 
-watch(
-  routeBoardId,
-  async nextBoardId => {
-    if (nextBoardId === null) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
-    await loadTags(nextBoardId);
-  },
-  { immediate: true }
-);
+onMounted(() => {
+  void initializeView();
+});
 
 async function openEditor(tagName: string) {
   const existingTag = getTagByName(tagName);
@@ -93,8 +85,13 @@ async function openCreateEditor() {
   await router.push({ name: 'tags-new', params: { boardId: routeBoardId.value } });
 }
 
-function resolveBoardId() {
-  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
-  return Number.isFinite(parsed) ? parsed : null;
+async function initializeView() {
+  const boardId = routeBoardId.value;
+  if (boardId === null) {
+    await router.replace({ name: 'boards' });
+    return;
+  }
+
+  await loadTags(boardId);
 }
 </script>

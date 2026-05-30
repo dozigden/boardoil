@@ -77,7 +77,8 @@ describe('boardStore', () => {
     const initialized = await store.initialize(1);
 
     expect(initialized).toBe(false);
-    expect(store.board?.id).toBe(1);
+    expect(store.board).toBeNull();
+    expect(store.currentBoardId).toBeNull();
     expect(realtime.disconnect).toHaveBeenCalledTimes(1);
     expect(feedback.errorMessage).toBe('Realtime connection failed.');
   });

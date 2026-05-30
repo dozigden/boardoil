@@ -74,8 +74,8 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { onUnmounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { createUsersApi } from '../../shared/api/usersApi';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import AddBoardMemberDialog from '../../system/components/AddBoardMemberDialog.vue';
@@ -90,14 +90,13 @@ import type {
   BoardMemberRole,
 } from '../../shared/types/boardTypes';
 
-const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const boardMembersStore = useBoardMembersStore();
 const { confirm } = useConfirm();
 const usersApi = createUsersApi();
 const feedback = useUiFeedbackStore();
-const { isCurrentUserOwner } = storeToRefs(boardStore);
+const { isCurrentUserOwner, currentBoardId } = storeToRefs(boardStore);
 const { members, busy } = storeToRefs(boardMembersStore);
 const users = ref<UserDirectoryEntry[]>([]);
 const usersBusy = ref(false);
@@ -107,26 +106,9 @@ onUnmounted(() => {
   boardMembersStore.dispose();
 });
 
-watch(
-  () => route.params.boardId,
-  async () => {
-    const boardId = resolveBoardId();
-    if (boardId === null) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
-    const loaded = await boardStore.initialize(boardId);
-    if (!loaded && resolveBoardId() === boardId) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
-    await boardMembersStore.loadMembers(boardId);
-    await loadUsers();
-  },
-  { immediate: true }
-);
+onMounted(() => {
+  void initializeView();
+});
 
 async function openAddMemberDialog() {
   await loadUsers();
@@ -188,11 +170,6 @@ function focusMemberRoleControl(userId: number) {
   }
 }
 
-function resolveBoardId() {
-  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 async function loadUsers() {
   usersBusy.value = true;
   try {
@@ -208,6 +185,17 @@ async function loadUsers() {
   } finally {
     usersBusy.value = false;
   }
+}
+
+async function initializeView() {
+  const boardId = currentBoardId.value;
+  if (boardId === null) {
+    await router.replace({ name: 'boards' });
+    return;
+  }
+
+  await boardMembersStore.loadMembers(boardId);
+  await loadUsers();
 }
 </script>
 

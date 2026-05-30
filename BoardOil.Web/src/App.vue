@@ -6,7 +6,7 @@
       </Transition>
     </component>
   </RouterView>
-  <RouterView name="dialog" />
+  <RouterView v-if="!hideRootDialogView" name="dialog" />
   <ConfirmDialogHost />
 </template>
 
@@ -33,7 +33,7 @@ const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
 const route = useRoute();
 const { boards } = storeToRefs(boardCatalogueStore);
-const { board, currentBoardId } = storeToRefs(boardStore);
+const { board, currentBoardId, isLoadingBoard } = storeToRefs(boardStore);
 const pageTransitionName = ref('route-none');
 const previousRouteSnapshot = ref<RouteSnapshot | null>(null);
 const layoutMode = computed(() => resolveAppLayout(route.meta.layout));
@@ -53,6 +53,22 @@ const routeBoardId = computed(() => {
   return Number.isFinite(boardId) ? boardId : null;
 });
 const pageTitle = computed(() => getPageTitle(board.value, boards.value, currentBoardId.value, routeBoardId.value));
+const hasBoardRouteContext = computed(() => {
+  if (!route.path.startsWith('/boards/')) {
+    return true;
+  }
+
+  if (routeBoardId.value === null) {
+    return false;
+  }
+
+  return (
+    !isLoadingBoard.value &&
+    currentBoardId.value === routeBoardId.value &&
+    board.value?.id === routeBoardId.value
+  );
+});
+const hideRootDialogView = computed(() => !hasBoardRouteContext.value);
 
 onMounted(async () => {
   await authStore.initialize();

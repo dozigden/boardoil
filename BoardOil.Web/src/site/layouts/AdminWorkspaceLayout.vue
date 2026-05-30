@@ -3,19 +3,47 @@
     <AppHeader />
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     <section class="app-layout-admin-content">
-      <slot />
+      <section v-if="!hasBoardContext" class="board-context-loading" aria-live="polite">
+        <span class="board-context-loading-indicator" aria-hidden="true" />
+        <p class="board-context-loading-label">Loading board...</p>
+      </section>
+      <slot v-else />
     </section>
   </section>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import AppHeader from '../components/AppHeader.vue';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useBoardStore } from '../../board/stores/boardStore';
 
 const feedbackStore = useUiFeedbackStore();
 const { errorMessage } = storeToRefs(feedbackStore);
+const route = useRoute();
+const router = useRouter();
+const boardStore = useBoardStore();
+const { board, currentBoardId, isLoadingBoard } = storeToRefs(boardStore);
+const requiresBoardContext = computed(() => route.path.startsWith('/boards/'));
+const routeBoardId = computed(() => parseRouteIntParam(route.params.boardId));
+const hasBoardContext = computed(() => {
+  if (!requiresBoardContext.value) {
+    return true;
+  }
+
+  if (routeBoardId.value === null) {
+    return false;
+  }
+
+  return (
+    !isLoadingBoard.value &&
+    currentBoardId.value === routeBoardId.value &&
+    board.value?.id === routeBoardId.value
+  );
+});
+let boardContextRequestVersion = 0;
 
 type InlineStyleSnapshot = {
   element: HTMLElement;
@@ -35,6 +63,36 @@ const APP_LOCK_PROPERTIES = ['overflow', 'height'] as const;
 
 const styleSnapshots: InlineStyleSnapshot[] = [];
 let lockedScrollY = 0;
+
+watch(
+  () => ({ requires: requiresBoardContext.value, boardId: routeBoardId.value }),
+  async context => {
+    if (!context.requires) {
+      return;
+    }
+
+    const requestVersion = ++boardContextRequestVersion;
+    const boardId = context.boardId;
+    if (boardId === null) {
+      await router.replace({ name: 'boards' });
+      return;
+    }
+
+    if (currentBoardId.value === boardId && board.value?.id === boardId) {
+      return;
+    }
+
+    const loaded = await boardStore.initialize(boardId);
+    if (requestVersion !== boardContextRequestVersion) {
+      return;
+    }
+
+    if (!loaded) {
+      await router.replace({ name: 'boards' });
+    }
+  },
+  { immediate: true }
+);
 
 onMounted(() => {
   lockedScrollY = window.scrollY;
@@ -107,6 +165,12 @@ function captureAndApplyStyles(
 
   styleSnapshots.push(snapshot);
 }
+
+function parseRouteIntParam(value: unknown) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = Number.parseInt(String(raw ?? ''), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 </script>
 
 <style scoped>
@@ -142,6 +206,37 @@ function captureAndApplyStyles(
 .app-layout-admin-content :deep(.admin-content > *) {
   margin-top: 0;
   max-width: none;
+}
+
+.board-context-loading {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+}
+
+.board-context-loading-indicator {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 3px solid var(--bo-border-soft);
+  border-top-color: var(--bo-link);
+  animation: bo-admin-layout-spin 0.9s linear infinite;
+}
+
+.board-context-loading-label {
+  margin: 0;
+  color: var(--bo-ink-muted);
+}
+
+@keyframes bo-admin-layout-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 720px) {

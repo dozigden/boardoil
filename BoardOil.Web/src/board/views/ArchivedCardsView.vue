@@ -85,7 +85,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
 import BoGrid from '../../shared/components/BoGrid.vue';
@@ -134,10 +134,6 @@ const selectedArchivedCard = ref<ArchivedCard | null>(null);
 const selectedArchivedCardListItem = ref<ArchivedCardListItem | null>(null);
 let detailRequestVersion = 0;
 
-const routeBoardId = computed(() => {
-  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
-  return Number.isFinite(parsed) ? parsed : null;
-});
 const searchQuery = computed(() => {
   const value = route.query.search;
   return typeof value === 'string' ? value.trim() : '';
@@ -152,37 +148,14 @@ const hasActiveFilters = computed(() => searchDraft.value.trim().length > 0);
 const emptyGridText = computed(() => hasActiveFilters.value ? 'No archived cards match your filters.' : 'No archived cards found.');
 const detailModalTitle = computed(() => selectedArchivedCard.value?.title ?? selectedArchivedCardListItem.value?.title ?? 'Archived Card');
 
-watch(
-  routeBoardId,
-  async nextBoardId => {
-    if (nextBoardId === null) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
-    const loaded = await boardStore.initialize(nextBoardId);
-    if (!loaded && routeBoardId.value === nextBoardId) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
-    searchDraft.value = searchQuery.value;
-    await loadArchivedCards();
-    await tagStore.loadTags(routeBoardId.value);
-
-    closeDetailModal();
-  },
-  { immediate: true }
-);
+onMounted(() => {
+  void initializeView();
+});
 
 watch(
   () => [route.query.search, route.query.offset],
   async () => {
     searchDraft.value = searchQuery.value;
-    if (routeBoardId.value === null || currentBoardId.value !== routeBoardId.value) {
-      return;
-    }
-
     await loadArchivedCards();
   }
 );
@@ -198,12 +171,17 @@ onBeforeUnmount(() => {
 });
 
 async function goToBoard() {
-  if (routeBoardId.value === null) {
-    await router.push({ name: 'boards' });
-    return;
-  }
+  const boardId = currentBoardId.value!;
+  await router.push({ name: 'board', params: { boardId } });
+}
 
-  await router.push({ name: 'board', params: { boardId: routeBoardId.value } });
+async function initializeView() {
+  const boardId = currentBoardId.value!;
+
+  searchDraft.value = searchQuery.value;
+  await loadArchivedCards();
+  await tagStore.loadTags(boardId);
+  closeDetailModal();
 }
 
 function handleSearchTextChanged(value: string) {
@@ -258,10 +236,7 @@ function openArchivedCardFromRow(row: Record<string, unknown>) {
 }
 
 async function openArchivedCard(item: ArchivedCardListItem) {
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    return;
-  }
+  const boardId = currentBoardId.value!;
 
   detailRequestVersion += 1;
   const requestVersion = detailRequestVersion;
@@ -304,9 +279,9 @@ async function unarchiveSelectedCard() {
     return;
   }
 
-  const boardId = routeBoardId.value;
+  const boardId = currentBoardId.value!;
   const archivedCardId = selectedArchivedCard.value?.id;
-  if (boardId === null || archivedCardId === undefined) {
+  if (archivedCardId === undefined) {
     return;
   }
 
@@ -327,10 +302,7 @@ async function unarchiveSelectedCard() {
 }
 
 async function loadArchivedCards() {
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    return;
-  }
+  const boardId = currentBoardId.value!;
 
   isLoadingList.value = true;
   listErrorMessage.value = '';
@@ -353,10 +325,7 @@ async function loadArchivedCards() {
 }
 
 async function updateQuery(changes: { search?: string | null; offset?: number }) {
-  const boardId = routeBoardId.value;
-  if (boardId === null) {
-    return;
-  }
+  const boardId = currentBoardId.value!;
 
   const query: Record<string, string> = {};
   const nextSearch = changes.search === undefined ? searchQuery.value : changes.search ?? '';

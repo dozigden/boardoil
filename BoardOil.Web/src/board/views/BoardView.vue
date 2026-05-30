@@ -162,8 +162,8 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import BoardArchiveSelectedCardsDialog from '../components/BoardArchiveSelectedCardsDialog.vue';
 import BoardBulkEditSelectedCardsDialog from '../components/BoardBulkEditSelectedCardsDialog.vue';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
@@ -202,7 +202,7 @@ import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 const newCardDrafts = ref<Record<number, CardCreateModel>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
 const newCardDraftErrors = ref<Record<number, string>>({});
-const isLoading = ref(false);
+const isLoading = ref(true);
 const isBulkEditDialogOpen = ref(false);
 const isApplyingBulkEdit = ref(false);
 const bulkEditTagStates = ref<TagFilterStateMap>({});
@@ -210,7 +210,6 @@ const bulkEditTargetColumnId = ref<number | null>(null);
 const bulkEditSlickOperation = ref<BulkEditSlickOperation>('none');
 const bulkEditTargetSlickName = ref<string | null>(null);
 
-const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const cardStore = useCardStore();
@@ -219,7 +218,7 @@ const slickStore = useSlickStore();
 const tagStore = useTagStore();
 const boardLayoutRegistry = useBoardLayoutRegistry();
 
-const { board } = storeToRefs(boardStore);
+const { board, currentBoardId } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { slicks } = storeToRefs(slickStore);
 const { tags } = storeToRefs(tagStore);
@@ -242,7 +241,7 @@ const {
 } = useBoardCardFilters(board, tags, slicks);
 
 async function openArchivedCards() {
-  const boardId = resolveBoardId();
+  const boardId = currentBoardId.value;
   if (boardId === null) {
     return;
   }
@@ -625,7 +624,7 @@ async function saveNewCardDraft(columnId: number) {
 }
 
 async function openCardEditor(cardId: number) {
-  const boardId = resolveBoardId();
+  const boardId = currentBoardId.value;
   if (boardId === null) {
     return;
   }
@@ -643,58 +642,35 @@ function resolveCreateCardErrorMessage(error: AppError) {
   return error.message;
 }
 
-function resolveBoardId() {
-  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
-  return Number.isFinite(parsed) ? parsed : null;
+onMounted(() => {
+  void initializeView();
+});
+
+async function initializeView() {
+  clearDragInteraction();
+  clearCardFilters();
+  resetSelectionState();
+  closeBulkEditDialog();
+
+  const boardId = currentBoardId.value;
+  if (boardId === null) {
+    await router.replace({ name: 'boards' });
+    return;
+  }
+
+  isLoading.value = true;
+  try {
+    await tagStore.loadTags(boardId);
+    await cardTypeStore.loadCardTypes(boardId);
+    await slickStore.loadSlicks(boardId);
+
+    await nextTick();
+    scheduleGooStructureRefresh();
+    scheduleSelectionGooStructureRefresh();
+  } finally {
+    isLoading.value = false;
+  }
 }
-
-let boardViewLoadRequestVersion = 0;
-
-watch(
-  () => route.params.boardId,
-  async () => {
-    const requestVersion = ++boardViewLoadRequestVersion;
-    clearDragInteraction();
-    clearCardFilters();
-    resetSelectionState();
-    closeBulkEditDialog();
-
-    const boardId = resolveBoardId();
-    if (boardId === null) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
-    isLoading.value = true;
-    try {
-      const loaded = await boardStore.initialize(boardId);
-      if (requestVersion !== boardViewLoadRequestVersion) {
-        return;
-      }
-
-      if (!loaded && resolveBoardId() === boardId) {
-        await router.replace({ name: 'boards' });
-        return;
-      }
-
-      await tagStore.loadTags(boardId);
-      await cardTypeStore.loadCardTypes(boardId);
-      await slickStore.loadSlicks(boardId);
-      if (requestVersion !== boardViewLoadRequestVersion) {
-        return;
-      }
-
-      await nextTick();
-      scheduleGooStructureRefresh();
-      scheduleSelectionGooStructureRefresh();
-    } finally {
-      if (requestVersion === boardViewLoadRequestVersion) {
-        isLoading.value = false;
-      }
-    }
-  },
-  { immediate: true }
-);
 </script>
 
 <style scoped>

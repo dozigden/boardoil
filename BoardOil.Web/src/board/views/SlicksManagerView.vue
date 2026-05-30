@@ -46,32 +46,25 @@
 <script setup lang="ts">
 import { Pencil, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useBoardStore } from '../stores/boardStore';
 import { useSlickStore } from '../stores/slickStore';
 import type { Slick } from '../../shared/types/boardTypes';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 
 const router = useRouter();
-const route = useRoute();
+const boardStore = useBoardStore();
 const slickStore = useSlickStore();
+const { currentBoardId } = storeToRefs(boardStore);
 const { slicks, busy } = storeToRefs(slickStore);
 const { loadSlicks } = slickStore;
 
-const routeBoardId = computed(() => resolveBoardId());
+const routeBoardId = computed(() => currentBoardId.value);
 
-watch(
-  routeBoardId,
-  async nextBoardId => {
-    if (nextBoardId === null) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
-    await loadSlicks(nextBoardId);
-  },
-  { immediate: true }
-);
+onMounted(() => {
+  void initializeView();
+});
 
 function getSlickStyle(slick: Slick) {
   return getSurfaceStyle(slick, {
@@ -101,9 +94,14 @@ async function openCreateEditor() {
   await router.push({ name: 'slicks-new', params: { boardId: routeBoardId.value } });
 }
 
-function resolveBoardId() {
-  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
-  return Number.isFinite(parsed) ? parsed : null;
+async function initializeView() {
+  const boardId = routeBoardId.value;
+  if (boardId === null) {
+    await router.replace({ name: 'boards' });
+    return;
+  }
+
+  await loadSlicks(boardId);
 }
 </script>
 

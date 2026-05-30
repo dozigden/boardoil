@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
 import type { ColumnEditModel } from '../../shared/types/boardTypes';
@@ -43,7 +43,7 @@ import { useBoardStore } from '../stores/boardStore';
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
-const { board } = storeToRefs(boardStore);
+const { board, currentBoardId } = storeToRefs(boardStore);
 const { saveColumn: saveColumnAction, deleteColumn } = boardStore;
 const columnDraft = ref<ColumnEditModel>({
   title: ''
@@ -55,16 +55,10 @@ const routeColumnId = computed<number | null>(() => {
   return Number.isFinite(parsed) ? parsed : null;
 });
 
-const routeBoardId = computed<number | null>(() => {
-  const raw = route.params.boardId;
-  const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : Number.NaN;
-  return Number.isFinite(parsed) ? parsed : null;
-});
-
 const editingColumn = computed(() => boardStore.getColumnById(routeColumnId.value));
 
 async function closeColumnEditor() {
-  const boardId = routeBoardId.value;
+  const boardId = currentBoardId.value;
   if (boardId === null) {
     await router.push({ name: 'boards' });
     return;
@@ -96,34 +90,28 @@ async function deleteEditingColumn() {
   await closeColumnEditor();
 }
 
-watch(
-  [routeBoardId, routeColumnId, editingColumn, board],
-  ([nextBoardId, nextColumnId, nextColumn, nextBoard], [, previousColumnId]) => {
-    if (nextBoardId === null) {
-      void router.replace({ name: 'boards' });
-      return;
-    }
+onMounted(() => {
+  const boardId = currentBoardId.value;
+  const columnId = routeColumnId.value;
+  const column = editingColumn.value;
 
-    if (nextColumnId === null) {
-      void router.replace({ name: 'columns', params: { boardId: nextBoardId } });
-      return;
-    }
+  if (boardId === null) {
+    void router.replace({ name: 'boards' });
+    return;
+  }
 
-    if (!nextBoard) {
-      return;
-    }
+  if (columnId === null) {
+    void router.replace({ name: 'columns', params: { boardId } });
+    return;
+  }
 
-    if (!nextColumn) {
-      void router.replace({ name: 'columns', params: { boardId: nextBoardId } });
-      return;
-    }
+  if (!board.value || !column) {
+    void router.replace({ name: 'columns', params: { boardId } });
+    return;
+  }
 
-    if (previousColumnId !== nextColumnId) {
-      columnDraft.value = {
-        title: nextColumn.title
-      };
-    }
-  },
-  { immediate: true }
-);
+  columnDraft.value = {
+    title: column.title
+  };
+});
 </script>

@@ -85,12 +85,26 @@ export const useBoardStore = defineStore('board', () => {
         return false;
       }
 
+      if (requestVersion !== initializeRequestVersion) {
+        return false;
+      }
+
       try {
         await realtime.connect(boardId);
+        if (requestVersion !== initializeRequestVersion) {
+          await realtime.disconnect();
+          return false;
+        }
+
         return true;
       } catch {
+        if (requestVersion !== initializeRequestVersion) {
+          return false;
+        }
+
         feedback.setError('Realtime connection failed.');
         await realtime.disconnect();
+        clearBoardContext();
         return false;
       }
     } finally {
@@ -104,11 +118,8 @@ export const useBoardStore = defineStore('board', () => {
     initializeRequestVersion += 1;
     loadRequestVersion += 1;
     await realtime.disconnect();
-    boardShell.value = null;
-    currentBoardId.value = null;
+    clearBoardContext();
     isLoadingBoard.value = false;
-    cardStore.dispose();
-    commentStore.dispose();
   }
 
   async function loadBoard(boardId: number) {
@@ -119,10 +130,7 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     if (!result.ok) {
-      boardShell.value = null;
-      currentBoardId.value = null;
-      cardStore.dispose();
-      commentStore.dispose();
+      clearBoardContext();
       reportError(result.error);
       return false;
     }
@@ -245,6 +253,13 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     return currentBoardId.value;
+  }
+
+  function clearBoardContext() {
+    boardShell.value = null;
+    currentBoardId.value = null;
+    cardStore.dispose();
+    commentStore.dispose();
   }
 
   function upsertColumn(column: Column) {

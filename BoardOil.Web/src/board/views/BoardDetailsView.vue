@@ -57,21 +57,20 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useBoardStore } from '../stores/boardStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { BoardEditModel } from '../../shared/types/boardTypes';
 
-const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const boardCatalogueStore = useBoardCatalogueStore();
 const feedbackStore = useUiFeedbackStore();
 const boardApi = createBoardApi();
-const { board } = storeToRefs(boardStore);
+const { board, currentBoardId } = storeToRefs(boardStore);
 const { applyBoardSummaryUpdate } = boardStore;
 const { busy } = storeToRefs(boardCatalogueStore);
 const exporting = ref(false);
@@ -81,7 +80,7 @@ const boardDetailsDraft = ref<BoardEditModel>({
   slickCohesionModeEnabled: true
 });
 
-const boardId = computed(() => resolveBoardId());
+const boardId = computed(() => currentBoardId.value);
 const boardName = computed(() => board.value?.name ?? '');
 const boardDescription = computed(() => board.value?.description ?? '');
 const slickCohesionModeEnabled = computed(() => board.value?.slickCohesionModeEnabled ?? true);
@@ -96,24 +95,14 @@ const hasChanges = computed(() =>
 const canSave = computed(() => isOwner.value && !busy.value && boardDetailsDraft.value.name.trim().length > 0 && hasChanges.value);
 const canExport = computed(() => isOwner.value && !exporting.value);
 
-watch(
-  boardId,
-  async nextBoardId => {
-    if (nextBoardId === null) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
+onMounted(() => {
+  if (boardId.value === null) {
+    void router.replace({ name: 'boards' });
+    return;
+  }
 
-    const loaded = await boardStore.initialize(nextBoardId);
-    if (!loaded && boardId.value === nextBoardId) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
-    resetDraftFromBoard();
-  },
-  { immediate: true }
-);
+  resetDraftFromBoard();
+});
 
 function resetDraft() {
   resetDraftFromBoard();
@@ -188,10 +177,6 @@ async function exportBoardPackage() {
   }
 }
 
-function resolveBoardId() {
-  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 </script>
 
 <style scoped>

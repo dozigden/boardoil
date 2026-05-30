@@ -87,8 +87,8 @@
 <script setup lang="ts">
 import { GripVertical, Pencil, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, nextTick, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 import type { ColumnCreateModel } from '../../shared/types/boardTypes';
 
@@ -97,10 +97,9 @@ const newColumnDraftInput = ref<HTMLInputElement | null>(null);
 const draggingColumnId = ref<number | null>(null);
 const dragOverColumnId = ref<number | null>(null);
 
-const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
-const { board, busy } = storeToRefs(boardStore);
+const { board, busy, currentBoardId } = storeToRefs(boardStore);
 const { createColumn: createColumnAction, moveColumn: moveColumnAction } = boardStore;
 const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
 
@@ -130,7 +129,7 @@ async function saveNewColumnDraft() {
 }
 
 async function openColumnEditor(columnId: number) {
-  const boardId = resolveBoardId();
+  const boardId = currentBoardId.value;
   if (boardId === null) {
     return;
   }
@@ -213,27 +212,11 @@ function onColumnDragEnd() {
   dragOverColumnId.value = null;
 }
 
-function resolveBoardId() {
-  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-watch(
-  () => route.params.boardId,
-  async () => {
-    const boardId = resolveBoardId();
-    if (boardId === null) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
-    const loaded = await boardStore.initialize(boardId);
-    if (!loaded && resolveBoardId() === boardId) {
-      await router.replace({ name: 'boards' });
-    }
-  },
-  { immediate: true }
-);
+onMounted(() => {
+  if (currentBoardId.value === null || board.value === null) {
+    void router.replace({ name: 'boards' });
+  }
+});
 </script>
 
 <style scoped>

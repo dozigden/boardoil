@@ -39,42 +39,31 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useBoardStore } from '../stores/boardStore';
 
-const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const boardCatalogueStore = useBoardCatalogueStore();
-const { board } = storeToRefs(boardStore);
+const { board, currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(boardCatalogueStore);
 const confirmationName = ref('');
 
-const boardId = computed(() => resolveBoardId());
+const boardId = computed(() => currentBoardId.value);
 const boardName = computed(() => board.value?.name ?? 'this board');
 const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
 const canDelete = computed(() => isOwner.value && !busy.value && confirmationName.value.trim() === boardName.value.trim());
 
-watch(
-  boardId,
-  async nextBoardId => {
-    if (nextBoardId === null) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
+onMounted(() => {
+  if (boardId.value === null) {
+    void router.replace({ name: 'boards' });
+    return;
+  }
 
-    const loaded = await boardStore.initialize(nextBoardId);
-    if (!loaded && boardId.value === nextBoardId) {
-      await router.replace({ name: 'boards' });
-      return;
-    }
-
-    confirmationName.value = '';
-  },
-  { immediate: true }
-);
+  confirmationName.value = '';
+});
 
 async function deleteBoard() {
   const nextBoardId = boardId.value;
@@ -91,10 +80,6 @@ async function deleteBoard() {
   await router.push({ name: 'boards' });
 }
 
-function resolveBoardId() {
-  const parsed = Number.parseInt(String(route.params.boardId ?? ''), 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 </script>
 
 <style scoped>
