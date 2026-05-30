@@ -2,7 +2,12 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { BoardColumn, Card, CardEditModel } from '../../shared/types/boardTypes';
+import type {
+  BoardColumn,
+  Card,
+  CardCreateModel,
+  CardEditModel
+} from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -13,7 +18,7 @@ export const useCardStore = defineStore('card', () => {
   const cardsById = ref<CardMap>({});
   const cardIdsByColumnId = ref<CardIdsByColumnMap>({});
   const busy = ref(false);
-  const activeBoardId = ref<number | null>(null);
+  const activeBoardId = ref(0);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
   let dragState: { cardId: number; fromColumnId: number } | null = null;
@@ -37,37 +42,21 @@ export const useCardStore = defineStore('card', () => {
   }
 
   function dispose() {
-    activeBoardId.value = null;
+    activeBoardId.value = 0;
     cardsById.value = {};
     cardIdsByColumnId.value = {};
     busy.value = false;
     dragState = null;
   }
 
-  async function createCard(
-    columnId: number,
-    title: string,
-    cardTypeId: number | null = null,
-    boardId: number | null = activeBoardId.value
-  ) {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      return null;
-    }
-
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
+  async function createCard(model: CardCreateModel) {
+    model.title = model.title.trim();
+    if (!model.title) {
       return null;
     }
 
     const result = await runBusy(
-      () => {
-        if (cardTypeId === null) {
-          return api.createCard(resolvedBoardId, columnId, trimmedTitle);
-        }
-
-        return api.createCard(resolvedBoardId, columnId, trimmedTitle, cardTypeId);
-      },
+      () => api.createCard(activeBoardId.value, model),
       {
         suppressError: error => hasValidationErrors(error)
       }
@@ -80,17 +69,8 @@ export const useCardStore = defineStore('card', () => {
     return result;
   }
 
-  async function saveCard(
-    cardId: number,
-    model: CardEditModel,
-    boardId: number | null = activeBoardId.value
-  ) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
-      return false;
-    }
-
-    const result = await runBusy(() => api.saveCard(resolvedBoardId, cardId, model));
+  async function saveCard(cardId: number, model: CardEditModel) {
+    const result = await runBusy(() => api.saveCard(activeBoardId.value, cardId, model));
     if (!result.ok) {
       return false;
     }
@@ -99,13 +79,8 @@ export const useCardStore = defineStore('card', () => {
     return true;
   }
 
-  async function deleteCard(cardId: number, boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
-      return false;
-    }
-
-    const result = await runBusy(() => api.deleteCard(resolvedBoardId, cardId));
+  async function deleteCard(cardId: number) {
+    const result = await runBusy(() => api.deleteCard(activeBoardId.value, cardId));
     if (!result.ok) {
       return false;
     }
@@ -114,14 +89,9 @@ export const useCardStore = defineStore('card', () => {
     return true;
   }
 
-  async function deleteCards(cardIds: number[], boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
-      return false;
-    }
-
+  async function deleteCards(cardIds: number[]) {
     const uniqueCardIds = [...new Set(cardIds)];
-    const result = await runBusy(() => api.deleteCards(resolvedBoardId, uniqueCardIds));
+    const result = await runBusy(() => api.deleteCards(activeBoardId.value, uniqueCardIds));
     if (!result.ok) {
       return false;
     }
@@ -133,13 +103,8 @@ export const useCardStore = defineStore('card', () => {
     return true;
   }
 
-  async function archiveCard(cardId: number, boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
-      return false;
-    }
-
-    const result = await runBusy(() => api.archiveCard(resolvedBoardId, cardId));
+  async function archiveCard(cardId: number) {
+    const result = await runBusy(() => api.archiveCard(activeBoardId.value, cardId));
     if (!result.ok) {
       return false;
     }
@@ -148,14 +113,9 @@ export const useCardStore = defineStore('card', () => {
     return true;
   }
 
-  async function archiveCards(cardIds: number[], boardId: number | null = activeBoardId.value) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
-      return false;
-    }
-
+  async function archiveCards(cardIds: number[]) {
     const uniqueCardIds = [...new Set(cardIds)];
-    const result = await runBusy(() => api.archiveCards(resolvedBoardId, uniqueCardIds));
+    const result = await runBusy(() => api.archiveCards(activeBoardId.value, uniqueCardIds));
     if (!result.ok) {
       return false;
     }
@@ -170,14 +130,8 @@ export const useCardStore = defineStore('card', () => {
   async function bulkMoveCards(
     cardIds: number[],
     targetColumnId: number,
-    targetCardId: number | null,
-    boardId: number | null = activeBoardId.value
+    targetCardId: number | null
   ) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
-      return false;
-    }
-
     const uniqueCardIds = [...new Set(cardIds)];
     if (uniqueCardIds.length === 0) {
       return true;
@@ -188,8 +142,7 @@ export const useCardStore = defineStore('card', () => {
       {
         moveTargetColumnId: targetColumnId,
         moveTargetCardId: targetCardId
-      },
-      resolvedBoardId
+      }
     );
   }
 
@@ -201,14 +154,8 @@ export const useCardStore = defineStore('card', () => {
       addTagNames?: string[];
       removeTagNames?: string[];
       slickName?: string | null;
-    },
-    boardId: number | null = activeBoardId.value
-  ) {
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
-      return false;
     }
-
+  ) {
     const uniqueCardIds = [...new Set(cardIds)];
     if (uniqueCardIds.length === 0) {
       return true;
@@ -240,7 +187,7 @@ export const useCardStore = defineStore('card', () => {
       };
     }
 
-    const result = await runBusy(() => api.editCards(resolvedBoardId, {
+    const result = await runBusy(() => api.editCards(activeBoardId.value, {
       cardIds: uniqueCardIds,
       move: movePayload,
       addTagNames: normalisedAddTagNames,
@@ -285,16 +232,9 @@ export const useCardStore = defineStore('card', () => {
 
   async function dropCard(
     targetColumnId: number,
-    targetCardId: number | null,
-    boardId: number | null = activeBoardId.value
+    targetCardId: number | null
   ) {
     if (!dragState) {
-      return;
-    }
-
-    const resolvedBoardId = resolveBoardId(boardId);
-    if (resolvedBoardId === null) {
-      dragState = null;
       return;
     }
 
@@ -312,7 +252,7 @@ export const useCardStore = defineStore('card', () => {
       return;
     }
 
-    const result = await runBusy(() => api.moveCard(resolvedBoardId, movingCardId, targetColumnId, positionAfterCardId));
+    const result = await runBusy(() => api.moveCard(activeBoardId.value, movingCardId, targetColumnId, positionAfterCardId));
     if (!result.ok) {
       return;
     }
@@ -453,16 +393,6 @@ export const useCardStore = defineStore('card', () => {
 
   function reportError(error: AppError) {
     feedback.setError(error.message);
-  }
-
-  function resolveBoardId(boardId: number | null) {
-    const resolvedBoardId = boardId ?? activeBoardId.value;
-    if (resolvedBoardId === null) {
-      feedback.setError('No board selected.');
-      return null;
-    }
-
-    return resolvedBoardId;
   }
 
   return {

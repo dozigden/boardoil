@@ -6,6 +6,7 @@ import type {
   BoardEditModel,
   BoardMemberEditModel,
   BoardMember,
+  CardCreateModel,
   BoardSummary,
   Card,
   CardEditModel,
@@ -13,6 +14,7 @@ import type {
   CardTypeEditModel,
   CardType,
   Column,
+  ColumnCreateModel,
   ColumnEditModel,
   DeleteCardsSummary,
   Slick,
@@ -128,8 +130,8 @@ export function createBoardApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
-  async function createColumn(boardId: number, title: string): Promise<Result<Column, AppError>> {
-    return postData<Column>(`/api/boards/${boardId}/columns`, { title });
+  async function createColumn(boardId: number, model: ColumnCreateModel): Promise<Result<Column, AppError>> {
+    return postData<Column>(`/api/boards/${boardId}/columns`, model);
   }
 
   async function saveColumn(
@@ -148,22 +150,13 @@ export function createBoardApi() {
     return deleteJson(`/api/boards/${boardId}/columns/${columnId}`);
   }
 
-  async function createCard(
-    boardId: number,
-    columnId: number,
-    title: string,
-    cardTypeId?: number | null,
-    assignedUserId?: number | null,
-    slickName?: string | null
-  ): Promise<Result<Card, AppError>> {
+  async function createCard(boardId: number, model: CardCreateModel): Promise<Result<Card, AppError>> {
     return postData<Card>(`/api/boards/${boardId}/cards`, {
-      boardColumnId: columnId,
-      title,
+      boardColumnId: model.boardColumnId,
+      title: model.title,
       description: '',
       tagNames: [],
-      cardTypeId,
-      assignedUserId,
-      slickName
+      cardTypeId: model.cardTypeId
     });
   }
 

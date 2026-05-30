@@ -83,12 +83,12 @@
               }"
             >
               <CreateCardInline
-                v-if="newCardDraftTitles[column.id] !== undefined"
-                :title="newCardDraftTitles[column.id] ?? ''"
-                :card-type-id="newCardDraftCardTypeIds[column.id] ?? defaultCreateCardTypeId"
+                v-if="newCardDrafts[column.id] !== undefined"
+                :title="newCardDrafts[column.id]?.title ?? ''"
+                :card-type-id="newCardDrafts[column.id]?.cardTypeId ?? defaultCreateCardTypeId"
                 :error-message="newCardDraftErrors[column.id] ?? ''"
                 :input-ref="element => setNewCardDraftInput(column.id, element)"
-                @update:title="updateNewCardDraftTitle(column.id, $event)"
+                @update:title="title => updateNewCardDraftTitle(column.id, title)"
                 @save="saveNewCardDraft(column.id)"
                 @cancel="closeNewCardDraft(column.id)"
               />
@@ -112,7 +112,7 @@
                 @toggle-select="toggleCardSelection"
               />
 
-              <p v-if="hasActiveCardFilters && column.cards.length === 0 && newCardDraftTitles[column.id] === undefined" class="column-filter-empty">
+              <p v-if="hasActiveCardFilters && column.cards.length === 0 && newCardDrafts[column.id] === undefined" class="column-filter-empty">
                 No matching cards.
               </p>
             </div>
@@ -181,6 +181,7 @@ import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../../shared/types/appError';
+import type { CardCreateModel } from '../../shared/types/boardTypes';
 import type { BulkEditSlickOperation } from '../../shared/types/bulkEditTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import { formatColumnCardCount } from '../utils/columnCardCount';
@@ -198,8 +199,7 @@ import { resolveCardBoundaryClass } from '../utils/slickCardBoundary';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 
-const newCardDraftTitles = ref<Record<number, string>>({});
-const newCardDraftCardTypeIds = ref<Record<number, number | null>>({});
+const newCardDrafts = ref<Record<number, CardCreateModel>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
 const newCardDraftErrors = ref<Record<number, string>>({});
 const isLoading = ref(false);
@@ -282,7 +282,7 @@ const {
   confirmArchiveSelectedCards,
   moveSelectedCardsByDropTarget,
   resetSelectionState
-} = useBoardCardSelection(board, archiveCards, bulkMoveCards, resolveBoardId, openArchivedCards);
+} = useBoardCardSelection(board, archiveCards, bulkMoveCards, openArchivedCards);
 const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
 const conveyorRegistration = boardLayoutRegistry.registerConveyor({
   highlighted: false,
@@ -462,11 +462,6 @@ function closeBulkEditDialog(force = false) {
 }
 
 async function confirmBulkEdit() {
-  const boardId = resolveBoardId();
-  if (boardId === null) {
-    return;
-  }
-
   const cardIds = selectedCards.value.map(card => card.id);
   if (cardIds.length === 0) {
     closeBulkEditDialog();
@@ -497,7 +492,7 @@ async function confirmBulkEdit() {
 
   isApplyingBulkEdit.value = true;
   try {
-    const edited = await bulkEditCards(cardIds, bulkEditOptions, boardId);
+    const edited = await bulkEditCards(cardIds, bulkEditOptions);
     if (!edited) {
       return;
     }
@@ -525,11 +520,6 @@ async function confirmDeleteSelectedCards() {
     return;
   }
 
-  const boardId = resolveBoardId();
-  if (boardId === null) {
-    return;
-  }
-
   const cardIds = selectedCards.value.map(card => card.id);
   if (cardIds.length === 0) {
     return;
@@ -537,7 +527,7 @@ async function confirmDeleteSelectedCards() {
 
   isApplyingBulkEdit.value = true;
   try {
-    const deleted = await deleteCards(cardIds, boardId);
+    const deleted = await deleteCards(cardIds);
     if (!deleted) {
       return;
     }
@@ -570,15 +560,18 @@ function resolveTagNamesForState(state: 'exclude' | 'include') {
 }
 
 async function openNewCardDraft(columnId: number, cardTypeId: number | null = defaultCreateCardTypeId.value) {
-  if (newCardDraftTitles.value[columnId] !== undefined) {
-    newCardDraftCardTypeIds.value[columnId] = cardTypeId;
+  if (newCardDrafts.value[columnId] !== undefined) {
+    newCardDrafts.value[columnId]!.cardTypeId = cardTypeId;
     delete newCardDraftErrors.value[columnId];
     newCardDraftInputs.value[columnId]?.focus();
     return;
   }
 
-  newCardDraftTitles.value[columnId] = '';
-  newCardDraftCardTypeIds.value[columnId] = cardTypeId;
+  newCardDrafts.value[columnId] = {
+    boardColumnId: columnId,
+    title: '',
+    cardTypeId
+  };
   delete newCardDraftErrors.value[columnId];
   await nextTick();
   newCardDraftInputs.value[columnId]?.focus();
@@ -589,19 +582,18 @@ function openDefaultCardDraft(columnId: number) {
 }
 
 function updateNewCardDraftTitle(columnId: number, value: string) {
-  if (newCardDraftTitles.value[columnId] === undefined) {
+  if (newCardDrafts.value[columnId] === undefined) {
     return;
   }
 
-  newCardDraftTitles.value[columnId] = value;
+  newCardDrafts.value[columnId]!.title = value;
   if (newCardDraftErrors.value[columnId]) {
     delete newCardDraftErrors.value[columnId];
   }
 }
 
 function closeNewCardDraft(columnId: number) {
-  delete newCardDraftTitles.value[columnId];
-  delete newCardDraftCardTypeIds.value[columnId];
+  delete newCardDrafts.value[columnId];
   delete newCardDraftInputs.value[columnId];
   delete newCardDraftErrors.value[columnId];
 }
@@ -613,13 +605,16 @@ function setNewCardDraftInput(columnId: number, element: unknown) {
 }
 
 async function saveNewCardDraft(columnId: number) {
-  const title = newCardDraftTitles.value[columnId] ?? '';
-  if (!title.trim()) {
+  const draft = newCardDrafts.value[columnId];
+  if (!draft || !draft.title.trim()) {
     return;
   }
 
-  const cardTypeId = newCardDraftCardTypeIds.value[columnId] ?? defaultCreateCardTypeId.value;
-  const result = await createCard(columnId, title, cardTypeId);
+  if (draft.cardTypeId === null) {
+    draft.cardTypeId = defaultCreateCardTypeId.value;
+  }
+
+  const result = await createCard(draft);
   if (!result || result.ok) {
     closeNewCardDraft(columnId);
     return;

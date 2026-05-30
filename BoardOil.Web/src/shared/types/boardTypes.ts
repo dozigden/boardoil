@@ -68,6 +68,16 @@ export type ColumnEditModel = {
   title: string;
 };
 
+export type ColumnCreateModel = {
+  title: string;
+};
+
+export type CardCreateModel = {
+  boardColumnId: number;
+  title: string;
+  cardTypeId: number | null;
+};
+
 export type CardTypeEditModel = {
   name: string;
   emoji: string | null;

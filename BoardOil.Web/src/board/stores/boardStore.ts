@@ -10,7 +10,13 @@ import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
 import { useSlickStore } from './slickStore';
 import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
-import type { Board, BoardSummary, Column, ColumnEditModel } from '../../shared/types/boardTypes';
+import type {
+  Board,
+  BoardSummary,
+  Column,
+  ColumnCreateModel,
+  ColumnEditModel
+} from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -130,9 +136,9 @@ export const useBoardStore = defineStore('board', () => {
     return true;
   }
 
-  async function createColumn(title: string) {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
+  async function createColumn(model: ColumnCreateModel) {
+    model.title = model.title.trim();
+    if (!model.title) {
       return;
     }
 
@@ -141,7 +147,7 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(() => api.createColumn(boardId, trimmedTitle));
+    const result = await runBusy(() => api.createColumn(boardId, model));
     if (!result.ok) {
       return;
     }

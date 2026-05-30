@@ -143,7 +143,7 @@ describe('boardStore', () => {
     };
     api.createColumn.mockResolvedValue(ok(created));
 
-    await store.createColumn('Done');
+    await store.createColumn({ title: 'Done' });
 
     expect(api.getBoard).toHaveBeenCalledTimes(1);
     expect(store.board?.columns.map(x => x.title)).toEqual(['Backlog', 'Doing', 'Done']);
@@ -198,7 +198,7 @@ describe('boardStore', () => {
     };
     api.createColumn.mockResolvedValue(err(apiError));
 
-    await store.createColumn('Bad');
+    await store.createColumn({ title: 'Bad' });
 
     expect(feedback.errorMessage).toBe('Column create failed.');
   });

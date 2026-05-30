@@ -60,9 +60,9 @@ describe('cardStore', () => {
     };
     api.createCard.mockResolvedValue(ok(created));
 
-    await store.createCard(1, 'Task B');
+    await store.createCard({ boardColumnId: 1, title: 'Task B', cardTypeId: null });
 
-    expect(api.createCard).toHaveBeenCalledWith(1, 1, 'Task B');
+    expect(api.createCard).toHaveBeenCalledWith(1, { boardColumnId: 1, title: 'Task B', cardTypeId: null });
     expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([102, 101]);
   });
 
@@ -86,9 +86,9 @@ describe('cardStore', () => {
     };
     api.createCard.mockResolvedValue(ok(created));
 
-    await store.createCard(1, 'Task C', 2);
+    await store.createCard({ boardColumnId: 1, title: 'Task C', cardTypeId: 2 });
 
-    expect(api.createCard).toHaveBeenCalledWith(1, 1, 'Task C', 2);
+    expect(api.createCard).toHaveBeenCalledWith(1, { boardColumnId: 1, title: 'Task C', cardTypeId: 2 });
     expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([103, 101]);
   });
 
@@ -551,7 +551,7 @@ describe('cardStore', () => {
     };
     api.createCard.mockResolvedValue(err(apiError));
 
-    await store.createCard(1, 'Bad');
+    await store.createCard({ boardColumnId: 1, title: 'Bad', cardTypeId: null });
 
     expect(feedback.errorMessage).toBe('Card create failed.');
   });

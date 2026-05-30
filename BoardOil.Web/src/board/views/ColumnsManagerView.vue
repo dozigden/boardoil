@@ -10,17 +10,16 @@
     </section>
 
     <section class="entity-rows-list columns-manager-list">
-      <article v-if="isOwner && newColumnDraftTitle !== null" class="entity-row columns-manager-item create-column-inline">
+      <article v-if="isOwner && newColumnDraft !== null" class="entity-row columns-manager-item create-column-inline">
         <label class="create-card-inline-label">
           Column title
           <input
             ref="newColumnDraftInput"
-            :value="newColumnDraftTitle"
+            v-model="newColumnDraft.title"
             maxlength="200"
             autocomplete="off"
             data-lpignore="true"
             placeholder="New column title"
-            @input="updateNewColumnDraft(($event.target as HTMLInputElement).value)"
             @keydown.enter.prevent="saveNewColumnDraft"
             @keydown.esc.prevent="closeNewColumnDraft"
           />
@@ -91,8 +90,9 @@ import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
+import type { ColumnCreateModel } from '../../shared/types/boardTypes';
 
-const newColumnDraftTitle = ref<string | null>(null);
+const newColumnDraft = ref<ColumnCreateModel | null>(null);
 const newColumnDraftInput = ref<HTMLInputElement | null>(null);
 const draggingColumnId = ref<number | null>(null);
 const dragOverColumnId = ref<number | null>(null);
@@ -105,36 +105,27 @@ const { createColumn: createColumnAction, moveColumn: moveColumnAction } = board
 const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
 
 async function openNewColumnDraft() {
-  if (newColumnDraftTitle.value !== null) {
+  if (newColumnDraft.value !== null) {
     newColumnDraftInput.value?.focus();
     return;
   }
 
-  newColumnDraftTitle.value = '';
+  newColumnDraft.value = { title: '' };
   await nextTick();
   newColumnDraftInput.value?.focus();
 }
 
-function updateNewColumnDraft(value: string) {
-  if (newColumnDraftTitle.value === null) {
-    return;
-  }
-
-  newColumnDraftTitle.value = value;
-}
-
 function closeNewColumnDraft() {
-  newColumnDraftTitle.value = null;
+  newColumnDraft.value = null;
   newColumnDraftInput.value = null;
 }
 
 async function saveNewColumnDraft() {
-  const title = newColumnDraftTitle.value ?? '';
-  if (!title.trim()) {
+  if (newColumnDraft.value === null || !newColumnDraft.value.title.trim()) {
     return;
   }
 
-  await createColumnAction(title);
+  await createColumnAction(newColumnDraft.value);
   closeNewColumnDraft();
 }
 

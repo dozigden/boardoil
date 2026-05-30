@@ -1,15 +1,12 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import type { Board, Card as BoardCard } from '../../shared/types/boardTypes';
 
-type ArchiveCardsOperation = (cardIds: number[], boardId: number | null) => Promise<boolean>;
+type ArchiveCardsOperation = (cardIds: number[]) => Promise<boolean>;
 type BulkMoveCardsOperation = (
   cardIds: number[],
   targetColumnId: number,
-  targetCardId: number | null,
-  boardId: number | null
+  targetCardId: number | null
 ) => Promise<boolean>;
-
-type BoardIdResolver = () => number | null;
 
 type OpenArchivedCardsAction = () => Promise<void>;
 
@@ -17,7 +14,6 @@ export function useBoardCardSelection(
   board: Ref<Board | null>,
   archiveCards: ArchiveCardsOperation,
   bulkMoveCards: BulkMoveCardsOperation,
-  resolveBoardId: BoardIdResolver,
   openArchivedCards: OpenArchivedCardsAction
 ) {
   const isCardSelectionMode = ref(false);
@@ -161,11 +157,6 @@ export function useBoardCardSelection(
   }
 
   async function confirmArchiveSelectedCards() {
-    const boardId = resolveBoardId();
-    if (boardId === null) {
-      return;
-    }
-
     const cardIds = selectedCards.value.map(card => card.id);
     if (cardIds.length === 0) {
       isArchiveConfirmOpen.value = false;
@@ -174,7 +165,7 @@ export function useBoardCardSelection(
 
     isArchivingSelectedCards.value = true;
     try {
-      const archived = await archiveCards(cardIds, boardId);
+      const archived = await archiveCards(cardIds);
       if (!archived) {
         return;
       }
@@ -192,11 +183,6 @@ export function useBoardCardSelection(
       return false;
     }
 
-    const boardId = resolveBoardId();
-    if (boardId === null) {
-      return false;
-    }
-
     const cardIds = selectedCards.value.map(card => card.id);
     if (cardIds.length === 0) {
       return true;
@@ -204,7 +190,7 @@ export function useBoardCardSelection(
 
     isMovingSelectedCards.value = true;
     try {
-      const moved = await bulkMoveCards(cardIds, targetColumnId, targetCardId, boardId);
+      const moved = await bulkMoveCards(cardIds, targetColumnId, targetCardId);
       if (!moved) {
         return false;
       }

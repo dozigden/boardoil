@@ -8,10 +8,9 @@ describe('useBoardCardSelection', () => {
     const board = ref<Board | null>(makeBoard());
     const archiveCards = vi.fn(async () => true);
     const bulkMoveCards = vi.fn(async () => true);
-    const resolveBoardId = vi.fn(() => 1);
     const openArchivedCards = vi.fn(async () => undefined);
 
-    const model = useBoardCardSelection(board, archiveCards, bulkMoveCards, resolveBoardId, openArchivedCards);
+    const model = useBoardCardSelection(board, archiveCards, bulkMoveCards, openArchivedCards);
 
     model.toggleCardSelectionMode();
     model.toggleCardSelection(101);
@@ -20,7 +19,7 @@ describe('useBoardCardSelection', () => {
     const moved = await model.moveSelectedCardsByDropTarget(2, 201);
 
     expect(moved).toBe(true);
-    expect(bulkMoveCards).toHaveBeenCalledWith([101, 102], 2, 201, 1);
+    expect(bulkMoveCards).toHaveBeenCalledWith([101, 102], 2, 201);
     expect(model.isCardSelectionMode.value).toBe(false);
     expect(model.selectedCardCount.value).toBe(0);
   });
@@ -29,10 +28,9 @@ describe('useBoardCardSelection', () => {
     const board = ref<Board | null>(makeBoard());
     const archiveCards = vi.fn(async () => true);
     const bulkMoveCards = vi.fn(async () => true);
-    const resolveBoardId = vi.fn(() => 1);
     const openArchivedCards = vi.fn(async () => undefined);
 
-    const model = useBoardCardSelection(board, archiveCards, bulkMoveCards, resolveBoardId, openArchivedCards);
+    const model = useBoardCardSelection(board, archiveCards, bulkMoveCards, openArchivedCards);
 
     model.toggleCardSelectionMode();
     model.toggleCardSelection(101);
