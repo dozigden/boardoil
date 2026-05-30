@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, onUnmounted, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppHeader from '../components/AppHeader.vue';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
@@ -40,25 +40,6 @@ const hasBoardContext = computed(() => {
 });
 let boardContextRequestVersion = 0;
 
-type InlineStyleSnapshot = {
-  element: HTMLElement;
-  properties: Record<string, { value: string; priority: string }>;
-};
-
-const PAGE_LOCK_PROPERTIES = [
-  'overflow',
-  'height',
-  'overscroll-behavior',
-  'position',
-  'inset',
-  'width'
-] as const;
-
-const APP_LOCK_PROPERTIES = ['overflow', 'height'] as const;
-
-const styleSnapshots: InlineStyleSnapshot[] = [];
-let lockedScrollY = 0;
-
 watch(
   routeBoardId,
   async boardId => {
@@ -83,78 +64,6 @@ watch(
   },
   { immediate: true }
 );
-
-onMounted(() => {
-  lockedScrollY = window.scrollY;
-  captureAndApplyStyles(document.documentElement, PAGE_LOCK_PROPERTIES, {
-    overflow: 'hidden',
-    height: '100%',
-    'overscroll-behavior': 'none',
-    position: 'fixed',
-    inset: '0',
-    width: '100%'
-  });
-  captureAndApplyStyles(document.body, PAGE_LOCK_PROPERTIES, {
-    overflow: 'hidden',
-    height: '100%',
-    'overscroll-behavior': 'none',
-    position: 'fixed',
-    inset: '0',
-    width: '100%'
-  });
-
-  const appRoot = document.getElementById('app');
-  if (appRoot) {
-    captureAndApplyStyles(appRoot, APP_LOCK_PROPERTIES, {
-      overflow: 'hidden',
-      height: '100%'
-    });
-  }
-});
-
-onUnmounted(() => {
-  for (const snapshot of styleSnapshots.reverse()) {
-    for (const [propertyName, state] of Object.entries(snapshot.properties)) {
-      if (state.value.length === 0) {
-        snapshot.element.style.removeProperty(propertyName);
-        continue;
-      }
-
-      snapshot.element.style.setProperty(propertyName, state.value, state.priority);
-    }
-  }
-
-  styleSnapshots.length = 0;
-  window.scrollTo(0, lockedScrollY);
-});
-
-function captureAndApplyStyles(
-  element: HTMLElement,
-  properties: readonly string[],
-  nextValues: Record<string, string>
-) {
-  const snapshot: InlineStyleSnapshot = {
-    element,
-    properties: {}
-  };
-
-  for (const propertyName of properties) {
-    snapshot.properties[propertyName] = {
-      value: element.style.getPropertyValue(propertyName),
-      priority: element.style.getPropertyPriority(propertyName)
-    };
-
-    const nextValue = nextValues[propertyName] ?? '';
-    if (nextValue.length === 0) {
-      element.style.removeProperty(propertyName);
-      continue;
-    }
-
-    element.style.setProperty(propertyName, nextValue, 'important');
-  }
-
-  styleSnapshots.push(snapshot);
-}
 
 function parseRouteIntParam(value: unknown) {
   const raw = Array.isArray(value) ? value[0] : value;

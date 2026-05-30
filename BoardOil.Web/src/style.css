@@ -264,15 +264,18 @@ body {
   background: radial-gradient(circle at 20% 20%, var(--bo-bg-body-start) 0%, var(--bo-bg-body-mid) 44%, var(--bo-bg-body-end) 100%);
 }
 
-html.bo-lock-page-scroll-root,
-body.bo-lock-page-scroll {
-  overflow: hidden;
+html,
+body,
+#app {
   height: 100%;
+}
+
+body {
+  overflow: hidden;
   overscroll-behavior: none;
 }
 
-body.bo-lock-page-scroll #app {
-  height: 100%;
+#app {
   overflow: hidden;
 }
 
