@@ -22,8 +22,14 @@ import { useAuthStore } from './shared/stores/authStore';
 import { useUserProfileImageStore } from './shared/stores/userProfileImageStore';
 import StandardLayout from './site/layouts/StandardLayout.vue';
 import BoardWithConveyorLayout from './site/layouts/BoardWithConveyorLayout.vue';
-import AdminWorkspaceLayout from './site/layouts/AdminWorkspaceLayout.vue';
-import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD_WITH_CONVEYOR, resolveAppLayout } from './site/layouts/appLayout';
+import SystemAdminLayout from './site/layouts/SystemAdminLayout.vue';
+import BoardAdminWorkspaceLayout from './site/layouts/BoardAdminWorkspaceLayout.vue';
+import {
+  APP_LAYOUT_ADMIN,
+  APP_LAYOUT_BOARD_ADMIN,
+  APP_LAYOUT_BOARD_WITH_CONVEYOR,
+  resolveAppLayout
+} from './site/layouts/appLayout';
 import { getPageTitle } from './site/components/appHeaderNavigation';
 
 const boardStore = useBoardStore();
@@ -43,7 +49,11 @@ const layoutComponent = computed(() => {
   }
 
   if (layoutMode.value === APP_LAYOUT_ADMIN) {
-    return AdminWorkspaceLayout;
+    return SystemAdminLayout;
+  }
+
+  if (layoutMode.value === APP_LAYOUT_BOARD_ADMIN) {
+    return BoardAdminWorkspaceLayout;
   }
 
   return StandardLayout;
@@ -53,8 +63,11 @@ const routeBoardId = computed(() => {
   return Number.isFinite(boardId) ? boardId : null;
 });
 const pageTitle = computed(() => getPageTitle(board.value, boards.value, currentBoardId.value, routeBoardId.value));
+const routeRequiresBoardContext = computed(() =>
+  route.matched.some(matchedRoute => matchedRoute.meta.requiresBoardContext === true)
+);
 const hasBoardRouteContext = computed(() => {
-  if (!route.path.startsWith('/boards/')) {
+  if (!routeRequiresBoardContext.value) {
     return true;
   }
 

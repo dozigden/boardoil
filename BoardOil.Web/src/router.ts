@@ -2,7 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import { resolveAuthNavigation } from './site/auth/navigationGuard';
 import { useAuthStore } from './shared/stores/authStore';
-import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD_WITH_CONVEYOR, APP_LAYOUT_STANDARD } from './site/layouts/appLayout';
+import {
+  APP_LAYOUT_ADMIN,
+  APP_LAYOUT_BOARD_ADMIN,
+  APP_LAYOUT_BOARD_WITH_CONVEYOR,
+  APP_LAYOUT_STANDARD
+} from './site/layouts/appLayout';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -65,13 +70,13 @@ const routes: RouteRecordRaw[] = [
     path: '/boards/:boardId(\\d+)',
     name: 'board',
     component: () => import('./board/views/BoardView.vue'),
-    meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
+    meta: { requiresAuth: true, requiresBoardContext: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
   },
   {
     path: '/boards/:boardId(\\d+)/archived',
     name: 'board-archived',
     component: () => import('./board/views/ArchivedCardsView.vue'),
-    meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
+    meta: { requiresAuth: true, requiresBoardContext: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
   },
   {
     path: '/boards/:boardId(\\d+)/card/:cardId(\\d+)',
@@ -80,12 +85,12 @@ const routes: RouteRecordRaw[] = [
       default: () => import('./board/views/BoardView.vue'),
       dialog: () => import('./board/components/CardEditorDialog.vue')
     },
-    meta: { requiresAuth: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
+    meta: { requiresAuth: true, requiresBoardContext: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
   },
   {
     path: '/boards/:boardId(\\d+)/admin',
     component: () => import('./board/views/BoardAdminView.vue'),
-    meta: { requiresAuth: true, layout: APP_LAYOUT_ADMIN },
+    meta: { requiresAuth: true, requiresBoardContext: true, layout: APP_LAYOUT_BOARD_ADMIN },
     children: [
       {
         path: '',

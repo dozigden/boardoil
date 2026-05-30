@@ -1,6 +1,11 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { RouteRecordRaw } from 'vue-router';
-import { APP_LAYOUT_ADMIN, APP_LAYOUT_BOARD_WITH_CONVEYOR, APP_LAYOUT_STANDARD } from './site/layouts/appLayout';
+import {
+  APP_LAYOUT_ADMIN,
+  APP_LAYOUT_BOARD_ADMIN,
+  APP_LAYOUT_BOARD_WITH_CONVEYOR,
+  APP_LAYOUT_STANDARD
+} from './site/layouts/appLayout';
 
 const createRouterMock = vi.fn(
   (options: { routes: RouteRecordRaw[] }) => ({
@@ -45,8 +50,17 @@ describe('router layout meta mapping', () => {
 
   it('maps admin roots to APP_LAYOUT_ADMIN', () => {
     expect(findByPath('/user-admin')?.meta?.layout).toBe(APP_LAYOUT_ADMIN);
-    expect(findByPath('/boards/:boardId(\\d+)/admin')?.meta?.layout).toBe(APP_LAYOUT_ADMIN);
+    expect(findByPath('/boards/:boardId(\\d+)/admin')?.meta?.layout).toBe(APP_LAYOUT_BOARD_ADMIN);
     expect(findByPath('/admin/system')?.meta?.layout).toBe(APP_LAYOUT_ADMIN);
+  });
+
+  it('maps board context requirement to board-scoped route roots', () => {
+    expect(findByName('board')?.meta?.requiresBoardContext).toBe(true);
+    expect(findByName('board-archived')?.meta?.requiresBoardContext).toBe(true);
+    expect(findByName('board-card')?.meta?.requiresBoardContext).toBe(true);
+    expect(findByPath('/boards/:boardId(\\d+)/admin')?.meta?.requiresBoardContext).toBe(true);
+    expect(findByPath('/user-admin')?.meta?.requiresBoardContext).toBeUndefined();
+    expect(findByPath('/admin/system')?.meta?.requiresBoardContext).toBeUndefined();
   });
 });
 
