@@ -69,7 +69,11 @@ export const useBoardStore = defineStore('board', () => {
         return;
       }
 
-      await loadBoard(boardId);
+      const loaded = await loadBoard(boardId);
+      if (!loaded) {
+        return;
+      }
+
       await cardTypeStore.loadCardTypes(boardId);
       await tagStore.loadTags(boardId);
       await slickStore.loadSlicks(boardId);

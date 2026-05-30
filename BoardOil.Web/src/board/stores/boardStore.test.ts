@@ -131,6 +131,24 @@ describe('boardStore', () => {
     expect(store.currentBoardId).toBeNull();
   });
 
+  it('switches board context on sequential initialize calls', async () => {
+    const store = useBoardStore();
+    api.getBoard
+      .mockResolvedValueOnce(ok(makeBoard(1, 'Board 1')))
+      .mockResolvedValueOnce(ok(makeBoard(2, 'Board 2')));
+
+    const firstInitialized = await store.initialize(1);
+    const secondInitialized = await store.initialize(2);
+
+    expect(firstInitialized).toBe(true);
+    expect(secondInitialized).toBe(true);
+    expect(store.currentBoardId).toBe(2);
+    expect(store.board?.id).toBe(2);
+    expect(store.board?.name).toBe('Board 2');
+    expect(realtime.connect).toHaveBeenNthCalledWith(1, 1);
+    expect(realtime.connect).toHaveBeenNthCalledWith(2, 2);
+  });
+
   it('creates a column incrementally without reloading board', async () => {
     const store = useBoardStore();
     await store.initialize(1);
@@ -222,6 +240,29 @@ describe('boardStore', () => {
     expect(loadCardTypesSpy).toHaveBeenCalledWith(1);
     expect(loadTagsSpy).toHaveBeenCalledWith(1);
     expect(loadSlicksSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('does not reload board-scoped stores when realtime resync board reload fails', async () => {
+    const store = useBoardStore();
+    const cardTypeStore = useCardTypeStore();
+    const tagStore = useTagStore();
+    const slickStore = useSlickStore();
+    const loadCardTypesSpy = vi.spyOn(cardTypeStore, 'loadCardTypes').mockResolvedValue(true);
+    const loadTagsSpy = vi.spyOn(tagStore, 'loadTags').mockResolvedValue(true);
+    const loadSlicksSpy = vi.spyOn(slickStore, 'loadSlicks').mockResolvedValue(true);
+
+    await store.initialize(1);
+    api.getBoard.mockResolvedValueOnce(err({ kind: 'api', message: 'Board not found.' }));
+    expect(realtimeHandlers).not.toBeNull();
+
+    await realtimeHandlers!.onResync();
+
+    expect(store.board).toBeNull();
+    expect(store.currentBoardId).toBeNull();
+    expect(loadCardTypesSpy).not.toHaveBeenCalled();
+    expect(loadTagsSpy).not.toHaveBeenCalled();
+    expect(loadSlicksSpy).not.toHaveBeenCalled();
+    expect(systemInfoMessageStore.load).not.toHaveBeenCalled();
   });
 });
 
