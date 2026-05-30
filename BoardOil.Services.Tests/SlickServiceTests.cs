@@ -1,3 +1,4 @@
+using BoardOil.Abstractions;
 using BoardOil.Abstractions.Slick;
 using BoardOil.Contracts.Slick;
 using BoardOil.Services.Tests.Infrastructure;
@@ -33,6 +34,7 @@ public sealed class SlickServiceTests : TestBaseDb
         Assert.Equal("presets", result.Data.StyleName);
         var stored = await DbContextForAssert.Slicks.SingleAsync();
         Assert.Equal("RELEASE TRAIN", stored.NormalisedName);
+        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -56,6 +58,7 @@ public sealed class SlickServiceTests : TestBaseDb
         Assert.Equal(400, result.StatusCode);
         Assert.NotNull(result.ValidationErrors);
         Assert.True(result.ValidationErrors!.ContainsKey("styleName"));
+        Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -90,6 +93,42 @@ public sealed class SlickServiceTests : TestBaseDb
         Assert.Equal(400, result.StatusCode);
         Assert.NotNull(result.ValidationErrors);
         Assert.True(result.ValidationErrors!.ContainsKey("stylePropertiesJson"));
+        Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
+    }
+
+    [Fact]
+    public async Task UpdateSlickAsync_WhenValid_ShouldPersistUpdateAndRequestResync()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var slick = new SlickEntity
+        {
+            BoardId = boardId,
+            Name = "Release train",
+            NormalisedName = "RELEASE TRAIN",
+            StyleName = "presets",
+            StylePropertiesJson = """{"presetIndex":2}"""
+        };
+        DbContextForArrange.Slicks.Add(slick);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateSlickAsync(
+            boardId,
+            slick.Id,
+            new UpdateSlickRequest("Launch lane", "solid", """{"backgroundColor":"#224466"}"""),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("Launch lane", result.Data!.Name);
+        Assert.Equal("solid", result.Data.StyleName);
+        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -125,7 +164,11 @@ public sealed class SlickServiceTests : TestBaseDb
         var storedCard = await DbContextForAssert.Cards.SingleAsync(x => x.Id == cardId);
         Assert.Null(storedCard.SlickId);
         Assert.Empty(await DbContextForAssert.Slicks.ToListAsync());
+        Assert.Equal([board.BoardId], ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     private ISlickService CreateService() => ResolveService<ISlickService>();
+
+    private TestBoardEvents ResolveBoardEvents() =>
+        Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
 }

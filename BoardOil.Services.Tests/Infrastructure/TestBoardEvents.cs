@@ -8,6 +8,7 @@ namespace BoardOil.Services.Tests.Infrastructure;
 public sealed class TestBoardEvents : IBoardEvents
 {
     public readonly List<(int BoardId, CardCommentDto Comment)> CommentCreatedEvents = [];
+    public readonly List<int> ResyncRequestedBoardIds = [];
 
     public Task ColumnCreatedAsync(int boardId, ColumnDto column) => Task.CompletedTask;
     public Task ColumnUpdatedAsync(int boardId, ColumnDto column) => Task.CompletedTask;
@@ -23,7 +24,11 @@ public sealed class TestBoardEvents : IBoardEvents
         return Task.CompletedTask;
     }
 
-    public Task ResyncRequestedAsync(int boardId) => Task.CompletedTask;
+    public Task ResyncRequestedAsync(int boardId)
+    {
+        ResyncRequestedBoardIds.Add(boardId);
+        return Task.CompletedTask;
+    }
 
     public Task SystemInfoMessageUpdatedAsync(SystemInfoMessageDto? systemInfoMessage)
     {

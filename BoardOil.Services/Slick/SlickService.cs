@@ -1,3 +1,4 @@
+using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Slick;
@@ -13,6 +14,7 @@ public sealed class SlickService(
     IBoardRepository boardRepository,
     ISlickRepository slickRepository,
     IBoardAuthorisationService boardAuthorisationService,
+    IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ISlickService
 {
     public async Task<ApiResult<IReadOnlyList<SlickDto>>> GetSlicksAsync(int boardId, int actorUserId)
@@ -85,6 +87,7 @@ public sealed class SlickService(
             StylePropertiesJson = styleValidation.StylePropertiesJson,
         });
         await scope.SaveChangesAsync();
+        await boardEvents.ResyncRequestedAsync(boardId);
 
         var created = await slickRepository.GetByNormalisedNameAsync(boardId, nameValidation.NormalisedName);
         if (created is null)
@@ -148,6 +151,7 @@ public sealed class SlickService(
         existing.StylePropertiesJson = styleValidation.StylePropertiesJson;
 
         await scope.SaveChangesAsync();
+        await boardEvents.ResyncRequestedAsync(boardId);
         return existing.ToSlickDto();
     }
 
@@ -174,6 +178,7 @@ public sealed class SlickService(
 
         slickRepository.Remove(existing);
         await scope.SaveChangesAsync();
+        await boardEvents.ResyncRequestedAsync(boardId);
         return ApiResults.Ok();
     }
 

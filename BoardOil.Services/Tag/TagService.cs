@@ -1,3 +1,4 @@
+using BoardOil.Abstractions;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Tag;
@@ -13,10 +14,12 @@ public sealed class TagService(
     IBoardRepository boardRepository,
     ITagRepository tagRepository,
     IBoardAuthorisationService boardAuthorisationService,
+    IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ITagService
 {
     private const int MaxTagNameLength = 40;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
+    private readonly IBoardEvents _boardEvents = boardEvents;
 
     public async Task<ApiResult<IReadOnlyList<TagDto>>> GetTagsAsync(int boardId, int actorUserId)
     {
@@ -88,6 +91,7 @@ public sealed class TagService(
         });
 
         await scope.SaveChangesAsync();
+        await _boardEvents.ResyncRequestedAsync(boardId);
 
         var created = await tagRepository.GetByNormalisedNameAsync(boardId, tagValidation.NormalisedName);
         if (created is null)
@@ -167,6 +171,7 @@ public sealed class TagService(
         existing.Emoji = emojiValidation.CanonicalEmoji;
 
         await scope.SaveChangesAsync();
+        await _boardEvents.ResyncRequestedAsync(boardId);
 
         return existing.ToTagDto();
     }
@@ -194,6 +199,7 @@ public sealed class TagService(
 
         tagRepository.Remove(existing);
         await scope.SaveChangesAsync();
+        await _boardEvents.ResyncRequestedAsync(boardId);
 
         return ApiResults.Ok();
     }

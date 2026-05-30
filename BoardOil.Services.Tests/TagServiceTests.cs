@@ -1,3 +1,4 @@
+using BoardOil.Abstractions;
 using BoardOil.Contracts.Tag;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Tests.Infrastructure;
@@ -43,6 +44,7 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal(2, presetIndex.GetInt32());
         Assert.True(styleProperties.RootElement.TryGetProperty("textColorMode", out var textColorMode));
         Assert.Equal("auto", textColorMode.GetString());
+        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -96,6 +98,7 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Equal("Bug", result.Data!.Name);
         Assert.Equal(1, await DbContextForAssert.Tags.CountAsync());
+        Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -307,6 +310,7 @@ public sealed class TagServiceTests : TestBaseDb
         var stored = await DbContextForAssert.Tags.SingleAsync();
         Assert.Equal("gradient", stored.StyleName);
         Assert.Equal(updatedStylePropertiesJson, stored.StylePropertiesJson);
+        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -646,6 +650,7 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Empty(await DbContextForAssert.Tags.ToListAsync());
         Assert.Empty(await DbContextForAssert.CardTags.ToListAsync());
         Assert.Single(await DbContextForAssert.Cards.ToListAsync());
+        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -664,10 +669,14 @@ public sealed class TagServiceTests : TestBaseDb
         // Assert
         Assert.True(result.Success);
         Assert.Equal(200, result.StatusCode);
+        Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     private TagService CreateService()
     {
         return ResolveService<TagService>();
     }
+
+    private TestBoardEvents ResolveBoardEvents() =>
+        Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
 }
