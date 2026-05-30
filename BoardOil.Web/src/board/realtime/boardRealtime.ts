@@ -1,6 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { boardHubUrl } from '../../shared/api/config';
-import { attemptSessionRefresh } from '../../shared/api/http';
+import { attemptSessionRefresh, notifyUnauthorized } from '../../shared/api/http';
 import type { Card, CardComment, Column } from '../../shared/types/boardTypes';
 import type { SystemInfoMessageDto } from '../../shared/types/configurationTypes';
 
@@ -15,11 +15,14 @@ type RealtimeHandlers = {
   onCommentCreated: (comment: CardComment) => Promise<unknown> | unknown;
   onSystemInfoMessageUpdated: (systemInfoMessage: SystemInfoMessageDto | null) => Promise<unknown> | unknown;
   onResync: () => Promise<unknown> | unknown;
+  onConnectionWarning?: (message: string) => Promise<unknown> | unknown;
+  onConnectionRecovered?: () => Promise<unknown> | unknown;
 };
 
 const realtimeDebugEnabled = resolveRealtimeDebugEnabled();
 const signalRLogLevel = realtimeDebugEnabled ? LogLevel.Information : LogLevel.Warning;
 const unauthorizedStartRetryDelaysMs = [0, 1_000, 3_000, 7_000];
+const realtimeDisconnectedMessage = 'Realtime updates are unavailable. Data may be stale until reconnect.';
 
 function logRealtime(message: string, details?: unknown) {
   if (!realtimeDebugEnabled) {
@@ -77,12 +80,14 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     startPromise = (async () => {
       try {
         await hubConnection.start();
+        await handlers.onConnectionRecovered?.();
       } catch (error) {
         if (!isUnauthorizedNegotiationError(error)) {
+          await handlers.onConnectionWarning?.(realtimeDisconnectedMessage);
           throw error;
         }
 
-        await retryUnauthorizedStart(hubConnection, error);
+        await retryUnauthorizedStart(hubConnection, error, handlers.onConnectionRecovered);
       }
     })().finally(() => {
       startPromise = null;
@@ -149,6 +154,8 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
           subscribedBoardId,
           error: error instanceof Error ? error.message : String(error)
         });
+
+        void handlers.onConnectionWarning?.(realtimeDisconnectedMessage);
       });
 
       hubConnection.onreconnected(async () => {
@@ -160,6 +167,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         }
 
         await handlers.onResync();
+        await handlers.onConnectionRecovered?.();
         logRealtime('Resync requested after reconnect.');
       });
 
@@ -168,6 +176,10 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
           subscribedBoardId,
           error: error instanceof Error ? error.message : String(error)
         });
+
+        if (error) {
+          void handlers.onConnectionWarning?.(realtimeDisconnectedMessage);
+        }
       });
     }
 
@@ -267,7 +279,11 @@ function isUnauthorizedNegotiationError(error: unknown) {
     || message.includes('unauthorized');
 }
 
-async function retryUnauthorizedStart(connection: HubConnection, initialError: unknown) {
+async function retryUnauthorizedStart(
+  connection: HubConnection,
+  initialError: unknown,
+  onConnectionRecovered?: () => Promise<unknown> | unknown
+) {
   let latestUnauthorizedError = initialError;
 
   for (const delayMs of unauthorizedStartRetryDelaysMs) {
@@ -286,6 +302,7 @@ async function retryUnauthorizedStart(connection: HubConnection, initialError: u
     try {
       logRealtime('Retrying realtime start after session refresh.');
       await connection.start();
+      await onConnectionRecovered?.();
       return;
     } catch (retryError) {
       if (!isUnauthorizedNegotiationError(retryError)) {
@@ -297,6 +314,7 @@ async function retryUnauthorizedStart(connection: HubConnection, initialError: u
     }
   }
 
+  notifyUnauthorized();
   throw latestUnauthorizedError;
 }
 

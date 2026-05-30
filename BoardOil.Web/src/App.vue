@@ -7,6 +7,7 @@
     </component>
   </RouterView>
   <RouterView v-if="!hideRootDialogView" name="dialog" />
+  <UiFeedbackToast />
   <ConfirmDialogHost />
 </template>
 
@@ -15,6 +16,7 @@ import { storeToRefs } from 'pinia';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterView, useRoute, type RouteLocationNormalizedLoaded } from 'vue-router';
 import ConfirmDialogHost from './shared/components/ConfirmDialogHost.vue';
+import UiFeedbackToast from './shared/components/UiFeedbackToast.vue';
 import { useBoardCatalogueStore } from './shared/stores/boardCatalogueStore';
 import { useBoardStore } from './board/stores/boardStore';
 import { useTagStore } from './board/stores/tagStore';

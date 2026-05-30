@@ -22,7 +22,12 @@ const realtime = {
   connect: vi.fn(),
   disconnect: vi.fn()
 };
-let realtimeHandlers: { onResync: () => Promise<unknown> | unknown } | null = null;
+type RealtimeHandlers = {
+  onResync: () => Promise<unknown> | unknown;
+  onConnectionWarning?: (message: string) => Promise<unknown> | unknown;
+  onConnectionRecovered?: () => Promise<unknown> | unknown;
+};
+let realtimeHandlers: RealtimeHandlers | null = null;
 const systemInfoMessageStore = {
   setMessage: vi.fn(),
   load: vi.fn(async () => true)
@@ -69,18 +74,18 @@ describe('boardStore', () => {
     expect(store.board?.columns[0].cards.map(x => x.id)).toEqual([101]);
   });
 
-  it('fails initialization and disconnects when realtime connect fails', async () => {
+  it('keeps board loaded and warns when realtime connect fails', async () => {
     const store = useBoardStore();
     const feedback = useUiFeedbackStore();
     realtime.connect.mockRejectedValueOnce(new Error('realtime failed'));
 
     const initialized = await store.initialize(1);
 
-    expect(initialized).toBe(false);
-    expect(store.board).toBeNull();
-    expect(store.currentBoardId).toBeNull();
+    expect(initialized).toBe(true);
+    expect(store.board?.id).toBe(1);
+    expect(store.currentBoardId).toBe(1);
     expect(realtime.disconnect).toHaveBeenCalledTimes(1);
-    expect(feedback.errorMessage).toBe('Realtime connection failed.');
+    expect(feedback.warningMessage).toBe('Realtime updates are unavailable. Data may be stale until reconnect.');
   });
 
   it('clears stale board state when requested board fails to load', async () => {
@@ -263,6 +268,20 @@ describe('boardStore', () => {
     expect(loadTagsSpy).not.toHaveBeenCalled();
     expect(loadSlicksSpy).not.toHaveBeenCalled();
     expect(systemInfoMessageStore.load).not.toHaveBeenCalled();
+  });
+
+  it('clears realtime warning when realtime reconnect recovers', async () => {
+    const store = useBoardStore();
+    const feedback = useUiFeedbackStore();
+
+    await store.initialize(1);
+    expect(realtimeHandlers).not.toBeNull();
+
+    await realtimeHandlers!.onConnectionWarning?.('Realtime updates are unavailable. Data may be stale until reconnect.');
+    expect(feedback.warningMessage).toBe('Realtime updates are unavailable. Data may be stale until reconnect.');
+
+    await realtimeHandlers!.onConnectionRecovered?.();
+    expect(feedback.warningMessage).toBe('');
   });
 });
 

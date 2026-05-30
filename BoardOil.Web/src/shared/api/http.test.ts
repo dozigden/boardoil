@@ -59,6 +59,17 @@ describe('http api client', () => {
     expect(unauthorizedSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('invokes unauthorized handler when notifyUnauthorized is called directly', async () => {
+    const unauthorizedSpy = vi.fn();
+    const { notifyUnauthorized, setUnauthorizedHandler } = await import('./http');
+    setUnauthorizedHandler(unauthorizedSpy);
+
+    notifyUnauthorized();
+    await Promise.resolve();
+
+    expect(unauthorizedSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('refreshes session and retries once when a protected request returns 401', async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock

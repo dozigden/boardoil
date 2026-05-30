@@ -23,6 +23,10 @@ export function setUnauthorizedHandler(handler: (() => void | Promise<void>) | n
   unauthorizedHandler = handler;
 }
 
+export function notifyUnauthorized() {
+  void handleUnauthorized();
+}
+
 export async function attemptSessionRefresh() {
   return tryRefreshSession();
 }

@@ -15,9 +15,11 @@ type FakeConnection = {
 
 let connection: FakeConnection;
 const attemptSessionRefresh = vi.fn(async () => false);
+const notifyUnauthorized = vi.fn();
 
 vi.mock('../../shared/api/http', () => ({
-  attemptSessionRefresh
+  attemptSessionRefresh,
+  notifyUnauthorized
 }));
 
 vi.mock('@microsoft/signalr', () => {
@@ -82,6 +84,20 @@ describe('boardRealtime', () => {
     vi.resetModules();
     attemptSessionRefresh.mockReset();
     attemptSessionRefresh.mockResolvedValue(false);
+    notifyUnauthorized.mockReset();
+    if (connection) {
+      connection.state = 'Disconnected';
+      connection.start.mockReset();
+      connection.start.mockImplementation(async () => {
+        connection.state = 'Connected';
+      });
+      connection.stop.mockReset();
+      connection.stop.mockImplementation(async () => {
+        connection.state = 'Disconnected';
+      });
+      connection.invoke.mockReset();
+      connection.invoke.mockImplementation(async () => undefined);
+    }
     vi.stubGlobal('window', {
       location: {
         origin: 'http://localhost:5173'
@@ -358,6 +374,34 @@ describe('boardRealtime', () => {
     await rejectionExpectation;
     expect(attemptSessionRefresh).toHaveBeenCalledTimes(4);
     expect(connection.start).toHaveBeenCalledTimes(5);
+    expect(notifyUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  it('emits connection warning during reconnect and clears on reconnected', async () => {
+    const onConnectionWarning = vi.fn();
+    const onConnectionRecovered = vi.fn();
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(),
+      onColumnUpdated: vi.fn(),
+      onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(),
+      onCardUpdated: vi.fn(),
+      onCardDeleted: vi.fn(),
+      onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(),
+      onSystemInfoMessageUpdated: vi.fn(),
+      onResync: vi.fn(),
+      onConnectionWarning,
+      onConnectionRecovered
+    });
+
+    await realtime.connect(42);
+    connection.onreconnecting.mock.calls[0]?.[0]?.(new Error('network'));
+    await connection.reconnectHandler?.();
+
+    expect(onConnectionWarning).toHaveBeenCalledWith('Realtime updates are unavailable. Data may be stale until reconnect.');
+    expect(onConnectionRecovered).toHaveBeenCalledTimes(2);
   });
 
   afterEach(() => {

@@ -63,6 +63,12 @@ export const useBoardStore = defineStore('board', () => {
     onCardMoved: cardStore.upsertCard,
     onCommentCreated: commentStore.upsertCardComment,
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
+    onConnectionWarning: message => {
+      feedback.setWarning(message);
+    },
+    onConnectionRecovered: () => {
+      feedback.clearWarning();
+    },
     onResync: async () => {
       const boardId = currentBoardId.value;
       if (boardId === null) {
@@ -109,10 +115,9 @@ export const useBoardStore = defineStore('board', () => {
           return false;
         }
 
-        feedback.setError('Realtime connection failed.');
+        feedback.setWarning('Realtime updates are unavailable. Data may be stale until reconnect.');
         await realtime.disconnect();
-        clearBoardContext();
-        return false;
+        return true;
       }
     } finally {
       if (requestVersion === initializeRequestVersion) {
@@ -267,6 +272,7 @@ export const useBoardStore = defineStore('board', () => {
     currentBoardId.value = null;
     cardStore.dispose();
     commentStore.dispose();
+    feedback.clearWarning();
   }
 
   function upsertColumn(column: Column) {
