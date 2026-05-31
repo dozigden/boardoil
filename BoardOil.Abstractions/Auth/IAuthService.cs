@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using BoardOil.Contracts.Auth;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 
 namespace BoardOil.Abstractions.Auth;
 

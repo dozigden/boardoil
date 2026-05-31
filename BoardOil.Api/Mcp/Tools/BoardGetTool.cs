@@ -1,7 +1,7 @@
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Slick;
 using BoardOil.Contracts.Auth;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Mcp.Contracts;
 using BoardOil.Mcp.Contracts.Schemas;
 

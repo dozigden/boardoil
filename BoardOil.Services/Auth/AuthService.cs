@@ -7,7 +7,7 @@ using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Auth;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Contracts.Auth;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Services.Users;
 
 namespace BoardOil.Services.Auth;

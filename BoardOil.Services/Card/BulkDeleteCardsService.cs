@@ -2,7 +2,7 @@ using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Card;
 
 namespace BoardOil.Services.Card;

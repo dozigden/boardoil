@@ -1,4 +1,4 @@
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Mcp.Contracts;
 using ModelContextProtocol.Protocol;
 using System.Collections.Concurrent;

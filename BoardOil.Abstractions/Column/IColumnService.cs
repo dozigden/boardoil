@@ -1,5 +1,5 @@
 using BoardOil.Contracts.Column;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 
 namespace BoardOil.Abstractions.Column;
 

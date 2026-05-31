@@ -8,7 +8,7 @@ using BoardOil.Api.Swagger;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.Image;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Ef.DependencyInjection;
 using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Auth;

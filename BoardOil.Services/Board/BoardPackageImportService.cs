@@ -1,6 +1,6 @@
 using BoardOil.Abstractions.Board;
 using BoardOil.Contracts.Board;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Services.Board.Import;
 
 namespace BoardOil.Services.Board;

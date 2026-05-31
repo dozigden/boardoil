@@ -4,7 +4,7 @@ using BoardOil.Abstractions.Users;
 using BoardOil.Data.Abstractions.Auth;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Users;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
 using BoardOil.Abstractions.Auth;

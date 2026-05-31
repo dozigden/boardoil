@@ -1,4 +1,4 @@
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using System.Globalization;
 
 namespace BoardOil.Services.Tag;

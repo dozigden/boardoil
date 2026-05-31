@@ -1,5 +1,5 @@
 using BoardOil.Abstractions.Slick;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Mcp.Contracts;
 
 namespace BoardOil.Api.Mcp;

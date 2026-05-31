@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Text.Json;
 using BoardOil.Contracts.Board;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 
 namespace BoardOil.Services.Board.Import;
 

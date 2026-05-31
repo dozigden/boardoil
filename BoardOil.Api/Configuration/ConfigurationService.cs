@@ -1,6 +1,6 @@
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Configuration;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Configuration;
 using BoardOil.Data.Abstractions.Entities;
 

@@ -1,7 +1,7 @@
 using BoardOil.Api.Configuration;
 using BoardOil.Api.Extensions;
 using BoardOil.Abstractions;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Realtime;
 using System.Net;
 using System.Security.Cryptography;

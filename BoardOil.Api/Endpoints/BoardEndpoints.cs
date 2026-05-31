@@ -3,7 +3,7 @@ using BoardOil.Api.Auth;
 using BoardOil.Api.Configuration;
 using BoardOil.Abstractions.Board;
 using BoardOil.Contracts.Board;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Services.Auth;
 using Microsoft.AspNetCore.Http;
 

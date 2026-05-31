@@ -3,7 +3,7 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Column;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Entities;

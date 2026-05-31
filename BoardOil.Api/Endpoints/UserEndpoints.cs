@@ -3,7 +3,7 @@ using BoardOil.Api.Auth;
 using BoardOil.Api.Extensions;
 using BoardOil.Abstractions.Image;
 using BoardOil.Abstractions.Users;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
 

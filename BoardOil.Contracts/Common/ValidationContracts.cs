@@ -1,4 +1,4 @@
-namespace BoardOil.Contracts.Contracts;
+namespace BoardOil.Contracts.Common;
 
 public sealed record ValidationError(
     string Property,

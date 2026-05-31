@@ -1,4 +1,4 @@
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Users;
 
 namespace BoardOil.Abstractions.Users;

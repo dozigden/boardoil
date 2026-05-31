@@ -1,4 +1,4 @@
-namespace BoardOil.Contracts.Contracts;
+namespace BoardOil.Contracts.Common;
 
 public record ApiResult(
     bool Success,

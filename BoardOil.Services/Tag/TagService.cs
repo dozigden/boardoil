@@ -2,7 +2,7 @@ using BoardOil.Abstractions;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Tag;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Tag;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Entities;

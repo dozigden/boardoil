@@ -1,4 +1,4 @@
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;

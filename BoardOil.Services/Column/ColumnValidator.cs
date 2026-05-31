@@ -1,6 +1,6 @@
 using BoardOil.Abstractions.Column;
 using BoardOil.Contracts.Column;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using System.Text.RegularExpressions;
 
 namespace BoardOil.Services.Column;

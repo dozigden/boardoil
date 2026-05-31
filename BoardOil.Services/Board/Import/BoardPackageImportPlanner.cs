@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using BoardOil.Contracts.Board;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tag;
 

@@ -1,5 +1,5 @@
 using BoardOil.Mcp.Contracts;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using ModelContextProtocol.Protocol;
 using System.Text.Json;
 

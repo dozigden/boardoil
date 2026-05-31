@@ -1,6 +1,6 @@
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Slick;
 using BoardOil.Mcp.Contracts;
 

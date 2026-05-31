@@ -1,6 +1,6 @@
 using BoardOil.Abstractions.Column;
 using BoardOil.Contracts.Auth;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Mcp.Contracts;
 using BoardOil.Mcp.Contracts.Schemas;
 

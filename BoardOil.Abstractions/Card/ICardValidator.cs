@@ -1,5 +1,5 @@
 using BoardOil.Contracts.Card;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 
 namespace BoardOil.Abstractions.Card;
 

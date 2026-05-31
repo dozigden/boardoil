@@ -3,7 +3,7 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.CardType;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.CardType;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.CardType;

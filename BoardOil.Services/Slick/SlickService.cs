@@ -2,7 +2,7 @@ using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Slick;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Slick;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Slick;

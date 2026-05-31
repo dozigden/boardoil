@@ -1,5 +1,5 @@
 using BoardOil.Api.Extensions;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 
 namespace BoardOil.Api.Auth;
 

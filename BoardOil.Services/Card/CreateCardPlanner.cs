@@ -1,5 +1,5 @@
 using BoardOil.Contracts.Card;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Ordering;
 

@@ -1,6 +1,6 @@
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Card;
-using BoardOil.Contracts.Contracts;
+using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
 using BoardOil.Services.Slick;
