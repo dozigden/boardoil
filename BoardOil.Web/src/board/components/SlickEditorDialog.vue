@@ -337,6 +337,14 @@ function initialiseEditDraftState(slick: Slick, slickId: number) {
 watch(
   [boardId, routeSlickId, isCreateMode],
   async ([nextBoardId, nextSlickId, nextIsCreate]) => {
+    if (nextIsCreate) {
+      if (draftSourceKey.value !== 'create') {
+        initialiseCreateDraftState();
+      }
+
+      return;
+    }
+
     if (!nextIsCreate && nextSlickId === null) {
       clearDraft();
       draftSlickName.value = '';
@@ -349,14 +357,6 @@ watch(
       if (!loaded) {
         return;
       }
-    }
-
-    if (nextIsCreate) {
-      if (draftSourceKey.value !== 'create') {
-        initialiseCreateDraftState();
-      }
-
-      return;
     }
 
     const nextSlick = nextSlickId === null ? null : getSlickById(nextSlickId);
