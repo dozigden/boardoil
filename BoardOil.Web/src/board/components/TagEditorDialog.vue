@@ -429,15 +429,8 @@ function initialiseEditDraftState(tag: Tag, tagId: number) {
 }
 
 watch(
-  [boardId, routeTagId, isCreateMode],
-  async ([nextBoardId, nextTagId, nextIsCreate]) => {
-    if (tagStore.activeBoardId !== nextBoardId || tagStore.tags.length === 0) {
-      const loaded = await loadTags(nextBoardId);
-      if (!loaded) {
-        return;
-      }
-    }
-
+  [boardId, routeTagId, isCreateMode, editingTag],
+  async ([nextBoardId, nextTagId, nextIsCreate, nextTag]) => {
     if (nextIsCreate) {
       initialiseCreateDraftState();
       return;
@@ -449,7 +442,14 @@ watch(
       return;
     }
 
-    const nextTag = getTagById(nextTagId);
+    if (!nextTag && (tagStore.activeBoardId !== nextBoardId || tagStore.tags.length === 0)) {
+      const loaded = await loadTags(nextBoardId);
+      if (!loaded) {
+        return;
+      }
+
+      nextTag = getTagById(nextTagId);
+    }
 
     if (!nextTag) {
       clearDraftState();

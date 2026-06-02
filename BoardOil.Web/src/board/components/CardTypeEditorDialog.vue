@@ -277,8 +277,8 @@ const previewCardStyleClasses = computed(() => {
 });
 
 watch(
-  [boardId, routeCardTypeId, isCreateMode],
-  async ([nextBoardId, nextCardTypeId, nextIsCreate]) => {
+  [boardId, routeCardTypeId, isCreateMode, editingCardType],
+  async ([nextBoardId, nextCardTypeId, nextIsCreate, nextCardType]) => {
     if (nextIsCreate) {
       if (draftSourceKey.value === 'create') {
         return;
@@ -300,7 +300,6 @@ watch(
       return;
     }
 
-    let nextCardType = getCardTypeById(nextCardTypeId);
     if (!nextCardType) {
       const loaded = await loadCardTypes(nextBoardId);
       if (!loaded) {

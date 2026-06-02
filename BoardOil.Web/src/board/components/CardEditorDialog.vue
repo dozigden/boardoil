@@ -298,7 +298,7 @@ const slickStore = useSlickStore();
 const tagStore = useTagStore();
 const { board, currentBoardId } = storeToRefs(boardStore);
 const { members: boardMembers, activeBoardId: boardMembersActiveBoardId } = storeToRefs(boardMembersStore);
-const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
+const { cardTypes, activeBoardId: cardTypesActiveBoardId, systemCardType } = storeToRefs(cardTypeStore);
 const { slicks, activeBoardId: slicksActiveBoardId } = storeToRefs(slickStore);
 const { busy: commentsBusy } = storeToRefs(commentStore);
 const { saveCard: saveCardAction, deleteCard, archiveCard } = cardStore;
@@ -659,7 +659,7 @@ function redirectToBoard(boardId: number) {
 }
 
 async function ensureEditorLookupsLoaded(boardId: number, isCancelled: () => boolean) {
-  if (cardTypes.value.length === 0) {
+  if (cardTypesActiveBoardId.value !== boardId || cardTypes.value.length === 0) {
     await loadCardTypes(boardId);
     if (isCancelled()) {
       return false;
@@ -770,7 +770,7 @@ async function archiveEditingCard() {
 }
 
 watch(
-  [boardId, routeCardId, editingCard, board],
+  [boardId, routeCardId, editingCard, board, cardTypes, boardMembers, slicks],
   async ([nextBoardId, nextCardId, nextCard, nextBoard], _previous, onCleanup) => {
     let cancelled = false;
     onCleanup(() => {

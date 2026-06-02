@@ -335,8 +335,8 @@ function initialiseEditDraftState(slick: Slick, slickId: number) {
 }
 
 watch(
-  [boardId, routeSlickId, isCreateMode],
-  async ([nextBoardId, nextSlickId, nextIsCreate]) => {
+  [boardId, routeSlickId, isCreateMode, editingSlick],
+  async ([nextBoardId, nextSlickId, nextIsCreate, nextSlick]) => {
     if (nextIsCreate) {
       if (draftSourceKey.value !== 'create') {
         initialiseCreateDraftState();
@@ -352,14 +352,15 @@ watch(
       return;
     }
 
-    if (slickStore.activeBoardId !== nextBoardId || slickStore.slicks.length === 0) {
+    if (!nextSlick && (slickStore.activeBoardId !== nextBoardId || slickStore.slicks.length === 0)) {
       const loaded = await loadSlicks(nextBoardId);
       if (!loaded) {
         return;
       }
+
+      nextSlick = getSlickById(nextSlickId);
     }
 
-    const nextSlick = nextSlickId === null ? null : getSlickById(nextSlickId);
     if (!nextSlick || nextSlickId === null) {
       await router.replace({ name: 'slicks', params: { boardId: nextBoardId } });
       return;
