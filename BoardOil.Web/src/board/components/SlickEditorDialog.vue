@@ -352,7 +352,7 @@ watch(
       return;
     }
 
-    if (!nextSlick && (slickStore.activeBoardId !== nextBoardId || slickStore.slicks.length === 0)) {
+    if (!nextSlick && slickStore.activeBoardId !== nextBoardId) {
       const loaded = await loadSlicks(nextBoardId);
       if (!loaded) {
         return;

@@ -659,21 +659,21 @@ function redirectToBoard(boardId: number) {
 }
 
 async function ensureEditorLookupsLoaded(boardId: number, isCancelled: () => boolean) {
-  if (cardTypesActiveBoardId.value !== boardId || cardTypes.value.length === 0) {
+  if (cardTypesActiveBoardId.value !== boardId) {
     await loadCardTypes(boardId);
     if (isCancelled()) {
       return false;
     }
   }
 
-  if (boardMembersActiveBoardId.value !== boardId || boardMembers.value.length === 0) {
+  if (boardMembersActiveBoardId.value !== boardId) {
     await loadMembers(boardId);
     if (isCancelled()) {
       return false;
     }
   }
 
-  if (slicksActiveBoardId.value !== boardId || slicks.value.length === 0) {
+  if (slicksActiveBoardId.value !== boardId) {
     await loadSlicks(boardId);
     if (isCancelled()) {
       return false;
@@ -770,7 +770,7 @@ async function archiveEditingCard() {
 }
 
 watch(
-  [boardId, routeCardId, editingCard, board, cardTypes, boardMembers, slicks],
+  [boardId, routeCardId, editingCard, board],
   async ([nextBoardId, nextCardId, nextCard, nextBoard], _previous, onCleanup) => {
     let cancelled = false;
     onCleanup(() => {
@@ -786,23 +786,20 @@ watch(
       return;
     }
 
-    const lookupsLoaded = await ensureEditorLookupsLoaded(nextBoardId, () => cancelled);
-    if (!lookupsLoaded) {
-      return;
-    }
-
     if (!nextCard) {
       redirectToBoard(nextBoardId);
       return;
     }
 
-    await loadCardComments(nextBoardId, nextCard.id);
-    if (cancelled) {
+    initializeDraftForCard(nextCard);
+
+    const lookupsLoaded = await ensureEditorLookupsLoaded(nextBoardId, () => cancelled);
+    if (!lookupsLoaded) {
       return;
     }
 
-    const draftInitialized = initializeDraftForCard(nextCard);
-    if (draftInitialized) {
+    await loadCardComments(nextBoardId, nextCard.id);
+    if (cancelled) {
       return;
     }
   },

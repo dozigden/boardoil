@@ -442,7 +442,7 @@ watch(
       return;
     }
 
-    if (!nextTag && (tagStore.activeBoardId !== nextBoardId || tagStore.tags.length === 0)) {
+    if (!nextTag && tagStore.activeBoardId !== nextBoardId) {
       const loaded = await loadTags(nextBoardId);
       if (!loaded) {
         return;
