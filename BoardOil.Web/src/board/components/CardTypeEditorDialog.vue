@@ -413,9 +413,11 @@ function clearDraft() {
 
 .card-type-preview-card {
   min-width: 15rem;
-  border: 1px solid var(--bo-border-soft);
+  border: 1px solid var(--bo-card-surface-border-color, var(--bo-border-soft));
   border-radius: 12px;
   padding: 0.6rem;
+  background: var(--bo-card-surface-background, var(--bo-surface-base));
+  color: var(--bo-card-surface-color, inherit);
 }
 
 .card-types-emoji-picker-wrap {

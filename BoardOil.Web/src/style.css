@@ -197,82 +197,98 @@
 
 .bo-tag-style-presets-0,
 .bo-card-style-presets-0 {
+  --bo-card-preset-border-color: color-mix(in srgb, var(--bo-preset-0) 60%, var(--bo-mix-light) 40%);
   background: var(--bo-preset-0);
   color: var(--bo-ink-on-brand);
-  border-color: color-mix(in srgb, var(--bo-preset-0) 60%, var(--bo-mix-light) 40%);
+  border-color: var(--bo-card-preset-border-color);
   --bo-card-surface-background: var(--bo-preset-0);
   --bo-card-surface-color: var(--bo-ink-on-brand);
-  --bo-card-surface-border-color: color-mix(in srgb, var(--bo-preset-0) 60%, var(--bo-mix-light) 40%);
+  --bo-card-surface-border-color: var(--bo-card-preset-border-color);
 }
 
 .bo-tag-style-presets-1,
 .bo-card-style-presets-1 {
+  --bo-card-preset-border-color: color-mix(in srgb, var(--bo-preset-1) 60%, var(--bo-mix-light) 40%);
   background: var(--bo-preset-1);
   color: var(--bo-ink-on-brand);
-  border-color: color-mix(in srgb, var(--bo-preset-1) 60%, var(--bo-mix-light) 40%);
+  border-color: var(--bo-card-preset-border-color);
   --bo-card-surface-background: var(--bo-preset-1);
   --bo-card-surface-color: var(--bo-ink-on-brand);
-  --bo-card-surface-border-color: color-mix(in srgb, var(--bo-preset-1) 60%, var(--bo-mix-light) 40%);
+  --bo-card-surface-border-color: var(--bo-card-preset-border-color);
 }
 
 .bo-tag-style-presets-2,
 .bo-card-style-presets-2 {
+  --bo-card-preset-border-color: color-mix(in srgb, var(--bo-preset-2) 50%, var(--bo-mix-dark) 50%);
   background: var(--bo-preset-2);
   color: var(--bo-ink-strong);
-  border-color: color-mix(in srgb, var(--bo-preset-2) 50%, var(--bo-mix-dark) 50%);
+  border-color: var(--bo-card-preset-border-color);
   --bo-card-surface-background: var(--bo-preset-2);
   --bo-card-surface-color: var(--bo-ink-strong);
-  --bo-card-surface-border-color: color-mix(in srgb, var(--bo-preset-2) 50%, var(--bo-mix-dark) 50%);
+  --bo-card-surface-border-color: var(--bo-card-preset-border-color);
 }
 
 .bo-tag-style-presets-3,
 .bo-card-style-presets-3 {
+  --bo-card-preset-border-color: color-mix(in srgb, var(--bo-preset-3) 50%, var(--bo-mix-dark) 50%);
   background: var(--bo-preset-3);
   color: var(--bo-ink-strong);
-  border-color: color-mix(in srgb, var(--bo-preset-3) 50%, var(--bo-mix-dark) 50%);
+  border-color: var(--bo-card-preset-border-color);
   --bo-card-surface-background: var(--bo-preset-3);
   --bo-card-surface-color: var(--bo-ink-strong);
-  --bo-card-surface-border-color: color-mix(in srgb, var(--bo-preset-3) 50%, var(--bo-mix-dark) 50%);
+  --bo-card-surface-border-color: var(--bo-card-preset-border-color);
 }
 
 .bo-tag-style-presets-4,
 .bo-card-style-presets-4 {
+  --bo-card-preset-border-color: color-mix(in srgb, var(--bo-preset-4) 60%, var(--bo-mix-light) 40%);
   background: var(--bo-preset-4);
   color: var(--bo-ink-on-brand);
-  border-color: color-mix(in srgb, var(--bo-preset-4) 60%, var(--bo-mix-light) 40%);
+  border-color: var(--bo-card-preset-border-color);
   --bo-card-surface-background: var(--bo-preset-4);
   --bo-card-surface-color: var(--bo-ink-on-brand);
-  --bo-card-surface-border-color: color-mix(in srgb, var(--bo-preset-4) 60%, var(--bo-mix-light) 40%);
+  --bo-card-surface-border-color: var(--bo-card-preset-border-color);
 }
 
 .bo-tag-style-presets-5,
 .bo-card-style-presets-5 {
+  --bo-card-preset-border-color: color-mix(in srgb, var(--bo-preset-5) 50%, var(--bo-mix-dark) 50%);
   background: var(--bo-preset-5);
   color: var(--bo-ink-strong);
-  border-color: color-mix(in srgb, var(--bo-preset-5) 50%, var(--bo-mix-dark) 50%);
+  border-color: var(--bo-card-preset-border-color);
   --bo-card-surface-background: var(--bo-preset-5);
   --bo-card-surface-color: var(--bo-ink-strong);
-  --bo-card-surface-border-color: color-mix(in srgb, var(--bo-preset-5) 50%, var(--bo-mix-dark) 50%);
+  --bo-card-surface-border-color: var(--bo-card-preset-border-color);
 }
 
 .bo-tag-style-presets-6,
 .bo-card-style-presets-6 {
+  --bo-card-preset-border-color: color-mix(in srgb, var(--bo-preset-6) 60%, var(--bo-mix-light) 40%);
   background: var(--bo-preset-6);
   color: var(--bo-ink-on-brand);
-  border-color: color-mix(in srgb, var(--bo-preset-6) 60%, var(--bo-mix-light) 40%);
+  border-color: var(--bo-card-preset-border-color);
   --bo-card-surface-background: var(--bo-preset-6);
   --bo-card-surface-color: var(--bo-ink-on-brand);
-  --bo-card-surface-border-color: color-mix(in srgb, var(--bo-preset-6) 60%, var(--bo-mix-light) 40%);
+  --bo-card-surface-border-color: var(--bo-card-preset-border-color);
 }
 
 .bo-tag-style-presets-7,
 .bo-card-style-presets-7 {
+  --bo-card-preset-border-color: color-mix(in srgb, var(--bo-preset-7) 50%, var(--bo-mix-dark) 50%);
   background: var(--bo-preset-7);
   color: var(--bo-ink-strong);
-  border-color: color-mix(in srgb, var(--bo-preset-7) 50%, var(--bo-mix-dark) 50%);
+  border-color: var(--bo-card-preset-border-color);
   --bo-card-surface-background: var(--bo-preset-7);
   --bo-card-surface-color: var(--bo-ink-strong);
-  --bo-card-surface-border-color: color-mix(in srgb, var(--bo-preset-7) 50%, var(--bo-mix-dark) 50%);
+  --bo-card-surface-border-color: var(--bo-card-preset-border-color);
+}
+
+:root[data-theme='dark'] .bo-card-style-presets {
+  --bo-card-preset-border-color: color-mix(
+    in srgb,
+    var(--bo-card-surface-background, var(--bo-surface-base)) 72%,
+    var(--bo-mix-dark) 28%
+  );
 }
 
 .bo-slick-style-presets {
