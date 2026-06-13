@@ -24,6 +24,32 @@ const bundledAssetLicences = [
   }
 ];
 
+function isTruthyEnv(value) {
+  if (!value) {
+    return false;
+  }
+
+  const normalised = value.trim().toLowerCase();
+  return normalised === "1" || normalised === "true";
+}
+
+function useCompactOutput() {
+  const configuredMode = process.env.BOARDOIL_TEST_OUTPUT?.trim().toLowerCase();
+  if (configuredMode === "compact") {
+    return true;
+  }
+
+  if (configuredMode === "verbose") {
+    return false;
+  }
+
+  return isTruthyEnv(process.env.CI)
+    || isTruthyEnv(process.env.GITHUB_ACTIONS)
+    || isTruthyEnv(process.env.CODEX_CI)
+    || isTruthyEnv(process.env.CLAUDECODE)
+    || Boolean(process.env.CODEX_THREAD_ID);
+}
+
 const nugetDependencySources = [
   {
     sourceName: "BoardOil.Api",
@@ -866,7 +892,9 @@ async function main() {
     }
   }
 
-  console.log(`Copied ${copiedLicences.length} third-party licence file(s).`);
+  if (!useCompactOutput()) {
+    console.log(`Copied ${copiedLicences.length} third-party licence file(s).`);
+  }
 
   if (unresolvedPackages.length > 0) {
     console.warn(`Could not source ${unresolvedPackages.length} package licence file(s).`);
@@ -879,4 +907,3 @@ async function main() {
 }
 
 await main();
-

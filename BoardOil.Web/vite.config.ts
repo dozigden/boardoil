@@ -1,5 +1,32 @@
-import { defineConfig, loadEnv } from 'vite';
+import { loadEnv } from 'vite';
+import { defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
+
+function isTruthyEnv(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalised = value.trim().toLowerCase();
+  return normalised === '1' || normalised === 'true';
+}
+
+function useCompactTestOutput(): boolean {
+  const configuredMode = process.env.BOARDOIL_TEST_OUTPUT?.trim().toLowerCase();
+  if (configuredMode === 'compact') {
+    return true;
+  }
+
+  if (configuredMode === 'verbose') {
+    return false;
+  }
+
+  return isTruthyEnv(process.env.CI)
+    || isTruthyEnv(process.env.GITHUB_ACTIONS)
+    || isTruthyEnv(process.env.CODEX_CI)
+    || isTruthyEnv(process.env.CLAUDECODE)
+    || Boolean(process.env.CODEX_THREAD_ID);
+}
 
 export default defineConfig(({ command, mode }) => {
   if (command === 'build') {
@@ -13,7 +40,7 @@ export default defineConfig(({ command, mode }) => {
     }
   }
 
-  return {
+  const config = {
     plugins: [
       vue({
         template: {
@@ -32,6 +59,19 @@ export default defineConfig(({ command, mode }) => {
           ws: true
         }
       }
+    }
+  };
+
+  const compactTestOutput = useCompactTestOutput();
+  if (!compactTestOutput) {
+    return config;
+  }
+
+  return {
+    ...config,
+    test: {
+      reporters: ['agent'],
+      silent: 'passed-only'
     }
   };
 });
