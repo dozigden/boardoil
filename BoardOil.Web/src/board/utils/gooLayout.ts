@@ -20,7 +20,15 @@ export type GooRenderBlob = {
   width: number;
   height: number;
   clipPath?: string;
+  clipInsets?: GooClipInsets;
   borderRadius?: string;
+};
+
+export type GooClipInsets = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
 };
 
 export type GooRenderGroup = {
@@ -161,9 +169,10 @@ function toClippedBlob(
   const clipInsetBottom = Math.max(0, (desiredBottom - clipBottom) - clipBottomBleedPx);
   const clipInsetLeft = Math.max(0, (clipLeft - desiredLeft) - clipBleedPx);
   const clipPath = toClipInsetPath(clipInsetTop, clipInsetRight, clipInsetBottom, clipInsetLeft);
+  const clipInsets = toClipInsets(clipInsetTop, clipInsetRight, clipInsetBottom, clipInsetLeft);
   const borderRadius = toClipAwareBorderRadius(clipInsetTop, clipInsetRight, clipInsetBottom, clipInsetLeft);
 
-  return createBlob(id, desiredLeft, desiredTop, blobWidth, blobHeight, clipPath, borderRadius);
+  return createBlob(id, desiredLeft, desiredTop, blobWidth, blobHeight, clipPath, clipInsets, borderRadius);
 }
 
 function createBlob(
@@ -173,6 +182,7 @@ function createBlob(
   width: number,
   height: number,
   clipPath?: string,
+  clipInsets?: GooClipInsets,
   borderRadius?: string
 ): GooComputedBlob {
   return {
@@ -182,6 +192,7 @@ function createBlob(
     width,
     height,
     clipPath,
+    clipInsets,
     borderRadius,
     centerX: left + (width / 2),
     centerY: top + (height / 2)
@@ -251,8 +262,17 @@ function toRenderBlob(blob: GooComputedBlob): GooRenderBlob {
     width: blob.width,
     height: blob.height,
     clipPath: blob.clipPath,
+    clipInsets: blob.clipInsets,
     borderRadius: blob.borderRadius
   };
+}
+
+function toClipInsets(top: number, right: number, bottom: number, left: number): GooClipInsets | undefined {
+  if (top <= 0 && right <= 0 && bottom <= 0 && left <= 0) {
+    return undefined;
+  }
+
+  return { top, right, bottom, left };
 }
 
 function toClipInsetPath(top: number, right: number, bottom: number, left: number): string | undefined {

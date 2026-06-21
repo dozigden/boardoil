@@ -110,6 +110,7 @@ describe('gooLayout', () => {
     expect(blob!.width).toBe(100);
     expect(blob!.height).toBe(100);
     expect(blob!.clipPath).toBe('inset(20px 0px 0px 20px)');
+    expect(blob!.clipInsets).toEqual({ top: 20, right: 0, bottom: 0, left: 20 });
   });
 
   it('drops clipped blobs that become smaller than min blob size', () => {
