@@ -1,5 +1,5 @@
 <template>
-  <div v-if="groups.length > 0" :class="['goo-layer', 'goo-layer--html', layerClass]" aria-hidden="true">
+  <div v-if="groups.length > 0" :class="['goo-layer', 'goo-layer--full', layerClass]" aria-hidden="true">
     <div
       v-for="group in groups"
       :key="group.id"

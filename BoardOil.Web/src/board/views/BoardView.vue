@@ -47,9 +47,13 @@
       </Teleport>
 
       <section class="board" :ref="setBoardRefs">
-        <GooLayer v-if="!isLoading" :groups="gooGroups" :blob-border-radius-px="gooBlobBorderRadiusPx" />
         <GooLayer
-          v-if="!isLoading && selectionGooGroup"
+          v-if="!isLoading && gooRendererMode === 'full'"
+          :groups="gooGroups"
+          :blob-border-radius-px="gooBlobBorderRadiusPx"
+        />
+        <GooLayer
+          v-if="!isLoading && gooRendererMode === 'full' && selectionGooGroup"
           :groups="[selectionGooGroup]"
           :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
           layer-class="goo-layer--selection"
@@ -79,9 +83,23 @@
               class="column-content"
               :class="{
                 'column-content--drop-tail': isDropPoint(column.id, null),
-                'column-content--drop-head': isDropAtColumnStart(column.id)
+                'column-content--drop-head': isDropAtColumnStart(column.id),
+                'column-content--lite-goo': gooRendererMode === 'lite'
               }"
             >
+              <LiteGooLayer
+                v-if="!isLoading && gooRendererMode === 'lite'"
+                :groups="gooGroupsByColumnId.get(column.id) ?? []"
+                :blob-border-radius-px="gooBlobBorderRadiusPx"
+                layer-class="goo-layer--column"
+              />
+              <LiteGooLayer
+                v-if="!isLoading && gooRendererMode === 'lite'"
+                :groups="selectionGooGroupsByColumnId.get(column.id) ?? []"
+                :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
+                layer-class="goo-layer--column goo-layer--selection"
+                blob-class="goo-blob--selection"
+              />
               <CreateCardInline
                 v-if="newCardDrafts[column.id] !== undefined"
                 :title="newCardDrafts[column.id]?.title ?? ''"
@@ -171,9 +189,11 @@ import BoardColumnHeader from '../components/BoardColumnHeader.vue';
 import Card from '../components/Card.vue';
 import CreateCardInline from '../components/CreateCardInline.vue';
 import GooLayer from '../components/GooLayer.vue';
+import LiteGooLayer from '../components/LiteGooLayer.vue';
 import { useBoardCardDragDrop } from '../composables/useBoardCardDragDrop';
 import { useBoardCardFilters } from '../composables/useBoardCardFilters';
 import { useGooLayer } from '../composables/useGooLayer';
+import { resolveGooRendererMode } from '../utils/gooRendererMode';
 import { useBoardCardSelection } from '../composables/useBoardCardSelection';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardStore } from '../stores/cardStore';
@@ -226,6 +246,7 @@ const { createCard, startDrag, dropCard, archiveCards, bulkMoveCards, bulkEditCa
 const { confirm } = useConfirm();
 const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
 const selectionGooStyle = createSelectionGooStyle();
+const gooRendererMode = computed(() => resolveGooRendererMode());
 
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 
@@ -319,6 +340,7 @@ const gooCardMembershipSignature = computed(() => buildSlickGooMembershipSignatu
 const gooSlickStyleSignature = computed(() => buildSlickGooStyleSignature(slicks.value));
 const {
   gooGroups,
+  gooGroupsByColumnId,
   gooBlurStdDeviation,
   gooBlobBorderRadiusPx,
   gooColorMatrixValues,
@@ -338,6 +360,7 @@ const selectionGooCardMembershipSignature = computed(() =>
 const selectionGooStyleSignature = computed(() => selectionGooStyle.styleSignature);
 const {
   gooGroups: selectionGooGroups,
+  gooGroupsByColumnId: selectionGooGroupsByColumnId,
   gooBlobBorderRadiusPx: selectionGooBlobBorderRadiusPx,
   setBoardRef: setSelectionGooBoardRef,
   scheduleGooStructureRefresh: scheduleSelectionGooStructureRefresh
@@ -778,6 +801,7 @@ async function initializeView() {
 
 .column-content {
   --column-card-gap: 0.5rem;
+  --column-lite-goo-bleed: 0.5rem;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -789,6 +813,16 @@ async function initializeView() {
   overscroll-behavior-y: none;
   scrollbar-width: none;
   position: relative;
+}
+
+.column-content--lite-goo {
+  margin-left: calc(-1 * var(--column-lite-goo-bleed));
+  padding-left: var(--column-lite-goo-bleed);
+}
+
+.column-content > :not(.goo-layer) {
+  position: relative;
+  z-index: 1;
 }
 
 .column-content--drop-tail {

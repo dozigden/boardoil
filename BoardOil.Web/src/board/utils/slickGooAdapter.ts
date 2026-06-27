@@ -15,6 +15,7 @@ export function buildSlickGooDescriptors(columns: BoardColumn[], slicksById: Map
       const slickId = card.slickId;
       descriptors.push({
         cardId: card.id,
+        columnId: column.id,
         itemId: `card-${card.id}`,
         groupKey: `slick-${slickId}`,
         colour: resolveSlickGooColour(slicksById.get(slickId), slickId)

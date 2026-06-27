@@ -11,6 +11,7 @@ import {
 
 export type GooLayerDescriptor = {
   cardId: number;
+  columnId: number;
   itemId: string;
   groupKey: string;
   colour: string;
@@ -20,6 +21,7 @@ type GooRefreshReason = 'geometry' | 'structure' | 'styles';
 
 type TrackedGooCard = {
   cardId: number;
+  columnId: number;
   itemId: string;
   groupKey: string;
   colour: string;
@@ -48,6 +50,7 @@ export function useGooLayer(
   styleSignature: ComputedRef<string>
 ) {
   const gooGroups = ref<GooRenderGroup[]>([]);
+  const gooGroupsByColumnId = ref(new Map<number, GooRenderGroup[]>());
   const gooBlurStdDeviation = gooConfig.blurStdDeviation;
   const gooBlobBorderRadiusPx = gooConfig.blobBorderRadiusPx;
   const gooColorMatrixValues = computed(() =>
@@ -84,6 +87,7 @@ export function useGooLayer(
     if (!(element instanceof HTMLElement)) {
       boardElement.value = null;
       gooGroups.value = [];
+      gooGroupsByColumnId.value = new Map();
       trackedGooCards = [];
       gooCardElementCache.clear();
       clipPaddingCache.clear();
@@ -137,6 +141,7 @@ export function useGooLayer(
     const boardSurface = boardElement.value;
     if (!boardSurface) {
       gooGroups.value = [];
+      gooGroupsByColumnId.value = new Map();
       trackedGooCards = [];
       gooCardElementCache.clear();
       queuedRefreshReason = null;
@@ -153,11 +158,13 @@ export function useGooLayer(
 
     if (trackedGooCards.length === 0) {
       gooGroups.value = [];
+      gooGroupsByColumnId.value = new Map();
       return;
     }
 
     const boardRect = boardSurface.getBoundingClientRect();
     const items: GooItem[] = [];
+    const localItemsByColumnId = new Map<number, GooItem[]>();
     const clipRectByElement = new Map<HTMLElement, RectLike>();
     const preferFastPath = reason !== 'structure' && !gooStructureDirty;
     let sawDetachedCard = false;
@@ -181,6 +188,18 @@ export function useGooLayer(
       const columnContentRect = trackedCard.clipElement
         ? resolveClipContentRect(trackedCard.clipElement, clipRectByElement)
         : null;
+      if (reason !== 'geometry' && trackedCard.clipElement) {
+        const localRect = resolveLocalCardRect(rect, trackedCard.clipElement);
+        const localItems = getOrCreateLocalItems(localItemsByColumnId, trackedCard.columnId);
+        localItems.push({
+          id: trackedCard.itemId,
+          groupKey: trackedCard.groupKey,
+          colour: trackedCard.colour,
+          rect: localRect,
+          clipRect: null
+        });
+      }
+
       if (columnContentRect && !intersectsExpandedRect(rect, columnContentRect, resolveCullingMarginPx())) {
         continue;
       }
@@ -199,6 +218,9 @@ export function useGooLayer(
 
     if (items.length === 0) {
       gooGroups.value = [];
+      if (reason !== 'geometry') {
+        gooGroupsByColumnId.value = buildColumnGooGroups(localItemsByColumnId);
+      }
       if (gooPerfDebugEnabled) {
         recordPerfSample(performance.now() - refreshStart, 0, 0);
       }
@@ -210,6 +232,9 @@ export function useGooLayer(
       left: boardSurface.scrollLeft,
       top: boardSurface.scrollTop
     });
+    if (reason !== 'geometry') {
+      gooGroupsByColumnId.value = buildColumnGooGroups(localItemsByColumnId);
+    }
     if (gooPerfDebugEnabled) {
       const buildMs = performance.now() - buildStart;
       const refreshMs = performance.now() - refreshStart;
@@ -251,6 +276,7 @@ export function useGooLayer(
         : null;
       nextTrackedCards.push({
         cardId: descriptor.cardId,
+        columnId: descriptor.columnId,
         itemId: descriptor.itemId,
         groupKey: descriptor.groupKey,
         colour: descriptor.colour,
@@ -276,6 +302,42 @@ export function useGooLayer(
     }
 
     gooStylesDirty = false;
+  }
+
+  function getOrCreateLocalItems(itemsByColumnId: Map<number, GooItem[]>, columnId: number): GooItem[] {
+    const existing = itemsByColumnId.get(columnId);
+    if (existing) {
+      return existing;
+    }
+
+    const created: GooItem[] = [];
+    itemsByColumnId.set(columnId, created);
+    return created;
+  }
+
+  function buildColumnGooGroups(itemsByColumnId: Map<number, GooItem[]>): Map<number, GooRenderGroup[]> {
+    const localBoardRect: RectLike = {
+      left: 0,
+      top: 0,
+      width: 0,
+      height: 0
+    };
+    const groupsByColumnId = new Map<number, GooRenderGroup[]>();
+    for (const [columnId, localItems] of itemsByColumnId) {
+      groupsByColumnId.set(columnId, buildGooGroups(localItems, localBoardRect, gooConfig));
+    }
+
+    return groupsByColumnId;
+  }
+
+  function resolveLocalCardRect(cardRect: RectLike, clipElement: HTMLElement): RectLike {
+    const clipRect = clipElement.getBoundingClientRect();
+    return {
+      left: cardRect.left - clipRect.left + clipElement.scrollLeft,
+      top: cardRect.top - clipRect.top + clipElement.scrollTop,
+      width: cardRect.width,
+      height: cardRect.height
+    };
   }
 
   function resolveClipContentRect(
@@ -511,6 +573,7 @@ export function useGooLayer(
 
   return {
     gooGroups,
+    gooGroupsByColumnId,
     gooBlurStdDeviation,
     gooBlobBorderRadiusPx,
     gooColorMatrixValues,

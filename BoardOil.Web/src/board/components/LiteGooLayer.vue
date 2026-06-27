@@ -1,7 +1,7 @@
 <template>
-  <svg v-if="groups.length > 0" :class="['goo-layer', 'goo-layer--svg', layerClass]" aria-hidden="true" focusable="false">
+  <svg v-if="liteGroups.length > 0" :class="['goo-layer', 'goo-layer--lite', layerClass]" aria-hidden="true" focusable="false">
     <defs>
-      <template v-for="group in groups" :key="`${group.id}-clips`">
+      <template v-for="group in liteGroups" :key="`${group.id}-clips`">
         <clipPath
           v-for="blob in group.blobs.filter(hasClipInsets)"
           :id="getBlobClipId(group.id, blob.id)"
@@ -19,7 +19,7 @@
     </defs>
 
     <g
-      v-for="group in groups"
+      v-for="group in liteGroups"
       :key="group.id"
       :class="['goo-group', groupClass]"
       :style="{
@@ -45,10 +45,10 @@
 </template>
 
 <script setup lang="ts">
-import { useId } from 'vue';
+import { computed, useId } from 'vue';
 import type { GooRenderBlob, GooRenderGroup } from '../utils/gooLayout';
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   groups: GooRenderGroup[];
   blobBorderRadiusPx: number;
   layerClass?: string;
@@ -61,6 +61,18 @@ withDefaults(defineProps<{
 });
 
 const clipIdPrefix = sanitizeSvgIdPart(`goo-clip-${useId()}`);
+const liteGroups = computed(() =>
+  props.groups
+    .map(group => ({
+      ...group,
+      blobs: group.blobs.filter(blob => !isBridgeBlob(blob))
+    }))
+    .filter(group => group.blobs.length > 0)
+);
+
+function isBridgeBlob(blob: GooRenderBlob) {
+  return blob.id.includes('-bridge-');
+}
 
 function hasClipInsets(blob: GooRenderBlob) {
   return blob.clipInsets !== undefined;
@@ -127,6 +139,14 @@ function sanitizeSvgIdPart(value: string) {
 .goo-layer--selection {
   z-index: 4;
   animation: goo-selection-pulse 1.5s ease-in-out infinite alternate;
+}
+
+.goo-layer--column {
+  z-index: 0;
+}
+
+.goo-layer--column.goo-layer--selection {
+  z-index: 0;
 }
 
 @keyframes goo-selection-pulse {

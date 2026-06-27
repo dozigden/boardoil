@@ -15,6 +15,7 @@ describe('selectionGooAdapter', () => {
 
     expect(descriptors).toHaveLength(2);
     expect(descriptors.map(x => x.cardId).sort((left, right) => left - right)).toEqual([101, 201]);
+    expect(descriptors.map(x => x.columnId).sort((left, right) => left - right)).toEqual([1, 2]);
     expect(new Set(descriptors.map(x => x.groupKey))).toEqual(new Set(['selection']));
     expect(descriptors.every(x => x.colour === 'var(--bo-focus-ring)')).toBe(true);
   });

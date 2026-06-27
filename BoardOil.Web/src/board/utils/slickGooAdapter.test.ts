@@ -18,6 +18,7 @@ describe('slickGooAdapter', () => {
 
     expect(descriptors).toHaveLength(2);
     expect(descriptors.map(x => x.cardId).sort((a, b) => a - b)).toEqual([101, 201]);
+    expect(descriptors.map(x => x.columnId).sort((a, b) => a - b)).toEqual([1, 2]);
     expect(descriptors.map(x => x.groupKey).sort()).toEqual(['slick-10', 'slick-20']);
   });
 

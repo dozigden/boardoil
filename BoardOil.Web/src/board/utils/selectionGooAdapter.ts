@@ -23,6 +23,7 @@ export function buildSelectionGooDescriptors(
 
       descriptors.push({
         cardId: card.id,
+        columnId: column.id,
         itemId: `selection-card-${card.id}`,
         groupKey: SELECTION_GROUP_KEY,
         colour
