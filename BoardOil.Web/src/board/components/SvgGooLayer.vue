@@ -1,22 +1,6 @@
 <template>
   <svg v-if="groups.length > 0" :class="['goo-layer', 'goo-layer--svg', layerClass]" aria-hidden="true" focusable="false">
     <defs>
-      <filter
-        :id="gooFilterId"
-        filterUnits="userSpaceOnUse"
-        :x="gooFilterRegion.x"
-        :y="gooFilterRegion.y"
-        :width="gooFilterRegion.width"
-        :height="gooFilterRegion.height"
-      >
-        <feGaussianBlur in="SourceGraphic" :stdDeviation="gooConfig.blurStdDeviation" result="blur" />
-        <feColorMatrix
-          in="blur"
-          type="matrix"
-          :values="gooColorMatrixValues"
-          result="goo"
-        />
-      </filter>
       <template v-for="group in groups" :key="`${group.id}-clips`">
         <clipPath
           v-for="blob in group.blobs.filter(hasClipInsets)"
@@ -42,7 +26,7 @@
         '--goo-colour': group.colour,
         '--goo-radius': `${blobBorderRadiusPx}px`
       }"
-      :filter="`url(#${gooFilterId})`"
+      filter="url(#goo)"
     >
       <rect
         v-for="blob in group.blobs"
@@ -63,7 +47,6 @@
 <script setup lang="ts">
 import { useId } from 'vue';
 import type { GooRenderBlob, GooRenderGroup } from '../utils/gooLayout';
-import { gooConfig } from '../utils/gooConfig';
 
 withDefaults(defineProps<{
   groups: GooRenderGroup[];
@@ -77,19 +60,7 @@ withDefaults(defineProps<{
   blobClass: ''
 });
 
-const svgIdPrefix = sanitizeSvgIdPart(`goo-${useId()}`);
-const clipIdPrefix = `${svgIdPrefix}-clip`;
-const gooFilterId = `${svgIdPrefix}-filter`;
-const gooFilterRegion = {
-  x: -4096,
-  y: -4096,
-  width: 32768,
-  height: 32768
-};
-const gooColorMatrixValues = `1 0 0 0 0
-0 1 0 0 0
-0 0 1 0 0
-0 0 0 ${gooConfig.alphaMultiplier} ${gooConfig.alphaOffset}`;
+const clipIdPrefix = sanitizeSvgIdPart(`goo-clip-${useId()}`);
 
 function hasClipInsets(blob: GooRenderBlob) {
   return blob.clipInsets !== undefined;
