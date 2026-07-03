@@ -107,6 +107,7 @@
                 :error-message="newCardDraftErrors[column.id] ?? ''"
                 :input-ref="element => setNewCardDraftInput(column.id, element)"
                 @update:title="title => updateNewCardDraftTitle(column.id, title)"
+                @layout-change="refreshGooAfterInlineDraftLayoutChange"
                 @save="saveNewCardDraft(column.id)"
                 @cancel="closeNewCardDraft(column.id)"
               />
@@ -582,6 +583,7 @@ async function openNewCardDraft(columnId: number, cardTypeId: number | null = de
     newCardDrafts.value[columnId]!.cardTypeId = cardTypeId;
     delete newCardDraftErrors.value[columnId];
     newCardDraftInputs.value[columnId]?.focus();
+    void refreshGooAfterInlineDraftLayoutChange();
     return;
   }
 
@@ -593,6 +595,7 @@ async function openNewCardDraft(columnId: number, cardTypeId: number | null = de
   delete newCardDraftErrors.value[columnId];
   await nextTick();
   newCardDraftInputs.value[columnId]?.focus();
+  scheduleInlineDraftGooRefresh();
 }
 
 function openDefaultCardDraft(columnId: number) {
@@ -614,6 +617,7 @@ function closeNewCardDraft(columnId: number) {
   delete newCardDrafts.value[columnId];
   delete newCardDraftInputs.value[columnId];
   delete newCardDraftErrors.value[columnId];
+  void refreshGooAfterInlineDraftLayoutChange();
 }
 
 function setNewCardDraftInput(columnId: number, element: unknown) {
@@ -640,6 +644,17 @@ async function saveNewCardDraft(columnId: number) {
 
   newCardDraftErrors.value[columnId] = resolveCreateCardErrorMessage(result.error);
   newCardDraftInputs.value[columnId]?.focus();
+  void refreshGooAfterInlineDraftLayoutChange();
+}
+
+async function refreshGooAfterInlineDraftLayoutChange() {
+  await nextTick();
+  scheduleInlineDraftGooRefresh();
+}
+
+function scheduleInlineDraftGooRefresh() {
+  scheduleGooStructureRefresh();
+  scheduleSelectionGooStructureRefresh();
 }
 
 async function openCardEditor(cardId: number) {

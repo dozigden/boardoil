@@ -46,6 +46,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:title': [value: string];
+  'layout-change': [];
   save: [];
   cancel: [];
 }>();
@@ -80,6 +81,7 @@ function handleTitleInput(event: Event) {
 
   resizeTitleInput(target);
   emit('update:title', normalised);
+  emit('layout-change');
 }
 
 function resizeTitleInput(element: HTMLTextAreaElement) {
@@ -93,6 +95,7 @@ watch(
     await nextTick();
     if (titleInputRef.value) {
       resizeTitleInput(titleInputRef.value);
+      emit('layout-change');
     }
   },
   { immediate: true }
