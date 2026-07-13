@@ -19,6 +19,9 @@ public static class TagEndpoints
         tagEndpoints.MapGet(string.Empty, async (int boardId, ITagService tagService, HttpContext httpContext) =>
             (await tagService.GetTagsAsync(boardId, httpContext.GetActorUserId())).ToHttpResult());
 
+        tagEndpoints.MapGet("/create-default-style", async (int boardId, ITagService tagService, HttpContext httpContext) =>
+            (await tagService.GetCreateDefaultStyleAsync(boardId, httpContext.GetActorUserId())).ToHttpResult());
+
         tagEndpoints.MapPost(string.Empty, async (int boardId, CreateTagRequest request, ITagService tagService, HttpContext httpContext) =>
             (await tagService.CreateTagAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 

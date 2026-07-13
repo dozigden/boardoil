@@ -12,6 +12,7 @@ using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Ordering;
 using BoardOil.Services.Slick;
+using BoardOil.Services.Style;
 
 namespace BoardOil.Services.Card;
 
@@ -25,6 +26,7 @@ public sealed class BulkEditCardsService(
     IBoardAuthorisationService boardAuthorisationService,
     SlickCohesionPlacementResolver cohesionPlacementResolver,
     IBoardEvents boardEvents,
+    IBoardStyleDefaultService styleDefaultService,
     IDbContextScopeFactory scopeFactory)
 {
     private readonly ITagRepository _tagRepository = tagRepository;
@@ -106,13 +108,13 @@ public sealed class BulkEditCardsService(
             .ToList();
 
         var addTagEntities = hasTagEditOperation
-            ? await CardTagMutation.ResolveTagsAsync(boardId, addTagNames, _tagRepository)
+            ? await CardTagMutation.ResolveTagsAsync(boardId, addTagNames, _tagRepository, styleDefaultService)
             : [];
         var removeTagNameSet = hasTagEditOperation
             ? removeTagNames.Select(NormaliseTagName).ToHashSet(StringComparer.Ordinal)
             : [];
         var selectedSlick = hasSlickEditOperation
-            ? await CardSlickMutation.ResolveSlickAsync(boardId, request.Slick!.Name, slickRepository)
+            ? await CardSlickMutation.ResolveSlickAsync(boardId, request.Slick!.Name, slickRepository, styleDefaultService)
             : null;
         var selectedSlickId = selectedSlick?.Id;
 

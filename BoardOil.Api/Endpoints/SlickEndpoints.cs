@@ -19,6 +19,9 @@ public static class SlickEndpoints
         slickEndpoints.MapGet(string.Empty, async (int boardId, ISlickService slickService, HttpContext httpContext) =>
             (await slickService.GetSlicksAsync(boardId, httpContext.GetActorUserId())).ToHttpResult());
 
+        slickEndpoints.MapGet("/create-default-style", async (int boardId, ISlickService slickService, HttpContext httpContext) =>
+            (await slickService.GetCreateDefaultStyleAsync(boardId, httpContext.GetActorUserId())).ToHttpResult());
+
         slickEndpoints.MapPost(string.Empty, async (int boardId, CreateSlickRequest request, ISlickService slickService, HttpContext httpContext) =>
             (await slickService.CreateSlickAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 

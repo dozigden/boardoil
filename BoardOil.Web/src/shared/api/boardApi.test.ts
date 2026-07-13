@@ -249,6 +249,23 @@ describe('boardApi tags', () => {
     });
   });
 
+  it('loads a tag create default style', async () => {
+    vi.mocked(getEnvelope).mockResolvedValue(ok({
+      success: true,
+      data: {
+        styleName: 'presets',
+        stylePropertiesJson: '{"presetIndex":4,"textColorMode":"auto"}'
+      },
+      statusCode: 200
+    }));
+
+    const api = createBoardApi();
+    const result = await api.getTagCreateDefaultStyle(3);
+
+    expect(result.ok).toBe(true);
+    expect(getEnvelope).toHaveBeenCalledWith('/api/boards/3/tags/create-default-style');
+  });
+
   it('updates tag style with typed edit payload', async () => {
     vi.mocked(putData).mockResolvedValue(ok({
       id: 7,
@@ -393,6 +410,23 @@ describe('boardApi slicks', () => {
       styleName: 'presets',
       stylePropertiesJson: '{"presetIndex":2}'
     });
+  });
+
+  it('loads a slick create default style', async () => {
+    vi.mocked(getEnvelope).mockResolvedValue(ok({
+      success: true,
+      data: {
+        styleName: 'presets',
+        stylePropertiesJson: '{"presetIndex":6,"textColorMode":"auto"}'
+      },
+      statusCode: 200
+    }));
+
+    const api = createBoardApi();
+    const result = await api.getSlickCreateDefaultStyle(3);
+
+    expect(result.ok).toBe(true);
+    expect(getEnvelope).toHaveBeenCalledWith('/api/boards/3/slicks/create-default-style');
   });
 
   it('updates a slick', async () => {

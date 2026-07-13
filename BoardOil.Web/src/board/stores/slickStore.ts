@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { Slick, SlickEditModel } from '../../shared/types/boardTypes';
+import type { Slick, SlickEditModel, StyleDefault } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -57,6 +57,15 @@ export const useSlickStore = defineStore('slick', () => {
     }
 
     upsertSlick(result.data);
+    return result.data;
+  }
+
+  async function getCreateDefaultStyle(boardId: number): Promise<StyleDefault | null> {
+    const result = await runBusy(() => api.getSlickCreateDefaultStyle(boardId));
+    if (!result.ok) {
+      return null;
+    }
+
     return result.data;
   }
 
@@ -138,6 +147,7 @@ export const useSlickStore = defineStore('slick', () => {
     activeBoardId,
     dispose,
     loadSlicks,
+    getCreateDefaultStyle,
     createSlick,
     updateSlick,
     deleteSlick,

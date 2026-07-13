@@ -12,6 +12,7 @@ using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Slick;
+using BoardOil.Services.Style;
 
 namespace BoardOil.Services.Card;
 
@@ -28,6 +29,7 @@ public sealed class UpdateCardService(
     UpdateCardPlanner planner,
     SlickCohesionPlacementResolver cohesionPlacementResolver,
     IBoardEvents boardEvents,
+    IBoardStyleDefaultService styleDefaultService,
     IDbContextScopeFactory scopeFactory)
 {
     private readonly ITagRepository _tagRepository = tagRepository;
@@ -76,7 +78,7 @@ public sealed class UpdateCardService(
 
         var updatedTitle = request.Title.Trim();
         var updatedDescription = request.Description;
-        var updatedTags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames, _tagRepository);
+        var updatedTags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames, _tagRepository, styleDefaultService);
 
         var selectedCardType = await cardTypeRepository.GetByIdInBoardAsync(boardId, request.CardTypeId);
         var cardTypeSelection = planner.SelectCardType(selectedCardType);
@@ -85,7 +87,7 @@ public sealed class UpdateCardService(
             return cardTypeSelection.Error;
         }
 
-        var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository);
+        var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository, styleDefaultService);
         var selectedSlickId = selectedSlick?.Id;
 
         var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(requestedColumnId))

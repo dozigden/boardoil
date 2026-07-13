@@ -161,7 +161,14 @@ const slickStore = useSlickStore();
 const { confirm } = useConfirm();
 const { currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(slickStore);
-const { createSlick, updateSlick, deleteSlick, getSlickById, loadSlicks } = slickStore;
+const {
+  createSlick,
+  updateSlick,
+  deleteSlick,
+  getSlickById,
+  loadSlicks,
+  getCreateDefaultStyle
+} = slickStore;
 const { removeSlickFromCards } = cardStore;
 const {
   draft,
@@ -316,12 +323,26 @@ async function deleteEditingSlick() {
   await closeSlickEditor();
 }
 
-function initialiseCreateDraftState() {
+async function initialiseCreateDraftState(nextBoardId: number) {
+  if (draftSourceKey.value === 'create' && draft.value !== null) {
+    return;
+  }
+
+  if (draftSourceKey.value === 'create:loading') {
+    return;
+  }
+
+  draftSourceKey.value = 'create:loading';
+  const defaultStyle = await getCreateDefaultStyle(nextBoardId);
+  if (!isCreateMode.value || boardId.value !== nextBoardId) {
+    return;
+  }
+
   draftSlickName.value = '';
   draftSourceKey.value = 'create';
   setDraft(createStyleDraft({
-    styleName: 'presets',
-    stylePropertiesJson: '{"presetIndex":2}'
+    styleName: defaultStyle?.styleName ?? 'presets',
+    stylePropertiesJson: defaultStyle?.stylePropertiesJson ?? '{"presetIndex":2}'
   }));
 }
 
@@ -338,10 +359,7 @@ watch(
   [boardId, routeSlickId, isCreateMode, editingSlick],
   async ([nextBoardId, nextSlickId, nextIsCreate, nextSlick]) => {
     if (nextIsCreate) {
-      if (draftSourceKey.value !== 'create') {
-        initialiseCreateDraftState();
-      }
-
+      await initialiseCreateDraftState(nextBoardId);
       return;
     }
 

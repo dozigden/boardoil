@@ -11,6 +11,7 @@ using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Slick;
+using BoardOil.Services.Style;
 
 namespace BoardOil.Services.Card;
 
@@ -25,6 +26,7 @@ public sealed class CreateCardService(
     ICardValidator validator,
     CreateCardPlanner planner,
     IBoardEvents boardEvents,
+    IBoardStyleDefaultService styleDefaultService,
     IDbContextScopeFactory scopeFactory)
 {
     private readonly ITagRepository _tagRepository = tagRepository;
@@ -89,8 +91,12 @@ public sealed class CreateCardService(
         }
 
         var draft = draftResult.Draft!.Value;
-        var tags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames ?? Array.Empty<string>(), _tagRepository);
-        var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository);
+        var tags = await CardTagMutation.ResolveTagsAsync(
+            boardId,
+            request.TagNames ?? Array.Empty<string>(),
+            _tagRepository,
+            styleDefaultService);
+        var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository, styleDefaultService);
 
         var card = new EntityBoardCard
         {

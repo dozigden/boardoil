@@ -1,6 +1,6 @@
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Slick;
-using BoardOil.Services.Tag;
+using BoardOil.Services.Style;
 
 namespace BoardOil.Services.Card;
 
@@ -9,7 +9,8 @@ internal static class CardSlickMutation
     public static async Task<EntitySlick?> ResolveSlickAsync(
         int boardId,
         string? slickName,
-        ISlickRepository slickRepository)
+        ISlickRepository slickRepository,
+        IBoardStyleDefaultService styleDefaultService)
     {
         if (string.IsNullOrWhiteSpace(slickName))
         {
@@ -18,19 +19,22 @@ internal static class CardSlickMutation
 
         var canonicalName = slickName.Trim();
         var normalisedName = canonicalName.ToUpperInvariant();
-        var existing = await slickRepository.GetByNormalisedNameAsync(boardId, normalisedName);
+        var existingSlicks = await slickRepository.GetAllForBoardAsync(boardId);
+        var existing = existingSlicks.FirstOrDefault(x => x.NormalisedName == normalisedName);
         if (existing is not null)
         {
             return existing;
         }
 
+        var defaultStyle = styleDefaultService.BuildCreateDefaultStyle(
+            existingSlicks.Select(x => new BoardStyleDefaultCandidate(x.StyleName, x.StylePropertiesJson)));
         var created = new EntitySlick
         {
             BoardId = boardId,
             Name = canonicalName,
             NormalisedName = normalisedName,
-            StyleName = TagStyleSchemaValidator.PresetsStyleName,
-            StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
+            StyleName = defaultStyle.StyleName,
+            StylePropertiesJson = defaultStyle.StylePropertiesJson,
         };
         slickRepository.Add(created);
         return created;

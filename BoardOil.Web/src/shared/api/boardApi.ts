@@ -19,10 +19,9 @@ import type {
   DeleteCardsSummary,
   Slick,
   SlickEditModel,
-  SlickStyleName,
+  StyleDefault,
   Tag,
-  TagEditModel,
-  TagStyleName
+  TagEditModel
 } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
@@ -286,6 +285,22 @@ export function createBoardApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
+  async function getTagCreateDefaultStyle(boardId: number): Promise<Result<StyleDefault, AppError>> {
+    const envelopeResult = await getEnvelope<StyleDefault>(`/api/boards/${boardId}/tags/create-default-style`);
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    if (!envelopeResult.data.data) {
+      return err({
+        kind: 'api',
+        message: envelopeResult.data.message ?? 'Failed to load tag default style.'
+      });
+    }
+
+    return ok(envelopeResult.data.data);
+  }
+
   async function createTag(boardId: number, name: string, emoji?: string | null): Promise<Result<Tag, AppError>> {
     const payload: { name: string; emoji?: string | null } = { name };
     if (emoji !== undefined) {
@@ -348,6 +363,22 @@ export function createBoardApi() {
     return ok(envelopeResult.data.data ?? []);
   }
 
+  async function getSlickCreateDefaultStyle(boardId: number): Promise<Result<StyleDefault, AppError>> {
+    const envelopeResult = await getEnvelope<StyleDefault>(`/api/boards/${boardId}/slicks/create-default-style`);
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    if (!envelopeResult.data.data) {
+      return err({
+        kind: 'api',
+        message: envelopeResult.data.message ?? 'Failed to load slick default style.'
+      });
+    }
+
+    return ok(envelopeResult.data.data);
+  }
+
   async function createSlick(
     boardId: number,
     model: SlickEditModel
@@ -398,6 +429,7 @@ export function createBoardApi() {
     getArchivedCards,
     getArchivedCard,
     getTags,
+    getTagCreateDefaultStyle,
     createTag,
     updateTagStyle,
     deleteTag,
@@ -407,6 +439,7 @@ export function createBoardApi() {
     setDefaultCardType,
     deleteCardType,
     getSlicks,
+    getSlickCreateDefaultStyle,
     createSlick,
     updateSlick,
     deleteSlick

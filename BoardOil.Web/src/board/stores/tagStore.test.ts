@@ -7,6 +7,7 @@ import type { Tag } from '../../shared/types/boardTypes';
 
 const api = {
   getTags: vi.fn(),
+  getTagCreateDefaultStyle: vi.fn(),
   createTag: vi.fn(),
   updateTagStyle: vi.fn(),
   deleteTag: vi.fn()
@@ -21,6 +22,10 @@ describe('tagStore', () => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     api.getTags.mockResolvedValue(ok([]));
+    api.getTagCreateDefaultStyle.mockResolvedValue(ok({
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":4,"textColorMode":"auto"}'
+    }));
     api.createTag.mockResolvedValue(ok(makeTag(7, 'Release', 'auto', '{}', null)));
     api.updateTagStyle.mockResolvedValue(ok(makeTag(7, 'Release', 'presets', '{"presetIndex":2,"textColorMode":"auto"}', null)));
     api.deleteTag.mockResolvedValue(ok(undefined));
@@ -74,6 +79,15 @@ describe('tagStore', () => {
     expect(result?.savedTag?.id).toBe(7);
     expect(api.createTag).toHaveBeenCalledWith(3, 'Release', '🚀');
     expect(api.updateTagStyle).toHaveBeenCalledWith(3, 7, model);
+  });
+
+  it('loads create default style', async () => {
+    const store = useTagStore();
+
+    const defaultStyle = await store.getCreateDefaultStyle(3);
+
+    expect(defaultStyle?.stylePropertiesJson).toBe('{"presetIndex":4,"textColorMode":"auto"}');
+    expect(api.getTagCreateDefaultStyle).toHaveBeenCalledWith(3);
   });
 
   it('saveTag update flow updates existing tag from typed model', async () => {

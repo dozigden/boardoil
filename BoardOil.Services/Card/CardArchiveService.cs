@@ -14,6 +14,7 @@ using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Services.Ordering;
+using BoardOil.Services.Style;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Users;
 using System.Text;
@@ -34,6 +35,7 @@ public sealed class CardArchiveService(
     ITagRepository tagRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
+    IBoardStyleDefaultService styleDefaultService,
     IDbContextScopeFactory scopeFactory) : ICardArchiveService
 {
     private const int MaxArchiveSnapshotJsonBytes = 2_097_152;
@@ -382,7 +384,7 @@ public sealed class CardArchiveService(
     {
         if (!string.IsNullOrWhiteSpace(snapshotSlickName))
         {
-            return await CardSlickMutation.ResolveSlickAsync(boardId, snapshotSlickName, slickRepository);
+            return await CardSlickMutation.ResolveSlickAsync(boardId, snapshotSlickName, slickRepository, styleDefaultService);
         }
 
         if (snapshotSlickId is null)

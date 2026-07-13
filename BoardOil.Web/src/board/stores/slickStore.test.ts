@@ -6,6 +6,7 @@ import { err, ok } from '../../shared/types/result';
 
 const api = {
   getSlicks: vi.fn(),
+  getSlickCreateDefaultStyle: vi.fn(),
   createSlick: vi.fn(),
   updateSlick: vi.fn(),
   deleteSlick: vi.fn()
@@ -20,6 +21,10 @@ describe('slickStore', () => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     api.getSlicks.mockResolvedValue(ok([]));
+    api.getSlickCreateDefaultStyle.mockResolvedValue(ok({
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":5,"textColorMode":"auto"}'
+    }));
     api.createSlick.mockResolvedValue(ok(makeSlick(7, 'Release Train', 'presets', '{"presetIndex":2}')));
     api.updateSlick.mockResolvedValue(ok(makeSlick(7, 'Release Train', 'solid', '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}')));
     api.deleteSlick.mockResolvedValue(ok(undefined));
@@ -74,6 +79,15 @@ describe('slickStore', () => {
       stylePropertiesJson: '{"presetIndex":2}'
     });
     expect(store.slicks.map(x => x.name)).toEqual(['Release Train']);
+  });
+
+  it('loads create default style', async () => {
+    const store = useSlickStore();
+
+    const defaultStyle = await store.getCreateDefaultStyle(3);
+
+    expect(defaultStyle?.stylePropertiesJson).toBe('{"presetIndex":5,"textColorMode":"auto"}');
+    expect(api.getSlickCreateDefaultStyle).toHaveBeenCalledWith(3);
   });
 
   it('updates slick in cache', async () => {

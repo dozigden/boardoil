@@ -19,6 +19,7 @@ using BoardOil.Services.Column;
 using BoardOil.Services.Image;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Slick;
+using BoardOil.Services.Style;
 using BoardOil.Services.Users;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -58,6 +59,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICardCommentService, CardCommentService>();
         services.AddScoped<ICardArchiveService, CardArchiveService>();
         services.AddScoped<ICardTypeService, CardTypeService>();
+        services.AddScoped<IBoardStyleDefaultService, BoardStyleDefaultService>();
         services.AddScoped<ITagService, TagService>();
         services.AddScoped<ISlickService, SlickService>();
         services.AddScoped<IClientAccountService, ClientAccountService>();

@@ -41,10 +41,32 @@ public sealed class TagServiceTests : TestBaseDb
 
         using var styleProperties = JsonDocument.Parse(stored.StylePropertiesJson);
         Assert.True(styleProperties.RootElement.TryGetProperty("presetIndex", out var presetIndex));
-        Assert.Equal(2, presetIndex.GetInt32());
+        Assert.InRange(presetIndex.GetInt32(), 0, 7);
         Assert.True(styleProperties.RootElement.TryGetProperty("textColorMode", out var textColorMode));
         Assert.Equal("auto", textColorMode.GetString());
         Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
+    }
+
+    [Fact]
+    public async Task CreateTagAsync_WhenPresetUnused_ShouldPreferUnusedPreset()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        SeedPresetTags(boardId, 0, 1, 2, 3, 4, 5, 6);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.CreateTagAsync(boardId, new CreateTagRequest("Bug"), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("presets", result.Data!.StyleName);
+        Assert.Equal(7, ReadPresetIndex(result.Data.StylePropertiesJson));
     }
 
     [Fact]
@@ -675,6 +697,24 @@ public sealed class TagServiceTests : TestBaseDb
     private TagService CreateService()
     {
         return ResolveService<TagService>();
+    }
+
+    private void SeedPresetTags(int boardId, params int[] presetIndexes)
+    {
+        DbContextForArrange.Tags.AddRange(presetIndexes.Select(presetIndex => new TagEntity
+        {
+            BoardId = boardId,
+            Name = $"Tag {presetIndex}",
+            NormalisedName = $"TAG {presetIndex}",
+            StyleName = "presets",
+            StylePropertiesJson = $$"""{"presetIndex":{{presetIndex}},"textColorMode":"auto"}""",
+        }));
+    }
+
+    private static int ReadPresetIndex(string stylePropertiesJson)
+    {
+        using var document = JsonDocument.Parse(stylePropertiesJson);
+        return document.RootElement.GetProperty("presetIndex").GetInt32();
     }
 
     private TestBoardEvents ResolveBoardEvents() =>

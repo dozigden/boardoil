@@ -3,6 +3,7 @@ using BoardOil.Abstractions.Slick;
 using BoardOil.Contracts.Slick;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Xunit;
 using SlickEntity = BoardOil.Data.Abstractions.Entities.EntitySlick;
 
@@ -35,6 +36,31 @@ public sealed class SlickServiceTests : TestBaseDb
         var stored = await DbContextForAssert.Slicks.SingleAsync();
         Assert.Equal("RELEASE TRAIN", stored.NormalisedName);
         Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
+    }
+
+    [Fact]
+    public async Task CreateSlickAsync_WhenStyleOmitted_ShouldPreferUnusedPreset()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        SeedPresetSlicks(boardId, 0, 1, 2, 3, 4, 5, 6);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.CreateSlickAsync(
+            boardId,
+            new CreateSlickRequest("Release train"),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("presets", result.Data!.StyleName);
+        Assert.Equal(7, ReadPresetIndex(result.Data.StylePropertiesJson));
     }
 
     [Fact]
@@ -168,6 +194,24 @@ public sealed class SlickServiceTests : TestBaseDb
     }
 
     private ISlickService CreateService() => ResolveService<ISlickService>();
+
+    private void SeedPresetSlicks(int boardId, params int[] presetIndexes)
+    {
+        DbContextForArrange.Slicks.AddRange(presetIndexes.Select(presetIndex => new SlickEntity
+        {
+            BoardId = boardId,
+            Name = $"Slick {presetIndex}",
+            NormalisedName = $"SLICK {presetIndex}",
+            StyleName = "presets",
+            StylePropertiesJson = $$"""{"presetIndex":{{presetIndex}},"textColorMode":"auto"}""",
+        }));
+    }
+
+    private static int ReadPresetIndex(string stylePropertiesJson)
+    {
+        using var document = JsonDocument.Parse(stylePropertiesJson);
+        return document.RootElement.GetProperty("presetIndex").GetInt32();
+    }
 
     private TestBoardEvents ResolveBoardEvents() =>
         Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());

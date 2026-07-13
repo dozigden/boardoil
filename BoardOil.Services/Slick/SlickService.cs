@@ -4,8 +4,10 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Slick;
 using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Slick;
+using BoardOil.Contracts.Style;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Slick;
+using BoardOil.Services.Style;
 using BoardOil.Services.Tag;
 
 namespace BoardOil.Services.Slick;
@@ -15,6 +17,7 @@ public sealed class SlickService(
     ISlickRepository slickRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
+    IBoardStyleDefaultService styleDefaultService,
     IDbContextScopeFactory scopeFactory) : ISlickService
 {
     public async Task<ApiResult<IReadOnlyList<SlickDto>>> GetSlicksAsync(int boardId, int actorUserId)
@@ -34,6 +37,24 @@ public sealed class SlickService(
 
         var slicks = await slickRepository.GetAllForBoardAsync(boardId);
         return slicks.Select(x => x.ToSlickDto()).ToList();
+    }
+
+    public async Task<ApiResult<StyleDefaultDto>> GetCreateDefaultStyleAsync(int boardId, int actorUserId)
+    {
+        using var scope = scopeFactory.CreateReadOnly();
+
+        if (boardRepository.Get(boardId) is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.TagManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        return await styleDefaultService.GetSlickCreateDefaultStyleAsync(boardId);
     }
 
     public async Task<ApiResult<SlickDto>> CreateSlickAsync(int boardId, CreateSlickRequest request, int actorUserId)
@@ -67,7 +88,7 @@ public sealed class SlickService(
             }
         }
 
-        var styleValidation = ResolveAndValidateStyle(request.StyleName, request.StylePropertiesJson);
+        var styleValidation = await ResolveAndValidateCreateStyleAsync(boardId, request.StyleName, request.StylePropertiesJson);
         if (styleValidation.Error is not null)
         {
             validationErrors.Add(styleValidation.Error);
@@ -206,6 +227,22 @@ public sealed class SlickService(
         }
 
         return new SlickStyleValidationResult(normalisedStyleName, resolvedStylePropertiesJson, null);
+    }
+
+    private async Task<SlickStyleValidationResult> ResolveAndValidateCreateStyleAsync(
+        int boardId,
+        string? styleName,
+        string? stylePropertiesJson)
+    {
+        var hasRequestedStyleName = !string.IsNullOrWhiteSpace(styleName);
+        var hasRequestedStyleProperties = !string.IsNullOrWhiteSpace(stylePropertiesJson);
+        if (!hasRequestedStyleName && !hasRequestedStyleProperties)
+        {
+            var defaultStyle = await styleDefaultService.GetSlickCreateDefaultStyleAsync(boardId);
+            return new SlickStyleValidationResult(defaultStyle.StyleName, defaultStyle.StylePropertiesJson, null);
+        }
+
+        return ResolveAndValidateStyle(styleName, stylePropertiesJson);
     }
 
     private static string? NormaliseSlickStyleName(string styleName)

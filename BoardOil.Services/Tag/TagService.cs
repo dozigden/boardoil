@@ -3,10 +3,12 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Tag;
 using BoardOil.Contracts.Common;
+using BoardOil.Contracts.Style;
 using BoardOil.Contracts.Tag;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Tag;
+using BoardOil.Services.Style;
 
 namespace BoardOil.Services.Tag;
 
@@ -15,6 +17,7 @@ public sealed class TagService(
     ITagRepository tagRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
+    IBoardStyleDefaultService styleDefaultService,
     IDbContextScopeFactory scopeFactory) : ITagService
 {
     private const int MaxTagNameLength = 40;
@@ -38,6 +41,24 @@ public sealed class TagService(
 
         var tags = await tagRepository.GetAllForBoardAsync(boardId);
         return tags.Select(x => x.ToTagDto()).ToList();
+    }
+
+    public async Task<ApiResult<StyleDefaultDto>> GetCreateDefaultStyleAsync(int boardId, int actorUserId)
+    {
+        using var scope = _scopeFactory.CreateReadOnly();
+
+        if (boardRepository.Get(boardId) is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.TagManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        return await styleDefaultService.GetTagCreateDefaultStyleAsync(boardId);
     }
 
     public async Task<ApiResult<TagDto>> CreateTagAsync(int boardId, CreateTagRequest request, int actorUserId)
@@ -79,14 +100,14 @@ public sealed class TagService(
             return ApiResults.Ok(existing.ToTagDto());
         }
 
-        var now = DateTime.UtcNow;
+        var defaultStyle = await styleDefaultService.GetTagCreateDefaultStyleAsync(boardId);
         tagRepository.Add(new EntityTag
         {
             BoardId = boardId,
             Name = tagValidation.CanonicalName,
             NormalisedName = tagValidation.NormalisedName,
-            StyleName = TagStyleSchemaValidator.PresetsStyleName,
-            StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
+            StyleName = defaultStyle.StyleName,
+            StylePropertiesJson = defaultStyle.StylePropertiesJson,
             Emoji = emojiValidation.CanonicalEmoji,
         });
 

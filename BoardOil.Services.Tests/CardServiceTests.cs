@@ -6,6 +6,7 @@ using BoardOil.Ef.Repositories;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Xunit;
 using ArchivedCardEntity = BoardOil.Data.Abstractions.Entities.EntityArchivedCard;
 using CardTypeEntity = BoardOil.Data.Abstractions.Entities.EntityCardType;
@@ -1520,6 +1521,60 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task CreateCardAsync_WhenTagMissing_ShouldUseUnusedPresetStyle()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddColumn("Doing")
+            .Build();
+        await SeedPresetTagsForArrangeAsync(board.BoardId, 0, 1, 2, 3, 4, 5, 6);
+        var todoColumnId = board.GetColumn("Todo").Id;
+
+        // Act
+        var service = CreateService();
+        var result = await service.CreateCardAsync(
+            1,
+            new CreateCardRequest(todoColumnId, "ValidTitle", "Desc", ["NewTag"]),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var storedTag = await DbContextForAssert.Tags.SingleAsync(x => x.Name == "NewTag");
+        Assert.Equal("presets", storedTag.StyleName);
+        Assert.Equal(7, ReadPresetIndex(storedTag.StylePropertiesJson));
+    }
+
+    [Fact]
+    public async Task UpdateCardAsync_WhenSlickMissing_ShouldUseUnusedPresetStyle()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Title", "Old")
+            .AddColumn("Doing")
+            .Build();
+        await SeedPresetSlicksForArrangeAsync(board.BoardId, 0, 1, 2, 3, 4, 5, 6);
+        var cardId = board.GetCard("Todo", "Title").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+
+        // Act
+        var service = CreateService();
+        var result = await service.UpdateCardAsync(1, cardId, new UpdateCardRequest(
+            Title: "Title",
+            Description: "Old",
+            TagNames: [],
+            CardTypeId: systemCardTypeId,
+            SlickName: "New Slick"), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        var storedSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.Name == "New Slick");
+        Assert.Equal("presets", storedSlick.StyleName);
+        Assert.Equal(7, ReadPresetIndex(storedSlick.StylePropertiesJson));
+    }
+
+    [Fact]
     public async Task UpdateCardAsync_WhenTagMissing_ShouldAutoCreateTagAndAssignIt()
     {
         // Arrange
@@ -1642,6 +1697,38 @@ public sealed class CardServiceTests : TestBaseDb
             StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
         }));
         await DbContextForArrange.SaveChangesAsync();
+    }
+
+    private async Task SeedPresetTagsForArrangeAsync(int boardId, params int[] presetIndexes)
+    {
+        DbContextForArrange.Tags.AddRange(presetIndexes.Select(presetIndex => new TagEntity
+        {
+            BoardId = boardId,
+            Name = $"Tag {presetIndex}",
+            NormalisedName = $"TAG {presetIndex}",
+            StyleName = "presets",
+            StylePropertiesJson = $$"""{"presetIndex":{{presetIndex}},"textColorMode":"auto"}""",
+        }));
+        await DbContextForArrange.SaveChangesAsync();
+    }
+
+    private async Task SeedPresetSlicksForArrangeAsync(int boardId, params int[] presetIndexes)
+    {
+        DbContextForArrange.Slicks.AddRange(presetIndexes.Select(presetIndex => new SlickEntity
+        {
+            BoardId = boardId,
+            Name = $"Slick {presetIndex}",
+            NormalisedName = $"SLICK {presetIndex}",
+            StyleName = "presets",
+            StylePropertiesJson = $$"""{"presetIndex":{{presetIndex}},"textColorMode":"auto"}""",
+        }));
+        await DbContextForArrange.SaveChangesAsync();
+    }
+
+    private static int ReadPresetIndex(string stylePropertiesJson)
+    {
+        using var document = JsonDocument.Parse(stylePropertiesJson);
+        return document.RootElement.GetProperty("presetIndex").GetInt32();
     }
 
     private Task<int> GetSystemCardTypeIdForBoardAsync(int boardId) =>

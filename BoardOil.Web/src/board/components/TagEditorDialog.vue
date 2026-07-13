@@ -207,7 +207,14 @@ const { confirm } = useConfirm();
 const feedbackStore = useUiFeedbackStore();
 const { currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(tagStore);
-const { saveTag: saveTagAction, deleteTag, getTagById, getTagByName, loadTags } = tagStore;
+const {
+  saveTag: saveTagAction,
+  deleteTag,
+  getTagById,
+  getTagByName,
+  loadTags,
+  getCreateDefaultStyle
+} = tagStore;
 const {
   draft,
   stylePropertiesJson,
@@ -397,18 +404,24 @@ function clearDraftState() {
   draftSourceKey.value = null;
 }
 
-function initialiseCreateDraftState() {
+async function initialiseCreateDraftState(nextBoardId: number) {
   if (draftSourceKey.value === 'create' && draft.value !== null) {
     return;
   }
 
-  const randomPresetIndex = Math.floor(Math.random() * presetColours.length);
+  if (draftSourceKey.value === 'create:loading') {
+    return;
+  }
+
+  draftSourceKey.value = 'create:loading';
+  const defaultStyle = await getCreateDefaultStyle(nextBoardId);
+  if (!isCreateMode.value || boardId.value !== nextBoardId) {
+    return;
+  }
+
   setDraft(createTagStyleDraft({
-    styleName: 'presets',
-    stylePropertiesJson: JSON.stringify({
-      presetIndex: randomPresetIndex,
-      textColorMode: 'auto'
-    }),
+    styleName: defaultStyle?.styleName ?? 'presets',
+    stylePropertiesJson: defaultStyle?.stylePropertiesJson ?? DEFAULT_TAG_STYLE_PROPERTIES_JSON,
     emoji: null
   }));
   draftEmoji.value = null;
@@ -432,7 +445,7 @@ watch(
   [boardId, routeTagId, isCreateMode, editingTag],
   async ([nextBoardId, nextTagId, nextIsCreate, nextTag]) => {
     if (nextIsCreate) {
-      initialiseCreateDraftState();
+      await initialiseCreateDraftState(nextBoardId);
       return;
     }
 

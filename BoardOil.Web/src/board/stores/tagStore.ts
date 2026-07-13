@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { Tag, TagEditModel } from '../../shared/types/boardTypes';
+import type { StyleDefault, Tag, TagEditModel } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -45,6 +45,15 @@ export const useTagStore = defineStore('tag', () => {
 
   async function createTag(boardId: number, tagName: string, emoji?: string | null) {
     return createTagForBoard(boardId, tagName, emoji);
+  }
+
+  async function getCreateDefaultStyle(boardId: number): Promise<StyleDefault | null> {
+    const result = await runBusy(() => api.getTagCreateDefaultStyle(boardId));
+    if (!result.ok) {
+      return null;
+    }
+
+    return result.data;
   }
 
   async function ensureTagsExist(boardId: number, tagNames: string[]) {
@@ -203,6 +212,7 @@ export const useTagStore = defineStore('tag', () => {
     activeBoardId,
     dispose,
     loadTags,
+    getCreateDefaultStyle,
     createTag,
     ensureTagsExist,
     updateTagStyle,

@@ -2,6 +2,11 @@ export type TagStyleName = 'solid' | 'gradient' | 'auto' | 'presets';
 export type SlickStyleName = 'solid' | 'presets';
 export type BoardMemberRole = 'Owner' | 'Contributor' | string;
 
+export type StyleDefault = {
+  styleName: TagStyleName;
+  stylePropertiesJson: string;
+};
+
 export type TagPresentation = {
   styleName: TagStyleName;
   stylePropertiesJson: string;
