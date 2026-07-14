@@ -25,7 +25,10 @@
           aria-label="Card filter matrix"
         >
           <div class="board-card-filter-menu-content">
-            <section v-if="availableTagNames.length > 0" class="board-card-filter-section">
+            <section
+              v-if="availableTagNames.length > 0"
+              class="board-card-filter-section"
+            >
               <TagTriStateMatrix
                 :available-tag-names="availableTagNames"
                 :states="tagFilterStates"
@@ -41,7 +44,10 @@
               />
             </section>
 
-            <section v-if="availableSlickNames.length > 0" class="board-card-filter-section">
+            <section
+              v-if="availableSlickNames.length > 0"
+              class="board-card-filter-section"
+            >
               <TagTriStateMatrix
                 :available-tag-names="availableSlickNames"
                 :states="slickFilterStates"
@@ -58,6 +64,28 @@
                 @update:states="emit('update:slickFilterStates', $event)"
               />
             </section>
+
+            <section
+              v-if="availableCardTypeLabels.length > 0"
+              class="board-card-filter-section"
+            >
+              <TagTriStateMatrix
+                :available-tag-names="availableCardTypeLabels"
+                :states="cardTypeFilterStates"
+                :labels="{ left: 'Exclude', middle: 'Type', right: 'Include' }"
+                :ariaLabel="'Card type filter matrix'"
+                semantic-scope="card"
+                left-action-prefix="Move to exclude"
+                middle-action-prefix="Move to card type"
+                right-action-prefix="Move to include"
+                :show-directional-cursor="true"
+                :enable-bounce="true"
+                scroll-mode="parent"
+                :state-keys-by-name="cardTypeStateKeysByLabel"
+                :styled-items-by-name="cardTypeStylesByLabel"
+                @update:states="emit('update:cardTypeFilterStates', $event)"
+              />
+            </section>
           </div>
         </section>
       </div>
@@ -68,7 +96,7 @@
 <script setup lang="ts">
 import { Filter } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import type { Slick } from '../../shared/types/boardTypes';
+import type { CardType, Slick } from '../../shared/types/boardTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import type { StylePresentation } from '../../shared/utils/styleTypes';
 import { useClickOutside } from '../../shared/composables/useClickOutside';
@@ -77,8 +105,10 @@ import TagTriStateMatrix from './TagTriStateMatrix.vue';
 const props = defineProps<{
   availableTagNames: string[];
   availableSlicks: Slick[];
+  availableCardTypes: CardType[];
   tagFilterStates: TagFilterStateMap;
   slickFilterStates: TagFilterStateMap;
+  cardTypeFilterStates: TagFilterStateMap;
   hasActiveFilters: boolean;
   open: boolean;
 }>();
@@ -86,6 +116,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:tagFilterStates': [next: TagFilterStateMap];
   'update:slickFilterStates': [next: TagFilterStateMap];
+  'update:cardTypeFilterStates': [next: TagFilterStateMap];
   'update:open': [open: boolean];
 }>();
 
@@ -115,6 +146,33 @@ const slickStylesByName = computed<Record<string, StylePresentation>>(() => {
   }
 
   return byName;
+});
+
+const availableCardTypeLabels = computed(() =>
+  props.availableCardTypes
+    .map(formatCardTypeLabel)
+    .sort((left, right) => left.localeCompare(right))
+);
+
+const cardTypeStateKeysByLabel = computed<Record<string, string>>(() => {
+  const byLabel: Record<string, string> = {};
+  for (const cardType of props.availableCardTypes) {
+    byLabel[normaliseName(formatCardTypeLabel(cardType))] = String(cardType.id);
+  }
+
+  return byLabel;
+});
+
+const cardTypeStylesByLabel = computed<Record<string, StylePresentation>>(() => {
+  const byLabel: Record<string, StylePresentation> = {};
+  for (const cardType of props.availableCardTypes) {
+    byLabel[normaliseName(formatCardTypeLabel(cardType))] = {
+      styleName: cardType.styleName,
+      stylePropertiesJson: cardType.stylePropertiesJson
+    };
+  }
+
+  return byLabel;
 });
 
 const menuStyle = computed(() => ({
@@ -168,6 +226,15 @@ watch(() => props.availableSlicks.length, async () => {
   updateMenuShift();
 });
 
+watch(() => props.availableCardTypes.length, async () => {
+  if (!props.open) {
+    return;
+  }
+
+  await nextTick();
+  updateMenuShift();
+});
+
 onMounted(() => {
   window.addEventListener('resize', updateMenuShift);
 });
@@ -182,6 +249,10 @@ useClickOutside(dropdownRoot, () => {
 
 function normaliseName(name: string) {
   return name.trim().toLocaleLowerCase();
+}
+
+function formatCardTypeLabel(cardType: CardType) {
+  return cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name;
 }
 </script>
 

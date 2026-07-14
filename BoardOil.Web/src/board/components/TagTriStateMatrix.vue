@@ -34,7 +34,12 @@
         <span
           v-else-if="getState(tagName) === leftState"
           class="tag tag-tri-state-styled-item"
-          :class="[...getStyledItemClasses(tagName), getTagNudgeClass(tagName, leftState)]"
+          :class="[
+            { 'tag-tri-state-styled-item--card': props.semanticScope === 'card' },
+            { 'tag-tri-state-styled-item--slick': props.semanticScope === 'slick' },
+            ...getStyledItemClasses(tagName),
+            getTagNudgeClass(tagName, leftState)
+          ]"
           :style="getStyledItemStyle(tagName)"
         >
           <span class="tag-label">{{ tagName }}</span>
@@ -60,7 +65,12 @@
         <span
           v-else-if="getState(tagName) === 'none'"
           class="tag tag-tri-state-styled-item"
-          :class="[...getStyledItemClasses(tagName), getTagNudgeClass(tagName, 'none')]"
+          :class="[
+            { 'tag-tri-state-styled-item--card': props.semanticScope === 'card' },
+            { 'tag-tri-state-styled-item--slick': props.semanticScope === 'slick' },
+            ...getStyledItemClasses(tagName),
+            getTagNudgeClass(tagName, 'none')
+          ]"
           :style="getStyledItemStyle(tagName)"
         >
           <span class="tag-label">{{ tagName }}</span>
@@ -86,7 +96,12 @@
         <span
           v-else-if="getState(tagName) === rightState"
           class="tag tag-tri-state-styled-item"
-          :class="[...getStyledItemClasses(tagName), getTagNudgeClass(tagName, rightState)]"
+          :class="[
+            { 'tag-tri-state-styled-item--card': props.semanticScope === 'card' },
+            { 'tag-tri-state-styled-item--slick': props.semanticScope === 'slick' },
+            ...getStyledItemClasses(tagName),
+            getTagNudgeClass(tagName, rightState)
+          ]"
           :style="getStyledItemStyle(tagName)"
         >
           <span class="tag-label">{{ tagName }}</span>
@@ -120,8 +135,9 @@ const props = withDefaults(defineProps<{
   enableBounce?: boolean;
   scrollMode?: 'self' | 'parent';
   stickyTopOffsetPx?: number;
+  stateKeysByName?: Record<string, string>;
   styledItemsByName?: Record<string, StylePresentation>;
-  semanticScope?: 'tag' | 'slick';
+  semanticScope?: 'tag' | 'card' | 'slick';
 }>(), {
   leftState: 'exclude',
   rightState: 'include',
@@ -131,6 +147,7 @@ const props = withDefaults(defineProps<{
   enableBounce: true,
   scrollMode: 'self',
   stickyTopOffsetPx: 0,
+  stateKeysByName: () => ({}),
   styledItemsByName: () => ({}),
   semanticScope: 'tag'
 });
@@ -163,33 +180,42 @@ function getStyledItemStyle(tagName: string) {
     return {};
   }
 
-  return getSurfaceStyle(styledItem, {
+  const surfaceStyle = getSurfaceStyle(styledItem, {
     fallbackBackground: 'var(--bo-surface-base)',
     fallbackColor: 'var(--bo-ink-strong)',
     fallbackBorderColor: 'var(--bo-border-soft)'
   });
+
+  if (props.semanticScope !== 'slick') {
+    return surfaceStyle;
+  }
+
+  const slickBorderColor = surfaceStyle.background ?? surfaceStyle.borderColor;
+  return typeof slickBorderColor === 'string' && slickBorderColor.trim().length > 0
+    ? { borderColor: slickBorderColor }
+    : {};
 }
 
 function getState(tagName: string): TagFilterState {
-  const normalised = normaliseTagName(tagName);
-  if (!normalised) {
+  const stateKey = resolveStateKey(tagName);
+  if (!stateKey) {
     return 'none';
   }
 
-  return props.states[normalised] ?? 'none';
+  return props.states[stateKey] ?? 'none';
 }
 
 function setState(tagName: string, state: TagFilterState) {
-  const normalised = normaliseTagName(tagName);
-  if (!normalised) {
+  const stateKey = resolveStateKey(tagName);
+  if (!stateKey) {
     return;
   }
 
   const next = { ...props.states };
   if (state === 'none') {
-    delete next[normalised];
+    delete next[stateKey];
   } else {
-    next[normalised] = state;
+    next[stateKey] = state;
   }
 
   emit('update:states', next);
@@ -201,8 +227,8 @@ function setHoverTarget(tagName: string, targetState: TagFilterState) {
     return;
   }
 
-  const normalised = normaliseTagName(tagName);
-  if (!normalised) {
+  const stateKey = resolveStateKey(tagName);
+  if (!stateKey) {
     return;
   }
 
@@ -213,18 +239,18 @@ function setHoverTarget(tagName: string, targetState: TagFilterState) {
 
   hoverTargetStates.value = {
     ...hoverTargetStates.value,
-    [normalised]: targetState
+    [stateKey]: targetState
   };
 }
 
 function clearHoverTarget(tagName: string) {
-  const normalised = normaliseTagName(tagName);
-  if (!normalised || hoverTargetStates.value[normalised] === undefined) {
+  const stateKey = resolveStateKey(tagName);
+  if (!stateKey || hoverTargetStates.value[stateKey] === undefined) {
     return;
   }
 
   const next = { ...hoverTargetStates.value };
-  delete next[normalised];
+  delete next[stateKey];
   hoverTargetStates.value = next;
 }
 
@@ -233,7 +259,8 @@ function getTagNudgeClass(tagName: string, currentState: TagFilterState) {
     return '';
   }
 
-  const targetState = hoverTargetStates.value[normaliseTagName(tagName)] ?? null;
+  const stateKey = resolveStateKey(tagName);
+  const targetState = stateKey ? hoverTargetStates.value[stateKey] ?? null : null;
   if (targetState === null || targetState === currentState) {
     return '';
   }
@@ -257,6 +284,15 @@ function getOrder(state: TagFilterState) {
 
 function normaliseTagName(tagName: string) {
   return tagName.trim().toLocaleLowerCase();
+}
+
+function resolveStateKey(tagName: string) {
+  const normalisedTagName = normaliseTagName(tagName);
+  if (!normalisedTagName) {
+    return '';
+  }
+
+  return props.stateKeysByName[normalisedTagName] ?? normalisedTagName;
 }
 
 function resolveStyledItem(tagName: string): StylePresentation | null {
@@ -377,6 +413,21 @@ function resolveStyledItem(tagName: string): StylePresentation | null {
 
 .tag-tri-state-styled-item {
   max-width: 100%;
+}
+
+.tag-tri-state-styled-item--card {
+  border-radius: 7px;
+  min-height: 1.32rem;
+  padding-inline: 0.55rem;
+}
+
+.tag-tri-state-styled-item--slick {
+  border-width: 4px;
+  border-radius: 12px;
+  min-height: 1.62rem;
+  padding: 0.12rem 0.75rem;
+  background: color-mix(in srgb, var(--bo-surface-base) 90%, transparent);
+  color: var(--bo-ink-strong);
 }
 
 .tag-tri-state-placeholder {

@@ -15,15 +15,18 @@
 
       <div class="board-controls-pane">
         <BoardCardFilterPicker
-          v-if="availableTagNames.length > 0 || availableSlicks.length > 0"
+          v-if="availableTagNames.length > 0 || availableSlicks.length > 0 || availableCardTypes.length > 0"
           :available-tag-names="availableTagNames"
           :available-slicks="availableSlicks"
+          :available-card-types="availableCardTypes"
           :tag-filter-states="tagFilterStates"
           :slick-filter-states="slickFilterStates"
+          :card-type-filter-states="cardTypeFilterStates"
           :has-active-filters="hasActiveOptionFilters"
           :open="pickerOpen"
           @update:tag-filter-states="emit('update:tagFilterStates', $event)"
           @update:slick-filter-states="emit('update:slickFilterStates', $event)"
+          @update:card-type-filter-states="emit('update:cardTypeFilterStates', $event)"
           @update:open="emit('update:pickerOpen', $event)"
         />
 
@@ -101,7 +104,7 @@
 import { ChevronDown, X } from 'lucide-vue-next';
 import { computed } from 'vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
-import type { Slick } from '../../shared/types/boardTypes';
+import type { CardType, Slick } from '../../shared/types/boardTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import BoardCardFilterPicker from './BoardCardFilterPicker.vue';
 
@@ -109,8 +112,10 @@ const props = withDefaults(defineProps<{
   searchText: string;
   availableTagNames: string[];
   availableSlicks?: Slick[];
+  availableCardTypes?: CardType[];
   tagFilterStates: TagFilterStateMap;
   slickFilterStates?: TagFilterStateMap;
+  cardTypeFilterStates?: TagFilterStateMap;
   pickerOpen: boolean;
   hasActiveFilters: boolean;
   selectionMode?: boolean;
@@ -127,13 +132,16 @@ const props = withDefaults(defineProps<{
   showSelectionToggle: true,
   embedded: false,
   availableSlicks: () => [],
-  slickFilterStates: () => ({})
+  availableCardTypes: () => [],
+  slickFilterStates: () => ({}),
+  cardTypeFilterStates: () => ({})
 });
 
 const emit = defineEmits<{
   'update:searchText': [value: string];
   'update:tagFilterStates': [value: TagFilterStateMap];
   'update:slickFilterStates': [value: TagFilterStateMap];
+  'update:cardTypeFilterStates': [value: TagFilterStateMap];
   'update:pickerOpen': [value: boolean];
   clear: [];
   toggleSelectionMode: [];
@@ -159,7 +167,9 @@ const rootClasses = computed(() => (
 ));
 
 const hasActiveOptionFilters = computed(() =>
-  Object.keys(props.tagFilterStates).length > 0 || Object.keys(props.slickFilterStates).length > 0
+  Object.keys(props.tagFilterStates).length > 0
+  || Object.keys(props.slickFilterStates).length > 0
+  || Object.keys(props.cardTypeFilterStates).length > 0
 );
 </script>
 

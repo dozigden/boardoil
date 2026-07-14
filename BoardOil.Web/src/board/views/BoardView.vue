@@ -26,8 +26,10 @@
           :search-text="cardSearchText"
           :available-tag-names="availableTagNames"
           :available-slicks="slicks"
+          :available-card-types="availableCardTypes"
           :tag-filter-states="tagFilterStates"
           :slick-filter-states="slickFilterStates"
+          :card-type-filter-states="cardTypeFilterStates"
           :picker-open="isTagFilterMenuOpen"
           :has-active-filters="hasActiveCardFilters"
           :selection-mode="isCardSelectionMode"
@@ -37,6 +39,7 @@
           @update:search-text="cardSearchText = $event"
           @update:tag-filter-states="tagFilterStates = $event"
           @update:slick-filter-states="slickFilterStates = $event"
+          @update:card-type-filter-states="cardTypeFilterStates = $event"
           @update:picker-open="isTagFilterMenuOpen = $event"
           @clear="clearCardFilters"
           @toggle-selection-mode="toggleCardSelectionMode"
@@ -255,12 +258,14 @@ const {
   cardSearchText,
   tagFilterStates,
   slickFilterStates,
+  cardTypeFilterStates,
   isTagFilterMenuOpen,
   availableTagNames,
+  availableCardTypes,
   filteredColumns,
   hasActiveCardFilters,
   clearCardFilters
-} = useBoardCardFilters(board, tags, slicks);
+} = useBoardCardFilters(board, tags, slicks, cardTypes);
 
 async function openArchivedCards() {
   const boardId = currentBoardId.value!;

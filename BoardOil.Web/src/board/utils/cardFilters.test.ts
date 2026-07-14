@@ -8,7 +8,9 @@ describe('createCardSearchAndTagMatcher', () => {
       includedTagNames: [],
       excludedTagNames: [],
       includedSlickNames: [],
-      excludedSlickNames: []
+      excludedSlickNames: [],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: []
     });
 
     expect(matcher(makeCard({ title: 'Ship feature', description: 'Ready for release', tagNames: [] }))).toBe(true);
@@ -20,7 +22,9 @@ describe('createCardSearchAndTagMatcher', () => {
       includedTagNames: [],
       excludedTagNames: [],
       includedSlickNames: [],
-      excludedSlickNames: []
+      excludedSlickNames: [],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: []
     });
 
     expect(matcher(makeCard({ title: 'Ship feature', description: 'Prepare RELEASE notes', tagNames: [] }))).toBe(true);
@@ -33,7 +37,9 @@ describe('createCardSearchAndTagMatcher', () => {
       includedTagNames: ['Urgent', 'Bug'],
       excludedTagNames: [],
       includedSlickNames: [],
-      excludedSlickNames: []
+      excludedSlickNames: [],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: []
     });
 
     expect(matcher(makeCard({ title: 'Task A', description: '', tagNames: ['bug'] }))).toBe(true);
@@ -46,7 +52,9 @@ describe('createCardSearchAndTagMatcher', () => {
       includedTagNames: [],
       excludedTagNames: ['blocked', 'wip'],
       includedSlickNames: [],
-      excludedSlickNames: []
+      excludedSlickNames: [],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: []
     });
 
     expect(matcher(makeCard({ title: 'Task A', description: '', tagNames: ['Blocked'] }))).toBe(false);
@@ -59,7 +67,9 @@ describe('createCardSearchAndTagMatcher', () => {
       includedTagNames: ['Feature', 'Bug'],
       excludedTagNames: ['Archived'],
       includedSlickNames: [],
-      excludedSlickNames: []
+      excludedSlickNames: [],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: []
     });
 
     expect(matcher(makeCard({ title: 'Task A', description: '', tagNames: ['Feature'] }))).toBe(true);
@@ -73,7 +83,9 @@ describe('createCardSearchAndTagMatcher', () => {
       includedTagNames: [],
       excludedTagNames: [],
       includedSlickNames: ['Delivery'],
-      excludedSlickNames: []
+      excludedSlickNames: [],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: []
     });
 
     expect(matcher(makeCard({ title: 'Task A', description: '', tagNames: [], slickName: 'delivery' }))).toBe(true);
@@ -87,7 +99,9 @@ describe('createCardSearchAndTagMatcher', () => {
       includedTagNames: [],
       excludedTagNames: [],
       includedSlickNames: [],
-      excludedSlickNames: ['Blocked']
+      excludedSlickNames: ['Blocked'],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: []
     });
 
     expect(matcher(makeCard({ title: 'Task A', description: '', tagNames: [], slickName: 'Blocked' }))).toBe(false);
@@ -101,7 +115,9 @@ describe('createCardSearchAndTagMatcher', () => {
       includedTagNames: ['Feature'],
       excludedTagNames: [],
       includedSlickNames: ['Alpha'],
-      excludedSlickNames: ['Beta']
+      excludedSlickNames: ['Beta'],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: []
     });
 
     expect(matcher(makeCard({ title: 'Task A', description: '', tagNames: ['Feature'], slickName: 'Alpha' }))).toBe(true);
@@ -109,13 +125,43 @@ describe('createCardSearchAndTagMatcher', () => {
     expect(matcher(makeCard({ title: 'Task C', description: '', tagNames: ['Feature'], slickName: 'Gamma' }))).toBe(false);
     expect(matcher(makeCard({ title: 'Task D', description: '', tagNames: ['Chore'], slickName: 'Alpha' }))).toBe(false);
   });
+
+  it('includes cards by card type id when any included card type matches', () => {
+    const matcher = createCardSearchAndTagMatcher({
+      searchText: '',
+      includedTagNames: [],
+      excludedTagNames: [],
+      includedSlickNames: [],
+      excludedSlickNames: [],
+      includedCardTypeIds: [2, 3],
+      excludedCardTypeIds: []
+    });
+
+    expect(matcher(makeCard({ title: 'Task A', description: '', tagNames: [], cardTypeId: 2 }))).toBe(true);
+    expect(matcher(makeCard({ title: 'Task B', description: '', tagNames: [], cardTypeId: 4 }))).toBe(false);
+  });
+
+  it('excludes cards by card type id when an excluded card type matches', () => {
+    const matcher = createCardSearchAndTagMatcher({
+      searchText: '',
+      includedTagNames: [],
+      excludedTagNames: [],
+      includedSlickNames: [],
+      excludedSlickNames: [],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: [2]
+    });
+
+    expect(matcher(makeCard({ title: 'Task A', description: '', tagNames: [], cardTypeId: 2 }))).toBe(false);
+    expect(matcher(makeCard({ title: 'Task B', description: '', tagNames: [], cardTypeId: 4 }))).toBe(true);
+  });
 });
 
-function makeCard(overrides: { title: string; description: string; tagNames: string[]; slickName?: string | null }) {
+function makeCard(overrides: { title: string; description: string; tagNames: string[]; slickName?: string | null; cardTypeId?: number }) {
   return {
     id: 1,
     boardColumnId: 10,
-    cardTypeId: 1,
+    cardTypeId: overrides.cardTypeId ?? 1,
     cardTypeName: 'Story',
     cardTypeEmoji: null,
     title: overrides.title,

@@ -6,9 +6,11 @@ export type CardSearchAndTagFilter = {
   excludedTagNames: string[];
   includedSlickNames: string[];
   excludedSlickNames: string[];
+  includedCardTypeIds: number[];
+  excludedCardTypeIds: number[];
 };
 
-type FilterableCard = Pick<Card, 'title' | 'description' | 'tagNames' | 'slickName'>;
+type FilterableCard = Pick<Card, 'title' | 'description' | 'tagNames' | 'slickName' | 'cardTypeId'>;
 
 export function createCardSearchAndTagMatcher(filter: CardSearchAndTagFilter) {
   const normalisedSearchText = normaliseSearchText(filter.searchText);
@@ -16,10 +18,14 @@ export function createCardSearchAndTagMatcher(filter: CardSearchAndTagFilter) {
   const excludedTagNames = normaliseTagNameSet(filter.excludedTagNames);
   const includedSlickNames = normaliseTagNameSet(filter.includedSlickNames);
   const excludedSlickNames = normaliseTagNameSet(filter.excludedSlickNames);
+  const includedCardTypeIds = normaliseIdSet(filter.includedCardTypeIds);
+  const excludedCardTypeIds = normaliseIdSet(filter.excludedCardTypeIds);
   const hasIncludeFilter = includedTagNames.size > 0;
   const hasExcludeFilter = excludedTagNames.size > 0;
   const hasIncludeSlickFilter = includedSlickNames.size > 0;
   const hasExcludeSlickFilter = excludedSlickNames.size > 0;
+  const hasIncludeCardTypeFilter = includedCardTypeIds.size > 0;
+  const hasExcludeCardTypeFilter = excludedCardTypeIds.size > 0;
 
   return (card: FilterableCard) => {
     if (normalisedSearchText.length > 0) {
@@ -29,7 +35,12 @@ export function createCardSearchAndTagMatcher(filter: CardSearchAndTagFilter) {
       }
     }
 
-    if (!hasIncludeFilter && !hasExcludeFilter && !hasIncludeSlickFilter && !hasExcludeSlickFilter) {
+    if (!hasIncludeFilter
+      && !hasExcludeFilter
+      && !hasIncludeSlickFilter
+      && !hasExcludeSlickFilter
+      && !hasIncludeCardTypeFilter
+      && !hasExcludeCardTypeFilter) {
       return true;
     }
 
@@ -49,6 +60,14 @@ export function createCardSearchAndTagMatcher(filter: CardSearchAndTagFilter) {
     }
 
     if (hasExcludeSlickFilter && hasAnyTag(cardSlickNames, excludedSlickNames)) {
+      return false;
+    }
+
+    if (hasIncludeCardTypeFilter && !includedCardTypeIds.has(card.cardTypeId)) {
+      return false;
+    }
+
+    if (hasExcludeCardTypeFilter && excludedCardTypeIds.has(card.cardTypeId)) {
       return false;
     }
 
@@ -90,4 +109,17 @@ function normaliseOptionalName(value: string | null | undefined) {
   }
 
   return normaliseTagNameSet([value]);
+}
+
+function normaliseIdSet(ids: number[]) {
+  const normalised = new Set<number>();
+  for (const id of ids) {
+    if (!Number.isFinite(id)) {
+      continue;
+    }
+
+    normalised.add(Math.trunc(id));
+  }
+
+  return normalised;
 }
