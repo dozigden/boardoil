@@ -13,7 +13,6 @@ using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
-using BoardOil.Services.Ordering;
 using BoardOil.Services.Style;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Users;
@@ -36,6 +35,7 @@ public sealed class CardArchiveService(
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
     IBoardStyleDefaultService styleDefaultService,
+    CardInsertionOrderPlanner insertionOrderPlanner,
     IDbContextScopeFactory scopeFactory) : ICardArchiveService
 {
     private const int MaxArchiveSnapshotJsonBytes = 2_097_152;
@@ -175,12 +175,6 @@ public sealed class CardArchiveService(
         var title = snapshotCard.Title.Trim();
         var now = DateTime.UtcNow;
         var cardsInColumn = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
-        var nextSortKey = cardsInColumn.Count > 0 ? cardsInColumn[0].SortKey : null;
-        if (!TryGenerateSortKey(null, nextSortKey, out var sortKeyValue, out var sortKeyError))
-        {
-            return sortKeyError!;
-        }
-
         var resolvedAssignedUser = await ResolveAssignedUserForRestoreAsync(boardId, snapshotCard.AssignedUserId);
         var resolvedSlick = await ResolveSlickForRestoreAsync(boardId, snapshotCard.SlickId, snapshotCard.SlickName);
         var resolvedTags = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames, now);
@@ -196,9 +190,21 @@ public sealed class CardArchiveService(
             Slick = resolvedSlick,
             Title = title,
             Description = snapshotCard.Description,
-            SortKey = sortKeyValue!,
+            SortKey = string.Empty,
         };
         ReplaceTags(restoredCard, resolvedTags);
+
+        var orderPlan = insertionOrderPlanner.CreateLeadingPlan(restoredCard, cardsInColumn);
+        if (orderPlan.Error is not null)
+        {
+            return orderPlan.Error;
+        }
+
+        foreach (var assignment in orderPlan.Assignments)
+        {
+            assignment.Card.SortKey = assignment.SortKey;
+        }
+
         var commentAuthorByUserId = new Dictionary<int, EntityUser?>();
         var commentAuthorByNormalisedEmail = new Dictionary<string, EntityUser?>(StringComparer.Ordinal);
         foreach (var snapshotComment in snapshot.Comments)
@@ -222,6 +228,11 @@ public sealed class CardArchiveService(
 
         var dto = await EnrichAssignedUserImageAsync(restoredCard.ToCardDto());
         await boardEvents.CardCreatedAsync(boardId, dto);
+        if (orderPlan.Renormalised)
+        {
+            await boardEvents.ResyncRequestedAsync(boardId);
+        }
+
         return ApiResults.Ok(dto);
     }
 
@@ -607,28 +618,6 @@ public sealed class CardArchiveService(
         }
 
         return false;
-    }
-
-    private static bool TryGenerateSortKey(string? previous, string? next, out string? sortKey, out ApiError? error)
-    {
-        try
-        {
-            sortKey = SortKeyGenerator.Between(previous, next);
-            error = null;
-            return true;
-        }
-        catch (InvalidOperationException)
-        {
-            sortKey = null;
-            error = ApiErrors.InternalError("Unable to assign card order key.");
-            return false;
-        }
-        catch (ArgumentException)
-        {
-            sortKey = null;
-            error = ApiErrors.InternalError("Unable to assign card order key.");
-            return false;
-        }
     }
 
     private static string NormaliseSearchValue(string value) =>

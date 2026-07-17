@@ -194,6 +194,7 @@ public sealed class CardServiceTests : TestBaseDb
             .AddColumn("Doing")
             .Build();
         var todoColumnId = board.GetColumn("Todo").Id;
+        var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
 
         // Act
         var service = CreateService();
@@ -205,6 +206,46 @@ public sealed class CardServiceTests : TestBaseDb
         var titles = await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId);
 
         Assert.Equal(["End", "A", "B"], titles);
+        Assert.Single(boardEvents.CardCreatedEvents);
+        Assert.Empty(boardEvents.ResyncRequestedBoardIds);
+    }
+
+    [Fact]
+    public async Task CreateCardAsync_WhenLeadingKeysAreExhausted_ShouldRenormaliseAndInsertAtTop()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+        await SetCardSortKeysAsync(
+            (board.GetCard("Todo", "A").Id, "00000000000000000000"),
+            (board.GetCard("Todo", "B").Id, "00000000000000000001"));
+        var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+
+        // Act
+        var result = await CreateService().CreateCardAsync(
+            board.BoardId,
+            new CreateCardRequest(todoColumnId, "Created", "Desc", null),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(["Created", "A", "B"], await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId));
+        var storedKeys = await DbContextForAssert.Cards
+            .Where(card => card.BoardColumnId == todoColumnId)
+            .OrderBy(card => card.SortKey)
+            .Select(card => card.SortKey)
+            .ToListAsync();
+        Assert.Equal(3, storedKeys.Distinct(StringComparer.Ordinal).Count());
+        Assert.All(storedKeys, key => Assert.Equal(20, key.Length));
+        Assert.DoesNotContain("00000000000000000000", storedKeys);
+        Assert.DoesNotContain("00000000000000000001", storedKeys);
+        Assert.Single(boardEvents.CardCreatedEvents);
+        Assert.Equal([board.BoardId], boardEvents.ResyncRequestedBoardIds);
+        Assert.Equal(["card-created", "resync-requested"], boardEvents.PublishedEventNames);
     }
 
     [Fact]

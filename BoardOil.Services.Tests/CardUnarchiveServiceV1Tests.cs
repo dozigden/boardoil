@@ -32,6 +32,7 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
             cardTypeId: await GetSystemCardTypeIdForBoardAsync(boardId),
             title: "Archive me",
             description: "Desc");
+        var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<BoardOil.Abstractions.IBoardEvents>());
         var service = ResolveService<ICardArchiveService>();
 
         // Act
@@ -45,6 +46,54 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         Assert.Equal("Desc", unarchiveResult.Data.Description);
         Assert.Equal(todoColumnId, unarchiveResult.Data.BoardColumnId);
         Assert.Empty(await DbContextForAssert.Set<ArchivedCardEntity>().ToListAsync());
+        Assert.Single(boardEvents.CardCreatedEvents);
+        Assert.Empty(boardEvents.ResyncRequestedBoardIds);
+    }
+
+    [Fact]
+    public async Task UnarchiveCardAsync_WhenLeadingKeysAreExhausted_ShouldRenormaliseAndRestoreAtTop()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .Build();
+        var boardId = board.BoardId;
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var cardA = await DbContextForArrange.Cards.SingleAsync(card => card.Id == board.GetCard("Todo", "A").Id);
+        var cardB = await DbContextForArrange.Cards.SingleAsync(card => card.Id == board.GetCard("Todo", "B").Id);
+        cardA.SortKey = "00000000000000000000";
+        cardB.SortKey = "00000000000000000001";
+        await DbContextForArrange.SaveChangesAsync();
+        var archivedCard = await SeedArchivedCardV1Async(
+            boardId,
+            originalCardId: 12346,
+            boardColumnId: todoColumnId,
+            cardTypeId: await GetSystemCardTypeIdForBoardAsync(boardId),
+            title: "Restored",
+            description: "Desc");
+        var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<BoardOil.Abstractions.IBoardEvents>());
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.UnarchiveCardAsync(boardId, archivedCard.Id, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(["Restored", "A", "B"], await GetOrderedTitlesAsync(DbContextForAssert, todoColumnId));
+        var storedKeys = await DbContextForAssert.Cards
+            .Where(card => card.BoardColumnId == todoColumnId)
+            .OrderBy(card => card.SortKey)
+            .Select(card => card.SortKey)
+            .ToListAsync();
+        Assert.Equal(3, storedKeys.Distinct(StringComparer.Ordinal).Count());
+        Assert.DoesNotContain("00000000000000000000", storedKeys);
+        Assert.DoesNotContain("00000000000000000001", storedKeys);
+        Assert.Empty(await DbContextForAssert.Set<ArchivedCardEntity>().ToListAsync());
+        Assert.Single(boardEvents.CardCreatedEvents);
+        Assert.Equal([boardId], boardEvents.ResyncRequestedBoardIds);
+        Assert.Equal(["card-created", "resync-requested"], boardEvents.PublishedEventNames);
     }
 
     [Fact]

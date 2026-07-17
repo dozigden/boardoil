@@ -37,6 +37,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<SlickCohesionPlacementResolver>();
         services.AddScoped<UpdateCardService>();
         services.AddScoped<CardSortKeyRenormaliser>();
+        services.AddScoped<CardInsertionOrderPlanner>();
         services.AddScoped<CardMoveOrderPlanner>();
         services.AddScoped<MoveCardService>();
         services.AddScoped<BulkEditCardsService>();

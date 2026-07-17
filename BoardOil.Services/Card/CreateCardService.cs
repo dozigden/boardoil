@@ -25,6 +25,7 @@ public sealed class CreateCardService(
     IBoardAuthorisationService boardAuthorisationService,
     ICardValidator validator,
     CreateCardPlanner planner,
+    CardInsertionOrderPlanner insertionOrderPlanner,
     IBoardEvents boardEvents,
     IBoardStyleDefaultService styleDefaultService,
     IDbContextScopeFactory scopeFactory)
@@ -82,15 +83,7 @@ public sealed class CreateCardService(
         var selectedCardType = cardTypeSelection.SelectedCardType!;
 
         var cards = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
-        var nextSortKey = cards.FirstOrDefault()?.SortKey;
-
-        var draftResult = planner.BuildDraft(request, targetColumn, selectedCardType, nextSortKey);
-        if (draftResult.Error is not null)
-        {
-            return draftResult.Error;
-        }
-
-        var draft = draftResult.Draft!.Value;
+        var draft = planner.BuildDraft(request, targetColumn, selectedCardType);
         var tags = await CardTagMutation.ResolveTagsAsync(
             boardId,
             request.TagNames ?? Array.Empty<string>(),
@@ -107,14 +100,30 @@ public sealed class CreateCardService(
             Slick = selectedSlick,
             Title = draft.Title,
             Description = draft.Description,
-            SortKey = draft.SortKey,
+            SortKey = string.Empty,
         };
         CardTagMutation.ReplaceTags(card, tags);
+
+        var orderPlan = insertionOrderPlanner.CreateLeadingPlan(card, cards);
+        if (orderPlan.Error is not null)
+        {
+            return orderPlan.Error;
+        }
+
+        foreach (var assignment in orderPlan.Assignments)
+        {
+            assignment.Card.SortKey = assignment.SortKey;
+        }
 
         cardRepository.Add(card);
         await scope.SaveChangesAsync();
 
         var created = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
         await boardEvents.CardCreatedAsync(boardId, created);
+        if (orderPlan.Renormalised)
+        {
+            await boardEvents.ResyncRequestedAsync(boardId);
+        }
+
         return ApiResults.Created(created);
     }}

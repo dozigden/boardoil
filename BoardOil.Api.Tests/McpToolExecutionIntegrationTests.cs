@@ -13,6 +13,52 @@ namespace BoardOil.Api.Tests;
 
 public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
 {
+    [Fact]
+    public async Task CardCreate_WithExhaustedLeadingKeys_ShouldSucceed()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+        var targetColumnId = await SeedExhaustedCardCreateScenarioAsync();
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card_create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = targetColumnId,
+                    title = "Created",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-exhausted",
+            patToken);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        var createdCard = McpJsonRpcClient.GetStructuredContent(payload).GetProperty("card");
+        Assert.Equal("Created", createdCard.GetProperty("title").GetString());
+        Assert.Equal(targetColumnId, createdCard.GetProperty("columnId").GetInt32());
+
+        var contextFactory = Factory.Services.GetRequiredService<IDbContextFactory>();
+        await using var assertDbContext = contextFactory.CreateDbContext<BoardOilDbContext>();
+        var orderedTitles = await assertDbContext.Cards
+            .Where(card => card.BoardColumnId == targetColumnId)
+            .OrderBy(card => card.SortKey)
+            .Select(card => card.Title)
+            .ToListAsync();
+        Assert.Equal(["Created", "Target A", "Target B"], orderedTitles);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -1284,6 +1330,40 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         await dbContext.SaveChangesAsync();
 
         return new CardMoveScenario(movingCard.Id, targetColumn.Id);
+    }
+
+    private async Task<int> SeedExhaustedCardCreateScenarioAsync()
+    {
+        var contextFactory = Factory.Services.GetRequiredService<IDbContextFactory>();
+        await using var dbContext = contextFactory.CreateDbContext<BoardOilDbContext>();
+        var targetColumnId = await dbContext.Columns
+            .Where(column => column.BoardId == 1)
+            .OrderBy(column => column.SortKey)
+            .Select(column => column.Id)
+            .FirstAsync();
+        var cardTypeId = await dbContext.CardTypes
+            .Where(cardType => cardType.BoardId == 1 && cardType.IsSystem)
+            .Select(cardType => cardType.Id)
+            .SingleAsync();
+        dbContext.Cards.AddRange(
+            new EntityBoardCard
+            {
+                BoardColumnId = targetColumnId,
+                CardTypeId = cardTypeId,
+                Title = "Target A",
+                Description = "",
+                SortKey = "00000000000000000000"
+            },
+            new EntityBoardCard
+            {
+                BoardColumnId = targetColumnId,
+                CardTypeId = cardTypeId,
+                Title = "Target B",
+                Description = "",
+                SortKey = "00000000000000000001"
+            });
+        await dbContext.SaveChangesAsync();
+        return targetColumnId;
     }
 
     private sealed record CardMoveScenario(int MovingCardId, int TargetColumnId);

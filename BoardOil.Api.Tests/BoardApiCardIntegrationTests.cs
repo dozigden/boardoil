@@ -5,6 +5,7 @@ using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Column;
 using BoardOil.Contracts.Slick;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -308,6 +309,48 @@ public sealed class BoardApiCardIntegrationTests
         Assert.Equal(createdColumnId, payload.Data.BoardColumnId);
         Assert.Equal(slickId, payload.Data.SlickId);
         Assert.Equal("Release train", payload.Data.SlickName);
+    }
+
+    [Fact]
+    public async Task CardEndpoints_Unarchive_WithExhaustedLeadingKeys_ShouldReturnRestoredCardContract()
+    {
+        // Arrange
+        var columnId = await SeedBoardColumnAsync("Todo");
+        var archivedCardId = await SeedBoardCardAsync(columnId, "Restore me", "Desc");
+        var archiveResponse = await Client.PostAsync($"/api/boards/1/cards/{archivedCardId}/archive", content: null);
+        archiveResponse.EnsureSuccessStatusCode();
+        var archivedCardEnvelope = await archiveResponse.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDto>>(JsonOptions);
+        Assert.NotNull(archivedCardEnvelope);
+        Assert.NotNull(archivedCardEnvelope!.Data);
+        var targetAId = await SeedBoardCardAsync(columnId, "Target A", "Desc");
+        var targetBId = await SeedBoardCardAsync(columnId, "Target B", "Desc");
+        await ArrangeAsync(async dbContext =>
+        {
+            var targetA = await dbContext.Cards.SingleAsync(card => card.Id == targetAId);
+            var targetB = await dbContext.Cards.SingleAsync(card => card.Id == targetBId);
+            targetA.SortKey = "00000000000000000000";
+            targetB.SortKey = "00000000000000000001";
+        });
+
+        // Act
+        var response = await Client.PostAsync(
+            $"/api/boards/1/cards/archived/{archivedCardEnvelope.Data!.Id}/unarchive",
+            content: null);
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.True(payload!.Success);
+        Assert.NotNull(payload.Data);
+        Assert.Equal("Restore me", payload.Data!.Title);
+        Assert.Equal(columnId, payload.Data.BoardColumnId);
+        var orderedTitles = await UseDbContextAsync(dbContext => dbContext.Cards
+            .Where(card => card.BoardColumnId == columnId)
+            .OrderBy(card => card.SortKey)
+            .Select(card => card.Title)
+            .ToListAsync());
+        Assert.Equal(["Restore me", "Target A", "Target B"], orderedTitles);
     }
 
     [Fact]

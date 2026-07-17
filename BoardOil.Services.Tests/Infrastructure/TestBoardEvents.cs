@@ -8,14 +8,21 @@ namespace BoardOil.Services.Tests.Infrastructure;
 public sealed class TestBoardEvents : IBoardEvents
 {
     public readonly List<(int BoardId, CardCommentDto Comment)> CommentCreatedEvents = [];
+    public readonly List<(int BoardId, CardDto Card)> CardCreatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardMovedEvents = [];
     public readonly List<int> ResyncRequestedBoardIds = [];
+    public readonly List<string> PublishedEventNames = [];
 
     public Task ColumnCreatedAsync(int boardId, ColumnDto column) => Task.CompletedTask;
     public Task ColumnUpdatedAsync(int boardId, ColumnDto column) => Task.CompletedTask;
     public Task ColumnDeletedAsync(int boardId, int columnId) => Task.CompletedTask;
 
-    public Task CardCreatedAsync(int boardId, CardDto card) => Task.CompletedTask;
+    public Task CardCreatedAsync(int boardId, CardDto card)
+    {
+        CardCreatedEvents.Add((boardId, card));
+        PublishedEventNames.Add("card-created");
+        return Task.CompletedTask;
+    }
     public Task CardUpdatedAsync(int boardId, CardDto card) => Task.CompletedTask;
     public Task CardDeletedAsync(int boardId, int cardId) => Task.CompletedTask;
     public Task CardMovedAsync(int boardId, CardDto card)
@@ -32,6 +39,7 @@ public sealed class TestBoardEvents : IBoardEvents
     public Task ResyncRequestedAsync(int boardId)
     {
         ResyncRequestedBoardIds.Add(boardId);
+        PublishedEventNames.Add("resync-requested");
         return Task.CompletedTask;
     }
 
