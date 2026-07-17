@@ -10,7 +10,6 @@ using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
-using BoardOil.Services.Ordering;
 using BoardOil.Services.Slick;
 using BoardOil.Services.Style;
 
@@ -24,6 +23,7 @@ public sealed class BulkEditCardsService(
     ISlickRepository slickRepository,
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
+    CardMoveOrderPlanner orderPlanner,
     SlickCohesionPlacementResolver cohesionPlacementResolver,
     IBoardEvents boardEvents,
     IBoardStyleDefaultService styleDefaultService,
@@ -118,8 +118,8 @@ public sealed class BulkEditCardsService(
             : null;
         var selectedSlickId = selectedSlick?.Id;
 
-        string? previousKey = null;
-        string? nextKey = null;
+        CardMoveOrderPlan? orderPlan = null;
+        IReadOnlyDictionary<int, string> movingSortKeysByCardId = new Dictionary<int, string>();
         if (hasMoveOperation)
         {
             var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn!.Id))
@@ -133,14 +133,22 @@ public sealed class BulkEditCardsService(
                 request.Move!.PositionAfterCardId,
                 targetCards,
                 orderedCards);
-            var anchorResolution = ResolveAnchor(effectivePositionAfterCardId, targetCards);
-            if (anchorResolution.Error is not null)
+            orderPlan = orderPlanner.CreatePlan(targetCards, orderedCards, effectivePositionAfterCardId);
+            if (orderPlan.Error is not null)
             {
-                return anchorResolution.Error;
+                return orderPlan.Error;
             }
 
-            previousKey = anchorResolution.PreviousKey;
-            nextKey = anchorResolution.NextKey;
+            movingSortKeysByCardId = orderPlan.Assignments
+                .Where(assignment => selectedCardIdSet.Contains(assignment.Card.Id))
+                .ToDictionary(assignment => assignment.Card.Id, assignment => assignment.SortKey);
+            foreach (var assignment in orderPlan.Assignments)
+            {
+                if (!selectedCardIdSet.Contains(assignment.Card.Id))
+                {
+                    assignment.Card.SortKey = assignment.SortKey;
+                }
+            }
         }
 
         var movedCardIdSet = new HashSet<int>();
@@ -149,16 +157,9 @@ public sealed class BulkEditCardsService(
         foreach (var card in orderedCards)
         {
             var movementChanged = false;
-            string? targetSortKey = card.SortKey;
             if (hasMoveOperation)
             {
-                var sortKeyResult = AllocateSortKey(previousKey, nextKey);
-                if (sortKeyResult.Error is not null)
-                {
-                    return sortKeyResult.Error;
-                }
-
-                targetSortKey = sortKeyResult.SortKey!;
+                var targetSortKey = movingSortKeysByCardId[card.Id];
                 movementChanged = card.BoardColumnId != targetColumn!.Id
                     || card.SortKey != targetSortKey;
                 if (movementChanged)
@@ -166,8 +167,6 @@ public sealed class BulkEditCardsService(
                     card.BoardColumnId = targetColumn!.Id;
                     card.SortKey = targetSortKey;
                 }
-
-                previousKey = targetSortKey;
             }
 
             var tagsChanged = false;
@@ -225,7 +224,7 @@ public sealed class BulkEditCardsService(
             }
         }
 
-        if (movedCardIdSet.Count > 0 || updatedCardIdSet.Count > 0)
+        if (movedCardIdSet.Count > 0 || updatedCardIdSet.Count > 0 || orderPlan?.Renormalised == true)
         {
             await scope.SaveChangesAsync();
         }
@@ -257,59 +256,12 @@ public sealed class BulkEditCardsService(
             await boardEvents.CardUpdatedAsync(boardId, dto);
         }
 
+        if (orderPlan?.Renormalised == true)
+        {
+            await boardEvents.ResyncRequestedAsync(boardId);
+        }
+
         return resultDtos;
-    }
-
-    private static (ApiError? Error, string? PreviousKey, string? NextKey) ResolveAnchor(
-        int? positionAfterCardId,
-        IReadOnlyList<EntityBoardCard> targetCards)
-    {
-        if (positionAfterCardId is null)
-        {
-            var firstSortKey = targetCards.Count > 0 ? targetCards[0].SortKey : null;
-            return (null, null, firstSortKey);
-        }
-
-        var anchorIndex = FindCardIndex(targetCards, positionAfterCardId.Value);
-        if (anchorIndex < 0)
-        {
-            return (ApiErrors.ValidationFailed([new ValidationError("positionAfterCardId", "Card does not exist in target column.")]), null, null);
-        }
-
-        var previousKey = targetCards[anchorIndex].SortKey;
-        var nextKey = anchorIndex < targetCards.Count - 1
-            ? targetCards[anchorIndex + 1].SortKey
-            : null;
-        return (null, previousKey, nextKey);
-    }
-
-    private static int FindCardIndex(IReadOnlyList<EntityBoardCard> cards, int targetId)
-    {
-        for (var i = 0; i < cards.Count; i++)
-        {
-            if (cards[i].Id == targetId)
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private static (string? SortKey, ApiError? Error) AllocateSortKey(string? previous, string? next)
-    {
-        try
-        {
-            return (SortKeyGenerator.Between(previous, next), null);
-        }
-        catch (InvalidOperationException)
-        {
-            return (null, ApiErrors.InternalError("Unable to assign card order key."));
-        }
-        catch (ArgumentException)
-        {
-            return (null, ApiErrors.InternalError("Unable to assign card order key."));
-        }
     }
 
     private static string NormaliseTagName(string tagName) =>

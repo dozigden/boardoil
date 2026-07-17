@@ -17,7 +17,7 @@ public sealed class MoveCardService(
     IColumnRepository columnRepository,
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
-    MoveCardPlanner planner,
+    CardMoveOrderPlanner orderPlanner,
     SlickCohesionPlacementResolver cohesionPlacementResolver,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory)
@@ -51,7 +51,7 @@ public sealed class MoveCardService(
         }
 
         var sourceCards = (await cardRepository.GetCardsInColumnOrderedAsync(sourceColumnId)).ToList();
-        var sourceIndex = planner.FindCardIndex(sourceCards, id);
+        var sourceIndex = orderPlanner.FindCardIndex(sourceCards, id);
         if (sourceIndex < 0)
         {
             return ApiErrors.NotFound("Card not found.");
@@ -88,32 +88,33 @@ public sealed class MoveCardService(
             targetCards,
             [existingCard]);
 
-        var anchorResolution = planner.ResolveAnchor(effectivePositionAfterCardId, targetCards);
-        if (anchorResolution.Error is not null)
+        var orderPlan = orderPlanner.CreatePlan(targetCards, [existingCard], effectivePositionAfterCardId);
+        if (orderPlan.Error is not null)
         {
-            return anchorResolution.Error;
+            return orderPlan.Error;
         }
 
-        var sortKeyResult = planner.AllocateSortKey(anchorResolution.PreviousKey, anchorResolution.NextKey);
-        if (sortKeyResult.Error is not null)
-        {
-            return sortKeyResult.Error;
-        }
-
-        var targetSortKey = sortKeyResult.SortKey!;
-
+        var movingCardAssignment = orderPlan.Assignments.Single(assignment => assignment.Card.Id == existingCard.Id);
         var movementChanged = targetColumn.Id != existingCard.BoardColumnId
-            || targetSortKey != existingCard.SortKey;
+            || movingCardAssignment.SortKey != existingCard.SortKey;
         if (movementChanged)
         {
+            foreach (var assignment in orderPlan.Assignments)
+            {
+                assignment.Card.SortKey = assignment.SortKey;
+            }
+
             existingCard.BoardColumnId = targetColumn.Id;
-            existingCard.SortKey = targetSortKey;
 
             await scope.SaveChangesAsync();
         }
 
         var dto = await CardDtoEnrichment.EnrichAssignedUserImageAsync(existingCard.ToCardDto(), imageRepository);
         await boardEvents.CardMovedAsync(boardId, dto);
+        if (orderPlan.Renormalised)
+        {
+            await boardEvents.ResyncRequestedAsync(boardId);
+        }
 
         return dto;
     }}

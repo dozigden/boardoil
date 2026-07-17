@@ -27,6 +27,7 @@ public sealed class UpdateCardService(
     IBoardAuthorisationService boardAuthorisationService,
     ICardValidator validator,
     UpdateCardPlanner planner,
+    CardMoveOrderPlanner orderPlanner,
     SlickCohesionPlacementResolver cohesionPlacementResolver,
     IBoardEvents boardEvents,
     IBoardStyleDefaultService styleDefaultService,
@@ -90,20 +91,25 @@ public sealed class UpdateCardService(
         var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository, styleDefaultService);
         var selectedSlickId = selectedSlick?.Id;
 
-        var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(requestedColumnId))
-            .Where(x => x.Id != id)
-            .ToList();
-        var board = boardRepository.Get(boardId);
-        var effectivePositionAfterCardId = cohesionPlacementResolver.ResolveEffectivePositionAfterCardId(
-            board?.SlickCohesionModeEnabled ?? true,
-            requestedColumnId != currentColumnId,
-            requestedPositionAfterCardId: null,
-            targetCards,
-            [existingCard]);
-        var movementPlan = planner.PlanMovement(currentColumnId, requestedColumnId, targetCards, effectivePositionAfterCardId);
-        if (movementPlan.Error is not null)
+        var movementChanged = requestedColumnId != currentColumnId;
+        CardMoveOrderPlan? movementPlan = null;
+        if (movementChanged)
         {
-            return movementPlan.Error;
+            var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(requestedColumnId))
+                .Where(x => x.Id != id)
+                .ToList();
+            var board = boardRepository.Get(boardId);
+            var effectivePositionAfterCardId = cohesionPlacementResolver.ResolveEffectivePositionAfterCardId(
+                board?.SlickCohesionModeEnabled ?? true,
+                isCrossColumnMove: true,
+                requestedPositionAfterCardId: null,
+                targetCards,
+                [existingCard]);
+            movementPlan = orderPlanner.CreatePlan(targetCards, [existingCard], effectivePositionAfterCardId);
+            if (movementPlan.Error is not null)
+            {
+                return movementPlan.Error;
+            }
         }
 
         var assignmentChanged = request.AssignedUserId != existingCard.AssignedUserId;
@@ -116,7 +122,7 @@ public sealed class UpdateCardService(
             || cardTypeChanged
             || assignmentChanged
             || slickChanged;
-        if (metadataChanged || movementPlan.MovementChanged)
+        if (metadataChanged || movementChanged)
         {
             existingCard.Title = updatedTitle;
             existingCard.Description = updatedDescription;
@@ -143,19 +149,27 @@ public sealed class UpdateCardService(
                 existingCard.SlickId = selectedSlickId > 0 ? selectedSlickId : null;
             }
 
-            if (movementPlan.MovementChanged)
+            if (movementChanged)
             {
+                foreach (var assignment in movementPlan!.Assignments)
+                {
+                    assignment.Card.SortKey = assignment.SortKey;
+                }
+
                 existingCard.BoardColumnId = requestedColumnId;
-                existingCard.SortKey = movementPlan.TargetSortKey!;
             }
 
             await scope.SaveChangesAsync();
         }
 
         var dto = await CardDtoEnrichment.EnrichAssignedUserImageAsync(existingCard.ToCardDto(), imageRepository);
-        if (movementPlan.MovementChanged)
+        if (movementChanged)
         {
             await boardEvents.CardMovedAsync(boardId, dto);
+            if (movementPlan!.Renormalised)
+            {
+                await boardEvents.ResyncRequestedAsync(boardId);
+            }
         }
         else
         {

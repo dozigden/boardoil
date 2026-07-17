@@ -631,6 +631,7 @@ public sealed class CardServiceTests : TestBaseDb
             .Build();
         var doingColumnId = board.GetColumn("Doing").Id;
         var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
 
         // Act
         var service = CreateService();
@@ -646,6 +647,7 @@ public sealed class CardServiceTests : TestBaseDb
         var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
 
         Assert.Equal(["Move me", "A", "B"], doingTitles);
+        Assert.Empty(boardEvents.ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -830,6 +832,180 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task MoveCardAsync_WhenLeadingKeysAreExhausted_ShouldRenormaliseAndMoveToStart()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var cardAId = board.GetCard("Doing", "A").Id;
+        var cardBId = board.GetCard("Doing", "B").Id;
+        await SetCardSortKeysAsync(
+            (cardAId, "00000000000000000000"),
+            (cardBId, "00000000000000000001"));
+        var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+
+        // Act
+        var result = await CreateService().MoveCardAsync(
+            board.BoardId,
+            movingCardId,
+            new MoveCardRequest(doingColumnId, null),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(["Move me", "A", "B"], await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId));
+        var storedKeys = await DbContextForAssert.Cards
+            .Where(card => card.BoardColumnId == doingColumnId)
+            .OrderBy(card => card.SortKey)
+            .Select(card => card.SortKey)
+            .ToListAsync();
+        Assert.Equal(3, storedKeys.Distinct(StringComparer.Ordinal).Count());
+        Assert.All(storedKeys, key => Assert.Equal(20, key.Length));
+        Assert.DoesNotContain("00000000000000000000", storedKeys);
+        Assert.DoesNotContain("00000000000000000001", storedKeys);
+        Assert.Single(boardEvents.CardMovedEvents);
+        Assert.Equal([board.BoardId], boardEvents.ResyncRequestedBoardIds);
+    }
+
+    [Fact]
+    public async Task MoveCardAsync_WhenAnchoredGapIsExhausted_ShouldRenormaliseAtAnchor()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var cardAId = board.GetCard("Doing", "A").Id;
+        var cardBId = board.GetCard("Doing", "B").Id;
+        await SetCardSortKeysAsync(
+            (cardAId, "00000000000000000000"),
+            (cardBId, "00000000000000000001"));
+
+        // Act
+        var result = await CreateService().MoveCardAsync(
+            board.BoardId,
+            movingCardId,
+            new MoveCardRequest(doingColumnId, cardAId),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(["A", "Move me", "B"], await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId));
+    }
+
+    [Fact]
+    public async Task MoveCardAsync_WhenCohesionResolvesToExhaustedGap_ShouldRenormaliseAtCohesionPlacement()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("Slick A", "1")
+            .AddCard("Gap", "2")
+            .AddCard("Tail", "3")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var slickCardId = board.GetCard("Doing", "Slick A").Id;
+        var gapCardId = board.GetCard("Doing", "Gap").Id;
+        var tailCardId = board.GetCard("Doing", "Tail").Id;
+        var slickId = await CreateSlickForBoardAsync(board.BoardId, "Release");
+        await AssignCardSlickAsync(movingCardId, slickId);
+        await AssignCardSlickAsync(slickCardId, slickId);
+        await SetBoardSlickCohesionModeAsync(board.BoardId, enabled: true);
+        await SetCardSortKeysAsync(
+            (slickCardId, "00000000000000000000"),
+            (gapCardId, "00000000000000000001"));
+
+        // Act
+        var result = await CreateService().MoveCardAsync(
+            board.BoardId,
+            movingCardId,
+            new MoveCardRequest(doingColumnId, tailCardId),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(["Slick A", "Move me", "Gap", "Tail"], await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId));
+    }
+
+    [Fact]
+    public async Task UpdateCardAsync_WhenLeadingKeysAreExhausted_ShouldRenormaliseAndMoveToStart()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move me", "source")
+            .AddColumn("Doing")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .Build();
+        var movingCardId = board.GetCard("Todo", "Move me").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
+        await SetCardSortKeysAsync(
+            (board.GetCard("Doing", "A").Id, "00000000000000000000"),
+            (board.GetCard("Doing", "B").Id, "00000000000000000001"));
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+        var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+
+        // Act
+        var result = await CreateService().UpdateCardAsync(
+            board.BoardId,
+            movingCardId,
+            new UpdateCardRequest("Move me", "source", [], systemCardTypeId, BoardColumnId: doingColumnId),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(["Move me", "A", "B"], await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId));
+        Assert.Equal([board.BoardId], boardEvents.ResyncRequestedBoardIds);
+    }
+
+    [Fact]
+    public async Task MoveCardAsync_WhenSameColumnGapIsExhausted_ShouldRenormaliseAndReorder()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Doing")
+            .AddCard("A", "1")
+            .AddCard("B", "2")
+            .AddCard("C", "3")
+            .Build();
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var cardAId = board.GetCard("Doing", "A").Id;
+        var cardBId = board.GetCard("Doing", "B").Id;
+        var cardCId = board.GetCard("Doing", "C").Id;
+        await SetCardSortKeysAsync(
+            (cardAId, "00000000000000000000"),
+            (cardBId, "00000000000000000001"),
+            (cardCId, "00000000000000000002"));
+
+        // Act
+        var result = await CreateService().MoveCardAsync(
+            board.BoardId,
+            cardCId,
+            new MoveCardRequest(doingColumnId, cardAId),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(["A", "C", "B"], await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId));
+    }
+
+    [Fact]
     public async Task BulkEditCardsAsync_WhenMovingMultipleCards_ShouldMoveInBoardOrderAfterAnchor()
     {
         // Arrange
@@ -861,6 +1037,40 @@ public sealed class CardServiceTests : TestBaseDb
         var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
         Assert.Empty(todoTitles);
         Assert.Equal(["Target", "A", "B"], doingTitles);
+    }
+
+    [Fact]
+    public async Task BulkEditCardsAsync_WhenLeadingKeysAreExhausted_ShouldRenormaliseAndPreserveMoveOrder()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Move A", "1")
+            .AddCard("Move B", "2")
+            .AddColumn("Doing")
+            .AddCard("Target A", "3")
+            .AddCard("Target B", "4")
+            .Build();
+        var doingColumnId = board.GetColumn("Doing").Id;
+        var moveAId = board.GetCard("Todo", "Move A").Id;
+        var moveBId = board.GetCard("Todo", "Move B").Id;
+        await SetCardSortKeysAsync(
+            (board.GetCard("Doing", "Target A").Id, "00000000000000000000"),
+            (board.GetCard("Doing", "Target B").Id, "00000000000000000001"));
+        var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+
+        // Act
+        var result = await CreateService().BulkEditCardsAsync(
+            board.BoardId,
+            new BulkEditCardsRequest([moveBId, moveAId], new BulkMoveCardsRequest(doingColumnId, null)),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(
+            ["Move A", "Move B", "Target A", "Target B"],
+            await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId));
+        Assert.Equal([board.BoardId], boardEvents.ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -1654,6 +1864,17 @@ public sealed class CardServiceTests : TestBaseDb
     private CardService CreateService()
     {
         return ResolveService<CardService>();
+    }
+
+    private async Task SetCardSortKeysAsync(params (int CardId, string SortKey)[] assignments)
+    {
+        foreach (var assignment in assignments)
+        {
+            var card = await DbContextForArrange.Cards.SingleAsync(card => card.Id == assignment.CardId);
+            card.SortKey = assignment.SortKey;
+        }
+
+        await DbContextForArrange.SaveChangesAsync();
     }
 
     private async Task SetBoardSlickCohesionModeAsync(int boardId, bool enabled)

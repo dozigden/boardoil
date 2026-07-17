@@ -1,13 +1,74 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Api.Tests.Infrastructure;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Ef;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
 
 public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CardMove_WithExhaustedLeadingKeys_ShouldSucceedWhenAfterIdIsOmittedOrNull(
+        bool includeExplicitNullAfterId)
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+        var scenario = await SeedExhaustedCardMoveScenarioAsync();
+        object arguments = includeExplicitNullAfterId
+            ? new
+            {
+                boardId = 1,
+                id = scenario.MovingCardId,
+                columnId = scenario.TargetColumnId,
+                afterId = (int?)null
+            }
+            : new
+            {
+                boardId = 1,
+                id = scenario.MovingCardId,
+                columnId = scenario.TargetColumnId
+            };
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card_move",
+                arguments
+            },
+            $"card-move-exhausted-{includeExplicitNullAfterId}",
+            patToken);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        var movedCard = McpJsonRpcClient.GetStructuredContent(payload).GetProperty("card");
+        Assert.Equal(scenario.MovingCardId, movedCard.GetProperty("id").GetInt32());
+        Assert.Equal(scenario.TargetColumnId, movedCard.GetProperty("columnId").GetInt32());
+
+        var contextFactory = Factory.Services.GetRequiredService<IDbContextFactory>();
+        await using var assertDbContext = contextFactory.CreateDbContext<BoardOilDbContext>();
+        var orderedTitles = await assertDbContext.Cards
+            .Where(card => card.BoardColumnId == scenario.TargetColumnId)
+            .OrderBy(card => card.SortKey)
+            .Select(card => card.Title)
+            .ToListAsync();
+        Assert.Equal(["Move me", "Target A", "Target B"], orderedTitles);
+    }
+
     [Fact]
     public async Task ToolsAndMutations_WithValidPatBearerToken_ShouldSucceed()
     {
@@ -1163,4 +1224,67 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             }
         }
     }
+
+    private async Task<CardMoveScenario> SeedExhaustedCardMoveScenarioAsync()
+    {
+        var contextFactory = Factory.Services.GetRequiredService<IDbContextFactory>();
+        await using var dbContext = contextFactory.CreateDbContext<BoardOilDbContext>();
+        var sourceColumn = await dbContext.Columns
+            .Where(column => column.BoardId == 1)
+            .OrderBy(column => column.SortKey)
+            .FirstAsync();
+        var previousColumnKey = await dbContext.Columns
+            .Where(column => column.BoardId == 1)
+            .OrderByDescending(column => column.SortKey)
+            .Select(column => column.SortKey)
+            .FirstAsync();
+        var targetColumn = new EntityBoardColumn
+        {
+            BoardId = 1,
+            Title = "Exhausted target",
+            SortKey = BoardOil.Abstractions.Ordering.SortKeyGenerator.Between(previousColumnKey, null)
+        };
+        dbContext.Columns.Add(targetColumn);
+        await dbContext.SaveChangesAsync();
+
+        var cardTypeId = await dbContext.CardTypes
+            .Where(cardType => cardType.BoardId == 1 && cardType.IsSystem)
+            .Select(cardType => cardType.Id)
+            .SingleAsync();
+        var previousSourceCardKey = await dbContext.Cards
+            .Where(card => card.BoardColumnId == sourceColumn.Id)
+            .OrderByDescending(card => card.SortKey)
+            .Select(card => card.SortKey)
+            .FirstOrDefaultAsync();
+        var movingCard = new EntityBoardCard
+        {
+            BoardColumnId = sourceColumn.Id,
+            CardTypeId = cardTypeId,
+            Title = "Move me",
+            Description = "",
+            SortKey = BoardOil.Abstractions.Ordering.SortKeyGenerator.Between(previousSourceCardKey, null)
+        };
+        var targetCardA = new EntityBoardCard
+        {
+            BoardColumnId = targetColumn.Id,
+            CardTypeId = cardTypeId,
+            Title = "Target A",
+            Description = "",
+            SortKey = "00000000000000000000"
+        };
+        var targetCardB = new EntityBoardCard
+        {
+            BoardColumnId = targetColumn.Id,
+            CardTypeId = cardTypeId,
+            Title = "Target B",
+            Description = "",
+            SortKey = "00000000000000000001"
+        };
+        dbContext.Cards.AddRange(movingCard, targetCardA, targetCardB);
+        await dbContext.SaveChangesAsync();
+
+        return new CardMoveScenario(movingCard.Id, targetColumn.Id);
+    }
+
+    private sealed record CardMoveScenario(int MovingCardId, int TargetColumnId);
 }
