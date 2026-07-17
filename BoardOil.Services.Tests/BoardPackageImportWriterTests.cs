@@ -10,6 +10,59 @@ namespace BoardOil.Services.Tests;
 public sealed class BoardPackageImportWriterTests : TestBaseDb
 {
     [Fact]
+    public async Task PersistBoardPackageImportAsync_With128Columns_ShouldPreserveOrderWithEvenlySpacedKeys()
+    {
+        // Arrange
+        var columns = Enumerable.Range(0, 128)
+            .Select(index => new ColumnImportDefinition($"Column {index:D3}", []))
+            .ToList();
+        var expectedTitles = columns.Select(column => column.Title).ToList();
+        var expectedKeys = BoardOil.Abstractions.Ordering.SortKeyGenerator.CreateEvenlySpaced(columns.Count);
+        var writer = ResolveService<BoardPackageImportWriter>();
+
+        // Act
+        var result = await writer.PersistBoardPackageImportAsync(
+            CreatePlan("Large Column Board", columns),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(expectedTitles, result.Data!.Columns.Select(column => column.Title));
+        Assert.Equal(expectedKeys, result.Data.Columns.Select(column => column.SortKey));
+        Assert.Equal(128, result.Data.Columns.Select(column => column.SortKey).Distinct(StringComparer.Ordinal).Count());
+        Assert.All(result.Data.Columns, column => Assert.Equal(20, column.SortKey.Length));
+    }
+
+    [Fact]
+    public async Task PersistBoardPackageImportAsync_With128CardsInColumn_ShouldPreserveOrderWithEvenlySpacedKeys()
+    {
+        // Arrange
+        var cards = Enumerable.Range(0, 128)
+            .Select(CreateCardDefinition)
+            .ToList();
+        var expectedTitles = cards.Select(card => card.Title).ToList();
+        var expectedKeys = BoardOil.Abstractions.Ordering.SortKeyGenerator.CreateEvenlySpaced(cards.Count);
+        var writer = ResolveService<BoardPackageImportWriter>();
+
+        // Act
+        var result = await writer.PersistBoardPackageImportAsync(
+            CreatePlan(
+                "Large Card Board",
+                [new ColumnImportDefinition("Todo", cards)]),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var importedColumn = Assert.Single(result.Data!.Columns);
+        Assert.Equal(expectedTitles, importedColumn.Cards.Select(card => card.Title));
+        Assert.Equal(expectedKeys, importedColumn.Cards.Select(card => card.SortKey));
+        Assert.Equal(128, importedColumn.Cards.Select(card => card.SortKey).Distinct(StringComparer.Ordinal).Count());
+        Assert.All(importedColumn.Cards, card => Assert.Equal(20, card.SortKey.Length));
+    }
+
+    [Fact]
     public async Task PersistBoardPackageImportAsync_WhenArchiveOriginalCardIdCollides_ShouldAssignFallbackId()
     {
         var existingBoard = CreateBoard("Existing Archive Board")
@@ -129,4 +182,14 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
             columns ?? [],
             archivedCards ?? []);
     }
+
+    private static CardImportDefinition CreateCardDefinition(int index) =>
+        new(
+            $"Card {index:D3}",
+            $"Description {index:D3}",
+            BoardPackageImportNormalisation.NormaliseName(CardTypeDefaults.SystemTypeName),
+            [],
+            null,
+            null,
+            []);
 }

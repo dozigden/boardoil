@@ -29,8 +29,15 @@ public sealed class BoardPackageImportWriter(
 {
     public async Task<ApiResult<BoardDto>> PersistBoardPackageImportAsync(BoardPackageImportPlan importPlan, int actorUserId)
     {
-        using var scope = scopeFactory.Create();
         importedUserResolver.Reset();
+        var sortKeyPlanResult = CreateSortKeyPlan(importPlan.Columns);
+        if (sortKeyPlanResult.Error is not null)
+        {
+            return sortKeyPlanResult.Error;
+        }
+        var sortKeyPlan = sortKeyPlanResult.Plan!;
+
+        using var scope = scopeFactory.Create();
 
         var now = DateTime.UtcNow;
         var board = new EntityBoard
@@ -110,28 +117,25 @@ public sealed class BoardPackageImportWriter(
 
         var createdColumns = new List<EntityBoardColumn>(importPlan.Columns.Count);
         var createdCardsByColumn = new Dictionary<EntityBoardColumn, List<EntityBoardCard>>();
-        string? previousColumnSortKey = null;
 
-        foreach (var importedColumn in importPlan.Columns)
+        for (var columnIndex = 0; columnIndex < importPlan.Columns.Count; columnIndex++)
         {
-            var columnSortKey = SortKeyGenerator.Between(previousColumnSortKey, null);
+            var importedColumn = importPlan.Columns[columnIndex];
             var createdColumn = new EntityBoardColumn
             {
                 Board = board,
                 Title = importedColumn.Title,
-                SortKey = columnSortKey,
+                SortKey = sortKeyPlan.ColumnKeys[columnIndex],
             };
             columnRepository.Add(createdColumn);
             createdColumns.Add(createdColumn);
-            previousColumnSortKey = columnSortKey;
 
             var createdCards = new List<EntityBoardCard>(importedColumn.Cards.Count);
-            string? previousCardSortKey = null;
 
-            foreach (var importedCard in importedColumn.Cards)
+            for (var cardIndex = 0; cardIndex < importedColumn.Cards.Count; cardIndex++)
             {
+                var importedCard = importedColumn.Cards[cardIndex];
                 var assignedUser = await importedUserResolver.ResolveImportedAssignedUserAsync(importedCard.AssignedUserNormalisedEmail);
-                var cardSortKey = SortKeyGenerator.Between(previousCardSortKey, null);
                 var createdCard = new EntityBoardCard
                 {
                     BoardColumn = createdColumn,
@@ -143,7 +147,7 @@ public sealed class BoardPackageImportWriter(
                         : slicksByNormalisedName[importedCard.SlickNormalisedName],
                     Title = importedCard.Title,
                     Description = importedCard.Description,
-                    SortKey = cardSortKey,
+                    SortKey = sortKeyPlan.CardKeysByColumn[columnIndex][cardIndex],
                 };
 
                 foreach (var importedTagName in importedCard.TagNames)
@@ -170,7 +174,6 @@ public sealed class BoardPackageImportWriter(
 
                 cardRepository.Add(createdCard);
                 createdCards.Add(createdCard);
-                previousCardSortKey = cardSortKey;
 
                 foreach (var importedComment in importedCard.Comments)
                 {
@@ -238,6 +241,34 @@ public sealed class BoardPackageImportWriter(
             columnDtos));
     }
 
+    private static BoardPackageImportSortKeyPlanResult CreateSortKeyPlan(
+        IReadOnlyList<ColumnImportDefinition> columns)
+    {
+        try
+        {
+            var columnKeys = SortKeyGenerator.CreateEvenlySpaced(columns.Count);
+            var cardKeysByColumn = columns
+                .Select(column => SortKeyGenerator.CreateEvenlySpaced(column.Cards.Count))
+                .ToList();
+            return new BoardPackageImportSortKeyPlanResult(
+                new BoardPackageImportSortKeyPlan(columnKeys, cardKeysByColumn),
+                null);
+        }
+        catch (InvalidOperationException)
+        {
+            return UnableToAllocateSortKeys();
+        }
+        catch (ArgumentException)
+        {
+            return UnableToAllocateSortKeys();
+        }
+    }
+
+    private static BoardPackageImportSortKeyPlanResult UnableToAllocateSortKeys() =>
+        new(
+            null,
+            ApiErrors.BadRequest("Board package contains too many columns or cards to allocate order keys."));
+
     private async Task<IReadOnlyList<int>> AllocateArchivedOriginalCardIdsAsync(IReadOnlyList<ArchivedCardImportDefinition> importedArchivedCards)
     {
         var requestedOriginalCardIds = importedArchivedCards
@@ -274,4 +305,12 @@ public sealed class BoardPackageImportWriter(
         var minimumOriginalCardId = await archivedCardRepository.GetMinimumOriginalCardIdAsync() ?? 0;
         return Math.Min(0, minimumOriginalCardId) - 1;
     }
+
+    private sealed record BoardPackageImportSortKeyPlan(
+        IReadOnlyList<string> ColumnKeys,
+        IReadOnlyList<IReadOnlyList<string>> CardKeysByColumn);
+
+    private sealed record BoardPackageImportSortKeyPlanResult(
+        BoardPackageImportSortKeyPlan? Plan,
+        ApiError? Error);
 }
