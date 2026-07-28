@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-05-25T12:47:53.418Z",
+  "generatedAtUtc": "2026-07-28T18:32:19.590Z",
   "packageSource": "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -392,38 +392,38 @@
     {
       "ecosystem": "nuget",
       "packageName": "SQLitePCLRaw.bundle_e_sqlite3",
-      "version": "2.1.11",
+      "version": "2.1.12",
       "declaredLicence": "Apache-2.0",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/sqlitepclraw.bundle_e_sqlite3/2.1.11/sqlitepclraw.bundle_e_sqlite3.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-sqlitepclraw.bundle-e-sqlite3-2.1.11.txt"
+      "sourceFile": "~/.nuget/packages/sqlitepclraw.bundle_e_sqlite3/2.1.12/sqlitepclraw.bundle_e_sqlite3.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-sqlitepclraw.bundle-e-sqlite3-2.1.12.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "SQLitePCLRaw.core",
-      "version": "2.1.11",
+      "version": "2.1.12",
       "declaredLicence": "Apache-2.0",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/sqlitepclraw.core/2.1.11/sqlitepclraw.core.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-sqlitepclraw.core-2.1.11.txt"
+      "sourceFile": "~/.nuget/packages/sqlitepclraw.core/2.1.12/sqlitepclraw.core.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-sqlitepclraw.core-2.1.12.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "SQLitePCLRaw.lib.e_sqlite3",
-      "version": "2.1.11",
+      "version": "2.1.12",
       "declaredLicence": "Apache-2.0",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/sqlitepclraw.lib.e_sqlite3/2.1.11/sqlitepclraw.lib.e_sqlite3.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-sqlitepclraw.lib.e-sqlite3-2.1.11.txt"
+      "sourceFile": "~/.nuget/packages/sqlitepclraw.lib.e_sqlite3/2.1.12/sqlitepclraw.lib.e_sqlite3.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-sqlitepclraw.lib.e-sqlite3-2.1.12.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "SQLitePCLRaw.provider.e_sqlite3",
-      "version": "2.1.11",
+      "version": "2.1.12",
       "declaredLicence": "Apache-2.0",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/sqlitepclraw.provider.e_sqlite3/2.1.11/sqlitepclraw.provider.e_sqlite3.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-sqlitepclraw.provider.e-sqlite3-2.1.11.txt"
+      "sourceFile": "~/.nuget/packages/sqlitepclraw.provider.e_sqlite3/2.1.12/sqlitepclraw.provider.e_sqlite3.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-sqlitepclraw.provider.e-sqlite3-2.1.12.txt"
     },
     {
       "ecosystem": "nuget",
