@@ -26,6 +26,11 @@ public sealed class CardValidator(
         {
             errors.Add(createSlickValidationError);
         }
+        var createExternalUrlValidationError = CardExternalUrl.ValidateOptional(request.ExternalUrl, "externalUrl");
+        if (createExternalUrlValidationError is not null)
+        {
+            errors.Add(createExternalUrlValidationError);
+        }
 
         if (errors.Count > 0)
         {
@@ -82,6 +87,11 @@ public sealed class CardValidator(
         if (updateSlickValidationError is not null)
         {
             errors.Add(updateSlickValidationError);
+        }
+        var updateExternalUrlValidationError = CardExternalUrl.ValidateOptional(request.ExternalUrl, "externalUrl");
+        if (updateExternalUrlValidationError is not null)
+        {
+            errors.Add(updateExternalUrlValidationError);
         }
 
         if (request.BoardColumnId is int boardColumnId)

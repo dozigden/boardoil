@@ -46,6 +46,40 @@ public sealed class BoardPackageImportPlannerTests
     }
 
     [Fact]
+    public void BuildBoardPackageImportPlan_WhenCardExternalUrlIsNotHttpOrHttps_ShouldReturnValidationError()
+    {
+        var payload = new BoardPackageBoardDto(
+            "Bad External URL Board",
+            "External URL must be valid",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto(
+                            "Card",
+                            "Description",
+                            "Story",
+                            [],
+                            ExternalUrl: "ftp://example.com/file")
+                    ])
+            ]);
+
+        var planner = new BoardPackageImportPlanner();
+        var result = planner.BuildBoardPackageImportPlan(
+            "Bad External URL Board",
+            "External URL must be valid",
+            true,
+            payload,
+            null);
+
+        Assert.NotNull(result.Error);
+        Assert.NotNull(result.Error!.ValidationErrors);
+        Assert.Contains("board.columns[0].cards[0].externalUrl", result.Error.ValidationErrors!.Keys);
+    }
+
+    [Fact]
     public void BuildBoardPackageImportPlan_ShouldCanonicaliseCardTagNamesAndEmails()
     {
         var payload = new BoardPackageBoardDto(

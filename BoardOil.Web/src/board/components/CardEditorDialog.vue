@@ -240,6 +240,11 @@
             @update:slick-name="updateDraftSlickNameFromEditor"
           />
 
+          <CardExternalUrlEditor
+            :external-url="cardDraft.externalUrl"
+            @update:external-url="updateDraftExternalUrlFromEditor"
+          />
+
         </aside>
       </div>
     </template>
@@ -272,6 +277,7 @@ import BoDropdown from '../../shared/components/BoDropdown.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import CardTagEditor from './CardTagEditor.vue';
 import CardSlickPicker from './CardSlickPicker.vue';
+import CardExternalUrlEditor from './CardExternalUrlEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
@@ -573,6 +579,10 @@ function updateDraftSlickNameFromEditor(slickName: string | null) {
   patchFromUser({ slickName });
 }
 
+function updateDraftExternalUrlFromEditor(externalUrl: string | null) {
+  patchFromUser({ externalUrl });
+}
+
 function handleDescriptionEditorFocus() {
   descriptionEditorFocused.value = true;
   setActiveEditor('description');
@@ -853,6 +863,7 @@ function createEditModelFromCard(card: Card): CardEditModel {
   return {
     title: card.title,
     description: card.description,
+    externalUrl: card.externalUrl,
     tagNames: [...card.tagNames],
     cardTypeId: card.cardTypeId,
     boardColumnId: card.boardColumnId,
@@ -869,7 +880,9 @@ function cloneCardEditModel(model: CardEditModel): CardEditModel {
 }
 
 function areCardEditModelsEqual(left: CardEditModel, right: CardEditModel) {
-  if (left.title !== right.title || left.description !== right.description) {
+  if (left.title !== right.title
+    || left.description !== right.description
+    || left.externalUrl !== right.externalUrl) {
     return false;
   }
 

@@ -19,6 +19,9 @@ public static class CardEndpoints
         cardEndpoints.MapPost(string.Empty, async (int boardId, CreateCardRequest request, ICardService cardService, HttpContext httpContext) =>
             (await cardService.CreateCardAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 
+        cardEndpoints.MapPost("/search", async (int boardId, SearchCardsRequest request, ICardService cardService, HttpContext httpContext) =>
+            (await cardService.SearchCardsAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
+
         cardEndpoints.MapGet("/archived", async (int boardId, string? search, int? offset, int? limit, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
             (await cardArchiveService.GetArchivedCardsAsync(boardId, search, offset, limit, httpContext.GetActorUserId())).ToHttpResult());
 

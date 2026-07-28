@@ -14,6 +14,7 @@ public sealed class BoardCardConfiguration : IEntityTypeConfiguration<EntityBoar
         card.Property(x => x.SlickId).IsRequired(false);
         card.Property(x => x.Title).HasMaxLength(200).IsRequired();
         card.Property(x => x.Description).HasMaxLength(20_000).IsRequired();
+        card.Property(x => x.ExternalUrl).IsRequired(false);
         card.Property(x => x.SortKey).HasMaxLength(20).IsRequired();
         card.ToTable("Cards");
         card.HasIndex(x => new { x.BoardColumnId, x.SortKey }).IsUnique();

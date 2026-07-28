@@ -9,6 +9,7 @@ public sealed class EntityBoardCard : ISupportCreatedAt, ISupportUpdatedAt
     public int? SlickId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string? ExternalUrl { get; set; }
     public string SortKey { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; internal set; }

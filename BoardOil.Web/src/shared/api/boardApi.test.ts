@@ -168,6 +168,7 @@ describe('boardApi saveCard', () => {
       cardTypeEmoji: null,
       title: 'Updated card',
       description: 'Updated',
+      externalUrl: 'https://github.com/example/repository',
       sortKey: '00000000000000000001',
       tags: [],
       tagNames: [],
@@ -180,6 +181,7 @@ describe('boardApi saveCard', () => {
     const result = await api.saveCard(1, 99, {
       title: 'Updated card',
       description: 'Updated',
+      externalUrl: 'https://github.com/example/repository',
       tagNames: ['Bug'],
       cardTypeId: 1,
       boardColumnId: 3,
@@ -191,6 +193,7 @@ describe('boardApi saveCard', () => {
     expect(putData).toHaveBeenCalledWith('/api/boards/1/cards/99', {
       title: 'Updated card',
       description: 'Updated',
+      externalUrl: 'https://github.com/example/repository',
       tagNames: ['Bug'],
       cardTypeId: 1,
       boardColumnId: 3,

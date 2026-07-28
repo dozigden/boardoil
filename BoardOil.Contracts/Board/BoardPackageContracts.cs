@@ -43,7 +43,8 @@ public sealed record BoardPackageCardDto(
     IReadOnlyList<string> TagNames,
     string? AssignedUserEmail = null,
     IReadOnlyList<BoardPackageCommentDto>? Comments = null,
-    string? SlickName = null);
+    string? SlickName = null,
+    string? ExternalUrl = null);
 
 public sealed record BoardPackageSlickDto(
     string Name,

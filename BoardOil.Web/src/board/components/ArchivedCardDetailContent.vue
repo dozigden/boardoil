@@ -51,6 +51,20 @@
       </div>
 
       <div class="card-editor-option-section">
+        <span class="card-editor-field-label">External link</span>
+        <a
+          v-if="safeExternalUrl"
+          class="archived-card-external-url"
+          :href="safeExternalUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {{ safeExternalUrl }}
+        </a>
+        <span v-else>-</span>
+      </div>
+
+      <div class="card-editor-option-section">
         <span class="card-editor-field-label">Archived</span>
         <span>{{ formatDateTime(archivedCard.archivedAtUtc) }}</span>
       </div>
@@ -73,6 +87,7 @@ import { computed } from 'vue';
 import MdViewer from '../../shared/components/MdViewer.vue';
 import Tag from './Tag.vue';
 import type { ArchivedCard } from '../../shared/types/boardTypes';
+import { isHttpOrHttpsUrl } from '../../shared/utils/linkUrl';
 
 const props = defineProps<{
   archivedCard: ArchivedCard;
@@ -120,6 +135,11 @@ const slickLabel = computed(() => {
   }
 
   return '-';
+});
+
+const safeExternalUrl = computed(() => {
+  const externalUrl = card.value.externalUrl?.trim() ?? '';
+  return isHttpOrHttpsUrl(externalUrl) ? externalUrl : null;
 });
 
 const descriptionForDisplay = computed(() => {
@@ -228,6 +248,10 @@ function formatDateTime(value: string) {
 }
 
 .archived-card-assignee {
+  overflow-wrap: anywhere;
+}
+
+.archived-card-external-url {
   overflow-wrap: anywhere;
 }
 

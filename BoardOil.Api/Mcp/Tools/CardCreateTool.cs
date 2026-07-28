@@ -17,7 +17,7 @@ public sealed class CardCreateTool(
     private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardCreate, "Create a card in a specific column.", ToolSchemas.CardCreateInput, ToolSchemas.ObjectOutput);
+        new(ToolNames.CardCreate, "Create a card with an optional external URL in a specific column.", ToolSchemas.CardCreateInput, ToolSchemas.ObjectOutput);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -53,7 +53,8 @@ public sealed class CardCreateTool(
             input.TagNames,
             input.CardTypeId,
             input.AssignedUserId,
-            input.SlickName);
+            input.SlickName,
+            input.ExternalUrl);
         var result = await _cardService.CreateCardAsync(boardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {

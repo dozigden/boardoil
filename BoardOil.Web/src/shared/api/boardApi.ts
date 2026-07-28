@@ -154,6 +154,7 @@ export function createBoardApi() {
       boardColumnId: model.boardColumnId,
       title: model.title,
       description: '',
+      externalUrl: null,
       tagNames: [],
       cardTypeId: model.cardTypeId
     });

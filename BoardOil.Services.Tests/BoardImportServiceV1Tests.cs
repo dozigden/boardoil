@@ -72,7 +72,8 @@ public sealed class BoardImportServiceV1Tests : TestBaseDb
                       "description": "Description",
                       "cardTypeName": "Story",
                       "tagNames": [],
-                      "slickName": "Release train"
+                      "slickName": "Release train",
+                      "externalUrl": "https://github.com/example/repository"
                     }
                   ]
                 }
@@ -104,6 +105,7 @@ public sealed class BoardImportServiceV1Tests : TestBaseDb
 
         var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId && x.Title == "Card A");
         Assert.Equal(slick.Id, importedCard.SlickId);
+        Assert.Equal("https://github.com/example/repository", importedCard.ExternalUrl);
     }
 
     private static string CreateManifestJson(int schemaVersion) =>

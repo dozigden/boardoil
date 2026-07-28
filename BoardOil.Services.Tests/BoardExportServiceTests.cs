@@ -84,6 +84,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         var cardEntity = DbContextForArrange.Cards.Single(x => x.Id == card.Id);
         cardEntity.AssignedUserId = actor.Id;
         cardEntity.SlickId = releaseSlick.Id;
+        cardEntity.ExternalUrl = "https://github.com/example/repository";
         DbContextForArrange.ArchivedCards.Add(new EntityArchivedCard
         {
             BoardId = board.BoardId,
@@ -160,6 +161,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.NotNull(exportedAssignedCard.Comments);
         Assert.Equal(2, exportedAssignedCard.Comments!.Count);
         Assert.Equal("Release train", exportedAssignedCard.SlickName);
+        Assert.Equal("https://github.com/example/repository", exportedAssignedCard.ExternalUrl);
         Assert.Equal("Most recent comment", exportedAssignedCard.Comments[0].Text);
         Assert.Equal(actor.Email, exportedAssignedCard.Comments[0].AuthorEmail);
         Assert.Equal("Older comment", exportedAssignedCard.Comments[1].Text);

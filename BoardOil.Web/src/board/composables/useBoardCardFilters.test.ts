@@ -61,6 +61,7 @@ function makeCard(id: number, title: string, cardTypeId: number): Card {
     cardTypeEmoji: null,
     title,
     description: '',
+    externalUrl: null,
     sortKey: String(id).padStart(3, '0'),
     tags: [],
     tagNames: [],

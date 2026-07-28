@@ -108,4 +108,46 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<EntityBoardCard>> SearchAsync(
+        int boardId,
+        IReadOnlyList<CardSearchCriterion> criteria)
+    {
+        var cards = await DbSet
+            .Where(x => x.BoardColumn.BoardId == boardId)
+            .OrderBy(x => x.BoardColumn.SortKey)
+            .ThenBy(x => x.SortKey)
+            .Include(x => x.CardType)
+            .Include(x => x.AssignedUser)
+            .Include(x => x.Slick)
+            .Include(x => x.CardTags)
+                .ThenInclude(x => x.Tag)
+            .ToListAsync();
+
+        return cards
+            .Where(card => criteria.All(criterion => MatchesSearchCriterion(card, criterion)))
+            .ToList();
+    }
+
+    private static bool MatchesSearchCriterion(
+        EntityBoardCard card,
+        CardSearchCriterion criterion)
+    {
+        if (criterion.Field != CardSearchField.ExternalUrl)
+        {
+            throw new ArgumentOutOfRangeException(nameof(criterion), criterion.Field, "Unsupported card search field.");
+        }
+
+        if (criterion.Operator == CardSearchOperator.Exact)
+        {
+            return string.Equals(card.ExternalUrl, criterion.Value, StringComparison.Ordinal);
+        }
+
+        if (criterion.Operator == CardSearchOperator.Contains)
+        {
+            return card.ExternalUrl?.Contains(criterion.Value, StringComparison.OrdinalIgnoreCase) == true;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(criterion), criterion.Operator, "Unsupported card search operator.");
+    }
+
 }

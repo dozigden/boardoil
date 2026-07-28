@@ -309,6 +309,7 @@ function makeBoard(id = 1, name = 'Board'): Board {
             cardTypeEmoji: null,
             title: 'Task A',
             description: 'Seed',
+            externalUrl: null,
             sortKey: '00000000000000000001',
             tags: [],
             tagNames: [],

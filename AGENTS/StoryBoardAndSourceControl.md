@@ -12,12 +12,14 @@ This file defines how agents should manage work tracking and source control in t
   - `boardId`
   - `id`
   - `cardTypeId`
+  - `slickName`
+  - `externalUrl`
   - `title`
   - `description`
   - `tagNames`
 - Safe pattern for description edits:
-  - read current card from `board.get`
-  - preserve existing `title`, `tagNames`, and `cardTypeId`
+  - read current card from `card.get`
+  - preserve existing `title`, `tagNames`, `cardTypeId`, `slickName`, and `externalUrl`
   - send only the new `description` alongside preserved required fields
 - Treat MCP `isError: true` responses as failed operations.
 - Treat the board as the execution source of truth during board-driven work.

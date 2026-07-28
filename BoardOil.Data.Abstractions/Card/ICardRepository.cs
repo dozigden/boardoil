@@ -3,6 +3,22 @@ using BoardOil.Data.Abstractions.Entities;
 
 namespace BoardOil.Data.Abstractions.Card;
 
+public enum CardSearchField
+{
+    ExternalUrl
+}
+
+public enum CardSearchOperator
+{
+    Exact,
+    Contains
+}
+
+public sealed record CardSearchCriterion(
+    CardSearchField Field,
+    CardSearchOperator Operator,
+    string Value);
+
 public interface ICardRepository : IRepositoryBase<EntityBoardCard>
 {
     Task<EntityBoardCard?> GetWithTagsByIdAsync(int id);
@@ -12,4 +28,5 @@ public interface ICardRepository : IRepositoryBase<EntityBoardCard>
     Task<bool> ColumnExistsAsync(int columnId);
     Task<IReadOnlyList<EntityBoardCard>> GetCardsInColumnOrderedAsync(int columnId);
     Task<IReadOnlyList<EntityBoardCard>> GetCardsForColumnsOrderedAsync(IReadOnlyList<int> columnIds);
+    Task<IReadOnlyList<EntityBoardCard>> SearchAsync(int boardId, IReadOnlyList<CardSearchCriterion> criteria);
 }

@@ -40,6 +40,50 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_Search_ShouldBindFilterArrayAndReturnMatchingCards()
+    {
+        // Arrange
+        var createdColumnId = await SeedBoardColumnAsync("Todo");
+        var firstCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(
+                createdColumnId,
+                "First match",
+                "Desc",
+                [],
+                ExternalUrl: "https://github.com/Example/repository"));
+        firstCreateResponse.EnsureSuccessStatusCode();
+        var secondCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(
+                createdColumnId,
+                "Second match",
+                "Desc",
+                [],
+                ExternalUrl: "https://github.com/example/repository/issues"));
+        secondCreateResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards/search",
+            new SearchCardsRequest([
+                new CardSearchFilterRequest(
+                    CardSearchFields.ExternalUrl,
+                    CardSearchOperators.Contains,
+                    "GITHUB.COM/example/repository")
+            ]));
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<CardDto>>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(envelope);
+        Assert.True(envelope!.Success);
+        Assert.NotNull(envelope.Data);
+        Assert.Equal(["Second match", "First match"], envelope.Data!.Select(x => x.Title).ToArray());
+        Assert.All(envelope.Data, card => Assert.NotNull(card.ExternalUrl));
+    }
+
+    [Fact]
     public async Task CardEndpoints_UpdateWithoutCardTypeId_ShouldReturnValidationError()
     {
         // Arrange

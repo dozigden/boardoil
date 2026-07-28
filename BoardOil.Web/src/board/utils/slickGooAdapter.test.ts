@@ -123,6 +123,7 @@ function makeCard(id: number, columnId: number, slickId: number | null) {
     cardTypeEmoji: null,
     title: `Card ${id}`,
     description: '',
+    externalUrl: null,
     sortKey: `${id}`.padStart(20, '0'),
     tags: [],
     tagNames: [],

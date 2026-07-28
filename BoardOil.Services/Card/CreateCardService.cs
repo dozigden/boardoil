@@ -100,6 +100,7 @@ public sealed class CreateCardService(
             Slick = selectedSlick,
             Title = draft.Title,
             Description = draft.Description,
+            ExternalUrl = draft.ExternalUrl,
             SortKey = string.Empty,
         };
         CardTagMutation.ReplaceTags(card, tags);

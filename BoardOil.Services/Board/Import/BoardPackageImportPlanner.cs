@@ -310,6 +310,15 @@ public sealed class BoardPackageImportPlanner
                             $"Card description must be {BoardPackageImportLimits.MaxCardDescriptionLength} characters or fewer."));
                     }
 
+                    var externalUrlValidationError = CardExternalUrl.ValidateOptional(
+                        importedCard.ExternalUrl,
+                        $"{cardPropertyPrefix}.externalUrl");
+                    if (externalUrlValidationError is not null)
+                    {
+                        validationErrors.Add(externalUrlValidationError);
+                    }
+                    var externalUrl = CardExternalUrl.Normalise(importedCard.ExternalUrl);
+
                     var cardTypeValidation = ValidateCardTypeName(importedCard.CardTypeName, $"{cardPropertyPrefix}.cardTypeName");
                     if (cardTypeValidation.Error is not null)
                     {
@@ -345,7 +354,8 @@ public sealed class BoardPackageImportPlanner
                         canonicalTagNames,
                         cardSlickNormalisedName,
                         BoardPackageImportNormalisation.ResolveNormalisedEmailOrNull(importedCard.AssignedUserEmail),
-                        plannedComments));
+                        plannedComments,
+                        externalUrl));
                 }
 
                 if (validationErrors.Count > errorCountBeforeColumn)

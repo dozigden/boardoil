@@ -147,6 +147,7 @@ public sealed class BoardPackageImportWriter(
                         : slicksByNormalisedName[importedCard.SlickNormalisedName],
                     Title = importedCard.Title,
                     Description = importedCard.Description,
+                    ExternalUrl = importedCard.ExternalUrl,
                     SortKey = sortKeyPlan.CardKeysByColumn[columnIndex][cardIndex],
                 };
 

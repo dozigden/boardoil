@@ -87,7 +87,8 @@ public sealed class BoardExportService(
                             .ToList(),
                         card.AssignedUser?.Email,
                         commentsByCardId.GetValueOrDefault(card.Id, []),
-                        card.SlickId is null ? null : slickNamesById.GetValueOrDefault(card.SlickId.Value)))
+                        card.SlickId is null ? null : slickNamesById.GetValueOrDefault(card.SlickId.Value),
+                        card.ExternalUrl))
                     .ToList());
 
         var boardPayload = new BoardPackageBoardDto(

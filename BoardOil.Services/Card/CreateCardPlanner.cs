@@ -32,12 +32,14 @@ public sealed class CreateCardPlanner
     {
         var title = request.Title.Trim();
         var description = request.Description ?? string.Empty;
+        var externalUrl = CardExternalUrl.Normalise(request.ExternalUrl);
         return new CreateCardDraft(
             TargetColumnId: targetColumn.Id,
             CardTypeId: selectedCardType.Id,
             Title: title,
             Description: description,
-            AssignedUserId: request.AssignedUserId);
+            AssignedUserId: request.AssignedUserId,
+            ExternalUrl: externalUrl);
     }
 }
 
@@ -47,4 +49,5 @@ public readonly record struct CreateCardDraft(
     int CardTypeId,
     string Title,
     string Description,
-    int? AssignedUserId);
+    int? AssignedUserId,
+    string? ExternalUrl);

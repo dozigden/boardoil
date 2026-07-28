@@ -518,6 +518,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     columnId = todoColumn.GetProperty("id").GetInt32(),
                     title = "Canonical contract MCP card",
                     description = "",
+                    externalUrl = "https://github.com/example/repository",
                     tagNames = Array.Empty<string>()
                 }
             },
@@ -533,6 +534,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         Assert.True(createdCard.TryGetProperty("cardTypeName", out _));
         Assert.True(createdCard.TryGetProperty("cardTypeEmoji", out _));
         Assert.True(createdCard.TryGetProperty("tags", out _));
+        Assert.Equal("https://github.com/example/repository", createdCard.GetProperty("externalUrl").GetString());
         Assert.False(createdCard.TryGetProperty("cardId", out _));
         Assert.False(createdCard.TryGetProperty("boardColumnId", out _));
 
@@ -562,6 +564,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         Assert.True(boardCard.TryGetProperty("cardTypeName", out _));
         Assert.True(boardCard.TryGetProperty("cardTypeEmoji", out _));
         Assert.True(boardCard.TryGetProperty("tags", out _));
+        Assert.Equal("https://github.com/example/repository", boardCard.GetProperty("externalUrl").GetString());
         Assert.False(boardCard.TryGetProperty("cardId", out _));
         Assert.False(boardCard.TryGetProperty("boardColumnId", out _));
 
@@ -580,6 +583,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     id = createdCardId,
                     cardTypeId = createdCardTypeId,
                     slickName = (string?)null,
+                    externalUrl = (string?)null,
                     title = "Canonical contract MCP card updated",
                     description = "updated with canonical ids",
                     tagNames = Array.Empty<string>()
@@ -588,6 +592,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             "card-update-canonical-contract",
             patToken);
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        using var updatePayload = await McpJsonRpcClient.ParseJsonAsync(updateResponse);
+        var updatedCard = McpJsonRpcClient.GetStructuredContent(updatePayload).GetProperty("card");
+        Assert.Equal(JsonValueKind.Null, updatedCard.GetProperty("externalUrl").ValueKind);
 
         var deleteResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -718,6 +725,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     columnId = doingColumnId,
                     cardTypeId = createdCardTypeId,
                     slickName = (string?)null,
+                    externalUrl = (string?)null,
                     title = "Move me updated",
                     description = "",
                     tagNames = Array.Empty<string>()
@@ -838,6 +846,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     columnId = todoColumnId,
                     cardTypeId = createdCardTypeId,
                     slickName = (string?)null,
+                    externalUrl = (string?)null,
                     title = "Assigned by MCP (updated)",
                     description = "",
                     tagNames = Array.Empty<string>()
@@ -961,7 +970,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     title = "MCP slick-name card",
                     description = "",
                     tagNames = Array.Empty<string>(),
-                    slickName = "Release candidate"
+                    slickName = "Release candidate",
+                    externalUrl = (string?)null
                 }
             },
             "card-update-with-new-slick-name",
@@ -999,7 +1009,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     title = "MCP slick-name card",
                     description = "",
                     tagNames = Array.Empty<string>(),
-                    slickName = (string?)null
+                    slickName = (string?)null,
+                    externalUrl = (string?)null
                 }
             },
             "card-update-clear-slick-with-null",
@@ -1037,7 +1048,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     title = "MCP slick-name card",
                     description = "",
                     tagNames = Array.Empty<string>(),
-                    slickName = "Release train"
+                    slickName = "Release train",
+                    externalUrl = (string?)null
                 }
             },
             "card-update-set-slick-before-omit-clear",
@@ -1058,7 +1070,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
                     cardTypeId,
                     title = "MCP slick-name card",
                     description = "",
-                    tagNames = Array.Empty<string>()
+                    tagNames = Array.Empty<string>(),
+                    externalUrl = (string?)null
                 }
             },
             "card-update-omitted-slick-required",
@@ -1071,6 +1084,35 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         var omittedSlickValidationErrors = omittedSlickValidation.GetProperty("validationErrors");
         Assert.True(omittedSlickValidationErrors.TryGetProperty("slickName", out var slickErrors));
         Assert.NotEmpty(slickErrors.EnumerateArray());
+
+        // Act: omitted externalUrl is rejected because externalUrl is required on card.update.
+        var updateWithOmittedExternalUrlResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.update",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = cardId,
+                    cardTypeId,
+                    title = "MCP slick-name card",
+                    description = "",
+                    tagNames = Array.Empty<string>(),
+                    slickName = "Release train"
+                }
+            },
+            "card-update-omitted-external-url-required",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, updateWithOmittedExternalUrlResponse.StatusCode);
+        using var updateWithOmittedExternalUrlPayload = await McpJsonRpcClient.ParseJsonAsync(updateWithOmittedExternalUrlResponse);
+
+        var omittedExternalUrlValidation = McpJsonRpcClient.GetStructuredContent(updateWithOmittedExternalUrlPayload);
+        Assert.Equal("validation_failed", omittedExternalUrlValidation.GetProperty("code").GetString());
+        var omittedExternalUrlValidationErrors = omittedExternalUrlValidation.GetProperty("validationErrors");
+        Assert.True(omittedExternalUrlValidationErrors.TryGetProperty("externalUrl", out var externalUrlErrors));
+        Assert.NotEmpty(externalUrlErrors.EnumerateArray());
 
         var cardGetAfterRejectedOmittedSlickResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -1240,7 +1282,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         var cases = new (string ToolName, object Arguments, string RequestId, string[] ExpectedValidationKeys)[]
         {
             ("card.create", new { boardId = 0, columnId = 0, title = "Invalid create", description = "validation test", tagNames = Array.Empty<string>() }, "card-create-multi-validation", ["boardId", "columnId"]),
-            ("card.update", new { boardId = 0, id = 0, cardTypeId = 0, slickName = (string?)null, title = "Invalid update", description = "validation test", tagNames = Array.Empty<string>() }, "card-update-multi-validation", ["boardId", "id", "cardTypeId"]),
+            ("card.update", new { boardId = 0, id = 0, cardTypeId = 0, slickName = (string?)null, externalUrl = (string?)null, title = "Invalid update", description = "validation test", tagNames = Array.Empty<string>() }, "card-update-multi-validation", ["boardId", "id", "cardTypeId"]),
             ("card.move", new { boardId = 0, id = 0, columnId = 0, afterId = 0 }, "card-move-multi-validation", ["boardId", "id", "columnId", "afterId"]),
             ("card.delete", new { boardId = 0, id = 0 }, "card-delete-multi-validation", ["boardId", "id"])
         };

@@ -58,7 +58,8 @@ public sealed record CardImportDefinition(
     IReadOnlyList<string> TagNames,
     string? SlickNormalisedName,
     string? AssignedUserNormalisedEmail,
-    IReadOnlyList<CommentImportDefinition> Comments);
+    IReadOnlyList<CommentImportDefinition> Comments,
+    string? ExternalUrl = null);
 
 public sealed record CommentImportDefinition(
     string Text,

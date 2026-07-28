@@ -34,7 +34,8 @@ public sealed record CardDto(
     string? AssignedUserName = null,
     string? AssignedUserImageRelativePath = null,
     int? SlickId = null,
-    string? SlickName = null);
+    string? SlickName = null,
+    string? ExternalUrl = null);
 
 public sealed record ArchivedCardDto(
     int Id,
@@ -83,7 +84,8 @@ public sealed record CreateCardRequest(
     IReadOnlyList<string>? TagNames,
     int? CardTypeId = null,
     int? AssignedUserId = null,
-    string? SlickName = null);
+    string? SlickName = null,
+    string? ExternalUrl = null);
 
 public sealed record UpdateCardRequest(
     string Title,
@@ -92,7 +94,27 @@ public sealed record UpdateCardRequest(
     int CardTypeId,
     int? BoardColumnId = null,
     int? AssignedUserId = null,
-    string? SlickName = null);
+    string? SlickName = null,
+    string? ExternalUrl = null);
+
+public sealed record SearchCardsRequest(
+    IReadOnlyList<CardSearchFilterRequest>? Filters);
+
+public sealed record CardSearchFilterRequest(
+    string Field,
+    string Operator,
+    string Value);
+
+public static class CardSearchFields
+{
+    public const string ExternalUrl = "externalUrl";
+}
+
+public static class CardSearchOperators
+{
+    public const string Exact = "exact";
+    public const string Contains = "contains";
+}
 
 public sealed record MoveCardRequest(
     int BoardColumnId,

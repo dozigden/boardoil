@@ -27,6 +27,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(99, knownPayload.Payload.BoardId);
         Assert.Equal(card.Id, knownPayload.Payload.OriginalCardId);
         Assert.Equal(card.Title, knownPayload.Payload.Title);
+        Assert.Equal(card.ExternalUrl, knownPayload.Payload.ExternalUrl);
         Assert.Equal(["Bug"], knownPayload.Payload.TagNames);
         Assert.Equal(card.Slick!.Name, knownPayload.Payload.SlickName);
         Assert.NotNull(knownPayload.Payload.Comments);
@@ -72,6 +73,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.Id, parsedCard!.Id);
         Assert.Equal(card.Title, parsedCard.Title);
         Assert.Equal(card.Description, parsedCard.Description);
+        Assert.Equal(card.ExternalUrl, parsedCard.ExternalUrl);
         Assert.Equal(["Bug"], parsedCard.TagNames);
         Assert.Null(parsedCard.SlickId);
         Assert.Equal(card.Slick!.Name, parsedCard.SlickName);
@@ -117,6 +119,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
             CardType = cardType,
             Title = "Archive me",
             Description = "Desc",
+            ExternalUrl = "https://github.com/example/repository",
             SortKey = "B",
             SlickId = 77,
             Slick = new EntitySlick

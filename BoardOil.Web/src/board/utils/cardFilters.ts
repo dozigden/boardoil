@@ -10,7 +10,7 @@ export type CardSearchAndTagFilter = {
   excludedCardTypeIds: number[];
 };
 
-type FilterableCard = Pick<Card, 'title' | 'description' | 'tagNames' | 'slickName' | 'cardTypeId'>;
+type FilterableCard = Pick<Card, 'title' | 'description' | 'externalUrl' | 'tagNames' | 'slickName' | 'cardTypeId'>;
 
 export function createCardSearchAndTagMatcher(filter: CardSearchAndTagFilter) {
   const normalisedSearchText = normaliseSearchText(filter.searchText);
@@ -29,7 +29,7 @@ export function createCardSearchAndTagMatcher(filter: CardSearchAndTagFilter) {
 
   return (card: FilterableCard) => {
     if (normalisedSearchText.length > 0) {
-      const searchableText = `${card.title} ${card.description}`.toLocaleLowerCase();
+      const searchableText = `${card.title} ${card.description} ${card.externalUrl ?? ''}`.toLocaleLowerCase();
       if (!searchableText.includes(normalisedSearchText)) {
         return false;
       }

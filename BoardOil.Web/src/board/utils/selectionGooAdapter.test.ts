@@ -79,6 +79,7 @@ function makeCard(id: number, columnId: number) {
     cardTypeEmoji: null,
     title: `Card ${id}`,
     description: '',
+    externalUrl: null,
     sortKey: `${id}`.padStart(20, '0'),
     tags: [],
     tagNames: [],

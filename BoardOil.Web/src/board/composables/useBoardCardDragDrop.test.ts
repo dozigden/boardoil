@@ -119,6 +119,7 @@ function makeCard(id: number, boardColumnId: number, title: string): Card {
     cardTypeEmoji: null,
     title,
     description: '',
+    externalUrl: null,
     sortKey: `${id}`,
     tags: [],
     tagNames: [],

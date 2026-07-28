@@ -54,7 +54,8 @@ public sealed record McpBoardCardSnapshot(
     int? AssignedUserId,
     string? AssignedUserName,
     int? SlickId,
-    McpCardSlickSnapshot? Slick);
+    McpCardSlickSnapshot? Slick,
+    string? ExternalUrl);
 
 public sealed record McpCardSnapshot(
     int Id,
@@ -72,7 +73,8 @@ public sealed record McpCardSnapshot(
     string? AssignedUserName,
     int? SlickId,
     McpCardSlickSnapshot? Slick,
-    IReadOnlyList<McpCardCommentSnapshot> Comments);
+    IReadOnlyList<McpCardCommentSnapshot> Comments,
+    string? ExternalUrl);
 
 public sealed record McpCardCommentSnapshot(
     int Id,
@@ -133,6 +135,7 @@ public sealed record CardCreateInput
     public int? CardTypeId { get; init; }
     public int? AssignedUserId { get; init; }
     public string? SlickName { get; init; }
+    public string? ExternalUrl { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyList<string>? TagNames { get; init; }
@@ -144,6 +147,8 @@ public sealed record CardUpdateInput
     private bool _assignedUserIdSpecified;
     private string? _slickName;
     private bool _slickNameSpecified;
+    private string? _externalUrl;
+    private bool _externalUrlSpecified;
 
     public int? BoardId { get; init; }
     public int? Id { get; init; }
@@ -167,6 +172,15 @@ public sealed record CardUpdateInput
             _slickNameSpecified = true;
         }
     }
+    public string? ExternalUrl
+    {
+        get => _externalUrl;
+        init
+        {
+            _externalUrl = value;
+            _externalUrlSpecified = true;
+        }
+    }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyList<string> TagNames { get; init; } = [];
@@ -176,6 +190,9 @@ public sealed record CardUpdateInput
 
     [JsonIgnore]
     public bool SlickNameSpecified => _slickNameSpecified;
+
+    [JsonIgnore]
+    public bool ExternalUrlSpecified => _externalUrlSpecified;
 }
 
 public sealed record CardMoveInput

@@ -17,7 +17,7 @@ public sealed class CardUpdateTool(
     private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardUpdate, "Update card title, description, tags, slick selection, and optional target column.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput);
+        new(ToolNames.CardUpdate, "Update card title, description, tags, slick selection, external URL, and optional target column.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -37,6 +37,10 @@ public sealed class CardUpdateTool(
         if (!input.SlickNameSpecified)
         {
             validationErrors = [..validationErrors, new ValidationError("slickName", "Slick selection is required. Provide slickName or null.")];
+        }
+        if (!input.ExternalUrlSpecified)
+        {
+            validationErrors = [..validationErrors, new ValidationError("externalUrl", "External URL is required. Provide externalUrl or null.")];
         }
         if (validationErrors.Count > 0)
         {
@@ -71,7 +75,8 @@ public sealed class CardUpdateTool(
             input.CardTypeId!.Value,
             input.ColumnId,
             assignedUserId,
-            input.SlickName);
+            input.SlickName,
+            input.ExternalUrl);
         var result = await _cardService.UpdateCardAsync(boardId, cardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {

@@ -31,7 +31,12 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         var taggingResult = await taggingService.UpdateCardAsync(
             boardId,
             cardId,
-            new UpdateCardRequest("Archive me", "Keep this", ["Urgent", "Bug"], systemCardTypeId),
+            new UpdateCardRequest(
+                "Archive me",
+                "Keep this",
+                ["Urgent", "Bug"],
+                systemCardTypeId,
+                ExternalUrl: "https://github.com/example/repository"),
             ActorUserId);
         Assert.True(taggingResult.Success);
 
@@ -60,6 +65,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.Contains("URGENT", archived.SearchTextNormalised);
         Assert.Contains("\"version\":1", archived.SnapshotJson, StringComparison.Ordinal);
         Assert.Contains("\"slickName\":null", archived.SnapshotJson, StringComparison.Ordinal);
+        Assert.Contains("\"externalUrl\":\"https://github.com/example/repository\"", archived.SnapshotJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -72,6 +78,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
             .Build();
         var boardId = board.BoardId;
         var cardId = board.GetCard("Todo", "Archive me").Id;
+        board.GetCard("Todo", "Archive me").ExternalUrl = "https://github.com/example/repository";
         var now = DateTime.UtcNow;
         DbContextForArrange.CardComments.Add(new()
         {
@@ -101,7 +108,8 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         // Assert
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
-        var restoredCardId = unarchiveResult.Data!.Id;
+        Assert.Equal("https://github.com/example/repository", unarchiveResult.Data!.ExternalUrl);
+        var restoredCardId = unarchiveResult.Data.Id;
         var restoredComments = await DbContextForAssert.CardComments
             .Where(x => x.CardId == restoredCardId)
             .OrderBy(x => x.PostedAtUtc)

@@ -190,6 +190,7 @@ public sealed class CardArchiveService(
             Slick = resolvedSlick,
             Title = title,
             Description = snapshotCard.Description,
+            ExternalUrl = CardExternalUrl.Normalise(snapshotCard.ExternalUrl),
             SortKey = string.Empty,
         };
         ReplaceTags(restoredCard, resolvedTags);
@@ -572,6 +573,12 @@ public sealed class CardArchiveService(
         if (!string.IsNullOrEmpty(slickName) && slickName.Length > MaxSlickNameLength)
         {
             errors.Add(new ValidationError("snapshot.slickName", $"Slick name must be {MaxSlickNameLength} characters or fewer."));
+        }
+
+        var externalUrlValidationError = CardExternalUrl.ValidateOptional(snapshotCard.ExternalUrl, "snapshot.externalUrl");
+        if (externalUrlValidationError is not null)
+        {
+            errors.Add(externalUrlValidationError);
         }
 
         return errors;

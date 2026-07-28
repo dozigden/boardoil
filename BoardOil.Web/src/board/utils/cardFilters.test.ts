@@ -31,6 +31,26 @@ describe('createCardSearchAndTagMatcher', () => {
     expect(matcher(makeCard({ title: 'Backlog tidy-up', description: 'No related content', tagNames: [] }))).toBe(false);
   });
 
+  it('matches search text against external URL case-insensitively', () => {
+    const matcher = createCardSearchAndTagMatcher({
+      searchText: 'GITHUB.COM/example',
+      includedTagNames: [],
+      excludedTagNames: [],
+      includedSlickNames: [],
+      excludedSlickNames: [],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: []
+    });
+
+    expect(matcher(makeCard({
+      title: 'Repository',
+      description: '',
+      externalUrl: 'https://github.com/Example/project',
+      tagNames: []
+    }))).toBe(true);
+    expect(matcher(makeCard({ title: 'Other', description: '', tagNames: [] }))).toBe(false);
+  });
+
   it('includes a card when it has any included tag', () => {
     const matcher = createCardSearchAndTagMatcher({
       searchText: '',
@@ -157,7 +177,14 @@ describe('createCardSearchAndTagMatcher', () => {
   });
 });
 
-function makeCard(overrides: { title: string; description: string; tagNames: string[]; slickName?: string | null; cardTypeId?: number }) {
+function makeCard(overrides: {
+  title: string;
+  description: string;
+  externalUrl?: string | null;
+  tagNames: string[];
+  slickName?: string | null;
+  cardTypeId?: number;
+}) {
   return {
     id: 1,
     boardColumnId: 10,
@@ -166,6 +193,7 @@ function makeCard(overrides: { title: string; description: string; tagNames: str
     cardTypeEmoji: null,
     title: overrides.title,
     description: overrides.description,
+    externalUrl: overrides.externalUrl ?? null,
     slickName: overrides.slickName ?? null,
     sortKey: '00000000000000000010',
     tags: overrides.tagNames.map((name, index) => ({

@@ -41,6 +41,7 @@ export type Card = {
   assignedUserImageRelativePath?: string | null;
   title: string;
   description: string;
+  externalUrl: string | null;
   sortKey: string;
   tags: CardTag[];
   tagNames: string[];
@@ -51,6 +52,7 @@ export type Card = {
 export type CardEditModel = {
   title: string;
   description: string;
+  externalUrl: string | null;
   tagNames: string[];
   cardTypeId: number | null;
   boardColumnId: number;

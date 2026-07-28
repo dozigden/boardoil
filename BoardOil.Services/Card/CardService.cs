@@ -23,6 +23,8 @@ public sealed class CardService(
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardService
 {
+    private const int MaxSearchFilterCount = 10;
+
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
@@ -43,6 +45,99 @@ public sealed class CardService(
         }
 
         return await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
+    }
+
+    public async Task<ApiResult<IReadOnlyList<CardDto>>> SearchCardsAsync(
+        int boardId,
+        SearchCardsRequest request,
+        int actorUserId)
+    {
+        using var scope = _scopeFactory.CreateReadOnly();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have access to this board.");
+        }
+
+        if (request.Filters is null || request.Filters.Count == 0)
+        {
+            return ApiErrors.ValidationFailed([
+                new ValidationError("filters", "At least one search filter is required.")
+            ]);
+        }
+        if (request.Filters.Count > MaxSearchFilterCount)
+        {
+            return ApiErrors.ValidationFailed([
+                new ValidationError("filters", $"No more than {MaxSearchFilterCount} search filters are allowed.")
+            ]);
+        }
+
+        var criteria = new List<CardSearchCriterion>();
+        var validationErrors = new List<ValidationError>();
+        for (var index = 0; index < request.Filters.Count; index++)
+        {
+            var filter = request.Filters[index];
+            var fieldPath = $"filters[{index}]";
+            if (filter is null)
+            {
+                validationErrors.Add(new ValidationError(fieldPath, "Search filter is required."));
+                continue;
+            }
+
+            var field = filter.Field?.Trim() ?? string.Empty;
+            if (!field.Equals(CardSearchFields.ExternalUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                validationErrors.Add(new ValidationError(
+                    $"{fieldPath}.field",
+                    $"Search field must be '{CardSearchFields.ExternalUrl}'."));
+            }
+
+            var searchOperator = filter.Operator?.Trim() ?? string.Empty;
+            CardSearchOperator? parsedOperator = null;
+            if (searchOperator.Equals(CardSearchOperators.Exact, StringComparison.OrdinalIgnoreCase))
+            {
+                parsedOperator = CardSearchOperator.Exact;
+            }
+            else if (searchOperator.Equals(CardSearchOperators.Contains, StringComparison.OrdinalIgnoreCase))
+            {
+                parsedOperator = CardSearchOperator.Contains;
+            }
+            else
+            {
+                validationErrors.Add(new ValidationError(
+                    $"{fieldPath}.operator",
+                    $"Search operator must be '{CardSearchOperators.Exact}' or '{CardSearchOperators.Contains}'."));
+            }
+
+            var value = filter.Value?.Trim() ?? string.Empty;
+            if (value.Length == 0)
+            {
+                validationErrors.Add(new ValidationError(
+                    $"{fieldPath}.value",
+                    "Search filter value is required."));
+            }
+
+            if (field.Equals(CardSearchFields.ExternalUrl, StringComparison.OrdinalIgnoreCase) &&
+                parsedOperator is not null &&
+                value.Length > 0)
+            {
+                criteria.Add(new CardSearchCriterion(
+                    CardSearchField.ExternalUrl,
+                    parsedOperator.Value,
+                    value));
+            }
+        }
+
+        if (validationErrors.Count > 0)
+        {
+            return ApiErrors.ValidationFailed(validationErrors);
+        }
+
+        var cards = await cardRepository.SearchAsync(boardId, criteria);
+        IReadOnlyList<CardDto> cardDtos = cards.Select(x => x.ToCardDto()).ToList();
+        var enrichedCards = await CardDtoEnrichment.EnrichAssignedUserImagesAsync(cardDtos, imageRepository);
+        return ApiResults.Ok(enrichedCards);
     }
 
     public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId)

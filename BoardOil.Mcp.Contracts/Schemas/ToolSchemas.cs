@@ -44,6 +44,7 @@ public static class ToolSchemas
         "cardTypeId": { "type": ["integer", "null"], "minimum": 1 },
         "assignedUserId": { "type": ["integer", "null"], "minimum": 1 },
         "slickName": { "type": ["string", "null"], "maxLength": 40 },
+        "externalUrl": { "type": ["string", "null"], "format": "uri" },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
         "description": { "type": "string", "maxLength": 20000 },
         "tagNames": {
@@ -66,6 +67,7 @@ public static class ToolSchemas
         "cardTypeId": { "type": "integer", "minimum": 1 },
         "assignedUserId": { "type": ["integer", "null"], "minimum": 1 },
         "slickName": { "type": ["string", "null"], "maxLength": 40 },
+        "externalUrl": { "type": ["string", "null"], "format": "uri" },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
         "description": { "type": "string", "maxLength": 20000 },
         "tagNames": {
@@ -73,7 +75,7 @@ public static class ToolSchemas
           "items": { "type": "string", "minLength": 1, "maxLength": 80 }
         }
       },
-      "required": ["boardId", "id", "cardTypeId", "slickName", "title", "description", "tagNames"],
+      "required": ["boardId", "id", "cardTypeId", "slickName", "externalUrl", "title", "description", "tagNames"],
       "additionalProperties": false
     }
     """;

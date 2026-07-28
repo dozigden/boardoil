@@ -19,7 +19,7 @@ Read area guidance before working in that part of the system:
   - use direct MCP board operations
   - this repository uses BoardOil Development (`boardId: 1`) as the default board.  You should not work on stories on other boards, if you are given a story number on a different board - confirm before taking any action.
   - repository proxy scripts for board MCP operations have been removed
-  - for card description-only updates via `card.update`, include full required payload (`boardId`, `id`, `cardTypeId`, `slickName`, `title`, `description`, `tagNames`)
+  - for card description-only updates via `card.update`, include full required payload (`boardId`, `id`, `cardTypeId`, `slickName`, `externalUrl`, `title`, `description`, `tagNames`)
 - Archive snapshots:
   - when snapshotting references to mutable board-scoped entities (for example slick membership), prefer canonical names over numeric IDs.
 - For any changes under `BoardOil.Web`, run `npm run check` in `BoardOil.Web` before committing.

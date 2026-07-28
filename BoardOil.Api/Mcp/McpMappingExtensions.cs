@@ -48,7 +48,8 @@ public static class McpMappingExtensions
             card.AssignedUserName,
             card.SlickId,
             ResolveSlickSnapshot(card.SlickId, slicksById),
-            []);
+            [],
+            card.ExternalUrl);
 
     public static McpCardCommentSnapshot ToMcp(this CardCommentDto comment) =>
         new(
@@ -82,7 +83,8 @@ public static class McpMappingExtensions
             card.AssignedUserId,
             card.AssignedUserName,
             card.SlickId,
-            ResolveSlickSnapshot(card.SlickId, slicksById));
+            ResolveSlickSnapshot(card.SlickId, slicksById),
+            card.ExternalUrl);
 
     private static McpCardTagSnapshot ToMcp(this CardTagDto tag) =>
         new(
