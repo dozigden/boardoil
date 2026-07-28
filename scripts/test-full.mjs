@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -70,11 +71,25 @@ function resolveOutputMode() {
 const outputMode = resolveOutputMode();
 const compactOutput = outputMode === "compact";
 
+function isAgentEnvironment() {
+  return (
+    isTruthyEnv(process.env.CODEX_CI) ||
+    isTruthyEnv(process.env.CLAUDECODE) ||
+    Boolean(process.env.CODEX_THREAD_ID)
+  );
+}
+
 function childEnv() {
-  return {
+  const environment = {
     ...process.env,
     BOARDOIL_TEST_OUTPUT: outputMode
   };
+
+  if (isAgentEnvironment() && !environment.NUGET_HTTP_CACHE_PATH) {
+    environment.NUGET_HTTP_CACHE_PATH = path.join(os.tmpdir(), "boardoil-nuget-http-cache");
+  }
+
+  return environment;
 }
 
 function printCapturedOutput(result) {

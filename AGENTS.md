@@ -25,6 +25,7 @@ Read area guidance before working in that part of the system:
 - For any changes under `BoardOil.Web`, run `npm run check` in `BoardOil.Web` before committing.
 - For CSS in `BoardOil.Web`: only put shared/global classes in `src/style.css` or `src/styles/*.css`; keep page/component-specific classes in the relevant `.vue` file (`<style scoped>`).
 - For `dotnet` commands in this environment, prefer `-maxcpucount:1 -nodeReuse:false` to avoid named-pipe issues.
+- In sandboxed agent environments, set `NUGET_HTTP_CACHE_PATH` to a writable temporary directory for direct `dotnet` commands (for example `/tmp/boardoil-nuget-http-cache` on Linux); the repository test scripts do this automatically.
 - If `dotnet test` fails with sandbox socket/pipe permission errors (for example `SocketException (13): Permission denied`), rerun with escalation.
 - For local iteration, use `node scripts/test-fast.mjs` for changed-area detection; before push, run `node scripts/test-full.mjs` (`--backend-only` is acceptable for backend-only changes).
 - `scripts/test-fast.mjs` is intentionally speed-first and excludes slow tests; use `scripts/test-full.mjs` for complete backend coverage.
