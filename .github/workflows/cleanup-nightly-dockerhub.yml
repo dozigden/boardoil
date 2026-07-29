@@ -2,7 +2,8 @@ name: Cleanup Nightly Docker Hub Tags
 
 on:
   schedule:
-    - cron: "45 3 * * *"
+    - cron: "45 23 * * *"
+      timezone: "Europe/London"
   workflow_dispatch:
     inputs:
       keep_count:

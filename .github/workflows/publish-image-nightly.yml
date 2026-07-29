@@ -2,7 +2,8 @@ name: Publish Nightly Docker Image
 
 on:
   schedule:
-    - cron: "0 2 * * *"
+    - cron: "45 22 * * *"
+      timezone: "Europe/London"
   workflow_dispatch:
     inputs:
       force_rebuild:

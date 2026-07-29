@@ -2,7 +2,8 @@ name: Cleanup Nightly Package Versions
 
 on:
   schedule:
-    - cron: "30 3 * * *"
+    - cron: "15 23 * * *"
+      timezone: "Europe/London"
   workflow_dispatch:
     inputs:
       keep_count:
