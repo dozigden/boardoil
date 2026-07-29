@@ -2,6 +2,7 @@ using BoardOil.Api.Extensions;
 using BoardOil.Api.Auth;
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Common;
 using BoardOil.Services.Auth;
 
 namespace BoardOil.Api.Endpoints;
@@ -19,8 +20,25 @@ public static class CardEndpoints
         cardEndpoints.MapPost(string.Empty, async (int boardId, CreateCardRequest request, ICardService cardService, HttpContext httpContext) =>
             (await cardService.CreateCardAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 
-        cardEndpoints.MapPost("/search", async (int boardId, SearchCardsRequest request, ICardService cardService, HttpContext httpContext) =>
-            (await cardService.SearchCardsAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
+        cardEndpoints
+            .MapPost("/search", async (int boardId, SearchCardsRequest request, ICardService cardService, HttpContext httpContext) =>
+                (await cardService.SearchCardsAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult())
+            .WithName("SearchCards")
+            .WithSummary("Search cards on a board")
+            .WithDescription(
+                """
+                Searches cards on the specified board using between 1 and 10 filters. All filters must match.
+
+                Currently supports the `externalUrl` field with these operators:
+                - `exact`: case-sensitive full-value match.
+                - `contains`: case-insensitive literal substring match.
+
+                Results are returned in board column and card order. All matches are returned without pagination.
+                """)
+            .Produces<ApiResult<IReadOnlyList<CardDto>>>(StatusCodes.Status200OK)
+            .Produces<ApiResult>(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces<ApiResult>(StatusCodes.Status403Forbidden);
 
         cardEndpoints.MapGet("/archived", async (int boardId, string? search, int? offset, int? limit, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
             (await cardArchiveService.GetArchivedCardsAsync(boardId, search, offset, limit, httpContext.GetActorUserId())).ToHttpResult());

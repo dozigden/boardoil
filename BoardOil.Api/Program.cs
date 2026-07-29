@@ -82,6 +82,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SupportNonNullableReferenceTypes();
     options.SchemaFilter<NonNullableRequestSchemaFilter>();
+    options.SchemaFilter<CardSearchSchemaFilter>();
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "BoardOil API",

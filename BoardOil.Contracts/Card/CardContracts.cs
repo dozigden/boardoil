@@ -98,7 +98,7 @@ public sealed record UpdateCardRequest(
     string? ExternalUrl = null);
 
 public sealed record SearchCardsRequest(
-    IReadOnlyList<CardSearchFilterRequest>? Filters);
+    IReadOnlyList<CardSearchFilterRequest> Filters);
 
 public sealed record CardSearchFilterRequest(
     string Field,
@@ -114,6 +114,12 @@ public static class CardSearchOperators
 {
     public const string Exact = "exact";
     public const string Contains = "contains";
+}
+
+public static class CardSearchLimits
+{
+    public const int MinimumFilterCount = 1;
+    public const int MaximumFilterCount = 10;
 }
 
 public sealed record MoveCardRequest(

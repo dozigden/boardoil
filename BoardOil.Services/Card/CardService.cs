@@ -23,8 +23,6 @@ public sealed class CardService(
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardService
 {
-    private const int MaxSearchFilterCount = 10;
-
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
 
@@ -60,16 +58,18 @@ public sealed class CardService(
             return ApiErrors.Forbidden("You do not have access to this board.");
         }
 
-        if (request.Filters is null || request.Filters.Count == 0)
+        if (request.Filters is null || request.Filters.Count < CardSearchLimits.MinimumFilterCount)
         {
             return ApiErrors.ValidationFailed([
                 new ValidationError("filters", "At least one search filter is required.")
             ]);
         }
-        if (request.Filters.Count > MaxSearchFilterCount)
+        if (request.Filters.Count > CardSearchLimits.MaximumFilterCount)
         {
             return ApiErrors.ValidationFailed([
-                new ValidationError("filters", $"No more than {MaxSearchFilterCount} search filters are allowed.")
+                new ValidationError(
+                    "filters",
+                    $"No more than {CardSearchLimits.MaximumFilterCount} search filters are allowed.")
             ]);
         }
 

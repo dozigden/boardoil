@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
+using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Board;
+using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Column;
 using Microsoft.Data.Sqlite;
 using Xunit;
@@ -223,6 +225,98 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         var createBoardNameSchema = createBoardSchema.GetProperty("properties").GetProperty("name");
         Assert.Contains("name", createBoardRequired);
         Assert.False(createBoardNameSchema.TryGetProperty("nullable", out var createBoardNameNullable) && createBoardNameNullable.GetBoolean());
+    }
+
+    [Fact]
+    public async Task Swagger_CardSearchOperation_ShouldDescribeBehaviourResponsesAndReadScope()
+    {
+        // Arrange
+        var swaggerResponse = await Client.GetAsync("/swagger/v1/swagger.json");
+        swaggerResponse.EnsureSuccessStatusCode();
+        await using var swaggerStream = await swaggerResponse.Content.ReadAsStreamAsync();
+        using var swaggerDocument = await JsonDocument.ParseAsync(swaggerStream);
+
+        // Act
+        var operation = swaggerDocument.RootElement
+            .GetProperty("paths")
+            .GetProperty("/api/boards/{boardId}/cards/search")
+            .GetProperty("post");
+        var responses = operation.GetProperty("responses");
+        var successContent = responses
+            .GetProperty("200")
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema");
+        var patScopes = operation
+            .GetProperty("x-pat-scopes")
+            .EnumerateArray()
+            .Select(x => x.GetString())
+            .ToArray();
+
+        // Assert
+        Assert.Equal("SearchCards", operation.GetProperty("operationId").GetString());
+        Assert.Equal("Search cards on a board", operation.GetProperty("summary").GetString());
+        Assert.Contains("All filters must match", operation.GetProperty("description").GetString());
+        Assert.Contains("case-sensitive full-value match", operation.GetProperty("description").GetString());
+        Assert.Contains("case-insensitive literal substring match", operation.GetProperty("description").GetString());
+        Assert.True(successContent.TryGetProperty("$ref", out var successSchemaReference));
+        Assert.Contains("ApiResult", successSchemaReference.GetString());
+        Assert.True(responses.TryGetProperty("400", out _));
+        Assert.True(responses.TryGetProperty("401", out _));
+        Assert.True(responses.TryGetProperty("403", out _));
+        Assert.Equal([MachinePatScopes.ApiRead], patScopes);
+    }
+
+    [Fact]
+    public async Task Swagger_CardSearchSchemas_ShouldExposeConstraintsAndExample()
+    {
+        // Arrange
+        var swaggerResponse = await Client.GetAsync("/swagger/v1/swagger.json");
+        swaggerResponse.EnsureSuccessStatusCode();
+        await using var swaggerStream = await swaggerResponse.Content.ReadAsStreamAsync();
+        using var swaggerDocument = await JsonDocument.ParseAsync(swaggerStream);
+
+        // Act
+        var schemas = swaggerDocument.RootElement
+            .GetProperty("components")
+            .GetProperty("schemas");
+        var requestSchema = schemas.GetProperty("SearchCardsRequest");
+        var requestRequired = requestSchema
+            .GetProperty("required")
+            .EnumerateArray()
+            .Select(x => x.GetString())
+            .ToArray();
+        var filtersSchema = requestSchema
+            .GetProperty("properties")
+            .GetProperty("filters");
+        var filterSchema = schemas.GetProperty("CardSearchFilterRequest");
+        var filterProperties = filterSchema.GetProperty("properties");
+        var fieldValues = filterProperties
+            .GetProperty("field")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(x => x.GetString())
+            .ToArray();
+        var operatorValues = filterProperties
+            .GetProperty("operator")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(x => x.GetString())
+            .ToArray();
+        var exampleFilter = requestSchema
+            .GetProperty("example")
+            .GetProperty("filters")[0];
+
+        // Assert
+        Assert.Contains("filters", requestRequired);
+        Assert.Equal(CardSearchLimits.MinimumFilterCount, filtersSchema.GetProperty("minItems").GetInt32());
+        Assert.Equal(CardSearchLimits.MaximumFilterCount, filtersSchema.GetProperty("maxItems").GetInt32());
+        Assert.Equal([CardSearchFields.ExternalUrl], fieldValues);
+        Assert.Equal([CardSearchOperators.Exact, CardSearchOperators.Contains], operatorValues);
+        Assert.Equal(1, filterProperties.GetProperty("value").GetProperty("minLength").GetInt32());
+        Assert.Equal(CardSearchFields.ExternalUrl, exampleFilter.GetProperty("field").GetString());
+        Assert.Equal(CardSearchOperators.Contains, exampleFilter.GetProperty("operator").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(exampleFilter.GetProperty("value").GetString()));
     }
 
 }

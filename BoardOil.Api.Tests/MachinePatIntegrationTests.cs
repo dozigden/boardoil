@@ -4,6 +4,7 @@ using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Board;
+using BoardOil.Contracts.Card;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -86,6 +87,34 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
         var systemPatClient = CreatePatClient(systemClient.Token.PlainTextToken);
         Assert.Equal(HttpStatusCode.OK, await GetStatusAsync(() => systemPatClient.GetAsync("/api/system/users")));
         Assert.Equal(HttpStatusCode.OK, await GetStatusAsync(() => systemPatClient.GetAsync("/api/system/boards")));
+    }
+
+    [Fact]
+    public async Task ApiReadScope_ShouldAllowCardSearch()
+    {
+        // Arrange
+        var adminClient = CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var readClient = await CreateClientAccountAsync(
+            adminClient,
+            $"card-search-read-{Guid.NewGuid():N}",
+            "Standard",
+            [MachinePatScopes.ApiRead]);
+        await AddBoardMemberAsAdminAsync(adminClient, 1, readClient.Account.Id, "Contributor");
+        var readPatClient = CreatePatClient(readClient.Token.PlainTextToken);
+
+        // Act
+        var response = await readPatClient.PostAsJsonAsync(
+            "/api/boards/1/cards/search",
+            new SearchCardsRequest([
+                new CardSearchFilterRequest(
+                    CardSearchFields.ExternalUrl,
+                    CardSearchOperators.Contains,
+                    "github.com/example")
+            ]));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
