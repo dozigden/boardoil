@@ -31,9 +31,10 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
                 new BoardPackageColumnDto(
                     "Todo",
                     [
-                        new BoardPackageCardDto("Card A", "Description A", "Bug", ["Urgent", "NeedsReview"])
+                        new BoardPackageCardDto("Card A", "Description A", "Bug", ["Urgent", "NeedsReview"], Id: 1)
                     ])
-            ]);
+            ],
+            NextCardId: 2);
 
         using var requestContent = new MultipartFormDataContent();
         requestContent.Add(new StringContent("Renamed Board"), "name");

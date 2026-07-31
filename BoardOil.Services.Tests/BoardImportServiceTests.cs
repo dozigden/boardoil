@@ -1,9 +1,11 @@
 using System.IO.Compression;
 using System.Text.Json;
 using BoardOil.Abstractions.Board;
+using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Board;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Board;
+using BoardOil.Services.Card;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Tests.Infrastructure;
 using Xunit;
@@ -393,8 +395,115 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.Contains("\"schema\":\"archived-card\"", archivedCard.SnapshotJson, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task ImportBoardPackageAsync_WhenLegacyPackageIdsConflict_ShouldAllocateUniqueBoardScopedIds(int schemaVersion)
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0") with { SchemaVersion = schemaVersion };
+        var payload = new BoardPackageBoardDto(
+            "Legacy Identity Board",
+            "Legacy identity board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto("Active A", "Description", "Story", []),
+                        new BoardPackageCardDto("Active B", "Description", "Story", [])
+                    ])
+            ]);
+        var archivedAtUtc = new DateTime(2026, 7, 31, 12, 0, 0, DateTimeKind.Utc);
+        var archivePayload = new BoardPackageArchiveDto(
+            [
+                new BoardPackageArchivedCardDto(1, "Preserved archive", [], archivedAtUtc, "{}"),
+                new BoardPackageArchivedCardDto(1, "Duplicate archive", [], archivedAtUtc.AddMinutes(1), "{}"),
+                new BoardPackageArchivedCardDto(0, "Invalid archive", [], archivedAtUtc.AddMinutes(2), "{}")
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload, archivePayload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var activeCards = DbContextForAssert.Cards
+            .Where(x => x.BoardId == boardId)
+            .OrderBy(x => x.Title)
+            .ToList();
+        var archivedCards = DbContextForAssert.ArchivedCards
+            .Where(x => x.BoardId == boardId)
+            .ToList();
+        Assert.Equal([2, 3], activeCards.Select(x => x.BoardCardId).ToArray());
+        Assert.Contains(archivedCards, x => x.SearchTitle == "Preserved archive" && x.OriginalCardId == 1);
+        Assert.Contains(archivedCards, x => x.SearchTitle == "Duplicate archive" && x.OriginalCardId == 4);
+        Assert.Contains(archivedCards, x => x.SearchTitle == "Invalid archive" && x.OriginalCardId == 5);
+        Assert.Equal(5, activeCards.Count + archivedCards.Count);
+        Assert.Equal(
+            5,
+            activeCards.Select(x => x.BoardCardId!.Value)
+                .Concat(archivedCards.Select(x => x.OriginalCardId))
+                .Distinct()
+                .Count());
+        var nextCardId = DbContextForAssert.BoardCardIdSequences
+            .Where(x => x.BoardId == boardId)
+            .Select(x => x.NextCardId)
+            .Single();
+        Assert.Equal(6, nextCardId);
+    }
+
     [Fact]
-    public async Task ImportBoardPackageAsync_WhenArchiveOriginalCardIdCollides_ShouldAssignFallbackId()
+    public async Task ImportBoardPackageAsync_WhenSchemaThreeExportHasIdentityGaps_ShouldPreserveIdsAndNextCardId()
+    {
+        var sourceBoard = CreateBoard("Round Trip Board")
+            .AddColumn("Todo")
+            .AddCard("Keep active", "Description")
+            .AddCard("Keep archived", "Description")
+            .AddCard("Hard deleted", "Description")
+            .Build();
+        var activeCardId = sourceBoard.GetCard("Todo", "Keep active").RequireBoardCardId();
+        var archivedCardId = sourceBoard.GetCard("Todo", "Keep archived").RequireBoardCardId();
+        var deletedCardId = sourceBoard.GetCard("Todo", "Hard deleted").RequireBoardCardId();
+        var archiveService = ResolveService<ICardArchiveService>();
+        var archiveResult = await archiveService.ArchiveCardAsync(sourceBoard.BoardId, archivedCardId, ActorUserId);
+        Assert.True(archiveResult.Success);
+        var cardService = ResolveService<ICardService>();
+        var deleteResult = await cardService.DeleteCardAsync(sourceBoard.BoardId, deletedCardId, ActorUserId);
+        Assert.True(deleteResult.Success);
+        var exportService = ResolveService<IBoardExportService>();
+        var exportResult = await exportService.ExportBoardAsync(sourceBoard.BoardId, ActorUserId, "0.4.0");
+        Assert.True(exportResult.Success);
+
+        var importService = ResolveService<IBoardPackageImportService>();
+        var importResult = await importService.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest("Round Trip Copy", exportResult.Data!.Content),
+            ActorUserId);
+
+        Assert.True(importResult.Success);
+        Assert.NotNull(importResult.Data);
+        var importedBoardId = importResult.Data!.Id;
+        var importedActiveCardId = DbContextForAssert.Cards
+            .Where(x => x.BoardId == importedBoardId)
+            .Select(x => x.BoardCardId)
+            .Single();
+        var importedArchivedCardId = DbContextForAssert.ArchivedCards
+            .Where(x => x.BoardId == importedBoardId)
+            .Select(x => x.OriginalCardId)
+            .Single();
+        var importedNextCardId = DbContextForAssert.BoardCardIdSequences
+            .Where(x => x.BoardId == importedBoardId)
+            .Select(x => x.NextCardId)
+            .Single();
+        Assert.Equal(activeCardId, importedActiveCardId);
+        Assert.Equal(archivedCardId, importedArchivedCardId);
+        Assert.Equal(deletedCardId + 1, importedNextCardId);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenAnotherBoardUsesArchiveCardId_ShouldPreserveBoardScopedId()
     {
         var existingBoard = CreateBoard("Existing Archive Board")
             .AddColumn("Todo")
@@ -438,8 +547,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         var boardId = result.Data!.Id;
         var archivedCard = DbContextForAssert.ArchivedCards.Single(x => x.BoardId == boardId);
-        Assert.NotEqual(777, archivedCard.OriginalCardId);
-        Assert.True(archivedCard.OriginalCardId < 0);
+        Assert.Equal(777, archivedCard.OriginalCardId);
     }
 
     [Fact]
@@ -710,6 +818,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         BoardPackageBoardDto boardPayload,
         BoardPackageArchiveDto? archivePayload = null)
     {
+        boardPayload = AddSchemaThreeIdentityWhenMissing(manifest, boardPayload, archivePayload);
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
@@ -722,6 +831,61 @@ public sealed class BoardImportServiceTests : TestBaseDb
         }
 
         return stream.ToArray();
+    }
+
+    private static BoardPackageBoardDto AddSchemaThreeIdentityWhenMissing(
+        BoardPackageManifestDto manifest,
+        BoardPackageBoardDto boardPayload,
+        BoardPackageArchiveDto? archivePayload)
+    {
+        if (manifest.SchemaVersion != 3)
+        {
+            return boardPayload;
+        }
+
+        var assignedIds = (archivePayload?.Cards ?? [])
+            .Select(x => x.OriginalCardId)
+            .Where(x => x > 0)
+            .ToHashSet();
+        var nextAvailableId = 1;
+        var columns = boardPayload.Columns
+            .Select(column => column with
+            {
+                Cards = column.Cards
+                    .Select(card =>
+                    {
+                        if (card.Id.HasValue)
+                        {
+                            assignedIds.Add(card.Id.Value);
+                            return card;
+                        }
+
+                        while (assignedIds.Contains(nextAvailableId))
+                        {
+                            nextAvailableId++;
+                        }
+
+                        var cardWithId = card with { Id = nextAvailableId };
+                        assignedIds.Add(nextAvailableId);
+                        nextAvailableId++;
+                        return cardWithId;
+                    })
+                    .ToList()
+            })
+            .ToList();
+        var nextCardId = boardPayload.NextCardId;
+        if (!nextCardId.HasValue)
+        {
+            nextCardId = assignedIds.Count == 0
+                ? 1
+                : assignedIds.Max() + 1;
+        }
+
+        return boardPayload with
+        {
+            Columns = columns,
+            NextCardId = nextCardId
+        };
     }
 
     private static void WriteJsonEntry<T>(ZipArchive archive, string path, T payload)

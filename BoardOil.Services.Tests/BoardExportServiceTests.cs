@@ -23,6 +23,8 @@ public sealed class BoardExportServiceTests : TestBaseDb
             .Build();
         var boardEntity = DbContextForArrange.Boards.Single(x => x.Id == board.BoardId);
         boardEntity.Description = "Export board description";
+        var cardIdSequence = DbContextForArrange.BoardCardIdSequences.Single(x => x.BoardId == board.BoardId);
+        cardIdSequence.NextCardId = 901;
         await DbContextForArrange.SaveChangesAsync();
         var card = board.GetCard("Todo", "Task A");
         var unassignedCard = board.GetCard("Todo", "Task B");
@@ -88,7 +90,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         DbContextForArrange.ArchivedCards.Add(new EntityArchivedCard
         {
             BoardId = board.BoardId,
-            OriginalCardId = card.Id,
+            OriginalCardId = 900,
             ArchivedAtUtc = now,
             SnapshotJson = """{"schema":"archived-card","version":1,"capturedAtUtc":"2026-04-20T00:00:00Z","payload":{"title":"Task A"}}""",
             SearchTitle = "Task A",
@@ -117,7 +119,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         var manifest = JsonSerializer.Deserialize<BoardPackageManifestDto>(manifestJson, JsonOptions);
         Assert.NotNull(manifest);
         Assert.Equal("boardoil-board-package", manifest!.Format);
-        Assert.Equal(2, manifest.SchemaVersion);
+        Assert.Equal(3, manifest.SchemaVersion);
         Assert.Equal("0.2.0", manifest.ExportedByVersion);
         Assert.Contains(manifest.Entries, x => x.Kind == "board" && x.Path == "board.json");
         Assert.Contains(manifest.Entries, x => x.Kind == "archive" && x.Path == "archive.json");
@@ -131,6 +133,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.Equal("Export Board", payload!.Name);
         Assert.Equal("Export board description", payload.Description);
         Assert.True(payload.SlickCohesionModeEnabled);
+        Assert.Equal(901, payload.NextCardId);
         Assert.Contains(
             payload.CardTypes,
             x => x.Name == "Story"
@@ -155,6 +158,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.Equal("Todo", payload.Columns[0].Title);
         Assert.Equal(2, payload.Columns[0].Cards.Count);
         var exportedAssignedCard = payload.Columns[0].Cards.Single(x => x.Title == "Task A");
+        Assert.Equal(card.BoardCardId, exportedAssignedCard.Id);
         Assert.Equal("Story", exportedAssignedCard.CardTypeName);
         Assert.Equal(["Urgent"], exportedAssignedCard.TagNames);
         Assert.Equal(actor.Email, exportedAssignedCard.AssignedUserEmail);
@@ -167,6 +171,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.Equal("Older comment", exportedAssignedCard.Comments[1].Text);
         Assert.Null(exportedAssignedCard.Comments[1].AuthorEmail);
         var exportedUnassignedCard = payload.Columns[0].Cards.Single(x => x.Title == unassignedCard.Title);
+        Assert.Equal(unassignedCard.BoardCardId, exportedUnassignedCard.Id);
         Assert.Equal("Story", exportedUnassignedCard.CardTypeName);
         Assert.Equal([], exportedUnassignedCard.TagNames);
         Assert.Null(exportedUnassignedCard.AssignedUserEmail);
@@ -181,7 +186,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         var archivePayload = JsonSerializer.Deserialize<BoardPackageArchiveDto>(archiveJson, JsonOptions);
         Assert.NotNull(archivePayload);
         Assert.Single(archivePayload!.Cards);
-        Assert.Equal(card.Id, archivePayload.Cards[0].OriginalCardId);
+        Assert.Equal(900, archivePayload.Cards[0].OriginalCardId);
         Assert.Equal("Task A", archivePayload.Cards[0].Title);
         Assert.Equal(["Urgent"], archivePayload.Cards[0].TagNames);
         Assert.Contains("\"schema\":\"archived-card\"", archivePayload.Cards[0].SnapshotJson, StringComparison.Ordinal);

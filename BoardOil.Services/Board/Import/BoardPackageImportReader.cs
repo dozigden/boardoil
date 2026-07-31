@@ -113,7 +113,7 @@ public sealed class BoardPackageImportReader
                 archivePayload = parseArchivePayloadResult.ArchivePayload;
             }
 
-            return new BoardPackageReadResult(boardPayload, archivePayload, null);
+            return new BoardPackageReadResult(boardPayload, archivePayload, null, manifest.SchemaVersion);
         }
         catch (InvalidDataException)
         {
@@ -137,6 +137,7 @@ public sealed class BoardPackageImportReader
         {
             case 1:
             case 2:
+            case 3:
             {
                 var boardPayload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
                 return new ParseBoardPayloadResult(boardPayload, null);
@@ -156,6 +157,7 @@ public sealed class BoardPackageImportReader
         {
             case 1:
             case 2:
+            case 3:
             {
                 var archivePayload = JsonSerializer.Deserialize<BoardPackageArchiveDto>(archiveJson, JsonOptions);
                 if (archivePayload is null)

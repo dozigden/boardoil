@@ -50,6 +50,12 @@ public sealed class BoardExportService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
+        var nextCardId = await boardRepository.GetNextCardIdAsync(boardId);
+        if (!nextCardId.HasValue)
+        {
+            return ApiErrors.InternalError("Board card ID sequence was not found.");
+        }
+
         var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
         var columnIds = columns.Select(x => x.Id).ToList();
         var cards = await cardRepository.GetCardsForColumnsOrderedAsync(columnIds);
@@ -88,7 +94,8 @@ public sealed class BoardExportService(
                         card.AssignedUser?.Email,
                         commentsByCardId.GetValueOrDefault(card.Id, []),
                         card.SlickId is null ? null : slickNamesById.GetValueOrDefault(card.SlickId.Value),
-                        card.ExternalUrl))
+                        card.ExternalUrl,
+                        card.RequireBoardCardId()))
                     .ToList());
 
         var boardPayload = new BoardPackageBoardDto(
@@ -111,7 +118,8 @@ public sealed class BoardExportService(
                     x.StyleName,
                     x.StylePropertiesJson))
                 .ToList(),
-            board.SlickCohesionModeEnabled);
+            board.SlickCohesionModeEnabled,
+            nextCardId.Value);
         var archivePayload = new BoardPackageArchiveDto(
             archivedCards
                 .Select(x => x.ToArchivedCardDto())

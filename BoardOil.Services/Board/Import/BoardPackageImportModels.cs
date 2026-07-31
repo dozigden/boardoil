@@ -6,7 +6,8 @@ namespace BoardOil.Services.Board.Import;
 public sealed record BoardPackageReadResult(
     BoardPackageBoardDto? BoardPayload,
     BoardPackageArchiveDto? ArchivePayload,
-    ApiError? Error);
+    ApiError? Error,
+    int? SchemaVersion = null);
 
 public sealed record BoardPackageImportPlanResult(
     BoardPackageImportPlan? Plan,
@@ -16,6 +17,7 @@ public sealed record BoardPackageImportPlan(
     string BoardName,
     string BoardDescription,
     bool SlickCohesionModeEnabled,
+    int NextCardId,
     string SystemCardTypeName,
     string SystemCardTypeNormalisedName,
     string? SystemCardTypeEmoji,
@@ -59,7 +61,8 @@ public sealed record CardImportDefinition(
     string? SlickNormalisedName,
     string? AssignedUserNormalisedEmail,
     IReadOnlyList<CommentImportDefinition> Comments,
-    string? ExternalUrl = null);
+    string? ExternalUrl = null,
+    int BoardCardId = 0);
 
 public sealed record CommentImportDefinition(
     string Text,

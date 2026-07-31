@@ -14,9 +14,26 @@ public sealed class BoardPackageImportPlanner
         string boardDescription,
         bool slickCohesionModeEnabled,
         BoardPackageBoardDto boardPayload,
-        BoardPackageArchiveDto? archivePayload)
+        BoardPackageArchiveDto? archivePayload) =>
+        BuildBoardPackageImportPlan(
+            boardName,
+            boardDescription,
+            slickCohesionModeEnabled,
+            boardPayload,
+            archivePayload,
+            schemaVersion: 2);
+
+    public BoardPackageImportPlanResult BuildBoardPackageImportPlan(
+        string boardName,
+        string boardDescription,
+        bool slickCohesionModeEnabled,
+        BoardPackageBoardDto boardPayload,
+        BoardPackageArchiveDto? archivePayload,
+        int schemaVersion)
     {
         var validationErrors = new List<ValidationError>();
+        var schemaThreeCardIds = new HashSet<int>();
+        var maximumSchemaThreeCardId = 0;
 
         ValidateBoardName(boardName, "name", validationErrors);
         ValidateBoardDescription(boardDescription, "description", validationErrors);
@@ -290,6 +307,28 @@ public sealed class BoardPackageImportPlanner
                         continue;
                     }
 
+                    var boardCardId = 0;
+                    if (schemaVersion >= 3)
+                    {
+                        if (!importedCard.Id.HasValue || importedCard.Id.Value <= 0)
+                        {
+                            validationErrors.Add(new ValidationError(
+                                $"{cardPropertyPrefix}.id",
+                                "Card ID must be greater than zero for schema version 3."));
+                        }
+                        else if (!schemaThreeCardIds.Add(importedCard.Id.Value))
+                        {
+                            validationErrors.Add(new ValidationError(
+                                $"{cardPropertyPrefix}.id",
+                                $"Card ID '{importedCard.Id.Value}' is duplicated across active and archived cards."));
+                        }
+                        else
+                        {
+                            boardCardId = importedCard.Id.Value;
+                            maximumSchemaThreeCardId = Math.Max(maximumSchemaThreeCardId, boardCardId);
+                        }
+                    }
+
                     var cardTitle = importedCard.Title?.Trim() ?? string.Empty;
                     if (cardTitle.Length == 0)
                     {
@@ -355,7 +394,8 @@ public sealed class BoardPackageImportPlanner
                         cardSlickNormalisedName,
                         BoardPackageImportNormalisation.ResolveNormalisedEmailOrNull(importedCard.AssignedUserEmail),
                         plannedComments,
-                        externalUrl));
+                        externalUrl,
+                        boardCardId));
                 }
 
                 if (validationErrors.Count > errorCountBeforeColumn)
@@ -386,6 +426,26 @@ public sealed class BoardPackageImportPlanner
                     {
                         validationErrors.Add(new ValidationError(archivedCardPropertyPrefix, "Archived card entry is required."));
                         continue;
+                    }
+
+                    if (schemaVersion >= 3)
+                    {
+                        if (archivedCard.OriginalCardId <= 0)
+                        {
+                            validationErrors.Add(new ValidationError(
+                                $"{archivedCardPropertyPrefix}.originalCardId",
+                                "Archived card ID must be greater than zero for schema version 3."));
+                        }
+                        else if (!schemaThreeCardIds.Add(archivedCard.OriginalCardId))
+                        {
+                            validationErrors.Add(new ValidationError(
+                                $"{archivedCardPropertyPrefix}.originalCardId",
+                                $"Card ID '{archivedCard.OriginalCardId}' is duplicated across active and archived cards."));
+                        }
+                        else
+                        {
+                            maximumSchemaThreeCardId = Math.Max(maximumSchemaThreeCardId, archivedCard.OriginalCardId);
+                        }
                     }
 
                     var title = archivedCard.Title?.Trim() ?? string.Empty;
@@ -452,9 +512,29 @@ public sealed class BoardPackageImportPlanner
             }
         }
 
+        var nextCardId = 1;
+        if (schemaVersion >= 3)
+        {
+            if (!boardPayload.NextCardId.HasValue || boardPayload.NextCardId.Value <= maximumSchemaThreeCardId)
+            {
+                validationErrors.Add(new ValidationError(
+                    "board.nextCardId",
+                    $"Next card ID must be greater than every active and archived card ID ({maximumSchemaThreeCardId})."));
+            }
+            else
+            {
+                nextCardId = boardPayload.NextCardId.Value;
+            }
+        }
+
         if (validationErrors.Count > 0)
         {
             return new BoardPackageImportPlanResult(null, ApiErrors.ValidationFailed(validationErrors));
+        }
+
+        if (schemaVersion < 3)
+        {
+            nextCardId = AssignLegacyBoardCardIds(plannedColumns, plannedArchivedCards);
         }
 
         return new BoardPackageImportPlanResult(
@@ -462,6 +542,7 @@ public sealed class BoardPackageImportPlanner
                 boardName,
                 boardDescription,
                 slickCohesionModeEnabled,
+                nextCardId,
                 systemCardTypeName,
                 systemCardTypeNormalisedName,
                 systemCardTypeEmoji,
@@ -473,6 +554,63 @@ public sealed class BoardPackageImportPlanner
                 plannedColumns,
                 plannedArchivedCards),
             null);
+    }
+
+    private static int AssignLegacyBoardCardIds(
+        IList<ColumnImportDefinition> columns,
+        IList<ArchivedCardImportDefinition> archivedCards)
+    {
+        var assignedIds = new HashSet<int>();
+        var assignedArchivedIds = new int[archivedCards.Count];
+
+        for (var index = 0; index < archivedCards.Count; index++)
+        {
+            var requestedId = archivedCards[index].OriginalCardId;
+            if (requestedId > 0 && requestedId < int.MaxValue && assignedIds.Add(requestedId))
+            {
+                assignedArchivedIds[index] = requestedId;
+            }
+        }
+
+        var nextAvailableId = 1;
+        for (var columnIndex = 0; columnIndex < columns.Count; columnIndex++)
+        {
+            var cards = columns[columnIndex].Cards.ToList();
+            for (var cardIndex = 0; cardIndex < cards.Count; cardIndex++)
+            {
+                var allocatedId = AllocateNextAvailableId(assignedIds, ref nextAvailableId);
+                cards[cardIndex] = cards[cardIndex] with { BoardCardId = allocatedId };
+            }
+
+            columns[columnIndex] = columns[columnIndex] with { Cards = cards };
+        }
+
+        for (var index = 0; index < archivedCards.Count; index++)
+        {
+            if (assignedArchivedIds[index] == 0)
+            {
+                assignedArchivedIds[index] = AllocateNextAvailableId(assignedIds, ref nextAvailableId);
+            }
+
+            archivedCards[index] = archivedCards[index] with { OriginalCardId = assignedArchivedIds[index] };
+        }
+
+        return assignedIds.Count == 0
+            ? 1
+            : assignedIds.Max() + 1;
+    }
+
+    private static int AllocateNextAvailableId(ISet<int> assignedIds, ref int nextAvailableId)
+    {
+        while (assignedIds.Contains(nextAvailableId))
+        {
+            nextAvailableId++;
+        }
+
+        var allocatedId = nextAvailableId;
+        assignedIds.Add(allocatedId);
+        nextAvailableId++;
+        return allocatedId;
     }
 
     private static void ValidateBoardName(string boardName, string property, ICollection<ValidationError> validationErrors)

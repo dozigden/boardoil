@@ -30,7 +30,8 @@ public sealed class BoardPackageImportService(
             boardDescription,
             readPackageResult.BoardPayload.SlickCohesionModeEnabled,
             readPackageResult.BoardPayload,
-            readPackageResult.ArchivePayload);
+            readPackageResult.ArchivePayload,
+            readPackageResult.SchemaVersion!.Value);
         if (planResult.Error is not null)
         {
             return planResult.Error;

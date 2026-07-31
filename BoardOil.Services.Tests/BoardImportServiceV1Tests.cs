@@ -108,25 +108,108 @@ public sealed class BoardImportServiceV1Tests : TestBaseDb
         Assert.Equal("https://github.com/example/repository", importedCard.ExternalUrl);
     }
 
-    private static string CreateManifestJson(int schemaVersion) =>
-        $$"""
-          {
-            "format": "boardoil-board-package",
-            "schemaVersion": {{schemaVersion}},
-            "exportedByVersion": "0.2.0",
-            "entries": [
-              { "kind": "board", "path": "board.json" }
-            ]
-          }
-          """;
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task ImportBoardPackageAsync_WhenLegacyRawPayloadHasArchiveIdentityConflict_ShouldAllocateDeterministically(int schemaVersion)
+    {
+        var manifestJson = CreateManifestJson(schemaVersion, includeArchive: true);
+        const string boardPayloadJson =
+            """
+            {
+              "name": "Legacy Identity Board",
+              "cardTypes": [
+                { "name": "Story", "emoji": null, "isSystem": true }
+              ],
+              "tags": [],
+              "columns": [
+                {
+                  "title": "Todo",
+                  "cards": [
+                    {
+                      "title": "Legacy active card",
+                      "description": "Description",
+                      "cardTypeName": "Story",
+                      "tagNames": []
+                    }
+                  ]
+                }
+              ]
+            }
+            """;
+        const string archivePayloadJson =
+            """
+            {
+              "cards": [
+                {
+                  "originalCardId": 1,
+                  "title": "Legacy archived card",
+                  "tagNames": [],
+                  "archivedAtUtc": "2026-04-20T09:00:00Z",
+                  "snapshotJson": "{}"
+                }
+              ]
+            }
+            """;
 
-    private static byte[] BuildBoardPackageWithRawEntries(string manifestJson, string boardJson)
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(
+                null,
+                BuildBoardPackageWithRawEntries(manifestJson, boardPayloadJson, archivePayloadJson)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var boardId = result.Data!.Id;
+        var activeCardId = DbContextForAssert.Cards
+            .Where(x => x.BoardId == boardId)
+            .Select(x => x.BoardCardId)
+            .Single();
+        var archivedCardId = DbContextForAssert.ArchivedCards
+            .Where(x => x.BoardId == boardId)
+            .Select(x => x.OriginalCardId)
+            .Single();
+        var nextCardId = DbContextForAssert.BoardCardIdSequences
+            .Where(x => x.BoardId == boardId)
+            .Select(x => x.NextCardId)
+            .Single();
+        Assert.Equal(2, activeCardId);
+        Assert.Equal(1, archivedCardId);
+        Assert.Equal(3, nextCardId);
+    }
+
+    private static string CreateManifestJson(int schemaVersion, bool includeArchive = false)
+    {
+        var archiveEntry = includeArchive
+            ? ",\n    { \"kind\": \"archive\", \"path\": \"archive.json\" }"
+            : string.Empty;
+        return $$"""
+                 {
+                   "format": "boardoil-board-package",
+                   "schemaVersion": {{schemaVersion}},
+                   "exportedByVersion": "0.2.0",
+                   "entries": [
+                     { "kind": "board", "path": "board.json" }{{archiveEntry}}
+                   ]
+                 }
+                 """;
+    }
+
+    private static byte[] BuildBoardPackageWithRawEntries(
+        string manifestJson,
+        string boardJson,
+        string? archiveJson = null)
     {
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
             WriteRawEntry(archive, BoardPackageContract.ManifestPath, manifestJson);
             WriteRawEntry(archive, BoardPackageContract.BoardEntryPath, boardJson);
+            if (archiveJson is not null)
+            {
+                WriteRawEntry(archive, BoardPackageContract.ArchiveEntryPath, archiveJson);
+            }
         }
 
         return stream.ToArray();

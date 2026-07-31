@@ -8,5 +8,6 @@ public interface IBoardRepository : IRepositoryBase<EntityBoard>
     Task<IReadOnlyList<EntityBoard>> GetBoardsOrderedAsync();
     Task<IReadOnlyList<EntityBoard>> GetBoardsForUserOrderedAsync(int userId);
     Task<IReadOnlyList<EntityBoard>> GetBoardsByIdsOrderedAsync(IReadOnlyList<int> boardIds);
+    Task<int?> GetNextCardIdAsync(int boardId);
     Task<bool> AnyBoardAsync();
 }

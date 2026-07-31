@@ -65,7 +65,7 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
     }
 
     [Fact]
-    public async Task PersistBoardPackageImportAsync_WhenArchiveOriginalCardIdCollides_ShouldAssignFallbackId()
+    public async Task PersistBoardPackageImportAsync_ShouldPreservePlannedArchiveIdAcrossBoards()
     {
         var existingBoard = CreateBoard("Existing Archive Board")
             .AddColumn("Todo")
@@ -102,8 +102,9 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
         Assert.NotNull(result.Data);
         var boardId = result.Data!.Id;
         var archivedCard = DbContextForAssert.ArchivedCards.Single(x => x.BoardId == boardId);
-        Assert.NotEqual(777, archivedCard.OriginalCardId);
-        Assert.True(archivedCard.OriginalCardId < 0);
+        Assert.Equal(777, archivedCard.OriginalCardId);
+        var sequence = DbContextForAssert.BoardCardIdSequences.Single(x => x.BoardId == boardId);
+        Assert.Equal(778, sequence.NextCardId);
     }
 
     [Fact]
@@ -143,7 +144,8 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
                                 [
                                     new CommentImportDefinition("Active author", new DateTime(2026, 05, 02, 8, 0, 0, DateTimeKind.Utc), activeUser.NormalisedEmail),
                                     new CommentImportDefinition("Inactive author", new DateTime(2026, 05, 02, 8, 1, 0, DateTimeKind.Utc), inactiveUser.NormalisedEmail)
-                                ])
+                                ],
+                                BoardCardId: 1)
                         ])
                 ]),
             ActorUserId);
@@ -169,10 +171,20 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
         IReadOnlyList<ColumnImportDefinition>? columns = null,
         IReadOnlyList<ArchivedCardImportDefinition>? archivedCards = null)
     {
+        var resolvedColumns = columns ?? [];
+        var resolvedArchivedCards = archivedCards ?? [];
+        var assignedIds = resolvedColumns
+            .SelectMany(x => x.Cards)
+            .Select(x => x.BoardCardId)
+            .Concat(resolvedArchivedCards.Select(x => x.OriginalCardId))
+            .Where(x => x > 0)
+            .ToList();
+        var nextCardId = assignedIds.Count == 0 ? 1 : assignedIds.Max() + 1;
         return new BoardPackageImportPlan(
             boardName,
             $"{boardName} description",
             true,
+            nextCardId,
             CardTypeDefaults.SystemTypeName,
             BoardPackageImportNormalisation.NormaliseName(CardTypeDefaults.SystemTypeName),
             null,
@@ -181,8 +193,8 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
             [],
             [],
             [],
-            columns ?? [],
-            archivedCards ?? []);
+            resolvedColumns,
+            resolvedArchivedCards);
     }
 
     private static CardImportDefinition CreateCardDefinition(int index) =>
@@ -193,5 +205,6 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
             [],
             null,
             null,
-            []);
+            [],
+            BoardCardId: index + 1);
 }

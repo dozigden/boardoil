@@ -118,8 +118,6 @@ public sealed class BoardPackageImportWriter(
 
         var createdColumns = new List<EntityBoardColumn>(importPlan.Columns.Count);
         var createdCardsByColumn = new Dictionary<EntityBoardColumn, List<EntityBoardCard>>();
-        var nextBoardCardId = 1;
-
         for (var columnIndex = 0; columnIndex < importPlan.Columns.Count; columnIndex++)
         {
             var importedColumn = importPlan.Columns[columnIndex];
@@ -141,7 +139,7 @@ public sealed class BoardPackageImportWriter(
                 var createdCard = new EntityBoardCard
                 {
                     Board = board,
-                    BoardCardId = nextBoardCardId,
+                    BoardCardId = importedCard.BoardCardId,
                     BoardColumn = createdColumn,
                     CardType = cardTypesByNormalisedName[importedCard.CardTypeNormalisedName],
                     AssignedUserId = assignedUser?.Id,
@@ -154,7 +152,6 @@ public sealed class BoardPackageImportWriter(
                     ExternalUrl = importedCard.ExternalUrl,
                     SortKey = sortKeyPlan.CardKeysByColumn[columnIndex][cardIndex],
                 };
-                nextBoardCardId++;
 
                 foreach (var importedTagName in importedCard.TagNames)
                 {
@@ -198,11 +195,10 @@ public sealed class BoardPackageImportWriter(
             createdCardsByColumn.Add(createdColumn, createdCards);
         }
 
-        board.CardIdSequence!.NextCardId = nextBoardCardId;
+        board.CardIdSequence!.NextCardId = importPlan.NextCardId;
 
         if (importPlan.ArchivedCards.Count > 0)
         {
-            var assignedArchivedOriginalCardIds = await AllocateArchivedOriginalCardIdsAsync(importPlan.ArchivedCards);
             for (var archivedCardIndex = 0; archivedCardIndex < importPlan.ArchivedCards.Count; archivedCardIndex++)
             {
                 var importedArchivedCard = importPlan.ArchivedCards[archivedCardIndex];
@@ -212,7 +208,7 @@ public sealed class BoardPackageImportWriter(
                 archivedCardRepository.Add(new EntityArchivedCard
                 {
                     Board = board,
-                    OriginalCardId = assignedArchivedOriginalCardIds[archivedCardIndex],
+                    OriginalCardId = importedArchivedCard.OriginalCardId,
                     ArchivedAtUtc = importedArchivedCard.ArchivedAtUtc,
                     SnapshotJson = importedArchivedCard.SnapshotJson,
                     SearchTitle = importedArchivedCard.Title,
@@ -276,43 +272,6 @@ public sealed class BoardPackageImportWriter(
         new(
             null,
             ApiErrors.BadRequest("Board package contains too many columns or cards to allocate order keys."));
-
-    private async Task<IReadOnlyList<int>> AllocateArchivedOriginalCardIdsAsync(IReadOnlyList<ArchivedCardImportDefinition> importedArchivedCards)
-    {
-        var requestedOriginalCardIds = importedArchivedCards
-            .Select(x => x.OriginalCardId)
-            .Distinct()
-            .ToList();
-        var existingOriginalCardIds = await archivedCardRepository.ListExistingOriginalCardIdsAsync(requestedOriginalCardIds);
-        var nextFallbackOriginalCardId = await ResolveNextImportedArchivedOriginalCardIdAsync();
-        var assignedOriginalCardIds = new HashSet<int>(existingOriginalCardIds);
-        var assignedValues = new List<int>(importedArchivedCards.Count);
-
-        foreach (var importedArchivedCard in importedArchivedCards)
-        {
-            var assignedOriginalCardId = importedArchivedCard.OriginalCardId;
-            if (assignedOriginalCardId <= 0 || !assignedOriginalCardIds.Add(assignedOriginalCardId))
-            {
-                assignedOriginalCardId = nextFallbackOriginalCardId;
-                while (!assignedOriginalCardIds.Add(assignedOriginalCardId))
-                {
-                    assignedOriginalCardId--;
-                }
-
-                nextFallbackOriginalCardId = assignedOriginalCardId - 1;
-            }
-
-            assignedValues.Add(assignedOriginalCardId);
-        }
-
-        return assignedValues;
-    }
-
-    private async Task<int> ResolveNextImportedArchivedOriginalCardIdAsync()
-    {
-        var minimumOriginalCardId = await archivedCardRepository.GetMinimumOriginalCardIdAsync() ?? 0;
-        return Math.Min(0, minimumOriginalCardId) - 1;
-    }
 
     private sealed record BoardPackageImportSortKeyPlan(
         IReadOnlyList<string> ColumnKeys,

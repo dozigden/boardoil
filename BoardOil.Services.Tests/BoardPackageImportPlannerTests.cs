@@ -7,6 +7,99 @@ namespace BoardOil.Services.Tests;
 public sealed class BoardPackageImportPlannerTests
 {
     [Fact]
+    public void BuildBoardPackageImportPlan_WhenSchemaThreeIdentityFieldsAreMissing_ShouldReturnValidationErrors()
+    {
+        var payload = new BoardPackageBoardDto(
+            "Missing Identity Board",
+            "Missing identity board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [new BoardPackageCardDto("Active", "Description", "Story", [])])
+            ]);
+
+        var planner = new BoardPackageImportPlanner();
+        var result = planner.BuildBoardPackageImportPlan(
+            "Missing Identity Board",
+            "Missing identity board description",
+            true,
+            payload,
+            null,
+            schemaVersion: 3);
+
+        Assert.NotNull(result.Error);
+        Assert.Contains("board.columns[0].cards[0].id", result.Error!.ValidationErrors!.Keys);
+        Assert.Contains("board.nextCardId", result.Error.ValidationErrors.Keys);
+    }
+
+    [Fact]
+    public void BuildBoardPackageImportPlan_WhenSchemaThreeCardIdIsSharedByLiveAndArchivedCard_ShouldReturnValidationError()
+    {
+        var payload = new BoardPackageBoardDto(
+            "Duplicate Identity Board",
+            "Duplicate identity board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [new BoardPackageCardDto("Active", "Description", "Story", [], Id: 5)])
+            ],
+            NextCardId: 6);
+        var archivePayload = new BoardPackageArchiveDto(
+            [
+                new BoardPackageArchivedCardDto(
+                    5,
+                    "Archived",
+                    [],
+                    new DateTime(2026, 7, 31, 12, 0, 0, DateTimeKind.Utc),
+                    "{}")
+            ]);
+
+        var planner = new BoardPackageImportPlanner();
+        var result = planner.BuildBoardPackageImportPlan(
+            "Duplicate Identity Board",
+            "Duplicate identity board description",
+            true,
+            payload,
+            archivePayload,
+            schemaVersion: 3);
+
+        Assert.NotNull(result.Error);
+        Assert.Contains("archive.cards[0].originalCardId", result.Error!.ValidationErrors!.Keys);
+    }
+
+    [Fact]
+    public void BuildBoardPackageImportPlan_WhenSchemaThreeNextCardIdDoesNotExceedHighWaterMark_ShouldReturnValidationError()
+    {
+        var payload = new BoardPackageBoardDto(
+            "Invalid Sequence Board",
+            "Invalid sequence board description",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [new BoardPackageCardDto("Active", "Description", "Story", [], Id: 8)])
+            ],
+            NextCardId: 8);
+
+        var planner = new BoardPackageImportPlanner();
+        var result = planner.BuildBoardPackageImportPlan(
+            "Invalid Sequence Board",
+            "Invalid sequence board description",
+            true,
+            payload,
+            null,
+            schemaVersion: 3);
+
+        Assert.NotNull(result.Error);
+        Assert.Contains("board.nextCardId", result.Error!.ValidationErrors!.Keys);
+    }
+
+    [Fact]
     public void BuildBoardPackageImportPlan_WhenTagNamesCollideByCase_ShouldReturnValidationError()
     {
         var payload = new BoardPackageBoardDto(
