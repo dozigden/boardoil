@@ -222,8 +222,8 @@ export function createBoardApi() {
     return postData<ArchiveCardsSummary>(`/api/boards/${boardId}/cards/archive`, { cardIds });
   }
 
-  async function unarchiveCard(boardId: number, archivedCardId: number): Promise<Result<Card, AppError>> {
-    return postData<Card>(`/api/boards/${boardId}/cards/archived/${archivedCardId}/unarchive`, {});
+  async function unarchiveCard(boardId: number, boardCardId: number): Promise<Result<Card, AppError>> {
+    return postData<Card>(`/api/boards/${boardId}/cards/archived/${boardCardId}/unarchive`, {});
   }
 
   async function getArchivedCards(
@@ -261,8 +261,8 @@ export function createBoardApi() {
     return ok(envelopeResult.data.data);
   }
 
-  async function getArchivedCard(boardId: number, archivedCardId: number): Promise<Result<ArchivedCard, AppError>> {
-    const envelopeResult = await getEnvelope<ArchivedCard>(`/api/boards/${boardId}/cards/archived/${archivedCardId}`);
+  async function getArchivedCard(boardId: number, boardCardId: number): Promise<Result<ArchivedCard, AppError>> {
+    const envelopeResult = await getEnvelope<ArchivedCard>(`/api/boards/${boardId}/cards/archived/${boardCardId}`);
     if (!envelopeResult.ok) {
       return envelopeResult;
     }

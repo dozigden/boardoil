@@ -116,7 +116,7 @@ public sealed class BoardExportService(
             archivedCards
                 .Select(x => x.ToArchivedCardDto())
                 .Select(x => new BoardPackageArchivedCardDto(
-                    x.OriginalCardId,
+                    x.Id,
                     x.Title,
                     x.TagNames,
                     x.ArchivedAtUtc,

@@ -35,7 +35,7 @@
         @next-page="goToNextPage"
       >
         <template #cell(id)="{ row }">
-          <span class="archived-card-id">#{{ row.originalCardId }}</span>
+          <span class="archived-card-id">#{{ row.id }}</span>
         </template>
         <template #cell(title)="{ row }">
           <span class="archived-card-title">{{ row.title }}</span>
@@ -280,15 +280,15 @@ async function unarchiveSelectedCard() {
   }
 
   const boardId = currentBoardId.value!;
-  const archivedCardId = selectedArchivedCard.value?.id;
-  if (archivedCardId === undefined) {
+  const boardCardId = selectedArchivedCard.value?.id;
+  if (boardCardId === undefined) {
     return;
   }
 
   isUnarchiving.value = true;
   detailErrorMessage.value = '';
   try {
-    const result = await api.unarchiveCard(boardId, archivedCardId);
+    const result = await api.unarchiveCard(boardId, boardCardId);
     if (!result.ok) {
       detailErrorMessage.value = result.error.message;
       return;

@@ -73,7 +73,7 @@ public sealed class CardArchiveService(
         return ApiResults.Ok(new ArchivedCardListDto(items, listOffset, listLimit, totalCount));
     }
 
-    public async Task<ApiResult<ArchivedCardDetailDto>> GetArchivedCardAsync(int boardId, int archivedCardId, int actorUserId)
+    public async Task<ApiResult<ArchivedCardDetailDto>> GetArchivedCardAsync(int boardId, int boardCardId, int actorUserId)
     {
         using var scope = scopeFactory.CreateReadOnly();
 
@@ -83,7 +83,7 @@ public sealed class CardArchiveService(
             return ApiErrors.Forbidden("You do not have access to this board.");
         }
 
-        var archivedCard = await archivedCardRepository.GetByIdAsync(boardId, archivedCardId);
+        var archivedCard = await archivedCardRepository.GetByBoardCardIdAsync(boardId, boardCardId);
         if (archivedCard is null)
         {
             return ApiErrors.NotFound("Archived card not found.");
@@ -130,7 +130,7 @@ public sealed class CardArchiveService(
         return ApiResults.Ok(new ArchiveCardsSummaryDto(boardId, cardIds!.Count, archiveResult.ArchivedCards!.Count));
     }
 
-    public async Task<ApiResult<CardDto>> UnarchiveCardAsync(int boardId, int archivedCardId, int actorUserId)
+    public async Task<ApiResult<CardDto>> UnarchiveCardAsync(int boardId, int boardCardId, int actorUserId)
     {
         using var scope = scopeFactory.Create();
 
@@ -140,7 +140,7 @@ public sealed class CardArchiveService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var archivedCard = await archivedCardRepository.GetByIdForUpdateAsync(boardId, archivedCardId);
+        var archivedCard = await archivedCardRepository.GetByBoardCardIdForUpdateAsync(boardId, boardCardId);
         if (archivedCard is null)
         {
             return ApiErrors.NotFound("Archived card not found.");

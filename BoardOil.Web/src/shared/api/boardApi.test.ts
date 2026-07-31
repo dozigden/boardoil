@@ -486,9 +486,8 @@ describe('boardApi archived cards', () => {
     vi.mocked(getEnvelope).mockResolvedValue(ok({
       success: true,
       data: {
-        id: 3,
+        id: 42,
         boardId: 7,
-        originalCardId: 42,
         title: 'Archived card',
         tagNames: ['Urgent'],
         archivedAtUtc: '2026-04-19T18:00:00Z',
@@ -513,10 +512,10 @@ describe('boardApi archived cards', () => {
     }));
 
     const api = createBoardApi();
-    const result = await api.getArchivedCard(7, 3);
+    const result = await api.getArchivedCard(7, 42);
 
     expect(result.ok).toBe(true);
-    expect(getEnvelope).toHaveBeenCalledWith('/api/boards/7/cards/archived/3');
+    expect(getEnvelope).toHaveBeenCalledWith('/api/boards/7/cards/archived/42');
   });
 
   it('returns api error when archived list envelope has no data payload', async () => {

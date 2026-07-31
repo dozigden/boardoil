@@ -3,7 +3,7 @@
     <div class="card-editor-main">
       <div class="archived-card-detail-title-row">
         <span v-if="card.cardTypeEmoji" class="archived-card-detail-emoji">{{ card.cardTypeEmoji }}</span>
-        <h3 class="archived-card-detail-title">#{{ archivedCard.originalCardId }} {{ card.title }}</h3>
+        <h3 class="archived-card-detail-title">#{{ archivedCard.id }} {{ card.title }}</h3>
       </div>
 
       <section class="card-editor-description-field archived-card-detail-description">

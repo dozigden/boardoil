@@ -49,7 +49,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.Equal(200, result.StatusCode);
         Assert.NotNull(result.Data);
         Assert.Equal(boardId, result.Data!.BoardId);
-        Assert.Equal(cardId, result.Data.OriginalCardId);
+        Assert.Equal(cardId, result.Data.Id);
         Assert.Equal("Archive me", result.Data.Title);
         Assert.Equal(["Bug", "Urgent"], result.Data.TagNames);
         Assert.False(string.IsNullOrWhiteSpace(result.Data.SnapshotJson));
@@ -366,6 +366,9 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(["Beta", "Alpha"], result.Data!.Items.Select(x => x.Title).ToArray());
+        Assert.Equal(
+            [secondArchive.Data!.Id, firstArchive.Data!.Id],
+            result.Data.Items.Select(x => x.Id).ToArray());
     }
 
     [Fact]
@@ -446,6 +449,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         var card = Assert.Single(result.Data!.Items);
+        Assert.Equal(123, card.Id);
         Assert.Equal("Future card", card.Title);
         Assert.Equal(["Ops"], card.TagNames);
     }
@@ -523,6 +527,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
+        Assert.Equal(archiveResult.Data!.Id, result.Data!.Id);
         Assert.Equal("Archive me", result.Data!.Title);
         Assert.Equal(cardId, result.Data.Card.Id);
         Assert.Equal("Archive me", result.Data.Card.Title);

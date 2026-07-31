@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
@@ -346,8 +347,62 @@ public sealed class BoardApiCardIntegrationTests
         Assert.NotNull(archivedCardEnvelope);
         Assert.True(archivedCardEnvelope!.Success);
         Assert.NotNull(archivedCardEnvelope!.Data);
-        Assert.Equal(createdCardId, archivedCardEnvelope.Data!.OriginalCardId);
-        Assert.True(archivedCardEnvelope.Data.Id > 0);
+        Assert.Equal(createdCardId, archivedCardEnvelope.Data!.Id);
+        using var archiveJson = JsonDocument.Parse(await archiveResponse.Content.ReadAsStringAsync());
+        var archivedCardPropertyNames = archiveJson.RootElement
+            .GetProperty("data")
+            .EnumerateObject()
+            .Select(x => x.Name);
+        Assert.DoesNotContain("originalCardId", archivedCardPropertyNames);
+    }
+
+    [Fact]
+    public async Task ArchivedCardEndpoints_WhenBoardsShareCardId_ShouldRemainBoardScoped()
+    {
+        // Arrange
+        var firstBoardColumnId = await SeedBoardColumnAsync("First board column");
+        var secondBoardResponse = await Client.PostAsJsonAsync(
+            "/api/boards",
+            new CreateBoardRequest("Second board"));
+        secondBoardResponse.EnsureSuccessStatusCode();
+        var secondBoardEnvelope = await secondBoardResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        var secondBoard = Assert.IsType<BoardDto>(secondBoardEnvelope!.Data);
+
+        var firstCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(firstBoardColumnId, "First archived card", "", []));
+        var secondCreateResponse = await Client.PostAsJsonAsync(
+            $"/api/boards/{secondBoard.Id}/cards",
+            new CreateCardRequest(secondBoard.Columns[0].Id, "Second archived card", "", []));
+        firstCreateResponse.EnsureSuccessStatusCode();
+        secondCreateResponse.EnsureSuccessStatusCode();
+        var firstCard = Assert.IsType<CardDto>(
+            (await firstCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions))!.Data);
+        var secondCard = Assert.IsType<CardDto>(
+            (await secondCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions))!.Data);
+        Assert.Equal(firstCard.Id, secondCard.Id);
+
+        var firstArchiveResponse = await Client.PostAsync($"/api/boards/1/cards/{firstCard.Id}/archive", content: null);
+        var secondArchiveResponse = await Client.PostAsync(
+            $"/api/boards/{secondBoard.Id}/cards/{secondCard.Id}/archive",
+            content: null);
+        firstArchiveResponse.EnsureSuccessStatusCode();
+        secondArchiveResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var firstReadResponse = await Client.GetAsync($"/api/boards/1/cards/archived/{firstCard.Id}");
+        var secondReadResponse = await Client.GetAsync(
+            $"/api/boards/{secondBoard.Id}/cards/archived/{secondCard.Id}");
+
+        // Assert
+        firstReadResponse.EnsureSuccessStatusCode();
+        secondReadResponse.EnsureSuccessStatusCode();
+        var firstArchivedCard = Assert.IsType<ArchivedCardDetailDto>(
+            (await firstReadResponse.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDetailDto>>(JsonOptions))!.Data);
+        var secondArchivedCard = Assert.IsType<ArchivedCardDetailDto>(
+            (await secondReadResponse.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDetailDto>>(JsonOptions))!.Data);
+        Assert.Equal("First archived card", firstArchivedCard.Title);
+        Assert.Equal("Second archived card", secondArchivedCard.Title);
     }
 
     [Fact]

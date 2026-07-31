@@ -108,7 +108,6 @@ export type TagEditModel = {
 export type ArchivedCardListItem = {
   id: number;
   boardId: number;
-  originalCardId: number;
   title: string;
   tagNames: string[];
   archivedAtUtc: string;

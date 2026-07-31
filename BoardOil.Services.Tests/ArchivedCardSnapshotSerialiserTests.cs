@@ -25,7 +25,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(ArchivedCardSnapshotSerialiser.CurrentVersion, knownPayload.Version);
         Assert.Equal(capturedAtUtc, knownPayload.CapturedAtUtc);
         Assert.Equal(99, knownPayload.Payload.BoardId);
-        Assert.Equal(card.Id, knownPayload.Payload.OriginalCardId);
+        Assert.Equal(card.BoardCardId, knownPayload.Payload.OriginalCardId);
         Assert.Equal(card.Title, knownPayload.Payload.Title);
         Assert.Equal(card.ExternalUrl, knownPayload.Payload.ExternalUrl);
         Assert.Equal(["Bug"], knownPayload.Payload.TagNames);

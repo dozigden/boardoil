@@ -43,11 +43,11 @@ public static class CardEndpoints
         cardEndpoints.MapGet("/archived", async (int boardId, string? search, int? offset, int? limit, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
             (await cardArchiveService.GetArchivedCardsAsync(boardId, search, offset, limit, httpContext.GetActorUserId())).ToHttpResult());
 
-        cardEndpoints.MapGet("/archived/{archivedCardId:int}", async (int boardId, int archivedCardId, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
-            (await cardArchiveService.GetArchivedCardAsync(boardId, archivedCardId, httpContext.GetActorUserId())).ToHttpResult());
+        cardEndpoints.MapGet("/archived/{id:int}", async (int boardId, int id, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
+            (await cardArchiveService.GetArchivedCardAsync(boardId, id, httpContext.GetActorUserId())).ToHttpResult());
 
-        cardEndpoints.MapPost("/archived/{archivedCardId:int}/unarchive", async (int boardId, int archivedCardId, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
-            (await cardArchiveService.UnarchiveCardAsync(boardId, archivedCardId, httpContext.GetActorUserId())).ToHttpResult());
+        cardEndpoints.MapPost("/archived/{id:int}/unarchive", async (int boardId, int id, ICardArchiveService cardArchiveService, HttpContext httpContext) =>
+            (await cardArchiveService.UnarchiveCardAsync(boardId, id, httpContext.GetActorUserId())).ToHttpResult());
 
         cardEndpoints.MapPut("/{id:int}", async (int boardId, int id, UpdateCardRequest request, ICardService cardService, HttpContext httpContext) =>
             (await cardService.UpdateCardAsync(boardId, id, request, httpContext.GetActorUserId())).ToHttpResult());

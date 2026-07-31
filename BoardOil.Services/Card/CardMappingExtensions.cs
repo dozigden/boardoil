@@ -43,9 +43,8 @@ public static class CardMappingExtensions
 
     public static ArchivedCardDto ToArchivedCardDto(this EntityArchivedCard archivedCard) =>
         new(
-            archivedCard.Id,
-            archivedCard.BoardId,
             archivedCard.OriginalCardId,
+            archivedCard.BoardId,
             archivedCard.SearchTitle,
             ParseSearchTagsJson(archivedCard.SearchTagsJson),
             archivedCard.ArchivedAtUtc,
@@ -53,9 +52,8 @@ public static class CardMappingExtensions
 
     public static ArchivedCardDetailDto ToArchivedCardDetailDto(this EntityArchivedCard archivedCard, CardDto card) =>
         new(
-            archivedCard.Id,
-            archivedCard.BoardId,
             archivedCard.OriginalCardId,
+            archivedCard.BoardId,
             archivedCard.SearchTitle,
             ParseSearchTagsJson(archivedCard.SearchTagsJson),
             archivedCard.ArchivedAtUtc,
@@ -63,9 +61,8 @@ public static class CardMappingExtensions
 
     public static ArchivedCardListItemDto ToArchivedCardListItemDto(this EntityArchivedCard archivedCard) =>
         new(
-            archivedCard.Id,
-            archivedCard.BoardId,
             archivedCard.OriginalCardId,
+            archivedCard.BoardId,
             archivedCard.SearchTitle,
             ParseSearchTagsJson(archivedCard.SearchTagsJson),
             archivedCard.ArchivedAtUtc);

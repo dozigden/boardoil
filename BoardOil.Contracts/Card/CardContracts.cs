@@ -40,7 +40,6 @@ public sealed record CardDto(
 public sealed record ArchivedCardDto(
     int Id,
     int BoardId,
-    int OriginalCardId,
     string Title,
     IReadOnlyList<string> TagNames,
     DateTime ArchivedAtUtc,
@@ -49,7 +48,6 @@ public sealed record ArchivedCardDto(
 public sealed record ArchivedCardDetailDto(
     int Id,
     int BoardId,
-    int OriginalCardId,
     string Title,
     IReadOnlyList<string> TagNames,
     DateTime ArchivedAtUtc,
@@ -58,7 +56,6 @@ public sealed record ArchivedCardDetailDto(
 public sealed record ArchivedCardListItemDto(
     int Id,
     int BoardId,
-    int OriginalCardId,
     string Title,
     IReadOnlyList<string> TagNames,
     DateTime ArchivedAtUtc);

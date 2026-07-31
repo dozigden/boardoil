@@ -179,7 +179,7 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
         var service = ResolveService<ICardArchiveService>();
 
         // Act
-        var result = await service.GetArchivedCardAsync(board.BoardId, archivedCardId: 123, ActorUserId);
+        var result = await service.GetArchivedCardAsync(board.BoardId, boardCardId: 123, ActorUserId);
 
         // Assert
         Assert.False(result.Success);
