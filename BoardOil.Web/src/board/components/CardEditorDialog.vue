@@ -317,6 +317,7 @@ const { confirm } = useConfirm();
 const maxDescriptionLength = 20_000;
 const maxCommentLength = 4_000;
 const cardDraft = ref<CardEditModel | null>(null);
+const cardDraftBoardId = ref<number | null>(null);
 const cardDraftId = ref<number | null>(null);
 const cardDraftSource = ref<CardEditModel | null>(null);
 const isCardDraftDirty = ref(false);
@@ -618,19 +619,21 @@ function setDraftAssignedUserId(assignedUserId: number | null, close?: () => voi
 
 function clearCardDraft() {
   cardDraft.value = null;
+  cardDraftBoardId.value = null;
   cardDraftId.value = null;
   cardDraftSource.value = null;
   isCardDraftDirty.value = false;
 }
 
-function initializeDraftFromCard(card: Card) {
-  if (cardDraftId.value === card.id) {
+function initializeDraftFromCard(sourceBoardId: number, card: Card) {
+  if (cardDraftBoardId.value === sourceBoardId && cardDraftId.value === card.id) {
     return false;
   }
 
   const initialModel = createEditModelFromCard(card);
   cardDraft.value = initialModel;
   cardDraftSource.value = cloneCardEditModel(initialModel);
+  cardDraftBoardId.value = sourceBoardId;
   cardDraftId.value = card.id;
   isCardDraftDirty.value = false;
   return true;
@@ -693,9 +696,9 @@ async function ensureEditorLookupsLoaded(boardId: number, isCancelled: () => boo
   return true;
 }
 
-function initializeDraftForCard(nextCard: Card) {
+function initializeDraftForCard(nextBoardId: number, nextCard: Card) {
   const refreshedCard = cardStore.getCardById(nextCard.id) ?? nextCard;
-  const draftInitialized = initializeDraftFromCard(refreshedCard);
+  const draftInitialized = initializeDraftFromCard(nextBoardId, refreshedCard);
   if (!draftInitialized) {
     return false;
   }
@@ -801,7 +804,7 @@ watch(
       return;
     }
 
-    initializeDraftForCard(nextCard);
+    initializeDraftForCard(nextBoardId, nextCard);
 
     const lookupsLoaded = await ensureEditorLookupsLoaded(nextBoardId, () => cancelled);
     if (!lookupsLoaded) {
@@ -816,13 +819,20 @@ watch(
   { immediate: true }
 );
 
-async function shouldBlockRouteNavigation(toName: unknown, fromName: unknown, toCardId: unknown, fromCardId: unknown) {
+async function shouldBlockRouteNavigation(
+  toName: unknown,
+  fromName: unknown,
+  toBoardId: unknown,
+  fromBoardId: unknown,
+  toCardId: unknown,
+  fromCardId: unknown
+) {
   if (fromName !== 'board-card') {
     return false;
   }
 
   const navigatingToDifferentRoute = toName !== 'board-card';
-  const navigatingToDifferentCard = toCardId !== fromCardId;
+  const navigatingToDifferentCard = toBoardId !== fromBoardId || toCardId !== fromCardId;
   if (!navigatingToDifferentRoute && !navigatingToDifferentCard) {
     return false;
   }
@@ -835,6 +845,8 @@ onBeforeRouteLeave(async (to, from) => {
   const shouldBlock = await shouldBlockRouteNavigation(
     to.name,
     from.name,
+    to.params.boardId,
+    from.params.boardId,
     to.params.cardId,
     from.params.cardId
   );
@@ -849,6 +861,8 @@ onBeforeRouteUpdate(async (to, from) => {
   const shouldBlock = await shouldBlockRouteNavigation(
     to.name,
     from.name,
+    to.params.boardId,
+    from.params.boardId,
     to.params.cardId,
     from.params.cardId
   );

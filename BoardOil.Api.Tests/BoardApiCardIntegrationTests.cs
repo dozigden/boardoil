@@ -87,7 +87,7 @@ public sealed class BoardApiCardIntegrationTests
                 .OrderBy(x => x.BoardCardId)
                 .Select(x => x.BoardCardId)
                 .ToListAsync();
-            Assert.Equal(Enumerable.Range(1, cardCount).Select(x => (int?)x), persistedIds);
+            Assert.Equal(Enumerable.Range(1, cardCount), persistedIds);
 
             var nextCardId = await dbContext.BoardCardIdSequences
                 .Where(x => x.BoardId == 1)

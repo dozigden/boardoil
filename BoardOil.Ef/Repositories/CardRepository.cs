@@ -28,7 +28,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
         }
 
         return await DbSet
-            .Where(x => x.BoardId == boardId && x.BoardCardId != null && boardCardIds.Contains(x.BoardCardId.Value))
+            .Where(x => x.BoardId == boardId && boardCardIds.Contains(x.BoardCardId))
             .AsSplitQuery()
             .Include(x => x.CardType)
             .Include(x => x.AssignedUser)

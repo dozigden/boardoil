@@ -126,12 +126,29 @@ namespace BoardOil.Ef.Migrations
                 FROM "Boards";
                 """);
 
+            migrationBuilder.AlterColumn<int>(
+                name: "BoardCardId",
+                table: "Cards",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "BoardId",
+                table: "Cards",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER",
+                oldNullable: true);
+
             migrationBuilder.CreateIndex(
                 name: "IX_Cards_BoardId_BoardCardId",
                 table: "Cards",
                 columns: new[] { "BoardId", "BoardCardId" },
-                unique: true,
-                filter: "\"BoardId\" IS NOT NULL AND \"BoardCardId\" IS NOT NULL");
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_ArchivedCards_BoardId_OriginalCardId",

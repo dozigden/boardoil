@@ -515,15 +515,15 @@ public sealed class BoardPackageImportPlanner
         var nextCardId = 1;
         if (schemaVersion >= 3)
         {
-            if (!boardPayload.NextCardId.HasValue || boardPayload.NextCardId.Value <= maximumSchemaThreeCardId)
+            if (maximumSchemaThreeCardId == int.MaxValue)
             {
                 validationErrors.Add(new ValidationError(
-                    "board.nextCardId",
-                    $"Next card ID must be greater than every active and archived card ID ({maximumSchemaThreeCardId})."));
+                    "board",
+                    "Card IDs are too large to allocate a subsequent card ID."));
             }
             else
             {
-                nextCardId = boardPayload.NextCardId.Value;
+                nextCardId = maximumSchemaThreeCardId + 1;
             }
         }
 

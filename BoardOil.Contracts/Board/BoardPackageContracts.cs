@@ -17,8 +17,7 @@ public sealed record BoardPackageBoardDto(
     IReadOnlyList<BoardPackageTagDto> Tags,
     IReadOnlyList<BoardPackageColumnDto> Columns,
     IReadOnlyList<BoardPackageSlickDto>? Slicks = null,
-    bool SlickCohesionModeEnabled = true,
-    int? NextCardId = null);
+    bool SlickCohesionModeEnabled = true);
 
 public sealed record BoardPackageCardTypeDto(
     string Name,

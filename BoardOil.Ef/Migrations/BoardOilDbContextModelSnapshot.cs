@@ -130,13 +130,13 @@ namespace BoardOil.Ef.Migrations
                     b.Property<int?>("AssignedUserId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("BoardCardId")
+                    b.Property<int>("BoardCardId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("BoardColumnId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("BoardId")
+                    b.Property<int>("BoardId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("CardTypeId")
@@ -181,8 +181,7 @@ namespace BoardOil.Ef.Migrations
                         .IsUnique();
 
                     b.HasIndex("BoardId", "BoardCardId")
-                        .IsUnique()
-                        .HasFilter("\"BoardId\" IS NOT NULL AND \"BoardCardId\" IS NOT NULL");
+                        .IsUnique();
 
                     b.ToTable("Cards", (string)null);
                 });
@@ -731,7 +730,8 @@ namespace BoardOil.Ef.Migrations
                     b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoard", "Board")
                         .WithMany()
                         .HasForeignKey("BoardId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.HasOne("BoardOil.Data.Abstractions.Entities.EntityCardType", "CardType")
                         .WithMany("Cards")

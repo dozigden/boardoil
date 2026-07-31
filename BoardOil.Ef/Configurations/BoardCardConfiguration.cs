@@ -9,8 +9,8 @@ public sealed class BoardCardConfiguration : IEntityTypeConfiguration<EntityBoar
     public void Configure(EntityTypeBuilder<EntityBoardCard> card)
     {
         card.HasKey(x => x.Id);
-        card.Property(x => x.BoardId).IsRequired(false);
-        card.Property(x => x.BoardCardId).IsRequired(false);
+        card.Property(x => x.BoardId).IsRequired();
+        card.Property(x => x.BoardCardId).IsRequired();
         card.Property(x => x.CardTypeId).IsRequired();
         card.Property(x => x.AssignedUserId).IsRequired(false);
         card.Property(x => x.SlickId).IsRequired(false);
@@ -21,8 +21,7 @@ public sealed class BoardCardConfiguration : IEntityTypeConfiguration<EntityBoar
         card.ToTable("Cards");
         card.HasIndex(x => new { x.BoardColumnId, x.SortKey }).IsUnique();
         card.HasIndex(x => new { x.BoardId, x.BoardCardId })
-            .IsUnique()
-            .HasFilter("\"BoardId\" IS NOT NULL AND \"BoardCardId\" IS NOT NULL");
+            .IsUnique();
         card.HasIndex(x => x.CardTypeId);
         card.HasIndex(x => x.AssignedUserId);
         card.HasIndex(x => x.SlickId);

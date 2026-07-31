@@ -23,8 +23,6 @@ public sealed class BoardExportServiceTests : TestBaseDb
             .Build();
         var boardEntity = DbContextForArrange.Boards.Single(x => x.Id == board.BoardId);
         boardEntity.Description = "Export board description";
-        var cardIdSequence = DbContextForArrange.BoardCardIdSequences.Single(x => x.BoardId == board.BoardId);
-        cardIdSequence.NextCardId = 901;
         await DbContextForArrange.SaveChangesAsync();
         var card = board.GetCard("Todo", "Task A");
         var unassignedCard = board.GetCard("Todo", "Task B");
@@ -128,12 +126,12 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.NotNull(boardEntry);
         using var boardReader = new StreamReader(boardEntry!.Open());
         var boardJson = await boardReader.ReadToEndAsync();
+        Assert.DoesNotContain("\"nextCardId\"", boardJson, StringComparison.Ordinal);
         var payload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
         Assert.NotNull(payload);
         Assert.Equal("Export Board", payload!.Name);
         Assert.Equal("Export board description", payload.Description);
         Assert.True(payload.SlickCohesionModeEnabled);
-        Assert.Equal(901, payload.NextCardId);
         Assert.Contains(
             payload.CardTypes,
             x => x.Name == "Story"

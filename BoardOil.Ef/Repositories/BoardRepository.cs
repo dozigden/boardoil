@@ -33,12 +33,6 @@ public sealed class BoardRepository(IAmbientDbContextLocator ambientDbContextLoc
             .ToListAsync();
     }
 
-    public Task<int?> GetNextCardIdAsync(int boardId) =>
-        DbContext.BoardCardIdSequences
-            .Where(x => x.BoardId == boardId)
-            .Select(x => (int?)x.NextCardId)
-            .SingleOrDefaultAsync();
-
     public Task<bool> AnyBoardAsync() =>
         DbSet.AnyAsync();
 }

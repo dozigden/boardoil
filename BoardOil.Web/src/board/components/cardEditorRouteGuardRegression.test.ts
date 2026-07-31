@@ -21,4 +21,15 @@ describe('CardEditorDialog unsaved-change guard wiring', () => {
     expect(countOccurrences(dialogSfc, '@focus="handleCommentEditorFocus"')).toBe(1);
     expect(countOccurrences(dialogSfc, '@blur="handleCommentEditorBlur"')).toBe(1);
   });
+
+  it('treats the board and card id together as routed draft identity', () => {
+    expect(dialogSfc.includes(
+      'if (cardDraftBoardId.value === sourceBoardId && cardDraftId.value === card.id) {'
+    )).toBe(true);
+    expect(dialogSfc.includes(
+      'const navigatingToDifferentCard = toBoardId !== fromBoardId || toCardId !== fromCardId;'
+    )).toBe(true);
+    expect(countOccurrences(dialogSfc, 'to.params.boardId,')).toBe(2);
+    expect(countOccurrences(dialogSfc, 'from.params.boardId,')).toBe(2);
+  });
 });

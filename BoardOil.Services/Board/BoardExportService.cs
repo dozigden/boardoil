@@ -1,3 +1,4 @@
+using System.Data;
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -36,7 +37,7 @@ public sealed class BoardExportService(
 
     public async Task<ApiResult<BoardPackageExportDto>> ExportBoardAsync(int boardId, int actorUserId, string exportedByVersion)
     {
-        using var scope = scopeFactory.CreateReadOnly();
+        using var scope = scopeFactory.CreateReadOnlyWithTransaction(IsolationLevel.Serializable);
 
         var board = boardRepository.Get(boardId);
         if (board is null)
@@ -48,12 +49,6 @@ public sealed class BoardExportService(
         if (!hasPermission)
         {
             return ApiErrors.Forbidden("You do not have permission for this action.");
-        }
-
-        var nextCardId = await boardRepository.GetNextCardIdAsync(boardId);
-        if (!nextCardId.HasValue)
-        {
-            return ApiErrors.InternalError("Board card ID sequence was not found.");
         }
 
         var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
@@ -118,8 +113,7 @@ public sealed class BoardExportService(
                     x.StyleName,
                     x.StylePropertiesJson))
                 .ToList(),
-            board.SlickCohesionModeEnabled,
-            nextCardId.Value);
+            board.SlickCohesionModeEnabled);
         var archivePayload = new BoardPackageArchiveDto(
             archivedCards
                 .Select(x => x.ToArchivedCardDto())

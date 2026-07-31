@@ -11,7 +11,7 @@ describe('routed dialog loading regressions', () => {
   });
 
   it('initializes card editor draft before loading supporting lookup catalogues', () => {
-    const draftIndex = cardEditorDialogSfc.indexOf('initializeDraftForCard(nextCard);');
+    const draftIndex = cardEditorDialogSfc.indexOf('initializeDraftForCard(nextBoardId, nextCard);');
     const lookupIndex = cardEditorDialogSfc.indexOf('const lookupsLoaded = await ensureEditorLookupsLoaded');
     expect(draftIndex).toBeGreaterThan(-1);
     expect(lookupIndex).toBeGreaterThan(-1);

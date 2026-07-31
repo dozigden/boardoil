@@ -75,6 +75,8 @@ public sealed class BoardScopedCardIdMigrationIntegrationTests
                 "INSERT INTO \"Cards\" (\"BoardId\", \"BoardCardId\", \"BoardColumnId\", \"CardTypeId\", \"Title\", \"Description\", \"SortKey\", \"CreatedAtUtc\", \"UpdatedAtUtc\") VALUES (2, 11, 2, 2, 'Cross-board card ID', '', 'B', '2026-07-31T00:00:00Z', '2026-07-31T00:00:00Z');");
             await Assert.ThrowsAsync<SqliteException>(() => ExecuteNonQueryAsync(assertConnection,
                 "INSERT INTO \"Cards\" (\"BoardId\", \"BoardCardId\", \"BoardColumnId\", \"CardTypeId\", \"Title\", \"Description\", \"SortKey\", \"CreatedAtUtc\", \"UpdatedAtUtc\") VALUES (2, 11, 2, 2, 'Same-board duplicate', '', 'C', '2026-07-31T00:00:01Z', '2026-07-31T00:00:01Z');"));
+            await Assert.ThrowsAsync<SqliteException>(() => ExecuteNonQueryAsync(assertConnection,
+                "INSERT INTO \"Cards\" (\"BoardId\", \"BoardCardId\", \"BoardColumnId\", \"CardTypeId\", \"Title\", \"Description\", \"SortKey\", \"CreatedAtUtc\", \"UpdatedAtUtc\") VALUES (NULL, NULL, 2, 2, 'Missing board identity', '', 'D', '2026-07-31T00:00:02Z', '2026-07-31T00:00:02Z');"));
         }
         finally
         {

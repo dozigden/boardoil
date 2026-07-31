@@ -444,7 +444,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.Equal(5, activeCards.Count + archivedCards.Count);
         Assert.Equal(
             5,
-            activeCards.Select(x => x.BoardCardId!.Value)
+            activeCards.Select(x => x.BoardCardId)
                 .Concat(archivedCards.Select(x => x.OriginalCardId))
                 .Distinct()
                 .Count());
@@ -456,7 +456,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task ImportBoardPackageAsync_WhenSchemaThreeExportHasIdentityGaps_ShouldPreserveIdsAndNextCardId()
+    public async Task ImportBoardPackageAsync_WhenDeletedHighWaterMarkIsNotExported_ShouldCalculateNextCardIdFromPresentIds()
     {
         var sourceBoard = CreateBoard("Round Trip Board")
             .AddColumn("Todo")
@@ -499,7 +499,8 @@ public sealed class BoardImportServiceTests : TestBaseDb
             .Single();
         Assert.Equal(activeCardId, importedActiveCardId);
         Assert.Equal(archivedCardId, importedArchivedCardId);
-        Assert.Equal(deletedCardId + 1, importedNextCardId);
+        Assert.Equal(Math.Max(activeCardId, archivedCardId) + 1, importedNextCardId);
+        Assert.Equal(deletedCardId, importedNextCardId);
     }
 
     [Fact]
@@ -873,18 +874,9 @@ public sealed class BoardImportServiceTests : TestBaseDb
                     .ToList()
             })
             .ToList();
-        var nextCardId = boardPayload.NextCardId;
-        if (!nextCardId.HasValue)
-        {
-            nextCardId = assignedIds.Count == 0
-                ? 1
-                : assignedIds.Max() + 1;
-        }
-
         return boardPayload with
         {
-            Columns = columns,
-            NextCardId = nextCardId
+            Columns = columns
         };
     }
 

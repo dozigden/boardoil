@@ -75,9 +75,15 @@ public static class CardMappingExtensions
             tag.StylePropertiesJson,
             tag.Emoji);
 
-    public static int RequireBoardCardId(this EntityBoardCard card) =>
-        card.BoardCardId
-            ?? throw new InvalidOperationException($"Card '{card.Id}' does not have a board-scoped ID.");
+    public static int RequireBoardCardId(this EntityBoardCard card)
+    {
+        if (card.BoardCardId <= 0)
+        {
+            throw new InvalidOperationException($"Card '{card.Id}' does not have a valid board-scoped ID.");
+        }
+
+        return card.BoardCardId;
+    }
 
     public static CardCommentDto ToCardCommentDto(
         this EntityCardComment comment,

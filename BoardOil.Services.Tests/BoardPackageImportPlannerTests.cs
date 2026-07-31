@@ -7,7 +7,7 @@ namespace BoardOil.Services.Tests;
 public sealed class BoardPackageImportPlannerTests
 {
     [Fact]
-    public void BuildBoardPackageImportPlan_WhenSchemaThreeIdentityFieldsAreMissing_ShouldReturnValidationErrors()
+    public void BuildBoardPackageImportPlan_WhenSchemaThreeCardIdIsMissing_ShouldReturnValidationError()
     {
         var payload = new BoardPackageBoardDto(
             "Missing Identity Board",
@@ -31,7 +31,6 @@ public sealed class BoardPackageImportPlannerTests
 
         Assert.NotNull(result.Error);
         Assert.Contains("board.columns[0].cards[0].id", result.Error!.ValidationErrors!.Keys);
-        Assert.Contains("board.nextCardId", result.Error.ValidationErrors.Keys);
     }
 
     [Fact]
@@ -46,8 +45,7 @@ public sealed class BoardPackageImportPlannerTests
                 new BoardPackageColumnDto(
                     "Todo",
                     [new BoardPackageCardDto("Active", "Description", "Story", [], Id: 5)])
-            ],
-            NextCardId: 6);
+            ]);
         var archivePayload = new BoardPackageArchiveDto(
             [
                 new BoardPackageArchivedCardDto(
@@ -72,31 +70,30 @@ public sealed class BoardPackageImportPlannerTests
     }
 
     [Fact]
-    public void BuildBoardPackageImportPlan_WhenSchemaThreeNextCardIdDoesNotExceedHighWaterMark_ShouldReturnValidationError()
+    public void BuildBoardPackageImportPlan_WhenSchemaThreeCardIdExhaustsIntegerRange_ShouldReturnValidationError()
     {
         var payload = new BoardPackageBoardDto(
-            "Invalid Sequence Board",
-            "Invalid sequence board description",
+            "Exhausted Identity Board",
+            "Exhausted identity board description",
             [new BoardPackageCardTypeDto("Story", null, true)],
             [],
             [
                 new BoardPackageColumnDto(
                     "Todo",
-                    [new BoardPackageCardDto("Active", "Description", "Story", [], Id: 8)])
-            ],
-            NextCardId: 8);
+                    [new BoardPackageCardDto("Active", "Description", "Story", [], Id: int.MaxValue)])
+            ]);
 
         var planner = new BoardPackageImportPlanner();
         var result = planner.BuildBoardPackageImportPlan(
-            "Invalid Sequence Board",
-            "Invalid sequence board description",
+            "Exhausted Identity Board",
+            "Exhausted identity board description",
             true,
             payload,
             null,
             schemaVersion: 3);
 
         Assert.NotNull(result.Error);
-        Assert.Contains("board.nextCardId", result.Error!.ValidationErrors!.Keys);
+        Assert.Contains("board", result.Error!.ValidationErrors!.Keys);
     }
 
     [Fact]
