@@ -17,6 +17,7 @@ namespace BoardOil.Services.Card;
 
 public sealed class CreateCardService(
     ICardRepository cardRepository,
+    IBoardCardIdAllocator boardCardIdAllocator,
     ICardTypeRepository cardTypeRepository,
     IColumnRepository columnRepository,
     ITagRepository tagRepository,
@@ -93,6 +94,7 @@ public sealed class CreateCardService(
 
         var card = new EntityBoardCard
         {
+            BoardId = boardId,
             BoardColumnId = draft.TargetColumnId,
             CardTypeId = draft.CardTypeId,
             CardType = selectedCardType,
@@ -116,8 +118,13 @@ public sealed class CreateCardService(
             assignment.Card.SortKey = assignment.SortKey;
         }
 
-        cardRepository.Add(card);
-        await scope.SaveChangesAsync();
+        await scope.Transaction(async (transactionScope, transaction) =>
+        {
+            card.BoardCardId = await boardCardIdAllocator.AllocateNextAsync(boardId);
+            cardRepository.Add(card);
+            await transactionScope.SaveChangesAsync();
+            await transaction.CommitAsync();
+        });
 
         var created = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
         await boardEvents.CardCreatedAsync(boardId, created);

@@ -32,8 +32,8 @@ public sealed class MoveCardService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var existingCard = await cardRepository.GetWithTagsAndBoardAsync(id);
-        if (existingCard is null || existingCard.BoardColumn.BoardId != boardId)
+        var existingCard = await cardRepository.GetWithTagsAndBoardAsync(boardId, id);
+        if (existingCard is null)
         {
             return ApiErrors.NotFound("Card not found.");
         }
@@ -57,7 +57,9 @@ public sealed class MoveCardService(
             return ApiErrors.NotFound("Card not found.");
         }
 
-        var currentPositionAfterCardId = sourceIndex > 0 ? sourceCards[sourceIndex - 1].Id : (int?)null;
+        var currentPositionAfterCardId = sourceIndex > 0
+            ? sourceCards[sourceIndex - 1].RequireBoardCardId()
+            : (int?)null;
         if (targetColumn.Id == sourceColumnId
             && request.PositionAfterCardId == currentPositionAfterCardId)
         {
@@ -70,13 +72,13 @@ public sealed class MoveCardService(
         if (targetColumn.Id == sourceColumnId)
         {
             targetCards = sourceCards
-                .Where(x => x.Id != id)
+                .Where(x => x.Id != existingCard.Id)
                 .ToList();
         }
         else
         {
             targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id))
-                .Where(x => x.Id != id)
+                .Where(x => x.Id != existingCard.Id)
                 .ToList();
         }
 

@@ -1339,6 +1339,11 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             .Where(cardType => cardType.BoardId == 1 && cardType.IsSystem)
             .Select(cardType => cardType.Id)
             .SingleAsync();
+        var cardIdSequence = await dbContext.BoardCardIdSequences
+            .SingleAsync(sequence => sequence.BoardId == 1);
+        var movingCardId = cardIdSequence.NextCardId++;
+        var targetCardAId = cardIdSequence.NextCardId++;
+        var targetCardBId = cardIdSequence.NextCardId++;
         var previousSourceCardKey = await dbContext.Cards
             .Where(card => card.BoardColumnId == sourceColumn.Id)
             .OrderByDescending(card => card.SortKey)
@@ -1346,6 +1351,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             .FirstOrDefaultAsync();
         var movingCard = new EntityBoardCard
         {
+            BoardId = 1,
+            BoardCardId = movingCardId,
             BoardColumnId = sourceColumn.Id,
             CardTypeId = cardTypeId,
             Title = "Move me",
@@ -1354,6 +1361,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         };
         var targetCardA = new EntityBoardCard
         {
+            BoardId = 1,
+            BoardCardId = targetCardAId,
             BoardColumnId = targetColumn.Id,
             CardTypeId = cardTypeId,
             Title = "Target A",
@@ -1362,6 +1371,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         };
         var targetCardB = new EntityBoardCard
         {
+            BoardId = 1,
+            BoardCardId = targetCardBId,
             BoardColumnId = targetColumn.Id,
             CardTypeId = cardTypeId,
             Title = "Target B",
@@ -1371,7 +1382,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
         dbContext.Cards.AddRange(movingCard, targetCardA, targetCardB);
         await dbContext.SaveChangesAsync();
 
-        return new CardMoveScenario(movingCard.Id, targetColumn.Id);
+        return new CardMoveScenario(movingCardId, targetColumn.Id);
     }
 
     private async Task<int> SeedExhaustedCardCreateScenarioAsync()
@@ -1387,9 +1398,15 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             .Where(cardType => cardType.BoardId == 1 && cardType.IsSystem)
             .Select(cardType => cardType.Id)
             .SingleAsync();
+        var cardIdSequence = await dbContext.BoardCardIdSequences
+            .SingleAsync(sequence => sequence.BoardId == 1);
+        var targetCardAId = cardIdSequence.NextCardId++;
+        var targetCardBId = cardIdSequence.NextCardId++;
         dbContext.Cards.AddRange(
             new EntityBoardCard
             {
+                BoardId = 1,
+                BoardCardId = targetCardAId,
                 BoardColumnId = targetColumnId,
                 CardTypeId = cardTypeId,
                 Title = "Target A",
@@ -1398,6 +1415,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
             },
             new EntityBoardCard
             {
+                BoardId = 1,
+                BoardCardId = targetCardBId,
                 BoardColumnId = targetColumnId,
                 CardTypeId = cardTypeId,
                 Title = "Target B",

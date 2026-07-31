@@ -160,9 +160,15 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
                 .OrderByDescending(x => x.SortKey)
                 .Select(x => x.SortKey)
                 .FirstOrDefaultAsync();
+            var sequence = await dbContext.BoardCardIdSequences
+                .SingleAsync(x => x.BoardId == column.BoardId);
+            var boardCardId = sequence.NextCardId;
+            sequence.NextCardId++;
 
             var card = new EntityBoardCard
             {
+                BoardId = column.BoardId,
+                BoardCardId = boardCardId,
                 BoardColumnId = columnId,
                 CardType = cardType,
                 Title = title,
@@ -172,7 +178,7 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
 
             dbContext.Cards.Add(card);
             await dbContext.SaveChangesAsync();
-            return card.Id;
+            return boardCardId;
         });
     }
 

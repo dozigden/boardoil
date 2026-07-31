@@ -10,7 +10,7 @@ public static class CardMappingExtensions
 
     public static CardDto ToCardDto(this EntityBoardCard card) =>
         new(
-            card.Id,
+            card.RequireBoardCardId(),
             card.BoardColumnId,
             card.CardTypeId,
             card.CardType.Name,
@@ -78,13 +78,18 @@ public static class CardMappingExtensions
             tag.StylePropertiesJson,
             tag.Emoji);
 
+    public static int RequireBoardCardId(this EntityBoardCard card) =>
+        card.BoardCardId
+            ?? throw new InvalidOperationException($"Card '{card.Id}' does not have a board-scoped ID.");
+
     public static CardCommentDto ToCardCommentDto(
         this EntityCardComment comment,
+        int boardCardId,
         string? authorDisplayName = null,
         string? authorImageRelativePath = null) =>
         new(
             comment.Id,
-            comment.CardId,
+            boardCardId,
             comment.AuthorUserId,
             comment.Text,
             comment.PostedAtUtc,

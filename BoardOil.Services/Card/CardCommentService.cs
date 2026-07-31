@@ -32,17 +32,18 @@ public sealed class CardCommentService(
             return ApiErrors.Forbidden("You do not have access to this board.");
         }
 
-        var card = await cardRepository.GetWithTagsAndBoardAsync(cardId);
-        if (card is null || card.BoardColumn.BoardId != boardId)
+        var card = await cardRepository.GetWithTagsAndBoardAsync(boardId, cardId);
+        if (card is null)
         {
             return ApiErrors.NotFound("Card not found.");
         }
 
-        var comments = await cardCommentRepository.GetForCardOrderedAsync(cardId);
+        var comments = await cardCommentRepository.GetForCardOrderedAsync(card.Id);
         var imageByAuthorUserId = await LoadAuthorImageLookupAsync(comments);
         var displayNameByAuthorUserId = LoadAuthorDisplayNameLookup(comments);
         return comments
             .Select(x => x.ToCardCommentDto(
+                cardId,
                 ResolveAuthorDisplayName(x, displayNameByAuthorUserId),
                 ResolveAuthorImageRelativePath(x, imageByAuthorUserId)))
             .ToList();
@@ -58,8 +59,8 @@ public sealed class CardCommentService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var card = await cardRepository.GetWithTagsAndBoardAsync(cardId);
-        if (card is null || card.BoardColumn.BoardId != boardId)
+        var card = await cardRepository.GetWithTagsAndBoardAsync(boardId, cardId);
+        if (card is null)
         {
             return ApiErrors.NotFound("Card not found.");
         }
@@ -72,7 +73,7 @@ public sealed class CardCommentService(
 
         var comment = new EntityCardComment
         {
-            CardId = cardId,
+            CardId = card.Id,
             AuthorUserId = actorUserId,
             Text = request.Text.Trim(),
             PostedAtUtc = DateTime.UtcNow
@@ -93,7 +94,7 @@ public sealed class CardCommentService(
             imageRelativePath = image?.RelativePath;
         }
 
-        var createdComment = savedComment.ToCardCommentDto(savedComment.AuthorUser?.DisplayName, imageRelativePath);
+        var createdComment = savedComment.ToCardCommentDto(cardId, savedComment.AuthorUser?.DisplayName, imageRelativePath);
         await boardEvents.CommentCreatedAsync(boardId, createdComment);
         return ApiResults.Created(createdComment);
     }

@@ -36,8 +36,8 @@ public sealed class CardService(
             return ApiErrors.Forbidden("You do not have access to this board.");
         }
 
-        var card = await cardRepository.GetWithTagsAndBoardAsync(id);
-        if (card is null || card.BoardColumn.BoardId != boardId)
+        var card = await cardRepository.GetWithTagsAndBoardAsync(boardId, id);
+        if (card is null)
         {
             return ApiErrors.NotFound("Card not found.");
         }
@@ -175,20 +175,15 @@ public sealed class CardService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var card = await cardRepository.GetWithTagsAndBoardAsync(id);
+        var card = await cardRepository.GetWithTagsAndBoardAsync(boardId, id);
         if (card is null)
         {
             return ApiResults.Ok();
         }
 
-        if (card.BoardColumn.BoardId != boardId)
-        {
-            return ApiErrors.NotFound("Card not found.");
-        }
-
         cardRepository.Remove(card);
         await scope.SaveChangesAsync();
-        await _boardEvents.CardDeletedAsync(boardId, id);
+        await _boardEvents.CardDeletedAsync(boardId, card.RequireBoardCardId());
 
         return ApiResults.Ok();
     }

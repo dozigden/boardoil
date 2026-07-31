@@ -43,11 +43,11 @@ public sealed class CardMoveOrderPlanner(CardSortKeyRenormaliser renormaliser)
         }
     }
 
-    public int FindCardIndex(IReadOnlyList<EntityBoardCard> cards, int targetId)
+    public int FindCardIndex(IReadOnlyList<EntityBoardCard> cards, int targetBoardCardId)
     {
         for (var index = 0; index < cards.Count; index++)
         {
-            if (cards[index].Id == targetId)
+            if (cards[index].BoardCardId == targetBoardCardId)
             {
                 return index;
             }
@@ -67,7 +67,7 @@ public sealed class CardMoveOrderPlanner(CardSortKeyRenormaliser renormaliser)
 
         for (var index = 0; index < targetCards.Count; index++)
         {
-            if (targetCards[index].Id == positionAfterCardId.Value)
+            if (targetCards[index].BoardCardId == positionAfterCardId.Value)
             {
                 return new CardMoveInsertionIndexResult(index + 1, null);
             }

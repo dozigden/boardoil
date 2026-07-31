@@ -8,39 +8,7 @@ namespace BoardOil.Ef.Repositories;
 public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLocator)
     : RepositoryBase<EntityBoardCard>(ambientDbContextLocator), ICardRepository
 {
-    public async Task<EntityBoardCard?> GetWithTagsByIdAsync(int id)
-    {
-        var card = Get(id);
-        if (card is null)
-        {
-            return null;
-        }
-
-        await DbContext.Entry(card)
-            .Reference(x => x.CardType)
-            .LoadAsync();
-        if (card.AssignedUserId is not null)
-        {
-            await DbContext.Entry(card)
-                .Reference(x => x.AssignedUser)
-                .LoadAsync();
-        }
-        if (card.SlickId is not null)
-        {
-            await DbContext.Entry(card)
-                .Reference(x => x.Slick)
-                .LoadAsync();
-        }
-
-        await DbContext.Entry(card)
-            .Collection(x => x.CardTags)
-            .Query()
-            .Include(x => x.Tag)
-            .LoadAsync();
-        return card;
-    }
-
-    public Task<EntityBoardCard?> GetWithTagsAndBoardAsync(int id) =>
+    public Task<EntityBoardCard?> GetWithTagsAndBoardAsync(int boardId, int boardCardId) =>
         DbSet
             .Include(x => x.CardType)
             .Include(x => x.AssignedUser)
@@ -48,17 +16,19 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             .Include(x => x.CardTags)
                 .ThenInclude(x => x.Tag)
             .Include(x => x.BoardColumn)
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.BoardId == boardId && x.BoardCardId == boardCardId);
 
-    public async Task<IReadOnlyList<EntityBoardCard>> GetWithTagsAndBoardByIdsAsync(IReadOnlyList<int> ids)
+    public async Task<IReadOnlyList<EntityBoardCard>> GetWithTagsAndBoardByIdsAsync(
+        int boardId,
+        IReadOnlyList<int> boardCardIds)
     {
-        if (ids.Count == 0)
+        if (boardCardIds.Count == 0)
         {
             return Array.Empty<EntityBoardCard>();
         }
 
         return await DbSet
-            .Where(x => ids.Contains(x.Id))
+            .Where(x => x.BoardId == boardId && x.BoardCardId != null && boardCardIds.Contains(x.BoardCardId.Value))
             .AsSplitQuery()
             .Include(x => x.CardType)
             .Include(x => x.AssignedUser)

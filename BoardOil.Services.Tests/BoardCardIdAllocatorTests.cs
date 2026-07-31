@@ -3,6 +3,7 @@ using BoardOil.Ef;
 using BoardOil.Ef.Card;
 using BoardOil.Ef.Context;
 using BoardOil.Ef.Scope;
+using BoardOil.Services.Card;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -79,7 +80,7 @@ public sealed class BoardCardIdAllocatorTests
     }
 
     [Fact]
-    public async Task AllocateNextAsync_WhenTransactionRollsBack_ShouldNotAdvanceSequence()
+    public async Task AllocateNextAsync_WhenCardInsertTransactionRollsBack_ShouldRollbackCardAndSequence()
     {
         // Arrange
         var databasePath = CreateDatabasePath();
@@ -96,6 +97,8 @@ public sealed class BoardCardIdAllocatorTests
             // Assert
             Assert.Equal(1, rolledBackId);
             Assert.Equal(1, committedId);
+            await using var assertContext = CreateDbContext(connectionString);
+            Assert.Empty(await assertContext.Cards.ToListAsync());
         }
         finally
         {
@@ -149,6 +152,12 @@ public sealed class BoardCardIdAllocatorTests
             Name = $"Board {Guid.NewGuid():N}",
             CardIdSequence = new EntityBoardCardIdSequence(),
         };
+        board.CardTypes.Add(CardTypeDefaults.CreateSystemForBoard(board, DateTime.UtcNow));
+        board.Columns.Add(new EntityBoardColumn
+        {
+            Title = "Todo",
+            SortKey = "A",
+        });
         dbContext.Boards.Add(board);
         await dbContext.SaveChangesAsync();
         return board.Id;
@@ -174,13 +183,34 @@ public sealed class BoardCardIdAllocatorTests
     {
         var dbContextFactory = new BoardOilDbContextFactory(connectionString);
         var scopeFactory = new DbContextScopeFactory(dbContextFactory);
-        var allocator = new BoardCardIdAllocator(new AmbientDbContextLocator());
+        var ambientDbContextLocator = new AmbientDbContextLocator();
+        var allocator = new BoardCardIdAllocator(ambientDbContextLocator);
         using var scope = scopeFactory.Create();
 
         var allocatedId = 0;
-        await scope.Transaction(async (_, _) =>
+        await scope.Transaction(async (transactionScope, _) =>
         {
             allocatedId = await allocator.AllocateNextAsync(boardId);
+            var dbContext = ambientDbContextLocator.Get<BoardOilDbContext>()!;
+            var columnId = await dbContext.Columns
+                .Where(x => x.BoardId == boardId)
+                .Select(x => x.Id)
+                .SingleAsync();
+            var cardTypeId = await dbContext.CardTypes
+                .Where(x => x.BoardId == boardId)
+                .Select(x => x.Id)
+                .SingleAsync();
+            dbContext.Cards.Add(new EntityBoardCard
+            {
+                BoardId = boardId,
+                BoardCardId = allocatedId,
+                BoardColumnId = columnId,
+                CardTypeId = cardTypeId,
+                Title = "Rolled back card",
+                Description = "",
+                SortKey = "A",
+            });
+            await transactionScope.SaveChangesAsync();
         });
         return allocatedId;
     }
@@ -200,4 +230,3 @@ public sealed class BoardCardIdAllocatorTests
         return Path.Combine(directory, $"{Guid.NewGuid():N}.db");
     }
 }
-

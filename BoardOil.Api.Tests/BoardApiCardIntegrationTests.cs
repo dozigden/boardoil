@@ -40,6 +40,104 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_WithConcurrentCreates_ShouldAtomicallyAllocateDistinctBoardCardIds()
+    {
+        // Arrange
+        const int cardCount = 8;
+        var columnIds = new List<int>(cardCount);
+        for (var index = 0; index < cardCount; index++)
+        {
+            columnIds.Add(await SeedBoardColumnAsync($"Concurrent {index + 1}"));
+        }
+
+        var startGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var createTasks = columnIds
+            .Select(async (columnId, index) =>
+            {
+                await startGate.Task;
+                return await Client.PostAsJsonAsync(
+                    "/api/boards/1/cards",
+                    new CreateCardRequest(columnId, $"Concurrent card {index + 1}", "", []));
+            })
+            .ToList();
+
+        // Act
+        startGate.SetResult();
+        var responses = await Task.WhenAll(createTasks);
+        var envelopes = new List<ApiEnvelope<CardDto>>(cardCount);
+        foreach (var response in responses)
+        {
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+            envelopes.Add(Assert.IsType<ApiEnvelope<CardDto>>(envelope));
+        }
+
+        // Assert
+        var boardCardIds = envelopes
+            .Select(x => Assert.IsType<CardDto>(x.Data).Id)
+            .OrderBy(x => x)
+            .ToArray();
+        Assert.Equal(Enumerable.Range(1, cardCount), boardCardIds);
+
+        await UseDbContextAsync(async dbContext =>
+        {
+            var persistedIds = await dbContext.Cards
+                .Where(x => x.BoardId == 1)
+                .OrderBy(x => x.BoardCardId)
+                .Select(x => x.BoardCardId)
+                .ToListAsync();
+            Assert.Equal(Enumerable.Range(1, cardCount).Select(x => (int?)x), persistedIds);
+
+            var nextCardId = await dbContext.BoardCardIdSequences
+                .Where(x => x.BoardId == 1)
+                .Select(x => x.NextCardId)
+                .SingleAsync();
+            Assert.Equal(cardCount + 1, nextCardId);
+        });
+    }
+
+    [Fact]
+    public async Task CardEndpoints_WhenBoardsShareCardId_ShouldKeepMutationsBoardScoped()
+    {
+        // Arrange
+        var firstBoardColumnId = await SeedBoardColumnAsync("First board column");
+        var secondBoardResponse = await Client.PostAsJsonAsync(
+            "/api/boards",
+            new CreateBoardRequest("Second board"));
+        secondBoardResponse.EnsureSuccessStatusCode();
+        var secondBoardEnvelope = await secondBoardResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+        var secondBoard = Assert.IsType<BoardDto>(secondBoardEnvelope!.Data);
+        var secondBoardColumnId = secondBoard.Columns[0].Id;
+
+        var firstCreateResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/cards",
+            new CreateCardRequest(firstBoardColumnId, "First board card", "", []));
+        var secondCreateResponse = await Client.PostAsJsonAsync(
+            $"/api/boards/{secondBoard.Id}/cards",
+            new CreateCardRequest(secondBoardColumnId, "Second board card", "", []));
+        firstCreateResponse.EnsureSuccessStatusCode();
+        secondCreateResponse.EnsureSuccessStatusCode();
+        var firstCard = Assert.IsType<CardDto>(
+            (await firstCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions))!.Data);
+        var secondCard = Assert.IsType<CardDto>(
+            (await secondCreateResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions))!.Data);
+        Assert.Equal(firstCard.Id, secondCard.Id);
+
+        // Act
+        var deleteResponse = await Client.DeleteAsync($"/api/boards/1/cards/{firstCard.Id}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+        var secondBoardReadResponse = await Client.GetAsync($"/api/boards/{secondBoard.Id}");
+        secondBoardReadResponse.EnsureSuccessStatusCode();
+        var secondBoardRead = Assert.IsType<BoardDto>(
+            (await secondBoardReadResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions))!.Data);
+        var remainingCard = Assert.Single(secondBoardRead.Columns.SelectMany(x => x.Cards));
+        Assert.Equal(secondCard.Id, remainingCard.Id);
+        Assert.Equal("Second board card", remainingCard.Title);
+    }
+
+    [Fact]
     public async Task CardEndpoints_Search_ShouldBindFilterArrayAndReturnMatchingCards()
     {
         // Arrange
@@ -348,7 +446,7 @@ public sealed class BoardApiCardIntegrationTests
         Assert.NotNull(payload);
         Assert.True(payload!.Success);
         Assert.NotNull(payload.Data);
-        Assert.NotEqual(createdCardId, payload.Data!.Id);
+        Assert.Equal(createdCardId, payload.Data!.Id);
         Assert.Equal("Archive me", payload.Data.Title);
         Assert.Equal(createdColumnId, payload.Data.BoardColumnId);
         Assert.Equal(slickId, payload.Data.SlickId);
@@ -480,6 +578,7 @@ public sealed class BoardApiCardIntegrationTests
         Assert.NotNull(createdEnvelope);
         Assert.True(createdEnvelope!.Success);
         Assert.NotNull(createdEnvelope.Data);
+        Assert.Equal(cardId, createdEnvelope.Data!.CardId);
         Assert.Equal("First comment", createdEnvelope.Data!.Text);
 
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
@@ -487,6 +586,7 @@ public sealed class BoardApiCardIntegrationTests
         Assert.True(listEnvelope!.Success);
         Assert.NotNull(listEnvelope.Data);
         Assert.Single(listEnvelope.Data);
+        Assert.Equal(cardId, listEnvelope.Data[0].CardId);
         Assert.Equal("First comment", listEnvelope.Data[0].Text);
     }
 

@@ -109,7 +109,10 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
         Assert.Equal("https://github.com/example/repository", unarchiveResult.Data!.ExternalUrl);
-        var restoredCardId = unarchiveResult.Data.Id;
+        var restoredCardId = await DbContextForAssert.Cards
+            .Where(x => x.BoardId == boardId && x.BoardCardId == unarchiveResult.Data.Id)
+            .Select(x => x.Id)
+            .SingleAsync();
         var restoredComments = await DbContextForAssert.CardComments
             .Where(x => x.CardId == restoredCardId)
             .OrderBy(x => x.PostedAtUtc)
@@ -156,7 +159,8 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
         Assert.Equal(slick.Id, unarchiveResult.Data!.SlickId);
-        var restoredCard = await DbContextForAssert.Cards.SingleAsync(x => x.Id == unarchiveResult.Data.Id);
+        var restoredCard = await DbContextForAssert.Cards
+            .SingleAsync(x => x.BoardId == boardId && x.BoardCardId == unarchiveResult.Data.Id);
         Assert.Equal(slick.Id, restoredCard.SlickId);
     }
 
@@ -199,7 +203,8 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
         Assert.NotNull(unarchiveResult.Data!.SlickId);
-        var restoredCard = await DbContextForAssert.Cards.SingleAsync(x => x.Id == unarchiveResult.Data.Id);
+        var restoredCard = await DbContextForAssert.Cards
+            .SingleAsync(x => x.BoardId == boardId && x.BoardCardId == unarchiveResult.Data.Id);
         Assert.NotNull(restoredCard.SlickId);
         var recreatedSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.Id == restoredCard.SlickId);
         Assert.Equal("Release train", recreatedSlick.Name);

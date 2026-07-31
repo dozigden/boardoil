@@ -96,6 +96,7 @@ public sealed class CardArchiveService(
         }
 
         var currentSnapshotCard = await ResolveCurrentSnapshotCardAsync(boardId, snapshotCard);
+        currentSnapshotCard = currentSnapshotCard with { Id = archivedCard.OriginalCardId };
         return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard));
     }
 
@@ -180,6 +181,8 @@ public sealed class CardArchiveService(
         var resolvedTags = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames, now);
         var restoredCard = new EntityBoardCard
         {
+            BoardId = boardId,
+            BoardCardId = archivedCard.OriginalCardId,
             BoardColumnId = targetColumn.Id,
             BoardColumn = targetColumn,
             CardTypeId = selectedCardType.Id,
@@ -247,13 +250,13 @@ public sealed class CardArchiveService(
             return new ArchiveExecutionResult(ApiErrors.Forbidden("You do not have permission for this action."), null);
         }
 
-        var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(requestedCardIds);
-        if (cards.Count != requestedCardIds.Count || cards.Any(x => x.BoardColumn.BoardId != boardId))
+        var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(boardId, requestedCardIds);
+        if (cards.Count != requestedCardIds.Count)
         {
             return new ArchiveExecutionResult(ApiErrors.NotFound("Card not found."), null);
         }
 
-        var cardsById = cards.ToDictionary(x => x.Id);
+        var cardsById = cards.ToDictionary(x => x.RequireBoardCardId());
         var orderedCards = requestedCardIds.Select(x => cardsById[x]).ToList();
         var archivedCards = new List<EntityArchivedCard>(orderedCards.Count);
         foreach (var card in orderedCards)
@@ -301,7 +304,7 @@ public sealed class CardArchiveService(
         var archivedCard = new EntityArchivedCard
         {
             BoardId = boardId,
-            OriginalCardId = card.Id,
+            OriginalCardId = card.RequireBoardCardId(),
             ArchivedAtUtc = archivedAtUtc,
             SnapshotJson = snapshotJson,
             SearchTitle = searchTitle,

@@ -77,7 +77,7 @@ public sealed class SlickCohesionPlacementResolver
     {
         for (var i = 0; i < targetCards.Count; i++)
         {
-            if (targetCards[i].Id == positionAfterCardId)
+            if (targetCards[i].BoardCardId == positionAfterCardId)
             {
                 return i + 1;
             }
@@ -123,9 +123,9 @@ public sealed class SlickCohesionPlacementResolver
 
         if (insertionIndex > targetCards.Count)
         {
-            return targetCards[^1].Id;
+            return targetCards[^1].RequireBoardCardId();
         }
 
-        return targetCards[insertionIndex - 1].Id;
+        return targetCards[insertionIndex - 1].RequireBoardCardId();
     }
 }

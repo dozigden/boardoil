@@ -82,8 +82,8 @@ public sealed class BulkEditCardsService(
             return ApiErrors.ValidationFailed([new ValidationError("move.positionAfterCardId", "Anchor card cannot be one of the moved cards.")]);
         }
 
-        var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(uniqueCardIds);
-        if (cards.Count != uniqueCardIds.Count || cards.Any(x => x.BoardColumn.BoardId != boardId))
+        var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(boardId, uniqueCardIds);
+        if (cards.Count != uniqueCardIds.Count)
         {
             return ApiErrors.ValidationFailed([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
         }
@@ -123,7 +123,7 @@ public sealed class BulkEditCardsService(
         if (hasMoveOperation)
         {
             var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(targetColumn!.Id))
-                .Where(x => !selectedCardIdSet.Contains(x.Id))
+                .Where(x => !selectedCardIdSet.Contains(x.RequireBoardCardId()))
                 .ToList();
             var board = boardRepository.Get(boardId);
             var isCrossColumnMove = orderedCards.Any(x => x.BoardColumnId != targetColumn!.Id);
@@ -140,11 +140,11 @@ public sealed class BulkEditCardsService(
             }
 
             movingSortKeysByCardId = orderPlan.Assignments
-                .Where(assignment => selectedCardIdSet.Contains(assignment.Card.Id))
-                .ToDictionary(assignment => assignment.Card.Id, assignment => assignment.SortKey);
+                .Where(assignment => selectedCardIdSet.Contains(assignment.Card.RequireBoardCardId()))
+                .ToDictionary(assignment => assignment.Card.RequireBoardCardId(), assignment => assignment.SortKey);
             foreach (var assignment in orderPlan.Assignments)
             {
-                if (!selectedCardIdSet.Contains(assignment.Card.Id))
+                if (!selectedCardIdSet.Contains(assignment.Card.RequireBoardCardId()))
                 {
                     assignment.Card.SortKey = assignment.SortKey;
                 }
@@ -156,10 +156,11 @@ public sealed class BulkEditCardsService(
 
         foreach (var card in orderedCards)
         {
+            var boardCardId = card.RequireBoardCardId();
             var movementChanged = false;
             if (hasMoveOperation)
             {
-                var targetSortKey = movingSortKeysByCardId[card.Id];
+                var targetSortKey = movingSortKeysByCardId[boardCardId];
                 movementChanged = card.BoardColumnId != targetColumn!.Id
                     || card.SortKey != targetSortKey;
                 if (movementChanged)
@@ -216,11 +217,11 @@ public sealed class BulkEditCardsService(
 
             if (movementChanged)
             {
-                movedCardIdSet.Add(card.Id);
+                movedCardIdSet.Add(boardCardId);
             }
             else if (tagsChanged || slickChanged)
             {
-                updatedCardIdSet.Add(card.Id);
+                updatedCardIdSet.Add(boardCardId);
             }
         }
 
@@ -236,11 +237,11 @@ public sealed class BulkEditCardsService(
         {
             var dto = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
             resultDtos.Add(dto);
-            if (movedCardIdSet.Contains(card.Id))
+            if (movedCardIdSet.Contains(card.RequireBoardCardId()))
             {
                 movedDtos.Add(dto);
             }
-            else if (updatedCardIdSet.Contains(card.Id))
+            else if (updatedCardIdSet.Contains(card.RequireBoardCardId()))
             {
                 updatedDtos.Add(dto);
             }

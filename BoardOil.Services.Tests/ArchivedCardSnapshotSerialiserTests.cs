@@ -113,6 +113,8 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         return new EntityBoardCard
         {
             Id = 42,
+            BoardId = board.Id,
+            BoardCardId = 42,
             BoardColumnId = column.Id,
             BoardColumn = column,
             CardTypeId = cardType.Id,

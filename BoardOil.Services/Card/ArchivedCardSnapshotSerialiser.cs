@@ -15,7 +15,7 @@ public static class ArchivedCardSnapshotSerialiser
     {
         var payload = new ArchivedCardSnapshotV1Payload(
             boardId,
-            card.Id,
+            card.RequireBoardCardId(),
             card.BoardColumnId,
             card.BoardColumn.Title,
             card.CardTypeId,

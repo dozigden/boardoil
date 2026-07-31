@@ -41,7 +41,7 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         // Assert
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
-        Assert.NotEqual(archivedCard.OriginalCardId, unarchiveResult.Data!.Id);
+        Assert.Equal(archivedCard.OriginalCardId, unarchiveResult.Data!.Id);
         Assert.Equal("Archive me", unarchiveResult.Data.Title);
         Assert.Equal("Desc", unarchiveResult.Data.Description);
         Assert.Equal(todoColumnId, unarchiveResult.Data.BoardColumnId);
@@ -135,8 +135,12 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         // Assert
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
+        var restoredInternalCardId = await DbContextForAssert.Cards
+            .Where(x => x.BoardId == boardId && x.BoardCardId == unarchiveResult.Data!.Id)
+            .Select(x => x.Id)
+            .SingleAsync();
         var restoredComments = await DbContextForAssert.CardComments
-            .Where(x => x.CardId == unarchiveResult.Data!.Id)
+            .Where(x => x.CardId == restoredInternalCardId)
             .OrderBy(x => x.PostedAtUtc)
             .ToListAsync();
         Assert.Equal(2, restoredComments.Count);
@@ -180,8 +184,12 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         // Assert
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
+        var restoredInternalCardId = await DbContextForAssert.Cards
+            .Where(x => x.BoardId == boardId && x.BoardCardId == unarchiveResult.Data!.Id)
+            .Select(x => x.Id)
+            .SingleAsync();
         var restoredComment = await DbContextForAssert.CardComments
-            .SingleAsync(x => x.CardId == unarchiveResult.Data!.Id);
+            .SingleAsync(x => x.CardId == restoredInternalCardId);
         Assert.Equal("Email linked comment", restoredComment.Text);
         Assert.Equal(ActorUserId, restoredComment.AuthorUserId);
     }

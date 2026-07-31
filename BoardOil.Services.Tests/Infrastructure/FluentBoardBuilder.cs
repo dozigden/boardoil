@@ -33,6 +33,7 @@ public sealed class FluentBoardBuilder
         _board = new BoardEntity
         {
             Name = boardName,
+            CardIdSequence = new EntityBoardCardIdSequence(),
         };
         _board.Members.Add(new EntityBoardMember
         {
@@ -105,12 +106,15 @@ public sealed class FluentBoardBuilder
 
         var card = new EntityBoardCard
         {
+            Board = _board,
+            BoardCardId = _board.CardIdSequence!.NextCardId,
             CardType = _systemCardType,
             Title = title,
             Description = description,
             SortKey = sortKey,
             BoardColumn = _currentColumn
         };
+        _board.CardIdSequence.NextCardId++;
 
         _db.Cards.Add(card);
         _cardsByColumnTitle[currentColumnTitle].Add(card);

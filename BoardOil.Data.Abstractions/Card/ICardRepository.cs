@@ -21,9 +21,8 @@ public sealed record CardSearchCriterion(
 
 public interface ICardRepository : IRepositoryBase<EntityBoardCard>
 {
-    Task<EntityBoardCard?> GetWithTagsByIdAsync(int id);
-    Task<EntityBoardCard?> GetWithTagsAndBoardAsync(int id);
-    Task<IReadOnlyList<EntityBoardCard>> GetWithTagsAndBoardByIdsAsync(IReadOnlyList<int> ids);
+    Task<EntityBoardCard?> GetWithTagsAndBoardAsync(int boardId, int boardCardId);
+    Task<IReadOnlyList<EntityBoardCard>> GetWithTagsAndBoardByIdsAsync(int boardId, IReadOnlyList<int> boardCardIds);
     Task<IReadOnlyList<EntityBoardCard>> GetByBoardAndCardTypeAsync(int boardId, int cardTypeId);
     Task<bool> ColumnExistsAsync(int columnId);
     Task<IReadOnlyList<EntityBoardCard>> GetCardsInColumnOrderedAsync(int columnId);

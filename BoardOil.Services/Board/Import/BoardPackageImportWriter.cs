@@ -118,6 +118,7 @@ public sealed class BoardPackageImportWriter(
 
         var createdColumns = new List<EntityBoardColumn>(importPlan.Columns.Count);
         var createdCardsByColumn = new Dictionary<EntityBoardColumn, List<EntityBoardCard>>();
+        var nextBoardCardId = 1;
 
         for (var columnIndex = 0; columnIndex < importPlan.Columns.Count; columnIndex++)
         {
@@ -139,6 +140,8 @@ public sealed class BoardPackageImportWriter(
                 var assignedUser = await importedUserResolver.ResolveImportedAssignedUserAsync(importedCard.AssignedUserNormalisedEmail);
                 var createdCard = new EntityBoardCard
                 {
+                    Board = board,
+                    BoardCardId = nextBoardCardId,
                     BoardColumn = createdColumn,
                     CardType = cardTypesByNormalisedName[importedCard.CardTypeNormalisedName],
                     AssignedUserId = assignedUser?.Id,
@@ -151,6 +154,7 @@ public sealed class BoardPackageImportWriter(
                     ExternalUrl = importedCard.ExternalUrl,
                     SortKey = sortKeyPlan.CardKeysByColumn[columnIndex][cardIndex],
                 };
+                nextBoardCardId++;
 
                 foreach (var importedTagName in importedCard.TagNames)
                 {
@@ -193,6 +197,8 @@ public sealed class BoardPackageImportWriter(
 
             createdCardsByColumn.Add(createdColumn, createdCards);
         }
+
+        board.CardIdSequence!.NextCardId = nextBoardCardId;
 
         if (importPlan.ArchivedCards.Count > 0)
         {

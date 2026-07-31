@@ -45,8 +45,8 @@ public sealed class UpdateCardService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var existingCard = await cardRepository.GetWithTagsAndBoardAsync(id);
-        if (existingCard is null || existingCard.BoardColumn.BoardId != boardId)
+        var existingCard = await cardRepository.GetWithTagsAndBoardAsync(boardId, id);
+        if (existingCard is null)
         {
             return ApiErrors.NotFound("Card not found.");
         }
@@ -97,7 +97,7 @@ public sealed class UpdateCardService(
         if (movementChanged)
         {
             var targetCards = (await cardRepository.GetCardsInColumnOrderedAsync(requestedColumnId))
-                .Where(x => x.Id != id)
+                .Where(x => x.Id != existingCard.Id)
                 .ToList();
             var board = boardRepository.Get(boardId);
             var effectivePositionAfterCardId = cohesionPlacementResolver.ResolveEffectivePositionAfterCardId(

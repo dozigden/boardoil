@@ -31,8 +31,8 @@ public sealed class BulkDeleteCardsService(
             return ApiResults.Ok(new BulkDeleteCardsSummaryDto(boardId, 0, 0));
         }
 
-        var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(uniqueCardIds);
-        if (cards.Count != uniqueCardIds.Count || cards.Any(x => x.BoardColumn.BoardId != boardId))
+        var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(boardId, uniqueCardIds);
+        if (cards.Count != uniqueCardIds.Count)
         {
             return ApiErrors.ValidationFailed([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
         }
