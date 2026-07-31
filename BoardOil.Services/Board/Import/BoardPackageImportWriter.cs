@@ -44,7 +44,8 @@ public sealed class BoardPackageImportWriter(
         {
             Name = importPlan.BoardName,
             Description = importPlan.BoardDescription,
-            SlickCohesionModeEnabled = importPlan.SlickCohesionModeEnabled
+            SlickCohesionModeEnabled = importPlan.SlickCohesionModeEnabled,
+            CardIdSequence = new EntityBoardCardIdSequence(),
         };
 
         board.Members.Add(new EntityBoardMember

@@ -18,6 +18,6 @@ public sealed class ArchivedCardConfiguration : IEntityTypeConfiguration<EntityA
         archivedCard.Property(x => x.SearchTextNormalised).HasMaxLength(65_535).IsRequired();
         archivedCard.ToTable("ArchivedCards");
         archivedCard.HasIndex(x => new { x.BoardId, x.ArchivedAtUtc, x.Id });
-        archivedCard.HasIndex(x => x.OriginalCardId).IsUnique();
+        archivedCard.HasIndex(x => new { x.BoardId, x.OriginalCardId }).IsUnique();
     }
 }

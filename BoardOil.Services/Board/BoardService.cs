@@ -122,7 +122,8 @@ public sealed class BoardService(
         {
             Name = name,
             Description = description,
-            SlickCohesionModeEnabled = true
+            SlickCohesionModeEnabled = true,
+            CardIdSequence = new EntityBoardCardIdSequence(),
         };
 
         board.Members.Add(new EntityBoardMember

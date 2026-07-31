@@ -11,6 +11,7 @@ using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Ef.Context;
+using BoardOil.Ef.Card;
 using BoardOil.Ef.Repositories;
 using BoardOil.Ef.Scope;
 using Microsoft.Data.Sqlite;
@@ -36,6 +37,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISystemInfoMessageRepository, SystemInfoMessageRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
+        services.AddScoped<IBoardCardIdAllocator, BoardCardIdAllocator>();
         services.AddScoped<ICardCommentRepository, CardCommentRepository>();
         services.AddScoped<IArchivedCardRepository, ArchivedCardRepository>();
         services.AddScoped<ICardTypeRepository, CardTypeRepository>();

@@ -27,6 +27,7 @@ public sealed class BoardBootstrapService(
         var board = new EntityBoard
         {
             Name = "BoardOil",
+            CardIdSequence = new EntityBoardCardIdSequence(),
         };
 
         var activeUsers = (await userRepository.GetUsersOrderedAsync())

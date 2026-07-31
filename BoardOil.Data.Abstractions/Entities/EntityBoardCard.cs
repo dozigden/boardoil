@@ -3,6 +3,8 @@ namespace BoardOil.Data.Abstractions.Entities;
 public sealed class EntityBoardCard : ISupportCreatedAt, ISupportUpdatedAt
 {
     public int Id { get; set; }
+    public int? BoardId { get; set; }
+    public int? BoardCardId { get; set; }
     public int BoardColumnId { get; set; }
     public int CardTypeId { get; set; }
     public int? AssignedUserId { get; set; }
@@ -14,6 +16,7 @@ public sealed class EntityBoardCard : ISupportCreatedAt, ISupportUpdatedAt
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; internal set; }
 
+    public EntityBoard? Board { get; set; }
     public EntityBoardColumn BoardColumn { get; set; } = null!;
     public EntityCardType CardType { get; set; } = null!;
     public EntityUser? AssignedUser { get; set; }

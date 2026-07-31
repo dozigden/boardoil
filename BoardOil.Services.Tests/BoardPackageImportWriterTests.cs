@@ -32,6 +32,8 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
         Assert.Equal(expectedKeys, result.Data.Columns.Select(column => column.SortKey));
         Assert.Equal(128, result.Data.Columns.Select(column => column.SortKey).Distinct(StringComparer.Ordinal).Count());
         Assert.All(result.Data.Columns, column => Assert.Equal(20, column.SortKey.Length));
+        var sequence = DbContextForAssert.BoardCardIdSequences.Single(x => x.BoardId == result.Data.Id);
+        Assert.Equal(1, sequence.NextCardId);
     }
 
     [Fact]

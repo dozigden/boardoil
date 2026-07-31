@@ -6,6 +6,7 @@ namespace BoardOil.Ef;
 public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> options) : DbContext(options)
 {
     public DbSet<EntityBoard> Boards => Set<EntityBoard>();
+    public DbSet<EntityBoardCardIdSequence> BoardCardIdSequences => Set<EntityBoardCardIdSequence>();
     public DbSet<EntityBoardColumn> Columns => Set<EntityBoardColumn>();
     public DbSet<EntityBoardCard> Cards => Set<EntityBoardCard>();
     public DbSet<EntityArchivedCard> ArchivedCards => Set<EntityArchivedCard>();
