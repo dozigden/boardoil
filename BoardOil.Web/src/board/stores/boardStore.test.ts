@@ -6,7 +6,7 @@ import { useTagStore } from './tagStore';
 import { useSlickStore } from './slickStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { AppError } from '../../shared/types/appError';
-import type { Board, Column } from '../../shared/types/boardTypes';
+import type { Board, Card, Column } from '../../shared/types/boardTypes';
 import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 
@@ -23,7 +23,9 @@ const realtime = {
   disconnect: vi.fn()
 };
 type RealtimeHandlers = {
-  onResync: () => Promise<unknown> | unknown;
+  onCardUpdated: (boardId: number, card: Card) => Promise<unknown> | unknown;
+  onCardDeleted: (boardId: number, cardId: number) => Promise<unknown> | unknown;
+  onResync: (boardId: number) => Promise<unknown> | unknown;
   onConnectionWarning?: (message: string) => Promise<unknown> | unknown;
   onConnectionRecovered?: () => Promise<unknown> | unknown;
 };
@@ -154,6 +156,35 @@ describe('boardStore', () => {
     expect(realtime.connect).toHaveBeenNthCalledWith(2, 2);
   });
 
+  it('ignores stale realtime events when two boards contain the same card id', async () => {
+    const store = useBoardStore();
+    api.getBoard
+      .mockResolvedValueOnce(ok(makeBoard(1, 'Board 1')))
+      .mockResolvedValueOnce(ok(makeBoard(2, 'Board 2')));
+
+    await store.initialize(1);
+    await store.initialize(2);
+    expect(realtimeHandlers).not.toBeNull();
+    const boardTwoCard = store.board!.columns[0].cards[0];
+    const staleBoardOneCard = {
+      ...boardTwoCard,
+      title: 'Stale board one update'
+    };
+
+    await realtimeHandlers!.onCardUpdated(1, staleBoardOneCard);
+    await realtimeHandlers!.onCardDeleted(1, boardTwoCard.id);
+
+    expect(store.board!.columns[0].cards[0].title).toBe('Task A');
+    expect(store.board!.columns[0].cards[0].id).toBe(101);
+
+    await realtimeHandlers!.onCardUpdated(2, {
+      ...boardTwoCard,
+      title: 'Current board update'
+    });
+
+    expect(store.board!.columns[0].cards[0].title).toBe('Current board update');
+  });
+
   it('creates a column incrementally without reloading board', async () => {
     const store = useBoardStore();
     await store.initialize(1);
@@ -239,7 +270,7 @@ describe('boardStore', () => {
     await store.initialize(1);
     expect(realtimeHandlers).not.toBeNull();
 
-    await realtimeHandlers!.onResync();
+    await realtimeHandlers!.onResync(1);
 
     expect(api.getBoard).toHaveBeenCalledTimes(2);
     expect(loadCardTypesSpy).toHaveBeenCalledWith(1);
@@ -260,7 +291,7 @@ describe('boardStore', () => {
     api.getBoard.mockResolvedValueOnce(err({ kind: 'api', message: 'Board not found.' }));
     expect(realtimeHandlers).not.toBeNull();
 
-    await realtimeHandlers!.onResync();
+    await realtimeHandlers!.onResync(1);
 
     expect(store.board).toBeNull();
     expect(store.currentBoardId).toBeNull();

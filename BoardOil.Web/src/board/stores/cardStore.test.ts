@@ -5,6 +5,7 @@ import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { AppError } from '../../shared/types/appError';
 import type { Board, Card } from '../../shared/types/boardTypes';
 import { err, ok } from '../../shared/types/result';
+import type { Result } from '../../shared/types/result';
 
 const api = {
   createCard: vi.fn(),
@@ -436,6 +437,36 @@ describe('cardStore', () => {
     expect(store.getCardById(101)?.title).toBe('Task A');
   });
 
+  it('does not apply an in-flight save response after switching to a board with the same card id', async () => {
+    const store = useCardStore();
+    const delayedSave = deferred<Result<Card, AppError>>();
+    store.replaceBoardCards(1, makeBoard(1, 'Board one').columns);
+    api.saveCard.mockImplementationOnce(() => delayedSave.promise);
+
+    const pendingSave = store.saveCard(101, {
+      title: 'Old board update',
+      description: 'Updated',
+      externalUrl: null,
+      tagNames: [],
+      cardTypeId: 1,
+      boardColumnId: 1,
+      assignedUserId: null,
+      slickName: null
+    });
+    const boardTwo = makeBoard(2, 'Board two');
+    boardTwo.columns[0].cards[0].title = 'Board two card';
+    store.replaceBoardCards(2, boardTwo.columns);
+    delayedSave.resolve(ok({
+      ...boardTwo.columns[0].cards[0],
+      title: 'Old board update'
+    }));
+
+    expect(await pendingSave).toBe(false);
+    expect(api.saveCard).toHaveBeenCalledWith(1, 101, expect.any(Object));
+    expect(store.getCardById(101)?.title).toBe('Board two card');
+    expect(store.activeBoardId).toBe(2);
+  });
+
   it('archiveCard removes card from active board cache', async () => {
     const store = useCardStore();
     store.replaceBoardCards(1, makeBoard().columns);
@@ -616,4 +647,15 @@ function makeBoard(id = 1, name = 'Board'): Board {
       }
     ]
   };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
 }

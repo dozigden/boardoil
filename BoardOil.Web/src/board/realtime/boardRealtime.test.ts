@@ -135,6 +135,7 @@ describe('boardRealtime', () => {
 
     expect(connection.invoke).toHaveBeenCalledWith('SubscribeBoard', 42);
     expect(onResync).toHaveBeenCalledTimes(1);
+    expect(onResync).toHaveBeenCalledWith(42);
   });
 
   it('resyncs when explicit resync event is received', async () => {
@@ -154,9 +155,10 @@ describe('boardRealtime', () => {
     });
 
     await realtime.connect(42);
-    await connection.eventHandlers.ResyncRequested?.();
+    await connection.eventHandlers.ResyncRequested?.(42);
 
     expect(onResync).toHaveBeenCalledTimes(1);
+    expect(onResync).toHaveBeenCalledWith(42);
   });
 
   it('forwards comment created events to handler', async () => {
@@ -184,10 +186,47 @@ describe('boardRealtime', () => {
     };
 
     await realtime.connect(42);
-    await connection.eventHandlers.CommentCreated?.(comment);
+    await connection.eventHandlers.CommentCreated?.(comment, 42);
 
     expect(onCommentCreated).toHaveBeenCalledTimes(1);
-    expect(onCommentCreated).toHaveBeenCalledWith(comment);
+    expect(onCommentCreated).toHaveBeenCalledWith(42, comment);
+  });
+
+  it('forwards the source board id with card events', async () => {
+    const onCardUpdated = vi.fn(async () => undefined);
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(),
+      onColumnUpdated: vi.fn(),
+      onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(),
+      onCardUpdated,
+      onCardDeleted: vi.fn(),
+      onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(),
+      onSystemInfoMessageUpdated: vi.fn(),
+      onResync: vi.fn()
+    });
+    const card = {
+      id: 7,
+      boardColumnId: 3,
+      cardTypeId: 1,
+      cardTypeName: 'Story',
+      cardTypeEmoji: null,
+      title: 'Updated card',
+      description: '',
+      externalUrl: null,
+      sortKey: 'A',
+      tags: [],
+      tagNames: [],
+      createdAtUtc: '2026-07-31T12:00:00Z',
+      updatedAtUtc: '2026-07-31T12:01:00Z'
+    };
+
+    await realtime.connect(42);
+    await connection.eventHandlers.CardUpdated?.(card, 42);
+
+    expect(onCardUpdated).toHaveBeenCalledWith(42, card);
   });
 
   it('forwards system info message update events to handler', async () => {

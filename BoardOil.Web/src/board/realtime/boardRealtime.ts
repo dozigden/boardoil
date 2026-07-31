@@ -5,16 +5,16 @@ import type { Card, CardComment, Column } from '../../shared/types/boardTypes';
 import type { SystemInfoMessageDto } from '../../shared/types/configurationTypes';
 
 type RealtimeHandlers = {
-  onColumnCreated: (column: Column) => Promise<unknown> | unknown;
-  onColumnUpdated: (column: Column) => Promise<unknown> | unknown;
-  onColumnDeleted: (columnId: number) => Promise<unknown> | unknown;
-  onCardCreated: (card: Card) => Promise<unknown> | unknown;
-  onCardUpdated: (card: Card) => Promise<unknown> | unknown;
-  onCardDeleted: (cardId: number) => Promise<unknown> | unknown;
-  onCardMoved: (card: Card) => Promise<unknown> | unknown;
-  onCommentCreated: (comment: CardComment) => Promise<unknown> | unknown;
+  onColumnCreated: (boardId: number, column: Column) => Promise<unknown> | unknown;
+  onColumnUpdated: (boardId: number, column: Column) => Promise<unknown> | unknown;
+  onColumnDeleted: (boardId: number, columnId: number) => Promise<unknown> | unknown;
+  onCardCreated: (boardId: number, card: Card) => Promise<unknown> | unknown;
+  onCardUpdated: (boardId: number, card: Card) => Promise<unknown> | unknown;
+  onCardDeleted: (boardId: number, cardId: number) => Promise<unknown> | unknown;
+  onCardMoved: (boardId: number, card: Card) => Promise<unknown> | unknown;
+  onCommentCreated: (boardId: number, comment: CardComment) => Promise<unknown> | unknown;
   onSystemInfoMessageUpdated: (systemInfoMessage: SystemInfoMessageDto | null) => Promise<unknown> | unknown;
-  onResync: () => Promise<unknown> | unknown;
+  onResync: (boardId: number) => Promise<unknown> | unknown;
   onConnectionWarning?: (message: string) => Promise<unknown> | unknown;
   onConnectionRecovered?: () => Promise<unknown> | unknown;
 };
@@ -122,41 +122,41 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         .configureLogging(signalRLogLevel)
         .build();
 
-      hubConnection.on('ColumnCreated', async (column: Column) => {
-        logRealtime('Event: ColumnCreated', { columnId: column.id });
-        await handlers.onColumnCreated(column);
+      hubConnection.on('ColumnCreated', async (column: Column, boardId: number) => {
+        logRealtime('Event: ColumnCreated', { boardId, columnId: column.id });
+        await handlers.onColumnCreated(boardId, column);
       });
-      hubConnection.on('ColumnUpdated', async (column: Column) => {
-        logRealtime('Event: ColumnUpdated', { columnId: column.id });
-        await handlers.onColumnUpdated(column);
+      hubConnection.on('ColumnUpdated', async (column: Column, boardId: number) => {
+        logRealtime('Event: ColumnUpdated', { boardId, columnId: column.id });
+        await handlers.onColumnUpdated(boardId, column);
       });
-      hubConnection.on('ColumnDeleted', async (columnId: number) => {
-        logRealtime('Event: ColumnDeleted', { columnId });
-        await handlers.onColumnDeleted(columnId);
+      hubConnection.on('ColumnDeleted', async (columnId: number, boardId: number) => {
+        logRealtime('Event: ColumnDeleted', { boardId, columnId });
+        await handlers.onColumnDeleted(boardId, columnId);
       });
-      hubConnection.on('CardCreated', async (card: Card) => {
-        logRealtime('Event: CardCreated', { cardId: card.id, boardColumnId: card.boardColumnId });
-        await handlers.onCardCreated(card);
+      hubConnection.on('CardCreated', async (card: Card, boardId: number) => {
+        logRealtime('Event: CardCreated', { boardId, cardId: card.id, boardColumnId: card.boardColumnId });
+        await handlers.onCardCreated(boardId, card);
       });
-      hubConnection.on('CardUpdated', async (card: Card) => {
-        logRealtime('Event: CardUpdated', { cardId: card.id, boardColumnId: card.boardColumnId });
-        await handlers.onCardUpdated(card);
+      hubConnection.on('CardUpdated', async (card: Card, boardId: number) => {
+        logRealtime('Event: CardUpdated', { boardId, cardId: card.id, boardColumnId: card.boardColumnId });
+        await handlers.onCardUpdated(boardId, card);
       });
-      hubConnection.on('CardDeleted', async (cardId: number) => {
-        logRealtime('Event: CardDeleted', { cardId });
-        await handlers.onCardDeleted(cardId);
+      hubConnection.on('CardDeleted', async (cardId: number, boardId: number) => {
+        logRealtime('Event: CardDeleted', { boardId, cardId });
+        await handlers.onCardDeleted(boardId, cardId);
       });
-      hubConnection.on('CardMoved', async (card: Card) => {
-        logRealtime('Event: CardMoved', { cardId: card.id, boardColumnId: card.boardColumnId });
-        await handlers.onCardMoved(card);
+      hubConnection.on('CardMoved', async (card: Card, boardId: number) => {
+        logRealtime('Event: CardMoved', { boardId, cardId: card.id, boardColumnId: card.boardColumnId });
+        await handlers.onCardMoved(boardId, card);
       });
-      hubConnection.on('CommentCreated', async (comment: CardComment) => {
-        logRealtime('Event: CommentCreated', { commentId: comment.id, cardId: comment.cardId });
-        await handlers.onCommentCreated(comment);
+      hubConnection.on('CommentCreated', async (comment: CardComment, boardId: number) => {
+        logRealtime('Event: CommentCreated', { boardId, commentId: comment.id, cardId: comment.cardId });
+        await handlers.onCommentCreated(boardId, comment);
       });
-      hubConnection.on('ResyncRequested', async () => {
-        logRealtime('Event: ResyncRequested');
-        await handlers.onResync();
+      hubConnection.on('ResyncRequested', async (boardId: number) => {
+        logRealtime('Event: ResyncRequested', { boardId });
+        await handlers.onResync(boardId);
       });
       hubConnection.on('SystemInfoMessageUpdated', async (systemInfoMessage: SystemInfoMessageDto | null) => {
         logRealtime('Event: SystemInfoMessageUpdated');
@@ -178,9 +178,9 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         if (subscribedBoardId !== null) {
           await hubConnection?.invoke('SubscribeBoard', subscribedBoardId);
           logRealtime('Re-subscribed after reconnect.', { boardId: subscribedBoardId });
+          await handlers.onResync(subscribedBoardId);
         }
 
-        await handlers.onResync();
         await handlers.onConnectionRecovered?.();
         logRealtime('Resync requested after reconnect.');
       });

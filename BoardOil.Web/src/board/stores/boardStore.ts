@@ -13,6 +13,8 @@ import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessage
 import type {
   Board,
   BoardSummary,
+  Card,
+  CardComment,
   Column,
   ColumnCreateModel,
   ColumnEditModel
@@ -54,14 +56,14 @@ export const useBoardStore = defineStore('board', () => {
   const isCurrentUserOwner = computed(() => currentUserRole.value === 'Owner');
 
   const realtime = createBoardRealtime({
-    onColumnCreated: upsertColumn,
-    onColumnUpdated: upsertColumn,
-    onColumnDeleted: removeColumn,
-    onCardCreated: cardStore.upsertCard,
-    onCardUpdated: cardStore.upsertCard,
-    onCardDeleted: cardStore.removeCard,
-    onCardMoved: cardStore.upsertCard,
-    onCommentCreated: commentStore.upsertCardComment,
+    onColumnCreated: upsertColumnFromRealtime,
+    onColumnUpdated: upsertColumnFromRealtime,
+    onColumnDeleted: removeColumnFromRealtime,
+    onCardCreated: upsertCardFromRealtime,
+    onCardUpdated: upsertCardFromRealtime,
+    onCardDeleted: removeCardFromRealtime,
+    onCardMoved: upsertCardFromRealtime,
+    onCommentCreated: upsertCommentFromRealtime,
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
     onConnectionWarning: message => {
       feedback.setWarning(message);
@@ -69,25 +71,66 @@ export const useBoardStore = defineStore('board', () => {
     onConnectionRecovered: () => {
       feedback.clearWarning();
     },
-    onResync: async () => {
-      const boardId = currentBoardId.value;
-      if (boardId === null) {
-        return;
-      }
-
-      const loaded = await loadBoard(boardId);
-      if (!loaded) {
-        return;
-      }
-
-      await cardTypeStore.loadCardTypes(boardId);
-      await tagStore.loadTags(boardId);
-      await slickStore.loadSlicks(boardId);
-      await systemInfoMessageStore.load(true);
-    }
+    onResync: resyncBoardFromRealtime
   });
   let loadRequestVersion = 0;
   let initializeRequestVersion = 0;
+
+  function upsertColumnFromRealtime(boardId: number, column: Column) {
+    if (currentBoardId.value !== boardId) {
+      return;
+    }
+
+    upsertColumn(column);
+  }
+
+  function removeColumnFromRealtime(boardId: number, columnId: number) {
+    if (currentBoardId.value !== boardId) {
+      return;
+    }
+
+    removeColumn(columnId);
+  }
+
+  async function resyncBoardFromRealtime(boardId: number) {
+    if (currentBoardId.value !== boardId) {
+      return;
+    }
+
+    const loaded = await loadBoard(boardId);
+    if (!loaded) {
+      return;
+    }
+
+    await cardTypeStore.loadCardTypes(boardId);
+    await tagStore.loadTags(boardId);
+    await slickStore.loadSlicks(boardId);
+    await systemInfoMessageStore.load(true);
+  }
+
+  function upsertCardFromRealtime(boardId: number, card: Card) {
+    if (currentBoardId.value !== boardId) {
+      return;
+    }
+
+    cardStore.upsertCard(card);
+  }
+
+  function removeCardFromRealtime(boardId: number, cardId: number) {
+    if (currentBoardId.value !== boardId) {
+      return;
+    }
+
+    cardStore.removeCard(cardId);
+  }
+
+  function upsertCommentFromRealtime(boardId: number, comment: CardComment) {
+    if (currentBoardId.value !== boardId) {
+      return;
+    }
+
+    commentStore.upsertCardComment(comment);
+  }
 
   async function initialize(boardId: number) {
     const requestVersion = ++initializeRequestVersion;

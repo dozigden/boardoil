@@ -55,9 +55,11 @@ export const useCardStore = defineStore('card', () => {
       return null;
     }
 
+    const boardId = activeBoardId.value;
     const result = await runBusy(
-      () => api.createCard(activeBoardId.value, model),
+      () => api.createCard(boardId, model),
       {
+        boardId,
         suppressError: error => hasValidationErrors(error)
       }
     );
@@ -65,13 +67,22 @@ export const useCardStore = defineStore('card', () => {
       return result;
     }
 
+    if (activeBoardId.value !== boardId) {
+      return null;
+    }
+
     upsertCard(result.data);
     return result;
   }
 
   async function saveCard(cardId: number, model: CardEditModel) {
-    const result = await runBusy(() => api.saveCard(activeBoardId.value, cardId, model));
+    const boardId = activeBoardId.value;
+    const result = await runBusy(() => api.saveCard(boardId, cardId, model), { boardId });
     if (!result.ok) {
+      return false;
+    }
+
+    if (activeBoardId.value !== boardId) {
       return false;
     }
 
@@ -80,8 +91,13 @@ export const useCardStore = defineStore('card', () => {
   }
 
   async function deleteCard(cardId: number) {
-    const result = await runBusy(() => api.deleteCard(activeBoardId.value, cardId));
+    const boardId = activeBoardId.value;
+    const result = await runBusy(() => api.deleteCard(boardId, cardId), { boardId });
     if (!result.ok) {
+      return false;
+    }
+
+    if (activeBoardId.value !== boardId) {
       return false;
     }
 
@@ -91,8 +107,13 @@ export const useCardStore = defineStore('card', () => {
 
   async function deleteCards(cardIds: number[]) {
     const uniqueCardIds = [...new Set(cardIds)];
-    const result = await runBusy(() => api.deleteCards(activeBoardId.value, uniqueCardIds));
+    const boardId = activeBoardId.value;
+    const result = await runBusy(() => api.deleteCards(boardId, uniqueCardIds), { boardId });
     if (!result.ok) {
+      return false;
+    }
+
+    if (activeBoardId.value !== boardId) {
       return false;
     }
 
@@ -104,8 +125,13 @@ export const useCardStore = defineStore('card', () => {
   }
 
   async function archiveCard(cardId: number) {
-    const result = await runBusy(() => api.archiveCard(activeBoardId.value, cardId));
+    const boardId = activeBoardId.value;
+    const result = await runBusy(() => api.archiveCard(boardId, cardId), { boardId });
     if (!result.ok) {
+      return false;
+    }
+
+    if (activeBoardId.value !== boardId) {
       return false;
     }
 
@@ -115,8 +141,13 @@ export const useCardStore = defineStore('card', () => {
 
   async function archiveCards(cardIds: number[]) {
     const uniqueCardIds = [...new Set(cardIds)];
-    const result = await runBusy(() => api.archiveCards(activeBoardId.value, uniqueCardIds));
+    const boardId = activeBoardId.value;
+    const result = await runBusy(() => api.archiveCards(boardId, uniqueCardIds), { boardId });
     if (!result.ok) {
+      return false;
+    }
+
+    if (activeBoardId.value !== boardId) {
       return false;
     }
 
@@ -187,14 +218,22 @@ export const useCardStore = defineStore('card', () => {
       };
     }
 
-    const result = await runBusy(() => api.editCards(activeBoardId.value, {
-      cardIds: uniqueCardIds,
-      move: movePayload,
-      addTagNames: normalisedAddTagNames,
-      removeTagNames: normalisedRemoveTagNames,
-      slick: slickPayload
-    }));
+    const boardId = activeBoardId.value;
+    const result = await runBusy(
+      () => api.editCards(boardId, {
+        cardIds: uniqueCardIds,
+        move: movePayload,
+        addTagNames: normalisedAddTagNames,
+        removeTagNames: normalisedRemoveTagNames,
+        slick: slickPayload
+      }),
+      { boardId }
+    );
     if (!result.ok) {
+      return false;
+    }
+
+    if (activeBoardId.value !== boardId) {
       return false;
     }
 
@@ -252,12 +291,18 @@ export const useCardStore = defineStore('card', () => {
       return;
     }
 
-    const result = await runBusy(() => api.moveCard(activeBoardId.value, movingCardId, targetColumnId, positionAfterCardId));
+    const boardId = activeBoardId.value;
+    const result = await runBusy(
+      () => api.moveCard(boardId, movingCardId, targetColumnId, positionAfterCardId),
+      { boardId }
+    );
     if (!result.ok) {
       return;
     }
 
-    upsertCard(result.data);
+    if (activeBoardId.value === boardId) {
+      upsertCard(result.data);
+    }
   }
 
   function upsertCard(card: Card) {
@@ -370,11 +415,18 @@ export const useCardStore = defineStore('card', () => {
 
   async function runBusy<T>(
     operation: () => Promise<Result<T, AppError>>,
-    options?: { suppressError?: (error: AppError) => boolean }
+    options?: {
+      boardId?: number;
+      suppressError?: (error: AppError) => boolean;
+    }
   ) {
     busy.value = true;
     try {
       const result = await operation();
+      if (options?.boardId !== undefined && activeBoardId.value !== options.boardId) {
+        return result;
+      }
+
       if (!result.ok) {
         if (options?.suppressError?.(result.error)) {
           feedback.clearError();

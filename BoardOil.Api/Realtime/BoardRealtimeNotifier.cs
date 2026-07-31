@@ -11,31 +11,31 @@ public sealed class BoardRealtimeNotifier(
     ILogger<BoardRealtimeNotifier> logger) : IBoardEvents
 {
     public Task ColumnCreatedAsync(int boardId, ColumnDto column) =>
-        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ColumnCreated", column), nameof(ColumnCreatedAsync));
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ColumnCreated", column, boardId), nameof(ColumnCreatedAsync));
 
     public Task ColumnUpdatedAsync(int boardId, ColumnDto column) =>
-        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ColumnUpdated", column), nameof(ColumnUpdatedAsync));
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ColumnUpdated", column, boardId), nameof(ColumnUpdatedAsync));
 
     public Task ColumnDeletedAsync(int boardId, int columnId) =>
-        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ColumnDeleted", columnId), nameof(ColumnDeletedAsync));
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ColumnDeleted", columnId, boardId), nameof(ColumnDeletedAsync));
 
     public Task CardCreatedAsync(int boardId, CardDto card) =>
-        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CardCreated", card), nameof(CardCreatedAsync));
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CardCreated", card, boardId), nameof(CardCreatedAsync));
 
     public Task CardUpdatedAsync(int boardId, CardDto card) =>
-        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CardUpdated", card), nameof(CardUpdatedAsync));
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CardUpdated", card, boardId), nameof(CardUpdatedAsync));
 
     public Task CardDeletedAsync(int boardId, int cardId) =>
-        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CardDeleted", cardId), nameof(CardDeletedAsync));
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CardDeleted", cardId, boardId), nameof(CardDeletedAsync));
 
     public Task CardMovedAsync(int boardId, CardDto card) =>
-        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CardMoved", card), nameof(CardMovedAsync));
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CardMoved", card, boardId), nameof(CardMovedAsync));
 
     public Task CommentCreatedAsync(int boardId, CardCommentDto comment) =>
-        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CommentCreated", comment), nameof(CommentCreatedAsync));
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CommentCreated", comment, boardId), nameof(CommentCreatedAsync));
 
     public Task ResyncRequestedAsync(int boardId) =>
-        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ResyncRequested"), nameof(ResyncRequestedAsync));
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ResyncRequested", boardId), nameof(ResyncRequestedAsync));
 
     public Task SystemInfoMessageUpdatedAsync(SystemInfoMessageDto? systemInfoMessage) =>
         TryPublishAsync(() => hubContext.Clients.All.SendAsync("SystemInfoMessageUpdated", systemInfoMessage), nameof(SystemInfoMessageUpdatedAsync));

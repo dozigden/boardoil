@@ -14,6 +14,146 @@ namespace BoardOil.Api.Tests;
 public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
 {
     [Fact]
+    public async Task CardTools_WhenBoardsShareCardId_ShouldKeepMutationsBoardScoped()
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+
+        var secondBoardResponse = await client.PostAsJsonAsync(
+            "/api/boards",
+            new { name = "Second MCP board", description = "Board-scoped MCP identity test" });
+        secondBoardResponse.EnsureSuccessStatusCode();
+        var secondBoardEnvelope = await secondBoardResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var secondBoardId = secondBoardEnvelope.GetProperty("data").GetProperty("id").GetInt32();
+
+        var firstColumnResponse = await client.PostAsJsonAsync("/api/boards/1/columns", new { title = "Todo" });
+        firstColumnResponse.EnsureSuccessStatusCode();
+        var firstColumnEnvelope = await firstColumnResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var firstColumnId = firstColumnEnvelope.GetProperty("data").GetProperty("id").GetInt32();
+
+        var secondColumnResponse = await client.PostAsJsonAsync($"/api/boards/{secondBoardId}/columns", new { title = "Todo" });
+        secondColumnResponse.EnsureSuccessStatusCode();
+        var secondColumnEnvelope = await secondColumnResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var secondColumnId = secondColumnEnvelope.GetProperty("data").GetProperty("id").GetInt32();
+
+        var firstCreateResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = firstColumnId,
+                    title = "First board card",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "board-scoped-card-create-first",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, firstCreateResponse.StatusCode);
+        using var firstCreatePayload = await McpJsonRpcClient.ParseJsonAsync(firstCreateResponse);
+        Assert.False(firstCreatePayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        var firstCard = McpJsonRpcClient.GetStructuredContent(firstCreatePayload).GetProperty("card");
+
+        var secondCreateResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = secondBoardId,
+                    columnId = secondColumnId,
+                    title = "Second board card",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "board-scoped-card-create-second",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, secondCreateResponse.StatusCode);
+        using var secondCreatePayload = await McpJsonRpcClient.ParseJsonAsync(secondCreateResponse);
+        Assert.False(secondCreatePayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        var secondCard = McpJsonRpcClient.GetStructuredContent(secondCreatePayload).GetProperty("card");
+
+        var sharedCardId = firstCard.GetProperty("id").GetInt32();
+        Assert.Equal(sharedCardId, secondCard.GetProperty("id").GetInt32());
+
+        var secondUpdateResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.update",
+                arguments = new
+                {
+                    boardId = secondBoardId,
+                    id = sharedCardId,
+                    cardTypeId = secondCard.GetProperty("cardTypeId").GetInt32(),
+                    title = "Second board card updated",
+                    description = "",
+                    tagNames = Array.Empty<string>(),
+                    slickName = (string?)null,
+                    externalUrl = (string?)null
+                }
+            },
+            "board-scoped-card-update-second",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, secondUpdateResponse.StatusCode);
+        using var secondUpdatePayload = await McpJsonRpcClient.ParseJsonAsync(secondUpdateResponse);
+        Assert.False(secondUpdatePayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+
+        var firstGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.get",
+                arguments = new { boardId = 1, id = sharedCardId }
+            },
+            "board-scoped-card-get-first",
+            patToken);
+        using var firstGetPayload = await McpJsonRpcClient.ParseJsonAsync(firstGetResponse);
+        Assert.Equal(
+            "First board card",
+            McpJsonRpcClient.GetStructuredContent(firstGetPayload).GetProperty("title").GetString());
+
+        var firstDeleteResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.delete",
+                arguments = new { boardId = 1, id = sharedCardId }
+            },
+            "board-scoped-card-delete-first",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, firstDeleteResponse.StatusCode);
+        using var firstDeletePayload = await McpJsonRpcClient.ParseJsonAsync(firstDeleteResponse);
+        Assert.False(firstDeletePayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+
+        var secondGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.get",
+                arguments = new { boardId = secondBoardId, id = sharedCardId }
+            },
+            "board-scoped-card-get-second",
+            patToken);
+        using var secondGetPayload = await McpJsonRpcClient.ParseJsonAsync(secondGetResponse);
+        Assert.Equal(
+            "Second board card updated",
+            McpJsonRpcClient.GetStructuredContent(secondGetPayload).GetProperty("title").GetString());
+    }
+
+    [Fact]
     public async Task CardCreate_WithExhaustedLeadingKeys_ShouldSucceed()
     {
         // Arrange

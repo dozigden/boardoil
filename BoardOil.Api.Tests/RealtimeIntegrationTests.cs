@@ -32,11 +32,11 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
         await using var connectionA = CreateHubConnection();
         await using var connectionB = CreateHubConnection();
 
-        var eventA = new TaskCompletionSource<CardDto>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var eventB = new TaskCompletionSource<CardDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var eventA = new TaskCompletionSource<(CardDto Card, int BoardId)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var eventB = new TaskCompletionSource<(CardDto Card, int BoardId)>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        connectionA.On<CardDto>("CardCreated", card => eventA.TrySetResult(card));
-        connectionB.On<CardDto>("CardCreated", card => eventB.TrySetResult(card));
+        connectionA.On<CardDto, int>("CardCreated", (card, boardId) => eventA.TrySetResult((card, boardId)));
+        connectionB.On<CardDto, int>("CardCreated", (card, boardId) => eventB.TrySetResult((card, boardId)));
 
         await StartConnectionsAsync(1, connectionA, connectionB);
 
@@ -47,9 +47,13 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
         createCardResponse.EnsureSuccessStatusCode();
 
         // Assert
-        var cardA = await WaitAsync(eventA.Task);
-        var cardB = await WaitAsync(eventB.Task);
+        var eventResultA = await WaitAsync(eventA.Task);
+        var eventResultB = await WaitAsync(eventB.Task);
+        var cardA = eventResultA.Card;
+        var cardB = eventResultB.Card;
 
+        Assert.Equal(1, eventResultA.BoardId);
+        Assert.Equal(1, eventResultB.BoardId);
         Assert.Equal("Realtime Task", cardA.Title);
         Assert.Equal(cardA.Id, cardB.Id);
         Assert.True(cardA.CardTypeId > 0);
@@ -66,8 +70,8 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
         var cardId = await SeedBoardCardAsync(columnId, "Realtime Task", "Desc");
 
         await using var connection = CreateHubConnection();
-        var updatedEvent = new TaskCompletionSource<CardDto>(TaskCreationOptions.RunContinuationsAsynchronously);
-        connection.On<CardDto>("CardUpdated", card => updatedEvent.TrySetResult(card));
+        var updatedEvent = new TaskCompletionSource<(CardDto Card, int BoardId)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.On<CardDto, int>("CardUpdated", (card, boardId) => updatedEvent.TrySetResult((card, boardId)));
         await StartConnectionsAsync(1, connection);
 
         // Act
@@ -77,11 +81,32 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
         updateResponse.EnsureSuccessStatusCode();
 
         // Assert
-        var updatedCard = await WaitAsync(updatedEvent.Task);
+        var updatedEventResult = await WaitAsync(updatedEvent.Task);
+        var updatedCard = updatedEventResult.Card;
+        Assert.Equal(1, updatedEventResult.BoardId);
         Assert.Equal(cardId, updatedCard.Id);
         Assert.Equal(bugTypeId, updatedCard.CardTypeId);
         Assert.Equal("Bug", updatedCard.CardTypeName);
         Assert.Equal("🐞", updatedCard.CardTypeEmoji);
+    }
+
+    [Fact]
+    public async Task CardDeleted_ShouldBroadcastBoardAndBoardScopedCardId()
+    {
+        var columnId = await SeedBoardColumnAsync("Todo");
+        var cardId = await SeedBoardCardAsync(columnId, "Realtime Task", "Desc");
+
+        await using var connection = CreateHubConnection();
+        var deletedEvent = new TaskCompletionSource<(int CardId, int BoardId)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.On<int, int>("CardDeleted", (deletedCardId, boardId) => deletedEvent.TrySetResult((deletedCardId, boardId)));
+        await StartConnectionsAsync(1, connection);
+
+        var deleteResponse = await Client.DeleteAsync($"/api/boards/1/cards/{cardId}");
+        deleteResponse.EnsureSuccessStatusCode();
+
+        var deletedEventResult = await WaitAsync(deletedEvent.Task);
+        Assert.Equal(cardId, deletedEventResult.CardId);
+        Assert.Equal(1, deletedEventResult.BoardId);
     }
 
     [Fact]
@@ -91,7 +116,7 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
 
         await using var connection = CreateHubConnection();
         var resyncEvent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        connection.On("ResyncRequested", () => resyncEvent.TrySetResult(true));
+        connection.On<int>("ResyncRequested", boardId => resyncEvent.TrySetResult(boardId == 1));
         await StartConnectionsAsync(1, connection);
 
         var updateTypeResponse = await Client.PutAsJsonAsync(
@@ -109,7 +134,7 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
 
         await using var connection = CreateHubConnection();
         var resyncEvent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        connection.On("ResyncRequested", () => resyncEvent.TrySetResult(true));
+        connection.On<int>("ResyncRequested", boardId => resyncEvent.TrySetResult(boardId == 1));
         await StartConnectionsAsync(1, connection);
 
         var deleteTypeResponse = await Client.DeleteAsync($"/api/boards/1/card-types/{cardTypeId}");
@@ -128,11 +153,11 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
         await using var connectionA = CreateHubConnection();
         await using var connectionB = CreateHubConnection();
 
-        var eventA = new TaskCompletionSource<CardCommentDto>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var eventB = new TaskCompletionSource<CardCommentDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var eventA = new TaskCompletionSource<(CardCommentDto Comment, int BoardId)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var eventB = new TaskCompletionSource<(CardCommentDto Comment, int BoardId)>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        connectionA.On<CardCommentDto>("CommentCreated", comment => eventA.TrySetResult(comment));
-        connectionB.On<CardCommentDto>("CommentCreated", comment => eventB.TrySetResult(comment));
+        connectionA.On<CardCommentDto, int>("CommentCreated", (comment, boardId) => eventA.TrySetResult((comment, boardId)));
+        connectionB.On<CardCommentDto, int>("CommentCreated", (comment, boardId) => eventB.TrySetResult((comment, boardId)));
 
         await StartConnectionsAsync(1, connectionA, connectionB);
 
@@ -143,9 +168,13 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
         createCommentResponse.EnsureSuccessStatusCode();
 
         // Assert
-        var commentA = await WaitAsync(eventA.Task);
-        var commentB = await WaitAsync(eventB.Task);
+        var eventResultA = await WaitAsync(eventA.Task);
+        var eventResultB = await WaitAsync(eventB.Task);
+        var commentA = eventResultA.Comment;
+        var commentB = eventResultB.Comment;
 
+        Assert.Equal(1, eventResultA.BoardId);
+        Assert.Equal(1, eventResultB.BoardId);
         Assert.Equal(cardId, commentA.CardId);
         Assert.Equal("Realtime comment", commentA.Text);
         Assert.Equal(commentA.Id, commentB.Id);

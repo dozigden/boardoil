@@ -11,28 +11,39 @@ type CommentsByCardIdMap = Record<number, CardComment[]>;
 export const useCommentStore = defineStore('comment', () => {
   const commentsByCardId = ref<CommentsByCardIdMap>({});
   const busy = ref(false);
+  const activeBoardId = ref(0);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
 
   function dispose() {
+    activeBoardId.value = 0;
     commentsByCardId.value = {};
     busy.value = false;
   }
 
   async function loadCardComments(boardId: number, cardId: number) {
-    const result = await runBusy(() => api.getCardComments(boardId, cardId));
+    activeBoardId.value = boardId;
+    const result = await runBusy(() => api.getCardComments(boardId, cardId), boardId);
     if (!result.ok) {
       return result;
     }
 
-    setCardComments(cardId, result.data);
+    if (activeBoardId.value === boardId) {
+      setCardComments(cardId, result.data);
+    }
+
     return result;
   }
 
   async function addCardComment(boardId: number, cardId: number, text: string) {
-    const result = await runBusy(() => api.createCardComment(boardId, cardId, text));
+    activeBoardId.value = boardId;
+    const result = await runBusy(() => api.createCardComment(boardId, cardId, text), boardId);
     if (!result.ok) {
       return result;
+    }
+
+    if (activeBoardId.value !== boardId) {
+      return null;
     }
 
     upsertCardComment(result.data);
@@ -60,10 +71,14 @@ export const useCommentStore = defineStore('comment', () => {
     setCardComments(comment.cardId, [comment, ...withoutExisting]);
   }
 
-  async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
+  async function runBusy<T>(operation: () => Promise<Result<T, AppError>>, boardId: number) {
     busy.value = true;
     try {
       const result = await operation();
+      if (activeBoardId.value !== boardId) {
+        return result;
+      }
+
       if (!result.ok) {
         feedback.setError(result.error.message);
       } else {
