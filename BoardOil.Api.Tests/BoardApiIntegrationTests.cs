@@ -250,7 +250,7 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         var patScopes = operation
             .GetProperty("x-pat-scopes")
             .EnumerateArray()
-            .Select(x => x.GetString())
+            .Select(x => x.GetString()!)
             .ToArray();
 
         // Assert
@@ -295,13 +295,13 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
             .GetProperty("field")
             .GetProperty("enum")
             .EnumerateArray()
-            .Select(x => x.GetString())
+            .Select(x => x.GetString()!)
             .ToArray();
         var operatorValues = filterProperties
             .GetProperty("operator")
             .GetProperty("enum")
             .EnumerateArray()
-            .Select(x => x.GetString())
+            .Select(x => x.GetString()!)
             .ToArray();
         var exampleFilter = requestSchema
             .GetProperty("example")
