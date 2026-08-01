@@ -8,21 +8,24 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const args = process.argv.slice(2);
 
 const API_TEST_PROJECT = "BoardOil.Api.Tests/BoardOil.Api.Tests.csproj";
+const DEV_TEST_PROJECT = "BoardOil.Dev.Tests/BoardOil.Dev.Tests.csproj";
 const SERVICES_TEST_PROJECT = "BoardOil.Services.Tests/BoardOil.Services.Tests.csproj";
 const API_TEST_DLL = "BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll";
+const DEV_TEST_DLL = "BoardOil.Dev.Tests/bin/Release/net10.0/BoardOil.Dev.Tests.dll";
 const SERVICES_TEST_DLL = "BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll";
 const FAST_API_EXCLUDE_CLASS_FILTER = "*IntegrationTests*";
 
 let mode = "auto";
 let outputModeOverride = null;
 let runApi = false;
+let runDev = false;
 let runServices = false;
 let runWeb = false;
 let restoreCompleted = false;
 const failedSuites = [];
 
 for (const arg of args) {
-  if (["--api-only", "--services-only", "--web-only", "--backend-only", "--full"].includes(arg)) {
+  if (["--api-only", "--dev-only", "--services-only", "--web-only", "--backend-only", "--full"].includes(arg)) {
     mode = arg.slice(2);
     continue;
   }
@@ -33,7 +36,7 @@ for (const arg of args) {
   }
 
   if (arg === "--help" || arg === "-h") {
-    console.log("Usage: node scripts/test-fast.mjs [--api-only|--services-only|--web-only|--backend-only|--full] [--compact|--verbose]");
+    console.log("Usage: node scripts/test-fast.mjs [--api-only|--dev-only|--services-only|--web-only|--backend-only|--full] [--compact|--verbose]");
     process.exit(0);
   }
 
@@ -224,6 +227,17 @@ function runServicesReleaseTests() {
   printDotnetTestSummary("Services fast tests", result.stdout);
 }
 
+function runDevReleaseTests() {
+  console.log("[test-fast] Running Dev orchestrator tests (Release)");
+  buildTestProjectRelease(DEV_TEST_PROJECT);
+  const result = run("dotnet", [DEV_TEST_DLL, ...compactTestRunnerArgs()]);
+  if (result.status !== 0) {
+    throw new Error("dev-fast failed");
+  }
+
+  printDotnetTestSummary("Dev orchestrator tests", result.stdout);
+}
+
 function runWebChecks() {
   console.log("[test-fast] Running web checks");
   const check = run("npm", npmRunArgs("check"), path.join(rootDir, "BoardOil.Web"));
@@ -332,12 +346,15 @@ function finish() {
 if (mode !== "auto") {
   if (mode === "api-only") {
     runSuite("api-fast", runApiReleaseTests);
+  } else if (mode === "dev-only") {
+    runSuite("dev-fast", runDevReleaseTests);
   } else if (mode === "services-only") {
     runSuite("services-fast", runServicesReleaseTests);
   } else if (mode === "web-only") {
     runSuite("web-checks", runWebChecks);
   } else if (mode === "backend-only") {
     runSuite("api-fast", runApiReleaseTests);
+    runSuite("dev-fast", runDevReleaseTests);
     runSuite("services-fast", runServicesReleaseTests);
   } else if (mode === "full") {
     runSuite("full-lane", () => {
@@ -393,6 +410,11 @@ for (const file of changedFiles) {
     continue;
   }
 
+  if (file.startsWith("BoardOil.Dev/") || file.startsWith("BoardOil.Dev.Tests/")) {
+    runDev = true;
+    continue;
+  }
+
   if (
     file.startsWith("BoardOil.Contracts/") ||
     file.startsWith("BoardOil.Abstractions/") ||
@@ -415,17 +437,22 @@ for (const file of changedFiles) {
     file.startsWith("scripts/")
   ) {
     runApi = true;
+    runDev = true;
     runServices = true;
   }
 }
 
-if (!runApi && !runServices && !runWeb) {
+if (!runApi && !runDev && !runServices && !runWeb) {
   console.log("[test-fast] No code/test-impacting changes detected; nothing to run.");
   process.exit(0);
 }
 
 if (runApi) {
   runSuite("api-fast", runApiReleaseTests);
+}
+
+if (runDev) {
+  runSuite("dev-fast", runDevReleaseTests);
 }
 
 if (runServices) {

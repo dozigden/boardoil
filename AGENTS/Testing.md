@@ -14,9 +14,9 @@ Use repository scripts to keep local feedback fast and consistent:
 
 - `node scripts/test-fast.mjs`
   - default mode is changed-area detection from git diff
-  - runs only impacted fast suites/checks (API, Services, Web)
+  - runs only impacted fast suites/checks (API, Dev orchestrator, Services, Web)
   - excludes slow API integration classes by design
-  - supports suite overrides: `--api-only`, `--services-only`, `--web-only`, `--backend-only`, `--full`
+  - supports suite overrides: `--api-only`, `--dev-only`, `--services-only`, `--web-only`, `--backend-only`, `--full`
   - supports output overrides: `--compact`, `--verbose`
 - `node scripts/test-full.mjs`
   - CI-like full local run (backend restore/build/tests + web check/test)
@@ -29,7 +29,7 @@ Convenience wrappers:
 Recommended flow:
 
 1. During implementation, run `node scripts/test-fast.mjs`.
-2. If you changed only one area and want an explicit lane, use `node scripts/test-fast.mjs --api-only`, `--services-only`, `--web-only`, or `--backend-only`.
+2. If you changed only one area and want an explicit lane, use `node scripts/test-fast.mjs --api-only`, `--dev-only`, `--services-only`, `--web-only`, or `--backend-only`.
 3. Before pushing risky backend/API auth/MCP/migration changes, run `node scripts/test-full.mjs --backend-only`.
 4. Before pushing mixed backend+frontend changes, run full `node scripts/test-full.mjs`.
 5. Avoid ad-hoc direct test commands during normal iteration; use the repository scripts so behavior stays consistent.
@@ -119,9 +119,10 @@ For security-behaviour suites, keep integration depth where transport/auth seman
 
 - `BoardOil.Services/**` -> `BoardOil.Services.Tests`
 - `BoardOil.Api/**` or `BoardOil.Api.Tests/**` -> `BoardOil.Api.Tests`
+- `BoardOil.Dev/**` or `BoardOil.Dev.Tests/**` -> `BoardOil.Dev.Tests`
 - `BoardOil.Web/**` -> `npm run check` and `npm test` (in `BoardOil.Web`)
 - shared backend layers (`BoardOil.Contracts`, `BoardOil.Abstractions`, `BoardOil.Ef`, `BoardOil.Data.Abstractions`, `BoardOil.Mcp.Contracts`) -> API + Services tests
-- global tooling/workflow files (`BoardOil.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `NuGet.config`, `.github/workflows/*`, `scripts/*`) -> API + Services tests
+- global tooling/workflow files (`BoardOil.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `NuGet.config`, `.github/workflows/*`, `scripts/*`) -> API + Dev orchestrator + Services tests
 - unknown/non-code paths default to no tests in fast mode
 
 ## Naming Expectations

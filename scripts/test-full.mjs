@@ -211,6 +211,9 @@ if (runBackend) {
   const apiTests = run("dotnet", ["BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll", ...compactTestRunnerArgs()]);
   printDotnetTestSummary("API tests", apiTests.stdout);
 
+  const devTests = run("dotnet", ["BoardOil.Dev.Tests/bin/Release/net10.0/BoardOil.Dev.Tests.dll", ...compactTestRunnerArgs()]);
+  printDotnetTestSummary("Dev orchestrator tests", devTests.stdout);
+
   const servicesTests = run("dotnet", ["BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll", ...compactTestRunnerArgs()]);
   printDotnetTestSummary("Services tests", servicesTests.stdout);
 }
