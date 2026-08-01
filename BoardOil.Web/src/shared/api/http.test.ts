@@ -146,6 +146,34 @@ describe('http api client', () => {
     expect(unauthorizedSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('does not invoke unauthorized handler when the session probe confirms an anonymous browser', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        clone: () => ({
+          json: async () => ({ message: 'Unauthorized' })
+        })
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401
+      } as unknown as Response);
+
+    const unauthorizedSpy = vi.fn();
+    const { getEnvelope, setUnauthorizedHandler } = await import('./http');
+    setUnauthorizedHandler(unauthorizedSpy);
+
+    const result = await getEnvelope<unknown>('/api/auth/me');
+    await Promise.resolve();
+
+    expect(result.ok).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('http://localhost:5173/api/auth/refresh');
+    expect(unauthorizedSpy).not.toHaveBeenCalled();
+  });
+
   it('does not invoke unauthorized handler for login endpoint 401 responses', async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue({

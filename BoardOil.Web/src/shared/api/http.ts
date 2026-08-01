@@ -318,7 +318,12 @@ function shouldAttemptSessionRefresh(path: string) {
 }
 
 function shouldHandleUnauthorized(path: string) {
-  return !isUnauthenticatedAuthPath(path.toLowerCase());
+  const normalisedPath = path.toLowerCase();
+  if (normalisedPath === '/api/auth/me') {
+    return false;
+  }
+
+  return !isUnauthenticatedAuthPath(normalisedPath);
 }
 
 function isUnauthenticatedAuthPath(path: string) {
