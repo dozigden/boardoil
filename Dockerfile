@@ -3,7 +3,7 @@ ARG BO_CHANNEL=dev
 ARG BO_BUILD=local
 ARG BO_COMMIT=unknown
 
-FROM node:20-bookworm-slim AS frontend-build
+FROM node:24-bookworm-slim AS frontend-build
 ARG BO_VERSION
 ARG BO_CHANNEL
 ARG BO_BUILD
