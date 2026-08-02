@@ -3,6 +3,7 @@ using BoardOil.Abstractions.Image;
 using BoardOil.Abstractions.Users;
 using BoardOil.Contracts.Users;
 using BoardOil.Services.Auth;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BoardOil.Api.Endpoints;
 
@@ -54,6 +55,11 @@ public static class ClientAccountEndpoints
                         uploadRequestResult.Data.ContentType,
                         contentStream))
                     .ToHttpResult();
+            })
+            .WithMetadata(new RequestSizeLimitAttribute(ProfileImageUploadRequestReader.MaxRequestBodyLength))
+            .WithMetadata(new RequestFormLimitsAttribute
+            {
+                MultipartBodyLengthLimit = ProfileImageUploadRequestReader.MaxRequestBodyLength
             })
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("System Client Accounts");

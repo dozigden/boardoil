@@ -203,7 +203,11 @@ app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
     RequestPath = "/images",
-    FileProvider = new PhysicalFileProvider(imageStorageOptions.RootPath)
+    FileProvider = new PhysicalFileProvider(imageStorageOptions.RootPath),
+    OnPrepareResponse = context =>
+    {
+        context.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    }
 });
 app.UseStaticFiles(new StaticFileOptions
 {

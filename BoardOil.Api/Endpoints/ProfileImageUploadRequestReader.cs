@@ -1,14 +1,22 @@
 using BoardOil.Contracts.Common;
+using BoardOil.Contracts.Users;
 
 namespace BoardOil.Api.Endpoints;
 
 internal static class ProfileImageUploadRequestReader
 {
+    public const long MaxRequestBodyLength = ProfileImageUploadConstraints.MaxByteLength + (64 * 1024);
+
     public static async Task<ApiResult<ProfileImageUploadRequest>> TryReadAsync(HttpRequest request)
     {
         if (!request.HasFormContentType)
         {
             return ValidationFailure("file", "Image upload must use multipart/form-data.");
+        }
+
+        if (request.ContentLength > MaxRequestBodyLength)
+        {
+            return ValidationFailure("file", $"Profile image must be {ProfileImageUploadConstraints.MaxByteLength / (1024 * 1024)} MB or smaller.");
         }
 
         IFormCollection form;
@@ -30,6 +38,11 @@ internal static class ProfileImageUploadRequestReader
         if (imageFile.Length <= 0)
         {
             return ValidationFailure("file", "Image file cannot be empty.");
+        }
+
+        if (imageFile.Length > ProfileImageUploadConstraints.MaxByteLength)
+        {
+            return ValidationFailure("file", $"Profile image must be {ProfileImageUploadConstraints.MaxByteLength / (1024 * 1024)} MB or smaller.");
         }
 
         if (string.IsNullOrWhiteSpace(imageFile.ContentType))

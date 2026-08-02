@@ -382,15 +382,6 @@
     },
     {
       "ecosystem": "nuget",
-      "packageName": "SixLabors.ImageSharp",
-      "version": "3.1.11",
-      "declaredLicence": "LICENSE",
-      "sourceType": "nuget-package-file",
-      "sourceFile": "~/.nuget/packages/sixlabors.imagesharp/3.1.11/LICENSE",
-      "outputFile": "compliance/third-party-licenses/nuget-sixlabors.imagesharp-3.1.11.txt"
-    },
-    {
-      "ecosystem": "nuget",
       "packageName": "SQLitePCLRaw.bundle_e_sqlite3",
       "version": "2.1.12",
       "declaredLicence": "Apache-2.0",
