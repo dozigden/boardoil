@@ -2,8 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Users;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -30,7 +28,7 @@ public sealed class ClientAccountProfileImageApiIntegrationTests : ApiFactoryInt
         var clientAccountId = await CreateClientAccountAsync(adminClient, "client-with-image");
 
         using var uploadContent = new MultipartFormDataContent();
-        var imageContent = new ByteArrayContent(CreatePngBytes(96, 96));
+        var imageContent = new ByteArrayContent(PngHeaderTestData.Create(512, 512));
         imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
         uploadContent.Add(imageContent, "file", "avatar.png");
 
@@ -57,7 +55,7 @@ public sealed class ClientAccountProfileImageApiIntegrationTests : ApiFactoryInt
 
         using (var uploadContent = new MultipartFormDataContent())
         {
-            var imageContent = new ByteArrayContent(CreatePngBytes(96, 96));
+            var imageContent = new ByteArrayContent(PngHeaderTestData.Create(512, 512));
             imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
             uploadContent.Add(imageContent, "file", "avatar.png");
             var uploadResponse = await adminClient.PostAsync($"/api/system/client-accounts/{clientAccountId}/profile-image", uploadContent);
@@ -92,14 +90,6 @@ public sealed class ClientAccountProfileImageApiIntegrationTests : ApiFactoryInt
         Assert.NotNull(envelope);
         Assert.NotNull(envelope!.Data);
         return envelope.Data!.Account.Id;
-    }
-
-    private static byte[] CreatePngBytes(int width, int height)
-    {
-        using var image = new Image<Rgba32>(width, height);
-        using var stream = new MemoryStream();
-        image.SaveAsPng(stream);
-        return stream.ToArray();
     }
 
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);

@@ -13,8 +13,7 @@ public sealed class LocalImageStorageService(ImageStorageOptions options) : IIma
             throw new ArgumentException("Image content stream must be readable.", nameof(request));
         }
 
-        var nowUtc = DateTime.UtcNow;
-        var fileName = BuildStoredFileName(request.OriginalFileName);
+        var fileName = BuildStoredFileName();
         var entityTypeSegment = request.EntityType.ToString().ToLowerInvariant();
         var relativePath = Path.Combine(entityTypeSegment, request.EntityId.ToString(), fileName);
         var targetPath = Path.Combine(_rootPath, relativePath);
@@ -73,18 +72,6 @@ public sealed class LocalImageStorageService(ImageStorageOptions options) : IIma
         return Task.CompletedTask;
     }
 
-    private static string BuildStoredFileName(string originalFileName)
-    {
-        var extension = Path.GetExtension(originalFileName);
-        if (string.IsNullOrWhiteSpace(extension))
-        {
-            extension = ".bin";
-        }
-        else
-        {
-            extension = extension.ToLowerInvariant();
-        }
-
-        return $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}{extension}";
-    }
+    private static string BuildStoredFileName() =>
+        $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}.png";
 }

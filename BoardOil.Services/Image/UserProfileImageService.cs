@@ -5,7 +5,6 @@ using BoardOil.Contracts.Users;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Users;
-using SixLabors.ImageSharp;
 
 namespace BoardOil.Services.Image;
 
@@ -15,13 +14,6 @@ public sealed class UserProfileImageService(
     IImageStorageService imageStorageService,
     IDbContextScopeFactory scopeFactory) : IUserProfileImageService
 {
-    private static readonly HashSet<string> AllowedContentTypes =
-    [
-        "image/png",
-        "image/jpeg",
-        "image/webp"
-    ];
-
     public async Task<ApiResult<UserProfileImageDto>> GetOwnProfileImageAsync(int actorUserId)
     {
         using var scope = scopeFactory.CreateReadOnly();
@@ -136,16 +128,15 @@ public sealed class UserProfileImageService(
         CancellationToken cancellationToken)
     {
         var normalisedContentType = contentType.Trim().ToLowerInvariant();
-        if (!AllowedContentTypes.Contains(normalisedContentType))
+        if (!string.Equals(normalisedContentType, ProfileImageUploadConstraints.ContentType, StringComparison.Ordinal))
         {
-            return ValidationFailure("file", "Supported image types are PNG, JPEG, and WEBP.");
+            return ValidationFailure("file", "Profile images must be PNG files.");
         }
 
-        byte[] payload;
-        await using (var memoryStream = new MemoryStream())
+        var payload = await ReadBoundedPayloadAsync(content, cancellationToken);
+        if (payload is null)
         {
-            await content.CopyToAsync(memoryStream, cancellationToken);
-            payload = memoryStream.ToArray();
+            return ValidationFailure("file", $"Profile image must be {ProfileImageUploadConstraints.MaxByteLength / (1024 * 1024)} MB or smaller.");
         }
 
         if (payload.Length == 0)
@@ -153,25 +144,18 @@ public sealed class UserProfileImageService(
             return ValidationFailure("file", "Image file cannot be empty.");
         }
 
-        ImageInfo imageInfo;
-        try
+        var dimensions = PngHeaderReader.ReadDimensions(payload);
+        if (dimensions is null)
         {
-            await using var identifyStream = new MemoryStream(payload, writable: false);
-            imageInfo = await SixLabors.ImageSharp.Image.IdentifyAsync(identifyStream, cancellationToken)
-                ?? throw new InvalidDataException("Unable to identify image.");
-        }
-        catch (UnknownImageFormatException)
-        {
-            return ValidationFailure("file", "Uploaded file is not a valid image.");
-        }
-        catch (InvalidImageContentException)
-        {
-            return ValidationFailure("file", "Uploaded image content is invalid.");
+            return ValidationFailure("file", "Uploaded file does not have a valid PNG header.");
         }
 
-        if (imageInfo.Width != imageInfo.Height)
+        if (dimensions.Value.Width != ProfileImageUploadConstraints.Width
+            || dimensions.Value.Height != ProfileImageUploadConstraints.Height)
         {
-            return ValidationFailure("file", "User profile images must be square.");
+            return ValidationFailure(
+                "file",
+                $"User profile images must be {ProfileImageUploadConstraints.Width} by {ProfileImageUploadConstraints.Height} pixels.");
         }
 
         await using var uploadStream = new MemoryStream(payload, writable: false);
@@ -179,8 +163,6 @@ public sealed class UserProfileImageService(
         {
             EntityType = ImageStorageEntityType.UserProfile,
             EntityId = userId,
-            OriginalFileName = originalFileName,
-            ContentType = normalisedContentType,
             Content = uploadStream,
         }, cancellationToken);
 
@@ -197,8 +179,8 @@ public sealed class UserProfileImageService(
         entity.ContentType = normalisedContentType;
         entity.RelativePath = saved.RelativePath;
         entity.ByteLength = saved.ByteLength;
-        entity.Width = imageInfo.Width;
-        entity.Height = imageInfo.Height;
+        entity.Width = ProfileImageUploadConstraints.Width;
+        entity.Height = ProfileImageUploadConstraints.Height;
 
         if (existing is null)
         {
@@ -214,6 +196,24 @@ public sealed class UserProfileImageService(
         }
 
         return isCreate ? ApiResults.Created(ToDto(entity)) : ApiResults.Ok(ToDto(entity));
+    }
+
+    private static async Task<byte[]?> ReadBoundedPayloadAsync(Stream content, CancellationToken cancellationToken)
+    {
+        using var memoryStream = new MemoryStream();
+        var buffer = new byte[81920];
+        int bytesRead;
+        while ((bytesRead = await content.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            if (memoryStream.Length + bytesRead > ProfileImageUploadConstraints.MaxByteLength)
+            {
+                return null;
+            }
+
+            await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+        }
+
+        return memoryStream.ToArray();
     }
 
     private async Task<ApiResult> DeleteProfileImageAsync(
