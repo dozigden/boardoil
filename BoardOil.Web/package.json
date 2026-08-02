@@ -7,13 +7,14 @@
   "scripts": {
     "dev": "npm run sync:third-party-licences && node ./scripts/run-vite-with-version.mjs --port 5173",
     "lint": "eslint --max-warnings=0 --config eslint.config.js \"src/shared/api/**/*Api.ts\"",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "vue-tsc --noEmit && tsc --noEmit --project tsconfig.e2e.json",
     "test": "vitest run",
     "verify-release": "npm run check && npm test",
     "sync:third-party-licences": "node ./scripts/sync-third-party-licences.mjs --publish-public",
     "check": "npm run lint && npm run typecheck && npm run build",
     "build": "npm run sync:third-party-licences && node ./scripts/run-vite-with-version.mjs build",
-    "preview": "vite preview --host 0.0.0.0 --port 4173"
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "test:e2e:smoke": "node ./scripts/run-playwright-smoke.mjs"
   },
   "dependencies": {
     "@microsoft/signalr": "^10.0.0",
@@ -29,6 +30,8 @@
     "vue-router": "^5.0.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.1.2",
     "@typescript-eslint/parser": "^8.58.2",
     "@vitejs/plugin-vue": "^6.0.6",
     "eslint": "^10.2.1",

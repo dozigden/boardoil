@@ -8,6 +8,79 @@ This document defines how to split test coverage between service tests and API i
 - Keep API integration suites focused on HTTP contract and runtime wiring behaviour.
 - Keep business logic and edge-case matrices focused in service tests.
 
+## Browser Test Principles
+
+Browser tests protect critical user journeys; they are not the default place to test business-rule permutations.
+
+### Structure by Responsibility
+
+- Specs describe the user journey and expected outcome.
+- Fixtures provide authenticated contexts, reusable capabilities, and isolated test data.
+- UI drivers encapsulate repeated interactions and stable locators.
+- API helpers arrange prerequisites quickly through supported application APIs.
+- Runner and configuration code owns temporary storage, ports, server lifecycle, profiles, timeouts, and diagnostic artifacts.
+
+Keep browser-test code organised by those responsibilities. Do not mix environment orchestration, API setup, detailed selectors, and outcome assertions into each spec.
+
+### Maintainability Rules
+
+1. Keep specs readable.
+   - A spec should read as a short user journey.
+   - Do not expose API payloads, server orchestration, or detailed selectors in the scenario.
+
+2. Use small workflow objects.
+   - Introduce focused drivers such as `BoardPage` or `CardEditor` only where interactions are reused or complex.
+   - Do not mirror the Vue component tree, create a universal base page, or build page-object inheritance hierarchies.
+   - Keep meaningful outcome assertions visible in the spec.
+
+3. Prefer semantic locators.
+   - Prefer roles, labels, and visible text.
+   - Use an existing stable semantic attribute where appropriate.
+   - Add a test id only when no meaningful accessible selector exists.
+   - Do not couple tests to styling classes, DOM ancestry, generated ids, or positional selectors.
+
+4. Keep every test independent.
+   - Tests must run individually and in any order.
+   - Use fresh browser contexts and unique, readable test data.
+   - Do not depend on state created by another test.
+   - Use a disposable database for the run and remove the complete environment afterwards instead of relying on fragile per-test cleanup.
+
+5. Use fixtures for capabilities.
+   - Good fixtures provide capabilities such as an authenticated page, test board, second browser context, or API client.
+   - Scenario-specific arrangements remain visible in the spec.
+   - Avoid fixtures whose names hide an entire preconstructed scenario.
+
+6. Wait for behaviour, never time.
+   - Use Playwright's web-first assertions, URLs, API responses, and observable application state.
+   - Do not use arbitrary sleeps to stabilise tests.
+
+7. Maintain a strict smoke budget.
+   - A test belongs in the GitHub smoke profile only when its failure materially undermines confidence in everyday BoardOil use.
+   - Broader coverage belongs in the Jenkins regression profile.
+
+8. Treat flakiness as a defect.
+   - Begin with zero retries.
+   - Do not hide flakes with blanket retries or larger global timeouts.
+   - Diagnose failures with traces and fix the cause.
+   - Any temporarily disabled browser test must reference a board bug.
+
+9. Test at the lowest appropriate layer.
+   - Business-rule matrices, API authorization permutations, and store edge cases remain in backend or Vitest suites.
+   - Browser tests are reserved for browser behaviour and multi-layer composition such as focus/caret handling, cookies, routing, drag-and-drop, canvas, realtime, and critical user journeys.
+
+10. Make failures readable.
+    - Use concise `test.step` phases for longer journeys.
+    - Retain actionable traces and screenshots on failure.
+    - Prefer behavioural assertions over broad visual snapshots.
+
+### Running the Browser Smoke Profile
+
+- Install Chromium once from `BoardOil.Web` with `npx playwright install chromium`.
+- Run the profile from `BoardOil.Web` with `npm run test:e2e:smoke`.
+- Pass Playwright CLI options after `--` when narrowing or repeating a run.
+- The runner creates its own temporary SQLite database, image directory, API port, and frontend port, then removes the temporary environment.
+- Browser tests remain separate from `test-fast.mjs`, `test-full.mjs`, and the normal Vitest run.
+
 ## Local Fast Loop
 
 Use repository scripts to keep local feedback fast and consistent:

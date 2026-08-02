@@ -65,6 +65,7 @@
         <div v-for="column in filteredColumns" :key="column.id" class="column-stack">
           <article
             class="column"
+            :aria-label="`${column.title} column`"
             @dragover.prevent="handleColumnDragOver(column.id, $event)"
             @drop.prevent="handleColumnDrop(column.id)"
           >

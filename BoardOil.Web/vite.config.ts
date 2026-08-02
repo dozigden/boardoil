@@ -1,5 +1,5 @@
 import { loadEnv } from 'vite';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 
 function isTruthyEnv(value: string | undefined): boolean {
@@ -29,8 +29,8 @@ function useCompactTestOutput(): boolean {
 }
 
 export default defineConfig(({ command, mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
   if (command === 'build') {
-    const env = loadEnv(mode, process.cwd(), '');
     const version = env.VITE_BO_VERSION?.trim();
     if (!version) {
       throw new Error(
@@ -39,6 +39,8 @@ export default defineConfig(({ command, mode }) => {
       );
     }
   }
+
+  const apiProxyTarget = env.VITE_BO_API_PROXY_TARGET?.trim() || 'http://localhost:5000';
 
   const config = {
     plugins: [
@@ -52,13 +54,16 @@ export default defineConfig(({ command, mode }) => {
     ],
     server: {
       proxy: {
-        '/api': 'http://localhost:5000',
-        '/images': 'http://localhost:5000',
+        '/api': apiProxyTarget,
+        '/images': apiProxyTarget,
         '/hubs': {
-          target: 'http://localhost:5000',
+          target: apiProxyTarget,
           ws: true
         }
       }
+    },
+    test: {
+      exclude: [...configDefaults.exclude, 'e2e/**']
     }
   };
 
@@ -70,6 +75,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     ...config,
     test: {
+      ...config.test,
       reporters: ['agent'],
       silent: 'passed-only'
     }

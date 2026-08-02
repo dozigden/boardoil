@@ -100,3 +100,48 @@ jobs:
 
       - name: Verify frontend release gate
         run: npm run verify-release
+
+  browser-smoke:
+    name: Browser smoke (Playwright)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: BoardOil.Web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: BoardOil.Web/package-lock.json
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        run: npm run test:e2e:smoke
+
+      - name: Upload browser failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-smoke-failure
+          path: BoardOil.Web/test-results/playwright
+          if-no-files-found: ignore
+          retention-days: 3

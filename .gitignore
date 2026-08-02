@@ -4,6 +4,8 @@
 *.csproj.lscache
 BoardOil.Web/node_modules/
 BoardOil.Web/dist/
+BoardOil.Web/test-results/
+BoardOil.Web/playwright-report/
 
 # Local tool state
 .dotnet/
