@@ -1,5 +1,5 @@
-NuGet Package: Microsoft.EntityFrameworkCore.Abstractions
-Version: 10.0.6
+NuGet Package: Microsoft.Bcl.Cryptography
+Version: 10.0.2
 Declared Licence Expression: MIT
 Licence Reference: https://licenses.nuget.org/MIT
 Copyright: © Microsoft Corporation. All rights reserved.

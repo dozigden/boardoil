@@ -1,5 +1,5 @@
-NuGet Package: Microsoft.IdentityModel.Abstractions
-Version: 8.0.1
+NuGet Package: Microsoft.IdentityModel.Protocols.OpenIdConnect
+Version: 8.19.2
 Declared Licence Expression: MIT
 Licence Reference: https://licenses.nuget.org/MIT
 Copyright: © Microsoft Corporation. All rights reserved.

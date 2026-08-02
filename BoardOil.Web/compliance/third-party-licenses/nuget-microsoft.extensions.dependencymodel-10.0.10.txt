@@ -1,5 +1,5 @@
-NuGet Package: System.IdentityModel.Tokens.Jwt
-Version: 8.0.1
+NuGet Package: Microsoft.Extensions.DependencyModel
+Version: 10.0.10
 Declared Licence Expression: MIT
 Licence Reference: https://licenses.nuget.org/MIT
 Copyright: © Microsoft Corporation. All rights reserved.
