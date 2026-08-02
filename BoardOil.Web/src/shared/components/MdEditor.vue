@@ -319,17 +319,24 @@ function setEditorContent(value: string) {
     return;
   }
 
-  editor.commands.setContent(nextValue, { contentType: 'markdown' });
+  editor.commands.setContent(nextValue, {
+    contentType: 'markdown',
+    emitUpdate: false
+  });
 }
 
 watch(
   normalisedModelValue,
   nextValue => {
-    if (isPlainTextMode.value && plainTextDraft.value !== nextValue) {
-      plainTextDraft.value = nextValue;
-      void nextTick(() => {
-        syncPlainTextAreaHeight(plainTextAreaRef.value);
-      });
+    if (isPlainTextMode.value) {
+      if (plainTextDraft.value !== nextValue) {
+        plainTextDraft.value = nextValue;
+        void nextTick(() => {
+          syncPlainTextAreaHeight(plainTextAreaRef.value);
+        });
+      }
+
+      return;
     }
 
     setEditorContent(nextValue);
