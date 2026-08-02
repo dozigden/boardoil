@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-07-28T18:32:19.590Z",
+  "generatedAtUtc": "2026-08-02T15:15:19.641Z",
   "packageSource": "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -23,7 +23,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-link",
-      "version": "3.22.3",
+      "version": "3.29.2",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-link/LICENSE.md",
@@ -32,7 +32,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/markdown",
-      "version": "3.22.3",
+      "version": "3.29.2",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/markdown/LICENSE.md",
@@ -41,16 +41,16 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/pm",
-      "version": "3.22.3",
+      "version": "3.29.2",
       "declaredLicence": "MIT",
       "sourceType": "package",
-      "sourceFile": "node_modules/@tiptap/pm/LICENSE.md",
+      "sourceFile": "node_modules/@tiptap/pm/LICENSE",
       "outputFile": "compliance/third-party-licenses/npm-tiptap-pm.txt"
     },
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/starter-kit",
-      "version": "3.22.3",
+      "version": "3.29.2",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/starter-kit/LICENSE.md",
@@ -59,7 +59,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/vue-3",
-      "version": "3.22.3",
+      "version": "3.29.2",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/vue-3/LICENSE.md",
@@ -95,7 +95,7 @@
     {
       "ecosystem": "npm",
       "packageName": "vue",
-      "version": "3.5.32",
+      "version": "3.5.40",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/vue/LICENSE",
@@ -104,7 +104,7 @@
     {
       "ecosystem": "npm",
       "packageName": "vue-router",
-      "version": "5.0.4",
+      "version": "5.2.0",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/vue-router/LICENSE",

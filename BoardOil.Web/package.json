@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "npm run sync:third-party-licences && node ./scripts/run-vite-with-version.mjs --host 0.0.0.0 --port 5173",
+    "dev": "npm run sync:third-party-licences && node ./scripts/run-vite-with-version.mjs --port 5173",
     "lint": "eslint --max-warnings=0 --config eslint.config.js \"src/shared/api/**/*Api.ts\"",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
@@ -34,7 +34,7 @@
     "eslint": "^10.2.1",
     "picomatch": "^4.0.4",
     "typescript": "^6.0.3",
-    "vite": "^8.0.8",
+    "vite": "^8.2.0",
     "vitest": "^4.1.4",
     "vue-tsc": "^3.2.6"
   }

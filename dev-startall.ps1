@@ -240,7 +240,7 @@ npm run sync:third-party-licences
 if (-not `$env:VITE_BO_VERSION) {
     `$env:VITE_BO_VERSION = node -p "require('./package.json').version"
 }
-npm exec vite -- --host 0.0.0.0 --port 5173
+npm exec vite -- --port 5173
 "@
 
 Set-Content -LiteralPath $apiScriptPath -Value $apiScript -Encoding UTF8
