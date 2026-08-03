@@ -23,6 +23,33 @@ export class BoardPage {
     await column.getByRole('button', { name: 'Save new card' }).click();
   }
 
+  public async enterCardSelectionMode() {
+    const selectionToggle = this.page.getByRole('checkbox', { name: 'Toggle card selection mode' });
+    await this.page.getByTitle('Select cards').click();
+    await expect(selectionToggle).toBeChecked();
+  }
+
+  public async selectCard(columnTitle: string, cardTitle: string) {
+    const card = this.column(columnTitle).getByRole('checkbox').filter({ hasText: cardTitle });
+    await card.click();
+    await expect(card).toHaveAttribute('aria-checked', 'true');
+  }
+
+  public async archiveSelectedCards(selectedCount: number) {
+    await this.page.getByRole('button', { name: `Archive ${selectedCount} selected cards` }).click();
+    const dialog = this.page.getByRole('dialog').filter({
+      has: this.page.getByRole('heading', { name: 'Archive Selected Cards' })
+    });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Archive selected' }).click();
+    await expect(dialog).toBeHidden();
+  }
+
+  public async openArchivedCards() {
+    await this.page.getByRole('button', { name: 'View archived cards' }).click();
+    await expect(this.page).toHaveURL(/\/boards\/\d+\/archived$/);
+  }
+
   public async openCard(columnTitle: string, cardTitle: string) {
     await this.card(columnTitle, cardTitle).click();
     await expect(this.dialog()).toBeVisible();

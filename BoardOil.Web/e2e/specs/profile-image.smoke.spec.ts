@@ -20,10 +20,17 @@ test('crop and upload a profile image that remains after reload', async ({ authe
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(sourceImagePath);
 
-  const cropDialog = page.getByRole('dialog');
-  await expect(cropDialog.getByRole('heading', { name: 'Crop Profile Image' })).toBeVisible();
+  const cropHeading = page.getByRole('heading', { name: 'Crop Profile Image' });
+  const cropDialog = page.getByRole('dialog').filter({ has: cropHeading });
+  await expect(cropHeading).toBeVisible();
   await cropDialog.getByRole('slider').fill('1.25');
+  const uploadResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'POST'
+    && new URL(response.url()).pathname === '/api/users/me/profile-image'
+  );
   await cropDialog.getByRole('button', { name: 'Upload image' }).click();
+  const uploadResponse = await uploadResponsePromise;
+  expect(uploadResponse.ok(), await uploadResponse.text()).toBe(true);
   await expect(cropDialog).toBeHidden();
 
   await page.reload();
