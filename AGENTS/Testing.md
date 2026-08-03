@@ -88,6 +88,7 @@ Keep browser-test code organised by those responsibilities. Do not mix environme
 - Princess Posse Jenkins owns the scheduled regression run; GitHub Actions continues to run only the smoke profile.
 - Name broader or longer-running specs `*.regression.spec.ts` so their intended ownership is obvious.
 - Set `BOARDOIL_E2E_JUNIT_OUTPUT` when the caller needs a JUnit XML report; normal local and GitHub smoke runs retain the list reporter only.
+- Slow clean-build hosts may set `BOARDOIL_E2E_STARTUP_TIMEOUT_MS` to a positive integer; the default API/frontend readiness deadline remains 60000 ms.
 
 ## Local Fast Loop
 

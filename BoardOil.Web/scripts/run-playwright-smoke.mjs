@@ -7,6 +7,10 @@ import { fileURLToPath } from 'node:url';
 
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(webRoot, '..');
+const startupTimeoutMilliseconds = readPositiveIntegerEnvironment(
+  'BOARDOIL_E2E_STARTUP_TIMEOUT_MS',
+  60_000
+);
 const children = [];
 const processStopPromises = new WeakMap();
 
@@ -83,7 +87,7 @@ async function runSmokeTests() {
       '--no-launch-profile',
       '--no-restore'
     ], repoRoot, apiEnvironment);
-    await waitForUrl(`${apiUrl}/api/health`, api, 'API');
+    await waitForUrl(`${apiUrl}/api/health`, api, 'API', startupTimeoutMilliseconds);
     ensureNotInterrupted();
 
     const web = startProcess(process.execPath, [
@@ -96,7 +100,7 @@ async function runSmokeTests() {
     ], webRoot, {
       VITE_BO_API_PROXY_TARGET: apiUrl
     });
-    await waitForUrl(webUrl, web, 'frontend');
+    await waitForUrl(webUrl, web, 'frontend', startupTimeoutMilliseconds);
     ensureNotInterrupted();
 
     const playwrightExecutable = process.platform === 'win32'
@@ -161,8 +165,8 @@ function runProcess(command, args, cwd, additionalEnvironment) {
   });
 }
 
-async function waitForUrl(url, child, label) {
-  const deadline = Date.now() + 60_000;
+async function waitForUrl(url, child, label, timeoutMilliseconds) {
+  const deadline = Date.now() + timeoutMilliseconds;
   let lastError = null;
 
   while (Date.now() < deadline) {
@@ -185,7 +189,21 @@ async function waitForUrl(url, child, label) {
   }
 
   const detail = lastError instanceof Error ? ` Last error: ${lastError.message}` : '';
-  throw new Error(`${label} did not become ready within 60 seconds.${detail}`);
+  throw new Error(`${label} did not become ready within ${timeoutMilliseconds} ms.${detail}`);
+}
+
+function readPositiveIntegerEnvironment(name, fallback) {
+  const rawValue = process.env[name];
+  if (rawValue === undefined) {
+    return fallback;
+  }
+
+  const value = Number(rawValue);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+
+  return value;
 }
 
 function stopProcess(child) {
