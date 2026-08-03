@@ -77,9 +77,17 @@ Keep browser-test code organised by those responsibilities. Do not mix environme
 
 - Install Chromium once from `BoardOil.Web` with `npx playwright install chromium`.
 - Run the profile from `BoardOil.Web` with `npm run test:e2e:smoke`.
+- Name smoke specs `*.smoke.spec.ts`; the smoke command selects only that suffix.
 - Pass Playwright CLI options after `--` when narrowing or repeating a run.
 - The runner creates its own temporary SQLite database, image directory, API port, and frontend port, then removes the temporary environment.
 - Browser tests remain separate from `test-fast.mjs`, `test-full.mjs`, and the normal Vitest run.
+
+### Running the Browser Regression Profile
+
+- Run every browser spec from `BoardOil.Web` with `npm run test:e2e:regression`.
+- Princess Posse Jenkins owns the scheduled regression run; GitHub Actions continues to run only the smoke profile.
+- Name broader or longer-running specs `*.regression.spec.ts` so their intended ownership is obvious.
+- Set `BOARDOIL_E2E_JUNIT_OUTPUT` when the caller needs a JUnit XML report; normal local and GitHub smoke runs retain the list reporter only.
 
 ## Local Fast Loop
 

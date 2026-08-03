@@ -1,6 +1,12 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices, type ReporterDescription } from '@playwright/test';
 
 const baseURL = process.env.BOARDOIL_E2E_BASE_URL ?? 'http://127.0.0.1:4173';
+const junitOutput = process.env.BOARDOIL_E2E_JUNIT_OUTPUT;
+const reporters: ReporterDescription[] = [['list']];
+
+if (junitOutput) {
+  reporters.push(['junit', { outputFile: junitOutput }]);
+}
 
 export default defineConfig({
   testDir: './e2e/specs',
@@ -12,7 +18,7 @@ export default defineConfig({
   expect: {
     timeout: 5_000
   },
-  reporter: [['list']],
+  reporter: reporters,
   use: {
     ...devices['Desktop Chrome'],
     baseURL,
