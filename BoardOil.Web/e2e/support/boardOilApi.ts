@@ -60,7 +60,13 @@ export class BoardOilApi {
     });
   }
 
-  public async createCard(board: SmokeBoard, columnTitle: string, title: string, description = '') {
+  public async createCard(
+    board: SmokeBoard,
+    columnTitle: string,
+    title: string,
+    description = '',
+    tagNames: string[] = []
+  ) {
     const column = board.columns.find(candidate => candidate.title === columnTitle);
     if (!column) {
       throw new Error(`Column '${columnTitle}' was not found on board ${board.id}.`);
@@ -76,7 +82,7 @@ export class BoardOilApi {
       boardColumnId: column.id,
       title,
       description,
-      tagNames: [],
+      tagNames,
       cardTypeId: cardType.id,
       assignedUserId: null,
       slickName: null,

@@ -16,6 +16,34 @@ export class BoardPage {
     return this.column(columnTitle).getByRole('button').filter({ hasText: cardTitle });
   }
 
+  public async bringColumnIntoView(columnTitle: string) {
+    const column = this.column(columnTitle);
+    await column.scrollIntoViewIfNeeded();
+    await expect(column).toBeInViewport();
+  }
+
+  public async openCardFilters() {
+    await this.page.getByRole('button', { name: 'Card filters', exact: true }).click();
+    await expect(this.page.getByRole('region', { name: 'Card filter matrix' })).toBeVisible();
+  }
+
+  public async setTagFilterWithKeyboard(tagName: string, state: 'include' | 'exclude') {
+    const actionName = state === 'include'
+      ? `Move to include ${tagName}`
+      : `Move to exclude ${tagName}`;
+    const action = this.page
+      .getByRole('region', { name: 'Tag filter matrix' })
+      .getByRole('button', { name: actionName });
+
+    await action.focus();
+    await this.page.keyboard.press('Enter');
+  }
+
+  public async clearCardFilters() {
+    await this.page.getByRole('button', { name: 'Clear card filters' }).click();
+    await expect(this.page.getByRole('region', { name: 'Card filter matrix' })).toBeHidden();
+  }
+
   public async createCard(columnTitle: string, cardTitle: string) {
     const column = this.column(columnTitle);
     await column.getByRole('button', { name: 'Add default card' }).click();
