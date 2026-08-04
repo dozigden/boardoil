@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-08-02T15:58:29.716Z",
+  "generatedAtUtc": "2026-08-03T19:22:20.121Z",
   "packageSource": "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -37,15 +37,6 @@
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/markdown/LICENSE.md",
       "outputFile": "compliance/third-party-licenses/npm-tiptap-markdown.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "@tiptap/pm",
-      "version": "3.29.2",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/@tiptap/pm/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-tiptap-pm.txt"
     },
     {
       "ecosystem": "npm",
