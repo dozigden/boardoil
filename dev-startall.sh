@@ -115,7 +115,7 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 
 if [[ ! -d "$WEB_DIR/node_modules" ]]; then
-  echo "Error: $WEB_DIR/node_modules is missing. Run 'cd BoardOil.Web && npm install' first." >&2
+  echo "Error: $WEB_DIR/node_modules is missing. Run 'cd BoardOil.Web && npm ci' first." >&2
   exit 1
 fi
 

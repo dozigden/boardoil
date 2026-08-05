@@ -63,7 +63,7 @@ Restore/install:
 
 ```bash
 dotnet restore BoardOil.slnx
-cd BoardOil.Web && npm install
+cd BoardOil.Web && npm ci
 ```
 
 Run backend + frontend:

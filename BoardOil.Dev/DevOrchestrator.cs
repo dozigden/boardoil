@@ -322,7 +322,7 @@ internal sealed class DevOrchestrator
                 if (!Directory.Exists(nodeModules))
                 {
                     throw new InvalidOperationException(
-                        "BoardOil.Web/node_modules is missing. Run 'cd BoardOil.Web && npm install' first.");
+                        "BoardOil.Web/node_modules is missing. Run 'cd BoardOil.Web && npm ci' first.");
                 }
 
                 await portConflictResolver.StopRecognisedListenerAsync(

@@ -162,7 +162,7 @@ Require-Command -Name "npm"
 Require-Command -Name "git"
 
 if (-not (Test-Path -LiteralPath (Join-Path $webDir "node_modules"))) {
-    throw "$webDir\node_modules is missing. Run 'cd BoardOil.Web; npm install' first."
+    throw "$webDir\node_modules is missing. Run 'cd BoardOil.Web; npm ci' first."
 }
 
 New-Item -ItemType Directory -Path $devDataDir -Force | Out-Null
