@@ -48,6 +48,13 @@ This file defines how agents should manage work tracking and source control in t
   - Work should be manually reviewed after completion and before final closure.
   - Update the story description with outcomes and validation commands before moving to `Done`.
 
+## Release Notes Scope
+
+- Release notes contain only product changes and bug fixes.
+- Do not add dependency or package updates, vulnerability remediation, test coverage, CI/CD changes, build tooling, refactoring, or other internal maintenance work to release notes.
+- Keep internal engineering work recorded in its board stories and commit history instead.
+- If internal work also delivers a product change or fixes a user-visible bug, describe only that observable outcome under `Changes` or `Bug Fixes`; do not describe the underlying maintenance work.
+
 ## Plans
 
 - The first action of any new plan that is not already being generated from a story on the board should always be to create a new story and record the plan in it.
