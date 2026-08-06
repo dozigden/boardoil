@@ -7,7 +7,7 @@ public sealed class EntityUser : ISupportCreatedAt, ISupportUpdatedAt
     public string DisplayName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string NormalisedEmail { get; set; } = string.Empty;
-    public string PasswordHash { get; set; } = string.Empty;
+    public string? PasswordHash { get; set; }
     public UserRole Role { get; set; } = UserRole.Standard;
     public UserIdentityType IdentityType { get; set; } = UserIdentityType.User;
     public bool IsActive { get; set; } = true;

@@ -189,6 +189,65 @@ public sealed class AuthServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task LoginAsync_WhenClientHasPasswordCredential_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var passwordHashService = ResolveService<IPasswordHashService>();
+        var client = new EntityUser
+        {
+            UserName = "client-bot",
+            DisplayName = "Client Bot",
+            Email = "client-bot@localhost",
+            NormalisedEmail = "client-bot@localhost",
+            PasswordHash = passwordHashService.HashPassword("Password1234!"),
+            Role = UserRole.Standard,
+            IdentityType = UserIdentityType.Client,
+            IsActive = true,
+        };
+        DbContextForArrange.Users.Add(client);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.LoginAsync(new LoginRequest(client.UserName, "Password1234!"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(401, result.StatusCode);
+        Assert.Empty(await DbContextForAssert.RefreshTokens.ToListAsync());
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenHumanPasswordIsMissing_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var user = new EntityUser
+        {
+            UserName = "passwordless-user",
+            DisplayName = "Passwordless User",
+            Email = "passwordless-user@localhost",
+            NormalisedEmail = "passwordless-user@localhost",
+            PasswordHash = null,
+            Role = UserRole.Standard,
+            IdentityType = UserIdentityType.User,
+            IsActive = true,
+        };
+        DbContextForArrange.Users.Add(user);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.LoginAsync(new LoginRequest(user.UserName, "Password1234!"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(401, result.StatusCode);
+        Assert.Empty(await DbContextForAssert.RefreshTokens.ToListAsync());
+    }
+
+    [Fact]
     public async Task ChangeOwnPasswordAsync_WhenCurrentPasswordInvalid_ShouldReturnUnauthorized()
     {
         // Arrange
