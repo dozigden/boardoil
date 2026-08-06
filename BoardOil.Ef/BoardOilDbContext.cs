@@ -26,6 +26,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.UseOpenIddict();
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BoardOilDbContext).Assembly);
     }
 

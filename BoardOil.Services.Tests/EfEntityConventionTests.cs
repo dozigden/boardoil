@@ -9,6 +9,15 @@ public sealed class EfEntityConventionTests
 {
     private static readonly string PersistenceEntitiesNamespace = typeof(EntityTag).Namespace!;
     private const string PersistenceEntityPrefix = "Entity";
+    private const string OpenIddictEntitiesNamespace = "OpenIddict.EntityFrameworkCore.Models";
+    private static readonly IReadOnlyDictionary<string, string> ApprovedOpenIddictTables =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["OpenIddictEntityFrameworkCoreApplication"] = "OpenIddictApplications",
+            ["OpenIddictEntityFrameworkCoreAuthorization"] = "OpenIddictAuthorizations",
+            ["OpenIddictEntityFrameworkCoreScope"] = "OpenIddictScopes",
+            ["OpenIddictEntityFrameworkCoreToken"] = "OpenIddictTokens",
+        };
 
     [Fact]
     public void SaveChanges_ShouldPopulateCreatedAndUpdatedAt_ForEntitiesSupportingBoth()
@@ -85,7 +94,7 @@ public sealed class EfEntityConventionTests
     }
 
     [Fact]
-    public void AllMappedTables_ShouldUseEntityTypesFromPersistenceNamespace()
+    public void AllMappedTables_ShouldUseApprovedPersistenceEntityTypes()
     {
         using var context = CreateDbContext();
 
@@ -103,13 +112,22 @@ public sealed class EfEntityConventionTests
 
         foreach (var mapping in tableMappings)
         {
-            Assert.True(
-                string.Equals(mapping.ClrTypeNamespace, PersistenceEntitiesNamespace, StringComparison.Ordinal),
-                $"Table '{mapping.TableName}' maps to '{mapping.ClrTypeNamespace}.{mapping.ClrTypeName}', not '{PersistenceEntitiesNamespace}'.");
+            if (string.Equals(mapping.ClrTypeNamespace, PersistenceEntitiesNamespace, StringComparison.Ordinal))
+            {
+                Assert.True(
+                    mapping.ClrTypeName.StartsWith(PersistenceEntityPrefix, StringComparison.Ordinal),
+                    $"Table '{mapping.TableName}' maps to '{mapping.ClrTypeName}', which does not start with '{PersistenceEntityPrefix}'.");
+                continue;
+            }
 
             Assert.True(
-                mapping.ClrTypeName.StartsWith(PersistenceEntityPrefix, StringComparison.Ordinal),
-                $"Table '{mapping.TableName}' maps to '{mapping.ClrTypeName}', which does not start with '{PersistenceEntityPrefix}'.");
+                string.Equals(mapping.ClrTypeNamespace, OpenIddictEntitiesNamespace, StringComparison.Ordinal),
+                $"Table '{mapping.TableName}' maps to unapproved persistence type '{mapping.ClrTypeNamespace}.{mapping.ClrTypeName}'.");
+
+            Assert.True(
+                ApprovedOpenIddictTables.TryGetValue(mapping.ClrTypeName, out var approvedTable),
+                $"Table '{mapping.TableName}' maps to unapproved OpenIddict type '{mapping.ClrTypeName}'.");
+            Assert.Equal(approvedTable, mapping.TableName);
         }
     }
 

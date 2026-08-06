@@ -16,6 +16,7 @@ public sealed class BoardOilDbContextFactory(string connectionString) : IDbConte
 
         var options = new DbContextOptionsBuilder<BoardOilDbContext>()
             .UseSqlite(_connectionString)
+            .UseOpenIddict()
             .Options;
 
         return (TDbContext)(DbContext)new BoardOilDbContext(options);

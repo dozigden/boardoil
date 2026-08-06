@@ -26,6 +26,10 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddBoardOilEfInfrastructure(this IServiceCollection services, string connectionString)
     {
+        services.AddDbContext<BoardOilDbContext>(options =>
+            options
+                .UseSqlite(connectionString)
+                .UseOpenIddict());
         services.AddSingleton<IDbContextFactory>(_ => new BoardOilDbContextFactory(connectionString));
         services.AddTransient<IDbContextScopeFactory, DbContextScopeFactory>();
         services.AddTransient<IAmbientDbContextLocator, AmbientDbContextLocator>();

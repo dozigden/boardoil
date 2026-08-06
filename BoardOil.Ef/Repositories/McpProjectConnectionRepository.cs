@@ -21,6 +21,11 @@ public sealed class McpProjectConnectionRepository(IAmbientDbContextLocator ambi
             .Include(x => x.ClientAccount)
             .SingleOrDefaultAsync(x => x.Id == id);
 
+    public Task<EntityMcpProjectConnection?> GetByPublicIdAsync(string publicId) =>
+        DbSet
+            .Include(x => x.ClientAccount)
+            .SingleOrDefaultAsync(x => x.PublicId == publicId);
+
     public Task<bool> AnyForClientAccountAsync(int clientAccountId) =>
         DbSet.AnyAsync(x => x.ClientAccountId == clientAccountId);
 

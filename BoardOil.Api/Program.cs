@@ -3,6 +3,7 @@ using BoardOil.Api.Configuration;
 using BoardOil.Api.Endpoints;
 using BoardOil.Api.Extensions;
 using BoardOil.Api.Mcp;
+using BoardOil.Api.OAuth;
 using BoardOil.Api.Realtime;
 using BoardOil.Api.Swagger;
 using BoardOil.Abstractions;
@@ -31,6 +32,7 @@ var connectionString = runtimeOptions.ResolveConnectionString(builder.Configurat
 var imageStorageOptions = BoardOilImageStorageOptions.Resolve(builder.Configuration, connectionString);
 builder.Services.AddBoardOilServices();
 builder.Services.AddBoardOilEfInfrastructure(connectionString);
+builder.Services.AddBoardOilOAuth();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("BoardOilDevClient", policy =>
@@ -117,6 +119,7 @@ app.LogMcpStartupWarnings();
 
 await app.Services.InitializeBoardOilEfInfrastructureAsync();
 app.UseCors("BoardOilDevClient");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.MapBoardOilMcp();
 app.Use(async (context, next) =>
@@ -194,6 +197,7 @@ app.MapSystemInfoMessageEndpoints();
 app.MapUserEndpoints();
 app.MapClientAccountEndpoints();
 app.MapMcpProjectConnectionEndpoints();
+app.MapOAuthEndpoints();
 
 app.MapAuthEndpoints();
 

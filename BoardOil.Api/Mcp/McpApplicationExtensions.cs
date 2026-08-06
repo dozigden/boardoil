@@ -87,7 +87,8 @@ public static class McpApplicationExtensions
         || path.StartsWithSegments("/v1/mcp", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsMcpAuthRequiredPath(PathString path, BoardOilMcpOptions mcpOptions) =>
-        path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase)
+        (path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase)
+            && !path.StartsWithSegments("/mcp/connections", StringComparison.OrdinalIgnoreCase))
         || (mcpOptions.SupportsLegacySseTransport
             && path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase))
         || (mcpOptions.SupportsLegacySseTransport

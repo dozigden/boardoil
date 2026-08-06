@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-08-03T19:22:20.121Z",
+  "generatedAtUtc": "2026-08-06T19:22:21.285Z",
   "packageSource": "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -379,6 +379,60 @@
       "sourceType": "nuget-license-expression",
       "sourceFile": "~/.nuget/packages/newtonsoft.json/13.0.3/newtonsoft.json.nuspec",
       "outputFile": "compliance/third-party-licenses/nuget-newtonsoft.json-13.0.3.txt"
+    },
+    {
+      "ecosystem": "nuget",
+      "packageName": "OpenIddict.Abstractions",
+      "version": "7.6.0",
+      "declaredLicence": "Apache-2.0",
+      "sourceType": "nuget-license-expression",
+      "sourceFile": "~/.nuget/packages/openiddict.abstractions/7.6.0/openiddict.abstractions.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-openiddict.abstractions-7.6.0.txt"
+    },
+    {
+      "ecosystem": "nuget",
+      "packageName": "OpenIddict.Core",
+      "version": "7.6.0",
+      "declaredLicence": "Apache-2.0",
+      "sourceType": "nuget-license-expression",
+      "sourceFile": "~/.nuget/packages/openiddict.core/7.6.0/openiddict.core.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-openiddict.core-7.6.0.txt"
+    },
+    {
+      "ecosystem": "nuget",
+      "packageName": "OpenIddict.EntityFrameworkCore",
+      "version": "7.6.0",
+      "declaredLicence": "Apache-2.0",
+      "sourceType": "nuget-license-expression",
+      "sourceFile": "~/.nuget/packages/openiddict.entityframeworkcore/7.6.0/openiddict.entityframeworkcore.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-openiddict.entityframeworkcore-7.6.0.txt"
+    },
+    {
+      "ecosystem": "nuget",
+      "packageName": "OpenIddict.EntityFrameworkCore.Models",
+      "version": "7.6.0",
+      "declaredLicence": "Apache-2.0",
+      "sourceType": "nuget-license-expression",
+      "sourceFile": "~/.nuget/packages/openiddict.entityframeworkcore.models/7.6.0/openiddict.entityframeworkcore.models.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-openiddict.entityframeworkcore.models-7.6.0.txt"
+    },
+    {
+      "ecosystem": "nuget",
+      "packageName": "OpenIddict.Server",
+      "version": "7.6.0",
+      "declaredLicence": "Apache-2.0",
+      "sourceType": "nuget-license-expression",
+      "sourceFile": "~/.nuget/packages/openiddict.server/7.6.0/openiddict.server.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-openiddict.server-7.6.0.txt"
+    },
+    {
+      "ecosystem": "nuget",
+      "packageName": "OpenIddict.Server.AspNetCore",
+      "version": "7.6.0",
+      "declaredLicence": "Apache-2.0",
+      "sourceType": "nuget-license-expression",
+      "sourceFile": "~/.nuget/packages/openiddict.server.aspnetcore/7.6.0/openiddict.server.aspnetcore.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-openiddict.server.aspnetcore-7.6.0.txt"
     },
     {
       "ecosystem": "nuget",

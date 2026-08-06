@@ -7,6 +7,7 @@ public interface IMcpProjectConnectionRepository : IRepositoryBase<EntityMcpProj
 {
     Task<IReadOnlyList<EntityMcpProjectConnection>> GetAllOrderedAsync();
     Task<EntityMcpProjectConnection?> GetByIdWithClientAccountAsync(int id);
+    Task<EntityMcpProjectConnection?> GetByPublicIdAsync(string publicId);
     Task<bool> AnyForClientAccountAsync(int clientAccountId);
     Task<bool> PublicIdExistsAsync(string publicId);
 }
