@@ -19,6 +19,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityUser> Users => Set<EntityUser>();
     public DbSet<EntityRefreshToken> RefreshTokens => Set<EntityRefreshToken>();
     public DbSet<EntityPersonalAccessToken> PersonalAccessTokens => Set<EntityPersonalAccessToken>();
+    public DbSet<EntityMcpProjectConnection> McpProjectConnections => Set<EntityMcpProjectConnection>();
     public DbSet<EntityAppSetting> AppSettings => Set<EntityAppSetting>();
     public DbSet<EntitySystemInfoMessage> SystemInfoMessages => Set<EntitySystemInfoMessage>();
     public DbSet<EntityImage> Images => Set<EntityImage>();

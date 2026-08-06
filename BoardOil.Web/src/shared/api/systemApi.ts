@@ -15,6 +15,10 @@ import type {
   UpdateManagedUserRequest
 } from '../types/authTypes';
 import type { ConfigurationDto, SystemInfoMessageDto, UpdateConfigurationRequest } from '../types/configurationTypes';
+import type {
+  CreateMcpProjectConnectionRequest,
+  McpProjectConnection
+} from '../types/mcpProjectConnectionTypes';
 import { err, ok } from '../types/result';
 import { deleteJson, getEnvelope, patchData, postData, postFormData, putData, putJson } from './http';
 
@@ -163,6 +167,25 @@ export function createSystemApi() {
     return deleteJson(`/api/system/client-accounts/${clientAccountId}/profile-image`);
   }
 
+  async function getMcpProjectConnections(): Promise<Result<McpProjectConnection[], AppError>> {
+    const envelopeResult = await getEnvelope<McpProjectConnection[]>('/api/system/mcp-project-connections');
+    if (!envelopeResult.ok) {
+      return envelopeResult;
+    }
+
+    return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function createMcpProjectConnection(
+    request: CreateMcpProjectConnectionRequest
+  ): Promise<Result<McpProjectConnection, AppError>> {
+    return postData<McpProjectConnection>('/api/system/mcp-project-connections', request);
+  }
+
+  async function revokeMcpProjectConnection(connectionId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/system/mcp-project-connections/${connectionId}`);
+  }
+
   return {
     getConfiguration,
     updateConfiguration,
@@ -186,7 +209,10 @@ export function createSystemApi() {
     revokeClientAccountToken,
     deleteClientAccount,
     uploadClientAccountProfileImage,
-    deleteClientAccountProfileImage
+    deleteClientAccountProfileImage,
+    getMcpProjectConnections,
+    createMcpProjectConnection,
+    revokeMcpProjectConnection
   };
 }
 

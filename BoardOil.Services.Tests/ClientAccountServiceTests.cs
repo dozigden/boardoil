@@ -252,6 +252,35 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         Assert.False(await DbContextForAssert.Images.AnyAsync(x => x.EntityType == ImageEntityType.UserProfile && x.EntityId == client.Id));
     }
 
+    [Fact]
+    public async Task DeleteClientAccountAsync_WhenProjectConnectionExists_ShouldReturnBadRequest()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var client = await AddUserAsync("client-bot", "client-bot@localhost", UserIdentityType.Client);
+        var administrator = await AddUserAsync("admin", "admin@localhost", UserIdentityType.User);
+        DbContextForArrange.McpProjectConnections.Add(new EntityMcpProjectConnection
+        {
+            PublicId = new string('a', 64),
+            Name = "Repository",
+            ClientAccountId = client.Id,
+            AllowedScopesCsv = MachinePatScopes.McpRead,
+            CreatedByUserId = administrator.Id,
+            CreatedByUserName = administrator.UserName,
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IClientAccountService>();
+
+        // Act
+        var result = await service.DeleteClientAccountAsync(client.Id);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(await DbContextForAssert.Users.SingleOrDefaultAsync(x => x.Id == client.Id));
+        Assert.NotNull(await DbContextForAssert.McpProjectConnections.SingleOrDefaultAsync());
+    }
+
     private async Task RemoveAllUsersAsync()
     {
         DbContextForArrange.Users.RemoveRange(DbContextForArrange.Users);

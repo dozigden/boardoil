@@ -118,6 +118,42 @@ describe('systemApi', () => {
     expect(deleteJson).toHaveBeenCalledWith('/api/system/client-accounts/7/profile-image');
   });
 
+  it('getMcpProjectConnections reads the project connection collection', async () => {
+    getEnvelope.mockResolvedValueOnce(ok({
+      success: true,
+      statusCode: 200,
+      message: null,
+      data: []
+    }));
+    const api = createSystemApi();
+
+    const result = await api.getMcpProjectConnections();
+
+    expect(getEnvelope).toHaveBeenCalledWith('/api/system/mcp-project-connections');
+    expect(result).toEqual(ok([]));
+  });
+
+  it('createMcpProjectConnection posts the owning client and scopes', async () => {
+    const api = createSystemApi();
+    const request = {
+      clientAccountId: 7,
+      name: 'Repository',
+      allowedScopes: ['mcp:read' as const]
+    };
+
+    await api.createMcpProjectConnection(request);
+
+    expect(postData).toHaveBeenCalledWith('/api/system/mcp-project-connections', request);
+  });
+
+  it('revokeMcpProjectConnection deletes the active project connection resource', async () => {
+    const api = createSystemApi();
+
+    await api.revokeMcpProjectConnection(14);
+
+    expect(deleteJson).toHaveBeenCalledWith('/api/system/mcp-project-connections/14');
+  });
+
   it('getSystemInfoMessage reads from the system-info endpoint', async () => {
     getEnvelope.mockResolvedValueOnce(ok({
       success: true,

@@ -9,6 +9,7 @@ using BoardOil.Contracts.Users;
 using BoardOil.Data.Abstractions.Auth;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Image;
+using BoardOil.Data.Abstractions.Mcp;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Services.Auth;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ public sealed class ClientAccountService(
     IImageRepository imageRepository,
     IImageStorageService imageStorageService,
     IPersonalAccessTokenRepository personalAccessTokenRepository,
+    IMcpProjectConnectionRepository mcpProjectConnectionRepository,
     TimeProvider timeProvider,
     IDbContextScopeFactory scopeFactory) : IClientAccountService
 {
@@ -227,6 +229,12 @@ public sealed class ClientAccountService(
         if (user is null || user.IdentityType != UserIdentityType.Client)
         {
             return ApiErrors.NotFound("Client account not found.");
+        }
+
+        if (await mcpProjectConnectionRepository.AnyForClientAccountAsync(clientAccountId))
+        {
+            return ApiErrors.BadRequest(
+                "Client accounts with project connections cannot be deleted; revoke the connections instead.");
         }
 
         var profileImages = await imageRepository.Query()
