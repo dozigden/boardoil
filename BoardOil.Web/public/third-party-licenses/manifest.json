@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-08-06T19:22:21.285Z",
+  "generatedAtUtc": "2026-08-07T08:17:47.373Z",
   "packageSource": "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -433,6 +433,33 @@
       "sourceType": "nuget-license-expression",
       "sourceFile": "~/.nuget/packages/openiddict.server.aspnetcore/7.6.0/openiddict.server.aspnetcore.nuspec",
       "outputFile": "compliance/third-party-licenses/nuget-openiddict.server.aspnetcore-7.6.0.txt"
+    },
+    {
+      "ecosystem": "nuget",
+      "packageName": "OpenIddict.Validation",
+      "version": "7.6.0",
+      "declaredLicence": "Apache-2.0",
+      "sourceType": "nuget-license-expression",
+      "sourceFile": "~/.nuget/packages/openiddict.validation/7.6.0/openiddict.validation.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-openiddict.validation-7.6.0.txt"
+    },
+    {
+      "ecosystem": "nuget",
+      "packageName": "OpenIddict.Validation.AspNetCore",
+      "version": "7.6.0",
+      "declaredLicence": "Apache-2.0",
+      "sourceType": "nuget-license-expression",
+      "sourceFile": "~/.nuget/packages/openiddict.validation.aspnetcore/7.6.0/openiddict.validation.aspnetcore.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-openiddict.validation.aspnetcore-7.6.0.txt"
+    },
+    {
+      "ecosystem": "nuget",
+      "packageName": "OpenIddict.Validation.ServerIntegration",
+      "version": "7.6.0",
+      "declaredLicence": "Apache-2.0",
+      "sourceType": "nuget-license-expression",
+      "sourceFile": "~/.nuget/packages/openiddict.validation.serverintegration/7.6.0/openiddict.validation.serverintegration.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-openiddict.validation.serverintegration-7.6.0.txt"
     },
     {
       "ecosystem": "nuget",
