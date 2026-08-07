@@ -54,7 +54,7 @@ public sealed class McpAuthorisationServiceTests
         // Arrange
         var identity = new ClaimsIdentity(
         [
-            new Claim("boardoil_client_account_id", "57")
+            new Claim("boardoil_user_id", "57")
         ], "test");
         var principal = new ClaimsPrincipal(identity);
         principal.SetScopes(MachinePatScopes.McpRead);

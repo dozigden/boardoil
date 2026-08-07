@@ -4,33 +4,32 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace BoardOil.Ef.Configurations;
 
-public sealed class McpProjectConnectionConfiguration : IEntityTypeConfiguration<EntityMcpProjectConnection>
+public sealed class OAuthConnectionConfiguration : IEntityTypeConfiguration<EntityOAuthConnection>
 {
-    public void Configure(EntityTypeBuilder<EntityMcpProjectConnection> connection)
+    public void Configure(EntityTypeBuilder<EntityOAuthConnection> connection)
     {
         connection.HasKey(x => x.Id);
-        connection.Property(x => x.PublicId).HasMaxLength(64).IsRequired();
+        connection.Property(x => x.ResourceType).HasMaxLength(32).IsRequired();
         connection.Property(x => x.Name).HasMaxLength(120).IsRequired();
-        connection.Property(x => x.AllowedScopesCsv).HasMaxLength(100).IsRequired();
-        connection.Property(x => x.CreatedByUserName).HasMaxLength(64).IsRequired();
+        connection.Property(x => x.NormalisedName).HasMaxLength(120).IsRequired();
         connection.Property(x => x.RevokedByUserName).HasMaxLength(64).IsRequired(false);
         connection.Property(x => x.CreatedAtUtc).IsRequired();
         connection.Property(x => x.UpdatedAtUtc).IsRequired();
         connection.Property(x => x.RevokedAtUtc).IsRequired(false);
-        connection.ToTable("McpProjectConnections");
+        connection.ToTable("OAuthConnections");
 
-        connection.HasIndex(x => x.PublicId).IsUnique();
-        connection.HasIndex(x => x.ClientAccountId);
+        connection.HasIndex(x => new { x.UserId, x.ResourceType, x.NormalisedName }).IsUnique();
+        connection.HasIndex(x => x.ActiveGrantId).IsUnique();
         connection.HasIndex(x => x.RevokedAtUtc);
 
-        connection.HasOne(x => x.ClientAccount)
+        connection.HasOne(x => x.User)
             .WithMany()
-            .HasForeignKey(x => x.ClientAccountId)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        connection.HasOne(x => x.ActiveGrant)
+            .WithOne()
+            .HasForeignKey<EntityOAuthConnection>(x => x.ActiveGrantId)
             .OnDelete(DeleteBehavior.Restrict);
-        connection.HasOne(x => x.CreatedByUser)
-            .WithMany()
-            .HasForeignKey(x => x.CreatedByUserId)
-            .OnDelete(DeleteBehavior.SetNull);
         connection.HasOne(x => x.RevokedByUser)
             .WithMany()
             .HasForeignKey(x => x.RevokedByUserId)

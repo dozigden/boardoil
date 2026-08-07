@@ -23,10 +23,6 @@ const navItems = [
     to: { name: 'client-accounts' }
   },
   {
-    label: 'Project Connections',
-    to: { name: 'mcp-project-connections' }
-  },
-  {
     label: 'Configuration',
     to: { name: 'configuration' }
   },

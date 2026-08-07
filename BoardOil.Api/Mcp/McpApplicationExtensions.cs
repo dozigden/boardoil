@@ -20,7 +20,7 @@ public static class McpApplicationExtensions
         app.Use(async (context, next) =>
         {
             if (context.Request.Path.StartsWithSegments(
-                    "/mcp/connections",
+                    OAuthResources.McpPath,
                     StringComparison.OrdinalIgnoreCase))
             {
                 context.Response.OnStarting(async () =>
@@ -42,20 +42,14 @@ public static class McpApplicationExtensions
                         return;
                     }
 
-                    var publicId = context.Request.RouteValues["publicId"]?.ToString();
-                    if (string.IsNullOrWhiteSpace(publicId))
-                    {
-                        return;
-                    }
-
                     var metadataService = context.RequestServices
                         .GetRequiredService<IOAuthProtectedResourceMetadataService>();
-                    var metadata = await metadataService.GetAsync(publicId, context.Request);
+                    var metadata = await metadataService.GetMcpAsync(context.Request);
                     var urlResolver = context.RequestServices
                         .GetRequiredService<OAuthEndpointUrlResolver>();
                     var metadataUrl = await urlResolver.ResolveAsync(
                         context.Request,
-                        $"/.well-known/oauth-protected-resource/mcp/connections/{publicId}");
+                        OAuthResources.McpMetadataPath);
                     var parameters = new List<string>();
                     var error = challenge?.Error;
                     if (error is null
@@ -76,7 +70,7 @@ public static class McpApplicationExtensions
 
                     parameters.Add($"resource_metadata=\"{metadataUrl}\"");
                     var challengedScopes = challenge?.RequiredScope;
-                    if (string.IsNullOrWhiteSpace(challengedScopes) && metadata is not null)
+                    if (string.IsNullOrWhiteSpace(challengedScopes))
                     {
                         challengedScopes = string.Join(' ', metadata.ScopesSupported);
                     }
@@ -136,7 +130,7 @@ public static class McpApplicationExtensions
             mcpEndpoint.RequireAuthorization(BoardOilPolicies.McpAuthenticated);
         }
 
-        app.MapMcp("/mcp/connections/{publicId}")
+        app.MapMcp(OAuthResources.McpPath)
             .RequireAuthorization(BoardOilPolicies.McpOAuthConnection);
 
         app.MapGet("/.well-known/mcp", async (IConfigurationService configurationService) =>
@@ -168,7 +162,7 @@ public static class McpApplicationExtensions
 
     private static bool IsMcpAuthRequiredPath(PathString path, BoardOilMcpOptions mcpOptions) =>
         (path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase)
-            && !path.StartsWithSegments("/mcp/connections", StringComparison.OrdinalIgnoreCase))
+            && !path.StartsWithSegments(OAuthResources.McpPath, StringComparison.OrdinalIgnoreCase))
         || (mcpOptions.SupportsLegacySseTransport
             && path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase))
         || (mcpOptions.SupportsLegacySseTransport

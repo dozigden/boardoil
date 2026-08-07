@@ -8,7 +8,6 @@ using BoardOil.Api.OAuth;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Board;
-using BoardOil.Contracts.Mcp;
 using BoardOil.Contracts.Users;
 using BoardOil.Ef;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -23,6 +22,7 @@ namespace BoardOil.Api.Tests;
 
 public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIntegrationTestBase
 {
+    private const string RegistrationExpiresAtProperty = "boardoil:registration_expires_at";
     private readonly ManualTimeProvider timeProvider = new(DateTimeOffset.UtcNow);
 
     protected override BoardOilApiFactory CreateFactory(string databasePath) =>
@@ -57,11 +57,12 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Contains("/api/auth/login", anonymousPage);
         Assert.Equal(HttpStatusCode.OK, consentResponse.StatusCode);
         Assert.Contains("Authorise Codex", consentPage);
-        Assert.Contains("Repository Client (repository-client)", consentPage);
-        Assert.Contains("Repository connection", consentPage);
+        Assert.Contains("(@admin)", consentPage);
+        Assert.Contains("Connection name", consentPage);
+        Assert.Contains("Redirect URI", consentPage);
         Assert.Contains(WebUtility.HtmlEncode(scenario.Resource), consentPage);
         Assert.Contains(MachinePatScopes.McpRead, consentPage);
-        Assert.Contains("Your own board access is not delegated", consentPage);
+        Assert.Contains("your signed-in BoardOil user", consentPage);
     }
 
     [Fact]
@@ -95,45 +96,77 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
-    public async Task AuthorizationRequest_WhenHumanIsNotAdmin_ShouldReturnAccessDenied()
+    public async Task AuthorizationRequest_WhenUserIsNotAdmin_ShouldAllowSelfConsent()
     {
         // Arrange
         var adminClient = CreateOAuthClient();
         var scenario = await CreateScenarioAsync(adminClient, [MachinePatScopes.McpRead]);
-        await RegisterInitialAdminAsync(adminClient);
-        await CreateUserAsAdminAsync(adminClient, "ordinary-user", "Password1234!", "Standard");
+        var adminRequest = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var adminCode = await ApproveAsync(adminClient, scenario, adminRequest);
+        var adminExchange = await ExchangeCodeAsync(
+            adminClient,
+            scenario,
+            adminRequest,
+            adminCode);
+        Assert.Equal(HttpStatusCode.OK, adminExchange.StatusCode);
+        var ordinaryUserId = await CreateUserAsAdminAsync(
+            adminClient,
+            "ordinary-user",
+            "Password1234!",
+            "Standard");
         var standardClient = CreateOAuthClient();
         await LoginAsAsync(standardClient, "ordinary-user", "Password1234!");
         var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
 
         // Act
         var response = await standardClient.GetAsync(request.Url);
+        var responsePage = await response.Content.ReadAsStringAsync();
 
         // Assert
-        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Contains("error=access_denied", response.Headers.Location?.Query);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("ordinary-user (@ordinary-user)", responsePage);
+        Assert.DoesNotContain("client_account_id", responsePage);
+        Assert.Contains("const existingConnections=[]", responsePage);
+
+        var standardScenario = scenario with { UserId = ordinaryUserId };
+        var code = await ApproveAsync(standardClient, standardScenario, request);
+        var exchange = await ExchangeCodeAsync(standardClient, standardScenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+        var connections = await dbContext.OAuthConnections
+            .OrderBy(x => x.Id)
+            .ToArrayAsync();
+        Assert.Equal(2, connections.Length);
+        Assert.Equal(scenario.UserId, connections[0].UserId);
+        Assert.Equal(ordinaryUserId, connections[1].UserId);
+        Assert.Equal(connections[0].Name, connections[1].Name);
     }
 
     [Fact]
-    public async Task AuthorizationRequest_WhenScopeExceedsConnection_ShouldReturnInvalidScope()
+    public async Task Approval_WhenScopeWasNotRequested_ShouldReturnValidationError()
     {
         // Arrange
         var client = CreateOAuthClient();
         var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
         await RegisterInitialAdminAsync(client);
-        var request = CreateAuthorizationRequest(
-            scenario,
-            $"{MachinePatScopes.McpRead} {MachinePatScopes.McpWrite}");
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
 
         // Act
-        var response = await client.GetAsync(request.Url);
+        var response = await SubmitDecisionAsync(
+            client,
+            scenario,
+            request,
+            "approve",
+            [MachinePatScopes.McpWrite]);
 
         // Assert
-        var responseBody = await response.Content.ReadAsStringAsync();
-        Assert.True(
-            response.StatusCode == HttpStatusCode.Redirect,
-            $"Expected an OAuth redirect but received {(int)response.StatusCode}: {responseBody}");
-        Assert.Contains("error=invalid_scope", response.Headers.Location?.Query);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(
+            "Approved scopes must be a subset of the requested MCP scopes.",
+            await response.Content.ReadAsStringAsync());
     }
 
     [Fact]
@@ -163,7 +196,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         // Arrange
         var client = CreateOAuthClient();
         var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
-        var differentResource = scenario.Resource[..^64] + new string('0', 64);
+        var differentResource = $"{scenario.PublicBaseUrl}/mcp";
         var request = CreateAuthorizationRequest(
             scenario,
             MachinePatScopes.McpRead,
@@ -178,7 +211,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
-    public async Task AuthorizationRequest_WhenAdministratorDenies_ShouldReturnAccessDenied()
+    public async Task AuthorizationRequest_WhenUserDenies_ShouldReturnAccessDenied()
     {
         // Arrange
         var client = CreateOAuthClient();
@@ -186,11 +219,55 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
 
         // Act
-        var response = await SubmitDecisionAsync(client, request, "deny");
+        var response = await SubmitDecisionAsync(client, scenario, request, "deny");
 
         // Assert
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Contains("error=access_denied", response.Headers.Location?.Query);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+        Assert.Empty(await dbContext.OAuthConnections.ToArrayAsync());
+        Assert.Empty(await dbContext.OAuthConnectionGrants.ToArrayAsync());
+
+        var applicationManager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+        var application = await applicationManager.FindByClientIdAsync(scenario.OAuthClientId);
+        Assert.NotNull(application);
+        var properties = await applicationManager.GetPropertiesAsync(application!);
+        Assert.Contains(RegistrationExpiresAtProperty, properties);
+    }
+
+    [Fact]
+    public async Task Approval_WhenSubsetOfRequestedScopesIsSelected_ShouldIssueOnlySelectedScope()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(
+            scenario,
+            $"{MachinePatScopes.McpRead} {MachinePatScopes.McpWrite}");
+
+        // Act
+        var approval = await SubmitDecisionAsync(
+            client,
+            scenario,
+            request,
+            "approve",
+            [MachinePatScopes.McpRead]);
+        Assert.Equal(HttpStatusCode.Redirect, approval.StatusCode);
+        var code = ParseQuery(approval.Headers.Location!.Query, "code");
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        Assert.Equal(MachinePatScopes.McpRead, exchange.Scope);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+        var grant = await dbContext.OAuthConnectionGrants.SingleAsync();
+        Assert.Equal(MachinePatScopes.McpRead, grant.ApprovedScopesCsv);
     }
 
     [Fact]
@@ -237,14 +314,19 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var storedAuthorization = Assert.Single(authorizations);
         var properties = await authorizationManager.GetPropertiesAsync(storedAuthorization);
         Assert.Equal(
-            scenario.Connection.Id,
-            properties["boardoil:project_connection_id"].GetInt32());
-        Assert.Equal(
-            scenario.ClientAccountId,
-            properties["boardoil:client_account_id"].GetInt32());
+            scenario.UserId,
+            properties["boardoil:user_id"].GetInt32());
         Assert.Equal(
             scenario.Resource,
             properties["boardoil:resource"].GetString());
+
+        var applicationManager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+        var application = await applicationManager.FindByClientIdAsync(scenario.OAuthClientId);
+        Assert.NotNull(application);
+        var applicationProperties = await applicationManager.GetPropertiesAsync(application!);
+        Assert.DoesNotContain(
+            RegistrationExpiresAtProperty,
+            applicationProperties);
     }
 
     [Fact]
@@ -294,7 +376,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
 
     [Theory]
     [InlineData("connection")]
-    [InlineData("client")]
+    [InlineData("user")]
     [InlineData("authorization")]
     public async Task RefreshToken_WhenBindingIsDisabled_ShouldReturnInvalidGrant(string disabledBinding)
     {
@@ -306,7 +388,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var code = await ApproveAsync(client, scenario, request);
         var exchange = await ExchangeCodeAsync(client, scenario, request, code);
         Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
-        await DisableBindingAsync(client, scenario, disabledBinding);
+        await DisableBindingAsync(scenario, disabledBinding);
 
         // Act
         var response = await RefreshAsync(client, scenario, exchange.RefreshToken!);
@@ -368,7 +450,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var code = await ApproveAsync(client, scenario, request);
         var exchange = await ExchangeCodeAsync(client, scenario, request, code);
         Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
-        var endpoint = scenario.Connection.ResourceUrl;
+        const string endpoint = "/mcp/oauth";
 
         // Act
         var readResponse = await McpJsonRpcClient.SendRequestAsync(
@@ -415,47 +497,111 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
-    public async Task McpConnection_WhenTokenTargetsDifferentConnection_ShouldReturnForbidden()
+    public async Task Reauthorization_WhenNameIsReused_ShouldRequireWarningAndReplacePreviousGrant()
     {
         // Arrange
         var client = CreateOAuthClient();
         var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
-        var secondConnectionResponse = await client.PostAsJsonAsync(
-            "/api/system/mcp-project-connections",
-            new CreateMcpProjectConnectionRequest(
-                scenario.ClientAccountId,
-                "Different repository connection",
-                [MachinePatScopes.McpRead]));
-        secondConnectionResponse.EnsureSuccessStatusCode();
-        var secondConnection = await secondConnectionResponse.Content
-            .ReadFromJsonAsync<ApiEnvelope<McpProjectConnectionDto>>();
-        Assert.NotNull(secondConnection?.Data);
-        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
-        var code = await ApproveAsync(client, scenario, request);
-        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
-        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        var firstRequest = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var firstCode = await ApproveAsync(client, scenario, firstRequest);
+        var firstExchange = await ExchangeCodeAsync(client, scenario, firstRequest, firstCode);
+        Assert.Equal(HttpStatusCode.OK, firstExchange.StatusCode);
+        var replacementRequest = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
 
         // Act
-        var response = await McpJsonRpcClient.SendRequestAsync(
+        var unconfirmed = await SubmitDecisionAsync(
+            client,
+            scenario,
+            replacementRequest,
+            "approve");
+        var replacementApproval = await SubmitDecisionAsync(
+            client,
+            scenario,
+            replacementRequest,
+            "approve",
+            replaceExisting: true);
+        var replacementCode = ParseQuery(replacementApproval.Headers.Location!.Query, "code");
+        var replacementExchange = await ExchangeCodeAsync(
+            client,
+            scenario,
+            replacementRequest,
+            replacementCode);
+        var oldTokenResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/list",
             new { },
-            "oauth-cross-connection",
-            exchange.AccessToken,
-            secondConnection!.Data!.ResourceUrl);
+            "oauth-replaced-grant",
+            firstExchange.AccessToken,
+            "/mcp/oauth");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        var challenge = response.Headers.WwwAuthenticate.ToString();
-        Assert.Contains("error=\"invalid_token\"", challenge);
-        Assert.Contains(
-            $"/.well-known/oauth-protected-resource/mcp/connections/{secondConnection.Data.PublicId}",
-            challenge);
+        Assert.Equal(HttpStatusCode.BadRequest, unconfirmed.StatusCode);
+        var unconfirmedPage = await unconfirmed.Content.ReadAsStringAsync();
+        Assert.Contains("Confirm replacement", unconfirmedPage);
+        Assert.Contains("Repository connection", unconfirmedPage);
+        Assert.Equal(HttpStatusCode.Redirect, replacementApproval.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, replacementExchange.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, oldTokenResponse.StatusCode);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+        var connection = await dbContext.OAuthConnections.SingleAsync();
+        var grants = await dbContext.OAuthConnectionGrants.OrderBy(x => x.Id).ToArrayAsync();
+        Assert.Equal("Repository connection", connection.Name);
+        Assert.Equal(2, grants.Length);
+        Assert.Equal("replaced", grants[0].RevocationReason);
+        Assert.Equal(grants[1].Id, connection.ActiveGrantId);
+    }
+
+    [Fact]
+    public async Task Reauthorization_WhenNameDiffers_ShouldCreateIndependentConnection()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var firstScenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var firstRequest = CreateAuthorizationRequest(firstScenario, MachinePatScopes.McpRead);
+        var firstCode = await ApproveAsync(client, firstScenario, firstRequest);
+        var firstExchange = await ExchangeCodeAsync(client, firstScenario, firstRequest, firstCode);
+        Assert.Equal(HttpStatusCode.OK, firstExchange.StatusCode);
+        var secondScenario = firstScenario with { ConnectionName = "Second installation" };
+        var secondRequest = CreateAuthorizationRequest(secondScenario, MachinePatScopes.McpRead);
+
+        // Act
+        var secondCode = await ApproveAsync(client, secondScenario, secondRequest);
+        var secondExchange = await ExchangeCodeAsync(client, secondScenario, secondRequest, secondCode);
+        var firstTokenResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "oauth-first-independent-connection",
+            firstExchange.AccessToken,
+            "/mcp/oauth");
+        var secondTokenResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "oauth-second-independent-connection",
+            secondExchange.AccessToken,
+            "/mcp/oauth");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, firstTokenResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondTokenResponse.StatusCode);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+        var connections = await dbContext.OAuthConnections.OrderBy(x => x.Id).ToArrayAsync();
+        Assert.Equal(2, connections.Length);
+        Assert.Equal("Repository connection", connections[0].Name);
+        Assert.Equal("Second installation", connections[1].Name);
+        Assert.All(connections, connection => Assert.NotNull(connection.ActiveGrantId));
     }
 
     [Theory]
     [InlineData("connection")]
-    [InlineData("client")]
+    [InlineData("user")]
     [InlineData("authorization")]
     public async Task McpConnection_WhenBindingIsDisabled_ShouldRejectExistingAccessToken(
         string disabledBinding)
@@ -467,7 +613,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var code = await ApproveAsync(client, scenario, request);
         var exchange = await ExchangeCodeAsync(client, scenario, request, code);
         Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
-        await DisableBindingAsync(client, scenario, disabledBinding);
+        await DisableBindingAsync(scenario, disabledBinding);
 
         // Act
         var response = await McpJsonRpcClient.SendRequestAsync(
@@ -476,7 +622,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             new { },
             $"oauth-disabled-{disabledBinding}",
             exchange.AccessToken,
-            scenario.Connection.ResourceUrl);
+            "/mcp/oauth");
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -486,13 +632,21 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
-    public async Task McpConnection_WhenMembershipChanges_ShouldUseLiveAccessAndClientActor()
+    public async Task McpConnection_WhenMembershipChanges_ShouldUseLiveAccessAndUserActor()
     {
         // Arrange
-        var client = CreateOAuthClient();
+        var adminClient = CreateOAuthClient();
         var scenario = await CreateScenarioAsync(
-            client,
+            adminClient,
             [MachinePatScopes.McpRead, MachinePatScopes.McpWrite]);
+        var userId = await CreateUserAsAdminAsync(
+            adminClient,
+            "oauth-member",
+            "Password1234!",
+            "Standard");
+        scenario = scenario with { UserId = userId };
+        var client = CreateOAuthClient();
+        await LoginAsAsync(client, "oauth-member", "Password1234!");
         var request = CreateAuthorizationRequest(
             scenario,
             $"{MachinePatScopes.McpRead} {MachinePatScopes.McpWrite}");
@@ -503,9 +657,9 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var cardId = await SeedBoardCardAsync(columnId, "OAuth actor card", "");
         var beforeMembership = await GetOAuthBoardIdsAsync(client, scenario, exchange.AccessToken!);
         Assert.DoesNotContain(1, beforeMembership);
-        var addMembershipResponse = await client.PostAsJsonAsync(
+        var addMembershipResponse = await adminClient.PostAsJsonAsync(
             "/api/system/boards/1/members",
-            new AddBoardMemberRequest(scenario.ClientAccountId, "Contributor"));
+            new AddBoardMemberRequest(scenario.UserId, "Contributor"));
         addMembershipResponse.EnsureSuccessStatusCode();
 
         // Act
@@ -525,18 +679,18 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             },
             "oauth-comment-create",
             exchange.AccessToken,
-            scenario.Connection.ResourceUrl);
+            "/mcp/oauth");
         commentResponse.EnsureSuccessStatusCode();
         using var commentPayload = await McpJsonRpcClient.ParseJsonAsync(commentResponse);
-        var removeMembershipResponse = await client.DeleteAsync(
-            $"/api/system/boards/1/members/{scenario.ClientAccountId}");
+        var removeMembershipResponse = await adminClient.DeleteAsync(
+            $"/api/system/boards/1/members/{scenario.UserId}");
         removeMembershipResponse.EnsureSuccessStatusCode();
         var afterRemoval = await GetOAuthBoardIdsAsync(client, scenario, exchange.AccessToken!);
 
         // Assert
         Assert.Contains(1, afterMembership);
         var comment = McpJsonRpcClient.GetStructuredContent(commentPayload).GetProperty("comment");
-        Assert.Equal(scenario.ClientAccountId, comment.GetProperty("authorUserId").GetInt32());
+        Assert.Equal(scenario.UserId, comment.GetProperty("authorUserId").GetInt32());
         Assert.DoesNotContain(1, afterRemoval);
     }
 
@@ -553,13 +707,13 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             "tools/list",
             new { },
             "oauth-missing-token",
-            endpoint: scenario.Connection.ResourceUrl);
+            endpoint: "/mcp/oauth");
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Contains(response.Headers.WwwAuthenticate, value => value.Scheme == "Bearer");
         Assert.Contains(
-            $"resource_metadata=\"https://boardoil.example.com/.well-known/oauth-protected-resource/mcp/connections/{scenario.Connection.PublicId}\"",
+            "resource_metadata=\"https://boardoil.example.com/.well-known/oauth-protected-resource/mcp/oauth\"",
             response.Headers.WwwAuthenticate.ToString());
         Assert.DoesNotContain("error=", response.Headers.WwwAuthenticate.ToString());
     }
@@ -578,7 +732,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             new { },
             "oauth-invalid-token",
             "not-a-valid-access-token",
-            scenario.Connection.ResourceUrl);
+            "/mcp/oauth");
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -601,12 +755,12 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         // Act
         var invalidMethodResponse = await SendRawMcpRequestAsync(
             client,
-            scenario.Connection.ResourceUrl,
+            "/mcp/oauth",
             exchange.AccessToken!,
             """{"jsonrpc":"2.0","id":"invalid-method","method":42}""");
         var invalidNameResponse = await SendRawMcpRequestAsync(
             client,
-            scenario.Connection.ResourceUrl,
+            "/mcp/oauth",
             exchange.AccessToken!,
             """{"jsonrpc":"2.0","id":"invalid-name","method":"tools/call","params":{"name":42,"arguments":{}}}""");
 
@@ -642,7 +796,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             new { name = "board.list", arguments = new { } },
             $"oauth-board-list-{Guid.NewGuid():N}",
             accessToken,
-            scenario.Connection.ResourceUrl);
+            "/mcp/oauth");
         response.EnsureSuccessStatusCode();
         using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
         return McpJsonRpcClient.GetStructuredContent(payload)
@@ -673,28 +827,13 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             "/api/system/configuration",
             new UpdateConfigurationRequest(publicBaseUrl));
         configurationResponse.EnsureSuccessStatusCode();
-        var clientAccountResponse = await client.PostAsJsonAsync(
-            "/api/system/client-accounts",
-            new CreateClientAccountRequest(
-                "repository-client",
-                "Repository Client",
-                "repository-client@localhost",
-                "Standard"));
-        clientAccountResponse.EnsureSuccessStatusCode();
-        var clientAccount = await clientAccountResponse.Content
-            .ReadFromJsonAsync<ApiEnvelope<CreatedClientAccountDto>>();
-        Assert.NotNull(clientAccount?.Data);
-
-        var connectionResponse = await client.PostAsJsonAsync(
-            "/api/system/mcp-project-connections",
-            new CreateMcpProjectConnectionRequest(
-                clientAccount!.Data!.Account.Id,
-                "Repository connection",
-                allowedScopes));
-        connectionResponse.EnsureSuccessStatusCode();
-        var connection = await connectionResponse.Content
-            .ReadFromJsonAsync<ApiEnvelope<McpProjectConnectionDto>>();
-        Assert.NotNull(connection?.Data);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+        var userId = await dbContext.Users
+            .Where(x => x.UserName == "admin")
+            .Select(x => x.Id)
+            .SingleAsync();
 
         var redirectUri = "http://127.0.0.1:49152/callback/project";
         var registrationResponse = await client.PostAsJsonAsync(
@@ -714,12 +853,13 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.NotNull(registration);
 
         return new OAuthScenario(
-            connection!.Data!,
-            clientAccount.Data.Account.Id,
+            userId,
             registration!.ClientId,
             redirectUri,
-            $"{publicBaseUrl}{connection.Data.ResourceUrl}",
-            publicBaseUrl);
+            $"{publicBaseUrl}/mcp/oauth",
+            publicBaseUrl,
+            "Repository connection",
+            allowedScopes);
     }
 
     private static AuthorizationRequest CreateAuthorizationRequest(
@@ -752,7 +892,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         OAuthScenario scenario,
         AuthorizationRequest request)
     {
-        var approvalResponse = await SubmitDecisionAsync(client, request, "approve");
+        var approvalResponse = await SubmitDecisionAsync(client, scenario, request, "approve");
         Assert.Equal(HttpStatusCode.Redirect, approvalResponse.StatusCode);
         var location = approvalResponse.Headers.Location
             ?? throw new InvalidOperationException("The OAuth approval did not return a redirect.");
@@ -764,18 +904,31 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
 
     private static async Task<HttpResponseMessage> SubmitDecisionAsync(
         HttpClient client,
+        OAuthScenario scenario,
         AuthorizationRequest request,
-        string decision)
+        string decision,
+        string[]? approvedScopes = null,
+        bool replaceExisting = false)
     {
         var consentResponse = await client.GetAsync(request.Url);
         consentResponse.EnsureSuccessStatusCode();
         var consentPage = await consentResponse.Content.ReadAsStringAsync();
         var antiforgeryToken = ExtractAntiforgeryToken(consentPage);
-        var form = new Dictionary<string, string>(request.Parameters, StringComparer.Ordinal)
+        var form = request.Parameters
+            .Select(static pair => new KeyValuePair<string, string>(pair.Key, pair.Value))
+            .ToList();
+        form.Add(new("boardoil_oauth_antiforgery", antiforgeryToken));
+        form.Add(new("decision", decision));
+        form.Add(new("connection_name", scenario.ConnectionName));
+        if (replaceExisting)
         {
-            ["boardoil_oauth_antiforgery"] = antiforgeryToken,
-            ["decision"] = decision,
-        };
+            form.Add(new("replace_existing", "true"));
+        }
+
+        foreach (var scope in approvedScopes ?? scenario.ApprovalScopes)
+        {
+            form.Add(new("approved_scope", scope));
+        }
 
         return await client.PostAsync(
             "/connect/authorize",
@@ -817,26 +970,30 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         return await ReadTokenResponseAsync(response);
     }
 
-    private async Task DisableBindingAsync(
-        HttpClient client,
-        OAuthScenario scenario,
-        string disabledBinding)
+    private async Task DisableBindingAsync(OAuthScenario scenario, string disabledBinding)
     {
         if (disabledBinding == "connection")
-        {
-            var response = await client.DeleteAsync(
-                $"/api/system/mcp-project-connections/{scenario.Connection.Id}");
-            response.EnsureSuccessStatusCode();
-            return;
-        }
-
-        if (disabledBinding == "client")
         {
             await using var scope = Factory.Services.CreateAsyncScope();
             var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
             await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
-            var account = await dbContext.Users.SingleAsync(x => x.Id == scenario.ClientAccountId);
-            account.IsActive = false;
+            var connection = await dbContext.OAuthConnections
+                .Include(x => x.ActiveGrant)
+                .SingleAsync();
+            connection.RevokedAtUtc = timeProvider.GetUtcNow().UtcDateTime;
+            connection.ActiveGrant!.RevokedAtUtc = connection.RevokedAtUtc;
+            connection.ActiveGrant.RevocationReason = "revoked";
+            await dbContext.SaveChangesAsync();
+            return;
+        }
+
+        if (disabledBinding == "user")
+        {
+            await using var scope = Factory.Services.CreateAsyncScope();
+            var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+            await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+            var user = await dbContext.Users.SingleAsync(x => x.Id == scenario.UserId);
+            user.IsActive = false;
             await dbContext.SaveChangesAsync();
             return;
         }
@@ -909,12 +1066,13 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
     private sealed record OAuthScenario(
-        McpProjectConnectionDto Connection,
-        int ClientAccountId,
+        int UserId,
         string OAuthClientId,
         string RedirectUri,
         string Resource,
-        string PublicBaseUrl);
+        string PublicBaseUrl,
+        string ConnectionName,
+        string[] ApprovalScopes);
 
     private sealed record AuthorizationRequest(
         string Url,

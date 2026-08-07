@@ -203,7 +203,6 @@ app.MapConfigurationEndpoints();
 app.MapSystemInfoMessageEndpoints();
 app.MapUserEndpoints();
 app.MapClientAccountEndpoints();
-app.MapMcpProjectConnectionEndpoints();
 app.MapOAuthEndpoints();
 
 app.MapAuthEndpoints();

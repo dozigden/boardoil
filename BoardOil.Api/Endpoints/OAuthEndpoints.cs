@@ -37,33 +37,21 @@ public static class OAuthEndpoints
             .RequireRateLimiting(OAuthServiceCollectionExtensions.DynamicClientRegistrationRateLimitPolicy)
             .WithTags("OAuth");
 
-        app.MapGet("/.well-known/oauth-protected-resource/mcp/connections/{publicId}", async (
-                string publicId,
+        app.MapGet(OAuthResources.McpMetadataPath, async (
                 HttpRequest request,
                 IOAuthProtectedResourceMetadataService metadataService) =>
-            {
-                var metadata = await metadataService.GetAsync(publicId, request);
-                return metadata is null
-                    ? Results.NotFound()
-                    : Results.Json(metadata);
-            })
+            Results.Json(await metadataService.GetMcpAsync(request)))
             .WithTags("OAuth");
 
-        app.MapGet("/mcp/connections/{publicId}", async (
-                string publicId,
+        app.MapGet(OAuthResources.McpPath, async (
                 HttpContext context,
                 IOAuthProtectedResourceMetadataService metadataService,
                 OAuthEndpointUrlResolver urlResolver) =>
             {
-                var metadata = await metadataService.GetAsync(publicId, context.Request);
-                if (metadata is null)
-                {
-                    return Results.NotFound();
-                }
-
+                var metadata = await metadataService.GetMcpAsync(context.Request);
                 var metadataUrl = await urlResolver.ResolveAsync(
                     context.Request,
-                    $"/.well-known/oauth-protected-resource/mcp/connections/{publicId}");
+                    OAuthResources.McpMetadataPath);
                 var scopes = string.Join(' ', metadata.ScopesSupported);
                 context.Response.Headers.WWWAuthenticate =
                     $"Bearer resource_metadata=\"{metadataUrl}\", scope=\"{scopes}\"";
@@ -137,7 +125,7 @@ public static class OAuthEndpoints
         var decision = form["decision"].ToString();
         if (string.Equals(decision, "deny", StringComparison.Ordinal))
         {
-            return CreateProtocolForbid(Errors.AccessDenied, "The administrator denied the authorization request.");
+            return CreateProtocolForbid(Errors.AccessDenied, "The user denied the authorization request.");
         }
 
         if (!string.Equals(decision, "approve", StringComparison.Ordinal))
@@ -145,11 +133,53 @@ public static class OAuthEndpoints
             return Results.BadRequest("An explicit approve or deny decision is required.");
         }
 
-        var principal = await authorizationService.CreatePrincipalAsync(
+        var approvedScopes = form["approved_scope"]
+            .Where(static scope => scope is not null)
+            .Select(static scope => scope!)
+            .ToArray();
+        var approval = new OAuthAuthorizationApproval(
+            form["connection_name"].ToString(),
+            approvedScopes,
+            string.Equals(form["replace_existing"].ToString(), "true", StringComparison.OrdinalIgnoreCase));
+        var approvalResult = await authorizationService.ApproveAsync(
             resolution.Context,
+            approval,
             cancellationToken);
+        if (!approvalResult.Success || approvalResult.Principal is null)
+        {
+            var consentContext = resolution.Context;
+            if (approvalResult.RequiresReplacementConfirmation
+                && !string.IsNullOrWhiteSpace(approval.ConnectionName))
+            {
+                consentContext = consentContext with
+                {
+                    ExistingConnections =
+                    [
+                        .. consentContext.ExistingConnections,
+                        approval.ConnectionName.Trim()
+                    ]
+                };
+            }
+
+            var tokens = antiforgery.GetAndStoreTokens(httpContext);
+            var authorizationEndpointUrl = await urlResolver.ResolveAsync(
+                httpContext.Request,
+                "/connect/authorize");
+            return Results.Content(
+                OAuthConsentPageRenderer.RenderConsentPage(
+                    request,
+                    consentContext,
+                    tokens,
+                    authorizationEndpointUrl,
+                    approval,
+                    approvalResult.ErrorDescription),
+                "text/html",
+                System.Text.Encoding.UTF8,
+                StatusCodes.Status400BadRequest);
+        }
+
         return Results.SignIn(
-            principal,
+            approvalResult.Principal,
             authenticationScheme: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 

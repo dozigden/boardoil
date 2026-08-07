@@ -5,15 +5,16 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Api.Auth;
 using BoardOil.Contracts.Auth;
 using BoardOil.Data.Abstractions.Entities;
-using BoardOil.Data.Abstractions.Mcp;
+using BoardOil.Data.Abstractions.OAuth;
 using BoardOil.Data.Abstractions.Users;
+using Microsoft.EntityFrameworkCore;
 using OpenIddict.Abstractions;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BoardOil.Api.OAuth;
 
 public sealed class OAuthAuthorizationService(
-    IMcpProjectConnectionRepository connectionRepository,
+    IOAuthConnectionRepository connectionRepository,
     IUserRepository userRepository,
     IDbContextScopeFactory scopeFactory,
     IOpenIddictApplicationManager applicationManager,
@@ -21,16 +22,14 @@ public sealed class OAuthAuthorizationService(
     OAuthEndpointUrlResolver urlResolver,
     TimeProvider timeProvider)
 {
-    internal const string ClientAccountIdClaim = "boardoil_client_account_id";
-    internal const string ProjectConnectionIdClaim = "boardoil_project_connection_id";
+    internal const string UserIdClaim = "boardoil_user_id";
+    internal const string OAuthConnectionIdClaim = "boardoil_oauth_connection_id";
+    internal const string OAuthConnectionGrantIdClaim = "boardoil_oauth_connection_grant_id";
     internal const string AuthorizationIdClaim = "boardoil_authorization_id";
-    internal const string ApprovedByUserIdClaim = "boardoil_approved_by_user_id";
 
-    internal const string ClientAccountIdProperty = "boardoil:client_account_id";
-    internal const string ProjectConnectionIdProperty = "boardoil:project_connection_id";
-    internal const string ApprovedByUserIdProperty = "boardoil:approved_by_user_id";
-    internal const string ApprovedByUserNameProperty = "boardoil:approved_by_user_name";
+    internal const string UserIdProperty = "boardoil:user_id";
     internal const string ApprovedAtProperty = "boardoil:approved_at";
+    internal const string ConnectionNameProperty = "boardoil:connection_name";
     internal const string ResourceProperty = "boardoil:resource";
 
     private static readonly string[] SupportedScopes =
@@ -45,63 +44,31 @@ public sealed class OAuthAuthorizationService(
         HttpRequest httpRequest,
         CancellationToken cancellationToken = default)
     {
-        if (!actor.TryGetUserId(out var actorUserId))
+        var user = await ResolveUserAsync(actor);
+        if (user is null)
         {
             return OAuthAuthorizationResolution.Rejected(
                 Errors.AccessDenied,
-                "An active system administrator must approve this connection.");
-        }
-
-        using var scope = scopeFactory.CreateReadOnly();
-        var approver = userRepository.Get(actorUserId);
-        if (approver is null
-            || !approver.IsActive
-            || approver.IdentityType != UserIdentityType.User
-            || approver.Role != UserRole.Admin)
-        {
-            return OAuthAuthorizationResolution.Rejected(
-                Errors.AccessDenied,
-                "An active system administrator must approve this connection.");
+                "An active BoardOil user must authorize this connection.");
         }
 
         var resources = request.GetResources();
+        var expectedResource = await urlResolver.ResolveAsync(httpRequest, OAuthResources.McpPath);
         if (resources.Length != 1
-            || !TryGetConnectionPublicId(resources[0], out var publicId))
+            || !string.Equals(resources[0], expectedResource, StringComparison.Ordinal))
         {
             return OAuthAuthorizationResolution.Rejected(
                 Errors.InvalidTarget,
-                "Exactly one BoardOil project-connection resource is required.");
-        }
-
-        var connection = await connectionRepository.GetByPublicIdAsync(publicId);
-        if (connection is null
-            || connection.RevokedAtUtc is not null
-            || !IsActiveClientAccount(connection.ClientAccount))
-        {
-            return OAuthAuthorizationResolution.Rejected(
-                Errors.InvalidTarget,
-                "The requested project connection is not active.");
-        }
-
-        var expectedResource = await urlResolver.ResolveAsync(
-            httpRequest,
-            $"/mcp/connections/{connection.PublicId}");
-        if (!string.Equals(resources[0], expectedResource, StringComparison.Ordinal))
-        {
-            return OAuthAuthorizationResolution.Rejected(
-                Errors.InvalidTarget,
-                "The requested resource does not match the project connection URL.");
+                "The exact BoardOil MCP OAuth resource is required.");
         }
 
         var requestedScopes = request.GetScopes();
-        var allowedScopes = ParseScopes(connection.AllowedScopesCsv);
         if (requestedScopes.Length == 0
-            || requestedScopes.Except(SupportedScopes, StringComparer.Ordinal).Any()
-            || requestedScopes.Except(allowedScopes, StringComparer.Ordinal).Any())
+            || requestedScopes.Except(SupportedScopes, StringComparer.Ordinal).Any())
         {
             return OAuthAuthorizationResolution.Rejected(
                 Errors.InvalidScope,
-                "The requested scopes are not allowed for this project connection.");
+                "Only mcp:read and mcp:write may be requested.");
         }
 
         if (string.IsNullOrWhiteSpace(request.ClientId))
@@ -112,8 +79,7 @@ public sealed class OAuthAuthorizationService(
         }
 
         var application = await applicationManager.FindByClientIdAsync(request.ClientId, cancellationToken);
-        if (application is null
-            || !await IsApplicationActiveAsync(application, cancellationToken))
+        if (application is null || !await IsApplicationActiveAsync(application, cancellationToken))
         {
             return OAuthAuthorizationResolution.Rejected(
                 Errors.InvalidClient,
@@ -140,64 +106,213 @@ public sealed class OAuthAuthorizationService(
         }
 
         var applicationDisplayName = await applicationManager.GetDisplayNameAsync(application, cancellationToken);
+        using var scope = scopeFactory.CreateReadOnly();
+        var existingConnections = await connectionRepository.Query()
+            .Where(x => x.UserId == user.Id && x.ResourceType == OAuthResources.McpType)
+            .Select(x => x.Name)
+            .ToArrayAsync(cancellationToken);
+
         var context = new OAuthAuthorizationContext(
             applicationId,
             request.ClientId,
             string.IsNullOrWhiteSpace(applicationDisplayName) ? request.ClientId : applicationDisplayName,
-            approver.Id,
-            approver.UserName,
-            connection.Id,
-            connection.Name,
-            connection.ClientAccount.Id,
-            connection.ClientAccount.UserName,
-            connection.ClientAccount.DisplayName,
+            user.Id,
+            user.UserName,
+            user.DisplayName,
             expectedResource,
-            requestedScopes.ToArray());
+            requestedScopes.ToArray(),
+            existingConnections);
         return OAuthAuthorizationResolution.Accepted(context);
     }
 
-    public async Task<ClaimsPrincipal> CreatePrincipalAsync(
+    public async Task<OAuthAuthorizationApprovalResolution> ApproveAsync(
         OAuthAuthorizationContext context,
+        OAuthAuthorizationApproval approval,
         CancellationToken cancellationToken = default)
     {
-        var identity = new ClaimsIdentity(
-            authenticationType: OpenIddict.Server.AspNetCore.OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
-            nameType: Claims.Name,
-            roleType: Claims.Role);
-        identity.SetClaim(Claims.Subject, context.ClientAccountId.ToString());
-        identity.SetClaim(Claims.Name, context.ClientAccountDisplayName);
-        identity.SetClaim(ClientAccountIdClaim, context.ClientAccountId.ToString());
-        identity.SetClaim(ProjectConnectionIdClaim, context.ProjectConnectionId.ToString());
-        identity.SetClaim(ApprovedByUserIdClaim, context.ApprovedByUserId.ToString());
+        var name = approval.ConnectionName?.Trim() ?? string.Empty;
+        var normalisedName = NormaliseName(name);
+        var approvedScopes = approval.ApprovedScopes
+            .Where(static scope => !string.IsNullOrWhiteSpace(scope))
+            .Select(static scope => scope.Trim().ToLowerInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        var principal = new ClaimsPrincipal(identity);
-        principal.SetScopes(context.Scopes);
-        principal.SetResources(context.Resource);
-        SetAccessTokenDestinations(principal);
-
-        var descriptor = new OpenIddictAuthorizationDescriptor
+        var validationError = ValidateApproval(context, name, approvedScopes);
+        if (validationError is not null)
         {
-            ApplicationId = context.ApplicationId,
-            Principal = principal,
-            Status = Statuses.Valid,
-            Subject = context.ClientAccountId.ToString(),
-            Type = AuthorizationTypes.Permanent,
-        };
-        descriptor.Scopes.UnionWith(context.Scopes);
-        descriptor.Properties[ClientAccountIdProperty] = JsonSerializer.SerializeToElement(context.ClientAccountId);
-        descriptor.Properties[ProjectConnectionIdProperty] = JsonSerializer.SerializeToElement(context.ProjectConnectionId);
-        descriptor.Properties[ApprovedByUserIdProperty] = JsonSerializer.SerializeToElement(context.ApprovedByUserId);
-        descriptor.Properties[ApprovedByUserNameProperty] = JsonSerializer.SerializeToElement(context.ApprovedByUserName);
-        descriptor.Properties[ApprovedAtProperty] = JsonSerializer.SerializeToElement(timeProvider.GetUtcNow());
-        descriptor.Properties[ResourceProperty] = JsonSerializer.SerializeToElement(context.Resource);
+            return OAuthAuthorizationApprovalResolution.Rejected(validationError);
+        }
 
-        var authorization = await authorizationManager.CreateAsync(descriptor, cancellationToken);
-        var authorizationId = await authorizationManager.GetIdAsync(authorization, cancellationToken)
-            ?? throw new InvalidOperationException("The OAuth authorization has no persistent identifier.");
-        principal.SetAuthorizationId(authorizationId);
-        principal.SetClaim(AuthorizationIdClaim, authorizationId);
-        SetAccessTokenDestinations(principal);
-        return principal;
+        EntityUser user;
+        EntityOAuthConnection? existingConnection;
+        using (var scope = scopeFactory.CreateReadOnly())
+        {
+            var persistedUser = userRepository.Get(context.UserId);
+            if (persistedUser is null || !IsActiveUser(persistedUser))
+            {
+                return OAuthAuthorizationApprovalResolution.Rejected(
+                    "The signed-in BoardOil user is no longer active.");
+            }
+
+            user = persistedUser;
+            existingConnection = await connectionRepository.GetByUserResourceAndNameAsync(
+                user.Id,
+                OAuthResources.McpType,
+                normalisedName);
+        }
+
+        if (existingConnection is not null && !approval.ReplaceExisting)
+        {
+            return OAuthAuthorizationApprovalResolution.ReplacementRequired(
+                "A connection with this name already exists for this user. Confirm replacement to revoke its previous authorization.");
+        }
+
+        var application = await applicationManager.FindByIdAsync(context.ApplicationId, cancellationToken);
+        if (application is null || !await IsApplicationActiveAsync(application, cancellationToken))
+        {
+            return OAuthAuthorizationApprovalResolution.Rejected(
+                "The OAuth client registration is no longer active.");
+        }
+
+        var principal = CreatePrincipal(user, context.Resource, approvedScopes);
+        var registrationExpiry = await PromoteApplicationAsync(application, cancellationToken);
+        string? authorizationId = null;
+        EntityOAuthConnectionGrant? grant = null;
+        string? replacedAuthorizationId = null;
+        var approvalCompleted = false;
+        try
+        {
+            var authorization = await CreateAuthorizationAsync(
+                context,
+                user,
+                name,
+                approvedScopes,
+                principal,
+                cancellationToken);
+            authorizationId = await authorizationManager.GetIdAsync(authorization, cancellationToken)
+                ?? throw new InvalidOperationException("The OAuth authorization has no persistent identifier.");
+            principal.SetAuthorizationId(authorizationId);
+            principal.SetClaim(AuthorizationIdClaim, authorizationId);
+
+            using var scope = scopeFactory.Create();
+            string? bindingError = null;
+            var replacementConfirmationRequired = false;
+            await scope.Transaction(async (transactionScope, transaction) =>
+            {
+                var persistedUser = userRepository.Get(user.Id);
+                if (persistedUser is null || !IsActiveUser(persistedUser))
+                {
+                    bindingError = "The signed-in BoardOil user is no longer active.";
+                    return;
+                }
+
+                var connection = await connectionRepository.GetByUserResourceAndNameAsync(
+                    persistedUser.Id,
+                    OAuthResources.McpType,
+                    normalisedName);
+                if (connection is not null && !approval.ReplaceExisting)
+                {
+                    bindingError = "A connection with this name was created while consent was open. Confirm replacement before continuing.";
+                    replacementConfirmationRequired = true;
+                    return;
+                }
+
+                var now = timeProvider.GetUtcNow().UtcDateTime;
+                if (connection is null)
+                {
+                    connection = new EntityOAuthConnection
+                    {
+                        ResourceType = OAuthResources.McpType,
+                        Name = name,
+                        NormalisedName = normalisedName,
+                        UserId = persistedUser.Id,
+                        User = persistedUser,
+                    };
+                    connectionRepository.Add(connection);
+                }
+
+                var previousGrant = connection.ActiveGrant;
+                grant = new EntityOAuthConnectionGrant
+                {
+                    OAuthConnection = connection,
+                    OpenIddictApplicationId = context.ApplicationId,
+                    OpenIddictAuthorizationId = authorizationId,
+                    OAuthClientId = context.OAuthClientId,
+                    OAuthClientDisplayName = context.OAuthClientDisplayName,
+                    Resource = context.Resource,
+                    ApprovedScopesCsv = string.Join(',', approvedScopes),
+                    ApprovedAtUtc = now,
+                };
+                connection.Grants.Add(grant);
+
+                // Persist the two new integer keys before assigning the optional active-grant FK.
+                await transactionScope.SaveChangesAsync(cancellationToken);
+
+                if (previousGrant is not null)
+                {
+                    previousGrant.RevokedAtUtc = now;
+                    previousGrant.RevokedByUserId = context.UserId;
+                    previousGrant.RevokedByUserName = context.UserName;
+                    previousGrant.RevocationReason = "replaced";
+                    replacedAuthorizationId = previousGrant.OpenIddictAuthorizationId;
+                }
+
+                connection.ActiveGrant = grant;
+                connection.RevokedAtUtc = null;
+                connection.RevokedByUserId = null;
+                connection.RevokedByUserName = null;
+
+                await transactionScope.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync();
+            });
+
+            if (bindingError is not null || grant is null)
+            {
+                await RevokeAuthorizationAsync(authorizationId, cancellationToken);
+                if (replacementConfirmationRequired)
+                {
+                    return OAuthAuthorizationApprovalResolution.ReplacementRequired(bindingError!);
+                }
+
+                return OAuthAuthorizationApprovalResolution.Rejected(
+                    bindingError ?? "The OAuth connection could not be activated.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(replacedAuthorizationId))
+            {
+                await RevokeAuthorizationAsync(replacedAuthorizationId, cancellationToken);
+            }
+
+            principal.SetClaim(OAuthConnectionIdClaim, grant.OAuthConnectionId.ToString());
+            principal.SetClaim(OAuthConnectionGrantIdClaim, grant.Id.ToString());
+            SetAccessTokenDestinations(principal);
+            approvalCompleted = true;
+            return OAuthAuthorizationApprovalResolution.Accepted(principal);
+        }
+        catch
+        {
+            if (!string.IsNullOrWhiteSpace(authorizationId))
+            {
+                await RevokeAuthorizationAsync(authorizationId, cancellationToken);
+            }
+
+            throw;
+        }
+        finally
+        {
+            if (!approvalCompleted && registrationExpiry is not null)
+            {
+                using var scope = scopeFactory.CreateReadOnly();
+                if (!await connectionRepository.AnyGrantForApplicationAsync(context.ApplicationId))
+                {
+                    await RestoreApplicationExpiryAsync(
+                        application,
+                        registrationExpiry.Value,
+                        cancellationToken);
+                }
+            }
+        }
     }
 
     public async Task<OAuthTokenExchangeResolution> RevalidateAsync(
@@ -219,103 +334,172 @@ public sealed class OAuthAuthorizationService(
             return OAuthTokenExchangeResolution.Rejected("The BoardOil authorization is no longer active.");
         }
 
-        var applicationId = await authorizationManager.GetApplicationIdAsync(
+        var authorizationSubject = await authorizationManager.GetSubjectAsync(
             authorization,
             cancellationToken);
+        var applicationId = await authorizationManager.GetApplicationIdAsync(authorization, cancellationToken);
         var application = string.IsNullOrWhiteSpace(applicationId)
             ? null
             : await applicationManager.FindByIdAsync(applicationId, cancellationToken);
-        if (application is null
-            || !await IsApplicationActiveAsync(application, cancellationToken))
+        if (application is null || !await IsApplicationActiveAsync(application, cancellationToken))
         {
             return OAuthTokenExchangeResolution.Rejected("The OAuth client registration is no longer active.");
         }
 
-        var properties = await authorizationManager.GetPropertiesAsync(authorization, cancellationToken);
-        if (!TryGetInt32(properties, ProjectConnectionIdProperty, out var connectionId)
-            || !TryGetInt32(properties, ClientAccountIdProperty, out var clientAccountId)
-            || !TryGetString(properties, ResourceProperty, out var resource))
-        {
-            return OAuthTokenExchangeResolution.Rejected("The BoardOil authorization metadata is invalid.");
-        }
+        var applicationClientId = await applicationManager.GetClientIdAsync(application, cancellationToken);
 
         using var scope = scopeFactory.CreateReadOnly();
-        var connection = await connectionRepository.GetByIdWithClientAccountAsync(connectionId);
-        if (connection is null
-            || connection.RevokedAtUtc is not null
-            || connection.ClientAccountId != clientAccountId
-            || !IsActiveClientAccount(connection.ClientAccount))
-        {
-            return OAuthTokenExchangeResolution.Rejected("The project connection or client account is no longer active.");
-        }
-
-        var currentResource = await urlResolver.ResolveAsync(
-            httpRequest,
-            $"/mcp/connections/{connection.PublicId}");
-        if (!string.Equals(resource, currentResource, StringComparison.Ordinal))
+        var grant = await connectionRepository.GetGrantByAuthorizationIdAsync(authorizationId);
+        if (grant is null
+            || !string.Equals(grant.OpenIddictApplicationId, applicationId, StringComparison.Ordinal)
+            || !string.Equals(grant.OAuthClientId, applicationClientId, StringComparison.Ordinal)
+            || grant.RevokedAtUtc is not null
+            || grant.OAuthConnection.ActiveGrantId != grant.Id
+            || grant.OAuthConnection.RevokedAtUtc is not null
+            || !string.Equals(
+                authorizationSubject,
+                grant.OAuthConnection.UserId.ToString(),
+                StringComparison.Ordinal)
+            || !string.Equals(
+                principal.GetClaim(UserIdClaim),
+                grant.OAuthConnection.UserId.ToString(),
+                StringComparison.Ordinal)
+            || !IsActiveUser(grant.OAuthConnection.User))
         {
             return OAuthTokenExchangeResolution.Rejected(
-                "The project connection resource has changed since this authorization was approved.");
+                "The OAuth connection or authorization is no longer active.");
+        }
+
+        var currentResource = await urlResolver.ResolveAsync(httpRequest, OAuthResources.McpPath);
+        if (!string.Equals(grant.Resource, currentResource, StringComparison.Ordinal))
+        {
+            return OAuthTokenExchangeResolution.Rejected(
+                "The OAuth resource has changed since this authorization was approved.");
         }
 
         var grantedScopes = principal.GetScopes();
         var requestedScopes = request.GetScopes();
-        var effectiveScopes = grantedScopes;
-        if (requestedScopes.Length > 0)
-        {
-            effectiveScopes = requestedScopes;
-        }
-        var allowedScopes = ParseScopes(connection.AllowedScopesCsv);
+        var effectiveScopes = requestedScopes.Length > 0 ? requestedScopes : grantedScopes;
+        var approvedScopes = ParseScopes(grant.ApprovedScopesCsv);
         if (effectiveScopes.Length == 0
             || effectiveScopes.Except(grantedScopes, StringComparer.Ordinal).Any()
-            || effectiveScopes.Except(allowedScopes, StringComparer.Ordinal).Any())
+            || effectiveScopes.Except(approvedScopes, StringComparer.Ordinal).Any())
         {
             return OAuthTokenExchangeResolution.Rejected("The requested token scopes are no longer allowed.");
         }
 
+        var user = grant.OAuthConnection.User;
         principal.SetScopes(effectiveScopes);
         principal.SetResources(currentResource);
-        principal.SetClaim(Claims.Subject, clientAccountId.ToString());
-        principal.SetClaim(Claims.Name, connection.ClientAccount.DisplayName);
-        principal.SetClaim(ClientAccountIdClaim, clientAccountId.ToString());
-        principal.SetClaim(ProjectConnectionIdClaim, connectionId.ToString());
+        principal.SetClaim(Claims.Subject, user.Id.ToString());
+        principal.SetClaim(Claims.Name, user.DisplayName);
+        principal.SetClaim(UserIdClaim, user.Id.ToString());
+        principal.SetClaim(OAuthConnectionIdClaim, grant.OAuthConnectionId.ToString());
+        principal.SetClaim(OAuthConnectionGrantIdClaim, grant.Id.ToString());
         principal.SetClaim(AuthorizationIdClaim, authorizationId);
         SetAccessTokenDestinations(principal);
         return OAuthTokenExchangeResolution.Accepted(principal);
     }
 
-    private static void SetAccessTokenDestinations(ClaimsPrincipal principal) =>
-        principal.SetDestinations(static claim => claim.Type switch
-        {
-            Claims.Subject or Claims.Name or ClientAccountIdClaim or ProjectConnectionIdClaim
-                or AuthorizationIdClaim or ApprovedByUserIdClaim => [Destinations.AccessToken],
-            _ => [],
-        });
-
-    private static bool TryGetConnectionPublicId(string resource, out string publicId)
+    private async Task<EntityUser?> ResolveUserAsync(ClaimsPrincipal actor)
     {
-        publicId = string.Empty;
-        if (!Uri.TryCreate(resource, UriKind.Absolute, out var uri))
+        if (!actor.TryGetUserId(out var actorUserId))
         {
-            return false;
+            return null;
         }
 
-        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length < 3
-            || !string.Equals(segments[^3], "mcp", StringComparison.Ordinal)
-            || !string.Equals(segments[^2], "connections", StringComparison.Ordinal))
+        using var scope = scopeFactory.CreateReadOnly();
+        var user = userRepository.Get(actorUserId);
+        if (user is null || !IsActiveUser(user))
         {
-            return false;
+            return null;
         }
 
-        var candidate = segments[^1];
-        if (candidate.Length != 64)
+        return user;
+    }
+
+    private async Task<object> CreateAuthorizationAsync(
+        OAuthAuthorizationContext context,
+        EntityUser user,
+        string connectionName,
+        string[] approvedScopes,
+        ClaimsPrincipal principal,
+        CancellationToken cancellationToken)
+    {
+        var descriptor = new OpenIddictAuthorizationDescriptor
         {
-            return false;
+            ApplicationId = context.ApplicationId,
+            Principal = principal,
+            Status = Statuses.Valid,
+            Subject = user.Id.ToString(),
+            Type = AuthorizationTypes.Permanent,
+        };
+        descriptor.Scopes.UnionWith(approvedScopes);
+        descriptor.Properties[UserIdProperty] = JsonSerializer.SerializeToElement(user.Id);
+        descriptor.Properties[ApprovedAtProperty] = JsonSerializer.SerializeToElement(timeProvider.GetUtcNow());
+        descriptor.Properties[ConnectionNameProperty] = JsonSerializer.SerializeToElement(connectionName);
+        descriptor.Properties[ResourceProperty] = JsonSerializer.SerializeToElement(context.Resource);
+        return await authorizationManager.CreateAsync(descriptor, cancellationToken);
+    }
+
+    private static ClaimsPrincipal CreatePrincipal(
+        EntityUser user,
+        string resource,
+        string[] approvedScopes)
+    {
+        var identity = new ClaimsIdentity(
+            authenticationType: OpenIddict.Server.AspNetCore.OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+            nameType: Claims.Name,
+            roleType: Claims.Role);
+        identity.SetClaim(Claims.Subject, user.Id.ToString());
+        identity.SetClaim(Claims.Name, user.DisplayName);
+        identity.SetClaim(UserIdClaim, user.Id.ToString());
+
+        var principal = new ClaimsPrincipal(identity);
+        principal.SetScopes(approvedScopes);
+        principal.SetResources(resource);
+        SetAccessTokenDestinations(principal);
+        return principal;
+    }
+
+    private async Task<JsonElement?> PromoteApplicationAsync(
+        object application,
+        CancellationToken cancellationToken)
+    {
+        var properties = await applicationManager.GetPropertiesAsync(application, cancellationToken);
+        if (!properties.TryGetValue(
+                OAuthDynamicClientRegistrationService.RegistrationExpiresAtProperty,
+                out var registrationExpiry))
+        {
+            return null;
         }
 
-        publicId = candidate;
-        return true;
+        var descriptor = new OpenIddictApplicationDescriptor();
+        await applicationManager.PopulateAsync(descriptor, application, cancellationToken);
+        descriptor.Properties.Remove(OAuthDynamicClientRegistrationService.RegistrationExpiresAtProperty);
+        await applicationManager.UpdateAsync(application, descriptor, cancellationToken);
+        return registrationExpiry.Clone();
+    }
+
+    private async Task RestoreApplicationExpiryAsync(
+        object application,
+        JsonElement registrationExpiry,
+        CancellationToken cancellationToken)
+    {
+        var descriptor = new OpenIddictApplicationDescriptor();
+        await applicationManager.PopulateAsync(descriptor, application, cancellationToken);
+        descriptor.Properties[OAuthDynamicClientRegistrationService.RegistrationExpiresAtProperty] =
+            registrationExpiry;
+        await applicationManager.UpdateAsync(application, descriptor, cancellationToken);
+    }
+
+    private async Task RevokeAuthorizationAsync(string authorizationId, CancellationToken cancellationToken)
+    {
+        var authorization = await authorizationManager.FindByIdAsync(authorizationId, cancellationToken);
+        if (authorization is not null)
+        {
+            await authorizationManager.TryRevokeAsync(authorization, cancellationToken);
+        }
     }
 
     private async Task<bool> IsApplicationActiveAsync(
@@ -331,67 +515,80 @@ public sealed class OAuthAuthorizationService(
             return true;
         }
 
-        return properties.TryGetValue(
+        if (!properties.TryGetValue(
                 OAuthDynamicClientRegistrationService.RegistrationExpiresAtProperty,
-                out var expiry)
-            && expiry.ValueKind is JsonValueKind.String
+                out var expiry))
+        {
+            return true;
+        }
+
+        return expiry.ValueKind is JsonValueKind.String
             && expiry.TryGetDateTimeOffset(out var expiresAt)
             && expiresAt > timeProvider.GetUtcNow();
     }
 
+    private static string? ValidateApproval(
+        OAuthAuthorizationContext context,
+        string name,
+        IReadOnlyList<string> approvedScopes)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "Connection name is required.";
+        }
+
+        if (name.Length > 120)
+        {
+            return "Connection name must be 120 characters or fewer.";
+        }
+
+        if (approvedScopes.Count == 0)
+        {
+            return "Select at least one requested MCP scope.";
+        }
+
+        if (approvedScopes.Except(context.RequestedScopes, StringComparer.Ordinal).Any()
+            || approvedScopes.Except(SupportedScopes, StringComparer.Ordinal).Any())
+        {
+            return "Approved scopes must be a subset of the requested MCP scopes.";
+        }
+
+        return null;
+    }
+
+    private static void SetAccessTokenDestinations(ClaimsPrincipal principal) =>
+        principal.SetDestinations(static claim => claim.Type switch
+        {
+            Claims.Subject or Claims.Name or UserIdClaim or OAuthConnectionIdClaim
+                or OAuthConnectionGrantIdClaim or AuthorizationIdClaim
+                => [Destinations.AccessToken],
+            _ => [],
+        });
+
+    private static string NormaliseName(string name) => name.ToUpperInvariant();
+
     private static string[] ParseScopes(string scopes) =>
         scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    private static bool IsActiveClientAccount(EntityUser account) =>
-        account.IsActive && account.IdentityType == UserIdentityType.Client;
-
-    private static bool TryGetInt32(
-        ImmutableDictionary<string, JsonElement> properties,
-        string name,
-        out int value)
-    {
-        if (properties.TryGetValue(name, out var element)
-            && element.ValueKind == JsonValueKind.Number
-            && element.TryGetInt32(out value))
-        {
-            return true;
-        }
-
-        value = default;
-        return false;
-    }
-
-    private static bool TryGetString(
-        ImmutableDictionary<string, JsonElement> properties,
-        string name,
-        out string value)
-    {
-        if (properties.TryGetValue(name, out var element)
-            && element.ValueKind == JsonValueKind.String
-            && !string.IsNullOrWhiteSpace(element.GetString()))
-        {
-            value = element.GetString()!;
-            return true;
-        }
-
-        value = string.Empty;
-        return false;
-    }
+    private static bool IsActiveUser(EntityUser user) =>
+        user.IsActive && user.IdentityType == UserIdentityType.User;
 }
 
 public sealed record OAuthAuthorizationContext(
     string ApplicationId,
     string OAuthClientId,
     string OAuthClientDisplayName,
-    int ApprovedByUserId,
-    string ApprovedByUserName,
-    int ProjectConnectionId,
-    string ProjectConnectionName,
-    int ClientAccountId,
-    string ClientAccountUserName,
-    string ClientAccountDisplayName,
+    int UserId,
+    string UserName,
+    string UserDisplayName,
     string Resource,
-    string[] Scopes);
+    string[] RequestedScopes,
+    IReadOnlyList<string> ExistingConnections);
+
+public sealed record OAuthAuthorizationApproval(
+    string? ConnectionName,
+    string[] ApprovedScopes,
+    bool ReplaceExisting);
 
 public sealed record OAuthAuthorizationResolution(
     OAuthAuthorizationContext? Context,
@@ -405,6 +602,23 @@ public sealed record OAuthAuthorizationResolution(
 
     public static OAuthAuthorizationResolution Rejected(string error, string description) =>
         new(null, error, description);
+}
+
+public sealed record OAuthAuthorizationApprovalResolution(
+    ClaimsPrincipal? Principal,
+    string? ErrorDescription,
+    bool RequiresReplacementConfirmation)
+{
+    public bool Success => Principal is not null;
+
+    public static OAuthAuthorizationApprovalResolution Accepted(ClaimsPrincipal principal) =>
+        new(principal, null, false);
+
+    public static OAuthAuthorizationApprovalResolution Rejected(string description) =>
+        new(null, description, false);
+
+    public static OAuthAuthorizationApprovalResolution ReplacementRequired(string description) =>
+        new(null, description, true);
 }
 
 public sealed record OAuthTokenExchangeResolution(

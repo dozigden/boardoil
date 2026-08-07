@@ -3,8 +3,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.OAuth;
 using BoardOil.Contracts.Auth;
-using BoardOil.Contracts.Mcp;
-using BoardOil.Contracts.Users;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
@@ -16,18 +14,16 @@ namespace BoardOil.Api.Tests;
 public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthorisationIntegrationTestBase
 {
     [Fact]
-    public async Task ActiveProjectConnection_ShouldAdvertiseProtectedResourceAndAuthorizationMetadata()
+    public async Task SharedMcpResource_ShouldAdvertiseProtectedResourceAndAuthorizationMetadata()
     {
         // Arrange
         var client = Factory.CreateClient();
-        var connection = await CreateProjectConnectionAsync(
-            client,
-            [MachinePatScopes.McpRead]);
+        await ConfigurePublicBaseAsync(client);
 
         // Act
-        var resourceResponse = await client.GetAsync(connection.ResourceUrl);
+        var resourceResponse = await client.GetAsync("/mcp/oauth");
         var metadataResponse = await client.GetAsync(
-            $"/.well-known/oauth-protected-resource/mcp/connections/{connection.PublicId}");
+            "/.well-known/oauth-protected-resource/mcp/oauth");
         var metadata = await metadataResponse.Content.ReadFromJsonAsync<OAuthProtectedResourceMetadata>();
         var discovery = await client.GetFromJsonAsync<JsonElement>(
             "https://localhost/.well-known/oauth-authorization-server");
@@ -35,13 +31,13 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, resourceResponse.StatusCode);
         Assert.Contains(
-            $"resource_metadata=\"https://boardoil.example.com/.well-known/oauth-protected-resource/mcp/connections/{connection.PublicId}\"",
+            "resource_metadata=\"https://boardoil.example.com/.well-known/oauth-protected-resource/mcp/oauth\"",
             resourceResponse.Headers.WwwAuthenticate.ToString());
         Assert.Equal(HttpStatusCode.OK, metadataResponse.StatusCode);
         Assert.NotNull(metadata);
-        Assert.Equal($"https://boardoil.example.com{connection.ResourceUrl}", metadata!.Resource);
+        Assert.Equal("https://boardoil.example.com/mcp/oauth", metadata!.Resource);
         Assert.Equal(["https://boardoil.example.com/"], metadata.AuthorizationServers);
-        Assert.Equal([MachinePatScopes.McpRead], metadata.ScopesSupported);
+        Assert.Equal([MachinePatScopes.McpRead, MachinePatScopes.McpWrite], metadata.ScopesSupported);
         Assert.Equal(["header"], metadata.BearerMethodsSupported);
 
         Assert.Equal("https://boardoil.example.com/", discovery.GetProperty("issuer").GetString());
@@ -69,23 +65,18 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
     }
 
     [Fact]
-    public async Task UnknownOrRevokedProjectConnection_ShouldNotAdvertiseAuthorizableResource()
+    public async Task SharedMcpMetadata_ShouldNotRequireAPreCreatedConnection()
     {
         // Arrange
         var client = Factory.CreateClient();
-        var connection = await CreateProjectConnectionAsync(client, [MachinePatScopes.McpRead]);
-        var revokeResponse = await client.DeleteAsync($"/api/system/mcp-project-connections/{connection.Id}");
-        revokeResponse.EnsureSuccessStatusCode();
+        await ConfigurePublicBaseAsync(client);
 
         // Act
-        var revokedResponse = await client.GetAsync(
-            $"/.well-known/oauth-protected-resource/mcp/connections/{connection.PublicId}");
-        var unknownResponse = await client.GetAsync(
-            $"/.well-known/oauth-protected-resource/mcp/connections/{new string('a', 64)}");
+        var response = await client.GetAsync(
+            "/.well-known/oauth-protected-resource/mcp/oauth");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, revokedResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, unknownResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
@@ -93,9 +84,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
     {
         // Arrange
         var client = Factory.CreateClient();
-        await CreateProjectConnectionAsync(
-            client,
-            [MachinePatScopes.McpRead, MachinePatScopes.McpWrite]);
+        await ConfigurePublicBaseAsync(client);
         var request = CreateCodexRegistrationRequest();
 
         // Act
@@ -124,7 +113,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
             await manager.GetPermissionsAsync(application!));
 
         var userCount = await ArrangeAsyncForCount();
-        Assert.Equal(2, userCount);
+        Assert.Equal(1, userCount);
     }
 
     [Fact]
@@ -135,7 +124,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
         {
             AllowAutoRedirect = false,
         });
-        var connection = await CreateProjectConnectionAsync(client, [MachinePatScopes.McpRead]);
+        await ConfigurePublicBaseAsync(client);
         var registrationResponse = await client.PostAsJsonAsync(
             "/connect/register",
             CreateCodexRegistrationRequest() with { Scope = MachinePatScopes.McpRead });
@@ -148,7 +137,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
             + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
             + "&response_type=code"
             + $"&scope={Uri.EscapeDataString(MachinePatScopes.McpRead)}"
-            + $"&resource={Uri.EscapeDataString($"https://boardoil.example.com{connection.ResourceUrl}")}";
+            + $"&resource={Uri.EscapeDataString("https://boardoil.example.com/mcp/oauth")}";
 
         // Act
         var response = await client.GetAsync(authorizationUrl);
@@ -168,7 +157,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
         {
             AllowAutoRedirect = false,
         });
-        var connection = await CreateProjectConnectionAsync(client, [MachinePatScopes.McpRead]);
+        await ConfigurePublicBaseAsync(client);
         var registrationResponse = await client.PostAsJsonAsync(
             "/connect/register",
             CreateCodexRegistrationRequest() with { Scope = MachinePatScopes.McpRead });
@@ -181,7 +170,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
             + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
             + "&response_type=code"
             + $"&scope={Uri.EscapeDataString(MachinePatScopes.McpRead)}"
-            + $"&resource={Uri.EscapeDataString($"https://boardoil.example.com{connection.ResourceUrl}")}"
+            + $"&resource={Uri.EscapeDataString("https://boardoil.example.com/mcp/oauth")}"
             + "&code_challenge=insecure-plain-challenge"
             + "&code_challenge_method=plain";
 
@@ -293,36 +282,13 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
         Assert.NotNull(await manager.FindByClientIdAsync("active-client"));
     }
 
-    private async Task<McpProjectConnectionDto> CreateProjectConnectionAsync(
-        HttpClient client,
-        string[] allowedScopes)
+    private async Task ConfigurePublicBaseAsync(HttpClient client)
     {
         await RegisterInitialAdminAsync(client);
         var configurationResponse = await client.PutAsJsonAsync(
             "/api/system/configuration",
             new UpdateConfigurationRequest("https://boardoil.example.com"));
         configurationResponse.EnsureSuccessStatusCode();
-        var clientAccountResponse = await client.PostAsJsonAsync(
-            "/api/system/client-accounts",
-            new BoardOil.Contracts.Users.CreateClientAccountRequest(
-                "repository-client",
-                "Repository Client",
-                "repository-client@localhost",
-                "Standard"));
-        clientAccountResponse.EnsureSuccessStatusCode();
-        var clientAccount = await clientAccountResponse.Content.ReadFromJsonAsync<ApiEnvelope<CreatedClientAccountDto>>();
-        Assert.NotNull(clientAccount?.Data);
-
-        var connectionResponse = await client.PostAsJsonAsync(
-            "/api/system/mcp-project-connections",
-            new CreateMcpProjectConnectionRequest(
-                clientAccount!.Data!.Account.Id,
-                "Repository connection",
-                allowedScopes));
-        connectionResponse.EnsureSuccessStatusCode();
-        var connection = await connectionResponse.Content.ReadFromJsonAsync<ApiEnvelope<McpProjectConnectionDto>>();
-        Assert.NotNull(connection?.Data);
-        return connection!.Data!;
     }
 
     private static OAuthDynamicClientRegistrationRequest CreateCodexRegistrationRequest() =>

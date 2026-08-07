@@ -230,11 +230,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('./system/views/ClientAccountTokensView.vue')
       },
       {
-        path: 'project-connections',
-        name: 'mcp-project-connections',
-        component: () => import('./system/views/McpProjectConnectionsView.vue')
-      },
-      {
         path: 'configuration',
         name: 'configuration',
         component: () => import('./system/views/ConfigurationView.vue')

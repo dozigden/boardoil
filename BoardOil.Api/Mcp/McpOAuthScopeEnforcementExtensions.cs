@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BoardOil.Api.OAuth;
 
 namespace BoardOil.Api.Mcp;
 
@@ -10,7 +11,7 @@ public static class McpOAuthScopeEnforcementExtensions
         {
             if (!HttpMethods.IsPost(context.Request.Method)
                 || !context.Request.Path.StartsWithSegments(
-                    "/mcp/connections",
+                    OAuthResources.McpPath,
                     StringComparison.OrdinalIgnoreCase))
             {
                 await next();

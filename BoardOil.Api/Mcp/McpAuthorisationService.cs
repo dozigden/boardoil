@@ -67,7 +67,7 @@ public sealed class McpAuthorisationService : IMcpAuthorisationService
     private static McpAccessContext? CreateOAuthAccessContext(ClaimsPrincipal principal)
     {
         if (!int.TryParse(
-                principal.FindFirst(OAuthAuthorizationService.ClientAccountIdClaim)?.Value,
+                principal.FindFirst(OAuthAuthorizationService.UserIdClaim)?.Value,
                 out var actorUserId))
         {
             return null;

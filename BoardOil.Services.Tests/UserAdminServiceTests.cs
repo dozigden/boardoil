@@ -265,6 +265,51 @@ public sealed class UserAdminServiceTests : TestBaseDb
         Assert.Null(storedComment.AuthorUserId);
     }
 
+    [Fact]
+    public async Task DeleteUserAsync_WhenOAuthConnectionExists_ShouldDeleteConnectionHistory()
+    {
+        // Arrange
+        var user = await AddUserAsync(
+            "oauth-user",
+            "oauth-user@localhost",
+            "Password1234!",
+            UserRole.Standard);
+        var connection = new EntityOAuthConnection
+        {
+            ResourceType = "mcp",
+            Name = "Repository",
+            NormalisedName = "REPOSITORY",
+            UserId = user.Id,
+        };
+        var grant = new EntityOAuthConnectionGrant
+        {
+            OAuthConnection = connection,
+            OpenIddictApplicationId = "application-id",
+            OpenIddictAuthorizationId = "authorization-id",
+            OAuthClientId = "oauth-client-id",
+            OAuthClientDisplayName = "Codex",
+            Resource = "https://boardoil.example.com/mcp/oauth",
+            ApprovedScopesCsv = "mcp:read",
+            ApprovedAtUtc = DateTime.UtcNow,
+        };
+        connection.Grants.Add(grant);
+        DbContextForArrange.OAuthConnections.Add(connection);
+        await DbContextForArrange.SaveChangesAsync();
+        connection.ActiveGrant = grant;
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IUserAdminService>();
+
+        // Act
+        var result = await service.DeleteUserAsync(user.Id, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Null(await DbContextForAssert.Users.SingleOrDefaultAsync(x => x.Id == user.Id));
+        Assert.Empty(await DbContextForAssert.OAuthConnections.ToArrayAsync());
+        Assert.Empty(await DbContextForAssert.OAuthConnectionGrants.ToArrayAsync());
+    }
+
     private async Task RemoveAllUsersAsync()
     {
         DbContextForArrange.Users.RemoveRange(DbContextForArrange.Users);
