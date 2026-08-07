@@ -79,6 +79,7 @@ builder.Services.AddScoped<IAuthHttpSessionService, AuthHttpSessionService>();
 builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
 builder.Services.AddSingleton<IAuthorizationHandler, RequirePatApiScopeHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, McpOAuthConnectionAuthorizationHandler>();
 builder.Services.AddBoardOilAuthentication(jwtOptions);
 builder.Services.AddAuthorization(options =>
 {
@@ -179,6 +180,7 @@ app.Use(async (context, next) =>
     await next();
 });
 app.UseAuthorization();
+app.UseMcpOAuthScopeEnforcement();
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {

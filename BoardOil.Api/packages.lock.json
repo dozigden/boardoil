@@ -55,6 +55,25 @@
           "OpenIddict.Server": "7.6.0"
         }
       },
+      "OpenIddict.Validation.AspNetCore": {
+        "type": "Direct",
+        "requested": "[7.6.0, )",
+        "resolved": "7.6.0",
+        "contentHash": "oby5/Ymdxd+g1TGtyTGrcK5J3/NSI80aw2CJgULwwIxraiCjiIfexrBjCxkPchWqPNFe6aAdGJ/Jz6amHNfrzg==",
+        "dependencies": {
+          "OpenIddict.Validation": "7.6.0"
+        }
+      },
+      "OpenIddict.Validation.ServerIntegration": {
+        "type": "Direct",
+        "requested": "[7.6.0, )",
+        "resolved": "7.6.0",
+        "contentHash": "0bHhKsMV45UMPM5Phh51+g/tMUJNRzOWe6p/5opKeMQV8XoO3y3J9o/ZbfZ0j4qTTbQ7pqzEKSZaS4cGs0B3nQ==",
+        "dependencies": {
+          "OpenIddict.Server": "7.6.0",
+          "OpenIddict.Validation": "7.6.0"
+        }
+      },
       "Swashbuckle.AspNetCore": {
         "type": "Direct",
         "requested": "[6.6.2, )",
@@ -339,6 +358,16 @@
         "contentHash": "0c7wlRYcP2Smgjp3PWyyojZ972H26otp6irW/WAFEbg4ZylcUvtlw0lkrCr/K8s5lAnYZwrpyzguwrJhXGKPVg==",
         "dependencies": {
           "Microsoft.IdentityModel.JsonWebTokens": "8.19.2",
+          "OpenIddict.Abstractions": "7.6.0"
+        }
+      },
+      "OpenIddict.Validation": {
+        "type": "Transitive",
+        "resolved": "7.6.0",
+        "contentHash": "ovzLQJ31uWZpgLdRVuD9Gmu8wxvhvbXW32MFTglFblhfqRwj/hMcEGOo8hdl+ir3QpDr9NUDAORA+v3S7xc6IA==",
+        "dependencies": {
+          "Microsoft.IdentityModel.JsonWebTokens": "8.19.2",
+          "Microsoft.IdentityModel.Protocols": "8.19.2",
           "OpenIddict.Abstractions": "7.6.0"
         }
       },

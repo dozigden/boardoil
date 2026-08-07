@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using OpenIddict.Validation.AspNetCore;
 using System.Text;
 
 namespace BoardOil.Api.Mcp;
@@ -99,6 +100,11 @@ public static class McpAuthExtensions
 
             policy.RequireAssertion(_ => true);
         });
+        options.AddPolicy(BoardOilPolicies.McpOAuthConnection, policy =>
+            policy
+                .AddAuthenticationSchemes(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)
+                .RequireAuthenticatedUser()
+                .AddRequirements(new McpOAuthConnectionRequirement()));
         options.AddPolicy(BoardOilPolicies.AdminOnly, policy =>
             policy
                 .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, McpAuthenticationSchemes.PatBearer)

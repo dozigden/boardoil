@@ -138,7 +138,7 @@ public sealed class McpToolBaseTests
     {
         private readonly Func<TestInput, Task<McpToolResult<TestOutput>>> _executor = executor;
 
-        public override McpToolDefinition Definition { get; } = new("test.base", "test tool", "{}", "{}");
+        public override McpToolDefinition Definition { get; } = new("test.base", "test tool", "{}", "{}", "mcp:read");
 
         protected override Task<McpToolResult<TestOutput>> ExecuteCoreAsync(McpInvocationContext context, TestInput input, CancellationToken cancellationToken) =>
             _executor(input);
@@ -146,11 +146,11 @@ public sealed class McpToolBaseTests
 
     private sealed class StubAuthorisationService : IMcpAuthorisationService
     {
-        public PatAccessContext? GetPatAccessContext(ClaimsPrincipal? claimsPrincipal) => null;
+        public McpAccessContext? GetAccessContext(ClaimsPrincipal? claimsPrincipal) => null;
 
-        public McpToolError? EnsurePatScopeAccess(PatAccessContext? patAccessContext, string requiredScope) => null;
+        public McpToolError? EnsureScopeAccess(McpAccessContext? accessContext, string requiredScope) => null;
 
-        public McpToolError? EnsurePatToolAccess(PatAccessContext? patAccessContext, string requiredScope, int boardId) => null;
+        public McpToolError? EnsureToolAccess(McpAccessContext? accessContext, string requiredScope, int boardId) => null;
     }
 
     private sealed record TestInput

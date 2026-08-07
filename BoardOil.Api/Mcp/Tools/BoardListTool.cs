@@ -12,7 +12,7 @@ public sealed class BoardListTool(
     private readonly IBoardService _boardService = boardService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.BoardList, "List boards accessible to the actor so clients can discover board ids before snapshot calls.", ToolSchemas.BoardListInput, ToolSchemas.ObjectOutput);
+        new(ToolNames.BoardList, "List boards accessible to the actor so clients can discover board ids before snapshot calls.", ToolSchemas.BoardListInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead);
 
     protected override async Task<McpToolResult<BoardListOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -21,7 +21,7 @@ public sealed class BoardListTool(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var accessError = AuthorisationService.EnsurePatScopeAccess(context.PatAccessContext, MachinePatScopes.McpRead);
+        var accessError = AuthorisationService.EnsureScopeAccess(context.AccessContext, Definition.RequiredScope);
         if (accessError is not null)
         {
             return Failure(accessError);

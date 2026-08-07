@@ -1,4 +1,5 @@
 using BoardOil.Api.Configuration;
+using BoardOil.Api.OAuth;
 using BoardOil.Services.Auth;
 
 namespace BoardOil.Api.Mcp;
@@ -15,6 +16,82 @@ public static class McpApplicationExtensions
     public static WebApplication MapBoardOilMcp(this WebApplication app)
     {
         var mcpOptions = app.Services.GetRequiredService<BoardOilMcpOptions>();
+
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments(
+                    "/mcp/connections",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.OnStarting(async () =>
+                {
+                    McpOAuthChallengeState.TryGet(context, out var challenge);
+                    if (challenge?.Error is McpOAuthChallengeError.InvalidToken)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    }
+                    else if (challenge?.Error is McpOAuthChallengeError.InsufficientScope)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    }
+
+                    if (context.Response.StatusCode is not (
+                            StatusCodes.Status401Unauthorized
+                            or StatusCodes.Status403Forbidden))
+                    {
+                        return;
+                    }
+
+                    var publicId = context.Request.RouteValues["publicId"]?.ToString();
+                    if (string.IsNullOrWhiteSpace(publicId))
+                    {
+                        return;
+                    }
+
+                    var metadataService = context.RequestServices
+                        .GetRequiredService<IOAuthProtectedResourceMetadataService>();
+                    var metadata = await metadataService.GetAsync(publicId, context.Request);
+                    var urlResolver = context.RequestServices
+                        .GetRequiredService<OAuthEndpointUrlResolver>();
+                    var metadataUrl = await urlResolver.ResolveAsync(
+                        context.Request,
+                        $"/.well-known/oauth-protected-resource/mcp/connections/{publicId}");
+                    var parameters = new List<string>();
+                    var error = challenge?.Error;
+                    if (error is null
+                        && context.Response.StatusCode == StatusCodes.Status401Unauthorized
+                        && HasBearerAuthenticationAttempt(context.Request))
+                    {
+                        error = McpOAuthChallengeError.InvalidToken;
+                    }
+
+                    if (error is McpOAuthChallengeError.InvalidToken)
+                    {
+                        parameters.Add("error=\"invalid_token\"");
+                    }
+                    else if (error is McpOAuthChallengeError.InsufficientScope)
+                    {
+                        parameters.Add("error=\"insufficient_scope\"");
+                    }
+
+                    parameters.Add($"resource_metadata=\"{metadataUrl}\"");
+                    var challengedScopes = challenge?.RequiredScope;
+                    if (string.IsNullOrWhiteSpace(challengedScopes) && metadata is not null)
+                    {
+                        challengedScopes = string.Join(' ', metadata.ScopesSupported);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(challengedScopes))
+                    {
+                        parameters.Add($"scope=\"{challengedScopes}\"");
+                    }
+
+                    context.Response.Headers.WWWAuthenticate = $"Bearer {string.Join(", ", parameters)}";
+                });
+            }
+
+            await next();
+        });
 
         app.Use(async (context, next) =>
         {
@@ -59,6 +136,9 @@ public static class McpApplicationExtensions
             mcpEndpoint.RequireAuthorization(BoardOilPolicies.McpAuthenticated);
         }
 
+        app.MapMcp("/mcp/connections/{publicId}")
+            .RequireAuthorization(BoardOilPolicies.McpOAuthConnection);
+
         app.MapGet("/.well-known/mcp", async (IConfigurationService configurationService) =>
             Results.Json(McpDiscoveryMetadata.CreateWellKnownDocument(
                 await configurationService.GetMcpPublicBaseUrlAsync(),
@@ -93,4 +173,11 @@ public static class McpApplicationExtensions
             && path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase))
         || (mcpOptions.SupportsLegacySseTransport
             && path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase));
+
+    private static bool HasBearerAuthenticationAttempt(HttpRequest request)
+    {
+        var authorization = request.Headers.Authorization.ToString();
+        return string.Equals(authorization, "Bearer", StringComparison.OrdinalIgnoreCase)
+            || authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
+    }
 }

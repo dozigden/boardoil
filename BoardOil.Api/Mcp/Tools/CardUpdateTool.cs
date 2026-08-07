@@ -17,7 +17,7 @@ public sealed class CardUpdateTool(
     private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardUpdate, "Update card title, description, tags, slick selection, external URL, and optional target column.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput);
+        new(ToolNames.CardUpdate, "Update card title, description, tags, slick selection, external URL, and optional target column.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -50,7 +50,7 @@ public sealed class CardUpdateTool(
         var boardId = input.BoardId!.Value;
         var cardId = input.Id!.Value;
 
-        var accessError = AuthorisationService.EnsurePatToolAccess(context.PatAccessContext, MachinePatScopes.McpWrite, boardId);
+        var accessError = AuthorisationService.EnsureToolAccess(context.AccessContext, Definition.RequiredScope, boardId);
         if (accessError is not null)
         {
             return Failure(accessError);

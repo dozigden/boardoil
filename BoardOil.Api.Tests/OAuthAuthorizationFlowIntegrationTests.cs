@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using BoardOil.Api.OAuth;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
+using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Mcp;
 using BoardOil.Contracts.Users;
 using BoardOil.Ef;
@@ -355,6 +356,300 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(Errors.InvalidGrant, response.Error);
+    }
+
+    [Fact]
+    public async Task McpConnection_WithValidReadToken_ShouldAllowReadsAndRejectWrites()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        var endpoint = scenario.Connection.ResourceUrl;
+
+        // Act
+        var readResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new { name = "board.list", arguments = new { } },
+            "oauth-board-list",
+            exchange.AccessToken,
+            endpoint);
+        var readBody = await readResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            readResponse.StatusCode == HttpStatusCode.OK,
+            $"Expected OAuth MCP read access but received {(int)readResponse.StatusCode}: {readBody}");
+        var writeResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = 1,
+                    title = "Must not be created",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "oauth-card-create",
+            exchange.AccessToken,
+            endpoint);
+        var writeBody = await writeResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            writeResponse.StatusCode == HttpStatusCode.Forbidden,
+            $"Expected an insufficient-scope response but received {(int)writeResponse.StatusCode}: {writeBody}");
+        var writeChallenge = writeResponse.Headers.WwwAuthenticate.ToString();
+        Assert.Contains("error=\"insufficient_scope\"", writeChallenge);
+        Assert.Contains($"scope=\"{MachinePatScopes.McpWrite}\"", writeChallenge);
+        Assert.Contains("resource_metadata=", writeChallenge);
+        using var readPayload = await McpJsonRpcClient.ParseJsonAsync(readResponse);
+
+        // Assert
+        Assert.False(readPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task McpConnection_WhenTokenTargetsDifferentConnection_ShouldReturnForbidden()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var secondConnectionResponse = await client.PostAsJsonAsync(
+            "/api/system/mcp-project-connections",
+            new CreateMcpProjectConnectionRequest(
+                scenario.ClientAccountId,
+                "Different repository connection",
+                [MachinePatScopes.McpRead]));
+        secondConnectionResponse.EnsureSuccessStatusCode();
+        var secondConnection = await secondConnectionResponse.Content
+            .ReadFromJsonAsync<ApiEnvelope<McpProjectConnectionDto>>();
+        Assert.NotNull(secondConnection?.Data);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "oauth-cross-connection",
+            exchange.AccessToken,
+            secondConnection!.Data!.ResourceUrl);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var challenge = response.Headers.WwwAuthenticate.ToString();
+        Assert.Contains("error=\"invalid_token\"", challenge);
+        Assert.Contains(
+            $"/.well-known/oauth-protected-resource/mcp/connections/{secondConnection.Data.PublicId}",
+            challenge);
+    }
+
+    [Theory]
+    [InlineData("connection")]
+    [InlineData("client")]
+    [InlineData("authorization")]
+    public async Task McpConnection_WhenBindingIsDisabled_ShouldRejectExistingAccessToken(
+        string disabledBinding)
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        await DisableBindingAsync(client, scenario, disabledBinding);
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            $"oauth-disabled-{disabledBinding}",
+            exchange.AccessToken,
+            scenario.Connection.ResourceUrl);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains(
+            "error=\"invalid_token\"",
+            response.Headers.WwwAuthenticate.ToString());
+    }
+
+    [Fact]
+    public async Task McpConnection_WhenMembershipChanges_ShouldUseLiveAccessAndClientActor()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(
+            client,
+            [MachinePatScopes.McpRead, MachinePatScopes.McpWrite]);
+        var request = CreateAuthorizationRequest(
+            scenario,
+            $"{MachinePatScopes.McpRead} {MachinePatScopes.McpWrite}");
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        var columnId = await SeedBoardColumnAsync("OAuth actor column");
+        var cardId = await SeedBoardCardAsync(columnId, "OAuth actor card", "");
+        var beforeMembership = await GetOAuthBoardIdsAsync(client, scenario, exchange.AccessToken!);
+        Assert.DoesNotContain(1, beforeMembership);
+        var addMembershipResponse = await client.PostAsJsonAsync(
+            "/api/system/boards/1/members",
+            new AddBoardMemberRequest(scenario.ClientAccountId, "Contributor"));
+        addMembershipResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var afterMembership = await GetOAuthBoardIdsAsync(client, scenario, exchange.AccessToken!);
+        var commentResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.comment.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = cardId,
+                    text = "Created through OAuth"
+                }
+            },
+            "oauth-comment-create",
+            exchange.AccessToken,
+            scenario.Connection.ResourceUrl);
+        commentResponse.EnsureSuccessStatusCode();
+        using var commentPayload = await McpJsonRpcClient.ParseJsonAsync(commentResponse);
+        var removeMembershipResponse = await client.DeleteAsync(
+            $"/api/system/boards/1/members/{scenario.ClientAccountId}");
+        removeMembershipResponse.EnsureSuccessStatusCode();
+        var afterRemoval = await GetOAuthBoardIdsAsync(client, scenario, exchange.AccessToken!);
+
+        // Assert
+        Assert.Contains(1, afterMembership);
+        var comment = McpJsonRpcClient.GetStructuredContent(commentPayload).GetProperty("comment");
+        Assert.Equal(scenario.ClientAccountId, comment.GetProperty("authorUserId").GetInt32());
+        Assert.DoesNotContain(1, afterRemoval);
+    }
+
+    [Fact]
+    public async Task McpConnection_WithoutToken_ShouldReturnBearerChallenge()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "oauth-missing-token",
+            endpoint: scenario.Connection.ResourceUrl);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains(response.Headers.WwwAuthenticate, value => value.Scheme == "Bearer");
+        Assert.Contains(
+            $"resource_metadata=\"https://boardoil.example.com/.well-known/oauth-protected-resource/mcp/connections/{scenario.Connection.PublicId}\"",
+            response.Headers.WwwAuthenticate.ToString());
+        Assert.DoesNotContain("error=", response.Headers.WwwAuthenticate.ToString());
+    }
+
+    [Fact]
+    public async Task McpConnection_WithInvalidBearerToken_ShouldReturnInvalidTokenChallenge()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "oauth-invalid-token",
+            "not-a-valid-access-token",
+            scenario.Connection.ResourceUrl);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var challenge = response.Headers.WwwAuthenticate.ToString();
+        Assert.Contains("error=\"invalid_token\"", challenge);
+        Assert.Contains("resource_metadata=", challenge);
+    }
+
+    [Fact]
+    public async Task McpConnection_WithNonStringProtocolFields_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+
+        // Act
+        var invalidMethodResponse = await SendRawMcpRequestAsync(
+            client,
+            scenario.Connection.ResourceUrl,
+            exchange.AccessToken!,
+            """{"jsonrpc":"2.0","id":"invalid-method","method":42}""");
+        var invalidNameResponse = await SendRawMcpRequestAsync(
+            client,
+            scenario.Connection.ResourceUrl,
+            exchange.AccessToken!,
+            """{"jsonrpc":"2.0","id":"invalid-name","method":"tools/call","params":{"name":42,"arguments":{}}}""");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, invalidMethodResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidNameResponse.StatusCode);
+    }
+
+    private static async Task<HttpResponseMessage> SendRawMcpRequestAsync(
+        HttpClient client,
+        string endpoint,
+        string accessToken,
+        string json)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+        request.Headers.Authorization = new("Bearer", accessToken);
+        request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.Accept.ParseAdd("text/event-stream");
+        return await client.SendAsync(request);
+    }
+
+    private static async Task<int[]> GetOAuthBoardIdsAsync(
+        HttpClient client,
+        OAuthScenario scenario,
+        string accessToken)
+    {
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new { name = "board.list", arguments = new { } },
+            $"oauth-board-list-{Guid.NewGuid():N}",
+            accessToken,
+            scenario.Connection.ResourceUrl);
+        response.EnsureSuccessStatusCode();
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+        return McpJsonRpcClient.GetStructuredContent(payload)
+            .GetProperty("boards")
+            .EnumerateArray()
+            .Select(board => board.GetProperty("id").GetInt32())
+            .ToArray();
     }
 
     private HttpClient CreateOAuthClient()

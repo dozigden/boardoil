@@ -738,6 +738,34 @@
           "OpenIddict.Server": "7.6.0"
         }
       },
+      "OpenIddict.Validation": {
+        "type": "Transitive",
+        "resolved": "7.6.0",
+        "contentHash": "ovzLQJ31uWZpgLdRVuD9Gmu8wxvhvbXW32MFTglFblhfqRwj/hMcEGOo8hdl+ir3QpDr9NUDAORA+v3S7xc6IA==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging": "10.0.10",
+          "Microsoft.IdentityModel.JsonWebTokens": "8.19.2",
+          "Microsoft.IdentityModel.Protocols": "8.19.2",
+          "OpenIddict.Abstractions": "7.6.0"
+        }
+      },
+      "OpenIddict.Validation.AspNetCore": {
+        "type": "Transitive",
+        "resolved": "7.6.0",
+        "contentHash": "oby5/Ymdxd+g1TGtyTGrcK5J3/NSI80aw2CJgULwwIxraiCjiIfexrBjCxkPchWqPNFe6aAdGJ/Jz6amHNfrzg==",
+        "dependencies": {
+          "OpenIddict.Validation": "7.6.0"
+        }
+      },
+      "OpenIddict.Validation.ServerIntegration": {
+        "type": "Transitive",
+        "resolved": "7.6.0",
+        "contentHash": "0bHhKsMV45UMPM5Phh51+g/tMUJNRzOWe6p/5opKeMQV8XoO3y3J9o/ZbfZ0j4qTTbQ7pqzEKSZaS4cGs0B3nQ==",
+        "dependencies": {
+          "OpenIddict.Server": "7.6.0",
+          "OpenIddict.Validation": "7.6.0"
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3": {
         "type": "Transitive",
         "resolved": "2.1.12",
@@ -886,6 +914,8 @@
           "ModelContextProtocol": "[1.2.0, )",
           "ModelContextProtocol.AspNetCore": "[1.2.0, )",
           "OpenIddict.Server.AspNetCore": "[7.6.0, )",
+          "OpenIddict.Validation.AspNetCore": "[7.6.0, )",
+          "OpenIddict.Validation.ServerIntegration": "[7.6.0, )",
           "Swashbuckle.AspNetCore": "[6.6.2, )",
           "System.IdentityModel.Tokens.Jwt": "[8.22.0, )"
         }

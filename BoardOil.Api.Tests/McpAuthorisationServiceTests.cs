@@ -1,5 +1,6 @@
 using BoardOil.Api.Mcp;
 using BoardOil.Contracts.Auth;
+using OpenIddict.Abstractions;
 using System.Security.Claims;
 using Xunit;
 
@@ -10,7 +11,7 @@ public sealed class McpAuthorisationServiceTests
     private readonly McpAuthorisationService _service = new();
 
     [Fact]
-    public void GetPatAccessContext_ForNonPatPrincipal_ShouldReturnNull()
+    public void GetAccessContext_ForNonMachinePrincipal_ShouldReturnNull()
     {
         // Arrange
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
@@ -19,41 +20,66 @@ public sealed class McpAuthorisationServiceTests
         ], "test"));
 
         // Act
-        var context = _service.GetPatAccessContext(principal);
+        var context = _service.GetAccessContext(principal);
 
         // Assert
         Assert.Null(context);
     }
 
     [Fact]
-    public void GetPatAccessContext_ForPatPrincipal_ShouldParseScopes()
+    public void GetAccessContext_ForPatPrincipal_ShouldParseActorAndScopes()
     {
         // Arrange
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
         [
             new Claim("boardoil_auth_type", "pat"),
+            new Claim(ClaimTypes.NameIdentifier, "42"),
             new Claim("boardoil_pat_scope", MachinePatScopes.McpRead),
             new Claim("boardoil_pat_scope", MachinePatScopes.McpWrite)
         ], "test"));
 
         // Act
-        var context = _service.GetPatAccessContext(principal);
+        var context = _service.GetAccessContext(principal);
 
         // Assert
         Assert.NotNull(context);
-        Assert.Contains(MachinePatScopes.McpRead, context!.Scopes);
+        Assert.Equal(42, context!.ActorUserId);
+        Assert.Contains(MachinePatScopes.McpRead, context.Scopes);
         Assert.Contains(MachinePatScopes.McpWrite, context.Scopes);
     }
 
     [Fact]
-    public void EnsurePatToolAccess_WhenScopeMissing_ShouldReturnForbiddenError()
+    public void GetAccessContext_ForOAuthPrincipal_ShouldParseActorAndScopes()
     {
         // Arrange
-        var context = new PatAccessContext(
+        var identity = new ClaimsIdentity(
+        [
+            new Claim("boardoil_client_account_id", "57")
+        ], "test");
+        var principal = new ClaimsPrincipal(identity);
+        principal.SetScopes(MachinePatScopes.McpRead);
+
+        // Act
+        var context = _service.GetAccessContext(principal);
+
+        // Assert
+        Assert.NotNull(context);
+        Assert.Equal(57, context!.ActorUserId);
+        Assert.Equal("OAuth", context.AuthenticationType);
+        Assert.Contains(MachinePatScopes.McpRead, context.Scopes);
+    }
+
+    [Fact]
+    public void EnsureToolAccess_WhenScopeMissing_ShouldReturnForbiddenError()
+    {
+        // Arrange
+        var context = new McpAccessContext(
+            42,
+            "PAT",
             new HashSet<string>(StringComparer.Ordinal) { MachinePatScopes.McpRead });
 
         // Act
-        var error = _service.EnsurePatToolAccess(context, MachinePatScopes.McpWrite, 1);
+        var error = _service.EnsureToolAccess(context, MachinePatScopes.McpWrite, 1);
 
         // Assert
         Assert.NotNull(error);
@@ -62,14 +88,16 @@ public sealed class McpAuthorisationServiceTests
     }
 
     [Fact]
-    public void EnsurePatToolAccess_WhenScopeIsAllowed_ShouldReturnNull()
+    public void EnsureToolAccess_WhenScopeIsAllowed_ShouldReturnNull()
     {
         // Arrange
-        var context = new PatAccessContext(
+        var context = new McpAccessContext(
+            42,
+            "PAT",
             new HashSet<string>(StringComparer.Ordinal) { MachinePatScopes.McpWrite });
 
         // Act
-        var error = _service.EnsurePatToolAccess(context, MachinePatScopes.McpWrite, 1);
+        var error = _service.EnsureToolAccess(context, MachinePatScopes.McpWrite, 1);
 
         // Assert
         Assert.Null(error);

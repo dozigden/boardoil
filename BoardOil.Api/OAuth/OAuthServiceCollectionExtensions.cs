@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
+using OpenIddict.Validation;
+using OpenIddict.Validation.AspNetCore;
 
 namespace BoardOil.Api.OAuth;
 
@@ -23,6 +25,7 @@ public static class OAuthServiceCollectionExtensions
         services.AddSingleton(options);
         services.AddScoped<OAuthEndpointUrlResolver>();
         services.AddScoped<OpenIddictPublicBaseUriHandler>();
+        services.AddScoped<OpenIddictValidationPublicBaseUriHandler>();
         services.AddScoped<OpenIddictConfigurationHandler>();
         services.AddScoped<OAuthAuthorizationService>();
         services.AddScoped<OAuthRefreshTokenGenerationHandler>();
@@ -75,6 +78,16 @@ public static class OAuthServiceCollectionExtensions
                 openIddict.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
                     .EnableTokenEndpointPassthrough();
+            })
+            .AddValidation(openIddict =>
+            {
+                openIddict.UseLocalServer();
+                openIddict.EnableAuthorizationEntryValidation();
+                openIddict.EnableTokenEntryValidation();
+                openIddict.AddEventHandler<OpenIddictValidationEvents.ProcessRequestContext>(handler =>
+                    handler.UseScopedHandler<OpenIddictValidationPublicBaseUriHandler>()
+                        .SetOrder(OpenIddictValidationAspNetCoreHandlers.ResolveRequestUri.Descriptor.Order + 500));
+                openIddict.UseAspNetCore();
             });
 
         services.AddRateLimiter(rateLimiting =>
