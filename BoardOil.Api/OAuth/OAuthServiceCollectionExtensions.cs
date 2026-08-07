@@ -1,7 +1,11 @@
 using System.Threading.RateLimiting;
+using System.Security.Cryptography;
+using System.Text;
+using BoardOil.Api.Configuration;
 using BoardOil.Contracts.Auth;
 using BoardOil.Ef;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
 
@@ -11,12 +15,17 @@ public static class OAuthServiceCollectionExtensions
 {
     public const string DynamicClientRegistrationRateLimitPolicy = "oauth-dynamic-client-registration";
 
-    public static IServiceCollection AddBoardOilOAuth(this IServiceCollection services)
+    public static IServiceCollection AddBoardOilOAuth(
+        this IServiceCollection services,
+        JwtAuthOptions jwtOptions)
     {
         var options = new BoardOilOAuthOptions();
         services.AddSingleton(options);
         services.AddScoped<OAuthEndpointUrlResolver>();
+        services.AddScoped<OpenIddictPublicBaseUriHandler>();
         services.AddScoped<OpenIddictConfigurationHandler>();
+        services.AddScoped<OAuthAuthorizationService>();
+        services.AddScoped<OAuthRefreshTokenGenerationHandler>();
         services.AddScoped<IOAuthProtectedResourceMetadataService, OAuthProtectedResourceMetadataService>();
         services.AddScoped<IOAuthDynamicClientRegistrationService, OAuthDynamicClientRegistrationService>();
         services.AddHostedService<OAuthDynamicClientRegistrationCleanupService>();
@@ -37,20 +46,35 @@ public static class OAuthServiceCollectionExtensions
                     .AllowAuthorizationCodeFlow()
                     .AllowRefreshTokenFlow()
                     .RequireProofKeyForCodeExchange()
+                    .DisableResourceValidation()
+                    .IgnoreResourcePermissions()
+                    .SetAuthorizationCodeLifetime(options.AuthorizationCodeLifetime)
+                    .SetAccessTokenLifetime(options.AccessTokenLifetime)
+                    .SetRefreshTokenLifetime(options.RefreshTokenLifetime)
+                    .SetRefreshTokenReuseLeeway(TimeSpan.Zero)
                     .Configure(options =>
                     {
                         options.CodeChallengeMethods.Clear();
                         options.CodeChallengeMethods.Add(OpenIddictConstants.CodeChallengeMethods.Sha256);
                     })
                     .RegisterScopes(MachinePatScopes.McpRead, MachinePatScopes.McpWrite)
-                    .AddEphemeralEncryptionKey()
+                    .AddEncryptionKey(CreateKey(jwtOptions.SigningKey, "boardoil-oauth-encryption"))
+                    .AddSigningKey(CreateKey(jwtOptions.SigningKey, "boardoil-oauth-signing"))
                     .AddEphemeralSigningKey();
 
                 openIddict.AddEventHandler<OpenIddictServerEvents.HandleConfigurationRequestContext>(handler =>
                     handler.UseScopedHandler<OpenIddictConfigurationHandler>()
                         .SetOrder(OpenIddictServerHandlers.Discovery.AttachAdditionalMetadata.Descriptor.Order + 500));
+                openIddict.AddEventHandler<OpenIddictServerEvents.ProcessRequestContext>(handler =>
+                    handler.UseScopedHandler<OpenIddictPublicBaseUriHandler>()
+                        .SetOrder(OpenIddictServerHandlers.InferEndpointType.Descriptor.Order + 500));
+                openIddict.AddEventHandler<OpenIddictServerEvents.ProcessSignInContext>(handler =>
+                    handler.UseScopedHandler<OAuthRefreshTokenGenerationHandler>()
+                        .SetOrder(OpenIddictServerHandlers.EvaluateGeneratedTokens.Descriptor.Order + 500));
 
-                openIddict.UseAspNetCore();
+                openIddict.UseAspNetCore()
+                    .EnableAuthorizationEndpointPassthrough()
+                    .EnableTokenEndpointPassthrough();
             });
 
         services.AddRateLimiter(rateLimiting =>
@@ -69,5 +93,11 @@ public static class OAuthServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    private static SymmetricSecurityKey CreateKey(string secret, string purpose)
+    {
+        var material = Encoding.UTF8.GetBytes($"{purpose}\0{secret}");
+        return new SymmetricSecurityKey(SHA256.HashData(material));
     }
 }

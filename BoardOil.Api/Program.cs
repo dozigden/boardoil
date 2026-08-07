@@ -32,7 +32,12 @@ var connectionString = runtimeOptions.ResolveConnectionString(builder.Configurat
 var imageStorageOptions = BoardOilImageStorageOptions.Resolve(builder.Configuration, connectionString);
 builder.Services.AddBoardOilServices();
 builder.Services.AddBoardOilEfInfrastructure(connectionString);
-builder.Services.AddBoardOilOAuth();
+builder.Services.AddBoardOilOAuth(jwtOptions);
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.Name = "boardoil_oauth_antiforgery";
+    options.FormFieldName = "boardoil_oauth_antiforgery";
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("BoardOilDevClient", policy =>
