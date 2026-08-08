@@ -11,14 +11,14 @@ public sealed class JwtAuthOptions
     public string RefreshTokenCookieName { get; init; } = "boardoil_refresh";
     public bool AllowInsecureCookies { get; init; }
 
-    public static JwtAuthOptions FromConfiguration(IConfiguration configuration)
+    public static JwtAuthOptions FromConfiguration(IConfiguration configuration, string signingKey)
     {
         var section = configuration.GetSection("BoardOilAuth");
         var options = new JwtAuthOptions
         {
             Issuer = section["Issuer"] ?? "boardoil",
             Audience = section["Audience"] ?? "boardoil",
-            SigningKey = section["SigningKey"] ?? string.Empty,
+            SigningKey = signingKey,
             AccessTokenMinutes = Math.Max(1, section.GetValue<int?>("AccessTokenMinutes") ?? 15),
             RefreshTokenDays = Math.Max(1, section.GetValue<int?>("RefreshTokenDays") ?? 14),
             AccessTokenCookieName = section["AccessTokenCookieName"] ?? "boardoil_access",

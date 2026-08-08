@@ -20,7 +20,10 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configuration);
-var jwtOptions = JwtAuthOptions.FromConfiguration(builder.Configuration);
+var connectionString = runtimeOptions.ResolveConnectionString(builder.Configuration);
+var signingKeyPath = runtimeOptions.ResolveSigningKeyPath(connectionString);
+var signingKey = JwtSigningKeyProvider.Resolve(builder.Configuration, signingKeyPath);
+var jwtOptions = JwtAuthOptions.FromConfiguration(builder.Configuration, signingKey);
 var csrfOptions = CsrfOptions.FromConfiguration(builder.Configuration);
 var internalOptions = BoardOilInternalOptions.FromConfiguration(builder.Configuration);
 var mcpOptions = BoardOilMcpOptions.FromConfiguration(builder.Configuration);
@@ -28,7 +31,6 @@ var buildInfo = BoardOilBuildInfo.FromConfiguration(builder.Configuration, build
 
 builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
-var connectionString = runtimeOptions.ResolveConnectionString(builder.Configuration);
 var imageStorageOptions = BoardOilImageStorageOptions.Resolve(builder.Configuration, connectionString);
 builder.Services.AddBoardOilServices();
 builder.Services.AddBoardOilEfInfrastructure(connectionString);

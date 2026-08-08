@@ -1,7 +1,12 @@
+using System.Data.Common;
+
 namespace BoardOil.Api.Configuration;
 
 public sealed class BoardOilRuntimeOptions
 {
+    private const string DefaultDataPath = "/data/boardoil.db";
+    private const string SigningKeyFileName = "boardoil-auth-signing-key";
+
     public string? DataPath { get; init; }
     public bool ExposeLan { get; init; }
     public int Port { get; init; } = 5000;
@@ -26,12 +31,22 @@ public sealed class BoardOilRuntimeOptions
             return configured;
         }
 
-        var dataPath = string.IsNullOrWhiteSpace(DataPath)
-            ? "/data/boardoil.db"
-            : DataPath!.Trim();
+        var dataPath = ResolveDataPath();
         var connectionString = $"Data Source={dataPath}";
         EnsureSqliteDirectoryExists(connectionString);
         return connectionString;
+    }
+
+    public string ResolveSigningKeyPath(string connectionString)
+    {
+        var dataPath = Path.GetFullPath(ResolveDataPathFromConnectionString(connectionString) ?? ResolveDataPath());
+        var dataDirectory = Path.GetDirectoryName(dataPath);
+        if (string.IsNullOrWhiteSpace(dataDirectory))
+        {
+            throw new InvalidOperationException("BoardOil data directory could not be resolved.");
+        }
+
+        return Path.Combine(dataDirectory, SigningKeyFileName);
     }
 
     public string ResolveListenUrl(IConfiguration configuration)
@@ -52,6 +67,40 @@ public sealed class BoardOilRuntimeOptions
         return explicitUrls
             .Replace("http://localhost:0", "http://127.0.0.1:0", StringComparison.OrdinalIgnoreCase)
             .Replace("https://localhost:0", "https://127.0.0.1:0", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string ResolveDataPath() =>
+        string.IsNullOrWhiteSpace(DataPath)
+            ? DefaultDataPath
+            : DataPath.Trim();
+
+    private static string? ResolveDataPathFromConnectionString(string connectionString)
+    {
+        try
+        {
+            var builder = new DbConnectionStringBuilder
+            {
+                ConnectionString = connectionString
+            };
+            if (!builder.TryGetValue("Data Source", out var rawDataPath))
+            {
+                return null;
+            }
+
+            var dataPath = rawDataPath?.ToString()?.Trim();
+            if (string.IsNullOrWhiteSpace(dataPath)
+                || string.Equals(dataPath, ":memory:", StringComparison.OrdinalIgnoreCase)
+                || dataPath.StartsWith("file:", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return dataPath;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 
     private static void EnsureSqliteDirectoryExists(string connectionString)
