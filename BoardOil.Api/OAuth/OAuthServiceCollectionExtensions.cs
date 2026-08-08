@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Api.Configuration;
+using BoardOil.Abstractions.OAuth;
 using BoardOil.Contracts.Auth;
 using BoardOil.Ef;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +29,7 @@ public static class OAuthServiceCollectionExtensions
         services.AddScoped<OpenIddictValidationPublicBaseUriHandler>();
         services.AddScoped<OpenIddictConfigurationHandler>();
         services.AddScoped<OAuthAuthorizationService>();
+        services.AddScoped<IOAuthAuthorizationRevoker, OpenIddictOAuthAuthorizationRevoker>();
         services.AddScoped<OAuthRefreshTokenGenerationHandler>();
         services.AddScoped<IOAuthProtectedResourceMetadataService, OAuthProtectedResourceMetadataService>();
         services.AddScoped<IOAuthDynamicClientRegistrationService, OAuthDynamicClientRegistrationService>();

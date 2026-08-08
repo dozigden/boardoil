@@ -53,6 +53,23 @@ export async function getEnvelope<T>(path: string): Promise<Result<ApiEnvelope<T
   });
 }
 
+export async function getJson<T>(path: string): Promise<Result<T, AppError>> {
+  const responseResult = await request(path, { method: 'GET' });
+  if (!responseResult.ok) {
+    return responseResult;
+  }
+
+  const body = (await responseResult.data.json().catch(() => null)) as T | null;
+  if (body === null) {
+    return err({
+      kind: 'parse',
+      message: 'Unexpected empty API response.'
+    });
+  }
+
+  return ok(body);
+}
+
 export async function postJson(path: string, payload: unknown): Promise<Result<void, AppError>> {
   return sendJson('POST', path, payload);
 }

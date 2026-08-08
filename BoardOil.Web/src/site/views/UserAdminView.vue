@@ -36,6 +36,10 @@ const navItems = [
     to: { name: 'user-admin-access-tokens' }
   },
   {
+    label: 'OAuth Connections',
+    to: { name: 'user-admin-oauth-connections' }
+  },
+  {
     label: 'Reset Password',
     to: { name: 'user-admin-reset-password' }
   }

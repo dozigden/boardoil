@@ -56,6 +56,11 @@ describe('router layout meta mapping', () => {
     expect(findByPath('/admin/system')?.meta?.layout).toBe(APP_LAYOUT_ADMIN);
   });
 
+  it('keeps owner and system OAuth management under their respective admin layouts', () => {
+    expect(findIndexedByName('user-admin-oauth-connections')?.nearestLayout).toBe(APP_LAYOUT_ADMIN);
+    expect(findIndexedByName('system-admin-oauth-connections')?.nearestLayout).toBe(APP_LAYOUT_ADMIN);
+  });
+
   it('maps board context requirement to board-scoped route roots', () => {
     expect(findByName('board')?.meta?.requiresBoardContext).toBe(true);
     expect(findByName('board-archived')?.meta?.requiresBoardContext).toBe(true);

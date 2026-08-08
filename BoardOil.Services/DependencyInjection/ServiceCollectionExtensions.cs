@@ -6,6 +6,7 @@ using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.CardType;
 using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.Image;
+using BoardOil.Abstractions.OAuth;
 using BoardOil.Abstractions.Tag;
 using BoardOil.Abstractions.Users;
 using BoardOil.Abstractions.Slick;
@@ -17,6 +18,7 @@ using BoardOil.Services.Card;
 using BoardOil.Services.CardType;
 using BoardOil.Services.Column;
 using BoardOil.Services.Image;
+using BoardOil.Services.OAuth;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Slick;
 using BoardOil.Services.Style;
@@ -69,6 +71,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IImageStorageService, LocalImageStorageService>();
         services.AddScoped<IUserProfileImageService, UserProfileImageService>();
+        services.AddScoped<IOAuthConnectionManagementService, OAuthConnectionManagementService>();
         return services;
     }
 }

@@ -59,6 +59,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('./site/views/AccessTokensView.vue')
       },
       {
+        path: 'oauth-connections',
+        name: 'user-admin-oauth-connections',
+        component: () => import('./shared/views/OAuthConnectionsView.vue')
+      },
+      {
         path: 'reset-password',
         name: 'user-admin-reset-password',
         component: () => import('./site/views/UserResetPasswordView.vue')
@@ -228,6 +233,12 @@ const routes: RouteRecordRaw[] = [
         path: 'client-accounts/:clientAccountId(\\d+)/tokens',
         name: 'client-account-tokens',
         component: () => import('./system/views/ClientAccountTokensView.vue')
+      },
+      {
+        path: 'oauth-connections',
+        name: 'system-admin-oauth-connections',
+        component: () => import('./shared/views/OAuthConnectionsView.vue'),
+        props: { administrator: true }
       },
       {
         path: 'configuration',

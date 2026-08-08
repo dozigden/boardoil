@@ -23,6 +23,10 @@ const navItems = [
     to: { name: 'client-accounts' }
   },
   {
+    label: 'OAuth Connections',
+    to: { name: 'system-admin-oauth-connections' }
+  },
+  {
     label: 'Configuration',
     to: { name: 'configuration' }
   },

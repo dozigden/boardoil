@@ -16,6 +16,29 @@ describe('http api client', () => {
     vi.unstubAllEnvs();
   });
 
+  it('returns JSON responses that are not wrapped in an API envelope', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ resource: 'https://boardoil.example.com/mcp/oauth' })
+    } as unknown as Response);
+
+    const { getJson } = await import('./http');
+    const result = await getJson<{ resource: string }>(
+      '/.well-known/oauth-protected-resource/mcp/oauth'
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      data: { resource: 'https://boardoil.example.com/mcp/oauth' }
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:5173/.well-known/oauth-protected-resource/mcp/oauth',
+      expect.objectContaining({ method: 'GET', credentials: 'include' })
+    );
+  });
+
   it('preserves HTTP status code in error payload', async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue({

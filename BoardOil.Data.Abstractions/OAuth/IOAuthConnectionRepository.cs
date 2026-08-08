@@ -5,6 +5,10 @@ namespace BoardOil.Data.Abstractions.OAuth;
 
 public interface IOAuthConnectionRepository : IRepositoryBase<EntityOAuthConnection>
 {
+    Task<IReadOnlyList<EntityOAuthConnection>> GetAllActiveAsync();
+    Task<IReadOnlyList<EntityOAuthConnection>> GetActiveForUserAsync(int userId);
+    Task<EntityOAuthConnection?> GetByIdWithActiveGrantAsync(int id);
+
     Task<EntityOAuthConnection?> GetByUserResourceAndNameAsync(
         int userId,
         string resourceType,

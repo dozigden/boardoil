@@ -399,6 +399,60 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
+    public async Task RevokeOwnConnection_ShouldInvalidateCurrentAccessAndRefreshTokens()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+
+        int connectionId;
+        string authorizationId;
+        await using (var scope = Factory.Services.CreateAsyncScope())
+        {
+            var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+            await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+            var connection = await dbContext.OAuthConnections
+                .Include(x => x.ActiveGrant)
+                .SingleAsync();
+            connectionId = connection.Id;
+            authorizationId = connection.ActiveGrant!.OpenIddictAuthorizationId;
+        }
+
+        // Act
+        var revokeResponse = await client.DeleteAsync($"/api/oauth-connections/{connectionId}");
+        var refreshResponse = await RefreshAsync(client, scenario, exchange.RefreshToken!);
+        var accessResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "revoked-oauth-connection",
+            exchange.AccessToken,
+            "/mcp/oauth");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, revokeResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, refreshResponse.StatusCode);
+        Assert.Equal(Errors.InvalidGrant, refreshResponse.Error);
+        Assert.Equal(HttpStatusCode.Unauthorized, accessResponse.StatusCode);
+
+        await using var assertScope = Factory.Services.CreateAsyncScope();
+        var authorizationManager = assertScope.ServiceProvider.GetRequiredService<IOpenIddictAuthorizationManager>();
+        var authorization = await authorizationManager.FindByIdAsync(authorizationId);
+        Assert.NotNull(authorization);
+        Assert.True(await authorizationManager.HasStatusAsync(authorization!, Statuses.Revoked));
+        var assertFactory = assertScope.ServiceProvider
+            .GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var assertDbContext = assertFactory.CreateDbContext<BoardOilDbContext>();
+        Assert.False(await assertDbContext.OAuthConnections.AnyAsync(x => x.Id == connectionId));
+        Assert.False(await assertDbContext.OAuthConnectionGrants
+            .AnyAsync(x => x.OAuthConnectionId == connectionId));
+    }
+
+    [Fact]
     public async Task AuthorizationCode_WhenExpired_ShouldReturnInvalidGrant()
     {
         // Arrange
