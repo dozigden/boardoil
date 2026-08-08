@@ -9,7 +9,10 @@
     popup="dialog"
   >
     <template #default="{ close }">
-      <emoji-picker class="emoji-picker-dropdown-picker" @emoji-click="(event: Event) => handleEmojiClick(event, close)" />
+      <emoji-picker
+        :class="['emoji-picker-dropdown-picker', themeStore.activeTheme]"
+        @emoji-click="(event: Event) => handleEmojiClick(event, close)"
+      />
       <div class="emoji-picker-dropdown-actions">
         <button
           type="button"
@@ -28,6 +31,7 @@
 import 'emoji-picker-element';
 import { computed } from 'vue';
 import BoDropdown from './BoDropdown.vue';
+import { useThemeStore } from '../stores/themeStore';
 import { normaliseTagEmojiForRender } from '../utils/tagStyles';
 
 const props = withDefaults(defineProps<{
@@ -45,6 +49,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string | null];
 }>();
 
+const themeStore = useThemeStore();
 const selectedEmoji = computed(() => normaliseTagEmojiForRender(props.modelValue));
 
 function handleEmojiClick(event: Event, close?: () => void) {
@@ -90,6 +95,17 @@ function clearEmoji(close?: () => void) {
   width: 100%;
   min-height: 16rem;
   max-height: 18rem;
+  color: var(--bo-text-default);
+  --background: var(--bo-surface-base);
+  --border-color: var(--bo-border-soft);
+  --button-active-background: var(--bo-surface-energy);
+  --button-hover-background: var(--bo-surface-muted);
+  --category-font-color: var(--bo-text-default);
+  --indicator-color: var(--bo-focus-ring);
+  --input-border-color: var(--bo-border-default);
+  --input-font-color: var(--bo-text-default);
+  --input-placeholder-color: var(--bo-ink-subtle);
+  --outline-color: var(--bo-focus-ring);
 }
 
 .emoji-picker-dropdown-actions {
