@@ -11,8 +11,14 @@ using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class OAuthConnectionManagementApiIntegrationTests : AuthAuthorisationIntegrationTestBase
+public sealed class OAuthConnectionManagementApiIntegrationTests
+    : AuthAuthorisationIntegrationTestBase, IClassFixture<DefaultApiFactoryFixture>
 {
+    public OAuthConnectionManagementApiIntegrationTests(DefaultApiFactoryFixture fixture)
+    {
+        UseSharedFactory(fixture);
+    }
+
     [Fact]
     public async Task GetOwnConnections_ShouldReturnOnlySignedInUsersConnectionsWithoutSecrets()
     {

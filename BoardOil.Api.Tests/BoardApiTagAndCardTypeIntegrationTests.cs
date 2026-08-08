@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Tag;
 using Xunit;
@@ -7,8 +8,13 @@ using Xunit;
 namespace BoardOil.Api.Tests;
 
 public sealed class BoardApiTagAndCardTypeIntegrationTests
-    : BoardApiIntegrationTestBase
+    : BoardApiIntegrationTestBase, IClassFixture<DefaultApiFactoryFixture>
 {
+    public BoardApiTagAndCardTypeIntegrationTests(DefaultApiFactoryFixture fixture)
+    {
+        UseSharedFactory(fixture);
+    }
+
     [Fact]
     public async Task TagEndpoints_ShouldCreateTag()
     {

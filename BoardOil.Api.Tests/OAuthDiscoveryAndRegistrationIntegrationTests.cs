@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.OAuth;
+using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,13 +12,19 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthorisationIntegrationTestBase
+public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
+    : AuthAuthorisationIntegrationTestBase, IClassFixture<OAuthDiscoveryAndRegistrationFixture>
 {
+    public OAuthDiscoveryAndRegistrationIntegrationTests(OAuthDiscoveryAndRegistrationFixture fixture)
+    {
+        UseSharedFactory(fixture);
+    }
+
     [Fact]
     public async Task SharedMcpResource_ShouldAdvertiseProtectedResourceAndAuthorizationMetadata()
     {
         // Arrange
-        var client = Factory.CreateClient();
+        var client = CreateClient();
         await ConfigurePublicBaseAsync(client);
 
         // Act
@@ -68,7 +75,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
     public async Task SharedMcpMetadata_ShouldNotRequireAPreCreatedConnection()
     {
         // Arrange
-        var client = Factory.CreateClient();
+        var client = CreateClient();
         await ConfigurePublicBaseAsync(client);
 
         // Act
@@ -83,7 +90,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
     public async Task DynamicRegistration_WhenCodexMetadataValid_ShouldCreatePublicPkceClientOnly()
     {
         // Arrange
-        var client = Factory.CreateClient();
+        var client = CreateClient();
         await ConfigurePublicBaseAsync(client);
         var request = CreateCodexRegistrationRequest();
 
@@ -123,7 +130,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
         string redirectUri)
     {
         // Arrange
-        var client = Factory.CreateClient();
+        var client = CreateClient();
         await ConfigurePublicBaseAsync(client);
         var request = CreateCodexRegistrationRequest() with
         {
@@ -145,10 +152,10 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
     public async Task AuthorizationRequest_WhenPkceMissing_ShouldBeRejectedBeforeLogin()
     {
         // Arrange
-        var client = Factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = TrackClient(Factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
-        });
+        }));
         await ConfigurePublicBaseAsync(client);
         var registrationResponse = await client.PostAsJsonAsync(
             "/connect/register",
@@ -178,10 +185,10 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
     public async Task AuthorizationRequest_WhenPkceMethodPlain_ShouldBeRejectedBeforeLogin()
     {
         // Arrange
-        var client = Factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = TrackClient(Factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
-        });
+        }));
         await ConfigurePublicBaseAsync(client);
         var registrationResponse = await client.PostAsJsonAsync(
             "/connect/register",
@@ -273,7 +280,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
         string expectedError)
     {
         // Arrange
-        var client = Factory.CreateClient();
+        var client = CreateClient();
 
         // Act
         var response = await client.PostAsJsonAsync("/connect/register", request);
@@ -289,7 +296,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
     public async Task CleanupExpiredRegistrations_ShouldDeleteOnlyExpiredDynamicClients()
     {
         // Arrange
-        _ = Factory.CreateClient();
+        _ = CreateClient();
         await using var scope = Factory.Services.CreateAsyncScope();
         var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
         var expired = CreateApplicationDescriptor("expired-client", DateTimeOffset.UtcNow.AddMinutes(-1));
@@ -348,5 +355,40 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
         var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
         await using var dbContext = factory.CreateDbContext<BoardOil.Ef.BoardOilDbContext>();
         return await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.CountAsync(dbContext.Users);
+    }
+}
+
+public sealed class OAuthDiscoveryAndRegistrationFixture : IAsyncLifetime, IResettableApiFactoryFixture
+{
+    public OAuthDiscoveryAndRegistrationFixture()
+    {
+        DatabasePath = ApiFactoryIntegrationTestBase.BuildDbPath(
+            nameof(OAuthDiscoveryAndRegistrationIntegrationTests));
+        Factory = new BoardOilApiFactory(
+            DatabasePath,
+            configureTestServices: services =>
+                OAuthTestServiceConfiguration.DisableDynamicClientRegistrationRateLimit(
+                    services,
+                    "oauth-discovery-registration-tests"));
+    }
+
+    public string DatabasePath { get; }
+    public BoardOilApiFactory Factory { get; }
+
+    public ValueTask InitializeAsync()
+    {
+        using var client = Factory.CreateClient();
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask ResetAsync()
+    {
+        Factory.ResetDatabaseFromTemplate();
+        return ValueTask.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await Factory.DisposeAsync();
     }
 }

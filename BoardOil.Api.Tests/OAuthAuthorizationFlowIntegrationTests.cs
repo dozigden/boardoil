@@ -4,20 +4,16 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading.RateLimiting;
 using BoardOil.Api.OAuth;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Users;
 using BoardOil.Ef;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 using Xunit;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -1218,11 +1214,9 @@ public sealed class OAuthAuthorizationFlowFixture : IAsyncLifetime, IResettableA
             {
                 services.RemoveAll<TimeProvider>();
                 services.AddSingleton<TimeProvider>(TimeProvider);
-                services.RemoveAll<IConfigureOptions<RateLimiterOptions>>();
-                services.AddRateLimiter(options =>
-                    options.AddPolicy(
-                        OAuthServiceCollectionExtensions.DynamicClientRegistrationRateLimitPolicy,
-                        _ => RateLimitPartition.GetNoLimiter("oauth-authorization-flow-tests")));
+                OAuthTestServiceConfiguration.DisableDynamicClientRegistrationRateLimit(
+                    services,
+                    "oauth-authorization-flow-tests");
             });
     }
 
