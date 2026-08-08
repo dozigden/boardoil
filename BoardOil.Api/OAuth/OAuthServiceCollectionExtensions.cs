@@ -56,7 +56,7 @@ public static class OAuthServiceCollectionExtensions
                     .SetAuthorizationCodeLifetime(options.AuthorizationCodeLifetime)
                     .SetAccessTokenLifetime(options.AccessTokenLifetime)
                     .SetRefreshTokenLifetime(options.RefreshTokenLifetime)
-                    .SetRefreshTokenReuseLeeway(TimeSpan.Zero)
+                    .SetRefreshTokenReuseLeeway(options.RefreshTokenReuseLeeway)
                     .Configure(options =>
                     {
                         options.CodeChallengeMethods.Clear();

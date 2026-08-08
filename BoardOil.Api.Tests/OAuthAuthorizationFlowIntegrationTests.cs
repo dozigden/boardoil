@@ -268,7 +268,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
-    public async Task RefreshTokens_ShouldRotateAndRejectReuse()
+    public async Task RefreshToken_WhenRetriedWithinLeeway_ShouldReturnUsableReplacement()
     {
         // Arrange
         var client = CreateOAuthClient();
@@ -284,8 +284,8 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         // Act
         var firstExchange = await ExchangeCodeAsync(client, scenario, request, code);
         var firstRefresh = await RefreshAsync(client, scenario, firstExchange.RefreshToken!);
-        var refreshReplay = await RefreshAsync(client, scenario, firstExchange.RefreshToken!);
-        var secondRefresh = await RefreshAsync(client, scenario, firstRefresh.RefreshToken!);
+        var refreshRetry = await RefreshAsync(client, scenario, firstExchange.RefreshToken!);
+        var refreshAfterRetry = await RefreshAsync(client, scenario, refreshRetry.RefreshToken!);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, firstExchange.StatusCode);
@@ -295,10 +295,11 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Equal(HttpStatusCode.OK, firstRefresh.StatusCode);
         Assert.False(string.IsNullOrWhiteSpace(firstRefresh.RefreshToken));
         Assert.NotEqual(firstExchange.RefreshToken, firstRefresh.RefreshToken);
-        Assert.Equal(HttpStatusCode.BadRequest, refreshReplay.StatusCode);
-        Assert.Equal(Errors.InvalidGrant, refreshReplay.Error);
-        Assert.Equal(HttpStatusCode.BadRequest, secondRefresh.StatusCode);
-        Assert.Equal(Errors.InvalidGrant, secondRefresh.Error);
+        Assert.Equal(HttpStatusCode.OK, refreshRetry.StatusCode);
+        Assert.False(string.IsNullOrWhiteSpace(refreshRetry.RefreshToken));
+        Assert.NotEqual(firstExchange.RefreshToken, refreshRetry.RefreshToken);
+        Assert.Equal(HttpStatusCode.OK, refreshAfterRetry.StatusCode);
+        Assert.False(string.IsNullOrWhiteSpace(refreshAfterRetry.RefreshToken));
 
         await using var scope = Factory.Services.CreateAsyncScope();
         var authorizationManager = scope.ServiceProvider.GetRequiredService<IOpenIddictAuthorizationManager>();
@@ -324,6 +325,31 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.DoesNotContain(
             RegistrationExpiresAtProperty,
             applicationProperties);
+    }
+
+    [Fact]
+    public async Task RefreshToken_WhenRetriedAfterLeeway_ShouldRejectAndRevokeReplacement()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        await RegisterInitialAdminAsync(client);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        var refresh = await RefreshAsync(client, scenario, exchange.RefreshToken!);
+        var options = Factory.Services.GetRequiredService<BoardOilOAuthOptions>();
+        timeProvider.Advance(options.RefreshTokenReuseLeeway + TimeSpan.FromSeconds(1));
+
+        // Act
+        var replay = await RefreshAsync(client, scenario, exchange.RefreshToken!);
+        var refreshAfterReplay = await RefreshAsync(client, scenario, refresh.RefreshToken!);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, replay.StatusCode);
+        Assert.Equal(Errors.InvalidGrant, replay.Error);
+        Assert.Equal(HttpStatusCode.BadRequest, refreshAfterReplay.StatusCode);
+        Assert.Equal(Errors.InvalidGrant, refreshAfterReplay.Error);
     }
 
     [Fact]

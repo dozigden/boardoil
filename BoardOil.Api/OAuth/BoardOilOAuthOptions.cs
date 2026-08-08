@@ -7,4 +7,5 @@ public sealed class BoardOilOAuthOptions
     public TimeSpan AuthorizationCodeLifetime { get; init; } = TimeSpan.FromMinutes(5);
     public TimeSpan AccessTokenLifetime { get; init; } = TimeSpan.FromMinutes(15);
     public TimeSpan RefreshTokenLifetime { get; init; } = TimeSpan.FromDays(14);
+    public TimeSpan RefreshTokenReuseLeeway { get; init; } = TimeSpan.FromSeconds(30);
 }
