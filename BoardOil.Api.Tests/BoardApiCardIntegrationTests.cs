@@ -12,8 +12,13 @@ using Xunit;
 namespace BoardOil.Api.Tests;
 
 public sealed class BoardApiCardIntegrationTests
-    : BoardApiIntegrationTestBase
+    : BoardApiIntegrationTestBase, IClassFixture<DefaultApiFactoryFixture>
 {
+    public BoardApiCardIntegrationTests(DefaultApiFactoryFixture fixture)
+    {
+        UseSharedFactory(fixture);
+    }
+
     [Fact]
     public async Task CardEndpoints_ShouldCreateCard_WithTagNames()
     {

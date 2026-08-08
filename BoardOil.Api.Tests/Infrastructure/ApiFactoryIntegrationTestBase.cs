@@ -4,6 +4,9 @@ namespace BoardOil.Api.Tests.Infrastructure;
 
 public abstract class ApiFactoryIntegrationTestBase : IAsyncLifetime
 {
+    private readonly List<HttpClient> clients = [];
+    private IResettableApiFactoryFixture? sharedFixture;
+
     protected virtual string DbNamePrefix => GetType().Name;
 
     protected string DatabasePath { get; private set; } = string.Empty;
@@ -11,6 +14,13 @@ public abstract class ApiFactoryIntegrationTestBase : IAsyncLifetime
 
     public virtual ValueTask InitializeAsync()
     {
+        if (sharedFixture is not null)
+        {
+            DatabasePath = sharedFixture.DatabasePath;
+            Factory = sharedFixture.Factory;
+            return sharedFixture.ResetAsync();
+        }
+
         DatabasePath = BuildDbPath(DbNamePrefix);
         Factory = CreateFactory(DatabasePath);
         return ValueTask.CompletedTask;
@@ -18,13 +28,30 @@ public abstract class ApiFactoryIntegrationTestBase : IAsyncLifetime
 
     public virtual async ValueTask DisposeAsync()
     {
-        if (Factory is not null)
+        foreach (var client in clients)
+        {
+            client.Dispose();
+        }
+        clients.Clear();
+
+        if (sharedFixture is null && Factory is not null)
         {
             await Factory.DisposeAsync();
         }
     }
 
-    protected HttpClient CreateClient() => Factory.CreateClient();
+    protected HttpClient CreateClient() => TrackClient(Factory.CreateClient());
+
+    protected HttpClient TrackClient(HttpClient client)
+    {
+        clients.Add(client);
+        return client;
+    }
+
+    protected void UseSharedFactory(IResettableApiFactoryFixture fixture)
+    {
+        sharedFixture = fixture;
+    }
 
     protected Task<string> AuthenticateAsInitialAdminAsync(HttpClient client) =>
         AdminAuthenticationHelper.AuthenticateAsSeededAdminAsync(client, Factory.Services);
@@ -37,10 +64,46 @@ public abstract class ApiFactoryIntegrationTestBase : IAsyncLifetime
     protected virtual BoardOilApiFactory CreateFactory(string databasePath) =>
         new(databasePath);
 
-    private static string BuildDbPath(string dbNamePrefix)
+    internal static string BuildDbPath(string dbNamePrefix)
     {
         var root = Path.Combine(Directory.GetCurrentDirectory(), ".test-data");
         Directory.CreateDirectory(root);
         return Path.Combine(root, $"{dbNamePrefix}-{Guid.NewGuid():N}.db");
+    }
+}
+
+public interface IResettableApiFactoryFixture
+{
+    string DatabasePath { get; }
+    BoardOilApiFactory Factory { get; }
+    ValueTask ResetAsync();
+}
+
+public sealed class DefaultApiFactoryFixture : IAsyncLifetime, IResettableApiFactoryFixture
+{
+    public DefaultApiFactoryFixture()
+    {
+        DatabasePath = ApiFactoryIntegrationTestBase.BuildDbPath(nameof(DefaultApiFactoryFixture));
+        Factory = new BoardOilApiFactory(DatabasePath);
+    }
+
+    public string DatabasePath { get; }
+    public BoardOilApiFactory Factory { get; }
+
+    public ValueTask InitializeAsync()
+    {
+        using var client = Factory.CreateClient();
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask ResetAsync()
+    {
+        Factory.ResetDatabaseFromTemplate();
+        return ValueTask.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await Factory.DisposeAsync();
     }
 }

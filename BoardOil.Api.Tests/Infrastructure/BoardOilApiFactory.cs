@@ -138,10 +138,23 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
                 return;
             }
 
-            using var destination = new SqliteConnection($"Data Source={_databasePath}");
-            destination.Open();
-            DatabaseTemplate.Value.BackupDatabase(destination);
+            ResetDatabaseFromTemplateUnsafe();
         }
+    }
+
+    internal void ResetDatabaseFromTemplate()
+    {
+        lock (DatabaseTemplateLock)
+        {
+            ResetDatabaseFromTemplateUnsafe();
+        }
+    }
+
+    private void ResetDatabaseFromTemplateUnsafe()
+    {
+        using var destination = new SqliteConnection($"Data Source={_databasePath}");
+        destination.Open();
+        DatabaseTemplate.Value.BackupDatabase(destination);
     }
 
     private static SqliteConnection CreateDatabaseTemplate()

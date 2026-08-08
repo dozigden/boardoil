@@ -11,8 +11,13 @@ using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase
+public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, IClassFixture<DefaultApiFactoryFixture>
 {
+    public McpToolExecutionIntegrationTests(DefaultApiFactoryFixture fixture)
+    {
+        UseSharedFactory(fixture);
+    }
+
     [Fact]
     public async Task CardTools_WhenBoardsShareCardId_ShouldKeepMutationsBoardScoped()
     {

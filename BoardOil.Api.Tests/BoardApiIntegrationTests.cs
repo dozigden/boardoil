@@ -13,8 +13,13 @@ using Xunit;
 namespace BoardOil.Api.Tests;
 
 public sealed class BoardApiBoardAndColumnIntegrationTests
-    : BoardApiIntegrationTestBase
+    : BoardApiIntegrationTestBase, IClassFixture<DefaultApiFactoryFixture>
 {
+    public BoardApiBoardAndColumnIntegrationTests(DefaultApiFactoryFixture fixture)
+    {
+        UseSharedFactory(fixture);
+    }
+
     [Fact]
     public async Task GetBoard_ShouldReturnBootstrappedBoardWithDefaultColumns()
     {

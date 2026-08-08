@@ -10,8 +10,12 @@ using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase
+public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase, IClassFixture<DefaultApiFactoryFixture>
 {
+    public MachinePatIntegrationTests(DefaultApiFactoryFixture fixture)
+    {
+        UseSharedFactory(fixture);
+    }
 
     [Fact]
     public async Task CreatePat_ThenCallMcpWithPatBearer_ShouldSucceed()

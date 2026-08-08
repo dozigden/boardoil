@@ -4,35 +4,36 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.RateLimiting;
 using BoardOil.Api.OAuth;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Users;
 using BoardOil.Ef;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 using Xunit;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIntegrationTestBase
+public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIntegrationTestBase, IClassFixture<OAuthAuthorizationFlowFixture>
 {
     private const string RegistrationExpiresAtProperty = "boardoil:registration_expires_at";
-    private readonly ManualTimeProvider timeProvider = new(DateTimeOffset.UtcNow);
+    private readonly ManualTimeProvider timeProvider;
 
-    protected override BoardOilApiFactory CreateFactory(string databasePath) =>
-        new(
-            databasePath,
-            configureTestServices: services =>
-            {
-                services.RemoveAll<TimeProvider>();
-                services.AddSingleton<TimeProvider>(timeProvider);
-            });
+    public OAuthAuthorizationFlowIntegrationTests(OAuthAuthorizationFlowFixture fixture)
+    {
+        UseSharedFactory(fixture);
+        timeProvider = fixture.TimeProvider;
+    }
 
     [Fact]
     public async Task AuthorizationRequest_ShouldUseHumanLoginAndShowExactConsentContext()
@@ -926,10 +927,10 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
 
     private HttpClient CreateOAuthClient()
     {
-        var client = Factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = TrackClient(Factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
-        });
+        }));
         client.BaseAddress = new Uri("https://localhost");
         return client;
     }
@@ -1204,12 +1205,57 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         string? Scope,
         string? Error);
 
-    private sealed class ManualTimeProvider(DateTimeOffset utcNow) : TimeProvider
+}
+
+public sealed class OAuthAuthorizationFlowFixture : IAsyncLifetime, IResettableApiFactoryFixture
+{
+    public OAuthAuthorizationFlowFixture()
     {
-        private DateTimeOffset currentUtc = utcNow;
-
-        public override DateTimeOffset GetUtcNow() => currentUtc;
-
-        public void Advance(TimeSpan duration) => currentUtc = currentUtc.Add(duration);
+        DatabasePath = ApiFactoryIntegrationTestBase.BuildDbPath(nameof(OAuthAuthorizationFlowIntegrationTests));
+        Factory = new BoardOilApiFactory(
+            DatabasePath,
+            configureTestServices: services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(TimeProvider);
+                services.RemoveAll<IConfigureOptions<RateLimiterOptions>>();
+                services.AddRateLimiter(options =>
+                    options.AddPolicy(
+                        OAuthServiceCollectionExtensions.DynamicClientRegistrationRateLimitPolicy,
+                        _ => RateLimitPartition.GetNoLimiter("oauth-authorization-flow-tests")));
+            });
     }
+
+    public string DatabasePath { get; }
+    public BoardOilApiFactory Factory { get; }
+    internal ManualTimeProvider TimeProvider { get; } = new(DateTimeOffset.UtcNow);
+
+    public ValueTask InitializeAsync()
+    {
+        using var client = Factory.CreateClient();
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask ResetAsync()
+    {
+        TimeProvider.Reset();
+        Factory.ResetDatabaseFromTemplate();
+        return ValueTask.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await Factory.DisposeAsync();
+    }
+}
+
+internal sealed class ManualTimeProvider(DateTimeOffset utcNow) : TimeProvider
+{
+    private DateTimeOffset currentUtc = utcNow;
+
+    public override DateTimeOffset GetUtcNow() => currentUtc;
+
+    public void Advance(TimeSpan duration) => currentUtc = currentUtc.Add(duration);
+
+    public void Reset() => currentUtc = DateTimeOffset.UtcNow;
 }
