@@ -41,6 +41,7 @@ export default defineConfig(({ command, mode }) => {
   }
 
   const apiProxyTarget = env.VITE_BO_API_PROXY_TARGET?.trim() || 'http://localhost:5000';
+  const oauthProxyTarget = env.VITE_BO_OAUTH_PROXY_TARGET?.trim() || apiProxyTarget;
 
   const config = {
     plugins: [
@@ -56,6 +57,11 @@ export default defineConfig(({ command, mode }) => {
       proxy: {
         '/api': apiProxyTarget,
         '/images': apiProxyTarget,
+        '/.well-known': {
+          target: oauthProxyTarget,
+          changeOrigin: true,
+          secure: false
+        },
         '/hubs': {
           target: apiProxyTarget,
           ws: true

@@ -32,12 +32,9 @@ const navItems = [
     to: { name: 'user-admin-theme' }
   },
   {
-    label: 'Access Tokens',
-    to: { name: 'user-admin-access-tokens' }
-  },
-  {
-    label: 'OAuth Connections',
-    to: { name: 'user-admin-oauth-connections' }
+    label: 'Authentication',
+    to: { name: 'user-admin-oauth-connections' },
+    activeRouteNames: ['user-admin-oauth-connections', 'user-admin-access-tokens']
   },
   {
     label: 'Reset Password',

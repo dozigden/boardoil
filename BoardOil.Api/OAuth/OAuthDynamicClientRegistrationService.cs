@@ -140,7 +140,7 @@ public sealed class OAuthDynamicClientRegistrationService(
         if (request.RedirectUris.Distinct(StringComparer.Ordinal).Count() != request.RedirectUris.Length
             || request.RedirectUris.Any(static value => !IsSafeLoopbackRedirectUri(value)))
         {
-            return InvalidRedirectUri("Each redirect URI must be an absolute HTTP loopback URI with an explicit dynamic port.");
+            return InvalidRedirectUri("Each redirect URI must be an absolute HTTP loopback URI.");
         }
 
         if (request.GrantTypes is not { Length: > 0 }
@@ -182,10 +182,19 @@ public sealed class OAuthDynamicClientRegistrationService(
             || value.Length > 2048
             || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
             || !string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
-            || uri.IsDefaultPort
             || uri.Port is <= 0 or > 65535
             || !string.IsNullOrEmpty(uri.UserInfo)
             || !string.IsNullOrEmpty(uri.Fragment))
+        {
+            return false;
+        }
+
+        if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (uri.IsDefaultPort)
         {
             return false;
         }

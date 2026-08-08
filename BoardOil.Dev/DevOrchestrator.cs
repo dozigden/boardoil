@@ -305,12 +305,12 @@ internal sealed class DevOrchestrator
 
         return new ManagedService(
             "Web",
-            "http://localhost:5173",
+            DevWebLaunchSettings.Endpoint,
             npm,
             ["run", "dev"],
             webDirectory,
             logPath,
-            new Dictionary<string, string>(),
+            DevWebLaunchSettings.CreateEnvironment(),
             async (_, cancellationToken) =>
             {
                 EnsureExecutableExists("npm", npm);

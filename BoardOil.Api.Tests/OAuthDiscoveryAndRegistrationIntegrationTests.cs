@@ -116,6 +116,31 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
         Assert.Equal(1, userCount);
     }
 
+    [Theory]
+    [InlineData("http://localhost:49152/callback")]
+    [InlineData("http://localhost/callback")]
+    public async Task DynamicRegistration_WhenClaudeCodeUsesLocalhostCallback_ShouldAcceptRedirectUri(
+        string redirectUri)
+    {
+        // Arrange
+        var client = Factory.CreateClient();
+        await ConfigurePublicBaseAsync(client);
+        var request = CreateCodexRegistrationRequest() with
+        {
+            ClientName = "Claude Code",
+            RedirectUris = [redirectUri]
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync("/connect/register", request);
+        var registration = await response.Content.ReadFromJsonAsync<OAuthDynamicClientRegistrationResponse>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(registration);
+        Assert.Equal(request.RedirectUris, registration!.RedirectUris);
+    }
+
     [Fact]
     public async Task AuthorizationRequest_WhenPkceMissing_ShouldBeRejectedBeforeLogin()
     {
@@ -197,7 +222,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests : AuthAuthoris
             {
                 CreateCodexRegistrationRequest() with
                 {
-                    RedirectUris = ["http://localhost:49152/callback/project"]
+                    RedirectUris = ["http://attacker.example.com:49152/callback"]
                 },
                 "invalid_redirect_uri"
             },

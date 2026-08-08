@@ -1,0 +1,192 @@
+.authentication-method-page {
+  display: grid;
+  gap: 0.9rem;
+  max-width: 1180px;
+}
+
+.authentication-method-page--standalone {
+  margin-top: 1rem;
+}
+
+.authentication-method-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.authentication-method-header h2,
+.authentication-method-header p,
+.authentication-method-sidecar h3,
+.authentication-method-sidecar p {
+  margin: 0;
+}
+
+.authentication-method-header p {
+  color: var(--bo-ink-muted);
+}
+
+.authentication-method-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 1rem;
+  align-items: start;
+}
+
+.authentication-method-layout--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.authentication-method-main,
+.authentication-method-sidecar {
+  min-width: 0;
+}
+
+.authentication-method-sidecar {
+  position: sticky;
+  top: 1rem;
+}
+
+.authentication-method-empty {
+  margin: 0;
+  padding: 1rem;
+  color: var(--bo-ink-muted);
+}
+
+.authentication-setup-code-block {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.authentication-setup-code-block--endpoint {
+  display: inline-block;
+  width: fit-content;
+}
+
+.authentication-setup-code {
+  display: block;
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.55rem 2.4rem 0.55rem 0.55rem;
+  overflow-x: auto;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 8px;
+  background: var(--bo-surface-muted);
+  color: var(--bo-ink-strong);
+  font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.authentication-setup-code--inline {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.authentication-setup-copy {
+  position: absolute;
+  top: 0.42rem;
+  right: 0.42rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border-color: color-mix(in oklab, var(--bo-colour-energy) 45%, var(--bo-border-soft));
+  background: color-mix(in oklab, var(--bo-colour-energy) 16%, var(--bo-surface-base));
+  color: color-mix(in oklab, var(--bo-colour-energy) 84%, var(--bo-ink-strong));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease-in-out, background 120ms ease-in-out, border-color 120ms ease-in-out, color 120ms ease-in-out;
+}
+
+.authentication-setup-code-block--endpoint .authentication-setup-copy {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.authentication-setup-code-block:hover .authentication-setup-copy,
+.authentication-setup-code-block:focus-within .authentication-setup-copy {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.authentication-setup-copy:hover:not(:disabled),
+.authentication-setup-copy:focus-visible {
+  border-color: var(--bo-colour-energy-strong);
+  background: color-mix(in oklab, var(--bo-colour-energy) 26%, var(--bo-surface-base));
+  color: color-mix(in oklab, var(--bo-colour-energy-strong) 82%, var(--bo-colour-brand));
+}
+
+.authentication-record-row {
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.authentication-record-main {
+  display: block;
+  min-width: 0;
+}
+
+.authentication-record-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+}
+
+.authentication-record-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 0.65rem 1rem;
+  margin: 0.85rem 0 0;
+}
+
+.authentication-record-details div {
+  min-width: 0;
+}
+
+.authentication-record-details dt {
+  color: var(--bo-ink-muted);
+  font-size: 0.78rem;
+}
+
+.authentication-record-details dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1040px) {
+  .authentication-method-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .authentication-method-sidecar {
+    position: static;
+  }
+}
+
+@media (max-width: 560px) {
+  .authentication-record-row {
+    flex-direction: column;
+  }
+
+  .authentication-record-row .entity-row-actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .authentication-setup-copy {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}

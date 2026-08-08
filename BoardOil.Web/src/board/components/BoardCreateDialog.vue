@@ -1,6 +1,6 @@
 <template>
   <ModalDialog :open="open" title="Create Board" close-label="Cancel creation" @close="emit('close')" @submit="submit">
-    <div class="board-create-dialog-modes" role="tablist" aria-label="Board create mode">
+    <div class="btn-tab-list board-create-dialog-modes" role="tablist" aria-label="Board create mode">
       <button
         type="button"
         class="btn btn--tab"
@@ -156,21 +156,10 @@ watch(
 
 <style scoped>
 .board-create-dialog-modes {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem;
   width: fit-content;
   max-width: 100%;
   align-self: flex-start;
-  border: 1px solid color-mix(in oklab, var(--bo-colour-energy) 45%, var(--bo-border-soft));
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--bo-colour-energy) 14%, var(--bo-surface-base));
   margin-bottom: 0.75rem;
-}
-
-.board-create-dialog-modes :deep(.btn--tab) {
-  flex: 0 0 auto;
 }
 
 .board-create-dialog-file-name {

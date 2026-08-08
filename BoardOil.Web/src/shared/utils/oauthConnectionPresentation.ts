@@ -4,3 +4,8 @@ export function buildCodexOAuthConfig(resourceUrl: string) {
 url = "${normalizedResourceUrl}"
 auth = "oauth"`;
 }
+
+export function buildClaudeCodeOAuthCommand(resourceUrl: string) {
+  const normalizedResourceUrl = resourceUrl.replace(/\/+$/, '');
+  return `claude mcp add --transport http --scope local boardoil "${normalizedResourceUrl}"`;
+}

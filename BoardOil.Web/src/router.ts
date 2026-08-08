@@ -54,14 +54,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('./site/views/UserThemeView.vue')
       },
       {
-        path: 'access-tokens',
-        name: 'user-admin-access-tokens',
-        component: () => import('./site/views/AccessTokensView.vue')
-      },
-      {
-        path: 'oauth-connections',
-        name: 'user-admin-oauth-connections',
-        component: () => import('./shared/views/OAuthConnectionsView.vue')
+        path: 'authentication',
+        component: () => import('./site/views/UserAuthenticationView.vue'),
+        children: [
+          {
+            path: '',
+            redirect: { name: 'user-admin-oauth-connections' }
+          },
+          {
+            path: 'oauth',
+            name: 'user-admin-oauth-connections',
+            component: () => import('./shared/views/OAuthConnectionsView.vue')
+          },
+          {
+            path: 'access-tokens',
+            name: 'user-admin-access-tokens',
+            component: () => import('./site/views/AccessTokensView.vue')
+          }
+        ]
       },
       {
         path: 'reset-password',

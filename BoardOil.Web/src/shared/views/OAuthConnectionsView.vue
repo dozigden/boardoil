@@ -1,8 +1,11 @@
 <template>
-  <section class="oauth-connections-page entity-rows-page">
-    <header class="oauth-connections-header">
+  <section
+    class="authentication-method-page"
+    :class="{ 'authentication-method-page--standalone': administrator }"
+  >
+    <header class="authentication-method-header">
       <div>
-        <h2>OAuth Connections</h2>
+        <h2 v-if="administrator">OAuth Connections</h2>
         <p v-if="administrator">Inspect and revoke OAuth installations across all users.</p>
         <p v-else>Manage the OAuth installations you have authorized.</p>
       </div>
@@ -15,17 +18,17 @@
     <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
     <div
-      class="oauth-connections-layout"
-      :class="{ 'oauth-connections-layout--administrator': administrator }"
+      class="authentication-method-layout"
+      :class="{ 'authentication-method-layout--single': administrator }"
     >
-      <section class="entity-rows-list oauth-connections-list" aria-label="OAuth connections">
-        <p v-if="!busy && connections.length === 0" class="oauth-connections-empty">
+      <section class="authentication-method-main entity-rows-list" aria-label="OAuth connections">
+        <p v-if="!busy && connections.length === 0" class="authentication-method-empty">
           No OAuth connections have been authorized yet.
         </p>
 
-        <article v-for="connection in connections" :key="connection.id" class="entity-row oauth-connection-row">
-          <div class="entity-row-main oauth-connection-main">
-            <header class="oauth-connection-title-row">
+        <article v-for="connection in connections" :key="connection.id" class="entity-row authentication-record-row">
+          <div class="entity-row-main authentication-record-main">
+            <header class="authentication-record-title">
               <h3 class="entity-row-title">{{ connection.name }}</h3>
               <span class="oauth-resource">{{ connection.resourceType.toUpperCase() }}</span>
             </header>
@@ -34,7 +37,7 @@
               {{ connection.owner.displayName }} <span>@{{ connection.owner.userName }}</span>
             </p>
 
-            <dl class="oauth-connection-details">
+            <dl class="authentication-record-details">
               <div>
                 <dt>Application</dt>
                 <dd>{{ connection.oAuthClientDisplayName }}</dd>
@@ -71,34 +74,74 @@
         </article>
       </section>
 
-      <aside v-if="!administrator" class="panel panel-stack oauth-setup-panel">
-        <h3>Codex project setup</h3>
-        <p>
-          Copy this into the repository's <code>.codex/config.toml</code>.
-        </p>
-        <p v-if="configurationErrorMessage" class="error">
-          {{ configurationErrorMessage }}
-        </p>
-        <p v-else-if="!configSnippet">Loading OAuth configuration...</p>
-        <div v-else class="oauth-config-block">
-          <pre>{{ configSnippet }}</pre>
-          <button type="button" class="btn btn--secondary" :disabled="busy" @click="copyConfig">
-            Copy config
-          </button>
-        </div>
+      <aside v-if="!administrator" class="authentication-method-sidecar panel panel-stack">
+        <h3>Project setup</h3>
+        <article class="panel panel--base panel--compact panel-stack panel-stack--tight oauth-setup-item">
+          <div class="btn-tab-list" role="tablist" aria-label="OAuth client setup">
+            <button
+              type="button"
+              class="btn btn--tab"
+              :class="{ 'is-active': setupClient === 'codex' }"
+              role="tab"
+              :aria-selected="setupClient === 'codex'"
+              @click="setupClient = 'codex'"
+            >
+              Codex
+            </button>
+            <button
+              type="button"
+              class="btn btn--tab"
+              :class="{ 'is-active': setupClient === 'claude-code' }"
+              role="tab"
+              :aria-selected="setupClient === 'claude-code'"
+              @click="setupClient = 'claude-code'"
+            >
+              Claude Code
+            </button>
+          </div>
+          <p v-if="setupClient === 'codex'">
+            Copy this into the repository's <code>.codex/config.toml</code>.
+          </p>
+          <p v-else>
+            Run this from the repository, then use <code>/mcp</code> in Claude Code to authenticate.
+          </p>
+          <p v-if="configurationErrorMessage" class="error">
+            {{ configurationErrorMessage }}
+          </p>
+          <p v-else-if="!configSnippet">Loading OAuth configuration...</p>
+          <div v-else class="authentication-setup-code-block">
+            <pre class="authentication-setup-code">{{ configSnippet }}</pre>
+            <button
+              type="button"
+              class="btn btn--secondary authentication-setup-copy"
+              :disabled="busy"
+              :aria-label="copyButtonLabel"
+              :title="copyButtonLabel"
+              @click="copyConfig"
+            >
+              <Copy :size="14" aria-hidden="true" />
+            </button>
+          </div>
+        </article>
       </aside>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+import { Copy } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { getMcpOAuthMetadata } from '../api/oauthMetadataApi';
 import { createOAuthConnectionsApi } from '../api/oauthConnectionsApi';
 import { createSystemOAuthConnectionsApi } from '../api/systemOAuthConnectionsApi';
 import { useConfirm } from '../composables/useConfirm';
 import type { OAuthConnection } from '../types/oauthConnectionTypes';
-import { buildCodexOAuthConfig } from '../utils/oauthConnectionPresentation';
+import {
+  buildClaudeCodeOAuthCommand,
+  buildCodexOAuthConfig
+} from '../utils/oauthConnectionPresentation';
+
+type SetupClient = 'codex' | 'claude-code';
 
 const props = defineProps<{
   administrator?: boolean;
@@ -113,12 +156,24 @@ const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const configurationErrorMessage = ref<string | null>(null);
 const mcpResourceUrl = ref<string | null>(null);
+const setupClient = ref<SetupClient>('codex');
 const configSnippet = computed(() => {
   if (!mcpResourceUrl.value) {
     return null;
   }
 
+  if (setupClient.value === 'claude-code') {
+    return buildClaudeCodeOAuthCommand(mcpResourceUrl.value);
+  }
+
   return buildCodexOAuthConfig(mcpResourceUrl.value);
+});
+const copyButtonLabel = computed(() => {
+  if (setupClient.value === 'claude-code') {
+    return 'Copy command';
+  }
+
+  return 'Copy config';
 });
 
 onMounted(() => {
@@ -197,7 +252,11 @@ async function copyConfig() {
 
   try {
     await navigator.clipboard.writeText(configSnippet.value);
-    successMessage.value = 'Copied Codex OAuth configuration.';
+    if (setupClient.value === 'claude-code') {
+      successMessage.value = 'Copied Claude Code OAuth command.';
+    } else {
+      successMessage.value = 'Copied Codex OAuth configuration.';
+    }
     errorMessage.value = null;
   } catch {
     errorMessage.value = 'Could not copy the configuration automatically.';
@@ -223,63 +282,6 @@ function formatDate(value: string | null) {
 </script>
 
 <style scoped>
-.oauth-connections-page {
-  max-width: 1180px;
-}
-
-.oauth-connections-header,
-.oauth-connection-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.oauth-connections-header {
-  margin-bottom: 1rem;
-}
-
-.oauth-connections-header h2,
-.oauth-connections-header p,
-.oauth-connection-title-row h3,
-.oauth-setup-panel h3,
-.oauth-setup-panel p {
-  margin: 0;
-}
-
-.oauth-connections-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
-  gap: 1rem;
-  align-items: start;
-}
-
-.oauth-connections-layout--administrator {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.oauth-connections-list {
-  min-width: 0;
-}
-
-.oauth-connections-empty {
-  margin: 0;
-  padding: 1rem;
-}
-
-.oauth-connection-row {
-  align-items: flex-start;
-}
-
-.oauth-connection-main {
-  min-width: 0;
-}
-
-.oauth-connection-title-row {
-  justify-content: flex-start;
-  flex-wrap: wrap;
-}
-
 .oauth-resource {
   border: 1px solid var(--bo-border-default);
   border-radius: 999px;
@@ -296,54 +298,8 @@ function formatDate(value: string | null) {
   margin: 0.35rem 0 0;
 }
 
-.oauth-connection-details {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.65rem 1rem;
-  margin: 0.85rem 0;
-}
-
-.oauth-connection-details div {
+.oauth-setup-item {
   min-width: 0;
 }
 
-.oauth-connection-details dt {
-  color: var(--bo-ink-muted);
-  font-size: 0.78rem;
-}
-
-.oauth-connection-details dd {
-  margin: 0.15rem 0 0;
-  overflow-wrap: anywhere;
-}
-
-.oauth-setup-panel {
-  position: sticky;
-  top: 1rem;
-}
-
-.oauth-config-block {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.oauth-config-block pre {
-  margin: 0;
-  padding: 0.75rem;
-  overflow-x: auto;
-  border-radius: 0.4rem;
-  background: var(--bo-surface-muted);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 820px) {
-  .oauth-connections-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .oauth-setup-panel {
-    position: static;
-  }
-}
 </style>

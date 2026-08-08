@@ -96,6 +96,23 @@ button:disabled {
   --bo-btn-ink-hover: var(--bo-ink-on-brand);
 }
 
+.btn-tab-list {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid color-mix(in oklab, var(--bo-colour-energy) 45%, var(--bo-border-soft));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bo-colour-energy) 14%, var(--bo-surface-base));
+}
+
+.btn-tab-list > .btn--tab {
+  flex: 0 0 auto;
+}
+
 .btn--toolbar {
   --bo-btn-bg: var(--bo-surface-muted);
   --bo-btn-border: var(--bo-border-brand);
