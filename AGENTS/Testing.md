@@ -104,6 +104,7 @@ Use repository scripts to keep local feedback fast and consistent:
   - CI-like full local run (backend restore/build/tests + web check/test)
   - supports suite overrides: `--backend-only`, `--web-only`
   - supports output overrides: `--compact`, `--verbose`
+  - supports `--profile-api` to print the ten slowest API test classes by cumulative test time
 
 Convenience wrappers:
 - `scripts/test-fast.sh`, `scripts/test-full.sh`, `scripts/test-fast.ps1`, and `scripts/test-full.ps1` delegate to the `.mjs` scripts.
@@ -122,6 +123,7 @@ The repository test scripts default to compact output when they detect an agent 
 
 - hides successful restore/build/check command output
 - prints concise pass summaries for xUnit and Vitest test runs
+- prints total and named build/test phase timings after a successful script run
 - replays full stdout/stderr for any failed command before reporting the failed suite
 - passes `--no-progress --no-ansi` to xUnit v3 test applications
 - lets Vitest use its `agent` reporter with `silent: 'passed-only'`

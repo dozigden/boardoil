@@ -1,16 +1,23 @@
 using BoardOil.Abstractions.Auth;
+using BoardOil.Ef.DependencyInjection;
+using BoardOil.Services.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace BoardOil.Api.Tests.Infrastructure;
 
 public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
 {
     public const string DefaultSigningKey = "boardoil-api-tests-signing-key-12345678901234567890";
+
+    private static readonly object DatabaseTemplateLock = new();
+    private static readonly Lazy<SqliteConnection> DatabaseTemplate = new(CreateDatabaseTemplate);
 
     private readonly string _databasePath;
     private readonly bool _allowInsecureCookies;
@@ -103,5 +110,59 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IPasswordHashService, FastPasswordHashService>();
             _configureTestServices?.Invoke(services);
         });
+    }
+
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        InitialiseDatabaseFromTemplate();
+        return base.CreateHost(builder);
+    }
+
+    private void InitialiseDatabaseFromTemplate()
+    {
+        if (File.Exists(_databasePath))
+        {
+            return;
+        }
+
+        var directory = Path.GetDirectoryName(_databasePath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        lock (DatabaseTemplateLock)
+        {
+            if (File.Exists(_databasePath))
+            {
+                return;
+            }
+
+            using var destination = new SqliteConnection($"Data Source={_databasePath}");
+            destination.Open();
+            DatabaseTemplate.Value.BackupDatabase(destination);
+        }
+    }
+
+    private static SqliteConnection CreateDatabaseTemplate()
+    {
+        var connection = new SqliteConnection(
+            $"Data Source=file:boardoil-api-tests-template-{Guid.NewGuid():N}?mode=memory&cache=shared");
+        connection.Open();
+
+        try
+        {
+            using var serviceProvider = new ServiceCollection()
+                .AddBoardOilServices()
+                .AddBoardOilEfInfrastructure(connection.ConnectionString)
+                .BuildServiceProvider();
+            serviceProvider.InitializeBoardOilEfInfrastructureAsync().GetAwaiter().GetResult();
+            return connection;
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
     }
 }

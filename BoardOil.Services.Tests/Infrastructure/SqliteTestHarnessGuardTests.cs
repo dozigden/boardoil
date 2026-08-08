@@ -1,3 +1,4 @@
+using BoardOil.Data.Abstractions.Entities;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -47,5 +48,31 @@ public sealed class SqliteTestHarnessGuardTests : IAsyncLifetime
         // Assert
         Assert.Same(firstConnection, secondConnection);
         Assert.Equal(System.Data.ConnectionState.Open, firstConnection.State);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ShouldProvideAnIsolatedDatabaseFromTemplate()
+    {
+        // Arrange
+        await using var firstHarness = await SqliteTestHarness.CreateAsync();
+        await using var secondHarness = await SqliteTestHarness.CreateAsync();
+        await using var firstDbContext = firstHarness.CreateDbContext();
+        await using var secondDbContext = secondHarness.CreateDbContext();
+        firstDbContext.Users.Add(new EntityUser
+        {
+            UserName = "first-user",
+            Email = "first-user@example.com",
+            NormalisedEmail = "FIRST-USER@EXAMPLE.COM",
+            PasswordHash = "test-hash",
+            Role = UserRole.Admin,
+            IsActive = true,
+        });
+
+        // Act
+        await firstDbContext.SaveChangesAsync();
+        var secondDatabaseUserCount = await secondDbContext.Users.CountAsync();
+
+        // Assert
+        Assert.Equal(0, secondDatabaseUserCount);
     }
 }

@@ -78,6 +78,8 @@ function resolveOutputMode() {
 
 const outputMode = resolveOutputMode();
 const compactOutput = outputMode === "compact";
+const timings = [];
+const startedAt = Date.now();
 
 function isAgentEnvironment() {
   return (
@@ -124,7 +126,8 @@ function commandFailed(result) {
   return Boolean(result.error);
 }
 
-function run(command, commandArgs, cwd = rootDir, options = {}) {
+function run(label, command, commandArgs, cwd = rootDir, options = {}) {
+  const stepStartedAt = Date.now();
   const result = spawnSync(command, commandArgs, {
     cwd,
     stdio: compactOutput ? "pipe" : "inherit",
@@ -132,6 +135,7 @@ function run(command, commandArgs, cwd = rootDir, options = {}) {
     encoding: "utf8",
     env: childEnv()
   });
+  timings.push({ label, elapsedMilliseconds: Date.now() - stepStartedAt });
 
   if (compactOutput && options.printSuccessOutput) {
     printCapturedOutput(result);
@@ -159,7 +163,7 @@ function restoreBackendOnce() {
   }
 
   console.log("[test-fast] Restoring backend solution (one-time fallback)");
-  const restore = run("dotnet", ["restore", "BoardOil.slnx", "--locked-mode", "-maxcpucount:1", "-nodeReuse:false"]);
+  const restore = run("Backend restore", "dotnet", ["restore", "BoardOil.slnx", "--locked-mode", "-maxcpucount:1", "-nodeReuse:false"]);
   if (restore.status !== 0) {
     throw new Error("dotnet restore failed");
   }
@@ -168,7 +172,7 @@ function restoreBackendOnce() {
 }
 
 function buildTestProjectRelease(projectPath) {
-  const firstBuild = run("dotnet", [
+  const firstBuild = run(`Build ${projectPath}`, "dotnet", [
     "build",
     projectPath,
     "--configuration",
@@ -185,7 +189,7 @@ function buildTestProjectRelease(projectPath) {
   console.log(`[test-fast] Build without restore failed for ${projectPath}; retrying after restore.`);
   restoreBackendOnce();
 
-  const secondBuild = run("dotnet", [
+  const secondBuild = run(`Build ${projectPath} after restore`, "dotnet", [
     "build",
     projectPath,
     "--configuration",
@@ -203,7 +207,7 @@ function buildTestProjectRelease(projectPath) {
 function runApiReleaseTests() {
   console.log("[test-fast] Running API fast tests (Release, excludes slow integration classes)");
   buildTestProjectRelease(API_TEST_PROJECT);
-  const result = run("dotnet", [
+  const result = run("API fast tests", "dotnet", [
     API_TEST_DLL,
     "--filter-not-class",
     FAST_API_EXCLUDE_CLASS_FILTER,
@@ -219,7 +223,7 @@ function runApiReleaseTests() {
 function runServicesReleaseTests() {
   console.log("[test-fast] Running Services fast tests (Release)");
   buildTestProjectRelease(SERVICES_TEST_PROJECT);
-  const result = run("dotnet", [SERVICES_TEST_DLL, ...compactTestRunnerArgs()]);
+  const result = run("Services fast tests", "dotnet", [SERVICES_TEST_DLL, ...compactTestRunnerArgs()]);
   if (result.status !== 0) {
     throw new Error("services-fast failed");
   }
@@ -230,7 +234,7 @@ function runServicesReleaseTests() {
 function runDevReleaseTests() {
   console.log("[test-fast] Running Dev orchestrator tests (Release)");
   buildTestProjectRelease(DEV_TEST_PROJECT);
-  const result = run("dotnet", [DEV_TEST_DLL, ...compactTestRunnerArgs()]);
+  const result = run("Dev orchestrator tests", "dotnet", [DEV_TEST_DLL, ...compactTestRunnerArgs()]);
   if (result.status !== 0) {
     throw new Error("dev-fast failed");
   }
@@ -240,7 +244,7 @@ function runDevReleaseTests() {
 
 function runWebChecks() {
   console.log("[test-fast] Running web checks");
-  const check = run("npm", npmRunArgs("check"), path.join(rootDir, "BoardOil.Web"));
+  const check = run("Web check", "npm", npmRunArgs("check"), path.join(rootDir, "BoardOil.Web"));
   if (check.status !== 0) {
     throw new Error("web-checks failed at npm run check");
   }
@@ -249,7 +253,7 @@ function runWebChecks() {
     console.log("[test-fast] Web check: passed");
   }
 
-  const test = run("npm", npmRunArgs("test"), path.join(rootDir, "BoardOil.Web"));
+  const test = run("Web tests", "npm", npmRunArgs("test"), path.join(rootDir, "BoardOil.Web"));
   if (test.status !== 0) {
     throw new Error("web-checks failed at npm test");
   }
@@ -340,7 +344,19 @@ function finish() {
     process.exit(1);
   }
 
+  printTimingSummary();
   console.log("[test-fast] Done");
+}
+
+function printTimingSummary() {
+  const timingDetails = timings
+    .map(timing => `${timing.label} ${formatElapsedTime(timing.elapsedMilliseconds)}`)
+    .join("; ");
+  console.log(`[test-fast] Timing: ${formatElapsedTime(Date.now() - startedAt)} total; ${timingDetails}`);
+}
+
+function formatElapsedTime(elapsedMilliseconds) {
+  return `${(elapsedMilliseconds / 1000).toFixed(1)}s`;
 }
 
 if (mode !== "auto") {
@@ -358,7 +374,7 @@ if (mode !== "auto") {
     runSuite("services-fast", runServicesReleaseTests);
   } else if (mode === "full") {
     runSuite("full-lane", () => {
-      const full = run("node", ["scripts/test-full.mjs"], rootDir, { printSuccessOutput: true });
+      const full = run("Full test lane", "node", ["scripts/test-full.mjs"], rootDir, { printSuccessOutput: true });
       if (full.status !== 0) {
         throw new Error("full-lane failed");
       }

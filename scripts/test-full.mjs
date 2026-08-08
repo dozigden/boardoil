@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,7 @@ const args = process.argv.slice(2);
 let runBackend = true;
 let runWeb = true;
 let outputModeOverride = null;
+let profileApi = false;
 
 for (const arg of args) {
   if (arg === "--backend-only") {
@@ -27,8 +29,13 @@ for (const arg of args) {
     continue;
   }
 
+  if (arg === "--profile-api") {
+    profileApi = true;
+    continue;
+  }
+
   if (arg === "--help" || arg === "-h") {
-    console.log("Usage: node scripts/test-full.mjs [--backend-only|--web-only] [--compact|--verbose]");
+    console.log("Usage: node scripts/test-full.mjs [--backend-only|--web-only] [--compact|--verbose] [--profile-api]");
     process.exit(0);
   }
 
@@ -70,6 +77,8 @@ function resolveOutputMode() {
 
 const outputMode = resolveOutputMode();
 const compactOutput = outputMode === "compact";
+const timings = [];
+const startedAt = Date.now();
 
 function isAgentEnvironment() {
   return (
@@ -116,7 +125,8 @@ function commandFailed(result) {
   return Boolean(result.error);
 }
 
-function run(command, commandArgs, cwd = rootDir) {
+function run(label, command, commandArgs, cwd = rootDir) {
+  const stepStartedAt = Date.now();
   const result = spawnSync(command, commandArgs, {
     cwd,
     stdio: compactOutput ? "pipe" : "inherit",
@@ -124,6 +134,7 @@ function run(command, commandArgs, cwd = rootDir) {
     encoding: "utf8",
     env: childEnv()
   });
+  timings.push({ label, elapsedMilliseconds: Date.now() - stepStartedAt });
 
   if (compactOutput && commandFailed(result)) {
     printCapturedOutput(result);
@@ -147,6 +158,21 @@ function compactTestRunnerArgs() {
   }
 
   return ["--no-progress", "--no-ansi"];
+}
+
+function testRunnerArgs(reportPath = null) {
+  const runnerArgs = compactTestRunnerArgs();
+  if (reportPath) {
+    runnerArgs.push(
+      "--results-directory",
+      path.dirname(reportPath),
+      "--report-xunit",
+      "--report-xunit-filename",
+      path.basename(reportPath)
+    );
+  }
+
+  return runnerArgs;
 }
 
 function npmRunArgs(scriptName) {
@@ -204,29 +230,84 @@ function printVitestSummary(label, output) {
   console.log(`[test-full] ${label}: passed`);
 }
 
+function printApiClassProfile(reportPath) {
+  const report = fs.readFileSync(reportPath, "utf8");
+  const classTimings = new Map();
+  for (const match of report.matchAll(/<test\s+([^>]+)>/g)) {
+    const attributes = match[1];
+    const className = readXmlAttribute(attributes, "type");
+    const elapsedSeconds = Number.parseFloat(readXmlAttribute(attributes, "time") ?? "");
+    if (!className || !Number.isFinite(elapsedSeconds)) {
+      continue;
+    }
+
+    const current = classTimings.get(className) ?? { elapsedSeconds: 0, tests: 0 };
+    current.elapsedSeconds += elapsedSeconds;
+    current.tests++;
+    classTimings.set(className, current);
+  }
+
+  const slowestClasses = [...classTimings.entries()]
+    .sort((left, right) => right[1].elapsedSeconds - left[1].elapsedSeconds)
+    .slice(0, 10);
+  console.log("[test-full] API slowest classes (cumulative test time):");
+  for (const [className, timing] of slowestClasses) {
+    console.log(`  ${className}: ${timing.elapsedSeconds.toFixed(1)}s across ${timing.tests} tests`);
+  }
+}
+
+function readXmlAttribute(attributes, name) {
+  const match = attributes.match(new RegExp(`${name}="([^"]*)"`));
+  return match?.[1]
+    ?.replaceAll("&quot;", "\"")
+    .replaceAll("&apos;", "'")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
+}
+
 if (runBackend) {
   console.log("[test-full] Backend: restore + build + tests");
-  run("dotnet", ["restore", "BoardOil.slnx", "--locked-mode", "-maxcpucount:1", "-nodeReuse:false"]);
-  run("dotnet", ["build", "BoardOil.slnx", "--configuration", "Release", "--no-restore", "-maxcpucount:1", "-nodeReuse:false"]);
-  const apiTests = run("dotnet", ["BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll", ...compactTestRunnerArgs()]);
+  run("Backend restore", "dotnet", ["restore", "BoardOil.slnx", "--locked-mode", "-maxcpucount:1", "-nodeReuse:false"]);
+  run("Build backend", "dotnet", ["build", "BoardOil.slnx", "--configuration", "Release", "--no-restore", "-maxcpucount:1", "-nodeReuse:false"]);
+  const apiReportPath = profileApi
+    ? path.join(os.tmpdir(), `boardoil-api-profile-${process.pid}-${Date.now()}.xml`)
+    : null;
+  const apiTests = run("API tests", "dotnet", ["BoardOil.Api.Tests/bin/Release/net10.0/BoardOil.Api.Tests.dll", ...testRunnerArgs(apiReportPath)]);
   printDotnetTestSummary("API tests", apiTests.stdout);
+  if (apiReportPath) {
+    printApiClassProfile(apiReportPath);
+    fs.rmSync(apiReportPath, { force: true });
+  }
 
-  const devTests = run("dotnet", ["BoardOil.Dev.Tests/bin/Release/net10.0/BoardOil.Dev.Tests.dll", ...compactTestRunnerArgs()]);
+  const devTests = run("Dev orchestrator tests", "dotnet", ["BoardOil.Dev.Tests/bin/Release/net10.0/BoardOil.Dev.Tests.dll", ...testRunnerArgs()]);
   printDotnetTestSummary("Dev orchestrator tests", devTests.stdout);
 
-  const servicesTests = run("dotnet", ["BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll", ...compactTestRunnerArgs()]);
+  const servicesTests = run("Services tests", "dotnet", ["BoardOil.Services.Tests/bin/Release/net10.0/BoardOil.Services.Tests.dll", ...testRunnerArgs()]);
   printDotnetTestSummary("Services tests", servicesTests.stdout);
 }
 
 if (runWeb) {
   console.log("[test-full] Web: check + test");
-  run("npm", npmRunArgs("check"), path.join(rootDir, "BoardOil.Web"));
+  run("Web check", "npm", npmRunArgs("check"), path.join(rootDir, "BoardOil.Web"));
   if (compactOutput) {
     console.log("[test-full] Web check: passed");
   }
 
-  const webTests = run("npm", npmRunArgs("test"), path.join(rootDir, "BoardOil.Web"));
+  const webTests = run("Web tests", "npm", npmRunArgs("test"), path.join(rootDir, "BoardOil.Web"));
   printVitestSummary("Web tests", webTests.stdout);
 }
 
+printTimingSummary();
 console.log("[test-full] Done");
+
+function printTimingSummary() {
+  const timingDetails = timings
+    .map(timing => `${timing.label} ${formatElapsedTime(timing.elapsedMilliseconds)}`)
+    .join("; ");
+  console.log(`[test-full] Timing: ${formatElapsedTime(Date.now() - startedAt)} total; ${timingDetails}`);
+}
+
+function formatElapsedTime(elapsedMilliseconds) {
+  return `${(elapsedMilliseconds / 1000).toFixed(1)}s`;
+}
