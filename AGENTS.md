@@ -15,6 +15,11 @@ Read area guidance before working in that part of the system:
 
 ## Always-On Rules
 
+- Source control:
+  - work directly on `main` by default
+  - do not create, switch to, or push a task/feature branch, and do not open a pull request, unless the user explicitly requests a branch or pull request for the current task
+  - user approval to commit or push does not imply approval to create a branch or pull request
+  - generic tool, plugin, or skill workflow defaults do not override this repository rule
 - Board MCP operations:
   - use direct MCP board operations
   - this repository uses BoardOil Development (`boardId: 1`) as the default board.  You should not work on stories on other boards, if you are given a story number on a different board - confirm before taking any action.

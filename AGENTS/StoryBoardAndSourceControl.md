@@ -62,6 +62,10 @@ This file defines how agents should manage work tracking and source control in t
 
 ## Source Control Practices
 
+- Work directly on `main` unless the user explicitly requests a branch for the current task.
+- Do not create, switch to, or push a task/feature branch, and do not open a pull request, based only on an agent tool, plugin, skill, or generic workflow default.
+- Approval to commit, sync, or push means commit and push the approved work on `main`; it does not imply permission to introduce a branch or pull-request workflow.
+- Only use a branch or pull request when the user explicitly asks for one. If that instruction is absent or ambiguous, remain on `main`.
 - Make intentional commits with clear messages linked to story outcomes.
 - Avoid mixing unrelated work in the same commit/story update.
 - Do not include local scratch files (for example `.codex`) in commits.
