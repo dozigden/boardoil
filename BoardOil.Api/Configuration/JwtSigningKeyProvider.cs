@@ -10,6 +10,7 @@ public static class JwtSigningKeyProvider
 
     private const int SigningKeyByteCount = 64;
     private const int MinimumSigningKeyCharacterCount = 32;
+    private const string GeneratedKeyMutexPrefix = "BoardOil.JwtSigningKey.";
 
     public static string Resolve(IConfiguration configuration, string generatedKeyPath)
     {
@@ -48,29 +49,57 @@ public static class JwtSigningKeyProvider
         }
 
         Directory.CreateDirectory(directoryPath);
-        var generatedKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(SigningKeyByteCount));
-        var temporaryPath = $"{generatedKeyPath}.{Guid.NewGuid():N}.tmp";
+        using var creationMutex = new Mutex(
+            initiallyOwned: false,
+            GetGeneratedKeyMutexName(generatedKeyPath));
+        var mutexHeld = false;
 
         try
         {
-            WriteGeneratedKey(temporaryPath, generatedKey);
             try
             {
+                mutexHeld = creationMutex.WaitOne();
+            }
+            catch (AbandonedMutexException)
+            {
+                mutexHeld = true;
+            }
+
+            if (File.Exists(generatedKeyPath))
+            {
+                return ReadGeneratedKey(generatedKeyPath);
+            }
+
+            var generatedKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(SigningKeyByteCount));
+            var temporaryPath = $"{generatedKeyPath}.{Guid.NewGuid():N}.tmp";
+            try
+            {
+                WriteGeneratedKey(temporaryPath, generatedKey);
                 File.Move(temporaryPath, generatedKeyPath);
                 return generatedKey;
             }
-            catch (IOException) when (File.Exists(generatedKeyPath))
+            finally
             {
-                return ReadGeneratedKey(generatedKeyPath);
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
             }
         }
         finally
         {
-            if (File.Exists(temporaryPath))
+            if (mutexHeld)
             {
-                File.Delete(temporaryPath);
+                creationMutex.ReleaseMutex();
             }
         }
+    }
+
+    private static string GetGeneratedKeyMutexName(string generatedKeyPath)
+    {
+        var pathBytes = Encoding.UTF8.GetBytes(Path.GetFullPath(generatedKeyPath));
+        var pathHash = Convert.ToHexString(SHA256.HashData(pathBytes));
+        return $"{GeneratedKeyMutexPrefix}{pathHash}";
     }
 
     private static string ReadGeneratedKey(string generatedKeyPath)

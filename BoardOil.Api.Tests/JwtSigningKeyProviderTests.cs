@@ -71,11 +71,20 @@ public sealed class JwtSigningKeyProviderTests
         using var directory = new TemporaryDirectory();
         var keyPath = Path.Combine(directory.Path, "nested", "boardoil-auth-signing-key");
         var configuration = CreateConfiguration();
+        using var startBarrier = new Barrier(participantCount: 8);
 
         // Act
         var resolutions = await Task.WhenAll(
             Enumerable.Range(0, 8)
-                .Select(_ => Task.Run(() => JwtSigningKeyProvider.Resolve(configuration, keyPath))));
+                .Select(_ => Task.Factory.StartNew(
+                    () =>
+                    {
+                        startBarrier.SignalAndWait();
+                        return JwtSigningKeyProvider.Resolve(configuration, keyPath);
+                    },
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default)));
 
         // Assert
         Assert.Single(resolutions.Distinct(StringComparer.Ordinal));
