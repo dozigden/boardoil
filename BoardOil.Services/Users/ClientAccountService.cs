@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Image;
 using BoardOil.Abstractions.Users;
@@ -21,7 +20,6 @@ public sealed class ClientAccountService(
     IImageRepository imageRepository,
     IImageStorageService imageStorageService,
     IPersonalAccessTokenRepository personalAccessTokenRepository,
-    IPasswordHashService passwordHashService,
     TimeProvider timeProvider,
     IDbContextScopeFactory scopeFactory) : IClientAccountService
 {
@@ -84,7 +82,6 @@ public sealed class ClientAccountService(
             DisplayName = displayName,
             Email = email,
             NormalisedEmail = normalisedEmail,
-            PasswordHash = passwordHashService.HashPassword(CreateRandomPassword()),
             Role = role,
             IdentityType = UserIdentityType.Client,
             IsActive = true,
@@ -322,9 +319,6 @@ public sealed class ClientAccountService(
 
     private static string HashToken(string token) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
-
-    private static string CreateRandomPassword() =>
-        Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 
     private static IReadOnlyList<ValidationError> ValidateUserNameAndEmail(string userName, string email)
     {

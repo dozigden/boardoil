@@ -15,7 +15,7 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": false,
-      "applicationUrl": "https://127.0.0.1:5001;http://127.0.0.1:5000",
+      "applicationUrl": "https://localhost:5001;http://127.0.0.1:5000",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ConnectionStrings__BoardOil": "Data Source=../.data/dev/boardoil.dev.db"

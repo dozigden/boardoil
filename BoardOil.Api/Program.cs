@@ -3,6 +3,7 @@ using BoardOil.Api.Configuration;
 using BoardOil.Api.Endpoints;
 using BoardOil.Api.Extensions;
 using BoardOil.Api.Mcp;
+using BoardOil.Api.OAuth;
 using BoardOil.Api.Realtime;
 using BoardOil.Api.Swagger;
 using BoardOil.Abstractions;
@@ -19,7 +20,10 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configuration);
-var jwtOptions = JwtAuthOptions.FromConfiguration(builder.Configuration);
+var connectionString = runtimeOptions.ResolveConnectionString(builder.Configuration);
+var signingKeyPath = runtimeOptions.ResolveSigningKeyPath(connectionString);
+var signingKey = JwtSigningKeyProvider.Resolve(builder.Configuration, signingKeyPath);
+var jwtOptions = JwtAuthOptions.FromConfiguration(builder.Configuration, signingKey);
 var csrfOptions = CsrfOptions.FromConfiguration(builder.Configuration);
 var internalOptions = BoardOilInternalOptions.FromConfiguration(builder.Configuration);
 var mcpOptions = BoardOilMcpOptions.FromConfiguration(builder.Configuration);
@@ -27,10 +31,15 @@ var buildInfo = BoardOilBuildInfo.FromConfiguration(builder.Configuration, build
 
 builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
-var connectionString = runtimeOptions.ResolveConnectionString(builder.Configuration);
 var imageStorageOptions = BoardOilImageStorageOptions.Resolve(builder.Configuration, connectionString);
 builder.Services.AddBoardOilServices();
 builder.Services.AddBoardOilEfInfrastructure(connectionString);
+builder.Services.AddBoardOilOAuth(jwtOptions);
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.Name = "boardoil_oauth_antiforgery";
+    options.FormFieldName = "boardoil_oauth_antiforgery";
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("BoardOilDevClient", policy =>
@@ -72,6 +81,7 @@ builder.Services.AddScoped<IAuthHttpSessionService, AuthHttpSessionService>();
 builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
 builder.Services.AddSingleton<IAuthorizationHandler, RequirePatApiScopeHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, McpOAuthConnectionAuthorizationHandler>();
 builder.Services.AddBoardOilAuthentication(jwtOptions);
 builder.Services.AddAuthorization(options =>
 {
@@ -117,6 +127,7 @@ app.LogMcpStartupWarnings();
 
 await app.Services.InitializeBoardOilEfInfrastructureAsync();
 app.UseCors("BoardOilDevClient");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.MapBoardOilMcp();
 app.Use(async (context, next) =>
@@ -171,6 +182,7 @@ app.Use(async (context, next) =>
     await next();
 });
 app.UseAuthorization();
+app.UseMcpOAuthScopeEnforcement();
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
@@ -193,6 +205,8 @@ app.MapConfigurationEndpoints();
 app.MapSystemInfoMessageEndpoints();
 app.MapUserEndpoints();
 app.MapClientAccountEndpoints();
+app.MapOAuthConnectionEndpoints();
+app.MapOAuthEndpoints();
 
 app.MapAuthEndpoints();
 

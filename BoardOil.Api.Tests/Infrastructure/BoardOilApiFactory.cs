@@ -10,6 +10,8 @@ namespace BoardOil.Api.Tests.Infrastructure;
 
 public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
 {
+    public const string DefaultSigningKey = "boardoil-api-tests-signing-key-12345678901234567890";
+
     private readonly string _databasePath;
     private readonly bool _allowInsecureCookies;
     private readonly string? _mcpEventRelayApiKey;
@@ -52,6 +54,7 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("BoardOil:ImageRootPath", imageRootPath);
         builder.UseSetting("BoardOil:ExposeLan", "false");
         builder.UseSetting("BoardOil:Port", "5000");
+        builder.UseSetting("BoardOilAuth:SigningKey", DefaultSigningKey);
         builder.UseSetting("BoardOilAuth:AllowInsecureCookies", _allowInsecureCookies.ToString().ToLowerInvariant());
         if (!string.IsNullOrWhiteSpace(_mcpEventRelayApiKey))
         {
@@ -75,6 +78,7 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
                 ["BoardOil:ImageRootPath"] = imageRootPath,
                 ["BoardOil:ExposeLan"] = "false",
                 ["BoardOil:Port"] = "5000",
+                ["BoardOilAuth:SigningKey"] = DefaultSigningKey,
                 ["BoardOilAuth:AllowInsecureCookies"] = _allowInsecureCookies.ToString().ToLowerInvariant()
             };
             if (!string.IsNullOrWhiteSpace(_mcpEventRelayApiKey))

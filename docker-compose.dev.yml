@@ -17,6 +17,7 @@ services:
       ASPNETCORE_URLS: "http://0.0.0.0:5000"
       BoardOilAuth__AllowInsecureCookies: "true"
     volumes:
+      # BoardOil generates and persists its signing key in this data volume.
       - boardoil-data:/data
     restart: unless-stopped
 

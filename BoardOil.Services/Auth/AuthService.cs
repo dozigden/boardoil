@@ -101,7 +101,10 @@ public sealed class AuthService(
         }
 
         var user = await authUserRepository.GetByUserNameAsync(normalisedUserName);
-        if (user is null || !user.IsActive || user.IdentityType == UserIdentityType.Client)
+        if (user is null
+            || !user.IsActive
+            || user.IdentityType != UserIdentityType.User
+            || string.IsNullOrWhiteSpace(user.PasswordHash))
         {
             return ApiErrors.Unauthorized("Invalid username or password.");
         }
@@ -126,7 +129,7 @@ public sealed class AuthService(
             return ApiErrors.Unauthorized("User is not active.");
         }
 
-        if (user.IdentityType == UserIdentityType.Client)
+        if (user.IdentityType != UserIdentityType.User)
         {
             return ApiErrors.Forbidden("Client accounts cannot change passwords.");
         }
@@ -136,7 +139,8 @@ public sealed class AuthService(
             return ApiErrors.ValidationFailed([new ValidationError("currentPassword", "Current password is required.")]);
         }
 
-        if (!passwordHashService.VerifyPassword(request.CurrentPassword, user.PasswordHash))
+        if (string.IsNullOrWhiteSpace(user.PasswordHash)
+            || !passwordHashService.VerifyPassword(request.CurrentPassword, user.PasswordHash))
         {
             return ApiErrors.Unauthorized("Current password is incorrect.");
         }
@@ -291,7 +295,7 @@ public sealed class AuthService(
             || existingToken.RevokedAtUtc is not null
             || existingToken.ExpiresAtUtc <= now
             || !existingToken.User.IsActive
-            || existingToken.User.IdentityType == UserIdentityType.Client)
+            || existingToken.User.IdentityType != UserIdentityType.User)
         {
             return ApiErrors.Unauthorized("Refresh token is invalid or expired.");
         }

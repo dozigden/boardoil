@@ -56,6 +56,24 @@ describe('router layout meta mapping', () => {
     expect(findByPath('/admin/system')?.meta?.layout).toBe(APP_LAYOUT_ADMIN);
   });
 
+  it('keeps owner and system OAuth management under their respective admin layouts', () => {
+    expect(findIndexedByName('user-admin-oauth-connections')?.nearestLayout).toBe(APP_LAYOUT_ADMIN);
+    expect(findIndexedByName('system-admin-oauth-connections')?.nearestLayout).toBe(APP_LAYOUT_ADMIN);
+  });
+
+  it('nests user authentication methods beneath the Authentication page', () => {
+    expect(findIndexedByName('user-admin-oauth-connections')?.fullPath)
+      .toBe('/user-admin/authentication/oauth');
+    expect(findIndexedByName('user-admin-access-tokens')?.fullPath)
+      .toBe('/user-admin/authentication/access-tokens');
+
+    const authenticationIndex = indexedRoutes.find(
+      indexedRoute => indexedRoute.fullPath === '/user-admin/authentication'
+        && indexedRoute.route.path === ''
+    );
+    expect(authenticationIndex?.route.redirect).toEqual({ name: 'user-admin-oauth-connections' });
+  });
+
   it('maps board context requirement to board-scoped route roots', () => {
     expect(findByName('board')?.meta?.requiresBoardContext).toBe(true);
     expect(findByName('board-archived')?.meta?.requiresBoardContext).toBe(true);

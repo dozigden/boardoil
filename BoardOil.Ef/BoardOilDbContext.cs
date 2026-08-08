@@ -19,12 +19,15 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityUser> Users => Set<EntityUser>();
     public DbSet<EntityRefreshToken> RefreshTokens => Set<EntityRefreshToken>();
     public DbSet<EntityPersonalAccessToken> PersonalAccessTokens => Set<EntityPersonalAccessToken>();
+    public DbSet<EntityOAuthConnection> OAuthConnections => Set<EntityOAuthConnection>();
+    public DbSet<EntityOAuthConnectionGrant> OAuthConnectionGrants => Set<EntityOAuthConnectionGrant>();
     public DbSet<EntityAppSetting> AppSettings => Set<EntityAppSetting>();
     public DbSet<EntitySystemInfoMessage> SystemInfoMessages => Set<EntitySystemInfoMessage>();
     public DbSet<EntityImage> Images => Set<EntityImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.UseOpenIddict();
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BoardOilDbContext).Assembly);
     }
 

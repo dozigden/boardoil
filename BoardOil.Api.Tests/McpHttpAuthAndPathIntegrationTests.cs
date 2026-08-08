@@ -14,7 +14,7 @@ public sealed class McpHttpAuthAndPathIntegrationTests : McpIntegrationTestBase
 {
     private const string JwtIssuer = "boardoil";
     private const string JwtAudience = "boardoil";
-    private const string JwtSigningKey = "replace-this-with-a-strong-32-char-min-signing-key";
+    private const string JwtSigningKey = BoardOilApiFactory.DefaultSigningKey;
 
     [Fact]
     public async Task ToolsList_WithoutBearerToken_ShouldReturnUnauthorized()

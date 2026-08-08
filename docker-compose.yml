@@ -5,9 +5,9 @@ services:
     ports:
       - "5000:5000"
     environment:
-      BoardOilAuth__SigningKey: "replace-this-with-a-strong-32-char-min-signing-key"
       BoardOilAuth__AllowInsecureCookies: "true"
     volumes:
+      # BoardOil generates and persists its signing key in this data volume.
       - boardoil-data:/data
     restart: unless-stopped
 

@@ -2,6 +2,7 @@
 @import "./shared/styles/badges.css";
 @import "./shared/styles/panels.css";
 @import "./shared/styles/entity-rows.css";
+@import "./shared/styles/authentication.css";
 
 @font-face {
   font-family: "Montserrat";

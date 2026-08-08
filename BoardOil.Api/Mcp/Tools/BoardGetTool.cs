@@ -16,7 +16,7 @@ public sealed class BoardGetTool(
     private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.BoardGet, "Get a board snapshot including columns and cards. Card descriptions are omitted; use card.get for full text.", ToolSchemas.BoardGetInput, ToolSchemas.ObjectOutput);
+        new(ToolNames.BoardGet, "Get a board snapshot including columns and cards. Card descriptions are omitted; use card.get for full text.", ToolSchemas.BoardGetInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead);
 
     protected override async Task<McpToolResult<McpBoardSnapshot>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -36,7 +36,7 @@ public sealed class BoardGetTool(
 
         var boardId = input.Id!.Value;
 
-        var accessError = AuthorisationService.EnsurePatToolAccess(context.PatAccessContext, MachinePatScopes.McpRead, boardId);
+        var accessError = AuthorisationService.EnsureToolAccess(context.AccessContext, Definition.RequiredScope, boardId);
         if (accessError is not null)
         {
             return Failure(accessError);

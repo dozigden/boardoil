@@ -266,32 +266,28 @@ internal sealed class DevOrchestrator
 
         return new ManagedService(
             "API",
-            "http://127.0.0.1:5000",
+            DevApiLaunchSettings.HttpsEndpoint,
             dotnet,
-            [
-                "run",
-                "--no-launch-profile",
-                "--no-build",
-                "--project",
-                apiProject,
-                "--urls",
-                "http://127.0.0.1:5000"
-            ],
+            DevApiLaunchSettings.CreateRunArguments(apiProject),
             repoRoot,
             logPath,
-            new Dictionary<string, string>
-            {
-                ["ASPNETCORE_ENVIRONMENT"] = "Development",
-                ["DOTNET_ENVIRONMENT"] = "Development",
-                ["ConnectionStrings__BoardOil"] = $"Data Source={databasePath}"
-            },
+            DevApiLaunchSettings.CreateEnvironment(databasePath),
             async (service, cancellationToken) =>
             {
                 EnsureExecutableExists("dotnet", dotnet);
                 databaseManager.PrepareCurrentDatabase();
-                await portConflictResolver.StopRecognisedListenerAsync(
-                    5000,
-                    ["BoardOil.Api"],
+                foreach (var port in DevApiLaunchSettings.Ports)
+                {
+                    await portConflictResolver.StopRecognisedListenerAsync(
+                        port,
+                        ["BoardOil.Api"],
+                        cancellationToken);
+                }
+
+                await service.RunPreparationCommandAsync(
+                    dotnet,
+                    ["dev-certs", "https"],
+                    repoRoot,
                     cancellationToken);
                 await service.RunPreparationCommandAsync(
                     dotnet,
@@ -309,12 +305,12 @@ internal sealed class DevOrchestrator
 
         return new ManagedService(
             "Web",
-            "http://localhost:5173",
+            DevWebLaunchSettings.Endpoint,
             npm,
             ["run", "dev"],
             webDirectory,
             logPath,
-            new Dictionary<string, string>(),
+            DevWebLaunchSettings.CreateEnvironment(),
             async (_, cancellationToken) =>
             {
                 EnsureExecutableExists("npm", npm);

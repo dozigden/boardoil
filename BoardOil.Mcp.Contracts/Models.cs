@@ -6,7 +6,8 @@ public sealed record McpToolDefinition(
     string Name,
     string Description,
     string InputSchemaJson,
-    string OutputSchemaJson);
+    string OutputSchemaJson,
+    string RequiredScope);
 
 public sealed record McpToolError(
     string Code,

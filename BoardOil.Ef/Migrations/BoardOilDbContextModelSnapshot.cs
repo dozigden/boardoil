@@ -15,7 +15,7 @@ namespace BoardOil.Ef.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.6");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
 
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityAppSetting", b =>
                 {
@@ -420,6 +420,145 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Images", (string)null);
                 });
 
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityOAuthConnection", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ActiveGrantId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastUsedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalisedName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResourceType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RevokedByUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RevokedByUserName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActiveGrantId")
+                        .IsUnique();
+
+                    b.HasIndex("RevokedAtUtc");
+
+                    b.HasIndex("RevokedByUserId");
+
+                    b.HasIndex("UserId", "ResourceType", "NormalisedName")
+                        .IsUnique();
+
+                    b.ToTable("OAuthConnections", (string)null);
+                });
+
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityOAuthConnectionGrant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ApprovedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApprovedScopesCsv")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OAuthClientDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OAuthClientId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("OAuthConnectionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OpenIddictApplicationId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OpenIddictAuthorizationId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Resource")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RevokedByUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RevokedByUserName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OAuthConnectionId");
+
+                    b.HasIndex("OpenIddictApplicationId");
+
+                    b.HasIndex("OpenIddictAuthorizationId")
+                        .IsUnique();
+
+                    b.HasIndex("RevokedAtUtc");
+
+                    b.HasIndex("RevokedByUserId");
+
+                    b.ToTable("OAuthConnectionGrants", (string)null);
+                });
+
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityPersonalAccessToken", b =>
                 {
                     b.Property<int>("Id")
@@ -677,7 +816,6 @@ namespace BoardOil.Ef.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")
-                        .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
@@ -701,6 +839,214 @@ namespace BoardOil.Ef.Migrations
                         .IsUnique();
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationType")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClientId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClientSecret")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClientType")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConsentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayNames")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("JsonWebKeySet")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Permissions")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PostLogoutRedirectUris")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RedirectUris")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Requirements")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Settings")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId")
+                        .IsUnique();
+
+                    b.ToTable("OpenIddictApplications", (string)null);
+                });
+
+            modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreAuthorization", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CreationDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Scopes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationId", "Status", "Subject", "Type");
+
+                    b.ToTable("OpenIddictAuthorizations", (string)null);
+                });
+
+            modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreScope", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Descriptions")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayNames")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Resources")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("OpenIddictScopes", (string)null);
+                });
+
+            modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreToken", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthorizationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CreationDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ExpirationDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Payload")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RedemptionDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorizationId");
+
+                    b.HasIndex("ReferenceId")
+                        .IsUnique();
+
+                    b.HasIndex("ApplicationId", "Status", "Subject", "Type");
+
+                    b.ToTable("OpenIddictTokens", (string)null);
                 });
 
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityArchivedCard", b =>
@@ -844,6 +1190,49 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Board");
                 });
 
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityOAuthConnection", b =>
+                {
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityOAuthConnectionGrant", "ActiveGrant")
+                        .WithOne()
+                        .HasForeignKey("BoardOil.Data.Abstractions.Entities.EntityOAuthConnection", "ActiveGrantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "RevokedByUser")
+                        .WithMany()
+                        .HasForeignKey("RevokedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ActiveGrant");
+
+                    b.Navigation("User");
+
+                    b.Navigation("RevokedByUser");
+                });
+
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityOAuthConnectionGrant", b =>
+                {
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityOAuthConnection", "OAuthConnection")
+                        .WithMany("Grants")
+                        .HasForeignKey("OAuthConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "RevokedByUser")
+                        .WithMany()
+                        .HasForeignKey("RevokedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("OAuthConnection");
+
+                    b.Navigation("RevokedByUser");
+                });
+
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityPersonalAccessToken", b =>
                 {
                     b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "User")
@@ -888,6 +1277,30 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Board");
                 });
 
+            modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreAuthorization", b =>
+                {
+                    b.HasOne("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", "Application")
+                        .WithMany("Authorizations")
+                        .HasForeignKey("ApplicationId");
+
+                    b.Navigation("Application");
+                });
+
+            modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreToken", b =>
+                {
+                    b.HasOne("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", "Application")
+                        .WithMany("Tokens")
+                        .HasForeignKey("ApplicationId");
+
+                    b.HasOne("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreAuthorization", "Authorization")
+                        .WithMany("Tokens")
+                        .HasForeignKey("AuthorizationId");
+
+                    b.Navigation("Application");
+
+                    b.Navigation("Authorization");
+                });
+
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityBoard", b =>
                 {
                     b.Navigation("ArchivedCards");
@@ -922,6 +1335,11 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Cards");
                 });
 
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityOAuthConnection", b =>
+                {
+                    b.Navigation("Grants");
+                });
+
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntitySlick", b =>
                 {
                     b.Navigation("Cards");
@@ -941,6 +1359,18 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("PersonalAccessTokens");
 
                     b.Navigation("RefreshTokens");
+                });
+
+            modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", b =>
+                {
+                    b.Navigation("Authorizations");
+
+                    b.Navigation("Tokens");
+                });
+
+            modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreAuthorization", b =>
+                {
+                    b.Navigation("Tokens");
                 });
 #pragma warning restore 612, 618
         }

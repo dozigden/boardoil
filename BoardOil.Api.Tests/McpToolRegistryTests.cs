@@ -47,7 +47,7 @@ public sealed class McpToolRegistryTests
 
     private sealed class RegistryToolOne : IMcpTool
     {
-        public McpToolDefinition Definition { get; } = new("test.one", "tool one", "{}", "{}");
+        public McpToolDefinition Definition { get; } = new("test.one", "tool one", "{}", "{}", "mcp:read");
 
         public Task<CallToolResult> ExecuteAsync(McpInvocationContext context, IDictionary<string, JsonElement>? arguments, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -55,7 +55,7 @@ public sealed class McpToolRegistryTests
 
     private sealed class RegistryToolTwo : IMcpTool
     {
-        public McpToolDefinition Definition { get; } = new("test.two", "tool two", "{}", "{}");
+        public McpToolDefinition Definition { get; } = new("test.two", "tool two", "{}", "{}", "mcp:write");
 
         public Task<CallToolResult> ExecuteAsync(McpInvocationContext context, IDictionary<string, JsonElement>? arguments, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -63,7 +63,7 @@ public sealed class McpToolRegistryTests
 
     private sealed class RegistryToolOneDuplicate : IMcpTool
     {
-        public McpToolDefinition Definition { get; } = new("test.one", "duplicate tool one", "{}", "{}");
+        public McpToolDefinition Definition { get; } = new("test.one", "duplicate tool one", "{}", "{}", "mcp:read");
 
         public Task<CallToolResult> ExecuteAsync(McpInvocationContext context, IDictionary<string, JsonElement>? arguments, CancellationToken cancellationToken) =>
             throw new NotSupportedException();

@@ -20,7 +20,7 @@ The docker-compose.yml pulls the latest published image.
 
 You will need to be authenticated to the GitHub registry in Docker, see https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
 
-If you're doing anything more than just trying it out you should set the signing key, and turn off insecure cookies once you're running https; both are in the environment settings of the compose file.
+Once BoardOil is served over HTTPS, set `BoardOilAuth__AllowInsecureCookies` to `false`.
 
 ### MCP container options
 
@@ -52,9 +52,9 @@ environment:
 
 ### Data volume
 
-The SQLite database is kept in the data volume.  On release of a new version, before the database is updated, a backup copy is made within a 'backups' folder, backups older than 30 days are deleted.
+The data volume contains the SQLite database and generated authentication signing key. Before a database update, BoardOil makes a backup in the `backups` folder; backups older than 30 days are deleted.
 
-You should backup the data volume as you see fit.
+You should back up the complete data volume as you see fit.
 
 ## Development
 

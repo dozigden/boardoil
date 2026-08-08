@@ -5,14 +5,14 @@ namespace BoardOil.Api.Mcp;
 
 public interface IMcpAuthorisationService
 {
-    PatAccessContext? GetPatAccessContext(ClaimsPrincipal? claimsPrincipal);
+    McpAccessContext? GetAccessContext(ClaimsPrincipal? claimsPrincipal);
 
-    McpToolError? EnsurePatScopeAccess(
-        PatAccessContext? patAccessContext,
+    McpToolError? EnsureScopeAccess(
+        McpAccessContext? accessContext,
         string requiredScope);
 
-    McpToolError? EnsurePatToolAccess(
-        PatAccessContext? patAccessContext,
+    McpToolError? EnsureToolAccess(
+        McpAccessContext? accessContext,
         string requiredScope,
         int boardId);
 }

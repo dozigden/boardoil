@@ -13,6 +13,7 @@ public sealed class BoardOilDesignTimeDbContextFactory : IDesignTimeDbContextFac
 
         var options = new DbContextOptionsBuilder<BoardOilDbContext>()
             .UseSqlite(connectionString)
+            .UseOpenIddict()
             .Options;
 
         return new BoardOilDbContext(options);

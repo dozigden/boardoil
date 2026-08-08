@@ -7,6 +7,7 @@ using BoardOil.Data.Abstractions.CardType;
 using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Configuration;
 using BoardOil.Data.Abstractions.Image;
+using BoardOil.Data.Abstractions.OAuth;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
@@ -25,6 +26,10 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddBoardOilEfInfrastructure(this IServiceCollection services, string connectionString)
     {
+        services.AddDbContext<BoardOilDbContext>(options =>
+            options
+                .UseSqlite(connectionString)
+                .UseOpenIddict());
         services.AddSingleton<IDbContextFactory>(_ => new BoardOilDbContextFactory(connectionString));
         services.AddTransient<IDbContextScopeFactory, DbContextScopeFactory>();
         services.AddTransient<IAmbientDbContextLocator, AmbientDbContextLocator>();
@@ -33,6 +38,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthUserRepository, AuthUserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
+        services.AddScoped<IOAuthConnectionRepository, OAuthConnectionRepository>();
         services.AddScoped<IAppSettingRepository, AppSettingRepository>();
         services.AddScoped<ISystemInfoMessageRepository, SystemInfoMessageRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();

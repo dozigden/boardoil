@@ -118,6 +118,7 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         var persistedUser = await DbContextForAssert.Users.SingleAsync();
         Assert.Equal(UserIdentityType.Client, persistedUser.IdentityType);
         Assert.Equal(result.Data.Account.Id, persistedUser.Id);
+        Assert.Null(persistedUser.PasswordHash);
 
         var persistedToken = await DbContextForAssert.PersonalAccessTokens.SingleAsync();
         Assert.Equal(persistedUser.Id, persistedToken.UserId);

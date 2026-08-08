@@ -13,7 +13,7 @@ public sealed class ColumnsListTool(
     private readonly IColumnService _columnService = columnService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.ColumnsList, "List columns for a board so an agent can resolve dynamic states.", ToolSchemas.ColumnsListInput, ToolSchemas.ObjectOutput);
+        new(ToolNames.ColumnsList, "List columns for a board so an agent can resolve dynamic states.", ToolSchemas.ColumnsListInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead);
 
     protected override async Task<McpToolResult<ColumnsListOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -33,7 +33,7 @@ public sealed class ColumnsListTool(
 
         var boardId = input.Id!.Value;
 
-        var accessError = AuthorisationService.EnsurePatToolAccess(context.PatAccessContext, MachinePatScopes.McpRead, boardId);
+        var accessError = AuthorisationService.EnsureToolAccess(context.AccessContext, Definition.RequiredScope, boardId);
         if (accessError is not null)
         {
             return Failure(accessError);

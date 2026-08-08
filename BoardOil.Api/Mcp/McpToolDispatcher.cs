@@ -50,15 +50,17 @@ public sealed class McpToolDispatcher(
         using var scope = _serviceProviderAccessor.ServiceProvider.CreateScope();
         var services = scope.ServiceProvider;
         var httpContext = _httpContextAccessor.HttpContext;
-        if (httpContext?.User.TryGetUserId(out var actorUserId) != true
+        var accessContext = _authorisationService.GetAccessContext(httpContext?.User);
+        var actorUserId = accessContext?.ActorUserId ?? default;
+        if (accessContext is null
+            && httpContext?.User.TryGetUserId(out actorUserId) != true
             && !TryGetAnonymousActorUserId(httpContext, out actorUserId))
         {
             return McpToolCallHelpers.CreateErrorCallToolResult("unauthorized", "Invalid identity context.", 401);
         }
 
-        var patAccessContext = _authorisationService.GetPatAccessContext(httpContext?.User);
         var correlationId = httpContext?.TraceIdentifier ?? Guid.NewGuid().ToString("N");
-        var invocationContext = new McpInvocationContext(services, actorUserId, patAccessContext, correlationId);
+        var invocationContext = new McpInvocationContext(services, actorUserId, accessContext, correlationId);
 
         if (!_toolRegistry.TryGetRegistration(request.Name, out var registration))
         {

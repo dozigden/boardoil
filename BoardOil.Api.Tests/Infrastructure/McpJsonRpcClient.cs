@@ -10,9 +10,10 @@ internal static class McpJsonRpcClient
         string method,
         object @params,
         string id,
-        string? bearerToken = null)
+        string? bearerToken = null,
+        string endpoint = "/mcp")
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/mcp")
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
         {
             Content = JsonContent.Create(new Dictionary<string, object?>
             {

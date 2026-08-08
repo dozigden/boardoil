@@ -1,56 +1,84 @@
 using BoardOil.Contracts.Auth;
+using BoardOil.Api.OAuth;
 using BoardOil.Mcp.Contracts;
+using OpenIddict.Abstractions;
 using System.Security.Claims;
 
 namespace BoardOil.Api.Mcp;
 
 public sealed class McpAuthorisationService : IMcpAuthorisationService
 {
-    public PatAccessContext? GetPatAccessContext(ClaimsPrincipal? claimsPrincipal)
+    public McpAccessContext? GetAccessContext(ClaimsPrincipal? claimsPrincipal)
     {
         if (claimsPrincipal?.Identity?.IsAuthenticated != true)
         {
             return null;
         }
 
-        var authType = claimsPrincipal.FindFirst("boardoil_auth_type")?.Value;
-        if (!string.Equals(authType, "pat", StringComparison.Ordinal))
+        if (string.Equals(
+                claimsPrincipal.FindFirst("boardoil_auth_type")?.Value,
+                "pat",
+                StringComparison.Ordinal))
+        {
+            return CreatePatAccessContext(claimsPrincipal);
+        }
+
+        return CreateOAuthAccessContext(claimsPrincipal);
+    }
+
+    public McpToolError? EnsureToolAccess(McpAccessContext? accessContext, string requiredScope, int boardId)
+    {
+        return EnsureScopeAccess(accessContext, requiredScope);
+    }
+
+    public McpToolError? EnsureScopeAccess(McpAccessContext? accessContext, string requiredScope)
+    {
+        if (accessContext is null)
         {
             return null;
         }
 
-        var scopes = claimsPrincipal
-            .FindAll("boardoil_pat_scope")
-            .Select(claim => claim.Value)
-            .Where(scope => !string.IsNullOrWhiteSpace(scope))
-            .ToHashSet(StringComparer.Ordinal);
-
-        return new PatAccessContext(scopes);
-    }
-
-    public McpToolError? EnsurePatToolAccess(PatAccessContext? patAccessContext, string requiredScope, int boardId)
-    {
-        return EnsurePatScopeAccess(patAccessContext, requiredScope);
-    }
-
-    public McpToolError? EnsurePatScopeAccess(PatAccessContext? patAccessContext, string requiredScope)
-    {
-        if (patAccessContext is null)
-        {
-            return null;
-        }
-
-        if (!patAccessContext.Scopes.Contains(requiredScope))
+        if (!accessContext.Scopes.Contains(requiredScope))
         {
             return new McpToolError(
                 "forbidden",
-                $"PAT token requires scope '{requiredScope}' for this tool.",
+                $"{accessContext.AuthenticationType} token requires scope '{requiredScope}' for this tool.",
                 403);
         }
 
         return null;
     }
+
+    private static McpAccessContext? CreatePatAccessContext(ClaimsPrincipal principal)
+    {
+        if (!int.TryParse(principal.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var actorUserId))
+        {
+            return null;
+        }
+
+        var scopes = principal
+            .FindAll("boardoil_pat_scope")
+            .Select(claim => claim.Value)
+            .Where(scope => !string.IsNullOrWhiteSpace(scope))
+            .ToHashSet(StringComparer.Ordinal);
+        return new McpAccessContext(actorUserId, "PAT", scopes);
+    }
+
+    private static McpAccessContext? CreateOAuthAccessContext(ClaimsPrincipal principal)
+    {
+        if (!int.TryParse(
+                principal.FindFirst(OAuthAuthorizationService.UserIdClaim)?.Value,
+                out var actorUserId))
+        {
+            return null;
+        }
+
+        var scopes = principal.GetScopes().ToHashSet(StringComparer.Ordinal);
+        return new McpAccessContext(actorUserId, "OAuth", scopes);
+    }
 }
 
-public sealed record PatAccessContext(
+public sealed record McpAccessContext(
+    int ActorUserId,
+    string AuthenticationType,
     ISet<string> Scopes);
