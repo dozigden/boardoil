@@ -42,6 +42,7 @@ COPY --from=frontend-build /src/BoardOil.Web/dist ./wwwroot
 RUN mkdir -p /data
 VOLUME ["/data"]
 ENV ASPNETCORE_URLS=http://0.0.0.0:5000
+ENV ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
 ENV BoardOilBuild__Version=$BO_VERSION
 ENV BoardOilBuild__Channel=$BO_CHANNEL
 ENV BoardOilBuild__Build=$BO_BUILD
