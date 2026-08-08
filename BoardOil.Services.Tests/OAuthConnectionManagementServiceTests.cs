@@ -24,6 +24,9 @@ public sealed class OAuthConnectionManagementServiceTests : TestBaseDb
         var owner = await AddUserAsync("owner");
         var otherUser = await AddUserAsync("other");
         var ownedConnection = await AddConnectionAsync(owner, "Owned", "owned-authorization", "owned-application");
+        var lastUsedAtUtc = DateTime.UtcNow.AddHours(-2);
+        ownedConnection.LastUsedAtUtc = lastUsedAtUtc;
+        await DbContextForArrange.SaveChangesAsync();
         var replacedGrant = new EntityOAuthConnectionGrant
         {
             OAuthConnectionId = ownedConnection.Id,
@@ -57,6 +60,7 @@ public sealed class OAuthConnectionManagementServiceTests : TestBaseDb
         Assert.Equal("Owned", connection.Name);
         Assert.Equal(owner.Id, connection.Owner.Id);
         Assert.Equal(["mcp:read", "mcp:write"], connection.ApprovedScopes);
+        Assert.Equal(lastUsedAtUtc, connection.LastUsedAtUtc);
         var json = JsonSerializer.Serialize(connection);
         Assert.DoesNotContain("owned-authorization", json, StringComparison.Ordinal);
         Assert.DoesNotContain("owned-application", json, StringComparison.Ordinal);

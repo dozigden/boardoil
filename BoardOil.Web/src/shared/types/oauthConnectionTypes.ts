@@ -15,6 +15,7 @@ export type OAuthConnection = {
   resource: string;
   createdAtUtc: string;
   lastAuthorizedAtUtc: string;
+  lastUsedAtUtc: string | null;
 };
 
 export type OAuthProtectedResourceMetadata = {

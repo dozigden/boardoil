@@ -3,6 +3,7 @@ using System;
 using BoardOil.Ef;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoardOil.Ef.Migrations
 {
     [DbContext(typeof(BoardOilDbContext))]
-    partial class BoardOilDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260808065250_AddOAuthConnectionLastUsedAt")]
+    partial class AddOAuthConnectionLastUsedAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -1197,22 +1200,22 @@ namespace BoardOil.Ef.Migrations
                         .HasForeignKey("BoardOil.Data.Abstractions.Entities.EntityOAuthConnection", "ActiveGrantId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "RevokedByUser")
+                        .WithMany()
+                        .HasForeignKey("RevokedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "RevokedByUser")
-                        .WithMany()
-                        .HasForeignKey("RevokedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("ActiveGrant");
 
-                    b.Navigation("User");
-
                     b.Navigation("RevokedByUser");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityOAuthConnectionGrant", b =>

@@ -15,4 +15,5 @@ public sealed record OAuthConnectionDto(
     string OAuthClientDisplayName,
     string Resource,
     DateTime CreatedAtUtc,
-    DateTime LastAuthorizedAtUtc);
+    DateTime LastAuthorizedAtUtc,
+    DateTime? LastUsedAtUtc);

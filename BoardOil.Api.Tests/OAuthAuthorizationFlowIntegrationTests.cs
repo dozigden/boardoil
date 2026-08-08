@@ -551,6 +551,46 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
+    public async Task McpConnection_WhenValid_ShouldTrackLastUseAtMostOncePerUtcDay()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        var previousDay = timeProvider.GetUtcNow().UtcDateTime.AddDays(-1);
+        await SetOnlyConnectionLastUsedAtUtcAsync(previousDay);
+
+        // Act
+        var firstResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "oauth-last-used-first",
+            exchange.AccessToken,
+            "/mcp/oauth");
+        var firstLastUsedAtUtc = await GetOnlyConnectionLastUsedAtUtcAsync();
+        var sameDayEarlier = timeProvider.GetUtcNow().UtcDateTime.Date;
+        await SetOnlyConnectionLastUsedAtUtcAsync(sameDayEarlier);
+        var secondResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "oauth-last-used-second",
+            exchange.AccessToken,
+            "/mcp/oauth");
+        var secondLastUsedAtUtc = await GetOnlyConnectionLastUsedAtUtcAsync();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        Assert.Equal(timeProvider.GetUtcNow().UtcDateTime, firstLastUsedAtUtc);
+        Assert.Equal(sameDayEarlier, secondLastUsedAtUtc);
+    }
+
+    [Fact]
     public async Task Reauthorization_WhenNameIsReused_ShouldRequireWarningAndReplacePreviousGrant()
     {
         // Arrange
@@ -560,6 +600,8 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var firstCode = await ApproveAsync(client, scenario, firstRequest);
         var firstExchange = await ExchangeCodeAsync(client, scenario, firstRequest, firstCode);
         Assert.Equal(HttpStatusCode.OK, firstExchange.StatusCode);
+        var lastUsedAtUtc = timeProvider.GetUtcNow().UtcDateTime.AddHours(-1);
+        await SetOnlyConnectionLastUsedAtUtcAsync(lastUsedAtUtc);
         var replacementRequest = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
 
         // Act
@@ -603,6 +645,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var connection = await dbContext.OAuthConnections.SingleAsync();
         var grants = await dbContext.OAuthConnectionGrants.OrderBy(x => x.Id).ToArrayAsync();
         Assert.Equal("Repository connection", connection.Name);
+        Assert.Equal(lastUsedAtUtc, connection.LastUsedAtUtc);
         Assert.Equal(2, grants.Length);
         Assert.Equal("replaced", grants[0].RevocationReason);
         Assert.Equal(grants[1].Id, connection.ActiveGrantId);
@@ -683,6 +726,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Contains(
             "error=\"invalid_token\"",
             response.Headers.WwwAuthenticate.ToString());
+        Assert.Null(await GetOnlyConnectionLastUsedAtUtcAsync());
     }
 
     [Fact]
@@ -837,6 +881,26 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         request.Headers.Accept.ParseAdd("application/json");
         request.Headers.Accept.ParseAdd("text/event-stream");
         return await client.SendAsync(request);
+    }
+
+    private async Task<DateTime?> GetOnlyConnectionLastUsedAtUtcAsync()
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+        return await dbContext.OAuthConnections
+            .Select(x => x.LastUsedAtUtc)
+            .SingleAsync();
+    }
+
+    private async Task SetOnlyConnectionLastUsedAtUtcAsync(DateTime value)
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+        var connection = await dbContext.OAuthConnections.SingleAsync();
+        connection.LastUsedAtUtc = value;
+        await dbContext.SaveChangesAsync();
     }
 
     private static async Task<int[]> GetOAuthBoardIdsAsync(

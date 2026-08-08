@@ -15,6 +15,7 @@ public sealed class OAuthConnectionConfiguration : IEntityTypeConfiguration<Enti
         connection.Property(x => x.RevokedByUserName).HasMaxLength(64).IsRequired(false);
         connection.Property(x => x.CreatedAtUtc).IsRequired();
         connection.Property(x => x.UpdatedAtUtc).IsRequired();
+        connection.Property(x => x.LastUsedAtUtc).IsRequired(false);
         connection.Property(x => x.RevokedAtUtc).IsRequired(false);
         connection.ToTable("OAuthConnections");
 

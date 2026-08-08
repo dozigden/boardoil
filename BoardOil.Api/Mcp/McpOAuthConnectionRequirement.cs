@@ -85,7 +85,7 @@ public sealed class McpOAuthConnectionAuthorizationHandler(
 
         var applicationClientId = await applicationManager.GetClientIdAsync(application);
 
-        using var scope = scopeFactory.CreateReadOnly();
+        using var scope = scopeFactory.Create();
         var grant = await connectionRepository.GetGrantByAuthorizationIdAsync(authorizationId);
         if (grant is null
             || !string.Equals(grant.OpenIddictApplicationId, applicationId, StringComparison.Ordinal)
@@ -118,6 +118,16 @@ public sealed class McpOAuthConnectionAuthorizationHandler(
                 StringComparison.Ordinal))
         {
             return;
+        }
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var connection = grant.OAuthConnection;
+        var shouldUpdateLastUsedAt = !connection.LastUsedAtUtc.HasValue
+            || connection.LastUsedAtUtc.Value.Date < now.Date;
+        if (shouldUpdateLastUsedAt)
+        {
+            connection.LastUsedAtUtc = now;
+            await scope.SaveChangesAsync(httpContext.RequestAborted);
         }
 
         McpOAuthChallengeState.Clear(httpContext);

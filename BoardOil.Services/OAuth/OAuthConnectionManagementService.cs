@@ -124,7 +124,8 @@ public sealed class OAuthConnectionManagementService(
             activeGrant.OAuthClientDisplayName,
             activeGrant.Resource,
             connection.CreatedAtUtc,
-            activeGrant.ApprovedAtUtc);
+            activeGrant.ApprovedAtUtc,
+            connection.LastUsedAtUtc);
     }
 
     private static IReadOnlyList<string> ParseScopes(string scopesCsv) =>

@@ -51,6 +51,10 @@
                 <dt>Last authorized</dt>
                 <dd>{{ formatDate(connection.lastAuthorizedAtUtc) }}</dd>
               </div>
+              <div>
+                <dt>Last used</dt>
+                <dd>{{ formatDate(connection.lastUsedAtUtc) }}</dd>
+              </div>
             </dl>
           </div>
 

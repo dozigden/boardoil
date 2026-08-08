@@ -10,6 +10,7 @@ public sealed class EntityOAuthConnection : ISupportCreatedAt, ISupportUpdatedAt
     public int? ActiveGrantId { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; internal set; }
+    public DateTime? LastUsedAtUtc { get; set; }
     public DateTime? RevokedAtUtc { get; set; }
     public int? RevokedByUserId { get; set; }
     public string? RevokedByUserName { get; set; }
