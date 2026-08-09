@@ -1,4 +1,7 @@
 using BoardOil.Api.Mcp;
+using BoardOil.Abstractions.ErrorLogs;
+using BoardOil.Contracts.Common;
+using BoardOil.Contracts.ErrorLogs;
 using BoardOil.Mcp.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
@@ -34,7 +37,8 @@ public sealed class McpToolBaseTests
     {
         // Arrange
         var tool = new TestTool(_ => throw new InvalidOperationException("boom"));
-        var context = CreateContext();
+        var errorLogService = new StubErrorLogService(42);
+        var context = CreateContext(errorLogService);
         var arguments = new Dictionary<string, JsonElement>
         {
             ["value"] = JsonSerializer.SerializeToElement(1)
@@ -47,7 +51,13 @@ public sealed class McpToolBaseTests
         Assert.True(result.IsError);
         var payload = Assert.IsType<JsonElement>(result.StructuredContent);
         Assert.Equal("service_error", payload.GetProperty("code").GetString());
-        Assert.Equal("Tool execution failed. Correlation id: test-correlation.", payload.GetProperty("message").GetString());
+        Assert.Equal("Tool execution failed. Error reference: 42.", payload.GetProperty("message").GetString());
+        var logged = Assert.Single(errorLogService.LoggedExceptions);
+        Assert.Equal("boom", logged.Exception.Message);
+        Assert.Equal(ErrorLogAreas.McpTool, logged.Context.Area);
+        Assert.Equal("test-correlation", logged.Context.TraceIdentifier);
+        Assert.Equal(1, logged.Context.ActorUserId);
+        Assert.Contains("test.base", logged.Context.ContextJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -127,10 +137,36 @@ public sealed class McpToolBaseTests
         Assert.False(payload.TryGetProperty("data", out _));
     }
 
-    private static McpInvocationContext CreateContext()
+    private static McpInvocationContext CreateContext(IErrorLogService? errorLogService = null)
     {
-        var serviceProvider = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection();
+        services.AddSingleton<IErrorLogService>(errorLogService ?? new StubErrorLogService(null));
+        var serviceProvider = services.BuildServiceProvider();
         return new McpInvocationContext(serviceProvider, 1, null, "test-correlation");
+    }
+
+    private sealed class StubErrorLogService(int? nextId) : IErrorLogService
+    {
+        public List<(Exception Exception, ErrorLogContext Context)> LoggedExceptions { get; } = [];
+
+        public Task<ApiResult<ErrorLogListDto>> ListAsync(int? offset, int? limit) =>
+            throw new NotSupportedException();
+
+        public Task<ApiResult<ErrorLogDetailsDto>> GetAsync(int id) =>
+            throw new NotSupportedException();
+
+        public Task<ApiResult<ErrorLogPurgeResultDto>> PurgeExpiredAsync(
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<int?> LogExceptionAsync(
+            Exception exception,
+            ErrorLogContext context,
+            CancellationToken cancellationToken = default)
+        {
+            LoggedExceptions.Add((exception, context));
+            return Task.FromResult(nextId);
+        }
     }
 
     private sealed class TestTool(Func<TestInput, Task<McpToolResult<TestOutput>>> executor)

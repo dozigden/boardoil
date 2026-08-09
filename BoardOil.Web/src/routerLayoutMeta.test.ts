@@ -103,6 +103,15 @@ describe('router layout meta mapping', () => {
     }
   });
 
+  it('keeps system error-log details in the system-admin named dialog view', () => {
+    const indexedRoute = findIndexedByName('system-error-log-details');
+
+    expect(indexedRoute?.nearestLayout).toBe(APP_LAYOUT_ADMIN);
+    expect(indexedRoute?.route.components?.default).toBeDefined();
+    expect(indexedRoute?.route.components?.dialog).toBeDefined();
+    expect(indexedRoute?.fullPath).toBe('/admin/system/error-logs/:errorLogId(\\d+)');
+  });
+
   it('keeps board deep-link routes constrained to numeric board ids', () => {
     const boardRouteNames = [
       'board',

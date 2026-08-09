@@ -259,6 +259,19 @@ const routes: RouteRecordRaw[] = [
         path: 'system-info-message',
         name: 'system-info-message',
         component: () => import('./system/views/SystemInfoMessageView.vue')
+      },
+      {
+        path: 'error-logs',
+        name: 'system-error-logs',
+        component: () => import('./system/views/ErrorLogsManagerView.vue')
+      },
+      {
+        path: 'error-logs/:errorLogId(\\d+)',
+        name: 'system-error-log-details',
+        components: {
+          default: () => import('./system/views/ErrorLogsManagerView.vue'),
+          dialog: () => import('./system/components/ErrorLogDetailsDialogRoute.vue')
+        }
       }
     ]
   },

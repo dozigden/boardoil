@@ -89,8 +89,8 @@ internal static class McpToolCallHelpers
     public static CallToolResult CreateErrorCallToolResult(string code, string message, int statusCode) =>
         CreateErrorCallToolResult(new McpToolError(code, message, statusCode));
 
-    public static McpToolError CreateUnhandledServiceError(string correlationId) =>
-        new("service_error", $"Tool execution failed. Correlation id: {correlationId}.", 500);
+    public static McpToolError CreateUnhandledServiceError(string errorReference) =>
+        new("service_error", $"Tool execution failed. Error reference: {errorReference}.", 500);
 
     public static JsonElement ParseJson(string value)
     {

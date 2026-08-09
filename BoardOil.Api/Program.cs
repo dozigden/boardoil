@@ -1,8 +1,10 @@
 using BoardOil.Api.Auth;
 using BoardOil.Api.Configuration;
 using BoardOil.Api.Endpoints;
+using BoardOil.Api.ErrorLogs;
 using BoardOil.Api.Extensions;
 using BoardOil.Api.Mcp;
+using BoardOil.Api.Middleware;
 using BoardOil.Api.OAuth;
 using BoardOil.Api.Realtime;
 using BoardOil.Api.Swagger;
@@ -126,7 +128,9 @@ app.InitialiseMcpServiceProvider();
 app.LogMcpStartupWarnings();
 
 await app.Services.InitializeBoardOilEfInfrastructureAsync();
+await app.Services.PurgeExpiredErrorLogsAsync();
 app.UseCors("BoardOilDevClient");
+app.UseMiddleware<ApiExceptionLoggingMiddleware>();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.MapBoardOilMcp();
@@ -203,6 +207,7 @@ app.MapSlickEndpoints();
 app.MapInternalRealtimeEndpoints();
 app.MapConfigurationEndpoints();
 app.MapSystemInfoMessageEndpoints();
+app.MapErrorLogEndpoints();
 app.MapUserEndpoints();
 app.MapClientAccountEndpoints();
 app.MapOAuthConnectionEndpoints();

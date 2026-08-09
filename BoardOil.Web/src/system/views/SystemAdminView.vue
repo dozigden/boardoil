@@ -2,6 +2,7 @@
   <AdminSplitLayout title="System" :items="navItems">
     <RouterView />
   </AdminSplitLayout>
+  <RouterView name="dialog" />
 </template>
 
 <script setup lang="ts">
@@ -33,6 +34,11 @@ const navItems = [
   {
     label: 'System Message',
     to: { name: 'system-info-message' }
+  },
+  {
+    label: 'Error Logs',
+    to: { name: 'system-error-logs' },
+    activeRouteNames: ['system-error-logs', 'system-error-log-details']
   }
 ];
 </script>

@@ -23,6 +23,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityOAuthConnectionGrant> OAuthConnectionGrants => Set<EntityOAuthConnectionGrant>();
     public DbSet<EntityAppSetting> AppSettings => Set<EntityAppSetting>();
     public DbSet<EntitySystemInfoMessage> SystemInfoMessages => Set<EntitySystemInfoMessage>();
+    public DbSet<EntityErrorLog> ErrorLogs => Set<EntityErrorLog>();
     public DbSet<EntityImage> Images => Set<EntityImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

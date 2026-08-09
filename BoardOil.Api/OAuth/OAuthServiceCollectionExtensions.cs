@@ -33,6 +33,7 @@ public static class OAuthServiceCollectionExtensions
         services.AddScoped<OAuthRefreshTokenGenerationHandler>();
         services.AddScoped<IOAuthProtectedResourceMetadataService, OAuthProtectedResourceMetadataService>();
         services.AddScoped<IOAuthDynamicClientRegistrationService, OAuthDynamicClientRegistrationService>();
+        services.AddSingleton<OAuthDynamicClientRegistrationCleanupFailureLogger>();
         services.AddHostedService<OAuthDynamicClientRegistrationCleanupService>();
 
         services.AddOpenIddict()

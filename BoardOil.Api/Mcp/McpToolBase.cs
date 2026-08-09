@@ -1,5 +1,6 @@
 using BoardOil.Mcp.Contracts;
 using BoardOil.Contracts.Common;
+using BoardOil.Abstractions.ErrorLogs;
 using ModelContextProtocol.Protocol;
 using System.Text.Json;
 
@@ -34,9 +35,24 @@ public abstract class McpToolBase<TInput, TOutput>(IMcpAuthorisationService auth
         {
             throw;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
-            return McpToolCallHelpers.CreateErrorCallToolResult(McpToolCallHelpers.CreateUnhandledServiceError(context.CorrelationId));
+            var errorLogService = context.Services.GetRequiredService<IErrorLogService>();
+            var errorLogId = await errorLogService.LogExceptionAsync(
+                exception,
+                new ErrorLogContext(
+                    ErrorLogSources.Backend,
+                    ErrorLogAreas.McpTool,
+                    TraceIdentifier: context.CorrelationId,
+                    ActorUserId: context.ActorUserId,
+                    ContextJson: JsonSerializer.Serialize(new
+                    {
+                        tool = Definition.Name
+                    })),
+                CancellationToken.None);
+            var errorReference = errorLogId?.ToString() ?? context.CorrelationId;
+            return McpToolCallHelpers.CreateErrorCallToolResult(
+                McpToolCallHelpers.CreateUnhandledServiceError(errorReference));
         }
 
         if (!result.Success)
