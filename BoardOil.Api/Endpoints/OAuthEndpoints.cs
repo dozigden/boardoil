@@ -72,14 +72,20 @@ public static class OAuthEndpoints
         var request = httpContext.GetOpenIddictServerRequest()
             ?? throw new InvalidOperationException("The OAuth authorization request is unavailable.");
         ApplyInteractiveResponseHeaders(httpContext.Response);
+        var loginEndpointUrl = await urlResolver.ResolveAsync(
+            httpContext.Request,
+            "/api/auth/login");
+        var authorizationEndpointUrl = await urlResolver.ResolveAsync(
+            httpContext.Request,
+            "/connect/authorize");
 
         if (httpContext.User.Identity?.IsAuthenticated != true)
         {
-            var loginEndpointUrl = await urlResolver.ResolveAsync(
-                httpContext.Request,
-                "/api/auth/login");
             return Results.Content(
-                OAuthConsentPageRenderer.RenderLoginPage(loginEndpointUrl),
+                OAuthConsentPageRenderer.RenderLoginPage(
+                    request,
+                    loginEndpointUrl,
+                    authorizationEndpointUrl),
                 "text/html",
                 System.Text.Encoding.UTF8);
         }
@@ -99,29 +105,53 @@ public static class OAuthEndpoints
         if (HttpMethods.IsGet(httpContext.Request.Method))
         {
             var tokens = antiforgery.GetAndStoreTokens(httpContext);
-            var authorizationEndpointUrl = await urlResolver.ResolveAsync(
-                httpContext.Request,
-                "/connect/authorize");
             return Results.Content(
                 OAuthConsentPageRenderer.RenderConsentPage(
                     request,
                     resolution.Context,
                     tokens,
-                    authorizationEndpointUrl),
+                    authorizationEndpointUrl,
+                    loginEndpointUrl),
                 "text/html",
                 System.Text.Encoding.UTF8);
         }
+
+        var form = await httpContext.Request.ReadFormAsync(cancellationToken);
+        var hasConsentingUserId = int.TryParse(
+            form["consenting_user_id"].ToString(),
+            out var consentingUserId);
 
         try
         {
             await antiforgery.ValidateRequestAsync(httpContext);
         }
         catch (AntiforgeryValidationException)
+            when (hasConsentingUserId && consentingUserId != resolution.Context.UserId)
+        {
+            return RenderChangedConsentUser(
+                httpContext,
+                antiforgery,
+                request,
+                resolution.Context,
+                authorizationEndpointUrl,
+                loginEndpointUrl);
+        }
+        catch (AntiforgeryValidationException)
         {
             return Results.BadRequest("The OAuth consent form has expired. Restart the authorization flow.");
         }
 
-        var form = await httpContext.Request.ReadFormAsync(cancellationToken);
+        if (!hasConsentingUserId || consentingUserId != resolution.Context.UserId)
+        {
+            return RenderChangedConsentUser(
+                httpContext,
+                antiforgery,
+                request,
+                resolution.Context,
+                authorizationEndpointUrl,
+                loginEndpointUrl);
+        }
+
         var decision = form["decision"].ToString();
         if (string.Equals(decision, "deny", StringComparison.Ordinal))
         {
@@ -162,15 +192,13 @@ public static class OAuthEndpoints
             }
 
             var tokens = antiforgery.GetAndStoreTokens(httpContext);
-            var authorizationEndpointUrl = await urlResolver.ResolveAsync(
-                httpContext.Request,
-                "/connect/authorize");
             return Results.Content(
                 OAuthConsentPageRenderer.RenderConsentPage(
                     request,
                     consentContext,
                     tokens,
                     authorizationEndpointUrl,
+                    loginEndpointUrl,
                     approval,
                     approvalResult.ErrorDescription),
                 "text/html",
@@ -181,6 +209,28 @@ public static class OAuthEndpoints
         return Results.SignIn(
             approvalResult.Principal,
             authenticationScheme: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+    }
+
+    private static IResult RenderChangedConsentUser(
+        HttpContext httpContext,
+        IAntiforgery antiforgery,
+        OpenIddictRequest request,
+        OAuthAuthorizationContext authorizationContext,
+        string authorizationEndpointUrl,
+        string loginEndpointUrl)
+    {
+        var tokens = antiforgery.GetAndStoreTokens(httpContext);
+        return Results.Content(
+            OAuthConsentPageRenderer.RenderConsentPage(
+                request,
+                authorizationContext,
+                tokens,
+                authorizationEndpointUrl,
+                loginEndpointUrl,
+                error: "The signed-in BoardOil user changed while consent was open. Review the current account and submit again."),
+            "text/html",
+            System.Text.Encoding.UTF8,
+            StatusCodes.Status400BadRequest);
     }
 
     private static async Task<IResult> HandleTokenExchangeAsync(

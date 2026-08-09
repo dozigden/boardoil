@@ -78,9 +78,13 @@ public static class OAuthServiceCollectionExtensions
                     handler.UseScopedHandler<OAuthRefreshTokenGenerationHandler>()
                         .SetOrder(OpenIddictServerHandlers.EvaluateGeneratedTokens.Descriptor.Order + 500));
 
-                openIddict.UseAspNetCore()
+                var aspNetCore = openIddict.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
                     .EnableTokenEndpointPassthrough();
+                if (jwtOptions.AllowInsecureCookies)
+                {
+                    aspNetCore.DisableTransportSecurityRequirement();
+                }
             })
             .AddValidation(openIddict =>
             {

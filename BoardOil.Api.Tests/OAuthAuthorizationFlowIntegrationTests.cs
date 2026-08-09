@@ -55,6 +55,10 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Equal(HttpStatusCode.OK, consentResponse.StatusCode);
         Assert.Contains("Authorise Codex", consentPage);
         Assert.Contains("(@admin)", consentPage);
+        Assert.Contains("Sign in as another user", consentPage);
+        Assert.Contains("Switching account also changes the BoardOil user signed into this browser.", consentPage);
+        Assert.Contains("/api/auth/login", consentPage);
+        Assert.Contains($"name=\"consenting_user_id\" value=\"{scenario.UserId}\"", consentPage);
         Assert.Contains("Connection name", consentPage);
         Assert.Contains("Redirect URI", consentPage);
         Assert.Contains(WebUtility.HtmlEncode(scenario.Resource), consentPage);
@@ -90,6 +94,99 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Contains(
             $"action=\"{publicBaseUrl}/connect/authorize\"",
             consentPage);
+        Assert.Contains($"fetch(\"{publicBaseUrl}/api/auth/login\"", consentPage);
+    }
+
+    [Fact]
+    public async Task AccountSwitch_WhenCredentialsAreRejected_ShouldKeepCurrentConsentUser()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+
+        // Act
+        var loginResponse = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginRequest("admin", "incorrect-password"));
+        var consentResponse = await client.GetAsync(request.Url);
+        var consentPage = await consentResponse.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, loginResponse.StatusCode);
+        consentResponse.EnsureSuccessStatusCode();
+        Assert.Contains("admin (@admin)", consentPage);
+        Assert.Contains($"name=\"consenting_user_id\" value=\"{scenario.UserId}\"", consentPage);
+    }
+
+    [Fact]
+    public async Task AccountSwitch_WhenCredentialsAreAccepted_ShouldCreateConnectionForNewUser()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var switchedUserId = await CreateUserAsAdminAsync(
+            client,
+            "oauth-switch-user",
+            "Password1234!",
+            "Standard");
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+
+        // Act
+        await LoginAsAsync(client, "oauth-switch-user", "Password1234!");
+        var consentResponse = await client.GetAsync(request.Url);
+        var consentPage = await consentResponse.Content.ReadAsStringAsync();
+        var switchedScenario = scenario with { UserId = switchedUserId };
+        var code = await ApproveAsync(client, switchedScenario, request);
+        var exchange = await ExchangeCodeAsync(client, switchedScenario, request, code);
+
+        // Assert
+        Assert.Contains("oauth-switch-user (@oauth-switch-user)", consentPage);
+        Assert.Contains($"name=\"consenting_user_id\" value=\"{switchedUserId}\"", consentPage);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+        var connection = await dbContext.OAuthConnections.SingleAsync();
+        Assert.Equal(switchedUserId, connection.UserId);
+    }
+
+    [Fact]
+    public async Task Approval_WhenSessionUserChangedAfterConsentRendered_ShouldRequireFreshConsent()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        _ = await CreateUserAsAdminAsync(
+            client,
+            "oauth-stale-user",
+            "Password1234!",
+            "Standard");
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var consentResponse = await client.GetAsync(request.Url);
+        consentResponse.EnsureSuccessStatusCode();
+        var consentPage = await consentResponse.Content.ReadAsStringAsync();
+        var antiforgeryToken = ExtractAntiforgeryToken(consentPage);
+        await LoginAsAsync(client, "oauth-stale-user", "Password1234!");
+
+        // Act
+        var response = await PostDecisionAsync(
+            client,
+            scenario,
+            request,
+            "approve",
+            antiforgeryToken,
+            scenario.UserId);
+        var responsePage = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("signed-in BoardOil user changed while consent was open", responsePage);
+        Assert.Contains("oauth-stale-user (@oauth-stale-user)", responsePage);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = factory.CreateDbContext<BoardOilDbContext>();
+        Assert.Empty(await dbContext.OAuthConnections.ToArrayAsync());
     }
 
     [Fact]
@@ -1055,10 +1152,32 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         consentResponse.EnsureSuccessStatusCode();
         var consentPage = await consentResponse.Content.ReadAsStringAsync();
         var antiforgeryToken = ExtractAntiforgeryToken(consentPage);
+        return await PostDecisionAsync(
+            client,
+            scenario,
+            request,
+            decision,
+            antiforgeryToken,
+            scenario.UserId,
+            approvedScopes,
+            replaceExisting);
+    }
+
+    private static async Task<HttpResponseMessage> PostDecisionAsync(
+        HttpClient client,
+        OAuthScenario scenario,
+        AuthorizationRequest request,
+        string decision,
+        string antiforgeryToken,
+        int consentingUserId,
+        string[]? approvedScopes = null,
+        bool replaceExisting = false)
+    {
         var form = request.Parameters
             .Select(static pair => new KeyValuePair<string, string>(pair.Key, pair.Value))
             .ToList();
         form.Add(new("boardoil_oauth_antiforgery", antiforgeryToken));
+        form.Add(new("consenting_user_id", consentingUserId.ToString()));
         form.Add(new("decision", decision));
         form.Add(new("connection_name", scenario.ConnectionName));
         if (replaceExisting)

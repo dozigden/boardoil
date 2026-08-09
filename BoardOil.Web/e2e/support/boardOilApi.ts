@@ -28,6 +28,13 @@ export type SmokeCard = {
   tagNames: string[];
 };
 
+export type SmokeOAuthClient = {
+  authorizationServer: string;
+  clientId: string;
+  redirectUri: string;
+  resource: string;
+};
+
 export class BoardOilApi {
   private csrfToken = '';
 
@@ -58,6 +65,56 @@ export class BoardOilApi {
       name,
       description: 'Playwright smoke test board'
     });
+  }
+
+  public async createUser(userName: string, password: string) {
+    return await this.post<{ id: number; userName: string }>('/api/system/users', {
+      userName,
+      displayName: userName,
+      email: `${userName}@boardoil.test`,
+      password,
+      role: 'Standard'
+    });
+  }
+
+  public async registerOAuthClient(
+    clientName: string,
+    redirectUri: string
+  ): Promise<SmokeOAuthClient> {
+    const metadataResponse = await this.request.get(
+      '/.well-known/oauth-protected-resource/mcp/oauth'
+    );
+    const metadata = await readJson<{
+      authorization_servers: string[];
+      resource: string;
+    }>(metadataResponse);
+    const discoveredAuthorizationServer = metadata.authorization_servers[0];
+    if (!discoveredAuthorizationServer) {
+      throw new Error('OAuth metadata did not contain an authorization server.');
+    }
+    const authorizationServer = discoveredAuthorizationServer.replace(/\/+$/, '');
+
+    const registrationResponse = await this.request.post(
+      `${authorizationServer}/connect/register`,
+      {
+        data: {
+          client_name: clientName,
+          redirect_uris: [redirectUri],
+          grant_types: ['authorization_code', 'refresh_token'],
+          response_types: ['code'],
+          token_endpoint_auth_method: 'none',
+          scope: 'mcp:read',
+          application_type: 'native'
+        }
+      }
+    );
+    const registration = await readJson<{ client_id: string }>(registrationResponse);
+    return {
+      authorizationServer,
+      clientId: registration.client_id,
+      redirectUri,
+      resource: metadata.resource
+    };
   }
 
   public async createCard(
@@ -122,4 +179,17 @@ async function readEnvelope<T>(response: APIResponse) {
   }
 
   return envelope.data;
+}
+
+async function readJson<T>(response: APIResponse) {
+  const bodyText = await response.text();
+  if (!response.ok()) {
+    throw new Error(`${response.url()} failed (${response.status()}): ${bodyText}`);
+  }
+
+  try {
+    return JSON.parse(bodyText) as T;
+  } catch {
+    throw new Error(`${response.url()} did not return valid JSON: ${bodyText}`);
+  }
 }
