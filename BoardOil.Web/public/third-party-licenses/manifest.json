@@ -1,6 +1,6 @@
 {
-  "generatedAtUtc": "2026-08-07T08:17:47.373Z",
-  "packageSource": "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
+  "generatedAtUtc": "2026-08-09T05:16:07.312Z",
+  "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
       "ecosystem": "asset",
@@ -13,12 +13,300 @@
     },
     {
       "ecosystem": "npm",
+      "packageName": "@babel/generator",
+      "version": "8.0.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@babel/generator/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-babel-generator.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@babel/helper-string-parser",
+      "version": "7.29.7",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@babel/helper-string-parser/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-babel-helper-string-parser-7.29.7.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@babel/helper-string-parser",
+      "version": "8.0.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@babel/generator/node_modules/@babel/helper-string-parser/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-babel-helper-string-parser-8.0.0.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@babel/helper-validator-identifier",
+      "version": "7.29.7",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@babel/helper-validator-identifier/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-babel-helper-validator-identifier-7.29.7.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@babel/helper-validator-identifier",
+      "version": "8.0.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@babel/generator/node_modules/@babel/helper-validator-identifier/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-babel-helper-validator-identifier-8.0.4.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@babel/parser",
+      "version": "7.29.8",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@babel/parser/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-babel-parser-7.29.8.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@babel/parser",
+      "version": "8.0.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@babel/generator/node_modules/@babel/parser/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-babel-parser-8.0.4.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@babel/types",
+      "version": "7.29.8",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@babel/types/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-babel-types-7.29.8.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@babel/types",
+      "version": "8.0.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@babel/generator/node_modules/@babel/types/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-babel-types-8.0.4.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@floating-ui/core",
+      "version": "1.8.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@floating-ui/core/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-floating-ui-core.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@floating-ui/dom",
+      "version": "1.8.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@floating-ui/dom/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-floating-ui-dom.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@floating-ui/utils",
+      "version": "0.2.12",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@floating-ui/utils/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-floating-ui-utils.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@jridgewell/gen-mapping",
+      "version": "0.3.13",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@jridgewell/gen-mapping/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-jridgewell-gen-mapping.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@jridgewell/remapping",
+      "version": "2.3.5",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@jridgewell/remapping/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-jridgewell-remapping.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@jridgewell/resolve-uri",
+      "version": "3.1.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@jridgewell/resolve-uri/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-jridgewell-resolve-uri.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@jridgewell/sourcemap-codec",
+      "version": "1.5.5",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@jridgewell/sourcemap-codec/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-jridgewell-sourcemap-codec.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@jridgewell/trace-mapping",
+      "version": "0.3.31",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@jridgewell/trace-mapping/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-jridgewell-trace-mapping.txt"
+    },
+    {
+      "ecosystem": "npm",
       "packageName": "@microsoft/signalr",
       "version": "10.0.0",
       "declaredLicence": "MIT",
       "sourceType": "manual",
       "sourceFile": "compliance/third-party-licenses-manual/npm-microsoft-signalr.txt",
       "outputFile": "compliance/third-party-licenses/npm-microsoft-signalr.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/core",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/core/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-core.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-blockquote",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-blockquote/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-blockquote.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-bold",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-bold/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-bold.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-bubble-menu",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-bubble-menu/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-bubble-menu.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-bullet-list",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-bullet-list/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-bullet-list.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-code",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-code/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-code.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-code-block",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-code-block/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-code-block.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-document",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-document/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-document.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-dropcursor",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-dropcursor/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-dropcursor.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-floating-menu",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-floating-menu/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-floating-menu.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-gapcursor",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-gapcursor/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-gapcursor.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-hard-break",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-hard-break/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-hard-break.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-heading",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-heading/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-heading.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-horizontal-rule",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-horizontal-rule/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-horizontal-rule.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-italic",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-italic/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-italic.txt"
     },
     {
       "ecosystem": "npm",
@@ -31,12 +319,102 @@
     },
     {
       "ecosystem": "npm",
+      "packageName": "@tiptap/extension-list",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-list/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-list.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-list-item",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-list-item/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-list-item.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-list-keymap",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-list-keymap/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-list-keymap.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-ordered-list",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-ordered-list/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-ordered-list.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-paragraph",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-paragraph/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-paragraph.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-strike",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-strike/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-strike.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-text",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-text/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-text.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-underline",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-underline/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-underline.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extensions",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extensions/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extensions.txt"
+    },
+    {
+      "ecosystem": "npm",
       "packageName": "@tiptap/markdown",
       "version": "3.29.2",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/markdown/LICENSE.md",
       "outputFile": "compliance/third-party-licenses/npm-tiptap-markdown.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/pm",
+      "version": "3.29.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/pm/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-pm.txt"
     },
     {
       "ecosystem": "npm",
@@ -58,12 +436,372 @@
     },
     {
       "ecosystem": "npm",
+      "packageName": "@types/jsesc",
+      "version": "2.5.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@types/jsesc/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-types-jsesc.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue-macros/common",
+      "version": "3.1.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue-macros/common/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-macros-common.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/compiler-core",
+      "version": "3.5.40",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/compiler-core/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-compiler-core.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/compiler-dom",
+      "version": "3.5.40",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/compiler-dom/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-compiler-dom.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/compiler-sfc",
+      "version": "3.5.40",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/compiler-sfc/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-compiler-sfc.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/compiler-ssr",
+      "version": "3.5.40",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/compiler-ssr/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-compiler-ssr.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/devtools-api",
+      "version": "7.7.10",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/devtools-api/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-api-7.7.10.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/devtools-api",
+      "version": "8.2.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/vue-router/node_modules/@vue/devtools-api/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-api-8.2.1.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/devtools-kit",
+      "version": "7.7.10",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/devtools-kit/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-kit-7.7.10.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/devtools-kit",
+      "version": "8.2.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/vue-router/node_modules/@vue/devtools-kit/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-kit-8.2.1.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/devtools-shared",
+      "version": "7.7.10",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/devtools-shared/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-shared-7.7.10.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/devtools-shared",
+      "version": "8.2.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/vue-router/node_modules/@vue/devtools-shared/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-shared-8.2.1.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/reactivity",
+      "version": "3.5.40",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/reactivity/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-reactivity.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/runtime-core",
+      "version": "3.5.40",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/runtime-core/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-runtime-core.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/runtime-dom",
+      "version": "3.5.40",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/runtime-dom/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-runtime-dom.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/server-renderer",
+      "version": "3.5.40",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/server-renderer/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-server-renderer.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@vue/shared",
+      "version": "3.5.40",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/shared/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-vue-shared.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "abort-controller",
+      "version": "3.0.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/abort-controller/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-abort-controller.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "acorn",
+      "version": "8.18.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/acorn/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-acorn.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "ast-kit",
+      "version": "2.2.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/ast-kit/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-ast-kit.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "ast-walker-scope",
+      "version": "0.9.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/ast-walker-scope/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-ast-walker-scope.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "birpc",
+      "version": "2.9.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/birpc/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-birpc.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "chokidar",
+      "version": "5.0.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/chokidar/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-chokidar.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "confbox",
+      "version": "0.1.8",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/mlly/node_modules/confbox/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-confbox-0.1.8.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "confbox",
+      "version": "0.2.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/confbox/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-confbox-0.2.4.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "copy-anything",
+      "version": "4.0.5",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/copy-anything/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-copy-anything.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "csstype",
+      "version": "3.2.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/csstype/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-csstype.txt"
+    },
+    {
+      "ecosystem": "npm",
       "packageName": "emoji-picker-element",
       "version": "1.29.1",
       "declaredLicence": "Apache-2.0",
       "sourceType": "package",
       "sourceFile": "node_modules/emoji-picker-element/LICENSE",
       "outputFile": "compliance/third-party-licenses/npm-emoji-picker-element.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "entities",
+      "version": "7.0.1",
+      "declaredLicence": "BSD-2-Clause",
+      "sourceType": "package",
+      "sourceFile": "node_modules/entities/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-entities.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "estree-walker",
+      "version": "2.0.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@vue/compiler-core/node_modules/estree-walker/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-estree-walker.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "event-target-shim",
+      "version": "5.0.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/event-target-shim/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-event-target-shim.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "eventsource",
+      "version": "2.0.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/eventsource/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-eventsource.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "exsolve",
+      "version": "1.1.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/exsolve/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-exsolve.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "fdir",
+      "version": "6.5.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/fdir/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-fdir.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "fetch-cookie",
+      "version": "2.2.0",
+      "declaredLicence": "Unlicense",
+      "sourceType": "package",
+      "sourceFile": "node_modules/fetch-cookie/UNLICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-fetch-cookie.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "hookable",
+      "version": "5.5.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/hookable/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-hookable.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "is-what",
+      "version": "5.5.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/is-what/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-is-what.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "jsesc",
+      "version": "3.1.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/jsesc/LICENSE-MIT.txt",
+      "outputFile": "compliance/third-party-licenses/npm-jsesc.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "json5",
+      "version": "2.2.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/json5/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-json5.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "linkifyjs",
+      "version": "4.3.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/linkifyjs/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-linkifyjs.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "local-pkg",
+      "version": "1.2.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/local-pkg/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-local-pkg.txt"
     },
     {
       "ecosystem": "npm",
@@ -76,12 +814,480 @@
     },
     {
       "ecosystem": "npm",
+      "packageName": "magic-string",
+      "version": "0.30.21",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/magic-string/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-magic-string.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "magic-string-ast",
+      "version": "1.0.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/magic-string-ast/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-magic-string-ast.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "marked",
+      "version": "17.0.6",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/marked/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-marked.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "mitt",
+      "version": "3.0.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/mitt/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-mitt.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "mlly",
+      "version": "1.8.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/mlly/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-mlly.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "muggle-string",
+      "version": "0.4.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/muggle-string/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-muggle-string.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "nanoid",
+      "version": "3.3.16",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/nanoid/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-nanoid.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "node-fetch",
+      "version": "2.7.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/node-fetch/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-node-fetch.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "nostics",
+      "version": "1.2.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/nostics/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-nostics.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "orderedmap",
+      "version": "2.1.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/orderedmap/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-orderedmap.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "pathe",
+      "version": "2.0.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/pathe/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-pathe.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "perfect-debounce",
+      "version": "1.0.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/perfect-debounce/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-perfect-debounce-1.0.0.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "perfect-debounce",
+      "version": "2.1.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/vue-router/node_modules/perfect-debounce/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-perfect-debounce-2.1.0.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "picocolors",
+      "version": "1.1.1",
+      "declaredLicence": "ISC",
+      "sourceType": "package",
+      "sourceFile": "node_modules/picocolors/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-picocolors.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "picomatch",
+      "version": "4.0.5",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/picomatch/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-picomatch.txt"
+    },
+    {
+      "ecosystem": "npm",
       "packageName": "pinia",
       "version": "3.0.4",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/pinia/LICENSE",
       "outputFile": "compliance/third-party-licenses/npm-pinia.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "pkg-types",
+      "version": "1.3.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/mlly/node_modules/pkg-types/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-pkg-types-1.3.1.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "pkg-types",
+      "version": "2.3.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/pkg-types/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-pkg-types-2.3.1.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "postcss",
+      "version": "8.5.25",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/postcss/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-postcss.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-changeset",
+      "version": "2.4.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-changeset/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-changeset.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-commands",
+      "version": "1.7.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-commands/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-commands.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-dropcursor",
+      "version": "1.8.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-dropcursor/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-dropcursor.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-gapcursor",
+      "version": "1.4.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-gapcursor/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-gapcursor.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-history",
+      "version": "1.5.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-history/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-history.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-inputrules",
+      "version": "1.5.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-inputrules/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-inputrules.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-keymap",
+      "version": "1.2.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-keymap/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-keymap.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-model",
+      "version": "1.25.11",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-model/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-model.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-schema-list",
+      "version": "1.5.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-schema-list/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-schema-list.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-state",
+      "version": "1.4.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-state/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-state.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-tables",
+      "version": "1.8.5",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-tables/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-tables.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-transform",
+      "version": "1.12.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-transform/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-transform.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "prosemirror-view",
+      "version": "1.42.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/prosemirror-view/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-prosemirror-view.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "psl",
+      "version": "1.15.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/psl/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-psl.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "punycode",
+      "version": "2.3.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/punycode/LICENSE-MIT.txt",
+      "outputFile": "compliance/third-party-licenses/npm-punycode.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "quansync",
+      "version": "0.2.11",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/quansync/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-quansync.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "querystringify",
+      "version": "2.2.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/querystringify/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-querystringify.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "readdirp",
+      "version": "5.0.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/readdirp/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-readdirp.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "requires-port",
+      "version": "1.0.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/requires-port/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-requires-port.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "rfdc",
+      "version": "1.4.1",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/rfdc/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-rfdc.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "rope-sequence",
+      "version": "1.3.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/rope-sequence/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-rope-sequence.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "scule",
+      "version": "1.3.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/scule/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-scule.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "set-cookie-parser",
+      "version": "2.7.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/set-cookie-parser/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-set-cookie-parser.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "source-map-js",
+      "version": "1.2.1",
+      "declaredLicence": "BSD-3-Clause",
+      "sourceType": "package",
+      "sourceFile": "node_modules/source-map-js/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-source-map-js.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "speakingurl",
+      "version": "14.0.1",
+      "declaredLicence": "BSD-3-Clause",
+      "sourceType": "package",
+      "sourceFile": "node_modules/speakingurl/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-speakingurl.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "superjson",
+      "version": "2.2.6",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/superjson/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-superjson.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "tinyglobby",
+      "version": "0.2.17",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/tinyglobby/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-tinyglobby.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "tough-cookie",
+      "version": "4.1.4",
+      "declaredLicence": "BSD-3-Clause",
+      "sourceType": "package",
+      "sourceFile": "node_modules/tough-cookie/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-tough-cookie.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "tr46",
+      "version": "0.0.3",
+      "declaredLicence": "MIT",
+      "sourceType": "manual",
+      "sourceFile": "compliance/third-party-licenses-manual/npm-tr46.txt",
+      "outputFile": "compliance/third-party-licenses/npm-tr46.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "ufo",
+      "version": "1.6.4",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/ufo/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-ufo.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "universalify",
+      "version": "0.2.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/universalify/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-universalify.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "unplugin",
+      "version": "3.3.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/unplugin/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-unplugin.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "unplugin-utils",
+      "version": "0.3.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/unplugin-utils/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-unplugin-utils.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "url-parse",
+      "version": "1.5.10",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/url-parse/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-url-parse.txt"
     },
     {
       "ecosystem": "npm",
@@ -100,6 +1306,60 @@
       "sourceType": "package",
       "sourceFile": "node_modules/vue-router/LICENSE",
       "outputFile": "compliance/third-party-licenses/npm-vue-router.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "w3c-keyname",
+      "version": "2.2.8",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/w3c-keyname/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-w3c-keyname.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "webidl-conversions",
+      "version": "3.0.1",
+      "declaredLicence": "BSD-2-Clause",
+      "sourceType": "package",
+      "sourceFile": "node_modules/webidl-conversions/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-webidl-conversions.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "webpack-virtual-modules",
+      "version": "0.6.2",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/webpack-virtual-modules/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-webpack-virtual-modules.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "whatwg-url",
+      "version": "5.0.0",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/whatwg-url/LICENSE.txt",
+      "outputFile": "compliance/third-party-licenses/npm-whatwg-url.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "ws",
+      "version": "7.5.13",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/ws/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-ws.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "yaml",
+      "version": "2.9.0",
+      "declaredLicence": "ISC",
+      "sourceType": "package",
+      "sourceFile": "node_modules/yaml/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-yaml.txt"
     },
     {
       "ecosystem": "nuget",

@@ -1,17 +1,24 @@
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import { collectProductionNpmDependencies } from "./npm-production-dependencies.mjs";
+
+const execFileAsync = promisify(execFile);
 
 const defaultCandidateFiles = [
   "LICENSE",
   "LICENSE.md",
   "LICENSE.txt",
+  "LICENSE-MIT.txt",
   "LICENCE",
   "LICENCE.md",
   "LICENCE.txt",
   "COPYING",
-  "NOTICE"
+  "NOTICE",
+  "UNLICENSE"
 ];
 
 const bundledAssetLicences = [
@@ -57,10 +64,6 @@ const nugetDependencySources = [
   }
 ];
 
-function getPathParts(packageName) {
-  return packageName.split("/");
-}
-
 function sanitisePackageName(packageName) {
   return packageName
     .replace(/^@/, "")
@@ -73,8 +76,9 @@ function sanitiseVersion(version) {
   return version.replace(/[^a-zA-Z0-9.+-]+/g, "-").toLowerCase();
 }
 
-function getNpmOutputFileName(packageName) {
-  return `npm-${sanitisePackageName(packageName)}.txt`;
+function getNpmOutputFileName(packageName, version, includeVersion) {
+  const versionSuffix = includeVersion ? `-${sanitiseVersion(version)}` : "";
+  return `npm-${sanitisePackageName(packageName)}${versionSuffix}.txt`;
 }
 
 function getNuGetOutputFileName(packageName, version) {
@@ -121,11 +125,74 @@ async function removeFileIfPresent(filePath) {
 }
 
 async function loadRuntimeNpmDependencies(projectRoot) {
-  const packageJsonPath = path.join(projectRoot, "package.json");
-  const packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf8"));
-  return Object.keys(packageJson.dependencies ?? {}).sort((left, right) =>
-    left.localeCompare(right)
-  );
+  const npmExecutable = process.platform === "win32" ? "npm.cmd" : "npm";
+  let stdout = "";
+  let commandIssue = null;
+
+  try {
+    const result = await execFileAsync(
+      npmExecutable,
+      ["ls", "--omit=dev", "--all", "--json", "--long"],
+      {
+        cwd: projectRoot,
+        maxBuffer: 50 * 1024 * 1024,
+        windowsHide: true
+      }
+    );
+    stdout = result.stdout;
+  } catch (error) {
+    stdout = typeof error?.stdout === "string" ? error.stdout : "";
+    const errorDetail = typeof error?.stderr === "string" ? error.stderr.trim() : "";
+    commandIssue = {
+      packageName: "npm production dependency graph",
+      version: "unknown",
+      reason: errorDetail
+        ? `npm ls could not validate the installed production graph: ${errorDetail}`
+        : "npm ls could not validate the installed production graph",
+      expectedSourceFile: "package-lock.json",
+      resolutionHint: "Run npm ci to restore the exact locked install, then regenerate licences from"
+    };
+  }
+
+  if (!stdout.trim()) {
+    return {
+      packages: [],
+      sourceIssues: [
+        commandIssue ?? {
+          packageName: "npm production dependency graph",
+          version: "unknown",
+          reason: "npm ls returned no production dependency graph",
+          expectedSourceFile: "package-lock.json",
+          resolutionHint: "Run npm ci to restore the exact locked install, then regenerate licences from"
+        }
+      ]
+    };
+  }
+
+  let tree;
+  try {
+    tree = JSON.parse(stdout);
+  } catch {
+    return {
+      packages: [],
+      sourceIssues: [
+        {
+          packageName: "npm production dependency graph",
+          version: "unknown",
+          reason: "npm ls returned an invalid JSON production dependency graph",
+          expectedSourceFile: "package-lock.json",
+          resolutionHint: "Run npm ci to restore the exact locked install, then regenerate licences from"
+        }
+      ]
+    };
+  }
+
+  const result = collectProductionNpmDependencies(tree, projectRoot);
+  if (commandIssue) {
+    result.sourceIssues.push(commandIssue);
+  }
+
+  return result;
 }
 
 async function loadRuntimeNuGetDependencies(projectRoot) {
@@ -426,10 +493,41 @@ function buildNuGetLicenceUrlNotice({ packageName, version, licenceUrl, copyrigh
   return lines.join("\n");
 }
 
+function getNpmDeclaredLicence(packageJson) {
+  const licenceMetadata = packageJson.license ?? packageJson.licenses;
+
+  if (typeof licenceMetadata === "string") {
+    return licenceMetadata.trim() || null;
+  }
+
+  if (Array.isArray(licenceMetadata)) {
+    const licenceTypes = licenceMetadata
+      .map(licence => {
+        if (typeof licence === "string") {
+          return licence.trim();
+        }
+
+        if (licence && typeof licence.type === "string") {
+          return licence.type.trim();
+        }
+
+        return "";
+      })
+      .filter(Boolean);
+
+    return licenceTypes.length > 0 ? licenceTypes.join(" OR ") : null;
+  }
+
+  if (licenceMetadata && typeof licenceMetadata.type === "string") {
+    return licenceMetadata.type.trim() || null;
+  }
+
+  return null;
+}
+
 async function main() {
   const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
   const projectRoot = path.resolve(scriptDirectory, "..");
-  const nodeModulesRoot = path.join(projectRoot, "node_modules");
   const licencesOutputDirectory = path.join(projectRoot, "compliance", "third-party-licenses");
   const manualLicencesDirectory = path.join(projectRoot, "compliance", "third-party-licenses-manual");
   const nugetManualLicencesDirectory = path.join(
@@ -457,12 +555,37 @@ async function main() {
   );
   const currentlyManagedOutputFiles = new Set();
 
-  for (const packageName of runtimeNpmDependencies) {
-    const packageRoot = path.join(nodeModulesRoot, ...getPathParts(packageName));
+  for (const sourceIssue of runtimeNpmDependencies.sourceIssues) {
+    unresolvedPackages.push({
+      ecosystem: "npm",
+      packageName: sourceIssue.packageName,
+      version: sourceIssue.version,
+      declaredLicence: "unknown",
+      reason: sourceIssue.reason,
+      expectedSourceFile: sourceIssue.expectedSourceFile,
+      resolutionHint: sourceIssue.resolutionHint
+    });
+  }
+
+  const npmVersionsByPackageName = new Map();
+  for (const npmPackage of runtimeNpmDependencies.packages) {
+    let versions = npmVersionsByPackageName.get(npmPackage.packageName);
+    if (!versions) {
+      versions = new Set();
+      npmVersionsByPackageName.set(npmPackage.packageName, versions);
+    }
+    versions.add(npmPackage.version);
+  }
+
+  for (const npmPackage of runtimeNpmDependencies.packages) {
+    const { packageName, version } = npmPackage;
+    const packageRoot = npmPackage.packageRoots[0];
     const packageJsonPath = path.join(packageRoot, "package.json");
-    const outputFile = getNpmOutputFileName(packageName);
+    const includeVersion = npmVersionsByPackageName.get(packageName).size > 1;
+    const outputFile = getNpmOutputFileName(packageName, version, includeVersion);
     const outputPath = path.join(licencesOutputDirectory, outputFile);
-    const manualSourcePath = path.join(manualLicencesDirectory, outputFile);
+    const manualOutputFile = getNpmOutputFileName(packageName, version, false);
+    const manualSourcePath = path.join(manualLicencesDirectory, manualOutputFile);
     currentlyManagedOutputFiles.add(getProjectRelativePath(projectRoot, outputPath));
 
     let packageJson;
@@ -473,15 +596,15 @@ async function main() {
       unresolvedPackages.push({
         ecosystem: "npm",
         packageName,
-        version: "unknown",
+        version,
         declaredLicence: "unknown",
         reason: `Missing package metadata at ${getProjectRelativePath(projectRoot, packageJsonPath)}`
       });
       continue;
     }
 
+    const declaredLicence = getNpmDeclaredLicence(packageJson) ?? "unknown";
     const sourcePath = await findLicenceFile(packageRoot, defaultCandidateFiles);
-
     const hasManualLicence = await fileExists(manualSourcePath);
 
     if (!sourcePath && hasManualLicence) {
@@ -489,8 +612,8 @@ async function main() {
       copiedLicences.push({
         ecosystem: "npm",
         packageName,
-        version: packageJson.version ?? "unknown",
-        declaredLicence: packageJson.license ?? "unknown",
+        version,
+        declaredLicence,
         sourceType: "manual",
         sourceFile: getProjectRelativePath(projectRoot, manualSourcePath),
         outputFile: getProjectRelativePath(projectRoot, outputPath)
@@ -503,8 +626,8 @@ async function main() {
       unresolvedPackages.push({
         ecosystem: "npm",
         packageName,
-        version: packageJson.version ?? "unknown",
-        declaredLicence: packageJson.license ?? "unknown",
+        version,
+        declaredLicence,
         reason:
           "No standalone licence file found in installed package and no manual override was provided",
         expectedSourceFile: getProjectRelativePath(projectRoot, manualSourcePath),
@@ -517,8 +640,8 @@ async function main() {
     copiedLicences.push({
       ecosystem: "npm",
       packageName,
-      version: packageJson.version ?? "unknown",
-      declaredLicence: packageJson.license ?? "unknown",
+      version,
+      declaredLicence,
       sourceType: "package",
       sourceFile: getProjectRelativePath(projectRoot, sourcePath),
       outputFile: getProjectRelativePath(projectRoot, outputPath)
@@ -806,7 +929,7 @@ async function main() {
   const manifestPath = path.join(licencesOutputDirectory, "MANIFEST.json");
   const manifestBase = {
     packageSource:
-      "package.json dependencies + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
+      "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
     copiedLicences,
     unresolvedPackages
   };
