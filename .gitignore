@@ -9,6 +9,7 @@ BoardOil.Web/playwright-report/
 
 # Local tool state
 .dotnet/
+.codex/
 
 # SQLite runtime/test artifacts
 *.db

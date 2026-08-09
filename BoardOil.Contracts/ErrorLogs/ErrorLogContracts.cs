@@ -1,4 +1,22 @@
+using System.Text.Json;
+
 namespace BoardOil.Contracts.ErrorLogs;
+
+public sealed record ClientErrorReportRequest(
+    string Message,
+    string? ExceptionType,
+    string? StackTrace,
+    string Phase,
+    string? RouteName,
+    string? RoutePath,
+    string? FrontendVersion,
+    ClientErrorViewportDto? Viewport,
+    string? UserAgent,
+    JsonElement? Context);
+
+public sealed record ClientErrorViewportDto(
+    int Width,
+    int Height);
 
 public sealed record ErrorLogDto(
     int Id,

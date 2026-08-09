@@ -16,11 +16,18 @@ type FakeConnection = {
 let connection: FakeConnection;
 const attemptSessionRefresh = vi.fn(async () => false);
 const notifyUnauthorized = vi.fn();
+const reportRealtimeDiagnostic = vi.fn(async () => true);
 let windowEventHandlers: Record<string, Array<(...args: unknown[]) => unknown>>;
 
 vi.mock('../../shared/api/http', () => ({
   attemptSessionRefresh,
   notifyUnauthorized
+}));
+
+vi.mock('../../shared/errors/clientErrorReporter', () => ({
+  clientErrorReporter: {
+    reportRealtimeDiagnostic
+  }
 }));
 
 vi.mock('@microsoft/signalr', () => {
@@ -86,6 +93,8 @@ describe('boardRealtime', () => {
     attemptSessionRefresh.mockReset();
     attemptSessionRefresh.mockResolvedValue(false);
     notifyUnauthorized.mockReset();
+    reportRealtimeDiagnostic.mockReset();
+    reportRealtimeDiagnostic.mockResolvedValue(true);
     if (connection) {
       connection.state = 'Disconnected';
       connection.start.mockReset();
@@ -359,6 +368,48 @@ describe('boardRealtime', () => {
     expect(attemptSessionRefresh).toHaveBeenCalledTimes(1);
     expect(connection.start).toHaveBeenCalledTimes(2);
     expect(connection.invoke).toHaveBeenCalledWith('SubscribeBoard', 42);
+    expect(reportRealtimeDiagnostic).not.toHaveBeenCalled();
+  });
+
+  it('reports non-authentication realtime start failures', async () => {
+    connection.state = 'Disconnected';
+    connection.start.mockRejectedValueOnce(new Error('network unavailable'));
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime(createHandlers());
+
+    const connectPromise = realtime.connect(42);
+
+    await expect(connectPromise).rejects.toThrow('network unavailable');
+    expect(reportRealtimeDiagnostic).toHaveBeenCalledWith(
+      'realtime-start-failed',
+      expect.any(Error),
+      {
+        boardId: 42,
+        connectionState: 'Disconnected'
+      }
+    );
+  });
+
+  it('reports a non-authentication failure after an authentication retry', async () => {
+    connection.state = 'Disconnected';
+    connection.start
+      .mockRejectedValueOnce(new Error("Failed to complete negotiation with the server: Status code '401'"))
+      .mockRejectedValueOnce(new Error('network unavailable after refresh'));
+    attemptSessionRefresh.mockResolvedValueOnce(true);
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime(createHandlers());
+
+    await expect(realtime.connect(42)).rejects.toThrow('network unavailable after refresh');
+
+    expect(reportRealtimeDiagnostic).toHaveBeenCalledTimes(1);
+    expect(reportRealtimeDiagnostic).toHaveBeenCalledWith(
+      'realtime-start-failed',
+      expect.objectContaining({ message: 'network unavailable after refresh' }),
+      {
+        boardId: 42,
+        connectionState: 'Disconnected'
+      }
+    );
   });
 
   it('retries unauthorized negotiate over time and eventually connects', async () => {
@@ -423,6 +474,7 @@ describe('boardRealtime', () => {
     expect(attemptSessionRefresh).toHaveBeenCalledTimes(4);
     expect(connection.start).toHaveBeenCalledTimes(5);
     expect(notifyUnauthorized).toHaveBeenCalledTimes(1);
+    expect(reportRealtimeDiagnostic).not.toHaveBeenCalled();
   });
 
   it('emits connection warning during reconnect and clears on reconnected', async () => {
@@ -450,6 +502,45 @@ describe('boardRealtime', () => {
 
     expect(onConnectionWarning).toHaveBeenCalledWith('Realtime updates are unavailable. Data may be stale until reconnect.');
     expect(onConnectionRecovered).toHaveBeenCalledTimes(2);
+    expect(reportRealtimeDiagnostic).toHaveBeenCalledWith(
+      'realtime-reconnecting',
+      expect.any(Error),
+      {
+        boardId: 42,
+        connectionState: 'Connected'
+      }
+    );
+  });
+
+  it('reports unexpected realtime close errors', async () => {
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime(createHandlers());
+    await realtime.connect(42);
+
+    connection.onclose.mock.calls[0]?.[0]?.(new Error('socket closed'));
+
+    expect(reportRealtimeDiagnostic).toHaveBeenCalledWith(
+      'realtime-closed',
+      expect.any(Error),
+      {
+        boardId: 42,
+        connectionState: 'Connected'
+      }
+    );
+  });
+
+  it('does not report close errors caused by intentional disconnect', async () => {
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime(createHandlers());
+    await realtime.connect(42);
+    connection.stop.mockImplementation(async () => {
+      connection.onclose.mock.calls[0]?.[0]?.(new Error('intentional stop'));
+      connection.state = 'Disconnected';
+    });
+
+    await realtime.disconnect();
+
+    expect(reportRealtimeDiagnostic).not.toHaveBeenCalled();
   });
 
   it('suppresses connection warnings during page unload', async () => {
@@ -475,6 +566,26 @@ describe('boardRealtime', () => {
     connection.onclose.mock.calls[0]?.[0]?.(new Error('closing'));
 
     expect(onConnectionWarning).not.toHaveBeenCalled();
+    expect(reportRealtimeDiagnostic).not.toHaveBeenCalled();
+  });
+
+  it('resumes realtime diagnostics when a cached page is restored', async () => {
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime(createHandlers());
+    await realtime.connect(42);
+
+    windowEventHandlers.pagehide?.[0]?.();
+    windowEventHandlers.pageshow?.[0]?.();
+    connection.onreconnecting.mock.calls[0]?.[0]?.(new Error('network after restore'));
+
+    expect(reportRealtimeDiagnostic).toHaveBeenCalledWith(
+      'realtime-reconnecting',
+      expect.objectContaining({ message: 'network after restore' }),
+      {
+        boardId: 42,
+        connectionState: 'Connected'
+      }
+    );
   });
 
   afterEach(() => {
@@ -483,3 +594,20 @@ describe('boardRealtime', () => {
   });
 
 });
+
+function createHandlers() {
+  return {
+    onColumnCreated: vi.fn(),
+    onColumnUpdated: vi.fn(),
+    onColumnDeleted: vi.fn(),
+    onCardCreated: vi.fn(),
+    onCardUpdated: vi.fn(),
+    onCardDeleted: vi.fn(),
+    onCardMoved: vi.fn(),
+    onCommentCreated: vi.fn(),
+    onSystemInfoMessageUpdated: vi.fn(),
+    onResync: vi.fn(),
+    onConnectionWarning: vi.fn(),
+    onConnectionRecovered: vi.fn()
+  };
+}

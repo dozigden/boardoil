@@ -37,6 +37,7 @@ var imageStorageOptions = BoardOilImageStorageOptions.Resolve(builder.Configurat
 builder.Services.AddBoardOilServices();
 builder.Services.AddBoardOilEfInfrastructure(connectionString);
 builder.Services.AddBoardOilOAuth(jwtOptions);
+builder.Services.AddErrorLogRateLimiting();
 builder.Services.AddAntiforgery(options =>
 {
     options.Cookie.Name = "boardoil_oauth_antiforgery";

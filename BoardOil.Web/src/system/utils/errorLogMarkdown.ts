@@ -39,7 +39,11 @@ export function formatErrorLogRequest(errorLog: ErrorLogDetails): string {
     return '-';
   }
 
-  return `${errorLog.requestMethod ?? '?'} ${errorLog.requestPath ?? '-'}`;
+  if (!errorLog.requestMethod) {
+    return errorLog.requestPath ?? '-';
+  }
+
+  return `${errorLog.requestMethod} ${errorLog.requestPath ?? '-'}`;
 }
 
 export function formatErrorLogStackTrace(stackTrace: string | null): string {

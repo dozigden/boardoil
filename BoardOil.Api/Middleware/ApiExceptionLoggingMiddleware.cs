@@ -44,7 +44,7 @@ public sealed class ApiExceptionLoggingMiddleware(
                     ErrorLogAreas.ApiRequest,
                     TraceIdentifier: context.TraceIdentifier,
                     RequestMethod: context.Request.Method,
-                    RequestPath: context.Request.Path.Value,
+                    RequestPath: $"{context.Request.Path}{context.Request.QueryString}",
                     ActorUserId: TryGetActorUserId(context),
                     ContextJson: BuildContextJson(context)),
                 CancellationToken.None);

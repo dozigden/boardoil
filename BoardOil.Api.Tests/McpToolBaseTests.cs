@@ -159,6 +159,12 @@ public sealed class McpToolBaseTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
+        public Task<ApiResult<ErrorLogDto>> ReportClientErrorAsync(
+            ClientErrorReportRequest request,
+            int actorUserId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<int?> LogExceptionAsync(
             Exception exception,
             ErrorLogContext context,

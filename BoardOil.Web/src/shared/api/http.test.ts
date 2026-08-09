@@ -217,6 +217,32 @@ describe('http api client', () => {
     expect(unauthorizedSpy).not.toHaveBeenCalled();
   });
 
+  it('posts quiet diagnostics with csrf without refreshing or handling unauthorized responses', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401
+    } as unknown as Response);
+    const unauthorizedSpy = vi.fn();
+    const { postJsonQuiet, setCsrfToken, setUnauthorizedHandler } = await import('./http');
+    setCsrfToken('csrf-token');
+    setUnauthorizedHandler(unauthorizedSpy);
+
+    await postJsonQuiet('/api/system/error-logs:report-client-error', { message: 'boom' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'http://localhost:5173/api/system/error-logs:report-client-error'
+    );
+    const request = fetchMock.mock.calls[0]?.[1];
+    expect(request?.credentials).toBe('include');
+    expect(request?.body).toBe('{"message":"boom"}');
+    const headers = request?.headers as Headers;
+    expect(headers.get('Content-Type')).toBe('application/json');
+    expect(headers.get('X-BoardOil-CSRF')).toBe('csrf-token');
+    expect(unauthorizedSpy).not.toHaveBeenCalled();
+  });
+
   it('returns binary payload with filename from content-disposition', async () => {
     const fetchMock = vi.mocked(fetch);
     const fileBlob = new Blob(['zip-content'], { type: 'application/zip' });

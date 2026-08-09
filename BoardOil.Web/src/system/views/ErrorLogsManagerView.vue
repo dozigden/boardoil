@@ -3,7 +3,7 @@
     <header class="error-logs-header">
       <div>
         <h2>Error Logs</h2>
-        <p>Server failures retained for 14 days.</p>
+        <p>Application failures retained for 14 days.</p>
       </div>
       <div class="error-logs-toolbar">
         <label class="error-logs-page-size">

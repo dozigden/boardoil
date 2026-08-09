@@ -1,6 +1,10 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { boardHubUrl } from '../../shared/api/config';
 import { attemptSessionRefresh, notifyUnauthorized } from '../../shared/api/http';
+import {
+  clientErrorReporter,
+  type ClientErrorReporter
+} from '../../shared/errors/clientErrorReporter';
 import type { Card, CardComment, Column } from '../../shared/types/boardTypes';
 import type { SystemInfoMessageDto } from '../../shared/types/configurationTypes';
 
@@ -55,15 +59,21 @@ function resolveRealtimeDebugEnabled() {
   return search.includes('realtimeDebug=1') || search.includes('realtimeDebug=true');
 }
 
-export function createBoardRealtime(handlers: RealtimeHandlers) {
+export function createBoardRealtime(
+  handlers: RealtimeHandlers,
+  errorReporter: ClientErrorReporter = clientErrorReporter
+) {
   let hubConnection: HubConnection | null = null;
   let subscribedBoardId: number | null = null;
   let startPromise: Promise<void> | null = null;
   let subscribePromise: Promise<void> | null = null;
   let pageUnloading = false;
+  let disconnecting = false;
 
   registerPageUnloadListeners(() => {
     pageUnloading = true;
+  }, () => {
+    pageUnloading = false;
   });
 
   function emitConnectionWarning() {
@@ -75,12 +85,29 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     return handlers.onConnectionWarning?.(realtimeDisconnectedMessage);
   }
 
-  async function ensureConnectionStarted() {
-    if (!hubConnection) {
+  function reportRealtimeDiagnostic(
+    phase: string,
+    error: unknown,
+    boardId: number | null,
+    connection: HubConnection
+  ) {
+    if (pageUnloading || disconnecting || isUnauthorizedNegotiationError(error)) {
       return;
     }
 
-    if (hubConnection.state === HubConnectionState.Connected) {
+    void errorReporter.reportRealtimeDiagnostic(phase, error, {
+      boardId,
+      connectionState: connection.state
+    });
+  }
+
+  async function ensureConnectionStarted(boardId: number) {
+    const connection = hubConnection;
+    if (!connection) {
+      return;
+    }
+
+    if (connection.state === HubConnectionState.Connected) {
       return;
     }
 
@@ -93,15 +120,24 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
     logRealtime('Starting realtime connection.');
     startPromise = (async () => {
       try {
-        await hubConnection.start();
+        await connection.start();
         await handlers.onConnectionRecovered?.();
       } catch (error) {
         if (!isUnauthorizedNegotiationError(error)) {
+          reportRealtimeDiagnostic('realtime-start-failed', error, boardId, connection);
           await emitConnectionWarning();
           throw error;
         }
 
-        await retryUnauthorizedStart(hubConnection, error, handlers.onConnectionRecovered);
+        try {
+          await retryUnauthorizedStart(connection, error, handlers.onConnectionRecovered);
+        } catch (retryError) {
+          if (!isUnauthorizedNegotiationError(retryError)) {
+            reportRealtimeDiagnostic('realtime-start-failed', retryError, boardId, connection);
+          }
+
+          throw retryError;
+        }
       }
     })().finally(() => {
       startPromise = null;
@@ -121,6 +157,7 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         .withAutomaticReconnect()
         .configureLogging(signalRLogLevel)
         .build();
+      const connectionForHandlers = hubConnection;
 
       hubConnection.on('ColumnCreated', async (column: Column, boardId: number) => {
         logRealtime('Event: ColumnCreated', { boardId, columnId: column.id });
@@ -169,6 +206,13 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
           error: error instanceof Error ? error.message : String(error)
         });
 
+        if (error) {
+          reportRealtimeDiagnostic(
+            'realtime-reconnecting',
+            error,
+            subscribedBoardId,
+            connectionForHandlers);
+        }
         void emitConnectionWarning();
       });
 
@@ -192,12 +236,17 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         });
 
         if (error) {
+          reportRealtimeDiagnostic(
+            'realtime-closed',
+            error,
+            subscribedBoardId,
+            connectionForHandlers);
           void emitConnectionWarning();
         }
       });
     }
 
-    await ensureConnectionStarted();
+    await ensureConnectionStarted(boardId);
     await subscribeBoard(boardId);
   }
 
@@ -234,7 +283,12 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
   }
 
   async function disconnect() {
-    if (hubConnection) {
+    if (!hubConnection) {
+      return;
+    }
+
+    disconnecting = true;
+    try {
       logRealtime('Disconnect requested.', { subscribedBoardId });
       const connection = hubConnection;
       const boardId = subscribedBoardId;
@@ -273,6 +327,8 @@ export function createBoardRealtime(handlers: RealtimeHandlers) {
         }
         subscribedBoardId = null;
       }
+    } finally {
+      disconnecting = false;
     }
   }
 
@@ -338,7 +394,7 @@ async function wait(delayMs: number) {
   });
 }
 
-function registerPageUnloadListeners(onUnload: () => void) {
+function registerPageUnloadListeners(onUnload: () => void, onRestore: () => void) {
   const windowRef = globalThis.window;
   if (!windowRef || typeof windowRef.addEventListener !== 'function') {
     return;
@@ -346,4 +402,5 @@ function registerPageUnloadListeners(onUnload: () => void) {
 
   windowRef.addEventListener('beforeunload', onUnload);
   windowRef.addEventListener('pagehide', onUnload);
+  windowRef.addEventListener('pageshow', onRestore);
 }

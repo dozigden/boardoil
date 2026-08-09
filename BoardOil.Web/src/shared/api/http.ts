@@ -74,6 +74,18 @@ export async function postJson(path: string, payload: unknown): Promise<Result<v
   return sendJson('POST', path, payload);
 }
 
+export async function postJsonQuiet(path: string, payload: unknown): Promise<void> {
+  try {
+    await send(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    // Best-effort diagnostics must never affect normal application behaviour.
+  }
+}
+
 export async function patchJson(path: string, payload: unknown): Promise<Result<void, AppError>> {
   return sendJson('PATCH', path, payload);
 }

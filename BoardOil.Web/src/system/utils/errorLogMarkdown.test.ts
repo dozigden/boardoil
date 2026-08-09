@@ -23,6 +23,24 @@ describe('error log Markdown', () => {
     expect(formatErrorLogStackTrace('first\\r\\nsecond\\nthird')).toBe('first\nsecond\nthird');
     expect(formatErrorLogContextJson('not-json')).toBe('not-json');
   });
+
+  it('represents frontend entries with their route and structured context', () => {
+    const frontendError = {
+      ...newErrorLog(),
+      source: 'Frontend',
+      area: 'WebClient',
+      requestMethod: null,
+      requestPath: '/boards/7?search=music',
+      contextJson: '{"phase":"vue","routePath":"/boards/7?search=music"}'
+    };
+
+    const markdown = buildErrorLogMarkdown(frontendError, '9 Aug 2026, 12:00');
+
+    expect(markdown).toContain('- **Source:** Frontend');
+    expect(markdown).toContain('- **Area:** WebClient');
+    expect(markdown).toContain('- **Request:** /boards/7?search=music');
+    expect(markdown).toContain('"phase": "vue"');
+  });
 });
 
 function newErrorLog(): ErrorLogDetails {

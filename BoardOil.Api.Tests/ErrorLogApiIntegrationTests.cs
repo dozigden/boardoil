@@ -23,7 +23,7 @@ public sealed class ErrorLogApiIntegrationTests : TestBaseIntegration
     {
         // Act
         var response = await Client.GetAsync(
-            "/api/system/configuration",
+            "/api/system/configuration?catalogue=music",
             TestContext.Current.CancellationToken);
 
         // Assert
@@ -42,7 +42,7 @@ public sealed class ErrorLogApiIntegrationTests : TestBaseIntegration
         Assert.Equal(typeof(InvalidOperationException).FullName, errorLog.ExceptionType);
         Assert.Equal(ThrowingConfigurationService.ExceptionMessage, errorLog.Message);
         Assert.Equal("GET", errorLog.RequestMethod);
-        Assert.Equal("/api/system/configuration", errorLog.RequestPath);
+        Assert.Equal("/api/system/configuration?catalogue=music", errorLog.RequestPath);
         Assert.NotNull(errorLog.ActorUserId);
         Assert.NotNull(errorLog.TraceIdentifier);
         Assert.Contains(errorLog.Id.ToString(), result.Message, StringComparison.Ordinal);
