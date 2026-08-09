@@ -7,12 +7,14 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
-  publish:
-    name: Build and Publish to GHCR and Docker Hub
+  preflight:
+    name: Validate Release Metadata
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release_meta.outputs.version }}
+      build: ${{ steps.release_meta.outputs.build }}
 
     steps:
       - name: Checkout
@@ -47,6 +49,28 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "build=tag-${VERSION}" >> "$GITHUB_OUTPUT"
 
+  validate:
+    name: Validate Tagged SHA
+    needs: preflight
+    permissions:
+      contents: read
+      checks: write
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Build, Smoke Test, and Publish to GHCR and Docker Hub
+    needs:
+      - preflight
+      - validate
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
       - name: Compute image name
         id: image
         run: |
@@ -58,6 +82,18 @@ jobs:
 
           echo "ghcr_name=${GHCR_IMAGE}" >> "$GITHUB_OUTPUT"
           echo "dockerhub_name=${DOCKERHUB_IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ steps.image.outputs.ghcr_name }}
+            ${{ steps.image.outputs.dockerhub_name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -73,19 +109,88 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Generate Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ steps.image.outputs.ghcr_name }}
-            ${{ steps.image.outputs.dockerhub_name }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build and push image
+      - name: Build release candidate
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          push: false
+          tags: boardoil:release-candidate
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BO_VERSION=${{ needs.preflight.outputs.version }}
+            BO_CHANNEL=release
+            BO_BUILD=${{ needs.preflight.outputs.build }}
+            BO_COMMIT=${{ github.sha }}
+
+      - name: Smoke test release candidate
+        env:
+          EXPECTED_BUILD: ${{ needs.preflight.outputs.build }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          IMAGE="boardoil:release-candidate"
+          CONTAINER_NAME="boardoil-release-smoke"
+
+          cleanup() {
+            docker rm --force "$CONTAINER_NAME" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run \
+            --detach \
+            --name "$CONTAINER_NAME" \
+            --publish 127.0.0.1::5000 \
+            "$IMAGE"
+
+          HOST_PORT="$(docker port "$CONTAINER_NAME" 5000/tcp | sed -n 's/.*://p')"
+          HEALTH_URL="http://127.0.0.1:${HOST_PORT}/api/health"
+          VERSION_URL="http://127.0.0.1:${HOST_PORT}/api/version"
+
+          HEALTH_JSON=""
+          for _ in {1..30}; do
+            if HEALTH_JSON="$(curl --fail --silent "$HEALTH_URL" 2>/dev/null)"; then
+              break
+            fi
+
+            if [ "$(docker inspect --format '{{.State.Running}}' "$CONTAINER_NAME")" != "true" ]; then
+              echo "Release candidate stopped before becoming healthy."
+              docker logs "$CONTAINER_NAME"
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          if [ -z "$HEALTH_JSON" ]; then
+            echo "Release candidate did not become healthy within 60 seconds."
+            docker logs "$CONTAINER_NAME"
+            exit 1
+          fi
+
+          jq --exit-status \
+            '.success == true and .data.status == "ok"' \
+            <<< "$HEALTH_JSON"
+
+          VERSION_JSON="$(curl --fail --silent --show-error "$VERSION_URL")"
+          jq --exit-status \
+            --arg version "$EXPECTED_VERSION" \
+            --arg build "$EXPECTED_BUILD" \
+            --arg commit "$EXPECTED_COMMIT" \
+            '.success == true
+              and .data.version == $version
+              and .data.channel == "release"
+              and .data.build == $build
+              and .data.commit == $commit' \
+            <<< "$VERSION_JSON"
+
+      - name: Build and push smoke-tested release
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -94,7 +199,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            BO_VERSION=${{ steps.release_meta.outputs.version }}
+            BO_VERSION=${{ needs.preflight.outputs.version }}
             BO_CHANNEL=release
-            BO_BUILD=${{ steps.release_meta.outputs.build }}
+            BO_BUILD=${{ needs.preflight.outputs.build }}
             BO_COMMIT=${{ github.sha }}
