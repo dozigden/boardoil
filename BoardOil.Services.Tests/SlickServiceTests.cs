@@ -46,7 +46,7 @@ public sealed class SlickServiceTests : TestBaseDb
             .AddColumn("Todo")
             .Build()
             .BoardId;
-        SeedPresetSlicks(boardId, 0, 1, 2, 3, 4, 5, 6);
+        SeedPresetSlicks(boardId, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
         await DbContextForArrange.SaveChangesAsync();
         var service = CreateService();
 
@@ -60,7 +60,7 @@ public sealed class SlickServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("presets", result.Data!.StyleName);
-        Assert.Equal(7, ReadPresetIndex(result.Data.StylePropertiesJson));
+        Assert.Equal(11, ReadPresetIndex(result.Data.StylePropertiesJson));
     }
 
     [Fact]

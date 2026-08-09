@@ -11,13 +11,13 @@ import {
 
 describe('presetTheme', () => {
   it('exposes preset token list with stable CSS var names', () => {
-    expect(PRESET_TOKEN_COUNT).toBe(8);
+    expect(PRESET_TOKEN_COUNT).toBe(12);
     expect(PRESET_TOKENS).toHaveLength(PRESET_TOKEN_COUNT);
     expect(SLICK_PRESET_TOKENS).toHaveLength(PRESET_TOKEN_COUNT);
     expect(PRESET_TOKENS[0].cssVar).toBe('--bo-preset-0');
-    expect(PRESET_TOKENS[7].cssValue).toBe('var(--bo-preset-7)');
+    expect(PRESET_TOKENS[11].cssValue).toBe('var(--bo-preset-11)');
     expect(SLICK_PRESET_TOKENS[0].cssVar).toBe('--bo-slick-preset-0');
-    expect(SLICK_PRESET_TOKENS[7].cssValue).toBe('var(--bo-slick-preset-7)');
+    expect(SLICK_PRESET_TOKENS[11].cssValue).toBe('var(--bo-slick-preset-11)');
   });
 
   it('clamps invalid preset index values to default', () => {

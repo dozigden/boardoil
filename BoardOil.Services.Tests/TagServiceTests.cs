@@ -41,7 +41,7 @@ public sealed class TagServiceTests : TestBaseDb
 
         using var styleProperties = JsonDocument.Parse(stored.StylePropertiesJson);
         Assert.True(styleProperties.RootElement.TryGetProperty("presetIndex", out var presetIndex));
-        Assert.InRange(presetIndex.GetInt32(), 0, 7);
+        Assert.InRange(presetIndex.GetInt32(), 0, 11);
         Assert.True(styleProperties.RootElement.TryGetProperty("textColorMode", out var textColorMode));
         Assert.Equal("auto", textColorMode.GetString());
         Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
@@ -55,7 +55,7 @@ public sealed class TagServiceTests : TestBaseDb
             .AddColumn("Todo")
             .Build()
             .BoardId;
-        SeedPresetTags(boardId, 0, 1, 2, 3, 4, 5, 6);
+        SeedPresetTags(boardId, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
         await DbContextForArrange.SaveChangesAsync();
         var service = CreateService();
 
@@ -66,7 +66,7 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("presets", result.Data!.StyleName);
-        Assert.Equal(7, ReadPresetIndex(result.Data.StylePropertiesJson));
+        Assert.Equal(11, ReadPresetIndex(result.Data.StylePropertiesJson));
     }
 
     [Fact]

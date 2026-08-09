@@ -1,4 +1,4 @@
-export const PRESET_TOKEN_COUNT = 8;
+export const PRESET_TOKEN_COUNT = 12;
 export const DEFAULT_PRESET_INDEX = 2;
 
 export type PresetToken = {

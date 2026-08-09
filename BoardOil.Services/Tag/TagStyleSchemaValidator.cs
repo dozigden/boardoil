@@ -11,7 +11,7 @@ public static class TagStyleSchemaValidator
     public const string GradientStyleName = "gradient";
     public const string AutoStyleName = "auto";
     public const string PresetsStyleName = "presets";
-    public const int PresetCount = 8;
+    public const int PresetCount = 12;
     public const int DefaultPresetIndex = 2;
 
     private static readonly Regex HexColorRegex = new("^#[0-9A-Fa-f]{6}$", RegexOptions.Compiled);

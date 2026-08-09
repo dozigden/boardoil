@@ -57,8 +57,8 @@ describe('stylePersistence', () => {
   });
 
   it('serializes presets with preset index only', () => {
-    const json = serializeStyleModel({ styleName: 'presets', presetIndex: 4 });
-    expect(json).toContain('"presetIndex":4');
+    const json = serializeStyleModel({ styleName: 'presets', presetIndex: 11 });
+    expect(json).toContain('"presetIndex":11');
     expect(json).not.toContain('backgroundColor');
   });
 });

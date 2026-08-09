@@ -1779,7 +1779,7 @@ public sealed class CardServiceTests : TestBaseDb
             .AddColumn("Todo")
             .AddColumn("Doing")
             .Build();
-        await SeedPresetTagsForArrangeAsync(board.BoardId, 0, 1, 2, 3, 4, 5, 6);
+        await SeedPresetTagsForArrangeAsync(board.BoardId, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
         var todoColumnId = board.GetColumn("Todo").Id;
 
         // Act
@@ -1793,7 +1793,7 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.True(result.Success);
         var storedTag = await DbContextForAssert.Tags.SingleAsync(x => x.Name == "NewTag");
         Assert.Equal("presets", storedTag.StyleName);
-        Assert.Equal(7, ReadPresetIndex(storedTag.StylePropertiesJson));
+        Assert.Equal(11, ReadPresetIndex(storedTag.StylePropertiesJson));
     }
 
     [Fact]
@@ -1805,7 +1805,7 @@ public sealed class CardServiceTests : TestBaseDb
             .AddCard("Title", "Old")
             .AddColumn("Doing")
             .Build();
-        await SeedPresetSlicksForArrangeAsync(board.BoardId, 0, 1, 2, 3, 4, 5, 6);
+        await SeedPresetSlicksForArrangeAsync(board.BoardId, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
         var cardId = board.GetCard("Todo", "Title").Id;
         var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
 
@@ -1822,7 +1822,7 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.True(result.Success);
         var storedSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.Name == "New Slick");
         Assert.Equal("presets", storedSlick.StyleName);
-        Assert.Equal(7, ReadPresetIndex(storedSlick.StylePropertiesJson));
+        Assert.Equal(11, ReadPresetIndex(storedSlick.StylePropertiesJson));
     }
 
     [Fact]
