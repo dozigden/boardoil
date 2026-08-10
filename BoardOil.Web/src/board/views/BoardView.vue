@@ -823,16 +823,19 @@ async function initializeView() {
 .column-content {
   --column-card-gap: 0.5rem;
   --column-lite-goo-bleed: 0.5rem;
+  --column-scrollbar-width: 0.375rem;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   gap: var(--column-card-gap);
   min-height: 0;
   overflow-y: auto;
-  padding-right: 0.5rem;
+  padding-right: calc(0.5rem - var(--column-scrollbar-width));
   padding-bottom: 5px;
   overscroll-behavior-y: none;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  scrollbar-gutter: stable;
   position: relative;
 }
 
@@ -894,16 +897,11 @@ async function initializeView() {
 }
 
 .column-content::-webkit-scrollbar {
-  width: 0;
+  width: var(--column-scrollbar-width);
 }
 
 .column-content::-webkit-scrollbar-track {
   background: transparent;
-}
-
-.column-content:hover::-webkit-scrollbar,
-.column-content:focus-within::-webkit-scrollbar {
-  width: 0.55rem;
 }
 
 .column-content::-webkit-scrollbar-thumb {
