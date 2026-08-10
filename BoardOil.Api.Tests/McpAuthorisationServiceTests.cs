@@ -102,4 +102,20 @@ public sealed class McpAuthorisationServiceTests
         // Assert
         Assert.Null(error);
     }
+
+    [Fact]
+    public void EnsureScopeAccess_WhenToolDoesNotRequireScope_ShouldReturnNull()
+    {
+        // Arrange
+        var context = new McpAccessContext(
+            42,
+            "OAuth",
+            new HashSet<string>(StringComparer.Ordinal) { MachinePatScopes.McpWrite });
+
+        // Act
+        var error = _service.EnsureScopeAccess(context, requiredScope: null);
+
+        // Assert
+        Assert.Null(error);
+    }
 }

@@ -26,14 +26,14 @@ public sealed class McpAuthorisationService : IMcpAuthorisationService
         return CreateOAuthAccessContext(claimsPrincipal);
     }
 
-    public McpToolError? EnsureToolAccess(McpAccessContext? accessContext, string requiredScope, int boardId)
+    public McpToolError? EnsureToolAccess(McpAccessContext? accessContext, string? requiredScope, int boardId)
     {
         return EnsureScopeAccess(accessContext, requiredScope);
     }
 
-    public McpToolError? EnsureScopeAccess(McpAccessContext? accessContext, string requiredScope)
+    public McpToolError? EnsureScopeAccess(McpAccessContext? accessContext, string? requiredScope)
     {
-        if (accessContext is null)
+        if (accessContext is null || string.IsNullOrWhiteSpace(requiredScope))
         {
             return null;
         }

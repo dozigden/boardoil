@@ -388,6 +388,118 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
     }
 
     [Fact]
+    public async Task IdentityGet_WithReadScopePat_ShouldReturnCurrentIdentity()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client, ["mcp:read"]);
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new { name = "identity_get", arguments = new { } },
+            "identity-get-pat",
+            patToken);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var identity = McpJsonRpcClient.GetStructuredContent(payload);
+        Assert.Equal(
+            ["id", "userName", "displayName", "role"],
+            identity.GetProperty("user").EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal("admin", identity.GetProperty("user").GetProperty("userName").GetString());
+        Assert.Equal("PAT", identity.GetProperty("authentication").GetProperty("type").GetString());
+        Assert.Equal(
+            ["mcp:read"],
+            identity.GetProperty("authentication").GetProperty("scopes").EnumerateArray().Select(scope => scope.GetString()).ToArray());
+    }
+
+    [Fact]
+    public async Task CardOptionsGet_WithReadScopePat_ShouldReturnOperationalDiscoveryData()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client, ["mcp:read"]);
+        var contextFactory = Factory.Services.GetRequiredService<IDbContextFactory>();
+        await using (var arrangeDbContext = contextFactory.CreateDbContext<BoardOilDbContext>())
+        {
+            var activeMember = CreateOptionUser("active-option-member", isActive: true);
+            var inactiveMember = CreateOptionUser("inactive-option-member", isActive: false);
+            arrangeDbContext.Users.AddRange(activeMember, inactiveMember);
+            await arrangeDbContext.SaveChangesAsync();
+            arrangeDbContext.BoardMembers.AddRange(
+                new EntityBoardMember
+                {
+                    BoardId = 1,
+                    UserId = activeMember.Id,
+                    Role = BoardMemberRole.Contributor,
+                },
+                new EntityBoardMember
+                {
+                    BoardId = 1,
+                    UserId = inactiveMember.Id,
+                    Role = BoardMemberRole.Contributor,
+                });
+            arrangeDbContext.CardTypes.Add(new EntityCardType
+            {
+                BoardId = 1,
+                Name = "Unused Bug",
+                Emoji = "🕷️",
+                StyleName = "solid",
+                StylePropertiesJson = "{}",
+            });
+            arrangeDbContext.Tags.Add(new EntityTag
+            {
+                BoardId = 1,
+                Name = "Unused Feature",
+                NormalisedName = "UNUSED FEATURE",
+                Emoji = "🎬️",
+                StyleName = "solid",
+                StylePropertiesJson = "{}",
+            });
+            arrangeDbContext.Slicks.Add(new EntitySlick
+            {
+                BoardId = 1,
+                Name = "Unused Release Train",
+                NormalisedName = "UNUSED RELEASE TRAIN",
+                StyleName = "solid",
+                StylePropertiesJson = "{}",
+            });
+            await arrangeDbContext.SaveChangesAsync();
+        }
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new { name = "card_options_get", arguments = new { id = 1 } },
+            "card-options-get-pat",
+            patToken);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var options = McpJsonRpcClient.GetStructuredContent(payload);
+        Assert.Contains(options.GetProperty("columns").EnumerateArray(), column => column.GetProperty("title").GetString() == "Todo");
+        var members = options.GetProperty("members").EnumerateArray().ToArray();
+        Assert.Contains(members, member => member.GetProperty("userName").GetString() == "active-option-member");
+        Assert.DoesNotContain(members, member => member.GetProperty("userName").GetString() == "inactive-option-member");
+        Assert.All(members, member => Assert.False(member.TryGetProperty("isActive", out _)));
+        var unusedCardType = options.GetProperty("cardTypes").EnumerateArray().Single(cardType => cardType.GetProperty("name").GetString() == "Unused Bug");
+        Assert.Equal(["id", "name", "emoji"], unusedCardType.EnumerateObject().Select(property => property.Name).ToArray());
+        var unusedTag = options.GetProperty("tags").EnumerateArray().Single(tag => tag.GetProperty("name").GetString() == "Unused Feature");
+        Assert.Equal(["name", "emoji"], unusedTag.EnumerateObject().Select(property => property.Name).ToArray());
+        var unusedSlick = options.GetProperty("slicks").EnumerateArray().Single(slick => slick.GetProperty("name").GetString() == "Unused Release Train");
+        Assert.Equal(["name"], unusedSlick.EnumerateObject().Select(property => property.Name).ToArray());
+        var defaultCardTypeId = options.GetProperty("defaultCardTypeId").GetInt32();
+        Assert.Contains(options.GetProperty("cardTypes").EnumerateArray(), cardType => cardType.GetProperty("id").GetInt32() == defaultCardTypeId);
+    }
+
+    [Fact]
     public async Task BoardList_WithWriteOnlyPat_ShouldReturnForbiddenError()
     {
         // Arrange
@@ -396,6 +508,13 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         var patToken = await CreateMachinePatAsync(client, ["mcp:write"]);
 
         // Act
+        var identityResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new { name = "identity_get", arguments = new { } },
+            "identity-get-write-only",
+            patToken);
+        using var identityPayload = await McpJsonRpcClient.ParseJsonAsync(identityResponse);
         var boardListResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
@@ -410,6 +529,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         using var boardListPayload = await McpJsonRpcClient.ParseJsonAsync(boardListResponse);
 
         // Assert
+        Assert.False(identityPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
         var result = boardListPayload.RootElement.GetProperty("result");
         Assert.True(result.GetProperty("isError").GetBoolean());
         var structuredContent = result.GetProperty("structuredContent");
@@ -1457,6 +1577,18 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             }
         }
     }
+
+    private static EntityUser CreateOptionUser(string userName, bool isActive) =>
+        new()
+        {
+            UserName = userName,
+            DisplayName = userName,
+            Email = $"{userName}@localhost",
+            NormalisedEmail = $"{userName.ToUpperInvariant()}@LOCALHOST",
+            PasswordHash = "hash",
+            Role = UserRole.Standard,
+            IsActive = isActive,
+        };
 
     private async Task<CardMoveScenario> SeedExhaustedCardMoveScenarioAsync()
     {

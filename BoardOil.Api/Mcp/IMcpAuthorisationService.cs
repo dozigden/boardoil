@@ -9,10 +9,10 @@ public interface IMcpAuthorisationService
 
     McpToolError? EnsureScopeAccess(
         McpAccessContext? accessContext,
-        string requiredScope);
+        string? requiredScope);
 
     McpToolError? EnsureToolAccess(
         McpAccessContext? accessContext,
-        string requiredScope,
+        string? requiredScope,
         int boardId);
 }

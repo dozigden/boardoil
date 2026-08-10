@@ -19,6 +19,19 @@ public sealed class BoardMemberService(
 {
     public async Task<ApiResult<IReadOnlyList<BoardMemberDto>>> GetMembersAsync(int boardId, int actorUserId)
     {
+        return await GetMembersAsync(boardId, actorUserId, activeOnly: false);
+    }
+
+    public async Task<ApiResult<IReadOnlyList<BoardMemberDto>>> GetActiveMembersAsync(int boardId, int actorUserId)
+    {
+        return await GetMembersAsync(boardId, actorUserId, activeOnly: true);
+    }
+
+    private async Task<ApiResult<IReadOnlyList<BoardMemberDto>>> GetMembersAsync(
+        int boardId,
+        int actorUserId,
+        bool activeOnly)
+    {
         using var scope = scopeFactory.CreateReadOnly();
 
         if (boardRepository.Get(boardId) is null)
@@ -33,6 +46,11 @@ public sealed class BoardMemberService(
         }
 
         var members = await boardMemberRepository.GetMembersInBoardAsync(boardId);
+        if (activeOnly)
+        {
+            members = members.Where(member => member.User.IsActive).ToArray();
+        }
+
         var memberUserIds = members.Select(x => x.UserId).Distinct().ToArray();
         var userImages = await imageRepository.GetLatestForEntitiesAsync(ImageEntityType.UserProfile, memberUserIds);
         var imageLookup = userImages.ToDictionary(x => x.EntityId, x => x.RelativePath);

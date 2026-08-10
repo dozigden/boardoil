@@ -41,15 +41,13 @@ public static class McpDiscoveryMetadata
             ? new
             {
                 preferredAuth = "none",
-                recommendedFirstCallSequence = CreateRecommendedFirstCallSequence(),
-                examples = CreateExamples(mcpPublicBaseUrl, mcpOptions)
+                recommendedFirstCallSequence = CreateRecommendedFirstCallSequence()
             }
             : new
         {
             preferredAuth = "personal_access_token",
             patManagementUi = ResolveUrl("/access-tokens", mcpPublicBaseUrl),
-            recommendedFirstCallSequence = CreateRecommendedFirstCallSequence(),
-            examples = CreateExamples(mcpPublicBaseUrl, mcpOptions)
+            recommendedFirstCallSequence = CreateRecommendedFirstCallSequence()
         };
 
     public static object CreateProfileMetadata() =>
@@ -57,8 +55,7 @@ public static class McpDiscoveryMetadata
         {
             mode = "tool-first",
             promptsList = "supported-empty-list",
-            resourcesList = "supported-empty-list",
-            note = "Use tools/list then board_list to discover board ids before board_get and card operations."
+            resourcesList = "supported-empty-list"
         };
 
     public static object CreateExamples(string? mcpPublicBaseUrl, BoardOilMcpOptions mcpOptions) =>
@@ -85,6 +82,26 @@ public static class McpDiscoveryMetadata
                         method = "tools/list"
                     }
                 },
+                identityGetRequest = new
+                {
+                    method = "POST",
+                    url = GetMcpEndpoint(mcpPublicBaseUrl),
+                    headers = new
+                    {
+                        contentType = "application/json"
+                    },
+                    body = new
+                    {
+                        jsonrpc = "2.0",
+                        id = "identity-get",
+                        method = "tools/call",
+                        @params = new
+                        {
+                            name = ToolNames.IdentityGet,
+                            arguments = new { }
+                        }
+                    }
+                },
                 boardListRequest = new
                 {
                     method = "POST",
@@ -102,6 +119,26 @@ public static class McpDiscoveryMetadata
                         {
                             name = ToolNames.BoardList,
                             arguments = new { }
+                        }
+                    }
+                },
+                cardOptionsGetRequest = new
+                {
+                    method = "POST",
+                    url = GetMcpEndpoint(mcpPublicBaseUrl),
+                    headers = new
+                    {
+                        contentType = "application/json"
+                    },
+                    body = new
+                    {
+                        jsonrpc = "2.0",
+                        id = "card-options-get",
+                        method = "tools/call",
+                        @params = new
+                        {
+                            name = ToolNames.CardOptionsGet,
+                            arguments = new { id = 1 }
                         }
                     }
                 }
@@ -133,6 +170,27 @@ public static class McpDiscoveryMetadata
                     method = "tools/list"
                 }
             },
+            identityGetRequest = new
+            {
+                method = "POST",
+                url = GetMcpEndpoint(mcpPublicBaseUrl),
+                headers = new
+                {
+                    Authorization = "Bearer <YOUR_PAT>",
+                    contentType = "application/json"
+                },
+                body = new
+                {
+                    jsonrpc = "2.0",
+                    id = "identity-get",
+                    method = "tools/call",
+                    @params = new
+                    {
+                        name = ToolNames.IdentityGet,
+                        arguments = new { }
+                    }
+                }
+            },
             boardListRequest = new
             {
                 method = "POST",
@@ -153,6 +211,27 @@ public static class McpDiscoveryMetadata
                         arguments = new { }
                     }
                 }
+            },
+            cardOptionsGetRequest = new
+            {
+                method = "POST",
+                url = GetMcpEndpoint(mcpPublicBaseUrl),
+                headers = new
+                {
+                    Authorization = "Bearer <YOUR_PAT>",
+                    contentType = "application/json"
+                },
+                body = new
+                {
+                    jsonrpc = "2.0",
+                    id = "card-options-get",
+                    method = "tools/call",
+                    @params = new
+                    {
+                        name = ToolNames.CardOptionsGet,
+                        arguments = new { id = 1 }
+                    }
+                }
             }
         };
 
@@ -168,15 +247,29 @@ public static class McpDiscoveryMetadata
         {
             step = 2,
             method = "tools/call",
-            tool = ToolNames.BoardList,
-            purpose = "Discover accessible board ids."
+            tool = ToolNames.IdentityGet,
+            purpose = "Identify the BoardOil user and authentication context when you need to confirm the current identity."
         },
         new
         {
             step = 3,
             method = "tools/call",
+            tool = ToolNames.BoardList,
+            purpose = "Discover accessible board ids when the target board is not already known."
+        },
+        new
+        {
+            step = 4,
+            method = "tools/call",
+            tool = ToolNames.CardOptionsGet,
+            purpose = "Discover board-scoped values when setting controlled card fields."
+        },
+        new
+        {
+            step = 5,
+            method = "tools/call",
             tool = ToolNames.BoardGet,
-            purpose = "Fetch board snapshot, then use columns/card tools."
+            purpose = "Fetch a board snapshot when current board state is needed."
         }
     ];
 

@@ -16,7 +16,7 @@ public sealed class BoardGetTool(
     private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.BoardGet, "Get a board snapshot including columns and cards. Card descriptions are omitted; use card.get for full text.", ToolSchemas.BoardGetInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead);
+        new(ToolNames.BoardGet, "Get a board snapshot including columns and cards. Card descriptions are omitted; use card_get for full text.", ToolSchemas.BoardGetInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead);
 
     protected override async Task<McpToolResult<McpBoardSnapshot>> ExecuteCoreAsync(
         McpInvocationContext context,

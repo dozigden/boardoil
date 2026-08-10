@@ -21,6 +21,29 @@ public sealed class McpNoAuthConfigurationIntegrationTests : McpIntegrationTestB
     }
 
     [Fact]
+    public async Task IdentityGet_WithoutBearerToken_WhenAuthModeNone_ShouldReturnConfiguredActor()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new { name = "identity_get", arguments = new { } },
+            "identity-get-no-auth");
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var identity = McpJsonRpcClient.GetStructuredContent(payload);
+        Assert.Equal("admin", identity.GetProperty("user").GetProperty("userName").GetString());
+        Assert.Equal("None", identity.GetProperty("authentication").GetProperty("type").GetString());
+        Assert.Empty(identity.GetProperty("authentication").GetProperty("scopes").EnumerateArray());
+    }
+
+    [Fact]
     public async Task WellKnownMcp_WhenAuthModeNone_ShouldAdvertiseNoAuth()
     {
         var client = CreateClient();

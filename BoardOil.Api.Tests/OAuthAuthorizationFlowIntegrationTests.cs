@@ -638,6 +638,17 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.True(
             readResponse.StatusCode == HttpStatusCode.OK,
             $"Expected OAuth MCP read access but received {(int)readResponse.StatusCode}: {readBody}");
+        var identityResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new { name = "identity_get", arguments = new { } },
+            "oauth-identity-get",
+            exchange.AccessToken,
+            endpoint);
+        var identityBody = await identityResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            identityResponse.StatusCode == HttpStatusCode.OK,
+            $"Expected OAuth MCP identity access but received {(int)identityResponse.StatusCode}: {identityBody}");
         var writeResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
@@ -665,9 +676,16 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Contains($"scope=\"{MachinePatScopes.McpWrite}\"", writeChallenge);
         Assert.Contains("resource_metadata=", writeChallenge);
         using var readPayload = await McpJsonRpcClient.ParseJsonAsync(readResponse);
+        using var identityPayload = await McpJsonRpcClient.ParseJsonAsync(identityResponse);
 
         // Assert
         Assert.False(readPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        var identity = McpJsonRpcClient.GetStructuredContent(identityPayload);
+        Assert.Equal("admin", identity.GetProperty("user").GetProperty("userName").GetString());
+        Assert.Equal("OAuth", identity.GetProperty("authentication").GetProperty("type").GetString());
+        Assert.Equal(
+            [MachinePatScopes.McpRead],
+            identity.GetProperty("authentication").GetProperty("scopes").EnumerateArray().Select(scope => scope.GetString()).ToArray());
     }
 
     [Fact]

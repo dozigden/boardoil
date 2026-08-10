@@ -17,7 +17,7 @@ public sealed class CardUpdateTool(
     private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardUpdate, "Update card title, description, tags, slick selection, external URL, and optional target column.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite);
+        new(ToolNames.CardUpdate, "Update a card. Use card_get to load its current values and card_options_get to resolve valid IDs and existing tag or slick names.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

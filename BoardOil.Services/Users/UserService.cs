@@ -1,5 +1,6 @@
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Users;
+using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Users;
 using BoardOil.Data.Abstractions.Entities;
@@ -20,6 +21,23 @@ public sealed class UserService(
             .ToList();
 
         return users;
+    }
+
+    public Task<ApiResult<AuthUserDto>> GetCurrentIdentityAsync(int actorUserId)
+    {
+        using var scope = scopeFactory.CreateReadOnly();
+
+        var user = userRepository.Get(actorUserId);
+        if (user is null || !user.IsActive)
+        {
+            return Task.FromResult<ApiResult<AuthUserDto>>(ApiErrors.Unauthorized("User is not active."));
+        }
+
+        return Task.FromResult<ApiResult<AuthUserDto>>(new AuthUserDto(
+            user.Id,
+            user.UserName,
+            user.DisplayName,
+            user.Role.ToString()));
     }
 
     public async Task<ApiResult<OwnUserProfileDto>> GetOwnProfileAsync(int actorUserId)

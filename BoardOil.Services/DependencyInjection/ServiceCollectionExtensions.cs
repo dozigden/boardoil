@@ -63,6 +63,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IErrorLogService, ErrorLogService>();
         services.AddScoped<IColumnService, ColumnService>();
         services.AddScoped<ICardService, CardService>();
+        services.AddScoped<ICardOptionsService, CardOptionsService>();
         services.AddScoped<ICardCommentService, CardCommentService>();
         services.AddScoped<ICardArchiveService, CardArchiveService>();
         services.AddScoped<ICardTypeService, CardTypeService>();

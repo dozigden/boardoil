@@ -7,7 +7,7 @@ public sealed record McpToolDefinition(
     string Description,
     string InputSchemaJson,
     string OutputSchemaJson,
-    string RequiredScope);
+    string? RequiredScope);
 
 public sealed record McpToolError(
     string Code,
@@ -109,25 +109,63 @@ public sealed record BoardListInput;
 public sealed record BoardListOutput(
     IReadOnlyList<McpBoardSummary> Boards);
 
+public sealed record IdentityGetInput;
+
+public sealed record IdentityGetOutput(
+    McpIdentityUser User,
+    McpAuthenticationContext Authentication);
+
+public sealed record McpIdentityUser(
+    int Id,
+    string UserName,
+    string DisplayName,
+    string Role);
+
+public sealed record McpAuthenticationContext(
+    string Type,
+    IReadOnlyList<string> Scopes);
+
 public sealed record CardGetInput
 {
     public int? BoardId { get; init; }
     public int? Id { get; init; }
 }
 
-public sealed record ColumnsListInput
+public sealed record CardOptionsGetInput
 {
     public int? Id { get; init; }
 }
 
-public sealed record ColumnsListOutput(
+public sealed record CardOptionsGetOutput(
     int Id,
-    IReadOnlyList<McpColumnReference> Columns);
+    IReadOnlyList<McpCardOptionColumn> Columns,
+    IReadOnlyList<McpCardOptionMember> Members,
+    IReadOnlyList<McpCardOptionCardType> CardTypes,
+    int DefaultCardTypeId,
+    IReadOnlyList<McpCardOptionTag> Tags,
+    IReadOnlyList<McpCardOptionSlick> Slicks);
 
-public sealed record McpColumnReference(
+public sealed record McpCardOptionColumn(
     int Id,
-    string Title,
-    string SortKey);
+    string Title);
+
+public sealed record McpCardOptionMember(
+    int UserId,
+    string UserName,
+    string DisplayName,
+    string Role);
+
+public sealed record McpCardOptionCardType(
+    int Id,
+    string Name,
+    string? Emoji);
+
+public sealed record McpCardOptionTag(
+    string Name,
+    string? Emoji);
+
+public sealed record McpCardOptionSlick(
+    string Name);
 
 public sealed record CardCreateInput
 {

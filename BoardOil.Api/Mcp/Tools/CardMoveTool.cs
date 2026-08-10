@@ -14,7 +14,7 @@ public sealed class CardMoveTool(
     private readonly ICardService _cardService = cardService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardMove, "Move card by target column id and optional sibling anchor.", ToolSchemas.CardMoveInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite);
+        new(ToolNames.CardMove, "Move card by target column id and optional sibling anchor. Use card_options_get to discover valid column IDs.", ToolSchemas.CardMoveInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

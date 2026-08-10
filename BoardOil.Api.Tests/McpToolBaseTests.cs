@@ -190,9 +190,9 @@ public sealed class McpToolBaseTests
     {
         public McpAccessContext? GetAccessContext(ClaimsPrincipal? claimsPrincipal) => null;
 
-        public McpToolError? EnsureScopeAccess(McpAccessContext? accessContext, string requiredScope) => null;
+        public McpToolError? EnsureScopeAccess(McpAccessContext? accessContext, string? requiredScope) => null;
 
-        public McpToolError? EnsureToolAccess(McpAccessContext? accessContext, string requiredScope, int boardId) => null;
+        public McpToolError? EnsureToolAccess(McpAccessContext? accessContext, string? requiredScope, int boardId) => null;
     }
 
     private sealed record TestInput

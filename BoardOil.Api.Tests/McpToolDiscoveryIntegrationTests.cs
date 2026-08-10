@@ -32,20 +32,25 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .GetProperty("recommendedFirstCallSequence")[0]
             .GetProperty("method")
             .GetString());
-        Assert.Equal(ToolNames.BoardList, payload.RootElement
+        Assert.Equal(ToolNames.IdentityGet, payload.RootElement
             .GetProperty("setup")
             .GetProperty("recommendedFirstCallSequence")[1]
+            .GetProperty("tool")
+            .GetString());
+        Assert.Equal(ToolNames.BoardList, payload.RootElement
+            .GetProperty("setup")
+            .GetProperty("recommendedFirstCallSequence")[2]
+            .GetProperty("tool")
+            .GetString());
+        Assert.Equal(ToolNames.CardOptionsGet, payload.RootElement
+            .GetProperty("setup")
+            .GetProperty("recommendedFirstCallSequence")[3]
             .GetProperty("tool")
             .GetString());
         Assert.Equal("tool-first", payload.RootElement.GetProperty("profile").GetProperty("mode").GetString());
         Assert.Equal("supported-empty-list", payload.RootElement.GetProperty("profile").GetProperty("promptsList").GetString());
         Assert.Equal("supported-empty-list", payload.RootElement.GetProperty("profile").GetProperty("resourcesList").GetString());
-        Assert.Equal("/mcp", payload.RootElement
-            .GetProperty("setup")
-            .GetProperty("examples")
-            .GetProperty("genericMcpConfig")
-            .GetProperty("url")
-            .GetString());
+        Assert.False(payload.RootElement.GetProperty("setup").TryGetProperty("examples", out _));
         Assert.Equal("POST", payload.RootElement.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
     }
 
@@ -114,6 +119,20 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .GetProperty("params")
             .GetProperty("name")
             .GetString());
+        Assert.Equal(ToolNames.IdentityGet, payload.RootElement
+            .GetProperty("examples")
+            .GetProperty("identityGetRequest")
+            .GetProperty("body")
+            .GetProperty("params")
+            .GetProperty("name")
+            .GetString());
+        Assert.Equal(ToolNames.CardOptionsGet, payload.RootElement
+            .GetProperty("examples")
+            .GetProperty("cardOptionsGetRequest")
+            .GetProperty("body")
+            .GetProperty("params")
+            .GetProperty("name")
+            .GetString());
     }
 
     [Fact]
@@ -137,7 +156,32 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .Select(tool => tool.GetProperty("name").GetString())
             .ToArray();
         Assert.Contains(ToolNames.BoardList, toolNames);
+        Assert.Contains(ToolNames.IdentityGet, toolNames);
+        Assert.Contains(ToolNames.CardOptionsGet, toolNames);
+        Assert.DoesNotContain("columns_list", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
+
+        var identityGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.IdentityGet);
+        Assert.Empty(identityGetTool.GetProperty("inputSchema").GetProperty("properties").EnumerateObject());
+        var identityUserSchema = identityGetTool
+            .GetProperty("outputSchema")
+            .GetProperty("properties")
+            .GetProperty("user")
+            .GetProperty("properties");
+        Assert.False(identityUserSchema.TryGetProperty("email", out _));
+        Assert.False(identityUserSchema.TryGetProperty("identityType", out _));
+        Assert.False(identityUserSchema.TryGetProperty("isActive", out _));
+
+        var cardOptionsGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardOptionsGet);
+        Assert.Contains("active assignees", cardOptionsGetTool.GetProperty("description").GetString(), StringComparison.Ordinal);
+        var cardOptionsProperties = cardOptionsGetTool.GetProperty("outputSchema").GetProperty("properties");
+        Assert.True(cardOptionsProperties.TryGetProperty("columns", out _));
+        Assert.True(cardOptionsProperties.TryGetProperty("members", out var membersSchema));
+        Assert.True(cardOptionsProperties.TryGetProperty("cardTypes", out _));
+        Assert.True(cardOptionsProperties.TryGetProperty("defaultCardTypeId", out _));
+        Assert.True(cardOptionsProperties.TryGetProperty("tags", out _));
+        Assert.True(cardOptionsProperties.TryGetProperty("slicks", out _));
+        Assert.False(membersSchema.GetProperty("items").GetProperty("properties").TryGetProperty("isActive", out _));
 
         var boardListTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.BoardList);
         Assert.True(boardListTool.GetProperty("inputSchema").TryGetProperty("properties", out var boardListProperties));
@@ -156,6 +200,11 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.False(cardMoveProperties.TryGetProperty("cardId", out _));
         Assert.False(cardMoveProperties.TryGetProperty("boardColumnId", out _));
         Assert.False(cardMoveProperties.TryGetProperty("positionAfterCardId", out _));
+        Assert.Contains(
+            "card_options_get.columns[].id",
+            cardMoveProperties.GetProperty("columnId").GetProperty("description").GetString(),
+            StringComparison.Ordinal);
+        Assert.Contains("card_options_get", cardMoveTool.GetProperty("description").GetString(), StringComparison.Ordinal);
 
         var cardCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardCreate);
         var cardCreateProperties = cardCreateTool.GetProperty("inputSchema").GetProperty("properties");
@@ -163,6 +212,11 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.True(cardCreateProperties.TryGetProperty("assignedUserId", out _));
         Assert.True(cardCreateProperties.TryGetProperty("slickName", out _));
         Assert.True(cardCreateProperties.TryGetProperty("externalUrl", out _));
+        Assert.Contains(
+            "card_options_get.cardTypes[].id",
+            cardCreateProperties.GetProperty("cardTypeId").GetProperty("description").GetString(),
+            StringComparison.Ordinal);
+        Assert.Contains("card_options_get", cardCreateTool.GetProperty("description").GetString(), StringComparison.Ordinal);
         var cardCreateRequired = cardCreateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
         Assert.DoesNotContain("cardTypeId", cardCreateRequired);
         Assert.DoesNotContain("assignedUserId", cardCreateRequired);
@@ -181,6 +235,11 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.True(cardUpdateProperties.TryGetProperty("assignedUserId", out _));
         Assert.True(cardUpdateProperties.TryGetProperty("slickName", out _));
         Assert.True(cardUpdateProperties.TryGetProperty("externalUrl", out _));
+        Assert.Contains(
+            "card_options_get.members[].userId",
+            cardUpdateProperties.GetProperty("assignedUserId").GetProperty("description").GetString(),
+            StringComparison.Ordinal);
+        Assert.Contains("card_options_get", cardUpdateTool.GetProperty("description").GetString(), StringComparison.Ordinal);
         var cardUpdateRequired = cardUpdateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
         Assert.DoesNotContain("columnId", cardUpdateRequired);
         Assert.Contains("cardTypeId", cardUpdateRequired);

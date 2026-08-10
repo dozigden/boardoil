@@ -9,6 +9,61 @@ namespace BoardOil.Services.Tests;
 public sealed class UserServiceTests : TestBaseDb
 {
     [Fact]
+    public async Task GetCurrentIdentityAsync_WhenActorIsActiveClientAccount_ShouldReturnPublicIdentity()
+    {
+        // Arrange
+        var client = new EntityUser
+        {
+            UserName = "agent-client",
+            DisplayName = "Agent Client",
+            Email = "agent-client@localhost",
+            NormalisedEmail = "AGENT-CLIENT@LOCALHOST",
+            Role = UserRole.Standard,
+            IdentityType = UserIdentityType.Client,
+            IsActive = true,
+        };
+        DbContextForArrange.Users.Add(client);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IUserService>();
+
+        // Act
+        var result = await service.GetCurrentIdentityAsync(client.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(client.Id, result.Data!.Id);
+        Assert.Equal("agent-client", result.Data.UserName);
+        Assert.Equal("Agent Client", result.Data.DisplayName);
+        Assert.Equal("Standard", result.Data.Role);
+    }
+
+    [Fact]
+    public async Task GetCurrentIdentityAsync_WhenActorIsInactive_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        var inactive = new EntityUser
+        {
+            UserName = "inactive-agent",
+            DisplayName = "Inactive Agent",
+            Email = "inactive-agent@localhost",
+            NormalisedEmail = "INACTIVE-AGENT@LOCALHOST",
+            Role = UserRole.Standard,
+            IsActive = false,
+        };
+        DbContextForArrange.Users.Add(inactive);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IUserService>();
+
+        // Act
+        var result = await service.GetCurrentIdentityAsync(inactive.Id);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(401, result.StatusCode);
+    }
+
+    [Fact]
     public async Task GetUsersAsync_ShouldReturnUsersIncludingClientAccountsInUserNameOrder()
     {
         // Arrange
