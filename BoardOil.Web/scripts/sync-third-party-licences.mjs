@@ -1,12 +1,8 @@
-import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
-import { collectProductionNpmDependencies } from "./npm-production-dependencies.mjs";
-
-const execFileAsync = promisify(execFile);
+import { loadRuntimeNpmDependencies } from "./npm-production-dependencies.mjs";
 
 const defaultCandidateFiles = [
   "LICENSE",
@@ -122,77 +118,6 @@ async function removeFileIfPresent(filePath) {
       throw error;
     }
   }
-}
-
-async function loadRuntimeNpmDependencies(projectRoot) {
-  const npmExecutable = process.platform === "win32" ? "npm.cmd" : "npm";
-  let stdout = "";
-  let commandIssue = null;
-
-  try {
-    const result = await execFileAsync(
-      npmExecutable,
-      ["ls", "--omit=dev", "--all", "--json", "--long"],
-      {
-        cwd: projectRoot,
-        maxBuffer: 50 * 1024 * 1024,
-        windowsHide: true
-      }
-    );
-    stdout = result.stdout;
-  } catch (error) {
-    stdout = typeof error?.stdout === "string" ? error.stdout : "";
-    const errorDetail = typeof error?.stderr === "string" ? error.stderr.trim() : "";
-    commandIssue = {
-      packageName: "npm production dependency graph",
-      version: "unknown",
-      reason: errorDetail
-        ? `npm ls could not validate the installed production graph: ${errorDetail}`
-        : "npm ls could not validate the installed production graph",
-      expectedSourceFile: "package-lock.json",
-      resolutionHint: "Run npm ci to restore the exact locked install, then regenerate licences from"
-    };
-  }
-
-  if (!stdout.trim()) {
-    return {
-      packages: [],
-      sourceIssues: [
-        commandIssue ?? {
-          packageName: "npm production dependency graph",
-          version: "unknown",
-          reason: "npm ls returned no production dependency graph",
-          expectedSourceFile: "package-lock.json",
-          resolutionHint: "Run npm ci to restore the exact locked install, then regenerate licences from"
-        }
-      ]
-    };
-  }
-
-  let tree;
-  try {
-    tree = JSON.parse(stdout);
-  } catch {
-    return {
-      packages: [],
-      sourceIssues: [
-        {
-          packageName: "npm production dependency graph",
-          version: "unknown",
-          reason: "npm ls returned an invalid JSON production dependency graph",
-          expectedSourceFile: "package-lock.json",
-          resolutionHint: "Run npm ci to restore the exact locked install, then regenerate licences from"
-        }
-      ]
-    };
-  }
-
-  const result = collectProductionNpmDependencies(tree, projectRoot);
-  if (commandIssue) {
-    result.sourceIssues.push(commandIssue);
-  }
-
-  return result;
 }
 
 async function loadRuntimeNuGetDependencies(projectRoot) {

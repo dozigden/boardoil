@@ -1,4 +1,7 @@
 import path from "node:path";
+import { captureCommandOutput } from "./capture-command-output.mjs";
+
+const npmListArguments = ["ls", "--omit=dev", "--all", "--json", "--long"];
 
 function compareText(left, right) {
   if (left < right) {
@@ -14,6 +17,82 @@ function compareText(left, right) {
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export function resolveNpmListCommand(options = {}) {
+  const environment = options.environment ?? process.env;
+  const platform = options.platform ?? process.platform;
+  const nodeExecutable = options.nodeExecutable ?? process.execPath;
+  const npmExecPath = environment.npm_execpath?.trim();
+
+  if (npmExecPath) {
+    return {
+      command: nodeExecutable,
+      args: [npmExecPath, ...npmListArguments]
+    };
+  }
+
+  if (platform === "win32") {
+    const commandShell = environment.ComSpec?.trim() || environment.COMSPEC?.trim() || "cmd.exe";
+    return {
+      command: commandShell,
+      args: ["/d", "/s", "/c", "npm.cmd", ...npmListArguments]
+    };
+  }
+
+  return {
+    command: "npm",
+    args: [...npmListArguments]
+  };
+}
+
+export async function loadRuntimeNpmDependencies(projectRoot, options = {}) {
+  const captureOutput = options.captureOutput ?? captureCommandOutput;
+  const npmCommand = resolveNpmListCommand(options);
+  let commandResult;
+
+  try {
+    commandResult = await captureOutput(npmCommand.command, npmCommand.args, {
+      cwd: projectRoot
+    });
+  } catch (error) {
+    const errorDetail = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(`npm ls could not start${errorDetail}`, { cause: error });
+  }
+
+  if (commandResult.exitCode !== 0) {
+    let errorDetail = commandResult.stderr.trim();
+    if (!errorDetail && commandResult.signal) {
+      errorDetail = `terminated by signal ${commandResult.signal}`;
+    }
+    if (!errorDetail) {
+      errorDetail = `exited with code ${commandResult.exitCode}`;
+    }
+
+    throw new Error(`npm ls could not validate the installed production graph: ${errorDetail}`);
+  }
+
+  if (!commandResult.stdout.trim()) {
+    throw new Error("npm ls returned no production dependency graph");
+  }
+
+  let tree;
+  try {
+    tree = JSON.parse(commandResult.stdout);
+  } catch (error) {
+    throw new Error("npm ls returned an invalid JSON production dependency graph", {
+      cause: error
+    });
+  }
+
+  const result = collectProductionNpmDependencies(tree, projectRoot);
+  if (result.sourceIssues.length > 0) {
+    throw new Error(
+      `npm ls returned an incomplete production dependency graph: ${result.sourceIssues[0].reason}`
+    );
+  }
+
+  return result;
 }
 
 function getDependencyEdges(node) {

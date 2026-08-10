@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { collectProductionNpmDependencies } from "./npm-production-dependencies.mjs";
+import {
+  collectProductionNpmDependencies,
+  loadRuntimeNpmDependencies,
+  resolveNpmListCommand
+} from "./npm-production-dependencies.mjs";
 
 function packageNode(name, version, nodePath, metadata = {}) {
   return {
@@ -178,5 +182,120 @@ describe("collectProductionNpmDependencies", () => {
     expect(collectProductionNpmDependencies(createTree(false), "/app")).toEqual(
       collectProductionNpmDependencies(createTree(true), "/app")
     );
+  });
+});
+
+describe("resolveNpmListCommand", () => {
+  it("runs the npm JavaScript CLI with the current Node executable when available", () => {
+    const result = resolveNpmListCommand({
+      environment: {
+        npm_execpath: "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js"
+      },
+      platform: "win32",
+      nodeExecutable: "C:\\Program Files\\nodejs\\node.exe"
+    });
+
+    expect(result).toEqual({
+      command: "C:\\Program Files\\nodejs\\node.exe",
+      args: [
+        "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js",
+        "ls",
+        "--omit=dev",
+        "--all",
+        "--json",
+        "--long"
+      ]
+    });
+  });
+
+  it("uses the Windows command processor when the npm CLI path is unavailable", () => {
+    const result = resolveNpmListCommand({
+      environment: { ComSpec: "C:\\Windows\\System32\\cmd.exe" },
+      platform: "win32"
+    });
+
+    expect(result).toEqual({
+      command: "C:\\Windows\\System32\\cmd.exe",
+      args: [
+        "/d",
+        "/s",
+        "/c",
+        "npm.cmd",
+        "ls",
+        "--omit=dev",
+        "--all",
+        "--json",
+        "--long"
+      ]
+    });
+  });
+});
+
+describe("loadRuntimeNpmDependencies", () => {
+  it("loads a complete production graph through the resolved npm command", async () => {
+    const tree = {
+      name: "example",
+      path: "/app",
+      _dependencies: { direct: "1.0.0" },
+      dependencies: {
+        direct: packageNode("direct", "1.0.0", "/app/node_modules/direct")
+      }
+    };
+    const capturedCalls = [];
+
+    const result = await loadRuntimeNpmDependencies("/app", {
+      environment: { npm_execpath: "/npm/npm-cli.js" },
+      nodeExecutable: "/node",
+      captureOutput: async (...args) => {
+        capturedCalls.push(args);
+        return {
+          exitCode: 0,
+          signal: null,
+          stdout: JSON.stringify(tree),
+          stderr: ""
+        };
+      }
+    });
+
+    expect(capturedCalls).toEqual([
+      [
+        "/node",
+        ["/npm/npm-cli.js", "ls", "--omit=dev", "--all", "--json", "--long"],
+        { cwd: "/app" }
+      ]
+    ]);
+    expect(result.sourceIssues).toEqual([]);
+    expect(result.packages.map(npmPackage => npmPackage.packageName)).toEqual(["direct"]);
+  });
+
+  it.each([
+    {
+      name: "a failed npm command",
+      commandResult: { exitCode: 1, signal: null, stdout: "{}", stderr: "invalid install" },
+      expectedMessage: "npm ls could not validate the installed production graph"
+    },
+    {
+      name: "empty output",
+      commandResult: { exitCode: 0, signal: null, stdout: "", stderr: "" },
+      expectedMessage: "npm ls returned no production dependency graph"
+    },
+    {
+      name: "invalid JSON output",
+      commandResult: { exitCode: 0, signal: null, stdout: "not JSON", stderr: "" },
+      expectedMessage: "npm ls returned an invalid JSON production dependency graph"
+    },
+    {
+      name: "an incomplete graph",
+      commandResult: { exitCode: 0, signal: null, stdout: "null", stderr: "" },
+      expectedMessage: "npm ls returned an incomplete production dependency graph"
+    }
+  ])("fails before generation for $name", async ({ commandResult, expectedMessage }) => {
+    await expect(
+      loadRuntimeNpmDependencies("/app", {
+        environment: {},
+        platform: "linux",
+        captureOutput: async () => commandResult
+      })
+    ).rejects.toThrow(expectedMessage);
   });
 });
