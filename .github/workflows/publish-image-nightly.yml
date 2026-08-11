@@ -21,9 +21,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Build and Publish Nightly to GHCR and Docker Hub
-    runs-on: ubuntu-latest
+  prepare:
+    name: Prepare Nightly Build
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    outputs:
+      current_sha: ${{ steps.changes.outputs.current_sha }}
+      dockerhub_name: ${{ steps.image.outputs.dockerhub_name }}
+      ghcr_name: ${{ steps.image.outputs.ghcr_name }}
+      short_sha: ${{ steps.changes.outputs.short_sha }}
+      should_build: ${{ steps.changes.outputs.should_build }}
+      version: ${{ steps.app_version.outputs.version }}
 
     steps:
       - name: Checkout
@@ -79,8 +88,30 @@ jobs:
             echo "should_build=true" >> "$GITHUB_OUTPUT"
           fi
 
+  build-platform:
+    name: Build Nightly (${{ matrix.platform }})
+    needs: prepare
+    if: needs.prepare.outputs.should_build == 'true'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - architecture: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
       - name: Log in to GHCR
-        if: steps.changes.outputs.should_build == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -88,7 +119,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        if: steps.changes.outputs.should_build == 'true'
         uses: docker/login-action@v3
         with:
           registry: docker.io
@@ -96,34 +126,165 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Generate Docker metadata
-        if: steps.changes.outputs.should_build == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ steps.image.outputs.ghcr_name }}
-            ${{ steps.image.outputs.dockerhub_name }}
+            ${{ needs.prepare.outputs.ghcr_name }}
+            ${{ needs.prepare.outputs.dockerhub_name }}
           tags: |
             type=raw,value=nightly
-            type=raw,value=nightly-${{ steps.changes.outputs.short_sha }}
+            type=raw,value=nightly-${{ needs.prepare.outputs.short_sha }}
 
-      - name: Build and push image
-        if: steps.changes.outputs.should_build == 'true'
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Push platform image by digest
+        id: nightly
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ needs.prepare.outputs.ghcr_name }},${{ needs.prepare.outputs.dockerhub_name }},push-by-digest=true,name-canonical=true,push=true
           build-args: |
-            BO_VERSION=${{ steps.app_version.outputs.version }}
+            BO_VERSION=${{ needs.prepare.outputs.version }}
             BO_CHANNEL=nightly
-            BO_BUILD=nightly-${{ steps.changes.outputs.short_sha }}
-            BO_COMMIT=${{ steps.changes.outputs.current_sha }}
+            BO_BUILD=nightly-${{ needs.prepare.outputs.short_sha }}
+            BO_COMMIT=${{ needs.prepare.outputs.current_sha }}
+
+      - name: Export platform digest
+        run: |
+          mkdir -p "$RUNNER_TEMP/nightly-digests"
+          digest="${{ steps.nightly.outputs.digest }}"
+          touch "$RUNNER_TEMP/nightly-digests/${digest#sha256:}"
+
+      - name: Upload platform digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-digests-${{ matrix.architecture }}
+          path: ${{ runner.temp }}/nightly-digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish Multi-Architecture Nightly Manifests
+    needs:
+      - prepare
+      - build-platform
+    if: needs.prepare.outputs.should_build == 'true'
+    permissions:
+      contents: write
+      packages: write
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ needs.prepare.outputs.ghcr_name }}
+            ${{ needs.prepare.outputs.dockerhub_name }}
+          tags: |
+            type=raw,value=nightly
+            type=raw,value=nightly-${{ needs.prepare.outputs.short_sha }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download platform digests
+        uses: actions/download-artifact@v8
+        with:
+          pattern: nightly-digests-*
+          path: ${{ runner.temp }}/nightly-digests
+          merge-multiple: true
+
+      - name: Create and verify nightly manifests
+        env:
+          DOCKERHUB_IMAGE: ${{ needs.prepare.outputs.dockerhub_name }}
+          GHCR_IMAGE: ${{ needs.prepare.outputs.ghcr_name }}
+          METADATA_JSON: ${{ steps.meta.outputs.json }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          digest_files=("$RUNNER_TEMP"/nightly-digests/*)
+          if [ "${#digest_files[@]}" -ne 2 ]; then
+            echo "Expected two platform digests, found ${#digest_files[@]}."
+            exit 1
+          fi
+
+          digests=()
+          for digest_file in "${digest_files[@]}"; do
+            digest_name="$(basename "$digest_file")"
+            if ! [[ "$digest_name" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "Invalid platform digest artifact: ${digest_name}"
+              exit 1
+            fi
+            digests+=("sha256:${digest_name}")
+          done
+
+          publish_manifest() {
+            local image="$1"
+            local sources=()
+            local tag_args=()
+            local tags=()
+
+            mapfile -t tags < <(
+              jq -r --arg image "$image" \
+                '.tags[] | select(startswith($image + ":"))' \
+                <<< "$METADATA_JSON"
+            )
+
+            if [ "${#tags[@]}" -eq 0 ]; then
+              echo "No generated tags found for ${image}."
+              exit 1
+            fi
+
+            for tag in "${tags[@]}"; do
+              tag_args+=(--tag "$tag")
+            done
+            for digest in "${digests[@]}"; do
+              sources+=("${image}@${digest}")
+            done
+
+            docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
+
+            raw_manifest="$(docker buildx imagetools inspect --raw "${tags[0]}")"
+            jq --exit-status '
+              [.manifests[].platform
+                | select(.os == "linux")
+                | .architecture] as $architectures
+              | ($architectures | index("amd64") != null)
+                and ($architectures | index("arm64") != null)
+            ' <<< "$raw_manifest"
+          }
+
+          publish_manifest "$GHCR_IMAGE"
+          publish_manifest "$DOCKERHUB_IMAGE"
 
       - name: Update nightly build marker tag
-        if: steps.changes.outputs.should_build == 'true'
         run: |
-          git tag -f nightly-last-build "${{ steps.changes.outputs.current_sha }}"
+          git tag -f nightly-last-build "${{ needs.prepare.outputs.current_sha }}"
           git push origin refs/tags/nightly-last-build --force

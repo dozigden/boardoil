@@ -57,15 +57,25 @@ jobs:
       checks: write
     uses: ./.github/workflows/ci.yml
 
-  publish:
-    name: Build, Smoke Test, and Publish to GHCR and Docker Hub
+  build-platform:
+    name: Build and Smoke Test (${{ matrix.platform }})
     needs:
       - preflight
       - validate
     permissions:
       contents: read
       packages: write
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - architecture: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout
@@ -118,8 +128,9 @@ jobs:
           context: .
           file: ./Dockerfile
           load: true
+          platforms: ${{ matrix.platform }}
           push: false
-          tags: boardoil:release-candidate
+          tags: boardoil:release-candidate-${{ matrix.architecture }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BO_VERSION=${{ needs.preflight.outputs.version }}
@@ -132,11 +143,11 @@ jobs:
           EXPECTED_BUILD: ${{ needs.preflight.outputs.build }}
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_VERSION: ${{ needs.preflight.outputs.version }}
+          IMAGE: boardoil:release-candidate-${{ matrix.architecture }}
         run: |
           set -euo pipefail
 
-          IMAGE="boardoil:release-candidate"
-          CONTAINER_NAME="boardoil-release-smoke"
+          CONTAINER_NAME="boardoil-release-smoke-${{ matrix.architecture }}"
 
           cleanup() {
             docker rm --force "$CONTAINER_NAME" >/dev/null 2>&1 || true
@@ -190,16 +201,155 @@ jobs:
               and .data.commit == $commit' \
             <<< "$VERSION_JSON"
 
-      - name: Build and push smoke-tested release
+      - name: Push smoke-tested platform image by digest
+        id: release
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ steps.image.outputs.ghcr_name }},${{ steps.image.outputs.dockerhub_name }},push-by-digest=true,name-canonical=true,push=true
           build-args: |
             BO_VERSION=${{ needs.preflight.outputs.version }}
             BO_CHANNEL=release
             BO_BUILD=${{ needs.preflight.outputs.build }}
             BO_COMMIT=${{ github.sha }}
+
+      - name: Export platform digest
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-digests"
+          digest="${{ steps.release.outputs.digest }}"
+          touch "$RUNNER_TEMP/release-digests/${digest#sha256:}"
+
+      - name: Upload platform digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-digests-${{ matrix.architecture }}
+          path: ${{ runner.temp }}/release-digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish Multi-Architecture Release Manifests
+    needs:
+      - preflight
+      - validate
+      - build-platform
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Compute image name
+        id: image
+        run: |
+          REPO_LOWER="${GITHUB_REPOSITORY,,}"
+          REPO_NAME_LOWER="${GITHUB_REPOSITORY##*/}"
+          REPO_NAME_LOWER="${REPO_NAME_LOWER,,}"
+          GHCR_IMAGE="ghcr.io/${REPO_LOWER}"
+          DOCKERHUB_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${REPO_NAME_LOWER}"
+
+          echo "ghcr_name=${GHCR_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "dockerhub_name=${DOCKERHUB_IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ steps.image.outputs.ghcr_name }}
+            ${{ steps.image.outputs.dockerhub_name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download platform digests
+        uses: actions/download-artifact@v8
+        with:
+          pattern: release-digests-*
+          path: ${{ runner.temp }}/release-digests
+          merge-multiple: true
+
+      - name: Create and verify release manifests
+        env:
+          DOCKERHUB_IMAGE: ${{ steps.image.outputs.dockerhub_name }}
+          GHCR_IMAGE: ${{ steps.image.outputs.ghcr_name }}
+          METADATA_JSON: ${{ steps.meta.outputs.json }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          digest_files=("$RUNNER_TEMP"/release-digests/*)
+          if [ "${#digest_files[@]}" -ne 2 ]; then
+            echo "Expected two platform digests, found ${#digest_files[@]}."
+            exit 1
+          fi
+
+          digests=()
+          for digest_file in "${digest_files[@]}"; do
+            digest_name="$(basename "$digest_file")"
+            if ! [[ "$digest_name" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "Invalid platform digest artifact: ${digest_name}"
+              exit 1
+            fi
+            digests+=("sha256:${digest_name}")
+          done
+
+          publish_manifest() {
+            local image="$1"
+            local sources=()
+            local tag_args=()
+            local tags=()
+
+            mapfile -t tags < <(
+              jq -r --arg image "$image" \
+                '.tags[] | select(startswith($image + ":"))' \
+                <<< "$METADATA_JSON"
+            )
+
+            if [ "${#tags[@]}" -eq 0 ]; then
+              echo "No generated tags found for ${image}."
+              exit 1
+            fi
+
+            for tag in "${tags[@]}"; do
+              tag_args+=(--tag "$tag")
+            done
+            for digest in "${digests[@]}"; do
+              sources+=("${image}@${digest}")
+            done
+
+            docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
+
+            raw_manifest="$(docker buildx imagetools inspect --raw "${tags[0]}")"
+            jq --exit-status '
+              [.manifests[].platform
+                | select(.os == "linux")
+                | .architecture] as $architectures
+              | ($architectures | index("amd64") != null)
+                and ($architectures | index("arm64") != null)
+            ' <<< "$raw_manifest"
+          }
+
+          publish_manifest "$GHCR_IMAGE"
+          publish_manifest "$DOCKERHUB_IMAGE"
