@@ -209,7 +209,9 @@ jobs:
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ steps.image.outputs.ghcr_name }},${{ steps.image.outputs.dockerhub_name }},push-by-digest=true,name-canonical=true,push=true
+          outputs: |
+            type=image,name=${{ steps.image.outputs.ghcr_name }},push-by-digest=true,name-canonical=true,push=true
+            type=image,name=${{ steps.image.outputs.dockerhub_name }},push-by-digest=true,name-canonical=true,push=true
           build-args: |
             BO_VERSION=${{ needs.preflight.outputs.version }}
             BO_CHANNEL=release
