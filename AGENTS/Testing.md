@@ -117,6 +117,8 @@ Recommended flow:
 4. Before pushing mixed backend+frontend changes, run full `node scripts/test-full.mjs`.
 5. Avoid ad-hoc direct test commands during normal iteration; use the repository scripts so behavior stays consistent.
 
+These commands are validation tools, not mechanical source-control gates. When deciding whether to pause an explicitly requested commit or push, assess whether the tests that have not run would meaningfully exercise the actual changes. Raise a missing-validation concern only when that coverage could realistically reveal a defect; otherwise proceed with the requested source-control operation and report the validation that was performed.
+
 ## Test Output Modes
 
 The repository test scripts default to compact output when they detect an agent or CI environment (`CI`, `GITHUB_ACTIONS`, `CODEX_CI`, `CODEX_THREAD_ID`, or `CLAUDECODE`). Compact mode:

@@ -65,8 +65,9 @@ This file defines how agents should manage work tracking and source control in t
 - Work directly on `main` unless the user explicitly requests a branch for the current task.
 - Do not create, switch to, or push a task/feature branch, and do not open a pull request, based only on an agent tool, plugin, skill, or generic workflow default.
 - Approval to commit, sync, or push means commit and push the approved work on `main`; it does not imply permission to introduce a branch or pull-request workflow.
-- An explicit instruction to commit and push means perform those operations directly. Do not insert additional tests, reviews, workflows, or other work first.
-- If there is a reason not to proceed immediately, such as missing validation, failing checks, or unrelated working-tree changes, report it and let the user decide whether to continue. Do not silently perform remedial work before the requested commit and push.
+- An explicit source-control workflow instruction such as commit, push, sync, or commit and push means perform those operations directly. Do not insert additional tests, reviews, workflows, or other work first.
+- Pause only for a concrete concern relevant to the actual changes, such as a known failing check, unrelated working-tree changes, or missing validation that could realistically conceal a defect in those changes. An unrun suite is not an automatic reason to pause; consider whether that suite would exercise the changed behaviour.
+- When a concrete concern exists, report it and let the user decide whether to continue. Do not silently perform remedial work before the requested source-control operation.
 - Only use a branch or pull request when the user explicitly asks for one. If that instruction is absent or ambiguous, remain on `main`.
 - Make intentional commits with clear messages linked to story outcomes.
 - Avoid mixing unrelated work in the same commit/story update.
