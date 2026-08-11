@@ -7,10 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(webRoot, '..');
-const startupTimeoutMilliseconds = readPositiveIntegerEnvironment(
-  'BOARDOIL_E2E_STARTUP_TIMEOUT_MS',
-  60_000
-);
+const externalRuntimeFlag = '--external-runtime';
 const children = [];
 const processStopPromises = new WeakMap();
 
@@ -18,103 +15,191 @@ let temporaryRoot = null;
 let shuttingDown = false;
 let signalExitCode = null;
 
-for (const [signal, exitCode] of [['SIGINT', 130], ['SIGTERM', 143]]) {
-  process.on(signal, () => {
-    if (signalExitCode !== null) {
-      return;
+export function parseRunnerArguments(args, environment) {
+  const playwrightArguments = [];
+  let externalRuntime = false;
+
+  for (const argument of args) {
+    if (argument !== externalRuntimeFlag) {
+      playwrightArguments.push(argument);
+      continue;
     }
 
-    signalExitCode = exitCode;
-    shuttingDown = true;
-    void Promise.all(children.map(stopProcess));
-  });
+    if (externalRuntime) {
+      throw new Error(`${externalRuntimeFlag} may only be specified once.`);
+    }
+
+    externalRuntime = true;
+  }
+
+  if (!externalRuntime) {
+    return {
+      mode: 'managed',
+      playwrightArguments
+    };
+  }
+
+  const baseUrl = environment.BOARDOIL_E2E_BASE_URL?.trim();
+  if (!baseUrl) {
+    throw new Error(
+      `BOARDOIL_E2E_BASE_URL is required when using ${externalRuntimeFlag}.`
+    );
+  }
+
+  let parsedBaseUrl;
+  try {
+    parsedBaseUrl = new URL(baseUrl);
+  } catch {
+    throw new Error('BOARDOIL_E2E_BASE_URL must be a valid absolute URL.');
+  }
+
+  if (parsedBaseUrl.protocol !== 'http:' && parsedBaseUrl.protocol !== 'https:') {
+    throw new Error('BOARDOIL_E2E_BASE_URL must use http or https.');
+  }
+
+  return {
+    mode: 'external',
+    baseUrl,
+    playwrightArguments
+  };
 }
 
-const exitCode = await runSmokeTests();
-await cleanup();
-process.exit(signalExitCode ?? exitCode);
+export async function runPlaywrightTests(options, runners = {}) {
+  const runManaged = runners.runManaged ?? runManagedTests;
+  const runExternal = runners.runExternal ?? runExternalTests;
 
-async function runSmokeTests() {
+  if (options.mode === 'external') {
+    return await runExternal(options);
+  }
+
+  return await runManaged(options);
+}
+
+async function main() {
+  registerSignalHandlers();
+
+  let exitCode = 1;
   try {
-    temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'boardoil-e2e-'));
-    ensureNotInterrupted();
-
-    const databasePath = path.join(temporaryRoot, 'boardoil.smoke.db');
-    const imageRoot = path.join(temporaryRoot, 'images');
-    const apiProjectPath = path.join(repoRoot, 'BoardOil.Api', 'BoardOil.Api.csproj');
-    const apiPort = await reservePort();
-    ensureNotInterrupted();
-    const webPort = await reservePort();
-    ensureNotInterrupted();
-    const apiUrl = `http://127.0.0.1:${apiPort}`;
-    const webUrl = `http://127.0.0.1:${webPort}`;
-
-    await mkdir(imageRoot, { recursive: true });
-    ensureNotInterrupted();
-    console.log(`[e2e] Isolated data root: ${temporaryRoot}`);
-
-    const apiEnvironment = {
-      ASPNETCORE_ENVIRONMENT: 'Production',
-      ASPNETCORE_URLS: apiUrl,
-      ConnectionStrings__BoardOil: `Data Source=${databasePath};Default Timeout=30;Pooling=False`,
-      BoardOil__DataPath: databasePath,
-      BoardOil__ImageRootPath: imageRoot,
-      BoardOilAuth__AllowInsecureCookies: 'true',
-      BoardOilAuth__Issuer: 'boardoil-e2e',
-      BoardOilAuth__Audience: 'boardoil-e2e',
-      BoardOilAuth__SigningKey: 'boardoil-e2e-signing-key-12345678901234567890',
-      NUGET_HTTP_CACHE_PATH: process.env.NUGET_HTTP_CACHE_PATH ?? path.join(temporaryRoot, 'nuget-http-cache')
-    };
-
-    const restoreExitCode = await runProcess('dotnet', [
-      'restore',
-      apiProjectPath,
-      '--locked-mode',
-      '-maxcpucount:1',
-      '-nodeReuse:false'
-    ], repoRoot, apiEnvironment);
-    ensureNotInterrupted();
-    if (restoreExitCode !== 0) {
-      throw new Error(`API dependency restore failed (code ${restoreExitCode}).`);
-    }
-
-    const api = startProcess('dotnet', [
-      'run',
-      '--project',
-      apiProjectPath,
-      '--configuration',
-      'Release',
-      '--no-launch-profile',
-      '--no-restore'
-    ], repoRoot, apiEnvironment);
-    await waitForUrl(`${apiUrl}/api/health`, api, 'API', startupTimeoutMilliseconds);
-    ensureNotInterrupted();
-
-    const web = startProcess(process.execPath, [
-      path.join(webRoot, 'scripts', 'run-vite-with-version.mjs'),
-      '--host',
-      '127.0.0.1',
-      '--port',
-      String(webPort),
-      '--strictPort'
-    ], webRoot, {
-      VITE_BO_API_PROXY_TARGET: apiUrl
-    });
-    await waitForUrl(webUrl, web, 'frontend', startupTimeoutMilliseconds);
-    ensureNotInterrupted();
-
-    const playwrightExecutable = process.platform === 'win32'
-      ? path.join(webRoot, 'node_modules', '.bin', 'playwright.cmd')
-      : path.join(webRoot, 'node_modules', '.bin', 'playwright');
-    return await runProcess(playwrightExecutable, ['test', ...process.argv.slice(2)], webRoot, {
-      BOARDOIL_E2E_BASE_URL: webUrl
-    });
+    const options = parseRunnerArguments(process.argv.slice(2), process.env);
+    exitCode = await runPlaywrightTests(options);
   } catch (error) {
     if (signalExitCode === null) {
       console.error(`[e2e] ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
 
-    return 1;
+  await cleanup();
+  process.exit(signalExitCode ?? exitCode);
+}
+
+async function runExternalTests(options) {
+  console.log(`[e2e] Using external runtime: ${options.baseUrl}`);
+  return await runPlaywright(options.playwrightArguments, {
+    BOARDOIL_E2E_BASE_URL: options.baseUrl
+  });
+}
+
+async function runManagedTests(options) {
+  const startupTimeoutMilliseconds = readPositiveIntegerEnvironment(
+    'BOARDOIL_E2E_STARTUP_TIMEOUT_MS',
+    60_000
+  );
+
+  temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'boardoil-e2e-'));
+  ensureNotInterrupted();
+
+  const databasePath = path.join(temporaryRoot, 'boardoil.smoke.db');
+  const imageRoot = path.join(temporaryRoot, 'images');
+  const apiProjectPath = path.join(repoRoot, 'BoardOil.Api', 'BoardOil.Api.csproj');
+  const apiPort = await reservePort();
+  ensureNotInterrupted();
+  const webPort = await reservePort();
+  ensureNotInterrupted();
+  const apiUrl = `http://127.0.0.1:${apiPort}`;
+  const webUrl = `http://127.0.0.1:${webPort}`;
+
+  await mkdir(imageRoot, { recursive: true });
+  ensureNotInterrupted();
+  console.log(`[e2e] Isolated data root: ${temporaryRoot}`);
+
+  const apiEnvironment = {
+    ASPNETCORE_ENVIRONMENT: 'Production',
+    ASPNETCORE_URLS: apiUrl,
+    ConnectionStrings__BoardOil: `Data Source=${databasePath};Default Timeout=30;Pooling=False`,
+    BoardOil__DataPath: databasePath,
+    BoardOil__ImageRootPath: imageRoot,
+    BoardOilAuth__AllowInsecureCookies: 'true',
+    BoardOilAuth__Issuer: 'boardoil-e2e',
+    BoardOilAuth__Audience: 'boardoil-e2e',
+    BoardOilAuth__SigningKey: 'boardoil-e2e-signing-key-12345678901234567890',
+    NUGET_HTTP_CACHE_PATH: process.env.NUGET_HTTP_CACHE_PATH ?? path.join(temporaryRoot, 'nuget-http-cache')
+  };
+
+  const restoreExitCode = await runProcess('dotnet', [
+    'restore',
+    apiProjectPath,
+    '--locked-mode',
+    '-maxcpucount:1',
+    '-nodeReuse:false'
+  ], repoRoot, apiEnvironment);
+  ensureNotInterrupted();
+  if (restoreExitCode !== 0) {
+    throw new Error(`API dependency restore failed (code ${restoreExitCode}).`);
+  }
+
+  const api = startProcess('dotnet', [
+    'run',
+    '--project',
+    apiProjectPath,
+    '--configuration',
+    'Release',
+    '--no-launch-profile',
+    '--no-restore'
+  ], repoRoot, apiEnvironment);
+  await waitForUrl(`${apiUrl}/api/health`, api, 'API', startupTimeoutMilliseconds);
+  ensureNotInterrupted();
+
+  const web = startProcess(process.execPath, [
+    path.join(webRoot, 'scripts', 'run-vite-with-version.mjs'),
+    '--host',
+    '127.0.0.1',
+    '--port',
+    String(webPort),
+    '--strictPort'
+  ], webRoot, {
+    VITE_BO_API_PROXY_TARGET: apiUrl
+  });
+  await waitForUrl(webUrl, web, 'frontend', startupTimeoutMilliseconds);
+  ensureNotInterrupted();
+
+  return await runPlaywright(options.playwrightArguments, {
+    BOARDOIL_E2E_BASE_URL: webUrl
+  });
+}
+
+function runPlaywright(playwrightArguments, additionalEnvironment) {
+  const playwrightExecutable = process.platform === 'win32'
+    ? path.join(webRoot, 'node_modules', '.bin', 'playwright.cmd')
+    : path.join(webRoot, 'node_modules', '.bin', 'playwright');
+  return runProcess(
+    playwrightExecutable,
+    ['test', ...playwrightArguments],
+    webRoot,
+    additionalEnvironment
+  );
+}
+
+function registerSignalHandlers() {
+  for (const [signal, exitCode] of [['SIGINT', 130], ['SIGTERM', 143]]) {
+    process.on(signal, () => {
+      if (signalExitCode !== null) {
+        return;
+      }
+
+      signalExitCode = exitCode;
+      shuttingDown = true;
+      void Promise.all(children.map(stopProcess));
+    });
   }
 }
 
@@ -259,4 +344,9 @@ function reservePort() {
 
 function delay(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : null;
+if (invokedPath === fileURLToPath(import.meta.url)) {
+  await main();
 }

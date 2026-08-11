@@ -90,6 +90,22 @@ Keep browser-test code organised by those responsibilities. Do not mix environme
 - Set `BOARDOIL_E2E_JUNIT_OUTPUT` when the caller needs a JUnit XML report; normal local and GitHub smoke runs retain the list reporter only.
 - Slow clean-build hosts may set `BOARDOIL_E2E_STARTUP_TIMEOUT_MS` to a positive integer; the default API/frontend readiness deadline remains 60000 ms.
 
+### Running Browser Tests Against an External Runtime
+
+- Use `npm run test:e2e:smoke:external` for the smoke profile or `npm run test:e2e:regression:external` for the complete regression profile.
+- External mode requires `BOARDOIL_E2E_BASE_URL` to be an absolute HTTP(S) URL. It does not restore or start the API, start Vite, reserve local ports, create SQLite/image storage, or stop the supplied runtime.
+- Supply a fresh BoardOil data volume. The existing Playwright fixtures perform initial-admin setup and authenticate subsequent tests against that disposable runtime.
+- `BOARDOIL_E2E_JUNIT_OUTPUT`, Playwright traces/screenshots, command exit status, signal handling, and Playwright CLI arguments passed after `--` behave the same as managed-runtime runs.
+- The caller owns image selection, container lifecycle, isolation, cleanup, resource limits, and diagnostics.
+
+Princess Posse Jenkins invocation contract (run from `BoardOil.Web` after checking out the trusted source revision embedded in the selected image):
+
+```sh
+BOARDOIL_E2E_BASE_URL=http://127.0.0.1:8080 \
+BOARDOIL_E2E_JUNIT_OUTPUT=test-results/playwright/junit.xml \
+npm run test:e2e:regression:external -- --project=chromium
+```
+
 ## Local Fast Loop
 
 Use repository scripts to keep local feedback fast and consistent:

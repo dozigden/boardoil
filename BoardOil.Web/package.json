@@ -15,7 +15,9 @@
     "build": "npm run sync:third-party-licences && node ./scripts/run-vite-with-version.mjs build",
     "preview": "vite preview --host 0.0.0.0 --port 4173",
     "test:e2e:smoke": "node ./scripts/run-playwright-smoke.mjs \"\\.smoke\\.spec\\.ts$\"",
-    "test:e2e:regression": "node ./scripts/run-playwright-smoke.mjs"
+    "test:e2e:smoke:external": "node ./scripts/run-playwright-smoke.mjs --external-runtime \"\\.smoke\\.spec\\.ts$\"",
+    "test:e2e:regression": "node ./scripts/run-playwright-smoke.mjs",
+    "test:e2e:regression:external": "node ./scripts/run-playwright-smoke.mjs --external-runtime"
   },
   "dependencies": {
     "@microsoft/signalr": "^10.0.0",
