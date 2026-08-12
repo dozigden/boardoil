@@ -16,11 +16,8 @@ services:
     environment:
       BoardOilAuth__AllowInsecureCookies: "true"
     volumes:
-      - boardoil-data:/data
+      - ./boardoil-data:/data
     restart: unless-stopped
-
-volumes:
-  boardoil-data:
 ```
 
 Start BoardOil:
@@ -43,4 +40,4 @@ The first visit opens the initial admin setup. You should do it straight away. T
 
 This configuration serves BoardOil over plain HTTP and is suitable for localhost or a trusted private network. See [Advanced Installation](ADVANCED_INSTALLATION.md#https) for anything more complex.
 
-The `boardoil-data` volume holds the database, uploaded images, and authentication signing key. Do not remove it when recreating or updating the container.
+The `boardoil-data` folder holds the database, uploaded images, and authentication signing key. Do not remove it when recreating or updating the container.

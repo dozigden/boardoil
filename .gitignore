@@ -17,6 +17,7 @@ BoardOil.Web/playwright-report/
 *.db-shm
 .data/
 .test-data/
+/boardoil-data/
 
 # Editor/OS
 .vscode/

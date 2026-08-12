@@ -7,9 +7,6 @@ services:
     environment:
       BoardOilAuth__AllowInsecureCookies: "true"
     volumes:
-      # BoardOil generates and persists its signing key in this data volume.
-      - boardoil-data:/data
+      # BoardOil generates and persists its signing key in this data folder.
+      - ./boardoil-data:/data
     restart: unless-stopped
-
-volumes:
-  boardoil-data:
