@@ -1,6 +1,6 @@
 services:
   boardoil:
-    image: ghcr.io/dozigden/boardoil:latest
+    image: dozigden/boardoil:latest
     container_name: boardoil
     ports:
       - "5000:5000"
