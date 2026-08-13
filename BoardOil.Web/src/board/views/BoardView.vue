@@ -842,6 +842,7 @@ async function initializeView() {
 .column-content--lite-goo {
   margin-left: calc(-1 * var(--column-lite-goo-bleed));
   padding-left: var(--column-lite-goo-bleed);
+  padding-right: 0.5rem;
 }
 
 .column-content > :not(.goo-layer) {

@@ -146,7 +146,7 @@ function sanitizeSvgIdPart(value: string) {
 }
 
 .goo-layer--column.goo-layer--selection {
-  z-index: 0;
+  z-index: 4;
 }
 
 @keyframes goo-selection-pulse {
