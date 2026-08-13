@@ -19,6 +19,8 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
   const failedRequests: string[] = [];
   const consoleErrors: string[] = [];
 
+  await verifyDeploymentProvenance();
+
   await instrumentStorage(page);
   await applySecurityPolicy(page, securityPolicy);
 
@@ -106,6 +108,27 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     expect(consoleErrors).toEqual([]);
   });
 });
+
+async function verifyDeploymentProvenance() {
+  const deploymentPath = path.resolve(process.cwd(), 'dist-demo', 'deployment.json');
+  const noticePath = path.resolve(process.cwd(), 'dist-demo', 'DISTRIBUTION_NOTICE.txt');
+  const deployment = JSON.parse(await readFile(deploymentPath, 'utf8')) as {
+    artifact: string;
+    sourceRepository: string;
+    sourceCommit: string;
+  };
+  const expectedCommit = process.env.BOARDOIL_DEMO_SOURCE_SHA?.trim() || 'local';
+
+  expect(deployment).toEqual({
+    artifact: 'static-demo',
+    sourceRepository: 'https://github.com/dozigden/boardoil',
+    sourceCommit: expectedCommit
+  });
+
+  const notice = await readFile(noticePath, 'utf8');
+  expect(notice).toContain('This repository is generated. Do not edit its files directly.');
+  expect(notice).toContain(`Commit: ${expectedCommit}`);
+}
 
 async function loadDemoSecurityPolicy() {
   const headersPath = path.resolve(process.cwd(), 'dist-demo', '_headers');

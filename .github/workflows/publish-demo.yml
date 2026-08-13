@@ -1,0 +1,105 @@
+name: Publish Static Demo
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: demo-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Validate and Publish
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: demo-production
+
+    defaults:
+      run:
+        working-directory: source/BoardOil.Web
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          path: source
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: source/BoardOil.Web/package-lock.json
+
+      - name: Setup .NET for licence sources
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: source/**/packages.lock.json
+
+      - name: Restore NuGet packages for licence sync
+        run: dotnet restore ../BoardOil.Api/BoardOil.Api.csproj --locked-mode -maxcpucount:1 -nodeReuse:false
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify third-party licence sync
+        run: |
+          npm run sync:third-party-licences -- --strict
+          if [ -n "$(git status --porcelain -- THIRD_PARTY_LICENSES public/third-party-licenses)" ]; then
+            echo "Third-party licence files are out of date. Run: npm run sync:third-party-licences"
+            git status --short -- THIRD_PARTY_LICENSES public/third-party-licenses
+            exit 1
+          fi
+
+      - name: Check frontend
+        run: npm run check
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build and smoke test the demo artifact
+        env:
+          BOARDOIL_DEMO_SOURCE_SHA: ${{ github.sha }}
+        run: npm run test:demo:smoke
+
+      - name: Checkout distribution repository
+        uses: actions/checkout@v6
+        with:
+          repository: dozigden/boardoil-demo-dist
+          ref: main
+          ssh-key: ${{ secrets.DEMO_DIST_DEPLOY_KEY }}
+          path: distribution
+
+      - name: Replace distribution contents
+        working-directory: .
+        run: |
+          git -C distribution rm -r --ignore-unmatch .
+          cp -a source/BoardOil.Web/dist-demo/. distribution/
+          git -C distribution add --all --force
+
+      - name: Commit and push changed artifact
+        working-directory: .
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          if git -C distribution diff --cached --quiet; then
+            echo "The published artifact is already current."
+            exit 0
+          fi
+
+          git -C distribution config user.name "github-actions[bot]"
+          git -C distribution config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C distribution commit -m "Publish demo from dozigden/boardoil@${SOURCE_SHA}"
+          git -C distribution push origin main
+
+          DISTRIBUTION_SHA="$(git -C distribution rev-parse HEAD)"
+          echo "Published source ${SOURCE_SHA} as distribution commit ${DISTRIBUTION_SHA}." >> "$GITHUB_STEP_SUMMARY"
