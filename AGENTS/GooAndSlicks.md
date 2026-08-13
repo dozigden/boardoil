@@ -79,9 +79,11 @@ Main mechanisms:
 
 Perf debug logs are disabled by default and enabled by any of:
 
-- localStorage: `boardoil:goo-perf-debug=1` (or `true`)
 - query string: `?gooPerfDebug=1` (or `true`)
 - env: `VITE_GOO_PERF_DEBUG=true` (or `1`)
+
+Renderer overrides are temporary query-string diagnostics: `?gooRenderer=full` or `?gooRenderer=lite`.
+Goo diagnostics must not use browser storage.
 
 When enabled, console logs once per second:
 
@@ -125,4 +127,3 @@ Prefer config tuning over ad-hoc component CSS for goo behavior changes.
 ## Known Constraints
 
 - Goo is frontend-only visual behavior.
-

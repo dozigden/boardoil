@@ -1,5 +1,4 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComputedRef } from 'vue';
-import { readBrowserStorageItem } from '../../shared/utils/browserStorage';
 import { gooConfig } from '../utils/gooConfig';
 import { buildGooGroups, type GooItem, type GooRenderGroup, type RectLike } from '../utils/gooLayout';
 import {
@@ -506,11 +505,6 @@ export function useGooLayer(
 
   function resolveGooPerfDebugEnabled() {
     if (import.meta.env.DEV) {
-      const storageValue = readBrowserStorageItem('boardoil:goo-perf-debug');
-      if (storageValue === '1' || storageValue === 'true') {
-        return true;
-      }
-
       const search = typeof window !== 'undefined' ? window.location?.search ?? '' : '';
       if (search.includes('gooPerfDebug=1') || search.includes('gooPerfDebug=true')) {
         return true;

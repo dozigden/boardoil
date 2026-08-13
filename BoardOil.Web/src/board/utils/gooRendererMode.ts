@@ -1,10 +1,8 @@
-import { readBrowserStorageItem } from '../../shared/utils/browserStorage';
-
 export type GooRendererMode = 'full' | 'lite';
 type GooRendererOverride = GooRendererMode | 'html' | 'safari' | 'svg';
 
 export function resolveGooRendererMode(): GooRendererMode {
-  const override = resolveRendererOverride();
+  const override = resolveRendererOverrideFromSearch();
   if (override === 'full' || override === 'html') {
     return 'full';
   }
@@ -33,16 +31,6 @@ function isSafariBrowser() {
     && !userAgent.includes('Edg/');
 
   return isAppleVendor && isSafari;
-}
-
-function resolveRendererOverride() {
-  const searchOverride = resolveRendererOverrideFromSearch();
-  if (searchOverride !== null) {
-    return searchOverride;
-  }
-
-  const value = readBrowserStorageItem('boardoil:goo-renderer')?.trim().toLowerCase() ?? null;
-  return isRendererOverrideValue(value) ? value : null;
 }
 
 function resolveRendererOverrideFromSearch() {
