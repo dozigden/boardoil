@@ -50,6 +50,41 @@ describe('demoBoardApi', () => {
     });
   });
 
+  it('creates new cards at the top of their column', async () => {
+    const api = createDemoBoardApi();
+    const initialBoardResult = await api.getBoard(1);
+    expect(initialBoardResult.ok).toBe(true);
+    if (!initialBoardResult.ok) {
+      return;
+    }
+
+    const initialSortKey = initialBoardResult.data.columns.find(column => column.id === 1)?.cards[0]?.sortKey;
+    expect(initialSortKey).toBeDefined();
+    if (!initialSortKey) {
+      return;
+    }
+
+    const createResult = await api.createCard(1, {
+      boardColumnId: 1,
+      title: 'New leading card',
+      cardTypeId: 1
+    });
+    expect(createResult.ok).toBe(true);
+    if (!createResult.ok) {
+      return;
+    }
+    expect(createResult.data.sortKey < initialSortKey).toBe(true);
+
+    const boardResult = await api.getBoard(1);
+    expect(boardResult.ok).toBe(true);
+    if (!boardResult.ok) {
+      return;
+    }
+
+    const targetColumn = boardResult.data.columns.find(column => column.id === 1);
+    expect(targetColumn?.cards[0]?.id).toBe(createResult.data.id);
+  });
+
   it('archives and restores cards without a server', async () => {
     const api = createDemoBoardApi();
 

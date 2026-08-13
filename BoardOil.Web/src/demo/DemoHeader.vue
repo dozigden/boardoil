@@ -32,6 +32,7 @@
         class="btn btn--secondary"
         aria-label="Reset preview"
         title="Reset preview"
+        :disabled="isResetting"
         @click="resetPreview"
       >
         <RotateCcw :size="16" aria-hidden="true" />
@@ -61,16 +62,30 @@ import BoardOilLogo from '../site/components/BoardOilLogo.vue';
 import { useBoardStore } from '../board/stores/boardStore';
 import { resetDemoData } from './demoBoardApi';
 import DemoLicencesDialog from './DemoLicencesDialog.vue';
+import { demoResetVersion } from './demoReset';
 import { activeDemoTheme, toggleDemoTheme } from './demoSystemTheme';
 
 const boardStore = useBoardStore();
 const { board } = storeToRefs(boardStore);
 const licencesOpen = ref(false);
+const isResetting = ref(false);
 const themeButtonLabel = computed(() => activeDemoTheme.value === 'dark' ? 'Use light mode' : 'Use dark mode');
 
-function resetPreview() {
-  resetDemoData();
-  globalThis.location.reload();
+async function resetPreview() {
+  if (isResetting.value) {
+    return;
+  }
+
+  isResetting.value = true;
+  try {
+    const boardId = board.value?.id ?? 1;
+    resetDemoData();
+    await boardStore.dispose();
+    await boardStore.initialize(boardId);
+    demoResetVersion.value += 1;
+  } finally {
+    isResetting.value = false;
+  }
 }
 </script>
 

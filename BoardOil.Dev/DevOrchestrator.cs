@@ -19,7 +19,8 @@ internal sealed class DevOrchestrator
         services =
         [
             CreateApiService(),
-            CreateWebService()
+            CreateWebService(),
+            CreateDemoService()
         ];
     }
 
@@ -99,6 +100,10 @@ internal sealed class DevOrchestrator
             case ConsoleKey.NumPad2:
                 SelectService(1);
                 break;
+            case ConsoleKey.D3:
+            case ConsoleKey.NumPad3:
+                SelectService(2);
+                break;
             case ConsoleKey.Spacebar:
                 BeginOperation(() => ToggleSelectedAsync(cancellationToken));
                 break;
@@ -106,7 +111,7 @@ internal sealed class DevOrchestrator
                 BeginOperation(() => RestartSelectedAsync(cancellationToken));
                 break;
             case ConsoleKey.A:
-                BeginOperation(() => StartAllAsync(cancellationToken));
+                BeginOperation(() => StartDefaultServicesAsync(cancellationToken));
                 break;
             case ConsoleKey.X:
                 BeginOperation(StopAllWithStatusAsync);
@@ -224,9 +229,9 @@ internal sealed class DevOrchestrator
         await StartServiceAsync(service, cancellationToken);
     }
 
-    private async Task StartAllAsync(CancellationToken cancellationToken)
+    private async Task StartDefaultServicesAsync(CancellationToken cancellationToken)
     {
-        foreach (var service in services)
+        foreach (var service in services.Where(service => service.StartsWithDefaultAction))
         {
             if (!service.IsRunning)
             {
@@ -272,7 +277,8 @@ internal sealed class DevOrchestrator
             repoRoot,
             logPath,
             DevApiLaunchSettings.CreateEnvironment(databasePath),
-            async (service, cancellationToken) =>
+            startsWithDefaultAction: true,
+            beforeStart: async (service, cancellationToken) =>
             {
                 EnsureExecutableExists("dotnet", dotnet);
                 databaseManager.PrepareCurrentDatabase();
@@ -311,21 +317,51 @@ internal sealed class DevOrchestrator
             webDirectory,
             logPath,
             DevWebLaunchSettings.CreateEnvironment(),
-            async (_, cancellationToken) =>
+            startsWithDefaultAction: true,
+            beforeStart: async (_, cancellationToken) =>
             {
-                EnsureExecutableExists("npm", npm);
-                var nodeModules = Path.Combine(webDirectory, "node_modules");
-                if (!Directory.Exists(nodeModules))
-                {
-                    throw new InvalidOperationException(
-                        "BoardOil.Web/node_modules is missing. Run 'cd BoardOil.Web && npm ci' first.");
-                }
-
+                EnsureWebDependencies(npm, webDirectory);
                 await portConflictResolver.StopRecognisedListenerAsync(
                     5173,
                     ["vite"],
                     cancellationToken);
             });
+    }
+
+    private ManagedService CreateDemoService()
+    {
+        var webDirectory = Path.Combine(repoRoot, "BoardOil.Web");
+        var logPath = Path.Combine(repoRoot, ".data", "dev", "logs", "demo.log");
+        var npm = ExecutableLocator.Find("npm") ?? "npm";
+
+        return new ManagedService(
+            "Demo",
+            DevDemoLaunchSettings.Endpoint,
+            npm,
+            ["run", "dev:demo"],
+            webDirectory,
+            logPath,
+            new Dictionary<string, string>(),
+            startsWithDefaultAction: false,
+            beforeStart: async (_, cancellationToken) =>
+            {
+                EnsureWebDependencies(npm, webDirectory);
+                await portConflictResolver.StopRecognisedListenerAsync(
+                    DevDemoLaunchSettings.Port,
+                    ["vite"],
+                    cancellationToken);
+            });
+    }
+
+    private static void EnsureWebDependencies(string npm, string webDirectory)
+    {
+        EnsureExecutableExists("npm", npm);
+        var nodeModules = Path.Combine(webDirectory, "node_modules");
+        if (!Directory.Exists(nodeModules))
+        {
+            throw new InvalidOperationException(
+                "BoardOil.Web/node_modules is missing. Run 'cd BoardOil.Web && npm ci' first.");
+        }
     }
 
     private static void EnsureExecutableExists(string displayName, string resolvedPath)
@@ -364,7 +400,7 @@ internal sealed class DevOrchestrator
 
         WriteLine(string.Empty, width);
         WriteLine(
-            "Keys: Up/Down  Space start/stop  R restart  A start all  X stop all  B branch DB  S shared DB  T new temp DB  L logs  1-2 select  Q quit",
+            "Keys: Up/Down  Space start/stop  R restart  A start API/Web  X stop all  B branch DB  S shared DB  T new temp DB  L logs  1-3 select  Q quit",
             width,
             ConsoleColor.Yellow);
         WriteLine($"Status: {statusMessage}", width, ConsoleColor.White);

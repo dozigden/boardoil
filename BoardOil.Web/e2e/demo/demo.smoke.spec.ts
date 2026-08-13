@@ -41,11 +41,26 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
 
   await test.step('load the seeded board', async () => {
     await page.goto('/');
+    const welcomeDialog = page.getByRole('dialog');
+    await expect(welcomeDialog.getByRole('heading', { name: 'Welcome to the BoardOil demo' })).toBeVisible();
+    await expect(welcomeDialog.getByText('Anything you enter here will disappear')).toBeVisible();
+    await welcomeDialog.getByRole('button', { name: 'Explore the demo' }).click();
+    await expect(welcomeDialog).not.toBeVisible();
     await expect(page.getByText('Live Demo', { exact: true })).toBeVisible();
 
     const doneColumn = page.getByRole('article', { name: 'Done column' });
     await expect(doneColumn).toBeVisible();
     await expect(doneColumn.getByRole('button').filter({ hasText: /#\d+/ })).toHaveCount(10);
+  });
+
+  await test.step('create new cards at the top of a column', async () => {
+    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
+    await ideasColumn.getByRole('button', { name: 'Add default card' }).click();
+    await ideasColumn.getByPlaceholder('Title').fill('Created at the top');
+    await ideasColumn.getByRole('button', { name: 'Save new card' }).click();
+
+    const firstCard = ideasColumn.getByRole('button').filter({ hasText: /#\d+/ }).first();
+    await expect(firstCard).toContainText('Created at the top');
   });
 
   await test.step('edit and move a card in memory', async () => {
@@ -69,8 +84,21 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await expect(readyColumn.getByRole('button').filter({ hasText: 'Edited in the static demo' })).toBeVisible();
   });
 
+  await test.step('reset the preview without reopening the welcome dialog', async () => {
+    await page.getByRole('button', { name: 'Reset preview' }).click();
+    await expect(page.getByRole('heading', { name: 'Welcome to the BoardOil demo' })).toHaveCount(0);
+
+    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
+    await expect(ideasColumn.getByRole('button').filter({ hasText: 'Customer interview highlights' })).toBeVisible();
+    await expect(page.getByText('Created at the top', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Edited in the static demo', { exact: true })).toHaveCount(0);
+  });
+
   await test.step('reload the original fixture', async () => {
     await page.reload();
+    const welcomeDialog = page.getByRole('dialog');
+    await expect(welcomeDialog.getByRole('heading', { name: 'Welcome to the BoardOil demo' })).toBeVisible();
+    await welcomeDialog.getByRole('button', { name: 'Explore the demo' }).click();
     const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
     await expect(ideasColumn.getByRole('button').filter({ hasText: 'Customer interview highlights' })).toBeVisible();
     await expect(page.getByText('Edited in the static demo', { exact: true })).toHaveCount(0);

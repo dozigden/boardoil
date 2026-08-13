@@ -146,14 +146,13 @@ const demoBoardApi: BoardApi = {
       title,
       description: '',
       externalUrl: null,
-      sortKey: '',
+      sortKey: createLeadingCardSortKey(column),
       tags: [],
       tagNames: [],
       createdAtUtc: timestamp,
       updatedAtUtc: timestamp
     };
-    column.cards.push(card);
-    reindexColumn(column.id);
+    column.cards.unshift(card);
     return ok(clone(card));
   },
 
@@ -600,6 +599,11 @@ function reindexColumn(columnId: number) {
   column.cards.forEach((card, index) => {
     card.sortKey = String((index + 1) * 1000).padStart(8, '0');
   });
+}
+
+function createLeadingCardSortKey(column: Board['columns'][number]) {
+  const firstSortKey = column.cards[0]?.sortKey;
+  return firstSortKey ? `0${firstSortKey}` : '00001000';
 }
 
 function createSeedState(): DemoState {

@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm run sync:third-party-licences && node ./scripts/run-vite-with-version.mjs --port 5173",
+    "dev:demo": "npm run sync:third-party-licences && vite --config vite.demo.config.ts --host 0.0.0.0 --port 5174 --strictPort",
     "lint": "eslint --max-warnings=0 --config eslint.config.js \"src/shared/api/**/*Api.ts\"",
     "typecheck": "vue-tsc --noEmit && tsc --noEmit --project tsconfig.e2e.json",
     "test": "vitest run",

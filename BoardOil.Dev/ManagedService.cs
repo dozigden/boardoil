@@ -69,6 +69,7 @@ internal sealed class ManagedService
         string workingDirectory,
         string logPath,
         IReadOnlyDictionary<string, string> environment,
+        bool startsWithDefaultAction,
         Func<ManagedService, CancellationToken, Task> beforeStart)
     {
         Name = name;
@@ -78,12 +79,14 @@ internal sealed class ManagedService
         this.workingDirectory = workingDirectory;
         LogPath = logPath;
         this.environment = environment;
+        StartsWithDefaultAction = startsWithDefaultAction;
         this.beforeStart = beforeStart;
     }
 
     public string Name { get; }
     public string Endpoint { get; }
     public string LogPath { get; }
+    public bool StartsWithDefaultAction { get; }
 
     public bool IsRunning
     {
