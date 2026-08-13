@@ -4,6 +4,7 @@
 *.csproj.lscache
 BoardOil.Web/node_modules/
 BoardOil.Web/dist/
+BoardOil.Web/dist-demo/
 BoardOil.Web/test-results/
 BoardOil.Web/playwright-report/
 

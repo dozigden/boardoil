@@ -1,3 +1,5 @@
+import { readBrowserStorageItem } from '../../shared/utils/browserStorage';
+
 export type GooRendererMode = 'full' | 'lite';
 type GooRendererOverride = GooRendererMode | 'html' | 'safari' | 'svg';
 
@@ -39,12 +41,8 @@ function resolveRendererOverride() {
     return searchOverride;
   }
 
-  try {
-    const value = globalThis.localStorage?.getItem('boardoil:goo-renderer')?.trim().toLowerCase() ?? null;
-    return isRendererOverrideValue(value) ? value : null;
-  } catch {
-    return null;
-  }
+  const value = readBrowserStorageItem('boardoil:goo-renderer')?.trim().toLowerCase() ?? null;
+  return isRendererOverrideValue(value) ? value : null;
 }
 
 function resolveRendererOverrideFromSearch() {

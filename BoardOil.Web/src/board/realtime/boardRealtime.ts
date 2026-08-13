@@ -7,8 +7,9 @@ import {
 } from '../../shared/errors/clientErrorReporter';
 import type { Card, CardComment, Column } from '../../shared/types/boardTypes';
 import type { SystemInfoMessageDto } from '../../shared/types/configurationTypes';
+import { readBrowserStorageItem } from '../../shared/utils/browserStorage';
 
-type RealtimeHandlers = {
+export type BoardRealtimeHandlers = {
   onColumnCreated: (boardId: number, column: Column) => Promise<unknown> | unknown;
   onColumnUpdated: (boardId: number, column: Column) => Promise<unknown> | unknown;
   onColumnDeleted: (boardId: number, columnId: number) => Promise<unknown> | unknown;
@@ -22,6 +23,19 @@ type RealtimeHandlers = {
   onConnectionWarning?: (message: string) => Promise<unknown> | unknown;
   onConnectionRecovered?: () => Promise<unknown> | unknown;
 };
+
+export type BoardRealtime = {
+  connect: (boardId: number) => Promise<void>;
+  disconnect: () => Promise<void>;
+};
+
+type BoardRealtimeFactory = (handlers: BoardRealtimeHandlers) => BoardRealtime;
+
+let boardRealtimeFactory: BoardRealtimeFactory = createSignalRBoardRealtime;
+
+export function configureBoardRealtimeFactory(factory: BoardRealtimeFactory) {
+  boardRealtimeFactory = factory;
+}
 
 const realtimeDebugEnabled = resolveRealtimeDebugEnabled();
 const signalRLogLevel = realtimeDebugEnabled ? LogLevel.Information : LogLevel.Warning;
@@ -46,13 +60,9 @@ function resolveRealtimeDebugEnabled() {
     return true;
   }
 
-  try {
-    const localStorageValue = globalThis.localStorage?.getItem('boardoil:realtime-debug');
-    if (localStorageValue === '1' || localStorageValue === 'true') {
-      return true;
-    }
-  } catch {
-    // Ignore localStorage access errors and continue.
+  const storageValue = readBrowserStorageItem('boardoil:realtime-debug');
+  if (storageValue === '1' || storageValue === 'true') {
+    return true;
   }
 
   const search = typeof window !== 'undefined' ? window.location?.search ?? '' : '';
@@ -60,9 +70,20 @@ function resolveRealtimeDebugEnabled() {
 }
 
 export function createBoardRealtime(
-  handlers: RealtimeHandlers,
+  handlers: BoardRealtimeHandlers,
   errorReporter: ClientErrorReporter = clientErrorReporter
 ) {
+  if (boardRealtimeFactory !== createSignalRBoardRealtime) {
+    return boardRealtimeFactory(handlers);
+  }
+
+  return createSignalRBoardRealtime(handlers, errorReporter);
+}
+
+function createSignalRBoardRealtime(
+  handlers: BoardRealtimeHandlers,
+  errorReporter: ClientErrorReporter = clientErrorReporter
+): BoardRealtime {
   let hubConnection: HubConnection | null = null;
   let subscribedBoardId: number | null = null;
   let startPromise: Promise<void> | null = null;

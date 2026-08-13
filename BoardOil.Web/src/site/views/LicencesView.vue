@@ -1,7 +1,7 @@
 <template>
-  <section class="licences-view">
+  <section class="licences-view" :class="{ 'licences-view--embedded': embedded }">
     <header class="licences-header">
-      <h2>Third-Party Licences</h2>
+      <h2 v-if="!embedded">Third-Party Licences</h2>
       <p>Licence information for npm packages, NuGet packages, and bundled third-party assets.</p>
     </header>
 
@@ -58,6 +58,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+
+withDefaults(defineProps<{
+  embedded?: boolean;
+}>(), {
+  embedded: false
+});
 
 type CopiedLicence = {
   ecosystem?: 'npm' | 'nuget' | 'asset';
@@ -145,7 +151,8 @@ async function loadLicences() {
   manifestError.value = null;
 
   try {
-    const manifestResponse = await fetch('/third-party-licenses/manifest.json', { cache: 'no-store' });
+    const licenceRootUrl = new URL(`${import.meta.env.BASE_URL}third-party-licenses/`, document.baseURI);
+    const manifestResponse = await fetch(new URL('manifest.json', licenceRootUrl), { cache: 'no-store' });
     if (!manifestResponse.ok) {
       throw new Error(`Failed to load manifest (HTTP ${manifestResponse.status}).`);
     }
@@ -175,7 +182,7 @@ async function loadLicences() {
         }
 
         try {
-          const textResponse = await fetch(`/third-party-licenses/${encodeURIComponent(fileName)}`, { cache: 'no-store' });
+          const textResponse = await fetch(new URL(encodeURIComponent(fileName), licenceRootUrl), { cache: 'no-store' });
           if (!textResponse.ok) {
             throw new Error(`HTTP ${textResponse.status}`);
           }
@@ -228,6 +235,11 @@ async function loadLicences() {
   display: grid;
   gap: 0.9rem;
   max-width: 960px;
+}
+
+.licences-view--embedded {
+  margin: 0;
+  max-width: none;
 }
 
 .licences-header h2 {

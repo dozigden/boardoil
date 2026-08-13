@@ -28,14 +28,26 @@ import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
 import { deleteJson, getBinary, getEnvelope, patchData, postData, postFormData, postJson, putData } from './http';
 
-export type BoardApi = ReturnType<typeof createBoardApi>;
+export type BoardApi = ReturnType<typeof createHttpBoardApi>;
 export type BoardExportPackage = {
   fileName: string;
   contentType: string | null;
   blob: Blob;
 };
 
-export function createBoardApi() {
+type BoardApiFactory = () => BoardApi;
+
+let boardApiFactory: BoardApiFactory = createHttpBoardApi;
+
+export function configureBoardApiFactory(factory: BoardApiFactory) {
+  boardApiFactory = factory;
+}
+
+export function createBoardApi(): BoardApi {
+  return boardApiFactory();
+}
+
+function createHttpBoardApi() {
   async function getBoards(): Promise<Result<BoardSummary[], AppError>> {
     const envelopeResult = await getEnvelope<BoardSummary[]>('/api/boards');
     if (!envelopeResult.ok) {

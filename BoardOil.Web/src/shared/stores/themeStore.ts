@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
+import { readBrowserStorageItem, writeBrowserStorageItem } from '../utils/browserStorage';
 
 const THEME_MODE_STORAGE_KEY = 'boardoil:theme-mode';
 const SYSTEM_DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)';
@@ -92,24 +93,16 @@ export const useThemeStore = defineStore('theme', () => {
 });
 
 function readStoredMode(): ThemeMode {
-  try {
-    const value = globalThis.localStorage?.getItem(THEME_MODE_STORAGE_KEY);
-    if (value === 'light' || value === 'dark' || value === 'system') {
-      return value;
-    }
-  } catch {
-    // Ignore storage access failures and fall back to system mode.
+  const value = readBrowserStorageItem(THEME_MODE_STORAGE_KEY);
+  if (value === 'light' || value === 'dark' || value === 'system') {
+    return value;
   }
 
   return 'system';
 }
 
 function persistMode(mode: ThemeMode) {
-  try {
-    globalThis.localStorage?.setItem(THEME_MODE_STORAGE_KEY, mode);
-  } catch {
-    // Ignore storage access failures; theme still applies for current session.
-  }
+  writeBrowserStorageItem(THEME_MODE_STORAGE_KEY, mode);
 }
 
 function resolveSystemThemeQuery(): MediaQueryList | null {
