@@ -342,9 +342,9 @@ const hasActiveOptionFilters = computed(() =>
   height: 1.25rem;
   padding: 0 0.34rem;
   border-radius: 999px;
-  background: var(--bo-surface-brand);
-  border: 1px solid var(--bo-border-brand);
-  color: var(--bo-colour-brand-strong);
+  background: color-mix(in oklab, var(--bo-selection-accent) 18%, var(--bo-surface-panel));
+  border: 1px solid color-mix(in oklab, var(--bo-selection-accent) 58%, var(--bo-border-default));
+  color: var(--bo-selection-accent);
   font-size: 0.76rem;
   line-height: 1;
 }

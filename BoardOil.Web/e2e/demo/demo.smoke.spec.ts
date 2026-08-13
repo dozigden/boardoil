@@ -133,6 +133,7 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await page.getByRole('button', { name: 'Use dark mode' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.locator('.board-selection-toggle-label')).toHaveCSS('color', 'rgb(202, 184, 239)');
+    await expect(page.locator('.board-selection-toggle-count')).toHaveCSS('color', 'rgb(202, 184, 239)');
 
     await page.getByRole('button', { name: 'View third-party licences' }).click();
     const licencesDialog = page.getByRole('dialog');
