@@ -151,11 +151,11 @@ function sanitizeSvgIdPart(value: string) {
 
 @keyframes goo-selection-pulse {
   from {
-    opacity: 0.2;
+    opacity: 0.34;
   }
 
   to {
-    opacity: 0.38;
+    opacity: 0.56;
   }
 }
 

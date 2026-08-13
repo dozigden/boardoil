@@ -3,7 +3,8 @@ import type { BoardColumn } from '../../shared/types/boardTypes';
 import {
   buildSelectionGooDescriptors,
   buildSelectionGooMembershipSignature,
-  buildSelectionGooStyleSignature
+  buildSelectionGooStyleSignature,
+  createSelectionGooStyle
 } from './selectionGooAdapter';
 
 describe('selectionGooAdapter', () => {
@@ -40,6 +41,13 @@ describe('selectionGooAdapter', () => {
 
   it('builds style signature from colour token', () => {
     expect(buildSelectionGooStyleSignature('var(--bo-focus-ring)')).toBe('selection:var(--bo-focus-ring)');
+  });
+
+  it('uses the theme-aware selection accent by default', () => {
+    expect(createSelectionGooStyle()).toEqual({
+      colour: 'var(--bo-selection-accent)',
+      styleSignature: 'selection:var(--bo-selection-accent)'
+    });
   });
 });
 

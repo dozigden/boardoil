@@ -104,12 +104,35 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await expect(page.getByText('Edited in the static demo', { exact: true })).toHaveCount(0);
   });
 
+  await test.step('select cards without reflowing their titles', async () => {
+    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
+    const card = ideasColumn.locator('.card').filter({ hasText: 'Customer interview highlights' });
+    const title = card.locator('.card-title-text');
+    const titlePositionBeforeSelection = await title.boundingBox();
+
+    await page.getByTitle('Select cards').click();
+    await expect(page.getByRole('checkbox', { name: 'Toggle card selection mode' })).toBeChecked();
+    await expect(card).toHaveAttribute('role', 'checkbox');
+    await expect(card).toHaveAttribute('aria-checked', 'false');
+    await expect(card.locator('.card-selection-indicator')).toHaveCount(0);
+
+    const titlePositionInSelectionMode = await title.boundingBox();
+    expect(titlePositionInSelectionMode?.x).toBe(titlePositionBeforeSelection?.x);
+
+    await expect(card).toHaveCSS('box-shadow', 'none');
+    await card.hover();
+    await expect(card).not.toHaveCSS('box-shadow', 'none');
+    await card.click();
+    await expect(card).toHaveAttribute('aria-checked', 'true');
+  });
+
   await test.step('exercise demo-only controls', async () => {
     const installationLink = page.getByRole('link', { name: 'Get BoardOil' });
     await expect(installationLink).toHaveAttribute('href', ExpectedInstallationUrl);
 
     await page.getByRole('button', { name: 'Use dark mode' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('.board-selection-toggle-label')).toHaveCSS('color', 'rgb(202, 184, 239)');
 
     await page.getByRole('button', { name: 'View third-party licences' }).click();
     const licencesDialog = page.getByRole('dialog');

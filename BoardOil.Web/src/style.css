@@ -27,6 +27,7 @@
   --bo-colour-brand-strong: #5b2594;
   --bo-colour-brand-mid: #9d8abf;
   --bo-colour-brand-soft: #f1ebfb;
+  --bo-selection-accent: var(--bo-colour-brand-strong);
   --bo-colour-secondary: #69c1ce;
   --bo-colour-warning: #e8c07d;
   --bo-colour-danger: #cd474e;
@@ -141,6 +142,7 @@
   --bo-border-brand: #5e4d76;
 
   --bo-link: #cab8ef;
+  --bo-selection-accent: var(--bo-link);
   --bo-brand-drop-fill: color-mix(in srgb, var(--bo-link) 42%, #000000 58%);
   --bo-colour-danger-ink: #ff9fa4;
   --bo-colour-success-ink: #7ce8bf;

@@ -4,6 +4,7 @@
     :class="[
       cardStyleClasses,
       {
+        'card--selection-mode': selectionMode,
         'card--selected': selected,
         'card--dragging': isDragging,
         'card--multi-dragging': isDragging && selectionMode && selectedCount > 1,
@@ -24,14 +25,6 @@
   >
     <div class="card-header">
       <strong class="card-title">
-        <span
-          v-if="selectionMode"
-          class="card-selection-indicator"
-          :class="{ 'card-selection-indicator--selected': selected }"
-          aria-hidden="true"
-        >
-          {{ selected ? '✓' : '' }}
-        </span>
         <span class="card-title-text">{{ resolvedCardTypeEmoji ? `${resolvedCardTypeEmoji} ` : '' }}{{ card.title }}</span>
       </strong>
       <span class="card-id">#{{ card.id }}</span>
@@ -150,14 +143,22 @@ function handlePrimaryAction() {
 }
 
 .card--selected {
-  border-color: color-mix(in oklab, var(--bo-colour-brand) 58%, var(--bo-border-default));
-  background: color-mix(in oklab, var(--bo-colour-brand) 4%, var(--bo-surface-base));
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--bo-colour-brand) 26%, transparent);
+  border-color: color-mix(in oklab, var(--bo-selection-accent) 76%, var(--bo-border-default));
+  background: color-mix(in oklab, var(--bo-selection-accent) 10%, var(--bo-surface-base));
+  box-shadow:
+    inset 0 0 0 999px color-mix(in oklab, var(--bo-selection-accent) 10%, transparent),
+    inset 0 0 0 2px color-mix(in oklab, var(--bo-selection-accent) 58%, transparent);
+}
+
+.card--selection-mode:hover {
+  box-shadow:
+    inset 0 0 0 999px color-mix(in oklab, var(--bo-selection-accent) 22%, transparent),
+    inset 0 0 0 2px color-mix(in oklab, var(--bo-selection-accent) 82%, transparent);
 }
 
 .card.bo-card-style-presets.card--selected {
-  border-color: color-mix(in oklab, var(--bo-focus-ring) 72%, var(--bo-card-surface-border-color, var(--bo-border-default)));
-  background: color-mix(in oklab, var(--bo-card-surface-background, var(--bo-surface-base)) 88%, var(--bo-focus-ring) 12%);
+  border-color: color-mix(in oklab, var(--bo-selection-accent) 76%, var(--bo-card-surface-border-color, var(--bo-border-default)));
+  background: color-mix(in oklab, var(--bo-card-surface-background, var(--bo-surface-base)) 82%, var(--bo-selection-accent) 18%);
   color: var(--bo-card-surface-color, inherit);
 }
 
@@ -255,24 +256,4 @@ function handlePrimaryAction() {
   flex-shrink: 0;
 }
 
-.card-selection-indicator {
-  width: 1rem;
-  height: 1rem;
-  border-radius: 999px;
-  border: 1px solid var(--bo-border-default);
-  color: transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.72rem;
-  line-height: 1;
-  margin-top: 0.04rem;
-  flex: 0 0 auto;
-}
-
-.card-selection-indicator--selected {
-  border-color: var(--bo-colour-brand);
-  background: var(--bo-colour-brand);
-  color: var(--bo-ink-on-brand);
-}
 </style>

@@ -2,7 +2,7 @@ import type { BoardColumn } from '../../shared/types/boardTypes';
 import type { GooLayerDescriptor } from '../composables/useGooLayer';
 
 const SELECTION_GROUP_KEY = 'selection';
-const DEFAULT_SELECTION_GOO_COLOUR = 'var(--bo-colour-brand)';
+const DEFAULT_SELECTION_GOO_COLOUR = 'var(--bo-selection-accent)';
 
 export type SelectionGooStyle = {
   colour: string;

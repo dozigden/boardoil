@@ -291,7 +291,7 @@ const hasActiveOptionFilters = computed(() =>
 }
 
 .board-selection-toggle-input:checked ~ .board-selection-toggle-label {
-  color: var(--bo-colour-brand);
+  color: var(--bo-selection-accent);
 }
 
 .board-selection-toggle-label {
