@@ -63,7 +63,7 @@ import { useBoardStore } from '../board/stores/boardStore';
 import { resetDemoData } from './demoBoardApi';
 import DemoLicencesDialog from './DemoLicencesDialog.vue';
 import { demoResetVersion } from './demoReset';
-import { activeDemoTheme, toggleDemoTheme } from './demoSystemTheme';
+import { activeDemoTheme, toggleDemoTheme } from './demoTheme';
 
 const boardStore = useBoardStore();
 const { board } = storeToRefs(boardStore);

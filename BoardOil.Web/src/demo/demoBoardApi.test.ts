@@ -85,6 +85,68 @@ describe('demoBoardApi', () => {
     expect(targetColumn?.cards[0]?.id).toBe(createResult.data.id);
   });
 
+  it('creates visitor slicks in memory with an id and preset style', async () => {
+    const api = createDemoBoardApi();
+
+    const editResult = await api.saveCard(1, 101, {
+      title: 'Customer interview highlights',
+      description: 'Grouped in the demo session.',
+      externalUrl: null,
+      tagNames: ['Feature'],
+      cardTypeId: 1,
+      boardColumnId: 1,
+      assignedUserId: null,
+      slickName: 'Visitor slick'
+    });
+    expect(editResult.ok).toBe(true);
+    if (!editResult.ok) {
+      return;
+    }
+
+    expect(editResult.data).toMatchObject({
+      slickId: 2,
+      slickName: 'Visitor slick'
+    });
+
+    const slicksResult = await api.getSlicks(1);
+    expect(slicksResult.ok).toBe(true);
+    if (!slicksResult.ok) {
+      return;
+    }
+
+    expect(slicksResult.data).toContainEqual(expect.objectContaining({
+      id: 2,
+      name: 'Visitor slick',
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":0}'
+    }));
+  });
+
+  it('creates visitor tags with preset styling', async () => {
+    const api = createDemoBoardApi();
+
+    const createResult = await api.createTag(1, 'Visitor tag', null);
+    expect(createResult.ok).toBe(true);
+    if (!createResult.ok) {
+      return;
+    }
+
+    expect(createResult.data).toMatchObject({
+      name: 'Visitor tag',
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":1}'
+    });
+
+    const defaultStyleResult = await api.getTagCreateDefaultStyle(1);
+    expect(defaultStyleResult).toEqual({
+      ok: true,
+      data: {
+        styleName: 'presets',
+        stylePropertiesJson: '{"presetIndex":1}'
+      }
+    });
+  });
+
   it('archives and restores cards without a server', async () => {
     const api = createDemoBoardApi();
 

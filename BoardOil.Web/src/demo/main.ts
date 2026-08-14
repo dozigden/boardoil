@@ -5,13 +5,13 @@ import { configureBoardRealtimeFactory } from '../board/realtime/boardRealtime';
 import DemoApp from './DemoApp.vue';
 import { createDemoBoardApi } from './demoBoardApi';
 import { createDemoRealtime } from './demoRealtime';
-import { installDemoSystemTheme } from './demoSystemTheme';
+import { installDemoTheme } from './demoTheme';
 import { demoRouter } from './router';
 import '../style.css';
 
 configureBoardApiFactory(createDemoBoardApi);
 configureBoardRealtimeFactory(createDemoRealtime);
-installDemoSystemTheme();
+installDemoTheme();
 
 const pinia = createPinia();
 

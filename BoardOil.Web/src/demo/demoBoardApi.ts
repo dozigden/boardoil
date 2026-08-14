@@ -29,6 +29,7 @@ type DemoState = {
   archivedCards: ArchivedCard[];
   nextCardId: number;
   nextTagId: number;
+  nextSlickId: number;
   nextCommentId: number;
 };
 
@@ -376,7 +377,7 @@ const demoBoardApi: BoardApi = {
     if (boardId !== DemoBoardId) {
       return notFound('Board not found.');
     }
-    return ok({ styleName: 'auto', stylePropertiesJson: '{}' });
+    return ok({ styleName: 'presets', stylePropertiesJson: '{"presetIndex":1}' });
   },
 
   async createTag(boardId, name, emoji) {
@@ -484,9 +485,9 @@ function setCardSlick(card: Card, slickName: string | null) {
     return;
   }
 
-  const slick = state.slicks.find(candidate => candidate.name.toLocaleLowerCase() === canonicalName.toLocaleLowerCase());
-  card.slickId = slick?.id ?? null;
-  card.slickName = slick?.name ?? canonicalName;
+  const slick = ensureSlick(canonicalName);
+  card.slickId = slick.id;
+  card.slickName = slick.name;
 }
 
 function moveCardInternal(cardId: number, targetColumnId: number, positionAfterCardId: number | null) {
@@ -581,13 +582,33 @@ function ensureTag(name: string, emoji: string | null = null) {
     id: state.nextTagId++,
     name: canonicalName,
     emoji,
-    styleName: 'auto',
-    stylePropertiesJson: '{}',
+    styleName: 'presets',
+    stylePropertiesJson: '{"presetIndex":1}',
     createdAtUtc: timestamp,
     updatedAtUtc: timestamp
   };
   state.tags.push(tag);
   return tag;
+}
+
+function ensureSlick(name: string) {
+  const canonicalName = name.trim();
+  const existing = state.slicks.find(slick => slick.name.toLocaleLowerCase() === canonicalName.toLocaleLowerCase());
+  if (existing) {
+    return existing;
+  }
+
+  const timestamp = now();
+  const slick: Slick = {
+    id: state.nextSlickId++,
+    name: canonicalName,
+    styleName: 'presets',
+    stylePropertiesJson: '{"presetIndex":0}',
+    createdAtUtc: timestamp,
+    updatedAtUtc: timestamp
+  };
+  state.slicks.push(slick);
+  return slick;
 }
 
 function reindexColumn(columnId: number) {
@@ -789,6 +810,7 @@ function createSeedState(): DemoState {
     archivedCards: [],
     nextCardId: 120,
     nextTagId: 6,
+    nextSlickId: 2,
     nextCommentId: 2
   };
 
