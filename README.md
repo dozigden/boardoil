@@ -16,12 +16,9 @@ It's written in .NET and Vue3.  I deploy it myself via Docker, so that's had the
 > Warning
 > While I rely on this project for much of my own work, use at own risk.
 
-## Quick Start - Docker compose
-The docker-compose.yml pulls the latest published image.
+## Quick Start
 
-You will need to be authenticated to the GitHub registry in Docker, see https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
-
-Once BoardOil is served over HTTPS, set `BoardOilAuth__AllowInsecureCookies` to `false`.
+See [Getting Started with BoardOil](GETTING_STARTED.md) to get BoardOil running with Docker.
 
 
 ## MCP
