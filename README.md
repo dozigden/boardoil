@@ -1,6 +1,7 @@
 # BoardOil
 
-BoardOil is a self-hosted Kanban board mostly meant for my home lab environment,  I use it to plan tech projects, gardening, and even a wedding.
+BoardOil is a self-hosted Kanban board mostly meant for my home lab environment,  I use it to plan tech projects, gardening, and even a wedding.  Try the [live demo](https://boardoil.dozigden.com).
+
 
 ![BoardOil screenshot](Branding/Screenshot.png)
 
@@ -8,12 +9,12 @@ See more at [https://boardoil.dozigden.com](https://boardoil.dozigden.com).
 
 Key features:
 Multiple boards with basic RBAC.
-It's got a REST API and MCP server.
+REST API and MCP server.
 
 It's written in .NET and Vue3.  I deploy it myself via Docker, so that's had the most testing.
 
 > Warning
-> While I rely on this project for much of my own work it is mostly a learning experience. Use at own risk.
+> While I rely on this project for much of my own work, use at own risk.
 
 ## Quick Start - Docker compose
 The docker-compose.yml pulls the latest published image.
@@ -22,33 +23,10 @@ You will need to be authenticated to the GitHub registry in Docker, see https://
 
 Once BoardOil is served over HTTPS, set `BoardOilAuth__AllowInsecureCookies` to `false`.
 
-### MCP container options
 
-MCP behavior can be configured through environment variables:
+## MCP
 
-- `BoardOilMcp__TransportMode`: `http` (default) or `both` 
-- `BoardOilMcp__AuthMode`: `pat` (default) or `none`
-- `BoardOilMcp__AnonymousActorUserId`: actor user id used when `AuthMode=none` (default `1`)
-
-Recommended secure default:
-
-```yaml
-environment:
-  BoardOilMcp__TransportMode: "http"
-  BoardOilMcp__AuthMode: "pat"
-```
-
-Home Assistant example (SSE + no auth):
-
-```yaml
-environment:
-  BoardOilMcp__TransportMode: "both"
-  BoardOilMcp__AuthMode: "none"
-  BoardOilMcp__AnonymousActorUserId: "1"
-```
-
-> Warning
-> `BoardOilMcp__AuthMode=none` disables MCP authentication. Only use this on trusted/local networks.
+See [Connect an MCP Client to BoardOil](MCP.md) for MCP setup instructions.
 
 ### Data volume
 
@@ -69,7 +47,13 @@ cd BoardOil.Web && npm ci
 Run backend + frontend:
 
 ```bash
-./dev-startall.sh
+./dev.sh
+```
+
+or
+
+```powershell
+./dev.ps1
 ```
 
 ### Compose
