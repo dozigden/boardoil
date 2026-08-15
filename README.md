@@ -1,6 +1,6 @@
 # BoardOil
 
-BoardOil is a self-hosted Kanban board mostly meant for my home lab environment,  I use it to plan tech projects, gardening, and even a wedding.  Try the [live demo](https://boardoil.dozigden.com).
+BoardOil is a self-hosted Kanban board mostly meant for my home lab environment,  I use it to plan tech projects, gardening, and even a wedding.  Try the [live demo](https://demo.boardoil.dozigden.com).
 
 
 ![BoardOil screenshot](Branding/Screenshot.png)
