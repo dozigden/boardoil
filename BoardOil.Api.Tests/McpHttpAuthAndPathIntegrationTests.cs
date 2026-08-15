@@ -124,7 +124,7 @@ public sealed class McpHttpAuthAndPathIntegrationTests : McpIntegrationTestBase
         Assert.Equal("/mcp", payload.Data.GetProperty("endpoint").GetString());
         Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
         Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
-        Assert.Contains("PAT bearer token", payload.Data.GetProperty("nextStep").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("access token as the bearer token", payload.Data.GetProperty("nextStep").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     private static string CreateToken(DateTime expiresAtUtc)

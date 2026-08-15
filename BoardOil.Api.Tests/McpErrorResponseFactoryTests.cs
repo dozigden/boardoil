@@ -45,7 +45,7 @@ public sealed class McpErrorResponseFactoryTests
         var payload = result.Data!.ToJsonElement();
         Assert.Equal("/v1/mcp", payload.GetProperty("requestedPath").GetString());
         Assert.Equal("/mcp", payload.GetProperty("endpoint").GetString());
-        Assert.Contains("PAT bearer token", payload.GetProperty("nextStep").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("access token as the bearer token", payload.GetProperty("nextStep").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 }
 

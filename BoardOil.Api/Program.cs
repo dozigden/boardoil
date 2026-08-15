@@ -119,7 +119,7 @@ builder.Services.AddSwaggerGen(options =>
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "PAT",
-        Description = "Personal access token. Paste the raw `bo_pat_...` value; Swagger UI will add `Bearer`."
+        Description = "Access token. Paste the raw `bo_pat_...` value; Swagger UI will add `Bearer`."
     });
     options.OperationFilter<PatSecurityOperationFilter>();
 });

@@ -74,7 +74,7 @@ public sealed class McpPatAuthenticationHandler(
         var scopes = ParseScopes(personalAccessToken.ScopesCsv);
         if (isMcpRequest && !HasAnyMcpScope(scopes))
         {
-            return AuthenticateResult.Fail("Personal access token does not allow MCP access.");
+            return AuthenticateResult.Fail("Access token does not allow MCP access.");
         }
 
         var shouldUpdateLastUsedAt = !personalAccessToken.LastUsedAtUtc.HasValue

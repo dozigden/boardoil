@@ -1,6 +1,6 @@
 <template>
   <ModalDialog :open="open" title="Create Access Token" close-label="Cancel access token creation" @close="emit('close')" @submit="submit">
-    <p class="machine-pat-dialog-hint">Create a personal access token for MCP and REST API clients without sharing your account password.</p>
+    <p class="machine-pat-dialog-hint">Create an access token for MCP and REST API clients without sharing your account password.</p>
 
     <label>
       Token name

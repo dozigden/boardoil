@@ -1,0 +1,90 @@
+# Connect an MCP Client to BoardOil
+
+BoardOil includes a Streamable HTTP MCP server for agents to access your boards. OAuth is the recommended authentication method. Access tokens remain available as a manual fallback.
+
+## Choose an authentication method
+
+| Method | Endpoint | Use it when |
+| --- | --- | --- |
+| OAuth | `https://your-boardoil-address/mcp/oauth` | Your client supports OAuth. This is the recommended option. |
+| Access token | `https://your-boardoil-address/mcp` | Your client cannot complete the OAuth flow or you need an explicitly managed token. |
+
+OAuth opens BoardOil in your browser so you can sign in, review the requested scopes, and authorize the connection. The client stores and refreshes its OAuth credentials. You can inspect or revoke the connection under **User settings → Authentication → OAuth**.
+
+An access token is a manually managed secret that acts with its owner's BoardOil permissions. Store it as a credential, never commit it to source control, and do not paste it into an agent conversation.
+
+## Recommended OAuth setup
+
+### Ask your agent
+
+If your agent can configure MCP servers, give it the complete OAuth endpoint:
+
+```text
+Connect to the BoardOil MCP server at https://your-boardoil-address/mcp/oauth using OAuth. Start authentication when ready.
+```
+
+Ask it to configure BoardOil globally so it is available in every project. Project-specific configuration is also possible when you need to limit access.
+
+The client may ask for approval before changing its configuration or may require a restart before the new server becomes available. If it cannot configure itself, use one of the manual setups below.
+
+### Codex
+
+Create or update `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.boardoil]
+url = "https://your-boardoil-address/mcp/oauth"
+auth = "oauth"
+```
+
+Run the OAuth login:
+
+```sh
+codex mcp login boardoil
+```
+
+Follow the browser flow to sign in to BoardOil and approve the connection.
+
+For an advanced project-specific setup, put the same configuration in `.codex/config.toml` inside a trusted project instead.
+
+Codex CLI, the Codex IDE extension, and the ChatGPT desktop app share MCP configuration on the same Codex host. You can also add BoardOil through the graphical MCP server settings by choosing Streamable HTTP, entering the OAuth endpoint, and selecting **Authenticate** when prompted. See the [official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) for current client-specific controls.
+
+### Claude Code
+
+To make BoardOil available in every project, run:
+
+```sh
+claude mcp add --transport http --scope user boardoil "https://your-boardoil-address/mcp/oauth"
+```
+
+Open Claude Code, use `/mcp`, select BoardOil, and complete the browser authentication flow. See the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp) for current client-specific controls.
+
+For an advanced project-specific setup, run the command from that project with `--scope local` instead.
+
+
+## Access token fallback
+
+Use an access token only when OAuth is not supported or when you deliberately need a manually managed credential.
+
+1. In BoardOil, open **User settings → Authentication → Access tokens**.
+2. Create an access token and grant only the scopes the client needs:
+   - `mcp:read` for reading boards and cards.
+   - `mcp:write` for creating, updating, moving, commenting on, or deleting cards.
+3. Copy the token when it is shown and store it securely. BoardOil does not show the complete token again.
+4. Configure the client to use `https://your-boardoil-address/mcp` with the token as a Bearer credential.
+
+For Codex, keep the token outside `config.toml` and reference an environment variable:
+
+```toml
+[mcp_servers.boardoil]
+url = "https://your-boardoil-address/mcp"
+bearer_token_env_var = "BOARDOIL_MCP_TOKEN"
+```
+
+Set `BOARDOIL_MCP_TOKEN` in the environment used to launch Codex. Do not include the token value in a repository file or in the prompt you send to the agent.
+
+Access-token connections can use the same `identity_get` verification as OAuth connections. Revoke an access token under **User settings → Authentication → Access tokens** when it is no longer needed or may have been exposed.
+
+### Local unauthenticated mode
+
+BoardOil can expose MCP without authentication for a tightly controlled local integration. This gives every caller the permissions of the configured BoardOil user and must not be exposed to an untrusted network. See [Advanced Installation](ADVANCED_INSTALLATION.md#mcp-configuration) for the required environment variables.

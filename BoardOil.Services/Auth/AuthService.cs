@@ -266,7 +266,7 @@ public sealed class AuthService(
         var token = await personalAccessTokenRepository.GetByIdAsync(tokenId);
         if (token is null || token.UserId != userId)
         {
-            return ApiErrors.NotFound("Personal access token was not found.");
+            return ApiErrors.NotFound("Access token was not found.");
         }
 
         if (token.RevokedAtUtc is null)

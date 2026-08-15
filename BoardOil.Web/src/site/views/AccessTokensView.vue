@@ -2,7 +2,7 @@
   <section class="authentication-method-page">
     <header class="authentication-method-header">
       <div>
-        <p>Personal Access Tokens for MCP clients so that they can act as you.  If you want an agent to have its own identity use a client account instead.</p>
+        <p>Access tokens are a manual fallback for MCP clients that cannot use OAuth. They act as you; use a client account when an agent needs its own identity.</p>
       </div>
       <button type="button" class="btn" :disabled="isBusy" @click="openCreateDialog">Create access token</button>
     </header>
@@ -47,27 +47,27 @@
 
         <article class="panel panel--base panel--compact panel-stack panel-stack--tight machine-pat-setup-item">
           <header class="machine-pat-setup-item-header">
-            <h4>Generic MCP config snippet</h4>
-            <div class="btn-tab-list" role="tablist" aria-label="Generic MCP config formats">
+            <h4>Client setup</h4>
+            <div class="btn-tab-list" role="tablist" aria-label="Access token client setup">
               <button
                 type="button"
                 class="btn btn--tab"
-                :class="{ 'is-active': configSnippetTab === 'json' }"
+                :class="{ 'is-active': configSnippetTab === 'claude-code' }"
                 role="tab"
-                :aria-selected="configSnippetTab === 'json'"
-                @click="configSnippetTab = 'json'"
+                :aria-selected="configSnippetTab === 'claude-code'"
+                @click="configSnippetTab = 'claude-code'"
               >
-                JSON (Copilot)
+                Claude Code
               </button>
               <button
                 type="button"
                 class="btn btn--tab"
-                :class="{ 'is-active': configSnippetTab === 'toml' }"
+                :class="{ 'is-active': configSnippetTab === 'codex' }"
                 role="tab"
-                :aria-selected="configSnippetTab === 'toml'"
-                @click="configSnippetTab = 'toml'"
+                :aria-selected="configSnippetTab === 'codex'"
+                @click="configSnippetTab = 'codex'"
               >
-                TOML (Codex)
+                Codex
               </button>
             </div>
           </header>
@@ -86,49 +86,8 @@
           </div>
         </article>
 
-        <article class="panel panel--base panel--compact panel-stack panel-stack--tight machine-pat-setup-item">
-          <header class="machine-pat-setup-item-header">
-            <h4>Manual test</h4>
-            <div class="btn-tab-list" role="tablist" aria-label="Manual test examples">
-              <button
-                type="button"
-                class="btn btn--tab"
-                :class="{ 'is-active': manualTestTab === 'curl' }"
-                role="tab"
-                :aria-selected="manualTestTab === 'curl'"
-                @click="manualTestTab = 'curl'"
-              >
-                Curl
-              </button>
-              <button
-                type="button"
-                class="btn btn--tab"
-                :class="{ 'is-active': manualTestTab === 'powershell' }"
-                role="tab"
-                :aria-selected="manualTestTab === 'powershell'"
-                @click="manualTestTab = 'powershell'"
-              >
-                PowerShell
-              </button>
-            </div>
-          </header>
-          <div class="authentication-setup-code-block">
-            <pre class="authentication-setup-code">{{ selectedManualTestSnippet }}</pre>
-            <button
-              type="button"
-              class="btn btn--secondary authentication-setup-copy"
-              :disabled="isBusy"
-              :aria-label="`Copy ${selectedManualTestSnippetLabel} example`"
-              :title="`Copy ${selectedManualTestSnippetLabel} example`"
-              @click="copySnippet(selectedManualTestSnippet, `${selectedManualTestSnippetLabel} manual test command`)"
-            >
-              <Copy :size="14" aria-hidden="true" />
-            </button>
-          </div>
-        </article>
-
         <p class="machine-pat-setup-note">
-          Use PAT as the direct bearer token for MCP calls. PATs do not use refresh-token login.
+          Set <code>BOARDOIL_MCP_TOKEN</code> in the environment before using these examples. Keep access tokens in private user configuration and never commit them to source control.
         </p>
       </aside>
     </div>
@@ -174,8 +133,7 @@ const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const plainTextPat = ref<string | null>(null);
 const plainTextPatName = ref<string>('');
-const configSnippetTab = ref<'json' | 'toml'>('json');
-const manualTestTab = ref<'curl' | 'powershell'>('curl');
+const configSnippetTab = ref<'claude-code' | 'codex'>('claude-code');
 
 const isBusy = computed(() => loading.value || createBusy.value || revokeBusyTokenId.value !== null);
 const isSecretModalOpen = computed(() => plainTextPat.value !== null);
@@ -183,43 +141,29 @@ const mcpEndpoint = computed(() => `${window.location.origin}/mcp`);
 const apiBaseUrl = computed(() => window.location.origin);
 const userDefaultScopes = ['mcp:read', 'mcp:write'];
 const userAllowedScopes = ['mcp:read', 'mcp:write'];
-const genericConfigSnippetJson = computed(() =>
-  `{
-  "mcpServers": {
-    "boardoil": {
-      "transport": "http",
-      "url": "${mcpEndpoint.value}",
-      "headers": {
-        "Authorization": "Bearer <YOUR_ACCESS_TOKEN>"
-      }
-    }
-  }
-}`
+const claudeCodeConfigSnippet = computed(() =>
+  `claude mcp add --transport http --scope user boardoil "${mcpEndpoint.value}" \\
+  --header "Authorization: Bearer \${BOARDOIL_MCP_TOKEN}"`
 );
-const genericConfigSnippetToml = computed(() =>
+const codexConfigSnippet = computed(() =>
   `[mcp_servers.boardoil]
 url = "${mcpEndpoint.value}"
 bearer_token_env_var = "BOARDOIL_MCP_TOKEN"`
 );
-const selectedConfigSnippet = computed(() => (configSnippetTab.value === 'json' ? genericConfigSnippetJson.value : genericConfigSnippetToml.value));
-const selectedConfigSnippetLabel = computed(() => (configSnippetTab.value === 'json' ? 'JSON' : 'TOML'));
-const manualTestCurlSnippet = computed(() =>
-  `curl -sS -X POST ${mcpEndpoint.value} \\
-  -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>" \\
-  -H "Content-Type: application/json" \\
-  --data '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list"}'`
-);
-const manualTestPowerShellSnippet = computed(() =>
-  `$endpoint = "${mcpEndpoint.value}"
-$headers = @{
-  Authorization = "Bearer <YOUR_ACCESS_TOKEN>"
-  "Content-Type" = "application/json"
-}
-$body = '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list"}'
-Invoke-RestMethod -Method Post -Uri $endpoint -Headers $headers -Body $body`
-);
-const selectedManualTestSnippet = computed(() => (manualTestTab.value === 'curl' ? manualTestCurlSnippet.value : manualTestPowerShellSnippet.value));
-const selectedManualTestSnippetLabel = computed(() => (manualTestTab.value === 'curl' ? 'Curl' : 'PowerShell'));
+const selectedConfigSnippet = computed(() => {
+  if (configSnippetTab.value === 'claude-code') {
+    return claudeCodeConfigSnippet.value;
+  }
+
+  return codexConfigSnippet.value;
+});
+const selectedConfigSnippetLabel = computed(() => {
+  if (configSnippetTab.value === 'claude-code') {
+    return 'Claude Code';
+  }
+
+  return 'Codex';
+});
 
 onMounted(async () => {
   await loadInitialData();

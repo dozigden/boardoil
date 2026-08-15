@@ -46,13 +46,13 @@ https://your-boardoil-address/mcp/oauth
 
 Compatible clients will discover BoardOil's OAuth configuration and ask you to sign in and authorize the connection. Authorized connections can be viewed and revoked under **User settings → Authentication → OAuth**.
 
-If a client does not support OAuth, create a personal access token under **User settings → Authentication → Access tokens** and connect it to:
+If a client does not support OAuth, create an access token under **User settings → Authentication → Access tokens** and connect it to:
 
 ```text
 https://your-boardoil-address/mcp
 ```
 
-Send the token as `Authorization: Bearer <YOUR_PAT>`.
+Send the token as `Authorization: Bearer <YOUR_ACCESS_TOKEN>`.
 
 BoardOil uses the Streamable HTTP transport. To also enable the legacy SSE transport, set `BoardOilMcp__TransportMode` to `both`.
 

@@ -37,7 +37,7 @@ internal sealed class PatSecurityOperationFilter : IOperationFilter
 
         if (pathString.StartsWithSegments("/api/auth/access-tokens", StringComparison.OrdinalIgnoreCase))
         {
-            AppendPatNotes(operation, ["PATs cannot call this endpoint."]);
+            AppendPatNotes(operation, ["Access tokens cannot call this endpoint."]);
             return;
         }
 
@@ -49,7 +49,7 @@ internal sealed class PatSecurityOperationFilter : IOperationFilter
 
         var notes = new List<string>
         {
-            $"Required PAT scope: `{requiredScope}`."
+            $"Required access token scope: `{requiredScope}`."
         };
 
         AppendPatNotes(operation, notes);
@@ -94,7 +94,7 @@ internal sealed class PatSecurityOperationFilter : IOperationFilter
             return;
         }
 
-        var lines = new List<string> { "PAT notes:" };
+        var lines = new List<string> { "Access token notes:" };
         lines.AddRange(noteList.Select(note => $"- {note}"));
         var block = string.Join('\n', lines);
 

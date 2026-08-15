@@ -75,9 +75,19 @@
       </section>
 
       <aside v-if="!administrator" class="authentication-method-sidecar panel panel-stack">
-        <h3>Project setup</h3>
+        <h3>Connect an MCP client</h3>
         <article class="panel panel--base panel--compact panel-stack panel-stack--tight oauth-setup-item">
           <div class="btn-tab-list" role="tablist" aria-label="OAuth client setup">
+            <button
+              type="button"
+              class="btn btn--tab"
+              :class="{ 'is-active': setupClient === 'agent' }"
+              role="tab"
+              :aria-selected="setupClient === 'agent'"
+              @click="setupClient = 'agent'"
+            >
+              Ask your agent
+            </button>
             <button
               type="button"
               class="btn btn--tab"
@@ -99,18 +109,54 @@
               Claude Code
             </button>
           </div>
-          <p v-if="setupClient === 'codex'">
-            Copy this into the repository's <code>.codex/config.toml</code>.
+          <p v-if="setupClient === 'agent'">
+            Send this prompt to an agent that can configure MCP servers. It may ask before changing its configuration.
+          </p>
+          <div v-if="setupClient === 'agent'" class="oauth-setup-scope">
+            <span class="oauth-setup-scope-label">Configuration scope</span>
+            <div class="btn-tab-list" role="group" aria-label="Agent configuration scope">
+              <button
+                type="button"
+                class="btn btn--tab"
+                :class="{ 'is-active': agentSetupScope === 'global' }"
+                :aria-pressed="agentSetupScope === 'global'"
+                @click="agentSetupScope = 'global'"
+              >
+                Global
+              </button>
+              <button
+                type="button"
+                class="btn btn--tab"
+                :class="{ 'is-active': agentSetupScope === 'project' }"
+                :aria-pressed="agentSetupScope === 'project'"
+                @click="agentSetupScope = 'project'"
+              >
+                Project
+              </button>
+            </div>
+          </div>
+          <p v-else-if="setupClient === 'codex'">
+            Add this to <code>~/.codex/config.toml</code>, then run <code>codex mcp login boardoil</code>.
+            For a project-specific setup, use <code>.codex/config.toml</code> inside a trusted project instead.
           </p>
           <p v-else>
-            Run this from the repository, then use <code>/mcp</code> in Claude Code to authenticate.
+            Run this once, then run <code>claude mcp login boardoil</code> or use <code>/mcp</code> in Claude Code.
+            For a project-specific setup, replace <code>--scope user</code> with <code>--scope local</code> and run it from that project.
           </p>
           <p v-if="configurationErrorMessage" class="error">
             {{ configurationErrorMessage }}
           </p>
-          <p v-else-if="!configSnippet">Loading OAuth configuration...</p>
+          <p v-else-if="!setupSnippet">Loading OAuth configuration...</p>
           <div v-else class="authentication-setup-code-block">
-            <pre class="authentication-setup-code">{{ configSnippet }}</pre>
+            <textarea
+              v-if="setupClient === 'agent'"
+              class="authentication-setup-code oauth-agent-prompt"
+              :value="setupSnippet"
+              rows="8"
+              readonly
+              aria-label="Agent setup prompt"
+            />
+            <pre v-else class="authentication-setup-code">{{ setupSnippet }}</pre>
             <button
               type="button"
               class="btn btn--secondary authentication-setup-copy"
@@ -136,12 +182,14 @@ import { createOAuthConnectionsApi } from '../api/oauthConnectionsApi';
 import { createSystemOAuthConnectionsApi } from '../api/systemOAuthConnectionsApi';
 import { useConfirm } from '../composables/useConfirm';
 import type { OAuthConnection } from '../types/oauthConnectionTypes';
+import type { AgentOAuthScope } from '../utils/oauthConnectionPresentation';
 import {
+  buildAgentOAuthPrompt,
   buildClaudeCodeOAuthCommand,
   buildCodexOAuthConfig
 } from '../utils/oauthConnectionPresentation';
 
-type SetupClient = 'codex' | 'claude-code';
+type SetupClient = 'agent' | 'codex' | 'claude-code';
 
 const props = defineProps<{
   administrator?: boolean;
@@ -156,10 +204,15 @@ const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const configurationErrorMessage = ref<string | null>(null);
 const mcpResourceUrl = ref<string | null>(null);
-const setupClient = ref<SetupClient>('codex');
-const configSnippet = computed(() => {
+const setupClient = ref<SetupClient>('agent');
+const agentSetupScope = ref<AgentOAuthScope>('global');
+const setupSnippet = computed(() => {
   if (!mcpResourceUrl.value) {
     return null;
+  }
+
+  if (setupClient.value === 'agent') {
+    return buildAgentOAuthPrompt(mcpResourceUrl.value, agentSetupScope.value);
   }
 
   if (setupClient.value === 'claude-code') {
@@ -169,6 +222,10 @@ const configSnippet = computed(() => {
   return buildCodexOAuthConfig(mcpResourceUrl.value);
 });
 const copyButtonLabel = computed(() => {
+  if (setupClient.value === 'agent') {
+    return 'Copy prompt';
+  }
+
   if (setupClient.value === 'claude-code') {
     return 'Copy command';
   }
@@ -245,21 +302,23 @@ async function revokeConnection(connection: OAuthConnection) {
 }
 
 async function copyConfig() {
-  if (!configSnippet.value) {
+  if (!setupSnippet.value) {
     configurationErrorMessage.value = 'OAuth configuration has not loaded yet.';
     return;
   }
 
   try {
-    await navigator.clipboard.writeText(configSnippet.value);
-    if (setupClient.value === 'claude-code') {
+    await navigator.clipboard.writeText(setupSnippet.value);
+    if (setupClient.value === 'agent') {
+      successMessage.value = 'Copied MCP setup prompt.';
+    } else if (setupClient.value === 'claude-code') {
       successMessage.value = 'Copied Claude Code OAuth command.';
     } else {
       successMessage.value = 'Copied Codex OAuth configuration.';
     }
     errorMessage.value = null;
   } catch {
-    errorMessage.value = 'Could not copy the configuration automatically.';
+    errorMessage.value = 'Could not copy the setup automatically.';
   }
 }
 
@@ -300,6 +359,26 @@ function formatDate(value: string | null) {
 
 .oauth-setup-item {
   min-width: 0;
+}
+
+.oauth-setup-scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.oauth-setup-scope-label {
+  color: var(--bo-ink-muted);
+  font-size: 0.85rem;
+}
+
+.oauth-agent-prompt {
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 </style>
