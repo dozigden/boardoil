@@ -1,6 +1,9 @@
 <template>
-  <section class="user-authentication-view">
-    <nav class="user-authentication-tabs" role="tablist" aria-label="Authentication methods">
+  <section
+    class="user-authentication-view"
+    :class="{ 'user-authentication-view--mcp-help': isMcpHelp }"
+  >
+    <nav class="user-authentication-tabs" role="tablist" aria-label="Authentication and MCP help">
       <RouterLink
         :to="{ name: 'user-admin-oauth-connections' }"
         class="user-authentication-tab"
@@ -19,6 +22,15 @@
       >
         Access Tokens
       </RouterLink>
+      <RouterLink
+        :to="{ name: 'user-admin-mcp-help' }"
+        class="user-authentication-tab"
+        :class="{ 'is-active': route.name === 'user-admin-mcp-help' }"
+        role="tab"
+        :aria-selected="route.name === 'user-admin-mcp-help'"
+      >
+        MCP Help
+      </RouterLink>
     </nav>
 
     <RouterView />
@@ -26,15 +38,24 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
 
 const route = useRoute();
+const isMcpHelp = computed(() => route.name === 'user-admin-mcp-help');
 </script>
 
 <style scoped>
 .user-authentication-view {
   display: grid;
   gap: 1rem;
+}
+
+.user-authentication-view--mcp-help {
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .user-authentication-tabs {

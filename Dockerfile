@@ -12,6 +12,7 @@ WORKDIR /src/BoardOil.Web
 COPY BoardOil.Web/package.json BoardOil.Web/package-lock.json ./
 RUN npm ci
 COPY BoardOil.Web/ ./
+COPY MCP.md /src/MCP.md
 ENV VITE_BO_VERSION=$BO_VERSION
 ENV VITE_BO_CHANNEL=$BO_CHANNEL
 ENV VITE_BO_BUILD=$BO_BUILD

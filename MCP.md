@@ -4,10 +4,9 @@ BoardOil includes a Streamable HTTP MCP server for agents to access your boards.
 
 ## Choose an authentication method
 
-| Method | Endpoint | Use it when |
-| --- | --- | --- |
-| OAuth | `https://your-boardoil-address/mcp/oauth` | Your client supports OAuth. This is the recommended option. |
-| Access token | `https://your-boardoil-address/mcp` | Your client cannot complete the OAuth flow or you need an explicitly managed token. |
+**OAuth (recommended):** Use `https://your-boardoil-address/mcp/oauth` when your client supports OAuth.
+
+**Access token:** Use `https://your-boardoil-address/mcp` when your client cannot complete the OAuth flow or you need an explicitly managed token.
 
 OAuth opens BoardOil in your browser so you can sign in, review the requested scopes, and authorize the connection. The client stores and refreshes its OAuth credentials. You can inspect or revoke the connection under **User settings → Authentication → OAuth**.
 
@@ -87,4 +86,4 @@ Access-token connections can use the same `identity_get` verification as OAuth c
 
 ### Local unauthenticated mode
 
-BoardOil can expose MCP without authentication for a tightly controlled local integration. This gives every caller the permissions of the configured BoardOil user and must not be exposed to an untrusted network. See [Advanced Installation](ADVANCED_INSTALLATION.md#mcp-configuration) for the required environment variables.
+BoardOil can expose MCP without authentication for a tightly controlled local integration. This gives every caller the permissions of the configured BoardOil user and must not be exposed to an untrusted network.

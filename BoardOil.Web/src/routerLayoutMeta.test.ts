@@ -66,6 +66,8 @@ describe('router layout meta mapping', () => {
       .toBe('/user-admin/authentication/oauth');
     expect(findIndexedByName('user-admin-access-tokens')?.fullPath)
       .toBe('/user-admin/authentication/access-tokens');
+    expect(findIndexedByName('user-admin-mcp-help')?.fullPath)
+      .toBe('/user-admin/authentication/mcp-help');
 
     const authenticationIndex = indexedRoutes.find(
       indexedRoute => indexedRoute.fullPath === '/user-admin/authentication'

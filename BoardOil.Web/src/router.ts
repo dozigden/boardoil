@@ -70,6 +70,11 @@ const routes: RouteRecordRaw[] = [
             path: 'access-tokens',
             name: 'user-admin-access-tokens',
             component: () => import('./site/views/AccessTokensView.vue')
+          },
+          {
+            path: 'mcp-help',
+            name: 'user-admin-mcp-help',
+            component: () => import('./site/views/McpHelpView.vue')
           }
         ]
       },

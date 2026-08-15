@@ -34,7 +34,11 @@ const navItems = [
   {
     label: 'Authentication',
     to: { name: 'user-admin-oauth-connections' },
-    activeRouteNames: ['user-admin-oauth-connections', 'user-admin-access-tokens']
+    activeRouteNames: [
+      'user-admin-oauth-connections',
+      'user-admin-access-tokens',
+      'user-admin-mcp-help'
+    ]
   },
   {
     label: 'Reset Password',
