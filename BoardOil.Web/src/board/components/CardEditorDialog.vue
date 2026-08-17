@@ -61,6 +61,7 @@
               @update:model-value="handleDescriptionEditorValueUpdate"
               @focus="handleDescriptionEditorFocus"
               @blur="handleDescriptionEditorBlur"
+              @escape="closeCardEditor"
               @toolbar-state-change="handleDescriptionToolbarStateChange"
               @plain-text-mode-change="handleDescriptionPlainTextModeChange"
             />
@@ -79,6 +80,7 @@
                   @update:model-value="updateCommentDraftFromEditor"
                   @focus="handleCommentEditorFocus"
                   @blur="handleCommentEditorBlur"
+                  @escape="closeCardEditor"
                   @toolbar-state-change="handleCommentToolbarStateChange"
                   @plain-text-mode-change="handleCommentPlainTextModeChange"
                 />

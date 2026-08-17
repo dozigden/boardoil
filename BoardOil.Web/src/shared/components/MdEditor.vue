@@ -19,6 +19,7 @@
         @focus="emit('focus')"
         @blur="emit('blur')"
         @input="onPlainTextInput(($event.target as HTMLTextAreaElement).value)"
+        @keydown.esc.prevent="emit('escape')"
       />
       <EditorContent v-else-if="tiptapEditor" :editor="tiptapEditor" class="md-editor-content" />
     </div>
@@ -69,6 +70,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string];
   focus: [];
   blur: [];
+  escape: [];
   'toolbar-state-change': [value: Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>];
   'plain-text-mode-change': [value: boolean];
 }>();
@@ -111,6 +113,14 @@ const tiptapEditor = useEditor({
   editorProps: {
     attributes: {
       'aria-label': props.ariaLabel
+    },
+    handleKeyDown: (_view, event) => {
+      if (event.key !== 'Escape') {
+        return false;
+      }
+
+      emit('escape');
+      return true;
     },
     handleClick: (_view, _pos, event) => {
       const mouseEvent = event as MouseEvent;
