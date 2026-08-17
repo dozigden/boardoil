@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open" title="Copy token now" close-label="Close token reminder" @close="emit('close')" @submit="emit('copy')">
+  <ModalDialog :open="open" title="Copy token now" close-label="Close token reminder" @close="emit('close')" @submit="copyToken">
     <div class="machine-pat-secret">
       <p class="machine-pat-secret-note">
         This value is only shown once for <strong>{{ tokenName || 'new token' }}</strong>.
@@ -13,7 +13,7 @@
             :disabled="busy"
             aria-label="Copy token"
             title="Copy token"
-            @click="emit('copy')"
+            @click="copyToken"
           >
             <Copy :size="14" aria-hidden="true" />
           </button>
@@ -35,9 +35,11 @@
 
 <script setup lang="ts">
 import { Copy } from 'lucide-vue-next';
+import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
+import { copyTextToClipboard } from '../utils/clipboard';
 import ModalDialog from './ModalDialog.vue';
 
-defineProps<{
+const props = defineProps<{
   open: boolean;
   busy: boolean;
   token: string | null;
@@ -46,8 +48,23 @@ defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  copy: [];
 }>();
+
+const feedback = useUiFeedbackStore();
+
+async function copyToken() {
+  if (!props.token) {
+    return;
+  }
+
+  const copied = await copyTextToClipboard(props.token);
+  if (copied) {
+    feedback.showToast('Copied');
+    return;
+  }
+
+  feedback.showToast('Could not copy automatically. Select the token and copy it manually.', 'error');
+}
 </script>
 
 <style scoped>

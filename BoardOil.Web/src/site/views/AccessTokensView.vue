@@ -38,7 +38,7 @@
               :disabled="isBusy"
               aria-label="Copy endpoint"
               title="Copy endpoint"
-              @click="copySnippet(mcpEndpoint, 'MCP endpoint')"
+              @click="copySnippet(mcpEndpoint)"
             >
               <Copy :size="14" aria-hidden="true" />
             </button>
@@ -79,7 +79,7 @@
               :disabled="isBusy"
               :aria-label="`Copy ${selectedConfigSnippetLabel} config`"
               :title="`Copy ${selectedConfigSnippetLabel} config`"
-              @click="copySnippet(selectedConfigSnippet, `${selectedConfigSnippetLabel} config snippet`)"
+              @click="copySnippet(selectedConfigSnippet)"
             >
               <Copy :size="14" aria-hidden="true" />
             </button>
@@ -106,7 +106,6 @@
       :token="plainTextPat"
       :token-name="plainTextPatName"
       @close="dismissPlainTextPat"
-      @copy="copyPlainTextPat"
     />
   </section>
 </template>
@@ -119,10 +118,13 @@ import AccessTokenCreateDialog from '../../shared/components/AccessTokenCreateDi
 import AccessTokenListItem from '../../shared/components/AccessTokenListItem.vue';
 import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretModal.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { AccessToken, CreateAccessTokenRequest } from '../../shared/types/authTypes';
+import { copyTextToClipboard } from '../../shared/utils/clipboard';
 
 const authApi = createAuthApi();
 const { confirm } = useConfirm();
+const feedback = useUiFeedbackStore();
 
 const tokens = ref<AccessToken[]>([]);
 const loading = ref(false);
@@ -262,31 +264,14 @@ async function revokeToken(token: AccessToken) {
   }
 }
 
-async function copyPlainTextPat() {
-  if (!plainTextPat.value) {
+async function copySnippet(text: string) {
+  const copied = await copyTextToClipboard(text);
+  if (copied) {
+    feedback.showToast('Copied');
     return;
   }
 
-  const copied = await copyToClipboard(plainTextPat.value, `token ${plainTextPatName.value}`);
-  if (!copied) {
-    return;
-  }
-}
-
-async function copySnippet(text: string, label: string) {
-  await copyToClipboard(text, label);
-}
-
-async function copyToClipboard(text: string, label: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    successMessage.value = `Copied ${label} to clipboard.`;
-    errorMessage.value = null;
-    return true;
-  } catch {
-    errorMessage.value = 'Could not copy to clipboard automatically.';
-    return false;
-  }
+  feedback.showToast('Could not copy to clipboard automatically.', 'error');
 }
 
 function dismissPlainTextPat() {

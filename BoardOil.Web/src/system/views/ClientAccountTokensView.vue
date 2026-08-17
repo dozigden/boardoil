@@ -50,7 +50,6 @@
       :token="plainTextPat"
       :token-name="plainTextPatName"
       @close="dismissPlainTextPat"
-      @copy="copyPlainTextPat"
     />
   </section>
 </template>
@@ -208,24 +207,6 @@ async function revokeToken(token: AccessToken) {
     await loadTokens(client.value.id);
   } finally {
     revokeBusyTokenId.value = null;
-  }
-}
-
-async function copyPlainTextPat() {
-  if (!plainTextPat.value) {
-    return;
-  }
-
-  await copyToClipboard(plainTextPat.value, `token ${plainTextPatName.value}`);
-}
-
-async function copyToClipboard(text: string, label: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    successMessage.value = `Copied ${label} to clipboard.`;
-    errorMessage.value = null;
-  } catch {
-    errorMessage.value = 'Could not copy to clipboard automatically.';
   }
 }
 

@@ -181,6 +181,7 @@ import { getMcpOAuthMetadata } from '../api/oauthMetadataApi';
 import { createOAuthConnectionsApi } from '../api/oauthConnectionsApi';
 import { createSystemOAuthConnectionsApi } from '../api/systemOAuthConnectionsApi';
 import { useConfirm } from '../composables/useConfirm';
+import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
 import type { OAuthConnection } from '../types/oauthConnectionTypes';
 import type { AgentOAuthScope } from '../utils/oauthConnectionPresentation';
 import {
@@ -188,6 +189,7 @@ import {
   buildClaudeCodeOAuthCommand,
   buildCodexOAuthConfig
 } from '../utils/oauthConnectionPresentation';
+import { copyTextToClipboard } from '../utils/clipboard';
 
 type SetupClient = 'agent' | 'codex' | 'claude-code';
 
@@ -198,6 +200,7 @@ const props = defineProps<{
 const api = createOAuthConnectionsApi();
 const systemApi = createSystemOAuthConnectionsApi();
 const { confirm } = useConfirm();
+const feedback = useUiFeedbackStore();
 const connections = ref<OAuthConnection[]>([]);
 const busy = ref(false);
 const errorMessage = ref<string | null>(null);
@@ -307,19 +310,13 @@ async function copyConfig() {
     return;
   }
 
-  try {
-    await navigator.clipboard.writeText(setupSnippet.value);
-    if (setupClient.value === 'agent') {
-      successMessage.value = 'Copied MCP setup prompt.';
-    } else if (setupClient.value === 'claude-code') {
-      successMessage.value = 'Copied Claude Code OAuth command.';
-    } else {
-      successMessage.value = 'Copied Codex OAuth configuration.';
-    }
-    errorMessage.value = null;
-  } catch {
-    errorMessage.value = 'Could not copy the setup automatically.';
+  const copied = await copyTextToClipboard(setupSnippet.value);
+  if (copied) {
+    feedback.showToast('Copied');
+    return;
   }
+
+  feedback.showToast('Could not copy the setup automatically.', 'error');
 }
 
 function formatScopes(scopes: string[]) {

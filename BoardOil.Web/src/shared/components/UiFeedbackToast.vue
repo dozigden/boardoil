@@ -1,16 +1,36 @@
 <template>
-  <aside v-if="warningMessage" class="ui-feedback-toast" role="status" aria-live="polite">
-    <span class="ui-feedback-toast-icon" aria-hidden="true">&#9888;</span>
-    <p class="ui-feedback-toast-message">{{ warningMessage }}</p>
+  <aside
+    v-if="displayMessage"
+    class="ui-feedback-toast"
+    :class="`ui-feedback-toast--${displayTone}`"
+    :role="displayTone === 'error' ? 'alert' : 'status'"
+    :aria-live="displayTone === 'error' ? 'assertive' : 'polite'"
+  >
+    <span class="ui-feedback-toast-icon" aria-hidden="true">{{ displayIcon }}</span>
+    <p class="ui-feedback-toast-message">{{ displayMessage }}</p>
   </aside>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { computed } from 'vue';
 import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
 
 const feedbackStore = useUiFeedbackStore();
-const { warningMessage } = storeToRefs(feedbackStore);
+const { toastMessage, toastTone, warningMessage } = storeToRefs(feedbackStore);
+const displayMessage = computed(() => toastMessage.value || warningMessage.value);
+const displayTone = computed(() => toastMessage.value ? toastTone.value : 'warning');
+const displayIcon = computed(() => {
+  if (displayTone.value === 'success') {
+    return '\u2713';
+  }
+
+  if (displayTone.value === 'error') {
+    return '!';
+  }
+
+  return '\u26a0';
+});
 </script>
 
 <style scoped>
@@ -25,11 +45,26 @@ const { warningMessage } = storeToRefs(feedbackStore);
   margin: 0;
   padding: 0.65rem 0.75rem;
   border-radius: 0.65rem;
+  box-shadow: var(--bo-toast-warning-shadow);
+  z-index: 1200;
+}
+
+.ui-feedback-toast--warning {
   border: 1px solid var(--bo-toast-warning-border);
   background: var(--bo-toast-warning-bg);
   color: var(--bo-toast-warning-text);
-  box-shadow: var(--bo-toast-warning-shadow);
-  z-index: 1200;
+}
+
+.ui-feedback-toast--success {
+  border: 1px solid color-mix(in srgb, var(--bo-colour-success) 70%, var(--bo-border-soft));
+  background: color-mix(in srgb, var(--bo-colour-success) 18%, var(--bo-surface-base));
+  color: var(--bo-colour-success-ink);
+}
+
+.ui-feedback-toast--error {
+  border: 1px solid color-mix(in srgb, var(--bo-colour-danger) 70%, var(--bo-border-soft));
+  background: color-mix(in srgb, var(--bo-colour-danger) 18%, var(--bo-surface-base));
+  color: var(--bo-colour-danger-ink);
 }
 
 .ui-feedback-toast-icon {
