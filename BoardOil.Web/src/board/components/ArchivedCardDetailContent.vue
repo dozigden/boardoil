@@ -2,7 +2,7 @@
   <section class="card-editor-layout archived-card-detail-layout">
     <div class="card-editor-main">
       <div class="archived-card-detail-title-row">
-        <span v-if="card.cardTypeEmoji" class="archived-card-detail-emoji">{{ card.cardTypeEmoji }}</span>
+        <span v-if="card.cardTypeEmoji" class="archived-card-detail-emoji bo-emoji">{{ card.cardTypeEmoji }}</span>
         <h3 class="archived-card-detail-title">#{{ archivedCard.id }} {{ card.title }}</h3>
       </div>
 
@@ -37,7 +37,7 @@
 
       <div class="card-editor-option-section">
         <span class="card-editor-field-label">Type</span>
-        <span>{{ cardTypeLabel }}</span>
+        <span><span v-if="card.cardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ card.cardTypeEmoji }}</span>{{ card.cardTypeEmoji ? ' ' : '' }}{{ card.cardTypeName }}</span>
       </div>
 
       <div class="card-editor-option-section">
@@ -95,11 +95,6 @@ const props = defineProps<{
 }>();
 
 const card = computed(() => props.archivedCard.card);
-
-const cardTypeLabel = computed(() => {
-  const value = card.value;
-  return value.cardTypeEmoji ? `${value.cardTypeEmoji} ${value.cardTypeName}` : value.cardTypeName;
-});
 
 const columnLabel = computed(() => {
   const value = props.columnTitle?.trim();

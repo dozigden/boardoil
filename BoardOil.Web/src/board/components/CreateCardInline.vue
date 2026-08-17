@@ -1,7 +1,7 @@
 <template>
   <article class="create-card-inline" :class="draftStyleClasses" :style="draftStyle">
     <div class="create-card-inline-input-row">
-      <span v-if="draftEmoji" class="create-card-inline-emoji" aria-hidden="true">{{ draftEmoji }}</span>
+      <span v-if="draftEmoji" class="create-card-inline-emoji bo-emoji" aria-hidden="true">{{ draftEmoji }}</span>
       <textarea
         :ref="setInputRef"
         class="create-card-inline-input"

@@ -25,7 +25,7 @@
   >
     <div class="card-header">
       <strong class="card-title">
-        <span class="card-title-text">{{ resolvedCardTypeEmoji ? `${resolvedCardTypeEmoji} ` : '' }}{{ card.title }}</span>
+        <span class="card-title-text"><span v-if="resolvedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ resolvedCardTypeEmoji }}</span>{{ resolvedCardTypeEmoji ? ' ' : '' }}{{ card.title }}</span>
       </strong>
       <span class="card-id">#{{ card.id }}</span>
     </div>

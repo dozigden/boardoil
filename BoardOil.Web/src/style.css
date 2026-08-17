@@ -23,6 +23,7 @@
 :root {
   color-scheme: light;
   font-family: "Montserrat", "Segoe UI", sans-serif;
+  --bo-emoji-font-family: "Twemoji Mozilla", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "EmojiOne Color", "Android Emoji", sans-serif;
   --bo-colour-brand: #35165a;
   --bo-colour-brand-strong: #5b2594;
   --bo-colour-brand-mid: #9d8abf;
@@ -433,6 +434,10 @@
 
 * {
   box-sizing: border-box;
+}
+
+.bo-emoji {
+  font-family: var(--bo-emoji-font-family);
 }
 
 body {

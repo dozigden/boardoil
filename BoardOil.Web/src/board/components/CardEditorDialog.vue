@@ -30,7 +30,7 @@
     </template>
     <template #title>
       <div class="dialog-title-with-pill">
-        <template v-if="selectedCardTypeEmoji">{{ selectedCardTypeEmoji }}</template>
+        <span v-if="selectedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ selectedCardTypeEmoji }}</span>
         <CardTitleEditor
           v-if="cardDraft"
           :card-id="cardDraftId ?? 0"
@@ -171,6 +171,10 @@
               :teleport="false"
               :text="selectedCardTypeLabel"
             >
+              <template #trigger>
+                <span v-if="selectedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ selectedCardTypeEmoji }}</span>
+                <span>{{ selectedCardTypeLabel }}</span>
+              </template>
               <template #default="{ close }">
                 <button
                   v-for="cardType in cardTypes"
@@ -180,7 +184,7 @@
                   @click="setDraftCardTypeId(cardType.id, close)"
                 >
                   <span class="bo-dropdown-item-main">
-                    {{ cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name }}
+                    <span v-if="cardType.emoji" class="bo-emoji" aria-hidden="true">{{ cardType.emoji }}</span>{{ cardType.emoji ? ' ' : '' }}{{ cardType.name }}
                   </span>
                   <span v-if="cardType.id === cardDraft.cardTypeId" class="badge bo-dropdown-item-meta">Selected</span>
                 </button>
@@ -363,9 +367,7 @@ const selectedCardTypeLabel = computed(() => {
     return 'Select card type';
   }
 
-  return selectedCardType.emoji
-    ? `${selectedCardType.emoji} ${selectedCardType.name}`
-    : selectedCardType.name;
+  return selectedCardType.name;
 });
 const selectedCardTypeEmoji = computed(() => {
   return resolveSelectedCardTypeEmoji(

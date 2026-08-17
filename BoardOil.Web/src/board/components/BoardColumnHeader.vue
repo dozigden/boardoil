@@ -53,7 +53,7 @@
             @click="emit('openCardDraftForType', columnId, cardType.id); close()"
           >
             <span class="bo-dropdown-item-main">
-              {{ cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name }}
+              <span v-if="cardType.emoji" class="bo-emoji" aria-hidden="true">{{ cardType.emoji }}</span>{{ cardType.emoji ? ' ' : '' }}{{ cardType.name }}
             </span>
           </button>
         </template>

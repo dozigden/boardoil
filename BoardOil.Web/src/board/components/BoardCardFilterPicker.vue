@@ -83,6 +83,7 @@
                 scroll-mode="parent"
                 :state-keys-by-name="cardTypeStateKeysByLabel"
                 :styled-items-by-name="cardTypeStylesByLabel"
+                :styled-item-emojis-by-name="cardTypeEmojisByLabel"
                 @update:states="emit('update:cardTypeFilterStates', $event)"
               />
             </section>
@@ -150,14 +151,14 @@ const slickStylesByName = computed<Record<string, StylePresentation>>(() => {
 
 const availableCardTypeLabels = computed(() =>
   props.availableCardTypes
-    .map(formatCardTypeLabel)
+    .map(cardType => cardType.name)
     .sort((left, right) => left.localeCompare(right))
 );
 
 const cardTypeStateKeysByLabel = computed<Record<string, string>>(() => {
   const byLabel: Record<string, string> = {};
   for (const cardType of props.availableCardTypes) {
-    byLabel[normaliseName(formatCardTypeLabel(cardType))] = String(cardType.id);
+    byLabel[normaliseName(cardType.name)] = String(cardType.id);
   }
 
   return byLabel;
@@ -166,10 +167,22 @@ const cardTypeStateKeysByLabel = computed<Record<string, string>>(() => {
 const cardTypeStylesByLabel = computed<Record<string, StylePresentation>>(() => {
   const byLabel: Record<string, StylePresentation> = {};
   for (const cardType of props.availableCardTypes) {
-    byLabel[normaliseName(formatCardTypeLabel(cardType))] = {
+    byLabel[normaliseName(cardType.name)] = {
       styleName: cardType.styleName,
       stylePropertiesJson: cardType.stylePropertiesJson
     };
+  }
+
+  return byLabel;
+});
+
+const cardTypeEmojisByLabel = computed<Record<string, string>>(() => {
+  const byLabel: Record<string, string> = {};
+  for (const cardType of props.availableCardTypes) {
+    const emoji = cardType.emoji?.trim();
+    if (emoji) {
+      byLabel[normaliseName(cardType.name)] = emoji;
+    }
   }
 
   return byLabel;
@@ -251,9 +264,6 @@ function normaliseName(name: string) {
   return name.trim().toLocaleLowerCase();
 }
 
-function formatCardTypeLabel(cardType: CardType) {
-  return cardType.emoji ? `${cardType.emoji} ${cardType.name}` : cardType.name;
-}
 </script>
 
 <style scoped>

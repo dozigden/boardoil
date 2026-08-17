@@ -42,6 +42,7 @@
           ]"
           :style="getStyledItemStyle(tagName)"
         >
+          <span v-if="getStyledItemEmoji(tagName)" class="bo-emoji" aria-hidden="true">{{ getStyledItemEmoji(tagName) }}</span>
           <span class="tag-label">{{ tagName }}</span>
         </span>
         <span v-else class="tag-tri-state-placeholder" aria-hidden="true"></span>
@@ -73,6 +74,7 @@
           ]"
           :style="getStyledItemStyle(tagName)"
         >
+          <span v-if="getStyledItemEmoji(tagName)" class="bo-emoji" aria-hidden="true">{{ getStyledItemEmoji(tagName) }}</span>
           <span class="tag-label">{{ tagName }}</span>
         </span>
         <span v-else class="tag-tri-state-placeholder" aria-hidden="true"></span>
@@ -104,6 +106,7 @@
           ]"
           :style="getStyledItemStyle(tagName)"
         >
+          <span v-if="getStyledItemEmoji(tagName)" class="bo-emoji" aria-hidden="true">{{ getStyledItemEmoji(tagName) }}</span>
           <span class="tag-label">{{ tagName }}</span>
         </span>
         <span v-else class="tag-tri-state-placeholder" aria-hidden="true"></span>
@@ -137,6 +140,7 @@ const props = withDefaults(defineProps<{
   stickyTopOffsetPx?: number;
   stateKeysByName?: Record<string, string>;
   styledItemsByName?: Record<string, StylePresentation>;
+  styledItemEmojisByName?: Record<string, string>;
   semanticScope?: 'tag' | 'card' | 'slick';
 }>(), {
   leftState: 'exclude',
@@ -149,6 +153,7 @@ const props = withDefaults(defineProps<{
   stickyTopOffsetPx: 0,
   stateKeysByName: () => ({}),
   styledItemsByName: () => ({}),
+  styledItemEmojisByName: () => ({}),
   semanticScope: 'tag'
 });
 
@@ -302,6 +307,15 @@ function resolveStyledItem(tagName: string): StylePresentation | null {
   }
 
   return props.styledItemsByName[normalisedTagName] ?? null;
+}
+
+function getStyledItemEmoji(tagName: string): string | null {
+  const normalisedTagName = normaliseTagName(tagName);
+  if (!normalisedTagName) {
+    return null;
+  }
+
+  return props.styledItemEmojisByName[normalisedTagName] ?? null;
 }
 </script>
 

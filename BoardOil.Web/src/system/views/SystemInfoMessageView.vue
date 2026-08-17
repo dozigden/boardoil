@@ -141,7 +141,7 @@
       <div v-if="systemInfoPreviewStylePresentation" class="system-info-message-input-group">
         <span class="system-info-message-input-label">Header preview</span>
         <p class="system-info-preview-chip" :class="systemInfoPreviewClasses" :style="systemInfoPreviewStyle">
-          <span v-if="trimmedSystemInfoEmoji" class="system-info-preview-emoji">{{ trimmedSystemInfoEmoji }}</span>
+          <span v-if="trimmedSystemInfoEmoji" class="system-info-preview-emoji bo-emoji">{{ trimmedSystemInfoEmoji }}</span>
           <strong>{{ trimmedSystemInfoTitle.length > 0 ? trimmedSystemInfoTitle : 'System information' }}</strong>
         </p>
       </div>

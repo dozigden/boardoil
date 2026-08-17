@@ -26,7 +26,7 @@
           :style="systemInfoStyle"
           @click="openSystemInfoDialog"
         >
-          <span v-if="activeSystemInfoMessage.emoji" class="system-info-chip-emoji">{{ activeSystemInfoMessage.emoji }}</span>
+          <span v-if="activeSystemInfoEmoji" class="system-info-chip-emoji bo-emoji">{{ activeSystemInfoEmoji }}</span>
           <strong>{{ activeSystemInfoMessage.title }}</strong>
         </button>
       </div>
@@ -88,10 +88,13 @@
   <AboutDialog :open="aboutDialogOpen" @close="closeAboutDialog" />
   <ModalDialog
     :open="systemInfoDialogOpen"
-    :title="systemInfoDialogTitle"
+    :title="activeSystemInfoMessage?.title ?? ''"
     close-label="Close system information"
     @close="closeSystemInfoDialog"
   >
+    <template #title>
+      <span v-if="activeSystemInfoEmoji" class="bo-emoji">{{ activeSystemInfoEmoji }}</span>{{ activeSystemInfoEmoji ? ' ' : '' }}{{ activeSystemInfoMessage?.title ?? '' }}
+    </template>
     <section v-if="activeSystemInfoMessage" class="system-info-dialog">
       <MdViewer
         :model-value="activeSystemInfoMessage.description"
@@ -151,6 +154,10 @@ const activeSystemInfoMessage = computed(() => {
 
   return systemInfoMessage.value;
 });
+const activeSystemInfoEmoji = computed(() => {
+  const emoji = activeSystemInfoMessage.value?.emoji?.trim() ?? '';
+  return emoji.length > 0 ? emoji : null;
+});
 const systemInfoStylePresentation = computed<StylePresentation | null>(() => {
   if (!activeSystemInfoMessage.value) {
     return null;
@@ -167,15 +174,6 @@ const systemInfoStyle = computed(() => getSurfaceStyle(systemInfoStylePresentati
   fallbackBorderColor: 'var(--bo-border-soft)'
 }));
 const systemInfoStyleClasses = computed(() => getSemanticStyleClasses(systemInfoStylePresentation.value, 'card'));
-const systemInfoDialogTitle = computed(() => {
-  const title = activeSystemInfoMessage.value?.title ?? '';
-  const emoji = activeSystemInfoMessage.value?.emoji?.trim();
-  if (emoji && emoji.length > 0) {
-    return `${emoji} ${title}`;
-  }
-
-  return title;
-});
 const boardAdminTarget = computed(() =>
   currentBoardId.value !== null && board.value
     ? {

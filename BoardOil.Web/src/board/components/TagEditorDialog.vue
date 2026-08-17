@@ -15,7 +15,7 @@
           :style="previewStyle"
           :aria-label="previewTagName"
         >
-          <span v-if="previewEmoji" class="tag-emoji" aria-hidden="true">{{ previewEmoji }}</span>
+          <span v-if="previewEmoji" class="tag-emoji bo-emoji" aria-hidden="true">{{ previewEmoji }}</span>
           {{ previewTagName }}
         </span>
       </div>

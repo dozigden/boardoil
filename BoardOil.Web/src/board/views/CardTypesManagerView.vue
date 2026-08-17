@@ -20,7 +20,7 @@
           @click="openEditor(cardType.id)"
         >
           <span class="entity-row-title card-type-title">
-            <span v-if="cardType.emoji" class="card-type-emoji" aria-hidden="true">{{ cardType.emoji }}</span>
+            <span v-if="cardType.emoji" class="card-type-emoji bo-emoji" aria-hidden="true">{{ cardType.emoji }}</span>
             <span>{{ cardType.name }}</span>
           </span>
           <span class="entity-row-badges">

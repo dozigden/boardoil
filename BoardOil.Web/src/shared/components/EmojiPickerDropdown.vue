@@ -8,6 +8,10 @@
     panel-role="dialog"
     popup="dialog"
   >
+    <template #trigger>
+      <span v-if="selectedEmoji" class="bo-emoji">{{ selectedEmoji }}</span>
+      <span v-else>{{ placeholder }}</span>
+    </template>
     <template #default="{ close }">
       <emoji-picker
         :class="['emoji-picker-dropdown-picker', themeStore.activeTheme]"
@@ -106,6 +110,7 @@ function clearEmoji(close?: () => void) {
   --input-font-color: var(--bo-text-default);
   --input-placeholder-color: var(--bo-ink-subtle);
   --outline-color: var(--bo-focus-ring);
+  --emoji-font-family: var(--bo-emoji-font-family);
 }
 
 .emoji-picker-dropdown-actions {
