@@ -84,6 +84,8 @@ const linkDraftText = ref('');
 const linkDraftUrl = ref('');
 const linkDialogCanRemove = ref(false);
 const linkSelectionRange = ref<{ from: number; to: number } | null>(null);
+const linkOpenModifier = /^(Mac|iPhone|iPad|iPod)/i.test(navigator.platform) ? 'Cmd' : 'Ctrl';
+const linkTooltip = `${linkOpenModifier}-click to open. Use the Link button to edit.`;
 
 const tiptapEditor = useEditor({
   content: '',
@@ -104,6 +106,8 @@ const tiptapEditor = useEditor({
       defaultProtocol: 'https',
       isAllowedUri: url => isHttpOrHttpsUrl(url),
       HTMLAttributes: {
+        'data-link-tooltip': linkTooltip,
+        'aria-description': linkTooltip,
         target: null,
         rel: null
       }
@@ -418,6 +422,30 @@ watch(
 .md-editor-content :deep(.tiptap:focus) {
   outline: none;
   border-color: var(--bo-colour-secondary);
+}
+
+.md-editor-content :deep(.tiptap a[data-link-tooltip]) {
+  position: relative;
+}
+
+.md-editor-content :deep(.tiptap a[data-link-tooltip]:is(:hover, :focus-visible)::after) {
+  content: attr(data-link-tooltip);
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 2rem));
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 6px;
+  padding: 0.3rem 0.45rem;
+  background: var(--bo-surface-base);
+  box-shadow: var(--bo-shadow-pop);
+  color: var(--bo-ink-default);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.25;
+  pointer-events: none;
 }
 
 .md-editor-content :deep(.tiptap ul[data-type='taskList']) {
