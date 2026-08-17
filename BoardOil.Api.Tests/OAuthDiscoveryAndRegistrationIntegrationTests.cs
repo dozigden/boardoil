@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using BoardOil.Api.OAuth;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
@@ -121,6 +122,34 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
 
         var userCount = await ArrangeAsyncForCount();
         Assert.Equal(1, userCount);
+    }
+
+    [Fact]
+    public async Task DynamicRegistration_WhenScopeOmitted_ShouldRegisterDefaultMcpScopes()
+    {
+        // Arrange
+        var client = CreateClient();
+        await ConfigurePublicBaseAsync(client);
+        var request = JsonSerializer.SerializeToNode(
+            CreateCodexRegistrationRequest() with { ClientName = "GitHub Copilot CLI" })!.AsObject();
+        request.Remove("scope");
+
+        // Act
+        var response = await client.PostAsJsonAsync("/connect/register", request);
+        var registration = await response.Content.ReadFromJsonAsync<OAuthDynamicClientRegistrationResponse>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(registration);
+        Assert.Equal("mcp:read mcp:write", registration!.Scope);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+        var application = await manager.FindByClientIdAsync(registration.ClientId);
+        Assert.NotNull(application);
+        var permissions = await manager.GetPermissionsAsync(application!);
+        Assert.Contains(Permissions.Prefixes.Scope + MachinePatScopes.McpRead, permissions);
+        Assert.Contains(Permissions.Prefixes.Scope + MachinePatScopes.McpWrite, permissions);
     }
 
     [Theory]
@@ -251,6 +280,13 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
                 CreateCodexRegistrationRequest() with
                 {
                     TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretBasic
+                },
+                "invalid_client_metadata"
+            },
+            {
+                CreateCodexRegistrationRequest() with
+                {
+                    Scope = "   "
                 },
                 "invalid_client_metadata"
             },

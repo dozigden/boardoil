@@ -25,6 +25,43 @@ public sealed class DevApiLaunchSettingsTests
     }
 
     [Fact]
+    public void CreateEnvironmentShouldBindHttpToAllInterfacesWhenLanExposureEnabled()
+    {
+        // Arrange
+        const string databasePath = "/tmp/boardoil.dev.db";
+
+        // Act
+        var environment = DevApiLaunchSettings.CreateEnvironment(databasePath, exposeLan: true);
+
+        // Assert
+        Assert.Equal(
+            "http://0.0.0.0:5000;https://localhost:5001",
+            environment["ASPNETCORE_URLS"]);
+    }
+
+    [Fact]
+    public void CreateLanDisplayEndpointShouldIncludeLoopbackAndLanUrls()
+    {
+        // Act
+        var endpoint = DevApiLaunchSettings.CreateLanDisplayEndpoint("192.168.1.64");
+
+        // Assert
+        Assert.Equal(
+            "https://localhost:5001 | http://192.168.1.64:5000",
+            endpoint);
+    }
+
+    [Fact]
+    public void CreateLanDisplayEndpointShouldReportUnavailableAddress()
+    {
+        // Act
+        var endpoint = DevApiLaunchSettings.CreateLanDisplayEndpoint(null);
+
+        // Assert
+        Assert.Equal("https://localhost:5001 | LAN address unavailable", endpoint);
+    }
+
+    [Fact]
     public void CreateRunArgumentsShouldLeaveEndpointSelectionToEnvironment()
     {
         // Arrange

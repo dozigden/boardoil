@@ -44,7 +44,7 @@ public sealed class OAuthDynamicClientRegistrationService(
             .Distinct(StringComparer.Ordinal)
             .OrderBy(GetGrantTypeOrder)
             .ToArray();
-        var scopes = ParseScopes(request.Scope!);
+        var scopes = ResolveScopes(request.Scope);
 
         var descriptor = new OpenIddictApplicationDescriptor
         {
@@ -167,7 +167,7 @@ public sealed class OAuthDynamicClientRegistrationService(
             return InvalidClientMetadata("Only native public clients are supported.");
         }
 
-        var scopes = ParseScopes(request.Scope);
+        var scopes = ResolveScopes(request.Scope);
         if (scopes.Length == 0 || scopes.Except(SupportedScopes, StringComparer.Ordinal).Any())
         {
             return InvalidClientMetadata("Only mcp:read and mcp:write scopes are supported.");
@@ -205,12 +205,22 @@ public sealed class OAuthDynamicClientRegistrationService(
             && IPAddress.IsLoopback(address);
     }
 
-    private static string[] ParseScopes(string? scope) =>
-        (scope ?? string.Empty)
+    private static string[] ParseScopes(string scope) =>
+        scope
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(GetScopeOrder)
             .ToArray();
+
+    private static string[] ResolveScopes(string? scope)
+    {
+        if (scope is null)
+        {
+            return [.. SupportedScopes];
+        }
+
+        return ParseScopes(scope);
+    }
 
     private static int GetGrantTypeOrder(string grantType) =>
         Array.IndexOf(SupportedGrantTypes, grantType);

@@ -268,15 +268,18 @@ internal sealed class DevOrchestrator
         var logPath = Path.Combine(repoRoot, ".data", "dev", "logs", "api.log");
         var dotnet = ExecutableLocator.Find("dotnet") ?? "dotnet";
         var databasePath = databaseManager.Current.DatabasePath;
+        var exposeLanValue = Environment.GetEnvironmentVariable("BoardOil__ExposeLan");
+        var exposeLan = bool.TryParse(exposeLanValue, out var parsedExposeLan) && parsedExposeLan;
+        var displayEndpoint = DevApiLaunchSettings.CreateDisplayEndpoint(exposeLan);
 
         return new ManagedService(
             "API",
-            DevApiLaunchSettings.HttpsEndpoint,
+            displayEndpoint,
             dotnet,
             DevApiLaunchSettings.CreateRunArguments(apiProject),
             repoRoot,
             logPath,
-            DevApiLaunchSettings.CreateEnvironment(databasePath),
+            DevApiLaunchSettings.CreateEnvironment(databasePath, exposeLan),
             startsWithDefaultAction: true,
             beforeStart: async (service, cancellationToken) =>
             {
