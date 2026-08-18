@@ -260,7 +260,7 @@ public static class OAuthEndpoints
         if (!resolution.Success || resolution.Principal is null)
         {
             return CreateProtocolForbid(
-                Errors.InvalidGrant,
+                resolution.Error ?? Errors.InvalidGrant,
                 resolution.ErrorDescription ?? "The authorization grant is no longer active.");
         }
 

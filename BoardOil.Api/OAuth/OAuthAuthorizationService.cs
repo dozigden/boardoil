@@ -55,7 +55,7 @@ public sealed class OAuthAuthorizationService(
         var resources = request.GetResources();
         var expectedResource = await urlResolver.ResolveAsync(httpRequest, OAuthResources.McpPath);
         if (resources.Length != 1
-            || !string.Equals(resources[0], expectedResource, StringComparison.Ordinal))
+            || !ResourceUrisMatch(resources[0], expectedResource))
         {
             return OAuthAuthorizationResolution.Rejected(
                 Errors.InvalidTarget,
@@ -321,17 +321,30 @@ public sealed class OAuthAuthorizationService(
         HttpRequest httpRequest,
         CancellationToken cancellationToken = default)
     {
+        var resources = request.GetResources();
+        var currentResource = await urlResolver.ResolveAsync(httpRequest, OAuthResources.McpPath);
+        if (resources.Length != 1 || !ResourceUrisMatch(resources[0], currentResource))
+        {
+            return OAuthTokenExchangeResolution.Rejected(
+                Errors.InvalidTarget,
+                "The exact BoardOil MCP OAuth resource is required.");
+        }
+
         var authorizationId = principal.GetAuthorizationId();
         if (string.IsNullOrWhiteSpace(authorizationId))
         {
-            return OAuthTokenExchangeResolution.Rejected("The token is not bound to a BoardOil authorization.");
+            return OAuthTokenExchangeResolution.Rejected(
+                Errors.InvalidGrant,
+                "The token is not bound to a BoardOil authorization.");
         }
 
         var authorization = await authorizationManager.FindByIdAsync(authorizationId, cancellationToken);
         if (authorization is null
             || !await authorizationManager.HasStatusAsync(authorization, Statuses.Valid, cancellationToken))
         {
-            return OAuthTokenExchangeResolution.Rejected("The BoardOil authorization is no longer active.");
+            return OAuthTokenExchangeResolution.Rejected(
+                Errors.InvalidGrant,
+                "The BoardOil authorization is no longer active.");
         }
 
         var authorizationSubject = await authorizationManager.GetSubjectAsync(
@@ -343,7 +356,9 @@ public sealed class OAuthAuthorizationService(
             : await applicationManager.FindByIdAsync(applicationId, cancellationToken);
         if (application is null || !await IsApplicationActiveAsync(application, cancellationToken))
         {
-            return OAuthTokenExchangeResolution.Rejected("The OAuth client registration is no longer active.");
+            return OAuthTokenExchangeResolution.Rejected(
+                Errors.InvalidGrant,
+                "The OAuth client registration is no longer active.");
         }
 
         var applicationClientId = await applicationManager.GetClientIdAsync(application, cancellationToken);
@@ -367,13 +382,14 @@ public sealed class OAuthAuthorizationService(
             || !IsActiveUser(grant.OAuthConnection.User))
         {
             return OAuthTokenExchangeResolution.Rejected(
+                Errors.InvalidGrant,
                 "The OAuth connection or authorization is no longer active.");
         }
 
-        var currentResource = await urlResolver.ResolveAsync(httpRequest, OAuthResources.McpPath);
-        if (!string.Equals(grant.Resource, currentResource, StringComparison.Ordinal))
+        if (!ResourceUrisMatch(grant.Resource, currentResource))
         {
             return OAuthTokenExchangeResolution.Rejected(
+                Errors.InvalidGrant,
                 "The OAuth resource has changed since this authorization was approved.");
         }
 
@@ -385,7 +401,9 @@ public sealed class OAuthAuthorizationService(
             || effectiveScopes.Except(grantedScopes, StringComparer.Ordinal).Any()
             || effectiveScopes.Except(approvedScopes, StringComparer.Ordinal).Any())
         {
-            return OAuthTokenExchangeResolution.Rejected("The requested token scopes are no longer allowed.");
+            return OAuthTokenExchangeResolution.Rejected(
+                Errors.InvalidGrant,
+                "The requested token scopes are no longer allowed.");
         }
 
         var user = grant.OAuthConnection.User;
@@ -570,6 +588,23 @@ public sealed class OAuthAuthorizationService(
     private static string[] ParseScopes(string scopes) =>
         scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+    private static bool ResourceUrisMatch(string value, string expected)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var valueUri)
+            || !Uri.TryCreate(expected, UriKind.Absolute, out var expectedUri))
+        {
+            return false;
+        }
+
+        return string.Equals(valueUri.Scheme, expectedUri.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(valueUri.Host, expectedUri.Host, StringComparison.OrdinalIgnoreCase)
+            && valueUri.Port == expectedUri.Port
+            && string.Equals(valueUri.UserInfo, expectedUri.UserInfo, StringComparison.Ordinal)
+            && string.Equals(valueUri.AbsolutePath, expectedUri.AbsolutePath, StringComparison.Ordinal)
+            && string.Equals(valueUri.Query, expectedUri.Query, StringComparison.Ordinal)
+            && string.Equals(valueUri.Fragment, expectedUri.Fragment, StringComparison.Ordinal);
+    }
+
     private static bool IsActiveUser(EntityUser user) =>
         user.IsActive && user.IdentityType == UserIdentityType.User;
 }
@@ -623,13 +658,14 @@ public sealed record OAuthAuthorizationApprovalResolution(
 
 public sealed record OAuthTokenExchangeResolution(
     ClaimsPrincipal? Principal,
+    string? Error,
     string? ErrorDescription)
 {
     public bool Success => Principal is not null;
 
     public static OAuthTokenExchangeResolution Accepted(ClaimsPrincipal principal) =>
-        new(principal, null);
+        new(principal, null, null);
 
-    public static OAuthTokenExchangeResolution Rejected(string description) =>
-        new(null, description);
+    public static OAuthTokenExchangeResolution Rejected(string error, string description) =>
+        new(null, error, description);
 }

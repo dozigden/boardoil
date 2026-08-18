@@ -8,6 +8,9 @@ public sealed record OAuthDynamicClientRegistrationRequest
     [JsonPropertyName("client_name")]
     public string? ClientName { get; init; }
 
+    [JsonPropertyName("client_uri")]
+    public string? ClientUri { get; init; }
+
     [JsonPropertyName("redirect_uris")]
     public string[]? RedirectUris { get; init; }
 
@@ -34,6 +37,7 @@ public sealed record OAuthDynamicClientRegistrationResponse(
     [property: JsonPropertyName("client_id")] string ClientId,
     [property: JsonPropertyName("client_id_issued_at")] long ClientIdIssuedAt,
     [property: JsonPropertyName("client_name")] string ClientName,
+    [property: JsonPropertyName("client_uri"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ClientUri,
     [property: JsonPropertyName("redirect_uris")] IReadOnlyList<string> RedirectUris,
     [property: JsonPropertyName("grant_types")] IReadOnlyList<string> GrantTypes,
     [property: JsonPropertyName("response_types")] IReadOnlyList<string> ResponseTypes,

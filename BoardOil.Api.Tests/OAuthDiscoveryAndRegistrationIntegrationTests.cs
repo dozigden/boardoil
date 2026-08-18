@@ -113,6 +113,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
         var application = await manager.FindByClientIdAsync(registration.ClientId);
         Assert.NotNull(application);
         Assert.Equal(ClientTypes.Public, await manager.GetClientTypeAsync(application!));
+        Assert.True(await manager.HasApplicationTypeAsync(application!, ApplicationTypes.Native));
         Assert.Contains(
             Requirements.Features.ProofKeyForCodeExchange,
             await manager.GetRequirementsAsync(application!));
@@ -152,10 +153,217 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
         Assert.Contains(Permissions.Prefixes.Scope + MachinePatScopes.McpWrite, permissions);
     }
 
+    [Fact]
+    public async Task DynamicRegistration_WhenVsCodeMetadataValid_ShouldRegisterNativeCallbacks()
+    {
+        // Arrange
+        var client = CreateClient();
+        await ConfigurePublicBaseAsync(client);
+        var request = CreateCodexRegistrationRequest() with
+        {
+            ClientName = "Visual Studio Code",
+            ClientUri = "https://code.visualstudio.com",
+            ApplicationType = ApplicationTypes.Native,
+            RedirectUris =
+            [
+                "https://insiders.vscode.dev/redirect",
+                "https://vscode.dev/redirect",
+                "http://127.0.0.1/",
+                "http://127.0.0.1:33418/"
+            ]
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync("/connect/register", request);
+        var registration = await response.Content.ReadFromJsonAsync<OAuthDynamicClientRegistrationResponse>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(registration);
+        Assert.Equal(request.ClientUri, registration!.ClientUri);
+        Assert.Equal(request.RedirectUris, registration.RedirectUris);
+        Assert.Equal(ApplicationTypes.Native, registration.ApplicationType);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+        var application = await manager.FindByClientIdAsync(registration.ClientId);
+        Assert.NotNull(application);
+        Assert.True(await manager.HasApplicationTypeAsync(application!, ApplicationTypes.Native));
+    }
+
+    [Fact]
+    public async Task DynamicRegistration_WhenPublicWebClientValid_ShouldPersistWebApplicationType()
+    {
+        // Arrange
+        var client = CreateClient();
+        await ConfigurePublicBaseAsync(client);
+        var request = CreateCodexRegistrationRequest() with
+        {
+            ClientName = "Browser MCP client",
+            ApplicationType = ApplicationTypes.Web,
+            RedirectUris = ["https://client.example.com/oauth/callback"]
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync("/connect/register", request);
+        var registration = await response.Content.ReadFromJsonAsync<OAuthDynamicClientRegistrationResponse>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(registration);
+        Assert.Equal(ApplicationTypes.Web, registration!.ApplicationType);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+        var application = await manager.FindByClientIdAsync(registration.ClientId);
+        Assert.NotNull(application);
+        Assert.True(await manager.HasApplicationTypeAsync(application!, ApplicationTypes.Web));
+    }
+
+    [Fact]
+    public async Task DynamicRegistration_WhenOptionalFlowMetadataOmitted_ShouldReturnDefaultsWithoutNullMetadata()
+    {
+        // Arrange
+        var client = CreateClient();
+        await ConfigurePublicBaseAsync(client);
+        var request = JsonSerializer.SerializeToNode(CreateCodexRegistrationRequest())!.AsObject();
+        request.Remove("grant_types");
+        request.Remove("response_types");
+        request.Remove("client_uri");
+
+        // Act
+        var response = await client.PostAsJsonAsync("/connect/register", request);
+        var responseJson = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(
+            [GrantTypes.AuthorizationCode],
+            responseJson.GetProperty("grant_types").EnumerateArray().Select(static value => value.GetString()));
+        Assert.Equal(
+            [ResponseTypes.Code],
+            responseJson.GetProperty("response_types").EnumerateArray().Select(static value => value.GetString()));
+        Assert.False(responseJson.TryGetProperty("client_uri", out _));
+    }
+
+    [Fact]
+    public async Task DynamicRegistration_WhenUnknownOptionalMetadataSupplied_ShouldIgnoreIt()
+    {
+        // Arrange
+        var client = CreateClient();
+        var request = CreateCodexRegistrationRequest() with
+        {
+            AdditionalMetadata = new Dictionary<string, JsonElement>
+            {
+                ["software_id"] = JsonSerializer.SerializeToElement("visual-studio-code")
+            }
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync("/connect/register", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DynamicRegistration_WhenRedirectUriRepeated_ShouldRegisterItOnce()
+    {
+        // Arrange
+        var client = CreateClient();
+        var request = CreateCodexRegistrationRequest() with
+        {
+            RedirectUris =
+            [
+                "http://127.0.0.1:49152/callback/project",
+                "http://127.0.0.1:49152/callback/project"
+            ]
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync("/connect/register", request);
+        var registration = await response.Content.ReadFromJsonAsync<OAuthDynamicClientRegistrationResponse>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(registration);
+        Assert.Equal(["http://127.0.0.1:49152/callback/project"], registration!.RedirectUris);
+    }
+
+    [Fact]
+    public async Task DynamicRegistration_WhenEquivalentRedirectUrisRepeated_ShouldReturnPersistedRedirectUriOnce()
+    {
+        // Arrange
+        var client = CreateClient();
+        var request = CreateCodexRegistrationRequest() with
+        {
+            ApplicationType = ApplicationTypes.Web,
+            RedirectUris =
+            [
+                "https://CLIENT.example.com/oauth/callback",
+                "https://client.example.com/oauth/callback"
+            ]
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync("/connect/register", request);
+        var registration = await response.Content.ReadFromJsonAsync<OAuthDynamicClientRegistrationResponse>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(registration);
+        Assert.Equal([request.RedirectUris[0]], registration!.RedirectUris);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+        var application = await manager.FindByClientIdAsync(registration.ClientId);
+        Assert.NotNull(application);
+        Assert.Equal(registration.RedirectUris, await manager.GetRedirectUrisAsync(application!));
+    }
+
+    [Fact]
+    public async Task AuthorizationRequest_WhenNativeClientUsesEphemeralLoopbackPort_ShouldReachLogin()
+    {
+        // Arrange
+        var client = TrackClient(Factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+        }));
+        await ConfigurePublicBaseAsync(client);
+        var registrationResponse = await client.PostAsJsonAsync(
+            "/connect/register",
+            CreateCodexRegistrationRequest() with
+            {
+                ApplicationType = ApplicationTypes.Native,
+                RedirectUris = ["http://127.0.0.1/"]
+            });
+        var registration = await registrationResponse.Content.ReadFromJsonAsync<OAuthDynamicClientRegistrationResponse>();
+        Assert.NotNull(registration);
+        const string redirectUri = "http://127.0.0.1:43821/";
+        var authorizationUrl =
+            "https://localhost/connect/authorize"
+            + $"?client_id={Uri.EscapeDataString(registration!.ClientId)}"
+            + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
+            + "&response_type=code"
+            + $"&scope={Uri.EscapeDataString(MachinePatScopes.McpRead)}"
+            + $"&resource={Uri.EscapeDataString("https://boardoil.example.com/mcp/oauth")}"
+            + $"&code_challenge={new string('A', 43)}"
+            + "&code_challenge_method=S256";
+
+        // Act
+        var response = await client.GetAsync(authorizationUrl);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain("error:", responseBody);
+    }
+
     [Theory]
     [InlineData("http://localhost:49152/callback")]
     [InlineData("http://localhost/callback")]
-    public async Task DynamicRegistration_WhenClaudeCodeUsesLocalhostCallback_ShouldAcceptRedirectUri(
+    [InlineData("https://client.example.com/oauth/callback")]
+    public async Task DynamicRegistration_WhenSafeRedirectUriSupplied_ShouldAcceptRedirectUri(
         string redirectUri)
     {
         // Arrange
@@ -175,6 +383,26 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.NotNull(registration);
         Assert.Equal(request.RedirectUris, registration!.RedirectUris);
+    }
+
+    [Fact]
+    public async Task DynamicRegistration_WhenClientUriUsesHttpLoopback_ShouldAcceptIt()
+    {
+        // Arrange
+        var client = CreateClient();
+        var request = CreateCodexRegistrationRequest() with
+        {
+            ClientUri = "http://localhost:3000/about"
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync("/connect/register", request);
+        var registration = await response.Content.ReadFromJsonAsync<OAuthDynamicClientRegistrationResponse>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(registration);
+        Assert.Equal(request.ClientUri, registration!.ClientUri);
     }
 
     [Fact]
@@ -251,9 +479,9 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
             {
                 CreateCodexRegistrationRequest() with
                 {
-                    RedirectUris = ["https://attacker.example.com/callback"]
+                    ClientUri = "http://code.visualstudio.com"
                 },
-                "invalid_redirect_uri"
+                "invalid_client_metadata"
             },
             {
                 CreateCodexRegistrationRequest() with
@@ -300,12 +528,17 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
             {
                 CreateCodexRegistrationRequest() with
                 {
-                    AdditionalMetadata = new Dictionary<string, JsonElement>
-                    {
-                        ["jwks_uri"] = JsonSerializer.SerializeToElement("https://attacker.example.com/jwks")
-                    }
+                    RedirectUris = ["com.example.client:/oauth/callback"]
                 },
-                "invalid_client_metadata"
+                "invalid_redirect_uri"
+            },
+            {
+                CreateCodexRegistrationRequest() with
+                {
+                    ApplicationType = ApplicationTypes.Web,
+                    RedirectUris = ["http://127.0.0.1:49152/callback"]
+                },
+                "invalid_redirect_uri"
             }
         };
 

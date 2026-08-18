@@ -12,6 +12,8 @@ public sealed class OAuthDynamicClientRegistrationService(
     BoardOilOAuthOptions options,
     TimeProvider timeProvider) : IOAuthDynamicClientRegistrationService
 {
+    private const int MaximumRedirectUriCount = 20;
+
     internal const string DynamicRegistrationProperty = "boardoil:dynamic_registration";
     internal const string RegistrationExpiresAtProperty = "boardoil:registration_expires_at";
 
@@ -37,18 +39,18 @@ public sealed class OAuthDynamicClientRegistrationService(
         var now = timeProvider.GetUtcNow();
         var clientId = await CreateUniqueClientIdAsync(cancellationToken);
         var clientName = request.ClientName!.Trim();
-        var redirectUris = request.RedirectUris!
-            .Select(static value => new Uri(value, UriKind.Absolute))
-            .ToArray();
-        var grantTypes = request.GrantTypes!
+        var redirectUris = DeduplicateRedirectUris(request.RedirectUris!);
+        var grantTypes = ResolveGrantTypes(request.GrantTypes)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(GetGrantTypeOrder)
             .ToArray();
+        var applicationType = ResolveApplicationType(request.ApplicationType, redirectUris);
         var scopes = ResolveScopes(request.Scope);
 
         var descriptor = new OpenIddictApplicationDescriptor
         {
             ClientId = clientId,
+            ApplicationType = applicationType,
             ClientType = ClientTypes.Public,
             ConsentType = ConsentTypes.Explicit,
             DisplayName = clientName,
@@ -79,12 +81,13 @@ public sealed class OAuthDynamicClientRegistrationService(
             clientId,
             now.ToUnixTimeSeconds(),
             clientName,
-            redirectUris.Select(static uri => uri.AbsoluteUri).ToArray(),
+            request.ClientUri,
+            redirectUris.Select(static uri => uri.OriginalString).ToArray(),
             grantTypes,
             SupportedResponseTypes,
             ClientAuthenticationMethods.None,
             string.Join(' ', scopes),
-            "native"));
+            applicationType));
     }
 
     public async Task<int> CleanupExpiredRegistrationsAsync(CancellationToken cancellationToken = default)
@@ -122,36 +125,44 @@ public sealed class OAuthDynamicClientRegistrationService(
 
     private static OAuthDynamicClientRegistrationResult? Validate(OAuthDynamicClientRegistrationRequest request)
     {
-        if (request.AdditionalMetadata is { Count: > 0 })
-        {
-            return InvalidClientMetadata("Unsupported client metadata was supplied.");
-        }
-
         if (string.IsNullOrWhiteSpace(request.ClientName) || request.ClientName.Trim().Length > 120)
         {
             return InvalidClientMetadata("client_name is required and must be 120 characters or fewer.");
         }
 
-        if (request.RedirectUris is not { Length: > 0 and <= 5 })
+        if (request.ClientUri is not null && !IsSafeWebOrLoopbackUri(request.ClientUri))
         {
-            return InvalidRedirectUri("One to five loopback redirect_uris are required.");
+            return InvalidClientMetadata("client_uri must be an absolute HTTPS URL or an absolute HTTP loopback URL.");
         }
 
-        if (request.RedirectUris.Distinct(StringComparer.Ordinal).Count() != request.RedirectUris.Length
-            || request.RedirectUris.Any(static value => !IsSafeLoopbackRedirectUri(value)))
+        if (request.RedirectUris is not { Length: > 0 })
         {
-            return InvalidRedirectUri("Each redirect URI must be an absolute HTTP loopback URI.");
+            return InvalidRedirectUri("At least one redirect_uri is required.");
         }
 
-        if (request.GrantTypes is not { Length: > 0 }
-            || !request.GrantTypes.Contains(GrantTypes.AuthorizationCode, StringComparer.Ordinal)
-            || request.GrantTypes.Distinct(StringComparer.Ordinal).Except(SupportedGrantTypes, StringComparer.Ordinal).Any())
+        if (request.RedirectUris.Any(static value => !IsSafeWebOrLoopbackUri(value)))
+        {
+            return InvalidRedirectUri(
+                "Each redirect URI must be an absolute HTTPS URI or an absolute HTTP loopback URI.");
+        }
+
+        var redirectUris = DeduplicateRedirectUris(request.RedirectUris);
+        if (redirectUris.Length > MaximumRedirectUriCount)
+        {
+            return InvalidRedirectUri($"No more than {MaximumRedirectUriCount} distinct redirect_uris are allowed.");
+        }
+
+        var grantTypes = ResolveGrantTypes(request.GrantTypes);
+        if (grantTypes.Length == 0
+            || !grantTypes.Contains(GrantTypes.AuthorizationCode, StringComparer.Ordinal)
+            || grantTypes.Distinct(StringComparer.Ordinal).Except(SupportedGrantTypes, StringComparer.Ordinal).Any())
         {
             return InvalidClientMetadata("Only authorization_code with optional refresh_token is supported.");
         }
 
-        if (request.ResponseTypes is not { Length: 1 }
-            || !string.Equals(request.ResponseTypes[0], ResponseTypes.Code, StringComparison.Ordinal))
+        if (request.ResponseTypes is not null
+            && (request.ResponseTypes is not { Length: 1 }
+                || !string.Equals(request.ResponseTypes[0], ResponseTypes.Code, StringComparison.Ordinal)))
         {
             return InvalidClientMetadata("Only the code response type is supported.");
         }
@@ -162,9 +173,19 @@ public sealed class OAuthDynamicClientRegistrationService(
         }
 
         if (!string.IsNullOrWhiteSpace(request.ApplicationType)
-            && !string.Equals(request.ApplicationType, "native", StringComparison.Ordinal))
+            && !string.Equals(request.ApplicationType, ApplicationTypes.Native, StringComparison.Ordinal)
+            && !string.Equals(request.ApplicationType, ApplicationTypes.Web, StringComparison.Ordinal))
         {
-            return InvalidClientMetadata("Only native public clients are supported.");
+            return InvalidClientMetadata("application_type must be native or web.");
+        }
+
+        var applicationType = ResolveApplicationType(
+            request.ApplicationType,
+            redirectUris);
+        if (string.Equals(applicationType, ApplicationTypes.Web, StringComparison.Ordinal)
+            && redirectUris.Any(IsHttpLoopbackUri))
+        {
+            return InvalidRedirectUri("Web clients must use HTTPS redirect URIs.");
         }
 
         var scopes = ResolveScopes(request.Scope);
@@ -176,15 +197,29 @@ public sealed class OAuthDynamicClientRegistrationService(
         return null;
     }
 
-    private static bool IsSafeLoopbackRedirectUri(string value)
+    private static bool IsSafeWebOrLoopbackUri(string value)
     {
         if (string.IsNullOrWhiteSpace(value)
             || value.Length > 2048
             || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
-            || !string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
             || uri.Port is <= 0 or > 65535
             || !string.IsNullOrEmpty(uri.UserInfo)
             || !string.IsNullOrEmpty(uri.Fragment))
+        {
+            return false;
+        }
+
+        if (string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return IsHttpLoopbackUri(uri);
+    }
+
+    private static bool IsHttpLoopbackUri(Uri uri)
+    {
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -194,15 +229,51 @@ public sealed class OAuthDynamicClientRegistrationService(
             return true;
         }
 
-        if (uri.IsDefaultPort)
-        {
-            return false;
-        }
-
         var host = uri.Host.Trim('[', ']');
         return uri.HostNameType is UriHostNameType.IPv4 or UriHostNameType.IPv6
             && IPAddress.TryParse(host, out var address)
             && IPAddress.IsLoopback(address);
+    }
+
+    private static Uri[] DeduplicateRedirectUris(IEnumerable<string> redirectUris)
+    {
+        var distinctUris = new List<Uri>();
+        var seenUris = new HashSet<Uri>();
+        foreach (var value in redirectUris)
+        {
+            var uri = new Uri(value, UriKind.Absolute);
+            if (seenUris.Add(uri))
+            {
+                distinctUris.Add(uri);
+            }
+        }
+
+        return [.. distinctUris];
+    }
+
+    private static string ResolveApplicationType(string? requestedApplicationType, IEnumerable<Uri> redirectUris)
+    {
+        if (!string.IsNullOrWhiteSpace(requestedApplicationType))
+        {
+            return requestedApplicationType;
+        }
+
+        if (redirectUris.Any(IsHttpLoopbackUri))
+        {
+            return ApplicationTypes.Native;
+        }
+
+        return ApplicationTypes.Web;
+    }
+
+    private static string[] ResolveGrantTypes(string[]? grantTypes)
+    {
+        if (grantTypes is null)
+        {
+            return [GrantTypes.AuthorizationCode];
+        }
+
+        return grantTypes;
     }
 
     private static string[] ParseScopes(string scope) =>

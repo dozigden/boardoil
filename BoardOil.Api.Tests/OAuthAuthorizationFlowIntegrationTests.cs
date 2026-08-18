@@ -305,6 +305,26 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
+    public async Task AuthorizationRequest_WhenResourceSchemeAndHostCaseDiffer_ShouldAcceptResource()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(
+            scenario,
+            MachinePatScopes.McpRead,
+            "HTTPS://BOARDOIL.EXAMPLE.COM/mcp/oauth");
+
+        // Act
+        var response = await client.GetAsync(request.Url);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Authorise Codex", responseBody);
+    }
+
+    [Fact]
     public async Task AuthorizationRequest_WhenUserDenies_ShouldReturnAccessDenied()
     {
         // Arrange
@@ -492,6 +512,33 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(Errors.InvalidGrant, response.Error);
+    }
+
+    [Fact]
+    public async Task AuthorizationCode_WhenResourceOmitted_ShouldReturnInvalidTarget()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+
+        // Act
+        var response = await client.PostAsync(
+            "/connect/token",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = GrantTypes.AuthorizationCode,
+                ["client_id"] = scenario.OAuthClientId,
+                ["code"] = code,
+                ["redirect_uri"] = scenario.RedirectUri,
+                ["code_verifier"] = request.CodeVerifier,
+            }));
+        var tokenResponse = await ReadTokenResponseAsync(response);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, tokenResponse.StatusCode);
+        Assert.Equal(Errors.InvalidTarget, tokenResponse.Error);
     }
 
     [Theory]
@@ -1228,6 +1275,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
                 ["code"] = code,
                 ["redirect_uri"] = scenario.RedirectUri,
                 ["code_verifier"] = request.CodeVerifier,
+                ["resource"] = scenario.Resource,
             }));
         return await ReadTokenResponseAsync(response);
     }
@@ -1244,6 +1292,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
                 ["grant_type"] = GrantTypes.RefreshToken,
                 ["client_id"] = scenario.OAuthClientId,
                 ["refresh_token"] = refreshToken,
+                ["resource"] = scenario.Resource,
             }));
         return await ReadTokenResponseAsync(response);
     }
