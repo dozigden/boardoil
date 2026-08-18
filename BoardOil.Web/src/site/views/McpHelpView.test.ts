@@ -6,6 +6,8 @@ describe('MCP help content', () => {
   it('bundles the canonical MCP guide without unresolved local documentation links', () => {
     expect(mcpHelpMarkdown).toContain('# Connect an MCP Client to BoardOil');
     expect(mcpHelpMarkdown).toContain('## Recommended OAuth setup');
+    expect(mcpHelpMarkdown).toContain('### VS Code and GitHub Copilot');
+    expect(mcpHelpMarkdown).not.toContain('### Ask your agent');
     expect(mcpHelpMarkdown).not.toContain('| Method | Endpoint | Use it when |');
     expect(mcpHelpMarkdown).not.toContain('ADVANCED_INSTALLATION.md');
   });

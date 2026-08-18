@@ -1,15 +1,13 @@
-export type AgentOAuthScope = 'global' | 'project';
-
-export function buildAgentOAuthPrompt(resourceUrl: string, scope: AgentOAuthScope) {
+export function buildVsCodeOAuthConfig(resourceUrl: string) {
   const normalizedResourceUrl = resourceUrl.replace(/\/+$/, '');
-  let scopeInstruction = 'Configure it globally so it is available in every project.';
-  if (scope === 'project') {
-    scopeInstruction = 'Configure it for the current project only.';
-  }
-
-  return `Connect to the BoardOil MCP server at ${normalizedResourceUrl} using OAuth.
-${scopeInstruction}
-Start authentication when ready.`;
+  return JSON.stringify({
+    servers: {
+      boardoil: {
+        type: 'http',
+        url: normalizedResourceUrl
+      }
+    }
+  }, null, 2);
 }
 
 export function buildCodexOAuthConfig(resourceUrl: string) {

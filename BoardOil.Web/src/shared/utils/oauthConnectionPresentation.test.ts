@@ -1,33 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildAgentOAuthPrompt,
   buildClaudeCodeOAuthCommand,
-  buildCodexOAuthConfig
+  buildCodexOAuthConfig,
+  buildVsCodeOAuthConfig
 } from './oauthConnectionPresentation';
 
 describe('oauthConnectionPresentation', () => {
-  it('builds a global agent setup prompt', () => {
-    const prompt = buildAgentOAuthPrompt(
-      'https://boardoil.example.com/deployment/mcp/oauth/',
-      'global'
+  it('builds a VS Code remote HTTP server configuration', () => {
+    const config = buildVsCodeOAuthConfig(
+      'https://boardoil.example.com/deployment/mcp/oauth/'
     );
 
-    expect(prompt).toBe(`Connect to the BoardOil MCP server at https://boardoil.example.com/deployment/mcp/oauth using OAuth.
-Configure it globally so it is available in every project.
-Start authentication when ready.`);
-    expect(prompt).not.toContain('token');
-    expect(prompt).not.toContain('secret');
-  });
-
-  it('builds a project-specific agent setup prompt', () => {
-    const prompt = buildAgentOAuthPrompt(
-      'https://boardoil.example.com/deployment/mcp/oauth/',
-      'project'
-    );
-
-    expect(prompt).toBe(`Connect to the BoardOil MCP server at https://boardoil.example.com/deployment/mcp/oauth using OAuth.
-Configure it for the current project only.
-Start authentication when ready.`);
+    expect(JSON.parse(config)).toEqual({
+      servers: {
+        boardoil: {
+          type: 'http',
+          url: 'https://boardoil.example.com/deployment/mcp/oauth'
+        }
+      }
+    });
+    expect(config).not.toContain('token');
+    expect(config).not.toContain('secret');
   });
 
   it('builds a secret-free Codex configuration', () => {

@@ -81,12 +81,12 @@
             <button
               type="button"
               class="btn btn--tab"
-              :class="{ 'is-active': setupClient === 'agent' }"
+              :class="{ 'is-active': setupClient === 'vscode' }"
               role="tab"
-              :aria-selected="setupClient === 'agent'"
-              @click="setupClient = 'agent'"
+              :aria-selected="setupClient === 'vscode'"
+              @click="setupClient = 'vscode'"
             >
-              Ask your agent
+              VS Code
             </button>
             <button
               type="button"
@@ -109,32 +109,13 @@
               Claude Code
             </button>
           </div>
-          <p v-if="setupClient === 'agent'">
-            Send this prompt to an agent that can configure MCP servers. It may ask before changing its configuration.
+          <p v-if="setupClient === 'vscode'">
+            Run <code>MCP: Add Server</code>, choose <code>HTTP</code>, enter the URL below, name it
+            <code>boardoil</code>, and choose <code>Global</code> or <code>Workspace</code>. Start the server and
+            complete sign-in when VS Code opens BoardOil. The configuration below is equivalent for
+            <code>mcp.json</code>. Replace any previous BoardOil entry and do not add an
+            <code>oauth.clientId</code>; VS Code registers its client automatically.
           </p>
-          <div v-if="setupClient === 'agent'" class="oauth-setup-scope">
-            <span class="oauth-setup-scope-label">Configuration scope</span>
-            <div class="btn-tab-list" role="group" aria-label="Agent configuration scope">
-              <button
-                type="button"
-                class="btn btn--tab"
-                :class="{ 'is-active': agentSetupScope === 'global' }"
-                :aria-pressed="agentSetupScope === 'global'"
-                @click="agentSetupScope = 'global'"
-              >
-                Global
-              </button>
-              <button
-                type="button"
-                class="btn btn--tab"
-                :class="{ 'is-active': agentSetupScope === 'project' }"
-                :aria-pressed="agentSetupScope === 'project'"
-                @click="agentSetupScope = 'project'"
-              >
-                Project
-              </button>
-            </div>
-          </div>
           <p v-else-if="setupClient === 'codex'">
             Add this to <code>~/.codex/config.toml</code>, then run <code>codex mcp login boardoil</code>.
             For a project-specific setup, use <code>.codex/config.toml</code> inside a trusted project instead.
@@ -148,15 +129,7 @@
           </p>
           <p v-else-if="!setupSnippet">Loading OAuth configuration...</p>
           <div v-else class="authentication-setup-code-block">
-            <textarea
-              v-if="setupClient === 'agent'"
-              class="authentication-setup-code oauth-agent-prompt"
-              :value="setupSnippet"
-              rows="8"
-              readonly
-              aria-label="Agent setup prompt"
-            />
-            <pre v-else class="authentication-setup-code">{{ setupSnippet }}</pre>
+            <pre class="authentication-setup-code">{{ setupSnippet }}</pre>
             <button
               type="button"
               class="btn btn--secondary authentication-setup-copy"
@@ -183,15 +156,14 @@ import { createSystemOAuthConnectionsApi } from '../api/systemOAuthConnectionsAp
 import { useConfirm } from '../composables/useConfirm';
 import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
 import type { OAuthConnection } from '../types/oauthConnectionTypes';
-import type { AgentOAuthScope } from '../utils/oauthConnectionPresentation';
 import {
-  buildAgentOAuthPrompt,
   buildClaudeCodeOAuthCommand,
-  buildCodexOAuthConfig
+  buildCodexOAuthConfig,
+  buildVsCodeOAuthConfig
 } from '../utils/oauthConnectionPresentation';
 import { copyTextToClipboard } from '../utils/clipboard';
 
-type SetupClient = 'agent' | 'codex' | 'claude-code';
+type SetupClient = 'vscode' | 'codex' | 'claude-code';
 
 const props = defineProps<{
   administrator?: boolean;
@@ -207,15 +179,14 @@ const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const configurationErrorMessage = ref<string | null>(null);
 const mcpResourceUrl = ref<string | null>(null);
-const setupClient = ref<SetupClient>('agent');
-const agentSetupScope = ref<AgentOAuthScope>('global');
+const setupClient = ref<SetupClient>('vscode');
 const setupSnippet = computed(() => {
   if (!mcpResourceUrl.value) {
     return null;
   }
 
-  if (setupClient.value === 'agent') {
-    return buildAgentOAuthPrompt(mcpResourceUrl.value, agentSetupScope.value);
+  if (setupClient.value === 'vscode') {
+    return buildVsCodeOAuthConfig(mcpResourceUrl.value);
   }
 
   if (setupClient.value === 'claude-code') {
@@ -225,10 +196,6 @@ const setupSnippet = computed(() => {
   return buildCodexOAuthConfig(mcpResourceUrl.value);
 });
 const copyButtonLabel = computed(() => {
-  if (setupClient.value === 'agent') {
-    return 'Copy prompt';
-  }
-
   if (setupClient.value === 'claude-code') {
     return 'Copy command';
   }
@@ -356,26 +323,6 @@ function formatDate(value: string | null) {
 
 .oauth-setup-item {
   min-width: 0;
-}
-
-.oauth-setup-scope {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55rem;
-}
-
-.oauth-setup-scope-label {
-  color: var(--bo-ink-muted);
-  font-size: 0.85rem;
-}
-
-.oauth-agent-prompt {
-  width: 100%;
-  min-height: 7rem;
-  resize: vertical;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
 </style>

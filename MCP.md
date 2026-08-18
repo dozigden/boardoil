@@ -14,17 +14,33 @@ An access token is a manually managed secret that acts with its owner's BoardOil
 
 ## Recommended OAuth setup
 
-### Ask your agent
+### VS Code and GitHub Copilot
 
-If your agent can configure MCP servers, give it the complete OAuth endpoint:
+Use VS Code's built-in MCP configuration so VS Code performs OAuth discovery, registration, and browser callback handling:
 
-```text
-Connect to the BoardOil MCP server at https://your-boardoil-address/mcp/oauth using OAuth. Start authentication when ready.
+1. Open the Command Palette and run **MCP: Add Server**.
+2. Choose **HTTP** as the server type.
+3. Enter `https://your-boardoil-address/mcp/oauth` as the server URL.
+4. Name the server `boardoil`.
+5. Choose **Global** to use BoardOil in every project or **Workspace** for the current project only.
+6. Start the server and complete sign-in when VS Code opens BoardOil in your browser.
+
+To configure `mcp.json` manually instead, add:
+
+```json
+{
+  "servers": {
+    "boardoil": {
+      "type": "http",
+      "url": "https://your-boardoil-address/mcp/oauth"
+    }
+  }
+}
 ```
 
-Ask it to configure BoardOil globally so it is available in every project. Project-specific configuration is also possible when you need to limit access.
+Run **MCP: Open User Configuration** for the global file or **MCP: Open Workspace Folder Configuration** for the project file. Merge the `boardoil` entry into an existing `servers` object rather than replacing other configured servers.
 
-The client may ask for approval before changing its configuration or may require a restart before the new server becomes available. If it cannot configure itself, use one of the manual setups below.
+Keep only one BoardOil server entry. If an earlier setup added an `oauth.clientId`, remove that property and let VS Code register its own client automatically.
 
 ### Codex
 
