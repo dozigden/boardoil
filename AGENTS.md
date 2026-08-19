@@ -32,6 +32,7 @@ Read area guidance before working in that part of the system:
 - Archive snapshots:
   - when snapshotting references to mutable board-scoped entities (for example slick membership), prefer canonical names over numeric IDs.
 - For any changes under `BoardOil.Web`, run `npm run check` in `BoardOil.Web` before committing.
+- During active UI review and iteration, do not update the board story or rerun validation after every user-requested visual adjustment. Keep iterating until the user indicates the UI is ready for review, then batch the story update and relevant validation before committing.
 - For CSS in `BoardOil.Web`: only put shared/global classes in `src/style.css` or `src/styles/*.css`; keep page/component-specific classes in the relevant `.vue` file (`<style scoped>`).
 - For `dotnet` commands in this environment, prefer `-maxcpucount:1 -nodeReuse:false` to avoid named-pipe issues.
 - In sandboxed agent environments, set `NUGET_HTTP_CACHE_PATH` to a writable temporary directory for direct `dotnet` commands (for example `/tmp/boardoil-nuget-http-cache` on Linux); the repository test scripts do this automatically.

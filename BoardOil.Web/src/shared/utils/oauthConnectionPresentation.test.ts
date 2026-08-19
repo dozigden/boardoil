@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildClaudeCodeOAuthCommand,
   buildCodexOAuthConfig,
-  buildVsCodeOAuthConfig
+  buildVsCodeOAuthConfig,
+  buildVsCodeOAuthUrl
 } from './oauthConnectionPresentation';
 
 describe('oauthConnectionPresentation', () => {
@@ -21,6 +22,11 @@ describe('oauthConnectionPresentation', () => {
     });
     expect(config).not.toContain('token');
     expect(config).not.toContain('secret');
+  });
+
+  it('builds the canonical VS Code OAuth URL', () => {
+    expect(buildVsCodeOAuthUrl('https://boardoil.example.com/deployment/mcp/oauth/'))
+      .toBe('https://boardoil.example.com/deployment/mcp/oauth');
   });
 
   it('builds a secret-free Codex configuration', () => {

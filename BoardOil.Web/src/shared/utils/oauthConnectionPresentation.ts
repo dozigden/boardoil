@@ -1,5 +1,5 @@
 export function buildVsCodeOAuthConfig(resourceUrl: string) {
-  const normalizedResourceUrl = resourceUrl.replace(/\/+$/, '');
+  const normalizedResourceUrl = buildVsCodeOAuthUrl(resourceUrl);
   return JSON.stringify({
     servers: {
       boardoil: {
@@ -8,6 +8,10 @@ export function buildVsCodeOAuthConfig(resourceUrl: string) {
       }
     }
   }, null, 2);
+}
+
+export function buildVsCodeOAuthUrl(resourceUrl: string) {
+  return resourceUrl.replace(/\/+$/, '');
 }
 
 export function buildCodexOAuthConfig(resourceUrl: string) {

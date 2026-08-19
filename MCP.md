@@ -106,6 +106,15 @@ Use an access token only when the client cannot complete OAuth or when you delib
 3. Copy the token when it is shown and store it securely. BoardOil does not show the complete token again.
 4. Configure the client to use `https://your-boardoil-address/mcp` and send the token as an `Authorization: Bearer` credential.
 
+Set `BOARDOIL_MCP_TOKEN` in the environment used to launch your client.
+
+For Claude Code, add a user-scoped server whose authorization header reads the environment variable at connection time:
+
+```sh
+claude mcp add --transport http --scope user boardoil "https://your-boardoil-address/mcp" \
+  --header 'Authorization: Bearer ${BOARDOIL_MCP_TOKEN}'
+```
+
 For Codex, keep the token outside `config.toml` and reference an environment variable:
 
 ```toml
@@ -114,7 +123,7 @@ url = "https://your-boardoil-address/mcp"
 bearer_token_env_var = "BOARDOIL_MCP_TOKEN"
 ```
 
-Set `BOARDOIL_MCP_TOKEN` in the environment used to launch Codex. Never commit an access token to source control or paste it into an agent conversation. Revoke it under **User settings → Authentication → Access tokens** when it is no longer needed or may have been exposed.
+Never commit an access token to source control or paste it into an agent conversation. Revoke it under **User settings → Authentication → Access tokens** when it is no longer needed or may have been exposed.
 
 ### Local unauthenticated mode
 

@@ -17,9 +17,11 @@
 }
 
 .authentication-method-header h2,
+.authentication-method-header h3,
 .authentication-method-header p,
-.authentication-method-sidecar h3,
-.authentication-method-sidecar p {
+.authentication-method-setup h3,
+.authentication-method-setup h4,
+.authentication-method-setup p {
   margin: 0;
 }
 
@@ -27,25 +29,67 @@
   color: var(--bo-ink-muted);
 }
 
-.authentication-method-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  gap: 1rem;
-  align-items: start;
-}
-
-.authentication-method-layout--single {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .authentication-method-main,
-.authentication-method-sidecar {
+.authentication-method-setup,
+.authentication-method-setup-section {
   min-width: 0;
 }
 
-.authentication-method-sidecar {
-  position: sticky;
-  top: 1rem;
+.authentication-method-setup-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.authentication-method-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.authentication-method-help-link {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+.authentication-method-setup-header p,
+.authentication-method-setup > p {
+  color: var(--bo-ink-muted);
+}
+
+.authentication-method-setup-content {
+  display: grid;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.authentication-method-setup-section {
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+}
+
+.authentication-method-setup-steps {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.authentication-method-inline-copy {
+  max-width: 100%;
+  margin: 0 0.2rem;
+  vertical-align: middle;
+}
+
+.authentication-method-inline-copy .authentication-setup-copy {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .authentication-method-empty {
@@ -161,16 +205,6 @@
 .authentication-record-details dd {
   margin: 0.15rem 0 0;
   overflow-wrap: anywhere;
-}
-
-@media (max-width: 1040px) {
-  .authentication-method-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .authentication-method-sidecar {
-    position: static;
-  }
 }
 
 @media (max-width: 560px) {

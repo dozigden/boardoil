@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import mcpHelpMarkdown from 'virtual:boardoil-mcp-help';
+import {
+  buildClaudeCodeAccessTokenCommand,
+  buildCodexAccessTokenConfig
+} from '../../shared/utils/accessTokenPresentation';
+import {
+  buildClaudeCodeOAuthCommand,
+  buildCodexOAuthConfig,
+  buildVsCodeOAuthConfig
+} from '../../shared/utils/oauthConnectionPresentation';
 import { resolveMcpHelpContent } from '../utils/mcpHelpContent';
 
 describe('MCP help content', () => {
@@ -39,6 +48,20 @@ describe('MCP help content', () => {
     expect(resolvedMarkdown).toContain('https://mcp.example.com/boardoil/mcp/oauth');
     expect(resolvedMarkdown).toContain('https://mcp.example.com/boardoil/mcp');
     expect(resolvedMarkdown).not.toContain('https://your-boardoil-address');
+  });
+
+  it('keeps generated OAuth and access-token snippets aligned with the guide', () => {
+    const oauthResourceUrl = 'https://mcp.example.com/boardoil/mcp/oauth';
+    const accessTokenResourceUrl = 'https://mcp.example.com/boardoil/mcp';
+    const resolvedMarkdown = resolveMcpHelpContent(mcpHelpMarkdown, oauthResourceUrl);
+
+    expect(resolvedMarkdown).toContain(buildVsCodeOAuthConfig(oauthResourceUrl));
+    expect(resolvedMarkdown).toContain(buildCodexOAuthConfig(oauthResourceUrl));
+    expect(resolvedMarkdown).toContain(buildClaudeCodeOAuthCommand(oauthResourceUrl));
+    expect(resolvedMarkdown).toContain(
+      buildClaudeCodeAccessTokenCommand(accessTokenResourceUrl)
+    );
+    expect(resolvedMarkdown).toContain(buildCodexAccessTokenConfig(accessTokenResourceUrl));
   });
 
   it('rejects an unexpected OAuth resource path', () => {

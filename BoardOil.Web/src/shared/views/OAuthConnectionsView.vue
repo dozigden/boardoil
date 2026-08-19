@@ -3,80 +3,10 @@
     class="authentication-method-page"
     :class="{ 'authentication-method-page--standalone': administrator }"
   >
-    <header class="authentication-method-header">
-      <div>
-        <h2 v-if="administrator">OAuth Connections</h2>
-        <p v-if="administrator">Inspect and revoke OAuth installations across all users.</p>
-        <p v-else>Manage the OAuth installations you have authorized.</p>
-      </div>
-      <button type="button" class="btn btn--secondary" :disabled="busy" @click="loadConnections">
-        Refresh
-      </button>
-    </header>
-
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="success">{{ successMessage }}</p>
-
-    <div
-      class="authentication-method-layout"
-      :class="{ 'authentication-method-layout--single': administrator }"
-    >
-      <section class="authentication-method-main entity-rows-list" aria-label="OAuth connections">
-        <p v-if="!busy && connections.length === 0" class="authentication-method-empty">
-          No OAuth connections have been authorized yet.
-        </p>
-
-        <article v-for="connection in connections" :key="connection.id" class="entity-row authentication-record-row">
-          <div class="entity-row-main authentication-record-main">
-            <header class="authentication-record-title">
-              <h3 class="entity-row-title">{{ connection.name }}</h3>
-              <span class="oauth-resource">{{ connection.resourceType.toUpperCase() }}</span>
-            </header>
-
-            <p v-if="administrator" class="oauth-owner">
-              {{ connection.owner.displayName }} <span>@{{ connection.owner.userName }}</span>
-            </p>
-
-            <dl class="authentication-record-details">
-              <div>
-                <dt>Application</dt>
-                <dd>{{ connection.oAuthClientDisplayName }}</dd>
-              </div>
-              <div>
-                <dt>Scopes</dt>
-                <dd>{{ formatScopes(connection.approvedScopes) }}</dd>
-              </div>
-              <div>
-                <dt>Created</dt>
-                <dd>{{ formatDate(connection.createdAtUtc) }}</dd>
-              </div>
-              <div>
-                <dt>Last authorized</dt>
-                <dd>{{ formatDate(connection.lastAuthorizedAtUtc) }}</dd>
-              </div>
-              <div>
-                <dt>Last used</dt>
-                <dd>{{ formatDate(connection.lastUsedAtUtc) }}</dd>
-              </div>
-            </dl>
-          </div>
-
-          <div class="entity-row-actions">
-            <button
-              type="button"
-              class="btn btn--danger"
-              :disabled="busy"
-              @click="revokeConnection(connection)"
-            >
-              Revoke
-            </button>
-          </div>
-        </article>
-      </section>
-
-      <aside v-if="!administrator" class="authentication-method-sidecar panel panel-stack">
+    <section v-if="!administrator" class="authentication-method-setup panel panel-stack">
+      <header class="authentication-method-setup-header">
         <h3>Connect an MCP client</h3>
-        <article class="panel panel--base panel--compact panel-stack panel-stack--tight oauth-setup-item">
+        <div class="authentication-method-setup-actions">
           <div class="btn-tab-list" role="tablist" aria-label="OAuth client setup">
             <button
               type="button"
@@ -109,21 +39,55 @@
               Claude Code
             </button>
           </div>
-          <p v-if="setupClient === 'vscode'">
-            Run <code>MCP: Add Server</code>, choose <code>HTTP</code>, enter the URL below, name it
-            <code>boardoil</code>, and choose <code>Global</code> or <code>Workspace</code>. Start the server and
-            complete sign-in when VS Code opens BoardOil. The configuration below is equivalent for
-            <code>mcp.json</code>. Replace any previous BoardOil entry and do not add an
-            <code>oauth.clientId</code>; VS Code registers its client automatically.
-          </p>
+          <RouterLink
+            :to="{ name: 'user-admin-mcp-help', hash: setupHelpHash }"
+            class="btn btn--secondary authentication-method-help-link"
+          >
+            Help
+          </RouterLink>
+        </div>
+      </header>
+
+      <div class="authentication-method-setup-content">
+        <div class="authentication-method-setup-section">
+          <ol v-if="setupClient === 'vscode'" class="authentication-method-setup-steps">
+            <li>Run <code>MCP: Add Server</code> and choose <code>HTTP</code>.</li>
+            <li>
+              Enter
+              <span
+                v-if="setupSnippet"
+                class="authentication-setup-code-block authentication-setup-code-block--endpoint authentication-method-inline-copy"
+              >
+                <code class="authentication-setup-code authentication-setup-code--inline">{{ setupSnippet }}</code>
+                <button
+                  type="button"
+                  class="btn btn--secondary authentication-setup-copy"
+                  :disabled="busy"
+                  :aria-label="copyButtonLabel"
+                  :title="copyButtonLabel"
+                  @click="copyConfig"
+                >
+                  <Copy :size="14" aria-hidden="true" />
+                </button>
+              </span>
+              <span v-else-if="configurationErrorMessage" class="error">{{ configurationErrorMessage }}</span>
+              <span v-else>the OAuth URL when it has loaded</span>, name it <code>boardoil</code>, and choose
+              <code>Global</code> or <code>Workspace</code>.
+            </li>
+            <li>Start the server and complete sign-in when VS Code opens BoardOil.</li>
+          </ol>
           <p v-else-if="setupClient === 'codex'">
-            Add this to <code>~/.codex/config.toml</code>, then run <code>codex mcp login boardoil</code>.
-            For a project-specific setup, use <code>.codex/config.toml</code> inside a trusted project instead.
+            Add this to <code>~/.codex/config.toml</code>, then run <code>codex mcp login boardoil</code>,
+            or tell your agent to connect.
           </p>
           <p v-else>
             Run this once, then run <code>claude mcp login boardoil</code> or use <code>/mcp</code> in Claude Code.
-            For a project-specific setup, replace <code>--scope user</code> with <code>--scope local</code> and run it from that project.
+            Use <code>--scope local</code> for a private configuration tied to the current project, or
+            <code>--scope project</code> for a shared <code>.mcp.json</code> configuration.
           </p>
+        </div>
+
+        <div v-if="setupClient !== 'vscode'" class="authentication-method-setup-section">
           <p v-if="configurationErrorMessage" class="error">
             {{ configurationErrorMessage }}
           </p>
@@ -141,15 +105,84 @@
               <Copy :size="14" aria-hidden="true" />
             </button>
           </div>
-        </article>
-      </aside>
-    </div>
+        </div>
+      </div>
+    </section>
+
+    <header class="authentication-method-header">
+      <div>
+        <h2 v-if="administrator">OAuth Connections</h2>
+        <h3 v-else>Authorized connections</h3>
+        <p v-if="administrator">Inspect and revoke OAuth installations across all users.</p>
+        <p v-else>Manage the OAuth installations you have authorized.</p>
+      </div>
+      <button type="button" class="btn btn--secondary" :disabled="busy" @click="loadConnections">
+        Refresh
+      </button>
+    </header>
+
+    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+    <p v-if="successMessage" class="success">{{ successMessage }}</p>
+
+    <section class="authentication-method-main entity-rows-list" aria-label="OAuth connections">
+      <p v-if="!busy && connections.length === 0" class="authentication-method-empty">
+        No OAuth connections have been authorized yet.
+      </p>
+
+      <article v-for="connection in connections" :key="connection.id" class="entity-row authentication-record-row">
+        <div class="entity-row-main authentication-record-main">
+          <header class="authentication-record-title">
+            <h3 class="entity-row-title">{{ connection.name }}</h3>
+            <span class="oauth-resource">{{ connection.resourceType.toUpperCase() }}</span>
+          </header>
+
+          <p v-if="administrator" class="oauth-owner">
+            {{ connection.owner.displayName }} <span>@{{ connection.owner.userName }}</span>
+          </p>
+
+          <dl class="authentication-record-details">
+            <div>
+              <dt>Application</dt>
+              <dd>{{ connection.oAuthClientDisplayName }}</dd>
+            </div>
+            <div>
+              <dt>Scopes</dt>
+              <dd>{{ formatScopes(connection.approvedScopes) }}</dd>
+            </div>
+            <div>
+              <dt>Created</dt>
+              <dd>{{ formatDate(connection.createdAtUtc) }}</dd>
+            </div>
+            <div>
+              <dt>Last authorized</dt>
+              <dd>{{ formatDate(connection.lastAuthorizedAtUtc) }}</dd>
+            </div>
+            <div>
+              <dt>Last used</dt>
+              <dd>{{ formatDate(connection.lastUsedAtUtc) }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="entity-row-actions">
+          <button
+            type="button"
+            class="btn btn--danger"
+            :disabled="busy"
+            @click="revokeConnection(connection)"
+          >
+            Revoke
+          </button>
+        </div>
+      </article>
+    </section>
   </section>
 </template>
 
 <script setup lang="ts">
 import { Copy } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
+import { RouterLink } from 'vue-router';
 import { getMcpOAuthMetadata } from '../api/oauthMetadataApi';
 import { createOAuthConnectionsApi } from '../api/oauthConnectionsApi';
 import { createSystemOAuthConnectionsApi } from '../api/systemOAuthConnectionsApi';
@@ -159,7 +192,7 @@ import type { OAuthConnection } from '../types/oauthConnectionTypes';
 import {
   buildClaudeCodeOAuthCommand,
   buildCodexOAuthConfig,
-  buildVsCodeOAuthConfig
+  buildVsCodeOAuthUrl
 } from '../utils/oauthConnectionPresentation';
 import { copyTextToClipboard } from '../utils/clipboard';
 
@@ -180,13 +213,24 @@ const successMessage = ref<string | null>(null);
 const configurationErrorMessage = ref<string | null>(null);
 const mcpResourceUrl = ref<string | null>(null);
 const setupClient = ref<SetupClient>('vscode');
+const setupHelpHash = computed(() => {
+  if (setupClient.value === 'vscode') {
+    return '#vs-code-and-github-copilot';
+  }
+
+  if (setupClient.value === 'claude-code') {
+    return '#claude-code';
+  }
+
+  return '#codex';
+});
 const setupSnippet = computed(() => {
   if (!mcpResourceUrl.value) {
     return null;
   }
 
   if (setupClient.value === 'vscode') {
-    return buildVsCodeOAuthConfig(mcpResourceUrl.value);
+    return buildVsCodeOAuthUrl(mcpResourceUrl.value);
   }
 
   if (setupClient.value === 'claude-code') {
@@ -196,6 +240,10 @@ const setupSnippet = computed(() => {
   return buildCodexOAuthConfig(mcpResourceUrl.value);
 });
 const copyButtonLabel = computed(() => {
+  if (setupClient.value === 'vscode') {
+    return 'Copy URL';
+  }
+
   if (setupClient.value === 'claude-code') {
     return 'Copy command';
   }
@@ -319,10 +367,6 @@ function formatDate(value: string | null) {
 
 .oauth-owner {
   margin: 0.35rem 0 0;
-}
-
-.oauth-setup-item {
-  min-width: 0;
 }
 
 </style>

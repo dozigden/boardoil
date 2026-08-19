@@ -1,34 +1,37 @@
 <template>
   <section class="authentication-method-page">
-    <header class="authentication-method-header">
-      <div>
-        <p>Access tokens are a manual fallback for MCP clients that cannot use OAuth. They act as you; use a client account when an agent needs its own identity.</p>
-      </div>
-      <button type="button" class="btn" :disabled="isBusy" @click="openCreateDialog">Create access token</button>
-    </header>
+    <section class="authentication-method-setup panel panel-stack">
+      <header class="authentication-method-setup-header">
+        <div>
+          <h3>Connect with an access token</h3>
+          <p>Set up the client after creating a token with the scopes it needs.</p>
+        </div>
+        <div class="btn-tab-list" role="tablist" aria-label="Access token client setup">
+          <button
+            type="button"
+            class="btn btn--tab"
+            :class="{ 'is-active': configSnippetTab === 'claude-code' }"
+            role="tab"
+            :aria-selected="configSnippetTab === 'claude-code'"
+            @click="configSnippetTab = 'claude-code'"
+          >
+            Claude Code
+          </button>
+          <button
+            type="button"
+            class="btn btn--tab"
+            :class="{ 'is-active': configSnippetTab === 'codex' }"
+            role="tab"
+            :aria-selected="configSnippetTab === 'codex'"
+            @click="configSnippetTab = 'codex'"
+          >
+            Codex
+          </button>
+        </div>
+      </header>
 
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="success">{{ successMessage }}</p>
-
-    <div class="authentication-method-layout">
-      <section class="authentication-method-main entity-rows-list" aria-label="Access tokens">
-        <p v-if="tokens.length === 0" class="authentication-method-empty">No access tokens have been created yet.</p>
-
-        <AccessTokenListItem
-          v-for="token in tokens"
-          :key="token.id"
-          :token="token"
-          :is-busy="isBusy"
-          :token-status="tokenStatus"
-          :format-date="formatDate"
-          @revoke="revokeToken"
-        />
-      </section>
-
-      <aside class="authentication-method-sidecar panel panel-stack">
-        <h3>Setup snippets</h3>
-
-        <article class="panel panel--base panel--compact panel-stack panel-stack--tight machine-pat-setup-item">
+      <div class="authentication-method-setup-content">
+        <section class="authentication-method-setup-section">
           <h4>MCP endpoint</h4>
           <div class="authentication-setup-code-block authentication-setup-code-block--endpoint">
             <code class="authentication-setup-code authentication-setup-code--inline">{{ mcpEndpoint }}</code>
@@ -43,34 +46,10 @@
               <Copy :size="14" aria-hidden="true" />
             </button>
           </div>
-        </article>
+        </section>
 
-        <article class="panel panel--base panel--compact panel-stack panel-stack--tight machine-pat-setup-item">
-          <header class="machine-pat-setup-item-header">
-            <h4>Client setup</h4>
-            <div class="btn-tab-list" role="tablist" aria-label="Access token client setup">
-              <button
-                type="button"
-                class="btn btn--tab"
-                :class="{ 'is-active': configSnippetTab === 'claude-code' }"
-                role="tab"
-                :aria-selected="configSnippetTab === 'claude-code'"
-                @click="configSnippetTab = 'claude-code'"
-              >
-                Claude Code
-              </button>
-              <button
-                type="button"
-                class="btn btn--tab"
-                :class="{ 'is-active': configSnippetTab === 'codex' }"
-                role="tab"
-                :aria-selected="configSnippetTab === 'codex'"
-                @click="configSnippetTab = 'codex'"
-              >
-                Codex
-              </button>
-            </div>
-          </header>
+        <section class="authentication-method-setup-section">
+          <h4>{{ selectedConfigSnippetLabel }} setup</h4>
           <div class="authentication-setup-code-block">
             <pre class="authentication-setup-code">{{ selectedConfigSnippet }}</pre>
             <button
@@ -84,13 +63,38 @@
               <Copy :size="14" aria-hidden="true" />
             </button>
           </div>
-        </article>
+        </section>
+      </div>
 
-        <p class="machine-pat-setup-note">
-          Set <code>BOARDOIL_MCP_TOKEN</code> in the environment before using these examples. Keep access tokens in private user configuration and never commit them to source control.
-        </p>
-      </aside>
-    </div>
+      <p class="machine-pat-setup-note">
+        Set <code>BOARDOIL_MCP_TOKEN</code> in the environment before using these examples. Keep access tokens in private user configuration and never commit them to source control.
+      </p>
+    </section>
+
+    <header class="authentication-method-header">
+      <div>
+        <h3>Access tokens</h3>
+        <p>Access tokens are a manual fallback for clients that cannot use OAuth. They act as you; use a client account when an agent needs its own identity.</p>
+      </div>
+      <button type="button" class="btn" :disabled="isBusy" @click="openCreateDialog">Create access token</button>
+    </header>
+
+    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+    <p v-if="successMessage" class="success">{{ successMessage }}</p>
+
+    <section class="authentication-method-main entity-rows-list" aria-label="Access tokens">
+      <p v-if="tokens.length === 0" class="authentication-method-empty">No access tokens have been created yet.</p>
+
+      <AccessTokenListItem
+        v-for="token in tokens"
+        :key="token.id"
+        :token="token"
+        :is-busy="isBusy"
+        :token-status="tokenStatus"
+        :format-date="formatDate"
+        @revoke="revokeToken"
+      />
+    </section>
 
     <AccessTokenCreateDialog
       :open="isCreateDialogOpen"
@@ -120,6 +124,10 @@ import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretMod
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { AccessToken, CreateAccessTokenRequest } from '../../shared/types/authTypes';
+import {
+  buildClaudeCodeAccessTokenCommand,
+  buildCodexAccessTokenConfig
+} from '../../shared/utils/accessTokenPresentation';
 import { copyTextToClipboard } from '../../shared/utils/clipboard';
 
 const authApi = createAuthApi();
@@ -140,17 +148,13 @@ const configSnippetTab = ref<'claude-code' | 'codex'>('claude-code');
 const isBusy = computed(() => loading.value || createBusy.value || revokeBusyTokenId.value !== null);
 const isSecretModalOpen = computed(() => plainTextPat.value !== null);
 const mcpEndpoint = computed(() => `${window.location.origin}/mcp`);
-const apiBaseUrl = computed(() => window.location.origin);
 const userDefaultScopes = ['mcp:read', 'mcp:write'];
 const userAllowedScopes = ['mcp:read', 'mcp:write'];
 const claudeCodeConfigSnippet = computed(() =>
-  `claude mcp add --transport http --scope user boardoil "${mcpEndpoint.value}" \\
-  --header "Authorization: Bearer \${BOARDOIL_MCP_TOKEN}"`
+  buildClaudeCodeAccessTokenCommand(mcpEndpoint.value)
 );
 const codexConfigSnippet = computed(() =>
-  `[mcp_servers.boardoil]
-url = "${mcpEndpoint.value}"
-bearer_token_env_var = "BOARDOIL_MCP_TOKEN"`
+  buildCodexAccessTokenConfig(mcpEndpoint.value)
 );
 const selectedConfigSnippet = computed(() => {
   if (configSnippetTab.value === 'claude-code') {
@@ -317,18 +321,6 @@ function sortTokens(items: AccessToken[]) {
 </script>
 
 <style scoped>
-.machine-pat-setup-item h4 {
-  margin: 0;
-}
-
-.machine-pat-setup-item-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.55rem;
-}
-
 .machine-pat-setup-note {
   margin: 0;
   color: var(--bo-ink-muted);

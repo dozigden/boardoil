@@ -11,22 +11,28 @@ import { TaskList } from '@tiptap/extension-list/task-list';
 import { Markdown } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
-import { computed, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
 import { isHttpOrHttpsUrl } from '../utils/linkUrl';
 import { normaliseMarkdown as normaliseMarkdownValue } from '../utils/markdown';
+import { AnchoredHeading } from './mdViewerHeadingAnchors';
 
 const props = withDefaults(defineProps<{
   modelValue: string;
   ariaLabel?: string;
+  activeHeadingAnchor?: string;
+  headingAnchors?: boolean;
   maxLength?: number;
   minHeight?: string;
 }>(), {
+  activeHeadingAnchor: '',
   ariaLabel: 'Markdown content',
+  headingAnchors: false,
   maxLength: 20_000,
   minHeight: '12rem'
 });
 
 const normalisedModelValue = computed(() => normaliseMarkdown(props.modelValue ?? ''));
+let headingScrollFrame: number | null = null;
 
 const tiptapEditor = useEditor({
   content: '',
@@ -34,8 +40,10 @@ const tiptapEditor = useEditor({
   contentType: 'markdown',
   extensions: [
     StarterKit.configure({
+      heading: props.headingAnchors ? false : {},
       link: false
     }),
+    ...(props.headingAnchors ? [AnchoredHeading] : []),
     TaskList,
     TaskItem.configure({
       nested: true
@@ -96,7 +104,40 @@ function setEditorContent(value: string) {
   }
 
   editor.commands.setContent(nextValue, { contentType: 'markdown' });
+  scheduleActiveHeadingScroll();
 }
+
+function scrollToActiveHeading() {
+  const anchor = props.activeHeadingAnchor;
+  const editorElement = tiptapEditor.value?.view.dom;
+  if (!anchor || !editorElement?.isConnected) {
+    return;
+  }
+
+  const target = Array.from(editorElement.querySelectorAll<HTMLElement>('[id]'))
+    .find(element => element.id === anchor);
+  target?.scrollIntoView({ block: 'start' });
+}
+
+function scheduleActiveHeadingScroll() {
+  if (headingScrollFrame !== null) {
+    window.cancelAnimationFrame(headingScrollFrame);
+  }
+
+  void nextTick(() => {
+    headingScrollFrame = window.requestAnimationFrame(() => {
+      headingScrollFrame = null;
+      scrollToActiveHeading();
+    });
+  });
+}
+
+onMounted(scheduleActiveHeadingScroll);
+onBeforeUnmount(() => {
+  if (headingScrollFrame !== null) {
+    window.cancelAnimationFrame(headingScrollFrame);
+  }
+});
 
 watch(
   normalisedModelValue,
@@ -116,6 +157,11 @@ watch(
     setEditorContent(normalisedModelValue.value);
   },
   { immediate: true }
+);
+
+watch(
+  () => props.activeHeadingAnchor,
+  scheduleActiveHeadingScroll
 );
 </script>
 

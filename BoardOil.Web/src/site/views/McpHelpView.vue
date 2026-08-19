@@ -2,8 +2,10 @@
   <section class="mcp-help-view">
     <MdViewer
       v-if="resolvedMcpHelpMarkdown"
+      :active-heading-anchor="requestedSectionAnchor"
       :model-value="resolvedMcpHelpMarkdown"
       aria-label="MCP help"
+      heading-anchors
       min-height="0"
     />
     <p v-else-if="errorMessage" class="error mcp-help-status" role="alert">
@@ -14,7 +16,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import mcpHelpMarkdown from 'virtual:boardoil-mcp-help';
 import { getMcpOAuthMetadata } from '../../shared/api/oauthMetadataApi';
 import MdViewer from '../../shared/components/MdViewer.vue';
@@ -22,6 +25,9 @@ import { resolveMcpHelpContent } from '../utils/mcpHelpContent';
 
 const resolvedMcpHelpMarkdown = ref('');
 const errorMessage = ref<string | null>(null);
+const route = useRoute();
+
+const requestedSectionAnchor = computed(() => route.hash.replace(/^#/, ''));
 
 onMounted(() => {
   void loadMcpHelp();
@@ -74,6 +80,7 @@ async function loadMcpHelp() {
 .mcp-help-view :deep(.md-viewer-content .tiptap h2),
 .mcp-help-view :deep(.md-viewer-content .tiptap h3) {
   font-family: "Montserrat", "Segoe UI", sans-serif;
+  scroll-margin-top: 1rem;
 }
 
 .mcp-help-view :deep(.md-viewer-content .tiptap h1) {
