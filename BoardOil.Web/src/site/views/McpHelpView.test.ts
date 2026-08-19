@@ -5,11 +5,29 @@ import { resolveMcpHelpContent } from '../utils/mcpHelpContent';
 describe('MCP help content', () => {
   it('bundles the canonical MCP guide without unresolved local documentation links', () => {
     expect(mcpHelpMarkdown).toContain('# Connect an MCP Client to BoardOil');
-    expect(mcpHelpMarkdown).toContain('## Recommended OAuth setup');
-    expect(mcpHelpMarkdown).toContain('### VS Code and GitHub Copilot');
+    expect(mcpHelpMarkdown).toContain('## VS Code and GitHub Copilot');
+    expect(mcpHelpMarkdown).toContain('## Codex');
+    expect(mcpHelpMarkdown).toContain('## Claude Code');
+    expect(mcpHelpMarkdown).toContain('## Other MCP clients');
+    expect(mcpHelpMarkdown).toContain('## After connecting');
+    expect(mcpHelpMarkdown).toContain('## Access token fallback');
     expect(mcpHelpMarkdown).not.toContain('### Ask your agent');
     expect(mcpHelpMarkdown).not.toContain('| Method | Endpoint | Use it when |');
     expect(mcpHelpMarkdown).not.toContain('ADVANCED_INSTALLATION.md');
+  });
+
+  it('presents client-specific instructions before generic and fallback guidance', () => {
+    const sectionPositions = [
+      '## VS Code and GitHub Copilot',
+      '## Codex',
+      '## Claude Code',
+      '## Other MCP clients',
+      '## After connecting',
+      '## Access token fallback'
+    ].map(section => mcpHelpMarkdown.indexOf(section));
+
+    expect(sectionPositions.every(position => position >= 0)).toBe(true);
+    expect(sectionPositions).toEqual([...sectionPositions].sort((left, right) => left - right));
   });
 
   it('uses the canonical OAuth resource for both MCP endpoints', () => {
