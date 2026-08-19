@@ -36,6 +36,22 @@ describe('commentStore', () => {
 
     expect(store.getCommentsForCard(7)).toEqual([boardTwoComment]);
   });
+
+  it('orders comments by their semantic posting time', async () => {
+    const store = useCommentStore();
+    const postedLater = makeComment(1, 7, 'Posted later');
+    const createdLater = {
+      ...makeComment(2, 7, 'Created later'),
+      postedAtUtc: '2026-07-31T11:00:00Z',
+      createdAtUtc: '2026-07-31T13:00:00Z'
+    };
+    api.getCardComments.mockResolvedValue(ok([createdLater, postedLater]));
+
+    await store.loadCardComments(1, 7);
+
+    expect(store.getCommentsForCard(7).map(comment => comment.text))
+      .toEqual(['Posted later', 'Created later']);
+  });
 });
 
 function makeComment(id: number, cardId: number, text: string): CardComment {
@@ -44,6 +60,7 @@ function makeComment(id: number, cardId: number, text: string): CardComment {
     cardId,
     authorUserId: null,
     text,
+    postedAtUtc: `2026-07-31T12:0${id}:00Z`,
     createdAtUtc: `2026-07-31T12:0${id}:00Z`
   };
 }

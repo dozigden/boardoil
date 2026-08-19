@@ -640,6 +640,8 @@ public sealed class BoardApiCardIntegrationTests
         Assert.NotNull(createdEnvelope.Data);
         Assert.Equal(cardId, createdEnvelope.Data!.CardId);
         Assert.Equal("First comment", createdEnvelope.Data!.Text);
+        Assert.Equal(DateTimeKind.Utc, createdEnvelope.Data.PostedAtUtc.Kind);
+        Assert.Equal(DateTimeKind.Utc, createdEnvelope.Data.CreatedAtUtc.Kind);
 
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.NotNull(listEnvelope);
@@ -648,6 +650,8 @@ public sealed class BoardApiCardIntegrationTests
         Assert.Single(listEnvelope.Data);
         Assert.Equal(cardId, listEnvelope.Data[0].CardId);
         Assert.Equal("First comment", listEnvelope.Data[0].Text);
+        Assert.Equal(DateTimeKind.Utc, listEnvelope.Data[0].PostedAtUtc.Kind);
+        Assert.Equal(DateTimeKind.Utc, listEnvelope.Data[0].CreatedAtUtc.Kind);
     }
 
 }

@@ -123,7 +123,12 @@
                     :max-length="maxCommentLength"
                     min-height="1.5rem"
                   />
-                  <time class="card-editor-comment-timestamp" :datetime="comment.createdAtUtc">{{ formatCommentDateTime(comment.createdAtUtc) }}</time>
+                  <time
+                    class="card-editor-comment-timestamp"
+                    :datetime="comment.postedAtUtc"
+                  >
+                    {{ formatCommentDateTime(comment.postedAtUtc) }}
+                  </time>
                 </div>
               </article>
             </div>

@@ -191,6 +191,7 @@ describe('boardRealtime', () => {
       cardId: 55,
       authorUserId: 4,
       text: 'hello',
+      postedAtUtc: '2026-05-02T07:00:00.0000000Z',
       createdAtUtc: '2026-05-02T07:00:00.0000000Z'
     };
 

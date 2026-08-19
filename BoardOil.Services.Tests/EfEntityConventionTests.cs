@@ -62,6 +62,43 @@ public sealed class EfEntityConventionTests
     }
 
     [Fact]
+    public void PersistedUtcDateTimes_ShouldReloadWithUtcKind()
+    {
+        // Arrange
+        using var context = CreateOpenDbContext();
+        context.Database.EnsureCreated();
+        var expiresAtUtc = new DateTime(2026, 8, 20, 12, 30, 0, DateTimeKind.Utc);
+        var user = new EntityUser
+        {
+            UserName = "utc-test",
+            DisplayName = "UTC test",
+            Email = "utc-test@example.com",
+            NormalisedEmail = "UTC-TEST@EXAMPLE.COM"
+        };
+        var token = new EntityPersonalAccessToken
+        {
+            User = user,
+            Name = "UTC test token",
+            TokenHash = "utc-test-token-hash",
+            TokenPrefix = "bo_pat_utc_test",
+            ScopesCsv = "mcp:read",
+            ExpiresAtUtc = expiresAtUtc
+        };
+        context.PersonalAccessTokens.Add(token);
+        context.SaveChanges();
+        context.ChangeTracker.Clear();
+
+        // Act
+        var reloadedToken = context.PersonalAccessTokens.Single(x => x.Id == token.Id);
+
+        // Assert
+        Assert.Equal(DateTimeKind.Utc, reloadedToken.CreatedAtUtc.Kind);
+        Assert.NotNull(reloadedToken.ExpiresAtUtc);
+        Assert.Equal(DateTimeKind.Utc, reloadedToken.ExpiresAtUtc.Value.Kind);
+        Assert.Equal(expiresAtUtc, reloadedToken.ExpiresAtUtc.Value);
+    }
+
+    [Fact]
     public void EfEntities_ShouldUseEntityPrefix()
     {
         var efEntityTypeNames = GetEfEntityTypeNames();

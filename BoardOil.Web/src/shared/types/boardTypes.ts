@@ -23,6 +23,7 @@ export type CardComment = {
   cardId: number;
   authorUserId: number | null;
   text: string;
+  postedAtUtc: string;
   createdAtUtc: string;
   authorDisplayName?: string | null;
   authorImageRelativePath?: string | null;

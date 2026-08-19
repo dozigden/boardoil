@@ -280,6 +280,7 @@ const demoBoardApi: BoardApi = {
     }
 
     const member = state.members.find(candidate => candidate.userId === DemoUserId)!;
+    const postedAtUtc = now();
     const comment: CardComment = {
       id: state.nextCommentId++,
       cardId,
@@ -287,7 +288,8 @@ const demoBoardApi: BoardApi = {
       authorDisplayName: member.displayName,
       authorImageRelativePath: null,
       text: text.trim(),
-      createdAtUtc: now()
+      postedAtUtc,
+      createdAtUtc: postedAtUtc
     };
     state.comments[cardId] = [comment, ...(state.comments[cardId] ?? [])];
     return ok(clone(comment));
@@ -803,6 +805,7 @@ function createSeedState(): DemoState {
           authorDisplayName: 'A. N. Other',
           authorImageRelativePath: null,
           text: 'The new editor flow is ready for a final interaction pass.',
+          postedAtUtc: '2026-08-12T10:15:00.000Z',
           createdAtUtc: '2026-08-12T10:15:00.000Z'
         }
       ]

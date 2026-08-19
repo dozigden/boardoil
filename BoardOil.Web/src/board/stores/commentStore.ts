@@ -109,11 +109,11 @@ function normalizeComments(comments: CardComment[]) {
 }
 
 function compareCommentsDescending(left: CardComment, right: CardComment) {
-  if (left.createdAtUtc > right.createdAtUtc) {
+  if (left.postedAtUtc > right.postedAtUtc) {
     return -1;
   }
 
-  if (left.createdAtUtc < right.createdAtUtc) {
+  if (left.postedAtUtc < right.postedAtUtc) {
     return 1;
   }
 

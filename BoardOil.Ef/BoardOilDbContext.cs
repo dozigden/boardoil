@@ -1,10 +1,17 @@
 using BoardOil.Data.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace BoardOil.Ef;
 
 public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> options) : DbContext(options)
 {
+    private static readonly ValueConverter<DateTime, DateTime> UtcDateTimeConverter = new(
+        value => value.Kind == DateTimeKind.Local
+            ? value.ToUniversalTime()
+            : DateTime.SpecifyKind(value, DateTimeKind.Utc),
+        value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
+
     public DbSet<EntityBoard> Boards => Set<EntityBoard>();
     public DbSet<EntityBoardCardIdSequence> BoardCardIdSequences => Set<EntityBoardCardIdSequence>();
     public DbSet<EntityBoardColumn> Columns => Set<EntityBoardColumn>();
@@ -30,6 +37,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     {
         modelBuilder.UseOpenIddict();
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BoardOilDbContext).Assembly);
+        ConfigureUtcDateTimeProperties(modelBuilder);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -68,6 +76,22 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
             {
                 entry.Property(nameof(ISupportUpdatedAt.UpdatedAtUtc)).CurrentValue = nowUtc;
             }
+        }
+    }
+
+    private static void ConfigureUtcDateTimeProperties(ModelBuilder modelBuilder)
+    {
+        var entityNamespace = typeof(EntityBoard).Namespace;
+        var utcProperties = modelBuilder.Model.GetEntityTypes()
+            .Where(entityType => string.Equals(entityType.ClrType.Namespace, entityNamespace, StringComparison.Ordinal))
+            .SelectMany(entityType => entityType.GetProperties())
+            .Where(property => property.Name.EndsWith("Utc", StringComparison.Ordinal))
+            .Where(property => Nullable.GetUnderlyingType(property.ClrType) == typeof(DateTime)
+                || property.ClrType == typeof(DateTime));
+
+        foreach (var property in utcProperties)
+        {
+            property.SetValueConverter(UtcDateTimeConverter);
         }
     }
 }
