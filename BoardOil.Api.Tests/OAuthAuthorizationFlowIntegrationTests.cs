@@ -736,6 +736,34 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
+    public async Task McpConnection_WithValidToken_ShouldRejectUnsupportedGetWithoutInvalidatingToken()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        using var getRequest = new HttpRequestMessage(HttpMethod.Get, "/mcp/oauth");
+        getRequest.Headers.Authorization = new("Bearer", exchange.AccessToken);
+        getRequest.Headers.Accept.ParseAdd("text/event-stream");
+
+        // Act
+        var response = await client.SendAsync(getRequest);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
+        Assert.Equal(
+            HttpMethod.Post.Method,
+            Assert.Single(response.Content.Headers.Allow));
+        Assert.DoesNotContain(
+            "invalid_token",
+            response.Headers.WwwAuthenticate.ToString(),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task McpConnection_WhenValid_ShouldTrackLastUseAtMostOncePerUtcDay()
     {
         // Arrange

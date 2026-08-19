@@ -43,22 +43,6 @@ public static class OAuthEndpoints
             Results.Json(await metadataService.GetMcpAsync(request)))
             .WithTags("OAuth");
 
-        app.MapGet(OAuthResources.McpPath, async (
-                HttpContext context,
-                IOAuthProtectedResourceMetadataService metadataService,
-                OAuthEndpointUrlResolver urlResolver) =>
-            {
-                var metadata = await metadataService.GetMcpAsync(context.Request);
-                var metadataUrl = await urlResolver.ResolveAsync(
-                    context.Request,
-                    OAuthResources.McpMetadataPath);
-                var scopes = string.Join(' ', metadata.ScopesSupported);
-                context.Response.Headers.WWWAuthenticate =
-                    $"Bearer resource_metadata=\"{metadataUrl}\", scope=\"{scopes}\"";
-                return Results.StatusCode(StatusCodes.Status401Unauthorized);
-            })
-            .WithTags("OAuth");
-
         return app;
     }
 

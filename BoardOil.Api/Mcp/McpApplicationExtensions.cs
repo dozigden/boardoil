@@ -133,6 +133,19 @@ public static class McpApplicationExtensions
         app.MapMcp(OAuthResources.McpPath)
             .RequireAuthorization(BoardOilPolicies.McpOAuthConnection);
 
+        if (!mcpOptions.SupportsLegacySseTransport)
+        {
+            // Stateless Streamable HTTP has no GET stream, but anonymous probes still need an OAuth challenge.
+            app.MapGet(
+                    OAuthResources.McpPath,
+                    (HttpResponse response) =>
+                    {
+                        response.Headers.Allow = HttpMethods.Post;
+                        return Results.StatusCode(StatusCodes.Status405MethodNotAllowed);
+                    })
+                .RequireAuthorization(BoardOilPolicies.McpOAuthConnection);
+        }
+
         app.MapGet("/.well-known/mcp", async (IConfigurationService configurationService) =>
             Results.Json(McpDiscoveryMetadata.CreateWellKnownDocument(
                 await configurationService.GetMcpPublicBaseUrlAsync(),
