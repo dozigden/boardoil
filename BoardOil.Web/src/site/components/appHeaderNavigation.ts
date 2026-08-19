@@ -1,8 +1,8 @@
 import type { Board, BoardSummary } from '../../shared/types/boardTypes';
 import type { RouteLocationRaw } from 'vue-router';
 
-const BROWSER_TITLE_SUFFIX = ' - Board Oil';
-const PRODUCT_TITLE = 'Board Oil';
+const BROWSER_TITLE_SUFFIX = ' - BoardOil';
+const PRODUCT_TITLE = 'BoardOil';
 
 export function getBrandTarget(boards: BoardSummary[]): RouteLocationRaw {
   return { name: 'boards' };

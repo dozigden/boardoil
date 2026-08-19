@@ -2,7 +2,7 @@
   <section class="user-theme-view">
     <header class="user-theme-header">
       <h2>Theme</h2>
-      <p>Choose how Board Oil should look for your account on this browser.</p>
+      <p>Choose how BoardOil should look for your account on this browser.</p>
     </header>
 
     <section class="user-theme-card panel panel-stack panel-stack--cozy">

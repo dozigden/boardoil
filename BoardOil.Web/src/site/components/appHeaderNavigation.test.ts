@@ -123,11 +123,11 @@ describe('appHeaderNavigation', () => {
       }
     ];
 
-    expect(getPageTitle(board, boards, 7, null)).toBe('Loaded board - Board Oil');
-    expect(getPageTitle(null, boards, null, 7)).toBe('Catalogue board - Board Oil');
+    expect(getPageTitle(board, boards, 7, null)).toBe('Loaded board - BoardOil');
+    expect(getPageTitle(null, boards, null, 7)).toBe('Catalogue board - BoardOil');
   });
 
   it('falls back to the product name when no active board can be resolved', () => {
-    expect(getPageTitle(null, [], null, null)).toBe('Board Oil');
+    expect(getPageTitle(null, [], null, null)).toBe('BoardOil');
   });
 });

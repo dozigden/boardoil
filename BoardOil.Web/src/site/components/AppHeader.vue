@@ -3,7 +3,7 @@
     <div class="header-top">
       <div class="header-primary">
         <h1 class="brand-title">
-          <RouterLink :to="brandTarget" class="brand-link" aria-label="Board Oil">
+          <RouterLink :to="brandTarget" class="brand-link" aria-label="BoardOil">
             <BoardOilLogo class="brand-logo" />
             <span class="brand-wordmark">
               <span>Board </span>
