@@ -27,24 +27,29 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal("Bearer", payload.RootElement.GetProperty("auth").GetProperty("scheme").GetString());
         Assert.Equal("personal_access_token", payload.RootElement.GetProperty("setup").GetProperty("preferredAuth").GetString());
         Assert.Equal("/access-tokens", payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
-        Assert.Equal("tools/list", payload.RootElement
+        Assert.Equal("server/discover", payload.RootElement
             .GetProperty("setup")
             .GetProperty("recommendedFirstCallSequence")[0]
             .GetProperty("method")
             .GetString());
-        Assert.Equal(ToolNames.IdentityGet, payload.RootElement
+        Assert.Equal("tools/list", payload.RootElement
             .GetProperty("setup")
             .GetProperty("recommendedFirstCallSequence")[1]
-            .GetProperty("tool")
+            .GetProperty("method")
             .GetString());
-        Assert.Equal(ToolNames.BoardList, payload.RootElement
+        Assert.Equal(ToolNames.IdentityGet, payload.RootElement
             .GetProperty("setup")
             .GetProperty("recommendedFirstCallSequence")[2]
             .GetProperty("tool")
             .GetString());
-        Assert.Equal(ToolNames.CardOptionsGet, payload.RootElement
+        Assert.Equal(ToolNames.BoardList, payload.RootElement
             .GetProperty("setup")
             .GetProperty("recommendedFirstCallSequence")[3]
+            .GetProperty("tool")
+            .GetString());
+        Assert.Equal(ToolNames.CardOptionsGet, payload.RootElement
+            .GetProperty("setup")
+            .GetProperty("recommendedFirstCallSequence")[4]
             .GetProperty("tool")
             .GetString());
         Assert.Equal("tool-first", payload.RootElement.GetProperty("profile").GetProperty("mode").GetString());
@@ -106,11 +111,40 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .GetProperty("toolsListRequest")
             .GetProperty("method")
             .GetString());
+        Assert.Equal("server/discover", payload.RootElement
+            .GetProperty("examples")
+            .GetProperty("serverDiscoverRequest")
+            .GetProperty("body")
+            .GetProperty("method")
+            .GetString());
+        var toolsListExample = payload.RootElement
+            .GetProperty("examples")
+            .GetProperty("toolsListRequest");
+        Assert.Equal("2026-07-28", toolsListExample
+            .GetProperty("headers")
+            .GetProperty("MCP-Protocol-Version")
+            .GetString());
+        Assert.Equal("tools/list", toolsListExample
+            .GetProperty("headers")
+            .GetProperty("Mcp-Method")
+            .GetString());
+        Assert.Equal("2026-07-28", toolsListExample
+            .GetProperty("body")
+            .GetProperty("params")
+            .GetProperty("_meta")
+            .GetProperty("io.modelcontextprotocol/protocolVersion")
+            .GetString());
         Assert.Equal("tools/call", payload.RootElement
             .GetProperty("examples")
             .GetProperty("boardListRequest")
             .GetProperty("body")
             .GetProperty("method")
+            .GetString());
+        Assert.Equal(ToolNames.BoardList, payload.RootElement
+            .GetProperty("examples")
+            .GetProperty("boardListRequest")
+            .GetProperty("headers")
+            .GetProperty("Mcp-Name")
             .GetString());
         Assert.Equal(ToolNames.BoardList, payload.RootElement
             .GetProperty("examples")

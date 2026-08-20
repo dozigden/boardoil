@@ -1,5 +1,5 @@
 NuGet Package: Microsoft.Extensions.AI.Abstractions
-Version: 10.4.1
+Version: 10.8.3
 Declared Licence Expression: MIT
 Licence Reference: https://licenses.nuget.org/MIT
 Copyright: © Microsoft Corporation. All rights reserved.

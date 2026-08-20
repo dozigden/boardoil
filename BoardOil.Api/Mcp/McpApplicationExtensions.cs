@@ -133,19 +133,6 @@ public static class McpApplicationExtensions
         app.MapMcp(OAuthResources.McpPath)
             .RequireAuthorization(BoardOilPolicies.McpOAuthConnection);
 
-        if (!mcpOptions.SupportsLegacySseTransport)
-        {
-            // Stateless Streamable HTTP has no GET stream, but anonymous probes still need an OAuth challenge.
-            app.MapGet(
-                    OAuthResources.McpPath,
-                    (HttpResponse response) =>
-                    {
-                        response.Headers.Allow = HttpMethods.Post;
-                        return Results.StatusCode(StatusCodes.Status405MethodNotAllowed);
-                    })
-                .RequireAuthorization(BoardOilPolicies.McpOAuthConnection);
-        }
-
         app.MapGet("/.well-known/mcp", async (IConfigurationService configurationService) =>
             Results.Json(McpDiscoveryMetadata.CreateWellKnownDocument(
                 await configurationService.GetMcpPublicBaseUrlAsync(),
@@ -167,19 +154,22 @@ public static class McpApplicationExtensions
     }
 
     private static bool IsUnsupportedMcpStylePath(PathString path, BoardOilMcpOptions mcpOptions) =>
-        (!mcpOptions.SupportsLegacySseTransport
-            && path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase))
-        || (!mcpOptions.SupportsLegacySseTransport
-            && path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase))
+        (!mcpOptions.SupportsLegacySseTransport && IsLegacySsePath(path))
+        || path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/message", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments("/v1/mcp", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsMcpAuthRequiredPath(PathString path, BoardOilMcpOptions mcpOptions) =>
         (path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase)
-            && !path.StartsWithSegments(OAuthResources.McpPath, StringComparison.OrdinalIgnoreCase))
-        || (mcpOptions.SupportsLegacySseTransport
-            && path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase))
-        || (mcpOptions.SupportsLegacySseTransport
-            && path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase));
+            && !path.StartsWithSegments(OAuthResources.McpPath, StringComparison.OrdinalIgnoreCase)
+            && (mcpOptions.SupportsLegacySseTransport || !IsLegacySsePath(path)));
+
+    private static bool IsLegacySsePath(PathString path) =>
+        path.StartsWithSegments("/mcp/sse", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/mcp/message", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/mcp/oauth/sse", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/mcp/oauth/message", StringComparison.OrdinalIgnoreCase);
 
     private static bool HasBearerAuthenticationAttempt(HttpRequest request)
     {

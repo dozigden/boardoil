@@ -1,5 +1,5 @@
-NuGet Package: ModelContextProtocol.Core
-Version: 1.2.0
+NuGet Package: ModelContextProtocol
+Version: 2.2.0
 Declared Licence Expression: Apache-2.0
 Licence Reference: https://licenses.nuget.org/Apache-2.0
 Copyright: © Model Context Protocol a Series of LF Projects, LLC.

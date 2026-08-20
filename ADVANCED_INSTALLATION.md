@@ -54,7 +54,9 @@ https://your-boardoil-address/mcp
 
 Send the token as `Authorization: Bearer <YOUR_ACCESS_TOKEN>`.
 
-BoardOil uses the Streamable HTTP transport. To also enable the legacy SSE transport, set `BoardOilMcp__TransportMode` to `both`.
+BoardOil uses the Streamable HTTP transport and supports the current MCP `2026-07-28` protocol. Modern clients use `server/discover` and sessionless requests. Initialize-based clients using MCP `2025-11-25` or an earlier supported revision can use the same endpoint without any configuration change.
+
+Protocol compatibility is separate from transport selection. The older HTTP+SSE transport remains disabled by default. Enable it only for clients that cannot use Streamable HTTP by setting `BoardOilMcp__TransportMode` to `both`. Because BoardOil mounts MCP at a custom route, access-token clients use `/mcp/sse` and `/mcp/message`; OAuth clients use `/mcp/oauth/sse` and `/mcp/oauth/message`.
 
 Authentication on the `/mcp` endpoint can be disabled for a tightly controlled local integration:
 

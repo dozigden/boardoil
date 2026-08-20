@@ -736,6 +736,80 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
+    public async Task McpConnection_WithValidReadToken_ShouldSupportLegacyProtocol()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        const string endpoint = "/mcp/oauth";
+
+        // Act
+        var initializeResponse = await McpJsonRpcClient.SendLegacyInitializeAsync(
+            client,
+            "oauth-legacy-initialize",
+            exchange.AccessToken,
+            endpoint);
+        var sessionId = initializeResponse.Headers.GetValues("Mcp-Session-Id").Single();
+        var toolsResponse = await McpJsonRpcClient.SendLegacyRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "oauth-legacy-tools",
+            exchange.AccessToken,
+            endpoint,
+            sessionId);
+        var readResponse = await McpJsonRpcClient.SendLegacyRequestAsync(
+            client,
+            "tools/call",
+            new { name = "board.list", arguments = new { } },
+            "oauth-legacy-board-list",
+            exchange.AccessToken,
+            endpoint,
+            sessionId);
+        var writeResponse = await McpJsonRpcClient.SendLegacyRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = 1,
+                    title = "Must not be created through legacy OAuth",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "oauth-legacy-card-create",
+            exchange.AccessToken,
+            endpoint,
+            sessionId);
+        using var toolsPayload = await McpJsonRpcClient.ParseJsonAsync(toolsResponse);
+        using var readPayload = await McpJsonRpcClient.ParseJsonAsync(readResponse);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, initializeResponse.StatusCode);
+        Assert.False(string.IsNullOrWhiteSpace(sessionId));
+        Assert.Equal(HttpStatusCode.OK, toolsResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, writeResponse.StatusCode);
+        Assert.NotEmpty(toolsPayload.RootElement
+            .GetProperty("result")
+            .GetProperty("tools")
+            .EnumerateArray());
+        Assert.False(readPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        Assert.Contains(
+            $"scope=\"{MachinePatScopes.McpWrite}\"",
+            writeResponse.Headers.WwwAuthenticate.ToString(),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task McpConnection_WithValidToken_ShouldRejectUnsupportedGetWithoutInvalidatingToken()
     {
         // Arrange
@@ -748,6 +822,9 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         using var getRequest = new HttpRequestMessage(HttpMethod.Get, "/mcp/oauth");
         getRequest.Headers.Authorization = new("Bearer", exchange.AccessToken);
         getRequest.Headers.Accept.ParseAdd("text/event-stream");
+        getRequest.Headers.TryAddWithoutValidation(
+            "MCP-Protocol-Version",
+            McpJsonRpcClient.ModernProtocolVersion);
 
         // Act
         var response = await client.SendAsync(getRequest);

@@ -1,4 +1,5 @@
 using BoardOil.Api.Configuration;
+using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Protocol;
 
 namespace BoardOil.Api.Mcp;
@@ -39,7 +40,7 @@ public static class McpServiceCollectionExtensions
 #pragma warning disable MCP9004
             .WithHttpTransport(options =>
             {
-                options.Stateless = !mcpOptions.SupportsLegacySseTransport;
+                options.SessionMode = HttpServerSessionMode.StatefulForInitializeClients;
                 options.EnableLegacySse = mcpOptions.SupportsLegacySseTransport;
             })
 #pragma warning restore MCP9004

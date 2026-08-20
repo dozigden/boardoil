@@ -90,10 +90,7 @@ public sealed class McpToolDispatcher(
 
         var path = httpContext.Request.Path;
         var isMcpPath = path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWithSegments("/v1/mcp", StringComparison.OrdinalIgnoreCase)
-            || (_mcpOptions.SupportsLegacySseTransport
-                && (path.StartsWithSegments("/sse", StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase)));
+            || path.StartsWithSegments("/v1/mcp", StringComparison.OrdinalIgnoreCase);
         if (!isMcpPath)
         {
             return false;

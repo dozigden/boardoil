@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-08-09T05:16:07.312Z",
+  "generatedAtUtc": "2026-08-20T06:34:53.097Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -1508,11 +1508,11 @@
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.Extensions.AI.Abstractions",
-      "version": "10.4.1",
+      "version": "10.8.3",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.extensions.ai.abstractions/10.4.1/microsoft.extensions.ai.abstractions.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-microsoft.extensions.ai.abstractions-10.4.1.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.extensions.ai.abstractions/10.8.3/microsoft.extensions.ai.abstractions.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-microsoft.extensions.ai.abstractions-10.8.3.txt"
     },
     {
       "ecosystem": "nuget",
@@ -1598,29 +1598,29 @@
     {
       "ecosystem": "nuget",
       "packageName": "ModelContextProtocol",
-      "version": "1.2.0",
+      "version": "2.2.0",
       "declaredLicence": "Apache-2.0",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/modelcontextprotocol/1.2.0/modelcontextprotocol.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-modelcontextprotocol-1.2.0.txt"
+      "sourceFile": "~/.nuget/packages/modelcontextprotocol/2.2.0/modelcontextprotocol.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-modelcontextprotocol-2.2.0.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "ModelContextProtocol.AspNetCore",
-      "version": "1.2.0",
+      "version": "2.2.0",
       "declaredLicence": "Apache-2.0",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/modelcontextprotocol.aspnetcore/1.2.0/modelcontextprotocol.aspnetcore.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-modelcontextprotocol.aspnetcore-1.2.0.txt"
+      "sourceFile": "~/.nuget/packages/modelcontextprotocol.aspnetcore/2.2.0/modelcontextprotocol.aspnetcore.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-modelcontextprotocol.aspnetcore-2.2.0.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "ModelContextProtocol.Core",
-      "version": "1.2.0",
+      "version": "2.2.0",
       "declaredLicence": "Apache-2.0",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/modelcontextprotocol.core/1.2.0/modelcontextprotocol.core.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-modelcontextprotocol.core-1.2.0.txt"
+      "sourceFile": "~/.nuget/packages/modelcontextprotocol.core/2.2.0/modelcontextprotocol.core.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-modelcontextprotocol.core-2.2.0.txt"
     },
     {
       "ecosystem": "nuget",
