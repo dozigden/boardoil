@@ -24,6 +24,22 @@ public static class McpAuthExtensions
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             })
             .AddScheme<AuthenticationSchemeOptions, McpPatAuthenticationHandler>(McpAuthenticationSchemes.PatBearer, _ => { })
+            .AddPolicyScheme(
+                McpAuthenticationSchemes.CanonicalBearer,
+                displayName: null,
+                options =>
+                {
+                    options.ForwardChallenge = McpAuthenticationSchemes.PatBearer;
+                    options.ForwardDefaultSelector = context =>
+                    {
+                        var authorization = context.Request.Headers.Authorization.ToString();
+                        return authorization.StartsWith(
+                            "Bearer bo_pat_",
+                            StringComparison.OrdinalIgnoreCase)
+                            ? McpAuthenticationSchemes.PatBearer
+                            : OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
+                    };
+                })
             .AddJwtBearer(options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters
@@ -100,6 +116,11 @@ public static class McpAuthExtensions
 
             policy.RequireAssertion(_ => true);
         });
+        options.AddPolicy(BoardOilPolicies.McpCanonicalConnection, policy =>
+            policy
+                .AddAuthenticationSchemes(McpAuthenticationSchemes.CanonicalBearer)
+                .RequireAuthenticatedUser()
+                .AddRequirements(new McpOAuthConnectionRequirement()));
         options.AddPolicy(BoardOilPolicies.McpOAuthConnection, policy =>
             policy
                 .AddAuthenticationSchemes(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)

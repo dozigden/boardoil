@@ -10,9 +10,7 @@ public static class McpOAuthScopeEnforcementExtensions
         app.Use(async (context, next) =>
         {
             if (!HttpMethods.IsPost(context.Request.Method)
-                || !context.Request.Path.StartsWithSegments(
-                    OAuthResources.McpPath,
-                    StringComparison.OrdinalIgnoreCase))
+                || !OAuthResources.IsMcpPath(context.Request.Path))
             {
                 await next();
                 return;

@@ -19,9 +19,7 @@ public static class McpApplicationExtensions
 
         app.Use(async (context, next) =>
         {
-            if (context.Request.Path.StartsWithSegments(
-                    OAuthResources.McpPath,
-                    StringComparison.OrdinalIgnoreCase))
+            if (OAuthResources.IsMcpPath(context.Request.Path))
             {
                 context.Response.OnStarting(async () =>
                 {
@@ -44,12 +42,13 @@ public static class McpApplicationExtensions
 
                     var metadataService = context.RequestServices
                         .GetRequiredService<IOAuthProtectedResourceMetadataService>();
-                    var metadata = await metadataService.GetMcpAsync(context.Request);
+                    var resourcePath = OAuthResources.ResolveResourcePath(context.Request.Path);
+                    var metadata = await metadataService.GetMcpAsync(context.Request, resourcePath);
                     var urlResolver = context.RequestServices
                         .GetRequiredService<OAuthEndpointUrlResolver>();
                     var metadataUrl = await urlResolver.ResolveAsync(
                         context.Request,
-                        OAuthResources.McpMetadataPath);
+                        OAuthResources.ResolveMetadataPath(context.Request.Path));
                     var parameters = new List<string>();
                     var error = challenge?.Error;
                     if (error is null
@@ -89,28 +88,6 @@ public static class McpApplicationExtensions
 
         app.Use(async (context, next) =>
         {
-            if (mcpOptions.AuthMode is McpAuthMode.Pat
-                && IsMcpAuthRequiredPath(context.Request.Path, mcpOptions))
-            {
-                var authHeader = context.Request.Headers.Authorization.ToString();
-                if (string.IsNullOrWhiteSpace(authHeader)
-                    || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                {
-                    var configurationService = context.RequestServices.GetRequiredService<IConfigurationService>();
-                    var errorFactory = context.RequestServices.GetRequiredService<IMcpErrorResponseFactory>();
-                    var mcpPublicBaseUrl = await configurationService.GetMcpPublicBaseUrlAsync();
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    context.Response.Headers.WWWAuthenticate = "Bearer realm=\"BoardOil MCP\"";
-                    await context.Response.WriteAsJsonAsync(errorFactory.CreateAuthError(mcpPublicBaseUrl, "Missing bearer token."));
-                    return;
-                }
-            }
-
-            await next();
-        });
-
-        app.Use(async (context, next) =>
-        {
             if (IsUnsupportedMcpStylePath(context.Request.Path, mcpOptions))
             {
                 var configurationService = context.RequestServices.GetRequiredService<IConfigurationService>();
@@ -127,10 +104,10 @@ public static class McpApplicationExtensions
         var mcpEndpoint = app.MapMcp("/mcp");
         if (mcpOptions.AuthMode is McpAuthMode.Pat)
         {
-            mcpEndpoint.RequireAuthorization(BoardOilPolicies.McpAuthenticated);
+            mcpEndpoint.RequireAuthorization(BoardOilPolicies.McpCanonicalConnection);
         }
 
-        app.MapMcp(OAuthResources.McpPath)
+        app.MapMcp(OAuthResources.LegacyMcpPath)
             .RequireAuthorization(BoardOilPolicies.McpOAuthConnection);
 
         app.MapGet("/.well-known/mcp", async (IConfigurationService configurationService) =>
@@ -159,11 +136,6 @@ public static class McpApplicationExtensions
         || path.StartsWithSegments("/message", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments("/messages", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments("/v1/mcp", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsMcpAuthRequiredPath(PathString path, BoardOilMcpOptions mcpOptions) =>
-        (path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase)
-            && !path.StartsWithSegments(OAuthResources.McpPath, StringComparison.OrdinalIgnoreCase)
-            && (mcpOptions.SupportsLegacySseTransport || !IsLegacySsePath(path)));
 
     private static bool IsLegacySsePath(PathString path) =>
         path.StartsWithSegments("/mcp/sse", StringComparison.OrdinalIgnoreCase)

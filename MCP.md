@@ -8,7 +8,7 @@ Use VS Code's built-in MCP configuration so VS Code handles OAuth discovery, cli
 
 1. Open the Command Palette and run **MCP: Add Server**.
 2. Choose **HTTP** as the server type.
-3. Enter `https://your-boardoil-address/mcp/oauth` as the server URL.
+3. Enter `https://your-boardoil-address/mcp` as the server URL.
 4. Name the server `boardoil`.
 5. Choose **Global** to use BoardOil in every project or **Workspace** for the current project only.
 6. Start the server and complete sign-in when VS Code opens BoardOil in your browser.
@@ -20,7 +20,7 @@ To configure `mcp.json` manually instead, add:
   "servers": {
     "boardoil": {
       "type": "http",
-      "url": "https://your-boardoil-address/mcp/oauth"
+      "url": "https://your-boardoil-address/mcp"
     }
   }
 }
@@ -38,7 +38,7 @@ Create or update `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.boardoil]
-url = "https://your-boardoil-address/mcp/oauth"
+url = "https://your-boardoil-address/mcp"
 auth = "oauth"
 ```
 
@@ -59,7 +59,7 @@ See the [official Codex MCP documentation](https://learn.chatgpt.com/docs/extend
 Add BoardOil for your user so it is available in every project:
 
 ```sh
-claude mcp add --transport http --scope user boardoil "https://your-boardoil-address/mcp/oauth"
+claude mcp add --transport http --scope user boardoil "https://your-boardoil-address/mcp"
 ```
 
 Then start the OAuth login:
@@ -79,7 +79,7 @@ See the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp) for
 For another client that supports remote Streamable HTTP servers and OAuth:
 
 1. Add a remote Streamable HTTP server named `boardoil`.
-2. Use `https://your-boardoil-address/mcp/oauth` as its URL.
+2. Use `https://your-boardoil-address/mcp` as its URL.
 3. Select OAuth authentication if the client asks for an authentication method.
 4. Let the client discover BoardOil's authorization server and register its own OAuth client. Do not manually provide a client ID unless the client explicitly requires one.
 5. Complete the BoardOil sign-in and approval flow in your browser.

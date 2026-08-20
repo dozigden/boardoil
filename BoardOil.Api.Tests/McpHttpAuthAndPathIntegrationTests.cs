@@ -33,7 +33,10 @@ public sealed class McpHttpAuthAndPathIntegrationTests : McpIntegrationTestBase
         Assert.Contains("Missing bearer token", payload.Message, StringComparison.OrdinalIgnoreCase);
         Assert.True(response.Headers.Contains("WWW-Authenticate"));
         Assert.Equal("Bearer", payload.Data.GetProperty("auth").GetProperty("scheme").GetString());
-        Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.Equal("oauth", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.Equal(
+            "/.well-known/oauth-protected-resource/mcp",
+            payload.Data.GetProperty("setup").GetProperty("oauthProtectedResourceMetadata").GetString());
         Assert.Equal("/access-tokens", payload.Data.GetProperty("setup").GetProperty("patManagementUi").GetString());
         Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
     }
@@ -78,7 +81,7 @@ public sealed class McpHttpAuthAndPathIntegrationTests : McpIntegrationTestBase
         Assert.Contains("Invalid or expired bearer token", payload.Message, StringComparison.OrdinalIgnoreCase);
         Assert.True(response.Headers.Contains("WWW-Authenticate"));
         Assert.Equal("Bearer", payload.Data.GetProperty("auth").GetProperty("scheme").GetString());
-        Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.Equal("oauth", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
         Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
     }
 
@@ -128,9 +131,9 @@ public sealed class McpHttpAuthAndPathIntegrationTests : McpIntegrationTestBase
         Assert.Equal(404, payload!.StatusCode);
         Assert.Equal(path, payload.Data.GetProperty("requestedPath").GetString());
         Assert.Equal("/mcp", payload.Data.GetProperty("endpoint").GetString());
-        Assert.Equal("personal_access_token", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.Equal("oauth", payload.Data.GetProperty("setup").GetProperty("preferredAuth").GetString());
         Assert.Equal("POST", payload.Data.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
-        Assert.Contains("access token as the bearer token", payload.Data.GetProperty("nextStep").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("OAuth-capable MCP client", payload.Data.GetProperty("nextStep").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     private static string CreateToken(DateTime expiresAtUtc)

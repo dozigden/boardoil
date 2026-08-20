@@ -20,7 +20,7 @@ public sealed class McpErrorResponseFactory(BoardOilMcpOptions mcpOptions) : IMc
                 examples = McpDiscoveryMetadata.CreateExamples(mcpPublicBaseUrl, _mcpOptions),
                 nextStep = _mcpOptions.AuthMode is McpAuthMode.None
                     ? "Call POST /mcp directly. Authentication is disabled for MCP in this environment."
-                    : "Create an access token in the access tokens UI, then call POST /mcp with Authorization: Bearer <YOUR_ACCESS_TOKEN>."
+                    : "Use an OAuth-capable MCP client with /mcp, or create an access token in the access tokens UI and send it as a bearer token."
             },
             401,
             detail);
@@ -37,7 +37,7 @@ public sealed class McpErrorResponseFactory(BoardOilMcpOptions mcpOptions) : IMc
                 examples = McpDiscoveryMetadata.CreateExamples(mcpPublicBaseUrl, _mcpOptions),
                 nextStep = _mcpOptions.AuthMode is McpAuthMode.None
                     ? "Use POST /mcp. This server is configured for MCP without authentication."
-                    : "Use POST /mcp with an access token as the bearer token. Legacy SSE-style paths are not supported."
+                    : "Use an OAuth-capable MCP client with /mcp, or send an access token as the bearer token. Legacy SSE-style paths are not supported."
             },
             404,
             "Unsupported MCP endpoint path.");

@@ -47,7 +47,7 @@ async function loadMcpHelp() {
       result.data.resource
     );
   } catch {
-    errorMessage.value = 'BoardOil returned an invalid MCP OAuth resource URL.';
+    errorMessage.value = 'BoardOil returned an invalid MCP resource URL.';
   }
 }
 </script>

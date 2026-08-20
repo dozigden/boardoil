@@ -82,7 +82,7 @@ export class BoardOilApi {
     redirectUri: string
   ): Promise<SmokeOAuthClient> {
     const metadataResponse = await this.request.get(
-      '/.well-known/oauth-protected-resource/mcp/oauth'
+      '/.well-known/oauth-protected-resource/mcp'
     );
     const metadata = await readJson<{
       authorization_servers: string[];

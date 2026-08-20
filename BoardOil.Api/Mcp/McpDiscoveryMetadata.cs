@@ -30,10 +30,18 @@ public static class McpDiscoveryMetadata
         {
             scheme = "Bearer",
             headerName = "Authorization",
-            tokenType = "personal_access_token",
-            tokenPrefix = "bo_pat_",
-            format = "Bearer <YOUR_PAT>",
-            patManagementUi = ResolveUrl("/access-tokens", mcpPublicBaseUrl)
+            methods = new[] { "oauth", "personal_access_token" },
+            oauth = new
+            {
+                resource = GetMcpEndpoint(mcpPublicBaseUrl),
+                protectedResourceMetadata = GetMcpOAuthMetadataEndpoint(mcpPublicBaseUrl)
+            },
+            personalAccessToken = new
+            {
+                tokenPrefix = "bo_pat_",
+                format = "Bearer <YOUR_PAT>",
+                managementUi = ResolveUrl("/access-tokens", mcpPublicBaseUrl)
+            }
         };
 
     public static object CreateSetupMetadata(string? mcpPublicBaseUrl, BoardOilMcpOptions mcpOptions) =>
@@ -45,7 +53,9 @@ public static class McpDiscoveryMetadata
             }
             : new
         {
-            preferredAuth = "personal_access_token",
+            preferredAuth = "oauth",
+            oauthProtectedResourceMetadata = GetMcpOAuthMetadataEndpoint(mcpPublicBaseUrl),
+            manualFallbackAuth = "personal_access_token",
             patManagementUi = ResolveUrl("/access-tokens", mcpPublicBaseUrl),
             recommendedFirstCallSequence = CreateRecommendedFirstCallSequence()
         };
@@ -162,6 +172,9 @@ public static class McpDiscoveryMetadata
 
     public static string GetMcpDocsEndpoint(string? mcpPublicBaseUrl) =>
         ResolveUrl("/.well-known/mcp", mcpPublicBaseUrl);
+
+    public static string GetMcpOAuthMetadataEndpoint(string? mcpPublicBaseUrl) =>
+        ResolveUrl("/.well-known/oauth-protected-resource/mcp", mcpPublicBaseUrl);
 
     private static Dictionary<string, object?> CreateGenericMcpConfig(
         string endpoint,

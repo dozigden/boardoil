@@ -29,24 +29,30 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
         await ConfigurePublicBaseAsync(client);
 
         // Act
-        var resourceResponse = await client.GetAsync("/mcp/oauth");
+        var resourceResponse = await client.GetAsync("/mcp");
         var metadataResponse = await client.GetAsync(
+            "/.well-known/oauth-protected-resource/mcp");
+        var legacyMetadataResponse = await client.GetAsync(
             "/.well-known/oauth-protected-resource/mcp/oauth");
         var metadata = await metadataResponse.Content.ReadFromJsonAsync<OAuthProtectedResourceMetadata>();
+        var legacyMetadata = await legacyMetadataResponse.Content
+            .ReadFromJsonAsync<OAuthProtectedResourceMetadata>();
         var discovery = await client.GetFromJsonAsync<JsonElement>(
             "https://localhost/.well-known/oauth-authorization-server");
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, resourceResponse.StatusCode);
         Assert.Contains(
-            "resource_metadata=\"https://boardoil.example.com/.well-known/oauth-protected-resource/mcp/oauth\"",
+            "resource_metadata=\"https://boardoil.example.com/.well-known/oauth-protected-resource/mcp\"",
             resourceResponse.Headers.WwwAuthenticate.ToString());
         Assert.Equal(HttpStatusCode.OK, metadataResponse.StatusCode);
         Assert.NotNull(metadata);
-        Assert.Equal("https://boardoil.example.com/mcp/oauth", metadata!.Resource);
+        Assert.Equal("https://boardoil.example.com/mcp", metadata!.Resource);
         Assert.Equal(["https://boardoil.example.com/"], metadata.AuthorizationServers);
         Assert.Equal([MachinePatScopes.McpRead, MachinePatScopes.McpWrite], metadata.ScopesSupported);
         Assert.Equal(["header"], metadata.BearerMethodsSupported);
+        Assert.Equal(HttpStatusCode.OK, legacyMetadataResponse.StatusCode);
+        Assert.Equal("https://boardoil.example.com/mcp/oauth", legacyMetadata!.Resource);
 
         Assert.Equal("https://boardoil.example.com/", discovery.GetProperty("issuer").GetString());
         Assert.Equal(
@@ -81,7 +87,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
 
         // Act
         var response = await client.GetAsync(
-            "/.well-known/oauth-protected-resource/mcp/oauth");
+            "/.well-known/oauth-protected-resource/mcp");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -346,7 +352,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
             + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
             + "&response_type=code"
             + $"&scope={Uri.EscapeDataString(MachinePatScopes.McpRead)}"
-            + $"&resource={Uri.EscapeDataString("https://boardoil.example.com/mcp/oauth")}"
+            + $"&resource={Uri.EscapeDataString("https://boardoil.example.com/mcp")}"
             + $"&code_challenge={new string('A', 43)}"
             + "&code_challenge_method=S256";
 

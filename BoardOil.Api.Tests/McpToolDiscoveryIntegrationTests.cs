@@ -25,8 +25,16 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal("mcp-http", payload.RootElement.GetProperty("protocol").GetString());
         Assert.Equal("/mcp", payload.RootElement.GetProperty("endpoint").GetString());
         Assert.Equal("Bearer", payload.RootElement.GetProperty("auth").GetProperty("scheme").GetString());
-        Assert.Equal("personal_access_token", payload.RootElement.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.Equal(
+            ["oauth", "personal_access_token"],
+            payload.RootElement.GetProperty("auth").GetProperty("methods")
+                .EnumerateArray().Select(method => method.GetString()).ToArray());
+        Assert.Equal("oauth", payload.RootElement.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.Equal("personal_access_token", payload.RootElement.GetProperty("setup").GetProperty("manualFallbackAuth").GetString());
         Assert.Equal("/access-tokens", payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
+        Assert.Equal(
+            "/.well-known/oauth-protected-resource/mcp",
+            payload.RootElement.GetProperty("setup").GetProperty("oauthProtectedResourceMetadata").GetString());
         Assert.Equal("server/discover", payload.RootElement
             .GetProperty("setup")
             .GetProperty("recommendedFirstCallSequence")[0]
@@ -76,17 +84,20 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("https://boardoil.example.com/base/mcp", payload.RootElement.GetProperty("endpoint").GetString());
         Assert.Equal(
-            "personal_access_token",
-            payload.RootElement.GetProperty("auth").GetProperty("tokenType").GetString());
+            "https://boardoil.example.com/base/mcp",
+            payload.RootElement.GetProperty("auth").GetProperty("oauth").GetProperty("resource").GetString());
         Assert.Equal(
             "bo_pat_",
-            payload.RootElement.GetProperty("auth").GetProperty("tokenPrefix").GetString());
+            payload.RootElement.GetProperty("auth").GetProperty("personalAccessToken").GetProperty("tokenPrefix").GetString());
         Assert.Equal(
             "https://boardoil.example.com/base/access-tokens",
             payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
         Assert.Equal(
             "https://boardoil.example.com/base/access-tokens",
-            payload.RootElement.GetProperty("auth").GetProperty("patManagementUi").GetString());
+            payload.RootElement.GetProperty("auth").GetProperty("personalAccessToken").GetProperty("managementUi").GetString());
+        Assert.Equal(
+            "https://boardoil.example.com/base/.well-known/oauth-protected-resource/mcp",
+            payload.RootElement.GetProperty("auth").GetProperty("oauth").GetProperty("protectedResourceMetadata").GetString());
     }
 
     [Fact]

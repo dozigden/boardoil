@@ -119,7 +119,10 @@ public sealed class McpPatAuthenticationHandler(
         Response.StatusCode = StatusCodes.Status401Unauthorized;
         Response.Headers.WWWAuthenticate = "Bearer realm=\"BoardOil MCP\"";
         var mcpPublicBaseUrl = await _configurationService.GetMcpPublicBaseUrlAsync();
-        await Response.WriteAsJsonAsync(_errorResponseFactory.CreateAuthError(mcpPublicBaseUrl, "Invalid or expired bearer token."));
+        var message = TryGetBearerToken(out _)
+            ? "Invalid or expired bearer token."
+            : "Missing bearer token.";
+        await Response.WriteAsJsonAsync(_errorResponseFactory.CreateAuthError(mcpPublicBaseUrl, message));
     }
 
     private bool TryGetBearerToken(out string token)

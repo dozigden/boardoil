@@ -19,7 +19,7 @@ describe('oauthConnectionsApi', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     deleteJson.mockResolvedValue(ok(undefined));
-    getJson.mockResolvedValue(ok({ resource: 'https://boardoil.example.com/mcp/oauth' }));
+    getJson.mockResolvedValue(ok({ resource: 'https://boardoil.example.com/mcp' }));
     getEnvelope.mockResolvedValue(ok({
       success: true,
       statusCode: 200,
@@ -51,6 +51,6 @@ describe('oauthConnectionsApi', () => {
   it('gets the canonical MCP OAuth resource from public metadata', async () => {
     await getMcpOAuthMetadata();
 
-    expect(getJson).toHaveBeenCalledWith('/.well-known/oauth-protected-resource/mcp/oauth');
+    expect(getJson).toHaveBeenCalledWith('/.well-known/oauth-protected-resource/mcp');
   });
 });

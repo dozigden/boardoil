@@ -40,7 +40,13 @@ public static class OAuthEndpoints
         app.MapGet(OAuthResources.McpMetadataPath, async (
                 HttpRequest request,
                 IOAuthProtectedResourceMetadataService metadataService) =>
-            Results.Json(await metadataService.GetMcpAsync(request)))
+            Results.Json(await metadataService.GetMcpAsync(request, OAuthResources.McpPath)))
+            .WithTags("OAuth");
+
+        app.MapGet(OAuthResources.LegacyMcpMetadataPath, async (
+                HttpRequest request,
+                IOAuthProtectedResourceMetadataService metadataService) =>
+            Results.Json(await metadataService.GetMcpAsync(request, OAuthResources.LegacyMcpPath)))
             .WithTags("OAuth");
 
         return app;

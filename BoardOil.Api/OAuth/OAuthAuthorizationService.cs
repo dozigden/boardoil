@@ -53,9 +53,8 @@ public sealed class OAuthAuthorizationService(
         }
 
         var resources = request.GetResources();
-        var expectedResource = await urlResolver.ResolveAsync(httpRequest, OAuthResources.McpPath);
-        if (resources.Length != 1
-            || !ResourceUrisMatch(resources[0], expectedResource))
+        var expectedResource = await ResolveRequestedMcpResourceAsync(resources, httpRequest);
+        if (expectedResource is null)
         {
             return OAuthAuthorizationResolution.Rejected(
                 Errors.InvalidTarget,
@@ -322,8 +321,8 @@ public sealed class OAuthAuthorizationService(
         CancellationToken cancellationToken = default)
     {
         var resources = request.GetResources();
-        var currentResource = await urlResolver.ResolveAsync(httpRequest, OAuthResources.McpPath);
-        if (resources.Length != 1 || !ResourceUrisMatch(resources[0], currentResource))
+        var currentResource = await ResolveRequestedMcpResourceAsync(resources, httpRequest);
+        if (currentResource is null)
         {
             return OAuthTokenExchangeResolution.Rejected(
                 Errors.InvalidTarget,
@@ -587,6 +586,27 @@ public sealed class OAuthAuthorizationService(
 
     private static string[] ParseScopes(string scopes) =>
         scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private async Task<string?> ResolveRequestedMcpResourceAsync(
+        IReadOnlyList<string> requestedResources,
+        HttpRequest request)
+    {
+        if (requestedResources.Count != 1)
+        {
+            return null;
+        }
+
+        var canonicalResource = await urlResolver.ResolveAsync(request, OAuthResources.McpPath);
+        if (ResourceUrisMatch(requestedResources[0], canonicalResource))
+        {
+            return canonicalResource;
+        }
+
+        var legacyResource = await urlResolver.ResolveAsync(request, OAuthResources.LegacyMcpPath);
+        return ResourceUrisMatch(requestedResources[0], legacyResource)
+            ? legacyResource
+            : null;
+    }
 
     private static bool ResourceUrisMatch(string value, string expected)
     {

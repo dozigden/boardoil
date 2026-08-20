@@ -21,20 +21,20 @@ describe('http api client', () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ resource: 'https://boardoil.example.com/mcp/oauth' })
+      json: async () => ({ resource: 'https://boardoil.example.com/mcp' })
     } as unknown as Response);
 
     const { getJson } = await import('./http');
     const result = await getJson<{ resource: string }>(
-      '/.well-known/oauth-protected-resource/mcp/oauth'
+      '/.well-known/oauth-protected-resource/mcp'
     );
 
     expect(result).toEqual({
       ok: true,
-      data: { resource: 'https://boardoil.example.com/mcp/oauth' }
+      data: { resource: 'https://boardoil.example.com/mcp' }
     });
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:5173/.well-known/oauth-protected-resource/mcp/oauth',
+      'http://localhost:5173/.well-known/oauth-protected-resource/mcp',
       expect.objectContaining({ method: 'GET', credentials: 'include' })
     );
   });

@@ -3,6 +3,6 @@ import { getJson } from './http';
 
 export function getMcpOAuthMetadata() {
   return getJson<OAuthProtectedResourceMetadata>(
-    '/.well-known/oauth-protected-resource/mcp/oauth'
+    '/.well-known/oauth-protected-resource/mcp'
   );
 }

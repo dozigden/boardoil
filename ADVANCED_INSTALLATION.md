@@ -41,10 +41,10 @@ Automatic backups contain only the database; uploaded images and the authenticat
 OAuth is the preferred way to connect an MCP client to BoardOil. Point the client at:
 
 ```text
-https://your-boardoil-address/mcp/oauth
+https://your-boardoil-address/mcp
 ```
 
-Compatible clients will discover BoardOil's OAuth configuration and ask you to sign in and authorize the connection. Authorized connections can be viewed and revoked under **User settings → Authentication → OAuth**.
+Compatible clients will discover BoardOil's OAuth configuration and ask you to sign in and authorize the connection. BoardOil supports Dynamic Client Registration for clients without a preregistered identity. Authorized connections can be viewed and revoked under **User settings → Authentication → OAuth**.
 
 If a client does not support OAuth, create an access token under **User settings → Authentication → Access tokens** and connect it to:
 
@@ -56,7 +56,7 @@ Send the token as `Authorization: Bearer <YOUR_ACCESS_TOKEN>`.
 
 BoardOil uses the Streamable HTTP transport and supports the current MCP `2026-07-28` protocol. Modern clients use `server/discover` and sessionless requests. Initialize-based clients using MCP `2025-11-25` or an earlier supported revision can use the same endpoint without any configuration change.
 
-Protocol compatibility is separate from transport selection. The older HTTP+SSE transport remains disabled by default. Enable it only for clients that cannot use Streamable HTTP by setting `BoardOilMcp__TransportMode` to `both`. Because BoardOil mounts MCP at a custom route, access-token clients use `/mcp/sse` and `/mcp/message`; OAuth clients use `/mcp/oauth/sse` and `/mcp/oauth/message`.
+Protocol compatibility is separate from transport selection. The older HTTP+SSE transport remains disabled by default. Enable it only for clients that cannot use Streamable HTTP by setting `BoardOilMcp__TransportMode` to `both`. Clients then use `/mcp/sse` and `/mcp/message`.
 
 Authentication on the `/mcp` endpoint can be disabled for a tightly controlled local integration:
 

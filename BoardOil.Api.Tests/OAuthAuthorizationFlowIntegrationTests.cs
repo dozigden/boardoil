@@ -290,7 +290,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         // Arrange
         var client = CreateOAuthClient();
         var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
-        var differentResource = $"{scenario.PublicBaseUrl}/mcp";
+        var differentResource = $"{scenario.PublicBaseUrl}/mcp/other";
         var request = CreateAuthorizationRequest(
             scenario,
             MachinePatScopes.McpRead,
@@ -662,16 +662,19 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
-    public async Task McpConnection_WithValidReadToken_ShouldAllowReadsAndRejectWrites()
+    public async Task CanonicalMcpConnection_WithValidReadToken_ShouldAllowReadsAndRejectWrites()
     {
         // Arrange
         var client = CreateOAuthClient();
         var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
-        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var request = CreateAuthorizationRequest(
+            scenario,
+            MachinePatScopes.McpRead,
+            $"{scenario.PublicBaseUrl}/mcp");
         var code = await ApproveAsync(client, scenario, request);
         var exchange = await ExchangeCodeAsync(client, scenario, request, code);
         Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
-        const string endpoint = "/mcp/oauth";
+        const string endpoint = "/mcp";
 
         // Act
         var readResponse = await McpJsonRpcClient.SendRequestAsync(
@@ -733,6 +736,43 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Equal(
             [MachinePatScopes.McpRead],
             identity.GetProperty("authentication").GetProperty("scopes").EnumerateArray().Select(scope => scope.GetString()).ToArray());
+    }
+
+    [Theory]
+    [InlineData("/mcp", "/mcp/oauth", "/.well-known/oauth-protected-resource/mcp/oauth")]
+    [InlineData("/mcp/oauth", "/mcp", "/.well-known/oauth-protected-resource/mcp")]
+    public async Task McpConnection_WhenTokenAudienceDoesNotMatchEndpoint_ShouldRejectToken(
+        string tokenResourcePath,
+        string endpoint,
+        string expectedMetadataPath)
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(
+            scenario,
+            MachinePatScopes.McpRead,
+            $"{scenario.PublicBaseUrl}{tokenResourcePath}");
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            $"audience-mismatch-{tokenResourcePath}",
+            exchange.AccessToken,
+            endpoint);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var challenge = response.Headers.WwwAuthenticate.ToString();
+        Assert.Contains("error=\"invalid_token\"", challenge);
+        Assert.Contains(
+            $"resource_metadata=\"{scenario.PublicBaseUrl}{expectedMetadataPath}\"",
+            challenge);
     }
 
     [Fact]
@@ -1380,7 +1420,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
                 ["code"] = code,
                 ["redirect_uri"] = scenario.RedirectUri,
                 ["code_verifier"] = request.CodeVerifier,
-                ["resource"] = scenario.Resource,
+                ["resource"] = request.Parameters["resource"],
             }));
         return await ReadTokenResponseAsync(response);
     }

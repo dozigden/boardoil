@@ -27,6 +27,10 @@ public sealed class McpErrorResponseFactoryTests
         var payload = result.Data!.ToJsonElement();
         Assert.Equal("https://boardoil.example.com/base/mcp", payload.GetProperty("endpoint").GetString());
         Assert.Equal("Bearer", payload.GetProperty("auth").GetProperty("scheme").GetString());
+        Assert.Equal("oauth", payload.GetProperty("setup").GetProperty("preferredAuth").GetString());
+        Assert.Equal(
+            "https://boardoil.example.com/base/.well-known/oauth-protected-resource/mcp",
+            payload.GetProperty("setup").GetProperty("oauthProtectedResourceMetadata").GetString());
         Assert.Equal("POST", payload.GetProperty("examples").GetProperty("toolsListRequest").GetProperty("method").GetString());
     }
 
@@ -45,7 +49,7 @@ public sealed class McpErrorResponseFactoryTests
         var payload = result.Data!.ToJsonElement();
         Assert.Equal("/v1/mcp", payload.GetProperty("requestedPath").GetString());
         Assert.Equal("/mcp", payload.GetProperty("endpoint").GetString());
-        Assert.Contains("access token as the bearer token", payload.GetProperty("nextStep").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("OAuth-capable MCP client", payload.GetProperty("nextStep").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 }
 

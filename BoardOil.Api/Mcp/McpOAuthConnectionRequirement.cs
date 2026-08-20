@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Api.Auth;
 using BoardOil.Api.OAuth;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.OAuth;
@@ -28,10 +29,23 @@ public sealed class McpOAuthConnectionAuthorizationHandler(
     {
         var httpContext = httpContextAccessor.HttpContext;
         if (httpContext is null
-            || !httpContext.Request.Path.StartsWithSegments(
-                OAuthResources.McpPath,
-                StringComparison.OrdinalIgnoreCase))
+            || !OAuthResources.IsMcpPath(httpContext.Request.Path))
         {
+            return;
+        }
+
+        if (httpContext.Request.Path.StartsWithSegments(
+                OAuthResources.McpPath,
+                StringComparison.OrdinalIgnoreCase)
+            && !httpContext.Request.Path.StartsWithSegments(
+                OAuthResources.LegacyMcpPath,
+                StringComparison.OrdinalIgnoreCase)
+            && context.User.Identities.Any(identity => string.Equals(
+                identity.AuthenticationType,
+                McpAuthenticationSchemes.PatBearer,
+                StringComparison.Ordinal)))
+        {
+            context.Succeed(requirement);
             return;
         }
 
@@ -101,7 +115,8 @@ public sealed class McpOAuthConnectionAuthorizationHandler(
             return;
         }
 
-        var resource = await urlResolver.ResolveAsync(httpContext.Request, OAuthResources.McpPath);
+        var resourcePath = OAuthResources.ResolveResourcePath(httpContext.Request.Path);
+        var resource = await urlResolver.ResolveAsync(httpContext.Request, resourcePath);
         var audiences = context.User.GetAudiences();
         var tokenScopes = context.User.GetScopes();
         var approvedScopes = grant.ApprovedScopesCsv.Split(

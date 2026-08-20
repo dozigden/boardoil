@@ -39,33 +39,31 @@ describe('MCP help content', () => {
     expect(sectionPositions).toEqual([...sectionPositions].sort((left, right) => left - right));
   });
 
-  it('uses the canonical OAuth resource for both MCP endpoints', () => {
+  it('uses the canonical MCP resource for both authentication methods', () => {
     const resolvedMarkdown = resolveMcpHelpContent(
       mcpHelpMarkdown,
-      'https://mcp.example.com/boardoil/mcp/oauth/'
+      'https://mcp.example.com/boardoil/mcp/'
     );
 
-    expect(resolvedMarkdown).toContain('https://mcp.example.com/boardoil/mcp/oauth');
     expect(resolvedMarkdown).toContain('https://mcp.example.com/boardoil/mcp');
     expect(resolvedMarkdown).not.toContain('https://your-boardoil-address');
   });
 
   it('keeps generated OAuth and access-token snippets aligned with the guide', () => {
-    const oauthResourceUrl = 'https://mcp.example.com/boardoil/mcp/oauth';
-    const accessTokenResourceUrl = 'https://mcp.example.com/boardoil/mcp';
-    const resolvedMarkdown = resolveMcpHelpContent(mcpHelpMarkdown, oauthResourceUrl);
+    const mcpResourceUrl = 'https://mcp.example.com/boardoil/mcp';
+    const resolvedMarkdown = resolveMcpHelpContent(mcpHelpMarkdown, mcpResourceUrl);
 
-    expect(resolvedMarkdown).toContain(buildVsCodeOAuthConfig(oauthResourceUrl));
-    expect(resolvedMarkdown).toContain(buildCodexOAuthConfig(oauthResourceUrl));
-    expect(resolvedMarkdown).toContain(buildClaudeCodeOAuthCommand(oauthResourceUrl));
+    expect(resolvedMarkdown).toContain(buildVsCodeOAuthConfig(mcpResourceUrl));
+    expect(resolvedMarkdown).toContain(buildCodexOAuthConfig(mcpResourceUrl));
+    expect(resolvedMarkdown).toContain(buildClaudeCodeOAuthCommand(mcpResourceUrl));
     expect(resolvedMarkdown).toContain(
-      buildClaudeCodeAccessTokenCommand(accessTokenResourceUrl)
+      buildClaudeCodeAccessTokenCommand(mcpResourceUrl)
     );
-    expect(resolvedMarkdown).toContain(buildCodexAccessTokenConfig(accessTokenResourceUrl));
+    expect(resolvedMarkdown).toContain(buildCodexAccessTokenConfig(mcpResourceUrl));
   });
 
-  it('rejects an unexpected OAuth resource path', () => {
-    expect(() => resolveMcpHelpContent(mcpHelpMarkdown, 'https://boardoil.example.com/mcp'))
-      .toThrow('The MCP OAuth resource URL must end with /oauth.');
+  it('rejects an unexpected MCP resource path', () => {
+    expect(() => resolveMcpHelpContent(mcpHelpMarkdown, 'https://boardoil.example.com/api'))
+      .toThrow('The MCP resource URL must end with /mcp.');
   });
 });
