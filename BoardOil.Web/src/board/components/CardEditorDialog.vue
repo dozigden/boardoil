@@ -1036,7 +1036,7 @@ function areStringArraysEqual(left: string[], right: string[]) {
 
 .card-editor-comments-empty {
   margin: 0;
-  color: var(--bo-muted-text);
+  color: var(--bo-ink-muted);
   font-size: 0.9rem;
 }
 
@@ -1048,7 +1048,7 @@ function areStringArraysEqual(left: string[], right: string[]) {
   border: 1px solid var(--bo-border-soft);
   border-radius: 0.4rem;
   padding: 0.5rem 0.6rem;
-  background: color-mix(in srgb, var(--bo-bg) 92%, var(--bo-muted-bg) 8%);
+  background: color-mix(in srgb, var(--bo-surface-base) 92%, var(--bo-surface-muted) 8%);
   width: 100%;
   box-sizing: border-box;
 }
@@ -1094,7 +1094,7 @@ function areStringArraysEqual(left: string[], right: string[]) {
   right: 0;
   bottom: 0;
   font-size: 0.8rem;
-  color: var(--bo-muted-text);
+  color: var(--bo-ink-muted);
   line-height: 1.1;
   white-space: nowrap;
 }
@@ -1287,8 +1287,9 @@ function areStringArraysEqual(left: string[], right: string[]) {
   overflow-y: hidden;
 }
 
-.card-editor-field-label {
+.card-editor-options :deep(.card-editor-field-label) {
   font-size: 0.85rem;
+  color: var(--bo-ink-muted);
 }
 
 .card-editor-actions-menu :deep(.bo-dropdown-trigger) {
@@ -1307,7 +1308,7 @@ function areStringArraysEqual(left: string[], right: string[]) {
 }
 
 .card-editor-menu-item--danger {
-  color: var(--bo-danger);
+  color: var(--bo-colour-danger-ink);
 }
 
 .card-editor-assignee-option {

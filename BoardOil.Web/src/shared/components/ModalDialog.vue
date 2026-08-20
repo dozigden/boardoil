@@ -130,6 +130,7 @@ onBeforeUnmount(() => {
   position: relative;
   margin: 0;
   background: var(--bo-surface-base);
+  color: var(--bo-ink-strong);
   border: 1px solid var(--bo-border-soft);
   border-radius: 14px;
   padding: 1rem;

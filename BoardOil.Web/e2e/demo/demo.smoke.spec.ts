@@ -135,6 +135,15 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await expect(page.locator('.board-selection-toggle-label')).toHaveCSS('color', 'rgb(202, 184, 239)');
     await expect(page.locator('.board-selection-toggle-count')).toHaveCSS('color', 'rgb(202, 184, 239)');
 
+    await page.getByTitle('Done selecting cards').click();
+    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
+    await ideasColumn.getByRole('button').filter({ hasText: 'Customer interview highlights' }).click();
+    const cardDialog = page.getByRole('dialog');
+    await expect(cardDialog.locator('.card-modal-content')).toHaveCSS('color', 'rgb(233, 238, 246)');
+    await expect(cardDialog.getByText('Column', { exact: true })).toHaveCSS('color', 'rgb(174, 186, 206)');
+    await expect(cardDialog.getByLabel('Card description', { exact: true })).toHaveCSS('color', 'rgb(233, 238, 246)');
+    await cardDialog.getByTitle('Cancel', { exact: true }).click();
+
     await page.getByRole('button', { name: 'View third-party licences' }).click();
     const licencesDialog = page.getByRole('dialog');
     await expect(licencesDialog).toBeVisible();
