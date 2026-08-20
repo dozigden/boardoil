@@ -445,6 +445,46 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
+    public async Task RefreshToken_WhenUsedConcurrently_ShouldReturnUsableReplacements()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(
+            client,
+            [MachinePatScopes.McpRead, MachinePatScopes.McpWrite]);
+        await RegisterInitialAdminAsync(client);
+        var request = CreateAuthorizationRequest(
+            scenario,
+            $"{MachinePatScopes.McpRead} {MachinePatScopes.McpWrite}");
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+
+        // Act
+        var concurrentRefreshes = await Task.WhenAll(
+            RefreshAsync(client, scenario, exchange.RefreshToken!),
+            RefreshAsync(client, scenario, exchange.RefreshToken!));
+        var followUpRefreshes = await Task.WhenAll(
+            concurrentRefreshes.Select(response =>
+                RefreshAsync(client, scenario, response.RefreshToken!)));
+
+        // Assert
+        Assert.All(
+            concurrentRefreshes,
+            response =>
+            {
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                Assert.False(string.IsNullOrWhiteSpace(response.RefreshToken));
+            });
+        Assert.All(
+            followUpRefreshes,
+            response =>
+            {
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                Assert.False(string.IsNullOrWhiteSpace(response.RefreshToken));
+            });
+    }
+
+    [Fact]
     public async Task RefreshToken_WhenRetriedAfterLeeway_ShouldRejectAndRevokeReplacement()
     {
         // Arrange
