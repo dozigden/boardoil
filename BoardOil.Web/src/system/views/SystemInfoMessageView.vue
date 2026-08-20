@@ -6,7 +6,6 @@
     </header>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
     <section v-else class="panel panel-stack panel-stack--cozy">
       <div class="system-info-message-row system-info-message-row--start">
@@ -163,6 +162,7 @@ import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
 import { createStyleDraft } from '../../shared/utils/styleDraftAdapter';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { SystemInfoMessageDto } from '../../shared/types/configurationTypes';
 import type { StylePresentation } from '../../shared/utils/styleTypes';
 
@@ -170,8 +170,8 @@ const DEFAULT_SYSTEM_INFO_STYLE_NAME = 'presets';
 const DEFAULT_SYSTEM_INFO_STYLE_PROPERTIES_JSON = '{"presetIndex":2}';
 
 const systemApi = createSystemApi();
+const feedback = useUiFeedbackStore();
 const errorMessage = ref<string | null>(null);
-const successMessage = ref<string | null>(null);
 const saving = ref(false);
 const savedSnapshot = ref('');
 const systemInfoEnabledDraft = ref(false);
@@ -230,20 +230,18 @@ async function saveSystemInfoMessage() {
   }
 
   saving.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
   try {
     const systemInfoMessage = buildCurrentSystemInfoMessage();
 
     const systemInfoResult = await systemApi.updateSystemInfoMessage(systemInfoMessage);
     if (!systemInfoResult.ok) {
-      errorMessage.value = systemInfoResult.error.message;
+      feedback.showToast(systemInfoResult.error.message, 'error');
       return;
     }
 
     const persistedMessage = systemInfoResult.data ?? systemInfoMessage;
     savedSnapshot.value = serialiseSystemInfoMessage(persistedMessage);
-    successMessage.value = 'Saved system info message.';
+    feedback.showToast('Saved successfully.');
   } finally {
     saving.value = false;
   }

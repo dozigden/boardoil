@@ -29,7 +29,6 @@
       <div class="user-theme-actions">
         <button type="button" class="btn" :disabled="!isDirty" @click="saveThemeMode">Save</button>
       </div>
-      <p v-if="saveMessage" class="user-theme-save-message" role="status">{{ saveMessage }}</p>
     </section>
   </section>
 </template>
@@ -38,11 +37,12 @@
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useThemeStore, type ThemeMode } from '../../shared/stores/themeStore';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 
 const themeStore = useThemeStore();
+const feedback = useUiFeedbackStore();
 const { mode: themeMode, activeTheme } = storeToRefs(themeStore);
 const draftThemeMode = ref<ThemeMode>(themeMode.value);
-const saveMessage = ref<string | null>(null);
 const activeThemeLabel = computed(() => activeTheme.value === 'dark' ? 'Dark' : 'Light');
 const isDirty = computed(() => draftThemeMode.value !== themeMode.value);
 
@@ -54,20 +54,13 @@ watch(
   { immediate: true }
 );
 
-watch(
-  draftThemeMode,
-  () => {
-    saveMessage.value = null;
-  }
-);
-
 function saveThemeMode() {
   if (!isDirty.value) {
     return;
   }
 
   themeStore.setMode(draftThemeMode.value);
-  saveMessage.value = 'Theme preference saved.';
+  feedback.showToast('Saved successfully.');
 }
 </script>
 
@@ -158,8 +151,4 @@ function saveThemeMode() {
   justify-content: flex-start;
 }
 
-.user-theme-save-message {
-  margin: 0;
-  color: var(--bo-colour-success-ink);
-}
 </style>

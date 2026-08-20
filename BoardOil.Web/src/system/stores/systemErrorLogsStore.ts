@@ -4,6 +4,7 @@ import {
   createErrorLogsApi,
   type ErrorLogsApi
 } from '../../shared/api/errorLogsApi';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type {
   ErrorLog,
   ErrorLogDetails,
@@ -23,6 +24,7 @@ export function createSystemErrorLogsStore(
   errorLogsApi: ErrorLogsApi = createErrorLogsApi()
 ) {
   return defineStore('systemErrorLogs', () => {
+    const feedback = useUiFeedbackStore();
     const listLoading = ref(false);
     const listErrorMessage = ref<string | null>(null);
     const detailLoadingById = ref<Record<number, boolean>>({});
@@ -105,7 +107,7 @@ export function createSystemErrorLogsStore(
     async function purgeExpiredErrorLogs(): Promise<ErrorLogPurgeResult | null> {
       const result = await errorLogsApi.purgeExpiredErrorLogs();
       if (!result.ok) {
-        listErrorMessage.value = result.error.message;
+        feedback.showToast(result.error.message, 'error');
         return null;
       }
 

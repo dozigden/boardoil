@@ -18,13 +18,6 @@
       </button>
     </template>
 
-    <p
-      v-if="copyMessage"
-      :class="[copySucceeded ? 'success' : 'error', 'error-log-copy-message']"
-      role="status"
-    >
-      {{ copyMessage }}
-    </p>
     <p v-if="currentErrorLogLoading" class="error-log-detail-empty">
       Loading error log details...
     </p>
@@ -85,9 +78,10 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { copyTextToClipboard } from '../../shared/utils/clipboard';
 import { useSystemErrorLogsStore } from '../stores/systemErrorLogsStore';
 import {
@@ -99,10 +93,9 @@ import {
 
 const route = useRoute();
 const router = useRouter();
+const feedback = useUiFeedbackStore();
 const errorLogsStore = useSystemErrorLogsStore();
 const { detailLoadingById, detailErrorById, errorLogById } = storeToRefs(errorLogsStore);
-const copyMessage = ref<string | null>(null);
-const copySucceeded = ref(false);
 
 const errorLogId = computed(() => {
   const raw = route.params.errorLogId;
@@ -143,10 +136,12 @@ async function copyDetails() {
   }
 
   const copied = await copyTextToClipboard(markdownText.value);
-  copySucceeded.value = copied;
-  copyMessage.value = copied
-    ? 'Copied error log details as Markdown.'
-    : 'Could not copy automatically. Select the report and copy it manually.';
+  if (copied) {
+    feedback.showToast('Copied');
+    return;
+  }
+
+  feedback.showToast('Could not copy automatically. Select the report and copy it manually.', 'error');
 }
 
 function onReportCopy(event: ClipboardEvent) {
@@ -156,8 +151,7 @@ function onReportCopy(event: ClipboardEvent) {
 
   event.clipboardData.setData('text/plain', markdownText.value);
   event.preventDefault();
-  copySucceeded.value = true;
-  copyMessage.value = 'Copied error log details as Markdown.';
+  feedback.showToast('Copied');
 }
 
 async function close() {
@@ -180,8 +174,6 @@ function formatDate(value: string): string {
 watch(
   errorLogId,
   async id => {
-    copyMessage.value = null;
-    copySucceeded.value = false;
     if (id !== null) {
       await errorLogsStore.loadErrorLogDetails(id);
     }
@@ -193,10 +185,6 @@ watch(
 <style scoped>
 .error-log-details-modal :deep(.card-modal-content) {
   overflow: hidden;
-}
-
-.error-log-copy-message {
-  margin: 0 0 0.7rem;
 }
 
 .error-log-detail-empty {

@@ -558,9 +558,3 @@ select:focus {
 .unauthorized-view p {
   margin: 0;
 }
-
-
-.success {
-  color: var(--bo-colour-success-ink);
-  margin: 0;
-}

@@ -8,7 +8,6 @@
     </header>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
     <section class="users-grid-wrap">
       <BoGrid
@@ -128,6 +127,7 @@ import { useConfirm } from '../../shared/composables/useConfirm';
 import UserCreateDialog from '../components/UserCreateDialog.vue';
 import UserEditDialog from '../components/UserEditDialog.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type {
   CreateManagedUserRequest,
   ManagedUser,
@@ -136,10 +136,11 @@ import type {
 import { useSystemUsersManagerStore } from '../stores/systemUsersManagerStore';
 
 const authStore = useAuthStore();
+const feedback = useUiFeedbackStore();
 const usersManagerStore = useSystemUsersManagerStore();
 const { confirm } = useConfirm();
 const { user: currentUser } = storeToRefs(authStore);
-const { users, busy, errorMessage, successMessage } = storeToRefs(usersManagerStore);
+const { users, busy, errorMessage } = storeToRefs(usersManagerStore);
 const isCreateDialogOpen = ref(false);
 const isEditDialogOpen = ref(false);
 const isResetPasswordDialogOpen = ref(false);
@@ -218,7 +219,7 @@ async function submitResetPassword(payload: { currentPassword?: string; newPassw
     return;
   }
 
-  const reset = await usersManagerStore.resetUserPassword(selectedUser.id, selectedUser.displayName, payload.newPassword);
+  const reset = await usersManagerStore.resetUserPassword(selectedUser.id, payload.newPassword);
   if (!reset) {
     return;
   }
@@ -229,7 +230,7 @@ async function submitResetPassword(payload: { currentPassword?: string; newPassw
 
 async function deleteUser(user: ManagedUser) {
   if (isCurrentUser(user.id)) {
-    errorMessage.value = 'You cannot delete your own account.';
+    feedback.showToast('You cannot delete your own account.', 'error');
     return;
   }
 
@@ -243,7 +244,7 @@ async function deleteUser(user: ManagedUser) {
     return;
   }
 
-  await usersManagerStore.deleteUser(user.id, user.displayName);
+  await usersManagerStore.deleteUser(user.id);
 }
 
 function isCurrentUser(userId: number) {

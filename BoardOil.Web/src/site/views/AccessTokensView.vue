@@ -80,7 +80,6 @@
     </header>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
     <section class="authentication-method-main entity-rows-list" aria-label="Access tokens">
       <p v-if="tokens.length === 0" class="authentication-method-empty">No access tokens have been created yet.</p>
@@ -140,7 +139,6 @@ const createBusy = ref(false);
 const revokeBusyTokenId = ref<number | null>(null);
 const isCreateDialogOpen = ref(false);
 const errorMessage = ref<string | null>(null);
-const successMessage = ref<string | null>(null);
 const plainTextPat = ref<string | null>(null);
 const plainTextPatName = ref<string>('');
 const configSnippetTab = ref<'claude-code' | 'codex'>('claude-code');
@@ -218,11 +216,10 @@ function closeCreateDialog() {
 async function createToken(payload: CreateAccessTokenRequest) {
   createBusy.value = true;
   errorMessage.value = null;
-  successMessage.value = null;
   try {
     const result = await authApi.createAccessToken(payload);
     if (!result.ok) {
-      errorMessage.value = result.error.message;
+      feedback.showToast(result.error.message, 'error');
       return;
     }
 
@@ -230,7 +227,7 @@ async function createToken(payload: CreateAccessTokenRequest) {
     plainTextPat.value = result.data.plainTextToken;
     plainTextPatName.value = result.data.token.name;
     isCreateDialogOpen.value = false;
-    successMessage.value = `Created access token ${result.data.token.name}.`;
+    feedback.showToast('Created successfully.');
   } finally {
     createBusy.value = false;
   }
@@ -253,15 +250,14 @@ async function revokeToken(token: AccessToken) {
 
   revokeBusyTokenId.value = token.id;
   errorMessage.value = null;
-  successMessage.value = null;
   try {
     const result = await authApi.revokeAccessToken(token.id);
     if (!result.ok) {
-      errorMessage.value = result.error.message;
+      feedback.showToast(result.error.message, 'error');
       return;
     }
 
-    successMessage.value = `Revoked access token ${token.name}.`;
+    feedback.showToast('Revoked successfully.');
     await refreshTokens();
   } finally {
     revokeBusyTokenId.value = null;

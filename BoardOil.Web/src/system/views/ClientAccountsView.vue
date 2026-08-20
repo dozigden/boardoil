@@ -10,7 +10,6 @@
 
     <div class="client-accounts-layout">
       <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-      <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
       <section class="client-accounts-grid-wrap">
         <BoGrid
@@ -180,7 +179,7 @@ import { useSystemClientAccountsStore } from '../stores/systemClientAccountsStor
 
 const clientAccountsStore = useSystemClientAccountsStore();
 const { confirm } = useConfirm();
-const { clients, busy, errorMessage, successMessage } = storeToRefs(clientAccountsStore);
+const { clients, busy, errorMessage } = storeToRefs(clientAccountsStore);
 const isCreateDialogOpen = ref(false);
 const isEditDialogOpen = ref(false);
 const plainTextPat = ref<string | null>(null);
@@ -278,7 +277,7 @@ async function deleteClientAccount(client: ClientAccount) {
     return;
   }
 
-  await clientAccountsStore.deleteClientAccount(client.id, client.displayName);
+  await clientAccountsStore.deleteClientAccount(client.id);
 }
 
 function openClientImagePicker(client: ClientAccount, close: () => void) {
@@ -334,7 +333,7 @@ async function uploadCroppedClientImage(file: File) {
 }
 
 async function removeClientImage(client: ClientAccount) {
-  await clientAccountsStore.removeClientProfileImage(client.id, client.displayName);
+  await clientAccountsStore.removeClientProfileImage(client.id);
 }
 
 function openClientTokensFromMenu(clientId: number, close: () => void) {

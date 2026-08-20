@@ -6,7 +6,6 @@
     </header>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
     <section v-else class="panel panel-stack panel-stack--cozy">
       <div class="configuration-row">
@@ -57,12 +56,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { createSystemApi } from '../../shared/api/systemApi';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { ConfigurationDto } from '../../shared/types/configurationTypes';
 
 const systemApi = createSystemApi();
+const feedback = useUiFeedbackStore();
 const configuration = ref<ConfigurationDto | null>(null);
 const errorMessage = ref<string | null>(null);
-const successMessage = ref<string | null>(null);
 const saving = ref(false);
 const mcpPublicBaseUrlDraft = ref('');
 
@@ -79,20 +79,18 @@ onMounted(async () => {
 
 async function saveConfiguration() {
   saving.value = true;
-  errorMessage.value = null;
-  successMessage.value = null;
   try {
     const requestValue = mcpPublicBaseUrlDraft.value.trim();
     const configurationResult = await systemApi.updateConfiguration({
       mcpPublicBaseUrl: requestValue.length > 0 ? requestValue : null
     });
     if (!configurationResult.ok) {
-      errorMessage.value = configurationResult.error.message;
+      feedback.showToast(configurationResult.error.message, 'error');
       return;
     }
 
     applyConfigurationDraft(configurationResult.data);
-    successMessage.value = 'Saved configuration.';
+    feedback.showToast('Saved successfully.');
   } finally {
     saving.value = false;
   }

@@ -23,7 +23,6 @@
       </div>
     </header>
 
-    <p v-if="successMessage" class="success" role="status">{{ successMessage }}</p>
     <p v-if="listErrorMessage" class="error">{{ listErrorMessage }}</p>
 
     <section class="error-logs-grid-region">
@@ -69,6 +68,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import BoGrid from '../../shared/components/BoGrid.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import {
   ERROR_LOG_PAGE_SIZE_OPTIONS,
   useSystemErrorLogsStore
@@ -76,6 +76,7 @@ import {
 
 const router = useRouter();
 const { confirm } = useConfirm();
+const feedback = useUiFeedbackStore();
 const errorLogsStore = useSystemErrorLogsStore();
 const {
   listLoading,
@@ -87,7 +88,6 @@ const {
 } = storeToRefs(errorLogsStore);
 const rows = computed(() => errorLogs.value as unknown as Record<string, unknown>[]);
 const purging = ref(false);
-const successMessage = ref<string | null>(null);
 const pageSizeOptions = ERROR_LOG_PAGE_SIZE_OPTIONS;
 
 const gridFields = [
@@ -112,12 +112,10 @@ function onPageSizeChanged(event: Event) {
     return;
   }
 
-  successMessage.value = null;
   void errorLogsStore.setPageSize(Number(target.value));
 }
 
 function refresh() {
-  successMessage.value = null;
   void errorLogsStore.loadErrorLogs();
 }
 
@@ -133,12 +131,10 @@ async function purgeExpired() {
   }
 
   purging.value = true;
-  successMessage.value = null;
   try {
     const result = await errorLogsStore.purgeExpiredErrorLogs();
     if (result) {
-      const noun = result.deletedCount === 1 ? 'log' : 'logs';
-      successMessage.value = `Purged ${result.deletedCount} error ${noun} older than ${result.retentionDays} days.`;
+      feedback.showToast('Purged successfully.');
     }
   } finally {
     purging.value = false;

@@ -20,7 +20,6 @@
     </header>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
     <section class="client-token-list">
       <p v-if="client && tokens.length === 0" class="client-accounts-empty">No tokens for this client yet.</p>
@@ -62,10 +61,12 @@ import AccessTokenCreateDialog from '../../shared/components/AccessTokenCreateDi
 import AccessTokenListItem from '../../shared/components/AccessTokenListItem.vue';
 import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretModal.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { AccessToken, ClientAccount, CreateAccessTokenRequest, CreateClientAccessTokenRequest } from '../../shared/types/authTypes';
 
 const systemApi = createSystemApi();
 const { confirm } = useConfirm();
+const feedback = useUiFeedbackStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -82,7 +83,6 @@ const tokenCreateBusy = ref(false);
 const revokeBusyTokenId = ref<number | null>(null);
 const isCreateTokenDialogOpen = ref(false);
 const errorMessage = ref<string | null>(null);
-const successMessage = ref<string | null>(null);
 const plainTextPat = ref<string | null>(null);
 const plainTextPatName = ref<string>('');
 
@@ -160,18 +160,17 @@ async function createClientToken(payload: CreateAccessTokenRequest) {
 
   tokenCreateBusy.value = true;
   errorMessage.value = null;
-  successMessage.value = null;
   try {
     const result = await systemApi.createClientAccountToken(client.value.id, request);
     if (!result.ok) {
-      errorMessage.value = result.error.message;
+      feedback.showToast(result.error.message, 'error');
       return;
     }
 
     tokens.value = sortTokens([result.data.token, ...tokens.value.filter(token => token.id !== result.data.token.id)]);
     plainTextPat.value = result.data.plainTextToken;
     plainTextPatName.value = result.data.token.name;
-    successMessage.value = `Created access token ${result.data.token.name}.`;
+    feedback.showToast('Created successfully.');
     isCreateTokenDialogOpen.value = false;
   } finally {
     tokenCreateBusy.value = false;
@@ -195,15 +194,14 @@ async function revokeToken(token: AccessToken) {
 
   revokeBusyTokenId.value = token.id;
   errorMessage.value = null;
-  successMessage.value = null;
   try {
     const result = await systemApi.revokeClientAccountToken(client.value.id, token.id);
     if (!result.ok) {
-      errorMessage.value = result.error.message;
+      feedback.showToast(result.error.message, 'error');
       return;
     }
 
-    successMessage.value = `Revoked access token ${token.name}.`;
+    feedback.showToast('Revoked successfully.');
     await loadTokens(client.value.id);
   } finally {
     revokeBusyTokenId.value = null;
@@ -263,7 +261,6 @@ watch(
 
     clientId.value = resolvedId;
     dismissPlainTextPat();
-    successMessage.value = null;
     errorMessage.value = null;
 
     if (clients.value.length === 0) {

@@ -5,7 +5,6 @@
       <p v-if="requiresInitialAdminSetup" class="auth-help">
         First time setup? <RouterLink :to="{ name: 'setup-initial-admin' }">Create the initial admin</RouterLink>.
       </p>
-      <p v-if="passwordResetSuccessMessage" class="success">{{ passwordResetSuccessMessage }}</p>
       <label>
         Username
         <input v-model="userName" autocomplete="username" maxlength="64" required />
@@ -25,15 +24,23 @@ import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../shared/stores/authStore';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { getSafeRedirectTarget } from '../auth/redirectTarget';
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const feedback = useUiFeedbackStore();
 const { busy, errorMessage, requiresInitialAdminSetup } = storeToRefs(authStore);
 const userName = ref('');
 const password = ref('');
-const passwordResetSuccessMessage = route.query.passwordReset === '1' ? 'Password reset successful. Please sign in again.' : null;
+
+if (route.query.passwordReset === '1') {
+  feedback.showToast('Password reset successfully.');
+  const nextQuery = { ...route.query };
+  delete nextQuery.passwordReset;
+  void router.replace({ query: nextQuery });
+}
 
 async function submit() {
   const success = await authStore.login(userName.value, password.value);

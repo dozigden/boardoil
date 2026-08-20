@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createSystemApi } from '../../shared/api/systemApi';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type {
   ClientAccount,
   CreateClientAccountRequest,
@@ -13,12 +14,11 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
   const clients = ref<ClientAccount[]>([]);
   const busy = ref(false);
   const errorMessage = ref<string | null>(null);
-  const successMessage = ref<string | null>(null);
   const api = createSystemApi();
+  const feedback = useUiFeedbackStore();
 
   function clearMessages() {
     errorMessage.value = null;
-    successMessage.value = null;
   }
 
   function dispose() {
@@ -51,12 +51,12 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
     try {
       const result = await api.createClientAccount(payload);
       if (!result.ok) {
-        errorMessage.value = result.error.message;
+        feedback.showToast(result.error.message, 'error');
         return null;
       }
 
       clients.value = [...clients.value, result.data.account].sort((left, right) => left.userName.localeCompare(right.userName));
-      successMessage.value = `Created client account ${result.data.account.displayName}.`;
+      feedback.showToast('Created successfully.');
       return result.data;
     } finally {
       busy.value = false;
@@ -69,30 +69,30 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
     try {
       const result = await api.updateClientAccount(clientId, payload);
       if (!result.ok) {
-        errorMessage.value = result.error.message;
+        feedback.showToast(result.error.message, 'error');
         return null;
       }
 
       clients.value = clients.value.map(client => (client.id === clientId ? result.data : client));
-      successMessage.value = `Updated client account ${result.data.displayName}.`;
+      feedback.showToast('Saved successfully.');
       return result.data;
     } finally {
       busy.value = false;
     }
   }
 
-  async function deleteClientAccount(clientId: number, displayName: string) {
+  async function deleteClientAccount(clientId: number) {
     busy.value = true;
     clearMessages();
     try {
       const result = await api.deleteClientAccount(clientId);
       if (!result.ok) {
-        errorMessage.value = result.error.message;
+        feedback.showToast(result.error.message, 'error');
         return false;
       }
 
       clients.value = clients.value.filter(entry => entry.id !== clientId);
-      successMessage.value = `Deleted client account ${displayName}.`;
+      feedback.showToast('Deleted successfully.');
       return true;
     } finally {
       busy.value = false;
@@ -114,20 +114,20 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
           ? { ...client, profileImageRelativePath: result.data.relativePath }
           : client
       );
-      successMessage.value = 'Updated client account image.';
+      feedback.showToast('Saved successfully.');
       return result.data;
     } finally {
       busy.value = false;
     }
   }
 
-  async function removeClientProfileImage(clientId: number, displayName: string) {
+  async function removeClientProfileImage(clientId: number) {
     busy.value = true;
     clearMessages();
     try {
       const result = await api.deleteClientAccountProfileImage(clientId);
       if (!result.ok) {
-        errorMessage.value = result.error.message;
+        feedback.showToast(result.error.message, 'error');
         return false;
       }
 
@@ -136,7 +136,7 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
           ? { ...entry, profileImageRelativePath: null }
           : entry
       );
-      successMessage.value = `Removed image for ${displayName}.`;
+      feedback.showToast('Removed successfully.');
       return true;
     } finally {
       busy.value = false;
@@ -147,7 +147,6 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
     clients,
     busy,
     errorMessage,
-    successMessage,
     clearMessages,
     dispose,
     loadClients,

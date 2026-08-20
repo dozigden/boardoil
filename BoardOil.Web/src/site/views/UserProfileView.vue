@@ -59,7 +59,6 @@
         <button type="submit" class="btn" :disabled="saveBusy">Save profile</button>
       </div>
       <p v-if="saveErrorMessage" class="account-profile-error" role="alert">{{ saveErrorMessage }}</p>
-      <p v-else-if="saveSuccessMessage" class="account-profile-success">{{ saveSuccessMessage }}</p>
     </form>
 
     <input
@@ -89,11 +88,13 @@ import ProfileImageCropDialog from '../components/ProfileImageCropDialog.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useUserProfileImageStore } from '../../shared/stores/userProfileImageStore';
 import { useUserProfileStore } from '../../shared/stores/userProfileStore';
 import type { UserProfileEditModel } from '../../shared/types/authTypes';
 
 const authStore = useAuthStore();
+const feedback = useUiFeedbackStore();
 const userProfileImageStore = useUserProfileImageStore();
 const userProfileStore = useUserProfileStore();
 const { user } = storeToRefs(authStore);
@@ -104,7 +105,6 @@ const cropDialogOpen = ref(false);
 const pendingProfileImageFile = ref<File | null>(null);
 const editDisplayName = ref('');
 const editEmail = ref('');
-const saveSuccessMessage = ref<string | null>(null);
 
 const userName = computed(() => user.value?.userName ?? 'Unknown user');
 const displayName = computed(() => user.value?.displayName ?? userName.value);
@@ -181,7 +181,6 @@ async function uploadCroppedImage(file: File) {
 }
 
 async function saveProfile() {
-  saveSuccessMessage.value = null;
   const saveModel: UserProfileEditModel = {
     displayName: editDisplayName.value,
     email: editEmail.value
@@ -194,7 +193,7 @@ async function saveProfile() {
   authStore.setOwnProfile(result.displayName, result.userName, result.role);
   editDisplayName.value = result.displayName;
   editEmail.value = result.email;
-  saveSuccessMessage.value = 'Profile updated.';
+  feedback.showToast('Saved successfully.');
 }
 
 </script>
@@ -314,8 +313,4 @@ async function saveProfile() {
   color: var(--bo-colour-danger-ink);
 }
 
-.account-profile-success {
-  margin: 0;
-  color: var(--bo-colour-success-ink);
-}
 </style>

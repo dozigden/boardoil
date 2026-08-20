@@ -122,7 +122,6 @@
     </header>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
     <section class="authentication-method-main entity-rows-list" aria-label="OAuth connections">
       <p v-if="!busy && connections.length === 0" class="authentication-method-empty">
@@ -209,7 +208,6 @@ const feedback = useUiFeedbackStore();
 const connections = ref<OAuthConnection[]>([]);
 const busy = ref(false);
 const errorMessage = ref<string | null>(null);
-const successMessage = ref<string | null>(null);
 const configurationErrorMessage = ref<string | null>(null);
 const mcpResourceUrl = ref<string | null>(null);
 const setupClient = ref<SetupClient>('vscode');
@@ -302,17 +300,16 @@ async function revokeConnection(connection: OAuthConnection) {
 
   busy.value = true;
   errorMessage.value = null;
-  successMessage.value = null;
   try {
     const result = props.administrator
       ? await systemApi.revokeConnection(connection.id)
       : await api.revokeOwnConnection(connection.id);
     if (!result.ok) {
-      errorMessage.value = result.error.message;
+      feedback.showToast(result.error.message, 'error');
       return;
     }
 
-    successMessage.value = `Revoked and removed OAuth connection ${connection.name}.`;
+    feedback.showToast('Revoked successfully.');
     await loadConnections();
   } finally {
     busy.value = false;

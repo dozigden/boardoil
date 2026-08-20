@@ -1,8 +1,9 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ErrorLogsApi } from '../../shared/api/errorLogsApi';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { ErrorLog, ErrorLogDetails } from '../../shared/types/errorLogTypes';
-import { ok } from '../../shared/types/result';
+import { err, ok } from '../../shared/types/result';
 
 vi.mock('../../shared/api/errorLogsApi', () => ({
   createErrorLogsApi: vi.fn()
@@ -85,6 +86,24 @@ describe('systemErrorLogsStore', () => {
     expect(result?.deletedCount).toBe(4);
     expect(api.getErrorLogs).toHaveBeenCalledWith(0, 100);
     expect(store.offset).toBe(0);
+  });
+
+  it('reports purge failures as transient error toasts', async () => {
+    const api = createApi();
+    api.purgeExpiredErrorLogs.mockResolvedValue(err({
+      kind: 'api',
+      message: 'Could not purge error logs.'
+    }));
+    const useStore = createSystemErrorLogsStore(api);
+    const store = useStore();
+    const feedback = useUiFeedbackStore();
+
+    const result = await store.purgeExpiredErrorLogs();
+
+    expect(result).toBeNull();
+    expect(store.listErrorMessage).toBeNull();
+    expect(feedback.toastMessage).toBe('Could not purge error logs.');
+    expect(feedback.toastTone).toBe('error');
   });
 });
 

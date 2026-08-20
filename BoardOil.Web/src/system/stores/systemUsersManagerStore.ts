@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createSystemApi } from '../../shared/api/systemApi';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type {
   CreateManagedUserRequest,
   ManagedUser,
@@ -11,12 +12,11 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
   const users = ref<ManagedUser[]>([]);
   const busy = ref(false);
   const errorMessage = ref<string | null>(null);
-  const successMessage = ref<string | null>(null);
   const api = createSystemApi();
+  const feedback = useUiFeedbackStore();
 
   function clearMessages() {
     errorMessage.value = null;
-    successMessage.value = null;
   }
 
   function dispose() {
@@ -49,12 +49,12 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
     try {
       const result = await api.createUser(payload);
       if (!result.ok) {
-        errorMessage.value = result.error.message;
+        feedback.showToast(result.error.message, 'error');
         return false;
       }
 
       users.value = [...users.value, result.data].sort((left, right) => left.userName.localeCompare(right.userName));
-      successMessage.value = `Created user ${result.data.displayName}.`;
+      feedback.showToast('Created successfully.');
       return true;
     } finally {
       busy.value = false;
@@ -67,47 +67,47 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
     try {
       const result = await api.updateUser(userId, payload);
       if (!result.ok) {
-        errorMessage.value = result.error.message;
+        feedback.showToast(result.error.message, 'error');
         return false;
       }
 
       users.value = users.value.map(user => (user.id === userId ? result.data : user));
-      successMessage.value = `Updated ${result.data.displayName}.`;
+      feedback.showToast('Saved successfully.');
       return true;
     } finally {
       busy.value = false;
     }
   }
 
-  async function resetUserPassword(userId: number, displayName: string, newPassword: string) {
+  async function resetUserPassword(userId: number, newPassword: string) {
     busy.value = true;
     clearMessages();
     try {
       const result = await api.resetUserPassword(userId, newPassword);
       if (!result.ok) {
-        errorMessage.value = result.error.message;
+        feedback.showToast(result.error.message, 'error');
         return false;
       }
 
-      successMessage.value = `Password reset for ${displayName}.`;
+      feedback.showToast('Password reset successfully.');
       return true;
     } finally {
       busy.value = false;
     }
   }
 
-  async function deleteUser(userId: number, displayName: string) {
+  async function deleteUser(userId: number) {
     busy.value = true;
     clearMessages();
     try {
       const result = await api.deleteUser(userId);
       if (!result.ok) {
-        errorMessage.value = result.error.message;
+        feedback.showToast(result.error.message, 'error');
         return false;
       }
 
       users.value = users.value.filter(entry => entry.id !== userId);
-      successMessage.value = `Deleted user ${displayName}.`;
+      feedback.showToast('Deleted successfully.');
       return true;
     } finally {
       busy.value = false;
@@ -118,7 +118,6 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
     users,
     busy,
     errorMessage,
-    successMessage,
     clearMessages,
     dispose,
     loadUsers,
