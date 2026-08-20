@@ -17,8 +17,8 @@ Usage:
 
 Behaviour:
   - Validates release prerequisites for the provided version.
-  - Runs frontend release gate: cd BoardOil.Web && npm run verify-release
-  - Dry-run by default: does not create a git tag unless --apply is provided.
+  - Dry-run by default: runs the frontend release gate and records the validated commit.
+  - --apply requires a successful dry-run for the current commit before creating the tag.
   - Optional --push pushes the created tag to the selected remote.
 
 Examples:
@@ -122,20 +122,14 @@ if ! is_clean_tree "$REPO_ROOT"; then
   exit 1
 fi
 
+RELEASE_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+GIT_DIRECTORY="$(git -C "$REPO_ROOT" rev-parse --absolute-git-dir)"
+VALIDATION_DIRECTORY="$GIT_DIRECTORY/boardoil-release-validations"
+VALIDATION_FILE="$VALIDATION_DIRECTORY/$TAG"
+
 PACKAGE_VERSION="$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));process.stdout.write(String(p.version ?? ''));" "$REPO_ROOT/BoardOil.Web/package.json")"
 if [[ "$PACKAGE_VERSION" != "$VERSION" ]]; then
   echo "BoardOil.Web/package.json version is '$PACKAGE_VERSION' but expected '$VERSION'." >&2
-  exit 1
-fi
-
-echo "[release-tag] Running frontend release gate (npm run verify-release)"
-(
-  cd "$REPO_ROOT/BoardOil.Web"
-  npm run verify-release
-)
-
-if ! is_clean_tree "$REPO_ROOT"; then
-  echo "Working tree changed after verification. Resolve generated changes before tagging." >&2
   exit 1
 fi
 
@@ -145,11 +139,49 @@ if git -C "$REPO_ROOT" rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1; t
 fi
 
 if [[ "$APPLY" -ne 1 ]]; then
+  echo "[release-tag] Running frontend release gate (npm run verify-release)"
+  (
+    cd "$REPO_ROOT/BoardOil.Web"
+    npm run verify-release
+  )
+
+  if ! is_clean_tree "$REPO_ROOT"; then
+    echo "Working tree changed after verification. Resolve generated changes before tagging." >&2
+    exit 1
+  fi
+
+  if [[ "$(git -C "$REPO_ROOT" rev-parse HEAD)" != "$RELEASE_SHA" ]]; then
+    echo "HEAD changed during verification. Re-run the dry-run for the current release commit." >&2
+    exit 1
+  fi
+
+  mkdir -p "$VALIDATION_DIRECTORY"
+  printf '%s\n' "$RELEASE_SHA" > "$VALIDATION_FILE"
+
   echo "[release-tag] Dry run complete. All checks passed for $VERSION."
+  echo "[release-tag] Recorded validation for commit $RELEASE_SHA."
   echo "[release-tag] Re-run with --apply to create tag '$TAG'."
   exit 0
 fi
 
+if [[ ! -f "$VALIDATION_FILE" ]]; then
+  echo "No successful dry-run is recorded for '$TAG'. Run release-tag without --apply first." >&2
+  exit 1
+fi
+
+VALIDATED_SHA="$(<"$VALIDATION_FILE")"
+if [[ "$VALIDATED_SHA" != "$RELEASE_SHA" ]]; then
+  echo "The recorded dry-run for '$TAG' validated commit '$VALIDATED_SHA', not current commit '$RELEASE_SHA'." >&2
+  echo "Re-run release-tag without --apply for the current release commit." >&2
+  exit 1
+fi
+
+if ! is_clean_tree "$REPO_ROOT"; then
+  echo "Working tree changed after validation. Resolve changes before tagging." >&2
+  exit 1
+fi
+
+echo "[release-tag] Using dry-run validation for commit $RELEASE_SHA."
 echo "[release-tag] Creating annotated tag '$TAG'"
 git -C "$REPO_ROOT" tag -a "$TAG" -m "Release $TAG"
 
