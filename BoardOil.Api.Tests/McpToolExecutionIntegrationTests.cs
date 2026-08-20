@@ -714,6 +714,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.Equal(HttpStatusCode.OK, addSecondCommentResponse.StatusCode);
         using var addSecondCommentPayload = await McpJsonRpcClient.ParseJsonAsync(addSecondCommentResponse);
         Assert.False(addSecondCommentPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        var createdComment = McpJsonRpcClient.GetStructuredContent(addSecondCommentPayload).GetProperty("comment");
+        Assert.True(createdComment.TryGetProperty("postedAtUtc", out _));
+        Assert.False(createdComment.TryGetProperty("createdAtUtc", out _));
 
         var cardGetResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -735,6 +738,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.Equal(2, comments.Length);
         Assert.Equal("Second MCP comment", comments[0].GetProperty("text").GetString());
         Assert.Equal("First MCP comment", comments[1].GetProperty("text").GetString());
+        Assert.All(comments, comment => Assert.True(comment.TryGetProperty("postedAtUtc", out _)));
+        Assert.All(comments, comment => Assert.False(comment.TryGetProperty("createdAtUtc", out _)));
     }
 
     [Fact]
@@ -761,6 +766,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
 
         var boardData = McpJsonRpcClient.GetStructuredContent(boardGetPayload);
         Assert.True(boardData.TryGetProperty("id", out _));
+        Assert.True(boardData.TryGetProperty("name", out _));
+        Assert.False(boardData.TryGetProperty("boardName", out _));
         Assert.True(boardData.TryGetProperty("description", out _));
         Assert.False(boardData.TryGetProperty("boardId", out _));
 
@@ -1141,7 +1148,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         // Assert
         var cardData = McpJsonRpcClient.GetStructuredContent(cardGetPayload);
         Assert.Equal(adminUserId, cardData.GetProperty("assignedUserId").GetInt32());
-        Assert.Equal("admin", cardData.GetProperty("assignedUserName").GetString());
+        Assert.Equal("admin", cardData.GetProperty("assignedUserDisplayName").GetString());
+        Assert.False(cardData.TryGetProperty("assignedUserName", out _));
     }
 
     [Fact]
@@ -1535,6 +1543,112 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         var structuredContent = McpJsonRpcClient.GetStructuredContent(createPayload);
         Assert.Equal("validation_failed", structuredContent.GetProperty("code").GetString());
         Assert.Contains("Unknown tool arguments: boardColumnId.", structuredContent.GetProperty("message").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CardCreate_WhenColumnServiceValidationFails_ShouldReturnColumnIdError()
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId = int.MaxValue,
+                    title = "Invalid column",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-invalid-column-service-validation",
+            patToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+        var validationErrors = McpJsonRpcClient.GetStructuredContent(payload)
+            .GetProperty("validationErrors");
+        Assert.True(validationErrors.TryGetProperty("columnId", out _));
+        Assert.False(validationErrors.TryGetProperty("boardColumnId", out _));
+    }
+
+    [Fact]
+    public async Task CardMove_WhenAnchorServiceValidationFails_ShouldReturnAfterIdError()
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client);
+
+        var boardGetResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "board.get",
+                arguments = new { id = 1 }
+            },
+            "board-get-before-anchor-service-validation",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, boardGetResponse.StatusCode);
+        using var boardGetPayload = await McpJsonRpcClient.ParseJsonAsync(boardGetResponse);
+        var columnId = McpJsonRpcClient.GetStructuredContent(boardGetPayload)
+            .GetProperty("columns")[0]
+            .GetProperty("id")
+            .GetInt32();
+
+        var createCardResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.create",
+                arguments = new
+                {
+                    boardId = 1,
+                    columnId,
+                    title = "Invalid anchor target",
+                    description = "",
+                    tagNames = Array.Empty<string>()
+                }
+            },
+            "card-create-before-invalid-anchor-service-validation",
+            patToken);
+        Assert.Equal(HttpStatusCode.OK, createCardResponse.StatusCode);
+        using var createCardPayload = await McpJsonRpcClient.ParseJsonAsync(createCardResponse);
+        var cardId = McpJsonRpcClient.GetStructuredContent(createCardPayload)
+            .GetProperty("card")
+            .GetProperty("id")
+            .GetInt32();
+
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new
+            {
+                name = "card.move",
+                arguments = new
+                {
+                    boardId = 1,
+                    id = cardId,
+                    columnId,
+                    afterId = int.MaxValue
+                }
+            },
+            "card-move-invalid-anchor-service-validation",
+            patToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+        var validationErrors = McpJsonRpcClient.GetStructuredContent(payload)
+            .GetProperty("validationErrors");
+        Assert.True(validationErrors.TryGetProperty("afterId", out _));
+        Assert.False(validationErrors.TryGetProperty("positionAfterCardId", out _));
     }
 
     [Fact]

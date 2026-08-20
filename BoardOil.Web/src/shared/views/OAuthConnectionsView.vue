@@ -142,7 +142,7 @@
           <dl class="authentication-record-details">
             <div>
               <dt>Application</dt>
-              <dd>{{ connection.oAuthClientDisplayName }}</dd>
+              <dd>{{ connection.oauthClientDisplayName }}</dd>
             </div>
             <div>
               <dt>Scopes</dt>

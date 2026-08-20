@@ -45,7 +45,7 @@ describe('demoBoardApi', () => {
     expect(movedCard).toMatchObject({
       title: 'Try the polished interactive preview',
       boardColumnId: 3,
-      assignedUserName: 'Jane Doe',
+      assignedUserDisplayName: 'Jane Doe',
       tagNames: ['Feature']
     });
   });

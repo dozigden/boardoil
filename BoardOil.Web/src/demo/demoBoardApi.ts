@@ -142,7 +142,7 @@ const demoBoardApi: BoardApi = {
       cardTypeName: cardType.name,
       cardTypeEmoji: cardType.emoji,
       assignedUserId: null,
-      assignedUserName: null,
+      assignedUserDisplayName: null,
       assignedUserImageRelativePath: null,
       title,
       description: '',
@@ -288,8 +288,7 @@ const demoBoardApi: BoardApi = {
       authorDisplayName: member.displayName,
       authorImageRelativePath: null,
       text: text.trim(),
-      postedAtUtc,
-      createdAtUtc: postedAtUtc
+      postedAtUtc
     };
     state.comments[cardId] = [comment, ...(state.comments[cardId] ?? [])];
     return ok(clone(comment));
@@ -466,7 +465,7 @@ function applyCardEdit(card: Card, model: CardEditModel, cardType: CardType) {
   card.cardTypeEmoji = cardType.emoji;
   card.assignedUserId = model.assignedUserId;
   const member = state.members.find(candidate => candidate.userId === model.assignedUserId);
-  card.assignedUserName = member?.displayName ?? null;
+  card.assignedUserDisplayName = member?.displayName ?? null;
   card.assignedUserImageRelativePath = null;
   setCardTags(card, model.tagNames);
   setCardSlick(card, model.slickName);
@@ -710,7 +709,7 @@ function createSeedState(): DemoState {
       slickId: slick?.id ?? null,
       slickName: slick?.name ?? null,
       assignedUserId: assignedMember?.userId ?? null,
-      assignedUserName: assignedMember?.displayName ?? null,
+      assignedUserDisplayName: assignedMember?.displayName ?? null,
       assignedUserImageRelativePath: null,
       title,
       description: options.description ?? `Explore this card to see BoardOil's markdown editor, tags, assignments, and workflow controls.`,
@@ -805,8 +804,7 @@ function createSeedState(): DemoState {
           authorDisplayName: 'A. N. Other',
           authorImageRelativePath: null,
           text: 'The new editor flow is ready for a final interaction pass.',
-          postedAtUtc: '2026-08-12T10:15:00.000Z',
-          createdAtUtc: '2026-08-12T10:15:00.000Z'
+          postedAtUtc: '2026-08-12T10:15:00.000Z'
         }
       ]
     },

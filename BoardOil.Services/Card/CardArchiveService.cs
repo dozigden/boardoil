@@ -339,7 +339,7 @@ public sealed class CardArchiveService(
             return snapshotCard with
             {
                 AssignedUserId = null,
-                AssignedUserName = null,
+                AssignedUserDisplayName = null,
                 SlickId = resolvedSlick.SlickId,
                 SlickName = resolvedSlick.SlickName
             };
@@ -351,7 +351,7 @@ public sealed class CardArchiveService(
             return snapshotCard with
             {
                 AssignedUserId = null,
-                AssignedUserName = null,
+                AssignedUserDisplayName = null,
                 SlickId = resolvedSlick.SlickId,
                 SlickName = resolvedSlick.SlickName
             };
@@ -360,7 +360,7 @@ public sealed class CardArchiveService(
         return snapshotCard with
         {
             AssignedUserId = membership.UserId,
-            AssignedUserName = membership.User.DisplayName,
+            AssignedUserDisplayName = membership.User.DisplayName,
             AssignedUserImageRelativePath = (await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, membership.UserId))?.RelativePath,
             SlickId = resolvedSlick.SlickId,
             SlickName = resolvedSlick.SlickName

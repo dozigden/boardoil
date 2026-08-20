@@ -116,7 +116,7 @@ public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisa
         // Act
         var response = await standardClient.PutAsJsonAsync(
             $"/api/boards/1/tags/{memberTag.Id}",
-            new UpdateTagStyleRequest(
+            new UpdateTagRequest(
                 Name: "member",
                 StyleName: "solid",
                 StylePropertiesJson: """{"backgroundColor":"#113355","textColorMode":"auto"}"""));

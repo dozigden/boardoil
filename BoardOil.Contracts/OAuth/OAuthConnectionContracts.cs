@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace BoardOil.Contracts.OAuth;
 
 public sealed record OAuthConnectionOwnerDto(
@@ -11,8 +13,8 @@ public sealed record OAuthConnectionDto(
     string ResourceType,
     OAuthConnectionOwnerDto Owner,
     IReadOnlyList<string> ApprovedScopes,
-    string OAuthClientId,
-    string OAuthClientDisplayName,
+    [property: JsonPropertyName("oauthClientId")] string OAuthClientId,
+    [property: JsonPropertyName("oauthClientDisplayName")] string OAuthClientDisplayName,
     string Resource,
     DateTime CreatedAtUtc,
     DateTime LastAuthorizedAtUtc,

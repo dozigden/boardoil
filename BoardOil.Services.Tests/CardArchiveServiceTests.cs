@@ -566,7 +566,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(assignedUser.Id, result.Data!.Card.AssignedUserId);
-        Assert.Equal(assignedUser.UserName, result.Data.Card.AssignedUserName);
+        Assert.Equal(assignedUser.DisplayName, result.Data.Card.AssignedUserDisplayName);
     }
 
     [Fact]
@@ -606,7 +606,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Null(result.Data!.Card.AssignedUserId);
-        Assert.Null(result.Data.Card.AssignedUserName);
+        Assert.Null(result.Data.Card.AssignedUserDisplayName);
     }
 
     [Fact]
@@ -675,7 +675,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         var user = new UserEntity
         {
             UserName = userName,
-            DisplayName = userName,
+            DisplayName = "Assigned User",
             Email = email,
             NormalisedEmail = email.ToUpperInvariant(),
             PasswordHash = "hash",

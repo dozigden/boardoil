@@ -123,7 +123,7 @@ public sealed class TagService(
         return ApiResults.Created(created.ToTagDto());
     }
 
-    public async Task<ApiResult<TagDto>> UpdateTagStyleAsync(int boardId, int tagId, UpdateTagStyleRequest request, int actorUserId)
+    public async Task<ApiResult<TagDto>> UpdateTagStyleAsync(int boardId, int tagId, UpdateTagRequest request, int actorUserId)
     {
         using var scope = _scopeFactory.Create();
 

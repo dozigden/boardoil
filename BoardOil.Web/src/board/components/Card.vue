@@ -30,14 +30,14 @@
       <span class="card-id">#{{ card.id }}</span>
     </div>
 
-    <p v-if="card.assignedUserName" class="card-assigned-to">
+    <p v-if="card.assignedUserDisplayName" class="card-assigned-to">
       <UserAvatar
         :image-url="assignedUserImageUrl"
-        :display-name="card.assignedUserName"
+        :display-name="card.assignedUserDisplayName"
         size="md"
         class="card-assigned-avatar"
       />
-      <span>{{ card.assignedUserName }}</span>
+      <span>{{ card.assignedUserDisplayName }}</span>
     </p>
 
     <div v-if="card.tags.length > 0" class="card-tags tag-group" aria-label="Card tags">

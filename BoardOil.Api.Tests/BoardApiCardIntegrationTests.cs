@@ -33,6 +33,7 @@ public sealed class BoardApiCardIntegrationTests
             new CreateCardRequest(createdColumnId, "Task A", "Desc", ["Bug", "Urgent"]));
         createdCardResponse.EnsureSuccessStatusCode();
         var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
+        using var createdCardJson = JsonDocument.Parse(await createdCardResponse.Content.ReadAsStringAsync());
 
         // Assert
         Assert.NotNull(createdCard);
@@ -43,6 +44,9 @@ public sealed class BoardApiCardIntegrationTests
         Assert.True(createdCard.Data.CardTypeId > 0);
         Assert.Equal("Story", createdCard.Data.CardTypeName);
         Assert.Null(createdCard.Data.CardTypeEmoji);
+        var createdCardDataJson = createdCardJson.RootElement.GetProperty("data");
+        Assert.True(createdCardDataJson.TryGetProperty("assignedUserDisplayName", out _));
+        Assert.False(createdCardDataJson.TryGetProperty("assignedUserName", out _));
     }
 
     [Fact]
@@ -632,6 +636,8 @@ public sealed class BoardApiCardIntegrationTests
         var createdEnvelope = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardCommentDto>>(JsonOptions);
         var listResponse = await Client.GetAsync($"/api/boards/1/cards/{cardId}/comments");
         var listEnvelope = await listResponse.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<CardCommentDto>>>(JsonOptions);
+        using var createdJson = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync());
+        using var listJson = JsonDocument.Parse(await listResponse.Content.ReadAsStringAsync());
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
@@ -641,7 +647,9 @@ public sealed class BoardApiCardIntegrationTests
         Assert.Equal(cardId, createdEnvelope.Data!.CardId);
         Assert.Equal("First comment", createdEnvelope.Data!.Text);
         Assert.Equal(DateTimeKind.Utc, createdEnvelope.Data.PostedAtUtc.Kind);
-        Assert.Equal(DateTimeKind.Utc, createdEnvelope.Data.CreatedAtUtc.Kind);
+        var createdCommentJson = createdJson.RootElement.GetProperty("data");
+        Assert.True(createdCommentJson.TryGetProperty("postedAtUtc", out _));
+        Assert.False(createdCommentJson.TryGetProperty("createdAtUtc", out _));
 
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.NotNull(listEnvelope);
@@ -651,7 +659,9 @@ public sealed class BoardApiCardIntegrationTests
         Assert.Equal(cardId, listEnvelope.Data[0].CardId);
         Assert.Equal("First comment", listEnvelope.Data[0].Text);
         Assert.Equal(DateTimeKind.Utc, listEnvelope.Data[0].PostedAtUtc.Kind);
-        Assert.Equal(DateTimeKind.Utc, listEnvelope.Data[0].CreatedAtUtc.Kind);
+        var listedCommentJson = listJson.RootElement.GetProperty("data")[0];
+        Assert.True(listedCommentJson.TryGetProperty("postedAtUtc", out _));
+        Assert.False(listedCommentJson.TryGetProperty("createdAtUtc", out _));
     }
 
 }

@@ -10,8 +10,8 @@ export type OAuthConnection = {
   resourceType: string;
   owner: OAuthConnectionOwner;
   approvedScopes: string[];
-  oAuthClientId: string;
-  oAuthClientDisplayName: string;
+  oauthClientId: string;
+  oauthClientDisplayName: string;
   resource: string;
   createdAtUtc: string;
   lastAuthorizedAtUtc: string;

@@ -24,7 +24,6 @@ export type CardComment = {
   authorUserId: number | null;
   text: string;
   postedAtUtc: string;
-  createdAtUtc: string;
   authorDisplayName?: string | null;
   authorImageRelativePath?: string | null;
 };
@@ -38,7 +37,7 @@ export type Card = {
   cardTypeName: string;
   cardTypeEmoji: string | null;
   assignedUserId?: number | null;
-  assignedUserName?: string | null;
+  assignedUserDisplayName?: string | null;
   assignedUserImageRelativePath?: string | null;
   title: string;
   description: string;

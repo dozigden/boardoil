@@ -22,7 +22,7 @@ public sealed record McpToolResult<T>(
 
 public sealed record McpBoardSnapshot(
     int Id,
-    string BoardName,
+    string Name,
     string Description,
     DateTime UpdatedAtUtc,
     IReadOnlyList<McpColumnSnapshot> Columns);
@@ -53,7 +53,7 @@ public sealed record McpBoardCardSnapshot(
     IReadOnlyList<string> TagNames,
     DateTime UpdatedAtUtc,
     int? AssignedUserId,
-    string? AssignedUserName,
+    string? AssignedUserDisplayName,
     int? SlickId,
     McpCardSlickSnapshot? Slick,
     string? ExternalUrl);
@@ -71,7 +71,7 @@ public sealed record McpCardSnapshot(
     IReadOnlyList<string> TagNames,
     DateTime UpdatedAtUtc,
     int? AssignedUserId,
-    string? AssignedUserName,
+    string? AssignedUserDisplayName,
     int? SlickId,
     McpCardSlickSnapshot? Slick,
     IReadOnlyList<McpCardCommentSnapshot> Comments,
@@ -82,7 +82,7 @@ public sealed record McpCardCommentSnapshot(
     int CardId,
     int? AuthorUserId,
     string Text,
-    DateTime CreatedAtUtc,
+    DateTime PostedAtUtc,
     string? AuthorDisplayName,
     string? AuthorImageRelativePath);
 

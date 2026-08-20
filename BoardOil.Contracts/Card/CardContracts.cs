@@ -13,7 +13,6 @@ public sealed record CardCommentDto(
     int? AuthorUserId,
     string Text,
     DateTime PostedAtUtc,
-    DateTime CreatedAtUtc,
     string? AuthorDisplayName = null,
     string? AuthorImageRelativePath = null);
 
@@ -31,7 +30,7 @@ public sealed record CardDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     int? AssignedUserId = null,
-    string? AssignedUserName = null,
+    string? AssignedUserDisplayName = null,
     string? AssignedUserImageRelativePath = null,
     int? SlickId = null,
     string? SlickName = null,

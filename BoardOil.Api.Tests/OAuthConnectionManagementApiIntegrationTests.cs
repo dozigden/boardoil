@@ -43,6 +43,10 @@ public sealed class OAuthConnectionManagementApiIntegrationTests
         var connection = Assert.Single(envelope!.Data!);
         Assert.Equal("Owned", connection.Name);
         Assert.Equal(ownerId, connection.Owner.Id);
+        Assert.Contains("\"oauthClientId\":", responseText, StringComparison.Ordinal);
+        Assert.Contains("\"oauthClientDisplayName\":", responseText, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"oAuthClientId\":", responseText, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"oAuthClientDisplayName\":", responseText, StringComparison.Ordinal);
         Assert.DoesNotContain("owned-authorization-secret", responseText, StringComparison.Ordinal);
         Assert.DoesNotContain("owned-application-secret", responseText, StringComparison.Ordinal);
         Assert.DoesNotContain("other-authorization-secret", responseText, StringComparison.Ordinal);

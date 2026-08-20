@@ -110,11 +110,12 @@ public sealed class CardServiceTests : TestBaseDb
         var todoColumnId = board.GetColumn("Todo").Id;
         var now = DateTime.UtcNow;
         var assignedUserName = $"assigned-{Guid.NewGuid():N}";
+        var assignedUserDisplayName = "Assigned User";
         var assignedEmail = $"{assignedUserName}@localhost";
         var assignedUser = new UserEntity
         {
             UserName = assignedUserName,
-            DisplayName = assignedUserName,
+            DisplayName = assignedUserDisplayName,
             Email = assignedEmail,
             NormalisedEmail = assignedEmail.ToUpperInvariant(),
             PasswordHash = "hash",
@@ -141,7 +142,7 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(assignedUser.Id, result.Data!.AssignedUserId);
-        Assert.Equal(assignedUser.UserName, result.Data.AssignedUserName);
+        Assert.Equal(assignedUserDisplayName, result.Data.AssignedUserDisplayName);
     }
 
     [Fact]
@@ -408,7 +409,7 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.True(clearResult.Success);
         Assert.NotNull(clearResult.Data);
         Assert.Null(clearResult.Data!.AssignedUserId);
-        Assert.Null(clearResult.Data.AssignedUserName);
+        Assert.Null(clearResult.Data.AssignedUserDisplayName);
     }
 
     [Fact]

@@ -25,7 +25,7 @@ public static class TagEndpoints
         tagEndpoints.MapPost(string.Empty, async (int boardId, CreateTagRequest request, ITagService tagService, HttpContext httpContext) =>
             (await tagService.CreateTagAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 
-        tagEndpoints.MapPut("/{tagId:int}", async (int boardId, int tagId, UpdateTagStyleRequest request, ITagService tagService, HttpContext httpContext) =>
+        tagEndpoints.MapPut("/{tagId:int}", async (int boardId, int tagId, UpdateTagRequest request, ITagService tagService, HttpContext httpContext) =>
             (await tagService.UpdateTagStyleAsync(boardId, tagId, request, httpContext.GetActorUserId())).ToHttpResult());
 
         tagEndpoints.MapDelete("/{tagId:int}", async (int boardId, int tagId, ITagService tagService, HttpContext httpContext) =>

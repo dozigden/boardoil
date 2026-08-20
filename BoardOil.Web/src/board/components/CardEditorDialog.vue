@@ -390,8 +390,8 @@ const selectedAssignedUserLabel = computed(() => {
     return selectedMember.displayName;
   }
 
-  const cardAssignedUserName = editingCard.value?.assignedUserName;
-  return cardAssignedUserName ?? `User #${cardDraft.value.assignedUserId}`;
+  const cardAssignedUserDisplayName = editingCard.value?.assignedUserDisplayName;
+  return cardAssignedUserDisplayName ?? `User #${cardDraft.value.assignedUserId}`;
 });
 const selectedAssignedMember = computed(() => {
   if (!cardDraft.value || cardDraft.value.assignedUserId === null) {

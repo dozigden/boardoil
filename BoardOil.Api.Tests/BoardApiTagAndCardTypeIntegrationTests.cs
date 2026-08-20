@@ -39,7 +39,7 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
     {
         // Arrange
         await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
-        var request = new UpdateTagStyleRequest("Bug", "presets", """{"presetIndex":4,"textColorMode":"auto","borderMode":"auto"}""", "⚠️");
+        var request = new UpdateTagRequest("Bug", "presets", """{"presetIndex":4,"textColorMode":"auto","borderMode":"auto"}""", "⚠️");
         var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags", JsonOptions);
         Assert.NotNull(tagsEnvelope);
         Assert.NotNull(tagsEnvelope!.Data);
@@ -63,7 +63,7 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
     public async Task TagEndpoints_ShouldAcceptOpaqueStyleJsonObject()
     {
         await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
-        var request = new UpdateTagStyleRequest("Bug", "solid", """{"unexpected":"shape","nested":{"x":1}}""");
+        var request = new UpdateTagRequest("Bug", "solid", """{"unexpected":"shape","nested":{"x":1}}""");
         var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags", JsonOptions);
         Assert.NotNull(tagsEnvelope);
         Assert.NotNull(tagsEnvelope!.Data);
@@ -82,7 +82,7 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
     public async Task TagEndpoints_WhenStyleJsonIsNotObject_ShouldReturnBadRequest()
     {
         await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
-        var request = new UpdateTagStyleRequest("Bug", "solid", """["bad"]""");
+        var request = new UpdateTagRequest("Bug", "solid", """["bad"]""");
         var tagsEnvelope = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<TagDto>>>("/api/boards/1/tags", JsonOptions);
         Assert.NotNull(tagsEnvelope);
         Assert.NotNull(tagsEnvelope!.Data);
@@ -101,7 +101,7 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
     public async Task TagEndpoints_WhenTagIdMissing_ShouldReturnNotFound()
     {
         // Arrange
-        var request = new UpdateTagStyleRequest("Bug", "solid", """{"backgroundColor":"#223344","textColorMode":"auto"}""");
+        var request = new UpdateTagRequest("Bug", "solid", """{"backgroundColor":"#223344","textColorMode":"auto"}""");
 
         // Act
         var response = await Client.PutAsJsonAsync("/api/boards/1/tags/999999", request);

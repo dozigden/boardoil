@@ -9,7 +9,7 @@ public sealed record TagDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
-public sealed record UpdateTagStyleRequest(
+public sealed record UpdateTagRequest(
     string Name,
     string StyleName,
     string StylePropertiesJson,

@@ -107,7 +107,7 @@ const columnLabel = computed(() => {
 
 const assignedUserLabel = computed(() => {
   const value = card.value;
-  const name = value.assignedUserName?.trim();
+  const name = value.assignedUserDisplayName?.trim();
   if (name && name.length > 0) {
     return name;
   }

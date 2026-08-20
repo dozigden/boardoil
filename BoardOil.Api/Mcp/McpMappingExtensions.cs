@@ -45,7 +45,7 @@ public static class McpMappingExtensions
             card.TagNames,
             card.UpdatedAtUtc,
             card.AssignedUserId,
-            card.AssignedUserName,
+            card.AssignedUserDisplayName,
             card.SlickId,
             ResolveSlickSnapshot(card.SlickId, slicksById),
             [],
@@ -81,7 +81,7 @@ public static class McpMappingExtensions
             card.TagNames,
             card.UpdatedAtUtc,
             card.AssignedUserId,
-            card.AssignedUserName,
+            card.AssignedUserDisplayName,
             card.SlickId,
             ResolveSlickSnapshot(card.SlickId, slicksById),
             card.ExternalUrl);
@@ -120,9 +120,12 @@ public static class McpMappingExtensions
         IReadOnlyDictionary<string, IReadOnlyList<string>>? validation = null;
         if (apiResult.ValidationErrors is not null)
         {
-            validation = apiResult.ValidationErrors.ToDictionary(
-                x => x.Key,
-                x => (IReadOnlyList<string>)x.Value);
+            validation = apiResult.ValidationErrors
+                .GroupBy(x => MapValidationProperty(x.Key), StringComparer.Ordinal)
+                .ToDictionary(
+                    x => x.Key,
+                    x => (IReadOnlyList<string>)x.SelectMany(y => y.Value).ToArray(),
+                    StringComparer.Ordinal);
         }
 
         return new McpToolError(
@@ -134,4 +137,12 @@ public static class McpMappingExtensions
 
     public static McpToolError ToMcpError(this ApiError apiError) =>
         ((ApiResult)apiError).ToMcpError();
+
+    private static string MapValidationProperty(string property) =>
+        property switch
+        {
+            "boardColumnId" => "columnId",
+            "positionAfterCardId" => "afterId",
+            _ => property
+        };
 }
