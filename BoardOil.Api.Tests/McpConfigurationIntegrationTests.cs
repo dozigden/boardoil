@@ -45,7 +45,7 @@ public sealed class McpNoAuthConfigurationIntegrationTests : McpIntegrationTestB
     }
 
     [Fact]
-    public async Task ToolsList_AfterLegacyInitialize_WhenAuthModeNone_ShouldReturnOk()
+    public async Task LegacyRequests_WhenAuthModeNone_ShouldRemainSessionless()
     {
         // Arrange
         var client = CreateClient();
@@ -54,18 +54,17 @@ public sealed class McpNoAuthConfigurationIntegrationTests : McpIntegrationTestB
         var initializeResponse = await McpJsonRpcClient.SendLegacyInitializeAsync(
             client,
             "legacy-no-auth-initialize");
-        var sessionId = initializeResponse.Headers.GetValues("Mcp-Session-Id").Single();
         var toolsResponse = await McpJsonRpcClient.SendLegacyRequestAsync(
             client,
             "tools/list",
             new { },
-            "legacy-no-auth-tools",
-            sessionId: sessionId);
+            "legacy-no-auth-tools");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, initializeResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, toolsResponse.StatusCode);
-        Assert.Equal(sessionId, toolsResponse.Headers.GetValues("Mcp-Session-Id").Single());
+        Assert.False(initializeResponse.Headers.Contains("Mcp-Session-Id"));
+        Assert.False(toolsResponse.Headers.Contains("Mcp-Session-Id"));
     }
 
     [Fact]

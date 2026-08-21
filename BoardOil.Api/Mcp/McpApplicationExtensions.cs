@@ -110,12 +110,34 @@ public static class McpApplicationExtensions
         app.MapMcp(OAuthResources.LegacyMcpPath)
             .RequireAuthorization(BoardOilPolicies.McpOAuthConnection);
 
+        if (!mcpOptions.SupportsLegacySseTransport)
+        {
+            var canonicalGetEndpoint = app.MapGet(
+                OAuthResources.McpPath,
+                CreateStatelessGetResponse);
+            if (mcpOptions.AuthMode is McpAuthMode.Pat)
+            {
+                canonicalGetEndpoint.RequireAuthorization(BoardOilPolicies.McpCanonicalConnection);
+            }
+
+            app.MapGet(
+                    OAuthResources.LegacyMcpPath,
+                    CreateStatelessGetResponse)
+                .RequireAuthorization(BoardOilPolicies.McpOAuthConnection);
+        }
+
         app.MapGet("/.well-known/mcp", async (IConfigurationService configurationService) =>
             Results.Json(McpDiscoveryMetadata.CreateWellKnownDocument(
                 await configurationService.GetMcpPublicBaseUrlAsync(),
                 mcpOptions)));
 
         return app;
+    }
+
+    private static IResult CreateStatelessGetResponse(HttpResponse response)
+    {
+        response.Headers.Allow = HttpMethods.Post;
+        return Results.StatusCode(StatusCodes.Status405MethodNotAllowed);
     }
 
     public static WebApplication LogMcpStartupWarnings(this WebApplication app)

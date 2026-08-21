@@ -40,7 +40,15 @@ public static class McpServiceCollectionExtensions
 #pragma warning disable MCP9004
             .WithHttpTransport(options =>
             {
-                options.SessionMode = HttpServerSessionMode.StatefulForInitializeClients;
+                if (mcpOptions.SupportsLegacySseTransport)
+                {
+                    options.SessionMode = HttpServerSessionMode.StatefulForInitializeClients;
+                }
+                else
+                {
+                    options.SessionMode = HttpServerSessionMode.Stateless;
+                }
+
                 options.EnableLegacySse = mcpOptions.SupportsLegacySseTransport;
             })
 #pragma warning restore MCP9004

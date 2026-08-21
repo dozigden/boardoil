@@ -94,14 +94,12 @@ public sealed class McpProtocolVersionIntegrationTests : McpIntegrationTestBase
             client,
             "legacy-initialize",
             patToken);
-        var sessionId = initializeResponse.Headers.GetValues("Mcp-Session-Id").Single();
         var toolsResponse = await McpJsonRpcClient.SendLegacyRequestAsync(
             client,
             "tools/list",
             new { },
             "legacy-tools",
-            patToken,
-            sessionId: sessionId);
+            patToken);
         var modernToolsResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/list",
@@ -116,8 +114,8 @@ public sealed class McpProtocolVersionIntegrationTests : McpIntegrationTestBase
         Assert.Equal(HttpStatusCode.OK, initializeResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, toolsResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, modernToolsResponse.StatusCode);
-        Assert.False(string.IsNullOrWhiteSpace(sessionId));
-        Assert.Equal(sessionId, toolsResponse.Headers.GetValues("Mcp-Session-Id").Single());
+        Assert.False(initializeResponse.Headers.Contains("Mcp-Session-Id"));
+        Assert.False(toolsResponse.Headers.Contains("Mcp-Session-Id"));
         Assert.Equal(
             McpJsonRpcClient.LegacyProtocolVersion,
             initializePayload.RootElement.GetProperty("result").GetProperty("protocolVersion").GetString());
@@ -146,7 +144,6 @@ public sealed class McpProtocolVersionIntegrationTests : McpIntegrationTestBase
             client,
             "legacy-tool-call-initialize",
             patToken);
-        var sessionId = initializeResponse.Headers.GetValues("Mcp-Session-Id").Single();
         var modernIdentityResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
@@ -158,8 +155,7 @@ public sealed class McpProtocolVersionIntegrationTests : McpIntegrationTestBase
             "tools/call",
             identityParams,
             "legacy-identity",
-            patToken,
-            sessionId: sessionId);
+            patToken);
         var modernErrorResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
@@ -171,8 +167,7 @@ public sealed class McpProtocolVersionIntegrationTests : McpIntegrationTestBase
             "tools/call",
             unknownToolParams,
             "legacy-unknown-tool",
-            patToken,
-            sessionId: sessionId);
+            patToken);
         using var modernIdentityPayload = await McpJsonRpcClient.ParseJsonAsync(modernIdentityResponse);
         using var legacyIdentityPayload = await McpJsonRpcClient.ParseJsonAsync(legacyIdentityResponse);
         using var modernErrorPayload = await McpJsonRpcClient.ParseJsonAsync(modernErrorResponse);
@@ -180,6 +175,7 @@ public sealed class McpProtocolVersionIntegrationTests : McpIntegrationTestBase
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, initializeResponse.StatusCode);
+        Assert.False(initializeResponse.Headers.Contains("Mcp-Session-Id"));
         Assert.Equal(HttpStatusCode.OK, modernIdentityResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, legacyIdentityResponse.StatusCode);
         Assert.Equal(

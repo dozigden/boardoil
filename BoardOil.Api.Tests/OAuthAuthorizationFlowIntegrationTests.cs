@@ -895,23 +895,20 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             "oauth-legacy-initialize",
             exchange.AccessToken,
             endpoint);
-        var sessionId = initializeResponse.Headers.GetValues("Mcp-Session-Id").Single();
         var toolsResponse = await McpJsonRpcClient.SendLegacyRequestAsync(
             client,
             "tools/list",
             new { },
             "oauth-legacy-tools",
             exchange.AccessToken,
-            endpoint,
-            sessionId);
+            endpoint);
         var readResponse = await McpJsonRpcClient.SendLegacyRequestAsync(
             client,
             "tools/call",
             new { name = "board.list", arguments = new { } },
             "oauth-legacy-board-list",
             exchange.AccessToken,
-            endpoint,
-            sessionId);
+            endpoint);
         var writeResponse = await McpJsonRpcClient.SendLegacyRequestAsync(
             client,
             "tools/call",
@@ -929,14 +926,13 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             },
             "oauth-legacy-card-create",
             exchange.AccessToken,
-            endpoint,
-            sessionId);
+            endpoint);
         using var toolsPayload = await McpJsonRpcClient.ParseJsonAsync(toolsResponse);
         using var readPayload = await McpJsonRpcClient.ParseJsonAsync(readResponse);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, initializeResponse.StatusCode);
-        Assert.False(string.IsNullOrWhiteSpace(sessionId));
+        Assert.False(initializeResponse.Headers.Contains("Mcp-Session-Id"));
         Assert.Equal(HttpStatusCode.OK, toolsResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, writeResponse.StatusCode);
