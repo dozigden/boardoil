@@ -513,7 +513,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
-    public async Task TokenAudit_ShouldCorrelateIssuanceSuccessfulRefreshAndRejectedReplayWithoutExposingToken()
+    public async Task TokenAudit_ShouldCorrelateIssuanceSuccessfulRefreshAndRejectedReplayWithoutExposingCredentials()
     {
         // Arrange
         var client = CreateOAuthClient();
@@ -539,6 +539,15 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var auditResult = JsonSerializer.Deserialize<ApiResult<OAuthTokenAuditListDto>>(
             auditJson,
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContextFactory = scope.ServiceProvider
+            .GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = dbContextFactory.CreateDbContext<BoardOilDbContext>();
+        var persistedAudits = await dbContext.OAuthTokenAudits
+            .AsNoTracking()
+            .Where(audit => audit.OAuthClientId == scenario.OAuthClientId)
+            .ToArrayAsync(TestContext.Current.CancellationToken);
+        var persistedAuditJson = JsonSerializer.Serialize(persistedAudits);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, replay.StatusCode);
@@ -576,8 +585,12 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Equal("admin", rejected.OwnerUserName);
         Assert.Equal("Codex", rejected.OAuthClientDisplayName);
         Assert.Equal(scenario.Resource, rejected.Resource);
+        Assert.DoesNotContain(code, auditJson, StringComparison.Ordinal);
         Assert.DoesNotContain(exchange.RefreshToken!, auditJson, StringComparison.Ordinal);
         Assert.DoesNotContain(refresh.RefreshToken!, auditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(code, persistedAuditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(exchange.RefreshToken!, persistedAuditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(refresh.RefreshToken!, persistedAuditJson, StringComparison.Ordinal);
         Assert.DoesNotContain("presentedTokenId", auditJson, StringComparison.Ordinal);
         Assert.DoesNotContain("subject", auditJson, StringComparison.Ordinal);
         Assert.DoesNotContain("createdAtUtc", auditJson, StringComparison.Ordinal);

@@ -9,6 +9,7 @@ using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Ef;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -102,5 +103,53 @@ public sealed class OAuthTokenAuditStartupCleanupIntegrationTests
 
         // Assert
         Assert.Equal(["kept"], remainingErrorCodes);
+    }
+}
+
+public sealed class OAuthTokenAuditStartupFailureIntegrationTests
+{
+    [Fact]
+    public async Task ApplicationStartup_WhenAuditCleanupThrows_ShouldRemainAvailable()
+    {
+        // Arrange
+        var databasePath = ApiFactoryIntegrationTestBase.BuildDbPath(
+            nameof(OAuthTokenAuditStartupFailureIntegrationTests));
+        await using var factory = new BoardOilApiFactory(
+            databasePath,
+            configureTestServices: services =>
+            {
+                services.RemoveAll<IOAuthTokenAuditService>();
+                services.AddSingleton<IOAuthTokenAuditService, ThrowingOAuthTokenAuditService>();
+            });
+
+        // Act
+        using var client = factory.CreateClient();
+        var response = await client.GetAsync(
+            "/api/health",
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private sealed class ThrowingOAuthTokenAuditService : IOAuthTokenAuditService
+    {
+        public Task<ApiResult<OAuthTokenAuditListDto>> ListAsync(
+            int? offset,
+            int? limit,
+            DateTime? fromUtc,
+            DateTime? toUtc,
+            string? outcome,
+            string? grantType,
+            int? connectionId,
+            string? clientId,
+            string? authorizationId,
+            string? tokenFingerprint) => throw new NotSupportedException();
+
+        public Task<ApiResult<OAuthTokenAuditPurgeResultDto>> PurgeExpiredAsync(
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Simulated OAuth token audit cleanup failure.");
+
+        public Task RecordAsync(OAuthTokenAuditInput input) => throw new NotSupportedException();
     }
 }

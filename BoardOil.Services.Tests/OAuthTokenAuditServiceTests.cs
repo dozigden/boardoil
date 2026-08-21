@@ -1,6 +1,7 @@
 using BoardOil.Abstractions.OAuth;
 using BoardOil.Contracts.OAuth;
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.OAuth;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -134,5 +135,69 @@ public sealed class OAuthTokenAuditServiceTests : TestBaseDb
     private sealed class FixedTimeProvider(DateTime nowUtc) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => new(nowUtc);
+    }
+}
+
+public sealed class OAuthTokenAuditFailureIsolationServiceTests : TestBaseDb
+{
+    [Fact]
+    public async Task RecordAsync_WhenRepositoryThrows_ShouldNotPropagateFailure()
+    {
+        // Arrange
+        var service = ResolveService<IOAuthTokenAuditService>();
+        var input = new OAuthTokenAuditInput(
+            OAuthTokenAuditOutcomes.Succeeded,
+            "authorization_code",
+            [],
+            null,
+            null,
+            null,
+            "sha256:presented",
+            "sha256:issued",
+            null,
+            "client",
+            "trace",
+            "agent");
+
+        // Act
+        await service.RecordAsync(input);
+
+        // Assert
+        Assert.Empty(DbContextForAssert.OAuthTokenAudits);
+    }
+
+    protected override void ConfigureTestServices(IServiceCollection services)
+    {
+        services.AddLogging();
+        services.AddSingleton(TimeProvider.System);
+        services.RemoveAll<IOAuthTokenAuditRepository>();
+        services.AddScoped<IOAuthTokenAuditRepository, ThrowingOAuthTokenAuditRepository>();
+    }
+
+    private sealed class ThrowingOAuthTokenAuditRepository : IOAuthTokenAuditRepository
+    {
+        public IQueryable<EntityOAuthTokenAudit> Query() => throw new NotSupportedException();
+
+        public EntityOAuthTokenAudit? Get(int id) => throw new NotSupportedException();
+
+        public void Add(EntityOAuthTokenAudit entity) =>
+            throw new InvalidOperationException("Simulated OAuth token audit persistence failure.");
+
+        public void AddRange(IEnumerable<EntityOAuthTokenAudit> entities) => throw new NotSupportedException();
+
+        public void Remove(EntityOAuthTokenAudit entity) => throw new NotSupportedException();
+
+        public void RemoveRange(IEnumerable<EntityOAuthTokenAudit> entities) => throw new NotSupportedException();
+
+        public Task<int> CountAsync(OAuthTokenAuditQuery query) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<EntityOAuthTokenAudit>> ListAsync(
+            OAuthTokenAuditQuery query,
+            int offset,
+            int limit) => throw new NotSupportedException();
+
+        public Task<int> DeleteOlderThanAsync(
+            DateTime cutoffUtc,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 }
