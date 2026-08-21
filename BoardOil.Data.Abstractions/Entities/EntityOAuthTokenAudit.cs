@@ -1,6 +1,6 @@
 namespace BoardOil.Data.Abstractions.Entities;
 
-public sealed class EntityOAuthTokenAudit : ISupportCreatedAt
+public sealed class EntityOAuthTokenAudit
 {
     public int Id { get; set; }
     public DateTime OccurredAtUtc { get; set; }
@@ -9,11 +9,10 @@ public sealed class EntityOAuthTokenAudit : ISupportCreatedAt
     public string? ErrorDescription { get; set; }
     public string? ErrorUri { get; set; }
     public string GrantType { get; set; } = string.Empty;
-    public string? PresentedTokenId { get; set; }
+    public string? RequestedScopes { get; set; }
     public string? PresentedTokenFingerprint { get; set; }
     public string? IssuedRefreshTokenFingerprint { get; set; }
     public string? AuthorizationId { get; set; }
-    public string? Subject { get; set; }
     public string? OAuthClientId { get; set; }
     public int? OAuthConnectionId { get; set; }
     public string? OAuthConnectionName { get; set; }
@@ -23,5 +22,4 @@ public sealed class EntityOAuthTokenAudit : ISupportCreatedAt
     public string? Resource { get; set; }
     public string? TraceIdentifier { get; set; }
     public string? UserAgent { get; set; }
-    public DateTime CreatedAtUtc { get; set; }
 }

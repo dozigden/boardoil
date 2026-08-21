@@ -26,14 +26,13 @@ public interface IOAuthTokenAuditService
 public sealed record OAuthTokenAuditInput(
     string Outcome,
     string GrantType,
+    IReadOnlyCollection<string> RequestedScopes,
     string? ErrorCode,
     string? ErrorDescription,
     string? ErrorUri,
-    string? PresentedTokenId,
     string? PresentedTokenFingerprint,
     string? IssuedRefreshTokenFingerprint,
     string? AuthorizationId,
-    string? Subject,
     string? OAuthClientId,
     string? TraceIdentifier,
     string? UserAgent);

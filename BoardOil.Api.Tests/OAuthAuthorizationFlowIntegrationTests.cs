@@ -517,17 +517,22 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     {
         // Arrange
         var client = CreateOAuthClient();
-        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
-        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var scenario = await CreateScenarioAsync(
+            client,
+            [MachinePatScopes.McpRead, MachinePatScopes.McpWrite]);
+        var request = CreateAuthorizationRequest(
+            scenario,
+            $"{MachinePatScopes.McpRead} {MachinePatScopes.McpWrite}");
         var code = await ApproveAsync(client, scenario, request);
         var exchange = await ExchangeCodeAsync(client, scenario, request, code);
-        var refresh = await RefreshAsync(client, scenario, exchange.RefreshToken!);
+        var requestedScopes = $"{MachinePatScopes.McpWrite} {MachinePatScopes.McpRead}";
+        var refresh = await RefreshAsync(client, scenario, exchange.RefreshToken!, requestedScopes);
         Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
         var options = Factory.Services.GetRequiredService<BoardOilOAuthOptions>();
         timeProvider.Advance(options.RefreshTokenReuseLeeway + TimeSpan.FromSeconds(1));
 
         // Act
-        var replay = await RefreshAsync(client, scenario, exchange.RefreshToken!);
+        var replay = await RefreshAsync(client, scenario, exchange.RefreshToken!, requestedScopes);
         var auditResponse = await client.GetAsync(
             $"/api/system/oauth-token-audits?clientId={Uri.EscapeDataString(scenario.OAuthClientId)}");
         var auditJson = await auditResponse.Content.ReadAsStringAsync();
@@ -558,8 +563,11 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Equal(refreshed.PresentedTokenFingerprint, rejected.PresentedTokenFingerprint);
         Assert.False(string.IsNullOrWhiteSpace(refreshed.IssuedRefreshTokenFingerprint));
         Assert.NotEqual(refreshed.PresentedTokenFingerprint, refreshed.IssuedRefreshTokenFingerprint);
-        Assert.False(string.IsNullOrWhiteSpace(refreshed.PresentedTokenId));
-        Assert.Equal(refreshed.PresentedTokenId, rejected.PresentedTokenId);
+        Assert.Null(issuance.RequestedScopes);
+        Assert.Equal(
+            $"{MachinePatScopes.McpRead} {MachinePatScopes.McpWrite}",
+            refreshed.RequestedScopes);
+        Assert.Equal(refreshed.RequestedScopes, rejected.RequestedScopes);
         Assert.Equal(issuance.AuthorizationId, refreshed.AuthorizationId);
         Assert.Equal(refreshed.AuthorizationId, rejected.AuthorizationId);
         Assert.Equal(Errors.InvalidGrant, rejected.ErrorCode);
@@ -569,6 +577,10 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Equal("Codex", rejected.OAuthClientDisplayName);
         Assert.Equal(scenario.Resource, rejected.Resource);
         Assert.DoesNotContain(exchange.RefreshToken!, auditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(refresh.RefreshToken!, auditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("presentedTokenId", auditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("subject", auditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("createdAtUtc", auditJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1526,17 +1538,24 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     private static async Task<TokenResponse> RefreshAsync(
         HttpClient client,
         OAuthScenario scenario,
-        string refreshToken)
+        string refreshToken,
+        string? scope = null)
     {
+        var form = new Dictionary<string, string>
+        {
+            ["grant_type"] = GrantTypes.RefreshToken,
+            ["client_id"] = scenario.OAuthClientId,
+            ["refresh_token"] = refreshToken,
+            ["resource"] = scenario.Resource,
+        };
+        if (!string.IsNullOrWhiteSpace(scope))
+        {
+            form["scope"] = scope;
+        }
+
         var response = await client.PostAsync(
             "/connect/token",
-            new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["grant_type"] = GrantTypes.RefreshToken,
-                ["client_id"] = scenario.OAuthClientId,
-                ["refresh_token"] = refreshToken,
-                ["resource"] = scenario.Resource,
-            }));
+            new FormUrlEncodedContent(form));
         return await ReadTokenResponseAsync(response);
     }
 

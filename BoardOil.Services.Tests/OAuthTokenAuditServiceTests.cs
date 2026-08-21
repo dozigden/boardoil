@@ -57,6 +57,63 @@ public sealed class OAuthTokenAuditServiceTests : TestBaseDb
                 [nameof(EntityOAuthTokenAudit.OAuthClientId), nameof(EntityOAuthTokenAudit.OccurredAtUtc)]));
     }
 
+    [Fact]
+    public void Model_ShouldPersistOnlyMinimisedAuditFields()
+    {
+        // Arrange
+        var entityType = DbContextForAssert.Model.FindEntityType(typeof(EntityOAuthTokenAudit));
+
+        // Act
+        var propertyNames = entityType!.GetProperties().Select(property => property.Name).ToArray();
+
+        // Assert
+        Assert.DoesNotContain("PresentedTokenId", propertyNames);
+        Assert.DoesNotContain("Subject", propertyNames);
+        Assert.DoesNotContain("CreatedAtUtc", propertyNames);
+        Assert.Equal(64, entityType.FindProperty(nameof(EntityOAuthTokenAudit.RequestedScopes))!.GetMaxLength());
+        Assert.Equal(512, entityType.FindProperty(nameof(EntityOAuthTokenAudit.ErrorDescription))!.GetMaxLength());
+        Assert.Equal(512, entityType.FindProperty(nameof(EntityOAuthTokenAudit.ErrorUri))!.GetMaxLength());
+        Assert.Equal(512, entityType.FindProperty(nameof(EntityOAuthTokenAudit.UserAgent))!.GetMaxLength());
+    }
+
+    [Fact]
+    public async Task RecordAsync_ShouldConstrainAndSanitiseDiagnosticText()
+    {
+        // Arrange
+        var service = ResolveService<IOAuthTokenAuditService>();
+        var longValue = $"diagnostic\r\n{new string('x', 600)}";
+        var input = new OAuthTokenAuditInput(
+            OAuthTokenAuditOutcomes.Rejected,
+            "refresh_token",
+            ["unknown", "mcp:write", "mcp:read", "mcp:write"],
+            "invalid_grant",
+            longValue,
+            longValue,
+            "sha256:presented",
+            null,
+            null,
+            "client",
+            "trace",
+            longValue);
+
+        // Act
+        await service.RecordAsync(input);
+
+        // Assert
+        var audit = await DbContextForAssert.OAuthTokenAudits.SingleAsync(
+            TestContext.Current.CancellationToken);
+        Assert.Equal("mcp:read mcp:write", audit.RequestedScopes);
+        Assert.Equal(512, audit.ErrorDescription!.Length);
+        Assert.Equal(512, audit.ErrorUri!.Length);
+        Assert.Equal(512, audit.UserAgent!.Length);
+        Assert.DoesNotContain('\r', audit.ErrorDescription);
+        Assert.DoesNotContain('\n', audit.ErrorDescription);
+        Assert.DoesNotContain('\r', audit.ErrorUri);
+        Assert.DoesNotContain('\n', audit.ErrorUri);
+        Assert.DoesNotContain('\r', audit.UserAgent);
+        Assert.DoesNotContain('\n', audit.UserAgent);
+    }
+
     protected override void ConfigureTestServices(IServiceCollection services)
     {
         services.AddLogging();

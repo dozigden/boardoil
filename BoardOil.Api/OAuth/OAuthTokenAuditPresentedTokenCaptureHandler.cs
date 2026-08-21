@@ -1,6 +1,5 @@
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
-using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BoardOil.Api.OAuth;
 
@@ -19,14 +18,10 @@ public sealed class OAuthTokenAuditPresentedTokenCaptureHandler
         }
 
         context.Transaction.Properties[TransactionProperty] = new OAuthTokenAuditPresentedTokenCapture(
-            context.TokenId,
-            context.AuthorizationId,
-            context.Principal?.GetClaim(Claims.Subject));
+            context.AuthorizationId);
         return default;
     }
 }
 
 internal sealed record OAuthTokenAuditPresentedTokenCapture(
-    string? TokenId,
-    string? AuthorizationId,
-    string? Subject);
+    string? AuthorizationId);

@@ -5,14 +5,13 @@ public sealed record OAuthTokenAuditDto(
     DateTime OccurredAtUtc,
     string Outcome,
     string GrantType,
+    string? RequestedScopes,
     string? ErrorCode,
     string? ErrorDescription,
     string? ErrorUri,
-    string? PresentedTokenId,
     string? PresentedTokenFingerprint,
     string? IssuedRefreshTokenFingerprint,
     string? AuthorizationId,
-    string? Subject,
     string? OAuthClientId,
     int? OAuthConnectionId,
     string? OAuthConnectionName,
@@ -21,8 +20,7 @@ public sealed record OAuthTokenAuditDto(
     string? OAuthClientDisplayName,
     string? Resource,
     string? TraceIdentifier,
-    string? UserAgent,
-    DateTime CreatedAtUtc);
+    string? UserAgent);
 
 public sealed record OAuthTokenAuditListDto(
     IReadOnlyList<OAuthTokenAuditDto> Items,

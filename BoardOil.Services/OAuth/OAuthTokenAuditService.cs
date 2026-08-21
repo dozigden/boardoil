@@ -1,5 +1,6 @@
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.OAuth;
+using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Common;
 using BoardOil.Contracts.OAuth;
 using BoardOil.Data.Abstractions.Entities;
@@ -96,14 +97,13 @@ public sealed class OAuthTokenAuditService(
                 OccurredAtUtc = timeProvider.GetUtcNow().UtcDateTime,
                 Outcome = TruncateRequired(input.Outcome, 16),
                 GrantType = TruncateRequired(input.GrantType, 32),
+                RequestedScopes = NormaliseRequestedScopes(input.RequestedScopes),
                 ErrorCode = Truncate(input.ErrorCode, 64),
-                ErrorDescription = Truncate(input.ErrorDescription, 2048),
-                ErrorUri = Truncate(input.ErrorUri, 2048),
-                PresentedTokenId = Truncate(input.PresentedTokenId, 100),
+                ErrorDescription = SanitiseDiagnosticText(input.ErrorDescription, 512),
+                ErrorUri = SanitiseDiagnosticText(input.ErrorUri, 512),
                 PresentedTokenFingerprint = Truncate(input.PresentedTokenFingerprint, 71),
                 IssuedRefreshTokenFingerprint = Truncate(input.IssuedRefreshTokenFingerprint, 71),
                 AuthorizationId = Truncate(input.AuthorizationId, 100),
-                Subject = Truncate(input.Subject, 400),
                 OAuthClientId = Truncate(input.OAuthClientId ?? grant?.OAuthClientId, 100),
                 OAuthConnectionId = grant?.OAuthConnectionId,
                 OAuthConnectionName = Truncate(grant?.OAuthConnection.Name, 120),
@@ -112,7 +112,7 @@ public sealed class OAuthTokenAuditService(
                 OAuthClientDisplayName = Truncate(grant?.OAuthClientDisplayName, 200),
                 Resource = Truncate(grant?.Resource, 2048),
                 TraceIdentifier = Truncate(input.TraceIdentifier, 128),
-                UserAgent = Truncate(input.UserAgent, 2048)
+                UserAgent = SanitiseDiagnosticText(input.UserAgent, 512)
             };
 
             auditRepository.Add(entity);
@@ -183,6 +183,29 @@ public sealed class OAuthTokenAuditService(
         return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 
+    private static string? NormaliseRequestedScopes(IReadOnlyCollection<string> requestedScopes)
+    {
+        if (requestedScopes.Count == 0)
+        {
+            return null;
+        }
+
+        var recognisedScopes = new List<string>(2);
+        if (requestedScopes.Contains(MachinePatScopes.McpRead, StringComparer.Ordinal))
+        {
+            recognisedScopes.Add(MachinePatScopes.McpRead);
+        }
+
+        if (requestedScopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal))
+        {
+            recognisedScopes.Add(MachinePatScopes.McpWrite);
+        }
+
+        return recognisedScopes.Count == 0
+            ? null
+            : string.Join(' ', recognisedScopes);
+    }
+
     private static string? Truncate(string? value, int maxLength)
     {
         var normalised = NormaliseOptional(value);
@@ -197,20 +220,39 @@ public sealed class OAuthTokenAuditService(
     private static string TruncateRequired(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..maxLength];
 
+    private static string? SanitiseDiagnosticText(string? value, int maxLength)
+    {
+        var truncated = Truncate(value, maxLength);
+        if (truncated is null)
+        {
+            return null;
+        }
+
+        var characters = truncated.ToCharArray();
+        for (var index = 0; index < characters.Length; index++)
+        {
+            if (char.IsControl(characters[index]))
+            {
+                characters[index] = ' ';
+            }
+        }
+
+        return new string(characters);
+    }
+
     private static OAuthTokenAuditDto ToDto(EntityOAuthTokenAudit audit) =>
         new(
             audit.Id,
             audit.OccurredAtUtc,
             audit.Outcome,
             audit.GrantType,
+            audit.RequestedScopes,
             audit.ErrorCode,
             audit.ErrorDescription,
             audit.ErrorUri,
-            audit.PresentedTokenId,
             audit.PresentedTokenFingerprint,
             audit.IssuedRefreshTokenFingerprint,
             audit.AuthorizationId,
-            audit.Subject,
             audit.OAuthClientId,
             audit.OAuthConnectionId,
             audit.OAuthConnectionName,
@@ -219,6 +261,5 @@ public sealed class OAuthTokenAuditService(
             audit.OAuthClientDisplayName,
             audit.Resource,
             audit.TraceIdentifier,
-            audit.UserAgent,
-            audit.CreatedAtUtc);
+            audit.UserAgent);
 }

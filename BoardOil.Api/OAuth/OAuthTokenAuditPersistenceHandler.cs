@@ -31,14 +31,13 @@ public sealed class OAuthTokenAuditPersistenceHandler(
         await auditService.RecordAsync(new OAuthTokenAuditInput(
             outcome,
             request.GrantType ?? string.Empty,
+            request.GetScopes(),
             context.Response.Error,
             context.Response.ErrorDescription,
             context.Response.ErrorUri,
-            presentedToken?.TokenId,
             Fingerprint(GetPresentedToken(request)),
             Fingerprint(context.Response.RefreshToken),
             presentedToken?.AuthorizationId,
-            presentedToken?.Subject,
             request.ClientId,
             httpContext?.TraceIdentifier,
             httpContext?.Request.Headers.UserAgent.ToString()));
