@@ -1,8 +1,9 @@
 <template>
   <section class="error-logs-view">
+    <SystemLogsTabs />
+
     <header class="error-logs-header">
       <div>
-        <h2>Error Logs</h2>
         <p>Application failures retained for 14 days.</p>
       </div>
       <div class="error-logs-toolbar">
@@ -69,6 +70,7 @@ import { useRouter } from 'vue-router';
 import BoGrid from '../../shared/components/BoGrid.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import SystemLogsTabs from '../components/SystemLogsTabs.vue';
 import {
   ERROR_LOG_PAGE_SIZE_OPTIONS,
   useSystemErrorLogsStore
@@ -170,13 +172,11 @@ onMounted(async () => {
   gap: 1rem;
 }
 
-.error-logs-header h2,
 .error-logs-header p {
   margin: 0;
 }
 
 .error-logs-header p {
-  margin-top: 0.2rem;
   color: var(--bo-ink-muted);
 }
 

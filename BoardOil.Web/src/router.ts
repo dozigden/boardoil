@@ -256,6 +256,11 @@ const routes: RouteRecordRaw[] = [
         props: { administrator: true }
       },
       {
+        path: 'oauth-logs',
+        name: 'system-oauth-logs',
+        component: () => import('./system/views/OAuthDiagnosticsView.vue')
+      },
+      {
         path: 'configuration',
         name: 'configuration',
         component: () => import('./system/views/ConfigurationView.vue')

@@ -59,6 +59,7 @@ describe('router layout meta mapping', () => {
   it('keeps owner and system OAuth management under their respective admin layouts', () => {
     expect(findIndexedByName('user-admin-oauth-connections')?.nearestLayout).toBe(APP_LAYOUT_ADMIN);
     expect(findIndexedByName('system-admin-oauth-connections')?.nearestLayout).toBe(APP_LAYOUT_ADMIN);
+    expect(findIndexedByName('system-oauth-logs')?.nearestLayout).toBe(APP_LAYOUT_ADMIN);
   });
 
   it('nests user authentication methods beneath the Authentication page', () => {

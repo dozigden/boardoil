@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace BoardOil.Contracts.OAuth;
 
 public sealed record OAuthTokenAuditDto(
@@ -12,12 +14,12 @@ public sealed record OAuthTokenAuditDto(
     string? PresentedTokenFingerprint,
     string? IssuedRefreshTokenFingerprint,
     string? AuthorizationId,
-    string? OAuthClientId,
-    int? OAuthConnectionId,
-    string? OAuthConnectionName,
+    [property: JsonPropertyName("oauthClientId")] string? OAuthClientId,
+    [property: JsonPropertyName("oauthConnectionId")] int? OAuthConnectionId,
+    [property: JsonPropertyName("oauthConnectionName")] string? OAuthConnectionName,
     int? OwnerUserId,
     string? OwnerUserName,
-    string? OAuthClientDisplayName,
+    [property: JsonPropertyName("oauthClientDisplayName")] string? OAuthClientDisplayName,
     string? Resource,
     string? TraceIdentifier,
     string? UserAgent);
