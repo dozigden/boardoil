@@ -31,6 +31,8 @@ public static class OAuthServiceCollectionExtensions
         services.AddScoped<OAuthAuthorizationService>();
         services.AddScoped<IOAuthAuthorizationRevoker, OpenIddictOAuthAuthorizationRevoker>();
         services.AddScoped<OAuthRefreshTokenGenerationHandler>();
+        services.AddScoped<OAuthTokenAuditPresentedTokenCaptureHandler>();
+        services.AddScoped<OAuthTokenAuditPersistenceHandler>();
         services.AddScoped<IOAuthProtectedResourceMetadataService, OAuthProtectedResourceMetadataService>();
         services.AddScoped<IOAuthDynamicClientRegistrationService, OAuthDynamicClientRegistrationService>();
         services.AddSingleton<OAuthDynamicClientRegistrationCleanupFailureLogger>();
@@ -77,6 +79,12 @@ public static class OAuthServiceCollectionExtensions
                 openIddict.AddEventHandler<OpenIddictServerEvents.ProcessSignInContext>(handler =>
                     handler.UseScopedHandler<OAuthRefreshTokenGenerationHandler>()
                         .SetOrder(OpenIddictServerHandlers.EvaluateGeneratedTokens.Descriptor.Order + 500));
+                openIddict.AddEventHandler<OpenIddictServerEvents.ValidateTokenContext>(handler =>
+                    handler.UseScopedHandler<OAuthTokenAuditPresentedTokenCaptureHandler>()
+                        .SetOrder(OpenIddictServerHandlers.Protection.RestoreTokenEntryProperties.Descriptor.Order + 500));
+                openIddict.AddEventHandler<OpenIddictServerEvents.ApplyTokenResponseContext>(handler =>
+                    handler.UseScopedHandler<OAuthTokenAuditPersistenceHandler>()
+                        .SetOrder(int.MinValue + 100_000));
 
                 var aspNetCore = openIddict.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()

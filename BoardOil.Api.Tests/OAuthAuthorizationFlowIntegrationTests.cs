@@ -4,10 +4,13 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using BoardOil.Abstractions.OAuth;
 using BoardOil.Api.OAuth;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Board;
+using BoardOil.Contracts.Common;
+using BoardOil.Contracts.OAuth;
 using BoardOil.Contracts.Users;
 using BoardOil.Ef;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -507,6 +510,65 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Equal(Errors.InvalidGrant, replay.Error);
         Assert.Equal(HttpStatusCode.BadRequest, refreshAfterReplay.StatusCode);
         Assert.Equal(Errors.InvalidGrant, refreshAfterReplay.Error);
+    }
+
+    [Fact]
+    public async Task TokenAudit_ShouldCorrelateIssuanceSuccessfulRefreshAndRejectedReplayWithoutExposingToken()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        var refresh = await RefreshAsync(client, scenario, exchange.RefreshToken!);
+        Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
+        var options = Factory.Services.GetRequiredService<BoardOilOAuthOptions>();
+        timeProvider.Advance(options.RefreshTokenReuseLeeway + TimeSpan.FromSeconds(1));
+
+        // Act
+        var replay = await RefreshAsync(client, scenario, exchange.RefreshToken!);
+        var auditResponse = await client.GetAsync(
+            $"/api/system/oauth-token-audits?clientId={Uri.EscapeDataString(scenario.OAuthClientId)}");
+        var auditJson = await auditResponse.Content.ReadAsStringAsync();
+        var auditResult = JsonSerializer.Deserialize<ApiResult<OAuthTokenAuditListDto>>(
+            auditJson,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, replay.StatusCode);
+        Assert.Equal(Errors.InvalidGrant, replay.Error);
+        Assert.Equal(HttpStatusCode.OK, auditResponse.StatusCode);
+        Assert.NotNull(auditResult?.Data);
+        Assert.Equal(3, auditResult!.Data!.TotalCount);
+        var issuance = Assert.Single(
+            auditResult.Data.Items,
+            audit => audit.GrantType == GrantTypes.AuthorizationCode
+                && audit.Outcome == OAuthTokenAuditOutcomes.Succeeded);
+        var refreshed = Assert.Single(
+            auditResult.Data.Items,
+            audit => audit.GrantType == GrantTypes.RefreshToken
+                && audit.Outcome == OAuthTokenAuditOutcomes.Succeeded);
+        var rejected = Assert.Single(
+            auditResult.Data.Items,
+            audit => audit.GrantType == GrantTypes.RefreshToken
+                && audit.Outcome == OAuthTokenAuditOutcomes.Rejected);
+        Assert.False(string.IsNullOrWhiteSpace(issuance.IssuedRefreshTokenFingerprint));
+        Assert.Equal(issuance.IssuedRefreshTokenFingerprint, refreshed.PresentedTokenFingerprint);
+        Assert.Equal(refreshed.PresentedTokenFingerprint, rejected.PresentedTokenFingerprint);
+        Assert.False(string.IsNullOrWhiteSpace(refreshed.IssuedRefreshTokenFingerprint));
+        Assert.NotEqual(refreshed.PresentedTokenFingerprint, refreshed.IssuedRefreshTokenFingerprint);
+        Assert.False(string.IsNullOrWhiteSpace(refreshed.PresentedTokenId));
+        Assert.Equal(refreshed.PresentedTokenId, rejected.PresentedTokenId);
+        Assert.Equal(issuance.AuthorizationId, refreshed.AuthorizationId);
+        Assert.Equal(refreshed.AuthorizationId, rejected.AuthorizationId);
+        Assert.Equal(Errors.InvalidGrant, rejected.ErrorCode);
+        Assert.Contains("ID2012", rejected.ErrorUri, StringComparison.Ordinal);
+        Assert.Equal("Repository connection", rejected.OAuthConnectionName);
+        Assert.Equal("admin", rejected.OwnerUserName);
+        Assert.Equal("Codex", rejected.OAuthClientDisplayName);
+        Assert.Equal(scenario.Resource, rejected.Resource);
+        Assert.DoesNotContain(exchange.RefreshToken!, auditJson, StringComparison.Ordinal);
     }
 
     [Fact]

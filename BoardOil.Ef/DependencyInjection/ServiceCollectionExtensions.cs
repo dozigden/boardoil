@@ -40,6 +40,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
         services.AddScoped<IOAuthConnectionRepository, OAuthConnectionRepository>();
+        services.AddScoped<IOAuthTokenAuditRepository, OAuthTokenAuditRepository>();
         services.AddScoped<IAppSettingRepository, AppSettingRepository>();
         services.AddScoped<ISystemInfoMessageRepository, SystemInfoMessageRepository>();
         services.AddScoped<IErrorLogRepository, ErrorLogRepository>();

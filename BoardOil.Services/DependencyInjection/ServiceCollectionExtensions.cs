@@ -76,6 +76,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IImageStorageService, LocalImageStorageService>();
         services.AddScoped<IUserProfileImageService, UserProfileImageService>();
         services.AddScoped<IOAuthConnectionManagementService, OAuthConnectionManagementService>();
+        services.AddScoped<IOAuthTokenAuditService, OAuthTokenAuditService>();
         return services;
     }
 }

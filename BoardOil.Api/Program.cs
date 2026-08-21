@@ -212,6 +212,7 @@ app.MapErrorLogEndpoints();
 app.MapUserEndpoints();
 app.MapClientAccountEndpoints();
 app.MapOAuthConnectionEndpoints();
+app.MapOAuthTokenAuditEndpoints();
 app.MapOAuthEndpoints();
 
 app.MapAuthEndpoints();

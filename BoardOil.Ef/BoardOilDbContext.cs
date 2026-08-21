@@ -28,6 +28,7 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityPersonalAccessToken> PersonalAccessTokens => Set<EntityPersonalAccessToken>();
     public DbSet<EntityOAuthConnection> OAuthConnections => Set<EntityOAuthConnection>();
     public DbSet<EntityOAuthConnectionGrant> OAuthConnectionGrants => Set<EntityOAuthConnectionGrant>();
+    public DbSet<EntityOAuthTokenAudit> OAuthTokenAudits => Set<EntityOAuthTokenAudit>();
     public DbSet<EntityAppSetting> AppSettings => Set<EntityAppSetting>();
     public DbSet<EntitySystemInfoMessage> SystemInfoMessages => Set<EntitySystemInfoMessage>();
     public DbSet<EntityErrorLog> ErrorLogs => Set<EntityErrorLog>();
