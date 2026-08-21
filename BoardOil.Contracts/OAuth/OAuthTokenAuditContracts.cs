@@ -29,3 +29,8 @@ public sealed record OAuthTokenAuditListDto(
     int Offset,
     int Limit,
     int TotalCount);
+
+public sealed record OAuthTokenAuditPurgeResultDto(
+    int RetentionDays,
+    DateTime CutoffUtc,
+    int DeletedCount);

@@ -34,6 +34,13 @@ public static class OAuthTokenAuditEndpoints
             .RequireAuthorization(BoardOilPolicies.AdminOnly)
             .WithTags("System OAuth Connections");
 
+        app.MapPost(
+                "/api/system/oauth-token-audits:purge",
+                async (IOAuthTokenAuditService auditService, CancellationToken cancellationToken) =>
+                    (await auditService.PurgeExpiredAsync(cancellationToken)).ToHttpResult())
+            .RequireAuthorization(BoardOilPolicies.AdminOnly)
+            .WithTags("System OAuth Connections");
+
         return app;
     }
 }

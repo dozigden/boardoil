@@ -22,6 +22,11 @@ public sealed class OAuthTokenAuditRepository(IAmbientDbContextLocator ambientDb
             .Take(limit)
             .ToListAsync();
 
+    public Task<int> DeleteOlderThanAsync(DateTime cutoffUtc, CancellationToken cancellationToken = default) =>
+        DbSet
+            .Where(x => x.OccurredAtUtc < cutoffUtc)
+            .ExecuteDeleteAsync(cancellationToken);
+
     private IQueryable<EntityOAuthTokenAudit> ApplyQuery(OAuthTokenAuditQuery query)
     {
         var audits = DbSet.AsNoTracking();

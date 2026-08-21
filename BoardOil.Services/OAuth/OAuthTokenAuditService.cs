@@ -65,6 +65,21 @@ public sealed class OAuthTokenAuditService(
             totalCount));
     }
 
+    public async Task<ApiResult<OAuthTokenAuditPurgeResultDto>> PurgeExpiredAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var cutoffUtc = timeProvider
+            .GetUtcNow()
+            .UtcDateTime
+            .AddDays(-OAuthTokenAuditRetention.RetentionDays);
+        using var scope = scopeFactory.Create();
+        var deletedCount = await auditRepository.DeleteOlderThanAsync(cutoffUtc, cancellationToken);
+        return ApiResults.Ok(new OAuthTokenAuditPurgeResultDto(
+            OAuthTokenAuditRetention.RetentionDays,
+            cutoffUtc,
+            deletedCount));
+    }
+
     public async Task RecordAsync(OAuthTokenAuditInput input)
     {
         ArgumentNullException.ThrowIfNull(input);

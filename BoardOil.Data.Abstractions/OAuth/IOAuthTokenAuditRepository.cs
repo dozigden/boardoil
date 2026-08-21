@@ -10,6 +10,7 @@ public interface IOAuthTokenAuditRepository : IRepositoryBase<EntityOAuthTokenAu
         OAuthTokenAuditQuery query,
         int offset,
         int limit);
+    Task<int> DeleteOlderThanAsync(DateTime cutoffUtc, CancellationToken cancellationToken = default);
 }
 
 public sealed record OAuthTokenAuditQuery(

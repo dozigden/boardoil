@@ -35,6 +35,7 @@ public sealed class OAuthTokenAuditConfiguration : IEntityTypeConfiguration<Enti
         audit.HasIndex(x => x.IssuedRefreshTokenFingerprint);
         audit.HasIndex(x => x.AuthorizationId);
         audit.HasIndex(x => x.OAuthConnectionId);
+        audit.HasIndex(x => new { x.OAuthClientId, x.OccurredAtUtc });
         audit.HasIndex(x => new { x.Outcome, x.OccurredAtUtc });
         audit.ToTable("OAuthTokenAudits");
     }

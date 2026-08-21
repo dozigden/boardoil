@@ -17,6 +17,9 @@ public interface IOAuthTokenAuditService
         string? authorizationId,
         string? tokenFingerprint);
 
+    Task<ApiResult<OAuthTokenAuditPurgeResultDto>> PurgeExpiredAsync(
+        CancellationToken cancellationToken = default);
+
     Task RecordAsync(OAuthTokenAuditInput input);
 }
 
