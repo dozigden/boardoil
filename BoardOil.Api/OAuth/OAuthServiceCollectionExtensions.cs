@@ -5,9 +5,11 @@ using BoardOil.Api.Configuration;
 using BoardOil.Abstractions.OAuth;
 using BoardOil.Contracts.Auth;
 using BoardOil.Ef;
+using BoardOil.Ef.OpenIddict;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
+using OpenIddict.EntityFrameworkCore.Models;
 using OpenIddict.Server;
 using OpenIddict.Validation;
 using OpenIddict.Validation.AspNetCore;
@@ -43,6 +45,9 @@ public static class OAuthServiceCollectionExtensions
             {
                 openIddict.UseEntityFrameworkCore()
                     .UseDbContext<BoardOilDbContext>();
+                openIddict.ReplaceTokenStore<
+                    OpenIddictEntityFrameworkCoreToken,
+                    BoardOilOpenIddictTokenStore>();
             })
             .AddServer(openIddict =>
             {
