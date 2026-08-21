@@ -226,9 +226,15 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
     protected sealed record CreateClientAccountRequest(string UserName, string DisplayName, string Email, string Role);
     protected sealed record UpdateUserRequest(string Email, string Role, bool IsActive);
     protected sealed record UpdateClientAccountRequest(string Email, string Role, bool IsActive);
-    protected sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);
+    protected sealed record UpdateConfigurationRequest(
+        string? McpPublicBaseUrl,
+        bool OAuthLifecycleDiagnosticsEnabled = false);
     protected sealed record AuthSessionEnvelope(string CsrfToken);
-    protected sealed record ConfigurationEnvelope(bool AllowInsecureCookies, string? McpPublicBaseUrl);
+    protected sealed record ConfigurationEnvelope(
+        bool AllowInsecureCookies,
+        string? McpPublicBaseUrl,
+        bool OAuthLifecycleDiagnosticsEnabled,
+        int OAuthLifecycleDiagnosticsRetentionDays);
     protected sealed record UserDirectoryEntryEnvelope(int Id, string UserName, bool IsActive);
     protected sealed record ManagedUserEnvelope(int Id, string UserName, string Email, string Role, string IdentityType, bool IsActive);
     protected sealed record ClientAccountEnvelope(int Id, string UserName, string Email, string Role, bool IsActive);

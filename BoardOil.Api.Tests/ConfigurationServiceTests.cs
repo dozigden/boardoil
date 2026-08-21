@@ -1,5 +1,7 @@
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Abstractions.OAuth;
 using BoardOil.Api.Configuration;
+using BoardOil.Api.OAuth;
 using BoardOil.Contracts.Configuration;
 using BoardOil.Data.Abstractions.Configuration;
 using BoardOil.Data.Abstractions.Entities;
@@ -26,6 +28,10 @@ public sealed class ConfigurationServiceTests
         Assert.NotNull(result.Data);
         Assert.True(result.Data!.AllowInsecureCookies);
         Assert.Null(result.Data.McpPublicBaseUrl);
+        Assert.False(result.Data.OAuthLifecycleDiagnosticsEnabled);
+        Assert.Equal(
+            OAuthTokenAuditRetention.RetentionDays,
+            result.Data.OAuthLifecycleDiagnosticsRetentionDays);
     }
 
     [Fact]
@@ -37,7 +43,8 @@ public sealed class ConfigurationServiceTests
         var service = CreateConfigurationService(repository, scopes);
 
         // Act
-        var result = await service.UpdateConfigurationAsync(new UpdateConfigurationRequest("https://boardoil.example.com/"));
+        var result = await service.UpdateConfigurationAsync(
+            new UpdateConfigurationRequest("https://boardoil.example.com/", false));
 
         // Assert
         Assert.True(result.Success);
@@ -64,7 +71,8 @@ public sealed class ConfigurationServiceTests
         var service = CreateConfigurationService(repository, scopes);
 
         // Act
-        var result = await service.UpdateConfigurationAsync(new UpdateConfigurationRequest(null));
+        var result = await service.UpdateConfigurationAsync(
+            new UpdateConfigurationRequest(null, false));
 
         // Assert
         Assert.True(result.Success);
@@ -88,7 +96,8 @@ public sealed class ConfigurationServiceTests
         var service = CreateConfigurationService(repository, scopes);
 
         // Act
-        var result = await service.UpdateConfigurationAsync(new UpdateConfigurationRequest("relative/path"));
+        var result = await service.UpdateConfigurationAsync(
+            new UpdateConfigurationRequest("relative/path", true));
 
         // Assert
         Assert.False(result.Success);
@@ -100,16 +109,73 @@ public sealed class ConfigurationServiceTests
         Assert.Equal("https://stable.example.com", persisted!.Value);
     }
 
+    [Fact]
+    public async Task UpdateConfigurationAsync_WhenDiagnosticsEnabled_ShouldPersistAndApplyImmediately()
+    {
+        // Arrange
+        var repository = new InMemoryAppSettingRepository();
+        var scopes = new FakeDbContextScopeFactory();
+        var captureState = new OAuthTokenAuditCaptureState();
+        var service = CreateConfigurationService(repository, scopes, captureState);
+
+        // Act
+        var result = await service.UpdateConfigurationAsync(
+            new UpdateConfigurationRequest(null, true));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Data!.OAuthLifecycleDiagnosticsEnabled);
+        Assert.True(captureState.IsEnabled);
+        Assert.Equal(1, scopes.SaveChangesCallCount);
+        var persisted = await repository.GetByKeyAsync(
+            "oauth_lifecycle_diagnostics_enabled");
+        Assert.Equal("true", persisted!.Value);
+    }
+
+    [Fact]
+    public async Task UpdateConfigurationAsync_WhenDiagnosticsDisabled_ShouldPersistAndApplyImmediately()
+    {
+        // Arrange
+        var repository = new InMemoryAppSettingRepository();
+        repository.Add(new EntityAppSetting
+        {
+            Key = "oauth_lifecycle_diagnostics_enabled",
+            Value = "True"
+        });
+        var scopes = new FakeDbContextScopeFactory();
+        var captureState = new OAuthTokenAuditCaptureState();
+        captureState.SetEnabled(true);
+        var service = CreateConfigurationService(repository, scopes, captureState);
+
+        // Act
+        var result = await service.UpdateConfigurationAsync(
+            new UpdateConfigurationRequest(null, false));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.False(result.Data!.OAuthLifecycleDiagnosticsEnabled);
+        Assert.False(captureState.IsEnabled);
+        Assert.Equal(1, scopes.SaveChangesCallCount);
+        var persisted = await repository.GetByKeyAsync(
+            "oauth_lifecycle_diagnostics_enabled");
+        Assert.Equal("false", persisted!.Value);
+    }
+
     private static ConfigurationService CreateConfigurationService(
         InMemoryAppSettingRepository appSettingRepository,
-        FakeDbContextScopeFactory scopes)
+        FakeDbContextScopeFactory scopes,
+        OAuthTokenAuditCaptureState? captureState = null)
     {
         var jwtOptions = new JwtAuthOptions
         {
             AllowInsecureCookies = true
         };
 
-        return new ConfigurationService(jwtOptions, scopes, appSettingRepository);
+        return new ConfigurationService(
+            jwtOptions,
+            captureState ?? new OAuthTokenAuditCaptureState(),
+            scopes,
+            appSettingRepository);
     }
 
     private sealed class InMemoryAppSettingRepository : IAppSettingRepository

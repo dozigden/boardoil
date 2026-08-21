@@ -7,12 +7,18 @@ using OpenIddict.Server;
 namespace BoardOil.Api.OAuth;
 
 public sealed class OAuthTokenAuditPersistenceHandler(
+    OAuthTokenAuditCaptureState captureState,
     IOAuthTokenAuditService auditService,
     IHttpContextAccessor httpContextAccessor)
     : IOpenIddictServerHandler<OpenIddictServerEvents.ApplyTokenResponseContext>
 {
     public async ValueTask HandleAsync(OpenIddictServerEvents.ApplyTokenResponseContext context)
     {
+        if (!captureState.IsEnabled)
+        {
+            return;
+        }
+
         var request = context.Request;
         if (request is null
             || (!request.IsAuthorizationCodeGrantType() && !request.IsRefreshTokenGrantType()))

@@ -20,6 +20,26 @@
           : 'Secure cookies are enforced. HTTPS required (except localhost behavior).' }}
       </p>
 
+      <div class="configuration-row">
+        <span class="configuration-label">OAuth lifecycle diagnostics</span>
+        <span class="configuration-value">
+          <span class="badge">{{ configuration?.oauthLifecycleDiagnosticsEnabled ? 'Enabled' : 'Disabled' }}</span>
+        </span>
+      </div>
+      <p v-if="configuration" class="configuration-hint">
+        When enabled, BoardOil retains OAuth identities, requested scopes, hashed token fingerprints,
+        trace identifiers, and user-agent metadata for
+        {{ configuration.oauthLifecycleDiagnosticsRetentionDays }} days.
+      </p>
+      <label class="configuration-checkbox-row">
+        <input
+          v-model="oauthLifecycleDiagnosticsEnabledDraft"
+          :disabled="saving"
+          type="checkbox"
+        />
+        <span>Capture OAuth lifecycle diagnostics</span>
+      </label>
+
       <div class="configuration-row configuration-row--start">
         <span class="configuration-label">MCP public base URL override</span>
         <span class="configuration-value">
@@ -65,6 +85,7 @@ const configuration = ref<ConfigurationDto | null>(null);
 const errorMessage = ref<string | null>(null);
 const saving = ref(false);
 const mcpPublicBaseUrlDraft = ref('');
+const oauthLifecycleDiagnosticsEnabledDraft = ref(false);
 
 onMounted(async () => {
   const configurationResult = await systemApi.getConfiguration();
@@ -82,7 +103,8 @@ async function saveConfiguration() {
   try {
     const requestValue = mcpPublicBaseUrlDraft.value.trim();
     const configurationResult = await systemApi.updateConfiguration({
-      mcpPublicBaseUrl: requestValue.length > 0 ? requestValue : null
+      mcpPublicBaseUrl: requestValue.length > 0 ? requestValue : null,
+      oauthLifecycleDiagnosticsEnabled: oauthLifecycleDiagnosticsEnabledDraft.value
     });
     if (!configurationResult.ok) {
       feedback.showToast(configurationResult.error.message, 'error');
@@ -104,6 +126,7 @@ async function resetToAuto() {
 function applyConfigurationDraft(nextConfiguration: ConfigurationDto) {
   configuration.value = nextConfiguration;
   mcpPublicBaseUrlDraft.value = nextConfiguration.mcpPublicBaseUrl ?? '';
+  oauthLifecycleDiagnosticsEnabledDraft.value = nextConfiguration.oauthLifecycleDiagnosticsEnabled;
 }
 </script>
 
@@ -152,6 +175,12 @@ function applyConfigurationDraft(nextConfiguration: ConfigurationDto) {
 
 .configuration-input {
   width: 100%;
+}
+
+.configuration-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .configuration-actions {

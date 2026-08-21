@@ -3,11 +3,14 @@ using BoardOil.Contracts.Configuration;
 using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Configuration;
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Abstractions.OAuth;
+using BoardOil.Api.OAuth;
 
 namespace BoardOil.Api.Configuration;
 
 public sealed class ConfigurationService(
     JwtAuthOptions jwtOptions,
+    OAuthTokenAuditCaptureState oauthTokenAuditCaptureState,
     IDbContextScopeFactory scopeFactory,
     IAppSettingRepository appSettingRepository) : IConfigurationService
 {
@@ -17,7 +20,7 @@ public sealed class ConfigurationService(
     {
         using var scope = scopeFactory.CreateReadOnly();
         var mcpPublicBaseUrl = await GetSettingValueAsync(McpPublicBaseUrlKey);
-        return new ConfigurationDto(jwtOptions.AllowInsecureCookies, mcpPublicBaseUrl);
+        return CreateConfigurationDto(mcpPublicBaseUrl);
     }
 
     public async Task<ApiResult<ConfigurationDto>> UpdateConfigurationAsync(UpdateConfigurationRequest request)
@@ -30,13 +33,16 @@ public sealed class ConfigurationService(
 
         using var scope = scopeFactory.Create();
         var existingSetting = await appSettingRepository.GetByKeyAsync(McpPublicBaseUrlKey);
+        var existingOAuthDiagnosticsSetting = await appSettingRepository.GetByKeyAsync(
+            OAuthTokenAuditCaptureState.SettingKey);
         var normalisedBaseUrl = normalisedBaseUrlResult.Value;
+        var hasChanges = false;
         if (normalisedBaseUrl is null)
         {
             if (existingSetting is not null)
             {
                 appSettingRepository.Remove(existingSetting);
-                await scope.SaveChangesAsync();
+                hasChanges = true;
             }
         }
         else
@@ -48,16 +54,43 @@ public sealed class ConfigurationService(
                     Key = McpPublicBaseUrlKey,
                     Value = normalisedBaseUrl
                 });
-                await scope.SaveChangesAsync();
+                hasChanges = true;
             }
             else if (!string.Equals(existingSetting.Value, normalisedBaseUrl, StringComparison.Ordinal))
             {
                 existingSetting.Value = normalisedBaseUrl;
-                await scope.SaveChangesAsync();
+                hasChanges = true;
             }
         }
 
-        return new ConfigurationDto(jwtOptions.AllowInsecureCookies, normalisedBaseUrl);
+        var diagnosticsValue = request.OAuthLifecycleDiagnosticsEnabled
+            ? "true"
+            : "false";
+        if (existingOAuthDiagnosticsSetting is null)
+        {
+            appSettingRepository.Add(new EntityAppSetting
+            {
+                Key = OAuthTokenAuditCaptureState.SettingKey,
+                Value = diagnosticsValue
+            });
+            hasChanges = true;
+        }
+        else if (!string.Equals(
+            existingOAuthDiagnosticsSetting.Value,
+            diagnosticsValue,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            existingOAuthDiagnosticsSetting.Value = diagnosticsValue;
+            hasChanges = true;
+        }
+
+        if (hasChanges)
+        {
+            await scope.SaveChangesAsync();
+        }
+
+        oauthTokenAuditCaptureState.SetEnabled(request.OAuthLifecycleDiagnosticsEnabled);
+        return CreateConfigurationDto(normalisedBaseUrl);
     }
 
     public async Task<string?> GetMcpPublicBaseUrlAsync()
@@ -73,6 +106,13 @@ public sealed class ConfigurationService(
             ? null
             : setting.Value.Trim();
     }
+
+    private ConfigurationDto CreateConfigurationDto(string? mcpPublicBaseUrl) =>
+        new(
+            jwtOptions.AllowInsecureCookies,
+            mcpPublicBaseUrl,
+            oauthTokenAuditCaptureState.IsEnabled,
+            OAuthTokenAuditRetention.RetentionDays);
 
     private static (bool Success, string? Value, ApiError? Error) NormaliseMcpPublicBaseUrl(string? rawValue)
     {

@@ -135,4 +135,18 @@ describe('systemApi', () => {
       expect(result.data).toBeNull();
     }
   });
+
+  it('updateConfiguration sends the OAuth diagnostics capture setting', async () => {
+    const api = createSystemApi();
+
+    await api.updateConfiguration({
+      mcpPublicBaseUrl: 'https://boardoil.example.test',
+      oauthLifecycleDiagnosticsEnabled: true
+    });
+
+    expect(putData).toHaveBeenCalledWith('/api/system/configuration', {
+      mcpPublicBaseUrl: 'https://boardoil.example.test',
+      oauthLifecycleDiagnosticsEnabled: true
+    });
+  });
 });

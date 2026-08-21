@@ -10,8 +10,11 @@ export type SystemInfoMessageDto = {
 export type ConfigurationDto = {
   allowInsecureCookies: boolean;
   mcpPublicBaseUrl: string | null;
+  oauthLifecycleDiagnosticsEnabled: boolean;
+  oauthLifecycleDiagnosticsRetentionDays: number;
 };
 
 export type UpdateConfigurationRequest = {
   mcpPublicBaseUrl: string | null;
+  oauthLifecycleDiagnosticsEnabled: boolean;
 };

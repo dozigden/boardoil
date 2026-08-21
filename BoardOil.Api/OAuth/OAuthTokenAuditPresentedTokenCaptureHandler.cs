@@ -3,13 +3,19 @@ using OpenIddict.Server;
 
 namespace BoardOil.Api.OAuth;
 
-public sealed class OAuthTokenAuditPresentedTokenCaptureHandler
+public sealed class OAuthTokenAuditPresentedTokenCaptureHandler(
+    OAuthTokenAuditCaptureState captureState)
     : IOpenIddictServerHandler<OpenIddictServerEvents.ValidateTokenContext>
 {
     internal const string TransactionProperty = "boardoil:oauth_token_audit_presented_token";
 
     public ValueTask HandleAsync(OpenIddictServerEvents.ValidateTokenContext context)
     {
+        if (!captureState.IsEnabled)
+        {
+            return default;
+        }
+
         var request = context.Transaction.Request;
         if (request is null
             || (!request.IsAuthorizationCodeGrantType() && !request.IsRefreshTokenGrantType()))

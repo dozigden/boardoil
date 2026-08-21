@@ -35,6 +35,7 @@ public static class OAuthServiceCollectionExtensions
         services.AddScoped<OAuthRefreshTokenGenerationHandler>();
         services.AddScoped<OAuthTokenAuditPresentedTokenCaptureHandler>();
         services.AddScoped<OAuthTokenAuditPersistenceHandler>();
+        services.AddSingleton<OAuthTokenAuditCaptureState>();
         services.AddScoped<IOAuthProtectedResourceMetadataService, OAuthProtectedResourceMetadataService>();
         services.AddScoped<IOAuthDynamicClientRegistrationService, OAuthDynamicClientRegistrationService>();
         services.AddSingleton<OAuthDynamicClientRegistrationCleanupFailureLogger>();

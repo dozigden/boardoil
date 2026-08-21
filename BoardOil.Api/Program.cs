@@ -129,6 +129,7 @@ app.InitialiseMcpServiceProvider();
 app.LogMcpStartupWarnings();
 
 await app.Services.InitializeBoardOilEfInfrastructureAsync();
+await app.Services.InitializeOAuthTokenAuditCaptureStateAsync();
 await app.Services.PurgeExpiredErrorLogsAsync();
 await app.Services.PurgeExpiredOAuthTokenAuditsAsync();
 app.UseCors("BoardOilDevClient");

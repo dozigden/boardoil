@@ -520,6 +520,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var scenario = await CreateScenarioAsync(
             client,
             [MachinePatScopes.McpRead, MachinePatScopes.McpWrite]);
+        await ConfigureOAuthDiagnosticsAsync(client, scenario.PublicBaseUrl, true);
         var request = CreateAuthorizationRequest(
             scenario,
             $"{MachinePatScopes.McpRead} {MachinePatScopes.McpWrite}");
@@ -594,6 +595,36 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.DoesNotContain("presentedTokenId", auditJson, StringComparison.Ordinal);
         Assert.DoesNotContain("subject", auditJson, StringComparison.Ordinal);
         Assert.DoesNotContain("createdAtUtc", auditJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TokenAudit_WhenCaptureIsToggled_ShouldOnlyPersistEventsWhileEnabled()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        await ConfigureOAuthDiagnosticsAsync(client, scenario.PublicBaseUrl, true);
+
+        // Act
+        var capturedRefresh = await RefreshAsync(client, scenario, exchange.RefreshToken!);
+        await ConfigureOAuthDiagnosticsAsync(client, scenario.PublicBaseUrl, false);
+        var ignoredRefresh = await RefreshAsync(client, scenario, capturedRefresh.RefreshToken!);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, capturedRefresh.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, ignoredRefresh.StatusCode);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContextFactory = scope.ServiceProvider
+            .GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>();
+        await using var dbContext = dbContextFactory.CreateDbContext<BoardOilDbContext>();
+        var audit = await dbContext.OAuthTokenAudits.SingleAsync(
+            TestContext.Current.CancellationToken);
+        Assert.Equal(GrantTypes.RefreshToken, audit.GrantType);
+        Assert.False(string.IsNullOrWhiteSpace(audit.IssuedRefreshTokenFingerprint));
     }
 
     [Fact]
@@ -1431,6 +1462,17 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             publicBaseUrl,
             "Repository connection",
             allowedScopes);
+    }
+
+    private static async Task ConfigureOAuthDiagnosticsAsync(
+        HttpClient client,
+        string publicBaseUrl,
+        bool enabled)
+    {
+        var response = await client.PutAsJsonAsync(
+            "/api/system/configuration",
+            new UpdateConfigurationRequest(publicBaseUrl, enabled));
+        response.EnsureSuccessStatusCode();
     }
 
     private static AuthorizationRequest CreateAuthorizationRequest(

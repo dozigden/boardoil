@@ -299,5 +299,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.True(cardCommentCreateProperties.TryGetProperty("text", out _));
     }
 
-    private sealed record UpdateConfigurationRequest(string? McpPublicBaseUrl);
+    private sealed record UpdateConfigurationRequest(
+        string? McpPublicBaseUrl,
+        bool OAuthLifecycleDiagnosticsEnabled = false);
 }
