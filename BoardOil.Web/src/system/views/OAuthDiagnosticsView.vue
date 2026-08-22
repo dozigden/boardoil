@@ -39,6 +39,8 @@
         :total-count="totalCount"
         :offset="offset"
         :limit="limit"
+        row-clickable
+        @row-clicked="openAuditDetails"
         @previous-page="auditStore.goPreviousPage"
         @next-page="auditStore.goNextPage"
       >
@@ -72,6 +74,8 @@
         </template>
       </BoGrid>
     </section>
+
+    <OAuthTokenAuditDetailsDialog :audit="selectedAudit" @close="closeAuditDetails" />
   </section>
 </template>
 
@@ -82,6 +86,8 @@ import { RouterLink } from 'vue-router';
 import BoGrid from '../../shared/components/BoGrid.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import type { OAuthTokenAudit } from '../../shared/types/oauthTokenAuditTypes';
+import OAuthTokenAuditDetailsDialog from '../components/OAuthTokenAuditDetailsDialog.vue';
 import SystemLogsTabs from '../components/SystemLogsTabs.vue';
 import {
   OAUTH_TOKEN_AUDIT_PAGE_SIZE_OPTIONS,
@@ -105,6 +111,7 @@ const {
 const rows = computed(() => audits.value as unknown as Record<string, unknown>[]);
 const loading = computed(() => listLoading.value || captureStateLoading.value);
 const purging = ref(false);
+const selectedAudit = ref<OAuthTokenAudit | null>(null);
 const busy = computed(() => loading.value || purging.value);
 const captureStatusText = computed(() => {
   if (captureStateLoading.value) {
@@ -150,6 +157,18 @@ function onPageSizeChanged(event: Event) {
 
 function refresh() {
   void auditStore.refresh();
+}
+
+function openAuditDetails(row: Record<string, unknown>) {
+  if (typeof row.id !== 'number') {
+    return;
+  }
+
+  selectedAudit.value = audits.value.find(audit => audit.id === row.id) ?? null;
+}
+
+function closeAuditDetails() {
+  selectedAudit.value = null;
 }
 
 async function purgeExpired() {
