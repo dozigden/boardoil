@@ -1,75 +1,93 @@
 <template>
   <section class="configuration-view">
     <header class="configuration-header">
-      <h2>Configuration</h2>
-      <p>Runtime settings visible to administrators.</p>
+      <div>
+        <h2>Configuration</h2>
+      </div>
+      <div class="configuration-save">
+        <button
+          type="button"
+          class="btn"
+          :disabled="saving || configuration === null"
+          @click="saveConfiguration"
+        >
+          {{ saving ? 'Saving...' : 'Save' }}
+        </button>
+      </div>
     </header>
 
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
 
-    <section v-else class="panel panel-stack panel-stack--cozy">
-      <div class="configuration-row">
-        <span class="configuration-label">Allow insecure cookies</span>
-        <span class="configuration-value">
+    <div v-else class="configuration-sections">
+      <section class="panel panel-stack panel-stack--cozy">
+        <header class="configuration-section-header">
+          <h3>Runtime information</h3>
+          <p>Information only. These settings are controlled by the server environment.</p>
+        </header>
+
+        <div class="configuration-row">
+          <span class="configuration-label">Allow insecure cookies</span>
           <span class="badge">{{ configuration?.allowInsecureCookies ? 'Enabled' : 'Disabled' }}</span>
-        </span>
-      </div>
-      <p class="configuration-hint">
-        {{ configuration?.allowInsecureCookies
-          ? 'HTTP sessions are allowed. Not recommended.'
-          : 'Secure cookies are enforced. HTTPS required (except localhost behavior).' }}
-      </p>
+        </div>
+        <p class="configuration-hint">
+          {{ configuration?.allowInsecureCookies
+            ? 'HTTP sessions are allowed. Not recommended.'
+            : 'Secure cookies are enforced. HTTPS is required outside localhost.' }}
+        </p>
+        <p class="configuration-hint">
+          Set at deployment with <code>BoardOilAuth:AllowInsecureCookies</code> or
+          <code>BoardOilAuth__AllowInsecureCookies</code>.
+        </p>
+      </section>
 
-      <div class="configuration-row">
-        <span class="configuration-label">OAuth lifecycle diagnostics</span>
-        <span class="configuration-value">
-          <span class="badge">{{ configuration?.oauthLifecycleDiagnosticsEnabled ? 'Enabled' : 'Disabled' }}</span>
-        </span>
-      </div>
-      <p v-if="configuration" class="configuration-hint">
-        When enabled, BoardOil retains OAuth identities, requested scopes, hashed token fingerprints,
-        trace identifiers, and user-agent metadata for
-        {{ configuration.oauthLifecycleDiagnosticsRetentionDays }} days.
-      </p>
-      <label class="configuration-checkbox-row">
-        <input
-          v-model="oauthLifecycleDiagnosticsEnabledDraft"
-          :disabled="saving"
-          type="checkbox"
-        />
-        <span>Capture OAuth lifecycle diagnostics</span>
-      </label>
+      <section class="panel panel-stack panel-stack--cozy">
+        <header class="configuration-section-header">
+          <h3>Editable settings</h3>
+        </header>
 
-      <div class="configuration-row configuration-row--start">
-        <span class="configuration-label">MCP public base URL override</span>
-        <span class="configuration-value">
-          <span class="badge">{{ configuration?.mcpPublicBaseUrl ? 'Override set' : 'Auto (relative)' }}</span>
-        </span>
-      </div>
-      <p class="configuration-hint">
-        Leave blank to keep MCP discovery URLs relative (recommended default for Docker and proxy setups).
-      </p>
-      <label class="configuration-input-group">
-        <span class="configuration-input-label">Public base URL</span>
-        <input
-          v-model="mcpPublicBaseUrlDraft"
-          :disabled="saving"
-          class="configuration-input"
-          placeholder="https://boardoil.example.com"
-          autocomplete="off"
-          spellcheck="false"
-        />
-      </label>
+        <section class="configuration-setting">
+          <label class="configuration-checkbox-row">
+            <input
+              v-model="oauthLifecycleDiagnosticsEnabledDraft"
+              :disabled="saving"
+              type="checkbox"
+            />
+            <span>Log OAuth requests</span>
+          </label>
+          <p class="configuration-hint">
+            When enabled, BoardOil retains OAuth identities, requested scopes, hashed token fingerprints,
+            trace identifiers, and user-agent metadata.
+          </p>
+        </section>
 
-      <div class="configuration-actions">
-        <button type="button" class="btn" :disabled="saving" @click="saveConfiguration">
-          {{ saving ? 'Saving...' : 'Save' }}
-        </button>
-        <button type="button" class="btn btn--secondary" :disabled="saving" @click="resetToAuto">
-          Use auto (relative)
-        </button>
-      </div>
-    </section>
+        <section class="configuration-setting">
+          <label class="configuration-input-group">
+            <span class="configuration-input-label">MCP public base URL</span>
+            <span class="configuration-input-row">
+              <input
+                v-model="mcpPublicBaseUrlDraft"
+                :disabled="saving"
+                class="configuration-input"
+                placeholder="https://boardoil.example.com"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button
+                type="button"
+                class="btn btn--secondary"
+                :disabled="saving || mcpPublicBaseUrlDraft.length === 0"
+                @click="useAutomaticUrl"
+              >
+                Clear
+              </button>
+            </span>
+          </label>
+          <p class="configuration-hint">
+            Leave blank to use automatic relative discovery URLs, recommended for Docker and proxy setups.
+          </p>
+        </section>
+      </section>
+    </div>
   </section>
 </template>
 
@@ -118,9 +136,8 @@ async function saveConfiguration() {
   }
 }
 
-async function resetToAuto() {
+function useAutomaticUrl() {
   mcpPublicBaseUrlDraft.value = '';
-  await saveConfiguration();
 }
 
 function applyConfigurationDraft(nextConfiguration: ConfigurationDto) {
@@ -138,13 +155,44 @@ function applyConfigurationDraft(nextConfiguration: ConfigurationDto) {
   max-width: 760px;
 }
 
+.configuration-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .configuration-header h2 {
   margin: 0;
 }
 
-.configuration-header p {
-  margin: 0.2rem 0 0;
+.configuration-sections {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.configuration-section-header {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.configuration-section-header h3,
+.configuration-section-header p {
+  margin: 0;
+}
+
+.configuration-section-header h3 {
+  color: var(--bo-ink-strong);
+  font-size: 1rem;
+}
+
+.configuration-section-header p {
   color: var(--bo-ink-muted);
+}
+
+.configuration-setting {
+  display: grid;
+  gap: 0.55rem;
 }
 
 .configuration-row {
@@ -152,10 +200,6 @@ function applyConfigurationDraft(nextConfiguration: ConfigurationDto) {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-}
-
-.configuration-row--start {
-  align-items: flex-start;
 }
 
 .configuration-label {
@@ -177,20 +221,37 @@ function applyConfigurationDraft(nextConfiguration: ConfigurationDto) {
   width: 100%;
 }
 
+.configuration-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.configuration-input-row .configuration-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .configuration-checkbox-row {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.configuration-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
 .configuration-hint {
   margin: 0;
   color: var(--bo-ink-muted);
+}
+
+.configuration-hint code {
+  color: var(--bo-ink-default);
+}
+
+@media (max-width: 620px) {
+  .configuration-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
 }
 </style>
