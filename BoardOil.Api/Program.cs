@@ -86,6 +86,7 @@ builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
 builder.Services.AddSingleton<IAuthorizationHandler, RequirePatApiScopeHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, McpOAuthConnectionAuthorizationHandler>();
 builder.Services.AddBoardOilAuthentication(jwtOptions);
+builder.Services.AddBoardOilEphemeralDataProtection();
 builder.Services.AddAuthorization(options =>
 {
     options.AddBoardOilAuthorizationPolicies(mcpOptions);
