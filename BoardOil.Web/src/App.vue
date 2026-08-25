@@ -2,11 +2,10 @@
   <RouterView v-slot="{ Component, route: viewRoute }">
     <component :is="layoutComponent" :key="layoutMode" class="app-layout-host">
       <Transition :name="pageTransitionName">
-        <component :is="Component" :key="getViewKey(viewRoute)" />
+        <component :is="Component" :key="getRootRouteViewKey(viewRoute)" />
       </Transition>
     </component>
   </RouterView>
-  <RouterView v-if="!hideRootDialogView" name="dialog" />
   <UiFeedbackToast />
   <ConfirmDialogHost />
 </template>
@@ -14,7 +13,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { RouterView, useRoute, type RouteLocationNormalizedLoaded } from 'vue-router';
+import { RouterView, useRoute } from 'vue-router';
 import ConfirmDialogHost from './shared/components/ConfirmDialogHost.vue';
 import UiFeedbackToast from './shared/components/UiFeedbackToast.vue';
 import { useBoardCatalogueStore } from './shared/stores/boardCatalogueStore';
@@ -33,6 +32,7 @@ import {
   APP_LAYOUT_BOARD_WITH_CONVEYOR,
   resolveAppLayout
 } from './site/layouts/appLayout';
+import { getRootRouteViewKey } from './site/layouts/rootRouteViewKey';
 import { getPageTitle } from './site/components/appHeaderNavigation';
 
 const boardStore = useBoardStore();
@@ -43,7 +43,7 @@ const userProfileImageStore = useUserProfileImageStore();
 const themeStore = useThemeStore();
 const route = useRoute();
 const { boards } = storeToRefs(boardCatalogueStore);
-const { board, currentBoardId, isLoadingBoard } = storeToRefs(boardStore);
+const { board, currentBoardId } = storeToRefs(boardStore);
 const pageTransitionName = ref('route-none');
 const previousRouteSnapshot = ref<RouteSnapshot | null>(null);
 const layoutMode = computed(() => resolveAppLayout(route.meta.layout));
@@ -67,26 +67,6 @@ const routeBoardId = computed(() => {
   return Number.isFinite(boardId) ? boardId : null;
 });
 const pageTitle = computed(() => getPageTitle(board.value, boards.value, currentBoardId.value, routeBoardId.value));
-const routeRequiresBoardContext = computed(() =>
-  route.matched.some(matchedRoute => matchedRoute.meta.requiresBoardContext === true)
-);
-const hasBoardRouteContext = computed(() => {
-  if (!routeRequiresBoardContext.value) {
-    return true;
-  }
-
-  if (routeBoardId.value === null) {
-    return false;
-  }
-
-  return (
-    !isLoadingBoard.value &&
-    currentBoardId.value === routeBoardId.value &&
-    board.value?.id === routeBoardId.value
-  );
-});
-const hideRootDialogView = computed(() => !hasBoardRouteContext.value);
-
 onMounted(async () => {
   await authStore.initialize();
 });
@@ -133,11 +113,6 @@ watch(
   },
   { immediate: true }
 );
-
-function getViewKey(viewRoute: RouteLocationNormalizedLoaded) {
-  const routeName = typeof viewRoute.name === 'string' ? viewRoute.name : 'route';
-  return `${routeName}:${JSON.stringify(viewRoute.params ?? {})}`;
-}
 
 function toRouteSnapshot(activeRoute: ReturnType<typeof useRoute>): RouteSnapshot {
   const boardIdParam = activeRoute.params.boardId;

@@ -45,9 +45,9 @@ describe('router layout meta mapping', () => {
   });
 
   it('maps board-family routes to APP_LAYOUT_BOARD_WITH_CONVEYOR', () => {
-    expect(findByName('board')?.meta?.layout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
+    expect(findIndexedByName('board')?.nearestLayout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
     expect(findByName('board-archived')?.meta?.layout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
-    expect(findByName('board-card')?.meta?.layout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
+    expect(findIndexedByName('board-card')?.nearestLayout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
   });
 
   it('maps admin roots to APP_LAYOUT_ADMIN', () => {
@@ -78,9 +78,9 @@ describe('router layout meta mapping', () => {
   });
 
   it('maps board context requirement to board-scoped route roots', () => {
-    expect(findByName('board')?.meta?.requiresBoardContext).toBe(true);
+    expect(findIndexedByName('board')?.requiresBoardContext).toBe(true);
     expect(findByName('board-archived')?.meta?.requiresBoardContext).toBe(true);
-    expect(findByName('board-card')?.meta?.requiresBoardContext).toBe(true);
+    expect(findIndexedByName('board-card')?.requiresBoardContext).toBe(true);
     expect(findByPath('/boards/:boardId(\\d+)/admin')?.meta?.requiresBoardContext).toBe(true);
     expect(findByPath('/user-admin')?.meta?.requiresBoardContext).toBeUndefined();
     expect(findByPath('/admin/system')?.meta?.requiresBoardContext).toBeUndefined();
@@ -88,7 +88,6 @@ describe('router layout meta mapping', () => {
 
   it('keeps board deep-link dialog routes in named views', () => {
     const dialogRouteNames = [
-      'board-card',
       'columns-column',
       'tags-new',
       'tags-tag',
@@ -104,6 +103,18 @@ describe('router layout meta mapping', () => {
       expect(indexedRoute?.route.components?.default).toBeDefined();
       expect(indexedRoute?.route.components?.dialog).toBeDefined();
     }
+  });
+
+  it('nests the card dialog beneath the persistent board workspace', () => {
+    const workspaceRoute = findByPath('/boards/:boardId(\\d+)');
+    const boardRoute = findIndexedByName('board');
+    const cardRoute = findIndexedByName('board-card');
+
+    expect(workspaceRoute?.component).toBeDefined();
+    expect(boardRoute?.fullPath).toBe('/boards/:boardId(\\d+)');
+    expect(cardRoute?.fullPath).toBe('/boards/:boardId(\\d+)/card/:cardId(\\d+)');
+    expect(cardRoute?.route.components?.default).toBeUndefined();
+    expect(cardRoute?.route.components?.dialog).toBeDefined();
   });
 
   it('keeps system error-log details in the system-admin named dialog view', () => {

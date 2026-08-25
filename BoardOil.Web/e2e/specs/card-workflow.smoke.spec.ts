@@ -12,13 +12,16 @@ test('create, edit, move, and reload a card', async ({ api, authenticatedPage: p
   await test.step('create the card', async () => {
     await boardPage.createCard('Todo', originalTitle);
     await expect(boardPage.card('Todo', originalTitle)).toBeVisible();
+    await page.getByPlaceholder('Search').fill('smoke card');
   });
 
   await test.step('edit and move the card', async () => {
     await boardPage.openCard('Todo', originalTitle);
+    await expect(page.getByPlaceholder('Search')).toHaveValue('smoke card');
     await boardPage.renameOpenCard(updatedTitle);
     await boardPage.moveOpenCardTo('In Progress');
     await boardPage.saveOpenCard();
+    await expect(page.getByPlaceholder('Search')).toHaveValue('smoke card');
     await expect(boardPage.card('In Progress', updatedTitle)).toBeVisible();
   });
 

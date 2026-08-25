@@ -93,23 +93,27 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/boards/:boardId(\\d+)',
-    name: 'board',
-    component: () => import('./board/views/BoardView.vue'),
-    meta: { requiresAuth: true, requiresBoardContext: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
+    component: () => import('./board/views/BoardWorkspaceView.vue'),
+    meta: { requiresAuth: true, requiresBoardContext: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR },
+    children: [
+      {
+        path: '',
+        name: 'board',
+        components: {}
+      },
+      {
+        path: 'card/:cardId(\\d+)',
+        name: 'board-card',
+        components: {
+          dialog: () => import('./board/components/CardEditorDialog.vue')
+        }
+      }
+    ]
   },
   {
     path: '/boards/:boardId(\\d+)/archived',
     name: 'board-archived',
     component: () => import('./board/views/ArchivedCardsView.vue'),
-    meta: { requiresAuth: true, requiresBoardContext: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
-  },
-  {
-    path: '/boards/:boardId(\\d+)/card/:cardId(\\d+)',
-    name: 'board-card',
-    components: {
-      default: () => import('./board/views/BoardView.vue'),
-      dialog: () => import('./board/components/CardEditorDialog.vue')
-    },
     meta: { requiresAuth: true, requiresBoardContext: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
   },
   {
