@@ -7,6 +7,7 @@ using System.Text.Json;
 using Xunit;
 using ArchivedCardEntity = BoardOil.Data.Abstractions.Entities.EntityArchivedCard;
 using BoardMemberEntity = BoardOil.Data.Abstractions.Entities.EntityBoardMember;
+using CardTypeEntity = BoardOil.Data.Abstractions.Entities.EntityCardType;
 using SlickEntity = BoardOil.Data.Abstractions.Entities.EntitySlick;
 using TagEntity = BoardOil.Data.Abstractions.Entities.EntityTag;
 using UserEntity = BoardOil.Data.Abstractions.Entities.EntityUser;
@@ -166,7 +167,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_WhenSnapshotSlickNoLongerExists_ShouldRecreateAndRestoreSlick()
+    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_WhenSnapshotSlickNoLongerExists_ShouldLeaveSlickUnset()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -203,12 +204,12 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         // Assert
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
-        Assert.NotNull(unarchiveResult.Data!.SlickId);
+        Assert.Null(unarchiveResult.Data!.SlickId);
+        Assert.Null(unarchiveResult.Data.SlickName);
         var restoredCard = await DbContextForAssert.Cards
             .SingleAsync(x => x.BoardId == boardId && x.BoardCardId == unarchiveResult.Data.Id);
-        Assert.NotNull(restoredCard.SlickId);
-        var recreatedSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.Id == restoredCard.SlickId);
-        Assert.Equal("Release train", recreatedSlick.Name);
+        Assert.Null(restoredCard.SlickId);
+        Assert.Empty(await DbContextForAssert.Slicks.Where(x => x.BoardId == boardId).ToListAsync());
     }
 
     [Fact]
@@ -707,7 +708,194 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Null(result.Data!.Card.SlickId);
-        Assert.Equal("Release train", result.Data.Card.SlickName);
+        Assert.Null(result.Data.Card.SlickName);
+    }
+
+    [Fact]
+    public async Task GetArchivedCardAsync_WhenPortableReferencesDifferFromSnapshotIds_ShouldResolveByName()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Wrong column")
+            .AddColumn("Portable column")
+            .Build();
+        var portableCardType = DbContextForArrange.CardTypes.Add(new CardTypeEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Portable type",
+            Emoji = "📦",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+            IsSystem = false,
+        }).Entity;
+        var wrongCardType = DbContextForArrange.CardTypes.Add(new CardTypeEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Wrong type",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+            IsSystem = false,
+        }).Entity;
+        var portableTag = DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Portable tag",
+            NormalisedName = "PORTABLE TAG",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        var wrongTag = DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Wrong tag",
+            NormalisedName = "WRONG TAG",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        var portableSlick = DbContextForArrange.Slicks.Add(new SlickEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Portable slick",
+            NormalisedName = "PORTABLE SLICK",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        var wrongSlick = DbContextForArrange.Slicks.Add(new SlickEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Wrong slick",
+            NormalisedName = "WRONG SLICK",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        await DbContextForArrange.SaveChangesAsync();
+        var capturedAtUtc = new DateTime(2026, 8, 25, 8, 0, 0, DateTimeKind.Utc);
+        var payload = new ArchivedCardSnapshotV1Payload(
+            999_999,
+            111,
+            board.GetColumn("Wrong column").Id,
+            "portable COLUMN",
+            wrongCardType.Id,
+            "portable TYPE",
+            null,
+            "Portable detail",
+            "Desc",
+            "SOURCE-SORT-KEY",
+            [new CardTagDto(wrongTag.Id, wrongTag.Name, wrongTag.StyleName, wrongTag.StylePropertiesJson, null)],
+            ["portable TAG"],
+            capturedAtUtc,
+            capturedAtUtc,
+            SlickId: wrongSlick.Id,
+            SlickName: "portable SLICK");
+        var archivedCard = await SeedArchivedCardAsync(board.BoardId, 111, capturedAtUtc, payload);
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.GetArchivedCardAsync(board.BoardId, archivedCard.OriginalCardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(board.GetColumn("Portable column").Id, result.Data!.Card.BoardColumnId);
+        Assert.Equal(portableCardType.Id, result.Data.Card.CardTypeId);
+        Assert.Equal("Portable type", result.Data.Card.CardTypeName);
+        Assert.Equal(portableTag.Id, Assert.Single(result.Data.Card.Tags).Id);
+        Assert.Equal(portableSlick.Id, result.Data.Card.SlickId);
+        Assert.Equal("Portable slick", result.Data.Card.SlickName);
+    }
+
+    [Fact]
+    public async Task GetArchivedCardAsync_WhenPortableReferencesAreMissing_ShouldUseSafeFallbacksWithoutIds()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Fallback")
+            .AddColumn("Wrong column")
+            .Build();
+        var wrongCardType = DbContextForArrange.CardTypes.Add(new CardTypeEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Wrong type",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+            IsSystem = false,
+        }).Entity;
+        var wrongTag = DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Wrong tag",
+            NormalisedName = "WRONG TAG",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        var wrongSlick = DbContextForArrange.Slicks.Add(new SlickEntity
+        {
+            BoardId = board.BoardId,
+            Name = "Wrong slick",
+            NormalisedName = "WRONG SLICK",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        await DbContextForArrange.SaveChangesAsync();
+        var capturedAtUtc = new DateTime(2026, 8, 25, 8, 0, 0, DateTimeKind.Utc);
+        var payload = new ArchivedCardSnapshotV1Payload(
+            999_999,
+            112,
+            board.GetColumn("Wrong column").Id,
+            "Missing column",
+            wrongCardType.Id,
+            "Missing type",
+            null,
+            "Missing portable references",
+            "Desc",
+            "SOURCE-SORT-KEY",
+            [new CardTagDto(wrongTag.Id, wrongTag.Name, wrongTag.StyleName, wrongTag.StylePropertiesJson, null)],
+            ["Missing tag"],
+            capturedAtUtc,
+            capturedAtUtc,
+            SlickId: wrongSlick.Id,
+            SlickName: "Missing slick");
+        var archivedCard = await SeedArchivedCardAsync(board.BoardId, 112, capturedAtUtc, payload);
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.GetArchivedCardAsync(board.BoardId, archivedCard.OriginalCardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(board.GetColumn("Fallback").Id, result.Data!.Card.BoardColumnId);
+        Assert.Equal(systemCardTypeId, result.Data.Card.CardTypeId);
+        Assert.Empty(result.Data.Card.Tags);
+        Assert.Equal(["Missing tag"], result.Data.Card.TagNames);
+        Assert.Null(result.Data.Card.SlickId);
+        Assert.Null(result.Data.Card.SlickName);
+    }
+
+    private async Task<ArchivedCardEntity> SeedArchivedCardAsync(
+        int boardId,
+        int originalCardId,
+        DateTime archivedAtUtc,
+        ArchivedCardSnapshotV1Payload payload)
+    {
+        var envelope = new ArchivedCardSnapshotEnvelopeV1(
+            ArchivedCardSnapshotSerialiser.SchemaName,
+            ArchivedCardSnapshotSerialiser.CurrentVersion,
+            archivedAtUtc,
+            payload);
+        var archivedCard = DbContextForArrange.ArchivedCards.Add(new ArchivedCardEntity
+        {
+            BoardId = boardId,
+            OriginalCardId = originalCardId,
+            ArchivedAtUtc = archivedAtUtc,
+            SnapshotJson = JsonSerializer.Serialize(envelope, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+            SearchTitle = payload.Title,
+            SearchTagsJson = JsonSerializer.Serialize(payload.TagNames),
+            SearchTextNormalised = payload.Title.ToUpperInvariant(),
+        }).Entity;
+        await DbContextForArrange.SaveChangesAsync();
+        return archivedCard;
     }
 
     private async Task SeedTagsForArrangeAsync(int boardId, params string[] tagNames)

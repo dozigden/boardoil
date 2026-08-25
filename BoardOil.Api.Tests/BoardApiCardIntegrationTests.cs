@@ -475,7 +475,7 @@ public sealed class BoardApiCardIntegrationTests
     public async Task CardEndpoints_Unarchive_ShouldReturnRestoredCardContract()
     {
         // Arrange
-        var createdColumnId = await SeedBoardColumnAsync("Todo");
+        var createdColumnId = await SeedBoardColumnAsync("Archive Todo");
         var slickCreateResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/slicks",
             new CreateSlickRequest("Release train", "presets", """{"presetIndex":2}"""));
@@ -521,7 +521,7 @@ public sealed class BoardApiCardIntegrationTests
     public async Task CardEndpoints_Unarchive_WithExhaustedLeadingKeys_ShouldReturnRestoredCardContract()
     {
         // Arrange
-        var columnId = await SeedBoardColumnAsync("Todo");
+        var columnId = await SeedBoardColumnAsync("Restore Todo");
         var archivedCardId = await SeedBoardCardAsync(columnId, "Restore me", "Desc");
         var archiveResponse = await Client.PostAsync($"/api/boards/1/cards/{archivedCardId}/archive", content: null);
         archiveResponse.EnsureSuccessStatusCode();

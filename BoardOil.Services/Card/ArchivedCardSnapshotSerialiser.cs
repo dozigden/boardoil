@@ -189,6 +189,7 @@ public static class ArchivedCardSnapshotSerialiser
         snapshot = new ArchivedCardSnapshotCurrentDto(
             card,
             payload.Comments?.ToList() ?? [],
+            payload.OriginalColumnName,
             payload.AssignedUserEmail);
         return true;
     }
@@ -238,4 +239,5 @@ public sealed record ArchivedCardSnapshotKnownPayload(
 public sealed record ArchivedCardSnapshotCurrentDto(
     CardDto Card,
     IReadOnlyList<ArchivedCardSnapshotCommentV1Payload> Comments,
+    string? OriginalColumnName,
     string? AssignedUserEmail);

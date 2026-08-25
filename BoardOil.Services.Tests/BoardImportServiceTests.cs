@@ -3,6 +3,7 @@ using System.Text.Json;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Board;
+using BoardOil.Contracts.Card;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Board;
 using BoardOil.Services.Card;
@@ -441,6 +442,128 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
         Assert.Equal(ActorUserId, unarchiveResult.Data!.AssignedUserId);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WithArchivedPortableReferences_ShouldHydrateAndRestoreDestinationEntities()
+    {
+        // Arrange
+        var sourceBoard = CreateBoard("Source Board")
+            .AddColumn("Fallback")
+            .AddColumn("Portable column")
+            .AddCard("Portable archive", "Description")
+            .Build();
+        var sourceBoardId = sourceBoard.BoardId;
+        var sourceCard = sourceBoard.GetCard("Portable column", "Portable archive");
+        var sourceCardType = DbContextForArrange.CardTypes.Add(new EntityCardType
+        {
+            BoardId = sourceBoardId,
+            Name = "Portable type",
+            Emoji = "📦",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+            IsSystem = false,
+        }).Entity;
+        var sourceTag = DbContextForArrange.Tags.Add(new EntityTag
+        {
+            BoardId = sourceBoardId,
+            Name = "Portable tag",
+            NormalisedName = "PORTABLE TAG",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        var sourceSlick = DbContextForArrange.Slicks.Add(new EntitySlick
+        {
+            BoardId = sourceBoardId,
+            Name = "Portable slick",
+            NormalisedName = "PORTABLE SLICK",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        await DbContextForArrange.SaveChangesAsync();
+        var cardService = ResolveService<CardService>();
+        var updateResult = await cardService.UpdateCardAsync(
+            sourceBoardId,
+            sourceCard.RequireBoardCardId(),
+            new UpdateCardRequest(
+                "Portable archive",
+                "Description",
+                [sourceTag.Name],
+                sourceCardType.Id,
+                SlickName: sourceSlick.Name),
+            ActorUserId);
+        Assert.True(updateResult.Success);
+        DbContextForArrange.CardComments.Add(new EntityCardComment
+        {
+            CardId = sourceCard.Id,
+            AuthorUserId = ActorUserId,
+            Text = "Portable author",
+            PostedAtUtc = new DateTime(2026, 8, 25, 8, 0, 0, DateTimeKind.Utc),
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var archiveService = ResolveService<ICardArchiveService>();
+        var archiveResult = await archiveService.ArchiveCardAsync(
+            sourceBoardId,
+            sourceCard.RequireBoardCardId(),
+            ActorUserId);
+        Assert.True(archiveResult.Success);
+        Assert.NotNull(archiveResult.Data);
+        var exportedSnapshotJson = archiveResult.Data!.SnapshotJson;
+        var exportService = ResolveService<IBoardExportService>();
+        var exportResult = await exportService.ExportBoardAsync(sourceBoardId, ActorUserId, "0.4.0");
+        Assert.True(exportResult.Success);
+        Assert.NotNull(exportResult.Data);
+        var importService = ResolveService<IBoardPackageImportService>();
+        var importResult = await importService.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest("Imported Board", exportResult.Data!.Content),
+            ActorUserId);
+        Assert.True(importResult.Success);
+        Assert.NotNull(importResult.Data);
+        var importedBoardId = importResult.Data!.Id;
+        var importedColumn = await DbContextForAssert.Columns
+            .SingleAsync(x => x.BoardId == importedBoardId && x.Title == "Portable column");
+        var importedCardType = await DbContextForAssert.CardTypes
+            .SingleAsync(x => x.BoardId == importedBoardId && x.Name == "Portable type");
+        var importedTag = await DbContextForAssert.Tags
+            .SingleAsync(x => x.BoardId == importedBoardId && x.Name == "Portable tag");
+        var importedSlick = await DbContextForAssert.Slicks
+            .SingleAsync(x => x.BoardId == importedBoardId && x.Name == "Portable slick");
+        var importedArchivedCard = await DbContextForAssert.ArchivedCards
+            .SingleAsync(x => x.BoardId == importedBoardId);
+        Assert.Equal(exportedSnapshotJson, importedArchivedCard.SnapshotJson);
+        Assert.NotEqual(sourceBoard.GetColumn("Portable column").Id, importedColumn.Id);
+        Assert.NotEqual(sourceCardType.Id, importedCardType.Id);
+        Assert.NotEqual(sourceTag.Id, importedTag.Id);
+        Assert.NotEqual(sourceSlick.Id, importedSlick.Id);
+
+        // Act
+        var detailResult = await archiveService.GetArchivedCardAsync(
+            importedBoardId,
+            importedArchivedCard.OriginalCardId,
+            ActorUserId);
+        var unarchiveResult = await archiveService.UnarchiveCardAsync(
+            importedBoardId,
+            importedArchivedCard.OriginalCardId,
+            ActorUserId);
+
+        // Assert
+        Assert.True(detailResult.Success);
+        Assert.NotNull(detailResult.Data);
+        Assert.Equal(importedColumn.Id, detailResult.Data!.Card.BoardColumnId);
+        Assert.Equal(importedCardType.Id, detailResult.Data.Card.CardTypeId);
+        Assert.Equal(importedTag.Id, Assert.Single(detailResult.Data.Card.Tags).Id);
+        Assert.Equal(importedSlick.Id, detailResult.Data.Card.SlickId);
+        Assert.True(unarchiveResult.Success);
+        Assert.NotNull(unarchiveResult.Data);
+        Assert.Equal(importedColumn.Id, unarchiveResult.Data!.BoardColumnId);
+        Assert.Equal(importedCardType.Id, unarchiveResult.Data.CardTypeId);
+        Assert.Equal(importedSlick.Id, unarchiveResult.Data.SlickId);
+        var restoredCard = await DbContextForAssert.Cards
+            .Include(x => x.CardTags)
+            .Include(x => x.Comments)
+            .SingleAsync(x => x.BoardId == importedBoardId && x.BoardCardId == importedArchivedCard.OriginalCardId);
+        Assert.Equal(importedTag.Id, Assert.Single(restoredCard.CardTags).TagId);
+        Assert.Equal(ActorUserId, Assert.Single(restoredCard.Comments).AuthorUserId);
     }
 
     [Theory]

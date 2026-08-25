@@ -13,7 +13,6 @@ using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
-using BoardOil.Services.Style;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Users;
 using System.Text;
@@ -34,7 +33,6 @@ public sealed class CardArchiveService(
     ITagRepository tagRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
-    IBoardStyleDefaultService styleDefaultService,
     CardInsertionOrderPlanner insertionOrderPlanner,
     IDbContextScopeFactory scopeFactory) : ICardArchiveService
 {
@@ -98,6 +96,7 @@ public sealed class CardArchiveService(
         var currentSnapshotCard = await ResolveCurrentSnapshotCardAsync(
             boardId,
             snapshot.Card,
+            snapshot.OriginalColumnName,
             snapshot.AssignedUserEmail);
         currentSnapshotCard = currentSnapshotCard with { Id = archivedCard.OriginalCardId };
         return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard));
@@ -156,14 +155,13 @@ public sealed class CardArchiveService(
         }
         var snapshotCard = snapshot.Card;
 
-        var targetColumn = await ResolveRestoreColumnAsync(boardId, snapshotCard.BoardColumnId);
+        var targetColumn = await ResolveRestoreColumnAsync(boardId, snapshot.OriginalColumnName);
         if (targetColumn is null)
         {
             return ApiErrors.BadRequest("Board does not contain any columns.");
         }
 
-        var selectedCardType = await cardTypeRepository.GetByIdInBoardAsync(boardId, snapshotCard.CardTypeId)
-            ?? await cardTypeRepository.GetSystemByBoardIdAsync(boardId);
+        var selectedCardType = await ResolveCardTypeAsync(boardId, snapshotCard.CardTypeName);
         if (selectedCardType is null)
         {
             return ApiErrors.InternalError("System card type not found for board.");
@@ -177,11 +175,10 @@ public sealed class CardArchiveService(
         }
 
         var title = snapshotCard.Title.Trim();
-        var now = DateTime.UtcNow;
         var cardsInColumn = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
         var resolvedAssignedUser = await ResolveAssignedUserAsync(boardId, snapshot.AssignedUserEmail);
-        var resolvedSlick = await ResolveSlickForRestoreAsync(boardId, snapshotCard.SlickId, snapshotCard.SlickName);
-        var resolvedTags = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames, now);
+        var resolvedSlick = await ResolveSlickByNameAsync(boardId, snapshotCard.SlickName);
+        var resolvedTags = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames);
         var restoredCard = new EntityBoardCard
         {
             BoardId = boardId,
@@ -212,11 +209,10 @@ public sealed class CardArchiveService(
             assignment.Card.SortKey = assignment.SortKey;
         }
 
-        var commentAuthorByUserId = new Dictionary<int, EntityUser?>();
         var commentAuthorByNormalisedEmail = new Dictionary<string, EntityUser?>(StringComparer.Ordinal);
         foreach (var snapshotComment in snapshot.Comments)
         {
-            var author = await ResolveCommentAuthorForRestoreAsync(snapshotComment, commentAuthorByUserId, commentAuthorByNormalisedEmail);
+            var author = await ResolveCommentAuthorForRestoreAsync(snapshotComment, commentAuthorByNormalisedEmail);
             var restoredComment = new EntityCardComment
             {
                 Card = restoredCard,
@@ -337,41 +333,70 @@ public sealed class CardArchiveService(
     private async Task<CardDto> ResolveCurrentSnapshotCardAsync(
         int boardId,
         CardDto snapshotCard,
+        string? originalColumnName,
         string? assignedUserEmail)
     {
-        var resolvedSlick = await ResolveSnapshotSlickReferenceAsync(boardId, snapshotCard.SlickId, snapshotCard.SlickName);
+        var resolvedColumn = await ResolveRestoreColumnAsync(boardId, originalColumnName);
+        var resolvedCardType = await ResolveCardTypeAsync(boardId, snapshotCard.CardTypeName);
+        var resolvedTags = await ResolveSnapshotTagReferencesAsync(boardId, snapshotCard.TagNames);
+        var resolvedSlick = await ResolveSlickByNameAsync(boardId, snapshotCard.SlickName);
         var assignedUser = await ResolveAssignedUserAsync(boardId, assignedUserEmail);
+        var resolvedCard = snapshotCard with
+        {
+            BoardColumnId = resolvedColumn?.Id ?? 0,
+            CardTypeId = resolvedCardType?.Id ?? 0,
+            CardTypeName = resolvedCardType?.Name ?? snapshotCard.CardTypeName,
+            CardTypeEmoji = resolvedCardType?.Emoji,
+            Tags = resolvedTags,
+            AssignedUserId = null,
+            AssignedUserDisplayName = null,
+            AssignedUserImageRelativePath = null,
+            SlickId = resolvedSlick?.Id,
+            SlickName = resolvedSlick?.Name
+        };
         if (assignedUser is null)
         {
-            return snapshotCard with
-            {
-                AssignedUserId = null,
-                AssignedUserDisplayName = null,
-                SlickId = resolvedSlick.SlickId,
-                SlickName = resolvedSlick.SlickName
-            };
+            return resolvedCard;
         }
 
-        return snapshotCard with
+        return resolvedCard with
         {
             AssignedUserId = assignedUser.Id,
             AssignedUserDisplayName = assignedUser.DisplayName,
-            AssignedUserImageRelativePath = (await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, assignedUser.Id))?.RelativePath,
-            SlickId = resolvedSlick.SlickId,
-            SlickName = resolvedSlick.SlickName
+            AssignedUserImageRelativePath = (await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, assignedUser.Id))?.RelativePath
         };
     }
 
-    private async Task<EntityBoardColumn?> ResolveRestoreColumnAsync(int boardId, int snapshotBoardColumnId)
+    private async Task<EntityBoardColumn?> ResolveRestoreColumnAsync(int boardId, string? originalColumnName)
     {
-        var snapshotColumn = columnRepository.Get(snapshotBoardColumnId);
-        if (snapshotColumn is not null && snapshotColumn.BoardId == boardId)
+        var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
+        if (!string.IsNullOrWhiteSpace(originalColumnName))
         {
-            return snapshotColumn;
+            var canonicalColumnName = originalColumnName.Trim();
+            var matchingColumn = columns.FirstOrDefault(
+                x => string.Equals(x.Title, canonicalColumnName, StringComparison.OrdinalIgnoreCase));
+            if (matchingColumn is not null)
+            {
+                return matchingColumn;
+            }
         }
 
-        var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
         return columns.FirstOrDefault();
+    }
+
+    private async Task<EntityCardType?> ResolveCardTypeAsync(int boardId, string? cardTypeName)
+    {
+        if (!string.IsNullOrWhiteSpace(cardTypeName))
+        {
+            var normalisedName = cardTypeName.Trim().ToUpperInvariant();
+            var matchingCardType = await cardTypeRepository.GetByNormalisedNameAsync(boardId, normalisedName);
+            if (matchingCardType is not null)
+            {
+                return matchingCardType;
+            }
+        }
+
+        return await cardTypeRepository.GetSystemByBoardIdAsync(boardId);
     }
 
     private async Task<EntityUser?> ResolveAssignedUserAsync(int boardId, string? assignedUserEmail)
@@ -394,44 +419,41 @@ public sealed class CardArchiveService(
             : null;
     }
 
-    private async Task<EntitySlick?> ResolveSlickForRestoreAsync(int boardId, int? snapshotSlickId, string? snapshotSlickName)
+    private async Task<EntitySlick?> ResolveSlickByNameAsync(int boardId, string? snapshotSlickName)
     {
-        if (!string.IsNullOrWhiteSpace(snapshotSlickName))
-        {
-            return await CardSlickMutation.ResolveSlickAsync(boardId, snapshotSlickName, slickRepository, styleDefaultService);
-        }
-
-        if (snapshotSlickId is null)
+        if (string.IsNullOrWhiteSpace(snapshotSlickName))
         {
             return null;
         }
 
-        return await slickRepository.GetByIdInBoardAsync(boardId, snapshotSlickId.Value);
+        var normalisedName = snapshotSlickName.Trim().ToUpperInvariant();
+        return await slickRepository.GetByNormalisedNameAsync(boardId, normalisedName);
     }
 
-    private async Task<ResolvedSlickReference> ResolveSnapshotSlickReferenceAsync(int boardId, int? snapshotSlickId, string? snapshotSlickName)
+    private async Task<IReadOnlyList<CardTagDto>> ResolveSnapshotTagReferencesAsync(
+        int boardId,
+        IReadOnlyList<string> tagNames)
     {
-        if (!string.IsNullOrWhiteSpace(snapshotSlickName))
+        var resolvedTags = new List<CardTagDto>();
+        var processedNormalisedNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var tagName in NormaliseTagNames(tagNames))
         {
-            var canonicalSlickName = snapshotSlickName.Trim();
-            var existingByName = await slickRepository.GetByNormalisedNameAsync(boardId, canonicalSlickName.ToUpperInvariant());
-            if (existingByName is null)
+            var normalisedName = tagName.ToUpperInvariant();
+            if (!processedNormalisedNames.Add(normalisedName))
             {
-                return new ResolvedSlickReference(null, canonicalSlickName);
+                continue;
             }
 
-            return new ResolvedSlickReference(existingByName.Id, existingByName.Name);
+            var tag = await tagRepository.GetByNormalisedNameAsync(boardId, normalisedName);
+            if (tag is not null)
+            {
+                resolvedTags.Add(new CardTagDto(tag.Id, tag.Name, tag.StyleName, tag.StylePropertiesJson, tag.Emoji));
+            }
         }
 
-        if (snapshotSlickId is null)
-        {
-            return new ResolvedSlickReference(null, null);
-        }
-
-        var selectedSlick = await slickRepository.GetByIdInBoardAsync(boardId, snapshotSlickId.Value);
-        return selectedSlick is null
-            ? new ResolvedSlickReference(null, null)
-            : new ResolvedSlickReference(selectedSlick.Id, selectedSlick.Name);
+        return resolvedTags
+            .OrderBy(x => x.Name, StringComparer.Ordinal)
+            .ToList();
     }
 
     private async Task<CardDto> EnrichAssignedUserImageAsync(CardDto card)
@@ -445,7 +467,7 @@ public sealed class CardArchiveService(
         return card.WithAssignedUserImageRelativePath(image?.RelativePath);
     }
 
-    private async Task<IReadOnlyList<EntityTag>> ResolveTagsForRestoreAsync(int boardId, IReadOnlyList<string> tagNames, DateTime now)
+    private async Task<IReadOnlyList<EntityTag>> ResolveTagsForRestoreAsync(int boardId, IReadOnlyList<string> tagNames)
     {
         var resolvedTags = new List<EntityTag>();
         var processedNormalisedNames = new HashSet<string>(StringComparer.Ordinal);
@@ -499,30 +521,8 @@ public sealed class CardArchiveService(
 
     private async Task<EntityUser?> ResolveCommentAuthorForRestoreAsync(
         ArchivedCardSnapshotCommentV1Payload snapshotComment,
-        IDictionary<int, EntityUser?> authorByUserId,
         IDictionary<string, EntityUser?> authorByNormalisedEmail)
     {
-        if (snapshotComment.AuthorUserId.HasValue)
-        {
-            var authorUserId = snapshotComment.AuthorUserId.Value;
-            if (authorByUserId.TryGetValue(authorUserId, out var cachedAuthor))
-            {
-                return cachedAuthor;
-            }
-
-            var user = userRepository.Get(authorUserId);
-            authorByUserId[authorUserId] = user;
-            if (user is not null && !string.IsNullOrWhiteSpace(user.NormalisedEmail))
-            {
-                authorByNormalisedEmail.TryAdd(user.NormalisedEmail, user);
-            }
-
-            if (user is not null)
-            {
-                return user;
-            }
-        }
-
         if (string.IsNullOrWhiteSpace(snapshotComment.AuthorEmail))
         {
             return null;
@@ -541,11 +541,6 @@ public sealed class CardArchiveService(
 
         var emailUser = await userRepository.GetByNormalisedEmailAsync(normalisedEmail);
         authorByNormalisedEmail[normalisedEmail] = emailUser;
-        if (emailUser is not null)
-        {
-            authorByUserId[emailUser.Id] = emailUser;
-        }
-
         return emailUser;
     }
 
@@ -683,8 +678,6 @@ public sealed class CardArchiveService(
     private sealed record ArchiveExecutionResult(
         ApiError? Error,
         IReadOnlyList<EntityArchivedCard>? ArchivedCards);
-
-    private readonly record struct ResolvedSlickReference(int? SlickId, string? SlickName);
 
     private sealed record ArchivedCardBuildResult(
         EntityArchivedCard? ArchivedCard,

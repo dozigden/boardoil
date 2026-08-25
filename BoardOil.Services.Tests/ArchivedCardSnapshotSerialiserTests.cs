@@ -82,6 +82,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         var parsedSnapshot = ArchivedCardSnapshotSerialiser.TryBuildCurrentSnapshot(snapshotJson, out var snapshot, out error);
         Assert.True(parsedSnapshot);
         Assert.NotNull(snapshot);
+        Assert.Equal(card.BoardColumn.Title, snapshot!.OriginalColumnName);
         Assert.Equal(card.AssignedUser!.Email, snapshot!.AssignedUserEmail);
         var snapshotComment = Assert.Single(snapshot.Comments);
         Assert.Equal("Archived note", snapshotComment.Text);

@@ -1,12 +1,10 @@
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
-using BoardOil.Contracts.Card;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using System.Text.Json;
 using Xunit;
 using ArchivedCardEntity = BoardOil.Data.Abstractions.Entities.EntityArchivedCard;
 
@@ -14,8 +12,6 @@ namespace BoardOil.Services.Tests;
 
 public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
 {
-    private static readonly JsonSerializerOptions SnapshotJsonOptions = new(JsonSerializerDefaults.Web);
-
     [Fact]
     public async Task UnarchiveCardAsync_WhenArchivedCardV1Exists_ShouldRestoreLiveCardAndRemoveArchive()
     {
@@ -25,13 +21,37 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
             .Build();
         var boardId = board.BoardId;
         var todoColumnId = board.GetColumn("Todo").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var snapshotJson =
+            $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{boardId}},
+                "originalCardId": 12345,
+                "boardColumnId": {{todoColumnId}},
+                "originalColumnName": "Todo",
+                "cardTypeId": {{systemCardTypeId}},
+                "cardTypeName": "Story",
+                "cardTypeEmoji": null,
+                "title": "Archive me",
+                "description": "Desc",
+                "sortKey": "A",
+                "tags": [],
+                "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": null
+              }
+            }
+            """;
         var archivedCard = await SeedArchivedCardV1Async(
             boardId,
             originalCardId: 12345,
-            boardColumnId: todoColumnId,
-            cardTypeId: await GetSystemCardTypeIdForBoardAsync(boardId),
             title: "Archive me",
-            description: "Desc");
+            snapshotJson: snapshotJson);
         var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<BoardOil.Abstractions.IBoardEvents>());
         var service = ResolveService<ICardArchiveService>();
 
@@ -127,7 +147,7 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         Assert.Equal("Frozen legacy V1", result.Data.Title);
         Assert.Equal("Legacy description", result.Data.Description);
         Assert.Equal(["Legacy"], result.Data.TagNames);
-        Assert.Equal("Legacy slick", result.Data.SlickName);
+        Assert.Null(result.Data.SlickName);
         Assert.Equal("https://example.test/legacy", result.Data.ExternalUrl);
 
         var restoredCard = await DbContextForAssert.Cards
@@ -154,13 +174,37 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         cardA.SortKey = "00000000000000000000";
         cardB.SortKey = "00000000000000000001";
         await DbContextForArrange.SaveChangesAsync();
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var snapshotJson =
+            $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{boardId}},
+                "originalCardId": 12346,
+                "boardColumnId": {{todoColumnId}},
+                "originalColumnName": "Todo",
+                "cardTypeId": {{systemCardTypeId}},
+                "cardTypeName": "Story",
+                "cardTypeEmoji": null,
+                "title": "Restored",
+                "description": "Desc",
+                "sortKey": "A",
+                "tags": [],
+                "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": null
+              }
+            }
+            """;
         var archivedCard = await SeedArchivedCardV1Async(
             boardId,
             originalCardId: 12346,
-            boardColumnId: todoColumnId,
-            cardTypeId: await GetSystemCardTypeIdForBoardAsync(boardId),
             title: "Restored",
-            description: "Desc");
+            snapshotJson: snapshotJson);
         var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<BoardOil.Abstractions.IBoardEvents>());
         var service = ResolveService<ICardArchiveService>();
 
@@ -185,7 +229,7 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
     }
 
     [Fact]
-    public async Task UnarchiveCardAsync_WhenArchivedCardV1ContainsComments_ShouldRestoreComments()
+    public async Task UnarchiveCardAsync_WhenArchivedCardV1CommentsLackAuthorEmail_ShouldRestoreCommentsUnattributed()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -194,27 +238,52 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         var boardId = board.BoardId;
         var todoColumnId = board.GetColumn("Todo").Id;
         var capturedAtUtc = new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var snapshotJson =
+            $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{boardId}},
+                "originalCardId": 777,
+                "boardColumnId": {{todoColumnId}},
+                "originalColumnName": "Todo",
+                "cardTypeId": {{systemCardTypeId}},
+                "cardTypeName": "Story",
+                "cardTypeEmoji": null,
+                "title": "Archived with comments",
+                "description": "Desc",
+                "sortKey": "A",
+                "tags": [],
+                "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": null,
+                "comments": [
+                  {
+                    "text": "Known author comment",
+                    "createdAtUtc": "2026-04-26T12:00:00Z",
+                    "authorUserId": {{ActorUserId}},
+                    "authorEmail": null
+                  },
+                  {
+                    "text": "Unknown author comment",
+                    "createdAtUtc": "2026-04-26T12:01:00Z",
+                    "authorUserId": null,
+                    "authorEmail": null
+                  }
+                ]
+              }
+            }
+            """;
         var archivedCard = await SeedArchivedCardV1Async(
             boardId,
             originalCardId: 777,
-            boardColumnId: todoColumnId,
-            cardTypeId: await GetSystemCardTypeIdForBoardAsync(boardId),
             title: "Archived with comments",
-            description: "Desc",
-            capturedAtUtc: capturedAtUtc,
-            comments:
-            [
-                new ArchivedCardSnapshotCommentV1Payload(
-                    "Known author comment",
-                    capturedAtUtc,
-                    ActorUserId,
-                    null),
-                new ArchivedCardSnapshotCommentV1Payload(
-                    "Unknown author comment",
-                    capturedAtUtc.AddMinutes(1),
-                    null,
-                    null)
-            ]);
+            snapshotJson: snapshotJson,
+            archivedAtUtc: capturedAtUtc);
         var service = ResolveService<ICardArchiveService>();
 
         // Act
@@ -233,7 +302,7 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
             .ToListAsync();
         Assert.Equal(2, restoredComments.Count);
         Assert.Equal("Known author comment", restoredComments[0].Text);
-        Assert.Equal(ActorUserId, restoredComments[0].AuthorUserId);
+        Assert.Null(restoredComments[0].AuthorUserId);
         Assert.Equal("Unknown author comment", restoredComments[1].Text);
         Assert.Null(restoredComments[1].AuthorUserId);
     }
@@ -245,15 +314,40 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .Build();
+        var boardId = board.BoardId;
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var snapshotJson =
+            $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{boardId}},
+                "originalCardId": 779,
+                "boardColumnId": {{todoColumnId}},
+                "originalColumnName": "Todo",
+                "cardTypeId": {{systemCardTypeId}},
+                "cardTypeName": "Story",
+                "cardTypeEmoji": null,
+                "title": "Archived with portable assignee",
+                "description": "Desc",
+                "sortKey": "A",
+                "tags": [],
+                "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": 999999,
+                "assignedUserEmail": "ACTOR@LOCALHOST"
+              }
+            }
+            """;
         var archivedCard = await SeedArchivedCardV1Async(
-            board.BoardId,
+            boardId,
             originalCardId: 779,
-            boardColumnId: board.GetColumn("Todo").Id,
-            cardTypeId: await GetSystemCardTypeIdForBoardAsync(board.BoardId),
             title: "Archived with portable assignee",
-            description: "Desc",
-            assignedUserId: 999_999,
-            assignedUserEmail: "ACTOR@LOCALHOST");
+            snapshotJson: snapshotJson);
         var service = ResolveService<ICardArchiveService>();
 
         // Act
@@ -272,14 +366,39 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .Build();
+        var boardId = board.BoardId;
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var snapshotJson =
+            $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{boardId}},
+                "originalCardId": 780,
+                "boardColumnId": {{todoColumnId}},
+                "originalColumnName": "Todo",
+                "cardTypeId": {{systemCardTypeId}},
+                "cardTypeName": "Story",
+                "cardTypeEmoji": null,
+                "title": "Legacy archived assignee",
+                "description": "Desc",
+                "sortKey": "A",
+                "tags": [],
+                "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": {{ActorUserId}}
+              }
+            }
+            """;
         var archivedCard = await SeedArchivedCardV1Async(
-            board.BoardId,
+            boardId,
             originalCardId: 780,
-            boardColumnId: board.GetColumn("Todo").Id,
-            cardTypeId: await GetSystemCardTypeIdForBoardAsync(board.BoardId),
             title: "Legacy archived assignee",
-            description: "Desc",
-            assignedUserId: ActorUserId);
+            snapshotJson: snapshotJson);
         var service = ResolveService<ICardArchiveService>();
 
         // Act
@@ -292,7 +411,7 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
     }
 
     [Fact]
-    public async Task UnarchiveCardAsync_WhenArchivedCardV1CommentAuthorFallsBackToEmail_ShouldRelinkAuthor()
+    public async Task UnarchiveCardAsync_WhenArchivedCardV1CommentAuthorEmailMatches_ShouldRelinkAuthor()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -301,22 +420,46 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         var boardId = board.BoardId;
         var todoColumnId = board.GetColumn("Todo").Id;
         var capturedAtUtc = new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var snapshotJson =
+            $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{boardId}},
+                "originalCardId": 778,
+                "boardColumnId": {{todoColumnId}},
+                "originalColumnName": "Todo",
+                "cardTypeId": {{systemCardTypeId}},
+                "cardTypeName": "Story",
+                "cardTypeEmoji": null,
+                "title": "Archived with email-linked comment",
+                "description": "Desc",
+                "sortKey": "A",
+                "tags": [],
+                "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": null,
+                "comments": [
+                  {
+                    "text": "Email linked comment",
+                    "createdAtUtc": "2026-04-26T12:00:00Z",
+                    "authorUserId": 999999,
+                    "authorEmail": "ACTOR@LOCALHOST"
+                  }
+                ]
+              }
+            }
+            """;
         var archivedCard = await SeedArchivedCardV1Async(
             boardId,
             originalCardId: 778,
-            boardColumnId: todoColumnId,
-            cardTypeId: await GetSystemCardTypeIdForBoardAsync(boardId),
             title: "Archived with email-linked comment",
-            description: "Desc",
-            capturedAtUtc: capturedAtUtc,
-            comments:
-            [
-                new ArchivedCardSnapshotCommentV1Payload(
-                    "Email linked comment",
-                    capturedAtUtc,
-                    999_999,
-                    "ACTOR@LOCALHOST")
-            ]);
+            snapshotJson: snapshotJson,
+            archivedAtUtc: capturedAtUtc);
         var service = ResolveService<ICardArchiveService>();
 
         // Act
@@ -362,14 +505,38 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
             .Build();
         var boardId = board.BoardId;
         var todoColumnId = board.GetColumn("Todo").Id;
+        var doingColumnId = board.GetColumn("Doing").Id;
         var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var snapshotJson =
+            $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{boardId}},
+                "originalCardId": 12346,
+                "boardColumnId": {{doingColumnId}},
+                "originalColumnName": "Missing column",
+                "cardTypeId": {{systemCardTypeId}},
+                "cardTypeName": "Story",
+                "cardTypeEmoji": null,
+                "title": "Archive me",
+                "description": "Desc",
+                "sortKey": "A",
+                "tags": [],
+                "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": null
+              }
+            }
+            """;
         var archivedCard = await SeedArchivedCardV1Async(
             boardId,
             originalCardId: 12346,
-            boardColumnId: 999999,
-            cardTypeId: systemCardTypeId,
             title: "Archive me",
-            description: "Desc");
+            snapshotJson: snapshotJson);
         var service = ResolveService<ICardArchiveService>();
 
         // Act
@@ -402,16 +569,37 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         await DbContextForArrange.SaveChangesAsync();
 
         var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var snapshotJson =
+            $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{boardId}},
+                "originalCardId": 12347,
+                "boardColumnId": {{todoColumnId}},
+                "originalColumnName": "Todo",
+                "cardTypeId": {{customCardType.Id}},
+                "cardTypeName": "Missing type",
+                "cardTypeEmoji": null,
+                "title": "Archive me",
+                "description": "Desc",
+                "sortKey": "A",
+                "tags": [],
+                "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": null
+              }
+            }
+            """;
         var archivedCard = await SeedArchivedCardV1Async(
             boardId,
             originalCardId: 12347,
-            boardColumnId: board.GetColumn("Todo").Id,
-            cardTypeId: customCardType.Id,
             title: "Archive me",
-            description: "Desc");
-
-        DbContextForArrange.CardTypes.Remove(customCardType);
-        await DbContextForArrange.SaveChangesAsync();
+            snapshotJson: snapshotJson);
 
         var service = ResolveService<ICardArchiveService>();
 
@@ -422,6 +610,232 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
         Assert.Equal(systemCardTypeId, unarchiveResult.Data!.CardTypeId);
+        Assert.NotEqual(customCardType.Id, unarchiveResult.Data.CardTypeId);
+    }
+
+    [Fact]
+    public async Task UnarchiveCardAsync_WhenPortableReferencesDifferFromSnapshotIds_ShouldResolveByNameAndEmail()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Fallback")
+            .AddColumn("Portable column")
+            .Build();
+        var boardId = board.BoardId;
+        var portableCardType = DbContextForArrange.CardTypes.Add(new EntityCardType
+        {
+            BoardId = boardId,
+            Name = "Portable type",
+            Emoji = "📦",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+            IsSystem = false,
+        }).Entity;
+        var wrongCardType = DbContextForArrange.CardTypes.Add(new EntityCardType
+        {
+            BoardId = boardId,
+            Name = "Wrong type",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+            IsSystem = false,
+        }).Entity;
+        var portableTag = DbContextForArrange.Tags.Add(new EntityTag
+        {
+            BoardId = boardId,
+            Name = "Portable tag",
+            NormalisedName = "PORTABLE TAG",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        var wrongTag = DbContextForArrange.Tags.Add(new EntityTag
+        {
+            BoardId = boardId,
+            Name = "Wrong tag",
+            NormalisedName = "WRONG TAG",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        var portableSlick = DbContextForArrange.Slicks.Add(new EntitySlick
+        {
+            BoardId = boardId,
+            Name = "Portable slick",
+            NormalisedName = "PORTABLE SLICK",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        var wrongSlick = DbContextForArrange.Slicks.Add(new EntitySlick
+        {
+            BoardId = boardId,
+            Name = "Wrong slick",
+            NormalisedName = "WRONG SLICK",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        await DbContextForArrange.SaveChangesAsync();
+        var capturedAtUtc = new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
+        var fallbackColumnId = board.GetColumn("Fallback").Id;
+        var snapshotJson =
+            $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{boardId}},
+                "originalCardId": 12348,
+                "boardColumnId": {{fallbackColumnId}},
+                "originalColumnName": "portable COLUMN",
+                "cardTypeId": {{wrongCardType.Id}},
+                "cardTypeName": "portable TYPE",
+                "cardTypeEmoji": null,
+                "title": "Portable restore",
+                "description": "Desc",
+                "sortKey": "SNAPSHOT-SORT-KEY",
+                "tags": [
+                  {
+                    "id": {{wrongTag.Id}},
+                    "name": "Wrong tag",
+                    "styleName": "solid",
+                    "stylePropertiesJson": "{}",
+                    "emoji": null
+                  }
+                ],
+                "tagNames": ["portable TAG"],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": null,
+                "comments": [
+                  {
+                    "text": "Portable author",
+                    "createdAtUtc": "2026-04-26T12:00:00Z",
+                    "authorUserId": 999999,
+                    "authorEmail": "ACTOR@LOCALHOST"
+                  }
+                ],
+                "slickId": {{wrongSlick.Id}},
+                "slickName": "portable SLICK"
+              }
+            }
+            """;
+        var archivedCard = await SeedArchivedCardV1Async(
+            boardId,
+            originalCardId: 12348,
+            title: "Portable restore",
+            snapshotJson: snapshotJson,
+            archivedAtUtc: capturedAtUtc);
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.UnarchiveCardAsync(boardId, archivedCard.OriginalCardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(board.GetColumn("Portable column").Id, result.Data!.BoardColumnId);
+        Assert.Equal(portableCardType.Id, result.Data.CardTypeId);
+        Assert.Equal(portableSlick.Id, result.Data.SlickId);
+        Assert.NotEqual("SNAPSHOT-SORT-KEY", result.Data.SortKey);
+        var restoredCard = await DbContextForAssert.Cards
+            .Include(x => x.CardTags)
+            .ThenInclude(x => x.Tag)
+            .Include(x => x.Comments)
+            .SingleAsync(x => x.BoardId == boardId && x.BoardCardId == archivedCard.OriginalCardId);
+        Assert.Equal(portableTag.Id, Assert.Single(restoredCard.CardTags).TagId);
+        Assert.Equal(ActorUserId, Assert.Single(restoredCard.Comments).AuthorUserId);
+    }
+
+    [Fact]
+    public async Task UnarchiveCardAsync_WhenPortableNamesAreAbsent_ShouldNotBindTagSlickOrAuthorIds()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var wrongTag = DbContextForArrange.Tags.Add(new EntityTag
+        {
+            BoardId = board.BoardId,
+            Name = "Wrong tag",
+            NormalisedName = "WRONG TAG",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        var wrongSlick = DbContextForArrange.Slicks.Add(new EntitySlick
+        {
+            BoardId = board.BoardId,
+            Name = "Wrong slick",
+            NormalisedName = "WRONG SLICK",
+            StyleName = "solid",
+            StylePropertiesJson = "{}",
+        }).Entity;
+        await DbContextForArrange.SaveChangesAsync();
+        var capturedAtUtc = new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
+        var todoColumnId = board.GetColumn("Todo").Id;
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+        var snapshotJson =
+            $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{board.BoardId}},
+                "originalCardId": 12349,
+                "boardColumnId": {{todoColumnId}},
+                "originalColumnName": "Todo",
+                "cardTypeId": {{systemCardTypeId}},
+                "cardTypeName": "Story",
+                "cardTypeEmoji": null,
+                "title": "No portable references",
+                "description": "Desc",
+                "sortKey": "A",
+                "tags": [
+                  {
+                    "id": {{wrongTag.Id}},
+                    "name": "Wrong tag",
+                    "styleName": "solid",
+                    "stylePropertiesJson": "{}",
+                    "emoji": null
+                  }
+                ],
+                "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": null,
+                "comments": [
+                  {
+                    "text": "ID-only author",
+                    "createdAtUtc": "2026-04-26T12:00:00Z",
+                    "authorUserId": {{ActorUserId}},
+                    "authorEmail": null
+                  }
+                ],
+                "slickId": {{wrongSlick.Id}},
+                "slickName": null
+              }
+            }
+            """;
+        var archivedCard = await SeedArchivedCardV1Async(
+            board.BoardId,
+            originalCardId: 12349,
+            title: "No portable references",
+            snapshotJson: snapshotJson,
+            archivedAtUtc: capturedAtUtc);
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.UnarchiveCardAsync(board.BoardId, archivedCard.OriginalCardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data!.Tags);
+        Assert.Null(result.Data.SlickId);
+        var restoredCard = await DbContextForAssert.Cards
+            .Include(x => x.CardTags)
+            .Include(x => x.Comments)
+            .SingleAsync(x => x.BoardId == board.BoardId && x.BoardCardId == archivedCard.OriginalCardId);
+        Assert.Empty(restoredCard.CardTags);
+        Assert.Null(Assert.Single(restoredCard.Comments).AuthorUserId);
     }
 
     [Fact]
@@ -455,32 +869,16 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
     private async Task<ArchivedCardEntity> SeedArchivedCardV1Async(
         int boardId,
         int originalCardId,
-        int boardColumnId,
-        int cardTypeId,
         string title,
-        string description,
-        DateTime? capturedAtUtc = null,
-        IReadOnlyList<ArchivedCardSnapshotCommentV1Payload>? comments = null,
-        int? assignedUserId = null,
-        string? assignedUserEmail = null)
+        string snapshotJson,
+        DateTime? archivedAtUtc = null)
     {
-        var archivedAtUtc = capturedAtUtc ?? new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
-        var snapshotJson = CreateSnapshotJsonV1(
-            boardId,
-            originalCardId,
-            boardColumnId,
-            cardTypeId,
-            title,
-            description,
-            archivedAtUtc,
-            comments,
-            assignedUserId,
-            assignedUserEmail);
+        var storedArchivedAtUtc = archivedAtUtc ?? new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
         var archivedCard = DbContextForArrange.Set<ArchivedCardEntity>().Add(new ArchivedCardEntity
         {
             BoardId = boardId,
             OriginalCardId = originalCardId,
-            ArchivedAtUtc = archivedAtUtc,
+            ArchivedAtUtc = storedArchivedAtUtc,
             SnapshotJson = snapshotJson,
             SearchTitle = title,
             SearchTagsJson = "[]",
@@ -488,44 +886,6 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         }).Entity;
         await DbContextForArrange.SaveChangesAsync();
         return archivedCard;
-    }
-
-    private static string CreateSnapshotJsonV1(
-        int boardId,
-        int originalCardId,
-        int boardColumnId,
-        int cardTypeId,
-        string title,
-        string description,
-        DateTime capturedAtUtc,
-        IReadOnlyList<ArchivedCardSnapshotCommentV1Payload>? comments = null,
-        int? assignedUserId = null,
-        string? assignedUserEmail = null)
-    {
-        var payload = new ArchivedCardSnapshotV1Payload(
-            boardId,
-            originalCardId,
-            boardColumnId,
-            "Todo",
-            cardTypeId,
-            "Story",
-            null,
-            title,
-            description,
-            "A",
-            [],
-            [],
-            capturedAtUtc,
-            capturedAtUtc,
-            assignedUserId,
-            comments,
-            AssignedUserEmail: assignedUserEmail);
-        var envelope = new ArchivedCardSnapshotEnvelopeV1(
-            ArchivedCardSnapshotSerialiser.SchemaName,
-            1,
-            capturedAtUtc,
-            payload);
-        return JsonSerializer.Serialize(envelope, SnapshotJsonOptions);
     }
 
     private Task<int> GetSystemCardTypeIdForBoardAsync(int boardId) =>
