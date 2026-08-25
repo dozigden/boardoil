@@ -101,6 +101,7 @@ public sealed class MoveCardService(
             || movingCardAssignment.SortKey != existingCard.SortKey;
         if (movementChanged)
         {
+            existingCard.CardUpdatedUtc = DateTime.UtcNow;
             foreach (var assignment in orderPlan.Assignments)
             {
                 assignment.Card.SortKey = assignment.SortKey;

@@ -395,7 +395,9 @@ public sealed class BoardPackageImportPlanner
                         BoardPackageImportNormalisation.ResolveNormalisedEmailOrNull(importedCard.AssignedUserEmail),
                         plannedComments,
                         externalUrl,
-                        boardCardId));
+                        boardCardId,
+                        importedCard.CardCreatedUtc,
+                        importedCard.CardUpdatedUtc));
                 }
 
                 if (validationErrors.Count > errorCountBeforeColumn)

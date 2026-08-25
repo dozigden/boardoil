@@ -45,7 +45,9 @@ public sealed record BoardPackageCardDto(
     IReadOnlyList<BoardPackageCommentDto>? Comments = null,
     string? SlickName = null,
     string? ExternalUrl = null,
-    int? Id = null);
+    int? Id = null,
+    DateTime? CardCreatedUtc = null,
+    DateTime? CardUpdatedUtc = null);
 
 public sealed record BoardPackageSlickDto(
     string Name,

@@ -90,7 +90,9 @@ public sealed class BoardExportService(
                         commentsByCardId.GetValueOrDefault(card.Id, []),
                         card.SlickId is null ? null : slickNamesById.GetValueOrDefault(card.SlickId.Value),
                         card.ExternalUrl,
-                        card.RequireBoardCardId()))
+                        card.RequireBoardCardId(),
+                        card.CardCreatedUtc,
+                        card.CardUpdatedUtc))
                     .ToList());
 
         var boardPayload = new BoardPackageBoardDto(

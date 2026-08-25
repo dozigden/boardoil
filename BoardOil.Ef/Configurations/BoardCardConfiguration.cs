@@ -18,6 +18,8 @@ public sealed class BoardCardConfiguration : IEntityTypeConfiguration<EntityBoar
         card.Property(x => x.Description).HasMaxLength(20_000).IsRequired();
         card.Property(x => x.ExternalUrl).IsRequired(false);
         card.Property(x => x.SortKey).HasMaxLength(20).IsRequired();
+        card.Property(x => x.CardCreatedUtc).IsRequired();
+        card.Property(x => x.CardUpdatedUtc).IsRequired();
         card.ToTable("Cards");
         card.HasIndex(x => new { x.BoardColumnId, x.SortKey }).IsUnique();
         card.HasIndex(x => new { x.BoardId, x.BoardCardId })

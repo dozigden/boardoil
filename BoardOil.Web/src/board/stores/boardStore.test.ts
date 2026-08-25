@@ -344,8 +344,8 @@ function makeBoard(id = 1, name = 'Board'): Board {
             sortKey: '00000000000000000001',
             tags: [],
             tagNames: [],
-            createdAtUtc: '2026-03-15T00:00:00Z',
-            updatedAtUtc: '2026-03-15T00:00:00Z'
+            cardCreatedUtc: '2026-03-15T00:00:00Z',
+            cardUpdatedUtc: '2026-03-15T00:00:00Z'
           }
         ]
       },

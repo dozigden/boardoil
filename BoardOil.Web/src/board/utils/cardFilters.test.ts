@@ -204,7 +204,7 @@ function makeCard(overrides: {
       emoji: null
     })),
     tagNames: overrides.tagNames,
-    createdAtUtc: '2026-04-03T00:00:00Z',
-    updatedAtUtc: '2026-04-03T00:00:00Z'
+    cardCreatedUtc: '2026-04-03T00:00:00Z',
+    cardUpdatedUtc: '2026-04-03T00:00:00Z'
   };
 }

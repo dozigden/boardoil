@@ -91,6 +91,7 @@ public sealed class CreateCardService(
             _tagRepository,
             styleDefaultService);
         var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository, styleDefaultService);
+        var createdAtUtc = DateTime.UtcNow;
 
         var card = new EntityBoardCard
         {
@@ -104,6 +105,8 @@ public sealed class CreateCardService(
             Description = draft.Description,
             ExternalUrl = draft.ExternalUrl,
             SortKey = string.Empty,
+            CardCreatedUtc = createdAtUtc,
+            CardUpdatedUtc = createdAtUtc,
         };
         CardTagMutation.ReplaceTags(card, tags);
 

@@ -195,6 +195,8 @@ public sealed class CardArchiveService(
             Description = snapshotCard.Description,
             ExternalUrl = CardExternalUrl.Normalise(snapshotCard.ExternalUrl),
             SortKey = string.Empty,
+            CardCreatedUtc = snapshotCard.CardCreatedUtc,
+            CardUpdatedUtc = snapshotCard.CardUpdatedUtc,
         };
         ReplaceTags(restoredCard, resolvedTags);
 

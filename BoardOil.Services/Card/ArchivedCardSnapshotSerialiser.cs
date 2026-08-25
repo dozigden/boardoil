@@ -32,8 +32,8 @@ public static class ArchivedCardSnapshotSerialiser
                 .Select(x => x.Tag.Name)
                 .OrderBy(x => x, StringComparer.Ordinal)
                 .ToList(),
-            card.CreatedAtUtc,
-            card.UpdatedAtUtc,
+            card.CardCreatedUtc,
+            card.CardUpdatedUtc,
             card.AssignedUserId,
             card.Comments
                 .OrderBy(x => x.PostedAtUtc)

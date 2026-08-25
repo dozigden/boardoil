@@ -26,8 +26,8 @@ public static class CardMappingExtensions
                 .Select(x => x.Tag.Name)
                 .OrderBy(x => x, StringComparer.Ordinal)
                 .ToList(),
-            card.CreatedAtUtc,
-            card.UpdatedAtUtc,
+            card.CardCreatedUtc,
+            card.CardUpdatedUtc,
             card.AssignedUserId,
             card.AssignedUser?.DisplayName,
             null,

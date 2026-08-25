@@ -150,8 +150,8 @@ const demoBoardApi: BoardApi = {
       sortKey: createLeadingCardSortKey(column),
       tags: [],
       tagNames: [],
-      createdAtUtc: timestamp,
-      updatedAtUtc: timestamp
+      cardCreatedUtc: timestamp,
+      cardUpdatedUtc: timestamp
     };
     column.cards.unshift(card);
     return ok(clone(card));
@@ -236,7 +236,8 @@ const demoBoardApi: BoardApi = {
       if (request.slick !== undefined) {
         setCardSlick(card, request.slick?.name ?? null);
       }
-      card.updatedAtUtc = now();
+      const updatedAtUtc = now();
+      card.cardUpdatedUtc = updatedAtUtc;
       editedCards.push(clone(card));
     }
 
@@ -291,6 +292,8 @@ const demoBoardApi: BoardApi = {
       postedAtUtc
     };
     state.comments[cardId] = [comment, ...(state.comments[cardId] ?? [])];
+    const card = findCard(cardId)!.card;
+    card.cardUpdatedUtc = postedAtUtc;
     return ok(clone(comment));
   },
 
@@ -331,7 +334,6 @@ const demoBoardApi: BoardApi = {
     const column = getColumn(archivedCard.card.boardColumnId) ?? state.board.columns[0]!;
     const restoredCard = clone(archivedCard.card);
     restoredCard.boardColumnId = column.id;
-    restoredCard.updatedAtUtc = now();
     column.cards.push(restoredCard);
     state.archivedCards.splice(archiveIndex, 1);
     reindexColumn(column.id);
@@ -469,7 +471,8 @@ function applyCardEdit(card: Card, model: CardEditModel, cardType: CardType) {
   card.assignedUserImageRelativePath = null;
   setCardTags(card, model.tagNames);
   setCardSlick(card, model.slickName);
-  card.updatedAtUtc = now();
+  const updatedAtUtc = now();
+  card.cardUpdatedUtc = updatedAtUtc;
 }
 
 function setCardTags(card: Card, tagNames: string[]) {
@@ -506,7 +509,8 @@ function moveCardInternal(cardId: number, targetColumnId: number, positionAfterC
   }
 
   located.card.boardColumnId = targetColumn.id;
-  located.card.updatedAtUtc = now();
+  const updatedAtUtc = now();
+  located.card.cardUpdatedUtc = updatedAtUtc;
   targetColumn.cards.splice(insertIndex, 0, located.card);
   reindexColumn(located.column.id);
   reindexColumn(targetColumn.id);
@@ -717,8 +721,8 @@ function createSeedState(): DemoState {
       sortKey: '',
       tags: selectedTags.map(toCardTag),
       tagNames: selectedTags.map(tag => tag.name),
-      createdAtUtc: timestamp,
-      updatedAtUtc: timestamp
+      cardCreatedUtc: timestamp,
+      cardUpdatedUtc: timestamp
     };
   };
 

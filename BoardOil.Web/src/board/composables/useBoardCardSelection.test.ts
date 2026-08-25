@@ -86,7 +86,7 @@ function makeCard(id: number, boardColumnId: number, title: string): Card {
     sortKey: `${id}`,
     tags: [],
     tagNames: [],
-    createdAtUtc: '2026-04-01T00:00:00Z',
-    updatedAtUtc: '2026-04-01T00:00:00Z'
+    cardCreatedUtc: '2026-04-01T00:00:00Z',
+    cardUpdatedUtc: '2026-04-01T00:00:00Z'
   };
 }

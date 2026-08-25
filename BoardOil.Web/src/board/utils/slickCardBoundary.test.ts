@@ -62,7 +62,7 @@ function makeCard(id: number, slickId: number | null) {
     sortKey: `${id}`.padStart(20, '0'),
     tags: [],
     tagNames: [],
-    createdAtUtc: '2026-05-10T00:00:00Z',
-    updatedAtUtc: '2026-05-10T00:00:00Z'
+    cardCreatedUtc: '2026-05-10T00:00:00Z',
+    cardUpdatedUtc: '2026-05-10T00:00:00Z'
   };
 }

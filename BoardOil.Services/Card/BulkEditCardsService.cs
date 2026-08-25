@@ -217,10 +217,12 @@ public sealed class BulkEditCardsService(
 
             if (movementChanged)
             {
+                card.CardUpdatedUtc = DateTime.UtcNow;
                 movedCardIdSet.Add(boardCardId);
             }
             else if (tagsChanged || slickChanged)
             {
+                card.CardUpdatedUtc = DateTime.UtcNow;
                 updatedCardIdSet.Add(boardCardId);
             }
         }

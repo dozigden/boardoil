@@ -45,8 +45,8 @@ export type Card = {
   sortKey: string;
   tags: CardTag[];
   tagNames: string[];
-  createdAtUtc: string;
-  updatedAtUtc: string;
+  cardCreatedUtc: string;
+  cardUpdatedUtc: string;
 };
 
 export type CardEditModel = {

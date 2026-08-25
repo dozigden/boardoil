@@ -609,6 +609,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             .Single(card => card.GetProperty("id").GetInt32() == createdCardId);
 
         Assert.False(boardCard.TryGetProperty("description", out _));
+        Assert.True(boardCard.TryGetProperty("cardCreatedUtc", out _));
+        Assert.True(boardCard.TryGetProperty("cardUpdatedUtc", out _));
+        Assert.False(boardCard.TryGetProperty("updatedAtUtc", out _));
 
         var cardGetResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -625,6 +628,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
 
         var cardData = McpJsonRpcClient.GetStructuredContent(cardGetPayload);
         Assert.Equal(fullDescription, cardData.GetProperty("description").GetString());
+        Assert.True(cardData.TryGetProperty("cardCreatedUtc", out _));
+        Assert.True(cardData.TryGetProperty("cardUpdatedUtc", out _));
+        Assert.False(cardData.TryGetProperty("updatedAtUtc", out _));
         Assert.True(cardData.TryGetProperty("comments", out var comments));
         Assert.Empty(comments.EnumerateArray());
     }

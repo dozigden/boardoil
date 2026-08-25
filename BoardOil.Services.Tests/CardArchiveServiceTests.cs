@@ -82,6 +82,11 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         var cardId = board.GetCard("Todo", "Archive me").Id;
         board.GetCard("Todo", "Archive me").ExternalUrl = "https://github.com/example/repository";
         var now = DateTime.UtcNow;
+        var cardCreatedUtc = now.AddDays(-5);
+        var cardUpdatedUtc = now.AddDays(-1);
+        var card = await DbContextForArrange.Cards.SingleAsync(x => x.Id == cardId);
+        card.CardCreatedUtc = cardCreatedUtc;
+        card.CardUpdatedUtc = cardUpdatedUtc;
         DbContextForArrange.CardComments.Add(new()
         {
             CardId = cardId,
@@ -111,10 +116,14 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
         Assert.Equal("https://github.com/example/repository", unarchiveResult.Data!.ExternalUrl);
-        var restoredCardId = await DbContextForAssert.Cards
+        Assert.Equal(cardCreatedUtc, unarchiveResult.Data.CardCreatedUtc);
+        Assert.Equal(cardUpdatedUtc, unarchiveResult.Data.CardUpdatedUtc);
+        var restoredCard = await DbContextForAssert.Cards
             .Where(x => x.BoardId == boardId && x.BoardCardId == unarchiveResult.Data.Id)
-            .Select(x => x.Id)
             .SingleAsync();
+        Assert.Equal(cardCreatedUtc, restoredCard.CardCreatedUtc);
+        Assert.Equal(cardUpdatedUtc, restoredCard.CardUpdatedUtc);
+        var restoredCardId = restoredCard.Id;
         var restoredComments = await DbContextForAssert.CardComments
             .Where(x => x.CardId == restoredCardId)
             .OrderBy(x => x.PostedAtUtc)

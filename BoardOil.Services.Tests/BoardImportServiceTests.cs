@@ -22,6 +22,8 @@ public sealed class BoardImportServiceTests : TestBaseDb
     public async Task ImportBoardPackageAsync_ShouldCreateBoardWithImportedColumnsCardsTagsAndCardTypes()
     {
         var manifest = BoardPackageContract.CreateManifest("0.3.0");
+        var cardCreatedUtc = new DateTime(2026, 5, 1, 8, 0, 0, DateTimeKind.Utc);
+        var cardUpdatedUtc = cardCreatedUtc.AddDays(2);
         var payload = new BoardPackageBoardDto(
             "Imported Package Board",
             "Imported package description",
@@ -36,7 +38,14 @@ public sealed class BoardImportServiceTests : TestBaseDb
                 new BoardPackageColumnDto(
                     "Todo",
                     [
-                        new BoardPackageCardDto("Fix login", "Investigate and fix", "Bug", ["Urgent", "NeedsReview"], SlickName: "Release train")
+                        new BoardPackageCardDto(
+                            "Fix login",
+                            "Investigate and fix",
+                            "Bug",
+                            ["Urgent", "NeedsReview"],
+                            SlickName: "Release train",
+                            CardCreatedUtc: cardCreatedUtc,
+                            CardUpdatedUtc: cardUpdatedUtc)
                     ]),
                 new BoardPackageColumnDto(
                     "Done",
@@ -99,6 +108,50 @@ public sealed class BoardImportServiceTests : TestBaseDb
 
         var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId && x.Title == "Fix login");
         Assert.Equal(releaseTrainSlick.Id, importedCard.SlickId);
+        Assert.Equal(cardCreatedUtc, importedCard.CardCreatedUtc);
+        Assert.Equal(cardUpdatedUtc, importedCard.CardUpdatedUtc);
+        var legacyImportedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId && x.Title == "Ship release");
+        Assert.NotEqual(default, legacyImportedCard.CardCreatedUtc);
+        Assert.Equal(legacyImportedCard.CardCreatedUtc, legacyImportedCard.CardUpdatedUtc);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task ImportBoardPackageAsync_WhenLogicalCardTimestampsArePresent_ShouldPreserveThem(int schemaVersion)
+    {
+        var cardCreatedUtc = new DateTime(2026, 5, 1, 8, 0, 0, DateTimeKind.Utc);
+        var cardUpdatedUtc = cardCreatedUtc.AddDays(2);
+        var manifest = BoardPackageContract.CreateManifest("0.3.0") with { SchemaVersion = schemaVersion };
+        var payload = new BoardPackageBoardDto(
+            "Timestamp Board",
+            null,
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [
+                new BoardPackageColumnDto(
+                    "Todo",
+                    [
+                        new BoardPackageCardDto(
+                            "Timestamped card",
+                            "Description",
+                            "Story",
+                            [],
+                            CardCreatedUtc: cardCreatedUtc,
+                            CardUpdatedUtc: cardUpdatedUtc)
+                    ])
+            ]);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        var importedCard = await DbContextForAssert.Cards.SingleAsync(x => x.BoardId == result.Data!.Id);
+        Assert.Equal(cardCreatedUtc, importedCard.CardCreatedUtc);
+        Assert.Equal(cardUpdatedUtc, importedCard.CardUpdatedUtc);
     }
 
     [Fact]

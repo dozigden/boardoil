@@ -228,8 +228,8 @@ describe('boardRealtime', () => {
       sortKey: 'A',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-07-31T12:00:00Z',
-      updatedAtUtc: '2026-07-31T12:01:00Z'
+      cardCreatedUtc: '2026-07-31T12:00:00Z',
+      cardUpdatedUtc: '2026-07-31T12:01:00Z'
     };
 
     await realtime.connect(42);

@@ -172,8 +172,8 @@ describe('boardApi saveCard', () => {
       sortKey: '00000000000000000001',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-04-17T00:00:00Z',
-      updatedAtUtc: '2026-04-17T00:00:00Z'
+      cardCreatedUtc: '2026-04-17T00:00:00Z',
+      cardUpdatedUtc: '2026-04-17T00:00:00Z'
     };
     vi.mocked(putData).mockResolvedValue(ok(card));
 
@@ -504,8 +504,8 @@ describe('boardApi archived cards', () => {
           sortKey: 'A',
           tags: [],
           tagNames: ['Urgent'],
-          createdAtUtc: '2026-04-18T18:00:00Z',
-          updatedAtUtc: '2026-04-19T18:00:00Z'
+          cardCreatedUtc: '2026-04-18T18:00:00Z',
+          cardUpdatedUtc: '2026-04-19T18:00:00Z'
         }
       },
       statusCode: 200
@@ -602,8 +602,8 @@ describe('boardApi archived cards', () => {
       sortKey: 'A',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-04-26T12:00:00Z',
-      updatedAtUtc: '2026-04-26T12:00:00Z'
+      cardCreatedUtc: '2026-04-26T12:00:00Z',
+      cardUpdatedUtc: '2026-04-26T12:00:00Z'
     }));
 
     const api = createBoardApi();

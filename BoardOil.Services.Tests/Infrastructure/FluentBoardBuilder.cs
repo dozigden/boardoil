@@ -103,6 +103,7 @@ public sealed class FluentBoardBuilder
         var previousKey = insertIndex > 0 ? cards[insertIndex - 1].SortKey : null;
         var nextKey = insertIndex < cards.Count ? cards[insertIndex].SortKey : null;
         var sortKey = GenerateBetween(previousKey, nextKey);
+        var createdAtUtc = DateTime.UtcNow;
 
         var card = new EntityBoardCard
         {
@@ -112,6 +113,8 @@ public sealed class FluentBoardBuilder
             Title = title,
             Description = description,
             SortKey = sortKey,
+            CardCreatedUtc = createdAtUtc,
+            CardUpdatedUtc = createdAtUtc,
             BoardColumn = _currentColumn
         };
         _board.CardIdSequence.NextCardId++;

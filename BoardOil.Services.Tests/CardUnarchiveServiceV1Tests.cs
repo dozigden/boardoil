@@ -65,6 +65,8 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         Assert.Equal("Archive me", unarchiveResult.Data.Title);
         Assert.Equal("Desc", unarchiveResult.Data.Description);
         Assert.Equal(todoColumnId, unarchiveResult.Data.BoardColumnId);
+        Assert.Equal(new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc), unarchiveResult.Data.CardCreatedUtc);
+        Assert.Equal(new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc), unarchiveResult.Data.CardUpdatedUtc);
         Assert.Empty(await DbContextForAssert.Set<ArchivedCardEntity>().ToListAsync());
         Assert.Single(boardEvents.CardCreatedEvents);
         Assert.Empty(boardEvents.ResyncRequestedBoardIds);

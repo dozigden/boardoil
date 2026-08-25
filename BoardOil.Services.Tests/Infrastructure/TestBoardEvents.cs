@@ -9,6 +9,7 @@ public sealed class TestBoardEvents : IBoardEvents
 {
     public readonly List<(int BoardId, CardCommentDto Comment)> CommentCreatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardCreatedEvents = [];
+    public readonly List<(int BoardId, CardDto Card)> CardUpdatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardMovedEvents = [];
     public readonly List<int> ResyncRequestedBoardIds = [];
     public readonly List<string> PublishedEventNames = [];
@@ -23,7 +24,11 @@ public sealed class TestBoardEvents : IBoardEvents
         PublishedEventNames.Add("card-created");
         return Task.CompletedTask;
     }
-    public Task CardUpdatedAsync(int boardId, CardDto card) => Task.CompletedTask;
+    public Task CardUpdatedAsync(int boardId, CardDto card)
+    {
+        CardUpdatedEvents.Add((boardId, card));
+        return Task.CompletedTask;
+    }
     public Task CardDeletedAsync(int boardId, int cardId) => Task.CompletedTask;
     public Task CardMovedAsync(int boardId, CardDto card)
     {

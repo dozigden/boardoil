@@ -126,6 +126,7 @@ public sealed class UpdateCardService(
             || slickChanged;
         if (metadataChanged || movementChanged)
         {
+            existingCard.CardUpdatedUtc = DateTime.UtcNow;
             existingCard.Title = updatedTitle;
             existingCard.Description = updatedDescription;
             existingCard.ExternalUrl = updatedExternalUrl;

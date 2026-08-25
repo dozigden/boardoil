@@ -136,6 +136,10 @@ public sealed class BoardPackageImportWriter(
             {
                 var importedCard = importedColumn.Cards[cardIndex];
                 var assignedUser = await importedUserResolver.ResolveImportedAssignedUserAsync(importedCard.AssignedUserNormalisedEmail);
+                var cardCreatedUtc = importedCard.CardCreatedUtc
+                    ?? importedCard.CardUpdatedUtc
+                    ?? now;
+                var cardUpdatedUtc = importedCard.CardUpdatedUtc ?? cardCreatedUtc;
                 var createdCard = new EntityBoardCard
                 {
                     Board = board,
@@ -151,6 +155,8 @@ public sealed class BoardPackageImportWriter(
                     Description = importedCard.Description,
                     ExternalUrl = importedCard.ExternalUrl,
                     SortKey = sortKeyPlan.CardKeysByColumn[columnIndex][cardIndex],
+                    CardCreatedUtc = cardCreatedUtc,
+                    CardUpdatedUtc = cardUpdatedUtc,
                 };
 
                 foreach (var importedTagName in importedCard.TagNames)

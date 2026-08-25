@@ -62,7 +62,9 @@ public sealed record CardImportDefinition(
     string? AssignedUserNormalisedEmail,
     IReadOnlyList<CommentImportDefinition> Comments,
     string? ExternalUrl = null,
-    int BoardCardId = 0);
+    int BoardCardId = 0,
+    DateTime? CardCreatedUtc = null,
+    DateTime? CardUpdatedUtc = null);
 
 public sealed record CommentImportDefinition(
     string Text,

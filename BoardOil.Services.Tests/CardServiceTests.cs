@@ -51,6 +51,10 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.Equal(systemCardType.Id, stored.CardTypeId);
         Assert.Equal("New Card", stored.Title);
         Assert.Equal("Desc", stored.Description);
+        Assert.NotNull(stored.CardCreatedUtc);
+        Assert.Equal(stored.CardCreatedUtc, stored.CardUpdatedUtc);
+        Assert.Equal(stored.CardCreatedUtc, result.Data.CardCreatedUtc);
+        Assert.Equal(stored.CardUpdatedUtc, result.Data.CardUpdatedUtc);
         Assert.True(systemCardType.IsSystem);
         Assert.Equal("Story", systemCardType.Name);
         Assert.Empty(result.Data.Tags);
@@ -317,6 +321,12 @@ public sealed class CardServiceTests : TestBaseDb
             .Build();
         var cardId = board.GetCard("Todo", "Old").Id;
         var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+        var originalCardCreatedUtc = new DateTime(2026, 4, 1, 9, 0, 0, DateTimeKind.Utc);
+        var originalCardUpdatedUtc = originalCardCreatedUtc.AddMinutes(1);
+        var existingCard = await DbContextForArrange.Cards.SingleAsync(x => x.Id == cardId);
+        existingCard.CardCreatedUtc = originalCardCreatedUtc;
+        existingCard.CardUpdatedUtc = originalCardUpdatedUtc;
+        await DbContextForArrange.SaveChangesAsync();
 
         // Act
         var service = CreateService();
@@ -329,6 +339,10 @@ public sealed class CardServiceTests : TestBaseDb
 
         Assert.Equal("New Title", stored.Title);
         Assert.Equal("Desc", stored.Description);
+        Assert.Equal(originalCardCreatedUtc, stored.CardCreatedUtc);
+        Assert.True(stored.CardUpdatedUtc > originalCardUpdatedUtc);
+        Assert.Equal(stored.CardCreatedUtc, result.Data.CardCreatedUtc);
+        Assert.Equal(stored.CardUpdatedUtc, result.Data.CardUpdatedUtc);
     }
 
     [Fact]
@@ -674,6 +688,10 @@ public sealed class CardServiceTests : TestBaseDb
         var doingColumnId = board.GetColumn("Doing").Id;
         var movingCardId = board.GetCard("Todo", "Move me").Id;
         var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        var originalCardUpdatedUtc = new DateTime(2026, 4, 1, 9, 0, 0, DateTimeKind.Utc);
+        var movingCard = await DbContextForArrange.Cards.SingleAsync(x => x.Id == movingCardId);
+        movingCard.CardUpdatedUtc = originalCardUpdatedUtc;
+        await DbContextForArrange.SaveChangesAsync();
 
         // Act
         var service = CreateService();
@@ -689,6 +707,7 @@ public sealed class CardServiceTests : TestBaseDb
         var doingTitles = await GetOrderedTitlesAsync(DbContextForAssert, doingColumnId);
 
         Assert.Equal(["Move me", "A", "B"], doingTitles);
+        Assert.True(result.Data.CardUpdatedUtc > originalCardUpdatedUtc);
         Assert.Empty(boardEvents.ResyncRequestedBoardIds);
     }
 
@@ -891,6 +910,15 @@ public sealed class CardServiceTests : TestBaseDb
         await SetCardSortKeysAsync(
             (cardAId, "00000000000000000000"),
             (cardBId, "00000000000000000001"));
+        var logicalUpdatedUtc = new DateTime(2026, 4, 1, 9, 0, 0, DateTimeKind.Utc);
+        var stationaryCards = await DbContextForArrange.Cards
+            .Where(card => card.Id == cardAId || card.Id == cardBId)
+            .ToListAsync();
+        foreach (var stationaryCard in stationaryCards)
+        {
+            stationaryCard.CardUpdatedUtc = logicalUpdatedUtc;
+        }
+        await DbContextForArrange.SaveChangesAsync();
         var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
 
         // Act
@@ -912,6 +940,11 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.All(storedKeys, key => Assert.Equal(20, key.Length));
         Assert.DoesNotContain("00000000000000000000", storedKeys);
         Assert.DoesNotContain("00000000000000000001", storedKeys);
+        var stationaryLogicalUpdates = await DbContextForAssert.Cards
+            .Where(card => card.Id == cardAId || card.Id == cardBId)
+            .Select(card => card.CardUpdatedUtc)
+            .ToListAsync();
+        Assert.All(stationaryLogicalUpdates, value => Assert.Equal(logicalUpdatedUtc, value));
         Assert.Single(boardEvents.CardMovedEvents);
         Assert.Equal([board.BoardId], boardEvents.ResyncRequestedBoardIds);
     }

@@ -28,6 +28,8 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.BoardCardId, knownPayload.Payload.OriginalCardId);
         Assert.Equal(card.Title, knownPayload.Payload.Title);
         Assert.Equal(card.ExternalUrl, knownPayload.Payload.ExternalUrl);
+        Assert.Equal(card.CardCreatedUtc, knownPayload.Payload.CreatedAtUtc);
+        Assert.Equal(card.CardUpdatedUtc, knownPayload.Payload.UpdatedAtUtc);
         Assert.Equal(card.AssignedUser!.Email, knownPayload.Payload.AssignedUserEmail);
         Assert.Equal(["Bug"], knownPayload.Payload.TagNames);
         Assert.Equal(card.Slick!.Name, knownPayload.Payload.SlickName);
@@ -75,6 +77,8 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.Title, parsedCard.Title);
         Assert.Equal(card.Description, parsedCard.Description);
         Assert.Equal(card.ExternalUrl, parsedCard.ExternalUrl);
+        Assert.Equal(card.CardCreatedUtc, parsedCard.CardCreatedUtc);
+        Assert.Equal(card.CardUpdatedUtc, parsedCard.CardUpdatedUtc);
         Assert.Equal(["Bug"], parsedCard.TagNames);
         Assert.Null(parsedCard.SlickId);
         Assert.Equal(card.Slick!.Name, parsedCard.SlickName);
@@ -139,6 +143,8 @@ public sealed class ArchivedCardSnapshotSerialiserTests
                 IsActive = true
             },
             SortKey = "B",
+            CardCreatedUtc = new DateTime(2026, 3, 1, 9, 0, 0, DateTimeKind.Utc),
+            CardUpdatedUtc = new DateTime(2026, 4, 1, 10, 30, 0, DateTimeKind.Utc),
             SlickId = 77,
             Slick = new EntitySlick
             {

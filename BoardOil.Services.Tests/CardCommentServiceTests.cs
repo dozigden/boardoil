@@ -18,6 +18,10 @@ public sealed class CardCommentServiceTests : TestBaseDb
             .AddCard("Task A", "Desc")
             .Build();
         var cardId = board.GetCard("Todo", "Task A").Id;
+        var originalCardUpdatedUtc = new DateTime(2026, 4, 1, 9, 0, 0, DateTimeKind.Utc);
+        var card = await DbContextForArrange.Cards.SingleAsync(x => x.Id == cardId);
+        card.CardUpdatedUtc = originalCardUpdatedUtc;
+        await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<ICardCommentService>();
         var boardEvents = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
 
@@ -35,6 +39,11 @@ public sealed class CardCommentServiceTests : TestBaseDb
         Assert.Equal(cardId, stored.CardId);
         Assert.Equal(ActorUserId, stored.AuthorUserId);
         Assert.Equal("First comment", stored.Text);
+        var storedCard = await DbContextForAssert.Cards.SingleAsync(x => x.Id == cardId);
+        Assert.True(storedCard.CardUpdatedUtc > originalCardUpdatedUtc);
+
+        var cardUpdatedEvent = Assert.Single(boardEvents.CardUpdatedEvents);
+        Assert.Equal(storedCard.CardUpdatedUtc, cardUpdatedEvent.Card.CardUpdatedUtc);
 
         var realtimeEvent = Assert.Single(boardEvents.CommentCreatedEvents);
         Assert.Equal(board.BoardId, realtimeEvent.BoardId);

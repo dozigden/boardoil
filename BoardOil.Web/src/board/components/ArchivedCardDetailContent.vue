@@ -71,12 +71,12 @@
 
       <div class="card-editor-option-section">
         <span class="card-editor-field-label">Created</span>
-        <span>{{ formatDateTime(card.createdAtUtc) }}</span>
+        <span>{{ formatDateTime(card.cardCreatedUtc) }}</span>
       </div>
 
       <div class="card-editor-option-section">
         <span class="card-editor-field-label">Updated</span>
-        <span>{{ formatDateTime(card.updatedAtUtc) }}</span>
+        <span>{{ formatDateTime(card.cardUpdatedUtc) }}</span>
       </div>
     </aside>
   </section>

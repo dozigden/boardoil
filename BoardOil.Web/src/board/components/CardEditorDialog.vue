@@ -256,6 +256,16 @@
             @update:external-url="updateDraftExternalUrlFromEditor"
           />
 
+          <div class="card-editor-option-section">
+            <span class="card-editor-field-label">Created</span>
+            <span>{{ formatCardDateTime(editingCard!.cardCreatedUtc) }}</span>
+          </div>
+
+          <div class="card-editor-option-section">
+            <span class="card-editor-field-label">Updated</span>
+            <span>{{ formatCardDateTime(editingCard!.cardUpdatedUtc) }}</span>
+          </div>
+
         </aside>
       </div>
     </template>
@@ -489,6 +499,10 @@ function formatCommentDateTime(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(date);
+}
+
+function formatCardDateTime(value: string) {
+  return formatCommentDateTime(value);
 }
 
 function clearDraft() {
@@ -1254,6 +1268,8 @@ function areStringArraysEqual(left: string[], right: string[]) {
   min-height: 0;
   border-left: 1px solid var(--bo-border-soft);
   padding-left: 0.85rem;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .card-editor-description-field {

@@ -78,6 +78,7 @@ public sealed class CardCommentService(
             Text = request.Text.Trim(),
             PostedAtUtc = DateTime.UtcNow
         };
+        card.CardUpdatedUtc = comment.PostedAtUtc;
         cardCommentRepository.Add(comment);
         await scope.SaveChangesAsync();
 
@@ -95,6 +96,8 @@ public sealed class CardCommentService(
         }
 
         var createdComment = savedComment.ToCardCommentDto(cardId, savedComment.AuthorUser?.DisplayName, imageRelativePath);
+        var updatedCard = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
+        await boardEvents.CardUpdatedAsync(boardId, updatedCard);
         await boardEvents.CommentCreatedAsync(boardId, createdComment);
         return ApiResults.Created(createdComment);
     }

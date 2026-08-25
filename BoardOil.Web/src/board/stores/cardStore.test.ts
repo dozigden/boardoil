@@ -57,8 +57,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000000',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:00:00Z'
+      cardCreatedUtc: '2026-03-15T00:00:00Z',
+      cardUpdatedUtc: '2026-03-15T00:00:00Z'
     };
     api.createCard.mockResolvedValue(ok(created));
 
@@ -84,8 +84,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000000',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:00:00Z'
+      cardCreatedUtc: '2026-03-15T00:00:00Z',
+      cardUpdatedUtc: '2026-03-15T00:00:00Z'
     };
     api.createCard.mockResolvedValue(ok(created));
 
@@ -111,8 +111,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000001',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:01:00Z'
+      cardCreatedUtc: '2026-03-15T00:00:00Z',
+      cardUpdatedUtc: '2026-03-15T00:01:00Z'
     };
     api.moveCard.mockResolvedValue(ok(moved));
 
@@ -139,8 +139,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000002',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:00:00Z'
+      cardCreatedUtc: '2026-03-15T00:00:00Z',
+      cardUpdatedUtc: '2026-03-15T00:00:00Z'
     });
     board.columns[1].cards.push({
       id: 201,
@@ -154,8 +154,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000003',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:00:00Z'
+      cardCreatedUtc: '2026-03-15T00:00:00Z',
+      cardUpdatedUtc: '2026-03-15T00:00:00Z'
     });
     store.replaceBoardCards(board.id, board.columns);
 
@@ -273,8 +273,8 @@ describe('cardStore', () => {
         sortKey: '00000000000000000010',
         tags: [],
         tagNames: [],
-        createdAtUtc: '2026-03-15T00:00:00Z',
-        updatedAtUtc: '2026-03-15T00:00:00Z'
+        cardCreatedUtc: '2026-03-15T00:00:00Z',
+        cardUpdatedUtc: '2026-03-15T00:00:00Z'
       },
       {
         id: 202,
@@ -288,8 +288,8 @@ describe('cardStore', () => {
         sortKey: '00000000000000000020',
         tags: [],
         tagNames: [],
-        createdAtUtc: '2026-03-15T00:00:00Z',
-        updatedAtUtc: '2026-03-15T00:00:00Z'
+        cardCreatedUtc: '2026-03-15T00:00:00Z',
+        cardUpdatedUtc: '2026-03-15T00:00:00Z'
       }
     ];
     store.replaceBoardCards(board.id, board.columns);
@@ -306,8 +306,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000015',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:01:00Z'
+      cardCreatedUtc: '2026-03-15T00:00:00Z',
+      cardUpdatedUtc: '2026-03-15T00:01:00Z'
     };
     api.moveCard.mockResolvedValue(ok(moved));
 
@@ -333,8 +333,8 @@ describe('cardStore', () => {
         sortKey: '00000000000000000010',
         tags: [],
         tagNames: [],
-        createdAtUtc: '2026-03-15T00:00:00Z',
-        updatedAtUtc: '2026-03-15T00:00:00Z'
+        cardCreatedUtc: '2026-03-15T00:00:00Z',
+        cardUpdatedUtc: '2026-03-15T00:00:00Z'
       }
     ];
     store.replaceBoardCards(board.id, board.columns);
@@ -351,8 +351,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000005',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:01:00Z'
+      cardCreatedUtc: '2026-03-15T00:00:00Z',
+      cardUpdatedUtc: '2026-03-15T00:01:00Z'
     };
     api.moveCard.mockResolvedValue(ok(moved));
 
@@ -386,8 +386,8 @@ describe('cardStore', () => {
         }
       ],
       tagNames: ['Bug'],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:02:00Z'
+      cardCreatedUtc: '2026-03-15T00:00:00Z',
+      cardUpdatedUtc: '2026-03-15T00:02:00Z'
     };
     api.saveCard.mockResolvedValue(ok(updated));
 
@@ -495,8 +495,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000002',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:00:00Z'
+      cardCreatedUtc: '2026-03-15T00:00:00Z',
+      cardUpdatedUtc: '2026-03-15T00:00:00Z'
     });
     store.replaceBoardCards(1, board.columns);
     api.archiveCards.mockResolvedValue(ok({
@@ -529,8 +529,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000002',
       tags: [],
       tagNames: [],
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:00:00Z'
+      cardCreatedUtc: '2026-03-15T00:00:00Z',
+      cardUpdatedUtc: '2026-03-15T00:00:00Z'
     });
     store.replaceBoardCards(1, board.columns);
     api.deleteCards.mockResolvedValue(ok({
@@ -632,8 +632,8 @@ function makeBoard(id = 1, name = 'Board'): Board {
             sortKey: '00000000000000000001',
             tags: [],
             tagNames: [],
-            createdAtUtc: '2026-03-15T00:00:00Z',
-            updatedAtUtc: '2026-03-15T00:00:00Z'
+            cardCreatedUtc: '2026-03-15T00:00:00Z',
+            cardUpdatedUtc: '2026-03-15T00:00:00Z'
           }
         ]
       },
