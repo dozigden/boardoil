@@ -89,13 +89,16 @@ public sealed class CardArchiveService(
             return ApiErrors.NotFound("Archived card not found.");
         }
 
-        var parsed = ArchivedCardSnapshotSerialiser.TryBuildCurrentCardDto(archivedCard.SnapshotJson, out var snapshotCard, out var snapshotReadError);
-        if (!parsed || snapshotCard is null)
+        var parsed = ArchivedCardSnapshotSerialiser.TryBuildCurrentSnapshot(archivedCard.SnapshotJson, out var snapshot, out var snapshotReadError);
+        if (!parsed || snapshot is null)
         {
             return ApiErrors.InternalError(snapshotReadError ?? "Archived card snapshot is invalid.");
         }
 
-        var currentSnapshotCard = await ResolveCurrentSnapshotCardAsync(boardId, snapshotCard);
+        var currentSnapshotCard = await ResolveCurrentSnapshotCardAsync(
+            boardId,
+            snapshot.Card,
+            snapshot.AssignedUserEmail);
         currentSnapshotCard = currentSnapshotCard with { Id = archivedCard.OriginalCardId };
         return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard));
     }
@@ -176,7 +179,7 @@ public sealed class CardArchiveService(
         var title = snapshotCard.Title.Trim();
         var now = DateTime.UtcNow;
         var cardsInColumn = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
-        var resolvedAssignedUser = await ResolveAssignedUserForRestoreAsync(boardId, snapshotCard.AssignedUserId);
+        var resolvedAssignedUser = await ResolveAssignedUserAsync(boardId, snapshot.AssignedUserEmail);
         var resolvedSlick = await ResolveSlickForRestoreAsync(boardId, snapshotCard.SlickId, snapshotCard.SlickName);
         var resolvedTags = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames, now);
         var restoredCard = new EntityBoardCard
@@ -331,22 +334,14 @@ public sealed class CardArchiveService(
         return string.Join('\n', values.Where(x => !string.IsNullOrWhiteSpace(x)));
     }
 
-    private async Task<CardDto> ResolveCurrentSnapshotCardAsync(int boardId, CardDto snapshotCard)
+    private async Task<CardDto> ResolveCurrentSnapshotCardAsync(
+        int boardId,
+        CardDto snapshotCard,
+        string? assignedUserEmail)
     {
         var resolvedSlick = await ResolveSnapshotSlickReferenceAsync(boardId, snapshotCard.SlickId, snapshotCard.SlickName);
-        if (snapshotCard.AssignedUserId is null)
-        {
-            return snapshotCard with
-            {
-                AssignedUserId = null,
-                AssignedUserDisplayName = null,
-                SlickId = resolvedSlick.SlickId,
-                SlickName = resolvedSlick.SlickName
-            };
-        }
-
-        var membership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, snapshotCard.AssignedUserId.Value);
-        if (membership?.User is null)
+        var assignedUser = await ResolveAssignedUserAsync(boardId, assignedUserEmail);
+        if (assignedUser is null)
         {
             return snapshotCard with
             {
@@ -359,9 +354,9 @@ public sealed class CardArchiveService(
 
         return snapshotCard with
         {
-            AssignedUserId = membership.UserId,
-            AssignedUserDisplayName = membership.User.DisplayName,
-            AssignedUserImageRelativePath = (await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, membership.UserId))?.RelativePath,
+            AssignedUserId = assignedUser.Id,
+            AssignedUserDisplayName = assignedUser.DisplayName,
+            AssignedUserImageRelativePath = (await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, assignedUser.Id))?.RelativePath,
             SlickId = resolvedSlick.SlickId,
             SlickName = resolvedSlick.SlickName
         };
@@ -379,20 +374,24 @@ public sealed class CardArchiveService(
         return columns.FirstOrDefault();
     }
 
-    private async Task<EntityUser?> ResolveAssignedUserForRestoreAsync(int boardId, int? assignedUserId)
+    private async Task<EntityUser?> ResolveAssignedUserAsync(int boardId, string? assignedUserEmail)
     {
-        if (assignedUserId is null)
+        var normalisedEmail = EmailAddressRules.TryNormalise(assignedUserEmail);
+        if (normalisedEmail is null)
         {
             return null;
         }
 
-        var membership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, assignedUserId.Value);
-        if (membership?.User is null || !membership.User.IsActive)
+        var user = await userRepository.GetByNormalisedEmailAsync(normalisedEmail);
+        if (user is null || !user.IsActive)
         {
             return null;
         }
 
-        return membership.User;
+        var membership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, user.Id);
+        return membership?.User is { IsActive: true }
+            ? membership.User
+            : null;
     }
 
     private async Task<EntitySlick?> ResolveSlickForRestoreAsync(int boardId, int? snapshotSlickId, string? snapshotSlickName)

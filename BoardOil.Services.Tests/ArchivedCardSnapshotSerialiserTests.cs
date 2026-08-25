@@ -28,6 +28,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.BoardCardId, knownPayload.Payload.OriginalCardId);
         Assert.Equal(card.Title, knownPayload.Payload.Title);
         Assert.Equal(card.ExternalUrl, knownPayload.Payload.ExternalUrl);
+        Assert.Equal(card.AssignedUser!.Email, knownPayload.Payload.AssignedUserEmail);
         Assert.Equal(["Bug"], knownPayload.Payload.TagNames);
         Assert.Equal(card.Slick!.Name, knownPayload.Payload.SlickName);
         Assert.NotNull(knownPayload.Payload.Comments);
@@ -81,7 +82,8 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         var parsedSnapshot = ArchivedCardSnapshotSerialiser.TryBuildCurrentSnapshot(snapshotJson, out var snapshot, out error);
         Assert.True(parsedSnapshot);
         Assert.NotNull(snapshot);
-        var snapshotComment = Assert.Single(snapshot!.Comments);
+        Assert.Equal(card.AssignedUser!.Email, snapshot!.AssignedUserEmail);
+        var snapshotComment = Assert.Single(snapshot.Comments);
         Assert.Equal("Archived note", snapshotComment.Text);
         Assert.Equal(11, snapshotComment.AuthorUserId);
     }
@@ -122,6 +124,19 @@ public sealed class ArchivedCardSnapshotSerialiserTests
             Title = "Archive me",
             Description = "Desc",
             ExternalUrl = "https://github.com/example/repository",
+            AssignedUserId = 12,
+            AssignedUser = new EntityUser
+            {
+                Id = 12,
+                UserName = "assignee",
+                DisplayName = "Assignee",
+                Email = "assignee@example.test",
+                NormalisedEmail = "assignee@example.test",
+                PasswordHash = "hash",
+                Role = UserRole.Standard,
+                IdentityType = UserIdentityType.User,
+                IsActive = true
+            },
             SortKey = "B",
             SlickId = 77,
             Slick = new EntitySlick

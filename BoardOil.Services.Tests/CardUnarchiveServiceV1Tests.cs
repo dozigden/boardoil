@@ -239,6 +239,59 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
     }
 
     [Fact]
+    public async Task UnarchiveCardAsync_WhenAssignedUserEmailMatchesActiveBoardMember_ShouldRestoreAssignment()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var archivedCard = await SeedArchivedCardV1Async(
+            board.BoardId,
+            originalCardId: 779,
+            boardColumnId: board.GetColumn("Todo").Id,
+            cardTypeId: await GetSystemCardTypeIdForBoardAsync(board.BoardId),
+            title: "Archived with portable assignee",
+            description: "Desc",
+            assignedUserId: 999_999,
+            assignedUserEmail: "ACTOR@LOCALHOST");
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.UnarchiveCardAsync(board.BoardId, archivedCard.OriginalCardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(ActorUserId, result.Data!.AssignedUserId);
+    }
+
+    [Fact]
+    public async Task UnarchiveCardAsync_WhenLegacySnapshotHasOnlyAssignedUserId_ShouldLeaveCardUnassigned()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build();
+        var archivedCard = await SeedArchivedCardV1Async(
+            board.BoardId,
+            originalCardId: 780,
+            boardColumnId: board.GetColumn("Todo").Id,
+            cardTypeId: await GetSystemCardTypeIdForBoardAsync(board.BoardId),
+            title: "Legacy archived assignee",
+            description: "Desc",
+            assignedUserId: ActorUserId);
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.UnarchiveCardAsync(board.BoardId, archivedCard.OriginalCardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Null(result.Data!.AssignedUserId);
+    }
+
+    [Fact]
     public async Task UnarchiveCardAsync_WhenArchivedCardV1CommentAuthorFallsBackToEmail_ShouldRelinkAuthor()
     {
         // Arrange
@@ -407,7 +460,9 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         string title,
         string description,
         DateTime? capturedAtUtc = null,
-        IReadOnlyList<ArchivedCardSnapshotCommentV1Payload>? comments = null)
+        IReadOnlyList<ArchivedCardSnapshotCommentV1Payload>? comments = null,
+        int? assignedUserId = null,
+        string? assignedUserEmail = null)
     {
         var archivedAtUtc = capturedAtUtc ?? new DateTime(2026, 4, 26, 12, 0, 0, DateTimeKind.Utc);
         var snapshotJson = CreateSnapshotJsonV1(
@@ -418,7 +473,9 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
             title,
             description,
             archivedAtUtc,
-            comments);
+            comments,
+            assignedUserId,
+            assignedUserEmail);
         var archivedCard = DbContextForArrange.Set<ArchivedCardEntity>().Add(new ArchivedCardEntity
         {
             BoardId = boardId,
@@ -441,7 +498,9 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         string title,
         string description,
         DateTime capturedAtUtc,
-        IReadOnlyList<ArchivedCardSnapshotCommentV1Payload>? comments = null)
+        IReadOnlyList<ArchivedCardSnapshotCommentV1Payload>? comments = null,
+        int? assignedUserId = null,
+        string? assignedUserEmail = null)
     {
         var payload = new ArchivedCardSnapshotV1Payload(
             boardId,
@@ -458,8 +517,9 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
             [],
             capturedAtUtc,
             capturedAtUtc,
-            null,
-            comments);
+            assignedUserId,
+            comments,
+            AssignedUserEmail: assignedUserEmail);
         var envelope = new ArchivedCardSnapshotEnvelopeV1(
             ArchivedCardSnapshotSerialiser.SchemaName,
             1,

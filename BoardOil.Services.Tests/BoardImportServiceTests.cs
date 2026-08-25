@@ -8,6 +8,7 @@ using BoardOil.Services.Board;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace BoardOil.Services.Tests;
@@ -393,6 +394,53 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.Contains("IMPORTED ARCHIVED CARD", archivedCard.SearchTextNormalised);
         Assert.Contains("URGENT", archivedCard.SearchTextNormalised);
         Assert.Contains("\"schema\":\"archived-card\"", archivedCard.SnapshotJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WithArchivedAssignedCard_ShouldPreserveSnapshotAndRestoreAssigneeByEmail()
+    {
+        // Arrange
+        var sourceBoard = CreateBoard("Source Board")
+            .AddColumn("Todo")
+            .AddCard("Assigned archive", "Description")
+            .Build();
+        var sourceCard = sourceBoard.GetCard("Todo", "Assigned archive");
+        sourceCard.AssignedUserId = ActorUserId;
+        await DbContextForArrange.SaveChangesAsync();
+        var archiveService = ResolveService<ICardArchiveService>();
+        var archiveResult = await archiveService.ArchiveCardAsync(
+            sourceBoard.BoardId,
+            sourceCard.RequireBoardCardId(),
+            ActorUserId);
+        Assert.True(archiveResult.Success);
+        Assert.NotNull(archiveResult.Data);
+        var exportedSnapshotJson = archiveResult.Data!.SnapshotJson;
+        var exportService = ResolveService<IBoardExportService>();
+        var exportResult = await exportService.ExportBoardAsync(sourceBoard.BoardId, ActorUserId, "0.4.0");
+        Assert.True(exportResult.Success);
+        Assert.NotNull(exportResult.Data);
+
+        var importService = ResolveService<IBoardPackageImportService>();
+        var importResult = await importService.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest("Imported Board", exportResult.Data!.Content),
+            ActorUserId);
+        Assert.True(importResult.Success);
+        Assert.NotNull(importResult.Data);
+        var importedBoardId = importResult.Data!.Id;
+        var importedArchivedCard = await DbContextForAssert.ArchivedCards
+            .SingleAsync(x => x.BoardId == importedBoardId);
+        Assert.Equal(exportedSnapshotJson, importedArchivedCard.SnapshotJson);
+
+        // Act
+        var unarchiveResult = await archiveService.UnarchiveCardAsync(
+            importedBoardId,
+            importedArchivedCard.OriginalCardId,
+            ActorUserId);
+
+        // Assert
+        Assert.True(unarchiveResult.Success);
+        Assert.NotNull(unarchiveResult.Data);
+        Assert.Equal(ActorUserId, unarchiveResult.Data!.AssignedUserId);
     }
 
     [Theory]

@@ -3,6 +3,7 @@ using BoardOil.Contracts.Card;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Xunit;
 using ArchivedCardEntity = BoardOil.Data.Abstractions.Entities.EntityArchivedCard;
 using BoardMemberEntity = BoardOil.Data.Abstractions.Entities.EntityBoardMember;
@@ -558,6 +559,10 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         var archiveResult = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
         Assert.True(archiveResult.Success);
         Assert.NotNull(archiveResult.Data);
+        Assert.Contains(
+            $"\"assignedUserEmail\":\"{assignedUser.Email}\"",
+            archiveResult.Data!.SnapshotJson,
+            StringComparison.Ordinal);
 
         // Act
         var result = await service.GetArchivedCardAsync(boardId, archiveResult.Data!.Id, ActorUserId);
@@ -567,6 +572,58 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Equal(assignedUser.Id, result.Data!.Card.AssignedUserId);
         Assert.Equal(assignedUser.DisplayName, result.Data.Card.AssignedUserDisplayName);
+    }
+
+    [Fact]
+    public async Task GetArchivedCardAsync_WhenLegacySnapshotHasOnlyAssignedUserId_ShouldReturnNullAssignedUserFields()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Desc")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var assignedUser = await CreateBoardMemberUserAsync(boardId);
+        var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(boardId);
+        var cardService = ResolveService<CardService>();
+        var assignResult = await cardService.UpdateCardAsync(
+            boardId,
+            cardId,
+            new UpdateCardRequest("Archive me", "Desc", [], systemCardTypeId, null, assignedUser.Id),
+            ActorUserId);
+        Assert.True(assignResult.Success);
+
+        var service = ResolveService<ICardArchiveService>();
+        var archiveResult = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+        Assert.True(archiveResult.Success);
+        Assert.NotNull(archiveResult.Data);
+        var parsed = ArchivedCardSnapshotSerialiser.TryReadKnownPayload(
+            archiveResult.Data!.SnapshotJson,
+            out var knownPayload,
+            out var error);
+        Assert.True(parsed);
+        Assert.Null(error);
+        Assert.NotNull(knownPayload);
+        var legacyEnvelope = new ArchivedCardSnapshotEnvelopeV1(
+            knownPayload!.Schema,
+            knownPayload.Version,
+            knownPayload.CapturedAtUtc,
+            knownPayload.Payload with { AssignedUserEmail = null });
+        var archivedCard = await DbContextForArrange.ArchivedCards.SingleAsync(x => x.BoardId == boardId);
+        archivedCard.SnapshotJson = JsonSerializer.Serialize(
+            legacyEnvelope,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        await DbContextForArrange.SaveChangesAsync();
+
+        // Act
+        var result = await service.GetArchivedCardAsync(boardId, archiveResult.Data.Id, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Null(result.Data!.Card.AssignedUserId);
+        Assert.Null(result.Data.Card.AssignedUserDisplayName);
     }
 
     [Fact]
@@ -677,7 +734,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
             UserName = userName,
             DisplayName = "Assigned User",
             Email = email,
-            NormalisedEmail = email.ToUpperInvariant(),
+            NormalisedEmail = email.ToLowerInvariant(),
             PasswordHash = "hash",
             IsActive = true,
         };
