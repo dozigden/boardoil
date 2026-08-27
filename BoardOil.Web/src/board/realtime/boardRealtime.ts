@@ -40,6 +40,7 @@ export function configureBoardRealtimeFactory(factory: BoardRealtimeFactory) {
 const realtimeDebugEnabled = resolveRealtimeDebugEnabled();
 const signalRLogLevel = realtimeDebugEnabled ? LogLevel.Information : LogLevel.Warning;
 const unauthorizedStartRetryDelaysMs = [0, 1_000, 3_000, 7_000];
+const terminalRecoveryRetryDelaysMs = [2_000, 10_000];
 const realtimeDisconnectedMessage = 'Realtime updates are unavailable. Data may be stale until reconnect.';
 
 function logRealtime(message: string, details?: unknown) {
@@ -88,6 +89,9 @@ function createSignalRBoardRealtime(
   let subscribedBoardId: number | null = null;
   let startPromise: Promise<void> | null = null;
   let subscribePromise: Promise<void> | null = null;
+  let reconnectTransition: Promise<void> | null = null;
+  let finishReconnectTransition: (() => void) | null = null;
+  let reconnectTransitionError: unknown = null;
   let pageUnloading = false;
   let disconnecting = false;
 
@@ -122,9 +126,21 @@ function createSignalRBoardRealtime(
     });
   }
 
-  async function ensureConnectionStarted(boardId: number) {
+  async function ensureConnectionStarted(boardId: number, waitForReconnect = true) {
     const connection = hubConnection;
     if (!connection) {
+      return;
+    }
+
+    if (waitForReconnect && reconnectTransition) {
+      logRealtime('Waiting for reconnect recovery to finish.');
+      await reconnectTransition;
+      if (reconnectTransitionError !== null) {
+        throw reconnectTransitionError;
+      }
+      if (hubConnection === connection && !disconnecting) {
+        await ensureConnectionStarted(boardId);
+      }
       return;
     }
 
@@ -138,11 +154,14 @@ function createSignalRBoardRealtime(
       return;
     }
 
+    if (connection.state !== HubConnectionState.Disconnected) {
+      throw new Error(`Cannot start realtime while the connection state is '${connection.state}'.`);
+    }
+
     logRealtime('Starting realtime connection.');
     startPromise = (async () => {
       try {
         await connection.start();
-        await handlers.onConnectionRecovered?.();
       } catch (error) {
         if (!isUnauthorizedNegotiationError(error)) {
           reportRealtimeDiagnostic('realtime-start-failed', error, boardId, connection);
@@ -151,7 +170,7 @@ function createSignalRBoardRealtime(
         }
 
         try {
-          await retryUnauthorizedStart(connection, error, handlers.onConnectionRecovered);
+          await retryUnauthorizedStart(connection, error);
         } catch (retryError) {
           if (!isUnauthorizedNegotiationError(retryError)) {
             reportRealtimeDiagnostic('realtime-start-failed', retryError, boardId, connection);
@@ -222,6 +241,7 @@ function createSignalRBoardRealtime(
       });
 
       hubConnection.onreconnecting(error => {
+        beginReconnectTransition();
         logRealtime('Connection reconnecting.', {
           subscribedBoardId,
           error: error instanceof Error ? error.message : String(error)
@@ -238,21 +258,34 @@ function createSignalRBoardRealtime(
       });
 
       hubConnection.onreconnected(async () => {
-        logRealtime('Connection reconnected.', { subscribedBoardId });
+        const boardId = subscribedBoardId;
+        subscribedBoardId = null;
+        let reconnectError: unknown = null;
+        try {
+          logRealtime('Connection reconnected.', { boardId });
+          if (boardId !== null) {
+            await subscribeBoard(boardId);
+            logRealtime('Re-subscribed after reconnect.', { boardId });
+            await handlers.onResync(boardId);
+          }
 
-        if (subscribedBoardId !== null) {
-          await hubConnection?.invoke('SubscribeBoard', subscribedBoardId);
-          logRealtime('Re-subscribed after reconnect.', { boardId: subscribedBoardId });
-          await handlers.onResync(subscribedBoardId);
+          await handlers.onConnectionRecovered?.();
+          logRealtime('Resync completed after reconnect.');
+        } catch (error) {
+          reconnectError = error;
+          throw error;
+        } finally {
+          completeReconnectTransition(reconnectError);
         }
-
-        await handlers.onConnectionRecovered?.();
-        logRealtime('Resync requested after reconnect.');
       });
 
-      hubConnection.onclose(error => {
+      hubConnection.onclose(async error => {
+        beginReconnectTransition();
+        const boardId = subscribedBoardId;
+        subscribedBoardId = null;
+        let recoveryError: unknown = null;
         logRealtime('Connection closed.', {
-          subscribedBoardId,
+          boardId,
           error: error instanceof Error ? error.message : String(error)
         });
 
@@ -260,15 +293,26 @@ function createSignalRBoardRealtime(
           reportRealtimeDiagnostic(
             'realtime-closed',
             error,
-            subscribedBoardId,
+            boardId,
             connectionForHandlers);
-          void emitConnectionWarning();
+        }
+
+        try {
+          if (disconnecting || pageUnloading || boardId === null) {
+            return;
+          }
+
+          await emitConnectionWarning();
+          recoveryError = await recoverAfterTerminalClose(boardId, connectionForHandlers);
+        } finally {
+          completeReconnectTransition(recoveryError);
         }
       });
     }
 
     await ensureConnectionStarted(boardId);
     await subscribeBoard(boardId);
+    await handlers.onConnectionRecovered?.();
   }
 
   async function subscribeBoard(boardId: number) {
@@ -353,10 +397,68 @@ function createSignalRBoardRealtime(
     }
   }
 
+  async function recoverAfterTerminalClose(boardId: number, connection: HubConnection) {
+    const attemptCount = terminalRecoveryRetryDelaysMs.length + 1;
+    let latestError: unknown = null;
+    for (let attempt = 0; attempt < attemptCount; attempt += 1) {
+      if (hubConnection !== connection || disconnecting || pageUnloading) {
+        return null;
+      }
+
+      if (attempt > 0) {
+        await wait(terminalRecoveryRetryDelaysMs[attempt - 1]!);
+        if (hubConnection !== connection || disconnecting || pageUnloading) {
+          return null;
+        }
+      }
+
+      try {
+        await ensureConnectionStarted(boardId, false);
+        subscribedBoardId = null;
+        await subscribeBoard(boardId);
+        await handlers.onResync(boardId);
+        await handlers.onConnectionRecovered?.();
+        logRealtime('Realtime recovered after terminal close.', { boardId, attempt: attempt + 1 });
+        return null;
+      } catch (error) {
+        latestError = error;
+        reportRealtimeDiagnostic(
+          'realtime-recovery-failed',
+          error,
+          boardId,
+          connection);
+        await emitConnectionWarning();
+        if (isUnauthorizedNegotiationError(error)) {
+          break;
+        }
+      }
+    }
+
+    return latestError;
+  }
+
   return {
     connect,
     disconnect,
   };
+
+  function beginReconnectTransition() {
+    if (reconnectTransition) {
+      return;
+    }
+
+    reconnectTransition = new Promise(resolve => {
+      finishReconnectTransition = resolve;
+    });
+    reconnectTransitionError = null;
+  }
+
+  function completeReconnectTransition(error: unknown = null) {
+    reconnectTransitionError = error;
+    finishReconnectTransition?.();
+    finishReconnectTransition = null;
+    reconnectTransition = null;
+  }
 }
 
 function isUnauthorizedNegotiationError(error: unknown) {
@@ -372,8 +474,7 @@ function isUnauthorizedNegotiationError(error: unknown) {
 
 async function retryUnauthorizedStart(
   connection: HubConnection,
-  initialError: unknown,
-  onConnectionRecovered?: () => Promise<unknown> | unknown
+  initialError: unknown
 ) {
   let latestUnauthorizedError = initialError;
 
@@ -393,7 +494,6 @@ async function retryUnauthorizedStart(
     try {
       logRealtime('Retrying realtime start after session refresh.');
       await connection.start();
-      await onConnectionRecovered?.();
       return;
     } catch (retryError) {
       if (!isUnauthorizedNegotiationError(retryError)) {

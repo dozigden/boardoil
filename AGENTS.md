@@ -29,6 +29,11 @@ Read area guidance before working in that part of the system:
   - this repository uses BoardOil Development (`boardId: 1`) as the default board.  You should not work on stories on other boards, if you are given a story number on a different board - confirm before taking any action.
   - repository proxy scripts for board MCP operations have been removed
   - for card description-only updates via `card.update`, include full required payload (`boardId`, `id`, `cardTypeId`, `slickName`, `externalUrl`, `title`, `description`, `tagNames`)
+  - when mentioning BoardOil cards in chat, format them as `<CardType emoji> #<card number>: <title> (<tag emojis>)`
+    - place the CardType emoji before the card number and title
+    - place tag emojis in brackets after the title
+    - use only emojis provided by BoardOil for the card type and tags; do not infer or substitute emojis
+    - omit missing emojis and omit the brackets when there are no tag emojis
 - Archive snapshots:
   - when snapshotting references to mutable board-scoped entities (for example slick membership), prefer canonical names over numeric IDs.
 - For any changes under `BoardOil.Web`, run `npm run check` in `BoardOil.Web` before committing.
