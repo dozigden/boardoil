@@ -138,6 +138,29 @@ describe('boardRealtime', () => {
     });
   });
 
+  it('keeps board switching and reconnect restoration in the board protocol layer', async () => {
+    const handlers = createHandlers();
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime(handlers);
+
+    await realtime.connect(42);
+    await realtime.connect(84);
+
+    expect(connection.invoke.mock.calls).toEqual([
+      ['SubscribeBoard', 42],
+      ['UnsubscribeBoard', 42],
+      ['SubscribeBoard', 84]
+    ]);
+
+    connection.invoke.mockClear();
+    await connection.reconnectHandler?.();
+
+    expect(connection.invoke).toHaveBeenCalledTimes(1);
+    expect(connection.invoke).toHaveBeenCalledWith('SubscribeBoard', 84);
+    expect(handlers.onResync).toHaveBeenCalledTimes(1);
+    expect(handlers.onResync).toHaveBeenCalledWith(84);
+  });
+
   it('resyncs on reconnect callback', async () => {
     const onResync = vi.fn(async () => undefined);
     const { createBoardRealtime } = await import('./boardRealtime');
