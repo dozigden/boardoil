@@ -3,7 +3,7 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Contracts.Board;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Board;
-using BoardOil.Services.Tag;
+using BoardOil.Services.Style;
 using BoardOil.Services.Tests.Infrastructure;
 using Xunit;
 
@@ -149,13 +149,13 @@ public sealed class BoardImportServiceV2Tests : TestBaseDb
                 && x.Emoji == "🐞"
                 && !x.IsSystem
                 && x.StyleName == "gradient"
-                && x.StylePropertiesJson == """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""");
+                && x.StylePropertiesJson == """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto","borderMode":"auto"}""");
         Assert.Contains(
             cardTypes,
             x => x.Name == "Story"
                 && x.IsSystem
                 && x.StyleName == "solid"
-                && x.StylePropertiesJson == """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}""");
+                && x.StylePropertiesJson == """{"backgroundColor":"#FFFFFF","textColorMode":"auto","borderMode":"auto"}""");
 
         var tags = DbContextForAssert.Tags
             .Where(x => x.BoardId == boardId)
@@ -167,14 +167,14 @@ public sealed class BoardImportServiceV2Tests : TestBaseDb
             x => x.Name == "Urgent"
                 && x.Emoji == "🟥"
                 && x.StyleName == "solid"
-                && x.StylePropertiesJson == """{"backgroundColor":"#ED333B","textColorMode":"auto"}""");
-        Assert.Contains(tags, x => x.Name == "Ad hoc" && x.StyleName == TagStyleSchemaValidator.PresetsStyleName);
+                && x.StylePropertiesJson == """{"backgroundColor":"#ED333B","textColorMode":"auto","borderMode":"auto"}""");
+        Assert.Contains(tags, x => x.Name == "Ad hoc" && x.StyleName == StyleDefinitionCodec.PresetsStyleName);
 
         var slick = DbContextForAssert.Slicks.Single(x => x.BoardId == boardId);
         Assert.Equal("Release train", slick.Name);
         Assert.Equal("RELEASE TRAIN", slick.NormalisedName);
         Assert.Equal("solid", slick.StyleName);
-        Assert.Equal("""{"backgroundColor":"#2E8B57","textColorMode":"auto"}""", slick.StylePropertiesJson);
+        Assert.Equal("""{"backgroundColor":"#2E8B57","textColorMode":"auto","borderMode":"auto"}""", slick.StylePropertiesJson);
 
         var activeCards = DbContextForAssert.Cards
             .Where(x => x.BoardId == boardId)

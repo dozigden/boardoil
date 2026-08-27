@@ -8,7 +8,6 @@ using BoardOil.Contracts.Style;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Services.Style;
-using BoardOil.Services.Tag;
 
 namespace BoardOil.Services.Slick;
 
@@ -206,8 +205,9 @@ public sealed class SlickService(
     private static SlickStyleValidationResult ResolveAndValidateStyle(string? styleName, string? stylePropertiesJson)
     {
         var requestedStyleName = styleName?.Trim();
-        var normalisedStyleName = NormaliseSlickStyleName(requestedStyleName ?? TagStyleSchemaValidator.PresetsStyleName);
-        if (normalisedStyleName is null)
+        var resolvedStyleName = requestedStyleName ?? StyleDefinitionCodec.PresetsStyleName;
+        var styleKind = StyleDefinitionCodec.NormaliseStyleKind(resolvedStyleName);
+        if (styleKind is not StyleKind.Solid && styleKind is not StyleKind.Presets)
         {
             return new SlickStyleValidationResult(
                 string.Empty,
@@ -216,17 +216,21 @@ public sealed class SlickService(
         }
 
         var resolvedStylePropertiesJson = string.IsNullOrWhiteSpace(stylePropertiesJson)
-            ? TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(normalisedStyleName)
+            ? StyleDefinitionCodec.Serialise(StyleDefinitionCodec.CreateDefault(resolvedStyleName))
             : stylePropertiesJson.Trim();
-        if (!TagStyleSchemaValidator.IsValidJsonObject(resolvedStylePropertiesJson))
+        var styleValidation = StyleDefinitionCodec.ParseForWrite(resolvedStyleName, resolvedStylePropertiesJson);
+        if (!styleValidation.IsValid)
         {
             return new SlickStyleValidationResult(
                 string.Empty,
                 string.Empty,
-                new ValidationError("stylePropertiesJson", "Style properties must be valid JSON object."));
+                styleValidation.ValidationErrors.First());
         }
 
-        return new SlickStyleValidationResult(normalisedStyleName, resolvedStylePropertiesJson, null);
+        return new SlickStyleValidationResult(
+            styleValidation.StyleName,
+            styleValidation.StylePropertiesJson,
+            null);
     }
 
     private async Task<SlickStyleValidationResult> ResolveAndValidateCreateStyleAsync(
@@ -243,18 +247,6 @@ public sealed class SlickService(
         }
 
         return ResolveAndValidateStyle(styleName, stylePropertiesJson);
-    }
-
-    private static string? NormaliseSlickStyleName(string styleName)
-    {
-        var normalised = TagStyleSchemaValidator.NormaliseStyleName(styleName);
-        if (normalised is not TagStyleSchemaValidator.SolidStyleName
-            && normalised is not TagStyleSchemaValidator.PresetsStyleName)
-        {
-            return null;
-        }
-
-        return normalised;
     }
 
     private sealed record SlickStyleValidationResult(

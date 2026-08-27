@@ -146,7 +146,10 @@ public sealed class SlickServiceTests : TestBaseDb
         var result = await service.UpdateSlickAsync(
             boardId,
             slick.Id,
-            new UpdateSlickRequest("Launch lane", "solid", """{"backgroundColor":"#224466"}"""),
+            new UpdateSlickRequest(
+                "Launch lane",
+                "solid",
+                """{"backgroundColor":"#224466","textColorMode":"auto","borderMode":"auto"}"""),
             ActorUserId);
 
         // Assert

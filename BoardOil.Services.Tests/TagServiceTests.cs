@@ -42,8 +42,7 @@ public sealed class TagServiceTests : TestBaseDb
         using var styleProperties = JsonDocument.Parse(stored.StylePropertiesJson);
         Assert.True(styleProperties.RootElement.TryGetProperty("presetIndex", out var presetIndex));
         Assert.InRange(presetIndex.GetInt32(), 0, 11);
-        Assert.True(styleProperties.RootElement.TryGetProperty("textColorMode", out var textColorMode));
-        Assert.Equal("auto", textColorMode.GetString());
+        Assert.False(styleProperties.RootElement.TryGetProperty("textColorMode", out _));
         Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
@@ -191,10 +190,13 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(["Bug", "Urgent"], result.Data!.Select(x => x.Name).ToArray());
+        Assert.Equal(
+            """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            result.Data.Single(x => x.Name == "Bug").StylePropertiesJson);
     }
 
     [Fact]
-    public async Task UpdateTagStyleAsync_WhenStyleJsonObjectHasUnexpectedShape_ShouldSucceed()
+    public async Task UpdateTagStyleAsync_WhenStyleShapeIsInvalid_ShouldReturnValidationError()
     {
         // Arrange
         var boardId = CreateBoard("BoardOil")
@@ -218,12 +220,13 @@ public sealed class TagServiceTests : TestBaseDb
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagRequest(
             Name: "Bug",
             StyleName: "solid",
-            StylePropertiesJson: """{"backgroundColor":"blue","textColorMode":"auto"}"""), ActorUserId);
+            StylePropertiesJson: """{"backgroundColor":"blue","textColorMode":"auto","borderMode":"auto"}"""), ActorUserId);
 
         // Assert
-        Assert.True(result.Success);
-        Assert.NotNull(result.Data);
-        Assert.Equal("""{"backgroundColor":"blue","textColorMode":"auto"}""", result.Data!.StylePropertiesJson);
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("stylePropertiesJson"));
     }
 
     [Fact]
@@ -291,7 +294,7 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("presets", result.Data!.StyleName);
-        Assert.Equal("""{"presetIndex":3,"textColorMode":"auto","borderMode":"auto"}""", result.Data.StylePropertiesJson);
+        Assert.Equal("""{"presetIndex":3}""", result.Data.StylePropertiesJson);
     }
 
     [Fact]
@@ -314,7 +317,7 @@ public sealed class TagServiceTests : TestBaseDb
         await DbContextForArrange.SaveChangesAsync();
         var tagId = await DbContextForArrange.Tags.Select(x => x.Id).SingleAsync();
 
-        var updatedStylePropertiesJson = """{"leftColor":"#113355","rightColor":"#557799","textColorMode":"custom","textColor":"#FFFFFF"}""";
+        var updatedStylePropertiesJson = """{"leftColor":"#113355","rightColor":"#557799","textColorMode":"custom","borderMode":"auto","textColor":"#FFFFFF"}""";
 
         // Act
         var service = CreateService();
@@ -359,7 +362,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagRequest(
             StyleName: "solid",
-            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto","borderMode":"auto"}""",
             Name: "Platform"), ActorUserId);
 
         // Assert
@@ -409,7 +412,7 @@ public sealed class TagServiceTests : TestBaseDb
         var service = CreateService();
         var result = await service.UpdateTagStyleAsync(boardId, bugTagId, new UpdateTagRequest(
             StyleName: "solid",
-            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto","borderMode":"auto"}""",
             Name: "Urgent"), ActorUserId);
 
         // Assert
@@ -444,7 +447,7 @@ public sealed class TagServiceTests : TestBaseDb
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagRequest(
             Name: "Bug",
             StyleName: "solid",
-            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto","borderMode":"auto"}""",
             Emoji: "not-emoji"), ActorUserId);
 
         // Assert
@@ -480,12 +483,12 @@ public sealed class TagServiceTests : TestBaseDb
         var setEmojiResult = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagRequest(
             Name: "Bug",
             StyleName: "solid",
-            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto","borderMode":"auto"}""",
             Emoji: "⚠️"), ActorUserId);
         var clearEmojiResult = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagRequest(
             Name: "Bug",
             StyleName: "solid",
-            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto"}""",
+            StylePropertiesJson: """{"backgroundColor":"#114488","textColorMode":"auto","borderMode":"auto"}""",
             Emoji: "   "), ActorUserId);
 
         // Assert
@@ -527,7 +530,7 @@ public sealed class TagServiceTests : TestBaseDb
         var result = await service.UpdateTagStyleAsync(boardId, tagId, new UpdateTagRequest(
             Name: "Bug",
             StyleName: "gradient",
-            StylePropertiesJson: """{"leftColor":"#113355","rightColor":"#557799","textColorMode":"auto"}"""), ActorUserId);
+            StylePropertiesJson: """{"leftColor":"#113355","rightColor":"#557799","textColorMode":"auto","borderMode":"auto"}"""), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -580,7 +583,7 @@ public sealed class TagServiceTests : TestBaseDb
             .Select(x => x.Id)
             .SingleAsync();
 
-        var updatedStylePropertiesJson = """{"leftColor":"#223344","rightColor":"#446688","textColorMode":"auto"}""";
+        var updatedStylePropertiesJson = """{"leftColor":"#223344","rightColor":"#446688","textColorMode":"auto","borderMode":"auto"}""";
         var service = CreateService();
 
         // Act

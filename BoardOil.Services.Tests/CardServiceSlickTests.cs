@@ -1,6 +1,6 @@
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Card;
-using BoardOil.Services.Tag;
+using BoardOil.Services.Style;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -112,7 +112,7 @@ public sealed class CardServiceSlickTests : TestBaseDb
         var createdSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.BoardId == board.BoardId);
         Assert.Equal("Release train", createdSlick.Name);
         Assert.Equal("RELEASE TRAIN", createdSlick.NormalisedName);
-        Assert.Equal(TagStyleSchemaValidator.PresetsStyleName, createdSlick.StyleName);
+        Assert.Equal(StyleDefinitionCodec.PresetsStyleName, createdSlick.StyleName);
 
         var storedCard = await DbContextForAssert.Cards.SingleAsync();
         Assert.Equal(createdSlick.Id, storedCard.SlickId);
@@ -145,7 +145,7 @@ public sealed class CardServiceSlickTests : TestBaseDb
         var createdSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.BoardId == board.BoardId);
         Assert.Equal("Release candidate", createdSlick.Name);
         Assert.Equal("RELEASE CANDIDATE", createdSlick.NormalisedName);
-        Assert.Equal(TagStyleSchemaValidator.PresetsStyleName, createdSlick.StyleName);
+        Assert.Equal(StyleDefinitionCodec.PresetsStyleName, createdSlick.StyleName);
 
         var storedCard = await DbContextForAssert.Cards.SingleAsync(x => x.Id == cardId);
         Assert.Equal(createdSlick.Id, storedCard.SlickId);
@@ -178,7 +178,7 @@ public sealed class CardServiceSlickTests : TestBaseDb
         var createdSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.BoardId == board.BoardId);
         Assert.Equal("Release candidate", createdSlick.Name);
         Assert.Equal("RELEASE CANDIDATE", createdSlick.NormalisedName);
-        Assert.Equal(TagStyleSchemaValidator.PresetsStyleName, createdSlick.StyleName);
+        Assert.Equal(StyleDefinitionCodec.PresetsStyleName, createdSlick.StyleName);
 
         var storedCards = await DbContextForAssert.Cards.Where(x => x.Id == cardAId || x.Id == cardBId).ToListAsync();
         Assert.All(storedCards, card => Assert.Equal(createdSlick.Id, card.SlickId));
@@ -200,8 +200,9 @@ public sealed class CardServiceSlickTests : TestBaseDb
             BoardId = board.BoardId,
             Name = "Release train",
             NormalisedName = "RELEASE TRAIN",
-            StyleName = TagStyleSchemaValidator.PresetsStyleName,
-            StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName)
+            StyleName = StyleDefinitionCodec.PresetsStyleName,
+            StylePropertiesJson = StyleDefinitionCodec.Serialise(
+                StyleDefinitionCodec.CreateDefault(StyleKind.Presets))
         };
         DbContextForArrange.Slicks.Add(slick);
         await DbContextForArrange.SaveChangesAsync();

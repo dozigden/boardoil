@@ -147,7 +147,7 @@ import { useBoardStore } from '../stores/boardStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useStyleDraft } from '../composables/useStyleDraft';
 import { SLICK_PRESET_TOKENS } from '../../shared/utils/presetTheme';
-import { createStyleDraft } from '../../shared/utils/styleDraftAdapter';
+import { createRestrictedStyleDraft, createStyleDraft } from '../../shared/utils/styleDraftAdapter';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { Slick, SlickEditModel, SlickStyleName } from '../../shared/types/boardTypes';
 import ModalDialog from '../../shared/components/ModalDialog.vue';
@@ -183,6 +183,7 @@ const {
 const draftSlickName = ref('');
 const draftSourceKey = ref<string | null>(null);
 const presetColours = SLICK_PRESET_TOKENS;
+const allowedSlickStyleNames = new Set<SlickStyleName>(['solid', 'presets']);
 
 const isCreateMode = computed(() => route.name === 'slicks-new');
 const routeSlickId = computed<number | null>(() => {
@@ -348,10 +349,17 @@ async function initialiseCreateDraftState(nextBoardId: number) {
 
 function initialiseEditDraftState(slick: Slick, slickId: number) {
   draftSourceKey.value = `edit:${slickId}`;
-  setDraft(createStyleDraft({
-    styleName: slick.styleName,
-    stylePropertiesJson: slick.stylePropertiesJson
-  }));
+  setDraft(createRestrictedStyleDraft(
+    {
+      styleName: slick.styleName,
+      stylePropertiesJson: slick.stylePropertiesJson
+    },
+    allowedSlickStyleNames,
+    {
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":2}'
+    }
+  ));
   draftSlickName.value = slick.name;
 }
 

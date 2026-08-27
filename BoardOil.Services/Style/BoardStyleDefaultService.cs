@@ -1,9 +1,7 @@
 using BoardOil.Contracts.Style;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
-using BoardOil.Services.Tag;
 using System.Security.Cryptography;
-using System.Text.Json;
 
 namespace BoardOil.Services.Style;
 
@@ -26,13 +24,10 @@ public sealed class BoardStyleDefaultService(
     public StyleDefaultDto BuildCreateDefaultStyle(IEnumerable<BoardStyleDefaultCandidate> existingStyles)
     {
         var presetIndex = PickPresetIndex(existingStyles);
+        var definition = new PresetStyleDefinition(presetIndex);
         return new StyleDefaultDto(
-            TagStyleSchemaValidator.PresetsStyleName,
-            JsonSerializer.Serialize(new
-            {
-                presetIndex,
-                textColorMode = "auto"
-            }));
+            StyleDefinitionCodec.PresetsStyleName,
+            StyleDefinitionCodec.Serialise(definition));
     }
 
     private static int PickPresetIndex(IEnumerable<BoardStyleDefaultCandidate> existingStyles)
@@ -40,21 +35,17 @@ public sealed class BoardStyleDefaultService(
         var usedPresetIndexes = new HashSet<int>();
         foreach (var style in existingStyles)
         {
-            var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(style.StyleName);
-            if (normalisedStyleName != TagStyleSchemaValidator.PresetsStyleName)
+            var parsed = StyleDefinitionCodec.ParseCompatible(style.StyleName, style.StylePropertiesJson);
+            if (parsed.Definition is not PresetStyleDefinition preset)
             {
                 continue;
             }
 
-            var presetIndex = TryReadPresetIndex(style.StylePropertiesJson);
-            if (presetIndex is not null)
-            {
-                usedPresetIndexes.Add(presetIndex.Value);
-            }
+            usedPresetIndexes.Add(preset.PresetIndex);
         }
 
         var unusedPresetIndexes = Enumerable
-            .Range(0, TagStyleSchemaValidator.PresetCount)
+            .Range(0, StyleDefinitionCodec.PresetCount)
             .Where(x => !usedPresetIndexes.Contains(x))
             .ToList();
         if (unusedPresetIndexes.Count > 0)
@@ -62,50 +53,6 @@ public sealed class BoardStyleDefaultService(
             return unusedPresetIndexes[RandomNumberGenerator.GetInt32(unusedPresetIndexes.Count)];
         }
 
-        return RandomNumberGenerator.GetInt32(TagStyleSchemaValidator.PresetCount);
-    }
-
-    private static int? TryReadPresetIndex(string stylePropertiesJson)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(stylePropertiesJson);
-            if (!document.RootElement.TryGetProperty("presetIndex", out var presetIndexElement))
-            {
-                return null;
-            }
-
-            var presetIndex = ReadPresetIndexValue(presetIndexElement);
-            if (presetIndex < 0 || presetIndex >= TagStyleSchemaValidator.PresetCount)
-            {
-                return null;
-            }
-
-            return presetIndex;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-        catch (ArgumentException)
-        {
-            return null;
-        }
-    }
-
-    private static int ReadPresetIndexValue(JsonElement presetIndexElement)
-    {
-        if (presetIndexElement.ValueKind == JsonValueKind.Number && presetIndexElement.TryGetInt32(out var numericIndex))
-        {
-            return numericIndex;
-        }
-
-        if (presetIndexElement.ValueKind == JsonValueKind.String
-            && int.TryParse(presetIndexElement.GetString(), out var stringIndex))
-        {
-            return stringIndex;
-        }
-
-        return -1;
+        return RandomNumberGenerator.GetInt32(StyleDefinitionCodec.PresetCount);
     }
 }

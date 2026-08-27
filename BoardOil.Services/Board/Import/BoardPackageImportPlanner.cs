@@ -3,6 +3,7 @@ using System.Text.Json;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Common;
 using BoardOil.Services.Card;
+using BoardOil.Services.Style;
 using BoardOil.Services.Tag;
 
 namespace BoardOil.Services.Board.Import;
@@ -159,26 +160,12 @@ public sealed class BoardPackageImportPlanner
                     validationErrors.Add(tagNameValidation.Error);
                 }
 
-                var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(importedTag.StyleName);
-                if (normalisedStyleName is null)
-                {
-                    validationErrors.Add(new ValidationError(
-                        $"{tagPropertyPrefix}.styleName",
-                        "Style name must be 'solid', 'gradient', 'auto', or 'presets'."));
-                }
-
-                if (string.IsNullOrWhiteSpace(importedTag.StylePropertiesJson))
-                {
-                    validationErrors.Add(new ValidationError(
-                        $"{tagPropertyPrefix}.stylePropertiesJson",
-                        "Style properties must be valid JSON object."));
-                }
-                else if (!TagStyleSchemaValidator.IsValidJsonObject(importedTag.StylePropertiesJson))
-                {
-                    validationErrors.Add(new ValidationError(
-                        $"{tagPropertyPrefix}.stylePropertiesJson",
-                        "Style properties must be valid JSON object."));
-                }
+                var styleValidation = StyleDefinitionCodec.ParseCompatible(
+                    importedTag.StyleName,
+                    importedTag.StylePropertiesJson,
+                    $"{tagPropertyPrefix}.styleName",
+                    $"{tagPropertyPrefix}.stylePropertiesJson");
+                validationErrors.AddRange(styleValidation.ValidationErrors);
 
                 var emojiValidation = TagEmojiValidator.ValidateAndNormalise(importedTag.Emoji, $"{tagPropertyPrefix}.emoji");
                 if (emojiValidation.Error is not null)
@@ -204,8 +191,8 @@ public sealed class BoardPackageImportPlanner
                     new TagImportDefinition(
                         tagNameValidation.CanonicalName,
                         tagNameValidation.NormalisedName,
-                        normalisedStyleName!,
-                        importedTag.StylePropertiesJson!,
+                        styleValidation.StyleName,
+                        styleValidation.StylePropertiesJson,
                         emojiValidation.CanonicalEmoji));
             }
         }
@@ -779,27 +766,18 @@ public sealed class BoardPackageImportPlanner
         var resolvedStyleName = string.IsNullOrWhiteSpace(styleName)
             ? CardTypeDefaults.DefaultStyleName
             : styleName.Trim();
-        var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(resolvedStyleName);
-        if (normalisedStyleName is null)
-        {
-            return new CardTypeStyleResolution(
-                string.Empty,
-                string.Empty,
-                new ValidationError($"{propertyPrefix}.styleName", "Style name must be 'solid', 'gradient', 'auto', or 'presets'."));
-        }
-
         var resolvedStylePropertiesJson = string.IsNullOrWhiteSpace(stylePropertiesJson)
-            ? TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(normalisedStyleName)
+            ? StyleDefinitionCodec.Serialise(StyleDefinitionCodec.CreateDefault(resolvedStyleName))
             : stylePropertiesJson.Trim();
-        if (!TagStyleSchemaValidator.IsValidJsonObject(resolvedStylePropertiesJson))
-        {
-            return new CardTypeStyleResolution(
-                string.Empty,
-                string.Empty,
-                new ValidationError($"{propertyPrefix}.stylePropertiesJson", "Style properties must be valid JSON object."));
-        }
-
-        return new CardTypeStyleResolution(normalisedStyleName, resolvedStylePropertiesJson, null);
+        var styleValidation = StyleDefinitionCodec.ParseCompatible(
+            resolvedStyleName,
+            resolvedStylePropertiesJson,
+            $"{propertyPrefix}.styleName",
+            $"{propertyPrefix}.stylePropertiesJson");
+        return new CardTypeStyleResolution(
+            styleValidation.StyleName,
+            styleValidation.StylePropertiesJson,
+            styleValidation.ValidationErrors.FirstOrDefault());
     }
 
     private static SlickNameValidationResult ValidateSlickName(string? rawSlickName, string property)
@@ -832,12 +810,11 @@ public sealed class BoardPackageImportPlanner
         var resolvedStyleName = styleName;
         if (string.IsNullOrWhiteSpace(resolvedStyleName))
         {
-            resolvedStyleName = TagStyleSchemaValidator.PresetsStyleName;
+            resolvedStyleName = StyleDefinitionCodec.PresetsStyleName;
         }
 
-        var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(resolvedStyleName.Trim());
-        if (normalisedStyleName is not TagStyleSchemaValidator.SolidStyleName
-            && normalisedStyleName is not TagStyleSchemaValidator.PresetsStyleName)
+        var styleKind = StyleDefinitionCodec.NormaliseStyleKind(resolvedStyleName);
+        if (styleKind is not StyleKind.Solid && styleKind is not StyleKind.Presets)
         {
             return new SlickStyleResolution(
                 string.Empty,
@@ -848,22 +825,31 @@ public sealed class BoardPackageImportPlanner
         var resolvedStylePropertiesJson = stylePropertiesJson;
         if (string.IsNullOrWhiteSpace(resolvedStylePropertiesJson))
         {
-            resolvedStylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(normalisedStyleName);
+            resolvedStylePropertiesJson = StyleDefinitionCodec.Serialise(
+                StyleDefinitionCodec.CreateDefault(resolvedStyleName));
         }
         else
         {
             resolvedStylePropertiesJson = resolvedStylePropertiesJson.Trim();
         }
 
-        if (!TagStyleSchemaValidator.IsValidJsonObject(resolvedStylePropertiesJson))
+        var styleValidation = StyleDefinitionCodec.ParseCompatible(
+            resolvedStyleName,
+            resolvedStylePropertiesJson,
+            $"{propertyPrefix}.styleName",
+            $"{propertyPrefix}.stylePropertiesJson");
+        if (!styleValidation.IsValid)
         {
             return new SlickStyleResolution(
                 string.Empty,
                 string.Empty,
-                new ValidationError($"{propertyPrefix}.stylePropertiesJson", "Style properties must be valid JSON object."));
+                styleValidation.ValidationErrors.First());
         }
 
-        return new SlickStyleResolution(normalisedStyleName, resolvedStylePropertiesJson, null);
+        return new SlickStyleResolution(
+            styleValidation.StyleName,
+            styleValidation.StylePropertiesJson,
+            null);
     }
 
     private static string? ResolveCardSlickNormalisedName(

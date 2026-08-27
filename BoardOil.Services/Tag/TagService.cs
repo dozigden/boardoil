@@ -144,25 +144,14 @@ public sealed class TagService(
             return ApiErrors.NotFound("Tag not found.");
         }
 
-        var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(request.StyleName);
         var validationErrors = new List<ValidationError>();
-        if (normalisedStyleName is null)
-        {
-            validationErrors.Add(new ValidationError("styleName", "Style name must be 'solid', 'gradient', 'auto', or 'presets'."));
-        }
+        var styleValidation = StyleDefinitionCodec.ParseForWrite(request.StyleName, request.StylePropertiesJson);
+        validationErrors.AddRange(styleValidation.ValidationErrors);
 
         var emojiValidation = TagEmojiValidator.ValidateAndNormalise(request.Emoji, "emoji");
         if (emojiValidation.Error is not null)
         {
             validationErrors.Add(emojiValidation.Error);
-        }
-
-        if (normalisedStyleName is not null)
-        {
-            if (!TagStyleSchemaValidator.IsValidJsonObject(request.StylePropertiesJson))
-            {
-                validationErrors.Add(new ValidationError("stylePropertiesJson", "Style properties must be valid JSON object."));
-            }
         }
 
         var tagNameValidation = ValidateTagName(request.Name, "name");
@@ -179,7 +168,7 @@ public sealed class TagService(
             }
         }
 
-        if (validationErrors.Count > 0 || normalisedStyleName is null)
+        if (validationErrors.Count > 0 || !styleValidation.IsValid)
         {
             return ApiErrors.ValidationFailed(validationErrors);
         }
@@ -187,8 +176,8 @@ public sealed class TagService(
         var updatedAtUtc = DateTime.UtcNow;
         existing.Name = tagNameValidation.CanonicalName;
         existing.NormalisedName = tagNameValidation.NormalisedName;
-        existing.StyleName = normalisedStyleName;
-        existing.StylePropertiesJson = request.StylePropertiesJson;
+        existing.StyleName = styleValidation.StyleName;
+        existing.StylePropertiesJson = styleValidation.StylePropertiesJson;
         existing.Emoji = emojiValidation.CanonicalEmoji;
 
         await scope.SaveChangesAsync();

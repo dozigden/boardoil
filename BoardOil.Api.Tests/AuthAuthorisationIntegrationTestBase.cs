@@ -6,7 +6,7 @@ using BoardOil.Contracts.Board;
 using BoardOil.Ef;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
-using BoardOil.Services.Tag;
+using BoardOil.Services.Style;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -54,7 +54,7 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
                 BoardId = boardId,
                 Name = canonicalName,
                 NormalisedName = canonicalName.ToUpperInvariant(),
-                StyleName = TagStyleSchemaValidator.SolidStyleName,
+                StyleName = StyleDefinitionCodec.SolidStyleName,
                 StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
             };
 

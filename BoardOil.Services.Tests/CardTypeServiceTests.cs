@@ -131,7 +131,7 @@ public sealed class CardTypeServiceTests : TestBaseDb
                 "Epic",
                 "🚀",
                 "gradient",
-                """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}"""),
+                """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto","borderMode":"auto"}"""),
             ActorUserId);
 
         // Assert
@@ -140,19 +140,19 @@ public sealed class CardTypeServiceTests : TestBaseDb
         Assert.Equal("Epic", result.Data!.Name);
         Assert.Equal("🚀", result.Data.Emoji);
         Assert.Equal("gradient", result.Data.StyleName);
-        Assert.Equal("""{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""", result.Data.StylePropertiesJson);
+        Assert.Equal("""{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto","borderMode":"auto"}""", result.Data.StylePropertiesJson);
         Assert.True(result.Data.IsSystem);
 
         var stored = await DbContextForAssert.CardTypes.SingleAsync(x => x.Id == systemType.Id);
         Assert.Equal("Epic", stored.Name);
         Assert.Equal("🚀", stored.Emoji);
         Assert.Equal("gradient", stored.StyleName);
-        Assert.Equal("""{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""", stored.StylePropertiesJson);
+        Assert.Equal("""{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto","borderMode":"auto"}""", stored.StylePropertiesJson);
         Assert.True(stored.IsSystem);
     }
 
     [Fact]
-    public async Task UpdateCardTypeAsync_WhenStyleJsonObjectHasUnexpectedShape_ShouldSucceed()
+    public async Task UpdateCardTypeAsync_WhenPresetIndexIsOutOfRange_ShouldReturnValidationError()
     {
         // Arrange
         var boardId = CreateBoard("BoardOil")
@@ -174,10 +174,10 @@ public sealed class CardTypeServiceTests : TestBaseDb
             ActorUserId);
 
         // Assert
-        Assert.True(result.Success);
-        Assert.NotNull(result.Data);
-        Assert.Equal("presets", result.Data!.StyleName);
-        Assert.Equal("""{"presetIndex":999,"textColorMode":"auto"}""", result.Data.StylePropertiesJson);
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("stylePropertiesJson"));
     }
 
     [Fact]

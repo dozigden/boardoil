@@ -42,7 +42,7 @@ public sealed class SystemInfoMessageServiceTests
             "Maintenance window",
             "Service update incoming.",
             "presets",
-            """{"presetIndex":4}""");
+            """{"presetIndex":4,"textColorMode":"auto","unknown":"value"}""");
 
         // Act
         var result = await service.UpdateAsync(request);
@@ -51,12 +51,14 @@ public sealed class SystemInfoMessageServiceTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("presets", result.Data!.StyleName);
+        Assert.Equal("""{"presetIndex":4}""", result.Data.StylePropertiesJson);
         Assert.Equal(1, scopes.SaveChangesCallCount);
         Assert.Single(boardEvents.SystemInfoMessageUpdatedEvents);
 
         var persisted = await repository.GetCurrentAsync();
         Assert.NotNull(persisted);
         Assert.Equal("Maintenance window", persisted!.Title);
+        Assert.Equal("""{"presetIndex":4}""", persisted.StylePropertiesJson);
     }
 
     [Fact]

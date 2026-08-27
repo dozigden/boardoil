@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildStylePropertiesJsonFromDraft, createStyleDraft } from './styleDraftAdapter';
+import {
+  buildStylePropertiesJsonFromDraft,
+  createRestrictedStyleDraft,
+  createStyleDraft
+} from './styleDraftAdapter';
 
 describe('styleDraftAdapter', () => {
   it('maps non-canonical solid payloads to auto draft', () => {
@@ -18,6 +22,41 @@ describe('styleDraftAdapter', () => {
     });
 
     expect(draft.styleName).toBe('auto');
+    expect(buildStylePropertiesJsonFromDraft(draft)).toBe('{}');
+  });
+
+  it('maps invalid slick payload to an allowed preset draft', () => {
+    const draft = createRestrictedStyleDraft(
+      {
+        styleName: 'solid',
+        stylePropertiesJson: '{"backgroundColor":"oops"}'
+      },
+      new Set(['solid', 'presets']),
+      {
+        styleName: 'presets',
+        stylePropertiesJson: '{"presetIndex":2}'
+      }
+    );
+
+    expect(draft.styleName).toBe('presets');
+    expect(buildStylePropertiesJsonFromDraft(draft)).toBe('{"presetIndex":2}');
+  });
+
+  it('maps an unsupported system information gradient to auto', () => {
+    const draft = createRestrictedStyleDraft(
+      {
+        styleName: 'gradient',
+        stylePropertiesJson: '{"leftColor":"#112233","rightColor":"#445566","textColorMode":"auto","borderMode":"auto"}'
+      },
+      new Set(['auto', 'presets', 'solid']),
+      {
+        styleName: 'auto',
+        stylePropertiesJson: '{}'
+      }
+    );
+
+    expect(draft.styleName).toBe('auto');
+    expect(buildStylePropertiesJsonFromDraft(draft)).toBe('{}');
   });
 
   it('serializes custom border fields for manual styles', () => {

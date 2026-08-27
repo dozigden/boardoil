@@ -9,7 +9,7 @@ import type { StyleDraft } from './styleTypes';
 
 export type TagStyleDraft = StyleDraft;
 
-export const DEFAULT_TAG_STYLE_PROPERTIES_JSON = '{"presetIndex":2,"textColorMode":"auto","borderMode":"auto"}';
+export const DEFAULT_TAG_STYLE_PROPERTIES_JSON = '{"presetIndex":2}';
 
 export function normaliseTagEmojiForRender(rawEmoji: string | null | undefined): string | null {
   return normaliseEmojiForRender(rawEmoji);

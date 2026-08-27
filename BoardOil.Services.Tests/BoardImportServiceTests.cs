@@ -7,7 +7,7 @@ using BoardOil.Contracts.Card;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Board;
 using BoardOil.Services.Card;
-using BoardOil.Services.Tag;
+using BoardOil.Services.Style;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -92,19 +92,19 @@ public sealed class BoardImportServiceTests : TestBaseDb
                 && !x.IsSystem
                 && x.Emoji == "🐞"
                 && x.StyleName == "gradient"
-                && x.StylePropertiesJson == """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}""");
+                && x.StylePropertiesJson == """{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto","borderMode":"auto"}""");
 
         var tags = DbContextForAssert.Tags.Where(x => x.BoardId == boardId).OrderBy(x => x.Name).ToList();
         Assert.Equal(["NeedsReview", "Urgent"], tags.Select(x => x.Name).ToArray());
         Assert.Contains(tags, x => x.Name == "Urgent" && x.StyleName == "solid" && x.Emoji == "🟥");
-        Assert.Contains(tags, x => x.Name == "NeedsReview" && x.StyleName == TagStyleSchemaValidator.PresetsStyleName);
+        Assert.Contains(tags, x => x.Name == "NeedsReview" && x.StyleName == StyleDefinitionCodec.PresetsStyleName);
 
         var slicks = DbContextForAssert.Slicks.Where(x => x.BoardId == boardId).ToList();
         var releaseTrainSlick = Assert.Single(slicks);
         Assert.Equal("Release train", releaseTrainSlick.Name);
         Assert.Equal("RELEASE TRAIN", releaseTrainSlick.NormalisedName);
         Assert.Equal("solid", releaseTrainSlick.StyleName);
-        Assert.Equal("""{"backgroundColor":"#2E8B57","textColorMode":"auto"}""", releaseTrainSlick.StylePropertiesJson);
+        Assert.Equal("""{"backgroundColor":"#2E8B57","textColorMode":"auto","borderMode":"auto"}""", releaseTrainSlick.StylePropertiesJson);
 
         var importedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId && x.Title == "Fix login");
         Assert.Equal(releaseTrainSlick.Id, importedCard.SlickId);
@@ -514,7 +514,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
             Name = "Portable type",
             Emoji = "📦",
             StyleName = "solid",
-            StylePropertiesJson = "{}",
+            StylePropertiesJson = """{"backgroundColor":"#112233","textColorMode":"auto","borderMode":"auto"}""",
             IsSystem = false,
         }).Entity;
         var sourceTag = DbContextForArrange.Tags.Add(new EntityTag
@@ -523,7 +523,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
             Name = "Portable tag",
             NormalisedName = "PORTABLE TAG",
             StyleName = "solid",
-            StylePropertiesJson = "{}",
+            StylePropertiesJson = """{"backgroundColor":"#112233","textColorMode":"auto","borderMode":"auto"}""",
         }).Entity;
         var sourceSlick = DbContextForArrange.Slicks.Add(new EntitySlick
         {
@@ -531,7 +531,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
             Name = "Portable slick",
             NormalisedName = "PORTABLE SLICK",
             StyleName = "solid",
-            StylePropertiesJson = "{}",
+            StylePropertiesJson = """{"backgroundColor":"#112233","textColorMode":"auto","borderMode":"auto"}""",
         }).Entity;
         await DbContextForArrange.SaveChangesAsync();
         var cardService = ResolveService<CardService>();
@@ -852,7 +852,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
                 && x.IsSystem
                 && x.Emoji == "📘"
                 && x.StyleName == "solid"
-                && x.StylePropertiesJson == """{"backgroundColor":"#FFFFFF","textColorMode":"auto"}""");
+                && x.StylePropertiesJson == """{"backgroundColor":"#FFFFFF","textColorMode":"auto","borderMode":"auto"}""");
     }
 
     [Fact]
@@ -1001,7 +1001,30 @@ public sealed class BoardImportServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task ImportBoardPackageAsync_WhenStyleJsonObjectsHaveUnexpectedShape_ShouldImport()
+    public async Task ImportBoardPackageAsync_WhenPresetIndexIsLegacyIntegerString_ShouldCanonicaliseToNumber()
+    {
+        var payload = new BoardPackageBoardDto(
+            "Legacy Preset Board",
+            "Legacy preset compatibility",
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [new BoardPackageTagDto("Legacy preset", "presets", """{"presetIndex":"4"}""", null)],
+            [new BoardPackageColumnDto("Todo", [])]);
+        var packageContent = BuildBoardPackage(BoardPackageContract.CreateManifest("0.3.0"), payload);
+
+        var service = ResolveService<IBoardPackageImportService>();
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, packageContent),
+            ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var importedTag = DbContextForAssert.Tags.Single(x => x.BoardId == result.Data!.Id);
+        Assert.Equal("presets", importedTag.StyleName);
+        Assert.Equal("""{"presetIndex":4}""", importedTag.StylePropertiesJson);
+    }
+
+    [Fact]
+    public async Task ImportBoardPackageAsync_WhenStyleShapeIsInvalid_ShouldReturnBadRequest()
     {
         var payload = new BoardPackageBoardDto(
             "Loose Style Board",
@@ -1014,8 +1037,10 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var service = ResolveService<IBoardPackageImportService>();
         var result = await service.ImportBoardPackageAsync(new ImportBoardPackageRequest("Loose Style Board", packageContent), ActorUserId);
 
-        Assert.True(result.Success);
-        Assert.NotNull(result.Data);
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.Contains(result.ValidationErrors!.Keys, x => x.EndsWith("stylePropertiesJson", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -49,8 +49,9 @@ Read area guidance before working in that part of the system:
 - Follow C# coding conventions in `AGENTS/CSharpCodingConventions.md`.
 - Do not use nested ternary expressions. Use explicit branching (`if`/`switch`) or small helper functions instead.
 - Style handling policy:
-  - backend runtime validation for `stylePropertiesJson` is transport-only: valid `styleName` + valid JSON object text.
-  - backend services/import must not enforce style-internal JSON schema keys (`backgroundColor`, `presetIndex`, `textColorMode`, etc.).
-  - style-internal interpretation belongs to frontend style modules; backend should only inspect style JSON internals in migration/upgrade code.
+  - style definitions are a closed BoardOil domain contract; backend services own supported style kinds, valid property shapes, normalisation, canonical persistence, and write/import validation.
+  - frontend style modules own rendering, theme token values, automatic colour and contrast behaviour, previews, and editor UX.
+  - persisted and REST style values remain `styleName` + `stylePropertiesJson`; backend code should parse or produce them through the shared style-domain codec rather than inspect JSON ad hoc.
+  - reads of existing invalid style values must remain non-blocking so frontend editors can fall back to an allowed draft and save a valid replacement.
 - Do not update `README.md` unless the user explicitly asks for a README change.
 - If the user gives you a number, eg #123 it is probably refering to a story on the board oil mcp server, look there first.

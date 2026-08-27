@@ -56,11 +56,12 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         Assert.NotNull(patchedTagEnvelope);
         Assert.NotNull(patchedTagEnvelope!.Data);
         Assert.Equal("presets", patchedTagEnvelope.Data!.StyleName);
+        Assert.Equal("""{"presetIndex":4}""", patchedTagEnvelope.Data.StylePropertiesJson);
         Assert.Equal("⚠️", patchedTagEnvelope.Data.Emoji);
     }
 
     [Fact]
-    public async Task TagEndpoints_ShouldAcceptOpaqueStyleJsonObject()
+    public async Task TagEndpoints_WhenStyleShapeIsInvalid_ShouldReturnBadRequest()
     {
         await SeedTagAsync("Bug", "BUG", "solid", """{"backgroundColor":"#224466","textColorMode":"auto"}""");
         var request = new UpdateTagRequest("Bug", "solid", """{"unexpected":"shape","nested":{"x":1}}""");
@@ -70,12 +71,11 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         var bugTag = Assert.Single(tagsEnvelope.Data!, x => x.Name == "Bug");
 
         var putResponse = await Client.PutAsJsonAsync($"/api/boards/1/tags/{bugTag.Id}", request);
-        putResponse.EnsureSuccessStatusCode();
-        var patchedTagEnvelope = await putResponse.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
+        var payload = await putResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
 
-        Assert.NotNull(patchedTagEnvelope);
-        Assert.NotNull(patchedTagEnvelope!.Data);
-        Assert.Equal("""{"unexpected":"shape","nested":{"x":1}}""", patchedTagEnvelope.Data!.StylePropertiesJson);
+        Assert.Equal(HttpStatusCode.BadRequest, putResponse.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
     }
 
     [Fact]
-    public async Task CardTypeEndpoints_ShouldAcceptOpaqueStyleJsonObject()
+    public async Task CardTypeEndpoints_WhenStyleShapeIsInvalid_ShouldReturnBadRequest()
     {
         var createTypeResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/card-types",
@@ -207,12 +207,11 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         var updateStyleResponse = await Client.PutAsJsonAsync(
             $"/api/boards/1/card-types/{createdTypeEnvelope.Data!.Id}",
             new UpdateCardTypeRequest("Bug", "🐞", "solid", """{"unexpected":"shape"}"""));
-        updateStyleResponse.EnsureSuccessStatusCode();
-        var updatedTypeEnvelope = await updateStyleResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeDto>>(JsonOptions);
+        var payload = await updateStyleResponse.Content.ReadFromJsonAsync<ApiEnvelope<object>>(JsonOptions);
 
-        Assert.NotNull(updatedTypeEnvelope);
-        Assert.NotNull(updatedTypeEnvelope!.Data);
-        Assert.Equal("""{"unexpected":"shape"}""", updatedTypeEnvelope.Data!.StylePropertiesJson);
+        Assert.Equal(HttpStatusCode.BadRequest, updateStyleResponse.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
     }
 
     [Fact]

@@ -119,7 +119,7 @@ public sealed class AuthAuthorisationBoardAccessIntegrationTests : AuthAuthorisa
             new UpdateTagRequest(
                 Name: "member",
                 StyleName: "solid",
-                StylePropertiesJson: """{"backgroundColor":"#113355","textColorMode":"auto"}"""));
+                StylePropertiesJson: """{"backgroundColor":"#113355","textColorMode":"auto","borderMode":"auto"}"""));
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

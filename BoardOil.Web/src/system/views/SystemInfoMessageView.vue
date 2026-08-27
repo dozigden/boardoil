@@ -159,7 +159,7 @@ import { computed, onMounted, ref } from 'vue';
 import { createSystemApi } from '../../shared/api/systemApi';
 import { useStyleDraft } from '../../board/composables/useStyleDraft';
 import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
-import { createStyleDraft } from '../../shared/utils/styleDraftAdapter';
+import { createRestrictedStyleDraft } from '../../shared/utils/styleDraftAdapter';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
@@ -168,6 +168,7 @@ import type { StylePresentation } from '../../shared/utils/styleTypes';
 
 const DEFAULT_SYSTEM_INFO_STYLE_NAME = 'presets';
 const DEFAULT_SYSTEM_INFO_STYLE_PROPERTIES_JSON = '{"presetIndex":2}';
+const allowedSystemInfoStyleNames = new Set<StylePresentation['styleName']>(['auto', 'presets', 'solid']);
 
 const systemApi = createSystemApi();
 const feedback = useUiFeedbackStore();
@@ -221,7 +222,9 @@ onMounted(async () => {
   }
 
   applySystemInfoDraft(systemInfoResult.data);
-  savedSnapshot.value = serialiseSystemInfoMessage(buildCurrentSystemInfoMessage());
+  savedSnapshot.value = systemInfoResult.data === null
+    ? serialiseSystemInfoMessage(buildCurrentSystemInfoMessage())
+    : serialiseSystemInfoMessage(systemInfoResult.data);
 });
 
 async function saveSystemInfoMessage() {
@@ -255,10 +258,17 @@ function applySystemInfoDraft(systemInfoMessage: SystemInfoMessageDto | null) {
 
   const styleName = systemInfoMessage?.styleName ?? DEFAULT_SYSTEM_INFO_STYLE_NAME;
   const stylePropertiesJson = systemInfoMessage?.stylePropertiesJson ?? DEFAULT_SYSTEM_INFO_STYLE_PROPERTIES_JSON;
-  setSystemInfoStyleDraft(createStyleDraft({
-    styleName,
-    stylePropertiesJson
-  }));
+  setSystemInfoStyleDraft(createRestrictedStyleDraft(
+    {
+      styleName,
+      stylePropertiesJson
+    },
+    allowedSystemInfoStyleNames,
+    {
+      styleName: 'auto',
+      stylePropertiesJson: '{}'
+    }
+  ));
 }
 
 function parseSystemInfoStyleNameInput(value: string): 'auto' | 'presets' | 'solid' {

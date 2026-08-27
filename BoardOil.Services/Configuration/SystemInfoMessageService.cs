@@ -5,7 +5,7 @@ using BoardOil.Contracts.Configuration;
 using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Configuration;
 using BoardOil.Data.Abstractions.Entities;
-using BoardOil.Services.Tag;
+using BoardOil.Services.Style;
 
 namespace BoardOil.Services.Configuration;
 
@@ -35,17 +35,13 @@ public sealed class SystemInfoMessageService(
 
     public async Task<ApiResult<SystemInfoMessageDto?>> UpdateAsync(SystemInfoMessageDto? request)
     {
-        var validationResult = Validate(request);
-        if (!validationResult.Success)
+        var validationResult = ValidateAndNormalise(request);
+        if (validationResult.Error is not null)
         {
-            return new ApiResult<SystemInfoMessageDto?>(
-                false,
-                null,
-                validationResult.StatusCode,
-                validationResult.Message,
-                validationResult.ValidationErrors);
+            return validationResult.Error;
         }
 
+        request = validationResult.Value;
         using var scope = scopeFactory.Create();
         var existing = await systemInfoMessageRepository.GetCurrentAsync();
 
@@ -96,32 +92,52 @@ public sealed class SystemInfoMessageService(
         return ApiResults.Ok(request);
     }
 
-    private static ApiResult Validate(SystemInfoMessageDto? value)
+    private static SystemInfoMessageValidationResult ValidateAndNormalise(SystemInfoMessageDto? value)
     {
         if (value is null)
         {
-            return ApiResults.Ok();
+            return new SystemInfoMessageValidationResult(null, null);
         }
 
-        var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(value.StyleName);
-        if (normalisedStyleName is not TagStyleSchemaValidator.AutoStyleName
-            && normalisedStyleName is not TagStyleSchemaValidator.PresetsStyleName
-            && normalisedStyleName is not TagStyleSchemaValidator.SolidStyleName)
+        var styleKind = StyleDefinitionCodec.NormaliseStyleKind(value.StyleName);
+        if (styleKind is not StyleKind.Auto
+            && styleKind is not StyleKind.Presets
+            && styleKind is not StyleKind.Solid)
         {
-            return ApiErrors.BadRequest("systemInfoMessage.styleName must be auto, presets, or solid.");
+            return new SystemInfoMessageValidationResult(
+                null,
+                ApiErrors.BadRequest("systemInfoMessage.styleName must be auto, presets, or solid."));
         }
 
-        if (string.IsNullOrWhiteSpace(value.StylePropertiesJson)
-            || !TagStyleSchemaValidator.IsValidJsonObject(value.StylePropertiesJson))
+        var styleValidation = StyleDefinitionCodec.ParseForWrite(
+            value.StyleName,
+            value.StylePropertiesJson,
+            "systemInfoMessage.styleName",
+            "systemInfoMessage.stylePropertiesJson");
+        if (!styleValidation.IsValid)
         {
-            return ApiErrors.BadRequest("systemInfoMessage.stylePropertiesJson must be valid JSON object text.");
+            return new SystemInfoMessageValidationResult(
+                null,
+                ApiErrors.BadRequest("System information message style is invalid.", styleValidation.ValidationErrors));
         }
 
         if (value.Enabled && string.IsNullOrWhiteSpace(value.Title))
         {
-            return ApiErrors.BadRequest("systemInfoMessage.title is required when enabled is true.");
+            return new SystemInfoMessageValidationResult(
+                null,
+                ApiErrors.BadRequest("systemInfoMessage.title is required when enabled is true."));
         }
 
-        return ApiResults.Ok();
+        return new SystemInfoMessageValidationResult(
+            value with
+            {
+                StyleName = styleValidation.StyleName,
+                StylePropertiesJson = styleValidation.StylePropertiesJson
+            },
+            null);
     }
+
+    private sealed record SystemInfoMessageValidationResult(
+        SystemInfoMessageDto? Value,
+        ApiError? Error);
 }

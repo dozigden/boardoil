@@ -9,6 +9,7 @@ using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.CardType;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
+using BoardOil.Services.Style;
 using BoardOil.Services.Tag;
 
 namespace BoardOil.Services.CardType;
@@ -302,17 +303,15 @@ public sealed class CardTypeService(
         var hasRequestedStyleName = !string.IsNullOrWhiteSpace(requestedStyleName);
         var hasRequestedStyleProperties = !string.IsNullOrWhiteSpace(requestedStylePropertiesJson);
 
+        if (!hasRequestedStyleName && !hasRequestedStyleProperties && !string.IsNullOrWhiteSpace(existingStyleName))
+        {
+            var existingValidation = StyleDefinitionCodec.ParseCompatible(existingStyleName, existingStylePropertiesJson);
+            return ToStyleResolution(existingValidation);
+        }
+
         var resolvedStyleName = hasRequestedStyleName
             ? requestedStyleName!.Trim()
             : (string.IsNullOrWhiteSpace(existingStyleName) ? CardTypeDefaults.DefaultStyleName : existingStyleName.Trim());
-        var normalisedStyleName = TagStyleSchemaValidator.NormaliseStyleName(resolvedStyleName);
-        if (normalisedStyleName is null)
-        {
-            return new StyleResolutionResult(
-                string.Empty,
-                string.Empty,
-                new ValidationError("styleName", "Style name must be 'solid', 'gradient', 'auto', or 'presets'."));
-        }
 
         string resolvedStylePropertiesJson;
         if (hasRequestedStyleProperties)
@@ -321,23 +320,23 @@ public sealed class CardTypeService(
         }
         else if (hasRequestedStyleName || string.IsNullOrWhiteSpace(existingStylePropertiesJson))
         {
-            resolvedStylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(normalisedStyleName);
+            resolvedStylePropertiesJson = StyleDefinitionCodec.Serialise(
+                StyleDefinitionCodec.CreateDefault(resolvedStyleName));
         }
         else
         {
             resolvedStylePropertiesJson = existingStylePropertiesJson.Trim();
         }
 
-        if (!TagStyleSchemaValidator.IsValidJsonObject(resolvedStylePropertiesJson))
-        {
-            return new StyleResolutionResult(
-                string.Empty,
-                string.Empty,
-                new ValidationError("stylePropertiesJson", "Style properties must be valid JSON object."));
-        }
-
-        return new StyleResolutionResult(normalisedStyleName, resolvedStylePropertiesJson, null);
+        var styleValidation = StyleDefinitionCodec.ParseForWrite(resolvedStyleName, resolvedStylePropertiesJson);
+        return ToStyleResolution(styleValidation);
     }
+
+    private static StyleResolutionResult ToStyleResolution(StyleDefinitionParseResult styleValidation) =>
+        new(
+            styleValidation.StyleName,
+            styleValidation.StylePropertiesJson,
+            styleValidation.ValidationErrors.FirstOrDefault());
 
     private sealed record CardTypeNameValidationResult(
         string CanonicalName,

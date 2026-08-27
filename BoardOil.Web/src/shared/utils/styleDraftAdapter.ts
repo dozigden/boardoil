@@ -51,6 +51,19 @@ export function createStyleDraft(style: StylePresentation): StyleDraft {
   }
 }
 
+export function createRestrictedStyleDraft(
+  style: StylePresentation,
+  allowedStyleNames: ReadonlySet<StyleDraft['styleName']>,
+  fallbackStyle: StylePresentation
+): StyleDraft {
+  const draft = createStyleDraft(style);
+  if (allowedStyleNames.has(draft.styleName)) {
+    return draft;
+  }
+
+  return createStyleDraft(fallbackStyle);
+}
+
 export function buildStylePropertiesJsonFromDraft(draft: StyleDraft): string {
   return serializeStyleModel(draftToStyleModel(draft));
 }

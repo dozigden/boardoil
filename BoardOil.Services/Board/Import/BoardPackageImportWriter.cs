@@ -11,7 +11,7 @@ using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Card;
 using BoardOil.Services.Ordering;
-using BoardOil.Services.Tag;
+using BoardOil.Services.Style;
 
 namespace BoardOil.Services.Board.Import;
 
@@ -169,8 +169,9 @@ public sealed class BoardPackageImportWriter(
                             Board = board,
                             Name = importedTagName,
                             NormalisedName = normalisedTagName,
-                            StyleName = TagStyleSchemaValidator.PresetsStyleName,
-                            StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
+                            StyleName = StyleDefinitionCodec.PresetsStyleName,
+                            StylePropertiesJson = StyleDefinitionCodec.Serialise(
+                                StyleDefinitionCodec.CreateDefault(StyleKind.Presets)),
                             Emoji = null,
                         };
 

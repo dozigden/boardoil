@@ -5,7 +5,7 @@ using BoardOil.Ef;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
-using BoardOil.Services.Tag;
+using BoardOil.Services.Style;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -54,7 +54,7 @@ public abstract class BoardApiIntegrationTestBase : TestBaseIntegration
                 BoardId = boardId,
                 Name = canonicalName,
                 NormalisedName = canonicalName.ToUpperInvariant(),
-                StyleName = TagStyleSchemaValidator.SolidStyleName,
+                StyleName = StyleDefinitionCodec.SolidStyleName,
                 StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto"}""",
                 Emoji = emoji,
             };

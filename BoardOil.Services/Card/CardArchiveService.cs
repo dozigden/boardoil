@@ -13,7 +13,7 @@ using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
-using BoardOil.Services.Tag;
+using BoardOil.Services.Style;
 using BoardOil.Services.Users;
 using System.Text;
 using System.Text.Json;
@@ -493,8 +493,9 @@ public sealed class CardArchiveService(
                 BoardId = boardId,
                 Name = tagName,
                 NormalisedName = normalisedName,
-                StyleName = TagStyleSchemaValidator.PresetsStyleName,
-                StylePropertiesJson = TagStyleSchemaValidator.BuildDefaultStylePropertiesJson(TagStyleSchemaValidator.PresetsStyleName),
+                StyleName = StyleDefinitionCodec.PresetsStyleName,
+                StylePropertiesJson = StyleDefinitionCodec.Serialise(
+                    StyleDefinitionCodec.CreateDefault(StyleKind.Presets)),
             };
             tagRepository.Add(createdTag);
             resolvedTags.Add(createdTag);
