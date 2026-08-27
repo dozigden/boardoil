@@ -9,6 +9,7 @@ type SignalRConnectionLifecycleOptions = {
   notifyAuthenticationFailure: () => void;
   restoreAfterReconnect: () => Promise<void>;
   onUnavailable: () => Promise<unknown> | unknown;
+  onRecoveryExhausted: () => Promise<unknown> | unknown;
   onRecovered: () => Promise<unknown> | unknown;
   reportDiagnostic: (phase: string, error: unknown, connection: HubConnection) => void;
   isSuppressed: () => boolean;
@@ -217,6 +218,10 @@ export function createSignalRConnectionLifecycle(
           break;
         }
       }
+    }
+
+    if (!stopping && !options.isSuppressed()) {
+      await options.onRecoveryExhausted();
     }
 
     return latestError;

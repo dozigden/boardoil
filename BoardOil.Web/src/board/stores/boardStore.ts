@@ -66,10 +66,15 @@ export const useBoardStore = defineStore('board', () => {
     onCommentCreated: upsertCommentFromRealtime,
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
     onConnectionWarning: message => {
+      feedback.clearToast();
       feedback.setWarning(message);
     },
     onConnectionRecovered: () => {
+      const wasRecovering = feedback.warningMessage !== '';
       feedback.clearWarning();
+      if (wasRecovering) {
+        feedback.showToast('Realtime updates restored.');
+      }
     },
     onResync: resyncBoardFromRealtime
   });

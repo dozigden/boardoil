@@ -190,6 +190,7 @@ describe('signalRConnectionLifecycle', () => {
     const recoveryDiagnostics = harness.reportDiagnostic.mock.calls
       .filter(([phase]) => phase === 'realtime-recovery-failed');
     expect(recoveryDiagnostics).toHaveLength(3);
+    expect(harness.onRecoveryExhausted).toHaveBeenCalledTimes(1);
   });
 
   it('suppresses close recovery and diagnostics during intentional stop', async () => {
@@ -248,6 +249,7 @@ function createHarness() {
   const notifyAuthenticationFailure = vi.fn();
   const restoreAfterReconnect = vi.fn(async (): Promise<void> => undefined);
   const onUnavailable = vi.fn(async (): Promise<void> => undefined);
+  const onRecoveryExhausted = vi.fn(async (): Promise<void> => undefined);
   const onRecovered = vi.fn(async (): Promise<void> => undefined);
   const reportDiagnostic = vi.fn();
   const lifecycle = createSignalRConnectionLifecycle({
@@ -256,6 +258,7 @@ function createHarness() {
     notifyAuthenticationFailure,
     restoreAfterReconnect,
     onUnavailable,
+    onRecoveryExhausted,
     onRecovered,
     reportDiagnostic,
     isSuppressed: () => false,
@@ -269,6 +272,7 @@ function createHarness() {
     notifyAuthenticationFailure,
     restoreAfterReconnect,
     onUnavailable,
+    onRecoveryExhausted,
     onRecovered,
     reportDiagnostic
   };

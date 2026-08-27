@@ -64,6 +64,7 @@ describe('boardStore', () => {
 
   it('initializes board and connects realtime', async () => {
     const store = useBoardStore();
+    const feedback = useUiFeedbackStore();
     expect(store.isLoadingBoard).toBe(false);
 
     await store.initialize(1);
@@ -74,6 +75,10 @@ describe('boardStore', () => {
     expect(store.isLoadingBoard).toBe(false);
     expect(store.board?.columns.length).toBe(2);
     expect(store.board?.columns[0].cards.map(x => x.id)).toEqual([101]);
+
+    await realtimeHandlers!.onConnectionRecovered?.();
+
+    expect(feedback.toastMessage).toBe('');
   });
 
   it('keeps board loaded and warns when realtime connect fails', async () => {
@@ -301,18 +306,24 @@ describe('boardStore', () => {
     expect(systemInfoMessageStore.load).not.toHaveBeenCalled();
   });
 
-  it('clears realtime warning when realtime reconnect recovers', async () => {
+  it('replaces the realtime reconnect warning with a success toast when recovery completes', async () => {
     const store = useBoardStore();
     const feedback = useUiFeedbackStore();
 
     await store.initialize(1);
     expect(realtimeHandlers).not.toBeNull();
 
-    await realtimeHandlers!.onConnectionWarning?.('Realtime updates are unavailable. Data may be stale until reconnect.');
-    expect(feedback.warningMessage).toBe('Realtime updates are unavailable. Data may be stale until reconnect.');
+    await realtimeHandlers!.onConnectionWarning?.('Realtime connection lost. Attempting to reconnect…');
+    expect(feedback.warningMessage).toBe('Realtime connection lost. Attempting to reconnect…');
 
     await realtimeHandlers!.onConnectionRecovered?.();
     expect(feedback.warningMessage).toBe('');
+    expect(feedback.toastMessage).toBe('Realtime updates restored.');
+    expect(feedback.toastTone).toBe('success');
+
+    await realtimeHandlers!.onConnectionWarning?.('Realtime connection lost. Attempting to reconnect…');
+    expect(feedback.toastMessage).toBe('');
+    expect(feedback.warningMessage).toBe('Realtime connection lost. Attempting to reconnect…');
   });
 });
 

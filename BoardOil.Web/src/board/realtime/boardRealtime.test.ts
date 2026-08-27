@@ -540,7 +540,7 @@ describe('boardRealtime', () => {
     connection.state = 'Connected';
     await connection.reconnectHandler?.();
 
-    expect(onConnectionWarning).toHaveBeenCalledWith('Realtime updates are unavailable. Data may be stale until reconnect.');
+    expect(onConnectionWarning).toHaveBeenCalledWith('Realtime connection lost. Attempting to reconnect…');
     expect(onConnectionRecovered).toHaveBeenCalledTimes(2);
     expect(reportRealtimeDiagnostic).toHaveBeenCalledWith(
       'realtime-reconnecting',
@@ -621,6 +621,8 @@ describe('boardRealtime', () => {
     expect(connection.start).toHaveBeenCalledTimes(4);
     expect(onResync).not.toHaveBeenCalled();
     expect(onConnectionWarning).toHaveBeenCalled();
+    expect(onConnectionWarning).toHaveBeenLastCalledWith(
+      'Realtime updates are unavailable. Data may be stale until reconnect.');
   });
 
   it('keeps reconnecting connects waiting until terminal-close resync completes', async () => {

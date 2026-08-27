@@ -43,7 +43,8 @@ export function configureBoardRealtimeFactory(factory: BoardRealtimeFactory) {
 
 const realtimeDebugEnabled = resolveRealtimeDebugEnabled();
 const signalRLogLevel = realtimeDebugEnabled ? LogLevel.Information : LogLevel.Warning;
-const realtimeDisconnectedMessage = 'Realtime updates are unavailable. Data may be stale until reconnect.';
+const realtimeReconnectingMessage = 'Realtime connection lost. Attempting to reconnect…';
+const realtimeUnavailableMessage = 'Realtime updates are unavailable. Data may be stale until reconnect.';
 
 function logRealtime(message: string, details?: unknown) {
   if (!realtimeDebugEnabled) {
@@ -131,7 +132,8 @@ function createSignalRBoardRealtime(
       attemptAuthenticationRefresh: attemptSessionRefresh,
       notifyAuthenticationFailure: notifyUnauthorized,
       restoreAfterReconnect: restoreActiveBoard,
-      onUnavailable: () => handlers.onConnectionWarning?.(realtimeDisconnectedMessage),
+      onUnavailable: () => handlers.onConnectionWarning?.(realtimeReconnectingMessage),
+      onRecoveryExhausted: () => handlers.onConnectionWarning?.(realtimeUnavailableMessage),
       onRecovered: () => handlers.onConnectionRecovered?.(),
       reportDiagnostic: (phase, error, diagnosticConnection) => {
         void errorReporter.reportRealtimeDiagnostic(phase, error, {
