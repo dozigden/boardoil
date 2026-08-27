@@ -136,6 +136,123 @@ public static class ToolSchemas
     }
     """;
 
+    public const string TagUpdateInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "currentTagName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Current tag name, resolved case-insensitively from card_options_get.tags[].name."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "New tag name. Omit to preserve the current name."
+        },
+        "emoji": {
+          "type": ["string", "null"],
+          "description": "New tag emoji. Omit to preserve it or use null to clear it."
+        },
+        "style": {
+          "description": "Complete replacement style. Omit to preserve the current style.",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "styleName": { "const": "auto" }
+              },
+              "required": ["styleName"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "styleName": { "const": "presets" },
+                "presetIndex": { "type": "integer", "minimum": 0, "maximum": 11 }
+              },
+              "required": ["styleName", "presetIndex"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "styleName": { "const": "solid" },
+                "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+                "textColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+                "borderColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" }
+              },
+              "required": ["styleName", "backgroundColor", "textColorMode", "borderMode"],
+              "allOf": [
+                {
+                  "if": { "properties": { "textColorMode": { "const": "custom" } } },
+                  "then": {
+                    "properties": { "textColor": { "type": "string" } },
+                    "required": ["textColor"]
+                  },
+                  "else": { "properties": { "textColor": { "type": "null" } } }
+                },
+                {
+                  "if": { "properties": { "borderMode": { "const": "custom" } } },
+                  "then": {
+                    "properties": { "borderColor": { "type": "string" } },
+                    "required": ["borderColor"]
+                  },
+                  "else": { "properties": { "borderColor": { "type": "null" } } }
+                }
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "styleName": { "const": "gradient" },
+                "leftColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "rightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+                "textColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+                "borderColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" }
+              },
+              "required": ["styleName", "leftColor", "rightColor", "textColorMode", "borderMode"],
+              "allOf": [
+                {
+                  "if": { "properties": { "textColorMode": { "const": "custom" } } },
+                  "then": {
+                    "properties": { "textColor": { "type": "string" } },
+                    "required": ["textColor"]
+                  },
+                  "else": { "properties": { "textColor": { "type": "null" } } }
+                },
+                {
+                  "if": { "properties": { "borderMode": { "const": "custom" } } },
+                  "then": {
+                    "properties": { "borderColor": { "type": "string" } },
+                    "required": ["borderColor"]
+                  },
+                  "else": { "properties": { "borderColor": { "type": "null" } } }
+                }
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["boardId", "currentTagName"],
+      "anyOf": [
+        { "required": ["name"] },
+        { "required": ["emoji"] },
+        { "required": ["style"] }
+      ],
+      "additionalProperties": false
+    }
+    """;
+
     public const string ObjectOutput = """
     {
       "type": "object"
@@ -242,6 +359,45 @@ public static class ToolSchemas
         }
       },
       "required": ["id", "columns", "members", "cardTypes", "defaultCardTypeId", "tags", "slicks"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string TagUpdateOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer" },
+            "name": { "type": "string" },
+            "emoji": { "type": ["string", "null"] },
+            "style": {
+              "type": "object",
+              "properties": {
+                "styleName": { "type": "string", "enum": ["auto", "presets", "solid", "gradient"] },
+                "presetIndex": { "type": "integer", "minimum": 0, "maximum": 11 },
+                "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "leftColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "rightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+                "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+                "borderColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+              },
+              "required": ["styleName"],
+              "additionalProperties": false
+            },
+            "createdAtUtc": { "type": "string", "format": "date-time" },
+            "updatedAtUtc": { "type": "string", "format": "date-time" }
+          },
+          "required": ["id", "name", "emoji", "style", "createdAtUtc", "updatedAtUtc"],
+          "additionalProperties": false
+        },
+        "outcome": { "type": "string", "enum": ["updated"] }
+      },
+      "required": ["tag", "outcome"],
       "additionalProperties": false
     }
     """;

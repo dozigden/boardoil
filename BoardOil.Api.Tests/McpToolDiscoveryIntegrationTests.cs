@@ -203,6 +203,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Contains(ToolNames.BoardList, toolNames);
         Assert.Contains(ToolNames.IdentityGet, toolNames);
         Assert.Contains(ToolNames.CardOptionsGet, toolNames);
+        Assert.Contains(ToolNames.TagUpdate, toolNames);
         Assert.DoesNotContain("columns_list", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
 
@@ -297,6 +298,31 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.True(cardCommentCreateProperties.TryGetProperty("boardId", out _));
         Assert.True(cardCommentCreateProperties.TryGetProperty("id", out _));
         Assert.True(cardCommentCreateProperties.TryGetProperty("text", out _));
+
+        var tagUpdateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.TagUpdate);
+        var tagUpdateInputSchema = tagUpdateTool.GetProperty("inputSchema");
+        var tagUpdateProperties = tagUpdateInputSchema.GetProperty("properties");
+        Assert.True(tagUpdateProperties.TryGetProperty("boardId", out _));
+        Assert.True(tagUpdateProperties.TryGetProperty("currentTagName", out _));
+        Assert.True(tagUpdateProperties.TryGetProperty("name", out _));
+        Assert.True(tagUpdateProperties.TryGetProperty("emoji", out var emojiSchema));
+        Assert.True(tagUpdateProperties.TryGetProperty("style", out var styleSchema));
+        Assert.Contains("null", emojiSchema.GetProperty("type").EnumerateArray().Select(type => type.GetString()));
+        var styleNames = styleSchema.GetProperty("oneOf")
+            .EnumerateArray()
+            .Select(variant => variant.GetProperty("properties").GetProperty("styleName").GetProperty("const").GetString())
+            .ToArray();
+        Assert.Equal(["auto", "presets", "solid", "gradient"], styleNames);
+        var solidStyleSchema = styleSchema.GetProperty("oneOf")[2];
+        var textColorTypes = solidStyleSchema.GetProperty("properties").GetProperty("textColor").GetProperty("type")
+            .EnumerateArray()
+            .Select(type => type.GetString())
+            .ToArray();
+        Assert.Contains("null", textColorTypes);
+        var tagUpdateRequired = tagUpdateInputSchema.GetProperty("required").EnumerateArray().Select(value => value.GetString()).ToArray();
+        Assert.Equal(["boardId", "currentTagName"], tagUpdateRequired);
+        Assert.DoesNotContain("stylePropertiesJson", tagUpdateInputSchema.GetRawText(), StringComparison.Ordinal);
+        Assert.DoesNotContain("stylePropertiesJson", tagUpdateTool.GetProperty("outputSchema").GetRawText(), StringComparison.Ordinal);
     }
 
     private sealed record UpdateConfigurationRequest(

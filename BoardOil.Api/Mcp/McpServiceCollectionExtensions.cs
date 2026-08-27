@@ -24,6 +24,7 @@ public static class McpServiceCollectionExtensions
         RegisterTool<CardMoveTool>(services);
         RegisterTool<CardDeleteTool>(services);
         RegisterTool<CardCommentCreateTool>(services);
+        RegisterTool<TagUpdateTool>(services);
 
         services.AddSingleton<McpToolRegistry>();
         services.AddSingleton<McpToolDispatcher>();

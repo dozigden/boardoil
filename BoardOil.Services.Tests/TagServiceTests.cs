@@ -1,4 +1,5 @@
 using BoardOil.Abstractions;
+using BoardOil.Abstractions.Tag;
 using BoardOil.Contracts.Tag;
 using BoardOil.Services.Tag;
 using BoardOil.Services.Tests.Infrastructure;
@@ -632,6 +633,121 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal(404, result.StatusCode);
         Assert.Equal("Tag not found.", result.Message);
         Assert.Empty(await DbContextForAssert.Tags.ToListAsync());
+    }
+
+    [Fact]
+    public async Task UpdateTagDefinitionAsync_WhenNameOnly_ShouldPreserveEmojiAndStyleExactly()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        const string originalStyle = """{"backgroundColor":"#114488","textColorMode":"auto","borderMode":"auto","futureValue":true}""";
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = originalStyle,
+            Emoji = "🐞"
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateTagDefinitionAsync(
+            boardId,
+            "bug",
+            new TagDefinitionPatch(true, "Platform", false, null, null),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("Platform", result.Data!.Name);
+        Assert.Equal("🐞", result.Data.Emoji);
+        Assert.Equal(originalStyle, result.Data.StylePropertiesJson);
+
+        var stored = await DbContextForAssert.Tags.SingleAsync();
+        Assert.Equal("Platform", stored.Name);
+        Assert.Equal("🐞", stored.Emoji);
+        Assert.Equal(originalStyle, stored.StylePropertiesJson);
+    }
+
+    [Fact]
+    public async Task UpdateTagDefinitionAsync_WhenStyleOnly_ShouldPreserveNameAndEmoji()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"#114488","textColorMode":"auto","borderMode":"auto"}""",
+            Emoji = "🐞"
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+        var style = new TagStylePatch(
+            "gradient",
+            """{"leftColor":"#112233","rightColor":"#445566","textColorMode":"auto","borderMode":"none"}""");
+
+        // Act
+        var result = await service.UpdateTagDefinitionAsync(
+            boardId,
+            "Bug",
+            new TagDefinitionPatch(false, null, false, null, style),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("Bug", result.Data!.Name);
+        Assert.Equal("🐞", result.Data.Emoji);
+        Assert.Equal("gradient", result.Data.StyleName);
+    }
+
+    [Fact]
+    public async Task UpdateTagDefinitionAsync_WhenExistingStyleCannotBeRepresented_ShouldRequireReplacement()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            NormalisedName = "BUG",
+            StyleName = "solid",
+            StylePropertiesJson = """{"backgroundColor":"blue"}""",
+            Emoji = "🐞"
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateTagDefinitionAsync(
+            boardId,
+            "Bug",
+            new TagDefinitionPatch(false, null, true, "⚠️", null),
+            ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.True(result.ValidationErrors!.ContainsKey("style"));
+
+        var stored = await DbContextForAssert.Tags.SingleAsync();
+        Assert.Equal("🐞", stored.Emoji);
     }
 
     [Fact]

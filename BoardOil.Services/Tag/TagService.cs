@@ -186,6 +186,125 @@ public sealed class TagService(
         return existing.ToTagDto();
     }
 
+    public async Task<ApiResult<TagDto>> UpdateTagDefinitionAsync(
+        int boardId,
+        string currentName,
+        TagDefinitionPatch patch,
+        int actorUserId)
+    {
+        using var scope = _scopeFactory.Create();
+
+        if (boardRepository.Get(boardId) is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.TagManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        if (!patch.NameSpecified && !patch.EmojiSpecified && patch.Style is null)
+        {
+            return ApiErrors.ValidationFailed(
+                [new ValidationError(string.Empty, "Provide at least one of name, emoji, or style.")]);
+        }
+
+        var currentNameValidation = ValidateTagName(currentName, "currentTagName");
+        if (currentNameValidation.Error is not null)
+        {
+            return ApiErrors.ValidationFailed([currentNameValidation.Error]);
+        }
+
+        var existing = await tagRepository.GetByNormalisedNameAsync(
+            boardId,
+            currentNameValidation.NormalisedName);
+        if (existing is null)
+        {
+            return ApiErrors.NotFound("Tag not found.");
+        }
+
+        var validationErrors = new List<ValidationError>();
+        TagNameValidationResult? newNameValidation = null;
+        if (patch.NameSpecified)
+        {
+            newNameValidation = ValidateTagName(patch.Name, "name");
+            if (newNameValidation.Error is not null)
+            {
+                validationErrors.Add(newNameValidation.Error);
+            }
+            else
+            {
+                var byName = await tagRepository.GetByNormalisedNameAsync(
+                    boardId,
+                    newNameValidation.NormalisedName);
+                if (byName is not null && byName.Id != existing.Id)
+                {
+                    validationErrors.Add(new ValidationError(
+                        "name",
+                        $"Tag '{newNameValidation.CanonicalName}' already exists."));
+                }
+            }
+        }
+
+        TagEmojiValidator.EmojiValidationResult? emojiValidation = null;
+        if (patch.EmojiSpecified)
+        {
+            emojiValidation = TagEmojiValidator.ValidateAndNormalise(patch.Emoji, "emoji");
+            if (emojiValidation.Error is not null)
+            {
+                validationErrors.Add(emojiValidation.Error);
+            }
+        }
+
+        StyleDefinitionParseResult styleValidation;
+        if (patch.Style is null)
+        {
+            styleValidation = StyleDefinitionCodec.ParseCompatible(
+                existing.StyleName,
+                existing.StylePropertiesJson,
+                "style.styleName",
+                "style");
+        }
+        else
+        {
+            styleValidation = StyleDefinitionCodec.ParseForWrite(
+                patch.Style.StyleName,
+                patch.Style.StylePropertiesJson,
+                "style.styleName",
+                "style");
+        }
+        validationErrors.AddRange(styleValidation.ValidationErrors);
+
+        if (validationErrors.Count > 0 || !styleValidation.IsValid)
+        {
+            return ApiErrors.ValidationFailed(validationErrors);
+        }
+
+        if (newNameValidation is not null)
+        {
+            existing.Name = newNameValidation.CanonicalName;
+            existing.NormalisedName = newNameValidation.NormalisedName;
+        }
+
+        if (emojiValidation is not null)
+        {
+            existing.Emoji = emojiValidation.CanonicalEmoji;
+        }
+
+        if (patch.Style is not null)
+        {
+            existing.StyleName = styleValidation.StyleName;
+            existing.StylePropertiesJson = styleValidation.StylePropertiesJson;
+        }
+
+        await scope.SaveChangesAsync();
+        await _boardEvents.ResyncRequestedAsync(boardId);
+
+        return existing.ToTagDto();
+    }
+
     public async Task<ApiResult> DeleteTagAsync(int boardId, int tagId, int actorUserId)
     {
         using var scope = _scopeFactory.Create();

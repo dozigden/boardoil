@@ -257,6 +257,111 @@ public sealed record CardCommentCreateInput
     public string Text { get; init; } = string.Empty;
 }
 
+public sealed record TagUpdateInput
+{
+    private string? _name;
+    private string? _emoji;
+    private McpTagStyle? _style;
+
+    public int? BoardId { get; init; }
+    public string CurrentTagName { get; init; } = string.Empty;
+    public string? Name
+    {
+        get => _name;
+        init
+        {
+            _name = value;
+            NameSpecified = true;
+        }
+    }
+    public string? Emoji
+    {
+        get => _emoji;
+        init
+        {
+            _emoji = value;
+            EmojiSpecified = true;
+        }
+    }
+    public McpTagStyle? Style
+    {
+        get => _style;
+        init
+        {
+            _style = value;
+            StyleSpecified = true;
+        }
+    }
+
+    [JsonIgnore]
+    public bool NameSpecified { get; private init; }
+
+    [JsonIgnore]
+    public bool EmojiSpecified { get; private init; }
+
+    [JsonIgnore]
+    public bool StyleSpecified { get; private init; }
+}
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "styleName")]
+[JsonDerivedType(typeof(McpAutoTagStyle), "auto")]
+[JsonDerivedType(typeof(McpPresetTagStyle), "presets")]
+[JsonDerivedType(typeof(McpSolidTagStyle), "solid")]
+[JsonDerivedType(typeof(McpGradientTagStyle), "gradient")]
+public abstract record McpTagStyle;
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record McpAutoTagStyle : McpTagStyle;
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record McpPresetTagStyle : McpTagStyle
+{
+    public int? PresetIndex { get; init; }
+}
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record McpSolidTagStyle : McpTagStyle
+{
+    public string? BackgroundColor { get; init; }
+    public string? TextColorMode { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TextColor { get; init; }
+
+    public string? BorderMode { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? BorderColor { get; init; }
+}
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record McpGradientTagStyle : McpTagStyle
+{
+    public string? LeftColor { get; init; }
+    public string? RightColor { get; init; }
+    public string? TextColorMode { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TextColor { get; init; }
+
+    public string? BorderMode { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? BorderColor { get; init; }
+}
+
+public sealed record McpTagSnapshot(
+    int Id,
+    string Name,
+    string? Emoji,
+    McpTagStyle Style,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc);
+
+public sealed record TagMutationOutput(
+    McpTagSnapshot Tag,
+    string Outcome);
+
 public sealed record CardMutationOutput(
     McpCardSnapshot? Card,
     string Outcome);
