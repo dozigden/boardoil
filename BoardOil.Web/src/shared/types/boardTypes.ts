@@ -85,6 +85,13 @@ export type CardCreateModel = {
   cardTypeId: number | null;
 };
 
+export type CardTransferPolicy = 'destinationDefaults' | 'keepMatching' | 'copyMissing';
+
+export type CardTransferResult = {
+  boardId: number;
+  card: Card;
+};
+
 export type CardTypeEditModel = {
   name: string;
   emoji: string | null;

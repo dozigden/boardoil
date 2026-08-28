@@ -122,6 +122,22 @@ public sealed record MoveCardRequest(
     int BoardColumnId,
     int? PositionAfterCardId);
 
+public static class CardTransferPolicies
+{
+    public const string DestinationDefaults = "destinationDefaults";
+    public const string KeepMatching = "keepMatching";
+    public const string CopyMissing = "copyMissing";
+}
+
+public sealed record TransferCardRequest(
+    int DestinationBoardId,
+    int DestinationColumnId,
+    string TransferPolicy);
+
+public sealed record TransferCardResultDto(
+    int BoardId,
+    CardDto Card);
+
 public sealed record BulkMoveCardsRequest(
     int TargetColumnId,
     int? PositionAfterCardId);

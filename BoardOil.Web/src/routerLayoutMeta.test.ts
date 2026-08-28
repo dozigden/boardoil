@@ -48,6 +48,7 @@ describe('router layout meta mapping', () => {
     expect(findIndexedByName('board')?.nearestLayout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
     expect(findByName('board-archived')?.meta?.layout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
     expect(findIndexedByName('board-card')?.nearestLayout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
+    expect(findIndexedByName('board-card-transfer')?.nearestLayout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
   });
 
   it('maps admin roots to APP_LAYOUT_ADMIN', () => {
@@ -81,6 +82,7 @@ describe('router layout meta mapping', () => {
     expect(findIndexedByName('board')?.requiresBoardContext).toBe(true);
     expect(findByName('board-archived')?.meta?.requiresBoardContext).toBe(true);
     expect(findIndexedByName('board-card')?.requiresBoardContext).toBe(true);
+    expect(findIndexedByName('board-card-transfer')?.requiresBoardContext).toBe(true);
     expect(findByPath('/boards/:boardId(\\d+)/admin')?.meta?.requiresBoardContext).toBe(true);
     expect(findByPath('/user-admin')?.meta?.requiresBoardContext).toBeUndefined();
     expect(findByPath('/admin/system')?.meta?.requiresBoardContext).toBeUndefined();
@@ -109,12 +111,16 @@ describe('router layout meta mapping', () => {
     const workspaceRoute = findByPath('/boards/:boardId(\\d+)');
     const boardRoute = findIndexedByName('board');
     const cardRoute = findIndexedByName('board-card');
+    const transferRoute = findIndexedByName('board-card-transfer');
 
     expect(workspaceRoute?.component).toBeDefined();
     expect(boardRoute?.fullPath).toBe('/boards/:boardId(\\d+)');
     expect(cardRoute?.fullPath).toBe('/boards/:boardId(\\d+)/card/:cardId(\\d+)');
     expect(cardRoute?.route.components?.default).toBeUndefined();
     expect(cardRoute?.route.components?.dialog).toBeDefined();
+    expect(transferRoute?.fullPath).toBe('/boards/:boardId(\\d+)/card/:cardId(\\d+)/transfer');
+    expect(transferRoute?.route.components?.default).toBeUndefined();
+    expect(transferRoute?.route.components?.dialog).toBeDefined();
   });
 
   it('keeps system error-log details in the system-admin named dialog view', () => {
@@ -131,6 +137,7 @@ describe('router layout meta mapping', () => {
       'board',
       'board-archived',
       'board-card',
+      'board-card-transfer',
       'board-details',
       'columns',
       'columns-column',

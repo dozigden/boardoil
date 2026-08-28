@@ -196,6 +196,10 @@ const demoBoardApi: BoardApi = {
     return ok(clone(movedCard));
   },
 
+  async transferCard() {
+    return unavailable();
+  },
+
   async editCards(boardId, request) {
     if (boardId !== DemoBoardId) {
       return notFound('Board not found.');

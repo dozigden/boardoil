@@ -11,6 +11,7 @@ const api = {
   createCard: vi.fn(),
   saveCard: vi.fn(),
   moveCard: vi.fn(),
+  transferCard: vi.fn(),
   editCards: vi.fn(),
   deleteCard: vi.fn(),
   deleteCards: vi.fn(),
@@ -122,6 +123,23 @@ describe('cardStore', () => {
     expect(store.getCardsForColumn(1)).toHaveLength(0);
     expect(store.getCardsForColumn(2).map(x => x.id)).toEqual([101]);
     expect(api.moveCard).toHaveBeenCalledWith(1, 101, 2, null);
+  });
+
+  it('transfers a card and removes it from the source board state', async () => {
+    const store = useCardStore();
+    store.replaceBoardCards(1, makeBoard().columns);
+    const transferredCard = {
+      ...store.getCardById(101)!,
+      id: 7,
+      boardColumnId: 9
+    };
+    api.transferCard.mockResolvedValue(ok({ boardId: 2, card: transferredCard }));
+
+    const result = await store.transferCard(101, 2, 9, 'keepMatching');
+
+    expect(result).toEqual(ok({ boardId: 2, card: transferredCard }));
+    expect(api.transferCard).toHaveBeenCalledWith(1, 101, 2, 9, 'keepMatching');
+    expect(store.getCardById(101)).toBeNull();
   });
 
   it('moves multiple cards with a single bulk edit call', async () => {

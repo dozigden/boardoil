@@ -9,6 +9,8 @@ import type {
   CardCreateModel,
   BoardSummary,
   Card,
+  CardTransferPolicy,
+  CardTransferResult,
   CardEditModel,
   CardComment,
   CardTypeEditModel,
@@ -189,6 +191,20 @@ function createHttpBoardApi() {
     return patchData<Card>(`/api/boards/${boardId}/cards/${cardId}/move`, {
       boardColumnId,
       positionAfterCardId
+    });
+  }
+
+  async function transferCard(
+    sourceBoardId: number,
+    cardId: number,
+    destinationBoardId: number,
+    destinationColumnId: number,
+    transferPolicy: CardTransferPolicy
+  ): Promise<Result<CardTransferResult, AppError>> {
+    return postData<CardTransferResult>(`/api/boards/${sourceBoardId}/cards/${cardId}/transfer`, {
+      destinationBoardId,
+      destinationColumnId,
+      transferPolicy
     });
   }
 
@@ -431,6 +447,7 @@ function createHttpBoardApi() {
     createCard,
     saveCard,
     moveCard,
+    transferCard,
     editCards,
     deleteCard,
     deleteCards,

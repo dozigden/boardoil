@@ -147,7 +147,7 @@ function resolvePageTransition(previous: RouteSnapshot | null, current: RouteSna
 }
 
 function isBoardWorkspaceRoute(routeName: string) {
-  return routeName === 'board' || routeName === 'board-card';
+  return routeName === 'board' || routeName === 'board-card' || routeName === 'board-card-transfer';
 }
 
 type RouteSnapshot = {

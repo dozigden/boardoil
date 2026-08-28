@@ -6,7 +6,8 @@ import type {
   BoardColumn,
   Card,
   CardCreateModel,
-  CardEditModel
+  CardEditModel,
+  CardTransferPolicy
 } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
@@ -103,6 +104,34 @@ export const useCardStore = defineStore('card', () => {
 
     removeCard(cardId);
     return true;
+  }
+
+  async function transferCard(
+    cardId: number,
+    destinationBoardId: number,
+    destinationColumnId: number,
+    transferPolicy: CardTransferPolicy
+  ) {
+    const sourceBoardId = activeBoardId.value;
+    const result = await runBusy(
+      () => api.transferCard(
+        sourceBoardId,
+        cardId,
+        destinationBoardId,
+        destinationColumnId,
+        transferPolicy
+      ),
+      { boardId: sourceBoardId }
+    );
+    if (!result.ok) {
+      return result;
+    }
+
+    if (activeBoardId.value === sourceBoardId) {
+      removeCard(cardId);
+    }
+
+    return result;
   }
 
   async function deleteCards(cardIds: number[]) {
@@ -456,6 +485,7 @@ export const useCardStore = defineStore('card', () => {
     dispose,
     createCard,
     saveCard,
+    transferCard,
     deleteCard,
     deleteCards,
     archiveCard,

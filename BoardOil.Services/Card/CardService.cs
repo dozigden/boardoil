@@ -18,6 +18,7 @@ public sealed class CardService(
     CreateCardService createCardService,
     UpdateCardService updateCardService,
     MoveCardService moveCardService,
+    TransferCardService transferCardService,
     BulkEditCardsService bulkEditCardsService,
     BulkDeleteCardsService bulkDeleteCardsService,
     IBoardEvents boardEvents,
@@ -153,6 +154,15 @@ public sealed class CardService(
     public async Task<ApiResult<CardDto>> MoveCardAsync(int boardId, int id, MoveCardRequest request, int actorUserId)
     {
         return await moveCardService.ExecuteAsync(boardId, id, request, actorUserId);
+    }
+
+    public async Task<ApiResult<TransferCardResultDto>> TransferCardAsync(
+        int boardId,
+        int id,
+        TransferCardRequest request,
+        int actorUserId)
+    {
+        return await transferCardService.ExecuteAsync(boardId, id, request, actorUserId);
     }
 
     public async Task<ApiResult<IReadOnlyList<CardDto>>> BulkEditCardsAsync(int boardId, BulkEditCardsRequest request, int actorUserId)

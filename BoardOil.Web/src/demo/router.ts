@@ -21,6 +21,13 @@ const routes: RouteRecordRaw[] = [
         components: {
           dialog: () => import('../board/components/CardEditorDialog.vue')
         }
+      },
+      {
+        path: 'card/:cardId(\\d+)/transfer',
+        name: 'board-card-transfer',
+        components: {
+          dialog: () => import('../board/components/CardTransferDialog.vue')
+        }
       }
     ]
   },

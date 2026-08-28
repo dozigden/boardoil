@@ -44,6 +44,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CardInsertionOrderPlanner>();
         services.AddScoped<CardMoveOrderPlanner>();
         services.AddScoped<MoveCardService>();
+        services.AddScoped<CardTransferContentPlanner>();
+        services.AddScoped<TransferCardService>();
         services.AddScoped<BulkEditCardsService>();
         services.AddScoped<BulkDeleteCardsService>();
         services.AddSingleton<IPasswordHashService, PasswordHashService>();

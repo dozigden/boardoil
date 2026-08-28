@@ -203,6 +203,44 @@ describe('boardApi saveCard', () => {
   });
 });
 
+describe('boardApi transferCard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('posts the destination and policy to the transfer route', async () => {
+    const transferred = {
+      boardId: 2,
+      card: {
+        id: 4,
+        boardColumnId: 8,
+        cardTypeId: 1,
+        cardTypeName: 'Story',
+        cardTypeEmoji: null,
+        title: 'Moved card',
+        description: '',
+        externalUrl: null,
+        sortKey: '00000000000000000001',
+        tags: [],
+        tagNames: [],
+        cardCreatedUtc: '2026-08-28T00:00:00Z',
+        cardUpdatedUtc: '2026-08-28T00:01:00Z'
+      }
+    };
+    vi.mocked(postData).mockResolvedValue(ok(transferred));
+
+    const api = createBoardApi();
+    const result = await api.transferCard(1, 12, 2, 8, 'keepMatching');
+
+    expect(result).toEqual(ok(transferred));
+    expect(postData).toHaveBeenCalledWith('/api/boards/1/cards/12/transfer', {
+      destinationBoardId: 2,
+      destinationColumnId: 8,
+      transferPolicy: 'keepMatching'
+    });
+  });
+});
+
 describe('boardApi saveColumn', () => {
   beforeEach(() => {
     vi.clearAllMocks();

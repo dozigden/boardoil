@@ -32,4 +32,12 @@ describe('CardEditorDialog unsaved-change guard wiring', () => {
     expect(countOccurrences(dialogSfc, 'to.params.boardId,')).toBe(2);
     expect(countOccurrences(dialogSfc, 'from.params.boardId,')).toBe(2);
   });
+
+  it('disables cross-board transfer while card or comment changes are unsaved', () => {
+    expect(dialogSfc.includes(
+      'const isTransferDisabled = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value);'
+    )).toBe(true);
+    expect(dialogSfc.includes(':disabled="isTransferDisabled"')).toBe(true);
+    expect(dialogSfc.includes("name: 'board-card-transfer'")).toBe(true);
+  });
 });

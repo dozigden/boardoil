@@ -9,14 +9,15 @@
         'card--dragging': isDragging,
         'card--multi-dragging': isDragging && selectionMode && selectedCount > 1,
         'card--drop-before': dropIndicator === 'before',
-        'card--drop-after': dropIndicator === 'after'
+        'card--drop-after': dropIndicator === 'after',
+        'card--static': !interactive
       }
     ]"
     :style="cardStyle"
-    :draggable="!selectionMode || selected"
-    :role="selectionMode ? 'checkbox' : 'button'"
-    :aria-checked="selectionMode ? selected : undefined"
-    tabindex="0"
+    :draggable="cardDraggable"
+    :role="cardRole"
+    :aria-checked="cardAriaChecked"
+    :tabindex="cardTabIndex"
     @click="handlePrimaryAction"
     @keydown.enter.prevent="handlePrimaryAction"
     @keydown.space.prevent="handlePrimaryAction"
@@ -67,11 +68,13 @@ const props = withDefaults(defineProps<{
   selectionMode?: boolean;
   selected?: boolean;
   selectedCount?: number;
+  interactive?: boolean;
 }>(), {
   dropIndicator: 'none',
   selectionMode: false,
   selected: false,
-  selectedCount: 0
+  selectedCount: 0,
+  interactive: true
 });
 
 const emit = defineEmits<{
@@ -87,11 +90,32 @@ const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
 const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
 const cardStyleClasses = computed(() => getCardSurfaceClassList(resolvedCardType.value));
+const cardDraggable = computed(() => props.interactive && (!props.selectionMode || props.selected));
+const cardRole = computed(() => {
+  if (!props.interactive) {
+    return undefined;
+  }
+
+  return props.selectionMode ? 'checkbox' : 'button';
+});
+const cardAriaChecked = computed(() => {
+  if (!props.interactive || !props.selectionMode) {
+    return undefined;
+  }
+
+  return props.selected;
+});
+const cardTabIndex = computed(() => props.interactive ? 0 : undefined);
 const assignedUserImageUrl = computed(() =>
   props.card.assignedUserImageRelativePath ? buildApiUrl(`/images/${props.card.assignedUserImageRelativePath}`) : null
 );
 
 function onDragStart(event: DragEvent) {
+  if (!props.interactive) {
+    event.preventDefault();
+    return;
+  }
+
   if (props.selectionMode && !props.selected) {
     event.preventDefault();
     return;
@@ -116,7 +140,7 @@ function onDragEnd() {
 }
 
 function handlePrimaryAction() {
-  if (isDragging.value) {
+  if (!props.interactive || isDragging.value) {
     return;
   }
 
@@ -148,6 +172,10 @@ function handlePrimaryAction() {
   box-shadow:
     inset 0 0 0 999px color-mix(in oklab, var(--bo-selection-accent) 10%, transparent),
     inset 0 0 0 2px color-mix(in oklab, var(--bo-selection-accent) 58%, transparent);
+}
+
+.card--static {
+  cursor: default;
 }
 
 .card--selection-mode:hover {

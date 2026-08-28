@@ -12,6 +12,18 @@
         :icon-size="16"
       >
         <template #default="{ close }">
+          <button
+            type="button"
+            class="bo-dropdown-item"
+            :disabled="isTransferDisabled"
+            :title="transferActionTitle"
+            @click="close(); void openCardTransfer()"
+          >
+            <span class="bo-dropdown-item-main card-editor-menu-item">
+              <ArrowRightLeft :size="14" aria-hidden="true" />
+              <span>Move to another board</span>
+            </span>
+          </button>
           <button type="button" class="bo-dropdown-item" @click="close(); void archiveEditingCard()">
             <span class="bo-dropdown-item-main card-editor-menu-item">
               <Archive :size="14" aria-hidden="true" />
@@ -287,7 +299,7 @@
 </template>
 
 <script setup lang="ts">
-import { Archive, Check, Ellipsis, Trash2, X } from 'lucide-vue-next';
+import { Archive, ArrowRightLeft, Check, Ellipsis, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
@@ -353,6 +365,11 @@ const descriptionToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEd
 const commentToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>({});
 const descriptionIsPlainTextMode = ref(false);
 const commentIsPlainTextMode = ref(false);
+
+const isTransferDisabled = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value);
+const transferActionTitle = computed(() => isTransferDisabled.value
+  ? 'Save or discard unsaved changes before moving this card.'
+  : 'Move this card to another board.');
 
 const routeCardId = computed<number | null>(() => {
   const raw = route.params.cardId;
@@ -760,6 +777,18 @@ async function addComment() {
   }
 
   resetCommentDraft();
+}
+
+async function openCardTransfer() {
+  const cardId = routeCardId.value;
+  if (cardId === null || isTransferDisabled.value) {
+    return;
+  }
+
+  await router.push({
+    name: 'board-card-transfer',
+    params: { boardId: boardId.value, cardId }
+  });
 }
 
 async function deleteEditingCard() {

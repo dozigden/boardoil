@@ -246,6 +246,52 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_Transfer_ShouldReturnDestinationContractAndMoveCardBetweenBoards()
+    {
+        // Arrange
+        var sourceColumnId = await SeedBoardColumnAsync("Transfer source");
+        var sourceCardId = await SeedBoardCardAsync(sourceColumnId, "Transfer me", "Description");
+        var destinationResponse = await Client.PostAsJsonAsync(
+            "/api/boards",
+            new CreateBoardRequest("Transfer destination"));
+        destinationResponse.EnsureSuccessStatusCode();
+        var destinationBoard = Assert.IsType<BoardDto>(
+            (await destinationResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions))!.Data);
+        var destinationColumnId = destinationBoard.Columns[0].Id;
+
+        // Act
+        var response = await Client.PostAsJsonAsync(
+            $"/api/boards/1/cards/{sourceCardId}/transfer",
+            new TransferCardRequest(
+                destinationBoard.Id,
+                destinationColumnId,
+                CardTransferPolicies.KeepMatching));
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<TransferCardResultDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(envelope!.Success);
+        Assert.Equal(destinationBoard.Id, envelope.Data!.BoardId);
+        Assert.Equal(destinationColumnId, envelope.Data.Card.BoardColumnId);
+        Assert.Equal("Transfer me", envelope.Data.Card.Title);
+
+        var sourceRead = await Client.GetAsync("/api/boards/1");
+        sourceRead.EnsureSuccessStatusCode();
+        var reloadedSource = Assert.IsType<BoardDto>(
+            (await sourceRead.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions))!.Data);
+        Assert.DoesNotContain(
+            reloadedSource.Columns.SelectMany(x => x.Cards),
+            card => card.Id == sourceCardId);
+        var destinationRead = await Client.GetAsync($"/api/boards/{destinationBoard.Id}");
+        destinationRead.EnsureSuccessStatusCode();
+        var reloadedDestination = Assert.IsType<BoardDto>(
+            (await destinationRead.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions))!.Data);
+        Assert.Contains(
+            reloadedDestination.Columns.SelectMany(x => x.Cards),
+            card => card.Id == envelope.Data.Card.Id && card.Title == "Transfer me");
+    }
+
+    [Fact]
     public async Task CardEndpoints_Edit_WithBulkMove_ShouldReturnSuccessContract()
     {
         // Arrange
