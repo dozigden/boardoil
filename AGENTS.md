@@ -27,6 +27,7 @@ Read area guidance before working in that part of the system:
 - Board MCP operations:
   - use direct MCP board operations
   - this repository uses BoardOil Development (`boardId: 1`) as the default board.  You should not work on stories on other boards, if you are given a story number on a different board - confirm before taking any action.
+  - cards with the `OilTTY` card type belong to a related project that shares this board; ignore them when reviewing, planning, or reporting BoardOil work unless the user explicitly asks to include or work on OilTTY cards
   - repository proxy scripts for board MCP operations have been removed
   - for card description-only updates via `card.update`, include full required payload (`boardId`, `id`, `cardTypeId`, `slickName`, `externalUrl`, `title`, `description`, `tagNames`)
   - when mentioning BoardOil cards in chat, format them as `<CardType emoji> #<card number>: <title> (<tag emojis>)`
