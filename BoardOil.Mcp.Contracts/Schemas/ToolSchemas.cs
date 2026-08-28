@@ -2,6 +2,184 @@ namespace BoardOil.Mcp.Contracts.Schemas;
 
 public static class ToolSchemas
 {
+    private const string TagStyleInput = """
+    {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "styleName": { "const": "auto" }
+          },
+          "required": ["styleName"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "styleName": { "const": "presets" },
+            "presetIndex": { "type": "integer", "minimum": 0, "maximum": 11 }
+          },
+          "required": ["styleName", "presetIndex"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "styleName": { "const": "solid" },
+            "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+            "textColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+            "borderColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" }
+          },
+          "required": ["styleName", "backgroundColor", "textColorMode", "borderMode"],
+          "allOf": [
+            {
+              "if": { "properties": { "textColorMode": { "const": "custom" } } },
+              "then": {
+                "properties": { "textColor": { "type": "string" } },
+                "required": ["textColor"]
+              },
+              "else": { "properties": { "textColor": { "type": "null" } } }
+            },
+            {
+              "if": { "properties": { "borderMode": { "const": "custom" } } },
+              "then": {
+                "properties": { "borderColor": { "type": "string" } },
+                "required": ["borderColor"]
+              },
+              "else": { "properties": { "borderColor": { "type": "null" } } }
+            }
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "styleName": { "const": "gradient" },
+            "leftColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "rightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+            "textColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+            "borderColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" }
+          },
+          "required": ["styleName", "leftColor", "rightColor", "textColorMode", "borderMode"],
+          "allOf": [
+            {
+              "if": { "properties": { "textColorMode": { "const": "custom" } } },
+              "then": {
+                "properties": { "textColor": { "type": "string" } },
+                "required": ["textColor"]
+              },
+              "else": { "properties": { "textColor": { "type": "null" } } }
+            },
+            {
+              "if": { "properties": { "borderMode": { "const": "custom" } } },
+              "then": {
+                "properties": { "borderColor": { "type": "string" } },
+                "required": ["borderColor"]
+              },
+              "else": { "properties": { "borderColor": { "type": "null" } } }
+            }
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+    """;
+
+    private const string TagStyleOutput = """
+    {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "styleName": { "const": "auto" }
+          },
+          "required": ["styleName"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "styleName": { "const": "presets" },
+            "presetIndex": { "type": "integer", "minimum": 0, "maximum": 11 }
+          },
+          "required": ["styleName", "presetIndex"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "styleName": { "const": "solid" },
+            "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+            "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+            "borderColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+          },
+          "required": ["styleName", "backgroundColor", "textColorMode", "borderMode"],
+          "allOf": [
+            {
+              "if": { "properties": { "textColorMode": { "const": "custom" } } },
+              "then": { "required": ["textColor"] },
+              "else": { "not": { "required": ["textColor"] } }
+            },
+            {
+              "if": { "properties": { "borderMode": { "const": "custom" } } },
+              "then": { "required": ["borderColor"] },
+              "else": { "not": { "required": ["borderColor"] } }
+            }
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "styleName": { "const": "gradient" },
+            "leftColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "rightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+            "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+            "borderColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+          },
+          "required": ["styleName", "leftColor", "rightColor", "textColorMode", "borderMode"],
+          "allOf": [
+            {
+              "if": { "properties": { "textColorMode": { "const": "custom" } } },
+              "then": { "required": ["textColor"] },
+              "else": { "not": { "required": ["textColor"] } }
+            },
+            {
+              "if": { "properties": { "borderMode": { "const": "custom" } } },
+              "then": { "required": ["borderColor"] },
+              "else": { "not": { "required": ["borderColor"] } }
+            }
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+    """;
+
+    private static readonly string TagSnapshotOutput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "emoji": { "type": ["string", "null"] },
+        "style": {{TagStyleOutput}},
+        "createdAtUtc": { "type": "string", "format": "date-time" },
+        "updatedAtUtc": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "emoji", "style", "createdAtUtc", "updatedAtUtc"],
+      "additionalProperties": false
+    }
+    """;
+
     public const string BoardListInput = """
     {
       "type": "object",
@@ -136,7 +314,24 @@ public static class ToolSchemas
     }
     """;
 
-    public const string TagUpdateInput = """
+    public static readonly string TagCreateInput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "emoji": {
+          "type": ["string", "null"],
+          "description": "Tag emoji, or null for no emoji."
+        },
+        "style": {{TagStyleInput}}
+      },
+      "required": ["boardId", "name", "emoji", "style"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string TagUpdateInput = $$"""
     {
       "type": "object",
       "properties": {
@@ -157,91 +352,7 @@ public static class ToolSchemas
           "type": ["string", "null"],
           "description": "New tag emoji. Omit to preserve it or use null to clear it."
         },
-        "style": {
-          "description": "Complete replacement style. Omit to preserve the current style.",
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "styleName": { "const": "auto" }
-              },
-              "required": ["styleName"],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "styleName": { "const": "presets" },
-                "presetIndex": { "type": "integer", "minimum": 0, "maximum": 11 }
-              },
-              "required": ["styleName", "presetIndex"],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "styleName": { "const": "solid" },
-                "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-                "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
-                "textColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
-                "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
-                "borderColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" }
-              },
-              "required": ["styleName", "backgroundColor", "textColorMode", "borderMode"],
-              "allOf": [
-                {
-                  "if": { "properties": { "textColorMode": { "const": "custom" } } },
-                  "then": {
-                    "properties": { "textColor": { "type": "string" } },
-                    "required": ["textColor"]
-                  },
-                  "else": { "properties": { "textColor": { "type": "null" } } }
-                },
-                {
-                  "if": { "properties": { "borderMode": { "const": "custom" } } },
-                  "then": {
-                    "properties": { "borderColor": { "type": "string" } },
-                    "required": ["borderColor"]
-                  },
-                  "else": { "properties": { "borderColor": { "type": "null" } } }
-                }
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "styleName": { "const": "gradient" },
-                "leftColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-                "rightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-                "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
-                "textColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
-                "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
-                "borderColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" }
-              },
-              "required": ["styleName", "leftColor", "rightColor", "textColorMode", "borderMode"],
-              "allOf": [
-                {
-                  "if": { "properties": { "textColorMode": { "const": "custom" } } },
-                  "then": {
-                    "properties": { "textColor": { "type": "string" } },
-                    "required": ["textColor"]
-                  },
-                  "else": { "properties": { "textColor": { "type": "null" } } }
-                },
-                {
-                  "if": { "properties": { "borderMode": { "const": "custom" } } },
-                  "then": {
-                    "properties": { "borderColor": { "type": "string" } },
-                    "required": ["borderColor"]
-                  },
-                  "else": { "properties": { "borderColor": { "type": "null" } } }
-                }
-              ],
-              "additionalProperties": false
-            }
-          ]
-        }
+        "style": {{TagStyleInput}}
       },
       "required": ["boardId", "currentTagName"],
       "anyOf": [
@@ -249,6 +360,22 @@ public static class ToolSchemas
         { "required": ["emoji"] },
         { "required": ["style"] }
       ],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string TagDeleteInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Resolve from card_options_get.tags[].id."
+        }
+      },
+      "required": ["boardId", "id"],
       "additionalProperties": false
     }
     """;
@@ -289,7 +416,7 @@ public static class ToolSchemas
     }
     """;
 
-    public const string CardOptionsGetOutput = """
+    public static readonly string CardOptionsGetOutput = $$"""
     {
       "type": "object",
       "properties": {
@@ -339,10 +466,12 @@ public static class ToolSchemas
           "items": {
             "type": "object",
             "properties": {
+              "id": { "type": "integer" },
               "name": { "type": "string" },
-              "emoji": { "type": ["string", "null"] }
+              "emoji": { "type": ["string", "null"] },
+              "style": {{TagStyleOutput}}
             },
-            "required": ["name", "emoji"],
+            "required": ["id", "name", "emoji", "style"],
             "additionalProperties": false
           }
         },
@@ -363,41 +492,37 @@ public static class ToolSchemas
     }
     """;
 
-    public const string TagUpdateOutput = """
+    public static readonly string TagCreateOutput = $$"""
     {
       "type": "object",
       "properties": {
-        "tag": {
-          "type": "object",
-          "properties": {
-            "id": { "type": "integer" },
-            "name": { "type": "string" },
-            "emoji": { "type": ["string", "null"] },
-            "style": {
-              "type": "object",
-              "properties": {
-                "styleName": { "type": "string", "enum": ["auto", "presets", "solid", "gradient"] },
-                "presetIndex": { "type": "integer", "minimum": 0, "maximum": 11 },
-                "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-                "leftColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-                "rightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-                "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
-                "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-                "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
-                "borderColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
-              },
-              "required": ["styleName"],
-              "additionalProperties": false
-            },
-            "createdAtUtc": { "type": "string", "format": "date-time" },
-            "updatedAtUtc": { "type": "string", "format": "date-time" }
-          },
-          "required": ["id", "name", "emoji", "style", "createdAtUtc", "updatedAtUtc"],
-          "additionalProperties": false
-        },
+        "tag": {{TagSnapshotOutput}},
+        "outcome": { "type": "string", "enum": ["created", "existing"] }
+      },
+      "required": ["tag", "outcome"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string TagUpdateOutput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "tag": {{TagSnapshotOutput}},
         "outcome": { "type": "string", "enum": ["updated"] }
       },
       "required": ["tag", "outcome"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string TagDeleteOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "outcome": { "type": "string", "enum": ["deleted"] }
+      },
+      "required": ["outcome"],
       "additionalProperties": false
     }
     """;

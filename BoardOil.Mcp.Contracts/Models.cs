@@ -163,8 +163,10 @@ public sealed record McpCardOptionCardType(
     string? Emoji);
 
 public sealed record McpCardOptionTag(
+    int Id,
     string Name,
-    string? Emoji);
+    string? Emoji,
+    McpTagStyle Style);
 
 public sealed record McpCardOptionSlick(
     string Name);
@@ -257,6 +259,39 @@ public sealed record CardCommentCreateInput
     public string Text { get; init; } = string.Empty;
 }
 
+public sealed record TagCreateInput
+{
+    private string? _emoji;
+    private McpTagStyle? _style;
+
+    public int? BoardId { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string? Emoji
+    {
+        get => _emoji;
+        init
+        {
+            _emoji = value;
+            EmojiSpecified = true;
+        }
+    }
+    public McpTagStyle? Style
+    {
+        get => _style;
+        init
+        {
+            _style = value;
+            StyleSpecified = true;
+        }
+    }
+
+    [JsonIgnore]
+    public bool EmojiSpecified { get; private init; }
+
+    [JsonIgnore]
+    public bool StyleSpecified { get; private init; }
+}
+
 public sealed record TagUpdateInput
 {
     private string? _name;
@@ -301,6 +336,12 @@ public sealed record TagUpdateInput
 
     [JsonIgnore]
     public bool StyleSpecified { get; private init; }
+}
+
+public sealed record TagDeleteInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "styleName")]
@@ -360,6 +401,9 @@ public sealed record McpTagSnapshot(
 
 public sealed record TagMutationOutput(
     McpTagSnapshot Tag,
+    string Outcome);
+
+public sealed record TagDeleteOutput(
     string Outcome);
 
 public sealed record CardMutationOutput(

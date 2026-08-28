@@ -425,6 +425,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         await RegisterInitialAdminAsync(client);
         var patToken = await CreateMachinePatAsync(client, ["mcp:read"]);
         var contextFactory = Factory.Services.GetRequiredService<IDbContextFactory>();
+        var unusedTagId = 0;
         await using (var arrangeDbContext = contextFactory.CreateDbContext<BoardOilDbContext>())
         {
             var activeMember = CreateOptionUser("active-option-member", isActive: true);
@@ -452,15 +453,16 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
                 StyleName = "solid",
                 StylePropertiesJson = "{}",
             });
-            arrangeDbContext.Tags.Add(new EntityTag
+            var unusedTagEntity = new EntityTag
             {
                 BoardId = 1,
                 Name = "Unused Feature",
                 NormalisedName = "UNUSED FEATURE",
                 Emoji = "🎬️",
-                StyleName = "solid",
-                StylePropertiesJson = "{}",
-            });
+                StyleName = "gradient",
+                StylePropertiesJson = """{"leftColor":"#99c1f1","rightColor":"#3584e4","textColorMode":"auto"}""",
+            };
+            arrangeDbContext.Tags.Add(unusedTagEntity);
             arrangeDbContext.Slicks.Add(new EntitySlick
             {
                 BoardId = 1,
@@ -470,6 +472,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
                 StylePropertiesJson = "{}",
             });
             await arrangeDbContext.SaveChangesAsync();
+            unusedTagId = unusedTagEntity.Id;
         }
 
         // Act
@@ -492,11 +495,65 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         var unusedCardType = options.GetProperty("cardTypes").EnumerateArray().Single(cardType => cardType.GetProperty("name").GetString() == "Unused Bug");
         Assert.Equal(["id", "name", "emoji"], unusedCardType.EnumerateObject().Select(property => property.Name).ToArray());
         var unusedTag = options.GetProperty("tags").EnumerateArray().Single(tag => tag.GetProperty("name").GetString() == "Unused Feature");
-        Assert.Equal(["name", "emoji"], unusedTag.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(["id", "name", "emoji", "style"], unusedTag.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(unusedTagId, unusedTag.GetProperty("id").GetInt32());
+        Assert.Equal("🎬️", unusedTag.GetProperty("emoji").GetString());
+        var unusedTagStyle = unusedTag.GetProperty("style");
+        Assert.Equal(
+            ["styleName", "leftColor", "rightColor", "textColorMode", "borderMode"],
+            unusedTagStyle.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal("gradient", unusedTagStyle.GetProperty("styleName").GetString());
+        Assert.Equal("#99C1F1", unusedTagStyle.GetProperty("leftColor").GetString());
+        Assert.Equal("#3584E4", unusedTagStyle.GetProperty("rightColor").GetString());
+        Assert.Equal("auto", unusedTagStyle.GetProperty("textColorMode").GetString());
+        Assert.Equal("auto", unusedTagStyle.GetProperty("borderMode").GetString());
         var unusedSlick = options.GetProperty("slicks").EnumerateArray().Single(slick => slick.GetProperty("name").GetString() == "Unused Release Train");
         Assert.Equal(["name"], unusedSlick.EnumerateObject().Select(property => property.Name).ToArray());
         var defaultCardTypeId = options.GetProperty("defaultCardTypeId").GetInt32();
         Assert.Contains(options.GetProperty("cardTypes").EnumerateArray(), cardType => cardType.GetProperty("id").GetInt32() == defaultCardTypeId);
+    }
+
+    [Fact]
+    public async Task CardOptionsGet_WhenTagStyleCannotBeMapped_ShouldReturnDataIntegrityError()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client, ["mcp:read"]);
+        var contextFactory = Factory.Services.GetRequiredService<IDbContextFactory>();
+        var invalidTagId = 0;
+        await using (var arrangeDbContext = contextFactory.CreateDbContext<BoardOilDbContext>())
+        {
+            var invalidTag = new EntityTag
+            {
+                BoardId = 1,
+                Name = "Invalid Style Tag",
+                NormalisedName = "INVALID STYLE TAG",
+                StyleName = "solid",
+                StylePropertiesJson = "{}",
+            };
+            arrangeDbContext.Tags.Add(invalidTag);
+            await arrangeDbContext.SaveChangesAsync();
+            invalidTagId = invalidTag.Id;
+        }
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new { name = "card_options_get", arguments = new { id = 1 } },
+            "card-options-get-invalid-tag-style",
+            patToken);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = payload.RootElement.GetProperty("result");
+        Assert.True(result.GetProperty("isError").GetBoolean());
+        var error = McpJsonRpcClient.GetStructuredContent(payload);
+        Assert.Equal("data_integrity_error", error.GetProperty("code").GetString());
+        Assert.Equal(500, error.GetProperty("statusCode").GetInt32());
+        Assert.Contains($"Tag {invalidTagId} ('Invalid Style Tag')", error.GetProperty("message").GetString(), StringComparison.Ordinal);
     }
 
     [Fact]

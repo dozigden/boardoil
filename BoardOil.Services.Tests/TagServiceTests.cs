@@ -92,6 +92,41 @@ public sealed class TagServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task CreateTagDefinitionAsync_WithExplicitStyle_ShouldPersistCanonicalDefinition()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var service = CreateService();
+        var definition = new TagDefinitionCreate(
+            "Feature",
+            "🎬️",
+            new TagStylePatch(
+                "gradient",
+                """{"leftColor":"#99c1f1","rightColor":"#3584e4","textColorMode":"auto","borderMode":"none"}"""));
+
+        // Act
+        var result = await service.CreateTagDefinitionAsync(boardId, definition, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(201, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.Equal("Feature", result.Data!.Name);
+        Assert.Equal("🎬️", result.Data.Emoji);
+        Assert.Equal("gradient", result.Data.StyleName);
+        Assert.Equal(
+            """{"leftColor":"#99C1F1","rightColor":"#3584E4","textColorMode":"auto","borderMode":"none"}""",
+            result.Data.StylePropertiesJson);
+
+        var stored = await DbContextForAssert.Tags.SingleAsync();
+        Assert.Equal(result.Data.StylePropertiesJson, stored.StylePropertiesJson);
+        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
+    }
+
+    [Fact]
     public async Task CreateTagAsync_WhenTagAlreadyExists_ShouldReturnExistingTag()
     {
         // Arrange

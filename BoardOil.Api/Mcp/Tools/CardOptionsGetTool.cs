@@ -3,6 +3,7 @@ using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Common;
 using BoardOil.Mcp.Contracts;
 using BoardOil.Mcp.Contracts.Schemas;
+using BoardOil.Services.Style;
 
 namespace BoardOil.Api.Mcp;
 
@@ -15,7 +16,7 @@ public sealed class CardOptionsGetTool(
     public override McpToolDefinition Definition { get; } =
         new(
             ToolNames.CardOptionsGet,
-            "List board-scoped values used by card fields: columns, active assignees, card types, existing tags, and slicks.",
+            "List board-scoped values used by card fields: columns, active assignees, card types, complete tag definitions, and slicks.",
             ToolSchemas.CardOptionsGetInput,
             ToolSchemas.CardOptionsGetOutput,
             MachinePatScopes.McpRead);
@@ -49,6 +50,27 @@ public sealed class CardOptionsGetTool(
             return Failure(result.ToMcpError());
         }
 
+        var tags = new List<McpCardOptionTag>(result.Data.Tags.Count);
+        foreach (var tag in result.Data.Tags)
+        {
+            var parsedStyle = StyleDefinitionCodec.ParseCompatible(
+                tag.StyleName,
+                tag.StylePropertiesJson);
+            if (!parsedStyle.IsValid || parsedStyle.Definition is null)
+            {
+                return Failure(new McpToolError(
+                    "data_integrity_error",
+                    $"Tag {tag.Id} ('{tag.Name}') has an invalid style definition.",
+                    500));
+            }
+
+            tags.Add(new McpCardOptionTag(
+                tag.Id,
+                tag.Name,
+                tag.Emoji,
+                McpTagStyleMapper.ToMcp(parsedStyle.Definition)));
+        }
+
         return Success(new CardOptionsGetOutput(
             result.Data.Id,
             result.Data.Columns.Select(column => new McpCardOptionColumn(column.Id, column.Title)).ToArray(),
@@ -62,7 +84,7 @@ public sealed class CardOptionsGetTool(
                 cardType.Name,
                 cardType.Emoji)).ToArray(),
             result.Data.DefaultCardTypeId,
-            result.Data.Tags.Select(tag => new McpCardOptionTag(tag.Name, tag.Emoji)).ToArray(),
+            tags,
             result.Data.Slicks.Select(slick => new McpCardOptionSlick(slick.Name)).ToArray()));
     }
 }

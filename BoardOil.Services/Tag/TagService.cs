@@ -61,7 +61,21 @@ public sealed class TagService(
         return await styleDefaultService.GetTagCreateDefaultStyleAsync(boardId);
     }
 
-    public async Task<ApiResult<TagDto>> CreateTagAsync(int boardId, CreateTagRequest request, int actorUserId)
+    public Task<ApiResult<TagDto>> CreateTagAsync(int boardId, CreateTagRequest request, int actorUserId) =>
+        CreateTagAsync(boardId, request.Name, request.Emoji, null, actorUserId);
+
+    public Task<ApiResult<TagDto>> CreateTagDefinitionAsync(
+        int boardId,
+        TagDefinitionCreate definition,
+        int actorUserId) =>
+        CreateTagAsync(boardId, definition.Name, definition.Emoji, definition.Style, actorUserId);
+
+    private async Task<ApiResult<TagDto>> CreateTagAsync(
+        int boardId,
+        string name,
+        string? emoji,
+        TagStylePatch? style,
+        int actorUserId)
     {
         using var scope = _scopeFactory.Create();
 
@@ -76,8 +90,8 @@ public sealed class TagService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var tagValidation = ValidateTagName(request.Name, "name");
-        var emojiValidation = TagEmojiValidator.ValidateAndNormalise(request.Emoji, "emoji");
+        var tagValidation = ValidateTagName(name, "name");
+        var emojiValidation = TagEmojiValidator.ValidateAndNormalise(emoji, "emoji");
         var createValidationErrors = new List<ValidationError>();
         if (tagValidation.Error is not null)
         {
@@ -89,7 +103,18 @@ public sealed class TagService(
             createValidationErrors.Add(emojiValidation.Error);
         }
 
-        if (createValidationErrors.Count > 0)
+        StyleDefinitionParseResult? styleValidation = null;
+        if (style is not null)
+        {
+            styleValidation = StyleDefinitionCodec.ParseForWrite(
+                style.StyleName,
+                style.StylePropertiesJson,
+                "style.styleName",
+                "style");
+            createValidationErrors.AddRange(styleValidation.ValidationErrors);
+        }
+
+        if (createValidationErrors.Count > 0 || (styleValidation is not null && !styleValidation.IsValid))
         {
             return ApiErrors.ValidationFailed(createValidationErrors);
         }
@@ -100,14 +125,27 @@ public sealed class TagService(
             return ApiResults.Ok(existing.ToTagDto());
         }
 
-        var defaultStyle = await styleDefaultService.GetTagCreateDefaultStyleAsync(boardId);
+        string styleName;
+        string stylePropertiesJson;
+        if (styleValidation is null)
+        {
+            var defaultStyle = await styleDefaultService.GetTagCreateDefaultStyleAsync(boardId);
+            styleName = defaultStyle.StyleName;
+            stylePropertiesJson = defaultStyle.StylePropertiesJson;
+        }
+        else
+        {
+            styleName = styleValidation.StyleName;
+            stylePropertiesJson = styleValidation.StylePropertiesJson;
+        }
+
         tagRepository.Add(new EntityTag
         {
             BoardId = boardId,
             Name = tagValidation.CanonicalName,
             NormalisedName = tagValidation.NormalisedName,
-            StyleName = defaultStyle.StyleName,
-            StylePropertiesJson = defaultStyle.StylePropertiesJson,
+            StyleName = styleName,
+            StylePropertiesJson = stylePropertiesJson,
             Emoji = emojiValidation.CanonicalEmoji,
         });
 

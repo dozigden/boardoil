@@ -9,6 +9,10 @@ public interface ITagService
     Task<ApiResult<IReadOnlyList<TagDto>>> GetTagsAsync(int boardId, int actorUserId);
     Task<ApiResult<StyleDefaultDto>> GetCreateDefaultStyleAsync(int boardId, int actorUserId);
     Task<ApiResult<TagDto>> CreateTagAsync(int boardId, CreateTagRequest request, int actorUserId);
+    Task<ApiResult<TagDto>> CreateTagDefinitionAsync(
+        int boardId,
+        TagDefinitionCreate definition,
+        int actorUserId);
     Task<ApiResult<TagDto>> UpdateTagStyleAsync(int boardId, int tagId, UpdateTagRequest request, int actorUserId);
     Task<ApiResult<TagDto>> UpdateTagDefinitionAsync(
         int boardId,
@@ -24,6 +28,11 @@ public sealed record TagDefinitionPatch(
     bool EmojiSpecified,
     string? Emoji,
     TagStylePatch? Style);
+
+public sealed record TagDefinitionCreate(
+    string Name,
+    string? Emoji,
+    TagStylePatch Style);
 
 public sealed record TagStylePatch(
     string StyleName,

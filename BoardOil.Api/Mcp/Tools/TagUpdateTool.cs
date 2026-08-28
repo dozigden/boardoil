@@ -4,7 +4,6 @@ using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Tag;
 using BoardOil.Mcp.Contracts;
 using BoardOil.Mcp.Contracts.Schemas;
-using BoardOil.Services.Style;
 
 namespace BoardOil.Api.Mcp;
 
@@ -114,10 +113,8 @@ public sealed class TagUpdateTool(
         }
 
         var updatedTag = updateResult.Data;
-        var parsedStyle = StyleDefinitionCodec.ParseCompatible(
-            updatedTag.StyleName,
-            updatedTag.StylePropertiesJson);
-        if (!parsedStyle.IsValid || parsedStyle.Definition is null)
+        var snapshot = McpTagStyleMapper.ToMcpSnapshot(updatedTag);
+        if (snapshot is null)
         {
             return Failure(new McpToolError(
                 "service_error",
@@ -125,13 +122,6 @@ public sealed class TagUpdateTool(
                 500));
         }
 
-        var snapshot = new McpTagSnapshot(
-            updatedTag.Id,
-            updatedTag.Name,
-            updatedTag.Emoji,
-            McpTagStyleMapper.ToMcp(parsedStyle.Definition),
-            updatedTag.CreatedAtUtc,
-            updatedTag.UpdatedAtUtc);
         return Success(new TagMutationOutput(snapshot, "updated"));
     }
 }
