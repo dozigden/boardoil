@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open" title="Edit Client Account" close-label="Cancel client changes" @close="emit('close')" @submit="submit">
+  <FixedChromeDialog :open="open" title="Edit Client Account" close-label="Cancel client changes" @close="emit('close')" @submit="submit">
     <label>
       Username
       <input :value="props.client?.userName ?? ''" disabled />
@@ -31,8 +31,8 @@
     <p v-if="draftError" class="error">{{ draftError }}</p>
 
     <template #actions>
-      <div class="editor-actions card-modal-actions">
-        <div class="card-modal-actions-left">
+      <div class="fixed-chrome-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" :disabled="busy" aria-label="Save client account changes" title="Save client account changes">
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
@@ -44,13 +44,13 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { Check, X } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import type { ClientAccount, UpdateClientAccountRequest } from '../../shared/types/authTypes';
 
 const props = defineProps<{

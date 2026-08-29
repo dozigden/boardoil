@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open" :title="dialogTitle" close-label="Cancel password reset" @close="emit('close')" @submit="submit">
+  <FixedChromeDialog :open="open" :title="dialogTitle" close-label="Cancel password reset" @close="emit('close')" @submit="submit">
     <p class="reset-password-hint">
       {{ dialogHint }}
     </p>
@@ -40,8 +40,8 @@
     <p v-if="draftError" class="error">{{ draftError }}</p>
 
     <template #actions>
-      <div class="editor-actions card-modal-actions">
-        <div class="card-modal-actions-left">
+      <div class="fixed-chrome-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" :disabled="busy" aria-label="Reset password" title="Reset password">
             <Check :size="16" aria-hidden="true" />
             <span>Reset password</span>
@@ -53,13 +53,13 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { Check, X } from 'lucide-vue-next';
-import ModalDialog from './ModalDialog.vue';
+import FixedChromeDialog from './FixedChromeDialog.vue';
 import { PASSWORD_CONFIRMATION_ERROR, validatePasswordConfirmation } from '../utils/passwordConfirmation';
 import { validatePasswordResetDraft } from './passwordResetDialogModel';
 
