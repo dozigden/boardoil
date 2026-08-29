@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     :open="isCreateMode || editingCardType !== null"
     :title="dialogTitle"
     :close-label="isCreateMode ? 'Cancel creating' : 'Cancel editing'"
@@ -144,7 +144,7 @@
     </template>
 
     <template #actions>
-      <div v-if="draftName !== null" class="editor-actions card-modal-actions">
+      <div v-if="draftName !== null" class="fixed-chrome-dialog-actions">
         <div class="card-type-dialog-leading-actions">
           <button
             v-if="showDeleteAction"
@@ -158,7 +158,7 @@
             <Trash2 :size="16" aria-hidden="true" />
           </button>
         </div>
-        <div class="card-modal-actions-left">
+        <div class="fixed-chrome-dialog-actions-left">
           <button
             type="submit"
             class="btn"
@@ -176,7 +176,7 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
@@ -184,7 +184,7 @@ import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardTypeEditModel } from '../../shared/types/boardTypes';

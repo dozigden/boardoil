@@ -77,7 +77,6 @@ test('card-type emoji picker remains reachable at constrained height', async ({ 
 
   const emojiPanel = cardTypeDialog.getByRole('dialog', { name: 'Emoji picker' });
   await expect(emojiPanel).toBeVisible();
-  test.fail(true, '#801: the non-teleported emoji panel currently extends above the viewport');
   await expectPanelToBeReachable(emojiPanel, page);
   await emojiPanel.getByRole('menuitem').first().click();
   await expect(emojiPanel).toBeHidden();

@@ -158,11 +158,12 @@ function updatePlacement() {
   const shouldOpenUp = !fitsBelow && (fitsAbove || spaceAbove > spaceBelow);
   verticalPlacement.value = shouldOpenUp ? 'top' : 'bottom';
 
-  panelMaxHeightPx.value = Math.max(120, Math.floor(shouldOpenUp ? spaceAbove : spaceBelow));
+  const availablePanelHeight = Math.max(1, Math.floor(shouldOpenUp ? spaceAbove : spaceBelow));
+  panelMaxHeightPx.value = availablePanelHeight;
 
   const measuredRect = panel.getBoundingClientRect();
   const panelWidth = measuredRect.width;
-  const panelHeight = measuredRect.height;
+  const panelHeight = Math.min(measuredRect.height, availablePanelHeight);
 
   let nextLeft = triggerRect.left;
   if (props.align === 'right') {

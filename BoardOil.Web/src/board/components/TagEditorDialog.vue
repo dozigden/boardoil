@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     :open="isCreateMode || editingTag !== null"
     :title="dialogTitle"
     :close-label="isCreateMode ? 'Cancel creating' : 'Cancel editing'"
@@ -147,7 +147,7 @@
     </template>
 
     <template #actions>
-      <div v-if="draft" class="editor-actions card-modal-actions">
+      <div v-if="draft" class="fixed-chrome-dialog-actions">
         <button
           v-if="!isCreateMode && editingTag"
           type="button"
@@ -160,7 +160,7 @@
           <Trash2 :size="16" aria-hidden="true" />
         </button>
         <span v-else />
-        <div class="card-modal-actions-left">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" :disabled="busy || !hasValidDraftTagName" :aria-label="saveButtonAriaLabel" :title="saveButtonAriaLabel">
             <Check :size="16" aria-hidden="true" />
             <span>{{ saveButtonLabel }}</span>
@@ -172,7 +172,7 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
@@ -195,7 +195,7 @@ import {
 import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
 import { parseStyleNameInput, useStyleDraft } from '../composables/useStyleDraft';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 
 const route = useRoute();
