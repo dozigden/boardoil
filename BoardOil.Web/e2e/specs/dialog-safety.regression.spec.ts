@@ -152,7 +152,6 @@ test('standard constrained-height dialog keeps header and footer visible while i
   await expect(dialog).toBeVisible();
   await expect(heading).toBeVisible();
   await expect(submitButton).toBeVisible();
-  test.fail(true, '#801: shared ModalDialog does not yet provide an independently scrolling body');
   await expectFullyInsideViewport(heading, page);
   await expectFullyInsideViewport(submitButton, page);
   const headingBefore = await requireBoundingBox(heading);

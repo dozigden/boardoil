@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open" title="Create Board" close-label="Cancel creation" @close="emit('close')" @submit="submit">
+  <FixedChromeDialog :open="open" title="Create Board" close-label="Cancel creation" @close="emit('close')" @submit="submit">
     <div class="btn-tab-list board-create-dialog-modes" role="tablist" aria-label="Board create mode">
       <button
         type="button"
@@ -59,8 +59,8 @@
     </template>
 
     <template #actions>
-      <div class="editor-actions card-modal-actions">
-        <div class="card-modal-actions-left">
+      <div class="editor-actions board-create-dialog-actions">
+        <div class="board-create-dialog-actions-left">
           <button type="submit" class="btn" :disabled="!canSubmit" :aria-label="submitLabel" :title="submitLabel">
             <Check :size="16" aria-hidden="true" />
             <span>{{ submitLabel }}</span>
@@ -72,13 +72,13 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { Check, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import {
   buildBoardCreateSubmitPayload,
   canSubmitBoardCreateDraft,
@@ -167,5 +167,16 @@ watch(
   font-size: 0.85rem;
   color: var(--bo-ink-muted);
   word-break: break-word;
+}
+
+.board-create-dialog-actions {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.board-create-dialog-actions-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 </style>
