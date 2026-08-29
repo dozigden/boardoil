@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     class="card-transfer-dialog"
     :open="true"
     title="Move card to another board"
@@ -79,8 +79,8 @@
     </div>
 
     <template #actions>
-      <section class="card-modal-actions card-transfer-actions">
-        <div class="card-modal-actions-left">
+      <section class="fixed-chrome-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="button" class="btn btn--secondary" :disabled="isBusy" @click="closeDialog">
             Cancel
           </button>
@@ -90,14 +90,14 @@
         </button>
       </section>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import type { CardTransferPolicy, Column } from '../../shared/types/boardTypes';
@@ -280,35 +280,8 @@ function parseSelectNumber(event: Event) {
 </script>
 
 <style scoped>
-.card-transfer-dialog :deep(.card-modal-content) {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  padding: 0;
-  overflow: hidden;
-}
-
-.card-transfer-dialog :deep(.card-modal-title) {
-  margin: 0;
-  padding: 1rem 3.5rem 0.75rem 1rem;
-  border-bottom: 1px solid var(--bo-border-soft);
-  background: var(--bo-surface-base);
-}
-
-.card-transfer-dialog :deep(.card-modal-close) {
-  z-index: 1;
-}
-
 .card-transfer-body {
-  min-height: 0;
-  padding: 1rem;
-  overflow-y: auto;
-}
-
-.card-transfer-actions {
-  margin: 0;
-  padding: 0.75rem 1rem;
-  border-top: 1px solid var(--bo-border-soft);
-  background: var(--bo-surface-base);
+  min-width: 0;
 }
 
 .card-transfer-source {
