@@ -252,8 +252,34 @@ function formatDateTime(value: string) {
 
 @media (max-width: 900px) {
   .card-editor-layout {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .card-editor-main,
+  .card-editor-description-field,
+  .card-editor-options {
+    flex: 0 0 auto;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .card-editor-description-field :deep(.md-viewer),
+  .card-editor-description-field :deep(.md-viewer-content) {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .card-editor-description-field :deep(.md-viewer-content .tiptap) {
+    box-sizing: border-box;
+    height: auto;
+    max-height: none;
+    width: 100%;
+    overflow-y: visible;
   }
 
   .card-editor-options {

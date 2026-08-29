@@ -57,10 +57,11 @@
         </template>
       </BoGrid>
     </section>
-    <ModalDialog
+    <FixedChromeDialog
       :open="isDetailModalOpen"
       :title="detailModalTitle"
       size="fill"
+      body-mode="managed"
       close-label="Close archived card"
       @close="closeDetailModal"
     >
@@ -72,14 +73,13 @@
         :column-title="resolveColumnTitle(selectedArchivedCard.card.boardColumnId)"
       />
       <template #actions>
-        <div v-if="selectedArchivedCard" class="card-modal-actions">
-          <span />
+        <div v-if="selectedArchivedCard" class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
           <button type="button" class="btn" :disabled="isUnarchiving" @click="unarchiveSelectedCard">
             {{ isUnarchiving ? 'Unarchiving...' : 'Unarchive' }}
           </button>
         </div>
       </template>
-    </ModalDialog>
+    </FixedChromeDialog>
   </section>
 </template>
 
@@ -90,7 +90,7 @@ import { useRoute, useRouter } from 'vue-router';
 import BoardCardFilters from '../components/BoardCardFilters.vue';
 import BoGrid from '../../shared/components/BoGrid.vue';
 import ArchivedCardDetailContent from '../components/ArchivedCardDetailContent.vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useBoardStore } from '../stores/boardStore';
 import type { ArchivedCard, ArchivedCardList, ArchivedCardListItem } from '../../shared/types/boardTypes';
