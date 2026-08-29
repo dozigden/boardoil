@@ -114,7 +114,7 @@ for (const scenario of cardEditorScenarios) {
     await boardPage.openCard('Todo', cardTitle);
 
     const dialog = page.getByRole('dialog');
-    const title = dialog.locator('.card-modal-title');
+    const title = dialog.locator('.fixed-chrome-dialog__title');
     const saveButton = dialog.getByRole('button', { name: 'Save card' });
     const scrollRegion = dialog.locator(scenario.scrollRegionSelector);
 

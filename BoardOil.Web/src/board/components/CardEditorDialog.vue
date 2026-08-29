@@ -1,5 +1,13 @@
 <template>
-  <ModalDialog :open="editingCard !== null" title="Edit Card" size="fill" close-label="Cancel editing" @close="closeCardEditor" @submit="saveCard">
+  <FixedChromeDialog
+    :open="editingCard !== null"
+    title="Edit Card"
+    size="fill"
+    body-mode="managed"
+    close-label="Cancel editing"
+    @close="closeCardEditor"
+    @submit="saveCard"
+  >
     <template #headerActions>
       <BoDropdown
         v-if="cardDraft"
@@ -282,8 +290,8 @@
       </div>
     </template>
     <template #actions>
-      <div v-if="cardDraft" class="editor-actions card-modal-actions">
-        <div class="card-modal-actions-left">
+      <div v-if="cardDraft" class="editor-actions fixed-chrome-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" aria-label="Save card" title="Save card">
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
@@ -295,7 +303,7 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
@@ -312,7 +320,7 @@ import CardTagEditor from './CardTagEditor.vue';
 import CardSlickPicker from './CardSlickPicker.vue';
 import CardExternalUrlEditor from './CardExternalUrlEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { useBoardStore } from '../stores/boardStore';
 import { useBoardMembersStore } from '../stores/boardMembersStore';
@@ -1442,8 +1450,9 @@ function areStringArraysEqual(left: string[], right: string[]) {
     height: 100%;
   }
 
-  :deep(.card-modal-content) {
-    padding: 0.75rem;
+  :deep(.fixed-chrome-dialog__body) {
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
   }
 }
 </style>
