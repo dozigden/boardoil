@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     :open="open"
     title="Welcome to the BoardOil demo"
     close-label="Close demo introduction"
@@ -29,15 +29,15 @@
     </div>
 
     <template #actions>
-      <div class="card-modal-actions demo-welcome-actions">
+      <div class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
         <button type="button" class="btn" @click="emit('close')">Explore the demo</button>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
-import ModalDialog from '../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../shared/components/FixedChromeDialog.vue';
 
 defineProps<{
   open: boolean;
@@ -71,7 +71,4 @@ const emit = defineEmits<{
   font-style: italic;
 }
 
-.demo-welcome-actions {
-  justify-content: flex-end;
-}
 </style>

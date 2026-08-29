@@ -209,6 +209,24 @@ onBeforeUnmount(() => {
   padding: 0 1rem 1rem;
 }
 
+.fixed-chrome-dialog__footer :deep(.fixed-chrome-dialog-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.35rem;
+}
+
+.fixed-chrome-dialog__footer :deep(.fixed-chrome-dialog-actions--end) {
+  justify-content: flex-end;
+}
+
+.fixed-chrome-dialog__footer :deep(.fixed-chrome-dialog-actions-left) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 @media (max-width: 720px) {
   .fixed-chrome-dialog,
   .fixed-chrome-dialog--md,

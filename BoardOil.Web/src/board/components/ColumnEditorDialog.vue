@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="editingColumn !== null" title="Edit Column" close-label="Cancel editing" @close="closeColumnEditor" @submit="saveColumn">
+  <FixedChromeDialog :open="editingColumn !== null" title="Edit Column" close-label="Cancel editing" @close="closeColumnEditor" @submit="saveColumn">
     <template v-if="editingColumn">
       <label>
         Title
@@ -12,11 +12,11 @@
       </label>
     </template>
     <template #actions>
-      <div v-if="editingColumn" class="editor-actions card-modal-actions">
+      <div v-if="editingColumn" class="fixed-chrome-dialog-actions">
         <button type="button" class="btn btn--danger" aria-label="Delete column" title="Delete column" @click="deleteEditingColumn">
           <Trash2 :size="16" aria-hidden="true" />
         </button>
-        <div class="card-modal-actions-left">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" aria-label="Save column" title="Save column">
             <Check :size="16" aria-hidden="true" />
             <span>Save</span>
@@ -28,7 +28,7 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
@@ -36,7 +36,7 @@ import { Check, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import type { ColumnEditModel } from '../../shared/types/boardTypes';
 import { useBoardStore } from '../stores/boardStore';
 

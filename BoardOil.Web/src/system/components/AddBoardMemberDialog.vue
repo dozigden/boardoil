@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open" title="Add Member" close-label="Cancel add member" @close="emit('close')" @submit="submit">
+  <FixedChromeDialog :open="open" title="Add Member" close-label="Cancel add member" @close="emit('close')" @submit="submit">
     <label>
       User
       <select v-model="selectedUserIdText" :disabled="busy || users.length === 0" required>
@@ -21,8 +21,8 @@
     </label>
 
     <template #actions>
-      <div class="editor-actions card-modal-actions">
-        <div class="card-modal-actions-left">
+      <div class="fixed-chrome-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" :disabled="busy || !isValidUserId" aria-label="Add member" title="Add member">
             <Check :size="16" aria-hidden="true" />
             <span>Add member</span>
@@ -34,7 +34,7 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
@@ -42,7 +42,7 @@ import { Check, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import type { UserDirectoryEntry } from '../../shared/types/authTypes';
 import type { BoardMemberEditModel, BoardMemberRole } from '../../shared/types/boardTypes';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 
 const props = defineProps<{
   open: boolean;

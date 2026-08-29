@@ -59,8 +59,8 @@
     </template>
 
     <template #actions>
-      <div class="editor-actions board-create-dialog-actions">
-        <div class="board-create-dialog-actions-left">
+      <div class="fixed-chrome-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" :disabled="!canSubmit" :aria-label="submitLabel" :title="submitLabel">
             <Check :size="16" aria-hidden="true" />
             <span>{{ submitLabel }}</span>
@@ -169,14 +169,4 @@ watch(
   word-break: break-word;
 }
 
-.board-create-dialog-actions {
-  align-items: center;
-  justify-content: space-between;
-}
-
-.board-create-dialog-actions-left {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
 </style>
