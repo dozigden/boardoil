@@ -1,10 +1,11 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     class="error-log-details-modal"
     :open="true"
     title="Error Log Details"
     close-label="Close error log details"
     size="fill"
+    body-mode="managed"
     @close="close"
   >
     <template #headerActions>
@@ -73,14 +74,20 @@
       </section>
     </article>
     <p v-else class="error-log-detail-empty">Error log not found.</p>
-  </ModalDialog>
+
+    <template #actions>
+      <div class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
+        <button type="button" class="btn btn--secondary" @click="close">Close</button>
+      </div>
+    </template>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { copyTextToClipboard } from '../../shared/utils/clipboard';
 import { useSystemErrorLogsStore } from '../stores/systemErrorLogsStore';
@@ -183,10 +190,6 @@ watch(
 </script>
 
 <style scoped>
-.error-log-details-modal :deep(.card-modal-content) {
-  overflow: hidden;
-}
-
 .error-log-detail-empty {
   margin: 0;
   color: var(--bo-ink-muted);

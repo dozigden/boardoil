@@ -1,10 +1,11 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     class="oauth-token-audit-details-modal"
     :open="audit !== null"
     title="OAuth Log Details"
     close-label="Close OAuth log details"
     size="fill"
+    body-mode="managed"
     @close="emit('close')"
   >
     <template #headerActions>
@@ -104,12 +105,18 @@
         </dl>
       </section>
     </article>
-  </ModalDialog>
+
+    <template #actions>
+      <div class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
+        <button type="button" class="btn btn--secondary" @click="emit('close')">Close</button>
+      </div>
+    </template>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { OAuthTokenAudit } from '../../shared/types/oauthTokenAuditTypes';
 import { copyTextToClipboard } from '../../shared/utils/clipboard';
@@ -173,10 +180,6 @@ function formatDate(value: string): string {
 </script>
 
 <style scoped>
-.oauth-token-audit-details-modal :deep(.card-modal-content) {
-  overflow: hidden;
-}
-
 .oauth-token-audit-report {
   display: grid;
   flex: 1 1 auto;
