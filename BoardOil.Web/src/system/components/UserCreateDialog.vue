@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open" title="Create User" close-label="Cancel creation" @close="emit('close')" @submit="submit">
+  <FixedChromeDialog :open="open" title="Create User" close-label="Cancel creation" @close="emit('close')" @submit="submit">
     <label>
       Username
       <input v-model="draft.userName" :disabled="busy" maxlength="64" required />
@@ -36,8 +36,8 @@
     <p v-if="draftError" class="error">{{ draftError }}</p>
 
     <template #actions>
-      <div class="editor-actions card-modal-actions">
-        <div class="card-modal-actions-left">
+      <div class="fixed-chrome-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" :disabled="busy" aria-label="Create user" title="Create user">
             <Check :size="16" aria-hidden="true" />
             <span>Create user</span>
@@ -49,13 +49,13 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { Check, X } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import type { CreateManagedUserRequest } from '../../shared/types/authTypes';
 import { PASSWORD_CONFIRMATION_ERROR, validatePasswordConfirmation } from '../../shared/utils/passwordConfirmation';
 

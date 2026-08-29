@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     :open="open"
     title="Create Client Account"
     close-label="Cancel client account creation"
@@ -85,8 +85,8 @@
     <p v-if="draftError" class="error">{{ draftError }}</p>
 
     <template #actions>
-      <div class="editor-actions card-modal-actions client-account-dialog-actions">
-        <div class="card-modal-actions-left">
+      <div class="fixed-chrome-dialog-actions client-account-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" :disabled="busy" aria-label="Create client account" title="Create client account">
             <Check :size="16" aria-hidden="true" />
             <span>Create client account</span>
@@ -98,14 +98,14 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { Check, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import type { AccessTokenScope, CreateClientAccountRequest } from '../../shared/types/authTypes';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 
 const props = defineProps<{
   open: boolean;

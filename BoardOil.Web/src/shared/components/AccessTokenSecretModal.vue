@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open" title="Copy token now" close-label="Close token reminder" @close="emit('close')" @submit="copyToken">
+  <FixedChromeDialog :open="open" title="Copy token now" close-label="Close token reminder" @close="emit('close')" @submit="copyToken">
     <div class="machine-pat-secret">
       <p class="machine-pat-secret-note">
         This value is only shown once for <strong>{{ tokenName || 'new token' }}</strong>.
@@ -23,21 +23,21 @@
     </div>
 
     <template #actions>
-      <div class="card-modal-actions">
-        <div class="card-modal-actions-left">
+      <div class="fixed-chrome-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" :disabled="busy">Copy token</button>
           <button type="button" class="btn btn--secondary" :disabled="busy" @click="emit('close')">Done</button>
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { Copy } from 'lucide-vue-next';
 import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
 import { copyTextToClipboard } from '../utils/clipboard';
-import ModalDialog from './ModalDialog.vue';
+import FixedChromeDialog from './FixedChromeDialog.vue';
 
 const props = defineProps<{
   open: boolean;
