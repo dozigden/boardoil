@@ -1,42 +1,46 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     :open="open"
     title="Archive Selected Cards"
     close-label="Close archive confirmation"
     @close="emit('close')"
   >
-    <p class="archive-confirm-summary">
-      Archive {{ selectedCount }} selected card{{ selectedCount === 1 ? '' : 's' }}?
-    </p>
-    <p v-if="selectedCount === 0" class="archive-confirm-empty">
-      No cards selected.
-    </p>
-    <ul v-else class="archive-confirm-list">
-      <li v-for="card in selectedCards" :key="card.id" class="archive-confirm-list-item">
-        {{ card.title }}
-      </li>
-    </ul>
-    <section class="card-modal-actions">
-      <div class="card-modal-actions-left">
-        <button type="button" class="btn btn--secondary" :disabled="isArchiving" @click="emit('close')">
-          Cancel
+    <div class="archive-confirm-body">
+      <p class="archive-confirm-summary">
+        Archive {{ selectedCount }} selected card{{ selectedCount === 1 ? '' : 's' }}?
+      </p>
+      <p v-if="selectedCount === 0" class="archive-confirm-empty">
+        No cards selected.
+      </p>
+      <ul v-else class="archive-confirm-list">
+        <li v-for="card in selectedCards" :key="card.id" class="archive-confirm-list-item">
+          {{ card.title }}
+        </li>
+      </ul>
+    </div>
+    <template #actions>
+      <section class="fixed-chrome-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
+          <button type="button" class="btn btn--secondary" :disabled="isArchiving" @click="emit('close')">
+            Cancel
+          </button>
+        </div>
+        <button
+          type="button"
+          class="btn btn--danger"
+          :disabled="isArchiving || selectedCount === 0"
+          @click="emit('confirm')"
+        >
+          {{ isArchiving ? 'Archiving...' : 'Archive selected' }}
         </button>
-      </div>
-      <button
-        type="button"
-        class="btn btn--danger"
-        :disabled="isArchiving || selectedCount === 0"
-        @click="emit('confirm')"
-      >
-        {{ isArchiving ? 'Archiving...' : 'Archive selected' }}
-      </button>
-    </section>
-  </ModalDialog>
+      </section>
+    </template>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import type { Card as BoardCard } from '../../shared/types/boardTypes';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 
 defineProps<{
   open: boolean;

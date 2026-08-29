@@ -1,94 +1,98 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     :open="open"
     title="Bulk Edit Selected Cards"
     close-label="Close bulk edit"
     @close="emit('close')"
   >
-    <p class="bulk-edit-summary">
-      Edit {{ selectedCount }} selected card{{ selectedCount === 1 ? '' : 's' }}.
-    </p>
+    <div class="bulk-edit-body">
+      <p class="bulk-edit-summary">
+        Edit {{ selectedCount }} selected card{{ selectedCount === 1 ? '' : 's' }}.
+      </p>
 
-    <section class="bulk-edit-field">
-      <label for="bulk-edit-column" class="bulk-edit-field-label">Column</label>
-      <select
-        id="bulk-edit-column"
-        :value="targetColumnValue"
-        class="bulk-edit-column-select"
+      <section class="bulk-edit-field">
+        <label for="bulk-edit-column" class="bulk-edit-field-label">Column</label>
+        <select
+          id="bulk-edit-column"
+          :value="targetColumnValue"
+          class="bulk-edit-column-select"
+          :disabled="isSaving"
+          @change="onColumnChange"
+        >
+          <option value="">No change</option>
+          <option v-for="column in columns" :key="column.id" :value="String(column.id)">
+            {{ column.title }}
+          </option>
+        </select>
+      </section>
+
+      <section class="bulk-edit-field">
+        <label for="bulk-edit-slick-operation" class="bulk-edit-field-label">Slick</label>
+        <select
+          id="bulk-edit-slick-operation"
+          :value="slickOperation"
+          class="bulk-edit-slick-operation-select"
+          :disabled="isSaving"
+          @change="onSlickOperationChange"
+        >
+          <option value="none">No change</option>
+          <option value="clear">No slick</option>
+          <option value="set">Set slick</option>
+        </select>
+      </section>
+
+      <section v-if="slickOperation === 'set'" class="bulk-edit-field">
+        <label for="bulk-edit-slick-name" class="bulk-edit-field-label">Slick to set</label>
+        <select
+          id="bulk-edit-slick-name"
+          :value="targetSlickNameValue"
+          class="bulk-edit-slick-name-select"
+          :disabled="isSaving"
+          @change="onSlickNameChange"
+        >
+          <option value="">Select slick</option>
+          <option v-for="slick in slicks" :key="slick.id" :value="slick.name">
+            {{ slick.name }}
+          </option>
+        </select>
+      </section>
+
+      <TagTriStateMatrix
+        v-if="availableTagNames.length > 0"
+        class="bulk-edit-tags"
+        :available-tag-names="availableTagNames"
+        :states="filterStates"
+        :labels="{ left: 'Remove', middle: 'No change', right: 'Add' }"
+        :ariaLabel="'Tag bulk edit matrix'"
+        left-action-prefix="Mark for remove"
+        middle-action-prefix="Mark unchanged"
+        right-action-prefix="Mark for add"
         :disabled="isSaving"
-        @change="onColumnChange"
-      >
-        <option value="">No change</option>
-        <option v-for="column in columns" :key="column.id" :value="String(column.id)">
-          {{ column.title }}
-        </option>
-      </select>
-    </section>
+        :fluid="true"
+        :show-directional-cursor="false"
+        :enable-bounce="true"
+        @update:states="onFilterStatesChange"
+      />
+    </div>
 
-    <section class="bulk-edit-field">
-      <label for="bulk-edit-slick-operation" class="bulk-edit-field-label">Slick</label>
-      <select
-        id="bulk-edit-slick-operation"
-        :value="slickOperation"
-        class="bulk-edit-slick-operation-select"
-        :disabled="isSaving"
-        @change="onSlickOperationChange"
-      >
-        <option value="none">No change</option>
-        <option value="clear">No slick</option>
-        <option value="set">Set slick</option>
-      </select>
-    </section>
-
-    <section v-if="slickOperation === 'set'" class="bulk-edit-field">
-      <label for="bulk-edit-slick-name" class="bulk-edit-field-label">Slick to set</label>
-      <select
-        id="bulk-edit-slick-name"
-        :value="targetSlickNameValue"
-        class="bulk-edit-slick-name-select"
-        :disabled="isSaving"
-        @change="onSlickNameChange"
-      >
-        <option value="">Select slick</option>
-        <option v-for="slick in slicks" :key="slick.id" :value="slick.name">
-          {{ slick.name }}
-        </option>
-      </select>
-    </section>
-
-    <TagTriStateMatrix
-      v-if="availableTagNames.length > 0"
-      class="bulk-edit-tags"
-      :available-tag-names="availableTagNames"
-      :states="filterStates"
-      :labels="{ left: 'Remove', middle: 'No change', right: 'Add' }"
-      :ariaLabel="'Tag bulk edit matrix'"
-      left-action-prefix="Mark for remove"
-      middle-action-prefix="Mark unchanged"
-      right-action-prefix="Mark for add"
-      :disabled="isSaving"
-      :fluid="true"
-      :show-directional-cursor="false"
-      :enable-bounce="true"
-      @update:states="emit('update:filterStates', $event)"
-    />
-
-    <section class="card-modal-actions">
-      <div class="card-modal-actions-left">
-        <button type="button" class="btn btn--secondary" :disabled="isSaving" @click="emit('close')">
-          Cancel
+    <template #actions>
+      <section class="fixed-chrome-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
+          <button type="button" class="btn btn--secondary" :disabled="isSaving" @click="emit('close')">
+            Cancel
+          </button>
+        </div>
+        <button type="button" class="btn" :disabled="isSaving || selectedCount === 0 || !hasChanges" @click="emit('confirm')">
+          {{ isSaving ? 'Applying...' : 'Apply edits' }}
         </button>
-      </div>
-      <button type="button" class="btn" :disabled="isSaving || selectedCount === 0 || !hasChanges" @click="emit('confirm')">
-        {{ isSaving ? 'Applying...' : 'Apply edits' }}
-      </button>
-    </section>
-  </ModalDialog>
+      </section>
+    </template>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import type { BulkEditSlickOperation } from '../../shared/types/bulkEditTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import TagTriStateMatrix from './TagTriStateMatrix.vue';
@@ -118,6 +122,10 @@ const emit = defineEmits<{
 
 const targetColumnValue = computed(() => props.targetColumnId === null ? '' : String(props.targetColumnId));
 const targetSlickNameValue = computed(() => props.targetSlickName ?? '');
+
+function onFilterStatesChange(value: TagFilterStateMap) {
+  emit('update:filterStates', value);
+}
 
 function onColumnChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value;
