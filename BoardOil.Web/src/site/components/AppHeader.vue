@@ -86,7 +86,7 @@
     </div>
   </header>
   <AboutDialog :open="aboutDialogOpen" @close="closeAboutDialog" />
-  <ModalDialog
+  <FixedChromeDialog
     :open="systemInfoDialogOpen"
     :title="activeSystemInfoMessage?.title ?? ''"
     close-label="Close system information"
@@ -101,7 +101,13 @@
         aria-label="System information"
       />
     </section>
-  </ModalDialog>
+
+    <template #actions>
+      <div class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
+        <button type="button" class="btn" @click="closeSystemInfoDialog">Close</button>
+      </div>
+    </template>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
@@ -116,7 +122,7 @@ import BoDropdown from '../../shared/components/BoDropdown.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import HeaderBoardPicker from './HeaderBoardPicker.vue';
 import MdViewer from '../../shared/components/MdViewer.vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { getBrandTarget } from './appHeaderNavigation';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useUserProfileImageStore } from '../../shared/stores/userProfileImageStore';

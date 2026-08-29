@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open" title="About BoardOil" close-label="Close About" @close="emit('close')">
+  <FixedChromeDialog :open="open" title="About BoardOil" close-label="Close About" @close="emit('close')">
     <section class="about-dialog-body">
       <section class="about-summary-grid" aria-label="Build summary">
         <p class="about-summary-line">
@@ -16,7 +16,13 @@
         <p v-else-if="backendBuildInfoLoadError" class="about-metadata-state about-metadata-state--error">{{ backendBuildInfoLoadError }}</p>
       </section>
     </section>
-  </ModalDialog>
+
+    <template #actions>
+      <div class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
+        <button type="button" class="btn" @click="emit('close')">Close</button>
+      </div>
+    </template>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
@@ -24,7 +30,7 @@ import { computed, ref, watch } from 'vue';
 import type { BuildInfo } from '../../shared/api/versionApi';
 import { getBackendBuildInfo, getFrontendBuildInfo } from '../../shared/api/versionApi';
 import { areBuildMetadataInSync, formatBuildInfo, getAboutSummaryItems } from './aboutDialogMetadata';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 
 const props = defineProps<{
   open: boolean;
