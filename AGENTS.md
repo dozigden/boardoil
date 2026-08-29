@@ -30,11 +30,12 @@ Read area guidance before working in that part of the system:
   - cards with the `OilTTY` card type belong to a related project that shares this board; ignore them when reviewing, planning, or reporting BoardOil work unless the user explicitly asks to include or work on OilTTY cards
   - repository proxy scripts for board MCP operations have been removed
   - for card description-only updates via `card.update`, include full required payload (`boardId`, `id`, `cardTypeId`, `slickName`, `externalUrl`, `title`, `description`, `tagNames`)
-  - when mentioning BoardOil cards in chat, format them as `<CardType emoji> #<card number>: <title> (<tag emojis>)`
+  - when mentioning BoardOil cards in chat, format them as `<CardType emoji> #<card number>: <title> (<tag emoji> <tag name>; ...)`
     - place the CardType emoji before the card number and title
-    - place tag emojis in brackets after the title
-    - use only emojis provided by BoardOil for the card type and tags; do not infer or substitute emojis
-    - omit missing emojis and omit the brackets when there are no tag emojis
+    - place tag details in brackets after the title
+    - include each tag's emoji and name
+    - use only emojis and names provided by BoardOil; do not infer or substitute them
+    - omit a missing emoji while retaining the tag name, and omit the brackets when there are no tags
 - Archive snapshots:
   - when snapshotting references to mutable board-scoped entities (for example slick membership), prefer canonical names over numeric IDs.
 - For any changes under `BoardOil.Web`, run `npm run check` in `BoardOil.Web` before committing.
