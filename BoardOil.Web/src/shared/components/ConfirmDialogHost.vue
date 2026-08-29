@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     :open="state.open"
     :title="state.title"
     close-label="Cancel confirmation"
@@ -8,16 +8,16 @@
   >
     <p class="confirm-dialog-message">{{ state.message }}</p>
     <template #actions>
-      <section class="card-modal-actions confirm-dialog-actions">
+      <section class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
         <button type="button" class="btn btn--secondary" @click="cancel">{{ state.cancelLabel }}</button>
         <button type="submit" class="btn" :class="{ 'btn--danger': state.danger }">{{ state.confirmLabel }}</button>
       </section>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
-import ModalDialog from './ModalDialog.vue';
+import FixedChromeDialog from './FixedChromeDialog.vue';
 import { useConfirmDialogState } from '../composables/useConfirm';
 
 const { state, accept, cancel } = useConfirmDialogState();
@@ -29,8 +29,4 @@ const { state, accept, cancel } = useConfirmDialogState();
   white-space: pre-line;
 }
 
-.confirm-dialog-actions {
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
 </style>

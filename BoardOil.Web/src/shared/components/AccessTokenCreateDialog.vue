@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open" title="Create Access Token" close-label="Cancel access token creation" @close="emit('close')" @submit="submit">
+  <FixedChromeDialog :open="open" title="Create Access Token" close-label="Cancel access token creation" @close="emit('close')" @submit="submit">
     <p class="machine-pat-dialog-hint">Create an access token for MCP and REST API clients without sharing your account password.</p>
 
     <label>
@@ -40,8 +40,8 @@
     <p v-if="draftError" class="error">{{ draftError }}</p>
 
     <template #actions>
-      <div class="editor-actions card-modal-actions machine-pat-dialog-actions">
-        <div class="card-modal-actions-left">
+      <div class="fixed-chrome-dialog-actions machine-pat-dialog-actions">
+        <div class="fixed-chrome-dialog-actions-left">
           <button type="submit" class="btn" :disabled="busy" aria-label="Create token" title="Create token">
             <Check :size="16" aria-hidden="true" />
             <span>Create token</span>
@@ -53,14 +53,14 @@
         </div>
       </div>
     </template>
-  </ModalDialog>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { Check, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import type { CreateAccessTokenRequest } from '../types/authTypes';
-import ModalDialog from './ModalDialog.vue';
+import FixedChromeDialog from './FixedChromeDialog.vue';
 
 const props = defineProps<{
   open: boolean;
