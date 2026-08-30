@@ -1,42 +1,42 @@
 <template>
-  <div v-if="open" class="md-link-dialog-backdrop" @click.self="emit('cancel')">
-    <div class="md-link-dialog" role="dialog" aria-modal="true" aria-labelledby="md-link-dialog-title" @keydown.esc.prevent="emit('cancel')">
-      <h4 id="md-link-dialog-title" class="md-link-dialog-title">Edit Link</h4>
+  <FixedChromeDialog :open="open" title="Edit Link" close-label="Cancel editing link" @close="emit('cancel')" @submit="onSave">
+    <label>
+      Text
+      <input
+        ref="textInputRef"
+        :value="draftText"
+        maxlength="5000"
+        autofocus
+        @input="draftText = ($event.target as HTMLInputElement).value"
+        @keydown.enter.prevent="onSave"
+      />
+    </label>
 
-      <label>
-        Text
-        <input
-          ref="textInputRef"
-          :value="draftText"
-          maxlength="5000"
-          @input="draftText = ($event.target as HTMLInputElement).value"
-          @keydown.enter.prevent="onSave"
-        />
-      </label>
+    <label>
+      URL
+      <input
+        :value="draftUrl"
+        placeholder="https://example.com"
+        @input="onUrlInput(($event.target as HTMLInputElement).value)"
+        @keydown.enter.prevent="onSave"
+      />
+    </label>
 
-      <label>
-        URL
-        <input
-          :value="draftUrl"
-          placeholder="https://example.com"
-          @input="onUrlInput(($event.target as HTMLInputElement).value)"
-          @keydown.enter.prevent="onSave"
-        />
-      </label>
+    <p v-if="errorMessage" class="md-link-dialog-error" role="alert">{{ errorMessage }}</p>
 
-      <p v-if="errorMessage" class="md-link-dialog-error" role="alert">{{ errorMessage }}</p>
-
-      <div class="md-link-dialog-actions">
+    <template #actions>
+      <div class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
         <button type="button" class="btn btn--secondary" @click="emit('cancel')">Cancel</button>
         <button v-if="canRemove" type="button" class="btn btn--secondary" @click="emit('remove')">Remove link</button>
-        <button type="button" class="btn" :disabled="draftUrl.trim().length === 0" @click="onSave">Save</button>
+        <button type="submit" class="btn" :disabled="draftUrl.trim().length === 0">Save</button>
       </div>
-    </div>
-  </div>
+    </template>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
+import FixedChromeDialog from './FixedChromeDialog.vue';
 import { normaliseHttpUrl } from '../utils/linkUrl';
 
 const props = defineProps<{
@@ -94,51 +94,9 @@ watch(
 </script>
 
 <style scoped>
-.md-link-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bo-overlay-backdrop);
-}
-
-.md-link-dialog {
-  width: min(30rem, calc(100vw - 2rem));
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 12px;
-  padding: 0.85rem;
-  background: var(--bo-surface-base);
-}
-
-.md-link-dialog-title {
-  margin: 0;
-  color: var(--bo-link);
-}
-
 .md-link-dialog-error {
   margin: 0;
   color: var(--bo-colour-danger-ink);
   font-size: 0.86rem;
-}
-
-.md-link-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.35rem;
-}
-
-@media (max-width: 720px) {
-  .md-link-dialog {
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    max-width: none;
-    border-radius: 0;
-  }
 }
 </style>
