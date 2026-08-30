@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <FixedChromeDialog
     :open="open"
     title="Crop Profile Image"
     close-label="Cancel image upload"
@@ -52,18 +52,20 @@
 
     <p v-if="activeErrorMessage" class="profile-image-crop-dialog-error" role="alert">{{ activeErrorMessage }}</p>
 
-    <section class="card-modal-actions">
-      <button type="button" class="btn btn--secondary" :disabled="isBusy" @click="emit('close')">Cancel</button>
-      <div class="card-modal-actions-left">
-        <button type="submit" class="btn" :disabled="isBusy || !canSubmit">Upload image</button>
-      </div>
-    </section>
-  </ModalDialog>
+    <template #actions>
+      <section class="fixed-chrome-dialog-actions">
+        <button type="button" class="btn btn--secondary" :disabled="isBusy" @click="emit('close')">Cancel</button>
+        <div class="fixed-chrome-dialog-actions-left">
+          <button type="submit" class="btn" :disabled="isBusy || !canSubmit">Upload image</button>
+        </div>
+      </section>
+    </template>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import ModalDialog from '../../shared/components/ModalDialog.vue';
+import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import {
   clampProfileImageCropState,
   createInitialProfileImageCropState,
