@@ -275,8 +275,10 @@ async function loadLicences() {
 }
 
 .licence-package {
+  min-width: 0;
   font-weight: 700;
   color: var(--bo-ink-strong);
+  overflow-wrap: anywhere;
 }
 
 .badge--ecosystem {
