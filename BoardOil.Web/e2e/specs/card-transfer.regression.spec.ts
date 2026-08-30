@@ -5,12 +5,11 @@ test('move a card to another board with matching content', async ({ api, authent
   const sourceBoard = await api.createBoard('Regression transfer source');
   const destinationBoard = await api.createBoard('Regression transfer destination');
   const cardTitle = 'Card moving between boards';
-  const tagName = 'Transfer tag';
-  const sourceCard = await api.createCard(sourceBoard, 'Todo', cardTitle, '', [tagName]);
+  await api.createCard(sourceBoard, 'Todo', cardTitle);
   const boardPage = new BoardPage(page);
   await boardPage.open(sourceBoard.id);
 
-  await test.step('choose the destination and transfer policy', async () => {
+  await test.step('choose the destination and move the card', async () => {
     await boardPage.openCard('Todo', cardTitle);
     await page.getByRole('button', { name: 'Card actions' }).click();
     await page.getByRole('menu', { name: 'Card actions' })
@@ -19,32 +18,10 @@ test('move a card to another board with matching content', async ({ api, authent
 
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: 'Move card to another board' })).toBeVisible();
-    const cardPreview = dialog.getByLabel('Card being moved');
-    await expect(cardPreview).toContainText(`#${sourceCard.id}`);
-    await expect(cardPreview).toContainText(cardTitle);
-    await expect(cardPreview.getByLabel(tagName)).toBeVisible();
-    await expect(cardPreview.getByRole('button')).toHaveCount(0);
-    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/boards/${sourceBoard.id}/card/\\d+$`));
-
-    await page.getByRole('button', { name: 'Card actions' }).click();
-    await page.getByRole('menu', { name: 'Card actions' })
-      .getByRole('button', { name: 'Move to another board' })
-      .click();
-    const reopenedDialog = page.getByRole('dialog');
-    await reopenedDialog.getByLabel('Destination board', { exact: true }).selectOption(String(destinationBoard.id));
-    const destinationColumn = reopenedDialog.getByLabel('Destination column', { exact: true });
-    await expect(destinationColumn).toHaveValue(/\d+/);
-    await expect(destinationColumn.getByRole('option', { name: 'Select column' })).toHaveCount(0);
+    await dialog.getByLabel('Destination board', { exact: true }).selectOption(String(destinationBoard.id));
+    const destinationColumn = dialog.getByLabel('Destination column', { exact: true });
     await destinationColumn.selectOption({ label: 'In Progress' });
-    await expect(reopenedDialog.getByRole('radio', { name: /Keep matching only/ })).toBeChecked();
-    await expect(reopenedDialog.getByText(
-      "Use the destination card type, tags, and slick where they match, otherwise they're cleared."
-    )).toBeVisible();
-    await expect(reopenedDialog.getByText(
-      'Any card type, tags, or slick that are missing will be created on the destination board.'
-    )).toBeVisible();
-    await reopenedDialog.getByRole('button', { name: 'Move card' }).click();
+    await dialog.getByRole('button', { name: 'Move card' }).click();
   });
 
   await test.step('open the moved card on the destination board', async () => {

@@ -1,5 +1,5 @@
 <template>
-  <div class="card-external-url-editor">
+  <div class="card-external-url-editor" role="group" aria-label="External link">
     <span class="card-editor-field-label">External link</span>
 
     <div v-if="!isEditing" class="card-external-url-display">
