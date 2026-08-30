@@ -197,8 +197,10 @@
               :text="selectedCardTypeLabel"
             >
               <template #trigger>
-                <span v-if="selectedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ selectedCardTypeEmoji }}</span>
-                <span>{{ selectedCardTypeLabel }}</span>
+                <span class="card-editor-type-trigger-content">
+                  <span v-if="selectedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ selectedCardTypeEmoji }}</span>
+                  <span>{{ selectedCardTypeLabel }}</span>
+                </span>
               </template>
               <template #default="{ close }">
                 <button
@@ -1274,6 +1276,13 @@ function areStringArraysEqual(left: string[], right: string[]) {
 .card-editor-assigned-user-picker :deep(.bo-dropdown-panel) {
   width: auto;
   min-width: 11rem;
+}
+
+.card-editor-type-trigger-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
 .card-editor-option-section {
