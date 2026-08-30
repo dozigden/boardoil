@@ -203,6 +203,49 @@ describe('boardApi saveCard', () => {
   });
 });
 
+describe('boardApi createCard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('posts the complete editable card payload', async () => {
+    const createdCard = {
+      id: 101,
+      boardColumnId: 3,
+      cardTypeId: 2,
+      cardTypeName: 'Story',
+      cardTypeEmoji: '📙',
+      assignedUserId: 7,
+      slickName: 'Release',
+      title: 'Duplicate card',
+      description: 'Copied description',
+      externalUrl: 'https://example.test/card',
+      sortKey: '0001',
+      tags: [],
+      tagNames: ['Feature'],
+      cardCreatedUtc: '2026-08-30T12:00:00Z',
+      cardUpdatedUtc: '2026-08-30T12:00:00Z'
+    };
+    vi.mocked(postData).mockResolvedValue(ok(createdCard));
+    const model = {
+      boardColumnId: 3,
+      cardTypeId: 2,
+      assignedUserId: 7,
+      slickName: 'Release',
+      title: 'Duplicate card',
+      description: 'Copied description',
+      externalUrl: 'https://example.test/card',
+      tagNames: ['Feature']
+    };
+
+    const api = createBoardApi();
+    const result = await api.createCard(1, model);
+
+    expect(result).toEqual(ok(createdCard));
+    expect(postData).toHaveBeenCalledWith('/api/boards/1/cards', model);
+  });
+});
+
 describe('boardApi transferCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();

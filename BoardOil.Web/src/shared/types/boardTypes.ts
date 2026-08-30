@@ -79,12 +79,6 @@ export type ColumnCreateModel = {
   title: string;
 };
 
-export type CardCreateModel = {
-  boardColumnId: number;
-  title: string;
-  cardTypeId: number | null;
-};
-
 export type CardTransferPolicy = 'destinationDefaults' | 'keepMatching' | 'copyMissing';
 
 export type CardTransferResult = {

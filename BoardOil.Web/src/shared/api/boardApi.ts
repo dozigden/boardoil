@@ -6,7 +6,6 @@ import type {
   BoardEditModel,
   BoardMemberEditModel,
   BoardMember,
-  CardCreateModel,
   BoardSummary,
   Card,
   CardTransferPolicy,
@@ -163,15 +162,8 @@ function createHttpBoardApi() {
     return deleteJson(`/api/boards/${boardId}/columns/${columnId}`);
   }
 
-  async function createCard(boardId: number, model: CardCreateModel): Promise<Result<Card, AppError>> {
-    return postData<Card>(`/api/boards/${boardId}/cards`, {
-      boardColumnId: model.boardColumnId,
-      title: model.title,
-      description: '',
-      externalUrl: null,
-      tagNames: [],
-      cardTypeId: model.cardTypeId
-    });
+  async function createCard(boardId: number, model: CardEditModel): Promise<Result<Card, AppError>> {
+    return postData<Card>(`/api/boards/${boardId}/cards`, model);
   }
 
   async function saveCard(

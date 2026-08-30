@@ -206,7 +206,7 @@ import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../../shared/types/appError';
-import type { CardCreateModel } from '../../shared/types/boardTypes';
+import type { CardEditModel } from '../../shared/types/boardTypes';
 import type { BulkEditSlickOperation } from '../../shared/types/bulkEditTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import { formatColumnCardCount } from '../utils/columnCardCount';
@@ -224,7 +224,9 @@ import { resolveCardBoundaryClass } from '../utils/slickCardBoundary';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 
-const newCardDrafts = ref<Record<number, CardCreateModel>>({});
+type InlineCardCreateDraft = Pick<CardEditModel, 'boardColumnId' | 'title' | 'cardTypeId'>;
+
+const newCardDrafts = ref<Record<number, InlineCardCreateDraft>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
 const newCardDraftErrors = ref<Record<number, string>>({});
 const isLoading = ref(true);
@@ -642,7 +644,14 @@ async function saveNewCardDraft(columnId: number) {
     draft.cardTypeId = defaultCreateCardTypeId.value;
   }
 
-  const result = await createCard(draft);
+  const result = await createCard({
+    ...draft,
+    description: '',
+    externalUrl: null,
+    tagNames: [],
+    assignedUserId: null,
+    slickName: null
+  }, { suppressValidationFeedback: true });
   if (!result || result.ok) {
     closeNewCardDraft(columnId);
     return;

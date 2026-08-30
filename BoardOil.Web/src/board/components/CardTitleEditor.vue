@@ -2,12 +2,12 @@
   <div class="card-title-editor">
     <h2 v-if="!isEditing" class="card-title-heading">
       <button type="button" class="card-title-button" @click="beginEdit">
-        #{{ cardId }} {{ titleModel }}
+        <span v-if="cardId !== null">#{{ cardId }}&nbsp;</span>{{ titleModel }}
       </button>
     </h2>
 
     <span v-else class="card-title-edit">
-      <span class="card-title-id">#{{ cardId }}</span>
+      <span v-if="cardId !== null" class="card-title-id">#{{ cardId }}</span>
       <input
         ref="titleInputRef"
         :value="titleModel"
@@ -27,7 +27,7 @@
 import { nextTick, ref, watch } from 'vue';
 
 const props = withDefaults(defineProps<{
-  cardId: number;
+  cardId: number | null;
   maxLength?: number;
 }>(), {
   maxLength: 200

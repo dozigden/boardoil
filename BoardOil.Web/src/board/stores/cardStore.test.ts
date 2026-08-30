@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useCardStore } from './cardStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { AppError } from '../../shared/types/appError';
-import type { Board, Card } from '../../shared/types/boardTypes';
+import type { Board, Card, CardEditModel } from '../../shared/types/boardTypes';
 import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 
@@ -63,9 +63,10 @@ describe('cardStore', () => {
     };
     api.createCard.mockResolvedValue(ok(created));
 
-    await store.createCard({ boardColumnId: 1, title: 'Task B', cardTypeId: null });
+    const model = makeCardEditModel({ title: 'Task B', cardTypeId: null });
+    await store.createCard(model);
 
-    expect(api.createCard).toHaveBeenCalledWith(1, { boardColumnId: 1, title: 'Task B', cardTypeId: null });
+    expect(api.createCard).toHaveBeenCalledWith(1, model);
     expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([102, 101]);
   });
 
@@ -90,9 +91,10 @@ describe('cardStore', () => {
     };
     api.createCard.mockResolvedValue(ok(created));
 
-    await store.createCard({ boardColumnId: 1, title: 'Task C', cardTypeId: 2 });
+    const model = makeCardEditModel({ title: 'Task C', cardTypeId: 2 });
+    await store.createCard(model);
 
-    expect(api.createCard).toHaveBeenCalledWith(1, { boardColumnId: 1, title: 'Task C', cardTypeId: 2 });
+    expect(api.createCard).toHaveBeenCalledWith(1, model);
     expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([103, 101]);
   });
 
@@ -616,11 +618,25 @@ describe('cardStore', () => {
     };
     api.createCard.mockResolvedValue(err(apiError));
 
-    await store.createCard({ boardColumnId: 1, title: 'Bad', cardTypeId: null });
+    await store.createCard(makeCardEditModel({ title: 'Bad', cardTypeId: null }));
 
     expect(feedback.errorMessage).toBe('Card create failed.');
   });
 });
+
+function makeCardEditModel(overrides: Partial<CardEditModel> = {}): CardEditModel {
+  return {
+    boardColumnId: 1,
+    title: 'Card',
+    description: '',
+    externalUrl: null,
+    tagNames: [],
+    cardTypeId: 1,
+    assignedUserId: null,
+    slickName: null,
+    ...overrides
+  };
+}
 
 function makeBoard(id = 1, name = 'Board'): Board {
   return {

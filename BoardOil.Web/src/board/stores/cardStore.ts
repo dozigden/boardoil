@@ -5,7 +5,6 @@ import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type {
   BoardColumn,
   Card,
-  CardCreateModel,
   CardEditModel,
   CardTransferPolicy
 } from '../../shared/types/boardTypes';
@@ -50,7 +49,10 @@ export const useCardStore = defineStore('card', () => {
     dragState = null;
   }
 
-  async function createCard(model: CardCreateModel) {
+  async function createCard(
+    model: CardEditModel,
+    options?: { suppressValidationFeedback?: boolean }
+  ) {
     model.title = model.title.trim();
     if (!model.title) {
       return null;
@@ -61,7 +63,9 @@ export const useCardStore = defineStore('card', () => {
       () => api.createCard(boardId, model),
       {
         boardId,
-        suppressError: error => hasValidationErrors(error)
+        suppressError: options?.suppressValidationFeedback
+          ? error => hasValidationErrors(error)
+          : undefined
       }
     );
     if (!result.ok) {

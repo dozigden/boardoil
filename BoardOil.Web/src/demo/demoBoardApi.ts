@@ -153,6 +153,9 @@ const demoBoardApi: BoardApi = {
       cardCreatedUtc: timestamp,
       cardUpdatedUtc: timestamp
     };
+    applyCardEdit(card, model, cardType);
+    card.cardCreatedUtc = timestamp;
+    card.cardUpdatedUtc = timestamp;
     column.cards.unshift(card);
     return ok(clone(card));
   },

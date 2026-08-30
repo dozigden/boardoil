@@ -1,16 +1,16 @@
 <template>
   <FixedChromeDialog
     :open="editingCard !== null"
-    title="Edit Card"
+    :title="isDuplicatingCard ? 'Duplicate Card' : 'Edit Card'"
     size="fill"
     body-mode="managed"
-    close-label="Cancel editing"
+    :close-label="isDuplicatingCard ? 'Cancel duplicate' : 'Cancel editing'"
     @close="closeCardEditor"
     @submit="saveCard"
   >
     <template #headerActions>
       <BoDropdown
-        v-if="cardDraft"
+        v-if="cardDraft && !isDuplicatingCard"
         class="card-editor-actions-menu"
         align="right"
         label="Card actions"
@@ -20,6 +20,18 @@
         :icon-size="16"
       >
         <template #default="{ close }">
+          <button
+            type="button"
+            class="bo-dropdown-item"
+            :disabled="isDuplicateDisabled"
+            :title="duplicateActionTitle"
+            @click="close(); beginDuplicate()"
+          >
+            <span class="bo-dropdown-item-main card-editor-menu-item">
+              <Copy :size="14" aria-hidden="true" />
+              <span>Duplicate</span>
+            </span>
+          </button>
           <button
             type="button"
             class="bo-dropdown-item"
@@ -51,9 +63,10 @@
     <template #title>
       <div class="dialog-title-with-pill">
         <span v-if="selectedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ selectedCardTypeEmoji }}</span>
+        <span v-if="isDuplicatingCard" class="badge">Duplicate</span>
         <CardTitleEditor
           v-if="cardDraft"
-          :card-id="cardDraftId ?? 0"
+          :card-id="isDuplicatingCard ? null : cardDraftId"
           :title="cardDraft.title"
           @update:title="updateDraftTitleFromEditor"
         />
@@ -86,7 +99,7 @@
               @plain-text-mode-change="handleDescriptionPlainTextModeChange"
             />
           </div>
-          <section class="card-editor-comments-section" aria-label="Card comments">
+          <section v-if="!isDuplicatingCard" class="card-editor-comments-section" aria-label="Card comments">
             <div class="card-editor-comment-entry">
               <h3 class="card-editor-comments-title">Comments</h3>
               <div class="card-editor-comment-entry-row">
@@ -278,12 +291,12 @@
             @update:external-url="updateDraftExternalUrlFromEditor"
           />
 
-          <div class="card-editor-option-section">
+          <div v-if="!isDuplicatingCard" class="card-editor-option-section">
             <span class="card-editor-field-label">Created</span>
             <span>{{ formatCardDateTime(editingCard!.cardCreatedUtc) }}</span>
           </div>
 
-          <div class="card-editor-option-section">
+          <div v-if="!isDuplicatingCard" class="card-editor-option-section">
             <span class="card-editor-field-label">Updated</span>
             <span>{{ formatCardDateTime(editingCard!.cardUpdatedUtc) }}</span>
           </div>
@@ -294,9 +307,15 @@
     <template #actions>
       <div v-if="cardDraft" class="editor-actions fixed-chrome-dialog-actions">
         <div class="fixed-chrome-dialog-actions-left">
-          <button type="submit" class="btn" aria-label="Save card" title="Save card">
+          <button
+            type="submit"
+            class="btn"
+            :disabled="isDuplicatingCard && !canCreateDuplicate"
+            :aria-label="primaryActionLabel"
+            :title="primaryActionLabel"
+          >
             <Check :size="16" aria-hidden="true" />
-            <span>Save</span>
+            <span>{{ isDuplicatingCard ? 'Create' : 'Save' }}</span>
           </button>
           <button type="button" class="btn btn--secondary" aria-label="Cancel editing" title="Cancel" @click="closeCardEditor">
             <X :size="16" aria-hidden="true" />
@@ -309,7 +328,7 @@
 </template>
 
 <script setup lang="ts">
-import { Archive, ArrowRightLeft, Check, Ellipsis, Trash2, X } from 'lucide-vue-next';
+import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
@@ -334,6 +353,7 @@ import { useTagStore } from '../stores/tagStore';
 import { resolveSelectedCardTypeEmoji } from './cardTypeSelection';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
 import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
+import { areCardEditModelsEqual, cloneCardEditModel, createCardEditModel } from './cardEditModel';
 import type { Card, CardEditModel } from '../../shared/types/boardTypes';
 
 const route = useRoute();
@@ -350,7 +370,7 @@ const { members: boardMembers, activeBoardId: boardMembersActiveBoardId } = stor
 const { cardTypes, activeBoardId: cardTypesActiveBoardId, systemCardType } = storeToRefs(cardTypeStore);
 const { slicks, activeBoardId: slicksActiveBoardId } = storeToRefs(slickStore);
 const { busy: commentsBusy } = storeToRefs(commentStore);
-const { saveCard: saveCardAction, deleteCard, archiveCard } = cardStore;
+const { createCard: createCardAction, saveCard: saveCardAction, deleteCard, archiveCard } = cardStore;
 const { loadCardComments, addCardComment: addCardCommentAction } = commentStore;
 const { loadMembers } = boardMembersStore;
 const { loadCardTypes } = cardTypeStore;
@@ -364,6 +384,7 @@ const cardDraftBoardId = ref<number | null>(null);
 const cardDraftId = ref<number | null>(null);
 const cardDraftSource = ref<CardEditModel | null>(null);
 const isCardDraftDirty = ref(false);
+const isDuplicatingCard = ref(false);
 const newCommentText = ref('');
 const isCommentDraftDirty = ref(false);
 const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
@@ -376,10 +397,19 @@ const commentToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEditor
 const descriptionIsPlainTextMode = ref(false);
 const commentIsPlainTextMode = ref(false);
 
-const isTransferDisabled = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value);
+const hasUnsavedChanges = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value);
+const isTransferDisabled = computed(() => hasUnsavedChanges.value);
 const transferActionTitle = computed(() => isTransferDisabled.value
   ? 'Save or discard unsaved changes before moving this card.'
   : 'Move this card to another board.');
+const isDuplicateDisabled = computed(() => hasUnsavedChanges.value);
+const duplicateActionTitle = computed(() => isDuplicateDisabled.value
+  ? 'Save or discard unsaved changes before duplicating this card.'
+  : 'Duplicate this card.');
+const canCreateDuplicate = computed(() => (
+  Boolean(cardDraft.value?.title.trim()) && cardDraft.value?.cardTypeId !== null
+));
+const primaryActionLabel = computed(() => isDuplicatingCard.value ? 'Create duplicate card' : 'Save card');
 
 const routeCardId = computed<number | null>(() => {
   const raw = route.params.cardId;
@@ -455,8 +485,6 @@ const activeIsPlainTextMode = computed(() => {
     commentIsPlainTextMode.value
   );
 });
-const hasUnsavedChanges = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value);
-
 function setActiveEditor(editor: 'description' | 'comment') {
   activeEditor.value = editor;
 }
@@ -673,6 +701,7 @@ function clearCardDraft() {
   cardDraftId.value = null;
   cardDraftSource.value = null;
   isCardDraftDirty.value = false;
+  isDuplicatingCard.value = false;
 }
 
 function initializeDraftFromCard(sourceBoardId: number, card: Card) {
@@ -680,13 +709,28 @@ function initializeDraftFromCard(sourceBoardId: number, card: Card) {
     return false;
   }
 
-  const initialModel = createEditModelFromCard(card);
+  const initialModel = createCardEditModel(card);
   cardDraft.value = initialModel;
   cardDraftSource.value = cloneCardEditModel(initialModel);
   cardDraftBoardId.value = sourceBoardId;
   cardDraftId.value = card.id;
   isCardDraftDirty.value = false;
+  isDuplicatingCard.value = false;
   return true;
+}
+
+function beginDuplicate() {
+  if (!cardDraft.value || isDuplicateDisabled.value) {
+    return;
+  }
+
+  const duplicateDraft = cloneCardEditModel(cardDraft.value);
+  cardDraft.value = duplicateDraft;
+  cardDraftSource.value = cloneCardEditModel(duplicateDraft);
+  isCardDraftDirty.value = false;
+  isDuplicatingCard.value = true;
+  resetCommentDraft();
+  activeEditor.value = 'description';
 }
 
 function patchFromSystem(update: Partial<CardEditModel>) {
@@ -760,7 +804,19 @@ function initializeDraftForCard(nextBoardId: number, nextCard: Card) {
 async function saveCard() {
   const draft = cardDraft.value;
   const cardId = routeCardId.value;
-  if (!draft || draft.cardTypeId === null || cardId === null) {
+  if (!draft || draft.cardTypeId === null) {
+    return;
+  }
+
+  if (isDuplicatingCard.value) {
+    const created = await createCardAction(draft);
+    if (created?.ok) {
+      await closeCardEditorWithoutPrompt();
+    }
+    return;
+  }
+
+  if (cardId === null) {
     return;
   }
 
@@ -935,57 +991,6 @@ onBeforeRouteUpdate(async (to, from) => {
   return true;
 });
 
-function createEditModelFromCard(card: Card): CardEditModel {
-  return {
-    title: card.title,
-    description: card.description,
-    externalUrl: card.externalUrl,
-    tagNames: [...card.tagNames],
-    cardTypeId: card.cardTypeId,
-    boardColumnId: card.boardColumnId,
-    assignedUserId: card.assignedUserId ?? null,
-    slickName: card.slickName ?? null
-  };
-}
-
-function cloneCardEditModel(model: CardEditModel): CardEditModel {
-  return {
-    ...model,
-    tagNames: [...model.tagNames]
-  };
-}
-
-function areCardEditModelsEqual(left: CardEditModel, right: CardEditModel) {
-  if (left.title !== right.title
-    || left.description !== right.description
-    || left.externalUrl !== right.externalUrl) {
-    return false;
-  }
-
-  if (left.cardTypeId !== right.cardTypeId || left.boardColumnId !== right.boardColumnId) {
-    return false;
-  }
-
-  if (left.assignedUserId !== right.assignedUserId || left.slickName !== right.slickName) {
-    return false;
-  }
-
-  return areStringArraysEqual(left.tagNames, right.tagNames);
-}
-
-function areStringArraysEqual(left: string[], right: string[]) {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) {
-      return false;
-    }
-  }
-
-  return true;
-}
 </script>
 
 <style scoped>

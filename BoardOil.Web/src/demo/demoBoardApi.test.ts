@@ -11,12 +11,24 @@ describe('demoBoardApi', () => {
     const createResult = await api.createCard(1, {
       boardColumnId: 1,
       title: 'Try the interactive preview',
-      cardTypeId: 1
+      description: 'Created entirely in the current browser tab.',
+      externalUrl: 'https://example.test/demo-card',
+      tagNames: ['UI'],
+      cardTypeId: 1,
+      assignedUserId: 2,
+      slickName: 'Launch polish'
     });
     expect(createResult.ok).toBe(true);
     if (!createResult.ok) {
       return;
     }
+    expect(createResult.data).toMatchObject({
+      description: 'Created entirely in the current browser tab.',
+      externalUrl: 'https://example.test/demo-card',
+      tagNames: ['UI'],
+      assignedUserId: 2,
+      slickName: 'Launch polish'
+    });
 
     const editResult = await api.saveCard(1, createResult.data.id, {
       title: 'Try the polished interactive preview',
@@ -67,7 +79,12 @@ describe('demoBoardApi', () => {
     const createResult = await api.createCard(1, {
       boardColumnId: 1,
       title: 'New leading card',
-      cardTypeId: 1
+      description: '',
+      externalUrl: null,
+      tagNames: [],
+      cardTypeId: 1,
+      assignedUserId: null,
+      slickName: null
     });
     expect(createResult.ok).toBe(true);
     if (!createResult.ok) {
