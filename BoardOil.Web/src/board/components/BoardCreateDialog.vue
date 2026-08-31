@@ -105,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, X } from 'lucide-vue-next';
+import { Check, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import type { BoardSummary } from '../../shared/types/boardTypes';

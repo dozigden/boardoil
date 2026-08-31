@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, X } from 'lucide-vue-next';
+import { Check, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import type { AccessTokenScope, CreateClientAccountRequest } from '../../shared/types/authTypes';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';

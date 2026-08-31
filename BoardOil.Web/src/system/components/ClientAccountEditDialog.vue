@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, X } from 'lucide-vue-next';
+import { Check, X } from '@lucide/vue';
 import { ref, watch } from 'vue';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import type { ClientAccount, UpdateClientAccountRequest } from '../../shared/types/authTypes';

@@ -328,7 +328,7 @@
 </template>
 
 <script setup lang="ts">
-import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Trash2, X } from 'lucide-vue-next';
+import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';

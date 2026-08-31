@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, X } from 'lucide-vue-next';
+import { Check, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import type { CreateAccessTokenRequest } from '../types/authTypes';
 import FixedChromeDialog from './FixedChromeDialog.vue';

@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { MoreVertical, Plus } from 'lucide-vue-next';
+import { MoreVertical, Plus } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';

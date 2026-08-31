@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronDown } from 'lucide-vue-next';
+import { ChevronDown } from '@lucide/vue';
 import { computed } from 'vue';
 import type { Board, BoardSummary } from '../../shared/types/boardTypes';
 import BoDropdown from '../../shared/components/BoDropdown.vue';

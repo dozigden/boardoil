@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { Copy } from 'lucide-vue-next';
+import { Copy } from '@lucide/vue';
 import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
 import { copyTextToClipboard } from '../utils/clipboard';
 import FixedChromeDialog from './FixedChromeDialog.vue';

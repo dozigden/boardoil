@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Check, X } from 'lucide-vue-next';
+import { Check, X } from '@lucide/vue';
 import FixedChromeDialog from './FixedChromeDialog.vue';
 import { PASSWORD_CONFIRMATION_ERROR, validatePasswordConfirmation } from '../utils/passwordConfirmation';
 import { validatePasswordResetDraft } from './passwordResetDialogModel';

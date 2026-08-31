@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronDown, X } from 'lucide-vue-next';
+import { ChevronDown, X } from '@lucide/vue';
 import { computed } from 'vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import type { CardType, Slick } from '../../shared/types/boardTypes';

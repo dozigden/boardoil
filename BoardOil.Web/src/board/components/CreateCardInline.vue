@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, X } from 'lucide-vue-next';
+import { Check, X } from '@lucide/vue';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { getCardSurfaceClassList, getCardSurfaceStyle, normaliseCardTypeEmojiForRender } from '../../shared/utils/cardTypeStyles';

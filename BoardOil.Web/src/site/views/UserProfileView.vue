@@ -81,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { EllipsisVertical } from 'lucide-vue-next';
+import { EllipsisVertical } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import ProfileImageCropDialog from '../components/ProfileImageCropDialog.vue';

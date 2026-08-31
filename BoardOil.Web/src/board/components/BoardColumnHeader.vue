@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronDown, Plus } from 'lucide-vue-next';
+import { ChevronDown, Plus } from '@lucide/vue';
 import type { CardType } from '../../shared/types/boardTypes';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 

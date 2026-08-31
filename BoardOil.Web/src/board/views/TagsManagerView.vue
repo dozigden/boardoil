@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { Pencil, Plus } from 'lucide-vue-next';
+import { Pencil, Plus } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';

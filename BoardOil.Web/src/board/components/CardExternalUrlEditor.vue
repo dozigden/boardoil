@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, Pencil, X } from 'lucide-vue-next';
+import { Check, Pencil, X } from '@lucide/vue';
 import { nextTick, ref, watch } from 'vue';
 import { isHttpOrHttpsUrl } from '../../shared/utils/linkUrl';
 

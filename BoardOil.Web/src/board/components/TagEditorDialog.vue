@@ -176,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, Trash2, X } from 'lucide-vue-next';
+import { Check, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';

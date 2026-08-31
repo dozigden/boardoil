@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-08-20T06:34:53.097Z",
+  "generatedAtUtc": "2026-08-31T10:37:34.028Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -163,6 +163,15 @@
       "sourceType": "package",
       "sourceFile": "node_modules/@jridgewell/trace-mapping/LICENSE",
       "outputFile": "compliance/third-party-licenses/npm-jridgewell-trace-mapping.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@lucide/vue",
+      "version": "1.38.0",
+      "declaredLicence": "ISC",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@lucide/vue/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-lucide-vue.txt"
     },
     {
       "ecosystem": "npm",
@@ -805,15 +814,6 @@
     },
     {
       "ecosystem": "npm",
-      "packageName": "lucide-vue-next",
-      "version": "1.0.0",
-      "declaredLicence": "ISC",
-      "sourceType": "package",
-      "sourceFile": "node_modules/lucide-vue-next/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-lucide-vue-next.txt"
-    },
-    {
-      "ecosystem": "npm",
       "packageName": "magic-string",
       "version": "0.30.21",
       "declaredLicence": "MIT",
@@ -869,7 +869,7 @@
     {
       "ecosystem": "npm",
       "packageName": "nanoid",
-      "version": "3.3.16",
+      "version": "3.3.18",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/nanoid/LICENSE",

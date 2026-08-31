@@ -95,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { Filter } from 'lucide-vue-next';
+import { Filter } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { CardType, Slick } from '../../shared/types/boardTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';

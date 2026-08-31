@@ -111,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { CircleUserRound, Settings } from 'lucide-vue-next';
+import { CircleUserRound, Settings } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';

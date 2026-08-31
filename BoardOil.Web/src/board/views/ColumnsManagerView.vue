@@ -85,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { GripVertical, Pencil, Plus } from 'lucide-vue-next';
+import { GripVertical, Pencil, Plus } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref } from 'vue';
 import { useRouter } from 'vue-router';

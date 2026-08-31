@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { Bold, CheckSquare, ChevronDown, FileText, Heading1, Italic, Link, List, ListOrdered, Minus, Quote, SquareCode, Strikethrough } from 'lucide-vue-next';
+import { Bold, CheckSquare, ChevronDown, FileText, Heading1, Italic, Link, List, ListOrdered, Minus, Quote, SquareCode, Strikethrough } from '@lucide/vue';
 import { computed, ref, type Component } from 'vue';
 import { useClickOutside } from '../composables/useClickOutside';
 import { mdEditorToolbarActions, type MdEditorHeadingLevel, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';

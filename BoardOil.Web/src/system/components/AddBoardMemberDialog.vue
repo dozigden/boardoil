@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, X } from 'lucide-vue-next';
+import { Check, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import type { UserDirectoryEntry } from '../../shared/types/authTypes';
 import type { BoardMemberEditModel, BoardMemberRole } from '../../shared/types/boardTypes';

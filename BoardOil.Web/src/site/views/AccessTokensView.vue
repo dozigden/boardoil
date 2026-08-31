@@ -114,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { Copy } from 'lucide-vue-next';
+import { Copy } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { createAuthApi } from '../../shared/api/authApi';
 import AccessTokenCreateDialog from '../../shared/components/AccessTokenCreateDialog.vue';

@@ -56,7 +56,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Download, RotateCcw, Scale } from 'lucide-vue-next';
+import { Download, RotateCcw, Scale } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import BoardOilLogo from '../site/components/BoardOilLogo.vue';
 import { useBoardStore } from '../board/stores/boardStore';

@@ -179,7 +179,7 @@
 </template>
 
 <script setup lang="ts">
-import { Copy } from 'lucide-vue-next';
+import { Copy } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { getMcpOAuthMetadata } from '../api/oauthMetadataApi';
