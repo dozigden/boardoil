@@ -58,6 +58,7 @@
     <BoardCreateDialog
       :open="isCreateDialogOpen"
       :busy="busy"
+      :boards="boards"
       @close="closeCreateDialog"
       @submit="submitCreateBoard"
     />
@@ -106,6 +107,8 @@ async function submitCreateBoard(payload: BoardCreateDialogSubmitPayload) {
   let created: Awaited<ReturnType<typeof boardCatalogueStore.createBoard>>;
   if (payload.mode === 'blank') {
     created = await boardCatalogueStore.createBoard(payload.name, payload.description);
+  } else if (payload.mode === 'clone') {
+    created = await boardCatalogueStore.cloneBoard(payload.sourceBoardId, payload.name);
   } else {
     created = await boardCatalogueStore.importBoardPackage(payload.file, payload.name);
   }

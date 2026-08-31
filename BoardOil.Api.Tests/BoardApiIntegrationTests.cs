@@ -97,6 +97,26 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
     }
 
     [Fact]
+    public async Task BoardEndpoints_Clone_ShouldReturnCreatedBoardWithoutCards()
+    {
+        // Act
+        var cloneResponse = await Client.PostAsJsonAsync(
+            "/api/boards/1/clone",
+            new CloneBoardRequest("Cloned BoardOil"));
+        var cloned = await cloneResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, cloneResponse.StatusCode);
+        Assert.NotNull(cloned);
+        Assert.True(cloned!.Success);
+        Assert.NotNull(cloned.Data);
+        Assert.Equal("Cloned BoardOil", cloned.Data!.Name);
+        Assert.Equal("Owner", cloned.Data.CurrentUserRole);
+        Assert.Equal(["Todo", "In Progress", "Done"], cloned.Data.Columns.Select(x => x.Title));
+        Assert.All(cloned.Data.Columns, column => Assert.Empty(column.Cards));
+    }
+
+    [Fact]
     public async Task UpdateBoard_WhenSlickCohesionModeFieldIsMissing_ShouldDefaultToFalse()
     {
         // Arrange

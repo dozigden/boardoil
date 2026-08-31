@@ -31,6 +31,9 @@ public sealed record CreateBoardRequest(
     string Name,
     string? Description = null);
 
+public sealed record CloneBoardRequest(
+    string Name);
+
 public sealed record ImportBoardPackageRequest(
     string? Name,
     byte[] PackageContent);

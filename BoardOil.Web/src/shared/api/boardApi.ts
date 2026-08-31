@@ -78,6 +78,10 @@ function createHttpBoardApi() {
     return postData<Board>('/api/boards', { name, description });
   }
 
+  async function cloneBoard(sourceBoardId: number, name: string): Promise<Result<Board, AppError>> {
+    return postData<Board>(`/api/boards/${sourceBoardId}/clone`, { name });
+  }
+
   async function importBoardPackage(file: File, name?: string): Promise<Result<Board, AppError>> {
     const formData = new FormData();
     formData.append('file', file);
@@ -423,6 +427,7 @@ function createHttpBoardApi() {
     getBoards,
     getBoard,
     createBoard,
+    cloneBoard,
     importBoardPackage,
     exportBoard,
     saveBoard,

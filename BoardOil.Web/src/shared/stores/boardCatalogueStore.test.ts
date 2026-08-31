@@ -7,6 +7,7 @@ import { err, ok } from '../types/result';
 const api = {
   getBoards: vi.fn(),
   createBoard: vi.fn(),
+  cloneBoard: vi.fn(),
   importBoardPackage: vi.fn(),
   saveBoard: vi.fn(),
   deleteBoard: vi.fn()
@@ -22,6 +23,7 @@ describe('boardCatalogueStore', () => {
     vi.clearAllMocks();
     api.getBoards.mockResolvedValue(ok([]));
     api.createBoard.mockResolvedValue(ok(makeBoard(10, 'Roadmap')));
+    api.cloneBoard.mockResolvedValue(ok(makeBoard(11, 'Cloned Board')));
     api.importBoardPackage.mockResolvedValue(ok(makeBoard(12, 'Imported Board')));
     api.saveBoard.mockResolvedValue(ok(makeSummary(10, 'Roadmap')));
     api.deleteBoard.mockResolvedValue(ok(undefined));
@@ -36,6 +38,16 @@ describe('boardCatalogueStore', () => {
     expect(api.importBoardPackage).toHaveBeenCalledWith(file, 'Imported Name');
     expect(imported?.id).toBe(12);
     expect(store.boards.map(x => x.name)).toEqual(['Imported Board']);
+  });
+
+  it('clones a board and appends it to catalogue', async () => {
+    const store = useBoardCatalogueStore();
+
+    const cloned = await store.cloneBoard(4, 'Cloned Board');
+
+    expect(api.cloneBoard).toHaveBeenCalledWith(4, 'Cloned Board');
+    expect(cloned?.id).toBe(11);
+    expect(store.boards.map(x => x.name)).toEqual(['Cloned Board']);
   });
 
   it('reports API error when board package import fails', async () => {

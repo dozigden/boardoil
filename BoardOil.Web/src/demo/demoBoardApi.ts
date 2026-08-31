@@ -60,6 +60,10 @@ const demoBoardApi: BoardApi = {
     return unavailable();
   },
 
+  async cloneBoard() {
+    return unavailable();
+  },
+
   async importBoardPackage() {
     return unavailable();
   },

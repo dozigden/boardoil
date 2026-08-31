@@ -30,15 +30,18 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
       return null;
     }
 
-    const created = {
-      id: result.data.id,
-      name: result.data.name,
-      description: result.data.description,
-      slickCohesionModeEnabled: result.data.slickCohesionModeEnabled,
-      createdAtUtc: result.data.createdAtUtc,
-      updatedAtUtc: result.data.updatedAtUtc,
-      currentUserRole: result.data.currentUserRole ?? null
-    };
+    const created = toBoardSummary(result.data);
+    boards.value = [...boards.value, created].sort((left, right) => left.id - right.id);
+    return created;
+  }
+
+  async function cloneBoard(sourceBoardId: number, name: string) {
+    const result = await runBusy(() => api.cloneBoard(sourceBoardId, name));
+    if (!result.ok) {
+      return null;
+    }
+
+    const created = toBoardSummary(result.data);
     boards.value = [...boards.value, created].sort((left, right) => left.id - right.id);
     return created;
   }
@@ -49,15 +52,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
       return null;
     }
 
-    const created = {
-      id: result.data.id,
-      name: result.data.name,
-      description: result.data.description,
-      slickCohesionModeEnabled: result.data.slickCohesionModeEnabled,
-      createdAtUtc: result.data.createdAtUtc,
-      updatedAtUtc: result.data.updatedAtUtc,
-      currentUserRole: result.data.currentUserRole ?? null
-    };
+    const created = toBoardSummary(result.data);
     boards.value = [...boards.value, created].sort((left, right) => left.id - right.id);
     return created;
   }
@@ -114,9 +109,22 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     busy,
     loadBoards,
     createBoard,
+    cloneBoard,
     importBoardPackage,
     saveBoard,
     deleteBoard,
     dispose
   };
 });
+
+function toBoardSummary(board: BoardSummary): BoardSummary {
+  return {
+    id: board.id,
+    name: board.name,
+    description: board.description,
+    slickCohesionModeEnabled: board.slickCohesionModeEnabled,
+    createdAtUtc: board.createdAtUtc,
+    updatedAtUtc: board.updatedAtUtc,
+    currentUserRole: board.currentUserRole ?? null
+  };
+}

@@ -47,6 +47,13 @@ public static class BoardEndpoints
         boardEndpoints.MapPost(string.Empty, async (CreateBoardRequest request, IBoardService boardService, HttpContext httpContext) =>
             (await boardService.CreateBoardAsync(request, httpContext.GetActorUserId())).ToHttpResult());
 
+        boardEndpoints.MapPost("/{sourceBoardId:int}/clone", async (
+            int sourceBoardId,
+            CloneBoardRequest request,
+            IBoardCloneService boardCloneService,
+            HttpContext httpContext) =>
+            (await boardCloneService.CloneBoardAsync(sourceBoardId, request, httpContext.GetActorUserId())).ToHttpResult());
+
         boardEndpoints.MapPost("/import", async (
             HttpRequest request,
             IBoardPackageImportService boardPackageImportService,

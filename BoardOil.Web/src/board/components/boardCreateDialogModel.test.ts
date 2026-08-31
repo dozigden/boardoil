@@ -10,6 +10,7 @@ function makeDraft(overrides: Partial<BoardCreateDraft> = {}): BoardCreateDraft 
     mode: 'blank',
     boardName: '',
     boardDescription: '',
+    cloneSourceBoardId: null,
     packageFile: null,
     packageBoardNameOverride: '',
     ...overrides
@@ -27,6 +28,38 @@ describe('boardCreateDialogModel', () => {
 
     expect(canSubmitBoardCreateDraft(makeDraft({ mode: 'package', packageFile: null }), false)).toBe(false);
     expect(canSubmitBoardCreateDraft(makeDraft({ mode: 'package', packageFile: file }), false)).toBe(true);
+  });
+
+  it('allows clone mode submit only with a source board and new name', () => {
+    expect(canSubmitBoardCreateDraft(makeDraft({
+      mode: 'clone',
+      cloneSourceBoardId: null,
+      boardName: 'Clone'
+    }), false)).toBe(false);
+    expect(canSubmitBoardCreateDraft(makeDraft({
+      mode: 'clone',
+      cloneSourceBoardId: 4,
+      boardName: '   '
+    }), false)).toBe(false);
+    expect(canSubmitBoardCreateDraft(makeDraft({
+      mode: 'clone',
+      cloneSourceBoardId: 4,
+      boardName: '  Clone  '
+    }), false)).toBe(true);
+  });
+
+  it('builds clone submit payload with a trimmed name', () => {
+    const payload = buildBoardCreateSubmitPayload(makeDraft({
+      mode: 'clone',
+      cloneSourceBoardId: 4,
+      boardName: '  Cloned board  '
+    }));
+
+    expect(payload).toEqual({
+      mode: 'clone',
+      sourceBoardId: 4,
+      name: 'Cloned board'
+    });
   });
 
   it('builds package submit payload with optional trimmed name override', () => {

@@ -15,6 +15,17 @@
       <button
         type="button"
         class="btn btn--tab"
+        :class="{ 'is-active': mode === 'clone' }"
+        role="tab"
+        :aria-selected="mode === 'clone'"
+        :disabled="busy"
+        @click="mode = 'clone'"
+      >
+        Clone board
+      </button>
+      <button
+        type="button"
+        class="btn btn--tab"
         :class="{ 'is-active': mode === 'package' }"
         role="tab"
         :aria-selected="mode === 'package'"
@@ -33,6 +44,24 @@
       Description (optional)
       <textarea v-model="boardDescription" :disabled="busy" maxlength="5000" rows="4"></textarea>
     </label>
+    <template v-else-if="mode === 'clone'">
+      <label>
+        Source board
+        <select v-model.number="cloneSourceBoardId" :disabled="busy" required>
+          <option :value="null" disabled>Select a board</option>
+          <option v-for="board in boards" :key="board.id" :value="board.id">
+            #{{ board.id }} {{ board.name }}
+          </option>
+        </select>
+      </label>
+      <label>
+        New board name
+        <input v-model="boardName" :disabled="busy" maxlength="120" autocomplete="off" data-lpignore="true" required />
+      </label>
+      <p class="board-create-dialog-note">
+        Copies the board configuration without cards, archives, or members.
+      </p>
+    </template>
     <template v-else>
       <label>
         Package ZIP file
@@ -79,6 +108,7 @@
 import { Check, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
+import type { BoardSummary } from '../../shared/types/boardTypes';
 import {
   buildBoardCreateSubmitPayload,
   canSubmitBoardCreateDraft,
@@ -89,6 +119,7 @@ import {
 const props = defineProps<{
   open: boolean;
   busy: boolean;
+  boards: BoardSummary[];
 }>();
 
 const emit = defineEmits<{
@@ -99,16 +130,24 @@ const emit = defineEmits<{
 const mode = ref<BoardCreateMode>('blank');
 const boardName = ref('');
 const boardDescription = ref('');
+const cloneSourceBoardId = ref<number | null>(null);
 const packageFile = ref<File | null>(null);
 const packageFileName = ref('');
 const packageBoardNameOverride = ref('');
 
-const submitLabel = computed(() => (mode.value === 'blank' ? 'Create board' : 'Import board'));
+const submitLabel = computed(() => {
+  if (mode.value === 'package') {
+    return 'Import board';
+  }
+
+  return 'Create board';
+});
 const canSubmit = computed(() =>
   canSubmitBoardCreateDraft({
     mode: mode.value,
     boardName: boardName.value,
     boardDescription: boardDescription.value,
+    cloneSourceBoardId: cloneSourceBoardId.value,
     packageFile: packageFile.value,
     packageBoardNameOverride: packageBoardNameOverride.value
   }, props.busy));
@@ -117,6 +156,7 @@ function resetDraft() {
   mode.value = 'blank';
   boardName.value = '';
   boardDescription.value = '';
+  cloneSourceBoardId.value = null;
   packageFile.value = null;
   packageFileName.value = '';
   packageBoardNameOverride.value = '';
@@ -134,6 +174,7 @@ function submit() {
     mode: mode.value,
     boardName: boardName.value,
     boardDescription: boardDescription.value,
+    cloneSourceBoardId: cloneSourceBoardId.value,
     packageFile: packageFile.value,
     packageBoardNameOverride: packageBoardNameOverride.value
   });
@@ -167,6 +208,12 @@ watch(
   font-size: 0.85rem;
   color: var(--bo-ink-muted);
   word-break: break-word;
+}
+
+.board-create-dialog-note {
+  margin: 0;
+  color: var(--bo-ink-muted);
+  font-size: 0.9rem;
 }
 
 </style>
