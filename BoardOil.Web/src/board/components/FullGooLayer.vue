@@ -13,6 +13,7 @@
         v-for="blob in group.blobs"
         :key="blob.id"
         :class="['goo-blob', blobClass]"
+        :data-goo-blob-id="blob.id"
         :style="{
           top: `${blob.top}px`,
           left: `${blob.left}px`,

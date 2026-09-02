@@ -28,6 +28,11 @@ export type SmokeCard = {
   tagNames: string[];
 };
 
+type SmokeSlick = {
+  id: number;
+  name: string;
+};
+
 export type SmokeOAuthClient = {
   authorizationServer: string;
   clientId: string;
@@ -122,7 +127,8 @@ export class BoardOilApi {
     columnTitle: string,
     title: string,
     description = '',
-    tagNames: string[] = []
+    tagNames: string[] = [],
+    slickName: string | null = null
   ) {
     const column = board.columns.find(candidate => candidate.title === columnTitle);
     if (!column) {
@@ -142,8 +148,16 @@ export class BoardOilApi {
       tagNames,
       cardTypeId: cardType.id,
       assignedUserId: null,
-      slickName: null,
+      slickName,
       externalUrl: null
+    });
+  }
+
+  public async createSlick(board: SmokeBoard, name: string) {
+    return await this.post<SmokeSlick>(`/api/boards/${board.id}/slicks`, {
+      name,
+      styleName: 'presets',
+      stylePropertiesJson: '{"presetIndex":2}'
     });
   }
 

@@ -32,6 +32,7 @@
         v-for="blob in group.blobs"
         :key="blob.id"
         :class="['goo-blob', blobClass]"
+        :data-goo-blob-id="blob.id"
         :x="blob.left"
         :y="getBlobY(blob)"
         :width="blob.width"

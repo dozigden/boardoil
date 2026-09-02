@@ -68,7 +68,7 @@ export function useGooLayer(
   let gooStylesDirty = true;
   const gooCardElementCache = new Map<number, HTMLElement>();
   const clipPaddingCache = new Map<HTMLElement, ClipPadding>();
-  const observedGooCardElements = new Set<HTMLElement>();
+  const observedBoardCardElements = new Set<HTMLElement>();
   let cardResizeObserver: ResizeObserver | null = null;
   let perfSample: GooPerfSample = {
     frameCount: 0,
@@ -91,7 +91,7 @@ export function useGooLayer(
       trackedGooCards = [];
       gooCardElementCache.clear();
       clipPaddingCache.clear();
-      clearObservedGooCardElements();
+      clearObservedBoardCardElements();
       return;
     }
 
@@ -287,7 +287,11 @@ export function useGooLayer(
     }
 
     trackedGooCards = nextTrackedCards;
-    syncObservedGooCardElements(nextTrackedCards);
+    syncObservedBoardCardElements(
+      cardResizeObserver,
+      observedBoardCardElements,
+      cardElementsById.values()
+    );
     gooStructureDirty = false;
     gooStylesDirty = false;
   }
@@ -433,40 +437,8 @@ export function useGooLayer(
     });
   }
 
-  function syncObservedGooCardElements(cards: TrackedGooCard[]) {
-    if (!cardResizeObserver) {
-      return;
-    }
-
-    const nextElements = new Set(cards.map(card => card.cardElement));
-    for (const existingElement of observedGooCardElements) {
-      if (nextElements.has(existingElement)) {
-        continue;
-      }
-
-      cardResizeObserver.unobserve(existingElement);
-      observedGooCardElements.delete(existingElement);
-    }
-
-    for (const nextElement of nextElements) {
-      if (observedGooCardElements.has(nextElement)) {
-        continue;
-      }
-
-      cardResizeObserver.observe(nextElement);
-      observedGooCardElements.add(nextElement);
-    }
-  }
-
-  function clearObservedGooCardElements() {
-    if (!cardResizeObserver) {
-      return;
-    }
-
-    for (const element of observedGooCardElements) {
-      cardResizeObserver.unobserve(element);
-    }
-    observedGooCardElements.clear();
+  function clearObservedBoardCardElements() {
+    syncObservedBoardCardElements(cardResizeObserver, observedBoardCardElements, []);
   }
 
   function resolveCullingMarginPx(): number {
@@ -555,7 +527,7 @@ export function useGooLayer(
       cancelAnimationFrame(gooRafId);
       gooRafId = null;
     }
-    clearObservedGooCardElements();
+    clearObservedBoardCardElements();
     if (cardResizeObserver) {
       cardResizeObserver.disconnect();
       cardResizeObserver = null;
@@ -571,4 +543,34 @@ export function useGooLayer(
     setBoardRef,
     scheduleGooStructureRefresh
   };
+}
+
+export function syncObservedBoardCardElements(
+  resizeObserver: Pick<ResizeObserver, 'observe' | 'unobserve'> | null,
+  observedElements: Set<HTMLElement>,
+  nextElements: Iterable<HTMLElement>
+) {
+  if (!resizeObserver) {
+    observedElements.clear();
+    return;
+  }
+
+  const nextElementSet = new Set(nextElements);
+  for (const existingElement of observedElements) {
+    if (nextElementSet.has(existingElement)) {
+      continue;
+    }
+
+    resizeObserver.unobserve(existingElement);
+    observedElements.delete(existingElement);
+  }
+
+  for (const nextElement of nextElementSet) {
+    if (observedElements.has(nextElement)) {
+      continue;
+    }
+
+    resizeObserver.observe(nextElement);
+    observedElements.add(nextElement);
+  }
 }
