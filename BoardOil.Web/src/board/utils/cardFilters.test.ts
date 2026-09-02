@@ -51,6 +51,21 @@ describe('createCardSearchAndTagMatcher', () => {
     expect(matcher(makeCard({ title: 'Other', description: '', tagNames: [] }))).toBe(false);
   });
 
+  it.each(['826', '#826'])('matches search text %s against the card id', searchText => {
+    const matcher = createCardSearchAndTagMatcher({
+      searchText,
+      includedTagNames: [],
+      excludedTagNames: [],
+      includedSlickNames: [],
+      excludedSlickNames: [],
+      includedCardTypeIds: [],
+      excludedCardTypeIds: []
+    });
+
+    expect(matcher(makeCard({ id: 826, title: 'Matching card', description: '', tagNames: [] }))).toBe(true);
+    expect(matcher(makeCard({ id: 825, title: 'Other card', description: '', tagNames: [] }))).toBe(false);
+  });
+
   it('includes a card when it has any included tag', () => {
     const matcher = createCardSearchAndTagMatcher({
       searchText: '',
@@ -178,6 +193,7 @@ describe('createCardSearchAndTagMatcher', () => {
 });
 
 function makeCard(overrides: {
+  id?: number;
   title: string;
   description: string;
   externalUrl?: string | null;
@@ -186,7 +202,7 @@ function makeCard(overrides: {
   cardTypeId?: number;
 }) {
   return {
-    id: 1,
+    id: overrides.id ?? 1,
     boardColumnId: 10,
     cardTypeId: overrides.cardTypeId ?? 1,
     cardTypeName: 'Story',
