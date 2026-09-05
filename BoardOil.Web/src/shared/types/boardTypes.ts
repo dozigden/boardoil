@@ -34,6 +34,7 @@ export type Card = {
   cardTypeId: number;
   slickId?: number | null;
   slickName?: string | null;
+  slick: Slick | null;
   cardTypeName: string;
   cardTypeEmoji: string | null;
   assignedUserId?: number | null;

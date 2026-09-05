@@ -122,7 +122,13 @@ describe('demoBoardApi', () => {
 
     expect(editResult.data).toMatchObject({
       slickId: 2,
-      slickName: 'Visitor slick'
+      slickName: 'Visitor slick',
+      slick: {
+        id: 2,
+        name: 'Visitor slick',
+        styleName: 'presets',
+        stylePropertiesJson: '{"presetIndex":0}'
+      }
     });
 
     const slicksResult = await api.getSlicks(1);

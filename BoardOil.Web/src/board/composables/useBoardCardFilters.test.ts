@@ -55,6 +55,7 @@ function makeBoard(cards: Card[]): Board {
 function makeCard(id: number, title: string, cardTypeId: number): Card {
   return {
     id,
+    slick: null,
     boardColumnId: 10,
     cardTypeId,
     cardTypeName: 'Story',

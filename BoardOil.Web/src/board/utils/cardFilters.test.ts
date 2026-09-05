@@ -203,6 +203,7 @@ function makeCard(overrides: {
 }) {
   return {
     id: overrides.id ?? 1,
+    slick: null,
     boardColumnId: 10,
     cardTypeId: overrides.cardTypeId ?? 1,
     cardTypeName: 'Story',

@@ -11,6 +11,7 @@ import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 
 const api = {
+  getSlicks: vi.fn(),
   getBoard: vi.fn(),
   createColumn: vi.fn(),
   saveColumn: vi.fn(),
@@ -23,6 +24,8 @@ const realtime = {
   disconnect: vi.fn()
 };
 type RealtimeHandlers = {
+  onCardCreated: (boardId: number, card: Card) => Promise<unknown> | unknown;
+  onCardMoved: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCardUpdated: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCardDeleted: (boardId: number, cardId: number) => Promise<unknown> | unknown;
   onResync: (boardId: number) => Promise<unknown> | unknown;
@@ -283,6 +286,31 @@ describe('boardStore', () => {
     expect(loadSlicksSpy).toHaveBeenCalledWith(1);
   });
 
+  it.each(['onCardCreated', 'onCardUpdated', 'onCardMoved'] as const)('%s upserts slicks for the current board', async event => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    const slickStore = useSlickStore();
+    slickStore.activeBoardId = 1;
+    const slick = {
+      id: 7,
+      name: 'Realtime slick',
+      styleName: 'presets' as const,
+      stylePropertiesJson: '{"presetIndex":2}',
+      createdAtUtc: '2026-03-15T00:00:00Z',
+      updatedAtUtc: '2026-03-15T00:00:00Z'
+    };
+    const card = { ...makeBoard().columns[0].cards[0], slickId: slick.id, slickName: slick.name, slick };
+
+    await realtimeHandlers![event](2, card);
+    expect(api.getSlicks).not.toHaveBeenCalled();
+    await realtimeHandlers![event](1, card);
+
+    expect(slickStore.slicks).toEqual([slick]);
+    expect(api.getSlicks).not.toHaveBeenCalled();
+    expect(store.board?.columns[0].cards[0].slickId).toBe(7);
+    expect(api.getBoard).toHaveBeenCalledTimes(1);
+  });
+
   it('does not reload board-scoped stores when realtime resync board reload fails', async () => {
     const store = useBoardStore();
     const cardTypeStore = useCardTypeStore();
@@ -345,6 +373,7 @@ function makeBoard(id = 1, name = 'Board'): Board {
         cards: [
           {
             id: 101,
+            slick: null,
             boardColumnId: 1,
             cardTypeId: 1,
             cardTypeName: 'Story',

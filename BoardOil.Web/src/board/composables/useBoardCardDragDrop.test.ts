@@ -113,6 +113,7 @@ function makeColumns(): BoardColumn[] {
 function makeCard(id: number, boardColumnId: number, title: string): Card {
   return {
     id,
+    slick: null,
     boardColumnId,
     cardTypeId: 1,
     cardTypeName: 'Story',

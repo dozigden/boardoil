@@ -139,6 +139,7 @@ const demoBoardApi: BoardApi = {
     const timestamp = now();
     const card: Card = {
       id: state.nextCardId++,
+      slick: null,
       boardColumnId: column.id,
       cardTypeId: cardType.id,
       slickId: null,
@@ -497,12 +498,14 @@ function setCardSlick(card: Card, slickName: string | null) {
   if (!canonicalName) {
     card.slickId = null;
     card.slickName = null;
+    card.slick = null;
     return;
   }
 
   const slick = ensureSlick(canonicalName);
   card.slickId = slick.id;
   card.slickName = slick.name;
+  card.slick = { ...slick };
 }
 
 function moveCardInternal(cardId: number, targetColumnId: number, positionAfterCardId: number | null) {
@@ -723,6 +726,7 @@ function createSeedState(): DemoState {
       cardTypeEmoji: cardType.emoji,
       slickId: slick?.id ?? null,
       slickName: slick?.name ?? null,
+      slick: slick ? { ...slick } : null,
       assignedUserId: assignedMember?.userId ?? null,
       assignedUserDisplayName: assignedMember?.displayName ?? null,
       assignedUserImageRelativePath: null,

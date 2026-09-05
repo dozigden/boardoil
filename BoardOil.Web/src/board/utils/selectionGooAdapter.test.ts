@@ -80,6 +80,7 @@ function makeColumns(): BoardColumn[] {
 function makeCard(id: number, columnId: number) {
   return {
     id,
+    slick: null,
     boardColumnId: columnId,
     cardTypeId: 1,
     slickId: null,

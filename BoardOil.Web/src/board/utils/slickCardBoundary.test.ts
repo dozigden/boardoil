@@ -51,6 +51,7 @@ describe('slickCardBoundary', () => {
 function makeCard(id: number, slickId: number | null) {
   return {
     id,
+    slick: null,
     boardColumnId: 1,
     cardTypeId: 1,
     slickId,

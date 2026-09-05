@@ -14,6 +14,7 @@ using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Services.Style;
+using BoardOil.Services.Slick;
 using BoardOil.Services.Users;
 using System.Text;
 using System.Text.Json;
@@ -354,7 +355,8 @@ public sealed class CardArchiveService(
             AssignedUserDisplayName = null,
             AssignedUserImageRelativePath = null,
             SlickId = resolvedSlick?.Id,
-            SlickName = resolvedSlick?.Name
+            SlickName = resolvedSlick?.Name,
+            Slick = resolvedSlick?.ToSlickDto()
         };
         if (assignedUser is null)
         {

@@ -1857,6 +1857,13 @@ public sealed class CardServiceTests : TestBaseDb
         var storedSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.Name == "New Slick");
         Assert.Equal("presets", storedSlick.StyleName);
         Assert.Equal(11, ReadPresetIndex(storedSlick.StylePropertiesJson));
+        Assert.NotNull(result.Data!.Slick);
+        Assert.Equal(storedSlick.Id, result.Data.Slick.Id);
+        Assert.Equal(storedSlick.Name, result.Data.Slick.Name);
+        Assert.Equal(storedSlick.StyleName, result.Data.Slick.StyleName);
+        Assert.Equal(storedSlick.StylePropertiesJson, result.Data.Slick.StylePropertiesJson);
+        Assert.Equal(storedSlick.CreatedAtUtc, result.Data.Slick.CreatedAtUtc);
+        Assert.Equal(storedSlick.UpdatedAtUtc, result.Data.Slick.UpdatedAtUtc);
     }
 
     [Fact]

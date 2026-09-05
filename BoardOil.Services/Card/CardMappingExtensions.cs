@@ -1,5 +1,6 @@
 using BoardOil.Contracts.Card;
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Services.Slick;
 using System.Text.Json;
 
 namespace BoardOil.Services.Card;
@@ -33,7 +34,8 @@ public static class CardMappingExtensions
             null,
             card.SlickId,
             card.Slick?.Name,
-            card.ExternalUrl);
+            card.ExternalUrl,
+            card.Slick?.ToSlickDto());
 
     public static CardDto WithAssignedUserImageRelativePath(this CardDto card, string? assignedUserImageRelativePath) =>
         card with

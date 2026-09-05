@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useSlickStore } from './slickStore';
 import type {
   BoardColumn,
   Card,
@@ -20,6 +21,7 @@ export const useCardStore = defineStore('card', () => {
   const busy = ref(false);
   const activeBoardId = ref(0);
   const feedback = useUiFeedbackStore();
+  const slickStore = useSlickStore();
   const api = createBoardApi();
   let dragState: { cardId: number; fromColumnId: number } | null = null;
 
@@ -352,6 +354,9 @@ export const useCardStore = defineStore('card', () => {
 
     cardsById.value = nextCardsById;
     cardIdsByColumnId.value = nextCardIdsByColumnId;
+    if (card.slick) {
+      slickStore.upsertSlick(activeBoardId.value, card.slick);
+    }
   }
 
   function removeCard(cardId: number) {
@@ -433,7 +438,9 @@ export const useCardStore = defineStore('card', () => {
         hasChanges = true;
         nextCardsById[Number(key)] = {
           ...card,
-          slickId: null
+          slickId: null,
+          slickName: null,
+          slick: null
         };
         continue;
       }

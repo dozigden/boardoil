@@ -6,6 +6,7 @@ describe('card edit model', () => {
   it('copies every editable card field without retaining the tag-name array', () => {
     const card: Card = {
       id: 17,
+      slick: null,
       boardColumnId: 4,
       cardTypeId: 3,
       cardTypeName: 'Story',

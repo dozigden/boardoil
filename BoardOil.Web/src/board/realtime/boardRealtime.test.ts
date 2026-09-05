@@ -256,6 +256,7 @@ describe('boardRealtime', () => {
     });
     const card = {
       id: 7,
+      slick: null,
       boardColumnId: 3,
       cardTypeId: 1,
       cardTypeName: 'Story',

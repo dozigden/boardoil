@@ -718,6 +718,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Null(result.Data!.Card.SlickId);
         Assert.Null(result.Data.Card.SlickName);
+        Assert.Null(result.Data.Card.Slick);
     }
 
     [Fact]

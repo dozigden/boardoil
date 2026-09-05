@@ -81,6 +81,8 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
 
 ## API Trust and Defensive Coding
 
+- `slickStore` owns the shared slick catalogue. Card read payloads embed a full `slick` definition; card responses and slick create/update responses use the same `upsertSlick` action to insert or replace definitions by ID. Card writes continue to use `slickName`.
+
 - Treat backend API contracts as authoritative for frontend read/write flows.
 - Do not add client-side fallback/normalization code that re-derives API fields “just in case” without a concrete, current failure mode.
 - If a guard is required, document the exact reason in code (what can fail, where it was observed) and keep the guard narrowly scoped.

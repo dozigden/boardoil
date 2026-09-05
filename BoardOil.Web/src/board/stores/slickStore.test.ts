@@ -81,6 +81,46 @@ describe('slickStore', () => {
     expect(store.slicks.map(x => x.name)).toEqual(['Release Train']);
   });
 
+  it('upserts slicks immediately without a catalogue request', () => {
+    const store = useSlickStore();
+    store.activeBoardId = 1;
+    const slick = makeSlick(7, 'New slick', 'presets', '{"presetIndex":2}');
+
+    store.upsertSlick(1, slick);
+    store.upsertSlick(1, slick);
+
+    expect(store.slicks).toEqual([slick]);
+    expect(api.getSlicks).not.toHaveBeenCalled();
+  });
+
+  it('replaces an existing slick by id and reorders it after a rename', () => {
+    const store = useSlickStore();
+    store.activeBoardId = 1;
+    const current = makeSlick(7, 'Alpha', 'presets', '{"presetIndex":2}');
+    const other = makeSlick(8, 'Middle', 'presets', '{"presetIndex":3}');
+    const updated = makeSlick(7, 'Zulu', 'solid', '{"backgroundColor":"#336699"}');
+    store.slicks = [current, other];
+
+    store.upsertSlick(1, updated);
+
+    expect(store.slicks).toEqual([other, updated]);
+  });
+
+  it('ignores embedded slicks from another board or a disposed context', () => {
+    const store = useSlickStore();
+    store.activeBoardId = 2;
+    const slick = makeSlick(7, 'Old board slick', 'presets', '{"presetIndex":2}');
+
+    store.upsertSlick(1, slick);
+    expect(store.slicks).toEqual([]);
+
+    store.dispose();
+    store.upsertSlick(2, slick);
+    expect(store.slicks).toEqual([]);
+    expect(store.activeBoardId).toBeNull();
+    expect(api.getSlicks).not.toHaveBeenCalled();
+  });
+
   it('loads create default style', async () => {
     const store = useSlickStore();
 

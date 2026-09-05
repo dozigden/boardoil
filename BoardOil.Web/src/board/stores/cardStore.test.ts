@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useCardStore } from './cardStore';
+import { useSlickStore } from './slickStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { AppError } from '../../shared/types/appError';
-import type { Board, Card, CardEditModel } from '../../shared/types/boardTypes';
+import type { Board, Card, CardEditModel, Slick } from '../../shared/types/boardTypes';
 import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 
 const api = {
+  getSlicks: vi.fn(),
   createCard: vi.fn(),
   saveCard: vi.fn(),
   moveCard: vi.fn(),
@@ -45,9 +47,15 @@ describe('cardStore', () => {
   it('creates a card incrementally without reloading board', async () => {
     const store = useCardStore();
     store.replaceBoardCards(1, makeBoard().columns);
+    const slickStore = useSlickStore();
+    slickStore.activeBoardId = 1;
+    const slick = makeSlick();
 
     const created: Card = {
       id: 102,
+      slick,
+      slickId: slick.id,
+      slickName: slick.name,
       boardColumnId: 1,
       cardTypeId: 1,
       cardTypeName: 'Story',
@@ -63,11 +71,13 @@ describe('cardStore', () => {
     };
     api.createCard.mockResolvedValue(ok(created));
 
-    const model = makeCardEditModel({ title: 'Task B', cardTypeId: null });
+    const model = makeCardEditModel({ title: 'Task B', cardTypeId: null, slickName: slick.name });
     await store.createCard(model);
 
     expect(api.createCard).toHaveBeenCalledWith(1, model);
     expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([102, 101]);
+    expect(slickStore.slicks).toEqual([slick]);
+    expect(api.getSlicks).not.toHaveBeenCalled();
   });
 
   it('creates a card with an explicit card type id', async () => {
@@ -76,6 +86,7 @@ describe('cardStore', () => {
 
     const created: Card = {
       id: 103,
+      slick: null,
       boardColumnId: 1,
       cardTypeId: 2,
       cardTypeName: 'Bug',
@@ -104,6 +115,7 @@ describe('cardStore', () => {
 
     const moved: Card = {
       id: 101,
+      slick: null,
       boardColumnId: 2,
       cardTypeId: 1,
       cardTypeName: 'Story',
@@ -149,6 +161,7 @@ describe('cardStore', () => {
     const board = makeBoard();
     board.columns[0].cards.push({
       id: 102,
+      slick: null,
       boardColumnId: 1,
       cardTypeId: 1,
       cardTypeName: 'Story',
@@ -164,6 +177,7 @@ describe('cardStore', () => {
     });
     board.columns[1].cards.push({
       id: 201,
+      slick: null,
       boardColumnId: 2,
       cardTypeId: 1,
       cardTypeName: 'Story',
@@ -254,11 +268,15 @@ describe('cardStore', () => {
   it('bulk edits selected cards with slick set operation', async () => {
     const store = useCardStore();
     store.replaceBoardCards(1, makeBoard().columns);
+    const slickStore = useSlickStore();
+    slickStore.activeBoardId = 1;
+    const slick = makeSlick();
     api.editCards.mockResolvedValue(ok([
       {
         ...store.getCardById(101)!,
         slickId: 8,
-        slickName: 'Release train'
+        slickName: 'Release train',
+        slick
       }
     ]));
 
@@ -275,6 +293,8 @@ describe('cardStore', () => {
       slick: { name: 'Release train' }
     });
     expect(store.getCardById(101)?.slickName).toBe('Release train');
+    expect(slickStore.slicks).toEqual([slick]);
+    expect(api.getSlicks).not.toHaveBeenCalled();
   });
 
   it('translates drop-before-card into predecessor anchor', async () => {
@@ -283,6 +303,7 @@ describe('cardStore', () => {
     board.columns[1].cards = [
       {
         id: 201,
+        slick: null,
         boardColumnId: 2,
         cardTypeId: 1,
         cardTypeName: 'Story',
@@ -298,6 +319,7 @@ describe('cardStore', () => {
       },
       {
         id: 202,
+        slick: null,
         boardColumnId: 2,
         cardTypeId: 1,
         cardTypeName: 'Story',
@@ -316,6 +338,7 @@ describe('cardStore', () => {
 
     const moved: Card = {
       id: 101,
+      slick: null,
       boardColumnId: 2,
       cardTypeId: 1,
       cardTypeName: 'Story',
@@ -343,6 +366,7 @@ describe('cardStore', () => {
     board.columns[1].cards = [
       {
         id: 201,
+        slick: null,
         boardColumnId: 2,
         cardTypeId: 1,
         cardTypeName: 'Story',
@@ -361,6 +385,7 @@ describe('cardStore', () => {
 
     const moved: Card = {
       id: 101,
+      slick: null,
       boardColumnId: 2,
       cardTypeId: 1,
       cardTypeName: 'Story',
@@ -385,9 +410,15 @@ describe('cardStore', () => {
   it('saveCard updates card', async () => {
     const store = useCardStore();
     store.replaceBoardCards(1, makeBoard().columns);
+    const slickStore = useSlickStore();
+    slickStore.activeBoardId = 1;
+    const slick = makeSlick();
 
     const updated: Card = {
       id: 101,
+      slick,
+      slickId: slick.id,
+      slickName: slick.name,
       boardColumnId: 1,
       cardTypeId: 1,
       cardTypeName: 'Story',
@@ -419,12 +450,14 @@ describe('cardStore', () => {
       cardTypeId: 1,
       boardColumnId: 1,
       assignedUserId: null,
-      slickName: null
+      slickName: slick.name
     });
 
     expect(saved).toBe(true);
     expect(store.getCardById(101)?.title).toBe('Task A+');
     expect(store.getCardById(101)?.tagNames).toEqual(['Bug']);
+    expect(slickStore.slicks).toEqual([slick]);
+    expect(api.getSlicks).not.toHaveBeenCalled();
     expect(api.saveCard).toHaveBeenCalledWith(1, 101, {
       title: 'Task A+',
       description: 'Updated',
@@ -433,7 +466,7 @@ describe('cardStore', () => {
       cardTypeId: 1,
       boardColumnId: 1,
       assignedUserId: null,
-      slickName: null
+      slickName: slick.name
     });
   });
 
@@ -505,6 +538,7 @@ describe('cardStore', () => {
     const board = makeBoard();
     board.columns[0].cards.push({
       id: 102,
+      slick: null,
       boardColumnId: 1,
       cardTypeId: 1,
       cardTypeName: 'Story',
@@ -539,6 +573,7 @@ describe('cardStore', () => {
     const board = makeBoard();
     board.columns[0].cards.push({
       id: 102,
+      slick: null,
       boardColumnId: 1,
       cardTypeId: 1,
       cardTypeName: 'Story',
@@ -624,6 +659,17 @@ describe('cardStore', () => {
   });
 });
 
+function makeSlick(): Slick {
+  return {
+    id: 8,
+    name: 'Release train',
+    styleName: 'presets',
+    stylePropertiesJson: '{"presetIndex":2}',
+    createdAtUtc: '2026-03-15T00:00:00Z',
+    updatedAtUtc: '2026-03-15T00:00:00Z'
+  };
+}
+
 function makeCardEditModel(overrides: Partial<CardEditModel> = {}): CardEditModel {
   return {
     boardColumnId: 1,
@@ -656,6 +702,7 @@ function makeBoard(id = 1, name = 'Board'): Board {
         cards: [
           {
             id: 101,
+            slick: null,
             boardColumnId: 1,
             cardTypeId: 1,
             cardTypeName: 'Story',

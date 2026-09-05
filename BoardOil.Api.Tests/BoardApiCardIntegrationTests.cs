@@ -20,7 +20,7 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
-    public async Task CardEndpoints_ShouldCreateCard_WithTagNames()
+    public async Task CardEndpoints_ShouldCreateCard_WithTagNamesAndSlickDefinition()
     {
         // Arrange
         var createdColumnId = await SeedBoardColumnAsync("Todo");
@@ -30,7 +30,7 @@ public sealed class BoardApiCardIntegrationTests
         // Act
         var createdCardResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/cards",
-            new CreateCardRequest(createdColumnId, "Task A", "Desc", ["Bug", "Urgent"]));
+            new CreateCardRequest(createdColumnId, "Task A", "Desc", ["Bug", "Urgent"], SlickName: "New slick"));
         createdCardResponse.EnsureSuccessStatusCode();
         var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
         using var createdCardJson = JsonDocument.Parse(await createdCardResponse.Content.ReadAsStringAsync());
@@ -41,6 +41,11 @@ public sealed class BoardApiCardIntegrationTests
         Assert.Equal("Task A", createdCard.Data!.Title);
         Assert.Equal(["Bug", "Urgent"], createdCard.Data.Tags.Select(x => x.Name).ToArray());
         Assert.Equal(["Bug", "Urgent"], createdCard.Data.TagNames);
+        Assert.NotNull(createdCard.Data.Slick);
+        Assert.Equal(createdCard.Data.SlickId, createdCard.Data.Slick.Id);
+        Assert.Equal("New slick", createdCard.Data.Slick.Name);
+        Assert.Equal("presets", createdCard.Data.Slick.StyleName);
+        Assert.False(string.IsNullOrWhiteSpace(createdCard.Data.Slick.StylePropertiesJson));
         Assert.True(createdCard.Data.CardTypeId > 0);
         Assert.Equal("Story", createdCard.Data.CardTypeName);
         Assert.Null(createdCard.Data.CardTypeEmoji);
@@ -343,6 +348,11 @@ public sealed class BoardApiCardIntegrationTests
         {
             Assert.NotNull(card.SlickId);
             Assert.Equal("Release train", card.SlickName);
+            Assert.NotNull(card.Slick);
+            Assert.Equal(card.SlickId, card.Slick.Id);
+            Assert.Equal(card.SlickName, card.Slick.Name);
+            Assert.Equal("presets", card.Slick.StyleName);
+            Assert.False(string.IsNullOrWhiteSpace(card.Slick.StylePropertiesJson));
         });
 
         // Act
@@ -363,6 +373,7 @@ public sealed class BoardApiCardIntegrationTests
         {
             Assert.Null(card.SlickId);
             Assert.Null(card.SlickName);
+            Assert.Null(card.Slick);
         });
     }
 
@@ -521,6 +532,7 @@ public sealed class BoardApiCardIntegrationTests
         Assert.NotNull(payload.Data);
         Assert.Equal(slickId, payload.Data!.Card.SlickId);
         Assert.Equal("Release train", payload.Data.Card.SlickName);
+        Assert.Equal(slickEnvelope.Data, payload.Data.Card.Slick);
     }
 
     [Fact]

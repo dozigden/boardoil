@@ -52,11 +52,7 @@ export const useSlickStore = defineStore('slick', () => {
       return null;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return result.data;
-    }
-
-    upsertSlick(result.data);
+    upsertSlick(boardId, result.data);
     return result.data;
   }
 
@@ -79,11 +75,7 @@ export const useSlickStore = defineStore('slick', () => {
       return null;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return result.data;
-    }
-
-    upsertSlick(result.data);
+    upsertSlick(boardId, result.data);
     return result.data;
   }
 
@@ -125,8 +117,12 @@ export const useSlickStore = defineStore('slick', () => {
     }
   }
 
-  function upsertSlick(slick: Slick) {
-    const existingIndex = slicks.value.findIndex(x => x.id === slick.id || x.name === slick.name);
+  function upsertSlick(boardId: number, slick: Slick) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    const existingIndex = slicks.value.findIndex(x => x.id === slick.id);
     if (existingIndex < 0) {
       slicks.value = [...slicks.value, slick].sort((a, b) => a.name.localeCompare(b.name));
       return;
@@ -147,6 +143,7 @@ export const useSlickStore = defineStore('slick', () => {
     activeBoardId,
     dispose,
     loadSlicks,
+    upsertSlick,
     getCreateDefaultStyle,
     createSlick,
     updateSlick,

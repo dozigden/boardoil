@@ -34,6 +34,20 @@ export class CardEditorPage {
     await expect(this.dialog()).toBeHidden();
   }
 
+  public async openSlickPicker() {
+    await this.dialog().getByTitle('Select slick', { exact: true }).click();
+  }
+
+  public slickOption(name: string) {
+    return this.dialog().getByRole('menu', { name: 'Select slick' }).getByRole('button', { name, exact: true });
+  }
+
+  public async createSlick(name: string) {
+    await this.openSlickPicker();
+    await this.dialog().getByRole('textbox', { name: 'Search slicks' }).fill(name);
+    await this.slickOption(`Create and use "${name}"`).click();
+  }
+
   private toolbar() {
     return this.dialog().getByRole('toolbar', { name: 'Markdown formatting' });
   }

@@ -1,3 +1,5 @@
+using BoardOil.Contracts.Slick;
+
 namespace BoardOil.Contracts.Card;
 
 public sealed record CardTagDto(
@@ -34,7 +36,8 @@ public sealed record CardDto(
     string? AssignedUserImageRelativePath = null,
     int? SlickId = null,
     string? SlickName = null,
-    string? ExternalUrl = null);
+    string? ExternalUrl = null,
+    SlickDto? Slick = null);
 
 public sealed record ArchivedCardDto(
     int Id,

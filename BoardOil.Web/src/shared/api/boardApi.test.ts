@@ -162,6 +162,7 @@ describe('boardApi saveCard', () => {
   it('sends boardColumnId in update payload', async () => {
     const card = {
       id: 99,
+      slick: null,
       boardColumnId: 3,
       cardTypeId: 1,
       cardTypeName: 'Story',
@@ -211,6 +212,7 @@ describe('boardApi createCard', () => {
   it('posts the complete editable card payload', async () => {
     const createdCard = {
       id: 101,
+      slick: null,
       boardColumnId: 3,
       cardTypeId: 2,
       cardTypeName: 'Story',
@@ -256,6 +258,7 @@ describe('boardApi transferCard', () => {
       boardId: 2,
       card: {
         id: 4,
+        slick: null,
         boardColumnId: 8,
         cardTypeId: 1,
         cardTypeName: 'Story',
@@ -574,6 +577,7 @@ describe('boardApi archived cards', () => {
         archivedAtUtc: '2026-04-19T18:00:00Z',
         card: {
           id: 42,
+          slick: null,
           boardColumnId: 9,
           cardTypeId: 1,
           cardTypeName: 'Story',
@@ -674,6 +678,7 @@ describe('boardApi archived cards', () => {
   it('unarchives a card via unarchive endpoint', async () => {
     vi.mocked(postData).mockResolvedValue(ok({
       id: 99,
+      slick: null,
       boardColumnId: 2,
       cardTypeId: 1,
       cardTypeName: 'Story',
