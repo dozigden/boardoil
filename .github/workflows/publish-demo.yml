@@ -14,12 +14,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Validate and Publish
+  build:
+    name: Build and Validate
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: demo-production
+    outputs:
+      artifact-id: ${{ steps.demo_artifact.outputs.artifact-id }}
 
     defaults:
       run:
@@ -30,6 +31,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           path: source
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -76,6 +78,62 @@ jobs:
           BOARDOIL_DEMO_SOURCE_SHA: ${{ github.sha }}
         run: npm run test:demo:smoke
 
+      - name: Upload validated demo
+        id: demo_artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: demo-${{ github.sha }}-${{ github.run_attempt }}
+          path: source/BoardOil.Web/dist-demo/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish Validated Demo
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: demo-production
+
+    steps:
+      - name: Download validated demo
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: demo-artifact
+
+      - name: Validate publication contents
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          python3 -I - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          artifact = Path("demo-artifact")
+          forbidden = {".git", ".github", ".gitmodules", ".gitattributes"}
+          for entry in artifact.rglob("*"):
+              if entry.is_symlink():
+                  raise SystemExit(f"Symlink in demo artifact: {entry}")
+              if entry.name.casefold() in forbidden:
+                  raise SystemExit(f"Git control path in demo artifact: {entry}")
+              if not entry.is_file() and not entry.is_dir():
+                  raise SystemExit(f"Non-regular entry in demo artifact: {entry}")
+
+          if not (artifact / "index.html").is_file():
+              raise SystemExit("Demo artifact is missing index.html")
+          deployment = json.loads((artifact / "deployment.json").read_text())
+          expected = {
+              "artifact": "static-demo",
+              "sourceRepository": "https://github.com/dozigden/boardoil",
+              "sourceCommit": os.environ["SOURCE_SHA"],
+          }
+          if deployment != expected:
+              raise SystemExit("Demo artifact does not match the workflow source commit")
+          PY
+
       - name: Checkout distribution repository
         uses: actions/checkout@v6
         with:
@@ -88,7 +146,7 @@ jobs:
         working-directory: .
         run: |
           git -C distribution rm -r --ignore-unmatch .
-          cp -a source/BoardOil.Web/dist-demo/. distribution/
+          cp -a demo-artifact/. distribution/
           git -C distribution add --all --force
 
       - name: Commit and push changed artifact
