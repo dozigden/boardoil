@@ -30,8 +30,8 @@ COPY BoardOil.Services/ BoardOil.Services/
 COPY BoardOil.TasksMd/ BoardOil.TasksMd/
 COPY BoardOil.Ef/ BoardOil.Ef/
 COPY BoardOil.Mcp.Contracts/ BoardOil.Mcp.Contracts/
-RUN dotnet restore BoardOil.Api/BoardOil.Api.csproj
-RUN dotnet publish BoardOil.Api/BoardOil.Api.csproj -c Release -o /app/publish
+RUN dotnet restore BoardOil.Api/BoardOil.Api.csproj --locked-mode
+RUN dotnet publish BoardOil.Api/BoardOil.Api.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 ARG BO_VERSION
