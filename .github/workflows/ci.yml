@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  checks: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -21,6 +20,9 @@ concurrency:
 jobs:
   backend:
     name: Backend (.NET)
+    permissions:
+      contents: read
+      checks: write
     runs-on: ubuntu-latest
 
     steps:
