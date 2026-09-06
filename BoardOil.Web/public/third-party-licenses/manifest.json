@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-08-31T10:37:34.028Z",
+  "generatedAtUtc": "2026-09-06T13:10:07.041Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -185,7 +185,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/core",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/core/LICENSE.md",
@@ -194,7 +194,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-blockquote",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-blockquote/LICENSE.md",
@@ -203,7 +203,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-bold",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-bold/LICENSE.md",
@@ -212,7 +212,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-bubble-menu",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-bubble-menu/LICENSE.md",
@@ -221,7 +221,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-bullet-list",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-bullet-list/LICENSE.md",
@@ -230,7 +230,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-code",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-code/LICENSE.md",
@@ -239,7 +239,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-code-block",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-code-block/LICENSE.md",
@@ -248,7 +248,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-document",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-document/LICENSE.md",
@@ -257,7 +257,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-dropcursor",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-dropcursor/LICENSE.md",
@@ -266,7 +266,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-floating-menu",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-floating-menu/LICENSE.md",
@@ -275,7 +275,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-gapcursor",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-gapcursor/LICENSE.md",
@@ -284,7 +284,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-hard-break",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-hard-break/LICENSE.md",
@@ -293,7 +293,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-heading",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-heading/LICENSE.md",
@@ -302,7 +302,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-horizontal-rule",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-horizontal-rule/LICENSE.md",
@@ -311,7 +311,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-italic",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-italic/LICENSE.md",
@@ -320,7 +320,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-link",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-link/LICENSE.md",
@@ -329,7 +329,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-list",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-list/LICENSE.md",
@@ -338,7 +338,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-list-item",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-list-item/LICENSE.md",
@@ -347,7 +347,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-list-keymap",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-list-keymap/LICENSE.md",
@@ -356,7 +356,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-ordered-list",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-ordered-list/LICENSE.md",
@@ -365,7 +365,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-paragraph",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-paragraph/LICENSE.md",
@@ -374,7 +374,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-strike",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-strike/LICENSE.md",
@@ -383,7 +383,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-text",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-text/LICENSE.md",
@@ -392,7 +392,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extension-underline",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-underline/LICENSE.md",
@@ -401,7 +401,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/extensions",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extensions/LICENSE.md",
@@ -410,7 +410,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/markdown",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/markdown/LICENSE.md",
@@ -419,7 +419,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/pm",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/pm/LICENSE",
@@ -428,7 +428,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/starter-kit",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/starter-kit/LICENSE.md",
@@ -437,7 +437,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@tiptap/vue-3",
-      "version": "3.29.2",
+      "version": "3.30.5",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/vue-3/LICENSE.md",
