@@ -78,6 +78,11 @@ jobs:
           cache: npm
           cache-dependency-path: BoardOil.Web/package-lock.json
 
+      - name: Setup pinned npm
+        run: |
+          BOARDOIL_NPM_VERSION="$(node -p "require('./package.json').engines.npm")"
+          npm install --global --ignore-scripts "npm@$BOARDOIL_NPM_VERSION"
+
       - name: Install dependencies
         run: npm ci
 
@@ -130,6 +135,11 @@ jobs:
           cache: true
           cache-dependency-path: |
             **/packages.lock.json
+
+      - name: Setup pinned npm
+        run: |
+          BOARDOIL_NPM_VERSION="$(node -p "require('./package.json').engines.npm")"
+          npm install --global --ignore-scripts "npm@$BOARDOIL_NPM_VERSION"
 
       - name: Install frontend dependencies
         run: npm ci

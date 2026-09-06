@@ -10,6 +10,23 @@ This file documents the current frontend store pattern and behaviour conventions
 - This policy limits install-time execution. Build tools, tests and bundled browser code still execute dependencies and require dependency review and appropriate credential isolation.
 - The current locked install scripts belong only to optional macOS `fsevents` packages. Keep scripts disabled on macOS too; validate file watching if those packages or the watcher tooling change.
 
+### Dependency Updates and Release Age
+
+- Use Node 24 and the exact npm version in `BoardOil.Web/package.json` under `engines` (currently 11.19.0). `engine-strict=true` rejects incompatible versions during installation. CI and Docker install npm from this same pin before `npm ci`; changing the pin requires checking the release-age behaviour again.
+- To set up npm locally, run the following from `BoardOil.Web`, then check `npm --version`:
+
+  ```sh
+  BOARDOIL_NPM_VERSION="$(node -p "require('./package.json').engines.npm")"
+  npm install --global --ignore-scripts "npm@$BOARDOIL_NPM_VERSION"
+  ```
+
+- The project `.npmrc` sets `min-release-age=7` in days. When resolving registry dependencies, `npm install` and `npm update` select eligible direct and transitive releases; a newly requested exact version inside the window fails. Use targeted updates such as `npm update <package>` and review the resulting manifest and lockfile diff.
+- `npm ci` restores the reviewed lockfile without rechecking publication ages. An existing lockfile can therefore contain a newer release admitted under an exception. Lockfile review is part of the policy; regenerating or accepting a lockfile produced with different settings needs the same review.
+- For an urgent security fix, record the advisory, exact package/version and reason in the story and obtain review of the exception. Use a one-command package-specific exception, for example `npm install <package>@<version> --min-release-age-exclude=<package>`. The package's dependencies retain the cooldown unless separately reviewed. Do not persist broad exclusions, disable the cooldown globally or use `--force` to bypass policy.
+- Review newly introduced transitive packages, registry/source changes, integrity changes and install scripts alongside version changes. Direct Git, URL and local-file dependencies do not have the same npm-registry publication-age guarantee and require explicit source review.
+- A cooldown delays admission; it does not prove a package is safe. Keep dependency scripts disabled and follow the existing review, validation and main-only source-control workflow.
+- `scripts/npm-release-age-policy.test.mjs` exercises the installed npm CLI against a temporary local registry with controlled release dates. It covers fresh resolution, updates, exact-version rejection, a named exception, locked CI resolution and npm-version enforcement without downloading packages from the public registry.
+
 ## Store Pattern
 
 BoardOil frontend state uses Pinia stores with a small set of focused stores:

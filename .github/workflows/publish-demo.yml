@@ -48,6 +48,11 @@ jobs:
       - name: Restore NuGet packages for licence sync
         run: dotnet restore ../BoardOil.Api/BoardOil.Api.csproj --locked-mode -maxcpucount:1 -nodeReuse:false
 
+      - name: Setup pinned npm
+        run: |
+          BOARDOIL_NPM_VERSION="$(node -p "require('./package.json').engines.npm")"
+          npm install --global --ignore-scripts "npm@$BOARDOIL_NPM_VERSION"
+
       - name: Install frontend dependencies
         run: npm ci
 
