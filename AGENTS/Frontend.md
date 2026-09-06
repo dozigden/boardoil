@@ -2,6 +2,14 @@
 
 This file documents the current frontend store pattern and behaviour conventions.
 
+## Dependency Installation Policy
+
+- Run `npm ci` from `BoardOil.Web` to restore the committed lockfile. The project `.npmrc` sets `ignore-scripts=true` for local installs, CI and demo builds; Docker copies it before installing dependencies.
+- Keep dependency lifecycle scripts disabled. There are currently no approved exceptions. If an essential dependency needs an install script, review its exact package/version and introduce a narrow allowlist with strict enforcement using a supported npm version; do not enable all scripts as a workaround.
+- Explicit commands such as `npm run build`, `npm test` and `npx playwright install chromium` still execute. Automatic pre/post hooks are disabled, so required preparation belongs in the explicit command.
+- This policy limits install-time execution. Build tools, tests and bundled browser code still execute dependencies and require dependency review and appropriate credential isolation.
+- The current locked install scripts belong only to optional macOS `fsevents` packages. Keep scripts disabled on macOS too; validate file watching if those packages or the watcher tooling change.
+
 ## Store Pattern
 
 BoardOil frontend state uses Pinia stores with a small set of focused stores:

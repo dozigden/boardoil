@@ -9,7 +9,7 @@ ARG BO_CHANNEL
 ARG BO_BUILD
 ARG BO_COMMIT
 WORKDIR /src/BoardOil.Web
-COPY BoardOil.Web/package.json BoardOil.Web/package-lock.json ./
+COPY BoardOil.Web/package.json BoardOil.Web/package-lock.json BoardOil.Web/.npmrc ./
 RUN npm ci
 COPY BoardOil.Web/ ./
 COPY MCP.md /src/MCP.md
