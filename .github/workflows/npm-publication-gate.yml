@@ -1,0 +1,36 @@
+name: Npm Publication Gate
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit locked npm dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    defaults:
+      run:
+        working-directory: BoardOil.Web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup pinned npm
+        run: |
+          BOARDOIL_NPM_VERSION="$(node -p "require('./package.json').engines.npm")"
+          npm install --global --ignore-scripts "npm@$BOARDOIL_NPM_VERSION"
+
+      - name: Block publication for high or critical npm vulnerabilities
+        run: npm audit --package-lock-only --include=dev --include=optional --include=peer --audit-level=high

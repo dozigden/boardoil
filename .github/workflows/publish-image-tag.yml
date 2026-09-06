@@ -57,11 +57,19 @@ jobs:
       checks: write
     uses: ./.github/workflows/ci.yml
 
+  npm-audit:
+    name: Check npm publication policy
+    needs: preflight
+    permissions:
+      contents: read
+    uses: ./.github/workflows/npm-publication-gate.yml
+
   build-platform:
     name: Build and Smoke Test (${{ matrix.platform }})
     needs:
       - preflight
       - validate
+      - npm-audit
     permissions:
       contents: read
       packages: write

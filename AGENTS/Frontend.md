@@ -27,6 +27,14 @@ This file documents the current frontend store pattern and behaviour conventions
 - A cooldown delays admission; it does not prove a package is safe. Keep dependency scripts disabled and follow the existing review, validation and main-only source-control workflow.
 - `scripts/npm-release-age-policy.test.mjs` exercises the installed npm CLI against a temporary local registry with controlled release dates. It covers fresh resolution, updates, exact-version rejection, a named exception, locked CI resolution and npm-version enforcement without downloading packages from the public registry.
 
+### Docker Publication Gate
+
+- The nightly and tagged-release Docker workflows call `.github/workflows/npm-publication-gate.yml` before either architecture builds or uploads an image.
+- The gate audits the checked-out npm lockfile, including development, optional and peer dependencies, using the pinned npm version. High/critical findings and audit errors block publication; lower-severity findings remain visible in the job log.
+- Run `npm audit --package-lock-only --include=dev --include=optional --include=peer --audit-level=high` from `BoardOil.Web` to reproduce the check. This command does not install application packages or apply fixes.
+- Fix a blocking dependency or explicitly agree a narrowly scoped exception before changing the gate. An audit-service failure calls for a retry once the service recovers, not a silent bypass. The gate has no automatic override.
+- Dependabot owns ongoing alerts. This gate does not run in ordinary CI, local builds or static demo publication, and does not scan NuGet or container OS packages.
+
 ## Store Pattern
 
 BoardOil frontend state uses Pinia stores with a small set of focused stores:
