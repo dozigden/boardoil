@@ -107,6 +107,8 @@ OAuth credentials are stored and refreshed by the client. You can inspect or rev
 
 Tool results include the same JSON in both `structuredContent` and a text content block, for clients that consume either representation. Errors include their code, status and any field-level validation details in both formats.
 
+Attachment byte transfer does not require an MCP-specific resource or filesystem integration. Any agent or MCP client that can make an ordinary HTTPS `GET` or `PUT` request and set the returned headers can use it. The transfer request is independent of the MCP session after issuance; do not substitute the MCP bearer token, cookies or query-string credentials.
+
 ### Download original files
 
 Call `card_attachment_download` with `boardId` and `id` (the attachment ID). This requires authenticated MCP with `mcp:read`, and works for live or archived attachments. It returns `url`, `method` (`GET`), a complete `headers.Authorization` value using the dedicated `BoardOilAttachment` scheme, and `expiresAtUtc`. Use those values unchanged in an ordinary HTTP client to download the original bytes; the client does not need access to your MCP connection credentials. Keep the returned header secret, out of URLs, logs and shared transcripts. Do not forward it to another host or follow redirects with it.
@@ -116,6 +118,10 @@ Tickets allow repeated downloads for up to 15 minutes, capped by the originating
 The response forces file download as `application/octet-stream`, with `nosniff` and private/no-store caching. No file conversion occurs. Ticket records contain only a hash of the secret; expired records are removed at application startup, without scheduled jobs. Issuance and valid-ticket redemption outcomes are retained in a queryable audit table for 14 days and purged at startup; unknown IDs and wrong secrets are not persisted. Operational logs contain IDs rather than credentials. MCP SDK trace payload logging is suppressed because it would expose ticket responses.
 
 Transfers require HTTPS. Behind a TLS-terminating reverse proxy, configure trusted forwarded headers so the application recognises HTTPS, and set the public MCP base URL when needed. The existing explicit `BoardOilAuth:AllowInsecureCookies` development opt-out also permits local HTTP transfers; do not enable it in a deployed environment. Proxy/client logging must also omit Authorization headers and MCP response bodies.
+
+The configured public MCP base URL is also the base of returned attachment URLs, including any path prefix. The proxy must route both the public MCP URL and every returned attachment-transfer URL to the same BoardOil instance, preserve the `Authorization`, `Content-Type` and `Content-Length` headers, and avoid redirecting transfer requests to another host.
+
+BoardOil deliberately does not apply an additional IP-based rate limit to transfer endpoints. Agents commonly share proxy addresses, and guessed ticket IDs must not be able to consume another caller's allowance. Exposure is instead bounded by the unguessable operation-specific secret, 15-minute admission window, source-credential and permission rechecks, configured per-file size limit, and atomic single-claim upload rule. Deployments that need aggregate bandwidth protection can add it at their trusted reverse proxy, without logging credentials; download retries within the ticket window are part of the supported contract.
 
 ### Upload original files
 

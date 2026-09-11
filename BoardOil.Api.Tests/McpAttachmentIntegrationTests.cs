@@ -6,6 +6,7 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Configuration;
 using BoardOil.Ef;
 using BoardOil.Mcp.Contracts;
 using Microsoft.EntityFrameworkCore;
@@ -395,6 +396,30 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
         using var response = await CreateClient().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TransferTickets_ShouldUseConfiguredPublicBaseUrlIncludingPath()
+    {
+        var (client, token, card, attachment) = await ArrangeAttachmentAsync();
+        const string publicBaseUrl = "https://gateway.example.com/boardoil";
+        using var configuration = await client.PutAsJsonAsync(
+            "/api/system/configuration", new UpdateConfigurationRequest(publicBaseUrl, false));
+        configuration.EnsureSuccessStatusCode();
+
+        using var downloadPayload = await CallAsync(client, token, ToolNames.CardAttachmentDownload,
+            new { boardId = 1, id = attachment.Id });
+        using var uploadPayload = await CallAsync(client, token, ToolNames.CardAttachmentUpload,
+            new { boardId = 1, cardId = card.Id, fileName = "public.bin", byteLength = 3 });
+        var download = AssertSuccess(downloadPayload);
+        var upload = AssertSuccess(uploadPayload);
+
+        Assert.StartsWith(
+            $"{publicBaseUrl}/api/attachment-transfers/", download.GetProperty("url").GetString());
+        Assert.EndsWith("/download", download.GetProperty("url").GetString());
+        Assert.StartsWith(
+            $"{publicBaseUrl}/api/attachment-transfers/", upload.GetProperty("url").GetString());
+        Assert.EndsWith("/upload", upload.GetProperty("url").GetString());
     }
 
     private static async Task<CardDto> CreateCardAsync(HttpClient client)
