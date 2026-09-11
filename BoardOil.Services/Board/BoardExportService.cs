@@ -1,4 +1,6 @@
 using System.Data;
+using BoardOil.Abstractions.Attachment;
+using System.Security.Cryptography;
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -13,6 +15,10 @@ using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Card;
+using BoardOil.Data.Abstractions.Attachment;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Services.Attachment;
+using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Services.Board;
 
@@ -26,7 +32,10 @@ public sealed class BoardExportService(
     ITagRepository tagRepository,
     ISlickRepository slickRepository,
     IBoardAuthorisationService boardAuthorisationService,
-    IDbContextScopeFactory scopeFactory) : IBoardExportService
+    IDbContextScopeFactory scopeFactory,
+    IAttachmentRepository attachments,
+    IAttachmentStorageService files,
+    BoardPackageStorageService packages) : IBoardExportService
 {
     private const string ZipContentType = "application/zip";
     private static readonly Regex InvalidFileNameCharactersRegex = new($"[{Regex.Escape(new string(Path.GetInvalidFileNameChars()))}]+", RegexOptions.Compiled);
@@ -35,7 +44,29 @@ public sealed class BoardExportService(
         WriteIndented = true
     };
 
-    public async Task<ApiResult<BoardPackageExportDto>> ExportBoardAsync(int boardId, int actorUserId, string exportedByVersion)
+    public async Task<ApiResult<BoardPackageExportDto>> ExportBoardAsync(int boardId, int actorUserId, string exportedByVersion, CancellationToken cancellationToken = default)
+    {
+        using (var accessScope = scopeFactory.CreateReadOnly())
+        {
+            if (boardRepository.Get(boardId) is null) { return ApiErrors.NotFound("Board not found."); }
+            if (!await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageSettings))
+            {
+                return ApiErrors.Forbidden("You do not have permission for this action.");
+            }
+        }
+        // Track the temporary file before opening the board's consistent read transaction.
+        var package = await packages.CreateAsync(cancellationToken);
+        try
+        {
+            var result = await ExportSnapshotAsync(boardId, actorUserId, exportedByVersion, package, cancellationToken);
+            if (!result.Success) { await package.DisposeAsync(); }
+            return result;
+        }
+        catch { await package.DisposeAsync(); throw; }
+    }
+
+    private async Task<ApiResult<BoardPackageExportDto>> ExportSnapshotAsync(int boardId, int actorUserId, string exportedByVersion,
+        FileStream package, CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateReadOnlyWithTransaction(IsolationLevel.Serializable);
 
@@ -128,7 +159,13 @@ public sealed class BoardExportService(
                 .ToList());
 
         var manifest = BoardPackageContract.CreateManifest(exportedByVersion);
-        var packageBytes = BuildPackage(manifest, boardPayload, archivePayload);
+        var attachmentRecords = await attachments.Query()
+            .Where(x => x.State == AttachmentState.Ready && ((x.Card != null && x.Card.BoardId == boardId) || (x.ArchivedCard != null && x.ArchivedCard.BoardId == boardId)))
+            .Include(x => x.Card).Include(x => x.ArchivedCard).Include(x => x.CreatedByUser).OrderBy(x => x.Id).ToListAsync();
+        Stream packageBytes;
+        try { packageBytes = await BuildPackageAsync(manifest, boardPayload, archivePayload, attachmentRecords, package, cancellationToken); }
+        catch (InvalidDataException exception) { return ApiErrors.BadRequest(exception.Message); }
+        catch (IOException) { return ApiErrors.InternalError("An attachment could not be read. The board package was not exported."); }
         var fileName = BuildExportFileName(board.Name);
 
         return ApiResults.Ok(new BoardPackageExportDto(
@@ -137,26 +174,49 @@ public sealed class BoardExportService(
             packageBytes));
     }
 
-    private static byte[] BuildPackage(BoardPackageManifestDto manifest, BoardPackageBoardDto boardPayload, BoardPackageArchiveDto archivePayload)
+    private async Task<Stream> BuildPackageAsync(BoardPackageManifestDto manifest, BoardPackageBoardDto boardPayload,
+        BoardPackageArchiveDto archivePayload, IReadOnlyList<EntityCardAttachment> records, FileStream stream, CancellationToken cancellationToken)
     {
-        using var stream = new MemoryStream();
+        var metadata = new BoardPackageAttachmentsDto(records.Select(x => new BoardPackageAttachmentDto(
+            "files/" + Guid.NewGuid().ToString("N"), x.Card?.BoardCardId ?? x.ArchivedCard!.OriginalCardId,
+            x.ArchivedCardId.HasValue, x.OriginalFileName, x.ContentType, x.ByteLength, x.Sha256, x.CreatedAtUtc, x.CreatedByUser?.Email)).ToList());
+        // ExportBoardAsync owns disposal, after the snapshot transaction has ended.
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
             WriteJsonEntry(archive, BoardPackageContract.ManifestPath, manifest);
             WriteJsonEntry(archive, BoardPackageContract.BoardEntryPath, boardPayload);
             WriteJsonEntry(archive, BoardPackageContract.ArchiveEntryPath, archivePayload);
+            WriteJsonEntry(archive, BoardPackageContract.AttachmentsEntryPath, metadata);
+            for (var index = 0; index < records.Count; index++)
+            {
+                var record = records[index];
+                await using var input = files.OpenRead(record.StorageKey);
+                await using var output = archive.CreateEntry(metadata.Items[index].Path, CompressionLevel.Fastest).Open();
+                using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                var buffer = new byte[81920];
+                long length = 0;
+                int count;
+                while ((count = await input.ReadAsync(buffer, cancellationToken)) != 0)
+                {
+                    length += count;
+                    hash.AppendData(buffer, 0, count);
+                    await output.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
+                }
+                if (length != record.ByteLength || Convert.ToHexStringLower(hash.GetHashAndReset()) != record.Sha256)
+                {
+                    throw new InvalidDataException("An attachment failed its integrity check. The board package was not exported.");
+                }
+            }
         }
-
-        return stream.ToArray();
+        stream.Position = 0;
+        return stream;
     }
 
     private static void WriteJsonEntry<T>(ZipArchive archive, string entryPath, T payload)
     {
         var entry = archive.CreateEntry(entryPath, CompressionLevel.Optimal);
         using var entryStream = entry.Open();
-        using var writer = new StreamWriter(entryStream);
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
-        writer.Write(json);
+        JsonSerializer.Serialize(entryStream, payload, JsonOptions);
     }
 
     private static string BuildExportFileName(string boardName)

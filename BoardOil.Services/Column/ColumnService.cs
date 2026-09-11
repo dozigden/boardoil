@@ -17,7 +17,8 @@ public sealed class ColumnService(
     IBoardAuthorisationService boardAuthorisationService,
     IColumnValidator validator,
     IBoardEvents boardEvents,
-    IDbContextScopeFactory scopeFactory) : IColumnService
+    IDbContextScopeFactory scopeFactory,
+    BoardOil.Services.Attachment.CardAttachmentService attachments) : IColumnService
 {
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
@@ -203,7 +204,7 @@ public sealed class ColumnService(
 
     public async Task<ApiResult> DeleteColumnAsync(int boardId, int id, int actorUserId)
     {
-        using var scope = _scopeFactory.Create();
+        using var scope = _scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         if (boardRepository.Get(boardId) is null)
         {
@@ -227,8 +228,10 @@ public sealed class ColumnService(
             return ApiErrors.NotFound("Column not found.");
         }
 
+        var deletedAttachmentKeys = await attachments.DeleteForColumnAsync(target.Id);
         columnRepository.Remove(target);
         await scope.SaveChangesAsync();
+        await attachments.DeleteFilesAsync(deletedAttachmentKeys);
 
         await _boardEvents.ColumnDeletedAsync(boardId, id);
         return ApiResults.Ok();

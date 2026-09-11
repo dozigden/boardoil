@@ -5,5 +5,5 @@ namespace BoardOil.Abstractions.Board;
 
 public interface IBoardExportService
 {
-    Task<ApiResult<BoardPackageExportDto>> ExportBoardAsync(int boardId, int actorUserId, string exportedByVersion);
+    Task<ApiResult<BoardPackageExportDto>> ExportBoardAsync(int boardId, int actorUserId, string exportedByVersion, CancellationToken cancellationToken = default);
 }

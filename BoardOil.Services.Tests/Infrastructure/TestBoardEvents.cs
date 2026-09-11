@@ -12,6 +12,8 @@ public sealed class TestBoardEvents : IBoardEvents
     public readonly List<(int BoardId, CardDto Card)> CardUpdatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardMovedEvents = [];
     public readonly List<(int BoardId, int CardId)> CardDeletedEvents = [];
+    public readonly List<(int BoardId, int CardId, CardAttachmentDto Attachment)> AttachmentAddedEvents = [];
+    public readonly List<(int BoardId, int CardId, int AttachmentId)> AttachmentDeletedEvents = [];
     public readonly List<int> ResyncRequestedBoardIds = [];
     public readonly List<string> PublishedEventNames = [];
 
@@ -51,6 +53,20 @@ public sealed class TestBoardEvents : IBoardEvents
     {
         ResyncRequestedBoardIds.Add(boardId);
         PublishedEventNames.Add("resync-requested");
+        return Task.CompletedTask;
+    }
+
+    public Task AttachmentAddedAsync(int boardId, int cardId, CardAttachmentDto attachment)
+    {
+        AttachmentAddedEvents.Add((boardId, cardId, attachment));
+        PublishedEventNames.Add("attachment-added");
+        return Task.CompletedTask;
+    }
+
+    public Task AttachmentDeletedAsync(int boardId, int cardId, int attachmentId)
+    {
+        AttachmentDeletedEvents.Add((boardId, cardId, attachmentId));
+        PublishedEventNames.Add("attachment-deleted");
         return Task.CompletedTask;
     }
 

@@ -25,9 +25,11 @@ public sealed class BoardPackageImportWriter(
     ITagRepository tagRepository,
     ISlickRepository slickRepository,
     ImportedUserResolver importedUserResolver,
+    BoardPackageAttachmentImporter attachmentImporter,
     IDbContextScopeFactory scopeFactory)
 {
-    public async Task<ApiResult<BoardDto>> PersistBoardPackageImportAsync(BoardPackageImportPlan importPlan, int actorUserId)
+    public async Task<ApiResult<BoardDto>> PersistBoardPackageImportAsync(BoardPackageImportPlan importPlan, int actorUserId,
+        PreparedBoardAttachments? attachments = null, CancellationToken cancellationToken = default)
     {
         importedUserResolver.Reset();
         var sortKeyPlanResult = CreateSortKeyPlan(importPlan.Columns);
@@ -37,7 +39,7 @@ public sealed class BoardPackageImportWriter(
         }
         var sortKeyPlan = sortKeyPlanResult.Plan!;
 
-        using var scope = scopeFactory.Create();
+        using var scope = scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         var now = DateTime.UtcNow;
         var board = new EntityBoard
@@ -183,6 +185,7 @@ public sealed class BoardPackageImportWriter(
                 }
 
                 cardRepository.Add(createdCard);
+                if (attachments is not null) { await attachmentImporter.AttachAsync(attachments, createdCard, null); }
                 createdCards.Add(createdCard);
 
                 foreach (var importedComment in importedCard.Comments)
@@ -212,7 +215,7 @@ public sealed class BoardPackageImportWriter(
                 var searchTagsJson = JsonSerializer.Serialize<IReadOnlyList<string>>(importedArchivedCard.TagNames);
                 var searchTextNormalised = BoardPackageImportNormalisation.BuildArchiveSearchText(importedArchivedCard.Title, importedArchivedCard.TagNames);
 
-                archivedCardRepository.Add(new EntityArchivedCard
+                var archivedCard = new EntityArchivedCard
                 {
                     Board = board,
                     OriginalCardId = importedArchivedCard.OriginalCardId,
@@ -221,11 +224,14 @@ public sealed class BoardPackageImportWriter(
                     SearchTitle = importedArchivedCard.Title,
                     SearchTagsJson = searchTagsJson,
                     SearchTextNormalised = searchTextNormalised
-                });
+                };
+                archivedCardRepository.Add(archivedCard);
+                if (attachments is not null) { await attachmentImporter.AttachAsync(attachments, null, archivedCard); }
             }
         }
 
-        await scope.SaveChangesAsync();
+        cancellationToken.ThrowIfCancellationRequested();
+        await scope.SaveChangesAsync(cancellationToken);
 
         var columnDtos = createdColumns
             .OrderBy(x => x.SortKey)

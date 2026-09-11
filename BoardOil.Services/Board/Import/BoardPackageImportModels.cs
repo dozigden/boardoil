@@ -7,7 +7,8 @@ public sealed record BoardPackageReadResult(
     BoardPackageBoardDto? BoardPayload,
     BoardPackageArchiveDto? ArchivePayload,
     ApiError? Error,
-    int? SchemaVersion = null);
+    int? SchemaVersion = null,
+    BoardPackageAttachmentsDto? Attachments = null);
 
 public sealed record BoardPackageImportPlanResult(
     BoardPackageImportPlan? Plan,

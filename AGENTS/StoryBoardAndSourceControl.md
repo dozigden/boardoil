@@ -59,6 +59,9 @@ This file defines how agents should manage work tracking and source control in t
 
 - The first action of any new plan that is not already being generated from a story on the board should always be to create a new story and record the plan in it.
 - Plans should favour vertical slices with deliverables that can be reviewed by the user.
+- "Slices" means explicit manual user review after each slice, not simply organising the finished work into review sections.
+- Implement and validate one slice, present its changes and relevant check results, then end the turn and wait for explicit user approval before starting the next slice. Address review feedback within that slice before proceeding.
+- Approval of a sliced plan, or a general instruction such as "implement the plan", does not authorise implementing every slice without these pauses. Only an explicit user instruction to waive the per-slice reviews changes this workflow.
 
 ## Source Control Practices
 

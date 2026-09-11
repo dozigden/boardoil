@@ -59,6 +59,7 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:BoardOil", $"Data Source={_databasePath}");
         builder.UseSetting("BoardOil:DataPath", _databasePath);
         builder.UseSetting("BoardOil:ImageRootPath", imageRootPath);
+        builder.UseSetting("BoardOil:AttachmentRootPath", _databasePath + ".attachments");
         builder.UseSetting("BoardOil:ExposeLan", "false");
         builder.UseSetting("BoardOil:Port", "5000");
         builder.UseSetting("BoardOilAuth:SigningKey", DefaultSigningKey);
@@ -83,6 +84,7 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
                 ["ConnectionStrings:BoardOil"] = $"Data Source={_databasePath}",
                 ["BoardOil:DataPath"] = _databasePath,
                 ["BoardOil:ImageRootPath"] = imageRootPath,
+                ["BoardOil:AttachmentRootPath"] = _databasePath + ".attachments",
                 ["BoardOil:ExposeLan"] = "false",
                 ["BoardOil:Port"] = "5000",
                 ["BoardOilAuth:SigningKey"] = DefaultSigningKey,

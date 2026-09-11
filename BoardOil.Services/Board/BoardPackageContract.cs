@@ -7,7 +7,9 @@ public static class BoardPackageContract
 {
     public const string PackageFormat = "boardoil-board-package";
     public const int MinSupportedSchemaVersion = 1;
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
+    public const string AttachmentsEntryKind = "attachments";
+    public const string AttachmentsEntryPath = "attachments.json";
     public const string ManifestPath = "manifest.json";
     public const string BoardEntryKind = "board";
     public const string BoardEntryPath = "board.json";
@@ -26,7 +28,8 @@ public static class BoardPackageContract
             normalisedExporterVersion,
             [
                 new BoardPackageManifestEntryDto(BoardEntryKind, BoardEntryPath),
-                new BoardPackageManifestEntryDto(ArchiveEntryKind, ArchiveEntryPath)
+                new BoardPackageManifestEntryDto(ArchiveEntryKind, ArchiveEntryPath),
+                new BoardPackageManifestEntryDto(AttachmentsEntryKind, AttachmentsEntryPath)
             ]);
     }
 
@@ -37,6 +40,10 @@ public static class BoardPackageContract
     public static ApiError? ValidateManifest(BoardPackageManifestDto manifest)
     {
         var errors = new List<ValidationError>();
+        if (manifest.Entries is null || manifest.Entries.Any(x => x is null))
+        {
+            return ApiErrors.BadRequest("Manifest entries must be valid objects.");
+        }
 
         if (!string.Equals(manifest.Format?.Trim(), PackageFormat, StringComparison.Ordinal))
         {
@@ -93,6 +100,12 @@ public static class BoardPackageContract
             errors.Add(new ValidationError(
                 "manifest.entries",
                 $"'{ArchiveEntryKind}' entry path must be '{ArchiveEntryPath}'."));
+        }
+
+        var attachmentEntries = manifest.Entries.Where(x => x.Kind == AttachmentsEntryKind).ToList();
+        if (manifest.SchemaVersion >= 4 && (attachmentEntries.Count != 1 || attachmentEntries[0].Path != AttachmentsEntryPath))
+        {
+            errors.Add(new ValidationError("manifest.entries", "Schema 4 requires exactly one attachments.json entry."));
         }
 
         return errors.Count == 0

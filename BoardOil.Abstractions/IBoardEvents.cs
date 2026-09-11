@@ -15,6 +15,8 @@ public interface IBoardEvents
     Task CardDeletedAsync(int boardId, int cardId);
     Task CardMovedAsync(int boardId, CardDto card);
     Task CommentCreatedAsync(int boardId, CardCommentDto comment);
+    Task AttachmentAddedAsync(int boardId, int cardId, CardAttachmentDto attachment);
+    Task AttachmentDeletedAsync(int boardId, int cardId, int attachmentId);
 
     Task ResyncRequestedAsync(int boardId);
     Task SystemInfoMessageUpdatedAsync(SystemInfoMessageDto? systemInfoMessage);

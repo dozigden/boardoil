@@ -9,6 +9,7 @@ import { useCardTypeStore } from './cardTypeStore';
 import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
 import { useSlickStore } from './slickStore';
+import { useAttachmentStore } from './attachmentStore';
 import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
 import type {
   Board,
@@ -37,6 +38,7 @@ export const useBoardStore = defineStore('board', () => {
   const commentStore = useCommentStore();
   const tagStore = useTagStore();
   const slickStore = useSlickStore();
+  const attachmentStore = useAttachmentStore();
   const api = createBoardApi();
   const systemInfoMessageStore = useSystemInfoMessageStore();
   const board = computed<Board | null>(() => {
@@ -64,6 +66,8 @@ export const useBoardStore = defineStore('board', () => {
     onCardDeleted: removeCardFromRealtime,
     onCardMoved: upsertCardFromRealtime,
     onCommentCreated: upsertCommentFromRealtime,
+    onAttachmentAdded: attachmentStore.added,
+    onAttachmentDeleted: attachmentStore.removed,
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
     onConnectionWarning: message => {
       feedback.clearToast();
@@ -110,6 +114,7 @@ export const useBoardStore = defineStore('board', () => {
     await cardTypeStore.loadCardTypes(boardId);
     await tagStore.loadTags(boardId);
     await slickStore.loadSlicks(boardId);
+    await attachmentStore.reload();
     await systemInfoMessageStore.load(true);
   }
 
@@ -127,6 +132,7 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     cardStore.removeCard(cardId);
+    attachmentStore.cardRemoved(boardId, cardId);
   }
 
   function upsertCommentFromRealtime(boardId: number, comment: CardComment) {
@@ -316,6 +322,7 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   function clearBoardContext() {
+    attachmentStore.clear();
     boardShell.value = null;
     currentBoardId.value = null;
     cardStore.dispose();

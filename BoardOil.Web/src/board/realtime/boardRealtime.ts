@@ -6,6 +6,7 @@ import {
   type ClientErrorReporter
 } from '../../shared/errors/clientErrorReporter';
 import type { Card, CardComment, Column } from '../../shared/types/boardTypes';
+import type { CardAttachment } from '../../shared/types/attachmentTypes';
 import type { SystemInfoMessageDto } from '../../shared/types/configurationTypes';
 import { readBrowserStorageItem } from '../../shared/utils/browserStorage';
 import {
@@ -22,6 +23,8 @@ export type BoardRealtimeHandlers = {
   onCardDeleted: (boardId: number, cardId: number) => Promise<unknown> | unknown;
   onCardMoved: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCommentCreated: (boardId: number, comment: CardComment) => Promise<unknown> | unknown;
+  onAttachmentAdded?: (boardId: number, cardId: number, attachment: CardAttachment) => Promise<unknown> | unknown;
+  onAttachmentDeleted?: (boardId: number, cardId: number, attachmentId: number) => Promise<unknown> | unknown;
   onSystemInfoMessageUpdated: (systemInfoMessage: SystemInfoMessageDto | null) => Promise<unknown> | unknown;
   onResync: (boardId: number) => Promise<unknown> | unknown;
   onConnectionWarning?: (message: string) => Promise<unknown> | unknown;
@@ -269,6 +272,12 @@ function registerBoardEventHandlers(
   connection.on('CardMoved', async (card: Card, boardId: number) => {
     logRealtime('Event: CardMoved', { boardId, cardId: card.id, boardColumnId: card.boardColumnId });
     await handlers.onCardMoved(boardId, card);
+  });
+  connection.on('AttachmentAdded', async (attachment: CardAttachment, cardId: number, boardId: number) => {
+    await handlers.onAttachmentAdded?.(boardId, cardId, attachment);
+  });
+  connection.on('AttachmentDeleted', async (attachmentId: number, cardId: number, boardId: number) => {
+    await handlers.onAttachmentDeleted?.(boardId, cardId, attachmentId);
   });
   connection.on('CommentCreated', async (comment: CardComment, boardId: number) => {
     logRealtime('Event: CommentCreated', { boardId, commentId: comment.id, cardId: comment.cardId });

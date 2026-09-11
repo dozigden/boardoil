@@ -34,7 +34,7 @@ public static class BoardEndpoints
             BoardOilBuildInfo buildInfo,
             HttpContext httpContext) =>
         {
-            var result = await boardExportService.ExportBoardAsync(boardId, httpContext.GetActorUserId(), buildInfo.Version);
+            var result = await boardExportService.ExportBoardAsync(boardId, httpContext.GetActorUserId(), buildInfo.Version, httpContext.RequestAborted);
             if (!result.Success)
             {
                 return result.ToHttpResult();
@@ -59,13 +59,18 @@ public static class BoardEndpoints
             IBoardPackageImportService boardPackageImportService,
             HttpContext httpContext) =>
         {
+            var feature = httpContext.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+            if (feature is { IsReadOnly: false }) { feature.MaxRequestBodySize = null; }
+            httpContext.Features.Set<Microsoft.AspNetCore.Http.Features.IFormFeature>(new Microsoft.AspNetCore.Http.Features.FormFeature(request,
+                new Microsoft.AspNetCore.Http.Features.FormOptions { MultipartBodyLengthLimit = long.MaxValue }));
             var importRequestResult = await TryReadBoardPackageImportRequestAsync(request);
             if (!importRequestResult.Success)
             {
                 return importRequestResult.ToHttpResult();
             }
 
-            return (await boardPackageImportService.ImportBoardPackageAsync(importRequestResult.Data!, httpContext.GetActorUserId())).ToHttpResult();
+            await using var input = importRequestResult.Data!.PackageContent;
+            return (await boardPackageImportService.ImportBoardPackageAsync(importRequestResult.Data!, httpContext.GetActorUserId(), httpContext.RequestAborted)).ToHttpResult();
         });
 
         boardEndpoints.MapPut("/{boardId:int}", async (int boardId, UpdateBoardRequest request, IBoardService boardService, HttpContext httpContext) =>
@@ -99,7 +104,7 @@ public static class BoardEndpoints
         IFormCollection form;
         try
         {
-            form = await request.ReadFormAsync();
+            form = await request.ReadFormAsync(request.HttpContext.RequestAborted);
         }
         catch (InvalidDataException)
         {
@@ -117,19 +122,11 @@ public static class BoardEndpoints
             return ValidationFailure("file", "Board package ZIP file cannot be empty.");
         }
 
-        byte[] packageContent;
-        await using (var packageStream = packageFile.OpenReadStream())
-        {
-            using var memoryStream = new MemoryStream();
-            await packageStream.CopyToAsync(memoryStream);
-            packageContent = memoryStream.ToArray();
-        }
-
         var boardName = form.TryGetValue("name", out var boardNameValues)
             ? boardNameValues.ToString()
             : null;
 
-        return ApiResults.Ok(new ImportBoardPackageRequest(boardName, packageContent));
+        return ApiResults.Ok(new ImportBoardPackageRequest(boardName, packageFile.OpenReadStream()));
     }
 
     private static ApiResult<ImportBoardPackageRequest> ValidationFailure(string property, string message) =>

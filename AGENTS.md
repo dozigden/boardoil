@@ -15,6 +15,7 @@ Read area guidance before working in that part of the system:
 
 ## Always-On Rules
 
+- Sliced work requires explicit manual user review after every slice. Implement and validate only the current slice, then stop and wait for the user's approval before starting the next. Approval of the overall plan or an instruction to implement it does not waive these review pauses; see [planning guidance](AGENTS/StoryBoardAndSourceControl.md#plans).
 - Source control:
   - work directly on `main` by default
   - do not create, switch to, or push a task/feature branch, and do not open a pull request, unless the user explicitly requests a branch or pull request for the current task

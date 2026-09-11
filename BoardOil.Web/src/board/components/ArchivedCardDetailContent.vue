@@ -64,6 +64,8 @@
         <span v-else>-</span>
       </div>
 
+      <CardAttachments :board-id="archivedCard.boardId" :card-id="archivedCard.id" archived read-only />
+
       <div class="card-editor-option-section">
         <span class="card-editor-field-label">Archived</span>
         <span>{{ formatDateTime(archivedCard.archivedAtUtc) }}</span>
@@ -86,6 +88,7 @@
 import { computed } from 'vue';
 import MdViewer from '../../shared/components/MdViewer.vue';
 import Tag from './Tag.vue';
+import CardAttachments from './CardAttachments.vue';
 import type { ArchivedCard } from '../../shared/types/boardTypes';
 import { isHttpOrHttpsUrl } from '../../shared/utils/linkUrl';
 

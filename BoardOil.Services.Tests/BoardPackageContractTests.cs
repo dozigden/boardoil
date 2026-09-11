@@ -13,7 +13,8 @@ public sealed class BoardPackageContractTests
             BoardPackageContract.PackageFormat,
             BoardPackageContract.CurrentSchemaVersion,
             "0.2.0",
-            [new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, BoardPackageContract.BoardEntryPath)]);
+            [new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, BoardPackageContract.BoardEntryPath),
+                new BoardPackageManifestEntryDto(BoardPackageContract.AttachmentsEntryKind, BoardPackageContract.AttachmentsEntryPath)]);
 
         var validationError = BoardPackageContract.ValidateManifest(manifest);
 
@@ -29,6 +30,7 @@ public sealed class BoardPackageContractTests
 
         Assert.Contains(manifest.Entries, x => x.Kind == BoardPackageContract.BoardEntryKind && x.Path == BoardPackageContract.BoardEntryPath);
         Assert.Contains(manifest.Entries, x => x.Kind == BoardPackageContract.ArchiveEntryKind && x.Path == BoardPackageContract.ArchiveEntryPath);
+        Assert.Contains(manifest.Entries, x => x.Kind == BoardPackageContract.AttachmentsEntryKind && x.Path == BoardPackageContract.AttachmentsEntryPath);
     }
 
     [Fact]

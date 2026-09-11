@@ -1,3 +1,5 @@
+import { uploadFormData } from './http';
+import type { CardAttachment, CardAttachmentList } from '../types/attachmentTypes';
 import type {
   ArchiveCardsSummary,
   ArchivedCard,
@@ -168,6 +170,33 @@ function createHttpBoardApi() {
 
   async function createCard(boardId: number, model: CardEditModel): Promise<Result<Card, AppError>> {
     return postData<Card>(`/api/boards/${boardId}/cards`, model);
+  }
+
+  async function duplicateCard(boardId: number, cardId: number, model: CardEditModel): Promise<Result<Card, AppError>> {
+    return postData<Card>(`/api/boards/${boardId}/cards/${cardId}/duplicate`, model);
+  }
+
+  async function getAttachments(boardId: number, cardId: number, archived: boolean): Promise<Result<CardAttachmentList, AppError>> {
+    const prefix = archived ? 'cards/archived' : 'cards';
+    const result = await getEnvelope<CardAttachmentList>(`/api/boards/${boardId}/${prefix}/${cardId}/attachments`);
+    if (!result.ok) { return result; }
+    if (!result.data.data) { return err({ kind: 'parse', message: 'Attachment list was missing.' }); }
+    return ok(result.data.data);
+  }
+
+  async function uploadAttachment(boardId: number, cardId: number, file: File, progress: (percent: number) => void,
+    signal: AbortSignal): Promise<Result<CardAttachment, AppError>> {
+    const form = new FormData();
+    form.append('file', file);
+    return uploadFormData<CardAttachment>(`/api/boards/${boardId}/cards/${cardId}/attachments`, form, progress, signal);
+  }
+
+  async function downloadAttachment(boardId: number, attachmentId: number): Promise<Result<BoardExportPackage, AppError>> {
+    return getBinary(`/api/boards/${boardId}/attachments/${attachmentId}/download`);
+  }
+
+  async function deleteAttachment(boardId: number, cardId: number, attachmentId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/boards/${boardId}/cards/${cardId}/attachments/${attachmentId}`);
   }
 
   async function saveCard(
@@ -424,6 +453,12 @@ function createHttpBoardApi() {
   }
 
   return {
+    supportsAttachments: true,
+    getAttachments,
+    uploadAttachment,
+    downloadAttachment,
+    deleteAttachment,
+    duplicateCard,
     getBoards,
     getBoard,
     createBoard,

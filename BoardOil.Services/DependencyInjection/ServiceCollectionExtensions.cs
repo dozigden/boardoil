@@ -26,6 +26,9 @@ using BoardOil.Services.Slick;
 using BoardOil.Services.Style;
 using BoardOil.Services.Users;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using BoardOil.Abstractions.Attachment;
+using BoardOil.Services.Attachment;
 
 namespace BoardOil.Services.DependencyInjection;
 
@@ -33,6 +36,11 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddBoardOilServices(this IServiceCollection services)
     {
+        services.TryAddSingleton(new AttachmentStorageOptions());
+        services.AddScoped<IAttachmentStorageService, LocalAttachmentStorageService>();
+        services.AddScoped<CardAttachmentService>();
+        services.AddScoped<ICardAttachmentService>(provider => provider.GetRequiredService<CardAttachmentService>());
+        services.AddScoped<BoardPackageStorageService>();
         services.AddScoped<IColumnValidator, ColumnValidator>();
         services.AddScoped<ICardValidator, CardValidator>();
         services.AddScoped<CreateCardPlanner>();
@@ -58,6 +66,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<BoardPackageImportPlanner>();
         services.AddScoped<ImportedUserResolver>();
         services.AddScoped<BoardPackageImportWriter>();
+        services.AddScoped<BoardPackageAttachmentImporter>();
         services.AddScoped<IBoardPackageImportService, BoardPackageImportService>();
         services.AddScoped<ISystemBoardService, SystemBoardService>();
         services.AddScoped<IBoardAuthorisationService, BoardAuthorisationService>();

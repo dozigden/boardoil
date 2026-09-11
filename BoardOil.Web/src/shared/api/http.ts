@@ -102,6 +102,57 @@ export async function postFormData<T>(path: string, payload: FormData): Promise<
   return sendFormForData<T>('POST', path, payload);
 }
 
+export async function uploadFormData<T>(path: string, payload: FormData, onProgress: (percent: number) => void,
+  signal: AbortSignal): Promise<Result<T, AppError>> {
+  async function upload(): Promise<Result<Response, AppError>> {
+    return new Promise(resolve => {
+      if (signal.aborted) { resolve(err({ kind: 'network', message: 'Upload cancelled.' })); return; }
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', buildApiUrl(path));
+      xhr.withCredentials = true;
+      if (csrfToken) { xhr.setRequestHeader('X-BoardOil-CSRF', csrfToken); }
+      const abort = () => xhr.abort();
+      const finish = (result: Result<Response, AppError>) => {
+        signal.removeEventListener('abort', abort);
+        resolve(result);
+      };
+      xhr.upload.onprogress = event => {
+        if (event.lengthComputable) { onProgress(Math.round(event.loaded * 100 / event.total)); }
+      };
+      xhr.onload = () => {
+        try {
+          const body = xhr.status === 204 || xhr.status === 205 || xhr.status === 304 ? null : xhr.responseText;
+          finish(ok(new Response(body, {
+            status: xhr.status,
+            headers: { 'Content-Type': xhr.getResponseHeader('Content-Type') ?? 'application/json' }
+          })));
+        } catch { finish(err({ kind: 'parse', message: 'Unexpected upload response.' })); }
+      };
+      xhr.onerror = () => finish(err({ kind: 'network', message: 'Upload failed. Check your connection and retry.' }));
+      xhr.onabort = () => finish(err({ kind: 'network', message: 'Upload cancelled.' }));
+      signal.addEventListener('abort', abort, { once: true });
+      xhr.send(payload);
+    });
+  }
+  let response = await upload();
+  if (response.ok && response.data.status === 401 && shouldAttemptSessionRefresh(path) && !signal.aborted) {
+    if (await tryRefreshSession()) { response = await upload(); }
+  }
+  if (!response.ok) { return response; }
+  if (!response.data.ok) {
+    if (response.data.status === 401) { notifyUnauthorized(); }
+    const error = await tryParseErrorPayload(response.data);
+    return err({ kind: 'http', statusCode: response.data.status,
+      message: error?.message ?? formatStatusMessage(response.data), validationErrors: error?.validationErrors });
+  }
+  const envelope = await parseEnvelope<T>(response.data);
+  if (!envelope.ok) { return envelope; }
+  if (envelope.data.success === false || envelope.data.data == null) {
+    return err({ kind: 'api', message: envelope.data.message ?? 'Upload response was missing.' });
+  }
+  return ok(envelope.data.data);
+}
+
 export async function patchData<T>(path: string, payload: unknown): Promise<Result<T, AppError>> {
   return sendJsonForData<T>('PATCH', path, payload);
 }

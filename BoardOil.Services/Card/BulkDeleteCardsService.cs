@@ -11,11 +11,12 @@ public sealed class BulkDeleteCardsService(
     ICardRepository cardRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
-    IDbContextScopeFactory scopeFactory)
+    IDbContextScopeFactory scopeFactory,
+    BoardOil.Services.Attachment.CardAttachmentService attachments)
 {
     public async Task<ApiResult<BulkDeleteCardsSummaryDto>> ExecuteAsync(int boardId, BulkDeleteCardsRequest request, int actorUserId)
     {
-        using var scope = scopeFactory.Create();
+        using var scope = scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardDelete);
         if (!hasPermission)
@@ -37,8 +38,10 @@ public sealed class BulkDeleteCardsService(
             return ApiErrors.ValidationFailed([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
         }
 
+        var deletedAttachmentKeys = await attachments.DeleteForCardsAsync(cards.Select(x => x.Id).ToList());
         cardRepository.RemoveRange(cards);
         await scope.SaveChangesAsync();
+        await attachments.DeleteFilesAsync(deletedAttachmentKeys);
 
         foreach (var cardId in uniqueCardIds)
         {
@@ -46,4 +49,5 @@ public sealed class BulkDeleteCardsService(
         }
 
         return ApiResults.Ok(new BulkDeleteCardsSummaryDto(boardId, uniqueCardIds.Count, uniqueCardIds.Count));
-    }}
+    }
+}

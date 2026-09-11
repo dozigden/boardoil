@@ -4,7 +4,7 @@
     class="fixed-chrome-dialog"
     :class="[`fixed-chrome-dialog--${size}`, `fixed-chrome-dialog--body-${bodyMode}`]"
     :aria-labelledby="titleId"
-    @cancel.prevent="emit('close')"
+    @cancel.self.prevent="emit('close')"
     @click="onDialogClick"
   >
     <form v-if="open" class="editor fixed-chrome-dialog__surface" @submit.prevent="emit('submit')">

@@ -1,3 +1,4 @@
+using BoardOil.Services.Attachment;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
@@ -29,11 +30,13 @@ public sealed class CreateCardService(
     CardInsertionOrderPlanner insertionOrderPlanner,
     IBoardEvents boardEvents,
     IBoardStyleDefaultService styleDefaultService,
-    IDbContextScopeFactory scopeFactory)
+    IDbContextScopeFactory scopeFactory,
+    CardAttachmentService attachments)
 {
     private readonly ITagRepository _tagRepository = tagRepository;
 
-    public async Task<ApiResult<CardDto>> ExecuteAsync(int boardId, CreateCardRequest request, int actorUserId)
+    public async Task<ApiResult<CardDto>> ExecuteAsync(int boardId, CreateCardRequest request, int actorUserId,
+        int? duplicateFromCardId = null, CancellationToken cancellationToken = default)
     {
         using var scope = scopeFactory.Create();
 
@@ -121,11 +124,20 @@ public sealed class CreateCardService(
             assignment.Card.SortKey = assignment.SortKey;
         }
 
+        CardAttachmentCopy? attachmentCopy = null;
+        if (duplicateFromCardId.HasValue)
+        {
+            // All draft validation has passed; only now create independent attachment files.
+            attachmentCopy = await attachments.PrepareCopyAsync(boardId, duplicateFromCardId.Value, actorUserId, cancellationToken);
+        }
+
         await scope.Transaction(async (transactionScope, transaction) =>
         {
             card.BoardCardId = await boardCardIdAllocator.AllocateNextAsync(boardId);
+            if (attachmentCopy is not null) { await attachments.AttachCopyAsync(attachmentCopy, card, actorUserId); }
             cardRepository.Add(card);
-            await transactionScope.SaveChangesAsync();
+            cancellationToken.ThrowIfCancellationRequested();
+            await transactionScope.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync();
         });
 
@@ -137,4 +149,5 @@ public sealed class CreateCardService(
         }
 
         return ApiResults.Created(created);
-    }}
+    }
+}

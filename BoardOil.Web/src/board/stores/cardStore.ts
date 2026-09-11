@@ -53,7 +53,7 @@ export const useCardStore = defineStore('card', () => {
 
   async function createCard(
     model: CardEditModel,
-    options?: { suppressValidationFeedback?: boolean }
+    options?: { suppressValidationFeedback?: boolean; duplicateFromCardId?: number }
   ) {
     model.title = model.title.trim();
     if (!model.title) {
@@ -62,7 +62,12 @@ export const useCardStore = defineStore('card', () => {
 
     const boardId = activeBoardId.value;
     const result = await runBusy(
-      () => api.createCard(boardId, model),
+      () => {
+        if (options?.duplicateFromCardId !== undefined) {
+          return api.duplicateCard(boardId, options.duplicateFromCardId, model);
+        }
+        return api.createCard(boardId, model);
+      },
       {
         boardId,
         suppressError: options?.suppressValidationFeedback

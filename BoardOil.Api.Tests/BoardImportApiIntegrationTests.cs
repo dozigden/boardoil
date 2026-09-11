@@ -111,6 +111,10 @@ public sealed class BoardImportApiIntegrationTests : TestBaseIntegration
 
     private static void WriteJsonEntry<T>(ZipArchive archive, string path, T payload)
     {
+        if (payload is BoardPackageManifestDto { SchemaVersion: >= 4 })
+        {
+            WriteJsonEntry(archive, BoardPackageContract.AttachmentsEntryPath, new BoardPackageAttachmentsDto([]));
+        }
         var entry = archive.CreateEntry(path, CompressionLevel.Optimal);
         using var writer = new StreamWriter(entry.Open());
         writer.Write(JsonSerializer.Serialize(payload, JsonOptions));

@@ -5,5 +5,5 @@ namespace BoardOil.Abstractions.Board;
 
 public interface IBoardPackageImportService
 {
-    Task<ApiResult<BoardDto>> ImportBoardPackageAsync(ImportBoardPackageRequest request, int actorUserId);
+    Task<ApiResult<BoardDto>> ImportBoardPackageAsync(ImportBoardPackageRequest request, int actorUserId, CancellationToken cancellationToken = default);
 }

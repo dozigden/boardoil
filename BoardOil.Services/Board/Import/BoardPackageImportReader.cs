@@ -11,10 +11,16 @@ public sealed class BoardPackageImportReader
 
     public BoardPackageReadResult TryReadBoardPackage(byte[] packageContent)
     {
+        using var stream = new MemoryStream(packageContent, writable: false);
+        return TryReadBoardPackage(stream);
+    }
+
+    public BoardPackageReadResult TryReadBoardPackage(Stream packageContent)
+    {
         try
         {
-            using var stream = new MemoryStream(packageContent);
-            using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+            using var archive = new ZipArchive(packageContent, ZipArchiveMode.Read, leaveOpen: true);
+            ValidateArchive(archive);
 
             var manifestEntry = archive.GetEntry(BoardPackageContract.ManifestPath);
             if (manifestEntry is null)
@@ -113,7 +119,16 @@ public sealed class BoardPackageImportReader
                 archivePayload = parseArchivePayloadResult.ArchivePayload;
             }
 
-            return new BoardPackageReadResult(boardPayload, archivePayload, null, manifest.SchemaVersion);
+            BoardPackageAttachmentsDto? attachments = null;
+            if (manifest.SchemaVersion >= 4)
+            {
+                var entry = archive.GetEntry(BoardPackageContract.AttachmentsEntryPath)
+                    ?? throw new InvalidDataException("Attachment manifest is missing.");
+                using var attachmentStream = entry.Open();
+                attachments = JsonSerializer.Deserialize<BoardPackageAttachmentsDto>(attachmentStream, JsonOptions);
+                if (attachments?.Items is null) { throw new InvalidDataException("Attachment manifest is invalid."); }
+            }
+            return new BoardPackageReadResult(boardPayload, archivePayload, null, manifest.SchemaVersion, attachments);
         }
         catch (InvalidDataException)
         {
@@ -131,6 +146,19 @@ public sealed class BoardPackageImportReader
         }
     }
 
+    private static void ValidateArchive(ZipArchive archive)
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in archive.Entries)
+        {
+            if (!paths.Add(entry.FullName) || entry.FullName.Contains('\\') || entry.FullName.StartsWith('/')
+                || entry.FullName.Split('/').Any(segment => segment is ".." or "." or ""))
+            {
+                throw new InvalidDataException("Board package contains duplicate or unsafe entry paths.");
+            }
+        }
+    }
+
     private static ParseBoardPayloadResult TryParseBoardPayload(int schemaVersion, string boardJson)
     {
         switch (schemaVersion)
@@ -138,10 +166,11 @@ public sealed class BoardPackageImportReader
             case 1:
             case 2:
             case 3:
-            {
-                var boardPayload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
-                return new ParseBoardPayloadResult(boardPayload, null);
-            }
+            case 4:
+                {
+                    var boardPayload = JsonSerializer.Deserialize<BoardPackageBoardDto>(boardJson, JsonOptions);
+                    return new ParseBoardPayloadResult(boardPayload, null);
+                }
             default:
                 return new ParseBoardPayloadResult(
                     null,
@@ -158,17 +187,18 @@ public sealed class BoardPackageImportReader
             case 1:
             case 2:
             case 3:
-            {
-                var archivePayload = JsonSerializer.Deserialize<BoardPackageArchiveDto>(archiveJson, JsonOptions);
-                if (archivePayload is null)
+            case 4:
                 {
-                    return new ParseArchivePayloadResult(
-                        null,
-                        ApiErrors.ValidationFailed([new ValidationError("archive", "Archive payload is invalid JSON.")]));
-                }
+                    var archivePayload = JsonSerializer.Deserialize<BoardPackageArchiveDto>(archiveJson, JsonOptions);
+                    if (archivePayload is null)
+                    {
+                        return new ParseArchivePayloadResult(
+                            null,
+                            ApiErrors.ValidationFailed([new ValidationError("archive", "Archive payload is invalid JSON.")]));
+                    }
 
-                return new ParseArchivePayloadResult(archivePayload, null);
-            }
+                    return new ParseArchivePayloadResult(archivePayload, null);
+                }
             default:
                 return new ParseArchivePayloadResult(
                     null,

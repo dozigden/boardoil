@@ -21,7 +21,8 @@ public sealed class BoardService(
     ICardRepository cardRepository,
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
-    IDbContextScopeFactory scopeFactory) : IBoardService
+    IDbContextScopeFactory scopeFactory,
+    BoardOil.Services.Attachment.CardAttachmentService attachments) : IBoardService
 {
     private const int MaxBoardNameLength = 120;
     private const int MaxBoardDescriptionLength = 5_000;
@@ -229,7 +230,7 @@ public sealed class BoardService(
 
     public async Task<ApiResult> DeleteBoardAsync(int boardId, int actorUserId)
     {
-        using var scope = scopeFactory.Create();
+        using var scope = scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         var board = boardRepository.Get(boardId);
         if (board is null)
@@ -243,8 +244,10 @@ public sealed class BoardService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
+        var deletedAttachmentKeys = await attachments.DeleteForBoardAsync(boardId);
         boardRepository.Remove(board);
         await scope.SaveChangesAsync();
+        await attachments.DeleteFilesAsync(deletedAttachmentKeys);
         return ApiResults.Ok();
     }
 

@@ -1,4 +1,5 @@
 using BoardOil.Abstractions;
+using BoardOil.Services.Attachment;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
@@ -22,7 +23,8 @@ public sealed class CardService(
     BulkEditCardsService bulkEditCardsService,
     BulkDeleteCardsService bulkDeleteCardsService,
     IBoardEvents boardEvents,
-    IDbContextScopeFactory scopeFactory) : ICardService
+    IDbContextScopeFactory scopeFactory,
+    CardAttachmentService attachments) : ICardService
 {
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
@@ -146,6 +148,18 @@ public sealed class CardService(
         return await createCardService.ExecuteAsync(boardId, request, actorUserId);
     }
 
+    public async Task<ApiResult<CardDto>> DuplicateCardAsync(int boardId, int cardId, CreateCardRequest request, int actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await createCardService.ExecuteAsync(boardId, request, actorUserId, cardId, cancellationToken);
+        }
+        catch (UnauthorizedAccessException exception) { return ApiErrors.Forbidden(exception.Message); }
+        catch (AttachmentOwnerChangedException) { return new ApiError(409, "The source card or its attachments changed. Reload and retry."); }
+        catch (IOException) { return new ApiError(409, "An attachment could not be copied. No duplicate was created."); }
+    }
+
     public async Task<ApiResult<CardDto>> UpdateCardAsync(int boardId, int id, UpdateCardRequest request, int actorUserId)
     {
         return await updateCardService.ExecuteAsync(boardId, id, request, actorUserId);
@@ -177,7 +191,7 @@ public sealed class CardService(
 
     public async Task<ApiResult> DeleteCardAsync(int boardId, int id, int actorUserId)
     {
-        using var scope = _scopeFactory.Create();
+        using var scope = _scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardDelete);
         if (!hasPermission)
@@ -191,8 +205,10 @@ public sealed class CardService(
             return ApiResults.Ok();
         }
 
+        var deletedAttachmentKeys = await attachments.DeleteForCardsAsync([card.Id]);
         cardRepository.Remove(card);
         await scope.SaveChangesAsync();
+        await attachments.DeleteFilesAsync(deletedAttachmentKeys);
         await _boardEvents.CardDeletedAsync(boardId, card.RequireBoardCardId());
 
         return ApiResults.Ok();

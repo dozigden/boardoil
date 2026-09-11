@@ -44,14 +44,14 @@
               <span>Move to another board</span>
             </span>
           </button>
-          <button type="button" class="bo-dropdown-item" @click="close(); void archiveEditingCard()">
+          <button type="button" class="bo-dropdown-item" :disabled="attachments.busy" @click="close(); void archiveEditingCard()">
             <span class="bo-dropdown-item-main card-editor-menu-item">
               <Archive :size="14" aria-hidden="true" />
               <span>Archive</span>
             </span>
           </button>
           <span class="bo-dropdown-divider" aria-hidden="true"></span>
-          <button type="button" class="bo-dropdown-item" @click="close(); void deleteEditingCard()">
+          <button type="button" class="bo-dropdown-item" :disabled="attachments.busy" @click="close(); void deleteEditingCard()">
             <span class="bo-dropdown-item-main card-editor-menu-item card-editor-menu-item--danger">
               <Trash2 :size="14" aria-hidden="true" />
               <span>Delete</span>
@@ -291,6 +291,9 @@
             @update:external-url="updateDraftExternalUrlFromEditor"
           />
 
+          <CardAttachments v-if="routeCardId !== null" :board-id="boardId" :card-id="routeCardId"
+            :read-only="isDuplicatingCard" :duplicating="isDuplicatingCard" />
+
           <div v-if="!isDuplicatingCard" class="card-editor-option-section">
             <span class="card-editor-field-label">Created</span>
             <span>{{ formatCardDateTime(editingCard!.cardCreatedUtc) }}</span>
@@ -333,6 +336,8 @@ import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import MdEditor from '../../shared/components/MdEditor.vue';
+import CardAttachments from './CardAttachments.vue';
+import { useAttachmentStore } from '../stores/attachmentStore';
 import MdEditorToolbar from '../../shared/components/MdEditorToolbar.vue';
 import MdViewer from '../../shared/components/MdViewer.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
@@ -377,6 +382,7 @@ const { loadCardTypes } = cardTypeStore;
 const { loadSlicks } = slickStore;
 const { ensureTagsExist } = tagStore;
 const { confirm } = useConfirm();
+const attachments = useAttachmentStore();
 const maxDescriptionLength = 20_000;
 const maxCommentLength = 4_000;
 const cardDraft = ref<CardEditModel | null>(null);
@@ -398,11 +404,11 @@ const descriptionIsPlainTextMode = ref(false);
 const commentIsPlainTextMode = ref(false);
 
 const hasUnsavedChanges = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value);
-const isTransferDisabled = computed(() => hasUnsavedChanges.value);
+const isTransferDisabled = computed(() => hasUnsavedChanges.value || attachments.busy);
 const transferActionTitle = computed(() => isTransferDisabled.value
   ? 'Save or discard unsaved changes before moving this card.'
   : 'Move this card to another board.');
-const isDuplicateDisabled = computed(() => hasUnsavedChanges.value);
+const isDuplicateDisabled = computed(() => hasUnsavedChanges.value || attachments.busy);
 const duplicateActionTitle = computed(() => isDuplicateDisabled.value
   ? 'Save or discard unsaved changes before duplicating this card.'
   : 'Duplicate this card.');
@@ -574,6 +580,11 @@ function resetCommentDraft() {
 }
 
 async function confirmDiscardUnsavedChanges() {
+  if (attachments.busy) {
+    const cancelUpload = await confirm({ title: 'Cancel upload', message: 'Cancel the active upload and leave? Completed attachments will be kept.', confirmLabel: 'Cancel upload' });
+    if (!cancelUpload) { return false; }
+    attachments.cancel();
+  }
   if (!hasUnsavedChanges.value) {
     return true;
   }
@@ -595,6 +606,11 @@ async function closeCardEditorWithoutPrompt() {
 }
 
 async function closeCardEditorInternal(skipUnsavedGuard: boolean) {
+  if (skipUnsavedGuard && attachments.busy) {
+    const cancelUpload = await confirm({ title: 'Cancel upload', message: 'Cancel the active upload and leave? Completed attachments will be kept.', confirmLabel: 'Cancel upload' });
+    if (!cancelUpload) { return; }
+    attachments.cancel();
+  }
   if (!skipUnsavedGuard) {
     const shouldDiscard = await confirmDiscardUnsavedChanges();
     if (!shouldDiscard) {
@@ -809,7 +825,8 @@ async function saveCard() {
   }
 
   if (isDuplicatingCard.value) {
-    const created = await createCardAction(draft);
+    if (cardId === null) { return; }
+    const created = await createCardAction(draft, { duplicateFromCardId: cardId });
     if (created?.ok) {
       await closeCardEditorWithoutPrompt();
     }
@@ -858,6 +875,7 @@ async function openCardTransfer() {
 }
 
 async function deleteEditingCard() {
+  if (attachments.busy) { return; }
   const cardId = routeCardId.value;
   if (!cardDraft.value || cardId === null) {
     return;
@@ -880,6 +898,7 @@ async function deleteEditingCard() {
 }
 
 async function archiveEditingCard() {
+  if (attachments.busy) { return; }
   const cardId = routeCardId.value;
   if (!cardDraft.value || cardId === null) {
     return;

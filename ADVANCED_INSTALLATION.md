@@ -19,6 +19,7 @@ The `/data` volume contains all persistent installation state:
 
 - `boardoil.db`: the SQLite database
 - `images/`: uploaded images
+- `attachments/`: private, original card attachment files and temporary board packages
 - `boardoil-auth-signing-key`: the generated authentication signing key
 - `backups/`: automatic database backups made before schema migrations
 
@@ -34,7 +35,29 @@ To restore one, stop BoardOil and preserve the current database before copying t
 
 BoardOil will apply any migrations required by the running image when it starts. If you are recovering from a failed migration, use the earlier BoardOil image that matches the backup or the same migration will be attempted again.
 
-Automatic backups contain only the database; uploaded images and the authentication signing key are not included.
+Automatic backups contain only the database; uploaded images, card attachment files, and the authentication signing key are not included. Back up and restore the database and attachment files together, with BoardOil stopped. Restoring an older database alone may reference attachments that have since been deleted.
+
+### Card attachment storage and limits
+
+Card attachments accept any file type and preserve the original bytes. They are served only through authenticated download endpoints, never through the public image directory. The default private directory is `attachments/` beside the SQLite database (`/data/attachments` in the container).
+
+Optional environment settings:
+
+```yaml
+environment:
+  BoardOil__AttachmentRootPath: "/data/attachments"
+  BoardOil__AttachmentMaxByteLength: "10485760" # 10 MiB per file
+```
+
+If you change the attachment root, move the existing directory while BoardOil is stopped and include the new location in persistent storage and backups. Do not place it inside a publicly served directory. Allow disk capacity for original files, independent duplicate/import copies, and temporary packages. There is no application-imposed whole-package, JSON-entry-size or ZIP-entry-count limit; imported attachments must meet the current per-file limit. Duplicating existing attachments is not restricted by a subsequently lowered upload limit. Configure any reverse proxy's request limit to accommodate uploads, including multipart overhead.
+
+Attachment records are saved as `Pending` before files are written and become `Ready` only when the operation commits. Filenames are unique within a card, ignoring case. Pending attachments reserve their name but are not shown or downloadable. Failed uploads release the name for retry.
+
+Deletion changes the same attachment row to `PendingDeletion` and clears its owner before the card or board can be removed. File deletion is attempted after committing that change; the row is removed only when the file is gone. Failed deletions retain the row and its last error for inspection and retry. A deleted filename can be reused even if its old file still awaits cleanup.
+
+Recovery runs once at application startup, after database initialisation and before requests are accepted. It queries `Pending` and `PendingDeletion` attachments and the separate `TemporaryBoardPackages` table, removes their files if present, then removes the records. Failed deletions are logged and retained for the next startup. There are no attachment timers, leases or filesystem scans. Temporary package files and their tracking rows are removed on close; startup recovery handles interrupted operations and failed cleanup.
+
+Run only one application instance against a given database and attachment directory. Startup recovery assumes no other instance has active uploads or imports. Failed work can remain on disk until the next restart.
 
 ## MCP configuration
 

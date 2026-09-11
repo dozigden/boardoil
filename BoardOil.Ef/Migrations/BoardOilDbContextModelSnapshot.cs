@@ -278,6 +278,79 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("BoardMembers", (string)null);
                 });
 
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardAttachment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ArchivedCardId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("ByteLength")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CardId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalisedFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("State")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("State");
+
+                    b.HasIndex("StorageKey")
+                        .IsUnique();
+
+                    b.HasIndex("ArchivedCardId", "NormalisedFileName")
+                        .IsUnique();
+
+                    b.HasIndex("CardId", "NormalisedFileName")
+                        .IsUnique();
+
+                    b.ToTable("CardAttachments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CardAttachments_ExactlyOneOwner", "(State IN (0, 1, 2)) AND NOT (CardId IS NOT NULL AND ArchivedCardId IS NOT NULL) AND (State != 1 OR CardId IS NOT NULL OR ArchivedCardId IS NOT NULL) AND (State != 2 OR (CardId IS NULL AND ArchivedCardId IS NULL))");
+                        });
+                });
+
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardComment", b =>
                 {
                     b.Property<int>("Id")
@@ -960,6 +1033,28 @@ namespace BoardOil.Ef.Migrations
                     b.ToTable("Tags", (string)null);
                 });
 
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityTemporaryBoardPackage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StorageKey")
+                        .IsUnique();
+
+                    b.ToTable("TemporaryBoardPackages", (string)null);
+                });
+
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityUser", b =>
                 {
                     b.Property<int>("Id")
@@ -1315,6 +1410,30 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Board");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardAttachment", b =>
+                {
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityArchivedCard", "ArchivedCard")
+                        .WithMany()
+                        .HasForeignKey("ArchivedCardId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoardCard", "Card")
+                        .WithMany()
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ArchivedCard");
+
+                    b.Navigation("Card");
+
+                    b.Navigation("CreatedByUser");
                 });
 
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardComment", b =>

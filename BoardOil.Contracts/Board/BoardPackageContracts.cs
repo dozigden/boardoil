@@ -72,4 +72,9 @@ public sealed record BoardPackageArchivedCardDto(
 public sealed record BoardPackageExportDto(
     string FileName,
     string ContentType,
-    byte[] Content);
+    Stream Content);
+
+public sealed record BoardPackageAttachmentDto(string Path, int CardId, bool Archived, string OriginalFileName,
+    string ContentType, long ByteLength, string Sha256, DateTime CreatedAtUtc, string? CreatedByUserEmail);
+
+public sealed record BoardPackageAttachmentsDto(IReadOnlyList<BoardPackageAttachmentDto> Items);

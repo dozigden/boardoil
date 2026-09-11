@@ -44,6 +44,12 @@ export function resetDemoData() {
 }
 
 const demoBoardApi: BoardApi = {
+  supportsAttachments: false,
+  async getAttachments() { return ok({ items: [], maxUploadByteLength: 0 }); },
+  async uploadAttachment() { return unavailable(); },
+  async downloadAttachment() { return unavailable(); },
+  async deleteAttachment() { return unavailable(); },
+  async duplicateCard(boardId, _cardId, model) { return demoBoardApi.createCard(boardId, model); },
   async getBoards() {
     return ok([toBoardSummary(state.board)]);
   },

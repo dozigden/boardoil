@@ -35,7 +35,8 @@ public sealed class CardArchiveService(
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
     CardInsertionOrderPlanner insertionOrderPlanner,
-    IDbContextScopeFactory scopeFactory) : ICardArchiveService
+    IDbContextScopeFactory scopeFactory,
+    BoardOil.Services.Attachment.CardAttachmentService attachments) : ICardArchiveService
 {
     private const int MaxArchiveSnapshotJsonBytes = 2_097_152;
     private const int MaxCardTitleLength = 200;
@@ -135,7 +136,7 @@ public sealed class CardArchiveService(
 
     public async Task<ApiResult<CardDto>> UnarchiveCardAsync(int boardId, int boardCardId, int actorUserId)
     {
-        using var scope = scopeFactory.Create();
+        using var scope = scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardCreate);
         if (!hasPermission)
@@ -229,6 +230,7 @@ public sealed class CardArchiveService(
         }
 
         cardRepository.Add(restoredCard);
+        await attachments.RestoreAsync(archivedCard, restoredCard);
         archivedCardRepository.Remove(archivedCard);
         await scope.SaveChangesAsync();
 
@@ -244,7 +246,7 @@ public sealed class CardArchiveService(
 
     private async Task<ArchiveExecutionResult> ExecuteArchiveCardsAsync(int boardId, IReadOnlyList<int> requestedCardIds, int actorUserId)
     {
-        using var scope = scopeFactory.Create();
+        using var scope = scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardDelete);
         if (!hasPermission)
@@ -274,6 +276,10 @@ public sealed class CardArchiveService(
         }
 
         archivedCardRepository.AddRange(archivedCards);
+        for (var index = 0; index < orderedCards.Count; index++)
+        {
+            await attachments.ArchiveAsync(orderedCards[index], archivedCards[index]);
+        }
         cardRepository.RemoveRange(orderedCards);
         await scope.SaveChangesAsync();
         foreach (var cardId in requestedCardIds)

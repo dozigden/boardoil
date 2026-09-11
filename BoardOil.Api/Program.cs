@@ -34,7 +34,10 @@ var buildInfo = BoardOilBuildInfo.FromConfiguration(builder.Configuration, build
 builder.WebHost.UseUrls(runtimeOptions.ResolveListenUrl(builder.Configuration));
 
 var imageStorageOptions = BoardOilImageStorageOptions.Resolve(builder.Configuration, connectionString);
+var attachmentStorageOptions = BoardOilAttachmentStorageOptions.Resolve(builder.Configuration, connectionString,
+    imageStorageOptions.RootPath, builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot"));
 builder.Services.AddBoardOilServices();
+builder.Services.AddSingleton(attachmentStorageOptions);
 builder.Services.AddBoardOilEfInfrastructure(connectionString);
 builder.Services.AddBoardOilOAuth(jwtOptions);
 builder.Services.AddErrorLogRateLimiting();
@@ -130,6 +133,7 @@ app.InitialiseMcpServiceProvider();
 app.LogMcpStartupWarnings();
 
 await app.Services.InitializeBoardOilEfInfrastructureAsync();
+await app.Services.CleanupAttachmentsAtStartupAsync();
 await app.Services.InitializeOAuthTokenAuditCaptureStateAsync();
 await app.Services.PurgeExpiredErrorLogsAsync();
 await app.Services.PurgeExpiredOAuthTokenAuditsAsync();
@@ -205,6 +209,7 @@ app.MapBoardEndpoints();
 app.MapSystemBoardEndpoints();
 app.MapColumnEndpoints();
 app.MapCardEndpoints();
+app.MapAttachmentEndpoints();
 app.MapCardTypeEndpoints();
 app.MapTagEndpoints();
 app.MapSlickEndpoints();

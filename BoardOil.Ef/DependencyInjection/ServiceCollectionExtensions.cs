@@ -8,6 +8,7 @@ using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Configuration;
 using BoardOil.Data.Abstractions.ErrorLogs;
 using BoardOil.Data.Abstractions.Image;
+using BoardOil.Data.Abstractions.Attachment;
 using BoardOil.Data.Abstractions.OAuth;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
@@ -53,6 +54,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<ISlickRepository, SlickRepository>();
         services.AddScoped<IImageRepository, ImageRepository>();
+        services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+        services.AddScoped<ITemporaryBoardPackageRepository, TemporaryBoardPackageRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         return services;
     }

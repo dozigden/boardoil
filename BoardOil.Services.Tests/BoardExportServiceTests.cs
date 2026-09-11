@@ -107,9 +107,9 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Equal("application/zip", result.Data!.ContentType);
         Assert.Equal("Export-Board.boardoil.zip", result.Data.FileName);
-        Assert.NotEmpty(result.Data.Content);
+        Assert.True(result.Data.Content.Length > 0);
 
-        using var stream = new MemoryStream(result.Data.Content);
+        using var stream = result.Data.Content;
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
         var manifestEntry = archive.GetEntry("manifest.json");
@@ -119,7 +119,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         var manifest = JsonSerializer.Deserialize<BoardPackageManifestDto>(manifestJson, JsonOptions);
         Assert.NotNull(manifest);
         Assert.Equal("boardoil-board-package", manifest!.Format);
-        Assert.Equal(3, manifest.SchemaVersion);
+        Assert.Equal(4, manifest.SchemaVersion);
         Assert.Equal("0.2.0", manifest.ExportedByVersion);
         Assert.Contains(manifest.Entries, x => x.Kind == "board" && x.Path == "board.json");
         Assert.Contains(manifest.Entries, x => x.Kind == "archive" && x.Path == "archive.json");

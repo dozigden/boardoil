@@ -128,6 +128,7 @@ async function runManagedTests(options) {
     ConnectionStrings__BoardOil: `Data Source=${databasePath};Default Timeout=30;Pooling=False`,
     BoardOil__DataPath: databasePath,
     BoardOil__ImageRootPath: imageRoot,
+    BoardOil__AttachmentRootPath: `${databasePath}.attachments`,
     BoardOilAuth__AllowInsecureCookies: 'true',
     BoardOilAuth__Issuer: 'boardoil-e2e',
     BoardOilAuth__Audience: 'boardoil-e2e',

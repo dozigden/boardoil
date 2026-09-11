@@ -40,6 +40,39 @@ public sealed class BoardPackageImportReaderTests
         Assert.Contains("file", result.Error.ValidationErrors!.Keys);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TryReadBoardPackage_ShouldNotImposeFormerJsonSizeOrEntryCountCaps(bool largeJson)
+    {
+        var manifest = new BoardPackageManifestDto(BoardPackageContract.PackageFormat, 3, "test",
+            [new BoardPackageManifestEntryDto(BoardPackageContract.BoardEntryKind, BoardPackageContract.BoardEntryPath)]);
+        using var package = new MemoryStream();
+        using (var archive = new ZipArchive(package, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            WriteJsonEntry(archive, BoardPackageContract.ManifestPath, manifest);
+            using (var output = archive.CreateEntry(BoardPackageContract.BoardEntryPath, CompressionLevel.Fastest).Open())
+            {
+                if (largeJson)
+                {
+                    var whitespace = Enumerable.Repeat((byte)' ', 65536).ToArray();
+                    for (var index = 0; index < 1024; index++) { output.Write(whitespace); }
+                }
+                output.Write("{}"u8);
+            }
+            if (!largeJson)
+            {
+                for (var index = 0; index < 100_000; index++) { archive.CreateEntry("extra/" + index); }
+            }
+        }
+        package.Position = 0;
+
+        var result = new BoardPackageImportReader().TryReadBoardPackage(package);
+
+        Assert.Null(result.Error);
+        Assert.NotNull(result.BoardPayload);
+    }
+
     private static byte[] BuildBoardPackageWithRawBoardPayload(BoardPackageManifestDto manifest, string rawBoardPayload)
     {
         using var stream = new MemoryStream();

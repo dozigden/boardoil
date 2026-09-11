@@ -36,7 +36,11 @@ public sealed record CloneBoardRequest(
 
 public sealed record ImportBoardPackageRequest(
     string? Name,
-    byte[] PackageContent);
+    Stream PackageContent)
+{
+    public ImportBoardPackageRequest(string? name, byte[] packageContent)
+        : this(name, new MemoryStream(packageContent, writable: false)) { }
+}
 
 public sealed record UpdateBoardRequest(
     string Name,
