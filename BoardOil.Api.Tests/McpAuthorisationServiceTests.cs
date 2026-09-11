@@ -34,6 +34,7 @@ public sealed class McpAuthorisationServiceTests
         [
             new Claim("boardoil_auth_type", "pat"),
             new Claim(ClaimTypes.NameIdentifier, "42"),
+            new Claim("boardoil_pat_id", "12"),
             new Claim("boardoil_pat_scope", MachinePatScopes.McpRead),
             new Claim("boardoil_pat_scope", MachinePatScopes.McpWrite)
         ], "test"));
@@ -46,6 +47,8 @@ public sealed class McpAuthorisationServiceTests
         Assert.Equal(42, context!.ActorUserId);
         Assert.Contains(MachinePatScopes.McpRead, context.Scopes);
         Assert.Contains(MachinePatScopes.McpWrite, context.Scopes);
+        Assert.Equal(12, context.Credential!.PersonalAccessTokenId);
+        Assert.Null(context.Credential.OAuthTokenId);
     }
 
     [Fact]
@@ -58,6 +61,8 @@ public sealed class McpAuthorisationServiceTests
         ], "test");
         var principal = new ClaimsPrincipal(identity);
         principal.SetScopes(MachinePatScopes.McpRead);
+        principal.SetTokenId("access-token-id");
+        principal.SetAuthorizationId("authorization-id");
 
         // Act
         var context = _service.GetAccessContext(principal);
@@ -67,6 +72,9 @@ public sealed class McpAuthorisationServiceTests
         Assert.Equal(57, context!.ActorUserId);
         Assert.Equal("OAuth", context.AuthenticationType);
         Assert.Contains(MachinePatScopes.McpRead, context.Scopes);
+        Assert.Equal("access-token-id", context.Credential!.OAuthTokenId);
+        Assert.Equal("authorization-id", context.Credential.OAuthAuthorizationId);
+        Assert.Null(context.Credential.PersonalAccessTokenId);
     }
 
     [Fact]

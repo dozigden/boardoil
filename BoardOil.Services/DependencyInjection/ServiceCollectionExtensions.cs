@@ -40,6 +40,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAttachmentStorageService, LocalAttachmentStorageService>();
         services.AddScoped<CardAttachmentService>();
         services.AddScoped<ICardAttachmentService>(provider => provider.GetRequiredService<CardAttachmentService>());
+        services.AddScoped<AttachmentTransferService>();
+        services.AddScoped<IAttachmentTransferService>(provider => provider.GetRequiredService<AttachmentTransferService>());
         services.AddScoped<BoardPackageStorageService>();
         services.AddScoped<IColumnValidator, ColumnValidator>();
         services.AddScoped<ICardValidator, CardValidator>();

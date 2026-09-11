@@ -23,6 +23,8 @@ public static class McpApplicationExtensions
             {
                 context.Response.OnStarting(async () =>
                 {
+                    // Includes ticket-issuing responses, including transports that begin SSE before tool execution.
+                    context.Response.Headers.CacheControl = "no-store";
                     McpOAuthChallengeState.TryGet(context, out var challenge);
                     if (challenge?.Error is McpOAuthChallengeError.InvalidToken)
                     {

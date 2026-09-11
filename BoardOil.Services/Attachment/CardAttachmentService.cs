@@ -56,6 +56,16 @@ public sealed class CardAttachmentService(
         return ApiResults.Ok(card.Id);
     }
 
+    // Participates in the caller's publication transaction and updates the owning card timestamp.
+    public async Task<bool> PrepareUploadPublicationAsync(int boardId, int cardId, int expectedDatabaseCardId, int actorUserId)
+    {
+        if (!await authorisation.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate)) { return false; }
+        var card = await cards.GetWithTagsAndBoardAsync(boardId, cardId);
+        if (card is null || card.Id != expectedDatabaseCardId) { return false; }
+        card.CardUpdatedUtc = DateTime.UtcNow;
+        return true;
+    }
+
     public async Task<ApiResult<CardAttachmentDto>> UploadAsync(int boardId, int cardId, int actorUserId,
         string fileName, string? contentType, Stream content, CancellationToken cancellationToken = default)
     {
@@ -181,8 +191,9 @@ public sealed class CardAttachmentService(
         int? actorUserId, int? cardId = null, DateTime? createdAtUtc = null, CancellationToken cancellationToken = default) =>
         PrepareFileAsync(content, fileName, contentType, actorUserId, cardId, createdAtUtc, options.MaxUploadByteLength, cancellationToken);
 
-    private async Task<PreparedAttachmentFile> PrepareFileAsync(Stream content, string fileName, string? contentType,
-        int? actorUserId, int? cardId, DateTime? createdAtUtc, long? maxByteLength, CancellationToken cancellationToken)
+    // Participates in the caller's transaction. The pending row reserves the filename before bytes are written.
+    public async Task<EntityCardAttachment> ReserveUploadAsync(string fileName, string? contentType,
+        int? actorUserId, int? cardId, DateTime? createdAtUtc = null, CancellationToken cancellationToken = default)
     {
         var record = new EntityCardAttachment
         {
@@ -195,36 +206,30 @@ public sealed class CardAttachmentService(
             CardId = cardId
         };
         record.NormalisedFileName = record.OriginalFileName.ToUpperInvariant();
+        if (cardId.HasValue && await attachments.Query().AnyAsync(
+            x => x.CardId == cardId && x.NormalisedFileName == record.NormalisedFileName, cancellationToken))
+        {
+            throw new AttachmentNameConflictException(record.OriginalFileName);
+        }
+        attachments.Add(record);
+        return record;
+    }
+
+    private async Task<PreparedAttachmentFile> PrepareFileAsync(Stream content, string fileName, string? contentType,
+        int? actorUserId, int? cardId, DateTime? createdAtUtc, long? maxByteLength, CancellationToken cancellationToken)
+    {
+        EntityCardAttachment record;
         using (scopes.SuppressAmbientContext())
         using (var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable))
         {
-            if (cardId.HasValue && await attachments.Query().AnyAsync(x => x.CardId == cardId && x.NormalisedFileName == record.NormalisedFileName, cancellationToken))
-            {
-                throw new AttachmentNameConflictException(record.OriginalFileName);
-            }
-            attachments.Add(record);
+            record = await ReserveUploadAsync(fileName, contentType, actorUserId, cardId, createdAtUtc, cancellationToken);
             await scope.SaveChangesAsync(cancellationToken);
         }
 
         var prepared = new PreparedAttachmentFile(record.Id, record.StorageKey);
         try
         {
-            await using var target = storage.Create(record.StorageKey);
-            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            var buffer = new byte[81920];
-            long length = 0;
-            int count;
-            while ((count = await content.ReadAsync(buffer, cancellationToken)) != 0)
-            {
-                length += count;
-                if (maxByteLength.HasValue && length > maxByteLength.Value) { throw new AttachmentSizeException(maxByteLength.Value); }
-                hash.AppendData(buffer, 0, count);
-                await target.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
-            }
-            await target.FlushAsync(cancellationToken);
-            prepared.ByteLength = length;
-            prepared.Sha256 = Convert.ToHexStringLower(hash.GetHashAndReset());
-            return prepared;
+            return await WritePreparedAsync(prepared, content, maxByteLength, null, cancellationToken);
         }
         catch
         {
@@ -232,6 +237,35 @@ public sealed class CardAttachmentService(
             await AbandonAsync(record.Id);
             throw;
         }
+    }
+
+    public async Task<PreparedAttachmentFile> WritePreparedAsync(PreparedAttachmentFile prepared, Stream content,
+        long? maxByteLength, long? expectedByteLength, CancellationToken cancellationToken)
+    {
+        await using var target = storage.Create(prepared.StorageKey);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[81920];
+        long length = 0;
+        int count;
+        while ((count = await content.ReadAsync(buffer, cancellationToken)) != 0)
+        {
+            length += count;
+            if (maxByteLength.HasValue && length > maxByteLength.Value) { throw new AttachmentSizeException(maxByteLength.Value); }
+            if (expectedByteLength.HasValue && length > expectedByteLength.Value)
+            {
+                throw new AttachmentLengthException(expectedByteLength.Value, length);
+            }
+            hash.AppendData(buffer, 0, count);
+            await target.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
+        }
+        if (expectedByteLength.HasValue && length != expectedByteLength.Value)
+        {
+            throw new AttachmentLengthException(expectedByteLength.Value, length);
+        }
+        await target.FlushAsync(cancellationToken);
+        prepared.ByteLength = length;
+        prepared.Sha256 = Convert.ToHexStringLower(hash.GetHashAndReset());
+        return prepared;
     }
 
     // Caller assigns the final owner and commits in the same transaction.
@@ -365,6 +399,17 @@ public sealed class CardAttachmentService(
         new(attachment.Id, attachment.OriginalFileName, attachment.ContentType, attachment.ByteLength,
             attachment.CreatedAtUtc, attachment.CreatedByUserId);
 
+    public async Task PublishUploadEventsAsync(int boardId, int cardId, int attachmentId)
+    {
+        using var scope = scopes.CreateReadOnly();
+        var card = await cards.GetWithTagsAndBoardAsync(boardId, cardId)
+            ?? throw new InvalidOperationException("Published attachment card is unavailable.");
+        var attachment = await attachments.Query().SingleAsync(
+            x => x.Id == attachmentId && x.CardId == card.Id && x.State == AttachmentState.Ready);
+        await events.CardUpdatedAsync(boardId, await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), images));
+        await events.AttachmentAddedAsync(boardId, cardId, ToDto(attachment));
+    }
+
 }
 
 public sealed class AttachmentOwnerChangedException : Exception;
@@ -378,5 +423,8 @@ public sealed class PreparedAttachmentFile(int id, string storageKey)
 }
 
 public sealed class AttachmentSizeException(long limit) : Exception($"Attachment must be {limit} bytes or smaller.");
+
+public sealed class AttachmentLengthException(long expected, long actual)
+    : Exception($"Attachment length must be exactly {expected} bytes; received {actual} bytes.");
 
 public sealed class AttachmentNameConflictException(string fileName) : Exception($"An attachment named '{fileName}' already exists on this card.");

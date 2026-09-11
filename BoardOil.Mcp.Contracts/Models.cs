@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using BoardOil.Contracts.Card;
 
 namespace BoardOil.Mcp.Contracts;
 
@@ -77,7 +78,12 @@ public sealed record McpCardSnapshot(
     int? SlickId,
     McpCardSlickSnapshot? Slick,
     IReadOnlyList<McpCardCommentSnapshot> Comments,
-    string? ExternalUrl);
+    string? ExternalUrl)
+{
+    // Loaded by card_get only. Omit on mutation responses rather than imply an empty attachment list.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<CardAttachmentDto>? Attachments { get; init; }
+}
 
 public sealed record McpCardCommentSnapshot(
     int Id,
@@ -137,6 +143,42 @@ public sealed record CardOptionsGetInput
 {
     public int? Id { get; init; }
 }
+
+public sealed record CardAttachmentListInput
+{
+    public int? BoardId { get; init; }
+    public int? CardId { get; init; }
+    public bool Archived { get; init; }
+}
+
+public sealed record CardAttachmentDeleteInput
+{
+    public int? BoardId { get; init; }
+    public int? CardId { get; init; }
+    public int? Id { get; init; }
+}
+
+public sealed record CardAttachmentDeleteOutput(int Id, string Outcome);
+
+public sealed record CardAttachmentDownloadInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+}
+
+public sealed record CardAttachmentDownloadOutput(string Url, string Method, IReadOnlyDictionary<string, string> Headers, DateTime ExpiresAtUtc);
+
+public sealed record CardAttachmentUploadInput
+{
+    public int? BoardId { get; init; }
+    public int? CardId { get; init; }
+    public string FileName { get; init; } = string.Empty;
+    public string? ContentType { get; init; }
+    public long? ByteLength { get; init; }
+}
+
+public sealed record CardAttachmentUploadOutput(string Url, string Method, IReadOnlyDictionary<string, string> Headers,
+    long ByteLength, DateTime ExpiresAtUtc);
 
 public sealed record CardOptionsGetOutput(
     int Id,

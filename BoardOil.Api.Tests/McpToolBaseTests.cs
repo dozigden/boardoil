@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
 using System.Text.Json;
 using Xunit;
+using ModelContextProtocol.Protocol;
 
 namespace BoardOil.Api.Tests;
 
@@ -109,6 +110,38 @@ public sealed class McpToolBaseTests
         var payload = Assert.IsType<JsonElement>(result.StructuredContent);
         Assert.Equal("forbidden", payload.GetProperty("code").GetString());
         Assert.Equal(403, payload.GetProperty("statusCode").GetInt32());
+        var text = Assert.IsType<TextContentBlock>(Assert.Single(result.Content));
+        using var textPayload = JsonDocument.Parse(text.Text);
+        Assert.True(JsonElement.DeepEquals(payload, textPayload.RootElement));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenValidationFails_ShouldIncludeFieldDetailsInTextResult()
+    {
+        // Arrange
+        var tool = new TestTool(_ => Task.FromResult(new McpToolResult<TestOutput>(
+            false,
+            default,
+            new McpToolError("validation_failed", "Validation failed.", 400,
+                new Dictionary<string, IReadOnlyList<string>>
+                {
+                    ["cardId"] = ["'cardId' is required and must be greater than zero."]
+                }))));
+        var context = CreateContext();
+
+        // Act
+        var result = await tool.ExecuteAsync(context, null, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsError);
+        var text = Assert.IsType<TextContentBlock>(Assert.Single(result.Content));
+        using var textPayload = JsonDocument.Parse(text.Text);
+        var error = textPayload.RootElement;
+        Assert.Equal("validation_failed", error.GetProperty("code").GetString());
+        Assert.Equal(400, error.GetProperty("statusCode").GetInt32());
+        Assert.Equal("'cardId' is required and must be greater than zero.",
+            error.GetProperty("validationErrors").GetProperty("cardId")[0].GetString());
+        Assert.True(JsonElement.DeepEquals(Assert.IsType<JsonElement>(result.StructuredContent), error));
     }
 
     [Fact]
@@ -135,6 +168,9 @@ public sealed class McpToolBaseTests
         Assert.Equal(7, payload.GetProperty("value").GetInt32());
         Assert.Equal("ok", payload.GetProperty("message").GetString());
         Assert.False(payload.TryGetProperty("data", out _));
+        var text = Assert.IsType<TextContentBlock>(Assert.Single(result.Content));
+        using var textPayload = JsonDocument.Parse(text.Text);
+        Assert.True(JsonElement.DeepEquals(payload, textPayload.RootElement));
     }
 
     private static McpInvocationContext CreateContext(IErrorLogService? errorLogService = null)

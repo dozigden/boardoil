@@ -938,7 +938,10 @@
         }
       },
       "boardoil.mcp.contracts": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "BoardOil.Contracts": "[1.4.0, )"
+        }
       },
       "boardoil.services": {
         "type": "Project",

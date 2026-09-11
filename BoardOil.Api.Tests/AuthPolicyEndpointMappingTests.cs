@@ -21,6 +21,9 @@ public sealed class AuthPolicyEndpointMappingTests : ApiFactoryIntegrationTestBa
         new("GET", "/api/auth/bootstrap-status"),
         new("GET", "/api/health"),
         new("GET", "/api/version"),
+        // Authenticates a narrowly scoped transfer ticket in the endpoint, not an API identity.
+        new("GET", "/api/attachment-transfers/{id:int}/download"),
+        new("PUT", "/api/attachment-transfers/{id:int}/upload"),
         new("POST", "/api/internal/realtime/board-events")
     ];
 

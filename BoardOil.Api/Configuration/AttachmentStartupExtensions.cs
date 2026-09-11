@@ -8,6 +8,8 @@ public static class AttachmentStartupExtensions
     public static async Task CleanupAttachmentsAtStartupAsync(this IServiceProvider services)
     {
         await using var scope = services.CreateAsyncScope();
+        // Recover upload-ticket state before pending attachment rows/files are reclaimed.
+        await scope.ServiceProvider.GetRequiredService<AttachmentTransferService>().CleanupAtStartupAsync();
         await scope.ServiceProvider.GetRequiredService<CardAttachmentService>().CleanupAtStartupAsync();
         await scope.ServiceProvider.GetRequiredService<BoardPackageStorageService>().CleanupAtStartupAsync();
     }

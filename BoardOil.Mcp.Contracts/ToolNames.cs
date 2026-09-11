@@ -8,6 +8,10 @@ public static class ToolNames
     public const string IdentityGet = "identity_get";
     public const string CardOptionsGet = "card_options_get";
     public const string CardGet = "card_get";
+    public const string CardAttachmentList = "card_attachment_list";
+    public const string CardAttachmentDelete = "card_attachment_delete";
+    public const string CardAttachmentDownload = "card_attachment_download";
+    public const string CardAttachmentUpload = "card_attachment_upload";
     public const string CardCreate = "card_create";
     public const string CardUpdate = "card_update";
     public const string CardMove = "card_move";

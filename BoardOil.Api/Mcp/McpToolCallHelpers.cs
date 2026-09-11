@@ -58,33 +58,39 @@ internal static class McpToolCallHelpers
         }
     }
 
-    public static CallToolResult CreateSuccessCallToolResult<TPayload>(TPayload payload) =>
-        new()
+    public static CallToolResult CreateSuccessCallToolResult<TPayload>(TPayload payload)
+    {
+        var structuredContent = JsonSerializer.SerializeToElement(payload, SerialiserOptions);
+        return new()
         {
             IsError = false,
-            StructuredContent = JsonSerializer.SerializeToElement(payload, SerialiserOptions),
+            StructuredContent = structuredContent,
             Content =
             [
                 new TextContentBlock
                 {
-                    Text = "ok"
+                    Text = structuredContent.GetRawText()
                 }
             ]
         };
+    }
 
-    public static CallToolResult CreateErrorCallToolResult(McpToolError error) =>
-        new()
+    public static CallToolResult CreateErrorCallToolResult(McpToolError error)
+    {
+        var structuredContent = JsonSerializer.SerializeToElement(error, SerialiserOptions);
+        return new()
         {
             IsError = true,
-            StructuredContent = JsonSerializer.SerializeToElement(error, SerialiserOptions),
+            StructuredContent = structuredContent,
             Content =
             [
                 new TextContentBlock
                 {
-                    Text = error.Message
+                    Text = structuredContent.GetRawText()
                 }
             ]
         };
+    }
 
     public static CallToolResult CreateErrorCallToolResult(string code, string message, int statusCode) =>
         CreateErrorCallToolResult(new McpToolError(code, message, statusCode));

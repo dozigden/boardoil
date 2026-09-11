@@ -34,6 +34,9 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityErrorLog> ErrorLogs => Set<EntityErrorLog>();
     public DbSet<EntityImage> Images => Set<EntityImage>();
     public DbSet<EntityCardAttachment> CardAttachments => Set<EntityCardAttachment>();
+    public DbSet<EntityAttachmentDownloadTicket> AttachmentDownloadTickets => Set<EntityAttachmentDownloadTicket>();
+    public DbSet<EntityAttachmentUploadTicket> AttachmentUploadTickets => Set<EntityAttachmentUploadTicket>();
+    public DbSet<EntityAttachmentTransferAudit> AttachmentTransferAudits => Set<EntityAttachmentTransferAudit>();
     public DbSet<EntityTemporaryBoardPackage> TemporaryBoardPackages => Set<EntityTemporaryBoardPackage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

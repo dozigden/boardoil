@@ -228,6 +228,140 @@ public static class ToolSchemas
     }
     """;
 
+    public const string CardAttachmentListInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "cardId": { "type": "integer", "minimum": 1, "description": "Board-scoped card number, including the original card number for an archived card. Not an internal database row ID." },
+        "archived": { "type": "boolean", "default": false, "description": "Set true to read attachments of an archived card. Defaults to false." }
+      },
+      "required": ["boardId", "cardId"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardAttachmentListOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer", "minimum": 1 },
+              "originalFileName": { "type": "string" },
+              "contentType": { "type": "string" },
+              "byteLength": { "type": "integer", "minimum": 0 },
+              "createdAtUtc": { "type": "string", "format": "date-time" },
+              "createdByUserId": { "type": ["integer", "null"] }
+            },
+            "required": ["id", "originalFileName", "contentType", "byteLength", "createdAtUtc", "createdByUserId"],
+            "additionalProperties": false
+          }
+        },
+        "maxUploadByteLength": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["items", "maxUploadByteLength"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardAttachmentDeleteInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "cardId": { "type": "integer", "minimum": 1, "description": "Board-scoped number of the live card owning this attachment." },
+        "id": { "type": "integer", "minimum": 1, "description": "Attachment ID from card_attachment_list.items[].id or card_get.attachments[].id." }
+      },
+      "required": ["boardId", "cardId", "id"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardAttachmentDeleteOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer", "minimum": 1 },
+        "outcome": { "type": "string", "enum": ["deleted"] }
+      },
+      "required": ["id", "outcome"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardAttachmentDownloadInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "id": { "type": "integer", "minimum": 1, "description": "Attachment ID from card_attachment_list.items[].id or card_get.attachments[].id." }
+      },
+      "required": ["boardId", "id"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardAttachmentDownloadOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "method": { "type": "string", "enum": ["GET"] },
+        "headers": {
+          "type": "object",
+          "properties": { "Authorization": { "type": "string", "pattern": "^BoardOilAttachment ", "description": "Secret credential using the dedicated BoardOilAttachment scheme; send only as a header to the returned URL. Do not log or share it." } },
+          "required": ["Authorization"],
+          "additionalProperties": false
+        },
+        "expiresAtUtc": { "type": "string", "format": "date-time" }
+      },
+      "required": ["url", "method", "headers", "expiresAtUtc"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardAttachmentUploadInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "cardId": { "type": "integer", "minimum": 1, "description": "Board-scoped number of the live card that will own the attachment." },
+        "fileName": { "type": "string", "minLength": 1, "maxLength": 255, "description": "Original filename. Paths are reduced to their final filename component." },
+        "contentType": { "type": ["string", "null"], "maxLength": 255, "description": "Media type to bind to the upload; invalid or omitted values become application/octet-stream." },
+        "byteLength": { "type": "integer", "minimum": 0, "description": "Exact number of raw body bytes that will be uploaded. The configured attachment limit also applies." }
+      },
+      "required": ["boardId", "cardId", "fileName", "byteLength"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardAttachmentUploadOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "method": { "type": "string", "enum": ["PUT"] },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "Authorization": { "type": "string", "pattern": "^BoardOilAttachment ", "description": "Secret credential using the dedicated BoardOilAttachment scheme; send only as a header to the returned URL. Do not log or share it." },
+            "Content-Type": { "type": "string", "description": "Send this exact media type with the raw request body." }
+          },
+          "required": ["Authorization", "Content-Type"],
+          "additionalProperties": false
+        },
+        "byteLength": { "type": "integer", "minimum": 0 },
+        "expiresAtUtc": { "type": "string", "format": "date-time" }
+      },
+      "required": ["url", "method", "headers", "byteLength", "expiresAtUtc"],
+      "additionalProperties": false
+    }
+    """;
+
     public const string CardCreateInput = """
     {
       "type": "object",

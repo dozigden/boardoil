@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\BoardOil.Contracts\BoardOil.Contracts.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -9,6 +9,39 @@ namespace BoardOil.Api.Tests;
 public sealed class McpNoAuthConfigurationIntegrationTests : McpIntegrationTestBase
 {
     [Fact]
+    public async Task DownloadTicket_WhenAuthModeNone_ShouldRefuseIssuance()
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+
+        using var response = await McpJsonRpcClient.SendRequestAsync(client, "tools/call",
+            new { name = "card_attachment_download", arguments = new { boardId = 1, id = 1 } }, "anonymous-ticket");
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        Assert.True(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        var error = McpJsonRpcClient.GetStructuredContent(payload);
+        Assert.Equal("unauthorised", error.GetProperty("code").GetString());
+        Assert.Equal(401, error.GetProperty("statusCode").GetInt32());
+    }
+
+    [Fact]
+    public async Task UploadTicket_WhenAuthModeNone_ShouldRefuseIssuance()
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+
+        using var response = await McpJsonRpcClient.SendRequestAsync(client, "tools/call",
+            new { name = "card_attachment_upload", arguments = new { boardId = 1, cardId = 1, fileName = "file.bin", byteLength = 1 } },
+            "anonymous-upload-ticket");
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        var error = McpJsonRpcClient.GetStructuredContent(payload);
+        Assert.True(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        Assert.Equal("unauthorised", error.GetProperty("code").GetString());
+        Assert.Equal(401, error.GetProperty("statusCode").GetInt32());
+    }
+
+    [Fact]
     public async Task ToolsList_WithoutBearerToken_WhenAuthModeNone_ShouldReturnOk()
     {
         var client = CreateClient();

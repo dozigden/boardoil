@@ -1,4 +1,5 @@
 using BoardOil.Contracts.Auth;
+using BoardOil.Abstractions.Attachment;
 using BoardOil.Api.OAuth;
 using BoardOil.Mcp.Contracts;
 using OpenIddict.Abstractions;
@@ -61,7 +62,12 @@ public sealed class McpAuthorisationService : IMcpAuthorisationService
             .Select(claim => claim.Value)
             .Where(scope => !string.IsNullOrWhiteSpace(scope))
             .ToHashSet(StringComparer.Ordinal);
-        return new McpAccessContext(actorUserId, "PAT", scopes);
+        AttachmentTransferCredential? credential = null;
+        if (int.TryParse(principal.FindFirst("boardoil_pat_id")?.Value, out var patId))
+        {
+            credential = new(patId, null, null);
+        }
+        return new McpAccessContext(actorUserId, "PAT", scopes, credential);
     }
 
     private static McpAccessContext? CreateOAuthAccessContext(ClaimsPrincipal principal)
@@ -74,11 +80,13 @@ public sealed class McpAuthorisationService : IMcpAuthorisationService
         }
 
         var scopes = principal.GetScopes().ToHashSet(StringComparer.Ordinal);
-        return new McpAccessContext(actorUserId, "OAuth", scopes);
+        return new McpAccessContext(actorUserId, "OAuth", scopes,
+            new(null, principal.GetTokenId(), principal.GetAuthorizationId()));
     }
 }
 
 public sealed record McpAccessContext(
     int ActorUserId,
     string AuthenticationType,
-    ISet<string> Scopes);
+    ISet<string> Scopes,
+    AttachmentTransferCredential? Credential = null);

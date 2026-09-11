@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using System.Text.Json;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Api.Auth;
 using BoardOil.Api.OAuth;
@@ -92,7 +91,7 @@ public sealed class McpOAuthConnectionAuthorizationHandler(
         var application = string.IsNullOrWhiteSpace(applicationId)
             ? null
             : await applicationManager.FindByIdAsync(applicationId);
-        if (application is null || !await IsApplicationActiveAsync(application))
+        if (application is null || !await OAuthApplicationValidity.IsActiveAsync(applicationManager, application, timeProvider))
         {
             return;
         }
@@ -147,29 +146,6 @@ public sealed class McpOAuthConnectionAuthorizationHandler(
 
         McpOAuthChallengeState.Clear(httpContext);
         context.Succeed(requirement);
-    }
-
-    private async Task<bool> IsApplicationActiveAsync(object application)
-    {
-        var properties = await applicationManager.GetPropertiesAsync(application);
-        if (!properties.TryGetValue(
-                OAuthDynamicClientRegistrationService.DynamicRegistrationProperty,
-                out var dynamicRegistration)
-            || dynamicRegistration.ValueKind is not JsonValueKind.True)
-        {
-            return true;
-        }
-
-        if (!properties.TryGetValue(
-                OAuthDynamicClientRegistrationService.RegistrationExpiresAtProperty,
-                out var expiry))
-        {
-            return true;
-        }
-
-        return expiry.ValueKind is JsonValueKind.String
-            && expiry.TryGetDateTimeOffset(out var expiresAt)
-            && expiresAt > timeProvider.GetUtcNow();
     }
 
     private static bool IsActiveUser(EntityUser user) =>

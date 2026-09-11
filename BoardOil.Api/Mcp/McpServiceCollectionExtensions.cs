@@ -1,4 +1,6 @@
 using BoardOil.Api.Configuration;
+using BoardOil.Abstractions.Attachment;
+using BoardOil.Api.Auth;
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Protocol;
 
@@ -12,6 +14,21 @@ public static class McpServiceCollectionExtensions
         services.AddSingleton(mcpServiceProviderAccessor);
 
         services.AddSingleton<IMcpAuthorisationService, McpAuthorisationService>();
+        services.AddScoped<IAttachmentTransferCredentialValidator, AttachmentTransferCredentialValidator>();
+        // The MCP SDK logs complete JSON-RPC messages at Trace, including ticket secrets.
+        // Apply to every configured rule so category/provider overrides cannot re-enable that output.
+        services.PostConfigure<LoggerFilterOptions>(options =>
+        {
+            options.Rules.Insert(0, new LoggerFilterRule(null, null, options.MinLevel, null));
+            for (var i = 0; i < options.Rules.Count; i++)
+            {
+                var rule = options.Rules[i];
+                options.Rules[i] = new LoggerFilterRule(rule.ProviderName, rule.CategoryName, rule.LogLevel,
+                    (provider, category, level) =>
+                        !(level == LogLevel.Trace && category?.StartsWith("ModelContextProtocol", StringComparison.Ordinal) == true)
+                        && (rule.Filter?.Invoke(provider, category, level) ?? true));
+            }
+        });
         services.AddSingleton<IMcpErrorResponseFactory, McpErrorResponseFactory>();
 
         RegisterTool<BoardListTool>(services);
@@ -19,6 +36,10 @@ public static class McpServiceCollectionExtensions
         RegisterTool<IdentityGetTool>(services);
         RegisterTool<CardOptionsGetTool>(services);
         RegisterTool<CardGetTool>(services);
+        RegisterTool<CardAttachmentListTool>(services);
+        RegisterTool<CardAttachmentDeleteTool>(services);
+        RegisterTool<CardAttachmentDownloadTool>(services);
+        RegisterTool<CardAttachmentUploadTool>(services);
         RegisterTool<CardCreateTool>(services);
         RegisterTool<CardUpdateTool>(services);
         RegisterTool<CardMoveTool>(services);

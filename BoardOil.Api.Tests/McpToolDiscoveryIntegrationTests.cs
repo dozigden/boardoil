@@ -203,6 +203,10 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Contains(ToolNames.BoardList, toolNames);
         Assert.Contains(ToolNames.IdentityGet, toolNames);
         Assert.Contains(ToolNames.CardOptionsGet, toolNames);
+        Assert.Contains(ToolNames.CardAttachmentList, toolNames);
+        Assert.Contains(ToolNames.CardAttachmentDownload, toolNames);
+        Assert.Contains(ToolNames.CardAttachmentUpload, toolNames);
+        Assert.Contains(ToolNames.CardAttachmentDelete, toolNames);
         Assert.Contains(ToolNames.TagCreate, toolNames);
         Assert.Contains(ToolNames.TagUpdate, toolNames);
         Assert.Contains(ToolNames.TagDelete, toolNames);
@@ -286,6 +290,36 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         var cardGetProperties = cardGetTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(cardGetProperties.TryGetProperty("boardId", out _));
         Assert.True(cardGetProperties.TryGetProperty("id", out _));
+
+        var attachmentListTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardAttachmentList);
+        var attachmentListInput = attachmentListTool.GetProperty("inputSchema");
+        Assert.Equal(["boardId", "cardId"], attachmentListInput.GetProperty("required")
+            .EnumerateArray().Select(value => value.GetString()).ToArray());
+        Assert.False(attachmentListInput.GetProperty("properties").GetProperty("archived").GetProperty("default").GetBoolean());
+        Assert.False(attachmentListInput.GetProperty("additionalProperties").GetBoolean());
+        var attachmentOutput = attachmentListTool.GetProperty("outputSchema").GetProperty("properties");
+        Assert.True(attachmentOutput.TryGetProperty("maxUploadByteLength", out _));
+        Assert.Equal(6, attachmentOutput.GetProperty("items").GetProperty("items").GetProperty("properties").EnumerateObject().Count());
+
+        var attachmentDeleteTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardAttachmentDelete);
+        var attachmentDeleteInput = attachmentDeleteTool.GetProperty("inputSchema");
+        Assert.Equal(["boardId", "cardId", "id"], attachmentDeleteInput.GetProperty("required")
+            .EnumerateArray().Select(value => value.GetString()).ToArray());
+        Assert.False(attachmentDeleteInput.GetProperty("properties").TryGetProperty("archived", out _));
+        Assert.False(attachmentDeleteInput.GetProperty("additionalProperties").GetBoolean());
+
+        var downloadTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardAttachmentDownload);
+        Assert.Equal(["boardId", "id"], downloadTool.GetProperty("inputSchema").GetProperty("required")
+            .EnumerateArray().Select(value => value.GetString()).ToArray());
+        Assert.Equal(["url", "method", "headers", "expiresAtUtc"], downloadTool.GetProperty("outputSchema").GetProperty("required")
+            .EnumerateArray().Select(value => value.GetString()).ToArray());
+
+        var uploadTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardAttachmentUpload);
+        Assert.Equal(["boardId", "cardId", "fileName", "byteLength"], uploadTool.GetProperty("inputSchema").GetProperty("required")
+            .EnumerateArray().Select(value => value.GetString()).ToArray());
+        Assert.Equal(["url", "method", "headers", "byteLength", "expiresAtUtc"],
+            uploadTool.GetProperty("outputSchema").GetProperty("required")
+                .EnumerateArray().Select(value => value.GetString()).ToArray());
 
         var cardUpdateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardUpdate);
         var cardUpdateProperties = cardUpdateTool.GetProperty("inputSchema").GetProperty("properties");

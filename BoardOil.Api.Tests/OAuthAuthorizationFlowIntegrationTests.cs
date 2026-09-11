@@ -8,10 +8,14 @@ using BoardOil.Abstractions.OAuth;
 using BoardOil.Api.OAuth;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
+using BoardOil.Abstractions.Attachment;
+using BoardOil.Abstractions.Card;
+using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Common;
 using BoardOil.Contracts.OAuth;
 using BoardOil.Contracts.Users;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Ef;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -1416,6 +1420,83 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         }));
         client.BaseAddress = new Uri("https://localhost");
         return client;
+    }
+
+    [Theory]
+    [InlineData("valid")]
+    [InlineData("token-revoked")]
+    [InlineData("authorization-revoked")]
+    [InlineData("connection-revoked")]
+    public async Task AttachmentDownloadTicket_ShouldRecheckOriginatingOAuthCredential(string state)
+    {
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
+        var authorizationRequest = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead, $"{scenario.PublicBaseUrl}/mcp");
+        var code = await ApproveAsync(client, scenario, authorizationRequest);
+        var exchange = await ExchangeCodeAsync(client, scenario, authorizationRequest, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        int attachmentId;
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var card = await scope.ServiceProvider.GetRequiredService<ICardService>().CreateCardAsync(
+                1, new CreateCardRequest(null, "OAuth attachment", "", []), scenario.UserId);
+            Assert.True(card.Success, card.Message);
+            var upload = await scope.ServiceProvider.GetRequiredService<ICardAttachmentService>().UploadAsync(
+                1, card.Data!.Id, scenario.UserId, "original.bin", null, new MemoryStream([0, 255, 42]));
+            Assert.True(upload.Success, upload.Message);
+            attachmentId = upload.Data!.Id;
+        }
+        using var issuance = await McpJsonRpcClient.SendRequestAsync(client, "tools/call",
+            new { name = "card_attachment_download", arguments = new { boardId = 1, id = attachmentId } }, "download-ticket", exchange.AccessToken);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(issuance);
+        Assert.False(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean(), payload.RootElement.ToString());
+        var ticket = McpJsonRpcClient.GetStructuredContent(payload);
+        using (var scope = Factory.Services.CreateScope())
+        {
+            await using var db = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>().CreateDbContext<BoardOilDbContext>();
+            var row = await db.AttachmentDownloadTickets.SingleAsync();
+            Assert.NotNull(row.OAuthTokenId);
+            Assert.NotNull(row.OAuthAuthorizationId);
+            var tokenManager = scope.ServiceProvider.GetRequiredService<IOpenIddictTokenManager>();
+            var token = await tokenManager.FindByIdAsync(row.OAuthTokenId!);
+            var sourceExpiry = await tokenManager.GetExpirationDateAsync(token!);
+            Assert.True(row.ExpiresAtUtc <= sourceExpiry!.Value.UtcDateTime);
+            if (state == "token-revoked") { Assert.True(await tokenManager.TryRevokeAsync(token!)); }
+            if (state == "authorization-revoked")
+            {
+                var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictAuthorizationManager>();
+                Assert.True(await manager.TryRevokeAsync((await manager.FindByIdAsync(row.OAuthAuthorizationId!))!));
+            }
+            if (state == "connection-revoked")
+            {
+                var connection = await db.OAuthConnections.SingleAsync();
+                connection.RevokedAtUtc = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+            }
+        }
+        using var request = new HttpRequestMessage(HttpMethod.Get, ticket.GetProperty("url").GetString());
+        request.Headers.Authorization = System.Net.Http.Headers.AuthenticationHeaderValue.Parse(
+            ticket.GetProperty("headers").GetProperty("Authorization").GetString()!);
+
+        using var response = await CreateOAuthClient().SendAsync(request);
+
+        if (state == "valid")
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(new byte[] { 0, 255, 42 }, await response.Content.ReadAsByteArrayAsync());
+        }
+        else { Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode); }
+        using (var scope = Factory.Services.CreateScope())
+        {
+            await using var db = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>()
+                .CreateDbContext<BoardOilDbContext>();
+            var audits = await db.AttachmentTransferAudits.OrderBy(x => x.Id).ToListAsync();
+            Assert.Equal(AttachmentTransferCredentialType.OAuth, audits[0].CredentialType);
+            var expectedOutcome = state == "valid"
+                ? AttachmentTransferAuditOutcome.DownloadAdmitted
+                : AttachmentTransferAuditOutcome.CredentialInvalid;
+            Assert.Equal([AttachmentTransferAuditOutcome.Issued, expectedOutcome], audits.Select(x => x.Outcome));
+        }
     }
 
     private async Task<OAuthScenario> CreateScenarioAsync(

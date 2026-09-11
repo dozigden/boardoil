@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.Card;
+using BoardOil.Abstractions.Attachment;
 using BoardOil.Abstractions.Slick;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Common;
@@ -10,6 +11,7 @@ namespace BoardOil.Api.Mcp;
 public sealed class CardGetTool(
     ICardService cardService,
     ICardCommentService cardCommentService,
+    ICardAttachmentService attachmentService,
     ISlickService slickService,
     IMcpAuthorisationService authorisationService) : McpToolBase<CardGetInput, McpCardSnapshot>(authorisationService)
 {
@@ -18,7 +20,7 @@ public sealed class CardGetTool(
     private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardGet, "Get a card snapshot including description, tags, and comments.", ToolSchemas.CardGetInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead);
+        new(ToolNames.CardGet, "Get a card snapshot including description, tags, comments, and attachment metadata (not file contents).", ToolSchemas.CardGetInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead);
 
     protected override async Task<McpToolResult<McpCardSnapshot>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -70,9 +72,16 @@ public sealed class CardGetTool(
             slicksById = slicksResult.SlicksById;
         }
 
+        var attachmentsResult = await attachmentService.ListAsync(boardId, cardId, false, context.ActorUserId);
+        if (!attachmentsResult.Success || attachmentsResult.Data is null)
+        {
+            return Failure(attachmentsResult.ToMcpError());
+        }
+
         var cardSnapshot = result.Data.ToMcp(slicksById) with
         {
-            Comments = commentsResult.Data.Select(comment => comment.ToMcp()).ToArray()
+            Comments = commentsResult.Data.Select(comment => comment.ToMcp()).ToArray(),
+            Attachments = attachmentsResult.Data.Items
         };
 
         return Success(cardSnapshot);

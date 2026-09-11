@@ -210,6 +210,7 @@ app.MapSystemBoardEndpoints();
 app.MapColumnEndpoints();
 app.MapCardEndpoints();
 app.MapAttachmentEndpoints();
+app.MapAttachmentTransferEndpoints();
 app.MapCardTypeEndpoints();
 app.MapTagEndpoints();
 app.MapSlickEndpoints();

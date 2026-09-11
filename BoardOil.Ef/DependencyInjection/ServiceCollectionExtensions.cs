@@ -55,6 +55,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISlickRepository, SlickRepository>();
         services.AddScoped<IImageRepository, ImageRepository>();
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+        services.AddScoped<IAttachmentDownloadTicketRepository, AttachmentDownloadTicketRepository>();
+        services.AddScoped<IAttachmentUploadTicketRepository, AttachmentUploadTicketRepository>();
+        services.AddScoped<IAttachmentTransferAuditRepository, AttachmentTransferAuditRepository>();
         services.AddScoped<ITemporaryBoardPackageRepository, TemporaryBoardPackageRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         return services;
