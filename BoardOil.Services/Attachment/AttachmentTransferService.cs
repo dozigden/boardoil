@@ -71,33 +71,56 @@ public sealed class AttachmentTransferService(
 
         try
         {
-            using var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
-            var validity = await credentials.ValidateAsync(actorUserId, credential, MachinePatScopes.McpWrite, cancellationToken);
-            if (!validity.Success) { return ApiErrors.Unauthorized(validity.Message!); }
-            var access = await attachmentService.CheckUploadAccessAsync(boardId, cardId, actorUserId);
-            if (!access.Success) { return new ApiError(access.StatusCode, access.Message!); }
-
-            var now = clock.GetUtcNow().UtcDateTime;
-            var expires = ResolveExpiry(now, validity.Data);
-            if (expires <= now) { return InvalidTicket<AttachmentUploadTicket>(); }
-            var attachment = await attachmentService.ReserveUploadAsync(
-                fileName, contentType, actorUserId, access.Data, now, cancellationToken);
-            var secret = CreateSecret();
-            var ticket = new EntityAttachmentUploadTicket
+            using var scope = scopes.Create();
+            ApiResult<AttachmentUploadTicket>? result = null;
+            EntityAttachmentUploadTicket? issuedTicket = null;
+            await scope.Transaction(async (transactionScope, transaction) =>
             {
-                SecretHash = HashHex(secret), ActorUserId = actorUserId, BoardId = boardId,
-                CardId = access.Data, CardNumber = cardId, Attachment = attachment,
-                OriginalFileName = attachment.OriginalFileName, ContentType = attachment.ContentType,
-                DeclaredByteLength = byteLength, PersonalAccessTokenId = credential.PersonalAccessTokenId,
-                OAuthTokenId = credential.OAuthTokenId, OAuthAuthorizationId = credential.OAuthAuthorizationId,
-                State = AttachmentUploadTicketState.Issued, CreatedAtUtc = now, ExpiresAtUtc = expires
-            };
-            uploadTickets.Add(ticket);
-            await scope.SaveChangesAsync(cancellationToken);
-            await RecordAuditAsync(ticket, AttachmentTransferAuditOutcome.Issued, now, cancellationToken);
+                var validity = await credentials.ValidateAsync(
+                    actorUserId, credential, MachinePatScopes.McpWrite, cancellationToken);
+                if (!validity.Success)
+                {
+                    result = ApiResults.Unauthorized<AttachmentUploadTicket>(validity.Message!);
+                    return;
+                }
+                var access = await attachmentService.CheckUploadAccessAsync(boardId, cardId, actorUserId);
+                if (!access.Success)
+                {
+                    result = new ApiError(access.StatusCode, access.Message!);
+                    return;
+                }
+
+                var now = clock.GetUtcNow().UtcDateTime;
+                var expires = ResolveExpiry(now, validity.Data);
+                if (expires <= now)
+                {
+                    result = InvalidTicket<AttachmentUploadTicket>();
+                    return;
+                }
+                var attachment = await attachmentService.ReserveUploadAsync(
+                    fileName, contentType, actorUserId, access.Data, now, cancellationToken);
+                var secret = CreateSecret();
+                issuedTicket = new EntityAttachmentUploadTicket
+                {
+                    SecretHash = HashHex(secret), ActorUserId = actorUserId, BoardId = boardId,
+                    CardId = access.Data, CardNumber = cardId, Attachment = attachment,
+                    OriginalFileName = attachment.OriginalFileName, ContentType = attachment.ContentType,
+                    DeclaredByteLength = byteLength, PersonalAccessTokenId = credential.PersonalAccessTokenId,
+                    OAuthTokenId = credential.OAuthTokenId, OAuthAuthorizationId = credential.OAuthAuthorizationId,
+                    State = AttachmentUploadTicketState.Issued, CreatedAtUtc = now, ExpiresAtUtc = expires
+                };
+                uploadTickets.Add(issuedTicket);
+                await transactionScope.SaveChangesAsync(cancellationToken);
+                audits.Add(CreateAudit(issuedTicket, AttachmentTransferAuditOutcome.Issued, now));
+                await transactionScope.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync();
+                result = new AttachmentUploadTicket(
+                    issuedTicket.Id, secret, issuedTicket.ContentType, byteLength, expires);
+            });
+            if (!result!.Success) { return result; }
             logger.LogInformation("Issued attachment upload ticket {TicketId} for user {UserId}, board {BoardId}, attachment {AttachmentId}.",
-                ticket.Id, actorUserId, boardId, attachment.Id);
-            return new AttachmentUploadTicket(ticket.Id, secret, ticket.ContentType, byteLength, expires);
+                issuedTicket!.Id, actorUserId, boardId, issuedTicket.AttachmentId);
+            return result;
         }
         catch (AttachmentNameConflictException exception) { return new ApiError(409, exception.Message); }
         catch (ArgumentException exception) { return ApiErrors.ValidationFailed([new("fileName", exception.Message)]); }
@@ -135,17 +158,18 @@ public sealed class AttachmentTransferService(
         if (inspection.Ticket is null) { return inspection.Result!; }
         if (inspection.Result is not null)
         {
-            await RecordAuditAsync(inspection.Ticket, inspection.Outcome!.Value, startedAt, cancellationToken);
+            await TryRecordUploadAuditAsync(
+                inspection.Ticket, inspection.Outcome!.Value, startedAt, CancellationToken.None);
             return inspection.Result;
         }
 
         var ticket = inspection.Ticket;
-        if (!await ClaimUploadAsync(ticket.Id, cancellationToken))
+        if (!await ClaimUploadAsync(ticket, startedAt, cancellationToken))
         {
-            await RecordAuditAsync(ticket, AttachmentTransferAuditOutcome.UploadAlreadyClaimed, startedAt, cancellationToken);
+            await TryRecordUploadAuditAsync(
+                ticket, AttachmentTransferAuditOutcome.UploadAlreadyClaimed, startedAt, CancellationToken.None);
             return UploadAlreadyClaimed();
         }
-        await RecordAuditAsync(ticket, AttachmentTransferAuditOutcome.UploadClaimed, startedAt, cancellationToken);
 
         PreparedAttachmentFile prepared;
         try
@@ -156,28 +180,23 @@ public sealed class AttachmentTransferService(
         }
         catch (AttachmentLengthException exception)
         {
-            await FailUploadAsync(ticket.Id, CancellationToken.None);
-            await RecordAuditAsync(ticket, AttachmentTransferAuditOutcome.UploadFailed,
-                clock.GetUtcNow().UtcDateTime, CancellationToken.None);
+            await FailUploadAsync(ticket.Id, clock.GetUtcNow().UtcDateTime, CancellationToken.None);
             return ApiErrors.ValidationFailed([new("content", exception.Message)]);
         }
         catch (AttachmentSizeException exception)
         {
-            await FailUploadAsync(ticket.Id, CancellationToken.None);
-            await RecordAuditAsync(ticket, AttachmentTransferAuditOutcome.UploadFailed,
-                clock.GetUtcNow().UtcDateTime, CancellationToken.None);
+            await FailUploadAsync(ticket.Id, clock.GetUtcNow().UtcDateTime, CancellationToken.None);
             return new ApiError(413, exception.Message);
         }
         catch
         {
-            await FailUploadAsync(ticket.Id, CancellationToken.None);
-            await RecordAuditAsync(ticket, AttachmentTransferAuditOutcome.UploadFailed,
-                clock.GetUtcNow().UtcDateTime, CancellationToken.None);
+            await FailUploadAsync(ticket.Id, clock.GetUtcNow().UtcDateTime, CancellationToken.None);
             throw;
         }
 
-        var completion = await CompleteUploadAsync(ticket.Id, prepared, cancellationToken);
-        await RecordAuditAsync(ticket, completion.Outcome, clock.GetUtcNow().UtcDateTime, cancellationToken);
+        var completion = await CompleteUploadAsync(ticket, prepared, cancellationToken);
+        await TryRecordUploadAuditAsync(
+            ticket, completion.Outcome, clock.GetUtcNow().UtcDateTime, CancellationToken.None);
         if (!completion.Result.Success) { return completion.Result; }
         await attachmentService.PublishUploadEventsAsync(ticket.BoardId, ticket.CardNumber, ticket.AttachmentId);
         logger.LogInformation("Completed attachment upload ticket {TicketId} for user {UserId}, board {BoardId}, attachment {AttachmentId}.",
@@ -288,23 +307,28 @@ public sealed class AttachmentTransferService(
         await scope.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<bool> ClaimUploadAsync(int ticketId, CancellationToken cancellationToken)
+    private async Task<bool> ClaimUploadAsync(EntityAttachmentUploadTicket ticket, DateTime occurredAtUtc,
+        CancellationToken cancellationToken)
     {
         using var suppressed = scopes.SuppressAmbientContext();
         using var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
         var affected = await uploadTickets.Query()
-            .Where(x => x.Id == ticketId && x.State == AttachmentUploadTicketState.Issued)
+            .Where(x => x.Id == ticket.Id && x.State == AttachmentUploadTicketState.Issued)
             .ExecuteUpdateAsync(update => update.SetProperty(x => x.State, AttachmentUploadTicketState.Uploading), cancellationToken);
+        if (affected == 1)
+        {
+            audits.Add(CreateAudit(ticket, AttachmentTransferAuditOutcome.UploadClaimed, occurredAtUtc));
+        }
         await scope.SaveChangesAsync(cancellationToken);
         return affected == 1;
     }
 
-    private async Task<UploadCompletion> CompleteUploadAsync(int ticketId, PreparedAttachmentFile prepared,
-        CancellationToken cancellationToken)
+    private async Task<UploadCompletion> CompleteUploadAsync(EntityAttachmentUploadTicket inspectedTicket,
+        PreparedAttachmentFile prepared, CancellationToken cancellationToken)
     {
         using var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
         var ticket = await uploadTickets.Query().Include(x => x.Attachment)
-            .SingleOrDefaultAsync(x => x.Id == ticketId, cancellationToken);
+            .SingleOrDefaultAsync(x => x.Id == inspectedTicket.Id, cancellationToken);
         if (ticket is null || ticket.State != AttachmentUploadTicketState.Uploading)
         {
             return new(UploadAlreadyClaimed(), AttachmentTransferAuditOutcome.UploadAlreadyClaimed);
@@ -334,15 +358,20 @@ public sealed class AttachmentTransferService(
         return new(ApiResults.Created(CardAttachmentService.ToDto(attachment)), AttachmentTransferAuditOutcome.UploadCompleted);
     }
 
-    private async Task FailUploadAsync(int ticketId, CancellationToken cancellationToken)
+    private async Task FailUploadAsync(int ticketId, DateTime occurredAtUtc, CancellationToken cancellationToken)
     {
-        using var suppressed = scopes.SuppressAmbientContext();
-        using var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
-        var ticket = await uploadTickets.Query().Include(x => x.Attachment)
-            .SingleOrDefaultAsync(x => x.Id == ticketId, cancellationToken);
-        if (ticket is null || ticket.State == AttachmentUploadTicketState.Completed) { return; }
-        MarkUploadFailed(ticket);
-        await scope.SaveChangesAsync(cancellationToken);
+        EntityAttachmentUploadTicket? ticket;
+        using (scopes.SuppressAmbientContext())
+        using (var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable))
+        {
+            ticket = await uploadTickets.Query().Include(x => x.Attachment)
+                .SingleOrDefaultAsync(x => x.Id == ticketId, cancellationToken);
+            if (ticket is null || ticket.State == AttachmentUploadTicketState.Completed) { return; }
+            MarkUploadFailed(ticket);
+            await scope.SaveChangesAsync(cancellationToken);
+        }
+        await TryRecordUploadAuditAsync(
+            ticket, AttachmentTransferAuditOutcome.UploadFailed, occurredAtUtc, CancellationToken.None);
     }
 
     private void MarkUploadFailed(EntityAttachmentUploadTicket ticket)
@@ -397,6 +426,20 @@ public sealed class AttachmentTransferService(
         using var scope = scopes.Create();
         audits.Add(CreateAudit(ticket, outcome, occurredAtUtc));
         await scope.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task TryRecordUploadAuditAsync(EntityAttachmentUploadTicket ticket,
+        AttachmentTransferAuditOutcome outcome, DateTime occurredAtUtc, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await RecordAuditAsync(ticket, outcome, occurredAtUtc, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception,
+                "Failed to record attachment upload audit {Outcome} for ticket {TicketId}.", outcome, ticket.Id);
+        }
     }
 
     private static EntityAttachmentTransferAudit CreateAudit(EntityAttachmentDownloadTicket ticket,

@@ -2,10 +2,13 @@ using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Abstractions.Attachment;
 using BoardOil.Abstractions.Card;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Common;
+using BoardOil.Data.Abstractions.Attachment;
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Ef;
 using BoardOil.Services.Attachment;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -19,12 +22,15 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
     private readonly string _root = Path.Combine(Path.GetTempPath(), "boardoil-transfer-tests-" + Guid.NewGuid().ToString("N"));
     private readonly TestClock _clock = new();
     private readonly TestCredentials _credentials = new();
+    private readonly TestAuditRepositoryState _auditRepository = new();
     private static readonly AttachmentTransferCredential Credential = new(1, null, null);
     protected override void ConfigureTestServices(IServiceCollection services)
     {
         services.AddSingleton(new AttachmentStorageOptions { RootPath = _root });
         services.AddSingleton<TimeProvider>(_clock);
         services.AddSingleton<IAttachmentTransferCredentialValidator>(_credentials);
+        services.AddSingleton(_auditRepository);
+        services.AddScoped<IAttachmentTransferAuditRepository, TestAuditRepository>();
         services.AddLogging();
     }
 
@@ -275,6 +281,22 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
     }
 
     [Fact]
+    public async Task IssueUpload_WhenIssuedAuditFails_ShouldRollBackTicketAndNameReservation()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        _auditRepository.OutcomeToThrow = AttachmentTransferAuditOutcome.Issued;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            ResolveService<IAttachmentTransferService>().IssueUploadAsync(
+                board.BoardId, card.BoardCardId, ActorUserId, "atomic.bin", null, 3, Credential));
+
+        Assert.Empty(await DbContextForAssert.AttachmentUploadTickets.ToListAsync());
+        Assert.Empty(await DbContextForAssert.CardAttachments.ToListAsync());
+        Assert.Empty(await DbContextForAssert.AttachmentTransferAudits.ToListAsync());
+    }
+
+    [Fact]
     public async Task Upload_ShouldPublishExactBytesAndReturnCompletedResultOnRetryWithoutReadingReplacement()
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
@@ -307,6 +329,26 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
     }
 
     [Fact]
+    public async Task Upload_WhenCompletedAuditFails_ShouldStillComplete()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var ticket = await IssueUpload(board.BoardId, card.BoardCardId, "completed.bin", 3);
+        _auditRepository.OutcomeToThrow = AttachmentTransferAuditOutcome.UploadCompleted;
+
+        var result = await ResolveService<IAttachmentTransferService>().UploadAsync(ticket.Id, ticket.Secret,
+            ticket.ContentType, ticket.ByteLength, new MemoryStream([1, 2, 3]));
+
+        Assert.True(result.Success, result.Message);
+        var completed = await DbContextForAssert.AttachmentUploadTickets.Include(x => x.Attachment)
+            .SingleAsync(x => x.Id == ticket.Id);
+        Assert.Equal(AttachmentUploadTicketState.Completed, completed.State);
+        Assert.Equal(AttachmentState.Ready, completed.Attachment.State);
+        Assert.DoesNotContain(await DbContextForAssert.AttachmentTransferAudits.ToListAsync(),
+            x => x.Outcome == AttachmentTransferAuditOutcome.UploadCompleted);
+    }
+
+    [Fact]
     public async Task Upload_WhenStreamLengthDiffers_ShouldFailTicketAndReleaseNameForNewTicket()
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
@@ -324,6 +366,25 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Equal(AttachmentState.PendingDeletion,
             await DbContextForAssert.CardAttachments.Where(x => x.Id == failed.AttachmentId).Select(x => x.State).SingleAsync());
         Assert.NotEqual(ticket.Id, replacement.Id);
+    }
+
+    [Fact]
+    public async Task Upload_WhenFailedAuditFails_ShouldStillFailTicketAndReleaseName()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var ticket = await IssueUpload(board.BoardId, card.BoardCardId, "failed.bin", 3);
+        _auditRepository.OutcomeToThrow = AttachmentTransferAuditOutcome.UploadFailed;
+
+        var result = await ResolveService<IAttachmentTransferService>().UploadAsync(ticket.Id, ticket.Secret,
+            ticket.ContentType, ticket.ByteLength, new MemoryStream([1, 2]));
+
+        Assert.Equal(400, result.StatusCode);
+        var failed = await DbContextForAssert.AttachmentUploadTickets.Include(x => x.Attachment)
+            .SingleAsync(x => x.Id == ticket.Id);
+        Assert.Equal(AttachmentUploadTicketState.Failed, failed.State);
+        Assert.Equal(AttachmentState.PendingDeletion, failed.Attachment.State);
+        Assert.Null(failed.Attachment.CardId);
     }
 
     [Fact]
@@ -390,6 +451,26 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
     }
 
     [Fact]
+    public async Task Upload_WhenTerminalAuditFails_ShouldStillFailTicketAndReleaseName()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var ticket = await IssueUpload(board.BoardId, card.BoardCardId, "terminal.bin", 3);
+        _clock.Now = _clock.Now.AddMinutes(15);
+        _auditRepository.OutcomeToThrow = AttachmentTransferAuditOutcome.Expired;
+
+        var result = await ResolveService<IAttachmentTransferService>().UploadAsync(ticket.Id, ticket.Secret,
+            ticket.ContentType, ticket.ByteLength, new ThrowOnReadStream());
+
+        Assert.Equal(401, result.StatusCode);
+        var failed = await DbContextForAssert.AttachmentUploadTickets.Include(x => x.Attachment)
+            .SingleAsync(x => x.Id == ticket.Id);
+        Assert.Equal(AttachmentUploadTicketState.Failed, failed.State);
+        Assert.Equal(AttachmentState.PendingDeletion, failed.Attachment.State);
+        Assert.Null(failed.Attachment.CardId);
+    }
+
+    [Fact]
     public async Task Upload_WhenRequestsOverlap_ShouldAllowOnlyTheClaimedRequestToReadBytes()
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
@@ -408,6 +489,26 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Equal(409, second.StatusCode);
         Assert.True(first.Success, first.Message);
         Assert.Single(await DbContextForAssert.CardAttachments.Where(x => x.State == AttachmentState.Ready).ToListAsync());
+    }
+
+    [Fact]
+    public async Task Upload_WhenClaimedAuditFails_ShouldRollBackClaimWithoutReadingBytes()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var ticket = await IssueUpload(board.BoardId, card.BoardCardId, "atomic.bin", 3);
+        _auditRepository.OutcomeToThrow = AttachmentTransferAuditOutcome.UploadClaimed;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            ResolveService<IAttachmentTransferService>().UploadAsync(ticket.Id, ticket.Secret,
+                ticket.ContentType, ticket.ByteLength, new ThrowOnReadStream()));
+
+        var retained = await DbContextForAssert.AttachmentUploadTickets.Include(x => x.Attachment)
+            .SingleAsync(x => x.Id == ticket.Id);
+        Assert.Equal(AttachmentUploadTicketState.Issued, retained.State);
+        Assert.Equal(AttachmentState.Pending, retained.Attachment.State);
+        Assert.Equal([AttachmentTransferAuditOutcome.Issued],
+            await DbContextForAssert.AttachmentTransferAudits.Select(x => x.Outcome).ToListAsync());
     }
 
     [Fact]
@@ -508,6 +609,31 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
             RequiredScopes.Add(requiredScope);
             return Task.FromResult(Valid ? ApiResults.Ok(Expires) : ApiResults.Unauthorized<DateTime?>("Revoked"));
         }
+    }
+
+    private sealed class TestAuditRepositoryState
+    {
+        public AttachmentTransferAuditOutcome? OutcomeToThrow { get; set; }
+    }
+
+    private sealed class TestAuditRepository(
+        IAmbientDbContextLocator locator, TestAuditRepositoryState state) : IAttachmentTransferAuditRepository
+    {
+        private BoardOilDbContext DbContext => locator.Get<BoardOilDbContext>() ??
+            throw new InvalidOperationException("No ambient database context.");
+
+        public IQueryable<EntityAttachmentTransferAudit> Query() => DbContext.AttachmentTransferAudits;
+        public EntityAttachmentTransferAudit? Get(int id) => DbContext.AttachmentTransferAudits.Find(id);
+        public void Add(EntityAttachmentTransferAudit entity)
+        {
+            if (state.OutcomeToThrow == entity.Outcome) { throw new InvalidOperationException("Audit write failed."); }
+            DbContext.AttachmentTransferAudits.Add(entity);
+        }
+        public void AddRange(IEnumerable<EntityAttachmentTransferAudit> entities) =>
+            DbContext.AttachmentTransferAudits.AddRange(entities);
+        public void Remove(EntityAttachmentTransferAudit entity) => DbContext.AttachmentTransferAudits.Remove(entity);
+        public void RemoveRange(IEnumerable<EntityAttachmentTransferAudit> entities) =>
+            DbContext.AttachmentTransferAudits.RemoveRange(entities);
     }
 
     private sealed class ThrowOnReadStream : MemoryStream
