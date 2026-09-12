@@ -120,7 +120,9 @@
                 v-for="(card, cardIndex) in column.cards"
                 :key="card.id"
                 :class="resolveCardBoundaryClass(column.cards, cardIndex)"
+                :board-id="board.id"
                 :card="card"
+                :thumbnail-attachment="cardAttachmentThumbnailStore.getForCard(card.id)"
                 :column-id="column.id"
                 :data-card-id="card.id"
                 :drop-indicator="resolveCardDropIndicator(column.id, card.id)"
@@ -203,6 +205,7 @@ import { useBoardCardSelection } from '../composables/useBoardCardSelection';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
+import { useCardAttachmentThumbnailStore } from '../stores/cardAttachmentThumbnailStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
 import type { AppError } from '../../shared/types/appError';
@@ -241,6 +244,7 @@ const router = useRouter();
 const boardStore = useBoardStore();
 const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
+const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
 const slickStore = useSlickStore();
 const tagStore = useTagStore();
 const boardLayoutRegistry = useBoardLayoutRegistry();

@@ -40,7 +40,8 @@ public sealed class BoardService(
                 x.Board.SlickCohesionModeEnabled,
                 x.Board.CreatedAtUtc,
                 x.Board.UpdatedAtUtc,
-                x.Role.ToString()))
+                x.Role.ToString(),
+                x.Board.CardAttachmentThumbnailsEnabled))
             .ToList();
     }
 
@@ -98,7 +99,8 @@ public sealed class BoardService(
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             currentUserRole,
-            columnDtos);
+            columnDtos,
+            board.CardAttachmentThumbnailsEnabled);
     }
 
     public async Task<ApiResult<BoardDto>> CreateBoardAsync(CreateBoardRequest request, int actorUserId)
@@ -124,6 +126,7 @@ public sealed class BoardService(
             Name = name,
             Description = description,
             SlickCohesionModeEnabled = true,
+            CardAttachmentThumbnailsEnabled = true,
             CardIdSequence = new EntityBoardCardIdSequence(),
         };
 
@@ -174,7 +177,8 @@ public sealed class BoardService(
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             BoardMemberRole.Owner.ToString(),
-            columnDtos));
+            columnDtos,
+            board.CardAttachmentThumbnailsEnabled));
     }
 
     public async Task<ApiResult<BoardSummaryDto>> UpdateBoardAsync(int boardId, UpdateBoardRequest request, int actorUserId)
@@ -209,11 +213,17 @@ public sealed class BoardService(
         var hasNameChanged = !string.Equals(board.Name, updatedName, StringComparison.Ordinal);
         var hasDescriptionChanged = !string.Equals(board.Description, updatedDescription, StringComparison.Ordinal);
         var hasSlickCohesionModeChanged = board.SlickCohesionModeEnabled != request.SlickCohesionModeEnabled;
-        if (hasNameChanged || hasDescriptionChanged || hasSlickCohesionModeChanged)
+        var hasCardAttachmentThumbnailsChanged = request.CardAttachmentThumbnailsEnabled.HasValue
+            && board.CardAttachmentThumbnailsEnabled != request.CardAttachmentThumbnailsEnabled.Value;
+        if (hasNameChanged || hasDescriptionChanged || hasSlickCohesionModeChanged || hasCardAttachmentThumbnailsChanged)
         {
             board.Name = updatedName;
             board.Description = updatedDescription;
             board.SlickCohesionModeEnabled = request.SlickCohesionModeEnabled;
+            if (request.CardAttachmentThumbnailsEnabled.HasValue)
+            {
+                board.CardAttachmentThumbnailsEnabled = request.CardAttachmentThumbnailsEnabled.Value;
+            }
             await scope.SaveChangesAsync();
         }
 
@@ -225,7 +235,8 @@ public sealed class BoardService(
             board.SlickCohesionModeEnabled,
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
-            membership?.Role.ToString());
+            membership?.Role.ToString(),
+            board.CardAttachmentThumbnailsEnabled);
     }
 
     public async Task<ApiResult> DeleteBoardAsync(int boardId, int actorUserId)

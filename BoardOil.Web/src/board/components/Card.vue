@@ -10,7 +10,8 @@
         'card--multi-dragging': isDragging && selectionMode && selectedCount > 1,
         'card--drop-before': dropIndicator === 'before',
         'card--drop-after': dropIndicator === 'after',
-        'card--static': !interactive
+        'card--static': !interactive,
+        'card--has-thumbnail': cardThumbnailUrl
       }
     ]"
     :style="cardStyle"
@@ -24,44 +25,51 @@
     @dragstart="onDragStart"
     @dragend="onDragEnd"
   >
-    <div class="card-header">
-      <strong class="card-title">
-        <span class="card-title-text"><span v-if="resolvedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ resolvedCardTypeEmoji }}</span>{{ resolvedCardTypeEmoji ? ' ' : '' }}{{ card.title }}</span>
-      </strong>
-      <span class="card-id">#{{ card.id }}</span>
-    </div>
+    <img v-if="cardThumbnailUrl" class="card-thumbnail" :src="cardThumbnailUrl" alt="" aria-hidden="true" draggable="false" />
+    <div class="card-content">
+      <div class="card-header">
+        <strong class="card-title">
+          <span class="card-title-text"><span v-if="resolvedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ resolvedCardTypeEmoji }}</span>{{ resolvedCardTypeEmoji ? ' ' : '' }}{{ card.title }}</span>
+        </strong>
+        <span class="card-id">#{{ card.id }}</span>
+      </div>
 
-    <p v-if="card.assignedUserDisplayName" class="card-assigned-to">
-      <UserAvatar
-        :image-url="assignedUserImageUrl"
-        :display-name="card.assignedUserDisplayName"
-        size="md"
-        class="card-assigned-avatar"
-      />
-      <span>{{ card.assignedUserDisplayName }}</span>
-    </p>
+      <p v-if="card.assignedUserDisplayName" class="card-assigned-to">
+        <UserAvatar
+          :image-url="assignedUserImageUrl"
+          :display-name="card.assignedUserDisplayName"
+          size="md"
+          class="card-assigned-avatar"
+        />
+        <span>{{ card.assignedUserDisplayName }}</span>
+      </p>
 
-    <div v-if="card.tags.length > 0" class="card-tags tag-group" aria-label="Card tags">
-      <Tag
-        v-for="tag in card.tags"
-        :key="tag.id"
-        :tag-id="tag.id"
-      >
-      </Tag>
+      <div v-if="card.tags.length > 0" class="card-tags tag-group" aria-label="Card tags">
+        <Tag
+          v-for="tag in card.tags"
+          :key="tag.id"
+          :tag-id="tag.id"
+        >
+        </Tag>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, toRef } from 'vue';
 import type { Card as BoardCard } from '../../shared/types/boardTypes';
+import type { CardAttachmentImageCandidate } from '../../shared/types/attachmentTypes';
 import { useCardTypeStore } from '../stores/cardTypeStore';
+import { useCardAttachmentThumbnailStore } from '../stores/cardAttachmentThumbnailStore';
 import { getCardSurfaceClassList, getCardSurfaceStyle } from '../../shared/utils/cardTypeStyles';
 import { buildApiUrl } from '../../shared/api/config';
+import { useAttachmentThumbnail } from '../composables/useAttachmentThumbnail';
 import Tag from './Tag.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 
 const props = withDefaults(defineProps<{
+  boardId?: number;
   card: BoardCard;
   columnId: number;
   dropIndicator?: 'none' | 'before' | 'after';
@@ -69,12 +77,15 @@ const props = withDefaults(defineProps<{
   selected?: boolean;
   selectedCount?: number;
   interactive?: boolean;
+  thumbnailAttachment?: CardAttachmentImageCandidate | null;
 }>(), {
+  boardId: 0,
   dropIndicator: 'none',
   selectionMode: false,
   selected: false,
   selectedCount: 0,
-  interactive: true
+  interactive: true,
+  thumbnailAttachment: null
 });
 
 const emit = defineEmits<{
@@ -85,6 +96,7 @@ const emit = defineEmits<{
 }>();
 
 const cardTypeStore = useCardTypeStore();
+const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
 const isDragging = ref(false);
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId));
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
@@ -109,6 +121,25 @@ const cardTabIndex = computed(() => props.interactive ? 0 : undefined);
 const assignedUserImageUrl = computed(() =>
   props.card.assignedUserImageRelativePath ? buildApiUrl(`/images/${props.card.assignedUserImageRelativePath}`) : null
 );
+const thumbnailSource = computed(() => {
+  const candidate = props.thumbnailAttachment;
+  if (!candidate) { return null; }
+  return {
+    id: candidate.attachmentId,
+    originalFileName: candidate.originalFileName,
+    hasThumbnail: candidate.hasThumbnail
+  };
+});
+const { imageUrl: cardThumbnailUrl } = useAttachmentThumbnail({
+  boardId: toRef(props, 'boardId'),
+  cardId: () => props.card.id,
+  archived: () => false,
+  attachment: thumbnailSource,
+  enabled: () => props.thumbnailAttachment !== null,
+  onThumbnailStored: attachmentId => {
+    cardAttachmentThumbnailStore.markHasThumbnail(props.card.id, attachmentId);
+  }
+});
 
 function onDragStart(event: DragEvent) {
   if (!props.interactive) {
@@ -156,6 +187,7 @@ function handlePrimaryAction() {
 
 <style scoped>
 .card {
+  --card-thumbnail-width: min(100px, 38%);
   border: 1px solid var(--bo-card-surface-border-color, var(--bo-border-soft));
   border-radius: 12px;
   padding: 0.6rem;
@@ -164,6 +196,29 @@ function handlePrimaryAction() {
   margin-bottom: 0.5rem;
   cursor: pointer;
   position: relative;
+}
+
+.card-thumbnail {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  width: var(--card-thumbnail-width);
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0 11px 11px 0;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 100%);
+}
+
+.card-content {
+  position: relative;
+  z-index: 1;
+}
+
+.card--has-thumbnail .card-content {
+  padding-right: calc(var(--card-thumbnail-width) + 0.45rem);
 }
 
 .card--selected {
@@ -254,6 +309,23 @@ function handlePrimaryAction() {
   flex: 0 0 auto;
   font-weight: 600;
   line-height: 1.25;
+}
+
+.card--has-thumbnail .card-id {
+  position: absolute;
+  top: 0;
+  right: 0;
+  text-shadow:
+    -3px 0 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
+    3px 0 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
+    0 -3px 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
+    0 3px 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
+    -2px -2px 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
+    2px -2px 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
+    -2px 2px 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
+    2px 2px 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
+    0 0 8px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
+    0 0 14px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base)));
 }
 
 .card-tags {

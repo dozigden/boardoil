@@ -5,6 +5,7 @@ import {
 } from './styleDraftAdapter';
 import { getSemanticStyleClasses, getSurfaceStyle } from './styleRenderer';
 import { normaliseEmojiForRender } from './styleFormatting';
+import { deserializeStyle } from './stylePersistence';
 import type { StyleDraft } from './styleTypes';
 
 export type CardTypeStyleDraft = StyleDraft;
@@ -25,7 +26,7 @@ export function buildStylePropertiesJsonFromDraft(draft: CardTypeStyleDraft): st
 }
 
 export function getCardSurfaceStyle(cardType: Pick<CardType, 'styleName' | 'stylePropertiesJson'> | null): Record<string, string> {
-  return getSurfaceStyle(
+  const surfaceStyle = getSurfaceStyle(
     cardType,
     {
       fallbackBackground: 'var(--bo-surface-base)',
@@ -34,6 +35,17 @@ export function getCardSurfaceStyle(cardType: Pick<CardType, 'styleName' | 'styl
       borderAlpha: 0.35
     }
   );
+  if (!cardType) {
+    return surfaceStyle;
+  }
+
+  const style = deserializeStyle(cardType);
+  if (style.styleName === 'solid') {
+    surfaceStyle['--bo-card-thumbnail-halo-color'] = style.backgroundColor;
+  } else if (style.styleName === 'gradient') {
+    surfaceStyle['--bo-card-thumbnail-halo-color'] = style.rightColor;
+  }
+  return surfaceStyle;
 }
 
 export function getCardSurfaceClassList(cardType: Pick<CardType, 'styleName' | 'stylePropertiesJson'> | null): string[] {

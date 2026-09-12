@@ -28,7 +28,8 @@ public sealed record BoardPackageImportPlan(
     IReadOnlyList<TagImportDefinition> TagDefinitions,
     IReadOnlyList<SlickImportDefinition> SlickDefinitions,
     IReadOnlyList<ColumnImportDefinition> Columns,
-    IReadOnlyList<ArchivedCardImportDefinition> ArchivedCards);
+    IReadOnlyList<ArchivedCardImportDefinition> ArchivedCards,
+    bool CardAttachmentThumbnailsEnabled = true);
 
 public sealed record CardTypeImportDefinition(
     string Name,

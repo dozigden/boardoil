@@ -9,10 +9,9 @@
 
 <script setup lang="ts">
 import { File as FileIcon } from '@lucide/vue';
-import { onBeforeUnmount, ref, watch } from 'vue';
-import { createBoardApi } from '../../shared/api/boardApi';
+import { toRef } from 'vue';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
-import { attachmentThumbnailQueue, createAttachmentThumbnail } from '../utils/attachmentThumbnails';
+import { useAttachmentThumbnail } from '../composables/useAttachmentThumbnail';
 
 const props = defineProps<{
   boardId: number;
@@ -21,54 +20,13 @@ const props = defineProps<{
   attachment: CardAttachment;
   canThumbnail: boolean;
 }>();
-const api = createBoardApi();
-const imageUrl = ref<string | null>(null);
-let loadVersion = 0;
-
-watch(() => [props.boardId, props.cardId, props.archived, props.attachment.id, props.attachment.hasThumbnail,
-  props.canThumbnail] as const,
-  () => { void load(); }, { immediate: true });
-onBeforeUnmount(() => {
-  loadVersion++;
-  clearImage();
+const { imageUrl } = useAttachmentThumbnail({
+  boardId: toRef(props, 'boardId'),
+  cardId: toRef(props, 'cardId'),
+  archived: toRef(props, 'archived'),
+  attachment: () => props.attachment,
+  enabled: toRef(props, 'canThumbnail')
 });
-
-async function load() {
-  const version = ++loadVersion;
-  clearImage();
-  if (!props.canThumbnail) { return; }
-  if (props.attachment.hasThumbnail) {
-    const existing = await api.getAttachmentThumbnail(props.boardId, props.attachment.id);
-    if (version !== loadVersion) { return; }
-    if (existing.ok) { show(existing.data); return; }
-    if (existing.error.statusCode !== 404) { return; }
-  }
-
-  const key = `${props.boardId}:${props.attachment.id}`;
-  const stored = await attachmentThumbnailQueue.run(key, async () => {
-    const original = await api.getAttachmentImage(
-      props.boardId, props.cardId, props.archived, props.attachment.originalFileName);
-    if (!original.ok) { return false; }
-    try {
-      const thumbnail = await createAttachmentThumbnail(original.data);
-      const result = await api.putAttachmentThumbnail(props.boardId, props.attachment.id, thumbnail);
-      return result.ok;
-    } catch { return false; }
-  });
-  if (!stored || version !== loadVersion) { return; }
-  const result = await api.getAttachmentThumbnail(props.boardId, props.attachment.id);
-  if (version === loadVersion && result.ok) { show(result.data); }
-}
-
-function show(blob: Blob) {
-  clearImage();
-  imageUrl.value = URL.createObjectURL(blob);
-}
-
-function clearImage() {
-  if (imageUrl.value) { URL.revokeObjectURL(imageUrl.value); }
-  imageUrl.value = null;
-}
 </script>
 
 <style scoped>

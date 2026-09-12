@@ -12,6 +12,7 @@ public sealed class BoardConfiguration : IEntityTypeConfiguration<EntityBoard>
         board.Property(x => x.Name).HasMaxLength(120).IsRequired();
         board.Property(x => x.Description).HasMaxLength(5_000).IsRequired();
         board.Property(x => x.SlickCohesionModeEnabled).HasDefaultValue(true).IsRequired();
+        board.Property(x => x.CardAttachmentThumbnailsEnabled).HasDefaultValue(true).IsRequired();
         board.ToTable("Boards");
         board.HasOne(x => x.CardIdSequence)
             .WithOne(x => x.Board)

@@ -53,6 +53,7 @@ export function resetDemoData() {
 const demoBoardApi: BoardApi = {
   supportsAttachments: false,
   async getAttachments() { return ok({ items: [], maxUploadByteLength: 0 }); },
+  async getFirstAttachmentImagesByCard() { return ok([]); },
   async uploadAttachment() { return unavailable(); },
   async getAttachmentImage() { return unavailable(); },
   async getAttachmentThumbnail() { return unavailable(); },
@@ -801,6 +802,7 @@ function createSeedState(): DemoState {
     name: 'Live Demo',
     description: 'A fictional launch board for the interactive BoardOil preview.',
     slickCohesionModeEnabled: true,
+    cardAttachmentThumbnailsEnabled: true,
     currentUserRole: 'Owner',
     createdAtUtc: timestamp,
     updatedAtUtc: timestamp,

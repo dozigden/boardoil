@@ -65,6 +65,7 @@ export type BoardEditModel = {
   name: string;
   description: string;
   slickCohesionModeEnabled: boolean;
+  cardAttachmentThumbnailsEnabled: boolean;
 };
 
 export type BoardMemberEditModel = {
@@ -182,6 +183,7 @@ export type Board = {
   name: string;
   description: string;
   slickCohesionModeEnabled: boolean;
+  cardAttachmentThumbnailsEnabled: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
   currentUserRole?: BoardMemberRole | null;
@@ -193,6 +195,7 @@ export type BoardSummary = {
   name: string;
   description: string;
   slickCohesionModeEnabled: boolean;
+  cardAttachmentThumbnailsEnabled: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
   currentUserRole?: BoardMemberRole | null;

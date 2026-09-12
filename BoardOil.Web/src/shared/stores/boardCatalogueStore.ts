@@ -123,6 +123,7 @@ function toBoardSummary(board: BoardSummary): BoardSummary {
     name: board.name,
     description: board.description,
     slickCohesionModeEnabled: board.slickCohesionModeEnabled,
+    cardAttachmentThumbnailsEnabled: board.cardAttachmentThumbnailsEnabled,
     createdAtUtc: board.createdAtUtc,
     updatedAtUtc: board.updatedAtUtc,
     currentUserRole: board.currentUserRole ?? null

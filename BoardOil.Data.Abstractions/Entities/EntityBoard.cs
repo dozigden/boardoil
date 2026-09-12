@@ -6,6 +6,7 @@ public sealed class EntityBoard : ISupportCreatedAt, ISupportUpdatedAt
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public bool SlickCohesionModeEnabled { get; set; } = true;
+    public bool CardAttachmentThumbnailsEnabled { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; internal set; }
 

@@ -78,7 +78,8 @@ public sealed class BoardCloneService(
                         x.StyleName,
                         x.StylePropertiesJson))
                     .ToList(),
-                sourceBoard.SlickCohesionModeEnabled);
+                sourceBoard.SlickCohesionModeEnabled,
+                sourceBoard.CardAttachmentThumbnailsEnabled);
         }
 
         var targetName = request.Name?.Trim() ?? string.Empty;

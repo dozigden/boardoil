@@ -47,6 +47,7 @@ function makeBoard(): Board {
     name: 'Demo',
     description: 'Demo board',
     slickCohesionModeEnabled: true,
+    cardAttachmentThumbnailsEnabled: true,
     columns: [
       {
         id: 1,

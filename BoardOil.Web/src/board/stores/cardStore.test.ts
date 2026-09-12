@@ -690,6 +690,7 @@ function makeBoard(id = 1, name = 'Board'): Board {
     name,
     description: '',
     slickCohesionModeEnabled: true,
+    cardAttachmentThumbnailsEnabled: true,
     createdAtUtc: '2026-03-15T00:00:00Z',
     updatedAtUtc: '2026-03-15T00:00:00Z',
     columns: [

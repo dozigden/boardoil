@@ -18,9 +18,9 @@ public sealed class ClientPasswordHashMigrationIntegrationTests
 
         try
         {
+            const int boardId = 1;
             int clientId;
             int humanId;
-            int boardId;
             int tokenId;
 
             await using (var dbContext = new BoardOilDbContext(options))
@@ -49,19 +49,20 @@ public sealed class ClientPasswordHashMigrationIntegrationTests
                     IdentityType = UserIdentityType.User,
                     IsActive = true,
                 };
-                var board = new EntityBoard
-                {
-                    Name = "Existing board",
-                    Description = "Migration fixture",
-                };
-
                 dbContext.Users.AddRange(client, human);
-                dbContext.Boards.Add(board);
                 await dbContext.SaveChangesAsync();
+                var timestamp = DateTime.UtcNow;
+                await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                    INSERT INTO "Boards"
+                        ("Id", "Name", "Description", "SlickCohesionModeEnabled", "CreatedAtUtc", "UpdatedAtUtc")
+                    VALUES
+                        ({boardId}, {"Existing board"}, {"Migration fixture"}, {true}, {timestamp}, {timestamp});
+                    """);
 
                 var membership = new EntityBoardMember
                 {
-                    BoardId = board.Id,
+                    BoardId = boardId,
                     UserId = client.Id,
                     Role = BoardMemberRole.Contributor,
                 };
@@ -79,7 +80,6 @@ public sealed class ClientPasswordHashMigrationIntegrationTests
 
                 clientId = client.Id;
                 humanId = human.Id;
-                boardId = board.Id;
                 tokenId = token.Id;
             }
 

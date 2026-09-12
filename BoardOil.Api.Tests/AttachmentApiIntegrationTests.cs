@@ -140,6 +140,40 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
         Assert.Equal(HttpStatusCode.Forbidden, (await Client.PutAsync(path, valid)).StatusCode);
     }
 
+    [Fact]
+    public async Task FirstImagesByCard_ShouldReturnOneCandidatePerLiveCardAndSupportFiltering()
+    {
+        var firstCard = await CreateCard();
+        var secondCard = await CreateCard();
+        using var notes = Upload([1], "notes.txt");
+        Assert.Equal(HttpStatusCode.Created,
+            (await Client.PostAsync($"/api/boards/1/cards/{firstCard.Id}/attachments", notes)).StatusCode);
+        using var firstImageForm = Upload(Png(3, 2), "first.png", Png(3, 2));
+        var firstImageResponse = await Client.PostAsync(
+            $"/api/boards/1/cards/{firstCard.Id}/attachments", firstImageForm);
+        var firstImage = (await firstImageResponse.Content.ReadFromJsonAsync<Envelope<CardAttachmentDto>>())!.Data!;
+        using var laterImage = Upload(Png(3, 2), "later.jpg");
+        Assert.Equal(HttpStatusCode.Created,
+            (await Client.PostAsync($"/api/boards/1/cards/{firstCard.Id}/attachments", laterImage)).StatusCode);
+        using var secondImageForm = Upload(Png(3, 2), "second.webp");
+        var secondImageResponse = await Client.PostAsync(
+            $"/api/boards/1/cards/{secondCard.Id}/attachments", secondImageForm);
+        var secondImage = (await secondImageResponse.Content.ReadFromJsonAsync<Envelope<CardAttachmentDto>>())!.Data!;
+
+        var all = await Client.GetFromJsonAsync<Envelope<IReadOnlyList<CardAttachmentImageCandidateDto>>>(
+            "/api/boards/1/attachment-images/first-by-card");
+        var filtered = await Client.GetFromJsonAsync<Envelope<IReadOnlyList<CardAttachmentImageCandidateDto>>>(
+            $"/api/boards/1/attachment-images/first-by-card?cardId={secondCard.Id}");
+
+        Assert.Equal(2, all!.Data!.Count);
+        Assert.Equal(firstImage.Id, all.Data.Single(x => x.CardId == firstCard.Id).AttachmentId);
+        Assert.True(all.Data.Single(x => x.CardId == firstCard.Id).HasThumbnail);
+        Assert.Equal(secondImage.Id, Assert.Single(filtered!.Data!).AttachmentId);
+        using var anonymous = CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await anonymous.GetAsync("/api/boards/1/attachment-images/first-by-card")).StatusCode);
+    }
+
     private async Task<CardDto> CreateCard()
     {
         var response = await Client.PostAsJsonAsync("/api/boards/1/cards", new CreateCardRequest(null, "Attachments", "", []));

@@ -23,6 +23,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
             .Build();
         var boardEntity = DbContextForArrange.Boards.Single(x => x.Id == board.BoardId);
         boardEntity.Description = "Export board description";
+        boardEntity.CardAttachmentThumbnailsEnabled = false;
         await DbContextForArrange.SaveChangesAsync();
         var card = board.GetCard("Todo", "Task A");
         var unassignedCard = board.GetCard("Todo", "Task B");
@@ -134,6 +135,7 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.Equal("Export Board", payload!.Name);
         Assert.Equal("Export board description", payload.Description);
         Assert.True(payload.SlickCohesionModeEnabled);
+        Assert.False(payload.CardAttachmentThumbnailsEnabled);
         Assert.Contains(
             payload.CardTypes,
             x => x.Name == "Story"

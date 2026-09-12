@@ -29,6 +29,14 @@
         />
         <span>Enable slick cohesion mode</span>
       </label>
+      <label v-if="boardApi.supportsAttachments" class="board-details-toggle">
+        <input
+          v-model="boardDetailsDraft.cardAttachmentThumbnailsEnabled"
+          type="checkbox"
+          :disabled="!isOwner || busy"
+        />
+        <span>Show attachment thumbnails on cards</span>
+      </label>
 
       <p v-if="!isOwner" class="board-details-owner-note">Owner permission required to edit this board.</p>
 
@@ -75,13 +83,15 @@ const exporting = ref(false);
 const boardDetailsDraft = ref<BoardEditModel>({
   name: '',
   description: '',
-  slickCohesionModeEnabled: true
+  slickCohesionModeEnabled: true,
+  cardAttachmentThumbnailsEnabled: true
 });
 
 const boardId = computed(() => currentBoardId.value!);
 const boardName = computed(() => board.value?.name ?? '');
 const boardDescription = computed(() => board.value?.description ?? '');
 const slickCohesionModeEnabled = computed(() => board.value?.slickCohesionModeEnabled ?? true);
+const cardAttachmentThumbnailsEnabled = computed(() => board.value?.cardAttachmentThumbnailsEnabled ?? true);
 const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
 const hasChanges = computed(() =>
   board.value !== null
@@ -89,6 +99,7 @@ const hasChanges = computed(() =>
     boardDetailsDraft.value.name.trim() !== boardName.value.trim()
     || boardDetailsDraft.value.description.trim() !== boardDescription.value.trim()
     || boardDetailsDraft.value.slickCohesionModeEnabled !== slickCohesionModeEnabled.value
+    || boardDetailsDraft.value.cardAttachmentThumbnailsEnabled !== cardAttachmentThumbnailsEnabled.value
   ));
 const canSave = computed(() => isOwner.value && !busy.value && boardDetailsDraft.value.name.trim().length > 0 && hasChanges.value);
 const canExport = computed(() => isOwner.value && !exporting.value);
@@ -110,7 +121,8 @@ async function saveBoardDetails() {
   const saveModel: BoardEditModel = {
     name: boardDetailsDraft.value.name.trim(),
     description: boardDetailsDraft.value.description.trim(),
-    slickCohesionModeEnabled: boardDetailsDraft.value.slickCohesionModeEnabled
+    slickCohesionModeEnabled: boardDetailsDraft.value.slickCohesionModeEnabled,
+    cardAttachmentThumbnailsEnabled: boardDetailsDraft.value.cardAttachmentThumbnailsEnabled
   };
   const saved = await boardCatalogueStore.saveBoard(
     nextBoardId,
@@ -126,7 +138,8 @@ async function saveBoardDetails() {
   boardDetailsDraft.value = {
     name: saved.name,
     description: saved.description,
-    slickCohesionModeEnabled: saved.slickCohesionModeEnabled
+    slickCohesionModeEnabled: saved.slickCohesionModeEnabled,
+    cardAttachmentThumbnailsEnabled: saved.cardAttachmentThumbnailsEnabled
   };
 }
 
@@ -138,7 +151,8 @@ function resetDraftFromBoard() {
   boardDetailsDraft.value = {
     name: board.value.name,
     description: board.value.description,
-    slickCohesionModeEnabled: board.value.slickCohesionModeEnabled
+    slickCohesionModeEnabled: board.value.slickCohesionModeEnabled,
+    cardAttachmentThumbnailsEnabled: board.value.cardAttachmentThumbnailsEnabled
   };
 }
 

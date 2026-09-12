@@ -11,6 +11,8 @@ import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 
 const api = {
+  supportsAttachments: true,
+  getFirstAttachmentImagesByCard: vi.fn(),
   getSlicks: vi.fn(),
   getBoard: vi.fn(),
   createColumn: vi.fn(),
@@ -61,6 +63,7 @@ describe('boardStore', () => {
     systemInfoMessageStore.setMessage.mockReset();
     systemInfoMessageStore.load.mockClear();
     api.getBoard.mockResolvedValue(ok(makeBoard()));
+    api.getFirstAttachmentImagesByCard.mockResolvedValue(ok([]));
     realtime.connect.mockResolvedValue(undefined);
     realtime.disconnect.mockResolvedValue(undefined);
   });
@@ -361,6 +364,7 @@ function makeBoard(id = 1, name = 'Board'): Board {
     name,
     description: '',
     slickCohesionModeEnabled: true,
+    cardAttachmentThumbnailsEnabled: true,
     createdAtUtc: '2026-03-15T00:00:00Z',
     updatedAtUtc: '2026-03-15T00:00:00Z',
     columns: [

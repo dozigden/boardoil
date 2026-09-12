@@ -9,3 +9,10 @@ export type CardAttachment = {
 };
 
 export type CardAttachmentList = { items: CardAttachment[]; maxUploadByteLength: number };
+
+export type CardAttachmentImageCandidate = {
+  cardId: number;
+  attachmentId: number;
+  originalFileName: string;
+  hasThumbnail: boolean;
+};

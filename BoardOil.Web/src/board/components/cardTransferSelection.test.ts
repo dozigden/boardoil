@@ -36,6 +36,7 @@ function makeBoard(id: number, currentUserRole: 'Owner' | 'Contributor'): BoardS
     name: `Board ${id}`,
     description: '',
     slickCohesionModeEnabled: true,
+    cardAttachmentThumbnailsEnabled: true,
     createdAtUtc: '2026-08-28T00:00:00Z',
     updatedAtUtc: '2026-08-28T00:00:00Z',
     currentUserRole

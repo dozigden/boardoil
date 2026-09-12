@@ -48,6 +48,44 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Empty(events.ResyncRequestedBoardIds);
     }
 
+    [Fact]
+    public async Task ListFirstImagesByCard_ShouldReturnFirstSupportedLiveAttachmentPerCard()
+    {
+        var board = CreateBoard()
+            .AddColumn("Todo")
+            .AddCard("First")
+            .AddCard("Second")
+            .Build();
+        var firstCard = board.GetCard("First");
+        var secondCard = board.GetCard("Second");
+        var service = ResolveService<ICardAttachmentService>();
+        Assert.True((await service.UploadAsync(board.BoardId, firstCard.BoardCardId, ActorUserId,
+            "notes.txt", null, new MemoryStream([1]))).Success);
+        var firstImage = await service.UploadAsync(board.BoardId, firstCard.BoardCardId, ActorUserId,
+            "first.JPG", "image/jpeg", new MemoryStream(Png(3, 2)),
+            new MemoryStream(Png(3, 2)), "image/png");
+        Assert.True(firstImage.Success, firstImage.Message);
+        Assert.True((await service.UploadAsync(board.BoardId, firstCard.BoardCardId, ActorUserId,
+            "later.png", "image/png", new MemoryStream(Png(3, 2)))).Success);
+        var secondImage = await service.UploadAsync(board.BoardId, secondCard.BoardCardId, ActorUserId,
+            "second.webp", "image/webp", new MemoryStream(Png(3, 2)));
+        Assert.True(secondImage.Success, secondImage.Message);
+
+        var query = ResolveService<IBoardAttachmentImageQueryService>();
+        var all = await query.ListFirstByCardAsync(board.BoardId, null, ActorUserId);
+        var filtered = await query.ListFirstByCardAsync(
+            board.BoardId, [secondCard.BoardCardId], ActorUserId);
+
+        Assert.True(all.Success, all.Message);
+        Assert.Equal(2, all.Data!.Count);
+        Assert.Equal(firstImage.Data!.Id, all.Data[0].AttachmentId);
+        Assert.Equal(firstCard.BoardCardId, all.Data[0].CardId);
+        Assert.True(all.Data[0].HasThumbnail);
+        var onlyFiltered = Assert.Single(filtered.Data!);
+        Assert.Equal(secondImage.Data!.Id, onlyFiltered.AttachmentId);
+        Assert.Equal(secondCard.BoardCardId, onlyFiltered.CardId);
+    }
+
     [Theory]
     [InlineData("report.pdf", "report.pdf")]
     [InlineData("Report.PDF", "report.pdf")]

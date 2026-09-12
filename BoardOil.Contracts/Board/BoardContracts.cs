@@ -9,7 +9,8 @@ public sealed record BoardSummaryDto(
     bool SlickCohesionModeEnabled,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
-    string? CurrentUserRole);
+    string? CurrentUserRole,
+    bool CardAttachmentThumbnailsEnabled = true);
 
 public sealed record SystemBoardSummaryDto(
     int Id,
@@ -25,7 +26,8 @@ public sealed record BoardDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     string? CurrentUserRole,
-    IReadOnlyList<BoardColumnDto> Columns);
+    IReadOnlyList<BoardColumnDto> Columns,
+    bool CardAttachmentThumbnailsEnabled = true);
 
 public sealed record CreateBoardRequest(
     string Name,
@@ -45,7 +47,8 @@ public sealed record ImportBoardPackageRequest(
 public sealed record UpdateBoardRequest(
     string Name,
     bool SlickCohesionModeEnabled,
-    string? Description = null);
+    string? Description = null,
+    bool? CardAttachmentThumbnailsEnabled = null);
 
 public sealed record BoardColumnDto(
     int Id,

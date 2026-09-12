@@ -1,5 +1,5 @@
 import { uploadFormData } from './http';
-import type { CardAttachment, CardAttachmentList } from '../types/attachmentTypes';
+import type { CardAttachment, CardAttachmentImageCandidate, CardAttachmentList } from '../types/attachmentTypes';
 import type {
   ArchiveCardsSummary,
   ArchivedCard,
@@ -182,6 +182,21 @@ function createHttpBoardApi() {
     if (!result.ok) { return result; }
     if (!result.data.data) { return err({ kind: 'parse', message: 'Attachment list was missing.' }); }
     return ok(result.data.data);
+  }
+
+  async function getFirstAttachmentImagesByCard(
+    boardId: number,
+    cardIds?: number[]
+  ): Promise<Result<CardAttachmentImageCandidate[], AppError>> {
+    const query = new URLSearchParams();
+    for (const cardId of cardIds ?? []) {
+      query.append('cardId', String(cardId));
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    const result = await getEnvelope<CardAttachmentImageCandidate[]>(
+      `/api/boards/${boardId}/attachment-images/first-by-card${suffix}`);
+    if (!result.ok) { return result; }
+    return ok(result.data.data ?? []);
   }
 
   async function uploadAttachment(boardId: number, cardId: number, file: File, progress: (percent: number) => void,
@@ -469,6 +484,7 @@ function createHttpBoardApi() {
   return {
     supportsAttachments: true,
     getAttachments,
+    getFirstAttachmentImagesByCard,
     uploadAttachment,
     getAttachmentImage,
     getAttachmentThumbnail,

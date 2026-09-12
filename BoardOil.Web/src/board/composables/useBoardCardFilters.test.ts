@@ -37,6 +37,7 @@ function makeBoard(cards: Card[]): Board {
     name: 'BoardOil',
     description: '',
     slickCohesionModeEnabled: true,
+    cardAttachmentThumbnailsEnabled: true,
     createdAtUtc: '2026-07-13T00:00:00Z',
     updatedAtUtc: '2026-07-13T00:00:00Z',
     columns: [

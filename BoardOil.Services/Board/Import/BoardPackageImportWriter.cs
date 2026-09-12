@@ -47,6 +47,7 @@ public sealed class BoardPackageImportWriter(
             Name = importPlan.BoardName,
             Description = importPlan.BoardDescription,
             SlickCohesionModeEnabled = importPlan.SlickCohesionModeEnabled,
+            CardAttachmentThumbnailsEnabled = importPlan.CardAttachmentThumbnailsEnabled,
             CardIdSequence = new EntityBoardCardIdSequence(),
         };
 
@@ -255,7 +256,8 @@ public sealed class BoardPackageImportWriter(
             board.CreatedAtUtc,
             board.UpdatedAtUtc,
             BoardMemberRole.Owner.ToString(),
-            columnDtos));
+            columnDtos,
+            board.CardAttachmentThumbnailsEnabled));
     }
 
     private static BoardPackageImportSortKeyPlanResult CreateSortKeyPlan(

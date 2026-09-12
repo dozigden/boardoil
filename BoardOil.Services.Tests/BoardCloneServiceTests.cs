@@ -21,6 +21,7 @@ public sealed class BoardCloneServiceTests : TestBaseDb
         var sourceBoard = DbContextForArrange.Boards.Single(x => x.Id == source.BoardId);
         sourceBoard.Description = "Source guidance";
         sourceBoard.SlickCohesionModeEnabled = false;
+        sourceBoard.CardAttachmentThumbnailsEnabled = false;
 
         var originalDefaultType = DbContextForArrange.CardTypes.Single(x => x.BoardId == source.BoardId && x.IsSystem);
         originalDefaultType.IsSystem = false;
@@ -93,6 +94,7 @@ public sealed class BoardCloneServiceTests : TestBaseDb
         Assert.Equal("Cloned board", result.Data!.Name);
         Assert.Equal("Source guidance", result.Data.Description);
         Assert.False(result.Data.SlickCohesionModeEnabled);
+        Assert.False(result.Data.CardAttachmentThumbnailsEnabled);
         Assert.Equal(["Backlog", "Released"], result.Data.Columns.Select(x => x.Title));
         Assert.All(result.Data.Columns, column => Assert.Empty(column.Cards));
 

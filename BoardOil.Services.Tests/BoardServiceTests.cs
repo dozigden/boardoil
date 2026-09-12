@@ -99,6 +99,28 @@ public sealed class BoardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task UpdateBoardAsync_ShouldPersistCardAttachmentThumbnailSettingAndPreserveItWhenOmitted()
+    {
+        var board = CreateBoard("BoardOil").Build();
+        var service = CreateService();
+
+        var disabled = await service.UpdateBoardAsync(
+            board.BoardId,
+            new UpdateBoardRequest("BoardOil", true, CardAttachmentThumbnailsEnabled: false),
+            ActorUserId);
+        var omitted = await service.UpdateBoardAsync(
+            board.BoardId,
+            new UpdateBoardRequest("Renamed", true),
+            ActorUserId);
+
+        Assert.True(disabled.Success);
+        Assert.False(disabled.Data!.CardAttachmentThumbnailsEnabled);
+        Assert.True(omitted.Success);
+        Assert.False(omitted.Data!.CardAttachmentThumbnailsEnabled);
+        Assert.False(DbContextForAssert.Boards.Single(x => x.Id == board.BoardId).CardAttachmentThumbnailsEnabled);
+    }
+
+    [Fact]
     public async Task CreateBoardAsync_ShouldDefaultSlickCohesionModeEnabledToTrue()
     {
         // Act
@@ -109,9 +131,11 @@ public sealed class BoardServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.True(result.Data!.SlickCohesionModeEnabled);
+        Assert.True(result.Data.CardAttachmentThumbnailsEnabled);
 
         var persisted = DbContextForAssert.Boards.Single(x => x.Id == result.Data.Id);
         Assert.True(persisted.SlickCohesionModeEnabled);
+        Assert.True(persisted.CardAttachmentThumbnailsEnabled);
         var sequence = DbContextForAssert.BoardCardIdSequences.Single(x => x.BoardId == result.Data.Id);
         Assert.Equal(1, sequence.NextCardId);
     }

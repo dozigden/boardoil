@@ -56,7 +56,8 @@ public sealed class BoardImportServiceTests : TestBaseDb
             [
                 new BoardPackageSlickDto("Release train", "solid", """{"backgroundColor":"#2E8B57","textColorMode":"auto"}""")
             ],
-            SlickCohesionModeEnabled: false);
+            SlickCohesionModeEnabled: false,
+            CardAttachmentThumbnailsEnabled: false);
 
         var service = ResolveService<IBoardPackageImportService>();
         var result = await service.ImportBoardPackageAsync(
@@ -69,6 +70,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.Equal("Imported Package Board", result.Data!.Name);
         Assert.Equal("Imported package description", result.Data.Description);
         Assert.False(result.Data.SlickCohesionModeEnabled);
+        Assert.False(result.Data.CardAttachmentThumbnailsEnabled);
         Assert.Equal(["Todo", "Done"], result.Data.Columns.Select(x => x.Title).ToArray());
         Assert.Equal("Bug", result.Data.Columns[0].Cards[0].CardTypeName);
         Assert.Equal(["NeedsReview", "Urgent"], result.Data.Columns[0].Cards[0].TagNames);
@@ -78,6 +80,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.Equal(BoardMemberRole.Owner, ownerMembership.Role);
         var importedBoard = DbContextForAssert.Boards.Single(x => x.Id == boardId);
         Assert.False(importedBoard.SlickCohesionModeEnabled);
+        Assert.False(importedBoard.CardAttachmentThumbnailsEnabled);
 
         var cardTypes = DbContextForAssert.CardTypes.Where(x => x.BoardId == boardId).OrderBy(x => x.Name).ToList();
         Assert.Equal(["Bug", "Story"], cardTypes.Select(x => x.Name).ToArray());
@@ -113,6 +116,35 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var legacyImportedCard = DbContextForAssert.Cards.Single(x => x.BoardColumn.BoardId == boardId && x.Title == "Ship release");
         Assert.NotEqual(default, legacyImportedCard.CardCreatedUtc);
         Assert.Equal(legacyImportedCard.CardCreatedUtc, legacyImportedCard.CardUpdatedUtc);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task ImportBoardPackageAsync_WhenCardAttachmentThumbnailsSettingIsPresent_ShouldPreserveIt(
+        int schemaVersion)
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0") with { SchemaVersion = schemaVersion };
+        var payload = new BoardPackageBoardDto(
+            "Thumbnail Setting Board",
+            null,
+            [new BoardPackageCardTypeDto("Story", null, true)],
+            [],
+            [new BoardPackageColumnDto("Todo", [])],
+            CardAttachmentThumbnailsEnabled: false);
+        var service = ResolveService<IBoardPackageImportService>();
+
+        var result = await service.ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)),
+            ActorUserId);
+
+        Assert.True(result.Success, result.Message);
+        Assert.False(result.Data!.CardAttachmentThumbnailsEnabled);
+        Assert.False(DbContextForAssert.Boards
+            .Single(x => x.Id == result.Data.Id)
+            .CardAttachmentThumbnailsEnabled);
     }
 
     [Theory]

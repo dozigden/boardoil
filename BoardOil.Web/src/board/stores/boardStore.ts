@@ -10,6 +10,7 @@ import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
 import { useSlickStore } from './slickStore';
 import { useAttachmentStore } from './attachmentStore';
+import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
 import type {
   Board,
@@ -39,6 +40,7 @@ export const useBoardStore = defineStore('board', () => {
   const tagStore = useTagStore();
   const slickStore = useSlickStore();
   const attachmentStore = useAttachmentStore();
+  const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
   const api = createBoardApi();
   const systemInfoMessageStore = useSystemInfoMessageStore();
   const board = computed<Board | null>(() => {
@@ -202,6 +204,7 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     const sortedBoard = sortBoard(result.data);
+    void cardAttachmentThumbnailStore.loadBoard(boardId, sortedBoard.cardAttachmentThumbnailsEnabled);
     currentBoardId.value = boardId;
     boardShell.value = stripBoardCards(sortedBoard);
     cardStore.replaceBoardCards(boardId, sortedBoard.columns);
@@ -271,7 +274,10 @@ export const useBoardStore = defineStore('board', () => {
     removeColumn(columnId);
   }
 
-  function applyBoardSummaryUpdate(summary: Pick<BoardSummary, 'id' | 'name' | 'description' | 'slickCohesionModeEnabled' | 'updatedAtUtc'>) {
+  function applyBoardSummaryUpdate(summary: Pick<BoardSummary,
+    'id' | 'name' | 'description' | 'slickCohesionModeEnabled' | 'cardAttachmentThumbnailsEnabled' | 'updatedAtUtc'>) {
+    const thumbnailSettingChanged = boardShell.value?.id === summary.id
+      && boardShell.value.cardAttachmentThumbnailsEnabled !== summary.cardAttachmentThumbnailsEnabled;
     mutateBoardShell(draft => {
       if (draft.id !== summary.id) {
         return;
@@ -280,8 +286,12 @@ export const useBoardStore = defineStore('board', () => {
       draft.name = summary.name;
       draft.description = summary.description;
       draft.slickCohesionModeEnabled = summary.slickCohesionModeEnabled;
+      draft.cardAttachmentThumbnailsEnabled = summary.cardAttachmentThumbnailsEnabled;
       draft.updatedAtUtc = summary.updatedAtUtc;
     });
+    if (thumbnailSettingChanged) {
+      void cardAttachmentThumbnailStore.loadBoard(summary.id, summary.cardAttachmentThumbnailsEnabled);
+    }
   }
 
   function getColumnById(columnId: number | null) {
@@ -323,6 +333,7 @@ export const useBoardStore = defineStore('board', () => {
 
   function clearBoardContext() {
     attachmentStore.clear();
+    cardAttachmentThumbnailStore.clear();
     boardShell.value = null;
     currentBoardId.value = null;
     cardStore.dispose();

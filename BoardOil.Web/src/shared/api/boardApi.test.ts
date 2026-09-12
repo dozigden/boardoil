@@ -74,6 +74,7 @@ describe('boardApi importBoardPackage', () => {
       name: 'Imported Board',
       description: '',
       slickCohesionModeEnabled: true,
+      cardAttachmentThumbnailsEnabled: true,
       createdAtUtc: '2026-04-08T00:00:00Z',
       updatedAtUtc: '2026-04-08T00:00:00Z',
       currentUserRole: 'Owner',
@@ -108,6 +109,7 @@ describe('boardApi createBoard', () => {
       name: 'Roadmap',
       description: 'Planning board',
       slickCohesionModeEnabled: true,
+      cardAttachmentThumbnailsEnabled: true,
       createdAtUtc: '2026-04-18T00:00:00Z',
       updatedAtUtc: '2026-04-18T00:00:00Z',
       currentUserRole: 'Owner',
@@ -133,6 +135,7 @@ describe('boardApi saveBoard', () => {
       name: 'Roadmap',
       description: 'Updated description',
       slickCohesionModeEnabled: true,
+      cardAttachmentThumbnailsEnabled: true,
       createdAtUtc: '2026-04-18T00:00:00Z',
       updatedAtUtc: '2026-04-18T00:00:00Z',
       currentUserRole: 'Owner'
@@ -142,15 +145,37 @@ describe('boardApi saveBoard', () => {
     const result = await api.saveBoard(1, {
       name: 'Roadmap',
       description: 'Updated description',
-      slickCohesionModeEnabled: true
+      slickCohesionModeEnabled: true,
+      cardAttachmentThumbnailsEnabled: false
     });
 
     expect(result.ok).toBe(true);
     expect(putData).toHaveBeenCalledWith('/api/boards/1', {
       name: 'Roadmap',
       description: 'Updated description',
-      slickCohesionModeEnabled: true
+      slickCohesionModeEnabled: true,
+      cardAttachmentThumbnailsEnabled: false
     });
+  });
+});
+
+describe('boardApi getFirstAttachmentImagesByCard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('requests the board projection with optional repeated card filters', async () => {
+    vi.mocked(getEnvelope).mockResolvedValue(ok({
+      success: true,
+      data: [{ cardId: 3, attachmentId: 7, originalFileName: 'cover.png', hasThumbnail: true }],
+      statusCode: 200
+    }));
+
+    const result = await createBoardApi().getFirstAttachmentImagesByCard(2, [3, 5]);
+
+    expect(result.ok).toBe(true);
+    expect(getEnvelope).toHaveBeenCalledWith(
+      '/api/boards/2/attachment-images/first-by-card?cardId=3&cardId=5');
   });
 });
 

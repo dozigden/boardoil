@@ -541,7 +541,8 @@ public sealed class BoardPackageImportPlanner
                 plannedTagDefinitionsByNormalisedName.Values.ToList(),
                 plannedSlickDefinitionsByNormalisedName.Values.ToList(),
                 plannedColumns,
-                plannedArchivedCards),
+                plannedArchivedCards,
+                boardPayload.CardAttachmentThumbnailsEnabled),
             null);
     }
 

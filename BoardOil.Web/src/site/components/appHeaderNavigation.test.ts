@@ -10,6 +10,7 @@ describe('appHeaderNavigation', () => {
         name: 'Solo board',
         description: '',
         slickCohesionModeEnabled: true,
+        cardAttachmentThumbnailsEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -25,6 +26,7 @@ describe('appHeaderNavigation', () => {
         name: 'Solo board',
         description: '',
         slickCohesionModeEnabled: true,
+        cardAttachmentThumbnailsEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       },
@@ -33,6 +35,7 @@ describe('appHeaderNavigation', () => {
         name: 'Second board',
         description: '',
         slickCohesionModeEnabled: true,
+        cardAttachmentThumbnailsEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -48,6 +51,7 @@ describe('appHeaderNavigation', () => {
         name: 'Solo board',
         description: '',
         slickCohesionModeEnabled: true,
+        cardAttachmentThumbnailsEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       },
@@ -56,6 +60,7 @@ describe('appHeaderNavigation', () => {
         name: 'Zulu',
         description: '',
         slickCohesionModeEnabled: true,
+        cardAttachmentThumbnailsEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       },
@@ -64,6 +69,7 @@ describe('appHeaderNavigation', () => {
         name: 'Alpha',
         description: '',
         slickCohesionModeEnabled: true,
+        cardAttachmentThumbnailsEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -83,6 +89,7 @@ describe('appHeaderNavigation', () => {
       name: 'Loaded board',
       description: '',
       slickCohesionModeEnabled: true,
+      cardAttachmentThumbnailsEnabled: true,
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:00:00Z',
       columns: []
@@ -93,6 +100,7 @@ describe('appHeaderNavigation', () => {
         name: 'Catalogue board',
         description: '',
         slickCohesionModeEnabled: true,
+        cardAttachmentThumbnailsEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }
@@ -108,6 +116,7 @@ describe('appHeaderNavigation', () => {
       name: 'Loaded board',
       description: '',
       slickCohesionModeEnabled: true,
+      cardAttachmentThumbnailsEnabled: true,
       createdAtUtc: '2026-03-15T00:00:00Z',
       updatedAtUtc: '2026-03-15T00:00:00Z',
       columns: []
@@ -118,6 +127,7 @@ describe('appHeaderNavigation', () => {
         name: 'Catalogue board',
         description: '',
         slickCohesionModeEnabled: true,
+        cardAttachmentThumbnailsEnabled: true,
         createdAtUtc: '2026-03-15T00:00:00Z',
         updatedAtUtc: '2026-03-15T00:00:00Z'
       }

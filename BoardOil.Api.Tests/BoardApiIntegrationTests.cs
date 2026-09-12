@@ -30,6 +30,7 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         Assert.NotNull(result.Data);
         Assert.Equal("BoardOil", result.Data!.Name);
         Assert.True(result.Data.SlickCohesionModeEnabled);
+        Assert.True(result.Data.CardAttachmentThumbnailsEnabled);
         Assert.Equal(3, result.Data.Columns.Count);
         Assert.Equal("Todo", result.Data.Columns[0].Title);
         Assert.Equal("In Progress", result.Data.Columns[1].Title);
@@ -80,11 +81,16 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         Assert.Equal(201, (int)createResponse.StatusCode);
         Assert.True(created.Success);
         Assert.True(created.Data.SlickCohesionModeEnabled);
+        Assert.True(created.Data.CardAttachmentThumbnailsEnabled);
 
         // Act
         var updateResponse = await Client.PutAsJsonAsync(
             $"/api/boards/{created.Data.Id}",
-            new UpdateBoardRequest("Roadmap", false, "  Updated board guidance  "));
+            new UpdateBoardRequest(
+                "Roadmap",
+                false,
+                "  Updated board guidance  ",
+                CardAttachmentThumbnailsEnabled: false));
         var updated = await updateResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardSummaryDto>>(JsonOptions);
         Assert.NotNull(updated);
 
@@ -94,6 +100,7 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         Assert.NotNull(updated.Data);
         Assert.Equal(created.Data.Id, updated.Data!.Id);
         Assert.False(updated.Data.SlickCohesionModeEnabled);
+        Assert.False(updated.Data.CardAttachmentThumbnailsEnabled);
     }
 
     [Fact]
