@@ -17,6 +17,13 @@ import { err, ok } from '../shared/types/result';
 
 const DemoBoardId = 1;
 const DemoUserId = 1;
+const SortKeyLength = 20;
+const SortKeyAlphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const SortKeyBase = BigInt(SortKeyAlphabet.length);
+const MaximumSortKeyValue = (SortKeyBase ** BigInt(SortKeyLength)) - 1n;
+const SortKeySpaceSize = MaximumSortKeyValue + 1n;
+const PreferredSortKeyRangeStart = SortKeySpaceSize / 4n;
+const PreferredSortKeyRangeSize = SortKeySpaceSize / 2n;
 
 type DemoState = {
   version: 1;
@@ -187,13 +194,12 @@ const demoBoardApi: BoardApi = {
     const card = located.card;
     if (located.column.id !== targetColumn.id) {
       located.column.cards.splice(located.index, 1);
+      card.sortKey = createSortKeyBetween(targetColumn.cards[targetColumn.cards.length - 1]?.sortKey ?? null, null);
       targetColumn.cards.push(card);
       card.boardColumnId = targetColumn.id;
-      reindexColumn(located.column.id);
     }
 
     applyCardEdit(card, model, cardType);
-    reindexColumn(targetColumn.id);
     return ok(clone(card));
   },
 
@@ -352,9 +358,9 @@ const demoBoardApi: BoardApi = {
     const column = getColumn(archivedCard.card.boardColumnId) ?? state.board.columns[0]!;
     const restoredCard = clone(archivedCard.card);
     restoredCard.boardColumnId = column.id;
+    restoredCard.sortKey = createSortKeyBetween(column.cards[column.cards.length - 1]?.sortKey ?? null, null);
     column.cards.push(restoredCard);
     state.archivedCards.splice(archiveIndex, 1);
-    reindexColumn(column.id);
     return ok(clone(restoredCard));
   },
 
@@ -528,12 +534,13 @@ function moveCardInternal(cardId: number, targetColumnId: number, positionAfterC
     insertIndex = anchorIndex < 0 ? targetColumn.cards.length : anchorIndex + 1;
   }
 
+  const previousSortKey = targetColumn.cards[insertIndex - 1]?.sortKey ?? null;
+  const nextSortKey = targetColumn.cards[insertIndex]?.sortKey ?? null;
   located.card.boardColumnId = targetColumn.id;
+  located.card.sortKey = createSortKeyBetween(previousSortKey, nextSortKey);
   const updatedAtUtc = now();
   located.card.cardUpdatedUtc = updatedAtUtc;
   targetColumn.cards.splice(insertIndex, 0, located.card);
-  reindexColumn(located.column.id);
-  reindexColumn(targetColumn.id);
   return located.card;
 }
 
@@ -545,7 +552,6 @@ function deleteCardInternal(cardId: number) {
 
   located.column.cards.splice(located.index, 1);
   delete state.comments[cardId];
-  reindexColumn(located.column.id);
   return true;
 }
 
@@ -565,7 +571,6 @@ function archiveCardInternal(cardId: number) {
     archivedAtUtc: now(),
     card
   });
-  reindexColumn(located.column.id);
   return true;
 }
 
@@ -636,20 +641,61 @@ function ensureSlick(name: string) {
   return slick;
 }
 
-function reindexColumn(columnId: number) {
-  const column = getColumn(columnId);
-  if (!column) {
-    return;
-  }
-
-  column.cards.forEach((card, index) => {
-    card.sortKey = String((index + 1) * 1000).padStart(8, '0');
-  });
-}
-
 function createLeadingCardSortKey(column: Board['columns'][number]) {
   const firstSortKey = column.cards[0]?.sortKey;
-  return firstSortKey ? `0${firstSortKey}` : '00001000';
+  return createSortKeyBetween(null, firstSortKey ?? null);
+}
+
+function createSortKeyBetween(previous: string | null, next: string | null) {
+  const low = previous === null ? -1n : parseSortKey(previous);
+  const high = next === null ? MaximumSortKeyValue + 1n : parseSortKey(next);
+  if (high <= low + 1n) {
+    throw new Error('Unable to allocate a demo card sort key between neighbours.');
+  }
+
+  return formatSortKey((low + high) / 2n);
+}
+
+function parseSortKey(sortKey: string) {
+  if (sortKey.length !== SortKeyLength) {
+    throw new Error(`Sort key must be exactly ${SortKeyLength} characters.`);
+  }
+
+  let value = 0n;
+  for (const rawCharacter of sortKey) {
+    const digit = SortKeyAlphabet.indexOf(rawCharacter.toUpperCase());
+    if (digit < 0) {
+      throw new Error('Sort key contains an invalid character.');
+    }
+
+    value = (value * SortKeyBase) + BigInt(digit);
+  }
+
+  return value;
+}
+
+function formatSortKey(value: bigint) {
+  if (value < 0n || value > MaximumSortKeyValue) {
+    throw new Error('Sort key value is outside the supported range.');
+  }
+
+  const characters = new Array<string>(SortKeyLength);
+  let remainder = value;
+  for (let index = SortKeyLength - 1; index >= 0; index -= 1) {
+    const digit = Number(remainder % SortKeyBase);
+    characters[index] = SortKeyAlphabet[digit]!;
+    remainder /= SortKeyBase;
+  }
+
+  return characters.join('');
+}
+
+function createEvenlySpacedSortKeys(count: number) {
+  const spacing = PreferredSortKeyRangeSize / (BigInt(count) + 1n);
+  return Array.from(
+    { length: count },
+    (_, index) => formatSortKey(PreferredSortKeyRangeStart + (spacing * BigInt(index + 1)))
+  );
 }
 
 function createSeedState(): DemoState {
@@ -841,8 +887,9 @@ function createSeedState(): DemoState {
   };
 
   for (const column of seedState.board.columns) {
+    const sortKeys = createEvenlySpacedSortKeys(column.cards.length);
     column.cards.forEach((card, index) => {
-      card.sortKey = String((index + 1) * 1000).padStart(8, '0');
+      card.sortKey = sortKeys[index]!;
     });
   }
 

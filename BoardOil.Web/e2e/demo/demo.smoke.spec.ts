@@ -104,6 +104,19 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await expect(page.getByText('Edited in the static demo', { exact: true })).toHaveCount(0);
   });
 
+  await test.step('drop a card at the exact indicated position', async () => {
+    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
+    const movedCard = ideasColumn.getByRole('button').filter({ hasText: 'AI-assisted acceptance criteria' });
+    const firstCard = ideasColumn.getByRole('button').filter({ hasText: 'Customer interview highlights' });
+
+    await movedCard.dragTo(firstCard, { targetPosition: { x: 20, y: 1 } });
+
+    const cards = ideasColumn.getByRole('button').filter({ hasText: /#\d+/ });
+    await expect(cards.nth(0)).toContainText('AI-assisted acceptance criteria');
+    await expect(cards.nth(1)).toContainText('Customer interview highlights');
+    await expect(cards.nth(2)).toContainText('Interactive onboarding checklist');
+  });
+
   await test.step('select cards without reflowing their titles', async () => {
     const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
     const card = ideasColumn.locator('.card').filter({ hasText: 'Customer interview highlights' });

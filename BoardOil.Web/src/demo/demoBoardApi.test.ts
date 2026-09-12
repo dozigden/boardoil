@@ -102,6 +102,42 @@ describe('demoBoardApi', () => {
     expect(targetColumn?.cards[0]?.id).toBe(createResult.data.id);
   });
 
+  it('returns a moved-card sort key that places it before the first stale client card', async () => {
+    const api = createDemoBoardApi();
+    const initialBoardResult = await api.getBoard(1);
+    expect(initialBoardResult.ok).toBe(true);
+    if (!initialBoardResult.ok) {
+      return;
+    }
+
+    const ideasColumn = initialBoardResult.data.columns.find(column => column.id === 1);
+    const originalFirstCard = ideasColumn?.cards[0];
+    expect(originalFirstCard).toBeDefined();
+    if (!originalFirstCard) {
+      return;
+    }
+
+    const moveResult = await api.moveCard(1, 103, 1, null);
+    expect(moveResult.ok).toBe(true);
+    if (!moveResult.ok) {
+      return;
+    }
+
+    expect(moveResult.data.sortKey < originalFirstCard.sortKey).toBe(true);
+
+    const updatedBoardResult = await api.getBoard(1);
+    expect(updatedBoardResult.ok).toBe(true);
+    if (!updatedBoardResult.ok) {
+      return;
+    }
+
+    expect(updatedBoardResult.data.columns.find(column => column.id === 1)?.cards.map(card => card.id)).toEqual([
+      103,
+      101,
+      102
+    ]);
+  });
+
   it('creates visitor slicks in memory with an id and preset style', async () => {
     const api = createDemoBoardApi();
 
