@@ -41,7 +41,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
     }
 
     [Fact]
-    public async Task Issue_ShouldPersistOnlyHashAndExactOwnerWithFifteenMinuteExpiry()
+    public async Task Issue_ShouldPersistOnlyHashAndExactOwnerWithTwoMinuteExpiry()
     {
         var (boardId, cardId, attachmentId) = await ArrangeAttachment();
 
@@ -53,7 +53,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Equal(64, ticket.Secret.Length);
         Assert.Equal(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ticket.Secret))), row.SecretHash);
         Assert.DoesNotContain(ticket.Secret, ticket.ToString());
-        Assert.Equal(_clock.Now.AddMinutes(15).UtcDateTime, row.ExpiresAtUtc);
+        Assert.Equal(_clock.Now.AddMinutes(2).UtcDateTime, row.ExpiresAtUtc);
         Assert.Equal(attachmentId, row.AttachmentId);
         Assert.Equal(cardId, row.CardNumber);
         Assert.Equal(boardId, row.BoardId);
@@ -74,7 +74,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
     public async Task Issue_ShouldCapExpiryAtCredentialExpiry()
     {
         var (boardId, _, attachmentId) = await ArrangeAttachment();
-        _credentials.Expires = _clock.Now.AddMinutes(2).UtcDateTime;
+        _credentials.Expires = _clock.Now.AddMinutes(1).UtcDateTime;
 
         var result = await ResolveService<IAttachmentTransferService>().IssueDownloadAsync(boardId, attachmentId, ActorUserId, Credential);
 
@@ -142,7 +142,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         var ticket = await Issue(boardId, attachmentId);
         switch (change)
         {
-            case "expired": _clock.Now = _clock.Now.AddMinutes(15); break;
+            case "expired": _clock.Now = _clock.Now.AddMinutes(2); break;
             case "secret": ticket = ticket with { Secret = new string('z', 64) }; break;
             case "credential": _credentials.Valid = false; break;
             case "membership":
@@ -203,7 +203,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         var (boardId, _, attachmentId) = await ArrangeAttachment();
         var ticket = await Issue(boardId, attachmentId);
         var admitted = await ResolveService<IAttachmentTransferService>().DownloadAsync(ticket.Id, ticket.Secret);
-        _clock.Now = _clock.Now.AddMinutes(16);
+        _clock.Now = _clock.Now.AddMinutes(3);
 
         await using var stream = admitted.Data!.Content;
         using var bytes = new MemoryStream();
@@ -217,7 +217,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
     {
         var (boardId, _, attachmentId) = await ArrangeAttachment();
         await Issue(boardId, attachmentId);
-        _clock.Now = _clock.Now.AddMinutes(15);
+        _clock.Now = _clock.Now.AddMinutes(2);
         var retained = await Issue(boardId, attachmentId);
 
         var count = await ResolveService<AttachmentTransferService>().CleanupAtStartupAsync();
@@ -271,6 +271,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Equal("Original.bin", row.OriginalFileName);
         Assert.Equal("application/octet-stream", row.ContentType);
         Assert.Equal(5, row.DeclaredByteLength);
+        Assert.Equal(_clock.Now.AddMinutes(2).UtcDateTime, row.ExpiresAtUtc);
         Assert.Equal(AttachmentUploadTicketState.Issued, row.State);
         Assert.Equal(AttachmentState.Pending, row.Attachment.State);
         Assert.Equal(card.Id, row.CardId);
@@ -419,7 +420,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         switch (change)
         {
             case "expired":
-                _clock.Now = _clock.Now.AddMinutes(15);
+                _clock.Now = _clock.Now.AddMinutes(2);
                 break;
             case "credential":
                 _credentials.Valid = false;
@@ -456,7 +457,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
         var card = board.GetCard("Card");
         var ticket = await IssueUpload(board.BoardId, card.BoardCardId, "terminal.bin", 3);
-        _clock.Now = _clock.Now.AddMinutes(15);
+        _clock.Now = _clock.Now.AddMinutes(2);
         _auditRepository.OutcomeToThrow = AttachmentTransferAuditOutcome.Expired;
 
         var result = await ResolveService<IAttachmentTransferService>().UploadAsync(ticket.Id, ticket.Secret,

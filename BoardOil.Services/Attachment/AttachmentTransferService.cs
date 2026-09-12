@@ -476,7 +476,7 @@ public sealed class AttachmentTransferService(
 
     private static DateTime ResolveExpiry(DateTime now, DateTime? credentialExpiry)
     {
-        var expires = now.AddMinutes(15);
+        var expires = now.AddMinutes(2);
         if (credentialExpiry is { } value && value < expires) { expires = value; }
         return expires;
     }
