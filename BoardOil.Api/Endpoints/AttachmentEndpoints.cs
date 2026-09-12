@@ -18,6 +18,12 @@ public static class AttachmentEndpoints
             (await service.ListAsync(boardId, cardId, false, context.GetActorUserId())).ToHttpResult());
         group.MapGet("/cards/archived/{cardId:int}/attachments", async (int boardId, int cardId, ICardAttachmentService service, HttpContext context) =>
             (await service.ListAsync(boardId, cardId, true, context.GetActorUserId())).ToHttpResult());
+        group.MapGet("/cards/{cardId:int}/attachments/image-content", (int boardId, int cardId, string fileName,
+            ICardAttachmentService service, HttpContext context) =>
+            ViewImageAsync(boardId, cardId, false, fileName, service, context));
+        group.MapGet("/cards/archived/{cardId:int}/attachments/image-content", (int boardId, int cardId, string fileName,
+            ICardAttachmentService service, HttpContext context) =>
+            ViewImageAsync(boardId, cardId, true, fileName, service, context));
         group.MapDelete("/cards/{cardId:int}/attachments/{attachmentId:int}", async (int boardId, int cardId, int attachmentId,
             ICardAttachmentService service, HttpContext context) =>
             (await service.DeleteAsync(boardId, cardId, attachmentId, context.GetActorUserId())).ToHttpResult());
@@ -30,6 +36,17 @@ public static class AttachmentEndpoints
             return Results.File(result.Data!.Content, "application/octet-stream", result.Data.FileName);
         });
         group.MapPost("/cards/{cardId:int}/attachments", UploadAsync);
+    }
+
+    private static async Task<IResult> ViewImageAsync(int boardId, int cardId, bool archived, string fileName,
+        ICardAttachmentService service, HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "private, no-store";
+        context.Response.Headers.XContentTypeOptions = "nosniff";
+        var result = await service.ViewImageAsync(boardId, cardId, archived, fileName, context.GetActorUserId(), context.RequestAborted);
+        if (!result.Success) { return result.ToHttpResult(); }
+        if (result.Data!.Content.CanSeek) { context.Response.ContentLength = result.Data.Content.Length; }
+        return Results.Stream(result.Data.Content, result.Data.ContentType);
     }
 
     private static async Task<IResult> UploadAsync(int boardId, int cardId, ICardAttachmentService service,

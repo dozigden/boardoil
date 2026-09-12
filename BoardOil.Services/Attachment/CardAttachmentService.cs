@@ -127,6 +127,80 @@ public sealed class CardAttachmentService(
         catch (DirectoryNotFoundException) { return ApiErrors.NotFound("The attachment file is unavailable."); }
     }
 
+    public async Task<ApiResult<AttachmentImageContent>> ViewImageAsync(int boardId, int cardId, bool archived,
+        string fileName, int actorUserId, CancellationToken cancellationToken = default)
+    {
+        using var scope = scopes.CreateReadOnly();
+        if (!await authorisation.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess))
+        {
+            return ApiErrors.Forbidden("You do not have access to this board.");
+        }
+
+        string normalisedFileName;
+        try { normalisedFileName = AttachmentFileMetadata.FileName(fileName).ToUpperInvariant(); }
+        catch (ArgumentException) { return ApiErrors.NotFound("Attachment image not found."); }
+
+        IQueryable<EntityCardAttachment> query;
+        if (archived)
+        {
+            var card = await archives.GetByBoardCardIdAsync(boardId, cardId);
+            if (card is null) { return ApiErrors.NotFound("Archived card not found."); }
+            query = attachments.Query().Where(x => x.ArchivedCardId == card.Id);
+        }
+        else
+        {
+            var card = await cards.GetWithTagsAndBoardAsync(boardId, cardId);
+            if (card is null) { return ApiErrors.NotFound("Card not found."); }
+            query = attachments.Query().Where(x => x.CardId == card.Id);
+        }
+
+        var attachment = await query.SingleOrDefaultAsync(
+            x => x.State == AttachmentState.Ready && x.NormalisedFileName == normalisedFileName, cancellationToken);
+        if (attachment is null) { return ApiErrors.NotFound("Attachment image not found."); }
+
+        Stream? content = null;
+        try
+        {
+            content = storage.OpenRead(attachment.StorageKey);
+            if (!content.CanSeek)
+            {
+                var buffered = new MemoryStream();
+                await content.CopyToAsync(buffered, cancellationToken);
+                await content.DisposeAsync();
+                content = buffered;
+            }
+
+            var info = AttachmentImageInspector.Inspect(content, options);
+            content.Position = 0;
+            return new AttachmentImageContent(content, info.ContentType, info.Width, info.Height);
+        }
+        catch (UnsupportedAttachmentImageException)
+        {
+            if (content is not null) { await content.DisposeAsync(); }
+            return new ApiError(415, "Attachment is not a supported PNG, JPEG, WebP or GIF image.");
+        }
+        catch (AttachmentImageDimensionsException exception)
+        {
+            if (content is not null) { await content.DisposeAsync(); }
+            return new ApiError(422, exception.Message);
+        }
+        catch (FileNotFoundException)
+        {
+            if (content is not null) { await content.DisposeAsync(); }
+            return ApiErrors.NotFound("The attachment file is unavailable.");
+        }
+        catch (DirectoryNotFoundException)
+        {
+            if (content is not null) { await content.DisposeAsync(); }
+            return ApiErrors.NotFound("The attachment file is unavailable.");
+        }
+        catch
+        {
+            if (content is not null) { await content.DisposeAsync(); }
+            throw;
+        }
+    }
+
     public async Task<ApiResult> DeleteAsync(int boardId, int cardId, int attachmentId, int actorUserId)
     {
         using var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable);

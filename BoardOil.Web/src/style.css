@@ -3,6 +3,7 @@
 @import "./shared/styles/panels.css";
 @import "./shared/styles/entity-rows.css";
 @import "./shared/styles/authentication.css";
+@import "./styles/markdown-images.css";
 
 @font-face {
   font-family: "Montserrat";

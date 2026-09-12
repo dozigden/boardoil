@@ -11,6 +11,7 @@
         <MdViewer
           :model-value="descriptionForDisplay"
           aria-label="Archived card description"
+          :image-context="descriptionImageContext"
         />
       </section>
     </div>
@@ -91,6 +92,8 @@ import Tag from './Tag.vue';
 import CardAttachments from './CardAttachments.vue';
 import type { ArchivedCard } from '../../shared/types/boardTypes';
 import { isHttpOrHttpsUrl } from '../../shared/utils/linkUrl';
+import { apiBase } from '../../shared/api/config';
+import type { MarkdownImageContext } from '../../shared/components/markdownImages';
 
 const props = defineProps<{
   archivedCard: ArchivedCard;
@@ -144,6 +147,12 @@ const descriptionForDisplay = computed(() => {
   const value = card.value.description.trim();
   return value.length > 0 ? value : 'No description.';
 });
+const descriptionImageContext = computed<MarkdownImageContext>(() => ({
+  apiBaseUrl: apiBase,
+  boardId: props.archivedCard.boardId,
+  cardId: props.archivedCard.id,
+  archived: true
+}));
 
 function formatDateTime(value: string) {
   const date = new Date(value);

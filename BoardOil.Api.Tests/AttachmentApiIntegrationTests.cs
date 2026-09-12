@@ -61,6 +61,36 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
             (await Client.PostAsync($"/api/boards/1/cards/{card.Id}/attachments", form)).StatusCode);
     }
 
+    [Fact]
+    public async Task ImageContent_ShouldServeDetectedInlineTypeOnlyToAuthenticatedOwnerContext()
+    {
+        var card = await CreateCard();
+        var bytes = Png(3, 2);
+        using var form = Upload(bytes, "diagram.png");
+        Assert.Equal(HttpStatusCode.Created,
+            (await Client.PostAsync($"/api/boards/1/cards/{card.Id}/attachments", form)).StatusCode);
+        var path = $"/api/boards/1/cards/{card.Id}/attachments/image-content?fileName=diagram.png";
+
+        var response = await Client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("image/png", response.Content.Headers.ContentType!.MediaType);
+        Assert.Null(response.Content.Headers.ContentDisposition);
+        Assert.Equal(bytes, await response.Content.ReadAsByteArrayAsync());
+        Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
+        Assert.True(response.Headers.CacheControl!.NoStore);
+        Assert.True(response.Headers.CacheControl.Private);
+        using var anonymous = CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(path)).StatusCode);
+        var otherCard = await CreateCard();
+        var missingResponse = await Client.GetAsync(
+            $"/api/boards/1/cards/{otherCard.Id}/attachments/image-content?fileName=diagram.png");
+        Assert.Equal(HttpStatusCode.NotFound, missingResponse.StatusCode);
+        Assert.Equal("nosniff", Assert.Single(missingResponse.Headers.GetValues("X-Content-Type-Options")));
+        Assert.True(missingResponse.Headers.CacheControl!.NoStore);
+        Assert.True(missingResponse.Headers.CacheControl.Private);
+    }
+
     private async Task<CardDto> CreateCard()
     {
         var response = await Client.PostAsJsonAsync("/api/boards/1/cards", new CreateCardRequest(null, "Attachments", "", []));
@@ -73,6 +103,18 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
         var form = new MultipartFormDataContent();
         form.Add(new ByteArrayContent(bytes), "file", name);
         return form;
+    }
+
+    private static byte[] Png(int width, int height)
+    {
+        var bytes = new byte[24];
+        byte[] signature = [137, 80, 78, 71, 13, 10, 26, 10];
+        signature.CopyTo(bytes, 0);
+        bytes[11] = 13;
+        "IHDR"u8.CopyTo(bytes.AsSpan(12));
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(16), (uint)width);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(20), (uint)height);
+        return bytes;
     }
 
     private sealed record Envelope<T>(bool Success, T? Data);

@@ -4,8 +4,21 @@
       v-if="showToolbar"
       :state="toolbarState"
       :is-plain-text-mode="isPlainTextMode"
+      :show-image-action="Boolean(props.imageUpload)"
+      :image-action-disabled="imageUploadBusy"
       @action="onToolbarAction"
+      @image="selectImage"
       @toggle-plain-text-mode="togglePlainTextMode"
+    />
+
+    <input
+      v-if="props.imageUpload"
+      ref="imagePickerRef"
+      type="file"
+      accept=".png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif"
+      hidden
+      :aria-label="`Choose an image for ${props.ariaLabel}`"
+      @change="imageFileSelected"
     />
 
     <div class="md-editor-input">
@@ -23,6 +36,8 @@
       />
       <EditorContent v-else-if="tiptapEditor" :editor="tiptapEditor" class="md-editor-content" />
     </div>
+
+    <small v-if="imageUploadMessage" class="md-editor-image-message" role="status">{{ imageUploadMessage }}</small>
 
     <MdLinkDialog
       :open="isLinkDialogOpen"
@@ -52,6 +67,13 @@ import { runMdEditorToolbarAction } from './mdEditorController';
 import { syncPlainTextAreaHeight } from './mdEditorPlainTextSizing';
 import { isHttpOrHttpsUrl } from '../utils/linkUrl';
 import { normaliseMarkdown as normaliseMarkdownValue } from '../utils/markdown';
+import {
+  buildAttachmentImageReference,
+  createMarkdownImageExtension,
+  imageAltFromFileName,
+  type MarkdownImageContext,
+  type MarkdownImageUploadResult
+} from './markdownImages';
 
 const props = withDefaults(defineProps<{
   modelValue: string;
@@ -59,6 +81,8 @@ const props = withDefaults(defineProps<{
   maxLength?: number;
   minHeight?: string;
   showToolbar?: boolean;
+  imageContext?: MarkdownImageContext | null;
+  imageUpload?: ((file: File) => Promise<MarkdownImageUploadResult>) | null;
 }>(), {
   ariaLabel: 'Markdown editor',
   maxLength: 20_000,
@@ -79,6 +103,9 @@ const normalisedModelValue = computed(() => normaliseMarkdown(props.modelValue ?
 const isPlainTextMode = ref(false);
 const plainTextDraft = ref(normalisedModelValue.value);
 const plainTextAreaRef = ref<HTMLTextAreaElement | null>(null);
+const imagePickerRef = ref<HTMLInputElement | null>(null);
+const imageUploadBusy = ref(false);
+const imageUploadMessage = ref('');
 const isLinkDialogOpen = ref(false);
 const linkDraftText = ref('');
 const linkDraftUrl = ref('');
@@ -112,6 +139,7 @@ const tiptapEditor = useEditor({
         rel: null
       }
     }),
+    ...(props.imageContext ? [createMarkdownImageExtension(() => props.imageContext ?? null)] : []),
     Markdown
   ],
   editorProps: {
@@ -239,8 +267,62 @@ function onPlainTextInput(value: string) {
   emit('update:modelValue', nextValue);
 }
 
+function selectImage() {
+  if (!props.imageUpload || imageUploadBusy.value || isPlainTextMode.value) {
+    return;
+  }
+  imageUploadMessage.value = '';
+  imagePickerRef.value?.click();
+}
+
+async function imageFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  const upload = props.imageUpload;
+  if (!file || !upload || imageUploadBusy.value) {
+    return;
+  }
+
+  imageUploadBusy.value = true;
+  imageUploadMessage.value = `Uploading ${file.name}…`;
+  try {
+    const uploaded = await upload(file);
+    if (!uploaded) {
+      imageUploadMessage.value = 'The image was not inserted. Check the attachment warning for details.';
+      return;
+    }
+
+    insertUploadedImage(uploaded.fileName);
+  } catch {
+    imageUploadMessage.value = 'The image upload failed. Try again.';
+  } finally {
+    imageUploadBusy.value = false;
+  }
+}
+
+function insertUploadedImage(fileName: string) {
+  const reference = buildAttachmentImageReference(fileName);
+  const alt = imageAltFromFileName(fileName);
+  const markdown = `![${alt}](${reference})`;
+  const editor = tiptapEditor.value;
+  if (!editor) {
+    imageUploadMessage.value = 'The image was uploaded as an attachment but the editor is unavailable.';
+    return;
+  }
+  const separatorLength = editor.getMarkdown().length === 0 ? 0 : 1;
+  if (editor.getMarkdown().length + separatorLength + markdown.length > props.maxLength) {
+    imageUploadMessage.value = 'The image was uploaded as an attachment but the description is at its length limit.';
+    return;
+  }
+
+  editor.chain().focus().setImage({ src: reference, alt }).run();
+  imageUploadMessage.value = `${fileName} inserted.`;
+}
+
 defineExpose({
   runToolbarAction,
+  selectImage,
   togglePlainTextMode
 });
 
@@ -507,5 +589,12 @@ watch(
 .md-editor-textarea:focus {
   outline: none;
   border-color: var(--bo-colour-secondary);
+}
+
+.md-editor-image-message {
+  display: block;
+  min-width: 0;
+  color: var(--bo-ink-muted);
+  overflow-wrap: anywhere;
 }
 </style>

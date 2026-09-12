@@ -4,6 +4,7 @@ using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
 using BoardOil.Services.Slick;
+using System.Text.RegularExpressions;
 namespace BoardOil.Services.Card;
 
 public sealed class CardValidator(
@@ -12,6 +13,9 @@ public sealed class CardValidator(
 {
     private const int MaxDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
+    private static readonly Regex EphemeralImageSourcePattern = new(
+        @"!\[(?:\\.|[^\]\\])*\]\(\s*<?\s*(?:data|blob):",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private readonly ICardRepository _cardRepository = cardRepository;
     private readonly IBoardMemberRepository _boardMemberRepository = boardMemberRepository;
 
@@ -170,6 +174,12 @@ public sealed class CardValidator(
         if (description.Length > MaxDescriptionLength)
         {
             errors.Add(new ValidationError("description", $"Card description must be {MaxDescriptionLength} characters or fewer."));
+        }
+
+        if (EphemeralImageSourcePattern.IsMatch(description))
+        {
+            errors.Add(new ValidationError("description",
+                "Card descriptions cannot contain data or blob image URLs. Upload the image as a card attachment instead."));
         }
     }
 

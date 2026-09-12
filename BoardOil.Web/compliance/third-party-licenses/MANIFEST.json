@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-09-12T09:08:00.445Z",
+  "generatedAtUtc": "2026-09-12T09:41:04.973Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -307,6 +307,15 @@
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-horizontal-rule/LICENSE.md",
       "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-horizontal-rule.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-image",
+      "version": "3.31.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-image/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-image.txt"
     },
     {
       "ecosystem": "npm",

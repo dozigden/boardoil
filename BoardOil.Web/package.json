@@ -30,6 +30,7 @@
   "dependencies": {
     "@microsoft/signalr": "^10.0.0",
     "@tiptap/extension-heading": "^3.31.3",
+    "@tiptap/extension-image": "^3.31.3",
     "@tiptap/extension-link": "^3.31.3",
     "@tiptap/markdown": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",

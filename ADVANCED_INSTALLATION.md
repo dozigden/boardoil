@@ -47,7 +47,11 @@ Optional environment settings:
 environment:
   BoardOil__AttachmentRootPath: "/data/attachments"
   BoardOil__AttachmentMaxByteLength: "10485760" # 10 MiB per file
+  BoardOil__AttachmentImageMaxPixelCount: "20000000"
+  BoardOil__AttachmentImageMaxEdgeLength: "10000"
 ```
+
+The image limits apply when an attachment is shown inline in a card description. They protect image decoding independently of the attachment byte limit; an attachment that exceeds them remains available through the normal authenticated download action.
 
 If you change the attachment root, move the existing directory while BoardOil is stopped and include the new location in persistent storage and backups. Do not place it inside a publicly served directory. Allow disk capacity for original files, independent duplicate/import copies, and temporary packages. There is no application-imposed whole-package, JSON-entry-size or ZIP-entry-count limit; imported attachments must meet the current per-file limit. Duplicating existing attachments is not restricted by a subsequently lowered upload limit. Configure any reverse proxy's request limit to accommodate uploads, including multipart overhead.
 

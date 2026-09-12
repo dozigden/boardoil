@@ -15,6 +15,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
 import { isHttpOrHttpsUrl } from '../utils/linkUrl';
 import { normaliseMarkdown as normaliseMarkdownValue } from '../utils/markdown';
 import { AnchoredHeading } from './mdViewerHeadingAnchors';
+import { createMarkdownImageExtension, type MarkdownImageContext } from './markdownImages';
 
 const props = withDefaults(defineProps<{
   modelValue: string;
@@ -23,6 +24,7 @@ const props = withDefaults(defineProps<{
   headingAnchors?: boolean;
   maxLength?: number;
   minHeight?: string;
+  imageContext?: MarkdownImageContext | null;
 }>(), {
   activeHeadingAnchor: '',
   ariaLabel: 'Markdown content',
@@ -58,6 +60,7 @@ const tiptapEditor = useEditor({
         rel: null
       }
     }),
+    ...(props.imageContext ? [createMarkdownImageExtension(() => props.imageContext ?? null)] : []),
     Markdown
   ],
   editorProps: {

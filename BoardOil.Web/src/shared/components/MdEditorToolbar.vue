@@ -121,6 +121,19 @@
     </template>
 
     <button
+      v-if="showImageAction"
+      type="button"
+      class="btn btn--toolbar md-editor-toolbar-button"
+      :disabled="imageActionDisabled || isPlainTextMode"
+      aria-label="Add image"
+      title="Add image"
+      @click="emitImage"
+    >
+      <ImageIcon :size="14" aria-hidden="true" />
+      <span class="md-editor-toolbar-sr">Add image</span>
+    </button>
+
+    <button
       type="button"
       class="btn btn--toolbar md-editor-toolbar-mode-button"
       :class="{ 'is-active': isPlainTextMode }"
@@ -135,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import { Bold, CheckSquare, ChevronDown, FileText, Heading1, Italic, Link, List, ListOrdered, Minus, Quote, SquareCode, Strikethrough } from '@lucide/vue';
+import { Bold, CheckSquare, ChevronDown, FileText, Heading1, Image as ImageIcon, Italic, Link, List, ListOrdered, Minus, Quote, SquareCode, Strikethrough } from '@lucide/vue';
 import { computed, ref, type Component } from 'vue';
 import { useClickOutside } from '../composables/useClickOutside';
 import { mdEditorToolbarActions, type MdEditorHeadingLevel, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from './mdEditorToolbarActions';
@@ -143,10 +156,13 @@ import { mdEditorToolbarActions, type MdEditorHeadingLevel, type MdEditorToolbar
 const props = defineProps<{
   state: Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>;
   isPlainTextMode: boolean;
+  showImageAction?: boolean;
+  imageActionDisabled?: boolean;
 }>();
 
 const emit = defineEmits<{
   action: [event: MdEditorToolbarActionEvent];
+  image: [];
   'toggle-plain-text-mode': [];
 }>();
 
@@ -216,6 +232,12 @@ function emitToggleMode() {
   isHeadingMenuOpen.value = false;
   isListMenuOpen.value = false;
   emit('toggle-plain-text-mode');
+}
+
+function emitImage() {
+  isHeadingMenuOpen.value = false;
+  isListMenuOpen.value = false;
+  emit('image');
 }
 
 useClickOutside(headingSplitRef, () => {

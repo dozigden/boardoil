@@ -89,7 +89,8 @@ export const useAttachmentStore = defineStore('attachments', () => {
 
   async function runQueue() {
     const current = context.value;
-    if (busy.value || !current || current.archived || !supported) { return; }
+    if (busy.value || !current || current.archived || !supported) { return []; }
+    const completed: CardAttachment[] = [];
     const version = ++runVersion;
     busy.value = true;
     while (version === runVersion) {
@@ -104,10 +105,11 @@ export const useAttachmentStore = defineStore('attachments', () => {
       item.status = 'uploading';
       const result = await api.uploadAttachment(current.boardId, current.cardId, item.file,
         percent => { item.progress = percent; }, controller.signal);
-      if (version !== runVersion) { return; }
+      if (version !== runVersion) { return completed; }
       activeUploads.value = activeUploads.value.filter(upload => upload !== item);
       if (result.ok) {
         added(current.boardId, current.cardId, result.data);
+        completed.push(result.data);
       } else if (result.error.statusCode === 413) {
         warnOversized(item.file);
       } else if (result.error.kind === 'network' || result.error.kind === 'parse') {
@@ -120,18 +122,19 @@ export const useAttachmentStore = defineStore('attachments', () => {
     // A lost response may still have committed. Refresh the saved list, without retaining failed entries.
     await reload();
     if (version === runVersion) { busy.value = false; }
+    return completed;
   }
 
   async function upload(files: File[]) {
-    if (!supported || !context.value || context.value.archived) { return; }
+    if (!supported || !context.value || context.value.archived) { return []; }
     const accepted: File[] = [];
     for (const file of files) {
       if (file.size > maxUploadByteLength.value) { warnOversized(file); }
       else { accepted.push(file); }
     }
-    if (accepted.length === 0) { return; }
+    if (accepted.length === 0) { return []; }
     activeUploads.value.push(...accepted.map(file => ({ file, progress: 0, status: 'queued' as const })));
-    await runQueue();
+    return await runQueue();
   }
 
   async function remove(attachmentId: number) {

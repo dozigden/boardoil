@@ -275,6 +275,92 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Equal(404, result.StatusCode);
     }
 
+    public static TheoryData<string, byte[], string, int, int> SupportedImageData => new()
+    {
+        { "image.png", Png(3, 2), "image/png", 3, 2 },
+        { "image.jpg", Jpeg(3, 2), "image/jpeg", 3, 2 },
+        { "image.webp", WebP(3, 2), "image/webp", 3, 2 },
+        { "image.gif", Gif(3, 2), "image/gif", 3, 2 }
+    };
+
+    [Theory]
+    [MemberData(nameof(SupportedImageData))]
+    public async Task ViewImage_ShouldDetectSupportedFormatAndIgnoreClaimedContentType(
+        string fileName, byte[] bytes, string expectedContentType, int expectedWidth, int expectedHeight)
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var service = ResolveService<ICardAttachmentService>();
+        Assert.True((await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId,
+            fileName, "text/html", new MemoryStream(bytes))).Success);
+
+        var result = await service.ViewImageAsync(board.BoardId, card.BoardCardId, false,
+            fileName.ToUpperInvariant(), ActorUserId);
+
+        Assert.True(result.Success, result.Message);
+        await using var content = result.Data!.Content;
+        Assert.Equal(expectedContentType, result.Data.ContentType);
+        Assert.Equal(expectedWidth, result.Data.Width);
+        Assert.Equal(expectedHeight, result.Data.Height);
+        Assert.Equal(bytes, await ReadAllAsync(content));
+    }
+
+    [Fact]
+    public async Task ViewImage_WhenAttachmentIsNotAnImage_ShouldRejectWithoutServingClaimedType()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var service = ResolveService<ICardAttachmentService>();
+        Assert.True((await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId,
+            "not-image.png", "image/png", new MemoryStream("<script>alert(1)</script>"u8.ToArray()))).Success);
+
+        var result = await service.ViewImageAsync(board.BoardId, card.BoardCardId, false, "not-image.png", ActorUserId);
+
+        Assert.Equal(415, result.StatusCode);
+        Assert.Null(result.Data);
+    }
+
+    [Theory]
+    [InlineData(10_001, 1, 20_000_000, 10_000)]
+    [InlineData(5_000, 5_000, 20_000_000, 10_000)]
+    public async Task ViewImage_WhenDimensionsExceedConfiguredLimits_ShouldReject(
+        int width, int height, long maxPixelCount, int maxEdgeLength)
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var service = ResolveService<ICardAttachmentService>();
+        Assert.True((await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId,
+            "large.png", null, new MemoryStream(Png(width, height)))).Success);
+        var constrained = ActivatorUtilities.CreateInstance<CardAttachmentService>(ResolveService<IServiceProvider>(),
+            new AttachmentStorageOptions
+            {
+                RootPath = _root,
+                MaxImagePixelCount = maxPixelCount,
+                MaxImageEdgeLength = maxEdgeLength
+            });
+
+        var result = await constrained.ViewImageAsync(board.BoardId, card.BoardCardId, false, "large.png", ActorUserId);
+
+        Assert.Equal(422, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task ViewImage_ShouldResolveArchivedOwnerByOriginalCardNumber()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var service = ResolveService<ICardAttachmentService>();
+        Assert.True((await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId,
+            "archived.png", null, new MemoryStream(Png(2, 2)))).Success);
+        Assert.True((await ResolveService<ICardArchiveService>().ArchiveCardAsync(
+            board.BoardId, card.BoardCardId, ActorUserId)).Success);
+
+        var result = await service.ViewImageAsync(board.BoardId, card.BoardCardId, true, "archived.png", ActorUserId);
+
+        Assert.True(result.Success, result.Message);
+        await result.Data!.Content.DisposeAsync();
+    }
+
     [Fact]
     public async Task Delete_WhenArchived_ShouldRequireRestore()
     {
@@ -327,6 +413,7 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Equal(403, (await service.ListAsync(boardId, cardId, false, ActorUserId)).StatusCode);
         Assert.Equal(403, (await service.UploadAsync(boardId, cardId, ActorUserId, "file", null, new MemoryStream([1]))).StatusCode);
         Assert.Equal(403, (await service.DownloadAsync(boardId, attachment.Id, ActorUserId)).StatusCode);
+        Assert.Equal(403, (await service.ViewImageAsync(boardId, cardId, false, "file.bin", ActorUserId)).StatusCode);
         Assert.Equal(403, (await service.DeleteAsync(boardId, cardId, attachment.Id, ActorUserId)).StatusCode);
         Assert.Single(await DbContextForAssert.CardAttachments.ToListAsync());
         Assert.Empty(await DbContextForAssert.TemporaryBoardPackages.ToListAsync());
@@ -412,5 +499,49 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
             if (!_called) { _called = true; await beforeRead(); }
             return await base.ReadAsync(buffer, cancellationToken);
         }
+    }
+
+    private static byte[] Png(int width, int height)
+    {
+        var bytes = new byte[24];
+        byte[] signature = [137, 80, 78, 71, 13, 10, 26, 10];
+        signature.CopyTo(bytes, 0);
+        bytes[11] = 13;
+        "IHDR"u8.CopyTo(bytes.AsSpan(12));
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(16), (uint)width);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(20), (uint)height);
+        return bytes;
+    }
+
+    private static byte[] Jpeg(int width, int height) =>
+        [0xff, 0xd8, 0xff, 0xc0, 0x00, 0x07, 0x08, (byte)(height >> 8), (byte)height, (byte)(width >> 8), (byte)width];
+
+    private static byte[] Gif(int width, int height) =>
+        [.. "GIF89a"u8.ToArray(), (byte)width, (byte)(width >> 8), (byte)height, (byte)(height >> 8)];
+
+    private static byte[] WebP(int width, int height)
+    {
+        var bytes = new byte[30];
+        "RIFF"u8.CopyTo(bytes);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(4), 22);
+        "WEBPVP8X"u8.CopyTo(bytes.AsSpan(8));
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(16), 10);
+        WriteUInt24LittleEndian(bytes.AsSpan(24), (uint)(width - 1));
+        WriteUInt24LittleEndian(bytes.AsSpan(27), (uint)(height - 1));
+        return bytes;
+    }
+
+    private static void WriteUInt24LittleEndian(Span<byte> target, uint value)
+    {
+        target[0] = (byte)value;
+        target[1] = (byte)(value >> 8);
+        target[2] = (byte)(value >> 16);
+    }
+
+    private static async Task<byte[]> ReadAllAsync(Stream content)
+    {
+        using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer);
+        return buffer.ToArray();
     }
 }

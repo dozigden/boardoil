@@ -49,9 +49,10 @@ describe('attachments', () => {
     api.uploadAttachment.mockResolvedValueOnce(err({ kind: 'http', message: 'Storage unavailable' }))
       .mockResolvedValueOnce(ok({ ...attachment, id: 2, originalFileName: 'empty.bin', byteLength: 0 }));
 
-    await store.upload([new File(['abc'], 'file.bin'), new File([''], 'empty.bin')]);
+    const uploaded = await store.upload([new File(['abc'], 'file.bin'), new File([''], 'empty.bin')]);
 
     expect(api.uploadAttachment).toHaveBeenCalledTimes(2);
+    expect(uploaded).toEqual([{ ...attachment, id: 2, originalFileName: 'empty.bin', byteLength: 0 }]);
     expect(store.busy).toBe(false);
     expect(store.activeUploads).toHaveLength(0);
     expect(store.warningMessages).toEqual(['file.bin: Storage unavailable']);

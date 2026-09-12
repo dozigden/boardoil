@@ -22,12 +22,18 @@ public static class BoardOilAttachmentStorageOptions
         var options = new AttachmentStorageOptions
         {
             RootPath = root,
-            MaxUploadByteLength = configuration.GetValue<long?>("BoardOil:AttachmentMaxByteLength") ?? 10 * 1024 * 1024
+            MaxUploadByteLength = configuration.GetValue<long?>("BoardOil:AttachmentMaxByteLength") ?? 10 * 1024 * 1024,
+            MaxImagePixelCount = configuration.GetValue<long?>("BoardOil:AttachmentImageMaxPixelCount") ?? 20_000_000,
+            MaxImageEdgeLength = configuration.GetValue<int?>("BoardOil:AttachmentImageMaxEdgeLength") ?? 10_000
         };
         if (options.MaxUploadByteLength <= 0
             || options.MaxUploadByteLength > long.MaxValue - 65536)
         {
             throw new InvalidOperationException("Attachment size limit must be positive and allow multipart overhead.");
+        }
+        if (options.MaxImagePixelCount <= 0 || options.MaxImageEdgeLength <= 0)
+        {
+            throw new InvalidOperationException("Attachment image limits must be positive.");
         }
         Directory.CreateDirectory(root);
         return options;

@@ -80,7 +80,10 @@
             class="card-editor-shared-toolbar"
             :state="activeToolbarState"
             :is-plain-text-mode="activeIsPlainTextMode"
+            :show-image-action="activeEditor === 'description' && !isDuplicatingCard"
+            :image-action-disabled="attachments.busy || attachments.loading || attachments.maxUploadByteLength === 0"
             @action="runSharedToolbarAction"
+            @image="selectDescriptionImage"
             @toggle-plain-text-mode="toggleSharedToolbarPlainTextMode"
           />
           <div class="card-editor-description-field">
@@ -91,6 +94,8 @@
               :max-length="maxDescriptionLength"
               min-height="12rem"
               :show-toolbar="false"
+              :image-context="descriptionImageContext"
+              :image-upload="descriptionImageUpload"
               @update:model-value="handleDescriptionEditorValueUpdate"
               @focus="handleDescriptionEditorFocus"
               @blur="handleDescriptionEditorBlur"
@@ -360,6 +365,8 @@ import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorT
 import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
 import { areCardEditModelsEqual, cloneCardEditModel, createCardEditModel } from './cardEditModel';
 import type { Card, CardEditModel } from '../../shared/types/boardTypes';
+import { apiBase } from '../../shared/api/config';
+import type { MarkdownImageContext, MarkdownImageUploadResult } from '../../shared/components/markdownImages';
 
 const route = useRoute();
 const router = useRouter();
@@ -416,6 +423,16 @@ const canCreateDuplicate = computed(() => (
   Boolean(cardDraft.value?.title.trim()) && cardDraft.value?.cardTypeId !== null
 ));
 const primaryActionLabel = computed(() => isDuplicatingCard.value ? 'Create duplicate card' : 'Save card');
+const descriptionImageContext = computed<MarkdownImageContext | null>(() => {
+  const cardId = routeCardId.value;
+  if (!attachments.supported || cardId === null) {
+    return null;
+  }
+  return { apiBaseUrl: apiBase, boardId: boardId.value, cardId };
+});
+const descriptionImageUpload = computed(() => {
+  return isDuplicatingCard.value ? null : uploadDescriptionImage;
+});
 
 const routeCardId = computed<number | null>(() => {
   const raw = route.params.cardId;
@@ -543,6 +560,10 @@ function runSharedToolbarAction(actionEvent: MdEditorToolbarActionEvent) {
   editor?.runToolbarAction(actionEvent);
 }
 
+function selectDescriptionImage() {
+  descriptionEditorRef.value?.selectImage();
+}
+
 function toggleSharedToolbarPlainTextMode() {
   const editor = activeEditor.value === 'comment'
     ? commentEditorRef.value
@@ -662,6 +683,19 @@ function updateCommentDraftFromEditor(value: string) {
     isCommentDraftDirty.value = true;
   }
   newCommentText.value = value;
+}
+
+async function uploadDescriptionImage(file: File): Promise<MarkdownImageUploadResult> {
+  const normalisedFileName = file.name.toUpperCase();
+  const existing = attachments.items.find(attachment =>
+    attachment.originalFileName.toUpperCase() === normalisedFileName);
+  if (existing) {
+    return { fileName: existing.originalFileName };
+  }
+
+  const uploaded = await attachments.upload([file]);
+  const attachment = uploaded[0];
+  return attachment ? { fileName: attachment.originalFileName } : null;
 }
 
 function updateDraftTagNamesFromEditor(tagNames: string[]) {

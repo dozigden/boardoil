@@ -1778,6 +1778,25 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.Equal(maxLengthDescription, result.Data!.Description);
     }
 
+    [Theory]
+    [InlineData("![Embedded](data:image/png;base64,AAAA)")]
+    [InlineData("![Temporary](blob:https://board.test/image-id)")]
+    [InlineData("![Embedded]( <DATA:image/png;base64,AAAA> )")]
+    public async Task CreateCardAsync_WhenDescriptionContainsEphemeralImageSource_ShouldReturnValidationError(
+        string description)
+    {
+        var board = CreateBoard("BoardOil").AddColumn("Todo").Build();
+        var todoColumnId = board.GetColumn("Todo").Id;
+
+        var result = await CreateService().CreateCardAsync(1,
+            new CreateCardRequest(todoColumnId, "Valid title", description, null), ActorUserId);
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("data or blob image URLs", result.ValidationErrors!["description"].Single());
+        Assert.Empty(await DbContextForAssert.Cards.ToListAsync());
+    }
+
     [Fact]
     public async Task CreateCardAsync_WhenTagMissing_ShouldAutoCreateTagAndAssignIt()
     {

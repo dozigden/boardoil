@@ -14,6 +14,29 @@ public sealed class AttachmentStorageConfigurationTests : IDisposable
         var result = Resolve(new Dictionary<string, string?>());
         Assert.Equal(Path.Combine(_root, "attachments"), result.RootPath);
         Assert.Equal(10 * 1024 * 1024, result.MaxUploadByteLength);
+        Assert.Equal(20_000_000, result.MaxImagePixelCount);
+        Assert.Equal(10_000, result.MaxImageEdgeLength);
+    }
+
+    [Fact]
+    public void Resolve_ShouldReadImageLimits()
+    {
+        var result = Resolve(new Dictionary<string, string?>
+        {
+            ["BoardOil:AttachmentImageMaxPixelCount"] = "123456",
+            ["BoardOil:AttachmentImageMaxEdgeLength"] = "789"
+        });
+
+        Assert.Equal(123456, result.MaxImagePixelCount);
+        Assert.Equal(789, result.MaxImageEdgeLength);
+    }
+
+    [Theory]
+    [InlineData("BoardOil:AttachmentImageMaxPixelCount")]
+    [InlineData("BoardOil:AttachmentImageMaxEdgeLength")]
+    public void Resolve_ShouldRejectNonPositiveImageLimits(string setting)
+    {
+        Assert.Throws<InvalidOperationException>(() => Resolve(new Dictionary<string, string?> { [setting] = "0" }));
     }
 
     [Theory]
