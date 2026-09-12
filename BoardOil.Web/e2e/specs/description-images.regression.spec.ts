@@ -1,5 +1,6 @@
 import { expect, test } from '../fixtures/boardOilTest';
 import type { Locator, Page } from '@playwright/test';
+import { AttachmentPanel } from '../ui/AttachmentPanel';
 import { ArchivedCardsPage } from '../ui/ArchivedCardsPage';
 import { BoardPage } from '../ui/BoardPage';
 
@@ -385,6 +386,139 @@ test('image alternative text is editable and archived images enlarge with the ke
   expect(previewImageBox!.width).toBeGreaterThan(inlineImageBox!.width);
   await viewImageDialog.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(viewImageDialog).toBeHidden();
+
+  await archivedCardsPage.unarchiveOpenCard('Accessible image card');
+  await archivedCardsPage.goBackToBoard();
+  await boardPage.openCard('Todo', 'Accessible image card');
+  await expect(page.getByRole('dialog').getByRole('button', {
+    name: 'Enlarge image: Release flow diagram'
+  })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Download diagram.png' })).toBeVisible();
+});
+
+test('a duplicated description image remains independent when the source attachment is deleted', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression duplicated description image');
+  await api.createCard(board, 'Todo', 'Image source');
+  const boardPage = new BoardPage(page);
+  const attachmentPanel = new AttachmentPanel(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Image source');
+
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Choose an image for Card description').setInputFiles({
+    name: 'copied-diagram.png',
+    mimeType: 'image/png',
+    buffer: onePixelPng
+  });
+  await dialog.getByRole('button', { name: 'Save card' }).click();
+  await expect(dialog).toBeHidden();
+
+  await boardPage.openCard('Todo', 'Image source');
+  await dialog.getByRole('button', { name: 'Card actions' }).click();
+  await dialog.getByRole('menu', { name: 'Card actions' })
+    .getByRole('button', { name: 'Duplicate', exact: true })
+    .click();
+  await dialog.getByRole('button', { name: 'Image source', exact: true }).click();
+  const titleInput = dialog.getByRole('textbox', { name: 'Card title' });
+  await titleInput.fill('Image duplicate');
+  await titleInput.press('Enter');
+  await dialog.getByRole('button', { name: 'Create duplicate card' }).click();
+  await expect(dialog).toBeHidden();
+
+  await boardPage.openCard('Todo', 'Image source');
+  await attachmentPanel.delete('copied-diagram.png');
+  await expect(dialog.locator('.md-image-node-placeholder[aria-label="copied-diagram"]'))
+    .toHaveText('Image unavailable');
+
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Image duplicate');
+  await expect(dialog.getByRole('button', { name: 'Enlarge image: copied-diagram' })).toBeVisible();
+  expect(await attachmentPanel.download('copied-diagram.png')).toEqual({
+    name: 'copied-diagram.png',
+    bytes: onePixelPng
+  });
+});
+
+test('a description image moves with its card to another board', async ({ api, authenticatedPage: page }) => {
+  const sourceBoard = await api.createBoard('Regression image transfer source');
+  const destinationBoard = await api.createBoard('Regression image transfer destination');
+  await api.createCard(sourceBoard, 'Todo', 'Transferred image card');
+  const boardPage = new BoardPage(page);
+  await boardPage.open(sourceBoard.id);
+  await boardPage.openCard('Todo', 'Transferred image card');
+
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Choose an image for Card description').setInputFiles({
+    name: 'moved-diagram.png',
+    mimeType: 'image/png',
+    buffer: onePixelPng
+  });
+  await dialog.getByRole('button', { name: 'Save card' }).click();
+  await expect(dialog).toBeHidden();
+
+  await boardPage.openCard('Todo', 'Transferred image card');
+  await dialog.getByRole('button', { name: 'Card actions' }).click();
+  await dialog.getByRole('menu', { name: 'Card actions' })
+    .getByRole('button', { name: 'Move to another board' })
+    .click();
+  const transferDialog = page.getByRole('dialog').filter({
+    has: page.getByRole('heading', { name: 'Move card to another board' })
+  });
+  await transferDialog.getByLabel('Destination board', { exact: true })
+    .selectOption(String(destinationBoard.id));
+  await transferDialog.getByLabel('Destination column', { exact: true })
+    .selectOption({ label: 'In Progress' });
+  await transferDialog.getByRole('button', { name: 'Move card' }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/boards/${destinationBoard.id}/card/\\d+$`));
+  const movedImage = dialog.getByRole('button', { name: 'Enlarge image: moved-diagram' }).locator('img');
+  await expect(movedImage).toBeVisible();
+  await expect(movedImage).toHaveAttribute(
+    'src',
+    new RegExp(`/api/boards/${destinationBoard.id}/cards/\\d+/attachments/image-content\\?fileName=moved-diagram.png`)
+  );
+  await expect(dialog.getByRole('link', { name: 'Download moved-diagram.png' })).toBeVisible();
+
+  await dialog.getByTitle('Cancel editing', { exact: true }).click();
+  await boardPage.open(sourceBoard.id);
+  await expect(boardPage.card('Todo', 'Transferred image card')).toHaveCount(0);
+});
+
+test('realtime deletion and same-name re-upload refresh an open description image', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression realtime description image');
+  await api.createCard(board, 'Todo', 'Shared image card');
+  const boardPage = new BoardPage(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Shared image card');
+
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Choose an image for Card description').setInputFiles({
+    name: 'shared-diagram.png',
+    mimeType: 'image/png',
+    buffer: onePixelPng
+  });
+  await dialog.getByRole('button', { name: 'Save card' }).click();
+  await expect(dialog).toBeHidden();
+  await boardPage.openCard('Todo', 'Shared image card');
+  await expect(dialog.getByRole('button', { name: 'Enlarge image: shared-diagram' })).toBeVisible();
+
+  const otherPage = await page.context().newPage();
+  try {
+    const otherBoardPage = new BoardPage(otherPage);
+    const otherAttachments = new AttachmentPanel(otherPage);
+    await otherBoardPage.open(board.id);
+    await otherBoardPage.openCard('Todo', 'Shared image card');
+
+    await otherAttachments.delete('shared-diagram.png');
+    await expect(dialog.locator('.md-image-node-placeholder[aria-label="shared-diagram"]'))
+      .toHaveText('Image unavailable');
+
+    await otherAttachments.upload('shared-diagram.png', onePixelPng);
+    await expect(dialog.getByRole('button', { name: 'Enlarge image: shared-diagram' }).locator('img'))
+      .toBeVisible();
+  } finally {
+    await otherPage.close();
+  }
 });
 
 test('failed and cancelled uploads stay explicit and successful insertion remains undoable', async ({ api, authenticatedPage: page }) => {

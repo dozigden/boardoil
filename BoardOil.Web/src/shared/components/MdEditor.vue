@@ -106,6 +106,7 @@ import {
   imageAltFromFileName,
   isSupportedImageFileName,
   parseAttachmentImageReference,
+  refreshMarkdownImages,
   type MarkdownImageActivation,
   type MarkdownImageContext,
   type MarkdownImageUpload
@@ -1156,6 +1157,11 @@ watch(
     setEditorContent(normalisedModelValue.value);
   },
   { immediate: true }
+);
+
+watch(
+  () => props.imageContext?.refreshKey,
+  () => refreshMarkdownImages(tiptapEditor.value ?? null)
 );
 </script>
 

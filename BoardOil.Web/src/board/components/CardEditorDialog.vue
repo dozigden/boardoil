@@ -435,7 +435,10 @@ const descriptionImageContext = computed<MarkdownImageContext | null>(() => {
   if (!attachments.supported || cardId === null) {
     return null;
   }
-  return { apiBaseUrl: apiBase, boardId: boardId.value, cardId };
+  const refreshKey = attachments.items
+    .map(attachment => `${attachment.id}:${attachment.originalFileName}`)
+    .join('|');
+  return { apiBaseUrl: apiBase, boardId: boardId.value, cardId, refreshKey };
 });
 const descriptionImageUpload = computed<MarkdownImageUpload | null>(() => {
   return isDuplicatingCard.value ? null : uploadDescriptionImage;

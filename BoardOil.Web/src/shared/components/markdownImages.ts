@@ -1,8 +1,11 @@
+import type { Editor } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-import type { NodeView } from '@tiptap/pm/view';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet, type NodeView } from '@tiptap/pm/view';
 
 const attachmentReferencePrefix = 'boardoil-attachment:';
+const imageRefreshPluginKey = new PluginKey<number>('boardoilMarkdownImageRefresh');
 export const boardOilAttachmentImageDragType = 'application/x-boardoil-attachment-image';
 
 export type MarkdownImageContext = {
@@ -10,6 +13,7 @@ export type MarkdownImageContext = {
   boardId: number;
   cardId: number;
   archived?: boolean;
+  refreshKey?: string | number;
 };
 
 export type MarkdownImageUploadResult = { fileName: string } | null;
@@ -64,11 +68,47 @@ export function createMarkdownImageExtension(
     },
     addNodeView() {
       return ({ node, getPos }) => createImageNodeView(node, getPos, getContext, options);
+    },
+    addProseMirrorPlugins() {
+      return [createImageRefreshPlugin()];
     }
   }).configure({
     allowBase64: false,
     inline: false,
     resize: false
+  });
+}
+
+export function refreshMarkdownImages(editor: Editor | null): void {
+  if (!editor || editor.isDestroyed) {
+    return;
+  }
+  editor.view.dispatch(editor.state.tr.setMeta(imageRefreshPluginKey, true));
+}
+
+function createImageRefreshPlugin(): Plugin<number> {
+  return new Plugin<number>({
+    key: imageRefreshPluginKey,
+    state: {
+      init: () => 0,
+      apply(transaction, revision) {
+        return transaction.getMeta(imageRefreshPluginKey) ? revision + 1 : revision;
+      }
+    },
+    props: {
+      decorations(state) {
+        const revision = imageRefreshPluginKey.getState(state) ?? 0;
+        const decorations: Decoration[] = [];
+        state.doc.descendants((node, position) => {
+          if (node.type.name === 'image') {
+            decorations.push(Decoration.node(position, position + node.nodeSize, {
+              'data-image-refresh': String(revision)
+            }));
+          }
+        });
+        return DecorationSet.create(state.doc, decorations);
+      }
+    }
   });
 }
 

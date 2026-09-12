@@ -26,6 +26,7 @@ import { AnchoredHeading } from './mdViewerHeadingAnchors';
 import MdImageDialog from './MdImageDialog.vue';
 import {
   createMarkdownImageExtension,
+  refreshMarkdownImages,
   type MarkdownImageActivation,
   type MarkdownImageContext
 } from './markdownImages';
@@ -189,6 +190,11 @@ watch(
 watch(
   () => props.activeHeadingAnchor,
   scheduleActiveHeadingScroll
+);
+
+watch(
+  () => props.imageContext?.refreshKey,
+  () => refreshMarkdownImages(tiptapEditor.value ?? null)
 );
 </script>
 

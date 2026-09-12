@@ -16,10 +16,14 @@ namespace BoardOil.Services.Tests;
 
 public sealed class AttachmentPackageTests : TestBaseDb, IAsyncLifetime
 {
+    private const string LiveDescription = "![Live diagram](boardoil-attachment:Live.png)";
+    private const string ArchivedDescription = "![Archived diagram](boardoil-attachment:Archived.png)";
+    private static readonly byte[] ImageBytes = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
     private readonly AttachmentStorageOptions _options = new()
     {
         RootPath = Path.Combine(Path.GetTempPath(), "boardoil-attachment-package-" + Guid.NewGuid().ToString("N")),
-        MaxUploadByteLength = 4
+        MaxUploadByteLength = 1024
     };
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     protected override void ConfigureTestServices(IServiceCollection services) => services.AddSingleton(_options);
@@ -59,8 +63,24 @@ public sealed class AttachmentPackageTests : TestBaseDb, IAsyncLifetime
             await using var content = downloaded.Data!.Content;
             using var buffer = new MemoryStream();
             await content.CopyToAsync(buffer);
-            Assert.Equal(new byte[] { 0, 255, 13, 10 }, buffer.ToArray());
+            Assert.Equal(ImageBytes, buffer.ToArray());
         }
+
+        var importedBoard = imported.Data!;
+        var importedLiveCard = Assert.Single(importedBoard.Columns.SelectMany(x => x.Cards), x => x.Title == "Live");
+        Assert.Equal(LiveDescription, importedLiveCard.Description);
+        await AssertImageContent(importedBoard.Id, importedLiveCard.Id, false, "Live.png");
+
+        var importedArchivedCardId = await DbContextForAssert.ArchivedCards
+            .Where(x => x.BoardId == importedBoard.Id)
+            .Select(x => x.OriginalCardId)
+            .SingleAsync();
+        var importedArchivedCard = await ResolveService<ICardArchiveService>()
+            .GetArchivedCardAsync(importedBoard.Id, importedArchivedCardId, ActorUserId);
+        Assert.True(importedArchivedCard.Success, importedArchivedCard.Message);
+        Assert.Equal(ArchivedDescription, importedArchivedCard.Data!.Card.Description);
+        await AssertImageContent(importedBoard.Id, importedArchivedCardId, true, "Archived.png");
+
         // Import is complete; only the still-open export should remain tracked.
         Assert.Single(await DbContextForAssert.TemporaryBoardPackages.AsNoTracking().ToListAsync());
         await package.DisposeAsync();
@@ -127,7 +147,7 @@ public sealed class AttachmentPackageTests : TestBaseDb, IAsyncLifetime
                         "checksum" => last with { Sha256 = new string('0', 64) },
                         "owner" => last with { CardId = 99999 },
                         "length" => last with { ByteLength = 123 },
-                        "file-limit" => last with { ByteLength = 5 },
+                        "file-limit" => last with { ByteLength = _options.MaxUploadByteLength + 1 },
                         _ => last
                     };
                     var items = metadata.Items.ToList();
@@ -139,13 +159,13 @@ public sealed class AttachmentPackageTests : TestBaseDb, IAsyncLifetime
                         var copy = source with { Path = "files/" + Guid.NewGuid().ToString("N"), OriginalFileName = source.OriginalFileName.ToUpperInvariant() };
                         items.Add(copy);
                         using var file = archive.CreateEntry(copy.Path).Open();
-                        file.Write(new byte[] { 0, 255, 13, 10 });
+                        file.Write(ImageBytes);
                     }
                     if (fault == "file-limit")
                     {
                         archive.GetEntry(last.Path)!.Delete();
                         using var file = archive.CreateEntry(last.Path).Open();
-                        file.Write(new byte[5]);
+                        file.Write(new byte[_options.MaxUploadByteLength + 1]);
                     }
                     using (var output = archive.CreateEntry(BoardPackageContract.AttachmentsEntryPath).Open())
                     {
@@ -183,15 +203,34 @@ public sealed class AttachmentPackageTests : TestBaseDb, IAsyncLifetime
 
     private async Task<int> ArrangeBoard()
     {
-        var board = CreateBoard().AddColumn("Todo").AddCard("Live").AddCard("Archived").Build();
+        var board = CreateBoard()
+            .AddColumn("Todo")
+            .AddCard("Live", LiveDescription)
+            .AddCard("Archived", ArchivedDescription)
+            .Build();
         var service = ResolveService<ICardAttachmentService>();
         foreach (var name in new[] { "Live", "Archived" })
         {
             var uploaded = await service.UploadAsync(board.BoardId, board.GetCard(name).BoardCardId, ActorUserId,
-                name + ".bin", "application/octet-stream", new MemoryStream([0, 255, 13, 10]));
+                name + ".png", "image/png", new MemoryStream(ImageBytes));
             Assert.True(uploaded.Success, uploaded.Message);
         }
         Assert.True((await ResolveService<ICardArchiveService>().ArchiveCardAsync(board.BoardId, board.GetCard("Archived").BoardCardId, ActorUserId)).Success);
         return board.BoardId;
+    }
+
+    private async Task AssertImageContent(int boardId, int cardId, bool archived, string fileName)
+    {
+        var result = await ResolveService<ICardAttachmentService>()
+            .ViewImageAsync(boardId, cardId, archived, fileName, ActorUserId);
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal("image/png", result.Data!.ContentType);
+        Assert.Equal(1, result.Data.Width);
+        Assert.Equal(1, result.Data.Height);
+        await using var content = result.Data.Content;
+        using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer);
+        Assert.Equal(ImageBytes, buffer.ToArray());
     }
 }
