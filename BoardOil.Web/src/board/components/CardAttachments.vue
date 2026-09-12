@@ -12,7 +12,16 @@
     <ul v-if="store.items.length" class="attachment-list">
       <li v-for="item in store.items" :key="item.id" class="attachment-row">
         <div class="attachment-file">
-          <a class="attachment-download" :href="buildApiUrl(`/api/boards/${boardId}/attachments/${item.id}/download`)" :download="item.originalFileName" :aria-label="`Download ${item.originalFileName}`" :title="formatSize(item.byteLength)" @click.left.exact.prevent="store.download(item.id)">{{ item.originalFileName }}</a>
+          <a
+            class="attachment-download"
+            :href="buildApiUrl(`/api/boards/${boardId}/attachments/${item.id}/download`)"
+            :download="item.originalFileName"
+            :draggable="canDragImage(item)"
+            :aria-label="`Download ${item.originalFileName}`"
+            :title="attachmentTitle(item)"
+            @click.left.exact.prevent="store.download(item.id)"
+            @dragstart="attachmentDragStarted"
+          >{{ item.originalFileName }}</a>
         </div>
         <button v-if="!readOnly" type="button" class="btn btn--secondary" :disabled="store.busy" :aria-label="`Delete ${item.originalFileName}`" @click="deleteAttachment(item)"><Trash2 :size="14" aria-hidden="true" /></button>
       </li>
@@ -47,6 +56,11 @@ import { formatAttachmentSize as formatSize } from '../utils/formatAttachmentSiz
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
+import {
+  boardOilAttachmentImageDragType,
+  buildAttachmentImageReference,
+  isSupportedImageFileName
+} from '../../shared/components/markdownImages';
 
 const props = withDefaults(defineProps<{ boardId: number; cardId: number; archived?: boolean; readOnly?: boolean; duplicating?: boolean }>(),
   { archived: false, readOnly: false, duplicating: false });
@@ -58,6 +72,23 @@ watch(() => [props.boardId, props.cardId, props.archived] as const,
 onBeforeUnmount(store.clear);
 
 function selectFiles() { picker.value?.click(); }
+function canDragImage(item: CardAttachment) {
+  return !props.readOnly && isSupportedImageFileName(item.originalFileName);
+}
+function attachmentTitle(item: CardAttachment) {
+  const size = formatSize(item.byteLength);
+  return canDragImage(item)
+    ? `${size} · Drag into the description to insert the image`
+    : size;
+}
+function attachmentDragStarted(event: DragEvent) {
+  const link = event.currentTarget;
+  if (!(link instanceof HTMLAnchorElement) || !event.dataTransfer || !isSupportedImageFileName(link.download)) {
+    return;
+  }
+  event.dataTransfer.setData(boardOilAttachmentImageDragType, buildAttachmentImageReference(link.download));
+  event.dataTransfer.effectAllowed = 'copyLink';
+}
 async function filesSelected(event: Event) {
   const input = event.target as HTMLInputElement;
   const files = Array.from(input.files ?? []);

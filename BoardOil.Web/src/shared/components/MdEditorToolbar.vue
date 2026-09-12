@@ -124,7 +124,7 @@
       v-if="showImageAction"
       type="button"
       class="btn btn--toolbar md-editor-toolbar-button"
-      :disabled="imageActionDisabled || isPlainTextMode"
+      :disabled="imageActionDisabled"
       aria-label="Add image"
       title="Add image"
       @click="emitImage"

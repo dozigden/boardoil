@@ -87,7 +87,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
     warningMessages.value.push(`${file.name}: The file exceeds the upload limit of ${formatAttachmentSize(maxUploadByteLength.value)} per file and was not uploaded.`);
   }
 
-  async function runQueue() {
+  async function runQueue(onProgress?: (file: File, percent: number) => void) {
     const current = context.value;
     if (busy.value || !current || current.archived || !supported) { return []; }
     const completed: CardAttachment[] = [];
@@ -104,7 +104,10 @@ export const useAttachmentStore = defineStore('attachments', () => {
       controller = new AbortController();
       item.status = 'uploading';
       const result = await api.uploadAttachment(current.boardId, current.cardId, item.file,
-        percent => { item.progress = percent; }, controller.signal);
+        percent => {
+          item.progress = percent;
+          onProgress?.(item.file, percent);
+        }, controller.signal);
       if (version !== runVersion) { return completed; }
       activeUploads.value = activeUploads.value.filter(upload => upload !== item);
       if (result.ok) {
@@ -125,7 +128,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
     return completed;
   }
 
-  async function upload(files: File[]) {
+  async function upload(files: File[], onProgress?: (file: File, percent: number) => void) {
     if (!supported || !context.value || context.value.archived) { return []; }
     const accepted: File[] = [];
     for (const file of files) {
@@ -134,7 +137,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
     }
     if (accepted.length === 0) { return []; }
     activeUploads.value.push(...accepted.map(file => ({ file, progress: 0, status: 'queued' as const })));
-    return await runQueue();
+    return await runQueue(onProgress);
   }
 
   async function remove(attachmentId: number) {

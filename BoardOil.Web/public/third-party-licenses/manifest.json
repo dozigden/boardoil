@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-09-12T09:41:04.973Z",
+  "generatedAtUtc": "2026-09-12T12:02:58.246Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -265,6 +265,15 @@
     },
     {
       "ecosystem": "npm",
+      "packageName": "@tiptap/extension-file-handler",
+      "version": "3.31.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-file-handler/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-file-handler.txt"
+    },
+    {
+      "ecosystem": "npm",
       "packageName": "@tiptap/extension-floating-menu",
       "version": "3.31.3",
       "declaredLicence": "MIT",
@@ -397,6 +406,15 @@
       "sourceType": "package",
       "sourceFile": "node_modules/@tiptap/extension-text/LICENSE.md",
       "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-text.txt"
+    },
+    {
+      "ecosystem": "npm",
+      "packageName": "@tiptap/extension-text-style",
+      "version": "3.31.3",
+      "declaredLicence": "MIT",
+      "sourceType": "package",
+      "sourceFile": "node_modules/@tiptap/extension-text-style/LICENSE.md",
+      "outputFile": "compliance/third-party-licenses/npm-tiptap-extension-text-style.txt"
     },
     {
       "ecosystem": "npm",

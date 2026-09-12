@@ -96,12 +96,14 @@
               :show-toolbar="false"
               :image-context="descriptionImageContext"
               :image-upload="descriptionImageUpload"
+              :image-upload-cancel="attachments.cancel"
               @update:model-value="handleDescriptionEditorValueUpdate"
               @focus="handleDescriptionEditorFocus"
               @blur="handleDescriptionEditorBlur"
               @escape="closeCardEditor"
               @toolbar-state-change="handleDescriptionToolbarStateChange"
               @plain-text-mode-change="handleDescriptionPlainTextModeChange"
+              @image-upload-blocking-change="handleDescriptionImageBlockingChange"
             />
           </div>
           <section v-if="!isDuplicatingCard" class="card-editor-comments-section" aria-label="Card comments">
@@ -318,7 +320,7 @@
           <button
             type="submit"
             class="btn"
-            :disabled="isDuplicatingCard && !canCreateDuplicate"
+            :disabled="descriptionImageBlocking || (isDuplicatingCard && !canCreateDuplicate)"
             :aria-label="primaryActionLabel"
             :title="primaryActionLabel"
           >
@@ -366,7 +368,11 @@ import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActive
 import { areCardEditModelsEqual, cloneCardEditModel, createCardEditModel } from './cardEditModel';
 import type { Card, CardEditModel } from '../../shared/types/boardTypes';
 import { apiBase } from '../../shared/api/config';
-import type { MarkdownImageContext, MarkdownImageUploadResult } from '../../shared/components/markdownImages';
+import type {
+  MarkdownImageContext,
+  MarkdownImageUpload,
+  MarkdownImageUploadOptions
+} from '../../shared/components/markdownImages';
 
 const route = useRoute();
 const router = useRouter();
@@ -409,6 +415,7 @@ const descriptionToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEd
 const commentToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>({});
 const descriptionIsPlainTextMode = ref(false);
 const commentIsPlainTextMode = ref(false);
+const descriptionImageBlocking = ref(false);
 
 const hasUnsavedChanges = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value);
 const isTransferDisabled = computed(() => hasUnsavedChanges.value || attachments.busy);
@@ -430,7 +437,7 @@ const descriptionImageContext = computed<MarkdownImageContext | null>(() => {
   }
   return { apiBaseUrl: apiBase, boardId: boardId.value, cardId };
 });
-const descriptionImageUpload = computed(() => {
+const descriptionImageUpload = computed<MarkdownImageUpload | null>(() => {
   return isDuplicatingCard.value ? null : uploadDescriptionImage;
 });
 
@@ -593,6 +600,7 @@ function clearDraft() {
   activeEditor.value = 'description';
   descriptionEditorFocused.value = false;
   commentEditorFocused.value = false;
+  descriptionImageBlocking.value = false;
 }
 
 function resetCommentDraft() {
@@ -685,17 +693,90 @@ function updateCommentDraftFromEditor(value: string) {
   newCommentText.value = value;
 }
 
-async function uploadDescriptionImage(file: File): Promise<MarkdownImageUploadResult> {
-  const normalisedFileName = file.name.toUpperCase();
-  const existing = attachments.items.find(attachment =>
-    attachment.originalFileName.toUpperCase() === normalisedFileName);
-  if (existing) {
-    return { fileName: existing.originalFileName };
+function handleDescriptionImageBlockingChange(blocking: boolean) {
+  descriptionImageBlocking.value = blocking;
+}
+
+async function uploadDescriptionImage(
+  files: File[],
+  onProgress: (file: File, percent: number) => void,
+  options: MarkdownImageUploadOptions
+) {
+  const results = files.map(() => null as { fileName: string } | null);
+  const availableByName = new Map(attachments.items.map(attachment =>
+    [attachment.originalFileName.toUpperCase(), attachment.originalFileName]));
+  const reservedNames = new Set(availableByName.keys());
+  const targetNames = files.map(() => '');
+  const filesToUpload = new Map<string, { file: File; sources: File[] }>();
+
+  files.forEach((file, index) => {
+    const normalisedFileName = file.name.toUpperCase();
+    const existingFileName = availableByName.get(normalisedFileName);
+    if (options.reuseExisting && existingFileName) {
+      results[index] = { fileName: existingFileName };
+      targetNames[index] = existingFileName;
+      onProgress(file, 100);
+      return;
+    }
+
+    const targetName = options.reuseExisting
+      ? file.name
+      : reserveUniqueAttachmentFileName(file.name, reservedNames);
+    const targetKey = targetName.toUpperCase();
+    targetNames[index] = targetName;
+    reservedNames.add(targetKey);
+    const planned = filesToUpload.get(targetKey);
+    if (planned) {
+      planned.sources.push(file);
+      return;
+    }
+    const uploadFile = targetName === file.name
+      ? file
+      : new File([file], targetName, { type: file.type, lastModified: file.lastModified });
+    filesToUpload.set(targetKey, { file: uploadFile, sources: [file] });
+  });
+
+  const uploadPlans = [...filesToUpload.values()];
+  const sourcesByUploadFile = new Map(uploadPlans.map(plan => [plan.file, plan.sources]));
+  const uploaded = await attachments.upload(uploadPlans.map(plan => plan.file), (file, percent) => {
+    for (const source of sourcesByUploadFile.get(file) ?? []) {
+      onProgress(source, percent);
+    }
+  });
+  for (const attachment of uploaded) {
+    availableByName.set(attachment.originalFileName.toUpperCase(), attachment.originalFileName);
+  }
+  for (const attachment of attachments.items) {
+    availableByName.set(attachment.originalFileName.toUpperCase(), attachment.originalFileName);
   }
 
-  const uploaded = await attachments.upload([file]);
-  const attachment = uploaded[0];
-  return attachment ? { fileName: attachment.originalFileName } : null;
+  files.forEach((file, index) => {
+    const fileName = availableByName.get(targetNames[index]!.toUpperCase());
+    if (fileName) {
+      results[index] = { fileName };
+    }
+  });
+  return results;
+}
+
+function reserveUniqueAttachmentFileName(fileName: string, reservedNames: Set<string>): string {
+  if (!reservedNames.has(fileName.toUpperCase())) {
+    return fileName;
+  }
+  const extensionIndex = fileName.lastIndexOf('.');
+  const hasExtension = extensionIndex > 0;
+  const extension = hasExtension ? fileName.slice(extensionIndex) : '';
+  const baseName = hasExtension ? fileName.slice(0, extensionIndex) : fileName;
+  let sequence = 2;
+  while (true) {
+    const suffix = ` (${sequence})`;
+    const availableBaseLength = Math.max(1, 255 - extension.length - suffix.length);
+    const candidate = `${baseName.slice(0, availableBaseLength)}${suffix}${extension}`;
+    if (!reservedNames.has(candidate.toUpperCase())) {
+      return candidate;
+    }
+    sequence++;
+  }
 }
 
 function updateDraftTagNamesFromEditor(tagNames: string[]) {
@@ -854,7 +935,7 @@ function initializeDraftForCard(nextBoardId: number, nextCard: Card) {
 async function saveCard() {
   const draft = cardDraft.value;
   const cardId = routeCardId.value;
-  if (!draft || draft.cardTypeId === null) {
+  if (!draft || draft.cardTypeId === null || descriptionImageBlocking.value) {
     return;
   }
 

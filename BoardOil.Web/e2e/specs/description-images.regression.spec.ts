@@ -1,4 +1,6 @@
 import { expect, test } from '../fixtures/boardOilTest';
+import type { Locator, Page } from '@playwright/test';
+import { ArchivedCardsPage } from '../ui/ArchivedCardsPage';
 import { BoardPage } from '../ui/BoardPage';
 
 const onePixelPng = Buffer.from(
@@ -8,6 +10,12 @@ const onePixelPng = Buffer.from(
 const onePixelGif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==', 'base64');
 const encodedImageFileName = 'Architecture (final) #1.png';
 const encodedImageAlt = 'Architecture (final) #1';
+
+type BrowserImageFile = {
+  name: string;
+  mimeType: string;
+  buffer: Buffer;
+};
 
 test('a picked card image persists as a protected owner-relative Markdown reference', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Regression description image');
@@ -66,20 +74,23 @@ test('a picked card image persists as a protected owner-relative Markdown refere
   await boardPage.openCard('Todo', 'Image card');
   const reopenedDescription = dialog.getByLabel('Card description', { exact: true });
   await expect(reopenedDescription.locator(`img[alt="${encodedImageAlt}"]`)).toBeVisible();
-  await expect(dialog.getByRole('link', { name: `Download ${encodedImageFileName}` })).toBeVisible();
+  const attachmentLink = dialog.getByRole('link', { name: `Download ${encodedImageFileName}` });
+  await expect(attachmentLink).toBeVisible();
+  await attachmentLink.dragTo(dialog.getByRole('group', { name: 'Card description editor' }));
+  await expect(reopenedDescription.locator(`img[alt="${encodedImageAlt}"]`)).toHaveCount(2);
   await dialog.getByLabel('Choose an image for Card description').setInputFiles({
     name: encodedImageFileName.toUpperCase(),
     mimeType: 'image/png',
     buffer: onePixelPng
   });
-  await expect(reopenedDescription.locator(`img[alt="${encodedImageAlt}"]`)).toHaveCount(2);
+  await expect(reopenedDescription.locator(`img[alt="${encodedImageAlt}"]`)).toHaveCount(3);
   expect(uploadRequests).toBe(1);
 
   await dialog.getByRole('button', { name: 'Save card' }).click();
   await expect(dialog).toBeHidden();
   await boardPage.openCard('Todo', 'Image card');
   await expect(dialog.getByLabel('Card description', { exact: true })
-    .locator(`img[alt="${encodedImageAlt}"]`)).toHaveCount(2);
+    .locator(`img[alt="${encodedImageAlt}"]`)).toHaveCount(3);
   const response = await page.request.get(imageUrl!);
   expect(response.ok()).toBe(true);
   expect(response.headers()['content-type']).toContain('image/png');
@@ -188,6 +199,30 @@ test('external and missing card images use safe rendering and fallbacks', async 
   await expect.poll(() => externalRequests).toBe(2);
 });
 
+test('an image dragged from another browser page inserts without navigating', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression browser image drag');
+  await api.createCard(board, 'Todo', 'Browser drag card');
+  const boardPage = new BoardPage(page);
+  await page.route('https://example.test/dragged.png', route =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: onePixelPng }));
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Browser drag card');
+
+  const dialog = page.getByRole('dialog');
+  const dropArea = dialog.getByRole('group', { name: 'Card description editor' });
+  await dispatchBrowserImageDrop(dropArea, 'https://example.test/dragged.png', 'Dragged browser image');
+
+  await expect(page).toHaveURL(new RegExp(`/boards/${board.id}/card/\\d+$`));
+  const image = dialog.getByLabel('Card description', { exact: true })
+    .locator('img[alt="Dragged browser image"]');
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute('loading', 'lazy');
+  await expect(image).toHaveAttribute('referrerpolicy', 'no-referrer');
+  await dialog.getByRole('button', { name: 'Switch to markdown text editor' }).click();
+  const markdown = await dialog.getByRole('textbox', { name: 'Card description markdown' }).inputValue();
+  expect(markdown.trim()).toBe('![Dragged browser image](https://example.test/dragged.png)');
+});
+
 test('markdown mode cannot persist an embedded data image', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Regression embedded image validation');
   const card = await api.createCard(board, 'Todo', 'Validated card');
@@ -211,6 +246,265 @@ test('markdown mode cannot persist an embedded data image', async ({ api, authen
     'Card descriptions cannot contain data or blob image URLs. Upload the image as a card attachment instead.');
   await expect(dialog).toBeVisible();
 });
+
+test('pasted and dropped images keep their editor position and file order', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression image paste and drop');
+  await api.createCard(board, 'Todo', 'Paste and drop card', 'Before\n\nAfter');
+  const boardPage = new BoardPage(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Paste and drop card');
+
+  const dialog = page.getByRole('dialog');
+  const richEditor = dialog.getByLabel('Card description', { exact: true });
+  await expect(dialog.getByRole('button', { name: 'Add image', exact: true })).toBeEnabled();
+  let releaseFirstUpload!: () => void;
+  const firstUploadGate = new Promise<void>(resolve => {
+    releaseFirstUpload = resolve;
+  });
+  let uploadCount = 0;
+  await page.route('**/cards/*/attachments', async route => {
+    if (route.request().method() === 'POST' && ++uploadCount === 1) {
+      await firstUploadGate;
+    }
+    await route.continue();
+  });
+
+  await richEditor.locator('p').first().click();
+  await page.keyboard.press('End');
+  await dispatchImageEvent(richEditor, 'paste', [
+    { name: 'image.png', mimeType: 'image/png', buffer: onePixelPng },
+    { name: 'image.png', mimeType: 'image/png', buffer: onePixelPng }
+  ]);
+  await expect(dialog.locator('.md-image-upload')).toHaveCount(2);
+  await expect(dialog.locator('.md-image-upload progress')).toHaveCount(2);
+  await expect(dialog.getByRole('button', { name: 'Save card' })).toBeDisabled();
+
+  releaseFirstUpload();
+  await expect(richEditor.locator('img[alt="image"]')).toBeVisible();
+  await expect(richEditor.locator('img[alt="image (2)"]')).toBeVisible();
+
+  const lastParagraph = richEditor.locator('p').last();
+  await lastParagraph.click();
+  await page.keyboard.press('Home');
+  await dispatchImageEvent(richEditor, 'paste', [
+    { name: 'image.png', mimeType: 'image/png', buffer: onePixelPng }
+  ]);
+  await expect(richEditor.locator('img[alt="image (3)"]')).toBeVisible();
+
+  await lastParagraph.click();
+  await page.keyboard.press('Home');
+  await dispatchImageEvent(dialog.getByRole('group', { name: 'Card description editor' }), 'drop', [
+    { name: 'drop-three.png', mimeType: 'image/png', buffer: onePixelPng }
+  ], lastParagraph);
+  await expect(richEditor.locator('img[alt="drop-three"]')).toBeVisible();
+  await page.unroute('**/cards/*/attachments');
+
+  await dialog.getByRole('button', { name: 'Switch to markdown text editor' }).click();
+  await expect(dialog.getByRole('textbox', { name: 'Card description markdown' })).toHaveValue([
+    'Before',
+    '',
+    '![image](boardoil-attachment:image.png)',
+    '',
+    '![image (2)](boardoil-attachment:image%20%282%29.png)',
+    '',
+    '![image (3)](boardoil-attachment:image%20%283%29.png)',
+    '',
+    '![drop-three](boardoil-attachment:drop-three.png)',
+    '',
+    'After'
+  ].join('\n'));
+});
+
+test('the image picker inserts portable Markdown at the caret in Markdown mode', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression markdown image insertion');
+  await api.createCard(board, 'Todo', 'Markdown image card', 'AlphaOmega');
+  const boardPage = new BoardPage(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Markdown image card');
+
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Switch to markdown text editor' }).click();
+  const markdownEditor = dialog.getByRole('textbox', { name: 'Card description markdown' });
+  await markdownEditor.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(5, 5));
+  await expect(dialog.getByRole('button', { name: 'Add image', exact: true })).toBeEnabled();
+  await dialog.getByLabel('Choose an image for Card description').setInputFiles({
+    name: 'plain-picker.png',
+    mimeType: 'image/png',
+    buffer: onePixelPng
+  });
+
+  await expect(markdownEditor).toHaveValue([
+    'Alpha',
+    '',
+    '![plain-picker](boardoil-attachment:plain-picker.png)',
+    '',
+    'Omega'
+  ].join('\n'));
+  await expect(dialog.getByRole('button', { name: 'Save card' })).toBeEnabled();
+});
+
+test('image alternative text is editable and archived images enlarge with the keyboard', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression image editing');
+  await api.createCard(board, 'Todo', 'Accessible image card');
+  const boardPage = new BoardPage(page);
+  const archivedCardsPage = new ArchivedCardsPage(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Accessible image card');
+
+  const cardDialog = page.getByRole('dialog');
+  await cardDialog.getByLabel('Choose an image for Card description').setInputFiles({
+    name: 'diagram.png',
+    mimeType: 'image/png',
+    buffer: onePixelPng
+  });
+  const editableImage = cardDialog.getByRole('button', { name: 'Enlarge image: diagram' });
+  await expect(editableImage).toBeVisible();
+  await editableImage.click();
+  const editImageDialog = page.getByRole('dialog', { name: 'Image preview' });
+  await editImageDialog.getByRole('textbox', { name: 'Alternative text' }).fill('Release flow diagram');
+  await editImageDialog.getByRole('button', { name: 'Save alternative text' }).click();
+  await expect(editImageDialog).toBeHidden();
+  await expect(cardDialog.getByRole('button', { name: 'Enlarge image: Release flow diagram' })).toBeVisible();
+
+  await cardDialog.getByRole('button', { name: 'Save card' }).click();
+  await expect(cardDialog).toBeHidden();
+  await boardPage.enterCardSelectionMode();
+  await boardPage.selectCard('Todo', 'Accessible image card');
+  await boardPage.archiveSelectedCards(1);
+  await boardPage.openArchivedCards();
+  await archivedCardsPage.openCard('Accessible image card');
+
+  const archivedImage = page.getByRole('button', { name: 'Enlarge image: Release flow diagram' });
+  await archivedImage.focus();
+  await page.keyboard.press('Enter');
+  const viewImageDialog = page.getByRole('dialog', { name: 'Image preview' });
+  const previewImage = viewImageDialog.getByRole('img', { name: 'Release flow diagram' });
+  await expect(previewImage).toBeVisible();
+  const inlineImageBox = await archivedImage.locator('img').boundingBox();
+  const previewImageBox = await previewImage.boundingBox();
+  expect(previewImageBox!.width).toBeGreaterThan(inlineImageBox!.width);
+  await viewImageDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(viewImageDialog).toBeHidden();
+});
+
+test('failed and cancelled uploads stay explicit and successful insertion remains undoable', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression image upload recovery');
+  await api.createCard(board, 'Todo', 'Image recovery card');
+  const boardPage = new BoardPage(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Image recovery card');
+
+  const dialog = page.getByRole('dialog');
+  const richEditor = dialog.getByLabel('Card description', { exact: true });
+  let failNextUpload = true;
+  await page.route('**/cards/*/attachments', async route => {
+    if (route.request().method() === 'POST' && failNextUpload) {
+      failNextUpload = false;
+      await route.fulfill({ status: 500, contentType: 'application/problem+json', body: '{"title":"Test upload failure"}' });
+      return;
+    }
+    await route.continue();
+  });
+
+  await dialog.getByLabel('Choose an image for Card description').setInputFiles({
+    name: 'retry.png',
+    mimeType: 'image/png',
+    buffer: onePixelPng
+  });
+  const failedUpload = dialog.locator('.md-image-upload').filter({ hasText: 'retry.png' });
+  await expect(failedUpload).toContainText('Upload failed.');
+  await expect(dialog.getByRole('button', { name: 'Save card' })).toBeDisabled();
+  const warningDialog = page.getByRole('dialog', { name: 'Attachment warning' });
+  if (await warningDialog.isVisible()) {
+    await warningDialog.getByRole('button', { name: 'OK' }).click();
+  }
+  await failedUpload.getByRole('button', { name: 'Retry' }).click();
+  await expect(richEditor.locator('img[alt="retry"]')).toBeVisible();
+  await page.unroute('**/cards/*/attachments');
+
+  await richEditor.focus();
+  await page.keyboard.press('Control+z');
+  await expect(richEditor.locator('img[alt="retry"]')).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Save card' })).toBeEnabled();
+
+  let releaseCancelledUpload!: () => void;
+  const cancelledUploadGate = new Promise<void>(resolve => {
+    releaseCancelledUpload = resolve;
+  });
+  await page.route('**/cards/*/attachments', async route => {
+    if (route.request().method() === 'POST') {
+      await cancelledUploadGate;
+      await route.continue().catch(() => undefined);
+      return;
+    }
+    await route.continue();
+  });
+  await dialog.getByLabel('Choose an image for Card description').setInputFiles({
+    name: 'cancelled.png',
+    mimeType: 'image/png',
+    buffer: onePixelPng
+  });
+  const cancelledUpload = dialog.locator('.md-image-upload').filter({ hasText: 'cancelled.png' });
+  await expect(cancelledUpload).toBeVisible();
+  await cancelledUpload.getByRole('button', { name: 'Cancel' }).click();
+  await expect(cancelledUpload).toContainText('Upload cancelled.');
+  releaseCancelledUpload();
+  await page.unroute('**/cards/*/attachments');
+  await cancelledUpload.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(cancelledUpload).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Save card' })).toBeEnabled();
+});
+
+async function dispatchImageEvent(
+  editor: Locator,
+  eventType: 'paste' | 'drop',
+  files: BrowserImageFile[],
+  dropTarget?: Locator
+) {
+  const dropBox = dropTarget ? await dropTarget.boundingBox() : null;
+  await editor.evaluate((element, payload) => {
+    const transfer = new DataTransfer();
+    for (const file of payload.files) {
+      transfer.items.add(new File([new Uint8Array(file.bytes)], file.name, { type: file.mimeType }));
+    }
+    if (payload.eventType === 'paste') {
+      element.dispatchEvent(new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: transfer
+      }));
+      return;
+    }
+    element.dispatchEvent(new DragEvent('drop', {
+      bubbles: true,
+      cancelable: true,
+      dataTransfer: transfer,
+      clientX: payload.dropPoint?.x ?? 0,
+      clientY: payload.dropPoint?.y ?? 0
+    }));
+  }, {
+    eventType,
+    files: files.map(file => ({
+      name: file.name,
+      mimeType: file.mimeType,
+      bytes: [...file.buffer]
+    })),
+    dropPoint: dropBox ? { x: dropBox.x + 4, y: dropBox.y + dropBox.height / 2 } : null
+  });
+}
+
+async function dispatchBrowserImageDrop(editor: Locator, url: string, alt: string) {
+  await editor.evaluate((element, image) => {
+    const transfer = new DataTransfer();
+    transfer.setData('text/html', `<img src="${image.url}" alt="${image.alt}">`);
+    transfer.setData('text/uri-list', image.url);
+    element.dispatchEvent(new DragEvent('drop', {
+      bubbles: true,
+      cancelable: true,
+      dataTransfer: transfer
+    }));
+  }, { url, alt });
+}
 
 async function createBrowserImageBuffers(page: import('@playwright/test').Page) {
   const encoded = await page.evaluate(() => {

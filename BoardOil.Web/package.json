@@ -28,7 +28,9 @@
     "test:e2e:regression:external": "node ./scripts/run-playwright-smoke.mjs --external-runtime"
   },
   "dependencies": {
+    "@lucide/vue": "^1.38.0",
     "@microsoft/signalr": "^10.0.0",
+    "@tiptap/extension-file-handler": "^3.31.3",
     "@tiptap/extension-heading": "^3.31.3",
     "@tiptap/extension-image": "^3.31.3",
     "@tiptap/extension-link": "^3.31.3",
@@ -36,7 +38,6 @@
     "@tiptap/starter-kit": "^3.31.3",
     "@tiptap/vue-3": "^3.31.3",
     "emoji-picker-element": "^1.29.1",
-    "@lucide/vue": "^1.38.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4"

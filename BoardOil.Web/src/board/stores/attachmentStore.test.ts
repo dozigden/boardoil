@@ -58,6 +58,21 @@ describe('attachments', () => {
     expect(store.warningMessages).toEqual(['file.bin: Storage unavailable']);
   });
 
+  it('reports upload progress with the matching file', async () => {
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+    const file = new File(['abc'], 'file.bin');
+    api.uploadAttachment.mockImplementation(async (_boardId, _cardId, _file, onProgress) => {
+      onProgress(37);
+      return ok(attachment);
+    });
+    const onProgress = vi.fn();
+
+    await store.upload([file], onProgress);
+
+    expect(onProgress).toHaveBeenCalledWith(file, 37);
+  });
+
   it('warns about an unconfirmed upload without keeping a failed entry or retrying it', async () => {
     const store = useAttachmentStore();
     await store.open(1, 1);

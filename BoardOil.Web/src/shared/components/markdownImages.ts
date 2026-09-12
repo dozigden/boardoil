@@ -3,6 +3,7 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { NodeView } from '@tiptap/pm/view';
 
 const attachmentReferencePrefix = 'boardoil-attachment:';
+export const boardOilAttachmentImageDragType = 'application/x-boardoil-attachment-image';
 
 export type MarkdownImageContext = {
   apiBaseUrl: string;
@@ -12,13 +13,34 @@ export type MarkdownImageContext = {
 };
 
 export type MarkdownImageUploadResult = { fileName: string } | null;
+export type MarkdownImageUploadProgress = (file: File, percent: number) => void;
+export type MarkdownImageUploadOptions = { reuseExisting: boolean };
+export type MarkdownImageUpload = (
+  files: File[],
+  onProgress: MarkdownImageUploadProgress,
+  options: MarkdownImageUploadOptions
+) => Promise<MarkdownImageUploadResult[]>;
 
-type MarkdownImageSource =
+export type MarkdownImageSource =
   | { kind: 'attachment'; url: string }
   | { kind: 'external'; url: string }
   | { kind: 'unavailable' };
 
-export function createMarkdownImageExtension(getContext: () => MarkdownImageContext | null) {
+export type MarkdownImageActivation = {
+  alt: string;
+  position: number;
+  source: MarkdownImageSource;
+};
+
+export type MarkdownImageExtensionOptions = {
+  editable?: boolean;
+  onActivate?: (image: MarkdownImageActivation) => void;
+};
+
+export function createMarkdownImageExtension(
+  getContext: () => MarkdownImageContext | null,
+  options: MarkdownImageExtensionOptions = {}
+) {
   return Image.extend({
     parseMarkdown(token, helpers) {
       const source = typeof token.href === 'string' ? token.href : '';
@@ -41,7 +63,7 @@ export function createMarkdownImageExtension(getContext: () => MarkdownImageCont
       return title ? `![${alt}](${source} "${title}")` : `![${alt}](${source})`;
     },
     addNodeView() {
-      return ({ node }) => createImageNodeView(node, getContext);
+      return ({ node, getPos }) => createImageNodeView(node, getPos, getContext, options);
     }
   }).configure({
     allowBase64: false,
@@ -91,7 +113,11 @@ export function imageAltFromFileName(fileName: string): string {
   return withoutExtension.replace(/[\\[\]\r\n]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-function resolveImageSource(value: unknown, context: MarkdownImageContext | null): MarkdownImageSource {
+export function isSupportedImageFileName(fileName: string): boolean {
+  return /\.(?:png|jpe?g|webp|gif)$/i.test(fileName);
+}
+
+export function resolveImageSource(value: unknown, context: MarkdownImageContext | null): MarkdownImageSource {
   if (typeof value !== 'string') {
     return { kind: 'unavailable' };
   }
@@ -115,18 +141,59 @@ function resolveImageSource(value: unknown, context: MarkdownImageContext | null
   return { kind: 'unavailable' };
 }
 
-function createImageNodeView(node: ProseMirrorNode, getContext: () => MarkdownImageContext | null): NodeView {
+function createImageNodeView(
+  node: ProseMirrorNode,
+  getPos: () => number | undefined,
+  getContext: () => MarkdownImageContext | null,
+  options: MarkdownImageExtensionOptions
+): NodeView {
   const dom = document.createElement('figure');
   dom.className = 'md-image-node';
   dom.contentEditable = 'false';
   let currentNode = node;
   let image: HTMLImageElement | null = null;
 
+  if (options.onActivate) {
+    dom.tabIndex = 0;
+    dom.setAttribute('role', 'button');
+    dom.classList.add('md-image-node--interactive');
+    dom.addEventListener('click', event => {
+      if (event.target instanceof HTMLAnchorElement) {
+        return;
+      }
+      activateImage();
+    });
+    dom.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+      event.preventDefault();
+      activateImage();
+    });
+  }
+
+  const activateImage = () => {
+    const position = getPos();
+    if (position === undefined || !options.onActivate) {
+      return;
+    }
+    const alt = typeof currentNode.attrs.alt === 'string' ? currentNode.attrs.alt : '';
+    options.onActivate({
+      alt,
+      position,
+      source: resolveImageSource(currentNode.attrs.src, getContext())
+    });
+  };
+
   const render = () => {
     image = null;
     dom.replaceChildren();
     const alt = typeof currentNode.attrs.alt === 'string' ? currentNode.attrs.alt : '';
     const source = resolveImageSource(currentNode.attrs.src, getContext());
+    if (options.onActivate) {
+      const action = 'Enlarge image';
+      dom.setAttribute('aria-label', alt ? `${action}: ${alt}` : action);
+    }
 
     if (source.kind === 'attachment') {
       const nextImage = document.createElement('img');
@@ -199,7 +266,7 @@ function createImageNodeView(node: ProseMirrorNode, getContext: () => MarkdownIm
       dom.classList.remove('md-image-node--selected');
     },
     stopEvent(event) {
-      return event.target instanceof HTMLAnchorElement;
+      return event.target instanceof HTMLAnchorElement || Boolean(options.onActivate);
     },
     ignoreMutation() {
       return true;

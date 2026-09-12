@@ -1,6 +1,14 @@
 <template>
   <div class="md-viewer" :style="{ '--md-viewer-min-height': minHeight }">
     <EditorContent v-if="tiptapEditor" :editor="tiptapEditor" class="md-viewer-content" />
+    <MdImageDialog
+      :open="activeImage !== null"
+      :source-url="activeImage?.sourceUrl ?? null"
+      :alt="activeImage?.alt ?? ''"
+      :editable="false"
+      @close="activeImage = null"
+      @save="activeImage = null"
+    />
   </div>
 </template>
 
@@ -11,11 +19,16 @@ import { TaskList } from '@tiptap/extension-list/task-list';
 import { Markdown } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
-import { computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { isHttpOrHttpsUrl } from '../utils/linkUrl';
 import { normaliseMarkdown as normaliseMarkdownValue } from '../utils/markdown';
 import { AnchoredHeading } from './mdViewerHeadingAnchors';
-import { createMarkdownImageExtension, type MarkdownImageContext } from './markdownImages';
+import MdImageDialog from './MdImageDialog.vue';
+import {
+  createMarkdownImageExtension,
+  type MarkdownImageActivation,
+  type MarkdownImageContext
+} from './markdownImages';
 
 const props = withDefaults(defineProps<{
   modelValue: string;
@@ -35,6 +48,7 @@ const props = withDefaults(defineProps<{
 
 const normalisedModelValue = computed(() => normaliseMarkdown(props.modelValue ?? ''));
 let headingScrollFrame: number | null = null;
+const activeImage = ref<{ sourceUrl: string | null; alt: string } | null>(null);
 
 const tiptapEditor = useEditor({
   content: '',
@@ -60,7 +74,9 @@ const tiptapEditor = useEditor({
         rel: null
       }
     }),
-    ...(props.imageContext ? [createMarkdownImageExtension(() => props.imageContext ?? null)] : []),
+    ...(props.imageContext ? [createMarkdownImageExtension(() => props.imageContext ?? null, {
+      onActivate: openImageDialog
+    })] : []),
     Markdown
   ],
   editorProps: {
@@ -90,6 +106,14 @@ const tiptapEditor = useEditor({
     }
   }
 });
+
+function openImageDialog(image: MarkdownImageActivation) {
+  let sourceUrl: string | null = null;
+  if (image.source.kind !== 'unavailable') {
+    sourceUrl = image.source.url;
+  }
+  activeImage.value = { sourceUrl, alt: image.alt };
+}
 
 function normaliseMarkdown(value: string) {
   return normaliseMarkdownValue(value, props.maxLength);
