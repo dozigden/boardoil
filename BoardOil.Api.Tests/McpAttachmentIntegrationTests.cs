@@ -500,6 +500,7 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
         Assert.Equal(attachment.ContentType, item.GetProperty("contentType").GetString());
         Assert.Equal(attachment.CreatedAtUtc, item.GetProperty("createdAtUtc").GetDateTime());
         Assert.Equal(attachment.CreatedByUserId, item.GetProperty("createdByUserId").GetInt32());
-        Assert.Equal(6, item.EnumerateObject().Count());
+        Assert.Equal(attachment.HasThumbnail, item.GetProperty("hasThumbnail").GetBoolean());
+        Assert.Equal(7, item.EnumerateObject().Count());
     }
 }

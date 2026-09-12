@@ -20,6 +20,8 @@ public sealed class CardAttachmentService(
     IBoardAuthorisationService authorisation, IAttachmentStorageService storage, AttachmentStorageOptions options,
     IDbContextScopeFactory scopes, IBoardEvents events, IImageRepository images, ILogger<CardAttachmentService>? logger = null) : ICardAttachmentService
 {
+    private static readonly SemaphoreSlim ThumbnailWriteLock = new(1, 1);
+
     public async Task<ApiResult<CardAttachmentListDto>> ListAsync(int boardId, int cardId, bool archived, int actorUserId)
     {
         using var scope = scopes.CreateReadOnly();
@@ -68,6 +70,11 @@ public sealed class CardAttachmentService(
 
     public async Task<ApiResult<CardAttachmentDto>> UploadAsync(int boardId, int cardId, int actorUserId,
         string fileName, string? contentType, Stream content, CancellationToken cancellationToken = default)
+        => await UploadAsync(boardId, cardId, actorUserId, fileName, contentType, content, null, null, cancellationToken);
+
+    public async Task<ApiResult<CardAttachmentDto>> UploadAsync(int boardId, int cardId, int actorUserId,
+        string fileName, string? contentType, Stream content, Stream? thumbnail, string? thumbnailContentType,
+        CancellationToken cancellationToken = default)
     {
         var check = await CheckUploadAccessAsync(boardId, cardId, actorUserId);
         if (!check.Success) { return new ApiError(check.StatusCode, check.Message!); }
@@ -77,6 +84,10 @@ public sealed class CardAttachmentService(
         {
             var name = AttachmentFileMetadata.FileName(fileName);
             prepared = await PrepareAsync(content, name, contentType, actorUserId, check.Data, cancellationToken: cancellationToken);
+            if (thumbnail is not null && await IsSupportedImageAsync(prepared.StorageKey, cancellationToken))
+            {
+                await TryStoreUploadThumbnailAsync(prepared.Id, thumbnail, thumbnailContentType, cancellationToken);
+            }
             using var scope = scopes.Create();
             EntityCardAttachment? attachment = null;
             CardDto? updatedCard = null;
@@ -199,6 +210,86 @@ public sealed class CardAttachmentService(
             if (content is not null) { await content.DisposeAsync(); }
             throw;
         }
+    }
+
+    public async Task<ApiResult<AttachmentThumbnailContent>> ViewThumbnailAsync(
+        int boardId, int attachmentId, int actorUserId)
+    {
+        using var scope = scopes.CreateReadOnly();
+        if (!await authorisation.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess))
+        {
+            return ApiErrors.Forbidden("You do not have access to this board.");
+        }
+        var key = await attachments.Query()
+            .Where(x => x.Id == attachmentId && x.State == AttachmentState.Ready &&
+                ((x.Card != null && x.Card.BoardId == boardId) ||
+                 (x.ArchivedCard != null && x.ArchivedCard.BoardId == boardId)))
+            .Select(x => x.ThumbnailStorageKey)
+            .SingleOrDefaultAsync();
+        if (key is null) { return ApiErrors.NotFound("Attachment thumbnail not found."); }
+        try { return new AttachmentThumbnailContent(storage.OpenRead(key)); }
+        catch (FileNotFoundException) { return ApiErrors.NotFound("Attachment thumbnail not found."); }
+        catch (DirectoryNotFoundException) { return ApiErrors.NotFound("Attachment thumbnail not found."); }
+    }
+
+    public async Task<ApiResult> PutThumbnailAsync(int boardId, int attachmentId, int actorUserId, string? contentType,
+        Stream content, CancellationToken cancellationToken = default)
+    {
+        using (var accessScope = scopes.CreateReadOnly())
+        {
+            if (!await authorisation.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate))
+            {
+                return ApiErrors.Forbidden("You do not have permission for this action.");
+            }
+        }
+
+        byte[] bytes;
+        try { bytes = await ReadThumbnailAsync(content, contentType, cancellationToken); }
+        catch (AttachmentSizeException exception) { return new ApiError(413, exception.Message); }
+        catch (UnsupportedAttachmentImageException)
+        {
+            return new ApiError(415, "Thumbnail must be a PNG image.");
+        }
+        catch (AttachmentImageDimensionsException exception) { return new ApiError(422, exception.Message); }
+
+        await ThumbnailWriteLock.WaitAsync(cancellationToken);
+        try
+        {
+            using var scope = scopes.Create();
+            if (!await authorisation.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate))
+            {
+                return ApiErrors.Forbidden("You do not have permission for this action.");
+            }
+            var attachment = await attachments.Query().SingleOrDefaultAsync(x => x.Id == attachmentId &&
+                x.State == AttachmentState.Ready &&
+                ((x.Card != null && x.Card.BoardId == boardId) ||
+                 (x.ArchivedCard != null && x.ArchivedCard.BoardId == boardId)), cancellationToken);
+            if (attachment is null) { return ApiErrors.NotFound("Attachment not found."); }
+            if (!await IsSupportedImageAsync(attachment.StorageKey, cancellationToken))
+            {
+                return new ApiError(415, "Attachment is not a supported PNG, JPEG, WebP or GIF image.");
+            }
+            if (attachment.ThumbnailStorageKey is not null && ThumbnailFileExists(attachment.ThumbnailStorageKey))
+            {
+                return ApiResults.Ok();
+            }
+
+            var key = Guid.NewGuid().ToString("N");
+            var published = false;
+            try
+            {
+                await WriteThumbnailAsync(key, bytes, cancellationToken);
+                attachment.ThumbnailStorageKey = key;
+                await scope.SaveChangesAsync(cancellationToken);
+                published = true;
+            }
+            finally
+            {
+                if (!published) { DeleteStagedThumbnail(key); }
+            }
+            return ApiResults.Ok();
+        }
+        finally { ThumbnailWriteLock.Release(); }
     }
 
     public async Task<ApiResult> DeleteAsync(int boardId, int cardId, int attachmentId, int actorUserId)
@@ -401,7 +492,11 @@ public sealed class CardAttachmentService(
             var record = await attachments.Query().SingleOrDefaultAsync(
                 x => x.StorageKey == key && x.State == AttachmentState.PendingDeletion, cancellationToken);
             if (record is null) { continue; }
-            try { storage.Delete(key); }
+            try
+            {
+                storage.Delete(key);
+                if (record.ThumbnailStorageKey is not null) { storage.Delete(record.ThumbnailStorageKey); }
+            }
             catch (DirectoryNotFoundException) { /* No file remains to remove. */ }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -471,7 +566,7 @@ public sealed class CardAttachmentService(
 
     public static CardAttachmentDto ToDto(EntityCardAttachment attachment) =>
         new(attachment.Id, attachment.OriginalFileName, attachment.ContentType, attachment.ByteLength,
-            attachment.CreatedAtUtc, attachment.CreatedByUserId);
+            attachment.CreatedAtUtc, attachment.CreatedByUserId, attachment.ThumbnailStorageKey is not null);
 
     public async Task PublishUploadEventsAsync(int boardId, int cardId, int attachmentId)
     {
@@ -482,6 +577,117 @@ public sealed class CardAttachmentService(
             x => x.Id == attachmentId && x.CardId == card.Id && x.State == AttachmentState.Ready);
         await events.CardUpdatedAsync(boardId, await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), images));
         await events.AttachmentAddedAsync(boardId, cardId, ToDto(attachment));
+    }
+
+    private async Task TryStoreUploadThumbnailAsync(int attachmentId, Stream content, string? contentType,
+        CancellationToken cancellationToken)
+    {
+        byte[] bytes;
+        try { bytes = await ReadThumbnailAsync(content, contentType, cancellationToken); }
+        catch (Exception exception) when (exception is AttachmentSizeException or UnsupportedAttachmentImageException
+                                          or AttachmentImageDimensionsException)
+        {
+            return;
+        }
+
+        var key = Guid.NewGuid().ToString("N");
+        var published = false;
+        try
+        {
+            await WriteThumbnailAsync(key, bytes, cancellationToken);
+            using (scopes.SuppressAmbientContext())
+            using (var scope = scopes.Create())
+            {
+                var attachment = attachments.Get(attachmentId);
+                if (attachment is null || attachment.State != AttachmentState.Pending) { return; }
+                attachment.ThumbnailStorageKey = key;
+                await scope.SaveChangesAsync(cancellationToken);
+                published = true;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(exception, "Could not store optional thumbnail for attachment {AttachmentId}.", attachmentId);
+        }
+        finally
+        {
+            if (!published) { DeleteStagedThumbnail(key); }
+        }
+    }
+
+    private async Task<byte[]> ReadThumbnailAsync(Stream content, string? contentType, CancellationToken cancellationToken)
+    {
+        if (!string.Equals(AttachmentFileMetadata.ContentType(contentType), "image/png", StringComparison.Ordinal))
+        {
+            throw new UnsupportedAttachmentImageException();
+        }
+        using var buffer = new MemoryStream();
+        var bytes = new byte[81920];
+        int count;
+        while ((count = await content.ReadAsync(bytes, cancellationToken)) != 0)
+        {
+            if (buffer.Length + count > options.MaxThumbnailByteLength)
+            {
+                throw new AttachmentSizeException(options.MaxThumbnailByteLength);
+            }
+            await buffer.WriteAsync(bytes.AsMemory(0, count), cancellationToken);
+        }
+        buffer.Position = 0;
+        var thumbnailOptions = new AttachmentStorageOptions
+        {
+            MaxImageEdgeLength = options.MaxThumbnailEdgeLength,
+            MaxImagePixelCount = (long)options.MaxThumbnailEdgeLength * options.MaxThumbnailEdgeLength
+        };
+        var info = AttachmentImageInspector.Inspect(buffer, thumbnailOptions);
+        if (info.ContentType != "image/png") { throw new UnsupportedAttachmentImageException(); }
+        return buffer.ToArray();
+    }
+
+    private async Task<bool> IsSupportedImageAsync(string storageKey, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var content = storage.OpenRead(storageKey);
+            if (!content.CanSeek)
+            {
+                using var buffer = new MemoryStream();
+                await content.CopyToAsync(buffer, cancellationToken);
+                AttachmentImageInspector.Inspect(buffer, options);
+            }
+            else { AttachmentImageInspector.Inspect(content, options); }
+            return true;
+        }
+        catch (Exception exception) when (exception is UnsupportedAttachmentImageException or AttachmentImageDimensionsException
+                                          or FileNotFoundException or DirectoryNotFoundException)
+        {
+            return false;
+        }
+    }
+
+    private bool ThumbnailFileExists(string storageKey)
+    {
+        try
+        {
+            using var content = storage.OpenRead(storageKey);
+            return true;
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException) { return false; }
+    }
+
+    private async Task WriteThumbnailAsync(string storageKey, byte[] bytes, CancellationToken cancellationToken)
+    {
+        await using var target = storage.Create(storageKey);
+        await target.WriteAsync(bytes, cancellationToken);
+        await target.FlushAsync(cancellationToken);
+    }
+
+    private void DeleteStagedThumbnail(string storageKey)
+    {
+        try { storage.Delete(storageKey); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(exception, "Could not remove staged thumbnail {StorageKey}.", storageKey);
+        }
     }
 
 }

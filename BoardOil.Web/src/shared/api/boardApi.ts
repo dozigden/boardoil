@@ -29,7 +29,7 @@ import type {
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
-import { deleteJson, getBinary, getEnvelope, patchData, postData, postFormData, postJson, putData } from './http';
+import { deleteJson, getBinary, getBlob, getEnvelope, patchData, postData, postFormData, postJson, putBinary, putData } from './http';
 
 export type BoardApi = ReturnType<typeof createHttpBoardApi>;
 export type BoardExportPackage = {
@@ -185,10 +185,24 @@ function createHttpBoardApi() {
   }
 
   async function uploadAttachment(boardId: number, cardId: number, file: File, progress: (percent: number) => void,
-    signal: AbortSignal): Promise<Result<CardAttachment, AppError>> {
+    signal: AbortSignal, thumbnail?: Blob | null): Promise<Result<CardAttachment, AppError>> {
     const form = new FormData();
     form.append('file', file);
+    if (thumbnail) { form.append('thumbnail', thumbnail, 'thumbnail.png'); }
     return uploadFormData<CardAttachment>(`/api/boards/${boardId}/cards/${cardId}/attachments`, form, progress, signal);
+  }
+
+  async function getAttachmentImage(boardId: number, cardId: number, archived: boolean, fileName: string) {
+    const ownerPath = archived ? `cards/archived/${cardId}` : `cards/${cardId}`;
+    return getBlob(`/api/boards/${boardId}/${ownerPath}/attachments/image-content?fileName=${encodeURIComponent(fileName)}`);
+  }
+
+  async function getAttachmentThumbnail(boardId: number, attachmentId: number) {
+    return getBlob(`/api/boards/${boardId}/attachments/${attachmentId}/thumbnail`);
+  }
+
+  async function putAttachmentThumbnail(boardId: number, attachmentId: number, thumbnail: Blob) {
+    return putBinary(`/api/boards/${boardId}/attachments/${attachmentId}/thumbnail`, thumbnail);
   }
 
   async function downloadAttachment(boardId: number, attachmentId: number): Promise<Result<BoardExportPackage, AppError>> {
@@ -456,6 +470,9 @@ function createHttpBoardApi() {
     supportsAttachments: true,
     getAttachments,
     uploadAttachment,
+    getAttachmentImage,
+    getAttachmentThumbnail,
+    putAttachmentThumbnail,
     downloadAttachment,
     deleteAttachment,
     duplicateCard,

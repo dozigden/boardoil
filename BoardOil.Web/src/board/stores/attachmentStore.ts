@@ -3,6 +3,8 @@ import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
 import { formatAttachmentSize } from '../utils/formatAttachmentSize';
+import { createAttachmentThumbnail } from '../utils/attachmentThumbnails';
+import { isSupportedImageFileName } from '../../shared/components/markdownImages';
 
 type Upload = { file: File; progress: number; status: 'queued' | 'uploading' };
 type AttachmentContext = { boardId: number; cardId: number; archived: boolean };
@@ -103,11 +105,16 @@ export const useAttachmentStore = defineStore('attachments', () => {
       }
       controller = new AbortController();
       item.status = 'uploading';
+      let thumbnail: Blob | null = null;
+      if (isSupportedImageFileName(item.file.name)) {
+        try { thumbnail = await createAttachmentThumbnail(item.file); }
+        catch { /* The original remains uploadable when the browser cannot decode the image. */ }
+      }
       const result = await api.uploadAttachment(current.boardId, current.cardId, item.file,
         percent => {
           item.progress = percent;
           onProgress?.(item.file, percent);
-        }, controller.signal);
+        }, controller.signal, thumbnail);
       if (version !== runVersion) { return completed; }
       activeUploads.value = activeUploads.value.filter(upload => upload !== item);
       if (result.ok) {

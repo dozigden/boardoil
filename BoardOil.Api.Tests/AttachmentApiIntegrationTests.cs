@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Card;
 using Xunit;
@@ -91,6 +92,54 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
         Assert.True(missingResponse.Headers.CacheControl.Private);
     }
 
+    [Fact]
+    public async Task Thumbnail_ShouldSupportOptionalUploadProtectedReadAndIdempotentPut()
+    {
+        var card = await CreateCard();
+        var thumbnail = Png(3, 2);
+        using var form = Upload(Png(30, 20), "diagram.png", thumbnail);
+        var upload = await Client.PostAsync($"/api/boards/1/cards/{card.Id}/attachments", form);
+        Assert.Equal(HttpStatusCode.Created, upload.StatusCode);
+        var attachment = (await upload.Content.ReadFromJsonAsync<Envelope<CardAttachmentDto>>())!.Data!;
+        Assert.True(attachment.HasThumbnail);
+        var path = $"/api/boards/1/attachments/{attachment.Id}/thumbnail";
+
+        var response = await Client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("image/png", response.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(thumbnail, await response.Content.ReadAsByteArrayAsync());
+        Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
+        Assert.True(response.Headers.CacheControl!.NoStore);
+        Assert.True(response.Headers.CacheControl.Private);
+        using var replacement = PngContent(Png(2, 2));
+        Assert.Equal(HttpStatusCode.OK, (await Client.PutAsync(path, replacement)).StatusCode);
+        Assert.Equal(thumbnail, await (await Client.GetAsync(path)).Content.ReadAsByteArrayAsync());
+        using var anonymous = CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(path)).StatusCode);
+    }
+
+    [Fact]
+    public async Task ThumbnailPut_ShouldRequireCsrfAndValidatePngShape()
+    {
+        var card = await CreateCard();
+        using var form = Upload(Png(3, 2), "diagram.png");
+        var upload = await Client.PostAsync($"/api/boards/1/cards/{card.Id}/attachments", form);
+        var attachment = (await upload.Content.ReadFromJsonAsync<Envelope<CardAttachmentDto>>())!.Data!;
+        var path = $"/api/boards/1/attachments/{attachment.Id}/thumbnail";
+
+        using var wrongType = new ByteArrayContent(Png(2, 2));
+        wrongType.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, (await Client.PutAsync(path, wrongType)).StatusCode);
+        using var tooWide = PngContent(Png(201, 1));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Client.PutAsync(path, tooWide)).StatusCode);
+        using var oversized = PngContent(new byte[256 * 1024 + 1]);
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await Client.PutAsync(path, oversized)).StatusCode);
+        Client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+        using var valid = PngContent(Png(2, 2));
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client.PutAsync(path, valid)).StatusCode);
+    }
+
     private async Task<CardDto> CreateCard()
     {
         var response = await Client.PostAsJsonAsync("/api/boards/1/cards", new CreateCardRequest(null, "Attachments", "", []));
@@ -98,11 +147,19 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
         return (await response.Content.ReadFromJsonAsync<Envelope<CardDto>>())!.Data!;
     }
 
-    private static MultipartFormDataContent Upload(byte[] bytes, string name)
+    private static MultipartFormDataContent Upload(byte[] bytes, string name, byte[]? thumbnail = null)
     {
         var form = new MultipartFormDataContent();
         form.Add(new ByteArrayContent(bytes), "file", name);
+        if (thumbnail is not null) { form.Add(PngContent(thumbnail), "thumbnail", "thumbnail.png"); }
         return form;
+    }
+
+    private static ByteArrayContent PngContent(byte[] bytes)
+    {
+        var content = new ByteArrayContent(bytes);
+        content.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        return content;
     }
 
     private static byte[] Png(int width, int height)

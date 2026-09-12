@@ -87,6 +87,31 @@ public sealed class AttachmentPackageTests : TestBaseDb, IAsyncLifetime
         Assert.Empty(await DbContextForAssert.TemporaryBoardPackages.AsNoTracking().ToListAsync());
     }
 
+    [Fact]
+    public async Task RoundTrip_ShouldOmitDerivedThumbnailAndAllowImportedBackfill()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Image").Build();
+        var card = board.GetCard("Image");
+        var service = ResolveService<ICardAttachmentService>();
+        var uploaded = await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId,
+            "image.png", "image/png", new MemoryStream(ImageBytes), new MemoryStream(ImageBytes), "image/png");
+        Assert.True(uploaded.Success, uploaded.Message);
+        var exported = await ResolveService<IBoardExportService>().ExportBoardAsync(board.BoardId, ActorUserId, "test");
+        Assert.True(exported.Success, exported.Message);
+        await using var package = exported.Data!.Content;
+
+        var imported = await ResolveService<IBoardPackageImportService>()
+            .ImportBoardPackageAsync(new("Imported thumbnails", package), ActorUserId);
+
+        Assert.True(imported.Success, imported.Message);
+        var records = await DbContextForAssert.CardAttachments.OrderBy(x => x.Id).ToListAsync();
+        Assert.NotNull(records[0].ThumbnailStorageKey);
+        Assert.Null(records[1].ThumbnailStorageKey);
+        Assert.True((await service.PutThumbnailAsync(imported.Data.Id, records[1].Id, ActorUserId,
+            "image/png", new MemoryStream(ImageBytes))).Success);
+        Assert.True((await service.ViewThumbnailAsync(imported.Data.Id, records[1].Id, ActorUserId)).Success);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

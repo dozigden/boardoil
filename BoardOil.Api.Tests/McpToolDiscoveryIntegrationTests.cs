@@ -302,7 +302,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.False(attachmentListInput.GetProperty("additionalProperties").GetBoolean());
         var attachmentOutput = attachmentListTool.GetProperty("outputSchema").GetProperty("properties");
         Assert.True(attachmentOutput.TryGetProperty("maxUploadByteLength", out _));
-        Assert.Equal(6, attachmentOutput.GetProperty("items").GetProperty("items").GetProperty("properties").EnumerateObject().Count());
+        Assert.Equal(7, attachmentOutput.GetProperty("items").GetProperty("items").GetProperty("properties").EnumerateObject().Count());
 
         var attachmentDeleteTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardAttachmentDelete);
         var attachmentDeleteInput = attachmentDeleteTool.GetProperty("inputSchema");

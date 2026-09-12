@@ -207,6 +207,28 @@ export async function getBinary(path: string): Promise<Result<BinaryResponse, Ap
   });
 }
 
+export async function getBlob(path: string): Promise<Result<Blob, AppError>> {
+  const responseResult = await request(path, { method: 'GET' });
+  if (!responseResult.ok) { return responseResult; }
+  try { return ok(await responseResult.data.blob()); }
+  catch { return err({ kind: 'parse', message: 'Unexpected binary API response.' }); }
+}
+
+export async function putBinary(path: string, payload: Blob): Promise<Result<void, AppError>> {
+  const responseResult = await request(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': payload.type || 'application/octet-stream' },
+    body: payload
+  });
+  if (!responseResult.ok) { return responseResult; }
+  const envelopeResult = await parseEnvelope<unknown>(responseResult.data);
+  if (!envelopeResult.ok) { return envelopeResult; }
+  if (envelopeResult.data.success === false) {
+    return err({ kind: 'api', message: envelopeResult.data.message ?? 'Thumbnail could not be stored.' });
+  }
+  return ok(undefined);
+}
+
 async function sendJson(
   method: 'POST' | 'PUT' | 'PATCH',
   path: string,

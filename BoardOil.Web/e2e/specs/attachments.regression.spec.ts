@@ -3,6 +3,8 @@ import { BoardPage } from '../ui/BoardPage';
 import { AttachmentPanel } from '../ui/AttachmentPanel';
 import { ArchivedCardsPage } from '../ui/ArchivedCardsPage';
 
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+
 test('cancelling attachment selection leaves the card dialog open', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Regression attachment picker cancellation');
   await api.createCard(board, 'Todo', 'Card');
@@ -130,4 +132,61 @@ test('a lost upload response reconciles the saved file without offering a confli
   await expect(warning).toBeHidden();
   await expect(panel.region().getByRole('button', { name: 'Dismiss', exact: true })).toHaveCount(0);
   expect(await panel.download('saved.bin')).toEqual({ name: 'saved.bin', bytes });
+});
+
+test('a browser image upload includes and displays its thumbnail', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression uploaded thumbnail');
+  await api.createCard(board, 'Todo', 'Card');
+  const boardPage = new BoardPage(page);
+  const panel = new AttachmentPanel(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Card');
+
+  await panel.upload('new-image.png', png, 'image/png');
+
+  await expect(panel.thumbnail('new-image.png')).toBeVisible();
+});
+
+test('an image uploaded without a thumbnail is backfilled only once', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression thumbnail backfill');
+  const card = await api.createCard(board, 'Todo', 'Card');
+  const attachment = await api.uploadAttachment(board.id, card.id, 'backfill.png', 'image/png', png);
+  expect(attachment.hasThumbnail).toBe(false);
+  let putCount = 0;
+  await page.route('**/attachments/*/thumbnail', async route => {
+    if (route.request().method() === 'PUT') { putCount++; }
+    await route.continue();
+  });
+  const boardPage = new BoardPage(page);
+  const panel = new AttachmentPanel(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Card');
+
+  await expect(panel.thumbnail('backfill.png')).toBeVisible();
+  expect(putCount).toBe(1);
+  await page.getByRole('dialog').getByTitle('Cancel', { exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await boardPage.openCard('Todo', 'Card');
+  await expect(panel.thumbnail('backfill.png')).toBeVisible();
+  expect(putCount).toBe(1);
+});
+
+test('a non-image attachment displays the default icon without requesting a thumbnail', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression non-image thumbnail');
+  await api.createCard(board, 'Todo', 'Card');
+  let thumbnailRequests = 0;
+  await page.route('**/attachments/*/thumbnail', async route => {
+    thumbnailRequests++;
+    await route.continue();
+  });
+  const boardPage = new BoardPage(page);
+  const panel = new AttachmentPanel(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Card');
+
+  await panel.upload('notes.txt', Buffer.from('No preview'));
+
+  await expect(panel.thumbnail('notes.txt')).toHaveCount(0);
+  await expect(panel.defaultIcon('notes.txt')).toBeVisible();
+  expect(thumbnailRequests).toBe(0);
 });

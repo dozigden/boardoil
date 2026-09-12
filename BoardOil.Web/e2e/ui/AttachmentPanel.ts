@@ -5,6 +5,10 @@ export class AttachmentPanel {
 
   public region() { return this.page.getByRole('region', { name: 'Attachments', exact: true }); }
   public downloadLink(name: string) { return this.region().getByRole('link', { name: `Download ${name}`, exact: true }); }
+  public thumbnail(name: string) { return this.region().getByRole('img', { name: `Preview of ${name}`, exact: true }); }
+  public defaultIcon(name: string) {
+    return this.region().locator('.attachment-row').filter({ hasText: name }).locator('.attachment-thumbnail-placeholder');
+  }
 
   public async cancelFileSelection() {
     await expect(this.region().getByRole('button', { name: 'Upload', exact: true })).toBeEnabled();
@@ -12,9 +16,9 @@ export class AttachmentPanel {
     await this.region().getByLabel('Choose attachments').dispatchEvent('cancel', { bubbles: true, cancelable: false });
   }
 
-  public async upload(name: string, buffer: Buffer) {
+  public async upload(name: string, buffer: Buffer, mimeType = 'application/octet-stream') {
     await expect(this.region().getByRole('button', { name: 'Upload', exact: true })).toBeEnabled();
-    await this.region().getByLabel('Choose attachments').setInputFiles({ name, mimeType: 'application/octet-stream', buffer });
+    await this.region().getByLabel('Choose attachments').setInputFiles({ name, mimeType, buffer });
     await expect(this.downloadLink(name)).toBeVisible();
     await expect(this.region().getByRole('button', { name: 'Upload', exact: true })).toBeEnabled();
   }

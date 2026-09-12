@@ -236,6 +236,30 @@ public sealed class AttachmentStorageTests : TestBaseDb, IAsyncLifetime
         Assert.Equal(0, unknown.Length);
     }
 
+    [Fact]
+    public async Task PutThumbnail_WhenStagedWriteFails_ShouldLeaveNoPublishedKeyAndAllowRetry()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var cardId = board.GetCard("Card").BoardCardId;
+        var service = ResolveService<ICardAttachmentService>();
+        var uploaded = await service.UploadAsync(board.BoardId, cardId, ActorUserId,
+            "image.png", "image/png", new MemoryStream(Png(3, 2)));
+        Assert.True(uploaded.Success, uploaded.Message);
+        var storage = Assert.IsType<TestStorage>(ResolveService<IAttachmentStorageService>());
+        storage.FailNextWrite = true;
+
+        await Assert.ThrowsAsync<IOException>(() => service.PutThumbnailAsync(board.BoardId, uploaded.Data!.Id,
+            ActorUserId, "image/png", new MemoryStream(Png(2, 2))));
+
+        Assert.Null((await DbContextForAssert.CardAttachments.AsNoTracking().SingleAsync()).ThumbnailStorageKey);
+        Assert.Single(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+        var retried = await service.PutThumbnailAsync(board.BoardId, uploaded.Data.Id,
+            ActorUserId, "image/png", new MemoryStream(Png(2, 2)));
+        Assert.True(retried.Success, retried.Message);
+        Assert.NotNull((await DbContextForAssert.CardAttachments.AsNoTracking().SingleAsync()).ThumbnailStorageKey);
+        Assert.Equal(2, Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories).Count());
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -286,16 +310,31 @@ public sealed class AttachmentStorageTests : TestBaseDb, IAsyncLifetime
     private Task<PreparedAttachmentFile> Prepare(byte[] content) =>
         ResolveService<CardAttachmentService>().PrepareAsync(new MemoryStream(content), "file.bin", null, ActorUserId);
 
+    private static byte[] Png(int width, int height)
+    {
+        var bytes = new byte[24];
+        new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }.CopyTo(bytes, 0);
+        bytes[11] = 13;
+        "IHDR"u8.CopyTo(bytes.AsSpan(12));
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(bytes.AsSpan(16, 4), width);
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(bytes.AsSpan(20, 4), height);
+        return bytes;
+    }
+
     private sealed class TestStorage(IAttachmentStorageService inner) : IAttachmentStorageService
     {
         public bool FailDelete { get; set; }
         public bool FailCreate { get; set; }
+        public bool FailNextWrite { get; set; }
         public Action<string>? BeforeCreate { get; set; }
         public Stream Create(string storageKey)
         {
             BeforeCreate?.Invoke(storageKey);
             if (FailCreate) { throw new IOException("Simulated unavailable storage."); }
-            return inner.Create(storageKey);
+            var stream = inner.Create(storageKey);
+            if (!FailNextWrite) { return stream; }
+            FailNextWrite = false;
+            return new PartialWriteFailureStream(stream);
         }
         public Stream OpenRead(string storageKey) => inner.OpenRead(storageKey);
         public void Delete(string storageKey)
@@ -303,5 +342,36 @@ public sealed class AttachmentStorageTests : TestBaseDb, IAsyncLifetime
             if (FailDelete) { throw new IOException("Simulated unavailable storage."); }
             inner.Delete(storageKey);
         }
+    }
+
+    private sealed class PartialWriteFailureStream(Stream inner) : Stream
+    {
+        public override bool CanRead => false;
+        public override bool CanSeek => inner.CanSeek;
+        public override bool CanWrite => true;
+        public override long Length => inner.Length;
+        public override long Position { get => inner.Position; set => inner.Position = value; }
+        public override void Flush() => inner.Flush();
+        public override Task FlushAsync(CancellationToken cancellationToken) => inner.FlushAsync(cancellationToken);
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+        public override void SetLength(long value) => inner.SetLength(value);
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            inner.Write(buffer, offset, Math.Min(1, count));
+            throw new IOException("Simulated interrupted thumbnail write.");
+        }
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            await inner.WriteAsync(buffer[..Math.Min(1, buffer.Length)], cancellationToken);
+            throw new IOException("Simulated interrupted thumbnail write.");
+        }
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) { inner.Dispose(); }
+            base.Dispose(disposing);
+        }
+        public override async ValueTask DisposeAsync() => await inner.DisposeAsync();
     }
 }

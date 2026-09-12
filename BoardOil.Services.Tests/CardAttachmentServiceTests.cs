@@ -122,6 +122,25 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
     }
 
     [Fact]
+    public async Task Delete_ShouldRemoveOriginalAndThumbnailFiles()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var uploaded = await ResolveService<ICardAttachmentService>().UploadAsync(
+            board.BoardId, card.BoardCardId, ActorUserId, "image.png", "image/png",
+            new MemoryStream(Png(3, 2)), new MemoryStream(Png(3, 2)), "image/png");
+        Assert.True(uploaded.Success, uploaded.Message);
+        Assert.Equal(2, Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories).Count());
+
+        var result = await ResolveService<ICardAttachmentService>()
+            .DeleteAsync(board.BoardId, card.BoardCardId, uploaded.Data!.Id, ActorUserId);
+
+        Assert.True(result.Success, result.Message);
+        Assert.Empty(await DbContextForAssert.CardAttachments.ToListAsync());
+        Assert.Empty(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
     public async Task Archive_ShouldTransferOwnerAndKeepAttachmentDownloadable()
     {
         var (boardId, cardId, attachment) = await ArrangeAttachment();
@@ -174,6 +193,25 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Equal(items[0].Sha256, items[1].Sha256);
         Assert.Equal(items[0].OriginalFileName, items[1].OriginalFileName);
         Assert.Empty(await DbContextForAssert.TemporaryBoardPackages.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Duplicate_ShouldLeaveDerivedThumbnailForBackfill()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var uploaded = await ResolveService<ICardAttachmentService>().UploadAsync(
+            board.BoardId, card.BoardCardId, ActorUserId, "image.png", "image/png",
+            new MemoryStream(Png(3, 2)), new MemoryStream(Png(3, 2)), "image/png");
+        Assert.True(uploaded.Success, uploaded.Message);
+
+        var duplicate = await ResolveService<ICardService>().DuplicateCardAsync(board.BoardId, card.BoardCardId,
+            new CreateCardRequest(null, "Duplicate", "", []), ActorUserId);
+
+        Assert.True(duplicate.Success, duplicate.Message);
+        var records = await DbContextForAssert.CardAttachments.OrderBy(x => x.Id).ToListAsync();
+        Assert.NotNull(records[0].ThumbnailStorageKey);
+        Assert.Null(records[1].ThumbnailStorageKey);
     }
 
     [Theory]
@@ -242,7 +280,13 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
     [InlineData("archived-board")]
     public async Task ParentDeletion_ShouldQueueAndRemoveOwnedFiles(string operation)
     {
-        var (boardId, cardId, _) = await ArrangeAttachment();
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Card").BoardCardId;
+        var uploaded = await ResolveService<ICardAttachmentService>().UploadAsync(
+            boardId, cardId, ActorUserId, "image.png", "image/png",
+            new MemoryStream(Png(3, 2)), new MemoryStream(Png(3, 2)), "image/png");
+        Assert.True(uploaded.Success, uploaded.Message);
         var columnId = await DbContextForArrange.Cards.Select(x => x.BoardColumnId).SingleAsync();
         if (operation == "archived-board")
         {
@@ -362,6 +406,121 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
     }
 
     [Fact]
+    public async Task Upload_WithValidThumbnail_ShouldPublishAndServeTrackedPng()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var thumbnail = Png(3, 2);
+        var service = ResolveService<ICardAttachmentService>();
+
+        var uploaded = await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId,
+            "image.png", "image/png", new MemoryStream(Png(30, 20)), new MemoryStream(thumbnail), "image/png");
+
+        Assert.True(uploaded.Success, uploaded.Message);
+        Assert.True(uploaded.Data!.HasThumbnail);
+        var listed = Assert.Single((await service.ListAsync(board.BoardId, card.BoardCardId, false, ActorUserId)).Data!.Items);
+        Assert.True(listed.HasThumbnail);
+        var result = await service.ViewThumbnailAsync(board.BoardId, uploaded.Data.Id, ActorUserId);
+        Assert.True(result.Success, result.Message);
+        await using var content = result.Data!.Content;
+        Assert.Equal(thumbnail, await ReadAllAsync(content));
+        Assert.NotNull((await DbContextForAssert.CardAttachments.SingleAsync()).ThumbnailStorageKey);
+    }
+
+    [Theory]
+    [InlineData("application/octet-stream", 2, 2)]
+    [InlineData("image/png", 201, 1)]
+    public async Task Upload_WithInvalidOptionalThumbnail_ShouldStillPublishOriginal(
+        string thumbnailContentType, int thumbnailWidth, int thumbnailHeight)
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var service = ResolveService<ICardAttachmentService>();
+
+        var uploaded = await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId,
+            "image.png", "image/png", new MemoryStream(Png(3, 2)),
+            new MemoryStream(Png(thumbnailWidth, thumbnailHeight)), thumbnailContentType);
+
+        Assert.True(uploaded.Success, uploaded.Message);
+        Assert.False(uploaded.Data!.HasThumbnail);
+        Assert.Equal(404, (await service.ViewThumbnailAsync(board.BoardId, uploaded.Data.Id, ActorUserId)).StatusCode);
+    }
+
+    [Fact]
+    public async Task PutThumbnail_ShouldBackfillOnceWithoutChangingCardStateAndSurviveArchive()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var service = ResolveService<ICardAttachmentService>();
+        var uploaded = await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId,
+            "image.png", "image/png", new MemoryStream(Png(30, 20)));
+        Assert.True(uploaded.Success, uploaded.Message);
+        var timestamp = await DbContextForAssert.Cards.Where(x => x.Id == card.Id).Select(x => x.CardUpdatedUtc).SingleAsync();
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        var cardEventCount = events.CardUpdatedEvents.Count;
+        var attachmentEventCount = events.AttachmentAddedEvents.Count;
+        var thumbnail = Png(3, 2);
+
+        var results = await Task.WhenAll(
+            service.PutThumbnailAsync(board.BoardId, uploaded.Data!.Id, ActorUserId, "image/png", new MemoryStream(thumbnail)),
+            service.PutThumbnailAsync(board.BoardId, uploaded.Data.Id, ActorUserId, "image/png", new MemoryStream(thumbnail)));
+
+        Assert.All(results, result => Assert.True(result.Success, result.Message));
+        var stored = await DbContextForAssert.CardAttachments.SingleAsync();
+        Assert.NotNull(stored.ThumbnailStorageKey);
+        Assert.Equal(timestamp, await DbContextForAssert.Cards.Where(x => x.Id == card.Id).Select(x => x.CardUpdatedUtc).SingleAsync());
+        Assert.Equal(cardEventCount, events.CardUpdatedEvents.Count);
+        Assert.Equal(attachmentEventCount, events.AttachmentAddedEvents.Count);
+        Assert.True((await ResolveService<ICardArchiveService>()
+            .ArchiveCardAsync(board.BoardId, card.BoardCardId, ActorUserId)).Success);
+        var archived = await service.ViewThumbnailAsync(board.BoardId, uploaded.Data.Id, ActorUserId);
+        Assert.True(archived.Success, archived.Message);
+        await archived.Data!.Content.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData("image/jpeg", 2, 2, 415)]
+    [InlineData("image/png", 201, 1, 422)]
+    public async Task PutThumbnail_ShouldRejectInvalidTypeOrDimensions(
+        string contentType, int width, int height, int statusCode)
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var service = ResolveService<ICardAttachmentService>();
+        var uploaded = await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId,
+            "image.png", "image/png", new MemoryStream(Png(3, 2)));
+
+        var result = await service.PutThumbnailAsync(board.BoardId, uploaded.Data!.Id, ActorUserId,
+            contentType, new MemoryStream(Png(width, height)));
+
+        Assert.Equal(statusCode, result.StatusCode);
+        Assert.Null((await DbContextForAssert.CardAttachments.SingleAsync()).ThumbnailStorageKey);
+    }
+
+    [Fact]
+    public async Task PutThumbnail_WhenTrackedFileIsMissing_ShouldReplaceIt()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var service = ResolveService<ICardAttachmentService>();
+        var uploaded = await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId,
+            "image.png", "image/png", new MemoryStream(Png(3, 2)));
+        var thumbnail = Png(2, 2);
+        Assert.True((await service.PutThumbnailAsync(board.BoardId, uploaded.Data!.Id, ActorUserId,
+            "image/png", new MemoryStream(thumbnail))).Success);
+        var key = await DbContextForAssert.CardAttachments.Select(x => x.ThumbnailStorageKey).SingleAsync();
+        ResolveService<IAttachmentStorageService>().Delete(key!);
+
+        var result = await service.PutThumbnailAsync(board.BoardId, uploaded.Data.Id, ActorUserId,
+            "image/png", new MemoryStream(thumbnail));
+
+        Assert.True(result.Success, result.Message);
+        var viewed = await service.ViewThumbnailAsync(board.BoardId, uploaded.Data.Id, ActorUserId);
+        Assert.True(viewed.Success, viewed.Message);
+        await viewed.Data!.Content.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Delete_WhenArchived_ShouldRequireRestore()
     {
         var (boardId, cardId, attachment) = await ArrangeAttachment();
@@ -414,6 +573,9 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Equal(403, (await service.UploadAsync(boardId, cardId, ActorUserId, "file", null, new MemoryStream([1]))).StatusCode);
         Assert.Equal(403, (await service.DownloadAsync(boardId, attachment.Id, ActorUserId)).StatusCode);
         Assert.Equal(403, (await service.ViewImageAsync(boardId, cardId, false, "file.bin", ActorUserId)).StatusCode);
+        Assert.Equal(403, (await service.ViewThumbnailAsync(boardId, attachment.Id, ActorUserId)).StatusCode);
+        Assert.Equal(403, (await service.PutThumbnailAsync(boardId, attachment.Id, ActorUserId,
+            "image/png", new MemoryStream(Png(1, 1)))).StatusCode);
         Assert.Equal(403, (await service.DeleteAsync(boardId, cardId, attachment.Id, ActorUserId)).StatusCode);
         Assert.Single(await DbContextForAssert.CardAttachments.ToListAsync());
         Assert.Empty(await DbContextForAssert.TemporaryBoardPackages.ToListAsync());

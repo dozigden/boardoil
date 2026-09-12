@@ -5,6 +5,7 @@ export type CardAttachment = {
   byteLength: number;
   createdAtUtc: string;
   createdByUserId: number | null;
+  hasThumbnail: boolean;
 };
 
 export type CardAttachmentList = { items: CardAttachment[]; maxUploadByteLength: number };

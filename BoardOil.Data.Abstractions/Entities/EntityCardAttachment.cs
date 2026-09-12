@@ -12,6 +12,7 @@ public sealed class EntityCardAttachment : ISupportCreatedAt
     public string ContentType { get; set; } = string.Empty;
     public long ByteLength { get; set; }
     public string StorageKey { get; set; } = string.Empty;
+    public string? ThumbnailStorageKey { get; set; }
     public string Sha256 { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
     public int? CreatedByUserId { get; set; }

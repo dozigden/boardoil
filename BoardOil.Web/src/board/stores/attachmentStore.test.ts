@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useAttachmentStore } from './attachmentStore';
 import { err, ok } from '../../shared/types/result';
@@ -7,10 +7,12 @@ import type { CardAttachment } from '../../shared/types/attachmentTypes';
 const api = { supportsAttachments: true, getAttachments: vi.fn(), uploadAttachment: vi.fn(), deleteAttachment: vi.fn(), downloadAttachment: vi.fn() };
 vi.mock('../../shared/api/boardApi', () => ({ createBoardApi: () => api }));
 const attachment: CardAttachment = { id: 1, originalFileName: 'file.bin', byteLength: 3,
-  contentType: 'application/octet-stream', createdAtUtc: '2026-09-11T12:00:00Z', createdByUserId: null };
+  contentType: 'application/octet-stream', createdAtUtc: '2026-09-11T12:00:00Z', createdByUserId: null, hasThumbnail: false };
 const listing = (items: CardAttachment[] = []) => ok({ items, maxUploadByteLength: 10 });
 
 describe('attachments', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.resetAllMocks();
@@ -71,6 +73,19 @@ describe('attachments', () => {
     await store.upload([file], onProgress);
 
     expect(onProgress).toHaveBeenCalledWith(file, 37);
+  });
+
+  it('uploads the original image when browser thumbnail generation fails', async () => {
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+    vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('Decode failed')));
+    api.uploadAttachment.mockResolvedValue(ok({ ...attachment, originalFileName: 'image.png' }));
+    const file = new File(['x'], 'image.png', { type: 'image/png' });
+
+    const uploaded = await store.upload([file]);
+
+    expect(uploaded).toHaveLength(1);
+    expect(api.uploadAttachment).toHaveBeenCalledWith(1, 1, file, expect.any(Function), expect.any(AbortSignal), null);
   });
 
   it('warns about an unconfirmed upload without keeping a failed entry or retrying it', async () => {

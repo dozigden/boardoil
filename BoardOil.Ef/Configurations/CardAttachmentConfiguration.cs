@@ -18,8 +18,10 @@ public sealed class CardAttachmentConfiguration : IEntityTypeConfiguration<Entit
         attachment.HasIndex(x => new { x.ArchivedCardId, x.NormalisedFileName }).IsUnique();
         attachment.Property(x => x.ContentType).HasMaxLength(255).IsRequired();
         attachment.Property(x => x.StorageKey).HasMaxLength(32).IsRequired();
+        attachment.Property(x => x.ThumbnailStorageKey).HasMaxLength(32);
         attachment.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
         attachment.HasIndex(x => x.StorageKey).IsUnique();
+        attachment.HasIndex(x => x.ThumbnailStorageKey).IsUnique();
         attachment.HasIndex(x => x.State);
         attachment.HasOne(x => x.Card).WithMany().HasForeignKey(x => x.CardId).OnDelete(DeleteBehavior.Restrict);
         attachment.HasOne(x => x.ArchivedCard).WithMany().HasForeignKey(x => x.ArchivedCardId).OnDelete(DeleteBehavior.Restrict);

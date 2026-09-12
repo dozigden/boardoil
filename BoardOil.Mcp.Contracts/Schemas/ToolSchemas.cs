@@ -255,9 +255,10 @@ public static class ToolSchemas
               "contentType": { "type": "string" },
               "byteLength": { "type": "integer", "minimum": 0 },
               "createdAtUtc": { "type": "string", "format": "date-time" },
-              "createdByUserId": { "type": ["integer", "null"] }
+              "createdByUserId": { "type": ["integer", "null"] },
+              "hasThumbnail": { "type": "boolean" }
             },
-            "required": ["id", "originalFileName", "contentType", "byteLength", "createdAtUtc", "createdByUserId"],
+            "required": ["id", "originalFileName", "contentType", "byteLength", "createdAtUtc", "createdByUserId", "hasThumbnail"],
             "additionalProperties": false
           }
         },

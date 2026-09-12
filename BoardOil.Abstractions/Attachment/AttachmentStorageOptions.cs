@@ -6,4 +6,6 @@ public sealed class AttachmentStorageOptions
     public long MaxUploadByteLength { get; init; } = 10 * 1024 * 1024;
     public long MaxImagePixelCount { get; init; } = 20_000_000;
     public int MaxImageEdgeLength { get; init; } = 10_000;
+    public long MaxThumbnailByteLength { get; init; } = 256 * 1024;
+    public int MaxThumbnailEdgeLength { get; init; } = 200;
 }

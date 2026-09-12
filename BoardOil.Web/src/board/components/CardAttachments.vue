@@ -12,16 +12,20 @@
     <ul v-if="store.items.length" class="attachment-list">
       <li v-for="item in store.items" :key="item.id" class="attachment-row">
         <div class="attachment-file">
-          <a
-            class="attachment-download"
-            :href="buildApiUrl(`/api/boards/${boardId}/attachments/${item.id}/download`)"
-            :download="item.originalFileName"
-            :draggable="canDragImage(item)"
-            :aria-label="`Download ${item.originalFileName}`"
-            :title="attachmentTitle(item)"
-            @click.left.exact.prevent="store.download(item.id)"
-            @dragstart="attachmentDragStarted"
-          >{{ item.originalFileName }}</a>
+          <AttachmentThumbnail :board-id="boardId" :card-id="cardId" :archived="archived" :attachment="item"
+            :can-thumbnail="isSupportedImageFileName(item.originalFileName)" />
+          <div class="attachment-details">
+            <a
+              class="attachment-download"
+              :href="buildApiUrl(`/api/boards/${boardId}/attachments/${item.id}/download`)"
+              :download="item.originalFileName"
+              :draggable="canDragImage(item)"
+              :aria-label="`Download ${item.originalFileName}`"
+              :title="attachmentTitle(item)"
+              @click.left.exact.prevent="store.download(item.id)"
+              @dragstart="attachmentDragStarted"
+            >{{ item.originalFileName }}</a>
+          </div>
         </div>
         <button v-if="!readOnly" type="button" class="btn btn--secondary" :disabled="store.busy" :aria-label="`Delete ${item.originalFileName}`" @click="deleteAttachment(item)"><Trash2 :size="14" aria-hidden="true" /></button>
       </li>
@@ -54,6 +58,7 @@ import { useAttachmentStore } from '../stores/attachmentStore';
 import { buildApiUrl } from '../../shared/api/config';
 import { formatAttachmentSize as formatSize } from '../utils/formatAttachmentSize';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
+import AttachmentThumbnail from './AttachmentThumbnail.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
 import {
@@ -114,7 +119,8 @@ async function deleteAttachment(item: CardAttachment) {
 }
 .attachment-heading, .attachment-row { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
 .attachment-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.45rem; }
-.attachment-file, .attachment-upload { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; overflow-wrap: anywhere; }
+.attachment-file { display: flex; align-items: center; gap: 0.5rem; min-width: 0; overflow-wrap: anywhere; }
+.attachment-details, .attachment-upload { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; overflow-wrap: anywhere; }
 .attachment-download { padding: 0; border: 0; background: transparent; color: var(--bo-ink); text-align: left; text-decoration: underline; cursor: pointer; overflow-wrap: anywhere; }
 .attachment-empty, small { color: var(--bo-ink-muted); font-size: 0.8rem; }
 progress { width: 100%; }

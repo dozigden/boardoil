@@ -28,6 +28,12 @@ export type SmokeCard = {
   tagNames: string[];
 };
 
+export type SmokeAttachment = {
+  id: number;
+  originalFileName: string;
+  hasThumbnail: boolean;
+};
+
 type SmokeSlick = {
   id: number;
   name: string;
@@ -151,6 +157,14 @@ export class BoardOilApi {
       slickName,
       externalUrl: null
     });
+  }
+
+  public async uploadAttachment(boardId: number, cardId: number, name: string, mimeType: string, buffer: Buffer) {
+    const response = await this.request.post(`/api/boards/${boardId}/cards/${cardId}/attachments`, {
+      multipart: { file: { name, mimeType, buffer } },
+      headers: { 'X-BoardOil-CSRF': this.csrfToken }
+    });
+    return await readEnvelope<SmokeAttachment>(response);
   }
 
   public async createSlick(board: SmokeBoard, name: string) {
