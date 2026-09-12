@@ -15,7 +15,7 @@ public sealed class CardAttachmentUploadTool(IAttachmentTransferService transfer
     : McpToolBase<CardAttachmentUploadInput, CardAttachmentUploadOutput>(authorisationService)
 {
     public override McpToolDefinition Definition { get; } = new(ToolNames.CardAttachmentUpload,
-        "Issue a one-attempt HTTP upload ticket for a saved live card. Send the exact raw file bytes using the returned URL, PUT method and headers. Failed or interrupted uploads require a new ticket. Requires authenticated MCP.",
+        "Issue a one-attempt HTTP upload ticket for a saved live card. Send the exact raw file bytes using the returned URL, PUT method and headers. After a successful PUT, markdownSnippet can be inserted into the card description with card_update. Failed or interrupted uploads require a new ticket. Requires authenticated MCP.",
         ToolSchemas.CardAttachmentUploadInput, ToolSchemas.CardAttachmentUploadOutput, MachinePatScopes.McpWrite);
 
     protected override async Task<McpToolResult<CardAttachmentUploadOutput>> ExecuteCoreAsync(
@@ -49,11 +49,12 @@ public sealed class CardAttachmentUploadTool(IAttachmentTransferService transfer
         var result = await transfers.IssueUploadAsync(input.BoardId.Value, input.CardId!.Value, context.ActorUserId,
             input.FileName, input.ContentType, input.ByteLength!.Value, credential, cancellationToken);
         if (!result.Success || result.Data is null) { return Failure(result.ToMcpError()); }
+        var markdownSnippet = $"![Image](boardoil-attachment:{Uri.EscapeDataString(result.Data.OriginalFileName)})";
         return Success(new(baseUrl + AttachmentTransferEndpoints.UploadUrlPath(result.Data.Id), "PUT",
             new Dictionary<string, string>
             {
                 ["Authorization"] = $"{AttachmentTransferEndpoints.AuthorisationScheme} {result.Data.Secret}",
                 ["Content-Type"] = result.Data.ContentType
-            }, result.Data.ByteLength, result.Data.ExpiresAtUtc));
+            }, result.Data.ByteLength, markdownSnippet, result.Data.ExpiresAtUtc));
     }
 }

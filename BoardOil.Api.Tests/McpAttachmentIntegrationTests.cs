@@ -332,10 +332,12 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
         var token = await CreateMachinePatAsync(client);
         var card = await CreateCardAsync(client);
         using var payload = await CallAsync(client, token, ToolNames.CardAttachmentUpload,
-            new { boardId = 1, cardId = card.Id, fileName = "agent.bin", contentType = "application/x-agent", byteLength = 5 });
+            new { boardId = 1, cardId = card.Id, fileName = "folder/Architecture (final) #1.png", contentType = "application/x-agent", byteLength = 5 });
         var ticket = AssertSuccess(payload);
         Assert.Equal("PUT", ticket.GetProperty("method").GetString());
         Assert.Equal(5, ticket.GetProperty("byteLength").GetInt64());
+        Assert.Equal("![Image](boardoil-attachment:Architecture%20%28final%29%20%231.png)",
+            ticket.GetProperty("markdownSnippet").GetString());
         var headers = ticket.GetProperty("headers");
         var authorization = AuthenticationHeaderValue.Parse(headers.GetProperty("Authorization").GetString()!);
         Assert.Equal("BoardOilAttachment", authorization.Scheme);
@@ -351,6 +353,7 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
         Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, retryResponse.StatusCode);
         Assert.Equal(created.Id, repeated.Id);
+        Assert.Equal("Architecture (final) #1.png", created.OriginalFileName);
         using var download = await client.GetAsync($"/api/boards/1/attachments/{created.Id}/download");
         Assert.Equal(new byte[] { 0, 255, 13, 10, 42 }, await download.Content.ReadAsByteArrayAsync());
     }

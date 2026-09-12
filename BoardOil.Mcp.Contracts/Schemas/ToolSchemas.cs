@@ -355,9 +355,10 @@ public static class ToolSchemas
           "additionalProperties": false
         },
         "byteLength": { "type": "integer", "minimum": 0 },
+        "markdownSnippet": { "type": "string", "description": "Ready-to-insert card-description Markdown using the canonical reserved filename. Insert it only after the HTTP PUT succeeds; replace the default alt text with a useful description when appropriate." },
         "expiresAtUtc": { "type": "string", "format": "date-time" }
       },
-      "required": ["url", "method", "headers", "byteLength", "expiresAtUtc"],
+      "required": ["url", "method", "headers", "byteLength", "markdownSnippet", "expiresAtUtc"],
       "additionalProperties": false
     }
     """;
@@ -373,7 +374,7 @@ public static class ToolSchemas
         "slickName": { "type": ["string", "null"], "maxLength": 40, "description": "Use card_options_get.slicks[].name to reuse an established slick, provide a new name to create one, or use null for no slick." },
         "externalUrl": { "type": ["string", "null"], "format": "uri" },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "description": { "type": "string", "maxLength": 20000 },
+        "description": { "type": "string", "maxLength": 20000, "description": "Card description Markdown. BoardOil-hosted images require a saved card: create the card first, then use card_attachment_upload and card_update with the returned markdownSnippet." },
         "tagNames": {
           "type": ["array", "null"],
           "items": { "type": "string", "minLength": 1, "maxLength": 80 },
@@ -397,7 +398,7 @@ public static class ToolSchemas
         "slickName": { "type": ["string", "null"], "maxLength": 40, "description": "Use card_options_get.slicks[].name to reuse an established slick, provide a new name to create one, or use null for no slick." },
         "externalUrl": { "type": ["string", "null"], "format": "uri" },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "description": { "type": "string", "maxLength": 20000 },
+        "description": { "type": "string", "maxLength": 20000, "description": "Card description Markdown. To add a BoardOil-hosted image, use card_attachment_upload, complete its HTTP PUT, then insert the returned markdownSnippet here." },
         "tagNames": {
           "type": "array",
           "items": { "type": "string", "minLength": 1, "maxLength": 80 },

@@ -178,7 +178,7 @@ public sealed record CardAttachmentUploadInput
 }
 
 public sealed record CardAttachmentUploadOutput(string Url, string Method, IReadOnlyDictionary<string, string> Headers,
-    long ByteLength, DateTime ExpiresAtUtc);
+    long ByteLength, string MarkdownSnippet, DateTime ExpiresAtUtc);
 
 public sealed record CardOptionsGetOutput(
     int Id,

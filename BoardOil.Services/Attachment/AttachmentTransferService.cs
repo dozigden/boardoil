@@ -115,7 +115,7 @@ public sealed class AttachmentTransferService(
                 await transactionScope.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 result = new AttachmentUploadTicket(
-                    issuedTicket.Id, secret, issuedTicket.ContentType, byteLength, expires);
+                    issuedTicket.Id, secret, issuedTicket.OriginalFileName, issuedTicket.ContentType, byteLength, expires);
             });
             if (!result!.Success) { return result; }
             logger.LogInformation("Issued attachment upload ticket {TicketId} for user {UserId}, board {BoardId}, attachment {AttachmentId}.",

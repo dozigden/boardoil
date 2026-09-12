@@ -268,6 +268,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         var row = await DbContextForAssert.AttachmentUploadTickets.Include(x => x.Attachment).SingleAsync();
         Assert.Equal(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ticket.Secret))), row.SecretHash);
         Assert.DoesNotContain(ticket.Secret, ticket.ToString());
+        Assert.Equal("Original.bin", ticket.OriginalFileName);
         Assert.Equal("Original.bin", row.OriginalFileName);
         Assert.Equal("application/octet-stream", row.ContentType);
         Assert.Equal(5, row.DeclaredByteLength);

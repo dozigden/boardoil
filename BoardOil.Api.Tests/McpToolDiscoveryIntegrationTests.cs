@@ -285,6 +285,9 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.DoesNotContain("assignedUserId", cardCreateRequired);
         Assert.DoesNotContain("slickName", cardCreateRequired);
         Assert.DoesNotContain("externalUrl", cardCreateRequired);
+        Assert.Contains("card_attachment_upload",
+            cardCreateProperties.GetProperty("description").GetProperty("description").GetString(),
+            StringComparison.Ordinal);
 
         var cardGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardGet);
         var cardGetProperties = cardGetTool.GetProperty("inputSchema").GetProperty("properties");
@@ -317,9 +320,13 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         var uploadTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardAttachmentUpload);
         Assert.Equal(["boardId", "cardId", "fileName", "byteLength"], uploadTool.GetProperty("inputSchema").GetProperty("required")
             .EnumerateArray().Select(value => value.GetString()).ToArray());
-        Assert.Equal(["url", "method", "headers", "byteLength", "expiresAtUtc"],
+        Assert.Equal(["url", "method", "headers", "byteLength", "markdownSnippet", "expiresAtUtc"],
             uploadTool.GetProperty("outputSchema").GetProperty("required")
                 .EnumerateArray().Select(value => value.GetString()).ToArray());
+        Assert.Contains("after the HTTP PUT succeeds",
+            uploadTool.GetProperty("outputSchema").GetProperty("properties")
+                .GetProperty("markdownSnippet").GetProperty("description").GetString(),
+            StringComparison.OrdinalIgnoreCase);
 
         var cardUpdateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardUpdate);
         var cardUpdateProperties = cardUpdateTool.GetProperty("inputSchema").GetProperty("properties");
@@ -333,6 +340,9 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             cardUpdateProperties.GetProperty("assignedUserId").GetProperty("description").GetString(),
             StringComparison.Ordinal);
         Assert.Contains("card_options_get", cardUpdateTool.GetProperty("description").GetString(), StringComparison.Ordinal);
+        Assert.Contains("card_attachment_upload",
+            cardUpdateProperties.GetProperty("description").GetProperty("description").GetString(),
+            StringComparison.Ordinal);
         var cardUpdateRequired = cardUpdateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
         Assert.DoesNotContain("columnId", cardUpdateRequired);
         Assert.Contains("cardTypeId", cardUpdateRequired);

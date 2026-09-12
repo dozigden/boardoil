@@ -23,7 +23,8 @@ public sealed record AttachmentDownloadTicket(int Id, string Secret, DateTime Ex
     public override string ToString() => $"Attachment download ticket {Id}, expires {ExpiresAtUtc:O}";
 }
 
-public sealed record AttachmentUploadTicket(int Id, string Secret, string ContentType, long ByteLength, DateTime ExpiresAtUtc)
+public sealed record AttachmentUploadTicket(int Id, string Secret, string OriginalFileName, string ContentType,
+    long ByteLength, DateTime ExpiresAtUtc)
 {
     public override string ToString() => $"Attachment upload ticket {Id}, expires {ExpiresAtUtc:O}";
 }
