@@ -109,6 +109,7 @@ import {
   refreshMarkdownImages,
   type MarkdownImageActivation,
   type MarkdownImageContext,
+  type MarkdownImageRemove,
   type MarkdownImageUpload
 } from './markdownImages';
 import {
@@ -123,6 +124,7 @@ const props = withDefaults(defineProps<{
   minHeight?: string;
   showToolbar?: boolean;
   imageContext?: MarkdownImageContext | null;
+  imageRemove?: MarkdownImageRemove | null;
   imageUpload?: MarkdownImageUpload | null;
   imageUploadCancel?: (() => void) | null;
 }>(), {
@@ -203,7 +205,8 @@ const tiptapEditor = useEditor({
     ...(props.imageContext ? [
       createMarkdownImageExtension(() => props.imageContext ?? null, {
         editable: true,
-        onActivate: openImageDialog
+        onActivate: openImageDialog,
+        onRemove: removeImage
       }),
       createMarkdownImageUploadExtension({
         cancel: cancelImageUpload,
@@ -1015,6 +1018,26 @@ function openImageDialog(image: MarkdownImageActivation) {
 
 function closeImageDialog() {
   activeImage.value = null;
+}
+
+async function removeImage(image: MarkdownImageActivation) {
+  const editor = tiptapEditor.value;
+  if (!editor || !props.imageRemove || !await props.imageRemove(image)) {
+    return;
+  }
+  const node = editor.state.doc.nodeAt(image.position);
+  if (node?.type.name !== 'image') {
+    return;
+  }
+  const removed = editor.commands.command(({ tr, dispatch }) => {
+    if (dispatch) {
+      dispatch(tr.delete(image.position, image.position + node.nodeSize));
+    }
+    return true;
+  });
+  if (removed) {
+    emit('user-edit', normaliseMarkdown(editor.getMarkdown()));
+  }
 }
 
 function saveImageAlt(alt: string) {

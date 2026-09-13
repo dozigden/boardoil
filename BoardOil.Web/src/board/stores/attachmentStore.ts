@@ -69,8 +69,14 @@ export const useAttachmentStore = defineStore('attachments', () => {
       warningMessages.value.push(`Attachments could not be loaded: ${result.error.message}`);
       return;
     }
-    items.value = result.data.items;
-    revision.value++;
+    const nextItems = result.data.items;
+    const attachmentSetChanged = nextItems.length !== items.value.length
+      || nextItems.some((item, index) => item.id !== items.value[index]?.id
+        || item.originalFileName !== items.value[index]?.originalFileName);
+    items.value = nextItems;
+    if (attachmentSetChanged) {
+      revision.value++;
+    }
     maxUploadByteLength.value = result.data.maxUploadByteLength;
   }
 
@@ -163,15 +169,16 @@ export const useAttachmentStore = defineStore('attachments', () => {
 
   async function remove(attachmentId: number) {
     const current = context.value;
-    if (!current || current.archived || busy.value || !mutable) { return; }
+    if (!current || current.archived || busy.value || !mutable) { return false; }
     const result = await api.deleteAttachment(current.boardId, current.cardId, attachmentId);
-    if (context.value !== current) { return; }
+    if (context.value !== current) { return false; }
     if (!result.ok) {
       warningMessages.value.push(`Attachment could not be deleted: ${result.error.message}`);
-      return;
+      return false;
     }
     removed(current.boardId, current.cardId, attachmentId);
     await cardAttachmentThumbnailStore.attachmentDeleted(current.boardId, current.cardId, attachmentId);
+    return true;
   }
 
   async function download(attachmentId: number) {

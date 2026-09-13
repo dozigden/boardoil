@@ -32,13 +32,17 @@ export type MarkdownImageSource =
 
 export type MarkdownImageActivation = {
   alt: string;
+  attachmentFileName: string | null;
   position: number;
   source: MarkdownImageSource;
 };
 
+export type MarkdownImageRemove = (image: MarkdownImageActivation) => Promise<boolean>;
+
 export type MarkdownImageExtensionOptions = {
   editable?: boolean;
   onActivate?: (image: MarkdownImageActivation) => void;
+  onRemove?: (image: MarkdownImageActivation) => void;
 };
 
 export function createMarkdownImageExtension(
@@ -208,6 +212,9 @@ function createImageNodeView(
       activateImage();
     });
     dom.addEventListener('keydown', event => {
+      if (event.target !== dom) {
+        return;
+      }
       if (event.key !== 'Enter' && event.key !== ' ') {
         return;
       }
@@ -216,17 +223,33 @@ function createImageNodeView(
     });
   }
 
-  const activateImage = () => {
+  const imageActivation = (): MarkdownImageActivation | null => {
     const position = getPos();
-    if (position === undefined || !options.onActivate) {
-      return;
+    if (position === undefined) {
+      return null;
     }
     const alt = typeof currentNode.attrs.alt === 'string' ? currentNode.attrs.alt : '';
-    options.onActivate({
+    const reference = typeof currentNode.attrs.src === 'string' ? currentNode.attrs.src : '';
+    return {
       alt,
+      attachmentFileName: parseAttachmentImageReference(reference),
       position,
-      source: resolveImageSource(currentNode.attrs.src, getContext())
-    });
+      source: resolveImageSource(reference, getContext())
+    };
+  };
+
+  const activateImage = () => {
+    const image = imageActivation();
+    if (image && options.onActivate) {
+      options.onActivate(image);
+    }
+  };
+
+  const removeImage = () => {
+    const image = imageActivation();
+    if (image && options.onRemove) {
+      options.onRemove(image);
+    }
   };
 
   const render = () => {
@@ -253,13 +276,16 @@ function createImageNodeView(
       nextImage.addEventListener('load', () => {
         nextImage.hidden = false;
         placeholder.hidden = true;
+        frame.classList.remove('md-image-node-frame--unavailable');
       });
       nextImage.addEventListener('error', () => {
         nextImage.hidden = true;
         placeholder.hidden = false;
+        frame.classList.add('md-image-node-frame--unavailable');
       });
       image = nextImage;
-      dom.append(nextImage, placeholder);
+      const frame = createImageFrame(alt, removeImage, options.onRemove, nextImage, placeholder);
+      dom.append(frame);
       return;
     }
 
@@ -278,18 +304,24 @@ function createImageNodeView(
       nextImage.addEventListener('load', () => {
         nextImage.hidden = false;
         fallback.hidden = true;
+        frame.classList.remove('md-image-node-frame--unavailable');
       });
       nextImage.addEventListener('error', () => {
         nextImage.hidden = true;
         fallback.hidden = false;
+        frame.classList.add('md-image-node-frame--unavailable');
       });
       nextImage.src = source.url;
       image = nextImage;
-      dom.append(nextImage, fallback);
+      const frame = createImageFrame(alt, removeImage, options.onRemove, nextImage, fallback);
+      dom.append(frame);
       return;
     }
 
-    dom.append(createPlaceholder(alt || 'Image', 'Image unavailable'));
+    const placeholder = createPlaceholder(alt || 'Image', 'Image unavailable');
+    const frame = createImageFrame(alt, removeImage, options.onRemove, placeholder);
+    frame.classList.add('md-image-node-frame--unavailable');
+    dom.append(frame);
   };
 
   render();
@@ -321,6 +353,50 @@ function createImageNodeView(
       }
     }
   };
+}
+
+function createImageFrame(
+  alt: string,
+  onRemove: () => void,
+  removeEnabled: MarkdownImageExtensionOptions['onRemove'],
+  ...content: HTMLElement[]
+): HTMLSpanElement {
+  const frame = document.createElement('span');
+  frame.className = 'md-image-node-frame';
+  frame.append(...content);
+  if (removeEnabled) {
+    frame.append(createImageRemoveButton(alt, onRemove));
+  }
+  return frame;
+}
+
+function createImageRemoveButton(alt: string, onRemove: () => void): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'md-image-node-remove';
+  button.title = 'Remove image';
+  button.setAttribute('aria-label', alt ? `Remove image: ${alt}` : 'Remove image');
+  button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    onRemove();
+  });
+
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('width', '16');
+  icon.setAttribute('height', '16');
+  icon.setAttribute('fill', 'none');
+  icon.setAttribute('stroke', 'currentColor');
+  icon.setAttribute('stroke-width', '2');
+  icon.setAttribute('stroke-linecap', 'round');
+  icon.setAttribute('stroke-linejoin', 'round');
+  icon.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6');
+  icon.append(path);
+  button.append(icon);
+  return button;
 }
 
 function createPlaceholder(label: string, message: string): HTMLSpanElement {

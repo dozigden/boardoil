@@ -246,8 +246,54 @@ test('external and missing card images use safe rendering and fallbacks', async 
     .toBeVisible();
   await expect(dialog.getByRole('link', { name: 'Open external image', exact: true }))
     .toHaveAttribute('href', 'https://example.test/broken.png');
-  await expect(dialog.locator('.md-image-node-placeholder[aria-label="Missing"]')).toHaveText('Image unavailable');
+  const missingImage = dialog.getByRole('button', { name: 'Enlarge image: Missing' });
+  await expect(missingImage.locator('img')).toBeHidden();
+  await expect(missingImage.locator('.md-image-node-placeholder[aria-label="Missing"]')).toHaveText('Image unavailable');
   await expect.poll(() => externalRequests).toBe(2);
+
+  await missingImage.hover();
+  const removeMissingImage = missingImage.getByRole('button', { name: 'Remove image: Missing' });
+  await expect(removeMissingImage).toBeVisible();
+  await removeMissingImage.click();
+  const removeDialog = page.getByRole('dialog', { name: 'Remove image' });
+  await removeDialog.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(removeDialog).toBeHidden();
+  await expect(missingImage).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Save card' })).toBeEnabled();
+});
+
+test('the image bin removes the description image and its attachment after confirmation', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression remove attached description image');
+  await api.createCard(board, 'Todo', 'Remove attached image');
+  const boardPage = new BoardPage(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Remove attached image');
+
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Choose an image for Card description').setInputFiles({
+    name: 'remove-me.png',
+    mimeType: 'image/png',
+    buffer: onePixelPng
+  });
+  const image = dialog.getByRole('button', { name: 'Enlarge image: remove-me' });
+  await image.hover();
+  const removeImage = image.getByRole('button', { name: 'Remove image: remove-me' });
+  await expect(removeImage).toBeVisible();
+
+  await removeImage.click();
+  const removeDialog = page.getByRole('dialog', { name: 'Remove image' });
+  await expect(removeDialog).toContainText('delete attachment "remove-me.png"');
+  await removeDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(image).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Download remove-me.png' })).toBeVisible();
+
+  await image.hover();
+  await removeImage.click();
+  await removeDialog.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(removeDialog).toBeHidden();
+  await expect(image).toHaveCount(0);
+  await expect(dialog.getByRole('link', { name: 'Download remove-me.png' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Save card' })).toBeEnabled();
 });
 
 test('an image dragged from another browser page inserts without navigating', async ({ api, authenticatedPage: page }) => {

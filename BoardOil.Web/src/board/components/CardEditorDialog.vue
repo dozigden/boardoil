@@ -95,6 +95,7 @@
               min-height="12rem"
               :show-toolbar="false"
               :image-context="descriptionImageContext"
+              :image-remove="removeDescriptionImage"
               :image-upload="descriptionImageUpload"
               :image-upload-cancel="attachments.cancel"
               @update:model-value="handleDescriptionEditorValueUpdate"
@@ -370,6 +371,7 @@ import { areCardEditModelsEqual, cloneCardEditModel, createCardEditModel } from 
 import type { Card, CardEditModel } from '../../shared/types/boardTypes';
 import { apiBase } from '../../shared/api/config';
 import type {
+  MarkdownImageActivation,
   MarkdownImageContext,
   MarkdownImageUpload,
   MarkdownImageUploadOptions
@@ -701,6 +703,27 @@ function updateCommentDraftFromEditor(value: string) {
 
 function handleDescriptionImageBlockingChange(blocking: boolean) {
   descriptionImageBlocking.value = blocking;
+}
+
+async function removeDescriptionImage(image: MarkdownImageActivation): Promise<boolean> {
+  const attachmentFileName = image.attachmentFileName?.toUpperCase();
+  const attachment = attachmentFileName
+    ? attachments.items.find(item => item.originalFileName.toUpperCase() === attachmentFileName)
+    : undefined;
+  let message = 'Remove this image from the description?';
+  if (attachment) {
+    message = `Remove this image from the description and delete attachment "${attachment.originalFileName}"?`;
+  }
+  const confirmed = await confirm({
+    title: 'Remove image',
+    message,
+    confirmLabel: 'Remove',
+    danger: true
+  });
+  if (!confirmed || !attachment) {
+    return confirmed;
+  }
+  return await attachments.remove(attachment.id);
 }
 
 async function uploadDescriptionImage(

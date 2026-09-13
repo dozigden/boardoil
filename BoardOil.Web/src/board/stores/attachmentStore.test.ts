@@ -48,6 +48,26 @@ describe('attachments', () => {
     expect(store.items).toEqual([]);
   });
 
+  it('advances the image revision only when attachment identities change', async () => {
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+    const emptyRevision = store.revision;
+
+    await store.reload();
+    expect(store.revision).toBe(emptyRevision);
+
+    store.added(1, 1, attachment);
+    const addedRevision = store.revision;
+    expect(addedRevision).toBeGreaterThan(emptyRevision);
+
+    api.getAttachments.mockResolvedValue(listing([attachment]));
+    await store.reload();
+    expect(store.revision).toBe(addedRevision);
+
+    store.removed(1, 1, attachment.id);
+    expect(store.revision).toBeGreaterThan(addedRevision);
+  });
+
   it('uploads sequentially and removes failures from the queue with a warning', async () => {
     const store = useAttachmentStore();
     await store.open(1, 1);
@@ -70,14 +90,27 @@ describe('attachments', () => {
 
     await store.open(1, 1);
     const uploaded = await store.upload([new File(['abc'], 'file.bin')]);
-    await store.remove(attachment.id);
+    const removed = await store.remove(attachment.id);
 
     expect(store.supported).toBe(true);
     expect(store.mutable).toBe(false);
     expect(store.items).toEqual([attachment]);
     expect(uploaded).toEqual([]);
+    expect(removed).toBe(false);
     expect(api.uploadAttachment).not.toHaveBeenCalled();
     expect(api.deleteAttachment).not.toHaveBeenCalled();
+  });
+
+  it('reports when an attachment is successfully removed', async () => {
+    api.getAttachments.mockResolvedValue(listing([attachment]));
+    api.deleteAttachment.mockResolvedValue(ok(undefined));
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+
+    const removed = await store.remove(attachment.id);
+
+    expect(removed).toBe(true);
+    expect(store.items).toEqual([]);
   });
 
   it('reports upload progress with the matching file', async () => {
