@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useSlickStore } from './slickStore';
+import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 import type {
   BoardColumn,
   Card,
@@ -22,6 +23,7 @@ export const useCardStore = defineStore('card', () => {
   const activeBoardId = ref(0);
   const feedback = useUiFeedbackStore();
   const slickStore = useSlickStore();
+  const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
   const api = createBoardApi();
   let dragState: { cardId: number; fromColumnId: number } | null = null;
 
@@ -84,6 +86,9 @@ export const useCardStore = defineStore('card', () => {
     }
 
     upsertCard(result.data);
+    if (options?.duplicateFromCardId !== undefined) {
+      await cardAttachmentThumbnailStore.refreshCards(boardId, [result.data.id]);
+    }
     return result;
   }
 
@@ -373,6 +378,7 @@ export const useCardStore = defineStore('card', () => {
 
     cardsById.value = nextCardsById;
     cardIdsByColumnId.value = nextCardIdsByColumnId;
+    cardAttachmentThumbnailStore.cardRemoved(activeBoardId.value, cardId);
   }
 
   function getCardById(cardId: number | null) {

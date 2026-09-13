@@ -134,6 +134,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: string];
+  'user-edit': [value: string];
   focus: [];
   blur: [];
   escape: [];
@@ -619,6 +620,9 @@ function insertRichAttachmentReference(editor: TiptapEditor, reference: string, 
       alt: imageAltFromFileName(fileName)
     }
   }).run();
+  if (inserted) {
+    emit('user-edit', normaliseMarkdown(editor.getMarkdown()));
+  }
   imageUploadMessage.value = inserted ? `${fileName} inserted.` : 'The image could not be inserted at that position.';
 }
 
@@ -632,6 +636,9 @@ function insertRichExternalImage(editor: TiptapEditor, image: DraggedExternalIma
     type: 'image',
     attrs: { src: image.url, alt: image.alt }
   }).run();
+  if (inserted) {
+    emit('user-edit', normaliseMarkdown(editor.getMarkdown()));
+  }
   imageUploadMessage.value = inserted ? 'External image inserted.' : 'The image could not be inserted at that position.';
 }
 
@@ -664,6 +671,7 @@ function insertPlainImageMarkdown(markdown: string, position: number, successMes
     return;
   }
   onPlainTextInput(nextValue);
+  emit('user-edit', normaliseMarkdown(nextValue));
   imageUploadMessage.value = successMessage;
   void nextTick(() => {
     const caret = position + inserted.length;
@@ -779,8 +787,22 @@ function completeTask(task: ImageUploadTask, fileName: string): boolean {
       onPlainTextInput(plainTextDraft.value.replace(task.plainMarker, ''));
     }
     imageUploadMessage.value = `${fileName} was uploaded as an attachment, but its insertion was removed or the description is at its length limit.`;
+  } else {
+    emitCompletedImageUserEdit(task.mode);
   }
   return inserted;
+}
+
+function emitCompletedImageUserEdit(mode: ImageUploadTask['mode']) {
+  if (mode === 'plain') {
+    emit('user-edit', normaliseMarkdown(plainTextDraft.value));
+    return;
+  }
+
+  const editor = tiptapEditor.value;
+  if (editor) {
+    emit('user-edit', normaliseMarkdown(editor.getMarkdown()));
+  }
 }
 
 function replaceRichUploadWithImage(task: ImageUploadTask, fileName: string, markdown: string): boolean {

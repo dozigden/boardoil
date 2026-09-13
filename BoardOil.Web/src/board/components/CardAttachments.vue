@@ -13,13 +13,17 @@
       <li v-for="item in store.items" :key="item.id" class="attachment-row">
         <div class="attachment-file">
           <AttachmentThumbnail :board-id="boardId" :card-id="cardId" :archived="archived" :attachment="item"
-            :can-thumbnail="isSupportedImageFileName(item.originalFileName)" />
+            :can-thumbnail="isSupportedImageFileName(item.originalFileName)"
+            :draggable="canDragImage(item)"
+            :data-attachment-image-file-name="item.originalFileName"
+            @dragstart="attachmentDragStarted" />
           <div class="attachment-details">
             <a
               class="attachment-download"
               :href="buildApiUrl(`/api/boards/${boardId}/attachments/${item.id}/download`)"
               :download="item.originalFileName"
               :draggable="canDragImage(item)"
+              :data-attachment-image-file-name="item.originalFileName"
               :aria-label="`Download ${item.originalFileName}`"
               :title="attachmentTitle(item)"
               @click.left.exact.prevent="store.download(item.id)"
@@ -87,11 +91,14 @@ function attachmentTitle(item: CardAttachment) {
     : size;
 }
 function attachmentDragStarted(event: DragEvent) {
-  const link = event.currentTarget;
-  if (!(link instanceof HTMLAnchorElement) || !event.dataTransfer || !isSupportedImageFileName(link.download)) {
+  const source = event.currentTarget;
+  const fileName = source instanceof HTMLElement
+    ? source.dataset.attachmentImageFileName ?? ''
+    : '';
+  if (!event.dataTransfer || !isSupportedImageFileName(fileName)) {
     return;
   }
-  event.dataTransfer.setData(boardOilAttachmentImageDragType, buildAttachmentImageReference(link.download));
+  event.dataTransfer.setData(boardOilAttachmentImageDragType, buildAttachmentImageReference(fileName));
   event.dataTransfer.effectAllowed = 'copyLink';
 }
 async function filesSelected(event: Event) {

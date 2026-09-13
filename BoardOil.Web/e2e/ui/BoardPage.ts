@@ -16,6 +16,10 @@ export class BoardPage {
     return this.column(columnTitle).getByRole('button').filter({ hasText: cardTitle });
   }
 
+  public cardThumbnail(columnTitle: string, cardTitle: string) {
+    return this.cardElement(columnTitle, cardTitle).getByTestId('card-attachment-thumbnail');
+  }
+
   public async bringColumnIntoView(columnTitle: string) {
     const column = this.column(columnTitle);
     await column.scrollIntoViewIfNeeded();
@@ -63,6 +67,10 @@ export class BoardPage {
     await expect(card).toHaveAttribute('aria-checked', 'true');
   }
 
+  public selectionModeCard(columnTitle: string, cardTitle: string) {
+    return this.column(columnTitle).getByRole('checkbox').filter({ hasText: cardTitle });
+  }
+
   public async archiveSelectedCards(selectedCount: number) {
     await this.page.getByRole('button', { name: `Archive ${selectedCount} selected cards` }).click();
     const dialog = this.page.getByRole('dialog').filter({
@@ -107,5 +115,9 @@ export class BoardPage {
 
   private dialog(): Locator {
     return this.page.getByRole('dialog');
+  }
+
+  private cardElement(columnTitle: string, cardTitle: string) {
+    return this.column(columnTitle).locator('[role="button"], [role="checkbox"]').filter({ hasText: cardTitle });
   }
 }

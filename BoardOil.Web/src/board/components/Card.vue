@@ -25,7 +25,16 @@
     @dragstart="onDragStart"
     @dragend="onDragEnd"
   >
-    <img v-if="cardThumbnailUrl" class="card-thumbnail" :src="cardThumbnailUrl" alt="" aria-hidden="true" draggable="false" />
+    <img
+      v-if="cardThumbnailUrl"
+      class="card-thumbnail"
+      :src="cardThumbnailUrl"
+      alt=""
+      aria-hidden="true"
+      draggable="false"
+      data-testid="card-attachment-thumbnail"
+      :data-attachment-id="thumbnailAttachment?.attachmentId"
+    />
     <div class="card-content">
       <div class="card-header">
         <strong class="card-title">

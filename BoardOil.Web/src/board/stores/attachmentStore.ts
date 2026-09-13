@@ -5,12 +5,14 @@ import type { CardAttachment } from '../../shared/types/attachmentTypes';
 import { formatAttachmentSize } from '../utils/formatAttachmentSize';
 import { createAttachmentThumbnail } from '../utils/attachmentThumbnails';
 import { isSupportedImageFileName } from '../../shared/components/markdownImages';
+import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 
 type Upload = { file: File; progress: number; status: 'queued' | 'uploading' };
 type AttachmentContext = { boardId: number; cardId: number; archived: boolean };
 
 export const useAttachmentStore = defineStore('attachments', () => {
   const api = createBoardApi();
+  const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
   const supported = api.supportsAttachments === true;
   const context = ref<AttachmentContext | null>(null);
   const items = ref<CardAttachment[]>([]);
@@ -93,6 +95,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
     const current = context.value;
     if (busy.value || !current || current.archived || !supported) { return []; }
     const completed: CardAttachment[] = [];
+    let refreshThumbnailProjection = false;
     const version = ++runVersion;
     busy.value = true;
     while (version === runVersion) {
@@ -119,10 +122,12 @@ export const useAttachmentStore = defineStore('attachments', () => {
       activeUploads.value = activeUploads.value.filter(upload => upload !== item);
       if (result.ok) {
         added(current.boardId, current.cardId, result.data);
+        cardAttachmentThumbnailStore.attachmentAdded(current.boardId, current.cardId, result.data);
         completed.push(result.data);
       } else if (result.error.statusCode === 413) {
         warnOversized(item.file);
       } else if (result.error.kind === 'network' || result.error.kind === 'parse') {
+        refreshThumbnailProjection = true;
         warningMessages.value.push(`${item.file.name}: The upload could not be confirmed. Check the attachment list before uploading again.`);
       } else {
         warningMessages.value.push(`${item.file.name}: ${result.error.message}`);
@@ -131,6 +136,9 @@ export const useAttachmentStore = defineStore('attachments', () => {
     controller = null;
     // A lost response may still have committed. Refresh the saved list, without retaining failed entries.
     await reload();
+    if (refreshThumbnailProjection && version === runVersion && context.value === current) {
+      await cardAttachmentThumbnailStore.refreshCards(current.boardId, [current.cardId]);
+    }
     if (version === runVersion) { busy.value = false; }
     return completed;
   }
@@ -157,6 +165,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
       return;
     }
     removed(current.boardId, current.cardId, attachmentId);
+    await cardAttachmentThumbnailStore.attachmentDeleted(current.boardId, current.cardId, attachmentId);
   }
 
   async function download(attachmentId: number) {

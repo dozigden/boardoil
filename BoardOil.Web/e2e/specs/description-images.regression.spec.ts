@@ -18,6 +18,56 @@ type BrowserImageFile = {
   buffer: Buffer;
 };
 
+test('an existing attachment image renders when dragged into a newly opened description', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression existing attachment drag');
+  const card = await api.createCard(board, 'Todo', 'Existing attachment card');
+  await api.uploadAttachment(board.id, card.id, 'existing.png', 'image/png', onePixelPng);
+  const boardPage = new BoardPage(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Existing attachment card');
+  const dialog = page.getByRole('dialog');
+  let uploadRequests = 0;
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/attachments')) {
+      uploadRequests++;
+    }
+  });
+
+  await dialog.getByRole('img', { name: 'Preview of existing.png' })
+    .dragTo(dialog.getByRole('group', { name: 'Card description editor' }));
+
+  await expect(dialog.getByLabel('Card description', { exact: true })
+    .getByRole('img', { name: 'existing' })).toBeVisible();
+  await expect(dialog.locator('.md-image-node-placeholder[aria-label="existing"]')).toBeHidden();
+  expect(uploadRequests).toBe(0);
+
+  await dialog.getByTitle('Cancel editing', { exact: true }).click();
+  const discardDialog = page.getByRole('dialog').filter({
+    has: page.getByRole('heading', { name: 'Discard unsaved changes' })
+  });
+  await expect(discardDialog).toBeVisible();
+  await discardDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(discardDialog).toBeHidden();
+});
+
+test('a newly uploaded attachment image renders when dragged in the same dialog', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression same-dialog attachment drag');
+  await api.createCard(board, 'Todo', 'New attachment card');
+  const boardPage = new BoardPage(page);
+  const panel = new AttachmentPanel(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'New attachment card');
+  const dialog = page.getByRole('dialog');
+  await panel.upload('new.png', onePixelPng, 'image/png');
+
+  await panel.thumbnail('new.png')
+    .dragTo(dialog.getByRole('group', { name: 'Card description editor' }));
+
+  await expect(dialog.getByLabel('Card description', { exact: true })
+    .getByRole('img', { name: 'new' })).toBeVisible();
+  await expect(dialog.locator('.md-image-node-placeholder[aria-label="new"]')).toBeHidden();
+});
+
 test('a picked card image persists as a protected owner-relative Markdown reference', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Regression description image');
   await api.createCard(board, 'Todo', 'Image card');

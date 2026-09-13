@@ -23,6 +23,7 @@ import type {
 } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
+import type { CardAttachment } from '../../shared/types/attachmentTypes';
 
 type BoardShell = Omit<Board, 'columns'> & {
   columns: Column[];
@@ -63,13 +64,13 @@ export const useBoardStore = defineStore('board', () => {
     onColumnCreated: upsertColumnFromRealtime,
     onColumnUpdated: upsertColumnFromRealtime,
     onColumnDeleted: removeColumnFromRealtime,
-    onCardCreated: upsertCardFromRealtime,
+    onCardCreated: createCardFromRealtime,
     onCardUpdated: upsertCardFromRealtime,
     onCardDeleted: removeCardFromRealtime,
     onCardMoved: upsertCardFromRealtime,
     onCommentCreated: upsertCommentFromRealtime,
-    onAttachmentAdded: attachmentStore.added,
-    onAttachmentDeleted: attachmentStore.removed,
+    onAttachmentAdded: addAttachmentFromRealtime,
+    onAttachmentDeleted: deleteAttachmentFromRealtime,
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
     onConnectionWarning: message => {
       feedback.clearToast();
@@ -128,6 +129,15 @@ export const useBoardStore = defineStore('board', () => {
     cardStore.upsertCard(card);
   }
 
+  async function createCardFromRealtime(boardId: number, card: Card) {
+    if (currentBoardId.value !== boardId) {
+      return;
+    }
+
+    cardStore.upsertCard(card);
+    await cardAttachmentThumbnailStore.refreshCards(boardId, [card.id]);
+  }
+
   function removeCardFromRealtime(boardId: number, cardId: number) {
     if (currentBoardId.value !== boardId) {
       return;
@@ -135,6 +145,24 @@ export const useBoardStore = defineStore('board', () => {
 
     cardStore.removeCard(cardId);
     attachmentStore.cardRemoved(boardId, cardId);
+  }
+
+  function addAttachmentFromRealtime(boardId: number, cardId: number, attachment: CardAttachment) {
+    if (currentBoardId.value !== boardId) {
+      return;
+    }
+
+    attachmentStore.added(boardId, cardId, attachment);
+    cardAttachmentThumbnailStore.attachmentAdded(boardId, cardId, attachment);
+  }
+
+  async function deleteAttachmentFromRealtime(boardId: number, cardId: number, attachmentId: number) {
+    if (currentBoardId.value !== boardId) {
+      return;
+    }
+
+    attachmentStore.removed(boardId, cardId, attachmentId);
+    await cardAttachmentThumbnailStore.attachmentDeleted(boardId, cardId, attachmentId);
   }
 
   function upsertCommentFromRealtime(boardId: number, comment: CardComment) {

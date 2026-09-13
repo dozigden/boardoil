@@ -3,14 +3,18 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useCardStore } from './cardStore';
 import { useSlickStore } from './slickStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 import type { AppError } from '../../shared/types/appError';
 import type { Board, Card, CardEditModel, Slick } from '../../shared/types/boardTypes';
 import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 
 const api = {
+  supportsAttachments: true,
+  getFirstAttachmentImagesByCard: vi.fn(),
   getSlicks: vi.fn(),
   createCard: vi.fn(),
+  duplicateCard: vi.fn(),
   saveCard: vi.fn(),
   moveCard: vi.fn(),
   transferCard: vi.fn(),
@@ -29,6 +33,7 @@ describe('cardStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
+    api.getFirstAttachmentImagesByCard.mockResolvedValue(ok([]));
   });
 
   it('hydrates cards by column from a board snapshot', () => {
@@ -78,6 +83,27 @@ describe('cardStore', () => {
     expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([102, 101]);
     expect(slickStore.slicks).toEqual([slick]);
     expect(api.getSlicks).not.toHaveBeenCalled();
+  });
+
+  it('refreshes attachment thumbnail state for a duplicated card', async () => {
+    const store = useCardStore();
+    store.replaceBoardCards(1, makeBoard().columns);
+    const thumbnailStore = useCardAttachmentThumbnailStore();
+    await thumbnailStore.loadBoard(1, true);
+    const duplicated = {
+      ...makeBoard().columns[0].cards[0],
+      id: 102,
+      title: 'Task A copy'
+    };
+    api.duplicateCard.mockResolvedValue(ok(duplicated));
+    api.getFirstAttachmentImagesByCard.mockResolvedValueOnce(ok([
+      { cardId: 102, attachmentId: 12, originalFileName: 'copied.png', hasThumbnail: true }
+    ]));
+
+    await store.createCard(makeCardEditModel({ title: 'Task A copy' }), { duplicateFromCardId: 101 });
+
+    expect(api.getFirstAttachmentImagesByCard).toHaveBeenLastCalledWith(1, [102]);
+    expect(thumbnailStore.getForCard(102)?.attachmentId).toBe(12);
   });
 
   it('creates a card with an explicit card type id', async () => {

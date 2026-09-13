@@ -3,8 +3,9 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useAttachmentStore } from './attachmentStore';
 import { err, ok } from '../../shared/types/result';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
+import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 
-const api = { supportsAttachments: true, getAttachments: vi.fn(), uploadAttachment: vi.fn(), deleteAttachment: vi.fn(), downloadAttachment: vi.fn() };
+const api = { supportsAttachments: true, getAttachments: vi.fn(), getFirstAttachmentImagesByCard: vi.fn(), uploadAttachment: vi.fn(), deleteAttachment: vi.fn(), downloadAttachment: vi.fn() };
 vi.mock('../../shared/api/boardApi', () => ({ createBoardApi: () => api }));
 const attachment: CardAttachment = { id: 1, originalFileName: 'file.bin', byteLength: 3,
   contentType: 'application/octet-stream', createdAtUtc: '2026-09-11T12:00:00Z', createdByUserId: null, hasThumbnail: false };
@@ -18,6 +19,7 @@ describe('attachments', () => {
     vi.resetAllMocks();
     api.supportsAttachments = true;
     api.getAttachments.mockResolvedValue(listing());
+    api.getFirstAttachmentImagesByCard.mockResolvedValue(ok([]));
   });
 
   it('ignores a previous card load after navigation', async () => {
@@ -103,6 +105,24 @@ describe('attachments', () => {
     store.clearWarnings();
     expect(store.warningMessages).toEqual([]);
     expect(store.items).toEqual([attachment]);
+  });
+
+  it('refreshes the card thumbnail projection after an unconfirmed upload', async () => {
+    const store = useAttachmentStore();
+    const thumbnailStore = useCardAttachmentThumbnailStore();
+    await thumbnailStore.loadBoard(1, true);
+    await store.open(1, 1);
+    const image = { ...attachment, originalFileName: 'saved.png' };
+    api.uploadAttachment.mockResolvedValue(err({ kind: 'network', message: 'Connection lost' }));
+    api.getAttachments.mockResolvedValue(listing([image]));
+    api.getFirstAttachmentImagesByCard.mockResolvedValueOnce(ok([
+      { cardId: 1, attachmentId: image.id, originalFileName: image.originalFileName, hasThumbnail: false }
+    ]));
+
+    await store.upload([new File(['abc'], image.originalFileName, { type: 'image/png' })]);
+
+    expect(api.getFirstAttachmentImagesByCard).toHaveBeenLastCalledWith(1, [1]);
+    expect(thumbnailStore.getForCard(1)?.attachmentId).toBe(image.id);
   });
 
   it('reports a duplicate filename in a warning without leaving a failed entry', async () => {

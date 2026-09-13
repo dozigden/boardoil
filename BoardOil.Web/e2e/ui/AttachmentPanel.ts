@@ -23,6 +23,16 @@ export class AttachmentPanel {
     await expect(this.region().getByRole('button', { name: 'Upload', exact: true })).toBeEnabled();
   }
 
+  public async attachmentId(name: string) {
+    const href = await this.downloadLink(name).getAttribute('href');
+    const match = href?.match(/\/attachments\/(\d+)\/download$/);
+    if (!match) {
+      throw new Error(`Could not resolve the attachment id for '${name}'.`);
+    }
+
+    return Number(match[1]);
+  }
+
   public async download(name: string) {
     const pending = this.page.waitForEvent('download');
     await this.downloadLink(name).click();

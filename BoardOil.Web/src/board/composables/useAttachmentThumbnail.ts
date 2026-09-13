@@ -18,17 +18,14 @@ export function useAttachmentThumbnail(options: {
   let loadVersion = 0;
 
   watch(
-    () => {
-      const attachment = toValue(options.attachment);
-      return [
-        toValue(options.boardId),
-        toValue(options.cardId),
-        toValue(options.archived),
-        attachment?.id ?? null,
-        attachment?.hasThumbnail ?? false,
-        toValue(options.enabled)
-      ] as const;
-    },
+    [
+      () => toValue(options.boardId),
+      () => toValue(options.cardId),
+      () => toValue(options.archived),
+      () => toValue(options.attachment)?.id ?? null,
+      () => toValue(options.attachment)?.hasThumbnail ?? false,
+      () => toValue(options.enabled)
+    ],
     () => { void load(); },
     { immediate: true }
   );

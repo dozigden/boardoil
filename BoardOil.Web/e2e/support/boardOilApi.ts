@@ -8,11 +8,17 @@ type ApiEnvelope<T> = {
 
 export type SmokeBoard = {
   id: number;
+  name: string;
+  description: string;
+  slickCohesionModeEnabled: boolean;
+  cardAttachmentThumbnailsEnabled: boolean;
   columns: Array<{
     id: number;
     title: string;
   }>;
 };
+
+type SmokeBoardSummary = Omit<SmokeBoard, 'columns'>;
 
 type SmokeCardType = {
   id: number;
@@ -167,6 +173,17 @@ export class BoardOilApi {
     return await readEnvelope<SmokeAttachment>(response);
   }
 
+  public async setCardAttachmentThumbnailsEnabled(board: SmokeBoard, enabled: boolean) {
+    const updated = await this.put<SmokeBoardSummary>(`/api/boards/${board.id}`, {
+      name: board.name,
+      description: board.description,
+      slickCohesionModeEnabled: board.slickCohesionModeEnabled,
+      cardAttachmentThumbnailsEnabled: enabled
+    });
+    board.cardAttachmentThumbnailsEnabled = updated.cardAttachmentThumbnailsEnabled;
+    return updated;
+  }
+
   public async createSlick(board: SmokeBoard, name: string) {
     return await this.post<SmokeSlick>(`/api/boards/${board.id}/slicks`, {
       name,
@@ -187,6 +204,14 @@ export class BoardOilApi {
     }
 
     const response = await this.request.post(path, { data, headers });
+    return await readEnvelope<T>(response);
+  }
+
+  private async put<T>(path: string, data: unknown) {
+    const response = await this.request.put(path, {
+      data,
+      headers: { 'X-BoardOil-CSRF': this.csrfToken }
+    });
     return await readEnvelope<T>(response);
   }
 }

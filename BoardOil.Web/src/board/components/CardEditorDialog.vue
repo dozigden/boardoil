@@ -98,6 +98,7 @@
               :image-upload="descriptionImageUpload"
               :image-upload-cancel="attachments.cancel"
               @update:model-value="handleDescriptionEditorValueUpdate"
+              @user-edit="applyUserDescriptionEdit"
               @focus="handleDescriptionEditorFocus"
               @blur="handleDescriptionEditorBlur"
               @escape="closeCardEditor"

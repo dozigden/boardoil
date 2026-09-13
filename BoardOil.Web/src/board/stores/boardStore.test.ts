@@ -5,10 +5,12 @@ import { useCardTypeStore } from './cardTypeStore';
 import { useTagStore } from './tagStore';
 import { useSlickStore } from './slickStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 import type { AppError } from '../../shared/types/appError';
 import type { Board, Card, Column } from '../../shared/types/boardTypes';
 import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
+import type { CardAttachment } from '../../shared/types/attachmentTypes';
 
 const api = {
   supportsAttachments: true,
@@ -30,6 +32,8 @@ type RealtimeHandlers = {
   onCardMoved: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCardUpdated: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCardDeleted: (boardId: number, cardId: number) => Promise<unknown> | unknown;
+  onAttachmentAdded: (boardId: number, cardId: number, attachment: CardAttachment) => Promise<unknown> | unknown;
+  onAttachmentDeleted: (boardId: number, cardId: number, attachmentId: number) => Promise<unknown> | unknown;
   onResync: (boardId: number) => Promise<unknown> | unknown;
   onConnectionWarning?: (message: string) => Promise<unknown> | unknown;
   onConnectionRecovered?: () => Promise<unknown> | unknown;
@@ -312,6 +316,52 @@ describe('boardStore', () => {
     expect(api.getSlicks).not.toHaveBeenCalled();
     expect(store.board?.columns[0].cards[0].slickId).toBe(7);
     expect(api.getBoard).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies realtime attachment changes to the card thumbnail projection', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    await vi.waitFor(() => expect(api.getFirstAttachmentImagesByCard).toHaveBeenCalledWith(1));
+    const thumbnailStore = useCardAttachmentThumbnailStore();
+    const addedAttachment: CardAttachment = {
+      id: 8,
+      originalFileName: 'first.png',
+      contentType: 'image/png',
+      byteLength: 10,
+      createdAtUtc: '2026-03-15T00:00:01Z',
+      createdByUserId: 1,
+      hasThumbnail: true
+    };
+
+    await realtimeHandlers!.onAttachmentAdded(1, 101, addedAttachment);
+    expect(thumbnailStore.getForCard(101)?.attachmentId).toBe(8);
+    api.getFirstAttachmentImagesByCard.mockResolvedValueOnce(ok([
+      { cardId: 101, attachmentId: 9, originalFileName: 'second.png', hasThumbnail: true }
+    ]));
+
+    await realtimeHandlers!.onAttachmentDeleted(1, 101, 8);
+
+    expect(api.getFirstAttachmentImagesByCard).toHaveBeenLastCalledWith(1, [101]);
+    expect(thumbnailStore.getForCard(101)?.attachmentId).toBe(9);
+  });
+
+  it('refreshes the thumbnail candidate when realtime creates a card', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    await vi.waitFor(() => expect(api.getFirstAttachmentImagesByCard).toHaveBeenCalledWith(1));
+    const createdCard = {
+      ...makeBoard().columns[0].cards[0],
+      id: 102,
+      title: 'Duplicated card'
+    };
+    api.getFirstAttachmentImagesByCard.mockResolvedValueOnce(ok([
+      { cardId: 102, attachmentId: 12, originalFileName: 'copied.png', hasThumbnail: true }
+    ]));
+
+    await realtimeHandlers!.onCardCreated(1, createdCard);
+
+    expect(api.getFirstAttachmentImagesByCard).toHaveBeenLastCalledWith(1, [102]);
+    expect(useCardAttachmentThumbnailStore().getForCard(102)?.attachmentId).toBe(12);
   });
 
   it('does not reload board-scoped stores when realtime resync board reload fails', async () => {
