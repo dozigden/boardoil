@@ -46,6 +46,12 @@ describe('card description images', () => {
       .toBe('https://board.test/api/boards/2/cards/3/attachments/image-content?fileName=a%20b.png');
     expect(buildAttachmentImageContentUrl({ apiBaseUrl: 'https://board.test', boardId: 2, cardId: 3, archived: true }, 'a.png'))
       .toBe('https://board.test/api/boards/2/cards/archived/3/attachments/image-content?fileName=a.png');
+    expect(buildAttachmentImageContentUrl({
+      apiBaseUrl: 'https://board.test',
+      boardId: 2,
+      cardId: 3,
+      refreshKey: 42
+    }, 'a b.png')).toBe('https://board.test/api/boards/2/cards/3/attachments/image-content?fileName=a%20b.png&v=42');
   });
 
   it('creates safe default alt text from the filename', () => {

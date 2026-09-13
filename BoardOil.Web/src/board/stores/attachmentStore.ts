@@ -22,6 +22,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
   const maxUploadByteLength = ref(0);
   const loading = ref(false);
   const busy = ref(false);
+  const revision = ref(0);
   let requestVersion = 0;
   let eventVersion = 0;
   let runVersion = 0;
@@ -39,6 +40,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
 
   function clear() {
     requestVersion++;
+    revision.value++;
     cancel();
     context.value = null;
     items.value = [];
@@ -68,6 +70,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
       return;
     }
     items.value = result.data.items;
+    revision.value++;
     maxUploadByteLength.value = result.data.maxUploadByteLength;
   }
 
@@ -76,12 +79,14 @@ export const useAttachmentStore = defineStore('attachments', () => {
     eventVersion++;
     items.value = [...items.value.filter(item => item.id !== attachment.id), attachment]
       .sort((a, b) => a.createdAtUtc.localeCompare(b.createdAtUtc) || a.id - b.id);
+    revision.value++;
   }
 
   function removed(boardId: number, cardId: number, attachmentId: number) {
     if (context.value?.boardId !== boardId || context.value.cardId !== cardId) { return; }
     eventVersion++;
     items.value = items.value.filter(item => item.id !== attachmentId);
+    revision.value++;
   }
 
   function cardRemoved(boardId: number, cardId: number) {
@@ -185,6 +190,6 @@ export const useAttachmentStore = defineStore('attachments', () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  return { supported, mutable, items, activeUploads, warningMessages, clearWarnings, maxUploadByteLength, loading, busy,
+  return { supported, mutable, items, activeUploads, warningMessages, clearWarnings, maxUploadByteLength, loading, busy, revision,
     open, reload, clear, cancel, upload, remove, download, added, removed, cardRemoved };
 });

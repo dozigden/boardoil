@@ -144,7 +144,11 @@ export function buildAttachmentImageContentUrl(context: MarkdownImageContext, fi
   const ownerPath = context.archived
     ? `cards/archived/${context.cardId}`
     : `cards/${context.cardId}`;
-  return `${context.apiBaseUrl}/api/boards/${context.boardId}/${ownerPath}/attachments/image-content?fileName=${encodeURIComponent(fileName)}`;
+  const baseUrl = `${context.apiBaseUrl}/api/boards/${context.boardId}/${ownerPath}/attachments/image-content?fileName=${encodeURIComponent(fileName)}`;
+  const version = context.refreshKey;
+  return version === undefined
+    ? baseUrl
+    : `${baseUrl}&v=${encodeURIComponent(String(version))}`;
 }
 
 export function imageAltFromFileName(fileName: string): string {

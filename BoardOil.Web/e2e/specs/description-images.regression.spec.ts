@@ -536,6 +536,7 @@ test('a description image moves with its card to another board', async ({ api, a
 
 test('realtime deletion and same-name re-upload refresh an open description image', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Regression realtime description image');
+  const replacementPng = (await createBrowserImageBuffers(page)).png;
   await api.createCard(board, 'Todo', 'Shared image card');
   const boardPage = new BoardPage(page);
   await boardPage.open(board.id);
@@ -563,9 +564,13 @@ test('realtime deletion and same-name re-upload refresh an open description imag
     await expect(dialog.locator('.md-image-node-placeholder[aria-label="shared-diagram"]'))
       .toHaveText('Image unavailable');
 
-    await otherAttachments.upload('shared-diagram.png', onePixelPng);
-    await expect(dialog.getByRole('button', { name: 'Enlarge image: shared-diagram' }).locator('img'))
-      .toBeVisible();
+    await otherAttachments.upload('shared-diagram.png', replacementPng);
+    const replacementImage = dialog.getByRole('button', { name: 'Enlarge image: shared-diagram' }).locator('img');
+    await expect(replacementImage).toBeVisible();
+    const replacementUrl = await replacementImage.getAttribute('src');
+    expect(replacementUrl).toContain('&v=');
+    const replacementResponse = await page.request.get(replacementUrl!);
+    expect(await replacementResponse.body()).toEqual(replacementPng);
   } finally {
     await otherPage.close();
   }
