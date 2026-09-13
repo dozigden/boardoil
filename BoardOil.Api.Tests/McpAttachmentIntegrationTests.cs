@@ -7,6 +7,7 @@ using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Configuration;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Ef;
 using BoardOil.Mcp.Contracts;
 using Microsoft.EntityFrameworkCore;
@@ -245,6 +246,11 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
                 Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
             }
         }
+
+        using var scope = Factory.Services.CreateScope();
+        await using var db = scope.ServiceProvider.GetRequiredService<IDbContextFactory>().CreateDbContext<BoardOilDbContext>();
+        Assert.Equal(3, await db.AttachmentTransferAudits.CountAsync(
+            x => x.Outcome == AttachmentTransferAuditOutcome.DownloadAdmitted));
     }
 
     [Theory]

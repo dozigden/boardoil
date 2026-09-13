@@ -20,6 +20,8 @@ public sealed class AttachmentTransferService(
     IBoardAuthorisationService authorisation, IDbContextScopeFactory scopes, AttachmentStorageOptions options,
     TimeProvider clock, ILogger<AttachmentTransferService> logger) : IAttachmentTransferService
 {
+    private static readonly SemaphoreSlim DownloadAuditWriteLock = new(1, 1);
+
     public async Task<ApiResult<AttachmentDownloadTicket>> IssueDownloadAsync(int boardId, int attachmentId, int actorUserId,
         AttachmentTransferCredential credential, CancellationToken cancellationToken = default)
     {
@@ -413,10 +415,18 @@ public sealed class AttachmentTransferService(
     private async Task RecordAuditAsync(EntityAttachmentDownloadTicket ticket,
         AttachmentTransferAuditOutcome outcome, DateTime occurredAtUtc, CancellationToken cancellationToken)
     {
-        using var suppressed = scopes.SuppressAmbientContext();
-        using var scope = scopes.Create();
-        audits.Add(CreateAudit(ticket, outcome, occurredAtUtc));
-        await scope.SaveChangesAsync(cancellationToken);
+        await DownloadAuditWriteLock.WaitAsync(cancellationToken);
+        try
+        {
+            using var suppressed = scopes.SuppressAmbientContext();
+            using var scope = scopes.Create();
+            audits.Add(CreateAudit(ticket, outcome, occurredAtUtc));
+            await scope.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            DownloadAuditWriteLock.Release();
+        }
     }
 
     private async Task RecordAuditAsync(EntityAttachmentUploadTicket ticket,
