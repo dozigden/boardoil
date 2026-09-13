@@ -4,6 +4,8 @@ internal static class Program
 {
     private static async Task<int> Main()
     {
+        Console.Title = "BoardOil.Dev";
+
         try
         {
             var repoRoot = RepoRootLocator.Find();
