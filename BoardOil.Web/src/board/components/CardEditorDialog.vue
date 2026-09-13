@@ -80,7 +80,7 @@
             class="card-editor-shared-toolbar"
             :state="activeToolbarState"
             :is-plain-text-mode="activeIsPlainTextMode"
-            :show-image-action="activeEditor === 'description' && !isDuplicatingCard"
+            :show-image-action="activeEditor === 'description' && !isDuplicatingCard && attachments.mutable"
             :image-action-disabled="attachments.busy || attachments.loading || attachments.maxUploadByteLength === 0"
             @action="runSharedToolbarAction"
             @image="selectDescriptionImage"
@@ -442,7 +442,7 @@ const descriptionImageContext = computed<MarkdownImageContext | null>(() => {
   return { apiBaseUrl: apiBase, boardId: boardId.value, cardId, refreshKey };
 });
 const descriptionImageUpload = computed<MarkdownImageUpload | null>(() => {
-  return isDuplicatingCard.value ? null : uploadDescriptionImage;
+  return isDuplicatingCard.value || !attachments.mutable ? null : uploadDescriptionImage;
 });
 
 const routeCardId = computed<number | null>(() => {

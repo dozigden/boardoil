@@ -6,6 +6,54 @@ describe('demoBoardApi', () => {
     resetDemoData();
   });
 
+  it('exposes three seeded image attachments without attachment mutations', async () => {
+    const api = createDemoBoardApi();
+
+    expect(api.supportsAttachments).toBe(true);
+    expect(api.supportsAttachmentMutations).toBe(false);
+
+    const candidatesResult = await api.getFirstAttachmentImagesByCard(1);
+    expect(candidatesResult).toEqual({
+      ok: true,
+      data: [
+        { cardId: 101, attachmentId: 1, originalFileName: 'restyle-buttons.webp', hasThumbnail: true },
+        { cardId: 105, attachmentId: 2, originalFileName: 'web-traffic-pie-chart.webp', hasThumbnail: true },
+        { cardId: 106, attachmentId: 3, originalFileName: 'pay-the-cat-tax.webp', hasThumbnail: true }
+      ]
+    });
+
+    const filteredResult = await api.getFirstAttachmentImagesByCard(1, [105, 999]);
+    expect(filteredResult).toEqual({
+      ok: true,
+      data: [
+        { cardId: 105, attachmentId: 2, originalFileName: 'web-traffic-pie-chart.webp', hasThumbnail: true }
+      ]
+    });
+
+    const attachmentsResult = await api.getAttachments(1, 101, false);
+    expect(attachmentsResult).toEqual({
+      ok: true,
+      data: {
+        items: [expect.objectContaining({
+          id: 1,
+          originalFileName: 'restyle-buttons.webp',
+          contentType: 'image/webp',
+          hasThumbnail: true
+        })],
+        maxUploadByteLength: 0
+      }
+    });
+
+    const boardResult = await api.getBoard(1);
+    expect(boardResult.ok).toBe(true);
+    if (boardResult.ok) {
+      const seededCards = boardResult.data.columns.flatMap(column => column.cards)
+        .filter(card => [101, 105, 106].includes(card.id));
+      expect(seededCards).toHaveLength(3);
+      expect(seededCards.every(card => card.description.includes('.webp)'))).toBe(true);
+    }
+  });
+
   it('creates, edits, and moves cards entirely in browser-local state', async () => {
     const api = createDemoBoardApi();
     const createResult = await api.createCard(1, {
@@ -142,7 +190,7 @@ describe('demoBoardApi', () => {
     const api = createDemoBoardApi();
 
     const editResult = await api.saveCard(1, 101, {
-      title: 'Customer interview highlights',
+      title: 'Restyle buttons',
       description: 'Grouped in the demo session.',
       externalUrl: null,
       tagNames: ['Feature'],

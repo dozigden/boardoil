@@ -483,6 +483,7 @@ function createHttpBoardApi() {
 
   return {
     supportsAttachments: true,
+    supportsAttachmentMutations: true,
     getAttachments,
     getFirstAttachmentImagesByCard,
     uploadAttachment,

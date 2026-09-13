@@ -48,9 +48,43 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await expect(welcomeDialog).not.toBeVisible();
     await expect(page.getByText('Live Demo', { exact: true })).toBeVisible();
 
+    const seededImages = [
+      { column: 'Ideas', title: 'Restyle buttons', alt: 'Three vertically stacked application buttons in BoardOil colours' },
+      { column: 'Ready', title: 'Include pie chart of web traffic', alt: 'Rough hand-drawn pie chart of web traffic' },
+      { column: 'Done', title: 'Pay the cat tax', alt: 'Black-and-white cat sitting on a chair' }
+    ];
+    for (const seededImage of seededImages) {
+      const column = page.getByRole('article', { name: `${seededImage.column} column` });
+      const card = column.locator('.card').filter({ hasText: seededImage.title });
+      await expect(card.getByTestId('card-attachment-thumbnail')).toBeVisible();
+      await card.click();
+
+      const cardDialog = page.getByRole('dialog');
+      const image = cardDialog.getByRole('button', { name: `Enlarge image: ${seededImage.alt}` });
+      await expect(image).toBeVisible();
+      await image.click();
+
+      const imageDialog = page.getByRole('dialog', { name: 'Image preview' });
+      await expect(imageDialog.getByRole('img', { name: seededImage.alt })).toBeVisible();
+      await imageDialog.getByRole('button', { name: 'Close', exact: true }).click();
+      await cardDialog.getByTitle('Cancel', { exact: true }).click();
+    }
+
+    const seededCard = page.getByRole('article', { name: 'Ideas column' })
+      .locator('.card')
+      .filter({ hasText: 'Restyle buttons' });
+    await seededCard.click();
+    const readOnlyAttachmentDialog = page.getByRole('dialog');
+    await expect(readOnlyAttachmentDialog.getByRole('link', { name: 'Download restyle-buttons.webp' })).toBeVisible();
+    await expect(readOnlyAttachmentDialog.getByRole('button', { name: 'Add image' })).toHaveCount(0);
+    await expect(readOnlyAttachmentDialog.getByRole('button', { name: 'Upload' })).toHaveCount(0);
+    await expect(readOnlyAttachmentDialog.getByRole('button', { name: 'Delete restyle-buttons.webp' })).toHaveCount(0);
+    await expect(readOnlyAttachmentDialog.getByLabel('Choose attachments')).toHaveCount(0);
+    await readOnlyAttachmentDialog.getByTitle('Cancel', { exact: true }).click();
+
     const doneColumn = page.getByRole('article', { name: 'Done column' });
     await expect(doneColumn).toBeVisible();
-    await expect(doneColumn.getByRole('button').filter({ hasText: /#\d+/ })).toHaveCount(10);
+    await expect(doneColumn.getByRole('button').filter({ hasText: /#\d+/ })).toHaveCount(11);
   });
 
   await test.step('create new cards at the top of a column', async () => {
@@ -65,7 +99,7 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
 
   await test.step('edit and move a card in memory', async () => {
     const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    await ideasColumn.getByRole('button').filter({ hasText: 'Customer interview highlights' }).click();
+    await ideasColumn.getByRole('button').filter({ hasText: 'Restyle buttons' }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
@@ -89,7 +123,7 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await expect(page.getByRole('heading', { name: 'Welcome to the BoardOil demo' })).toHaveCount(0);
 
     const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    await expect(ideasColumn.getByRole('button').filter({ hasText: 'Customer interview highlights' })).toBeVisible();
+    await expect(ideasColumn.getByRole('button').filter({ hasText: 'Restyle buttons' })).toBeVisible();
     await expect(page.getByText('Created at the top', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Edited in the static demo', { exact: true })).toHaveCount(0);
   });
@@ -100,26 +134,26 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await expect(welcomeDialog.getByRole('heading', { name: 'Welcome to the BoardOil demo' })).toBeVisible();
     await welcomeDialog.getByRole('button', { name: 'Explore the demo' }).click();
     const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    await expect(ideasColumn.getByRole('button').filter({ hasText: 'Customer interview highlights' })).toBeVisible();
+    await expect(ideasColumn.getByRole('button').filter({ hasText: 'Restyle buttons' })).toBeVisible();
     await expect(page.getByText('Edited in the static demo', { exact: true })).toHaveCount(0);
   });
 
   await test.step('drop a card at the exact indicated position', async () => {
     const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
     const movedCard = ideasColumn.getByRole('button').filter({ hasText: 'AI-assisted acceptance criteria' });
-    const firstCard = ideasColumn.getByRole('button').filter({ hasText: 'Customer interview highlights' });
+    const firstCard = ideasColumn.getByRole('button').filter({ hasText: 'Restyle buttons' });
 
     await movedCard.dragTo(firstCard, { targetPosition: { x: 20, y: 1 } });
 
     const cards = ideasColumn.getByRole('button').filter({ hasText: /#\d+/ });
     await expect(cards.nth(0)).toContainText('AI-assisted acceptance criteria');
-    await expect(cards.nth(1)).toContainText('Customer interview highlights');
+    await expect(cards.nth(1)).toContainText('Restyle buttons');
     await expect(cards.nth(2)).toContainText('Interactive onboarding checklist');
   });
 
   await test.step('select cards without reflowing their titles', async () => {
     const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    const card = ideasColumn.locator('.card').filter({ hasText: 'Customer interview highlights' });
+    const card = ideasColumn.locator('.card').filter({ hasText: 'Restyle buttons' });
     const title = card.locator('.card-title-text');
     const titlePositionBeforeSelection = await title.boundingBox();
 
@@ -150,7 +184,7 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
 
     await page.getByTitle('Done selecting cards').click();
     const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    await ideasColumn.getByRole('button').filter({ hasText: 'Customer interview highlights' }).click();
+    await ideasColumn.getByRole('button').filter({ hasText: 'Restyle buttons' }).click();
     const cardDialog = page.getByRole('dialog');
     await expect(cardDialog.locator('.fixed-chrome-dialog__surface')).toHaveCSS('color', 'rgb(233, 238, 246)');
     await expect(cardDialog.getByText('Column', { exact: true })).toHaveCSS('color', 'rgb(174, 186, 206)');
@@ -209,6 +243,7 @@ async function loadDemoSecurityPolicy() {
   const headers = await readFile(headersPath, 'utf8');
 
   expect(headers).toContain("frame-ancestors 'self' https://boardoil.dozigden.com");
+  expect(headers).toContain("img-src 'self' data: blob:");
   expect(headers).toContain('Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()');
   expect(headers).toContain('Referrer-Policy: no-referrer');
   expect(headers).toContain('X-Robots-Tag: noindex, nofollow');

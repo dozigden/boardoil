@@ -5,7 +5,7 @@ import { err, ok } from '../../shared/types/result';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 
-const api = { supportsAttachments: true, getAttachments: vi.fn(), getFirstAttachmentImagesByCard: vi.fn(), uploadAttachment: vi.fn(), deleteAttachment: vi.fn(), downloadAttachment: vi.fn() };
+const api = { supportsAttachments: true, supportsAttachmentMutations: true, getAttachments: vi.fn(), getFirstAttachmentImagesByCard: vi.fn(), uploadAttachment: vi.fn(), deleteAttachment: vi.fn(), downloadAttachment: vi.fn() };
 vi.mock('../../shared/api/boardApi', () => ({ createBoardApi: () => api }));
 const attachment: CardAttachment = { id: 1, originalFileName: 'file.bin', byteLength: 3,
   contentType: 'application/octet-stream', createdAtUtc: '2026-09-11T12:00:00Z', createdByUserId: null, hasThumbnail: false };
@@ -18,6 +18,7 @@ describe('attachments', () => {
     setActivePinia(createPinia());
     vi.resetAllMocks();
     api.supportsAttachments = true;
+    api.supportsAttachmentMutations = true;
     api.getAttachments.mockResolvedValue(listing());
     api.getFirstAttachmentImagesByCard.mockResolvedValue(ok([]));
   });
@@ -60,6 +61,23 @@ describe('attachments', () => {
     expect(store.busy).toBe(false);
     expect(store.activeUploads).toHaveLength(0);
     expect(store.warningMessages).toEqual(['file.bin: Storage unavailable']);
+  });
+
+  it('loads read-only attachments without allowing uploads or deletions', async () => {
+    api.supportsAttachmentMutations = false;
+    api.getAttachments.mockResolvedValue(listing([attachment]));
+    const store = useAttachmentStore();
+
+    await store.open(1, 1);
+    const uploaded = await store.upload([new File(['abc'], 'file.bin')]);
+    await store.remove(attachment.id);
+
+    expect(store.supported).toBe(true);
+    expect(store.mutable).toBe(false);
+    expect(store.items).toEqual([attachment]);
+    expect(uploaded).toEqual([]);
+    expect(api.uploadAttachment).not.toHaveBeenCalled();
+    expect(api.deleteAttachment).not.toHaveBeenCalled();
   });
 
   it('reports upload progress with the matching file', async () => {

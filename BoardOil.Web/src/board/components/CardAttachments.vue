@@ -2,10 +2,10 @@
   <section v-if="store.supported" class="card-attachments" aria-label="Attachments">
     <div class="attachment-heading">
       <span>Attachments</span>
-      <button v-if="!readOnly" type="button" class="btn btn--secondary" :title="`Up to ${formatSize(store.maxUploadByteLength)} per file`" :disabled="store.busy || store.loading || store.maxUploadByteLength === 0" @click="selectFiles">Upload</button>
+      <button v-if="canManage" type="button" class="btn btn--secondary" :title="`Up to ${formatSize(store.maxUploadByteLength)} per file`" :disabled="store.busy || store.loading || store.maxUploadByteLength === 0" @click="selectFiles">Upload</button>
     </div>
-    <input ref="picker" type="file" multiple hidden aria-label="Choose attachments" @change="filesSelected" />
-    <small v-if="!readOnly">Uploads and deletions are saved immediately.</small>
+    <input v-if="canManage" ref="picker" type="file" multiple hidden aria-label="Choose attachments" @change="filesSelected" />
+    <small v-if="canManage">Uploads and deletions are saved immediately.</small>
     <small v-if="duplicating">Attachments will be copied when you create the duplicate.</small>
     <span v-if="store.loading" role="status">Loading attachments…</span>
     <span v-else-if="store.items.length === 0" class="attachment-empty">No attachments.</span>
@@ -31,10 +31,10 @@
             >{{ item.originalFileName }}</a>
           </div>
         </div>
-        <button v-if="!readOnly" type="button" class="btn btn--secondary" :disabled="store.busy" :aria-label="`Delete ${item.originalFileName}`" @click="deleteAttachment(item)"><Trash2 :size="14" aria-hidden="true" /></button>
+        <button v-if="canManage" type="button" class="btn btn--secondary" :disabled="store.busy" :aria-label="`Delete ${item.originalFileName}`" @click="deleteAttachment(item)"><Trash2 :size="14" aria-hidden="true" /></button>
       </li>
     </ul>
-    <div v-for="(item, index) in readOnly ? [] : store.activeUploads" :key="index" class="attachment-upload" role="status">
+    <div v-for="(item, index) in canManage ? store.activeUploads : []" :key="index" class="attachment-upload" role="status">
       <span>{{ item.file.name }}</span>
       <progress v-if="item.status === 'uploading'" :value="item.progress" max="100" :aria-label="`Uploading ${item.file.name}`" />
       <small v-if="item.status === 'uploading'">{{ item.progress === 100 ? 'Finishing…' : `${item.progress}%` }}</small>
@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Trash2 } from '@lucide/vue';
 import { useAttachmentStore } from '../stores/attachmentStore';
 import { buildApiUrl } from '../../shared/api/config';
@@ -76,6 +76,7 @@ const props = withDefaults(defineProps<{ boardId: number; cardId: number; archiv
 const store = useAttachmentStore();
 const { confirm } = useConfirm();
 const picker = ref<HTMLInputElement | null>(null);
+const canManage = computed(() => !props.readOnly && store.mutable);
 watch(() => [props.boardId, props.cardId, props.archived] as const,
   ([boardId, cardId, archived]) => { void store.open(boardId, cardId, archived); }, { immediate: true });
 onBeforeUnmount(store.clear);

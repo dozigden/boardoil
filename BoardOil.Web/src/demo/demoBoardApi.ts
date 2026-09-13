@@ -1,4 +1,5 @@
 import type { BoardApi } from '../shared/api/boardApi';
+import type { CardAttachment } from '../shared/types/attachmentTypes';
 import type {
   ArchivedCard,
   Board,
@@ -14,6 +15,12 @@ import type {
 import type { AppError } from '../shared/types/appError';
 import type { Result } from '../shared/types/result';
 import { err, ok } from '../shared/types/result';
+import catTaxImageUrl from './assets/pay-the-cat-tax.webp?url';
+import catTaxThumbnailUrl from './assets/pay-the-cat-tax-thumbnail.webp?url';
+import restyleButtonsImageUrl from './assets/restyle-buttons.webp?url';
+import restyleButtonsThumbnailUrl from './assets/restyle-buttons-thumbnail.webp?url';
+import webTrafficPieChartImageUrl from './assets/web-traffic-pie-chart.webp?url';
+import webTrafficPieChartThumbnailUrl from './assets/web-traffic-pie-chart-thumbnail.webp?url';
 
 const DemoBoardId = 1;
 const DemoUserId = 1;
@@ -24,6 +31,23 @@ const MaximumSortKeyValue = (SortKeyBase ** BigInt(SortKeyLength)) - 1n;
 const SortKeySpaceSize = MaximumSortKeyValue + 1n;
 const PreferredSortKeyRangeStart = SortKeySpaceSize / 4n;
 const PreferredSortKeyRangeSize = SortKeySpaceSize / 2n;
+const DemoAttachmentTimestamp = '2026-08-12T09:00:00.000Z';
+
+type DemoAttachmentImage = {
+  cardId: number;
+  attachment: CardAttachment;
+  imageUrl: string;
+  thumbnailUrl: string;
+};
+
+const demoAttachmentImages: DemoAttachmentImage[] = [
+  makeDemoAttachmentImage(1, 101, 'restyle-buttons.webp', 5468,
+    restyleButtonsImageUrl, restyleButtonsThumbnailUrl),
+  makeDemoAttachmentImage(2, 105, 'web-traffic-pie-chart.webp', 5164,
+    webTrafficPieChartImageUrl, webTrafficPieChartThumbnailUrl),
+  makeDemoAttachmentImage(3, 106, 'pay-the-cat-tax.webp', 11942,
+    catTaxImageUrl, catTaxThumbnailUrl)
+];
 
 type DemoState = {
   version: 1;
@@ -51,14 +75,67 @@ export function resetDemoData() {
 }
 
 const demoBoardApi: BoardApi = {
-  supportsAttachments: false,
-  async getAttachments() { return ok({ items: [], maxUploadByteLength: 0 }); },
-  async getFirstAttachmentImagesByCard() { return ok([]); },
+  supportsAttachments: true,
+  supportsAttachmentMutations: false,
+  async getAttachments(boardId, cardId, archived) {
+    if (boardId !== DemoBoardId || !hasCard(cardId, archived)) {
+      return notFound('Card not found.');
+    }
+
+    const items = demoAttachmentImages
+      .filter(image => image.cardId === cardId)
+      .map(image => clone(image.attachment));
+    return ok({ items, maxUploadByteLength: 0 });
+  },
+  async getFirstAttachmentImagesByCard(boardId, cardIds) {
+    if (boardId !== DemoBoardId) {
+      return notFound('Board not found.');
+    }
+
+    const requestedCardIds = cardIds ? new Set(cardIds) : null;
+    return ok(demoAttachmentImages
+      .filter(image => findCard(image.cardId) && (!requestedCardIds || requestedCardIds.has(image.cardId)))
+      .map(image => ({
+        cardId: image.cardId,
+        attachmentId: image.attachment.id,
+        originalFileName: image.attachment.originalFileName,
+        hasThumbnail: image.attachment.hasThumbnail
+      })));
+  },
   async uploadAttachment() { return unavailable(); },
-  async getAttachmentImage() { return unavailable(); },
-  async getAttachmentThumbnail() { return unavailable(); },
+  async getAttachmentImage(boardId, cardId, archived, fileName) {
+    if (boardId !== DemoBoardId || !hasCard(cardId, archived)) {
+      return notFound('Card not found.');
+    }
+
+    const image = demoAttachmentImages.find(candidate =>
+      candidate.cardId === cardId && candidate.attachment.originalFileName === fileName);
+    return image ? loadDemoImage(image.imageUrl) : notFound('Image not found.');
+  },
+  async getAttachmentThumbnail(boardId, attachmentId) {
+    if (boardId !== DemoBoardId) {
+      return notFound('Board not found.');
+    }
+
+    const image = demoAttachmentImages.find(candidate => candidate.attachment.id === attachmentId);
+    return image ? loadDemoImage(image.thumbnailUrl) : notFound('Thumbnail not found.');
+  },
   async putAttachmentThumbnail() { return unavailable(); },
-  async downloadAttachment() { return unavailable(); },
+  async downloadAttachment(boardId, attachmentId) {
+    if (boardId !== DemoBoardId) {
+      return notFound('Board not found.');
+    }
+
+    const image = demoAttachmentImages.find(candidate => candidate.attachment.id === attachmentId);
+    if (!image) {
+      return notFound('Attachment not found.');
+    }
+
+    const blobResult = await loadDemoImage(image.imageUrl);
+    return blobResult.ok
+      ? ok({ fileName: image.attachment.originalFileName, contentType: image.attachment.contentType, blob: blobResult.data })
+      : blobResult;
+  },
   async deleteAttachment() { return unavailable(); },
   async duplicateCard(boardId, _cardId, model) { return demoBoardApi.createCard(boardId, model); },
   async getBoards() {
@@ -814,7 +891,12 @@ function createSeedState(): DemoState {
         createdAtUtc: timestamp,
         updatedAtUtc: timestamp,
         cards: [
-          createCard(101, 1, 'Customer interview highlights', [1, 2]),
+          createCard(101, 1, 'Restyle buttons', [1, 2], {
+            description: imageDescription(
+              'Bring the primary, secondary, and destructive actions into one consistent visual system.',
+              'Three vertically stacked application buttons in BoardOil colours',
+              restyleButtonsImageUrl)
+          }),
           createCard(102, 1, 'Interactive onboarding checklist', [1]),
           createCard(103, 1, 'AI-assisted acceptance criteria', [3])
         ]
@@ -827,8 +909,13 @@ function createSeedState(): DemoState {
         updatedAtUtc: timestamp,
         cards: [
           createCard(104, 2, 'Keyboard shortcut guide', [2]),
-          createCard(105, 2, 'Release readiness dashboard', [1, 5], { slickId: 1 }),
-          createCard(106, 2, 'Mobile board navigation', [2], { assignedUserId: 2, slickId: 1 })
+          createCard(105, 2, 'Include pie chart of web traffic', [1, 5], {
+            description: imageDescription(
+              'Add a quick traffic breakdown to the analytics summary.',
+              'Rough hand-drawn pie chart of web traffic',
+              webTrafficPieChartImageUrl),
+            slickId: 1
+          })
         ]
       },
       {
@@ -850,6 +937,14 @@ function createSeedState(): DemoState {
         createdAtUtc: timestamp,
         updatedAtUtc: timestamp,
         cards: [
+          createCard(106, 4, 'Pay the cat tax', [2], {
+            description: imageDescription(
+              'Every project update is improved by paying the cat tax.',
+              'Black-and-white cat sitting on a chair',
+              catTaxImageUrl),
+            assignedUserId: 2,
+            slickId: 1
+          }),
           createCard(110, 4, 'Agree launch success measures', [5]),
           createCard(111, 4, 'Publish visual design tokens', [2, 5], { slickId: 1 }),
           createCard(112, 4, 'Add critical browser smoke tests', [4]),
@@ -910,6 +1005,63 @@ function makeTag(
   timestamp: string
 ): Tag {
   return { id, name, emoji, styleName, stylePropertiesJson, createdAtUtc: timestamp, updatedAtUtc: timestamp };
+}
+
+function makeDemoAttachmentImage(
+  attachmentId: number,
+  cardId: number,
+  originalFileName: string,
+  byteLength: number,
+  imageUrl: string,
+  thumbnailUrl: string
+): DemoAttachmentImage {
+  return {
+    cardId,
+    attachment: {
+      id: attachmentId,
+      originalFileName,
+      contentType: 'image/webp',
+      byteLength,
+      createdAtUtc: DemoAttachmentTimestamp,
+      createdByUserId: DemoUserId,
+      hasThumbnail: true
+    },
+    imageUrl,
+    thumbnailUrl
+  };
+}
+
+function imageDescription(introduction: string, alt: string, imageUrl: string) {
+  return `${introduction}\n\n![${alt}](${absoluteDemoAssetUrl(imageUrl)})`;
+}
+
+function absoluteDemoAssetUrl(assetUrl: string) {
+  if (typeof location === 'undefined') {
+    return new URL(assetUrl, 'https://demo.invalid/').toString();
+  }
+
+  return new URL(assetUrl, location.href).toString();
+}
+
+function hasCard(cardId: number, archived: boolean) {
+  if (archived) {
+    return state.archivedCards.some(candidate => candidate.id === cardId);
+  }
+
+  return findCard(cardId) !== null;
+}
+
+async function loadDemoImage(assetUrl: string): Promise<Result<Blob, AppError>> {
+  try {
+    const response = await fetch(assetUrl);
+    if (!response.ok) {
+      return err({ kind: 'http', message: 'The demo image could not be loaded.', statusCode: response.status });
+    }
+
+    return ok(await response.blob());
+  } catch {
+    return err({ kind: 'network', message: 'The demo image could not be loaded.' });
+  }
 }
 
 function toCardTag(tag: Tag): CardTag {

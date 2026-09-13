@@ -14,6 +14,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
   const api = createBoardApi();
   const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
   const supported = api.supportsAttachments === true;
+  const mutable = supported && api.supportsAttachmentMutations !== false;
   const context = ref<AttachmentContext | null>(null);
   const items = ref<CardAttachment[]>([]);
   const activeUploads = ref<Upload[]>([]);
@@ -93,7 +94,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
 
   async function runQueue(onProgress?: (file: File, percent: number) => void) {
     const current = context.value;
-    if (busy.value || !current || current.archived || !supported) { return []; }
+    if (busy.value || !current || current.archived || !supported || !mutable) { return []; }
     const completed: CardAttachment[] = [];
     let refreshThumbnailProjection = false;
     const version = ++runVersion;
@@ -144,7 +145,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
   }
 
   async function upload(files: File[], onProgress?: (file: File, percent: number) => void) {
-    if (!supported || !context.value || context.value.archived) { return []; }
+    if (!supported || !mutable || !context.value || context.value.archived) { return []; }
     const accepted: File[] = [];
     for (const file of files) {
       if (file.size > maxUploadByteLength.value) { warnOversized(file); }
@@ -157,7 +158,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
 
   async function remove(attachmentId: number) {
     const current = context.value;
-    if (!current || current.archived || busy.value) { return; }
+    if (!current || current.archived || busy.value || !mutable) { return; }
     const result = await api.deleteAttachment(current.boardId, current.cardId, attachmentId);
     if (context.value !== current) { return; }
     if (!result.ok) {
@@ -184,6 +185,6 @@ export const useAttachmentStore = defineStore('attachments', () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  return { supported, items, activeUploads, warningMessages, clearWarnings, maxUploadByteLength, loading, busy,
+  return { supported, mutable, items, activeUploads, warningMessages, clearWarnings, maxUploadByteLength, loading, busy,
     open, reload, clear, cancel, upload, remove, download, added, removed, cardRemoved };
 });

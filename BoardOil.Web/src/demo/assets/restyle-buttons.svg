@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <defs>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="170%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#35165a" flood-opacity="0.18" />
+    </filter>
+  </defs>
+  <rect width="300" height="300" rx="24" fill="#edf3fc" />
+  <g filter="url(#shadow)" font-family="Montserrat, Segoe UI, sans-serif" font-size="17" font-weight="700" text-anchor="middle">
+    <rect x="42" y="39" width="216" height="56" rx="10" fill="#35165a" />
+    <text x="150" y="74" fill="#f8f4ff">Save changes</text>
+
+    <rect x="42" y="122" width="216" height="56" rx="10" fill="#69c1ce" />
+    <text x="150" y="157" fill="#1f2937">Move card</text>
+
+    <rect x="42" y="205" width="216" height="56" rx="10" fill="#cd474e" />
+    <text x="150" y="240" fill="#f8f4ff">Delete card</text>
+  </g>
+</svg>
