@@ -1,6 +1,6 @@
 <template>
   <section class="archived-cards-page">
-    <Teleport :to="`#${boardLayoutRegistry.conveyorContentTargetId}`">
+    <Teleport defer :to="`#${boardLayoutRegistry.conveyorContentTargetId}`">
       <BoardCardFilters
         embedded
         :search-text="searchDraft"
@@ -164,9 +164,19 @@ watch(
   }
 );
 
+watch(
+  () => [currentBoardId.value, route.params.cardId],
+  () => {
+    resetDetailModal();
+    if (currentBoardId.value && route.params.cardId) { void openArchivedCard(Number(route.params.cardId)); }
+  },
+  { immediate: true }
+);
+
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 onBeforeUnmount(() => {
+  resetDetailModal();
   conveyorRegistration.dispose();
   if (searchDebounceTimer !== null) {
     clearTimeout(searchDebounceTimer);
@@ -185,7 +195,6 @@ async function initializeView() {
   searchDraft.value = searchQuery.value;
   await loadArchivedCards();
   await tagStore.loadTags(boardId);
-  closeDetailModal();
 }
 
 function handleSearchTextChanged(value: string) {
@@ -236,21 +245,21 @@ function openArchivedCardFromRow(row: Record<string, unknown>) {
     return;
   }
 
-  void openArchivedCard(row as ArchivedCardListItem);
+  void router.push({ name: 'board-archived-card', params: { boardId: currentBoardId.value!, cardId: row.id }, query: route.query });
 }
 
-async function openArchivedCard(item: ArchivedCardListItem) {
+async function openArchivedCard(cardId: number) {
   const boardId = currentBoardId.value!;
 
   detailRequestVersion += 1;
   const requestVersion = detailRequestVersion;
-  selectedArchivedCardListItem.value = item;
+  selectedArchivedCardListItem.value = listItems.value.find(item => item.id === cardId) ?? null;
   selectedArchivedCard.value = null;
   detailErrorMessage.value = '';
   isDetailModalOpen.value = true;
   isLoadingDetail.value = true;
   try {
-    const result = await api.getArchivedCard(boardId, item.id);
+    const result = await api.getArchivedCard(boardId, cardId);
     if (requestVersion !== detailRequestVersion) {
       return;
     }
@@ -269,6 +278,13 @@ async function openArchivedCard(item: ArchivedCardListItem) {
 }
 
 function closeDetailModal() {
+  resetDetailModal();
+  if (route.params.cardId) {
+    void router.replace({ name: 'board-archived', params: { boardId: currentBoardId.value! }, query: route.query });
+  }
+}
+
+function resetDetailModal() {
   detailRequestVersion += 1;
   isDetailModalOpen.value = false;
   isLoadingDetail.value = false;

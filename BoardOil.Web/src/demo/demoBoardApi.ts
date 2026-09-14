@@ -1,5 +1,5 @@
 import type { BoardApi } from '../shared/api/boardApi';
-import type { CardAttachment } from '../shared/types/attachmentTypes';
+import { defaultBoardAttachmentInventoryQuery, type CardAttachment } from '../shared/types/attachmentTypes';
 import type {
   ArchivedCard,
   Board,
@@ -77,6 +77,39 @@ export function resetDemoData() {
 const demoBoardApi: BoardApi = {
   supportsAttachments: true,
   supportsAttachmentMutations: false,
+  async getBoardAttachments(boardId, query = defaultBoardAttachmentInventoryQuery) {
+    if (boardId !== DemoBoardId) { return notFound('Board not found.'); }
+    const items = demoAttachmentImages.flatMap(image => {
+      const live = findCard(image.cardId)?.card;
+      const archived = state.archivedCards.find(card => card.id === image.cardId);
+      const card = live ?? archived;
+      if (!card) { return []; }
+      return [{ ...clone(image.attachment), cardId: card.id, cardTitle: card.title, archived: !live }];
+    });
+    const matching = items.filter(item => {
+      if (query.state === 'live') { return !item.archived; }
+      if (query.state === 'archived') { return item.archived; }
+      return true;
+    }).sort((a, b) => {
+      let comparison: number;
+      if (query.sort === 'size') { comparison = a.byteLength - b.byteLength; }
+      else if (query.sort === 'name') {
+        const firstName = a.originalFileName.toUpperCase();
+        const secondName = b.originalFileName.toUpperCase();
+        comparison = 0;
+        if (firstName < secondName) { comparison = -1; }
+        else if (firstName > secondName) { comparison = 1; }
+      } else { comparison = a.createdAtUtc.localeCompare(b.createdAtUtc); }
+      const stableComparison = comparison || a.id - b.id;
+      return query.direction === 'asc' ? stableComparison : -stableComparison;
+    });
+    return ok({
+      items: matching.slice(query.offset, query.offset + query.limit),
+      totalCount: items.length,
+      totalByteLength: items.reduce((total, item) => total + item.byteLength, 0),
+      matchingCount: matching.length, offset: query.offset, limit: query.limit
+    });
+  },
   async getAttachments(boardId, cardId, archived) {
     if (boardId !== DemoBoardId || !hasCard(cardId, archived)) {
       return notFound('Card not found.');

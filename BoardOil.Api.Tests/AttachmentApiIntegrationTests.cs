@@ -10,6 +10,39 @@ namespace BoardOil.Api.Tests;
 public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
 {
     [Fact]
+    public async Task BoardAttachments_ShouldReturnInventoryContract()
+    {
+        var card = await CreateCard();
+        using var form = Upload([1, 2, 3], "inventory.bin");
+        Assert.Equal(HttpStatusCode.Created,
+            (await Client.PostAsync($"/api/boards/1/cards/{card.Id}/attachments", form)).StatusCode);
+
+        var response = await Client.GetAsync("/api/boards/1/attachments?offset=0&limit=1&sort=name&direction=asc&state=live");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var inventory = (await response.Content.ReadFromJsonAsync<Envelope<BoardAttachmentInventoryDto>>())!.Data!;
+        Assert.Equal(1, inventory.TotalCount);
+        Assert.Equal(3, inventory.TotalByteLength);
+        Assert.Equal(1, inventory.MatchingCount);
+        Assert.Equal(0, inventory.Offset);
+        Assert.Equal(1, inventory.Limit);
+        var item = Assert.Single(inventory.Items);
+        Assert.Equal(card.Id, item.CardId);
+        Assert.Equal(card.Title, item.CardTitle);
+        Assert.Equal("inventory.bin", item.OriginalFileName);
+        Assert.Equal(3, item.ByteLength);
+        Assert.False(item.Archived);
+    }
+
+    [Fact]
+    public async Task BoardAttachments_ShouldMapInvalidQueryToBadRequest()
+    {
+        var response = await Client.GetAsync("/api/boards/1/attachments?limit=201");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Attachments_ShouldSupportMultipartListProtectedDownloadDuplicateAndDelete()
     {
         var card = await CreateCard();

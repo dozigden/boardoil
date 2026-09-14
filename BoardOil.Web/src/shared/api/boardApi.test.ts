@@ -15,6 +15,20 @@ vi.mock('./http', () => ({
   putData: vi.fn()
 }));
 
+describe('boardApi attachment inventory', () => {
+  it('sends paging, sorting and ownership filter parameters', async () => {
+    const inventory = { items: [], totalCount: 80, totalByteLength: 400, matchingCount: 60, offset: 50, limit: 50 };
+    vi.mocked(getEnvelope).mockResolvedValueOnce(ok({ success: true, statusCode: 200, data: inventory }));
+
+    const result = await createBoardApi().getBoardAttachments(12, {
+      offset: 50, limit: 50, sort: 'size', direction: 'asc', state: 'archived'
+    });
+
+    expect(getEnvelope).toHaveBeenLastCalledWith('/api/boards/12/attachments?offset=50&limit=50&sort=size&direction=asc&state=archived');
+    expect(result).toEqual(ok(inventory));
+  });
+});
+
 describe('boardApi exportBoard', () => {
   beforeEach(() => {
     vi.clearAllMocks();

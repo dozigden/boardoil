@@ -46,7 +46,7 @@ describe('router layout meta mapping', () => {
 
   it('maps board-family routes to APP_LAYOUT_BOARD_WITH_CONVEYOR', () => {
     expect(findIndexedByName('board')?.nearestLayout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
-    expect(findByName('board-archived')?.meta?.layout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
+    expect(findIndexedByName('board-archived')?.nearestLayout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
     expect(findIndexedByName('board-card')?.nearestLayout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
     expect(findIndexedByName('board-card-transfer')?.nearestLayout).toBe(APP_LAYOUT_BOARD_WITH_CONVEYOR);
   });
@@ -80,7 +80,7 @@ describe('router layout meta mapping', () => {
 
   it('maps board context requirement to board-scoped route roots', () => {
     expect(findIndexedByName('board')?.requiresBoardContext).toBe(true);
-    expect(findByName('board-archived')?.meta?.requiresBoardContext).toBe(true);
+    expect(findIndexedByName('board-archived')?.requiresBoardContext).toBe(true);
     expect(findIndexedByName('board-card')?.requiresBoardContext).toBe(true);
     expect(findIndexedByName('board-card-transfer')?.requiresBoardContext).toBe(true);
     expect(findByPath('/boards/:boardId(\\d+)/admin')?.meta?.requiresBoardContext).toBe(true);
@@ -136,6 +136,7 @@ describe('router layout meta mapping', () => {
     const boardRouteNames = [
       'board',
       'board-archived',
+      'board-archived-card',
       'board-card',
       'board-card-transfer',
       'board-details',
@@ -151,6 +152,7 @@ describe('router layout meta mapping', () => {
       'card-types-new',
       'card-types-card-type',
       'board-members',
+      'board-attachments',
       'board-delete'
     ];
 
@@ -176,6 +178,7 @@ describe('router layout meta mapping', () => {
       'card-types-new',
       'card-types-card-type',
       'board-members',
+      'board-attachments',
       'board-delete'
     ];
 

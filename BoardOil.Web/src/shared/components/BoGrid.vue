@@ -35,8 +35,8 @@
               :tabindex="rowClickable ? 0 : undefined"
               role="row"
               @click="onRowClicked(item.data, $event)"
-              @keydown.enter.prevent="onRowClicked(item.data, $event)"
-              @keydown.space.prevent="onRowClicked(item.data, $event)"
+              @keydown.enter="onRowKeyDown(item.data, $event)"
+              @keydown.space="onRowKeyDown(item.data, $event)"
             >
               <div
                 v-for="column in columns"
@@ -178,12 +178,22 @@ const paginationRangeEnd = computed(() => {
 
   return Math.min(Math.max(paginationOffset.value + props.items.length, 0), totalCount);
 });
-const canGoPrevious = computed(() => paginationOffset.value > 0);
+const canGoPrevious = computed(() => !props.isLoading && paginationOffset.value > 0);
 const canGoNext = computed(() =>
-  paginationOffset.value + props.items.length < paginationTotalCount.value
+  !props.isLoading && paginationOffset.value + props.items.length < paginationTotalCount.value
 );
 
-function onRowClicked(row: RowRecord, event: MouseEvent | KeyboardEvent) {
+function onRowKeyDown(row: RowRecord, event: KeyboardEvent) {
+  // Nested links and controls retain their native keyboard behaviour.
+  if (!props.rowClickable || event.target !== event.currentTarget) {
+    return;
+  }
+
+  event.preventDefault();
+  emit('row-clicked', row);
+}
+
+function onRowClicked(row: RowRecord, event: MouseEvent) {
   if (!props.rowClickable) {
     return;
   }

@@ -2,6 +2,7 @@ using BoardOil.Abstractions.Attachment;
 using BoardOil.Api.Auth;
 using BoardOil.Api.Extensions;
 using BoardOil.Contracts.Common;
+using BoardOil.Contracts.Card;
 using BoardOil.Services.Auth;
 using Microsoft.AspNetCore.Http.Features;
 
@@ -14,6 +15,11 @@ public static class AttachmentEndpoints
         var group = app.MapGroup("/api/boards/{boardId:int}")
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
             .AddEndpointFilter<RequireActorUserIdFilter>().WithTags("Attachments");
+        group.MapGet("/attachments", async (int boardId, int? offset, int? limit, string? sort, string? direction,
+            string? state, IBoardAttachmentInventoryService service, HttpContext context) =>
+            (await service.ListAsync(boardId, context.GetActorUserId(),
+                new BoardAttachmentInventoryQuery(offset ?? 0, limit ?? 50, sort ?? "date", direction ?? "desc", state ?? "both"),
+                context.RequestAborted)).ToHttpResult());
         group.MapGet("/cards/{cardId:int}/attachments", async (int boardId, int cardId, ICardAttachmentService service, HttpContext context) =>
             (await service.ListAsync(boardId, cardId, false, context.GetActorUserId())).ToHttpResult());
         group.MapGet("/cards/archived/{cardId:int}/attachments", async (int boardId, int cardId, ICardAttachmentService service, HttpContext context) =>

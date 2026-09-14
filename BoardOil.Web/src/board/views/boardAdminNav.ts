@@ -38,6 +38,10 @@ export function buildBoardAdminNavItems(boardId: number, currentUserRole: string
       to: { name: 'board-members', params: { boardId } }
     });
     items.push({
+      label: 'Attachments',
+      to: { name: 'board-attachments', params: { boardId } }
+    });
+    items.push({
       label: 'Delete board',
       to: { name: 'board-delete', params: { boardId } }
     });

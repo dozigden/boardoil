@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CardAttachmentService>();
         services.AddScoped<ICardAttachmentService>(provider => provider.GetRequiredService<CardAttachmentService>());
         services.AddScoped<IBoardAttachmentImageQueryService, BoardAttachmentImageQueryService>();
+        services.AddScoped<IBoardAttachmentInventoryService, BoardAttachmentInventoryService>();
         services.AddScoped<AttachmentTransferService>();
         services.AddScoped<IAttachmentTransferService>(provider => provider.GetRequiredService<AttachmentTransferService>());
         services.AddScoped<BoardPackageStorageService>();

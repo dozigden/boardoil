@@ -173,6 +173,13 @@ export class BoardOilApi {
     return await readEnvelope<SmokeAttachment>(response);
   }
 
+  public async archiveCard(boardId: number, cardId: number) {
+    const response = await this.request.post(`/api/boards/${boardId}/cards/${cardId}/archive`, {
+      data: {}, headers: { 'X-BoardOil-CSRF': this.csrfToken }
+    });
+    if (!response.ok()) { throw new Error(`Archive failed (${response.status()}): ${await response.text()}`); }
+  }
+
   public async setCardAttachmentThumbnailsEnabled(board: SmokeBoard, enabled: boolean) {
     const updated = await this.put<SmokeBoardSummary>(`/api/boards/${board.id}`, {
       name: board.name,

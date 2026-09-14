@@ -1,5 +1,5 @@
 import { uploadFormData } from './http';
-import type { CardAttachment, CardAttachmentImageCandidate, CardAttachmentList } from '../types/attachmentTypes';
+import type { BoardAttachmentInventory, BoardAttachmentInventoryQuery, CardAttachment, CardAttachmentImageCandidate, CardAttachmentList } from '../types/attachmentTypes';
 import type {
   ArchiveCardsSummary,
   ArchivedCard,
@@ -174,6 +174,22 @@ function createHttpBoardApi() {
 
   async function duplicateCard(boardId: number, cardId: number, model: CardEditModel): Promise<Result<Card, AppError>> {
     return postData<Card>(`/api/boards/${boardId}/cards/${cardId}/duplicate`, model);
+  }
+
+  async function getBoardAttachments(boardId: number, query?: BoardAttachmentInventoryQuery): Promise<Result<BoardAttachmentInventory, AppError>> {
+    const params = new URLSearchParams();
+    if (query) {
+      params.set('offset', String(query.offset));
+      params.set('limit', String(query.limit));
+      params.set('sort', query.sort);
+      params.set('direction', query.direction);
+      params.set('state', query.state);
+    }
+    const suffix = params.size > 0 ? `?${params}` : '';
+    const result = await getEnvelope<BoardAttachmentInventory>(`/api/boards/${boardId}/attachments${suffix}`);
+    if (!result.ok) { return result; }
+    if (!result.data.data) { return err({ kind: 'api', message: 'Failed to load board attachments.' }); }
+    return ok(result.data.data);
   }
 
   async function getAttachments(boardId: number, cardId: number, archived: boolean): Promise<Result<CardAttachmentList, AppError>> {
@@ -485,6 +501,7 @@ function createHttpBoardApi() {
     supportsAttachments: true,
     supportsAttachmentMutations: true,
     getAttachments,
+    getBoardAttachments,
     getFirstAttachmentImagesByCard,
     uploadAttachment,
     getAttachmentImage,

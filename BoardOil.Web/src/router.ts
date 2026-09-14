@@ -119,9 +119,12 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/boards/:boardId(\\d+)/archived',
-    name: 'board-archived',
     component: () => import('./board/views/ArchivedCardsView.vue'),
-    meta: { requiresAuth: true, requiresBoardContext: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR }
+    meta: { requiresAuth: true, requiresBoardContext: true, layout: APP_LAYOUT_BOARD_WITH_CONVEYOR },
+    children: [
+      { path: '', name: 'board-archived', components: {} },
+      { path: ':cardId(\\d+)', name: 'board-archived-card', components: {} }
+    ]
   },
   {
     path: '/boards/:boardId(\\d+)/admin',
@@ -218,6 +221,11 @@ const routes: RouteRecordRaw[] = [
         path: 'members',
         name: 'board-members',
         component: () => import('./board/views/BoardMembersView.vue')
+      },
+      {
+        path: 'attachments',
+        name: 'board-attachments',
+        component: () => import('./board/views/BoardAttachmentsView.vue')
       },
       {
         path: 'delete',
