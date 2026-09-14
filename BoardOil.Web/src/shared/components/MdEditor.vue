@@ -613,7 +613,7 @@ function insertRichAttachmentReference(editor: TiptapEditor, reference: string, 
   }
   const markdown = imageMarkdown(fileName);
   if (editor.getMarkdown().length + markdown.length + 2 > props.maxLength) {
-    imageUploadMessage.value = 'The image could not be inserted because the description is at its length limit.';
+    imageUploadMessage.value = 'The image could not be inserted because this content is at its length limit.';
     return;
   }
   const inserted = editor.chain().focus().insertContentAt(position, {
@@ -632,7 +632,7 @@ function insertRichAttachmentReference(editor: TiptapEditor, reference: string, 
 function insertRichExternalImage(editor: TiptapEditor, image: DraggedExternalImage, position: number) {
   const markdown = externalImageMarkdown(image);
   if (editor.getMarkdown().length + markdown.length + 2 > props.maxLength) {
-    imageUploadMessage.value = 'The image could not be inserted because the description is at its length limit.';
+    imageUploadMessage.value = 'The image could not be inserted because this content is at its length limit.';
     return;
   }
   const inserted = editor.chain().focus().insertContentAt(position, {
@@ -670,7 +670,7 @@ function insertPlainImageMarkdown(markdown: string, position: number, successMes
   const inserted = `${prefix}${markdown}${suffix}`;
   const nextValue = `${before}${inserted}${after}`;
   if (nextValue.length > props.maxLength) {
-    imageUploadMessage.value = 'The image could not be inserted because the description is at its length limit.';
+    imageUploadMessage.value = 'The image could not be inserted because this content is at its length limit.';
     return;
   }
   onPlainTextInput(nextValue);
@@ -789,7 +789,7 @@ function completeTask(task: ImageUploadTask, fileName: string): boolean {
     } else if (task.plainMarker) {
       onPlainTextInput(plainTextDraft.value.replace(task.plainMarker, ''));
     }
-    imageUploadMessage.value = `${fileName} was uploaded as an attachment, but its insertion was removed or the description is at its length limit.`;
+    imageUploadMessage.value = `${fileName} was uploaded as an attachment, but it could not be inserted. The insertion point may have been removed, or this content may be at its length limit.`;
   } else {
     emitCompletedImageUserEdit(task.mode);
   }

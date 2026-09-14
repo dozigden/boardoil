@@ -80,10 +80,10 @@
             class="card-editor-shared-toolbar"
             :state="activeToolbarState"
             :is-plain-text-mode="activeIsPlainTextMode"
-            :show-image-action="activeEditor === 'description' && !isDuplicatingCard && attachments.mutable"
+            :show-image-action="!isDuplicatingCard && attachments.mutable"
             :image-action-disabled="attachments.busy || attachments.loading || attachments.maxUploadByteLength === 0"
             @action="runSharedToolbarAction"
-            @image="selectDescriptionImage"
+            @image="selectActiveEditorImage"
             @toggle-plain-text-mode="toggleSharedToolbarPlainTextMode"
           />
           <div class="card-editor-description-field">
@@ -94,9 +94,9 @@
               :max-length="maxDescriptionLength"
               min-height="12rem"
               :show-toolbar="false"
-              :image-context="descriptionImageContext"
+              :image-context="cardImageContext"
               :image-remove="removeDescriptionImage"
-              :image-upload="descriptionImageUpload"
+              :image-upload="cardImageUpload"
               :image-upload-cancel="attachments.cancel"
               @update:model-value="handleDescriptionEditorValueUpdate"
               @user-edit="applyUserDescriptionEdit"
@@ -119,17 +119,23 @@
                   :max-length="maxCommentLength"
                   :min-height="newCommentText.trim().length === 0 ? '3rem' : '6rem'"
                   :show-toolbar="false"
+                  :image-context="cardImageContext"
+                  :image-remove="removeCommentImage"
+                  :image-upload="cardImageUpload"
+                  :image-upload-cancel="attachments.cancel"
                   @update:model-value="updateCommentDraftFromEditor"
+                  @user-edit="applyUserCommentEdit"
                   @focus="handleCommentEditorFocus"
                   @blur="handleCommentEditorBlur"
                   @escape="closeCardEditor"
                   @toolbar-state-change="handleCommentToolbarStateChange"
                   @plain-text-mode-change="handleCommentPlainTextModeChange"
+                  @image-upload-blocking-change="handleCommentImageBlockingChange"
                 />
                 <button
                   type="button"
                   class="btn card-editor-comment-add-button"
-                  :disabled="newCommentText.trim().length === 0 || commentsBusy"
+                  :disabled="newCommentText.trim().length === 0 || commentsBusy || commentImageBlocking"
                   @click="addComment"
                 >
                   Add
@@ -164,6 +170,7 @@
                     aria-label="Comment content"
                     :max-length="maxCommentLength"
                     min-height="1.5rem"
+                    :image-context="cardImageContext"
                   />
                   <time
                     class="card-editor-comment-timestamp"
@@ -322,7 +329,7 @@
           <button
             type="submit"
             class="btn"
-            :disabled="descriptionImageBlocking || (isDuplicatingCard && !canCreateDuplicate)"
+            :disabled="imageUploadBlocking || (isDuplicatingCard && !canCreateDuplicate)"
             :aria-label="primaryActionLabel"
             :title="primaryActionLabel"
           >
@@ -419,6 +426,7 @@ const commentToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEditor
 const descriptionIsPlainTextMode = ref(false);
 const commentIsPlainTextMode = ref(false);
 const descriptionImageBlocking = ref(false);
+const commentImageBlocking = ref(false);
 
 const hasUnsavedChanges = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value);
 const isTransferDisabled = computed(() => hasUnsavedChanges.value || attachments.busy);
@@ -433,7 +441,8 @@ const canCreateDuplicate = computed(() => (
   Boolean(cardDraft.value?.title.trim()) && cardDraft.value?.cardTypeId !== null
 ));
 const primaryActionLabel = computed(() => isDuplicatingCard.value ? 'Create duplicate card' : 'Save card');
-const descriptionImageContext = computed<MarkdownImageContext | null>(() => {
+const imageUploadBlocking = computed(() => descriptionImageBlocking.value || commentImageBlocking.value);
+const cardImageContext = computed<MarkdownImageContext | null>(() => {
   const cardId = routeCardId.value;
   if (!attachments.supported || cardId === null) {
     return null;
@@ -445,8 +454,8 @@ const descriptionImageContext = computed<MarkdownImageContext | null>(() => {
     refreshKey: attachments.revision
   };
 });
-const descriptionImageUpload = computed<MarkdownImageUpload | null>(() => {
-  return isDuplicatingCard.value || !attachments.mutable ? null : uploadDescriptionImage;
+const cardImageUpload = computed<MarkdownImageUpload | null>(() => {
+  return isDuplicatingCard.value || !attachments.mutable ? null : uploadCardImage;
 });
 
 const routeCardId = computed<number | null>(() => {
@@ -575,8 +584,11 @@ function runSharedToolbarAction(actionEvent: MdEditorToolbarActionEvent) {
   editor?.runToolbarAction(actionEvent);
 }
 
-function selectDescriptionImage() {
-  descriptionEditorRef.value?.selectImage();
+function selectActiveEditorImage() {
+  const editor = activeEditor.value === 'comment'
+    ? commentEditorRef.value
+    : descriptionEditorRef.value;
+  editor?.selectImage();
 }
 
 function toggleSharedToolbarPlainTextMode() {
@@ -609,6 +621,7 @@ function clearDraft() {
   descriptionEditorFocused.value = false;
   commentEditorFocused.value = false;
   descriptionImageBlocking.value = false;
+  commentImageBlocking.value = false;
 }
 
 function resetCommentDraft() {
@@ -701,18 +714,35 @@ function updateCommentDraftFromEditor(value: string) {
   newCommentText.value = value;
 }
 
+function applyUserCommentEdit(value: string) {
+  newCommentText.value = value;
+  isCommentDraftDirty.value = true;
+}
+
 function handleDescriptionImageBlockingChange(blocking: boolean) {
   descriptionImageBlocking.value = blocking;
 }
 
+function handleCommentImageBlockingChange(blocking: boolean) {
+  commentImageBlocking.value = blocking;
+}
+
 async function removeDescriptionImage(image: MarkdownImageActivation): Promise<boolean> {
+  return await removeDraftImage(image, 'description');
+}
+
+async function removeCommentImage(image: MarkdownImageActivation): Promise<boolean> {
+  return await removeDraftImage(image, 'comment');
+}
+
+async function removeDraftImage(image: MarkdownImageActivation, location: 'description' | 'comment'): Promise<boolean> {
   const attachmentFileName = image.attachmentFileName?.toUpperCase();
   const attachment = attachmentFileName
     ? attachments.items.find(item => item.originalFileName.toUpperCase() === attachmentFileName)
     : undefined;
-  let message = 'Remove this image from the description?';
+  let message = `Remove this image from the ${location}?`;
   if (attachment) {
-    message = `Remove this image from the description and delete attachment "${attachment.originalFileName}"?`;
+    message = `Remove this image from the ${location} and delete attachment "${attachment.originalFileName}"?`;
   }
   const confirmed = await confirm({
     title: 'Remove image',
@@ -726,7 +756,7 @@ async function removeDescriptionImage(image: MarkdownImageActivation): Promise<b
   return await attachments.remove(attachment.id);
 }
 
-async function uploadDescriptionImage(
+async function uploadCardImage(
   files: File[],
   onProgress: (file: File, percent: number) => void,
   options: MarkdownImageUploadOptions
@@ -964,7 +994,7 @@ function initializeDraftForCard(nextBoardId: number, nextCard: Card) {
 async function saveCard() {
   const draft = cardDraft.value;
   const cardId = routeCardId.value;
-  if (!draft || draft.cardTypeId === null || descriptionImageBlocking.value) {
+  if (!draft || draft.cardTypeId === null || imageUploadBlocking.value) {
     return;
   }
 
@@ -989,7 +1019,7 @@ async function saveCard() {
 
 async function addComment() {
   const cardId = routeCardId.value;
-  if (!cardDraft.value || commentsBusy.value || cardId === null) {
+  if (!cardDraft.value || commentsBusy.value || commentImageBlocking.value || cardId === null) {
     return;
   }
 
@@ -1378,7 +1408,7 @@ onBeforeRouteUpdate(async (to, from) => {
   margin-bottom: 0;
 }
 
-.card-editor-comment-body :deep(.md-viewer) {
+.card-editor-comment-body {
   flex: 0 0 auto;
   min-height: fit-content;
   overflow: visible;

@@ -151,6 +151,69 @@ test('a picked card image persists as a protected owner-relative Markdown refere
   expect(await response.body()).toEqual(onePixelPng);
 });
 
+test('a picked image can be posted and reopened in a comment', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression comment image');
+  await api.createCard(board, 'Todo', 'Comment image card');
+  const boardPage = new BoardPage(page);
+  const attachmentPanel = new AttachmentPanel(page);
+  await boardPage.open(board.id);
+  await boardPage.openCard('Todo', 'Comment image card');
+
+  const dialog = page.getByRole('dialog');
+  const commentsSection = dialog.getByLabel('Card comments');
+  const commentEditor = commentsSection.getByLabel('Comment', { exact: true });
+  await commentEditor.click();
+  const addCommentButton = commentsSection.getByRole('button', { name: 'Add', exact: true });
+  await expect(addCommentButton).toBeDisabled();
+
+  let releaseUpload!: () => void;
+  const uploadGate = new Promise<void>(resolve => {
+    releaseUpload = resolve;
+  });
+  await page.route('**/cards/*/attachments', async route => {
+    if (route.request().method() === 'POST') {
+      await uploadGate;
+    }
+    await route.continue();
+  });
+
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await dialog.getByRole('button', { name: 'Add image', exact: true }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles({
+    name: 'comment-diagram.png',
+    mimeType: 'image/png',
+    buffer: onePixelPng
+  });
+  await expect(addCommentButton).toBeDisabled();
+
+  releaseUpload();
+  await expect(commentEditor.getByRole('button', { name: 'Enlarge image: comment-diagram' })).toBeVisible();
+  await expect(addCommentButton).toBeEnabled();
+  await page.unroute('**/cards/*/attachments');
+
+  await dialog.getByTitle('Cancel editing', { exact: true }).click();
+  const discardDialog = page.getByRole('dialog').filter({
+    has: page.getByRole('heading', { name: 'Discard unsaved changes' })
+  });
+  await expect(discardDialog).toBeVisible();
+  await discardDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(discardDialog).toBeHidden();
+  await addCommentButton.click();
+
+  const savedComment = dialog.getByLabel('Comment content');
+  await expect(savedComment.getByRole('button', { name: 'Enlarge image: comment-diagram' })).toBeVisible();
+  await dialog.getByTitle('Cancel editing', { exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  await boardPage.openCard('Todo', 'Comment image card');
+  const reopenedComment = dialog.getByLabel('Comment content');
+  await expect(reopenedComment.getByRole('button', { name: 'Enlarge image: comment-diagram' })).toBeVisible();
+  await attachmentPanel.delete('comment-diagram.png');
+  await expect(reopenedComment.locator('.md-image-node-placeholder[aria-label="comment-diagram"]'))
+    .toHaveText('Image unavailable');
+});
+
 test('all supported picked image formats decode and use canonical inline types', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Regression supported image formats');
   await api.createCard(board, 'Todo', 'Format card');

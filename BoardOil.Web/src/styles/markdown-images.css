@@ -46,6 +46,7 @@
 .md-image-node-placeholder {
   display: block;
   width: 100%;
+  box-sizing: border-box;
   border: 1px dashed var(--bo-border-default);
   border-radius: 8px;
   padding: 0.75rem;

@@ -88,7 +88,7 @@ function canDragImage(item: CardAttachment) {
 function attachmentTitle(item: CardAttachment) {
   const size = formatSize(item.byteLength);
   return canDragImage(item)
-    ? `${size} · Drag into the description to insert the image`
+    ? `${size} · Drag into the description or a comment to insert the image`
     : size;
 }
 function attachmentDragStarted(event: DragEvent) {
