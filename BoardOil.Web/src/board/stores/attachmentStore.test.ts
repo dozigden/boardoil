@@ -5,7 +5,7 @@ import { err, ok } from '../../shared/types/result';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 
-const api = { supportsAttachments: true, supportsAttachmentMutations: true, getAttachments: vi.fn(), getFirstAttachmentImagesByCard: vi.fn(), uploadAttachment: vi.fn(), deleteAttachment: vi.fn(), downloadAttachment: vi.fn() };
+const api = { supportsAttachments: true, supportsAttachmentMutations: true, getAttachments: vi.fn(), getCardThumbnails: vi.fn(), uploadAttachment: vi.fn(), deleteAttachment: vi.fn(), downloadAttachment: vi.fn() };
 vi.mock('../../shared/api/boardApi', () => ({ createBoardApi: () => api }));
 const attachment: CardAttachment = { id: 1, originalFileName: 'file.bin', byteLength: 3,
   contentType: 'application/octet-stream', createdAtUtc: '2026-09-11T12:00:00Z', createdByUserId: null, hasThumbnail: false };
@@ -20,7 +20,7 @@ describe('attachments', () => {
     api.supportsAttachments = true;
     api.supportsAttachmentMutations = true;
     api.getAttachments.mockResolvedValue(listing());
-    api.getFirstAttachmentImagesByCard.mockResolvedValue(ok([]));
+    api.getCardThumbnails.mockResolvedValue(ok([]));
   });
 
   it('ignores a previous card load after navigation', async () => {
@@ -166,13 +166,13 @@ describe('attachments', () => {
     const image = { ...attachment, originalFileName: 'saved.png' };
     api.uploadAttachment.mockResolvedValue(err({ kind: 'network', message: 'Connection lost' }));
     api.getAttachments.mockResolvedValue(listing([image]));
-    api.getFirstAttachmentImagesByCard.mockResolvedValueOnce(ok([
+    api.getCardThumbnails.mockResolvedValueOnce(ok([
       { cardId: 1, attachmentId: image.id, originalFileName: image.originalFileName, hasThumbnail: false }
     ]));
 
     await store.upload([new File(['abc'], image.originalFileName, { type: 'image/png' })]);
 
-    expect(api.getFirstAttachmentImagesByCard).toHaveBeenLastCalledWith(1, [1]);
+    expect(api.getCardThumbnails).toHaveBeenLastCalledWith(1, [1]);
     expect(thumbnailStore.getForCard(1)?.attachmentId).toBe(image.id);
   });
 

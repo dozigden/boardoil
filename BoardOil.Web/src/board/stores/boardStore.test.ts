@@ -14,7 +14,7 @@ import type { CardAttachment } from '../../shared/types/attachmentTypes';
 
 const api = {
   supportsAttachments: true,
-  getFirstAttachmentImagesByCard: vi.fn(),
+  getCardThumbnails: vi.fn(),
   getSlicks: vi.fn(),
   getBoard: vi.fn(),
   createColumn: vi.fn(),
@@ -67,7 +67,7 @@ describe('boardStore', () => {
     systemInfoMessageStore.setMessage.mockReset();
     systemInfoMessageStore.load.mockClear();
     api.getBoard.mockResolvedValue(ok(makeBoard()));
-    api.getFirstAttachmentImagesByCard.mockResolvedValue(ok([]));
+    api.getCardThumbnails.mockResolvedValue(ok([]));
     realtime.connect.mockResolvedValue(undefined);
     realtime.disconnect.mockResolvedValue(undefined);
   });
@@ -321,7 +321,7 @@ describe('boardStore', () => {
   it('applies realtime attachment changes to the card thumbnail projection', async () => {
     const store = useBoardStore();
     await store.initialize(1);
-    await vi.waitFor(() => expect(api.getFirstAttachmentImagesByCard).toHaveBeenCalledWith(1));
+    await vi.waitFor(() => expect(api.getCardThumbnails).toHaveBeenCalledWith(1));
     const thumbnailStore = useCardAttachmentThumbnailStore();
     const addedAttachment: CardAttachment = {
       id: 8,
@@ -335,32 +335,32 @@ describe('boardStore', () => {
 
     await realtimeHandlers!.onAttachmentAdded(1, 101, addedAttachment);
     expect(thumbnailStore.getForCard(101)?.attachmentId).toBe(8);
-    api.getFirstAttachmentImagesByCard.mockResolvedValueOnce(ok([
+    api.getCardThumbnails.mockResolvedValueOnce(ok([
       { cardId: 101, attachmentId: 9, originalFileName: 'second.png', hasThumbnail: true }
     ]));
 
     await realtimeHandlers!.onAttachmentDeleted(1, 101, 8);
 
-    expect(api.getFirstAttachmentImagesByCard).toHaveBeenLastCalledWith(1, [101]);
+    expect(api.getCardThumbnails).toHaveBeenLastCalledWith(1, [101]);
     expect(thumbnailStore.getForCard(101)?.attachmentId).toBe(9);
   });
 
   it('refreshes the thumbnail candidate when realtime creates a card', async () => {
     const store = useBoardStore();
     await store.initialize(1);
-    await vi.waitFor(() => expect(api.getFirstAttachmentImagesByCard).toHaveBeenCalledWith(1));
+    await vi.waitFor(() => expect(api.getCardThumbnails).toHaveBeenCalledWith(1));
     const createdCard = {
       ...makeBoard().columns[0].cards[0],
       id: 102,
       title: 'Duplicated card'
     };
-    api.getFirstAttachmentImagesByCard.mockResolvedValueOnce(ok([
+    api.getCardThumbnails.mockResolvedValueOnce(ok([
       { cardId: 102, attachmentId: 12, originalFileName: 'copied.png', hasThumbnail: true }
     ]));
 
     await realtimeHandlers!.onCardCreated(1, createdCard);
 
-    expect(api.getFirstAttachmentImagesByCard).toHaveBeenLastCalledWith(1, [102]);
+    expect(api.getCardThumbnails).toHaveBeenLastCalledWith(1, [102]);
     expect(useCardAttachmentThumbnailStore().getForCard(102)?.attachmentId).toBe(12);
   });
 

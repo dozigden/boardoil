@@ -120,7 +120,7 @@ const demoBoardApi: BoardApi = {
       .map(image => clone(image.attachment));
     return ok({ items, maxUploadByteLength: 0 });
   },
-  async getFirstAttachmentImagesByCard(boardId, cardIds) {
+  async getCardThumbnails(boardId, cardIds) {
     if (boardId !== DemoBoardId) {
       return notFound('Board not found.');
     }

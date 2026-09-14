@@ -200,7 +200,7 @@ function createHttpBoardApi() {
     return ok(result.data.data);
   }
 
-  async function getFirstAttachmentImagesByCard(
+  async function getCardThumbnails(
     boardId: number,
     cardIds?: number[]
   ): Promise<Result<CardAttachmentImageCandidate[], AppError>> {
@@ -210,7 +210,7 @@ function createHttpBoardApi() {
     }
     const suffix = query.size > 0 ? `?${query.toString()}` : '';
     const result = await getEnvelope<CardAttachmentImageCandidate[]>(
-      `/api/boards/${boardId}/attachment-images/first-by-card${suffix}`);
+      `/api/boards/${boardId}/cards/thumbnails${suffix}`);
     if (!result.ok) { return result; }
     return ok(result.data.data ?? []);
   }
@@ -506,7 +506,7 @@ function createHttpBoardApi() {
     supportsAttachmentMutations: true,
     getAttachments,
     getBoardAttachments,
-    getFirstAttachmentImagesByCard,
+    getCardThumbnails,
     uploadAttachment,
     getAttachmentImage,
     getAttachmentThumbnail,

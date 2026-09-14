@@ -11,7 +11,7 @@ import type { Result } from '../../shared/types/result';
 
 const api = {
   supportsAttachments: true,
-  getFirstAttachmentImagesByCard: vi.fn(),
+  getCardThumbnails: vi.fn(),
   getSlicks: vi.fn(),
   createCard: vi.fn(),
   duplicateCard: vi.fn(),
@@ -33,7 +33,7 @@ describe('cardStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
-    api.getFirstAttachmentImagesByCard.mockResolvedValue(ok([]));
+    api.getCardThumbnails.mockResolvedValue(ok([]));
   });
 
   it('hydrates cards by column from a board snapshot', () => {
@@ -96,13 +96,13 @@ describe('cardStore', () => {
       title: 'Task A copy'
     };
     api.duplicateCard.mockResolvedValue(ok(duplicated));
-    api.getFirstAttachmentImagesByCard.mockResolvedValueOnce(ok([
+    api.getCardThumbnails.mockResolvedValueOnce(ok([
       { cardId: 102, attachmentId: 12, originalFileName: 'copied.png', hasThumbnail: true }
     ]));
 
     await store.createCard(makeCardEditModel({ title: 'Task A copy' }), { duplicateFromCardId: 101 });
 
-    expect(api.getFirstAttachmentImagesByCard).toHaveBeenLastCalledWith(1, [102]);
+    expect(api.getCardThumbnails).toHaveBeenLastCalledWith(1, [102]);
     expect(thumbnailStore.getForCard(102)?.attachmentId).toBe(12);
   });
 

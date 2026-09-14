@@ -173,7 +173,7 @@ describe('boardApi saveBoard', () => {
   });
 });
 
-describe('boardApi getFirstAttachmentImagesByCard', () => {
+describe('boardApi getCardThumbnails', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -185,11 +185,11 @@ describe('boardApi getFirstAttachmentImagesByCard', () => {
       statusCode: 200
     }));
 
-    const result = await createBoardApi().getFirstAttachmentImagesByCard(2, [3, 5]);
+    const result = await createBoardApi().getCardThumbnails(2, [3, 5]);
 
     expect(result.ok).toBe(true);
     expect(getEnvelope).toHaveBeenCalledWith(
-      '/api/boards/2/attachment-images/first-by-card?cardId=3&cardId=5');
+      '/api/boards/2/cards/thumbnails?cardId=3&cardId=5');
   });
 });
 

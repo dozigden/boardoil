@@ -24,7 +24,7 @@ public static class AttachmentEndpoints
             (await service.ListAsync(boardId, cardId, false, context.GetActorUserId())).ToHttpResult());
         group.MapGet("/cards/archived/{cardId:int}/attachments", async (int boardId, int cardId, ICardAttachmentService service, HttpContext context) =>
             (await service.ListAsync(boardId, cardId, true, context.GetActorUserId())).ToHttpResult());
-        group.MapGet("/attachment-images/first-by-card", async (
+        group.MapGet("/cards/thumbnails", async (
             int boardId,
             int[]? cardId,
             IBoardAttachmentImageQueryService service,

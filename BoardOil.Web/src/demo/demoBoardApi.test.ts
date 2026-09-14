@@ -12,7 +12,7 @@ describe('demoBoardApi', () => {
     expect(api.supportsAttachments).toBe(true);
     expect(api.supportsAttachmentMutations).toBe(false);
 
-    const candidatesResult = await api.getFirstAttachmentImagesByCard(1);
+    const candidatesResult = await api.getCardThumbnails(1);
     expect(candidatesResult).toEqual({
       ok: true,
       data: [
@@ -22,7 +22,7 @@ describe('demoBoardApi', () => {
       ]
     });
 
-    const filteredResult = await api.getFirstAttachmentImagesByCard(1, [105, 999]);
+    const filteredResult = await api.getCardThumbnails(1, [105, 999]);
     expect(filteredResult).toEqual({
       ok: true,
       data: [

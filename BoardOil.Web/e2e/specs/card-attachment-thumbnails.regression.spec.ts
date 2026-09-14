@@ -60,7 +60,7 @@ test('a disabled board does not request or render card thumbnails', async ({ api
   const thumbnailRequests: string[] = [];
   page.on('request', request => {
     const path = new URL(request.url()).pathname;
-    if (path.includes('/attachment-images/first-by-card') || path.includes('/attachments/image-content') || path.endsWith('/thumbnail')) {
+    if (path.includes('/cards/thumbnails') || path.includes('/attachments/image-content') || path.endsWith('/thumbnail')) {
       thumbnailRequests.push(path);
     }
   });

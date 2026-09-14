@@ -26,7 +26,7 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
     }
 
     const mutationsAtStart = mutationVersion;
-    const result = await api.getFirstAttachmentImagesByCard(boardId);
+    const result = await api.getCardThumbnails(boardId);
     if (version !== requestVersion || activeBoardId.value !== boardId || !result.ok) {
       return;
     }
@@ -56,7 +56,7 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
       attachmentIdsAtStart.set(cardId, candidatesByCardId.value[cardId]?.attachmentId ?? null);
     }
 
-    const result = await api.getFirstAttachmentImagesByCard(boardId, uniqueCardIds);
+    const result = await api.getCardThumbnails(boardId, uniqueCardIds);
     if (!canHandle(boardId) || !result.ok) {
       return;
     }

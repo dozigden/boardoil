@@ -204,7 +204,7 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
     }
 
     [Fact]
-    public async Task FirstImagesByCard_ShouldReturnOneCandidatePerLiveCardAndSupportFiltering()
+    public async Task CardThumbnails_ShouldReturnOneCandidatePerLiveCardAndSupportFiltering()
     {
         var firstCard = await CreateCard();
         var secondCard = await CreateCard();
@@ -224,9 +224,9 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
         var secondImage = (await secondImageResponse.Content.ReadFromJsonAsync<Envelope<CardAttachmentDto>>())!.Data!;
 
         var all = await Client.GetFromJsonAsync<Envelope<IReadOnlyList<CardAttachmentImageCandidateDto>>>(
-            "/api/boards/1/attachment-images/first-by-card");
+            "/api/boards/1/cards/thumbnails");
         var filtered = await Client.GetFromJsonAsync<Envelope<IReadOnlyList<CardAttachmentImageCandidateDto>>>(
-            $"/api/boards/1/attachment-images/first-by-card?cardId={secondCard.Id}");
+            $"/api/boards/1/cards/thumbnails?cardId={secondCard.Id}");
 
         Assert.Equal(2, all!.Data!.Count);
         Assert.Equal(firstImage.Id, all.Data.Single(x => x.CardId == firstCard.Id).AttachmentId);
@@ -234,7 +234,7 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
         Assert.Equal(secondImage.Id, Assert.Single(filtered!.Data!).AttachmentId);
         using var anonymous = CreateClient();
         Assert.Equal(HttpStatusCode.Unauthorized,
-            (await anonymous.GetAsync("/api/boards/1/attachment-images/first-by-card")).StatusCode);
+            (await anonymous.GetAsync("/api/boards/1/cards/thumbnails")).StatusCode);
     }
 
     private async Task<CardDto> CreateCard()
