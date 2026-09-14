@@ -244,6 +244,10 @@ function createHttpBoardApi() {
     return deleteJson(`/api/boards/${boardId}/cards/${cardId}/attachments/${attachmentId}`);
   }
 
+  async function deleteBoardAttachment(boardId: number, attachmentId: number): Promise<Result<void, AppError>> {
+    return deleteJson(`/api/boards/${boardId}/attachments/${attachmentId}`);
+  }
+
   async function saveCard(
     boardId: number,
     cardId: number,
@@ -509,6 +513,7 @@ function createHttpBoardApi() {
     putAttachmentThumbnail,
     downloadAttachment,
     deleteAttachment,
+    deleteBoardAttachment,
     duplicateCard,
     getBoards,
     getBoard,

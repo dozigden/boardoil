@@ -20,9 +20,10 @@ namespace BoardOil.Services.Tests;
 public sealed class AttachmentDeletionConcurrencyTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ParentDeletion_ShouldLockBeforeSelectingAttachments(bool deleteBoard)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Deletion_ShouldLockBeforeSelectingAttachments(bool deleteBoard, bool deleteAttachment)
     {
         var directory = Directory.CreateTempSubdirectory("boardoil-attachment-delete-");
         try
@@ -60,6 +61,11 @@ public sealed class AttachmentDeletionConcurrencyTests
             var deletion = Task.Run(async () =>
             {
                 await using var deletionScope = provider.CreateAsyncScope();
+                if (deleteAttachment)
+                {
+                    return await deletionScope.ServiceProvider.GetRequiredService<ICardAttachmentService>()
+                        .DeleteFromBoardAsync(board.BoardId, uploaded.Data!.Id, actor.Id);
+                }
                 if (deleteBoard)
                 {
                     return await deletionScope.ServiceProvider.GetRequiredService<IBoardService>().DeleteBoardAsync(board.BoardId, actor.Id);
@@ -77,8 +83,8 @@ public sealed class AttachmentDeletionConcurrencyTests
                 await mover.OpenAsync();
                 await using var command = mover.CreateCommand();
                 command.CommandText = "UPDATE Cards SET BoardId = $board, BoardColumnId = $column WHERE Id = $card";
-                command.Parameters.AddWithValue("$board", deleteBoard ? destinationBoard.BoardId : board.BoardId);
-                command.Parameters.AddWithValue("$column", deleteBoard ? destinationBoard.GetColumn("Destination").Id : board.GetColumn("Destination").Id);
+                command.Parameters.AddWithValue("$board", deleteBoard || deleteAttachment ? destinationBoard.BoardId : board.BoardId);
+                command.Parameters.AddWithValue("$column", deleteBoard || deleteAttachment ? destinationBoard.GetColumn("Destination").Id : board.GetColumn("Destination").Id);
                 command.Parameters.AddWithValue("$card", card.Id);
 
                 var exception = await Assert.ThrowsAsync<SqliteException>(() => command.ExecuteNonQueryAsync());
@@ -92,7 +98,7 @@ public sealed class AttachmentDeletionConcurrencyTests
                 var result = await deletion.WaitAsync(TimeSpan.FromSeconds(10));
                 Assert.True(result.Success, result.Message);
             }
-            Assert.False(await database.Cards.AsNoTracking().AnyAsync(x => x.Id == card.Id));
+            Assert.Equal(deleteAttachment, await database.Cards.AsNoTracking().AnyAsync(x => x.Id == card.Id));
             Assert.Empty(await database.CardAttachments.AsNoTracking().ToListAsync());
         }
         finally

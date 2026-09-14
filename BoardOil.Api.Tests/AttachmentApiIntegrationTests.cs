@@ -43,6 +43,36 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
     }
 
     [Fact]
+    public async Task BoardAttachmentDelete_ShouldDeleteAnArchivedAttachment()
+    {
+        var card = await CreateCard();
+        using var form = Upload([1, 2, 3], "archived.bin");
+        var upload = await Client.PostAsync($"/api/boards/1/cards/{card.Id}/attachments", form);
+        var attachment = (await upload.Content.ReadFromJsonAsync<Envelope<CardAttachmentDto>>())!.Data!;
+        Assert.True((await Client.PostAsJsonAsync($"/api/boards/1/cards/{card.Id}/archive", new { })).IsSuccessStatusCode);
+
+        var response = await Client.DeleteAsync($"/api/boards/1/attachments/{attachment.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Client.GetAsync($"/api/boards/1/attachments/{attachment.Id}/download")).StatusCode);
+    }
+
+    [Fact]
+    public async Task BoardAttachmentDelete_ShouldRequireCsrf()
+    {
+        var card = await CreateCard();
+        using var form = Upload([1], "file.bin");
+        var upload = await Client.PostAsync($"/api/boards/1/cards/{card.Id}/attachments", form);
+        var attachment = (await upload.Content.ReadFromJsonAsync<Envelope<CardAttachmentDto>>())!.Data!;
+        Client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+
+        var response = await Client.DeleteAsync($"/api/boards/1/attachments/{attachment.Id}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.True((await Client.GetAsync($"/api/boards/1/attachments/{attachment.Id}/download")).IsSuccessStatusCode);
+    }
+
+    [Fact]
     public async Task Attachments_ShouldSupportMultipartListProtectedDownloadDuplicateAndDelete()
     {
         var card = await CreateCard();

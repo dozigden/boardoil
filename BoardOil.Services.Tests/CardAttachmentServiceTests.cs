@@ -178,6 +178,86 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Empty(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DeleteFromBoard_ShouldRemoveFilesAndKeepOwningCardContent(bool archived)
+    {
+        const string description = "![Image](image.png)";
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card", description).Build();
+        var card = board.GetCard("Card");
+        var service = ResolveService<ICardAttachmentService>();
+        var uploaded = await service.UploadAsync(board.BoardId, card.BoardCardId, ActorUserId, "image.png", "image/png",
+            new MemoryStream(Png(3, 2)), new MemoryStream(Png(3, 2)), "image/png");
+        Assert.True(uploaded.Success, uploaded.Message);
+        string? snapshot = null;
+        if (archived)
+        {
+            Assert.True((await ResolveService<ICardArchiveService>().ArchiveCardAsync(board.BoardId, card.BoardCardId, ActorUserId)).Success);
+            snapshot = await DbContextForAssert.ArchivedCards.Select(x => x.SnapshotJson).SingleAsync();
+        }
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        events.CardUpdatedEvents.Clear();
+
+        var result = await service.DeleteFromBoardAsync(board.BoardId, uploaded.Data!.Id, ActorUserId);
+
+        Assert.True(result.Success, result.Message);
+        Assert.Empty(await DbContextForAssert.CardAttachments.ToListAsync());
+        Assert.Empty(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+        Assert.Equal((board.BoardId, card.BoardCardId, uploaded.Data.Id), Assert.Single(events.AttachmentDeletedEvents));
+        if (archived)
+        {
+            Assert.Equal(snapshot, await DbContextForAssert.ArchivedCards.Select(x => x.SnapshotJson).SingleAsync());
+            Assert.Empty(events.CardUpdatedEvents);
+        }
+        else
+        {
+            Assert.Equal(description, (await DbContextForAssert.Cards.SingleAsync()).Description);
+            Assert.Equal(description, Assert.Single(events.CardUpdatedEvents).Card.Description);
+        }
+        Assert.Equal(404, (await service.DownloadAsync(board.BoardId, uploaded.Data.Id, ActorUserId)).StatusCode);
+        Assert.Equal(404, (await service.ViewThumbnailAsync(board.BoardId, uploaded.Data.Id, ActorUserId)).StatusCode);
+        Assert.Equal(0, (await ResolveService<IBoardAttachmentInventoryService>().ListAsync(board.BoardId, ActorUserId)).Data!.TotalCount);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task DeleteFromBoard_ShouldRequireCurrentOwnerMembership(bool archived, bool contributor)
+    {
+        var (boardId, cardId, attachment) = await ArrangeAttachment();
+        if (archived) { Assert.True((await ResolveService<ICardArchiveService>().ArchiveCardAsync(boardId, cardId, ActorUserId)).Success); }
+        var membership = await DbContextForArrange.BoardMembers.SingleAsync(x => x.BoardId == boardId);
+        if (contributor) { membership.Role = BoardMemberRole.Contributor; }
+        else { DbContextForArrange.BoardMembers.Remove(membership); }
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await ResolveService<ICardAttachmentService>().DeleteFromBoardAsync(boardId, attachment.Id, ActorUserId);
+
+        Assert.Equal(403, result.StatusCode);
+        Assert.Equal(attachment.Id, (await DbContextForAssert.CardAttachments.SingleAsync()).Id);
+        Assert.Single(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).AttachmentDeletedEvents);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DeleteFromBoard_ShouldRejectAttachmentsOwnedByAnotherBoard(bool archived)
+    {
+        var (boardId, cardId, attachment) = await ArrangeAttachment();
+        if (archived) { Assert.True((await ResolveService<ICardArchiveService>().ArchiveCardAsync(boardId, cardId, ActorUserId)).Success); }
+        var otherBoard = CreateBoard("Other").Build();
+
+        var result = await ResolveService<ICardAttachmentService>().DeleteFromBoardAsync(otherBoard.BoardId, attachment.Id, ActorUserId);
+
+        Assert.Equal(404, result.StatusCode);
+        Assert.Single(await DbContextForAssert.CardAttachments.ToListAsync());
+        Assert.Single(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+    }
+
     [Fact]
     public async Task Archive_ShouldTransferOwnerAndKeepAttachmentDownloadable()
     {

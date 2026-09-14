@@ -115,8 +115,10 @@ public sealed class AttachmentStorageTests : TestBaseDb, IAsyncLifetime
         Assert.Empty(await DbContextForAssert.CardAttachments.ToListAsync());
     }
 
-    [Fact]
-    public async Task Deletion_WhenStorageFails_ShouldRetainAttachmentWithErrorUntilStartup()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Deletion_WhenStorageFails_ShouldRetainAttachmentWithErrorUntilStartup(bool fromInventory)
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
         var cardId = board.GetCard("Card").BoardCardId;
@@ -125,7 +127,9 @@ public sealed class AttachmentStorageTests : TestBaseDb, IAsyncLifetime
         var storage = Assert.IsType<TestStorage>(ResolveService<IAttachmentStorageService>());
         storage.FailDelete = true;
 
-        var result = await service.DeleteAsync(board.BoardId, cardId, ready.Data!.Id, ActorUserId);
+        var result = fromInventory
+            ? await service.DeleteFromBoardAsync(board.BoardId, ready.Data!.Id, ActorUserId)
+            : await service.DeleteAsync(board.BoardId, cardId, ready.Data!.Id, ActorUserId);
 
         Assert.True(result.Success, result.Message);
         var retained = await DbContextForAssert.CardAttachments.SingleAsync();

@@ -44,6 +44,9 @@ public static class AttachmentEndpoints
             ICardAttachmentService service, HttpContext context) =>
             (await service.DeleteAsync(boardId, cardId, attachmentId, context.GetActorUserId())).ToHttpResult());
         group.MapGet("/attachments/{attachmentId:int}/thumbnail", ViewThumbnailAsync);
+        group.MapDelete("/attachments/{attachmentId:int}", async (int boardId, int attachmentId,
+            ICardAttachmentService service, HttpContext context) =>
+            (await service.DeleteFromBoardAsync(boardId, attachmentId, context.GetActorUserId())).ToHttpResult());
         group.MapPut("/attachments/{attachmentId:int}/thumbnail", PutThumbnailAsync);
         group.MapGet("/attachments/{attachmentId:int}/download", async (int boardId, int attachmentId, ICardAttachmentService service, HttpContext context) =>
         {

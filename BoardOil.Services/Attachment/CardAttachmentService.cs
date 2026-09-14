@@ -303,12 +303,43 @@ public sealed class CardAttachmentService(
         if (card is null) { return ApiErrors.NotFound("Card not found."); }
         var attachment = await attachments.Query().SingleOrDefaultAsync(x => x.Id == attachmentId && x.CardId == card.Id && x.State == AttachmentState.Ready);
         if (attachment is null) { return ApiErrors.NotFound("Attachment not found."); }
+        return await DeleteAttachmentAsync(boardId, cardId, attachment, card, scope);
+    }
+
+    public async Task<ApiResult> DeleteFromBoardAsync(int boardId, int attachmentId, int actorUserId)
+    {
+        using var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
+        if (!await authorisation.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageSettings))
+        {
+            return ApiErrors.Forbidden("Owner permission required to delete board attachments.");
+        }
+        var attachment = await attachments.Query().Include(x => x.Card).Include(x => x.ArchivedCard)
+            .SingleOrDefaultAsync(x => x.Id == attachmentId && x.State == AttachmentState.Ready
+                && ((x.Card != null && x.Card.BoardId == boardId)
+                    || (x.ArchivedCard != null && x.ArchivedCard.BoardId == boardId)));
+        if (attachment is null) { return ApiErrors.NotFound("Attachment not found."); }
+
+        if (attachment.Card is not null)
+        {
+            var cardId = attachment.Card.BoardCardId;
+            var card = await cards.GetWithTagsAndBoardAsync(boardId, cardId);
+            return await DeleteAttachmentAsync(boardId, cardId, attachment, card, scope);
+        }
+        return await DeleteAttachmentAsync(boardId, attachment.ArchivedCard!.OriginalCardId, attachment, null, scope);
+    }
+
+    private async Task<ApiResult> DeleteAttachmentAsync(int boardId, int cardId, EntityCardAttachment attachment,
+        EntityBoardCard? card, IDbContextScope scope)
+    {
         MarkForDeletion(attachment);
-        card.CardUpdatedUtc = DateTime.UtcNow;
+        if (card is not null) { card.CardUpdatedUtc = DateTime.UtcNow; }
         await scope.SaveChangesAsync();
         await DeleteFilesAsync([attachment.StorageKey]);
-        await events.CardUpdatedAsync(boardId, await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), images));
-        await events.AttachmentDeletedAsync(boardId, cardId, attachmentId);
+        if (card is not null)
+        {
+            await events.CardUpdatedAsync(boardId, await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), images));
+        }
+        await events.AttachmentDeletedAsync(boardId, cardId, attachment.Id);
         return ApiResults.Ok();
     }
 

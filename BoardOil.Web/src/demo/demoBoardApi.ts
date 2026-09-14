@@ -170,6 +170,7 @@ const demoBoardApi: BoardApi = {
       : blobResult;
   },
   async deleteAttachment() { return unavailable(); },
+  async deleteBoardAttachment() { return unavailable(); },
   async duplicateCard(boardId, _cardId, model) { return demoBoardApi.createCard(boardId, model); },
   async getBoards() {
     return ok([toBoardSummary(state.board)]);

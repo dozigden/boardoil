@@ -19,6 +19,7 @@ public interface ICardAttachmentService
     Task<ApiResult> PutThumbnailAsync(int boardId, int attachmentId, int actorUserId, string? contentType,
         Stream content, CancellationToken cancellationToken = default);
     Task<ApiResult> DeleteAsync(int boardId, int cardId, int attachmentId, int actorUserId);
+    Task<ApiResult> DeleteFromBoardAsync(int boardId, int attachmentId, int actorUserId);
 }
 
 public sealed record AttachmentDownload(string FileName, Stream Content);

@@ -12,19 +12,26 @@ export const useBoardAttachmentInventoryStore = defineStore('boardAttachmentInve
   const loading = ref(false);
   const error = ref('');
   const boardId = ref<number | null>(null);
+  const deletingId = ref<number | null>(null);
+  const mutable = api.supportsAttachments === true && api.supportsAttachmentMutations !== false;
+  let activeQuery = { ...defaultBoardAttachmentInventoryQuery };
   let requestVersion = 0;
+  let contextVersion = 0;
 
   function clear() {
     requestVersion++;
+    contextVersion++;
     boardId.value = null;
     inventory.value = null;
     loading.value = false;
     error.value = '';
+    deletingId.value = null;
   }
 
   async function load(id: number, query: BoardAttachmentInventoryQuery = defaultBoardAttachmentInventoryQuery) {
     if (boardId.value !== id) { clear(); }
     boardId.value = id;
+    activeQuery = { ...query };
     const version = ++requestVersion;
     loading.value = true;
     error.value = '';
@@ -39,6 +46,24 @@ export const useBoardAttachmentInventoryStore = defineStore('boardAttachmentInve
     }
     inventory.value = result.data;
     feedback.clearError();
+  }
+
+  async function remove(id: number, attachmentId: number) {
+    if (!mutable || boardId.value !== id || deletingId.value !== null) { return false; }
+    const version = contextVersion;
+    deletingId.value = attachmentId;
+    try {
+      const result = await api.deleteBoardAttachment(id, attachmentId);
+      if (version !== contextVersion) { return false; }
+      if (!result.ok) {
+        feedback.setError(`Attachment could not be deleted: ${result.error.message}`);
+        return false;
+      }
+      await load(id, activeQuery);
+      return version === contextVersion;
+    } finally {
+      if (version === contextVersion) { deletingId.value = null; }
+    }
   }
 
   async function download(attachmentId: number) {
@@ -59,5 +84,5 @@ export const useBoardAttachmentInventoryStore = defineStore('boardAttachmentInve
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  return { inventory, loading, error, load, clear, download };
+  return { inventory, loading, error, deletingId, mutable, load, clear, download, remove };
 });

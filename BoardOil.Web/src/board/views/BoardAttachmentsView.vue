@@ -4,14 +4,14 @@
       <h2>Attachments</h2>
       <div v-if="isCurrentUserOwner" class="attachment-controls">
         <label>State
-          <select v-model="cardState">
+          <select v-model="cardState" :disabled="store.deletingId !== null">
             <option value="both">(all)</option>
             <option value="live">Live</option>
             <option value="archived">Archived</option>
           </select>
         </label>
         <label>Sort
-          <select v-model="sortOrder">
+          <select v-model="sortOrder" :disabled="store.deletingId !== null">
             <option value="date:desc">Newest first</option>
             <option value="date:asc">Oldest first</option>
             <option value="name:asc">Name (A–Z)</option>
@@ -67,6 +67,11 @@
           <template #cell(archived)="{ row }">
             <span class="attachment-cell">{{ row.archived ? 'Archived' : 'Live' }}</span>
           </template>
+          <template #cell(actions)="{ row }">
+            <button type="button" class="btn btn--danger attachment-delete" :aria-label="`Delete ${row.originalFileName}`"
+              :title="`Delete ${row.originalFileName}`" :disabled="confirming || store.deletingId !== null"
+              @click="deleteAttachment(asAttachment(row))"><Trash2 :size="14" aria-hidden="true" /></button>
+          </template>
         </BoGrid>
       </section>
     </template>
@@ -74,7 +79,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { Trash2 } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import BoGrid from '../../shared/components/BoGrid.vue';
@@ -82,12 +88,34 @@ import { useBoardStore } from '../stores/boardStore';
 import { useBoardAttachmentInventoryStore } from '../stores/boardAttachmentInventoryStore';
 import { formatAttachmentSize } from '../utils/formatAttachmentSize';
 import { buildApiUrl } from '../../shared/api/config';
+import { useConfirm } from '../../shared/composables/useConfirm';
 import { defaultBoardAttachmentInventoryQuery, type BoardAttachmentInventoryItem, type BoardAttachmentInventoryQuery } from '../../shared/types/attachmentTypes';
 
 const { currentBoardId, isCurrentUserOwner } = storeToRefs(useBoardStore());
 const store = useBoardAttachmentInventoryStore();
 const route = useRoute();
 const router = useRouter();
+const { confirm } = useConfirm();
+const confirming = ref(false);
+let disposed = false;
+async function deleteAttachment(item: BoardAttachmentInventoryItem) {
+  const boardId = currentBoardId.value;
+  if (boardId === null || !isCurrentUserOwner.value || !store.mutable || confirming.value || store.deletingId !== null) { return; }
+  confirming.value = true;
+  try {
+    const state = item.archived ? 'archived' : 'live';
+    const accepted = await confirm({
+      title: 'Delete attachment',
+      message: `Permanently delete "${item.originalFileName}" from ${state} card #${item.cardId}: ${item.cardTitle}? This cannot be undone. References to this file in card descriptions will stop working.`,
+      confirmLabel: 'Delete', danger: true
+    });
+    if (accepted && !disposed && currentBoardId.value === boardId && isCurrentUserOwner.value) {
+      await store.remove(boardId, item.id);
+    }
+  } finally {
+    confirming.value = false;
+  }
+}
 const query = computed<BoardAttachmentInventoryQuery>(() => {
   const offset = Number(route.query.offset ?? 0);
   const sort = route.query.sort;
@@ -131,19 +159,20 @@ function changeQuery(changes: Partial<BoardAttachmentInventoryQuery>) {
   void router.replace({ query: { offset: String(next.offset), sort: next.sort, direction: next.direction, state: next.state } });
 }
 function previousPage() {
-  if (!store.loading) { changeQuery({ offset: Math.max(0, query.value.offset - query.value.limit) }); }
+  if (!store.loading && store.deletingId === null) { changeQuery({ offset: Math.max(0, query.value.offset - query.value.limit) }); }
 }
 function nextPage() {
-  if (!store.loading) { changeQuery({ offset: query.value.offset + query.value.limit }); }
+  if (!store.loading && store.deletingId === null) { changeQuery({ offset: query.value.offset + query.value.limit }); }
 }
-const gridFields = [
+const gridFields = computed(() => [
   { key: 'id', label: 'File', rowKeyColumn: true, width: 'minmax(10rem, 1.4fr)' },
   { key: 'contentType', label: 'Type', width: 'minmax(7rem, 1fr)' },
   { key: 'byteLength', label: 'Size', width: '6rem' },
   { key: 'createdAtUtc', label: 'Uploaded', width: '12rem' },
   { key: 'cardTitle', label: 'Card', width: 'minmax(10rem, 1.4fr)' },
-  { key: 'archived', label: 'State', width: '6rem' }
-];
+  { key: 'archived', label: 'State', width: '6rem' },
+  ...(store.mutable ? [{ key: 'actions', label: '', width: '3rem' }] : [])
+]);
 function asAttachment(row: Record<string, unknown>) { return row as BoardAttachmentInventoryItem; }
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 function formatDate(value: string) { return dateFormat.format(new Date(value)); }
@@ -154,7 +183,10 @@ watch([currentBoardId, isCurrentUserOwner, query], () => {
   if (currentBoardId.value !== null && isCurrentUserOwner.value) { void store.load(currentBoardId.value, query.value); }
   else { store.clear(); }
 }, { immediate: true });
-onBeforeUnmount(store.clear);
+onBeforeUnmount(() => {
+  disposed = true;
+  store.clear();
+});
 </script>
 
 <style scoped>
@@ -168,4 +200,5 @@ onBeforeUnmount(store.clear);
 .attachment-controls label { display: flex; align-items: center; gap: 0.4rem; }
 .attachment-controls select { padding: 0.25rem 0.4rem; }
 .attachment-total-scope { color: var(--bo-ink-muted); }
+.attachment-delete { padding: 0.25rem; }
 </style>
