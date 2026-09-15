@@ -16,7 +16,7 @@ public sealed class CardAttachmentListTool(
         ToolNames.CardAttachmentList,
         "List attachment metadata and the per-file upload limit for a saved card. Set archived to true for archived cards; archived attachments are read-only. Does not return file contents.",
         ToolSchemas.CardAttachmentListInput, ToolSchemas.CardAttachmentListOutput, MachinePatScopes.McpRead,
-        ToolDiscoveryOrder.CardAttachmentList);
+        ToolDiscoveryOrder.CardAttachmentList, McpToolBehaviours.ReadOnly);
 
     protected override async Task<McpToolResult<CardAttachmentListDto>> ExecuteCoreAsync(
         McpInvocationContext context, CardAttachmentListInput input, CancellationToken cancellationToken)

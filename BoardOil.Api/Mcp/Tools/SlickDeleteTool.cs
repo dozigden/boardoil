@@ -15,11 +15,12 @@ public sealed class SlickDeleteTool(
     public override McpToolDefinition Definition { get; } =
         new(
             ToolNames.SlickDelete,
-            "Delete a slick and remove it from cards. Resolve its board-scoped ID from card_options_get.slicks[].id.",
+            "Delete a reusable slick definition and remove it from every card. To remove the slick from one card without deleting the definition, use card_update. Resolve its board-scoped ID from card_options_get.slicks[].id.",
             ToolSchemas.SlickDeleteInput,
             ToolSchemas.SlickDeleteOutput,
             MachinePatScopes.McpWrite,
-            ToolDiscoveryOrder.SlickDelete);
+            ToolDiscoveryOrder.SlickDelete,
+            McpToolBehaviours.IdempotentDestructive);
 
     protected override async Task<McpToolResult<SlickDeleteOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

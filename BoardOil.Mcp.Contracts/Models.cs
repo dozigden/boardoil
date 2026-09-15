@@ -9,7 +9,22 @@ public sealed record McpToolDefinition(
     string InputSchemaJson,
     string OutputSchemaJson,
     string? RequiredScope,
-    int DiscoveryOrder);
+    int DiscoveryOrder,
+    McpToolBehaviour Behaviour);
+
+public sealed record McpToolBehaviour(
+    bool ReadOnly,
+    bool Destructive,
+    bool Idempotent);
+
+public static class McpToolBehaviours
+{
+    public static McpToolBehaviour ReadOnly { get; } = new(true, false, true);
+    public static McpToolBehaviour NonDestructive { get; } = new(false, false, false);
+    public static McpToolBehaviour IdempotentNonDestructive { get; } = new(false, false, true);
+    public static McpToolBehaviour Destructive { get; } = new(false, true, false);
+    public static McpToolBehaviour IdempotentDestructive { get; } = new(false, true, true);
+}
 
 public sealed record McpToolError(
     string Code,

@@ -15,11 +15,12 @@ public sealed class SlickCreateTool(
     public override McpToolDefinition Definition { get; } =
         new(
             ToolNames.SlickCreate,
-            "Create a complete slick definition. Existing names are returned without mutation.",
+            "Create a complete reusable slick definition, including its style. Existing names are returned without mutation. To assign a slick to a card, use card_create or card_update.",
             ToolSchemas.SlickCreateInput,
             ToolSchemas.SlickCreateOutput,
             MachinePatScopes.McpWrite,
-            ToolDiscoveryOrder.SlickCreate);
+            ToolDiscoveryOrder.SlickCreate,
+            McpToolBehaviours.IdempotentNonDestructive);
 
     protected override async Task<McpToolResult<SlickMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

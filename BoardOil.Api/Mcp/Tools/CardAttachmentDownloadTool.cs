@@ -16,7 +16,7 @@ public sealed class CardAttachmentDownloadTool(IAttachmentTransferService transf
     public override McpToolDefinition Definition { get; } = new(ToolNames.CardAttachmentDownload,
         "Issue a short-lived HTTP download ticket for a live or archived attachment. Use the returned URL, method and Authorization header with an HTTP client to retrieve the original bytes. Treat the header as a secret; never put it in a URL. Requires authenticated MCP.",
         ToolSchemas.CardAttachmentDownloadInput, ToolSchemas.CardAttachmentDownloadOutput, MachinePatScopes.McpRead,
-        ToolDiscoveryOrder.CardAttachmentDownload);
+        ToolDiscoveryOrder.CardAttachmentDownload, McpToolBehaviours.ReadOnly);
 
     protected override async Task<McpToolResult<CardAttachmentDownloadOutput>> ExecuteCoreAsync(
         McpInvocationContext context, CardAttachmentDownloadInput input, CancellationToken cancellationToken)

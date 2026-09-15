@@ -17,7 +17,7 @@ public sealed class CardAttachmentUploadTool(IAttachmentTransferService transfer
     public override McpToolDefinition Definition { get; } = new(ToolNames.CardAttachmentUpload,
         "Issue a one-attempt HTTP upload ticket for a saved live card. Send the exact raw file bytes using the returned URL, PUT method and headers. After a successful PUT, markdownSnippet can be inserted into the card description with card_update. Failed or interrupted uploads require a new ticket. Requires authenticated MCP.",
         ToolSchemas.CardAttachmentUploadInput, ToolSchemas.CardAttachmentUploadOutput, MachinePatScopes.McpWrite,
-        ToolDiscoveryOrder.CardAttachmentUpload);
+        ToolDiscoveryOrder.CardAttachmentUpload, McpToolBehaviours.NonDestructive);
 
     protected override async Task<McpToolResult<CardAttachmentUploadOutput>> ExecuteCoreAsync(
         McpInvocationContext context, CardAttachmentUploadInput input, CancellationToken cancellationToken)

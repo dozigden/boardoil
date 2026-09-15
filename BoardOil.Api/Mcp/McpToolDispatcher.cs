@@ -29,7 +29,13 @@ public sealed class McpToolDispatcher(
                 Name = definition.Name,
                 Description = definition.Description,
                 InputSchema = McpToolCallHelpers.ParseJson(definition.InputSchemaJson),
-                OutputSchema = McpToolCallHelpers.ParseJson(definition.OutputSchemaJson)
+                OutputSchema = McpToolCallHelpers.ParseJson(definition.OutputSchemaJson),
+                Annotations = new ToolAnnotations
+                {
+                    ReadOnlyHint = definition.Behaviour.ReadOnly,
+                    DestructiveHint = definition.Behaviour.Destructive,
+                    IdempotentHint = definition.Behaviour.Idempotent
+                }
             })
             .ToList();
 

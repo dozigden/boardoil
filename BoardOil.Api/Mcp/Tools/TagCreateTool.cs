@@ -15,11 +15,12 @@ public sealed class TagCreateTool(
     public override McpToolDefinition Definition { get; } =
         new(
             ToolNames.TagCreate,
-            "Create a complete tag definition. Existing names are returned without mutation.",
+            "Create a complete reusable tag definition, including emoji and style. Existing names are returned without mutation. To assign a tag to a card, use card_create or card_update.",
             ToolSchemas.TagCreateInput,
             ToolSchemas.TagCreateOutput,
             MachinePatScopes.McpWrite,
-            ToolDiscoveryOrder.TagCreate);
+            ToolDiscoveryOrder.TagCreate,
+            McpToolBehaviours.IdempotentNonDestructive);
 
     protected override async Task<McpToolResult<TagMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

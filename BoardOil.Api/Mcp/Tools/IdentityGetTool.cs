@@ -17,7 +17,8 @@ public sealed class IdentityGetTool(
             ToolSchemas.IdentityGetInput,
             ToolSchemas.IdentityGetOutput,
             RequiredScope: null,
-            ToolDiscoveryOrder.IdentityGet);
+            ToolDiscoveryOrder.IdentityGet,
+            McpToolBehaviours.ReadOnly);
 
     protected override async Task<McpToolResult<IdentityGetOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

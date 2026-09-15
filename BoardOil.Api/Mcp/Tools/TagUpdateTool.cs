@@ -16,11 +16,12 @@ public sealed class TagUpdateTool(
     public override McpToolDefinition Definition { get; } =
         new(
             ToolNames.TagUpdate,
-            "Update an existing tag's name, emoji, or structured style. Use card_options_get to resolve its current name.",
+            "Update an existing reusable tag definition's name, emoji, or structured style. This does not assign the tag to a card; use card_update for card assignment. Use card_options_get to resolve its current name.",
             ToolSchemas.TagUpdateInput,
             ToolSchemas.TagUpdateOutput,
             MachinePatScopes.McpWrite,
-            ToolDiscoveryOrder.TagUpdate);
+            ToolDiscoveryOrder.TagUpdate,
+            McpToolBehaviours.IdempotentDestructive);
 
     protected override async Task<McpToolResult<TagMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

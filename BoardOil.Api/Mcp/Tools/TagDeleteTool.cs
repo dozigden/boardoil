@@ -15,11 +15,12 @@ public sealed class TagDeleteTool(
     public override McpToolDefinition Definition { get; } =
         new(
             ToolNames.TagDelete,
-            "Delete a tag and remove it from cards. Resolve its board-scoped ID from card_options_get.tags[].id.",
+            "Delete a reusable tag definition and remove it from every card. To remove the tag from one card without deleting the definition, use card_update. Resolve its board-scoped ID from card_options_get.tags[].id.",
             ToolSchemas.TagDeleteInput,
             ToolSchemas.TagDeleteOutput,
             MachinePatScopes.McpWrite,
-            ToolDiscoveryOrder.TagDelete);
+            ToolDiscoveryOrder.TagDelete,
+            McpToolBehaviours.IdempotentDestructive);
 
     protected override async Task<McpToolResult<TagDeleteOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

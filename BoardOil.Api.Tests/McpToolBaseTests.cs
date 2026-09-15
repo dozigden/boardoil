@@ -216,7 +216,14 @@ public sealed class McpToolBaseTests
     {
         private readonly Func<TestInput, Task<McpToolResult<TestOutput>>> _executor = executor;
 
-        public override McpToolDefinition Definition { get; } = new("test_base", "test tool", "{}", "{}", "mcp:read", 100);
+        public override McpToolDefinition Definition { get; } = new(
+            "test_base",
+            "test tool",
+            "{}",
+            "{}",
+            "mcp:read",
+            100,
+            McpToolBehaviours.ReadOnly);
 
         protected override Task<McpToolResult<TestOutput>> ExecuteCoreAsync(McpInvocationContext context, TestInput input, CancellationToken cancellationToken) =>
             _executor(input);

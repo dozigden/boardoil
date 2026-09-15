@@ -20,7 +20,8 @@ public sealed class CardOptionsGetTool(
             ToolSchemas.CardOptionsGetInput,
             ToolSchemas.CardOptionsGetOutput,
             MachinePatScopes.McpRead,
-            ToolDiscoveryOrder.CardOptionsGet);
+            ToolDiscoveryOrder.CardOptionsGet,
+            McpToolBehaviours.ReadOnly);
 
     protected override async Task<McpToolResult<CardOptionsGetOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

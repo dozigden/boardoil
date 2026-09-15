@@ -15,11 +15,12 @@ public sealed class SlickUpdateTool(
     public override McpToolDefinition Definition { get; } =
         new(
             ToolNames.SlickUpdate,
-            "Update an existing slick's name or structured style. Resolve its board-scoped ID from card_options_get.slicks[].id.",
+            "Update an existing reusable slick definition's name or structured style. This does not assign the slick to a card; use card_update for card assignment. Resolve its board-scoped ID from card_options_get.slicks[].id.",
             ToolSchemas.SlickUpdateInput,
             ToolSchemas.SlickUpdateOutput,
             MachinePatScopes.McpWrite,
-            ToolDiscoveryOrder.SlickUpdate);
+            ToolDiscoveryOrder.SlickUpdate,
+            McpToolBehaviours.IdempotentDestructive);
 
     protected override async Task<McpToolResult<SlickMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

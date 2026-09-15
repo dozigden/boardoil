@@ -13,7 +13,7 @@ public sealed class CardDeleteTool(
     private readonly ICardService _cardService = cardService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardDelete, "Delete a card.", ToolSchemas.CardDeleteInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite, ToolDiscoveryOrder.CardDelete);
+        new(ToolNames.CardDelete, "Delete a card.", ToolSchemas.CardDeleteInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite, ToolDiscoveryOrder.CardDelete, McpToolBehaviours.IdempotentDestructive);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

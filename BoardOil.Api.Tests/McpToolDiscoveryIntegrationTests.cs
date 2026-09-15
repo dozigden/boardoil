@@ -227,6 +227,34 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.DoesNotContain("columns_list", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
 
+        AssertToolAnnotations(toolsListPayload, ToolNames.IdentityGet, readOnly: true, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.BoardList, readOnly: true, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.BoardGet, readOnly: true, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardGet, readOnly: true, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardOptionsGet, readOnly: true, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardCreate, readOnly: false, destructive: false, idempotent: false);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardUpdate, readOnly: false, destructive: true, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardMove, readOnly: false, destructive: false, idempotent: false);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardCommentCreate, readOnly: false, destructive: false, idempotent: false);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardDelete, readOnly: false, destructive: true, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardAttachmentList, readOnly: true, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardAttachmentUpload, readOnly: false, destructive: false, idempotent: false);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardAttachmentDownload, readOnly: true, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardAttachmentDelete, readOnly: false, destructive: true, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.TagCreate, readOnly: false, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.TagUpdate, readOnly: false, destructive: true, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.TagDelete, readOnly: false, destructive: true, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.SlickCreate, readOnly: false, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.SlickUpdate, readOnly: false, destructive: true, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.SlickDelete, readOnly: false, destructive: true, idempotent: true);
+
+        AssertMaintenanceToolDescription(toolsListPayload, ToolNames.TagCreate);
+        AssertMaintenanceToolDescription(toolsListPayload, ToolNames.TagUpdate);
+        AssertMaintenanceToolDescription(toolsListPayload, ToolNames.TagDelete);
+        AssertMaintenanceToolDescription(toolsListPayload, ToolNames.SlickCreate);
+        AssertMaintenanceToolDescription(toolsListPayload, ToolNames.SlickUpdate);
+        AssertMaintenanceToolDescription(toolsListPayload, ToolNames.SlickDelete);
+
         var identityGetTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.IdentityGet);
         Assert.Empty(identityGetTool.GetProperty("inputSchema").GetProperty("properties").EnumerateObject());
         var identityUserSchema = identityGetTool
@@ -490,6 +518,34 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
                 .EnumerateArray()
                 .Select(value => value.GetString())
                 .ToArray());
+    }
+
+    private static void AssertToolAnnotations(
+        JsonDocument toolsListPayload,
+        string toolName,
+        bool readOnly,
+        bool destructive,
+        bool idempotent)
+    {
+        var tool = McpJsonRpcClient.GetToolByName(toolsListPayload, toolName);
+        var annotations = tool.GetProperty("annotations");
+
+        Assert.Equal(readOnly, annotations.GetProperty("readOnlyHint").GetBoolean());
+        Assert.Equal(destructive, annotations.GetProperty("destructiveHint").GetBoolean());
+        Assert.Equal(idempotent, annotations.GetProperty("idempotentHint").GetBoolean());
+        Assert.False(annotations.TryGetProperty("openWorldHint", out _));
+        Assert.False(annotations.TryGetProperty("title", out _));
+        Assert.False(tool.TryGetProperty("title", out _));
+    }
+
+    private static void AssertMaintenanceToolDescription(JsonDocument toolsListPayload, string toolName)
+    {
+        var description = McpJsonRpcClient.GetToolByName(toolsListPayload, toolName)
+            .GetProperty("description")
+            .GetString();
+
+        Assert.Contains("reusable", description, StringComparison.Ordinal);
+        Assert.Contains("card_update", description, StringComparison.Ordinal);
     }
 
     private sealed record UpdateConfigurationRequest(
