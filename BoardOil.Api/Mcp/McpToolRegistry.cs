@@ -30,19 +30,7 @@ public sealed class McpToolRegistry
                 },
                 StringComparer.Ordinal);
 
-        var byName = new Dictionary<string, McpToolRegistration>(canonicalByName, StringComparer.Ordinal);
-        foreach (var pair in canonicalByName)
-        {
-            var legacyAlias = pair.Key.Replace("_", ".", StringComparison.Ordinal);
-            if (string.Equals(legacyAlias, pair.Key, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            byName.TryAdd(legacyAlias, pair.Value);
-        }
-
-        _byName = byName;
+        _byName = canonicalByName;
 
         _definitions = canonicalByName.Values
             .Select(registration => registration.Definition)

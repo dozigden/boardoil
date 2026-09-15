@@ -156,7 +156,7 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase, 
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,

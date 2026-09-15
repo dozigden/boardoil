@@ -842,7 +842,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var readResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
-            new { name = "board.list", arguments = new { } },
+            new { name = "board_list", arguments = new { } },
             "oauth-board-list",
             exchange.AccessToken,
             endpoint);
@@ -866,7 +866,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -965,7 +965,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var readResponse = await McpJsonRpcClient.SendLegacyRequestAsync(
             client,
             "tools/call",
-            new { name = "board.list", arguments = new { } },
+            new { name = "board_list", arguments = new { } },
             "oauth-legacy-board-list",
             exchange.AccessToken,
             endpoint);
@@ -974,7 +974,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1255,7 +1255,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
             "tools/call",
             new
             {
-                name = "card.comment.create",
+                name = "card_comment_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1399,7 +1399,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var response = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
-            new { name = "board.list", arguments = new { } },
+            new { name = "board_list", arguments = new { } },
             $"oauth-board-list-{Guid.NewGuid():N}",
             accessToken,
             "/mcp/oauth");

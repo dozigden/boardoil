@@ -130,14 +130,14 @@ public sealed class McpProtocolVersionIntegrationTests : McpIntegrationTestBase
     }
 
     [Fact]
-    public async Task ToolCalls_ModernAndLegacyProtocols_ShouldReturnSameResultsAndErrors()
+    public async Task ToolCalls_ModernAndLegacyProtocols_ShouldReturnSameResultsAndRejectDottedAliases()
     {
         // Arrange
         var client = CreateClient();
         await RegisterInitialAdminAsync(client);
         var patToken = await CreateMachinePatAsync(client);
         var identityParams = new { name = "identity_get", arguments = new { } };
-        var unknownToolParams = new { name = "unknown_tool", arguments = new { } };
+        var dottedAliasParams = new { name = "card.get", arguments = new { } };
 
         // Act
         var initializeResponse = await McpJsonRpcClient.SendLegacyInitializeAsync(
@@ -159,14 +159,14 @@ public sealed class McpProtocolVersionIntegrationTests : McpIntegrationTestBase
         var modernErrorResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
-            unknownToolParams,
-            "modern-unknown-tool",
+            dottedAliasParams,
+            "modern-dotted-alias",
             patToken);
         var legacyErrorResponse = await McpJsonRpcClient.SendLegacyRequestAsync(
             client,
             "tools/call",
-            unknownToolParams,
-            "legacy-unknown-tool",
+            dottedAliasParams,
+            "legacy-dotted-alias",
             patToken);
         using var modernIdentityPayload = await McpJsonRpcClient.ParseJsonAsync(modernIdentityResponse);
         using var legacyIdentityPayload = await McpJsonRpcClient.ParseJsonAsync(legacyIdentityResponse);
@@ -187,6 +187,12 @@ public sealed class McpProtocolVersionIntegrationTests : McpIntegrationTestBase
         var legacyErrorResult = legacyErrorPayload.RootElement.GetProperty("result");
         Assert.True(modernErrorResult.GetProperty("isError").GetBoolean());
         Assert.True(legacyErrorResult.GetProperty("isError").GetBoolean());
+        Assert.Equal(
+            "tool_not_found",
+            McpJsonRpcClient.GetStructuredContent(modernErrorPayload).GetProperty("code").GetString());
+        Assert.Equal(
+            "tool_not_found",
+            McpJsonRpcClient.GetStructuredContent(legacyErrorPayload).GetProperty("code").GetString());
         Assert.Equal(
             modernErrorResult.GetProperty("content").GetRawText(),
             legacyErrorResult.GetProperty("content").GetRawText());

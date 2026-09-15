@@ -47,7 +47,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -69,7 +69,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = secondBoardId,
@@ -94,7 +94,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.update",
+                name = "card_update",
                 arguments = new
                 {
                     boardId = secondBoardId,
@@ -118,7 +118,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.get",
+                name = "card_get",
                 arguments = new { boardId = 1, id = sharedCardId }
             },
             "board-scoped-card-get-first",
@@ -133,7 +133,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.delete",
+                name = "card_delete",
                 arguments = new { boardId = 1, id = sharedCardId }
             },
             "board-scoped-card-delete-first",
@@ -147,7 +147,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.get",
+                name = "card_get",
                 arguments = new { boardId = secondBoardId, id = sharedCardId }
             },
             "board-scoped-card-get-second",
@@ -278,7 +278,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get",
@@ -298,7 +298,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -317,7 +317,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-verify",
@@ -336,7 +336,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.Contains("card_get", toolNames);
         Assert.Contains("card_create", toolNames);
         Assert.Contains("card_comment_create", toolNames);
-        Assert.DoesNotContain("card.move_by_column_name", toolNames);
+        Assert.DoesNotContain("card_move_by_column_name", toolNames);
 
         var cards = McpJsonRpcClient.GetStructuredContent(verifyPayload)
             .GetProperty("columns")
@@ -364,7 +364,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.list",
+                name = "board_list",
                 arguments = new { }
             },
             "board-list-success",
@@ -584,7 +584,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.list",
+                name = "board_list",
                 arguments = new { }
             },
             "board-list-forbidden",
@@ -614,7 +614,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-before-card-create",
@@ -636,7 +636,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -658,7 +658,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-after-card-create",
@@ -682,7 +682,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.get",
+                name = "card_get",
                 arguments = new { boardId = 1, id = createdCardId }
             },
             "card-get-description-test",
@@ -711,7 +711,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-before-comment-create",
@@ -731,7 +731,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -793,7 +793,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.get",
+                name = "card_get",
                 arguments = new { boardId = 1, id = cardId }
             },
             "card-get-after-comment-create",
@@ -826,7 +826,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-canonical-contract",
@@ -853,7 +853,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -885,7 +885,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-verify-canonical-contract",
@@ -918,7 +918,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.update",
+                name = "card_update",
                 arguments = new
                 {
                     boardId = 1,
@@ -943,7 +943,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.delete",
+                name = "card_delete",
                 arguments = new
                 {
                     boardId = 1,
@@ -976,7 +976,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-for-card-update-column-id",
@@ -996,7 +996,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1015,7 +1015,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1034,7 +1034,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1059,7 +1059,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.update",
+                name = "card_update",
                 arguments = new
                 {
                     boardId = 1,
@@ -1082,7 +1082,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-after-card-update-column-id",
@@ -1125,7 +1125,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-before-assignment-omitted-update",
@@ -1154,7 +1154,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1180,7 +1180,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.update",
+                name = "card_update",
                 arguments = new
                 {
                     boardId = 1,
@@ -1203,7 +1203,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.get",
+                name = "card_get",
                 arguments = new
                 {
                     boardId = 1,
@@ -1235,7 +1235,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-before-slick-name-mutation",
@@ -1254,7 +1254,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1283,7 +1283,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-after-slick-name-create",
@@ -1304,7 +1304,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.update",
+                name = "card_update",
                 arguments = new
                 {
                     boardId = 1,
@@ -1326,7 +1326,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.get",
+                name = "card_get",
                 arguments = new { boardId = 1, id = cardId }
             },
             "card-get-after-slick-name-update",
@@ -1343,7 +1343,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.update",
+                name = "card_update",
                 arguments = new
                 {
                     boardId = 1,
@@ -1365,7 +1365,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.get",
+                name = "card_get",
                 arguments = new { boardId = 1, id = cardId }
             },
             "card-get-after-null-slick-clear",
@@ -1382,7 +1382,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.update",
+                name = "card_update",
                 arguments = new
                 {
                     boardId = 1,
@@ -1399,13 +1399,13 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             patToken);
         Assert.Equal(HttpStatusCode.OK, setAgainResponse.StatusCode);
 
-        // Act: omitted slickName is rejected because slickName is required on card.update.
+        // Act: omitted slickName is rejected because slickName is required on card_update.
         var updateWithOmittedSlickNameResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
             new
             {
-                name = "card.update",
+                name = "card_update",
                 arguments = new
                 {
                     boardId = 1,
@@ -1428,13 +1428,13 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.True(omittedSlickValidationErrors.TryGetProperty("slickName", out var slickErrors));
         Assert.NotEmpty(slickErrors.EnumerateArray());
 
-        // Act: omitted externalUrl is rejected because externalUrl is required on card.update.
+        // Act: omitted externalUrl is rejected because externalUrl is required on card_update.
         var updateWithOmittedExternalUrlResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
             new
             {
-                name = "card.update",
+                name = "card_update",
                 arguments = new
                 {
                     boardId = 1,
@@ -1462,7 +1462,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.get",
+                name = "card_get",
                 arguments = new { boardId = 1, id = cardId }
             },
             "card-get-after-omitted-slick-rejected",
@@ -1488,7 +1488,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { boardId = 1 }
             },
             "board-get-legacy-rejected",
@@ -1501,7 +1501,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1521,7 +1521,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.update",
+                name = "card_update",
                 arguments = new
                 {
                     boardId = 1,
@@ -1541,7 +1541,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.delete",
+                name = "card_delete",
                 arguments = new
                 {
                     boardId = 1,
@@ -1573,7 +1573,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-for-unknown-fields",
@@ -1593,7 +1593,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1627,7 +1627,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1660,7 +1660,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "board.get",
+                name = "board_get",
                 arguments = new { id = 1 }
             },
             "board-get-before-anchor-service-validation",
@@ -1677,7 +1677,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.create",
+                name = "card_create",
                 arguments = new
                 {
                     boardId = 1,
@@ -1701,7 +1701,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "tools/call",
             new
             {
-                name = "card.move",
+                name = "card_move",
                 arguments = new
                 {
                     boardId = 1,
@@ -1730,10 +1730,10 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
 
         var cases = new (string ToolName, object Arguments, string RequestId, string[] ExpectedValidationKeys)[]
         {
-            ("card.create", new { boardId = 0, columnId = 0, title = "Invalid create", description = "validation test", tagNames = Array.Empty<string>() }, "card-create-multi-validation", ["boardId", "columnId"]),
-            ("card.update", new { boardId = 0, id = 0, cardTypeId = 0, slickName = (string?)null, externalUrl = (string?)null, title = "Invalid update", description = "validation test", tagNames = Array.Empty<string>() }, "card-update-multi-validation", ["boardId", "id", "cardTypeId"]),
-            ("card.move", new { boardId = 0, id = 0, columnId = 0, afterId = 0 }, "card-move-multi-validation", ["boardId", "id", "columnId", "afterId"]),
-            ("card.delete", new { boardId = 0, id = 0 }, "card-delete-multi-validation", ["boardId", "id"])
+            ("card_create", new { boardId = 0, columnId = 0, title = "Invalid create", description = "validation test", tagNames = Array.Empty<string>() }, "card-create-multi-validation", ["boardId", "columnId"]),
+            ("card_update", new { boardId = 0, id = 0, cardTypeId = 0, slickName = (string?)null, externalUrl = (string?)null, title = "Invalid update", description = "validation test", tagNames = Array.Empty<string>() }, "card-update-multi-validation", ["boardId", "id", "cardTypeId"]),
+            ("card_move", new { boardId = 0, id = 0, columnId = 0, afterId = 0 }, "card-move-multi-validation", ["boardId", "id", "columnId", "afterId"]),
+            ("card_delete", new { boardId = 0, id = 0 }, "card-delete-multi-validation", ["boardId", "id"])
         };
 
         foreach (var scenario in cases)

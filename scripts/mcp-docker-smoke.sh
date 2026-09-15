@@ -121,14 +121,14 @@ tools_list_payload=$(curl -fsS -X POST "$MCP_URL" \
   -d '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list","params":{}}')
 tools_list_payload=$(normalise_mcp_json "$tools_list_payload")
 
-echo "$tools_list_payload" | jq -e '.result.tools[] | select(.name=="card.create")' >/dev/null
+echo "$tools_list_payload" | jq -e '.result.tools[] | select(.name=="card_create")' >/dev/null
 
-echo "[smoke] Reading board snapshot via board.get"
+echo "[smoke] Reading board snapshot via board_get"
 board_get_payload=$(curl -fsS -X POST "$MCP_URL" \
   -H "Authorization: Bearer $pat_token" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
-  -d "$(jq -cn --argjson boardId "$BOARD_ID" '{jsonrpc:"2.0",id:"board-get",method:"tools/call",params:{name:"board.get",arguments:{id:$boardId}}}')")
+  -d "$(jq -cn --argjson boardId "$BOARD_ID" '{jsonrpc:"2.0",id:"board-get",method:"tools/call",params:{name:"board_get",arguments:{id:$boardId}}}')")
 board_get_payload=$(normalise_mcp_json "$board_get_payload")
 first_column_id=$(echo "$board_get_payload" | jq -r '.result.structuredContent.columns[0].id')
 if [ -z "$first_column_id" ] || [ "$first_column_id" = "null" ]; then
@@ -136,12 +136,12 @@ if [ -z "$first_column_id" ] || [ "$first_column_id" = "null" ]; then
   exit 1
 fi
 
-echo "[smoke] Creating card via card.create"
+echo "[smoke] Creating card via card_create"
 create_payload=$(jq -n \
   --argjson boardId "$BOARD_ID" \
   --argjson columnId "$first_column_id" \
   --arg title "$CARD_TITLE" \
-  '{jsonrpc:"2.0",id:"card-create",method:"tools/call",params:{name:"card.create",arguments:{boardId:$boardId,columnId:$columnId,title:$title,description:"Created by MCP docker smoke",tagNames:[]}}}')
+  '{jsonrpc:"2.0",id:"card-create",method:"tools/call",params:{name:"card_create",arguments:{boardId:$boardId,columnId:$columnId,title:$title,description:"Created by MCP docker smoke",tagNames:[]}}}')
 
 curl -fsS -X POST "$MCP_URL" \
   -H "Authorization: Bearer $pat_token" \
@@ -149,12 +149,12 @@ curl -fsS -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
   -d "$create_payload" >/dev/null
 
-echo "[smoke] Verifying card exists via board.get"
+echo "[smoke] Verifying card exists via board_get"
 board_verify_payload=$(curl -fsS -X POST "$MCP_URL" \
   -H "Authorization: Bearer $pat_token" \
   -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
-  -d "$(jq -cn --argjson boardId "$BOARD_ID" '{jsonrpc:"2.0",id:"board-verify",method:"tools/call",params:{name:"board.get",arguments:{id:$boardId}}}')")
+  -d "$(jq -cn --argjson boardId "$BOARD_ID" '{jsonrpc:"2.0",id:"board-verify",method:"tools/call",params:{name:"board_get",arguments:{id:$boardId}}}')")
 board_verify_payload=$(normalise_mcp_json "$board_verify_payload")
 
 echo "$board_verify_payload" | jq -e --arg title "$CARD_TITLE" '.result.structuredContent.columns[].cards[] | select(.title==$title)' >/dev/null
