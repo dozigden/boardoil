@@ -200,19 +200,30 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .EnumerateArray()
             .Select(tool => tool.GetProperty("name").GetString())
             .ToArray();
-        Assert.Contains(ToolNames.BoardList, toolNames);
-        Assert.Contains(ToolNames.IdentityGet, toolNames);
-        Assert.Contains(ToolNames.CardOptionsGet, toolNames);
-        Assert.Contains(ToolNames.CardAttachmentList, toolNames);
-        Assert.Contains(ToolNames.CardAttachmentDownload, toolNames);
-        Assert.Contains(ToolNames.CardAttachmentUpload, toolNames);
-        Assert.Contains(ToolNames.CardAttachmentDelete, toolNames);
-        Assert.Contains(ToolNames.TagCreate, toolNames);
-        Assert.Contains(ToolNames.TagUpdate, toolNames);
-        Assert.Contains(ToolNames.TagDelete, toolNames);
-        Assert.Contains(ToolNames.SlickCreate, toolNames);
-        Assert.Contains(ToolNames.SlickUpdate, toolNames);
-        Assert.Contains(ToolNames.SlickDelete, toolNames);
+        Assert.Equal(
+            [
+                ToolNames.IdentityGet,
+                ToolNames.BoardList,
+                ToolNames.BoardGet,
+                ToolNames.CardGet,
+                ToolNames.CardOptionsGet,
+                ToolNames.CardCreate,
+                ToolNames.CardUpdate,
+                ToolNames.CardMove,
+                ToolNames.CardCommentCreate,
+                ToolNames.CardDelete,
+                ToolNames.CardAttachmentList,
+                ToolNames.CardAttachmentUpload,
+                ToolNames.CardAttachmentDownload,
+                ToolNames.CardAttachmentDelete,
+                ToolNames.TagCreate,
+                ToolNames.TagUpdate,
+                ToolNames.TagDelete,
+                ToolNames.SlickCreate,
+                ToolNames.SlickUpdate,
+                ToolNames.SlickDelete
+            ],
+            toolNames);
         Assert.DoesNotContain("columns_list", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
 

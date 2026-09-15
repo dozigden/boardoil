@@ -16,7 +16,8 @@ public sealed class IdentityGetTool(
             "Get the BoardOil user and authentication context for the current MCP connection.",
             ToolSchemas.IdentityGetInput,
             ToolSchemas.IdentityGetOutput,
-            RequiredScope: null);
+            RequiredScope: null,
+            ToolDiscoveryOrder.IdentityGet);
 
     protected override async Task<McpToolResult<IdentityGetOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

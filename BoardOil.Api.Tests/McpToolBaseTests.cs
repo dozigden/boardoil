@@ -58,7 +58,7 @@ public sealed class McpToolBaseTests
         Assert.Equal(ErrorLogAreas.McpTool, logged.Context.Area);
         Assert.Equal("test-correlation", logged.Context.TraceIdentifier);
         Assert.Equal(1, logged.Context.ActorUserId);
-        Assert.Contains("test.base", logged.Context.ContextJson, StringComparison.Ordinal);
+        Assert.Contains("test_base", logged.Context.ContextJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -216,7 +216,7 @@ public sealed class McpToolBaseTests
     {
         private readonly Func<TestInput, Task<McpToolResult<TestOutput>>> _executor = executor;
 
-        public override McpToolDefinition Definition { get; } = new("test.base", "test tool", "{}", "{}", "mcp:read");
+        public override McpToolDefinition Definition { get; } = new("test_base", "test tool", "{}", "{}", "mcp:read", 100);
 
         protected override Task<McpToolResult<TestOutput>> ExecuteCoreAsync(McpInvocationContext context, TestInput input, CancellationToken cancellationToken) =>
             _executor(input);

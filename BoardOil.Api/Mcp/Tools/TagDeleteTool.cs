@@ -18,7 +18,8 @@ public sealed class TagDeleteTool(
             "Delete a tag and remove it from cards. Resolve its board-scoped ID from card_options_get.tags[].id.",
             ToolSchemas.TagDeleteInput,
             ToolSchemas.TagDeleteOutput,
-            MachinePatScopes.McpWrite);
+            MachinePatScopes.McpWrite,
+            ToolDiscoveryOrder.TagDelete);
 
     protected override async Task<McpToolResult<TagDeleteOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

@@ -20,7 +20,7 @@ public sealed class CardGetTool(
     private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardGet, "Get a card snapshot including description, tags, comments, and attachment metadata (not file contents).", ToolSchemas.CardGetInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead);
+        new(ToolNames.CardGet, "Get a card snapshot including description, tags, comments, and attachment metadata (not file contents).", ToolSchemas.CardGetInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead, ToolDiscoveryOrder.CardGet);
 
     protected override async Task<McpToolResult<McpCardSnapshot>> ExecuteCoreAsync(
         McpInvocationContext context,

@@ -25,6 +25,7 @@ public sealed class McpToolRegistryTests
 
         // Assert
         Assert.Equal(2, registry.Definitions.Count);
+        Assert.Equal(["test_two", "test_one"], registry.Definitions.Select(definition => definition.Name));
         Assert.True(registry.TryGetRegistration("test_one", out var registration));
         Assert.Equal(typeof(RegistryToolOne), registration.ImplementationType);
         Assert.False(registry.TryGetRegistration("test.one", out _));
@@ -48,7 +49,7 @@ public sealed class McpToolRegistryTests
 
     private sealed class RegistryToolOne : IMcpTool
     {
-        public McpToolDefinition Definition { get; } = new("test_one", "tool one", "{}", "{}", "mcp:read");
+        public McpToolDefinition Definition { get; } = new("test_one", "tool one", "{}", "{}", "mcp:read", 200);
 
         public Task<CallToolResult> ExecuteAsync(McpInvocationContext context, IDictionary<string, JsonElement>? arguments, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -56,7 +57,7 @@ public sealed class McpToolRegistryTests
 
     private sealed class RegistryToolTwo : IMcpTool
     {
-        public McpToolDefinition Definition { get; } = new("test_two", "tool two", "{}", "{}", "mcp:write");
+        public McpToolDefinition Definition { get; } = new("test_two", "tool two", "{}", "{}", "mcp:write", 100);
 
         public Task<CallToolResult> ExecuteAsync(McpInvocationContext context, IDictionary<string, JsonElement>? arguments, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -64,7 +65,7 @@ public sealed class McpToolRegistryTests
 
     private sealed class RegistryToolOneDuplicate : IMcpTool
     {
-        public McpToolDefinition Definition { get; } = new("test_one", "duplicate tool one", "{}", "{}", "mcp:read");
+        public McpToolDefinition Definition { get; } = new("test_one", "duplicate tool one", "{}", "{}", "mcp:read", 300);
 
         public Task<CallToolResult> ExecuteAsync(McpInvocationContext context, IDictionary<string, JsonElement>? arguments, CancellationToken cancellationToken) =>
             throw new NotSupportedException();

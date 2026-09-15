@@ -18,7 +18,8 @@ public sealed class SlickDeleteTool(
             "Delete a slick and remove it from cards. Resolve its board-scoped ID from card_options_get.slicks[].id.",
             ToolSchemas.SlickDeleteInput,
             ToolSchemas.SlickDeleteOutput,
-            MachinePatScopes.McpWrite);
+            MachinePatScopes.McpWrite,
+            ToolDiscoveryOrder.SlickDelete);
 
     protected override async Task<McpToolResult<SlickDeleteOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

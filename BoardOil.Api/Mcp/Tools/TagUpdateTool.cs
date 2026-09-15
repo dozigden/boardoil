@@ -19,7 +19,8 @@ public sealed class TagUpdateTool(
             "Update an existing tag's name, emoji, or structured style. Use card_options_get to resolve its current name.",
             ToolSchemas.TagUpdateInput,
             ToolSchemas.TagUpdateOutput,
-            MachinePatScopes.McpWrite);
+            MachinePatScopes.McpWrite,
+            ToolDiscoveryOrder.TagUpdate);
 
     protected override async Task<McpToolResult<TagMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

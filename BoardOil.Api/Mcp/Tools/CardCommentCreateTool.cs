@@ -14,7 +14,7 @@ public sealed class CardCommentCreateTool(
     private readonly ICardCommentService _cardCommentService = cardCommentService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardCommentCreate, "Add a comment to a card.", ToolSchemas.CardCommentCreateInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite);
+        new(ToolNames.CardCommentCreate, "Add a comment to a card.", ToolSchemas.CardCommentCreateInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite, ToolDiscoveryOrder.CardCommentCreate);
 
     protected override async Task<McpToolResult<CardCommentMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

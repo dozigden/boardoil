@@ -12,7 +12,7 @@ public sealed class BoardListTool(
     private readonly IBoardService _boardService = boardService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.BoardList, "List boards accessible to the actor so clients can discover board ids before snapshot calls.", ToolSchemas.BoardListInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead);
+        new(ToolNames.BoardList, "List boards accessible to the actor so clients can discover board ids before snapshot calls.", ToolSchemas.BoardListInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpRead, ToolDiscoveryOrder.BoardList);
 
     protected override async Task<McpToolResult<BoardListOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

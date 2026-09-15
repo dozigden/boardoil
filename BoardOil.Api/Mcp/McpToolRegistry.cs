@@ -34,7 +34,8 @@ public sealed class McpToolRegistry
 
         _definitions = canonicalByName.Values
             .Select(registration => registration.Definition)
-            .OrderBy(definition => definition.Name, StringComparer.Ordinal)
+            .OrderBy(definition => definition.DiscoveryOrder)
+            .ThenBy(definition => definition.Name, StringComparer.Ordinal)
             .ToArray();
     }
 

@@ -18,7 +18,8 @@ public sealed class SlickUpdateTool(
             "Update an existing slick's name or structured style. Resolve its board-scoped ID from card_options_get.slicks[].id.",
             ToolSchemas.SlickUpdateInput,
             ToolSchemas.SlickUpdateOutput,
-            MachinePatScopes.McpWrite);
+            MachinePatScopes.McpWrite,
+            ToolDiscoveryOrder.SlickUpdate);
 
     protected override async Task<McpToolResult<SlickMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

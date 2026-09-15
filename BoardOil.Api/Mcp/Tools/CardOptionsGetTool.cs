@@ -19,7 +19,8 @@ public sealed class CardOptionsGetTool(
             "List board-scoped values used by card fields: columns, active assignees, card types, complete tag definitions, and slicks.",
             ToolSchemas.CardOptionsGetInput,
             ToolSchemas.CardOptionsGetOutput,
-            MachinePatScopes.McpRead);
+            MachinePatScopes.McpRead,
+            ToolDiscoveryOrder.CardOptionsGet);
 
     protected override async Task<McpToolResult<CardOptionsGetOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

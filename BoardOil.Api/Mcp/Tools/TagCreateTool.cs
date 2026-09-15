@@ -18,7 +18,8 @@ public sealed class TagCreateTool(
             "Create a complete tag definition. Existing names are returned without mutation.",
             ToolSchemas.TagCreateInput,
             ToolSchemas.TagCreateOutput,
-            MachinePatScopes.McpWrite);
+            MachinePatScopes.McpWrite,
+            ToolDiscoveryOrder.TagCreate);
 
     protected override async Task<McpToolResult<TagMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

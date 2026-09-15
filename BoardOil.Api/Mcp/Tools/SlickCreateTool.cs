@@ -18,7 +18,8 @@ public sealed class SlickCreateTool(
             "Create a complete slick definition. Existing names are returned without mutation.",
             ToolSchemas.SlickCreateInput,
             ToolSchemas.SlickCreateOutput,
-            MachinePatScopes.McpWrite);
+            MachinePatScopes.McpWrite,
+            ToolDiscoveryOrder.SlickCreate);
 
     protected override async Task<McpToolResult<SlickMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

@@ -8,7 +8,8 @@ public sealed record McpToolDefinition(
     string Description,
     string InputSchemaJson,
     string OutputSchemaJson,
-    string? RequiredScope);
+    string? RequiredScope,
+    int DiscoveryOrder);
 
 public sealed record McpToolError(
     string Code,

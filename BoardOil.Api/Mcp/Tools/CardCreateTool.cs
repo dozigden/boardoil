@@ -17,7 +17,7 @@ public sealed class CardCreateTool(
     private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardCreate, "Create a card in a specific column. Use card_options_get to resolve valid IDs and existing tag or slick names. BoardOil-hosted images require creating the card first, then using card_attachment_upload and card_update.", ToolSchemas.CardCreateInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite);
+        new(ToolNames.CardCreate, "Create a card in a specific column. Use card_options_get to resolve valid IDs and existing tag or slick names. BoardOil-hosted images require creating the card first, then using card_attachment_upload and card_update.", ToolSchemas.CardCreateInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite, ToolDiscoveryOrder.CardCreate);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
