@@ -36,6 +36,7 @@ public static class McpServiceCollectionExtensions
         RegisterTool<IdentityGetTool>(services);
         RegisterTool<CardOptionsGetTool>(services);
         RegisterTool<CardGetTool>(services);
+        RegisterTool<CardSearchTool>(services);
         RegisterTool<CardAttachmentListTool>(services);
         RegisterTool<CardAttachmentDeleteTool>(services);
         RegisterTool<CardAttachmentDownloadTool>(services);

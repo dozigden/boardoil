@@ -298,6 +298,14 @@ public sealed record CardUpdateInput
     public bool ExternalUrlSpecified => _externalUrlSpecified;
 }
 
+public sealed record CardSearchInput
+{
+    public int? BoardId { get; init; }
+    public string Query { get; init; } = string.Empty;
+    public int Offset { get; init; }
+    public int Limit { get; init; } = 20;
+}
+
 public sealed record CardMoveInput
 {
     public int? BoardId { get; init; }

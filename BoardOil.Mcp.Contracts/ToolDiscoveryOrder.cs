@@ -5,6 +5,7 @@ public static class ToolDiscoveryOrder
     public const int IdentityGet = 100;
     public const int BoardList = 200;
     public const int BoardGet = 300;
+    public const int CardSearch = 350;
     public const int CardGet = 400;
     public const int CardOptionsGet = 500;
 

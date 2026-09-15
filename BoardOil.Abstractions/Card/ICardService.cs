@@ -6,6 +6,7 @@ namespace BoardOil.Abstractions.Card;
 public interface ICardService
 {
     Task<ApiResult<CardDto>> GetCardAsync(int boardId, int id, int actorUserId);
+    Task<ApiResult<CardTextSearchResultDto>> SearchCardsByTextAsync(int boardId, CardTextSearchRequest request, int actorUserId, CancellationToken cancellationToken = default);
     Task<ApiResult<IReadOnlyList<CardDto>>> SearchCardsAsync(int boardId, SearchCardsRequest request, int actorUserId);
     Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId);
     Task<ApiResult<CardDto>> DuplicateCardAsync(int boardId, int cardId, CreateCardRequest request, int actorUserId, CancellationToken cancellationToken = default);

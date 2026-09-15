@@ -48,6 +48,45 @@ public sealed class CardService(
         return await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
     }
 
+    public async Task<ApiResult<CardTextSearchResultDto>> SearchCardsByTextAsync(
+        int boardId,
+        CardTextSearchRequest request,
+        int actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var scope = _scopeFactory.CreateReadOnly();
+        if (!await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess))
+        {
+            return ApiErrors.Forbidden("You do not have access to this board.");
+        }
+
+        var validationErrors = new List<ValidationError>();
+        if (string.IsNullOrWhiteSpace(request.Query))
+        {
+            validationErrors.Add(new ValidationError("query", "A non-empty search query is required."));
+        }
+        if (request.Offset < 0)
+        {
+            validationErrors.Add(new ValidationError("offset", "Offset must be non-negative."));
+        }
+        if (request.Limit is < 1 or > 100)
+        {
+            validationErrors.Add(new ValidationError("limit", "Limit must be between 1 and 100."));
+        }
+        if (validationErrors.Count > 0)
+        {
+            return ApiErrors.ValidationFailed(validationErrors);
+        }
+
+        var result = await cardRepository.SearchByTextAsync(
+            boardId, request.Query, request.Offset, request.Limit, cancellationToken);
+        var cards = result.Cards.Select(card => new CardSearchSummaryDto(
+            card.BoardCardId, card.Title, card.ColumnId, card.CardTypeId,
+            card.ExternalUrl, card.TagNames, card.SlickName)).ToArray();
+        return ApiResults.Ok(new CardTextSearchResultDto(cards, result.TotalCount, request.Offset, request.Limit));
+    }
+
     public async Task<ApiResult<IReadOnlyList<CardDto>>> SearchCardsAsync(
         int boardId,
         SearchCardsRequest request,

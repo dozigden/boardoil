@@ -14,6 +14,23 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
     private readonly CapturingBoardAuthorisationService _boardAuthorisationService = new();
 
     [Fact]
+    public async Task SearchCardsByTextAsync_WhenPermissionDenied_ShouldCheckBoardAccess()
+    {
+        // Arrange
+        var board = CreateBoard().AddColumn("Todo").AddCard("Secret", "").Build();
+        var service = ResolveService<ICardService>();
+
+        // Act
+        var result = await service.SearchCardsByTextAsync(board.BoardId, new("Secret"), ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(403, result.StatusCode);
+        Assert.Null(result.Data);
+        Assert.Equal(BoardPermission.BoardAccess, _boardAuthorisationService.LastPermission);
+    }
+
+    [Fact]
     public async Task ArchiveCardAsync_WhenPermissionDenied_ShouldCheckCardDeletePermission()
     {
         // Arrange

@@ -2,6 +2,7 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace BoardOil.Ef.Repositories;
 
@@ -76,6 +77,44 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             .Include(x => x.CardTags)
                 .ThenInclude(x => x.Tag)
             .ToListAsync();
+    }
+
+    public async Task<(IReadOnlyList<CardTextSearchMatch> Cards, int TotalCount)> SearchByTextAsync(
+        int boardId,
+        string query,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        // SQLite's built-in lower/LIKE only case-fold ASCII. EF translates Regex.IsMatch
+        // to its Unicode-aware REGEXP function. Escape the input so search stays literal.
+        var pattern = "(?i)" + Regex.Escape(query);
+        var matches = DbSet.AsNoTracking().Where(card => card.BoardId == boardId &&
+            (card.BoardCardId.ToString().Contains(query) ||
+             Regex.IsMatch(card.Title, pattern) ||
+             Regex.IsMatch(card.Description, pattern) ||
+             (card.ExternalUrl != null && Regex.IsMatch(card.ExternalUrl, pattern))));
+
+        var totalCount = await matches.CountAsync(cancellationToken);
+        var cards = await matches
+            .OrderBy(card => card.BoardColumn.SortKey)
+            .ThenBy(card => card.BoardColumnId)
+            .ThenBy(card => card.SortKey)
+            .ThenBy(card => card.BoardCardId)
+            .Skip(offset)
+            .Take(limit)
+            .Select(card => new CardTextSearchMatch(
+                card.BoardCardId,
+                card.Title,
+                card.BoardColumnId,
+                card.CardTypeId,
+                card.ExternalUrl,
+                card.CardTags.OrderBy(link => link.Tag.Name).ThenBy(link => link.TagId)
+                    .Select(link => link.Tag.Name).ToList(),
+                card.Slick == null ? null : card.Slick.Name))
+            .ToListAsync(cancellationToken);
+
+        return (cards, totalCount);
     }
 
     public async Task<IReadOnlyList<EntityBoardCard>> SearchAsync(

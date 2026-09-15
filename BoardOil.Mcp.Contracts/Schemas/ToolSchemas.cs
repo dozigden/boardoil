@@ -2,6 +2,51 @@ namespace BoardOil.Mcp.Contracts.Schemas;
 
 public static class ToolSchemas
 {
+    public const string CardSearchInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "query": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Literal substring; whitespace is preserved. Matches card number, title, description, or external URL, ignoring case." },
+        "offset": { "type": "integer", "minimum": 0, "default": 0 },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+      },
+      "required": ["boardId", "query"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardSearchOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "cards": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer", "minimum": 1, "description": "Board-scoped card number." },
+              "title": { "type": "string" },
+              "columnId": { "type": "integer", "minimum": 1 },
+              "cardTypeId": { "type": "integer", "minimum": 1 },
+              "externalUrl": { "type": ["string", "null"] },
+              "tagNames": { "type": "array", "items": { "type": "string" } },
+              "slickName": { "type": ["string", "null"] }
+            },
+            "required": ["id", "title", "columnId", "cardTypeId", "externalUrl", "tagNames", "slickName"],
+            "additionalProperties": false
+          }
+        },
+        "totalCount": { "type": "integer", "minimum": 0 },
+        "offset": { "type": "integer", "minimum": 0 },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
+      },
+      "required": ["cards", "totalCount", "offset", "limit"],
+      "additionalProperties": false
+    }
+    """;
+
     private const string AutoStyleSchema = """
     {
       "type": "object",

@@ -205,6 +205,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
                 ToolNames.IdentityGet,
                 ToolNames.BoardList,
                 ToolNames.BoardGet,
+                ToolNames.CardSearch,
                 ToolNames.CardGet,
                 ToolNames.CardOptionsGet,
                 ToolNames.CardAttachmentList,
@@ -232,7 +233,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(20, GetToolNames(payload).Length);
+        Assert.Equal(21, GetToolNames(payload).Length);
     }
 
     [Fact]
@@ -282,6 +283,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
                 ToolNames.IdentityGet,
                 ToolNames.BoardList,
                 ToolNames.BoardGet,
+                ToolNames.CardSearch,
                 ToolNames.CardGet,
                 ToolNames.CardOptionsGet,
                 ToolNames.CardCreate,
@@ -330,6 +332,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         AssertToolAnnotations(toolsListPayload, ToolNames.IdentityGet, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.BoardList, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.BoardGet, readOnly: true, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardSearch, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardGet, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardOptionsGet, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardCreate, readOnly: false, destructive: false, idempotent: false);
@@ -397,6 +400,25 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .ToArray();
         Assert.Equal(["presets", "solid"], cardOptionSlickStyleNames);
         Assert.DoesNotContain("stylePropertiesJson", slicksSchema.GetRawText(), StringComparison.Ordinal);
+
+        var searchTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardSearch);
+        var searchInput = searchTool.GetProperty("inputSchema");
+        Assert.Equal(["boardId", "query"], searchInput.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
+        Assert.False(searchInput.GetProperty("additionalProperties").GetBoolean());
+        var searchInputProperties = searchInput.GetProperty("properties");
+        Assert.Equal(["boardId", "query", "offset", "limit"], searchInputProperties.EnumerateObject().Select(p => p.Name).ToArray());
+        Assert.Equal(0, searchInputProperties.GetProperty("offset").GetProperty("default").GetInt32());
+        Assert.Equal(20, searchInputProperties.GetProperty("limit").GetProperty("default").GetInt32());
+        Assert.Equal(100, searchInputProperties.GetProperty("limit").GetProperty("maximum").GetInt32());
+        var searchOutput = searchTool.GetProperty("outputSchema");
+        Assert.False(searchOutput.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(["cards", "totalCount", "offset", "limit"],
+            searchOutput.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
+        var summarySchema = searchOutput.GetProperty("properties").GetProperty("cards").GetProperty("items");
+        Assert.False(summarySchema.GetProperty("additionalProperties").GetBoolean());
+        string[] summaryFields = ["id", "title", "columnId", "cardTypeId", "externalUrl", "tagNames", "slickName"];
+        Assert.Equal(summaryFields, summarySchema.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
+        Assert.Equal(summaryFields, summarySchema.GetProperty("properties").EnumerateObject().Select(p => p.Name).ToArray());
 
         var boardListTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.BoardList);
         Assert.True(boardListTool.GetProperty("inputSchema").TryGetProperty("properties", out var boardListProperties));
