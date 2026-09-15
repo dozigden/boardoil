@@ -20,4 +20,7 @@ public static class ToolNames
     public const string TagCreate = "tag_create";
     public const string TagUpdate = "tag_update";
     public const string TagDelete = "tag_delete";
+    public const string SlickCreate = "slick_create";
+    public const string SlickUpdate = "slick_update";
+    public const string SlickDelete = "slick_delete";
 }

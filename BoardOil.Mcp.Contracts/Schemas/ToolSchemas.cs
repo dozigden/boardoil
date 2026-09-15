@@ -2,164 +2,191 @@ namespace BoardOil.Mcp.Contracts.Schemas;
 
 public static class ToolSchemas
 {
-    private const string TagStyleInput = """
+    private const string AutoStyleSchema = """
+    {
+      "type": "object",
+      "properties": {
+        "styleName": { "const": "auto" }
+      },
+      "required": ["styleName"],
+      "additionalProperties": false
+    }
+    """;
+
+    private const string PresetStyleSchema = """
+    {
+      "type": "object",
+      "properties": {
+        "styleName": { "const": "presets" },
+        "presetIndex": { "type": "integer", "minimum": 0, "maximum": 11 }
+      },
+      "required": ["styleName", "presetIndex"],
+      "additionalProperties": false
+    }
+    """;
+
+    private const string SolidStyleInputSchema = """
+    {
+      "type": "object",
+      "properties": {
+        "styleName": { "const": "solid" },
+        "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+        "textColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+        "borderColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" }
+      },
+      "required": ["styleName", "backgroundColor", "textColorMode", "borderMode"],
+      "allOf": [
+        {
+          "if": { "properties": { "textColorMode": { "const": "custom" } } },
+          "then": {
+            "properties": { "textColor": { "type": "string" } },
+            "required": ["textColor"]
+          },
+          "else": { "properties": { "textColor": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "borderMode": { "const": "custom" } } },
+          "then": {
+            "properties": { "borderColor": { "type": "string" } },
+            "required": ["borderColor"]
+          },
+          "else": { "properties": { "borderColor": { "type": "null" } } }
+        }
+      ],
+      "additionalProperties": false
+    }
+    """;
+
+    private const string GradientStyleInputSchema = """
+    {
+      "type": "object",
+      "properties": {
+        "styleName": { "const": "gradient" },
+        "leftColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "rightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+        "textColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+        "borderColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" }
+      },
+      "required": ["styleName", "leftColor", "rightColor", "textColorMode", "borderMode"],
+      "allOf": [
+        {
+          "if": { "properties": { "textColorMode": { "const": "custom" } } },
+          "then": {
+            "properties": { "textColor": { "type": "string" } },
+            "required": ["textColor"]
+          },
+          "else": { "properties": { "textColor": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "borderMode": { "const": "custom" } } },
+          "then": {
+            "properties": { "borderColor": { "type": "string" } },
+            "required": ["borderColor"]
+          },
+          "else": { "properties": { "borderColor": { "type": "null" } } }
+        }
+      ],
+      "additionalProperties": false
+    }
+    """;
+
+    private const string SolidStyleOutputSchema = """
+    {
+      "type": "object",
+      "properties": {
+        "styleName": { "const": "solid" },
+        "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+        "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+        "borderColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+      },
+      "required": ["styleName", "backgroundColor", "textColorMode", "borderMode"],
+      "allOf": [
+        {
+          "if": { "properties": { "textColorMode": { "const": "custom" } } },
+          "then": { "required": ["textColor"] },
+          "else": { "not": { "required": ["textColor"] } }
+        },
+        {
+          "if": { "properties": { "borderMode": { "const": "custom" } } },
+          "then": { "required": ["borderColor"] },
+          "else": { "not": { "required": ["borderColor"] } }
+        }
+      ],
+      "additionalProperties": false
+    }
+    """;
+
+    private const string GradientStyleOutputSchema = """
+    {
+      "type": "object",
+      "properties": {
+        "styleName": { "const": "gradient" },
+        "leftColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "rightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
+        "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
+        "borderColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+      },
+      "required": ["styleName", "leftColor", "rightColor", "textColorMode", "borderMode"],
+      "allOf": [
+        {
+          "if": { "properties": { "textColorMode": { "const": "custom" } } },
+          "then": { "required": ["textColor"] },
+          "else": { "not": { "required": ["textColor"] } }
+        },
+        {
+          "if": { "properties": { "borderMode": { "const": "custom" } } },
+          "then": { "required": ["borderColor"] },
+          "else": { "not": { "required": ["borderColor"] } }
+        }
+      ],
+      "additionalProperties": false
+    }
+    """;
+
+    private static readonly string TagStyleInput = $$"""
     {
       "oneOf": [
-        {
-          "type": "object",
-          "properties": {
-            "styleName": { "const": "auto" }
-          },
-          "required": ["styleName"],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "styleName": { "const": "presets" },
-            "presetIndex": { "type": "integer", "minimum": 0, "maximum": 11 }
-          },
-          "required": ["styleName", "presetIndex"],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "styleName": { "const": "solid" },
-            "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
-            "textColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
-            "borderColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" }
-          },
-          "required": ["styleName", "backgroundColor", "textColorMode", "borderMode"],
-          "allOf": [
-            {
-              "if": { "properties": { "textColorMode": { "const": "custom" } } },
-              "then": {
-                "properties": { "textColor": { "type": "string" } },
-                "required": ["textColor"]
-              },
-              "else": { "properties": { "textColor": { "type": "null" } } }
-            },
-            {
-              "if": { "properties": { "borderMode": { "const": "custom" } } },
-              "then": {
-                "properties": { "borderColor": { "type": "string" } },
-                "required": ["borderColor"]
-              },
-              "else": { "properties": { "borderColor": { "type": "null" } } }
-            }
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "styleName": { "const": "gradient" },
-            "leftColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "rightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
-            "textColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
-            "borderColor": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" }
-          },
-          "required": ["styleName", "leftColor", "rightColor", "textColorMode", "borderMode"],
-          "allOf": [
-            {
-              "if": { "properties": { "textColorMode": { "const": "custom" } } },
-              "then": {
-                "properties": { "textColor": { "type": "string" } },
-                "required": ["textColor"]
-              },
-              "else": { "properties": { "textColor": { "type": "null" } } }
-            },
-            {
-              "if": { "properties": { "borderMode": { "const": "custom" } } },
-              "then": {
-                "properties": { "borderColor": { "type": "string" } },
-                "required": ["borderColor"]
-              },
-              "else": { "properties": { "borderColor": { "type": "null" } } }
-            }
-          ],
-          "additionalProperties": false
-        }
+        {{AutoStyleSchema}},
+        {{PresetStyleSchema}},
+        {{SolidStyleInputSchema}},
+        {{GradientStyleInputSchema}}
       ]
     }
     """;
 
-    private const string TagStyleOutput = """
+    private static readonly string TagStyleOutput = $$"""
     {
       "oneOf": [
-        {
-          "type": "object",
-          "properties": {
-            "styleName": { "const": "auto" }
-          },
-          "required": ["styleName"],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "styleName": { "const": "presets" },
-            "presetIndex": { "type": "integer", "minimum": 0, "maximum": 11 }
-          },
-          "required": ["styleName", "presetIndex"],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "styleName": { "const": "solid" },
-            "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
-            "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
-            "borderColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
-          },
-          "required": ["styleName", "backgroundColor", "textColorMode", "borderMode"],
-          "allOf": [
-            {
-              "if": { "properties": { "textColorMode": { "const": "custom" } } },
-              "then": { "required": ["textColor"] },
-              "else": { "not": { "required": ["textColor"] } }
-            },
-            {
-              "if": { "properties": { "borderMode": { "const": "custom" } } },
-              "then": { "required": ["borderColor"] },
-              "else": { "not": { "required": ["borderColor"] } }
-            }
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "styleName": { "const": "gradient" },
-            "leftColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "rightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "textColorMode": { "type": "string", "enum": ["auto", "custom"] },
-            "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "borderMode": { "type": "string", "enum": ["auto", "custom", "none"] },
-            "borderColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
-          },
-          "required": ["styleName", "leftColor", "rightColor", "textColorMode", "borderMode"],
-          "allOf": [
-            {
-              "if": { "properties": { "textColorMode": { "const": "custom" } } },
-              "then": { "required": ["textColor"] },
-              "else": { "not": { "required": ["textColor"] } }
-            },
-            {
-              "if": { "properties": { "borderMode": { "const": "custom" } } },
-              "then": { "required": ["borderColor"] },
-              "else": { "not": { "required": ["borderColor"] } }
-            }
-          ],
-          "additionalProperties": false
-        }
+        {{AutoStyleSchema}},
+        {{PresetStyleSchema}},
+        {{SolidStyleOutputSchema}},
+        {{GradientStyleOutputSchema}}
+      ]
+    }
+    """;
+
+    private static readonly string SlickStyleInput = $$"""
+    {
+      "oneOf": [
+        {{PresetStyleSchema}},
+        {{SolidStyleInputSchema}}
+      ]
+    }
+    """;
+
+    private static readonly string SlickStyleOutput = $$"""
+    {
+      "oneOf": [
+        {{PresetStyleSchema}},
+        {{SolidStyleOutputSchema}}
       ]
     }
     """;
@@ -176,6 +203,21 @@ public static class ToolSchemas
         "updatedAtUtc": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "emoji", "style", "createdAtUtc", "updatedAtUtc"],
+      "additionalProperties": false
+    }
+    """;
+
+    private static readonly string SlickSnapshotOutput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "style": {{SlickStyleOutput}},
+        "createdAtUtc": { "type": "string", "format": "date-time" },
+        "updatedAtUtc": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "style", "createdAtUtc", "updatedAtUtc"],
       "additionalProperties": false
     }
     """;
@@ -516,6 +558,62 @@ public static class ToolSchemas
     }
     """;
 
+    public static readonly string SlickCreateInput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "style": {{SlickStyleInput}}
+      },
+      "required": ["boardId", "name", "style"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string SlickUpdateInput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Resolve from card_options_get.slicks[].id."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "New slick name. Omit to preserve the current name."
+        },
+        "style": {{SlickStyleInput}}
+      },
+      "required": ["boardId", "id"],
+      "anyOf": [
+        { "required": ["name"] },
+        { "required": ["style"] }
+      ],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string SlickDeleteInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Resolve from card_options_get.slicks[].id."
+        }
+      },
+      "required": ["boardId", "id"],
+      "additionalProperties": false
+    }
+    """;
+
     public const string ObjectOutput = """
     {
       "type": "object"
@@ -616,9 +714,11 @@ public static class ToolSchemas
           "items": {
             "type": "object",
             "properties": {
-              "name": { "type": "string" }
+              "id": { "type": "integer" },
+              "name": { "type": "string" },
+              "style": {{SlickStyleOutput}}
             },
-            "required": ["name"],
+            "required": ["id", "name", "style"],
             "additionalProperties": false
           }
         }
@@ -653,6 +753,41 @@ public static class ToolSchemas
     """;
 
     public const string TagDeleteOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "outcome": { "type": "string", "enum": ["deleted"] }
+      },
+      "required": ["outcome"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string SlickCreateOutput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "slick": {{SlickSnapshotOutput}},
+        "outcome": { "type": "string", "enum": ["created", "existing"] }
+      },
+      "required": ["slick", "outcome"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string SlickUpdateOutput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "slick": {{SlickSnapshotOutput}},
+        "outcome": { "type": "string", "enum": ["updated"] }
+      },
+      "required": ["slick", "outcome"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string SlickDeleteOutput = """
     {
       "type": "object",
       "properties": {

@@ -1,26 +1,25 @@
 using BoardOil.Contracts.Common;
-using BoardOil.Contracts.Tag;
 using BoardOil.Mcp.Contracts;
 using BoardOil.Services.Style;
 
 namespace BoardOil.Api.Mcp;
 
-internal static class McpTagStyleMapper
+internal static class McpStyleMapper
 {
-    public static McpTagStyleMappingResult Parse(McpTagStyle style)
+    public static McpStyleMappingResult Parse(McpStyle style)
     {
         var validationErrors = new List<ValidationError>();
         StyleDefinition? definition = style switch
         {
-            McpAutoTagStyle => new AutoStyleDefinition(),
-            McpPresetTagStyle preset => ParsePreset(preset, validationErrors),
-            McpSolidTagStyle solid => ParseSolid(solid, validationErrors),
-            McpGradientTagStyle gradient => ParseGradient(gradient, validationErrors),
+            McpAutoStyle => new AutoStyleDefinition(),
+            McpPresetStyle preset => ParsePreset(preset, validationErrors),
+            McpSolidStyle solid => ParseSolid(solid, validationErrors),
+            McpGradientStyle gradient => ParseGradient(gradient, validationErrors),
             _ => null
         };
         if (definition is null || validationErrors.Count > 0)
         {
-            return new McpTagStyleMappingResult(null, validationErrors);
+            return new McpStyleMappingResult(null, validationErrors);
         }
 
         var parsed = StyleDefinitionCodec.ParseForWrite(
@@ -30,43 +29,24 @@ internal static class McpTagStyleMapper
             "style");
         if (!parsed.IsValid)
         {
-            return new McpTagStyleMappingResult(null, parsed.ValidationErrors);
+            return new McpStyleMappingResult(null, parsed.ValidationErrors);
         }
 
-        return new McpTagStyleMappingResult(parsed.Definition, []);
+        return new McpStyleMappingResult(parsed.Definition, []);
     }
 
-    public static McpTagStyle ToMcp(StyleDefinition definition) =>
+    public static McpStyle ToMcp(StyleDefinition definition) =>
         definition switch
         {
-            AutoStyleDefinition => new McpAutoTagStyle(),
-            PresetStyleDefinition preset => new McpPresetTagStyle { PresetIndex = preset.PresetIndex },
+            AutoStyleDefinition => new McpAutoStyle(),
+            PresetStyleDefinition preset => new McpPresetStyle { PresetIndex = preset.PresetIndex },
             SolidStyleDefinition solid => ToMcp(solid),
             GradientStyleDefinition gradient => ToMcp(gradient),
             _ => throw new ArgumentOutOfRangeException(nameof(definition))
         };
 
-    public static McpTagSnapshot? ToMcpSnapshot(TagDto tag)
-    {
-        var parsedStyle = StyleDefinitionCodec.ParseCompatible(
-            tag.StyleName,
-            tag.StylePropertiesJson);
-        if (!parsedStyle.IsValid || parsedStyle.Definition is null)
-        {
-            return null;
-        }
-
-        return new McpTagSnapshot(
-            tag.Id,
-            tag.Name,
-            tag.Emoji,
-            ToMcp(parsedStyle.Definition),
-            tag.CreatedAtUtc,
-            tag.UpdatedAtUtc);
-    }
-
     private static PresetStyleDefinition? ParsePreset(
-        McpPresetTagStyle style,
+        McpPresetStyle style,
         List<ValidationError> validationErrors)
     {
         if (style.PresetIndex is null)
@@ -81,7 +61,7 @@ internal static class McpTagStyleMapper
     }
 
     private static SolidStyleDefinition? ParseSolid(
-        McpSolidTagStyle style,
+        McpSolidStyle style,
         List<ValidationError> validationErrors)
     {
         if (string.IsNullOrWhiteSpace(style.BackgroundColor))
@@ -106,7 +86,7 @@ internal static class McpTagStyleMapper
     }
 
     private static GradientStyleDefinition? ParseGradient(
-        McpGradientTagStyle style,
+        McpGradientStyle style,
         List<ValidationError> validationErrors)
     {
         if (string.IsNullOrWhiteSpace(style.LeftColor))
@@ -205,7 +185,7 @@ internal static class McpTagStyleMapper
             borderColor);
     }
 
-    private static McpSolidTagStyle ToMcp(SolidStyleDefinition style) =>
+    private static McpSolidStyle ToMcp(SolidStyleDefinition style) =>
         new()
         {
             BackgroundColor = style.BackgroundColour,
@@ -215,7 +195,7 @@ internal static class McpTagStyleMapper
             BorderColor = style.ManualOptions.BorderColour
         };
 
-    private static McpGradientTagStyle ToMcp(GradientStyleDefinition style) =>
+    private static McpGradientStyle ToMcp(GradientStyleDefinition style) =>
         new()
         {
             LeftColor = style.LeftColour,
@@ -244,7 +224,7 @@ internal static class McpTagStyleMapper
         };
 }
 
-internal sealed record McpTagStyleMappingResult(
+internal sealed record McpStyleMappingResult(
     StyleDefinition? Definition,
     IReadOnlyList<ValidationError> ValidationErrors)
 {

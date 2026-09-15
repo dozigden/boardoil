@@ -56,7 +56,40 @@ public sealed class SlickService(
         return await styleDefaultService.GetSlickCreateDefaultStyleAsync(boardId);
     }
 
-    public async Task<ApiResult<SlickDto>> CreateSlickAsync(int boardId, CreateSlickRequest request, int actorUserId)
+    public Task<ApiResult<SlickDto>> CreateSlickAsync(int boardId, CreateSlickRequest request, int actorUserId) =>
+        CreateSlickAsync(
+            boardId,
+            request.Name,
+            request.StyleName,
+            request.StylePropertiesJson,
+            false,
+            "styleName",
+            "stylePropertiesJson",
+            actorUserId);
+
+    public Task<ApiResult<SlickDto>> CreateSlickDefinitionAsync(
+        int boardId,
+        SlickDefinitionCreate definition,
+        int actorUserId) =>
+        CreateSlickAsync(
+            boardId,
+            definition.Name,
+            definition.Style.StyleName,
+            definition.Style.StylePropertiesJson,
+            true,
+            "style.styleName",
+            "style",
+            actorUserId);
+
+    private async Task<ApiResult<SlickDto>> CreateSlickAsync(
+        int boardId,
+        string name,
+        string? styleName,
+        string? stylePropertiesJson,
+        bool returnExisting,
+        string styleNameProperty,
+        string stylePropertiesProperty,
+        int actorUserId)
     {
         using var scope = scopeFactory.Create();
 
@@ -71,23 +104,29 @@ public sealed class SlickService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var nameValidation = SlickNameValidation.ValidateRequired(request.Name, "name");
+        var nameValidation = SlickNameValidation.ValidateRequired(name, "name");
         var validationErrors = new List<ValidationError>();
         if (nameValidation.Error is not null)
         {
             validationErrors.Add(nameValidation.Error);
         }
 
+        Data.Abstractions.Entities.EntitySlick? existing = null;
         if (nameValidation.Error is null)
         {
-            var existing = await slickRepository.GetByNormalisedNameAsync(boardId, nameValidation.NormalisedName);
-            if (existing is not null)
+            existing = await slickRepository.GetByNormalisedNameAsync(boardId, nameValidation.NormalisedName);
+            if (existing is not null && !returnExisting)
             {
                 validationErrors.Add(new ValidationError("name", $"Slick '{nameValidation.CanonicalName}' already exists."));
             }
         }
 
-        var styleValidation = await ResolveAndValidateCreateStyleAsync(boardId, request.StyleName, request.StylePropertiesJson);
+        var styleValidation = await ResolveAndValidateCreateStyleAsync(
+            boardId,
+            styleName,
+            stylePropertiesJson,
+            styleNameProperty,
+            stylePropertiesProperty);
         if (styleValidation.Error is not null)
         {
             validationErrors.Add(styleValidation.Error);
@@ -96,6 +135,11 @@ public sealed class SlickService(
         if (validationErrors.Count > 0 || styleValidation.Error is not null)
         {
             return ApiErrors.ValidationFailed(validationErrors);
+        }
+
+        if (existing is not null)
+        {
+            return ApiResults.Ok(existing.ToSlickDto());
         }
 
         slickRepository.Add(new Data.Abstractions.Entities.EntitySlick
@@ -175,6 +219,105 @@ public sealed class SlickService(
         return existing.ToSlickDto();
     }
 
+    public async Task<ApiResult<SlickDto>> UpdateSlickDefinitionAsync(
+        int boardId,
+        int slickId,
+        SlickDefinitionPatch patch,
+        int actorUserId)
+    {
+        using var scope = scopeFactory.Create();
+
+        if (boardRepository.Get(boardId) is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.TagManage);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        if (!patch.NameSpecified && patch.Style is null)
+        {
+            return ApiErrors.ValidationFailed(
+                [new ValidationError(string.Empty, "Provide at least one of name or style.")]);
+        }
+
+        var existing = await slickRepository.GetByIdInBoardAsync(boardId, slickId);
+        if (existing is null)
+        {
+            return ApiErrors.NotFound("Slick not found.");
+        }
+
+        var validationErrors = new List<ValidationError>();
+        (string CanonicalName, string NormalisedName, ValidationError? Error)? nameValidation = null;
+        if (patch.NameSpecified)
+        {
+            nameValidation = SlickNameValidation.ValidateRequired(patch.Name, "name");
+            if (nameValidation.Value.Error is not null)
+            {
+                validationErrors.Add(nameValidation.Value.Error);
+            }
+            else
+            {
+                var byName = await slickRepository.GetByNormalisedNameAsync(
+                    boardId,
+                    nameValidation.Value.NormalisedName);
+                if (byName is not null && byName.Id != existing.Id)
+                {
+                    validationErrors.Add(new ValidationError(
+                        "name",
+                        $"Slick '{nameValidation.Value.CanonicalName}' already exists."));
+                }
+            }
+        }
+
+        SlickStyleValidationResult styleValidation;
+        if (patch.Style is null)
+        {
+            styleValidation = ResolveAndValidateCompatibleStyle(
+                existing.StyleName,
+                existing.StylePropertiesJson,
+                "style.styleName",
+                "style");
+        }
+        else
+        {
+            styleValidation = ResolveAndValidateStyle(
+                patch.Style.StyleName,
+                patch.Style.StylePropertiesJson,
+                "style.styleName",
+                "style");
+        }
+
+        if (styleValidation.Error is not null)
+        {
+            validationErrors.Add(styleValidation.Error);
+        }
+
+        if (validationErrors.Count > 0 || styleValidation.Error is not null)
+        {
+            return ApiErrors.ValidationFailed(validationErrors);
+        }
+
+        if (nameValidation is not null)
+        {
+            existing.Name = nameValidation.Value.CanonicalName;
+            existing.NormalisedName = nameValidation.Value.NormalisedName;
+        }
+
+        if (patch.Style is not null)
+        {
+            existing.StyleName = styleValidation.StyleName;
+            existing.StylePropertiesJson = styleValidation.StylePropertiesJson;
+        }
+
+        await scope.SaveChangesAsync();
+        await boardEvents.ResyncRequestedAsync(boardId);
+        return existing.ToSlickDto();
+    }
+
     public async Task<ApiResult> DeleteSlickAsync(int boardId, int slickId, int actorUserId)
     {
         using var scope = scopeFactory.Create();
@@ -202,7 +345,11 @@ public sealed class SlickService(
         return ApiResults.Ok();
     }
 
-    private static SlickStyleValidationResult ResolveAndValidateStyle(string? styleName, string? stylePropertiesJson)
+    private static SlickStyleValidationResult ResolveAndValidateStyle(
+        string? styleName,
+        string? stylePropertiesJson,
+        string styleNameProperty = "styleName",
+        string stylePropertiesProperty = "stylePropertiesJson")
     {
         var requestedStyleName = styleName?.Trim();
         var resolvedStyleName = requestedStyleName ?? StyleDefinitionCodec.PresetsStyleName;
@@ -212,13 +359,51 @@ public sealed class SlickService(
             return new SlickStyleValidationResult(
                 string.Empty,
                 string.Empty,
-                new ValidationError("styleName", "Style name must be 'solid' or 'presets'."));
+                new ValidationError(styleNameProperty, "Style name must be 'solid' or 'presets'."));
         }
 
         var resolvedStylePropertiesJson = string.IsNullOrWhiteSpace(stylePropertiesJson)
             ? StyleDefinitionCodec.Serialise(StyleDefinitionCodec.CreateDefault(resolvedStyleName))
             : stylePropertiesJson.Trim();
-        var styleValidation = StyleDefinitionCodec.ParseForWrite(resolvedStyleName, resolvedStylePropertiesJson);
+        var styleValidation = StyleDefinitionCodec.ParseForWrite(
+            resolvedStyleName,
+            resolvedStylePropertiesJson,
+            styleNameProperty,
+            stylePropertiesProperty);
+        if (!styleValidation.IsValid)
+        {
+            return new SlickStyleValidationResult(
+                string.Empty,
+                string.Empty,
+                styleValidation.ValidationErrors.First());
+        }
+
+        return new SlickStyleValidationResult(
+            styleValidation.StyleName,
+            styleValidation.StylePropertiesJson,
+            null);
+    }
+
+    private static SlickStyleValidationResult ResolveAndValidateCompatibleStyle(
+        string? styleName,
+        string? stylePropertiesJson,
+        string styleNameProperty,
+        string stylePropertiesProperty)
+    {
+        var styleKind = StyleDefinitionCodec.NormaliseStyleKind(styleName);
+        if (styleKind is not StyleKind.Solid && styleKind is not StyleKind.Presets)
+        {
+            return new SlickStyleValidationResult(
+                string.Empty,
+                string.Empty,
+                new ValidationError(styleNameProperty, "Style name must be 'solid' or 'presets'."));
+        }
+
+        var styleValidation = StyleDefinitionCodec.ParseCompatible(
+            styleName,
+            stylePropertiesJson,
+            styleNameProperty,
+            stylePropertiesProperty);
         if (!styleValidation.IsValid)
         {
             return new SlickStyleValidationResult(
@@ -236,7 +421,9 @@ public sealed class SlickService(
     private async Task<SlickStyleValidationResult> ResolveAndValidateCreateStyleAsync(
         int boardId,
         string? styleName,
-        string? stylePropertiesJson)
+        string? stylePropertiesJson,
+        string styleNameProperty,
+        string stylePropertiesProperty)
     {
         var hasRequestedStyleName = !string.IsNullOrWhiteSpace(styleName);
         var hasRequestedStyleProperties = !string.IsNullOrWhiteSpace(stylePropertiesJson);
@@ -246,7 +433,11 @@ public sealed class SlickService(
             return new SlickStyleValidationResult(defaultStyle.StyleName, defaultStyle.StylePropertiesJson, null);
         }
 
-        return ResolveAndValidateStyle(styleName, stylePropertiesJson);
+        return ResolveAndValidateStyle(
+            styleName,
+            stylePropertiesJson,
+            styleNameProperty,
+            stylePropertiesProperty);
     }
 
     private sealed record SlickStyleValidationResult(

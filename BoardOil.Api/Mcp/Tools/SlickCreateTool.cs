@@ -1,4 +1,4 @@
-using BoardOil.Abstractions.Tag;
+using BoardOil.Abstractions.Slick;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Common;
 using BoardOil.Mcp.Contracts;
@@ -6,23 +6,23 @@ using BoardOil.Mcp.Contracts.Schemas;
 
 namespace BoardOil.Api.Mcp;
 
-public sealed class TagCreateTool(
-    ITagService tagService,
-    IMcpAuthorisationService authorisationService) : McpToolBase<TagCreateInput, TagMutationOutput>(authorisationService)
+public sealed class SlickCreateTool(
+    ISlickService slickService,
+    IMcpAuthorisationService authorisationService) : McpToolBase<SlickCreateInput, SlickMutationOutput>(authorisationService)
 {
-    private readonly ITagService _tagService = tagService;
+    private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
         new(
-            ToolNames.TagCreate,
-            "Create a complete tag definition. Existing names are returned without mutation.",
-            ToolSchemas.TagCreateInput,
-            ToolSchemas.TagCreateOutput,
+            ToolNames.SlickCreate,
+            "Create a complete slick definition. Existing names are returned without mutation.",
+            ToolSchemas.SlickCreateInput,
+            ToolSchemas.SlickCreateOutput,
             MachinePatScopes.McpWrite);
 
-    protected override async Task<McpToolResult<TagMutationOutput>> ExecuteCoreAsync(
+    protected override async Task<McpToolResult<SlickMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
-        TagCreateInput input,
+        SlickCreateInput input,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -31,26 +31,21 @@ public sealed class TagCreateTool(
         validationErrors.AddRange(McpToolCallHelpers.ValidateRequiredIdentifier(input.BoardId, "boardId"));
         if (string.IsNullOrWhiteSpace(input.Name))
         {
-            validationErrors.Add(new ValidationError("name", "Tag name is required."));
+            validationErrors.Add(new ValidationError("name", "Slick name is required."));
         }
         else if (input.Name.Trim().Length > 40)
         {
-            validationErrors.Add(new ValidationError("name", "Tag name must be 40 characters or fewer."));
-        }
-
-        if (!input.EmojiSpecified)
-        {
-            validationErrors.Add(new ValidationError("emoji", "Emoji is required. Use null for no emoji."));
+            validationErrors.Add(new ValidationError("name", "Slick name must be 40 characters or fewer."));
         }
 
         McpStyleMappingResult? styleMapping = null;
-        if (!input.StyleSpecified || input.Style is null)
+        if (input.Style is null)
         {
             validationErrors.Add(new ValidationError("style", "Style is required."));
         }
         else
         {
-            styleMapping = McpStyleMapper.Parse(input.Style);
+            styleMapping = McpSlickMapper.ParseStyle(input.Style);
             validationErrors.AddRange(styleMapping.ValidationErrors);
         }
 
@@ -69,11 +64,10 @@ public sealed class TagCreateTool(
             return Failure(accessError);
         }
 
-        var definition = new TagDefinitionCreate(
+        var definition = new SlickDefinitionCreate(
             input.Name,
-            input.Emoji,
-            new TagStylePatch(styleMapping.StyleName, styleMapping.StylePropertiesJson));
-        var createResult = await _tagService.CreateTagDefinitionAsync(
+            new SlickStylePatch(styleMapping.StyleName, styleMapping.StylePropertiesJson));
+        var createResult = await _slickService.CreateSlickDefinitionAsync(
             boardId,
             definition,
             context.ActorUserId);
@@ -82,17 +76,16 @@ public sealed class TagCreateTool(
             return Failure(createResult.ToMcpError());
         }
 
-        var tag = createResult.Data;
-        var snapshot = McpTagMapper.ToMcpSnapshot(tag);
+        var snapshot = McpSlickMapper.ToMcpSnapshot(createResult.Data);
         if (snapshot is null)
         {
             return Failure(new McpToolError(
                 "data_integrity_error",
-                $"Tag {tag.Id} ('{tag.Name}') has an invalid style definition.",
+                $"Slick {createResult.Data.Id} ('{createResult.Data.Name}') has an invalid style definition.",
                 500));
         }
 
         var outcome = createResult.StatusCode == 201 ? "created" : "existing";
-        return Success(new TagMutationOutput(snapshot, outcome));
+        return Success(new SlickMutationOutput(snapshot, outcome));
     }
 }

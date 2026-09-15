@@ -64,6 +64,46 @@ public sealed class SlickServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task CreateSlickDefinitionAsync_WhenNameExists_ShouldReturnExistingWithoutMutation()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var existing = new SlickEntity
+        {
+            BoardId = boardId,
+            Name = "Release train",
+            NormalisedName = "RELEASE TRAIN",
+            StyleName = "presets",
+            StylePropertiesJson = """{"presetIndex":2}"""
+        };
+        DbContextForArrange.Slicks.Add(existing);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.CreateSlickDefinitionAsync(
+            boardId,
+            new SlickDefinitionCreate(
+                "RELEASE TRAIN",
+                new SlickStylePatch(
+                    "solid",
+                    """{"backgroundColor":"#224466","textColorMode":"auto","borderMode":"auto"}""")),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.Equal(existing.Id, result.Data!.Id);
+        Assert.Equal("Release train", result.Data.Name);
+        Assert.Equal("presets", result.Data.StyleName);
+        Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
+    }
+
+    [Fact]
     public async Task CreateSlickAsync_WhenStyleNameInvalid_ShouldReturnValidationError()
     {
         // Arrange
@@ -157,6 +197,42 @@ public sealed class SlickServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Equal("Launch lane", result.Data!.Name);
         Assert.Equal("solid", result.Data.StyleName);
+        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
+    }
+
+    [Fact]
+    public async Task UpdateSlickDefinitionAsync_WithNameOnly_ShouldPreserveStyle()
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .Build()
+            .BoardId;
+        var slick = new SlickEntity
+        {
+            BoardId = boardId,
+            Name = "Release train",
+            NormalisedName = "RELEASE TRAIN",
+            StyleName = "presets",
+            StylePropertiesJson = """{"presetIndex":2}"""
+        };
+        DbContextForArrange.Slicks.Add(slick);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateSlickDefinitionAsync(
+            boardId,
+            slick.Id,
+            new SlickDefinitionPatch(true, "Launch lane", null),
+            ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("Launch lane", result.Data!.Name);
+        Assert.Equal("presets", result.Data.StyleName);
+        Assert.Equal("""{"presetIndex":2}""", result.Data.StylePropertiesJson);
         Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 

@@ -208,10 +208,12 @@ public sealed record McpCardOptionTag(
     int Id,
     string Name,
     string? Emoji,
-    McpTagStyle Style);
+    McpStyle Style);
 
 public sealed record McpCardOptionSlick(
-    string Name);
+    int Id,
+    string Name,
+    McpStyle Style);
 
 public sealed record CardCreateInput
 {
@@ -301,10 +303,70 @@ public sealed record CardCommentCreateInput
     public string Text { get; init; } = string.Empty;
 }
 
+public sealed record SlickCreateInput
+{
+    public int? BoardId { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public McpStyle? Style { get; init; }
+}
+
+public sealed record SlickUpdateInput
+{
+    private string? _name;
+    private McpStyle? _style;
+
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+    public string? Name
+    {
+        get => _name;
+        init
+        {
+            _name = value;
+            NameSpecified = true;
+        }
+    }
+    public McpStyle? Style
+    {
+        get => _style;
+        init
+        {
+            _style = value;
+            StyleSpecified = true;
+        }
+    }
+
+    [JsonIgnore]
+    public bool NameSpecified { get; private init; }
+
+    [JsonIgnore]
+    public bool StyleSpecified { get; private init; }
+}
+
+public sealed record SlickDeleteInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+}
+
+public sealed record McpSlickSnapshot(
+    int Id,
+    string Name,
+    McpStyle Style,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc);
+
+public sealed record SlickMutationOutput(
+    McpSlickSnapshot Slick,
+    string Outcome);
+
+public sealed record SlickDeleteOutput(
+    string Outcome);
+
 public sealed record TagCreateInput
 {
     private string? _emoji;
-    private McpTagStyle? _style;
+    private McpStyle? _style;
 
     public int? BoardId { get; init; }
     public string Name { get; init; } = string.Empty;
@@ -317,7 +379,7 @@ public sealed record TagCreateInput
             EmojiSpecified = true;
         }
     }
-    public McpTagStyle? Style
+    public McpStyle? Style
     {
         get => _style;
         init
@@ -338,7 +400,7 @@ public sealed record TagUpdateInput
 {
     private string? _name;
     private string? _emoji;
-    private McpTagStyle? _style;
+    private McpStyle? _style;
 
     public int? BoardId { get; init; }
     public string CurrentTagName { get; init; } = string.Empty;
@@ -360,7 +422,7 @@ public sealed record TagUpdateInput
             EmojiSpecified = true;
         }
     }
-    public McpTagStyle? Style
+    public McpStyle? Style
     {
         get => _style;
         init
@@ -387,23 +449,23 @@ public sealed record TagDeleteInput
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "styleName")]
-[JsonDerivedType(typeof(McpAutoTagStyle), "auto")]
-[JsonDerivedType(typeof(McpPresetTagStyle), "presets")]
-[JsonDerivedType(typeof(McpSolidTagStyle), "solid")]
-[JsonDerivedType(typeof(McpGradientTagStyle), "gradient")]
-public abstract record McpTagStyle;
+[JsonDerivedType(typeof(McpAutoStyle), "auto")]
+[JsonDerivedType(typeof(McpPresetStyle), "presets")]
+[JsonDerivedType(typeof(McpSolidStyle), "solid")]
+[JsonDerivedType(typeof(McpGradientStyle), "gradient")]
+public abstract record McpStyle;
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record McpAutoTagStyle : McpTagStyle;
+public sealed record McpAutoStyle : McpStyle;
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record McpPresetTagStyle : McpTagStyle
+public sealed record McpPresetStyle : McpStyle
 {
     public int? PresetIndex { get; init; }
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record McpSolidTagStyle : McpTagStyle
+public sealed record McpSolidStyle : McpStyle
 {
     public string? BackgroundColor { get; init; }
     public string? TextColorMode { get; init; }
@@ -418,7 +480,7 @@ public sealed record McpSolidTagStyle : McpTagStyle
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record McpGradientTagStyle : McpTagStyle
+public sealed record McpGradientStyle : McpStyle
 {
     public string? LeftColor { get; init; }
     public string? RightColor { get; init; }
@@ -437,7 +499,7 @@ public sealed record McpTagSnapshot(
     int Id,
     string Name,
     string? Emoji,
-    McpTagStyle Style,
+    McpStyle Style,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 

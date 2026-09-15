@@ -9,6 +9,28 @@ public interface ISlickService
     Task<ApiResult<IReadOnlyList<SlickDto>>> GetSlicksAsync(int boardId, int actorUserId);
     Task<ApiResult<StyleDefaultDto>> GetCreateDefaultStyleAsync(int boardId, int actorUserId);
     Task<ApiResult<SlickDto>> CreateSlickAsync(int boardId, CreateSlickRequest request, int actorUserId);
+    Task<ApiResult<SlickDto>> CreateSlickDefinitionAsync(
+        int boardId,
+        SlickDefinitionCreate definition,
+        int actorUserId);
     Task<ApiResult<SlickDto>> UpdateSlickAsync(int boardId, int slickId, UpdateSlickRequest request, int actorUserId);
+    Task<ApiResult<SlickDto>> UpdateSlickDefinitionAsync(
+        int boardId,
+        int slickId,
+        SlickDefinitionPatch patch,
+        int actorUserId);
     Task<ApiResult> DeleteSlickAsync(int boardId, int slickId, int actorUserId);
 }
+
+public sealed record SlickDefinitionCreate(
+    string Name,
+    SlickStylePatch Style);
+
+public sealed record SlickDefinitionPatch(
+    bool NameSpecified,
+    string? Name,
+    SlickStylePatch? Style);
+
+public sealed record SlickStylePatch(
+    string StyleName,
+    string StylePropertiesJson);

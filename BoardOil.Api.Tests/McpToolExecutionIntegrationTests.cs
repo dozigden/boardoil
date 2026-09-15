@@ -426,6 +426,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         var patToken = await CreateMachinePatAsync(client, ["mcp:read"]);
         var contextFactory = Factory.Services.GetRequiredService<IDbContextFactory>();
         var unusedTagId = 0;
+        var unusedSlickId = 0;
         await using (var arrangeDbContext = contextFactory.CreateDbContext<BoardOilDbContext>())
         {
             var activeMember = CreateOptionUser("active-option-member", isActive: true);
@@ -463,16 +464,18 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
                 StylePropertiesJson = """{"leftColor":"#99c1f1","rightColor":"#3584e4","textColorMode":"auto"}""",
             };
             arrangeDbContext.Tags.Add(unusedTagEntity);
-            arrangeDbContext.Slicks.Add(new EntitySlick
+            var unusedSlickEntity = new EntitySlick
             {
                 BoardId = 1,
                 Name = "Unused Release Train",
                 NormalisedName = "UNUSED RELEASE TRAIN",
                 StyleName = "solid",
-                StylePropertiesJson = "{}",
-            });
+                StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto","borderMode":"auto"}""",
+            };
+            arrangeDbContext.Slicks.Add(unusedSlickEntity);
             await arrangeDbContext.SaveChangesAsync();
             unusedTagId = unusedTagEntity.Id;
+            unusedSlickId = unusedSlickEntity.Id;
         }
 
         // Act
@@ -508,7 +511,11 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.Equal("auto", unusedTagStyle.GetProperty("textColorMode").GetString());
         Assert.Equal("auto", unusedTagStyle.GetProperty("borderMode").GetString());
         var unusedSlick = options.GetProperty("slicks").EnumerateArray().Single(slick => slick.GetProperty("name").GetString() == "Unused Release Train");
-        Assert.Equal(["name"], unusedSlick.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(["id", "name", "style"], unusedSlick.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(unusedSlickId, unusedSlick.GetProperty("id").GetInt32());
+        var unusedSlickStyle = unusedSlick.GetProperty("style");
+        Assert.Equal("solid", unusedSlickStyle.GetProperty("styleName").GetString());
+        Assert.Equal("#224466", unusedSlickStyle.GetProperty("backgroundColor").GetString());
         var defaultCardTypeId = options.GetProperty("defaultCardTypeId").GetInt32();
         Assert.Contains(options.GetProperty("cardTypes").EnumerateArray(), cardType => cardType.GetProperty("id").GetInt32() == defaultCardTypeId);
     }

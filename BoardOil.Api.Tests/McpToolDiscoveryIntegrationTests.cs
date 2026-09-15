@@ -210,6 +210,9 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Contains(ToolNames.TagCreate, toolNames);
         Assert.Contains(ToolNames.TagUpdate, toolNames);
         Assert.Contains(ToolNames.TagDelete, toolNames);
+        Assert.Contains(ToolNames.SlickCreate, toolNames);
+        Assert.Contains(ToolNames.SlickUpdate, toolNames);
+        Assert.Contains(ToolNames.SlickDelete, toolNames);
         Assert.DoesNotContain("columns_list", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
 
@@ -232,7 +235,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.True(cardOptionsProperties.TryGetProperty("cardTypes", out _));
         Assert.True(cardOptionsProperties.TryGetProperty("defaultCardTypeId", out _));
         Assert.True(cardOptionsProperties.TryGetProperty("tags", out var tagsSchema));
-        Assert.True(cardOptionsProperties.TryGetProperty("slicks", out _));
+        Assert.True(cardOptionsProperties.TryGetProperty("slicks", out var slicksSchema));
         Assert.False(membersSchema.GetProperty("items").GetProperty("properties").TryGetProperty("isActive", out _));
         var tagProperties = tagsSchema.GetProperty("items").GetProperty("properties");
         Assert.True(tagProperties.TryGetProperty("id", out _));
@@ -245,6 +248,16 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .ToArray();
         Assert.Equal(["auto", "presets", "solid", "gradient"], cardOptionStyleNames);
         Assert.DoesNotContain("stylePropertiesJson", tagsSchema.GetRawText(), StringComparison.Ordinal);
+        var cardOptionSlickProperties = slicksSchema.GetProperty("items").GetProperty("properties");
+        Assert.True(cardOptionSlickProperties.TryGetProperty("id", out _));
+        Assert.True(cardOptionSlickProperties.TryGetProperty("name", out _));
+        Assert.True(cardOptionSlickProperties.TryGetProperty("style", out var slickOptionStyleSchema));
+        var cardOptionSlickStyleNames = slickOptionStyleSchema.GetProperty("oneOf")
+            .EnumerateArray()
+            .Select(variant => variant.GetProperty("properties").GetProperty("styleName").GetProperty("const").GetString()!)
+            .ToArray();
+        Assert.Equal(["presets", "solid"], cardOptionSlickStyleNames);
+        Assert.DoesNotContain("stylePropertiesJson", slicksSchema.GetRawText(), StringComparison.Ordinal);
 
         var boardListTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.BoardList);
         Assert.True(boardListTool.GetProperty("inputSchema").TryGetProperty("properties", out var boardListProperties));
@@ -425,6 +438,44 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal(
             ["deleted"],
             tagDeleteTool.GetProperty("outputSchema").GetProperty("properties").GetProperty("outcome").GetProperty("enum")
+                .EnumerateArray()
+                .Select(value => value.GetString())
+                .ToArray());
+
+        var slickCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.SlickCreate);
+        var slickCreateInputSchema = slickCreateTool.GetProperty("inputSchema");
+        Assert.Equal(
+            ["boardId", "name", "style"],
+            slickCreateInputSchema.GetProperty("required").EnumerateArray().Select(value => value.GetString()).ToArray());
+        var slickCreateStyleSchema = slickCreateInputSchema.GetProperty("properties").GetProperty("style");
+        var slickCreateStyleNames = slickCreateStyleSchema.GetProperty("oneOf")
+            .EnumerateArray()
+            .Select(variant => variant.GetProperty("properties").GetProperty("styleName").GetProperty("const").GetString()!)
+            .ToArray();
+        Assert.Equal(["presets", "solid"], slickCreateStyleNames);
+        Assert.DoesNotContain("stylePropertiesJson", slickCreateInputSchema.GetRawText(), StringComparison.Ordinal);
+
+        var slickUpdateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.SlickUpdate);
+        var slickUpdateInputSchema = slickUpdateTool.GetProperty("inputSchema");
+        Assert.Equal(
+            ["boardId", "id"],
+            slickUpdateInputSchema.GetProperty("required").EnumerateArray().Select(value => value.GetString()).ToArray());
+        Assert.Equal(
+            slickCreateStyleSchema.GetRawText(),
+            slickUpdateInputSchema.GetProperty("properties").GetProperty("style").GetRawText());
+        Assert.Contains(
+            "card_options_get.slicks[].id",
+            slickUpdateInputSchema.GetProperty("properties").GetProperty("id").GetProperty("description").GetString(),
+            StringComparison.Ordinal);
+
+        var slickDeleteTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.SlickDelete);
+        Assert.Contains(
+            "card_options_get.slicks[].id",
+            slickDeleteTool.GetProperty("inputSchema").GetProperty("properties").GetProperty("id").GetProperty("description").GetString(),
+            StringComparison.Ordinal);
+        Assert.Equal(
+            ["deleted"],
+            slickDeleteTool.GetProperty("outputSchema").GetProperty("properties").GetProperty("outcome").GetProperty("enum")
                 .EnumerateArray()
                 .Select(value => value.GetString())
                 .ToArray());

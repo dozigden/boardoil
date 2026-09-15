@@ -48,6 +48,9 @@ public static class McpServiceCollectionExtensions
         RegisterTool<TagCreateTool>(services);
         RegisterTool<TagUpdateTool>(services);
         RegisterTool<TagDeleteTool>(services);
+        RegisterTool<SlickCreateTool>(services);
+        RegisterTool<SlickUpdateTool>(services);
+        RegisterTool<SlickDeleteTool>(services);
 
         services.AddSingleton<McpToolRegistry>();
         services.AddSingleton<McpToolDispatcher>();

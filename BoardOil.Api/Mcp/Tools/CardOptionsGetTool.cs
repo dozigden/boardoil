@@ -68,7 +68,22 @@ public sealed class CardOptionsGetTool(
                 tag.Id,
                 tag.Name,
                 tag.Emoji,
-                McpTagStyleMapper.ToMcp(parsedStyle.Definition)));
+                McpStyleMapper.ToMcp(parsedStyle.Definition)));
+        }
+
+        var slicks = new List<McpCardOptionSlick>(result.Data.Slicks.Count);
+        foreach (var slick in result.Data.Slicks)
+        {
+            var mappedSlick = McpSlickMapper.ToMcpOption(slick);
+            if (mappedSlick is null)
+            {
+                return Failure(new McpToolError(
+                    "data_integrity_error",
+                    $"Slick {slick.Id} ('{slick.Name}') has an invalid style definition.",
+                    500));
+            }
+
+            slicks.Add(mappedSlick);
         }
 
         return Success(new CardOptionsGetOutput(
@@ -85,6 +100,6 @@ public sealed class CardOptionsGetTool(
                 cardType.Emoji)).ToArray(),
             result.Data.DefaultCardTypeId,
             tags,
-            result.Data.Slicks.Select(slick => new McpCardOptionSlick(slick.Name)).ToArray()));
+            slicks));
     }
 }

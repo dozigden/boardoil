@@ -57,7 +57,7 @@ public sealed class TagUpdateTool(
                 "Tag name cannot be null."));
         }
 
-        McpTagStyleMappingResult? styleMapping = null;
+        McpStyleMappingResult? styleMapping = null;
         if (input.StyleSpecified)
         {
             if (input.Style is null)
@@ -68,7 +68,7 @@ public sealed class TagUpdateTool(
             }
             else
             {
-                styleMapping = McpTagStyleMapper.Parse(input.Style);
+                styleMapping = McpStyleMapper.Parse(input.Style);
                 validationErrors.AddRange(styleMapping.ValidationErrors);
             }
         }
@@ -113,7 +113,7 @@ public sealed class TagUpdateTool(
         }
 
         var updatedTag = updateResult.Data;
-        var snapshot = McpTagStyleMapper.ToMcpSnapshot(updatedTag);
+        var snapshot = McpTagMapper.ToMcpSnapshot(updatedTag);
         if (snapshot is null)
         {
             return Failure(new McpToolError(
