@@ -1,6 +1,7 @@
 using BoardOil.Mcp.Contracts;
 using BoardOil.Api.Auth;
 using BoardOil.Api.Configuration;
+using BoardOil.Contracts.Auth;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -23,7 +24,11 @@ public sealed class McpToolDispatcher(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        var accessContext = _authorisationService.GetAccessContext(_httpContextAccessor.HttpContext?.User);
         var tools = _toolRegistry.Definitions
+            .Where(definition =>
+                _mcpOptions.AuthMode is McpAuthMode.None
+                || McpScopeRules.Allows(accessContext?.Scopes, definition.RequiredScope))
             .Select(definition => new Tool
             {
                 Name = definition.Name,

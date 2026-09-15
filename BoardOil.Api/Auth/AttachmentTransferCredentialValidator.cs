@@ -45,7 +45,7 @@ public sealed class AttachmentTransferCredentialValidator(
         var authorization = await authorizations.FindByIdAsync(credential.OAuthAuthorizationId, cancellationToken);
         if (authorization is null || !await authorizations.HasStatusAsync(authorization, Statuses.Valid, cancellationToken) ||
             await authorizations.GetSubjectAsync(authorization, cancellationToken) != subject ||
-            !(await authorizations.GetScopesAsync(authorization, cancellationToken)).Contains(requiredScope)) { return Invalid(); }
+            !McpScopeRules.Allows(await authorizations.GetScopesAsync(authorization, cancellationToken), requiredScope)) { return Invalid(); }
         var applicationId = await authorizations.GetApplicationIdAsync(authorization, cancellationToken);
         if (string.IsNullOrEmpty(applicationId) || await tokens.GetApplicationIdAsync(token, cancellationToken) != applicationId) { return Invalid(); }
         var application = await applications.FindByIdAsync(applicationId, cancellationToken);
@@ -61,7 +61,8 @@ public sealed class AttachmentTransferCredentialValidator(
     }
 
     private static bool HasScope(string scopes, string requiredScope) =>
-        scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Contains(requiredScope, StringComparer.Ordinal);
+        McpScopeRules.Allows(
+            scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+            requiredScope);
     private static ApiError Invalid() => ApiErrors.Unauthorized("The originating credential is no longer valid.");
 }

@@ -19,6 +19,30 @@ public static class MachinePatScopes
     public const string ApiSystem = "api:system";
 }
 
+public static class McpScopeRules
+{
+    public static bool Allows(IEnumerable<string>? grantedScopes, string? requiredScope)
+    {
+        if (string.IsNullOrWhiteSpace(requiredScope))
+        {
+            return true;
+        }
+
+        if (grantedScopes is null)
+        {
+            return false;
+        }
+
+        if (grantedScopes.Contains(requiredScope, StringComparer.Ordinal))
+        {
+            return true;
+        }
+
+        return string.Equals(requiredScope, MachinePatScopes.McpRead, StringComparison.Ordinal)
+            && grantedScopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal);
+    }
+}
+
 public sealed record CreateMachinePatRequest(
     string Name,
     int? ExpiresInDays = null,

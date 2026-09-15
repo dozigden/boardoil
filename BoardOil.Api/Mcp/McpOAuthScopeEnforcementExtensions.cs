@@ -1,5 +1,6 @@
 using System.Text.Json;
 using BoardOil.Api.OAuth;
+using BoardOil.Contracts.Auth;
 
 namespace BoardOil.Api.Mcp;
 
@@ -44,7 +45,7 @@ public static class McpOAuthScopeEnforcementExtensions
                 requiredScope = registration.Definition.RequiredScope;
             }
 
-            if (requiredScope is null || accessContext.Scopes.Contains(requiredScope))
+            if (McpScopeRules.Allows(accessContext.Scopes, requiredScope))
             {
                 await next();
                 return;

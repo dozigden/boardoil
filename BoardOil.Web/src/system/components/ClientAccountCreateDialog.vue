@@ -41,7 +41,7 @@
       </label>
       <label class="client-account-dialog-check">
         <input v-model="draft.scopes" :disabled="busy" type="checkbox" value="mcp:write" />
-        <span><code>mcp:write</code> (card create/update/move/delete)</span>
+        <span><code>mcp:write</code> (includes MCP reads and all MCP mutations)</span>
       </label>
       <label class="client-account-dialog-check">
         <input v-model="draft.scopes" :disabled="busy" type="checkbox" value="api:read" />

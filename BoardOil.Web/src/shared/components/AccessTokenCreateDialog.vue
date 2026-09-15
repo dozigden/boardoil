@@ -76,7 +76,7 @@ const emit = defineEmits<{
 
 const scopeDefinitions = [
   { id: 'mcp:read', description: ' (board and column reads)' },
-  { id: 'mcp:write', description: ' (card create/update/move/delete)' },
+  { id: 'mcp:write', description: ' (includes MCP reads and all MCP mutations)' },
   { id: 'api:read', description: ' (REST `GET` and `HEAD` on `/api/*`)' },
   { id: 'api:write', description: ' (REST `POST`/`PUT`/`PATCH`/`DELETE` on `/api/*`)' },
   { id: 'api:admin', description: ' (`/api/admin/*`)' },

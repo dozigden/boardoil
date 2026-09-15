@@ -39,7 +39,7 @@ public sealed class McpAuthorisationService : IMcpAuthorisationService
             return null;
         }
 
-        if (!accessContext.Scopes.Contains(requiredScope))
+        if (!McpScopeRules.Allows(accessContext.Scopes, requiredScope))
         {
             return new McpToolError(
                 "forbidden",

@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using BoardOil.Contracts.Auth;
 using Microsoft.AspNetCore.Antiforgery;
 using OpenIddict.Abstractions;
 
@@ -86,7 +87,13 @@ internal static class OAuthConsentPageRenderer
 
             builder.Append("><code>")
                 .Append(HtmlEncoder.Default.Encode(scope))
-                .Append("</code></label>");
+                .Append("</code>");
+            if (string.Equals(scope, MachinePatScopes.McpWrite, StringComparison.Ordinal))
+            {
+                builder.Append(" (includes MCP read access)");
+            }
+
+            builder.Append("</label>");
         }
 
         builder.Append("</fieldset>");

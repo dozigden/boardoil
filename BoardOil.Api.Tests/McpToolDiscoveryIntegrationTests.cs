@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BoardOil.Api.Tests.Infrastructure;
+using BoardOil.Contracts.Auth;
 using BoardOil.Mcp.Contracts;
 using Xunit;
 
@@ -178,6 +179,82 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .GetProperty("params")
             .GetProperty("name")
             .GetString());
+    }
+
+    [Fact]
+    public async Task ToolsList_WithReadScope_ShouldAdvertiseOnlyIdentityAndReadTools()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client, [MachinePatScopes.McpRead]);
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "tools-list-read-scope",
+            patToken);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            [
+                ToolNames.IdentityGet,
+                ToolNames.BoardList,
+                ToolNames.BoardGet,
+                ToolNames.CardGet,
+                ToolNames.CardOptionsGet,
+                ToolNames.CardAttachmentList,
+                ToolNames.CardAttachmentDownload
+            ],
+            GetToolNames(payload));
+    }
+
+    [Fact]
+    public async Task ToolsList_WithWriteScope_ShouldAdvertiseCompleteCatalogue()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client, [MachinePatScopes.McpWrite]);
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "tools-list-write-scope",
+            patToken);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(20, GetToolNames(payload).Length);
+    }
+
+    [Fact]
+    public async Task BoardList_WithWriteScope_ShouldSucceed()
+    {
+        // Arrange
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var patToken = await CreateMachinePatAsync(client, [MachinePatScopes.McpWrite]);
+
+        // Act
+        var response = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new { name = ToolNames.BoardList, arguments = new { } },
+            "board-list-write-scope",
+            patToken);
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
     }
 
     [Fact]
@@ -547,6 +624,14 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Contains("reusable", description, StringComparison.Ordinal);
         Assert.Contains("card_update", description, StringComparison.Ordinal);
     }
+
+    private static string?[] GetToolNames(JsonDocument toolsListPayload) =>
+        toolsListPayload.RootElement
+            .GetProperty("result")
+            .GetProperty("tools")
+            .EnumerateArray()
+            .Select(tool => tool.GetProperty("name").GetString())
+            .ToArray();
 
     private sealed record UpdateConfigurationRequest(
         string? McpPublicBaseUrl,

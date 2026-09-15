@@ -17,6 +17,7 @@ using BoardOil.Contracts.OAuth;
 using BoardOil.Contracts.Users;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Ef;
+using BoardOil.Mcp.Contracts;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,8 +44,12 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     {
         // Arrange
         var client = CreateOAuthClient();
-        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
-        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead);
+        var scenario = await CreateScenarioAsync(
+            client,
+            [MachinePatScopes.McpRead, MachinePatScopes.McpWrite]);
+        var request = CreateAuthorizationRequest(
+            scenario,
+            $"{MachinePatScopes.McpRead} {MachinePatScopes.McpWrite}");
         var logoutResponse = await client.PostAsync("/api/auth/logout", content: null);
         logoutResponse.EnsureSuccessStatusCode();
 
@@ -70,6 +75,8 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Contains("Redirect URI", consentPage);
         Assert.Contains(WebUtility.HtmlEncode(scenario.Resource), consentPage);
         Assert.Contains(MachinePatScopes.McpRead, consentPage);
+        Assert.Contains(MachinePatScopes.McpWrite, consentPage);
+        Assert.Contains("includes MCP read access", consentPage);
         Assert.Contains("your signed-in BoardOil user", consentPage);
     }
 
@@ -839,6 +846,13 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         const string endpoint = "/mcp";
 
         // Act
+        var toolsResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "oauth-tools-list",
+            exchange.AccessToken,
+            endpoint);
         var readResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
             "tools/call",
@@ -889,8 +903,26 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Contains("resource_metadata=", writeChallenge);
         using var readPayload = await McpJsonRpcClient.ParseJsonAsync(readResponse);
         using var identityPayload = await McpJsonRpcClient.ParseJsonAsync(identityResponse);
+        using var toolsPayload = await McpJsonRpcClient.ParseJsonAsync(toolsResponse);
 
         // Assert
+        Assert.Equal(HttpStatusCode.OK, toolsResponse.StatusCode);
+        Assert.Equal(
+            [
+                ToolNames.IdentityGet,
+                ToolNames.BoardList,
+                ToolNames.BoardGet,
+                ToolNames.CardGet,
+                ToolNames.CardOptionsGet,
+                ToolNames.CardAttachmentList,
+                ToolNames.CardAttachmentDownload
+            ],
+            toolsPayload.RootElement
+                .GetProperty("result")
+                .GetProperty("tools")
+                .EnumerateArray()
+                .Select(tool => tool.GetProperty("name").GetString())
+                .ToArray());
         Assert.False(readPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
         var identity = McpJsonRpcClient.GetStructuredContent(identityPayload);
         Assert.Equal("admin", identity.GetProperty("user").GetProperty("userName").GetString());
@@ -898,6 +930,49 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Equal(
             [MachinePatScopes.McpRead],
             identity.GetProperty("authentication").GetProperty("scopes").EnumerateArray().Select(scope => scope.GetString()).ToArray());
+    }
+
+    [Fact]
+    public async Task CanonicalMcpConnection_WithValidWriteToken_ShouldAdvertiseCompleteCatalogueAndAllowReads()
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpWrite]);
+        var request = CreateAuthorizationRequest(
+            scenario,
+            MachinePatScopes.McpWrite,
+            $"{scenario.PublicBaseUrl}/mcp");
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        const string endpoint = "/mcp";
+
+        // Act
+        var toolsResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/list",
+            new { },
+            "oauth-write-tools-list",
+            exchange.AccessToken,
+            endpoint);
+        using var toolsPayload = await McpJsonRpcClient.ParseJsonAsync(toolsResponse);
+        var readResponse = await McpJsonRpcClient.SendRequestAsync(
+            client,
+            "tools/call",
+            new { name = ToolNames.BoardList, arguments = new { } },
+            "oauth-write-board-list",
+            exchange.AccessToken,
+            endpoint);
+        using var readPayload = await McpJsonRpcClient.ParseJsonAsync(readResponse);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, toolsResponse.StatusCode);
+        Assert.Equal(20, toolsPayload.RootElement
+            .GetProperty("result")
+            .GetProperty("tools")
+            .GetArrayLength());
+        Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
+        Assert.False(readPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
     }
 
     [Theory]
@@ -1424,14 +1499,18 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
 
     [Theory]
     [InlineData("valid")]
+    [InlineData("write-scope")]
     [InlineData("token-revoked")]
     [InlineData("authorization-revoked")]
     [InlineData("connection-revoked")]
     public async Task AttachmentDownloadTicket_ShouldRecheckOriginatingOAuthCredential(string state)
     {
         var client = CreateOAuthClient();
-        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead]);
-        var authorizationRequest = CreateAuthorizationRequest(scenario, MachinePatScopes.McpRead, $"{scenario.PublicBaseUrl}/mcp");
+        var grantedScope = state == "write-scope"
+            ? MachinePatScopes.McpWrite
+            : MachinePatScopes.McpRead;
+        var scenario = await CreateScenarioAsync(client, [grantedScope]);
+        var authorizationRequest = CreateAuthorizationRequest(scenario, grantedScope, $"{scenario.PublicBaseUrl}/mcp");
         var code = await ApproveAsync(client, scenario, authorizationRequest);
         var exchange = await ExchangeCodeAsync(client, scenario, authorizationRequest, code);
         Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
@@ -1480,7 +1559,8 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
 
         using var response = await CreateOAuthClient().SendAsync(request);
 
-        if (state == "valid")
+        var shouldSucceed = state is "valid" or "write-scope";
+        if (shouldSucceed)
         {
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Equal(new byte[] { 0, 255, 42 }, await response.Content.ReadAsByteArrayAsync());
@@ -1492,7 +1572,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
                 .CreateDbContext<BoardOilDbContext>();
             var audits = await db.AttachmentTransferAudits.OrderBy(x => x.Id).ToListAsync();
             Assert.Equal(AttachmentTransferCredentialType.OAuth, audits[0].CredentialType);
-            var expectedOutcome = state == "valid"
+            var expectedOutcome = shouldSucceed
                 ? AttachmentTransferAuditOutcome.DownloadAdmitted
                 : AttachmentTransferAuditOutcome.CredentialInvalid;
             Assert.Equal([AttachmentTransferAuditOutcome.Issued, expectedOutcome], audits.Select(x => x.Outcome));

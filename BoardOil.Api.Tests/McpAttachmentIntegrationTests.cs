@@ -133,8 +133,6 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
     }
 
     [Theory]
-    [InlineData(ToolNames.CardAttachmentList, "mcp:write")]
-    [InlineData(ToolNames.CardAttachmentDownload, "mcp:write")]
     [InlineData(ToolNames.CardAttachmentUpload, "mcp:read")]
     [InlineData(ToolNames.CardAttachmentDelete, "mcp:read")]
     public async Task AttachmentTools_WithInsufficientPatScope_ShouldReturnForbidden(string toolName, string grantedScope)
@@ -148,6 +146,22 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
 
         // Assert
         AssertError(payload, "forbidden", 403);
+    }
+
+    [Theory]
+    [InlineData(ToolNames.CardAttachmentList)]
+    [InlineData(ToolNames.CardAttachmentDownload)]
+    public async Task AttachmentReadTools_WithWritePatScope_ShouldSucceed(string toolName)
+    {
+        // Arrange
+        var (client, _, card, attachment) = await ArrangeAttachmentAsync();
+        var token = await CreateMachinePatAsync(client, [MachinePatScopes.McpWrite]);
+
+        // Act
+        using var payload = await CallAsync(client, token, toolName, Arguments(toolName, card.Id, attachment.Id));
+
+        // Assert
+        _ = AssertSuccess(payload);
     }
 
     [Theory]
@@ -274,7 +288,7 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
                 case "deleted": db.PersonalAccessTokens.Remove(pat); break;
                 case "expired": pat.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-1); break;
                 case "disabled-user": (await db.Users.SingleAsync(x => x.Id == pat.UserId)).IsActive = false; break;
-                case "scope-removed": pat.ScopesCsv = "mcp:write"; break;
+                case "scope-removed": pat.ScopesCsv = MachinePatScopes.ApiRead; break;
             }
             await db.SaveChangesAsync();
         }

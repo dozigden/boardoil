@@ -112,6 +112,22 @@ public sealed class McpAuthorisationServiceTests
     }
 
     [Fact]
+    public void EnsureScopeAccess_WhenWriteScopeGrantedAndReadRequired_ShouldReturnNull()
+    {
+        // Arrange
+        var context = new McpAccessContext(
+            42,
+            "PAT",
+            new HashSet<string>(StringComparer.Ordinal) { MachinePatScopes.McpWrite });
+
+        // Act
+        var error = _service.EnsureScopeAccess(context, MachinePatScopes.McpRead);
+
+        // Assert
+        Assert.Null(error);
+    }
+
+    [Fact]
     public void EnsureScopeAccess_WhenToolDoesNotRequireScope_ShouldReturnNull()
     {
         // Arrange
