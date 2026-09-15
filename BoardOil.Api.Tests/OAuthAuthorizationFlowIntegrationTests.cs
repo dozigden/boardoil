@@ -1350,8 +1350,13 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
 
         // Assert
         Assert.Contains(1, afterMembership);
-        var comment = McpJsonRpcClient.GetStructuredContent(commentPayload).GetProperty("comment");
-        Assert.Equal(scenario.UserId, comment.GetProperty("authorUserId").GetInt32());
+        var receipt = McpJsonRpcClient.GetStructuredContent(commentPayload);
+        Assert.Equal("created", receipt.GetProperty("outcome").GetString());
+        using var dbScope = Factory.Services.CreateScope();
+        await using var db = dbScope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>()
+            .CreateDbContext<BoardOilDbContext>();
+        var comment = await db.CardComments.SingleAsync(x => x.Id == receipt.GetProperty("id").GetInt32());
+        Assert.Equal(scenario.UserId, comment.AuthorUserId);
         Assert.DoesNotContain(1, afterRemoval);
     }
 

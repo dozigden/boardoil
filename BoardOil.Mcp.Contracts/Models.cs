@@ -527,9 +527,9 @@ public sealed record TagDeleteOutput(
     string Outcome);
 
 public sealed record CardMutationOutput(
-    McpCardSnapshot? Card,
+    int Id,
     string Outcome);
 
 public sealed record CardCommentMutationOutput(
-    McpCardCommentSnapshot? Comment,
+    int Id,
     string Outcome);

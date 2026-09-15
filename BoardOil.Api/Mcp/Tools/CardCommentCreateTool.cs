@@ -14,7 +14,7 @@ public sealed class CardCommentCreateTool(
     private readonly ICardCommentService _cardCommentService = cardCommentService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardCommentCreate, "Add a comment to a card.", ToolSchemas.CardCommentCreateInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite, ToolDiscoveryOrder.CardCommentCreate, McpToolBehaviours.NonDestructive);
+        new(ToolNames.CardCommentCreate, "Add a comment to a card.", ToolSchemas.CardCommentCreateInput, ToolSchemas.CardCommentCreateOutput, MachinePatScopes.McpWrite, ToolDiscoveryOrder.CardCommentCreate, McpToolBehaviours.NonDestructive);
 
     protected override async Task<McpToolResult<CardCommentMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -52,6 +52,6 @@ public sealed class CardCommentCreateTool(
             return Failure(result.ToMcpError());
         }
 
-        return Success(new CardCommentMutationOutput(result.Data.ToMcp(), "created"));
+        return Success(new CardCommentMutationOutput(result.Data.Id, "created"));
     }
 }

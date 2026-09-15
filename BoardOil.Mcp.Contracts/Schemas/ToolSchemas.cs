@@ -614,6 +614,24 @@ public static class ToolSchemas
     }
     """;
 
+    public static readonly string CardCreateOutput = CreateMutationReceiptSchema("created", "Board-scoped number of the created card.");
+    public static readonly string CardUpdateOutput = CreateMutationReceiptSchema("updated", "Board-scoped number of the updated card.");
+    public static readonly string CardMoveOutput = CreateMutationReceiptSchema("moved", "Board-scoped number of the moved card.");
+    public static readonly string CardDeleteOutput = CreateMutationReceiptSchema("deleted", "Board-scoped number of the deleted card.");
+    public static readonly string CardCommentCreateOutput = CreateMutationReceiptSchema("created", "Generated comment ID, not the card number.");
+
+    private static string CreateMutationReceiptSchema(string outcome, string idDescription) => $$"""
+    {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer", "minimum": 1, "description": "{{idDescription}}" },
+        "outcome": { "type": "string", "enum": ["{{outcome}}"] }
+      },
+      "required": ["id", "outcome"],
+      "additionalProperties": false
+    }
+    """;
+
     public const string ObjectOutput = """
     {
       "type": "object"

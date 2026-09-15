@@ -304,6 +304,29 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.DoesNotContain("columns_list", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
 
+        foreach (var (toolName, outcome) in new[]
+        {
+            (ToolNames.CardCreate, "created"),
+            (ToolNames.CardUpdate, "updated"),
+            (ToolNames.CardMove, "moved"),
+            (ToolNames.CardDelete, "deleted"),
+            (ToolNames.CardCommentCreate, "created")
+        })
+        {
+            var schema = McpJsonRpcClient.GetToolByName(toolsListPayload, toolName).GetProperty("outputSchema");
+            Assert.Equal("object", schema.GetProperty("type").GetString());
+            Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
+            Assert.Equal(["id", "outcome"], schema.GetProperty("required").EnumerateArray()
+                .Select(value => value.GetString()).ToArray());
+            var properties = schema.GetProperty("properties");
+            Assert.Equal(["id", "outcome"], properties.EnumerateObject().Select(property => property.Name).ToArray());
+            Assert.Equal("integer", properties.GetProperty("id").GetProperty("type").GetString());
+            Assert.Equal(1, properties.GetProperty("id").GetProperty("minimum").GetInt32());
+            Assert.Equal("string", properties.GetProperty("outcome").GetProperty("type").GetString());
+            Assert.Equal([outcome], properties.GetProperty("outcome").GetProperty("enum").EnumerateArray()
+                .Select(value => value.GetString()).ToArray());
+        }
+
         AssertToolAnnotations(toolsListPayload, ToolNames.IdentityGet, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.BoardList, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.BoardGet, readOnly: true, destructive: false, idempotent: true);

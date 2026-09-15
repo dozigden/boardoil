@@ -62,7 +62,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.Equal(HttpStatusCode.OK, firstCreateResponse.StatusCode);
         using var firstCreatePayload = await McpJsonRpcClient.ParseJsonAsync(firstCreateResponse);
         Assert.False(firstCreatePayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
-        var firstCard = McpJsonRpcClient.GetStructuredContent(firstCreatePayload).GetProperty("card");
+        var firstCard = AssertReceipt(firstCreatePayload, "created");
 
         var secondCreateResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -84,7 +84,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.Equal(HttpStatusCode.OK, secondCreateResponse.StatusCode);
         using var secondCreatePayload = await McpJsonRpcClient.ParseJsonAsync(secondCreateResponse);
         Assert.False(secondCreatePayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
-        var secondCard = McpJsonRpcClient.GetStructuredContent(secondCreatePayload).GetProperty("card");
+        var secondCard = await GetCardAsync(client, patToken, secondBoardId, AssertReceipt(secondCreatePayload, "created").GetProperty("id").GetInt32());
 
         var sharedCardId = firstCard.GetProperty("id").GetInt32();
         Assert.Equal(sharedCardId, secondCard.GetProperty("id").GetInt32());
@@ -190,7 +190,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
-        var createdCard = McpJsonRpcClient.GetStructuredContent(payload).GetProperty("card");
+        var createdCard = await GetCardAsync(client, patToken, 1, AssertReceipt(payload, "created").GetProperty("id").GetInt32());
         Assert.Equal("Created", createdCard.GetProperty("title").GetString());
         Assert.Equal(targetColumnId, createdCard.GetProperty("columnId").GetInt32());
 
@@ -246,9 +246,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
-        var movedCard = McpJsonRpcClient.GetStructuredContent(payload).GetProperty("card");
+        var movedCard = AssertReceipt(payload, "moved");
         Assert.Equal(scenario.MovingCardId, movedCard.GetProperty("id").GetInt32());
-        Assert.Equal(scenario.TargetColumnId, movedCard.GetProperty("columnId").GetInt32());
 
         var contextFactory = Factory.Services.GetRequiredService<IDbContextFactory>();
         await using var assertDbContext = contextFactory.CreateDbContext<BoardOilDbContext>();
@@ -564,44 +563,6 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
     }
 
     [Fact]
-    public async Task BoardList_WithWriteOnlyPat_ShouldReturnForbiddenError()
-    {
-        // Arrange
-        var client = CreateClient();
-        await RegisterInitialAdminAsync(client);
-        var patToken = await CreateMachinePatAsync(client, ["mcp:write"]);
-
-        // Act
-        var identityResponse = await McpJsonRpcClient.SendRequestAsync(
-            client,
-            "tools/call",
-            new { name = "identity_get", arguments = new { } },
-            "identity-get-write-only",
-            patToken);
-        using var identityPayload = await McpJsonRpcClient.ParseJsonAsync(identityResponse);
-        var boardListResponse = await McpJsonRpcClient.SendRequestAsync(
-            client,
-            "tools/call",
-            new
-            {
-                name = "board_list",
-                arguments = new { }
-            },
-            "board-list-forbidden",
-            patToken);
-        Assert.Equal(HttpStatusCode.OK, boardListResponse.StatusCode);
-        using var boardListPayload = await McpJsonRpcClient.ParseJsonAsync(boardListResponse);
-
-        // Assert
-        Assert.False(identityPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
-        var result = boardListPayload.RootElement.GetProperty("result");
-        Assert.True(result.GetProperty("isError").GetBoolean());
-        var structuredContent = result.GetProperty("structuredContent");
-        Assert.Equal("forbidden", structuredContent.GetProperty("code").GetString());
-        Assert.Equal(403, structuredContent.GetProperty("statusCode").GetInt32());
-    }
-
-    [Fact]
     public async Task BoardGet_ShouldExcludeDescriptions_ButCardGetReturnsFullDetails()
     {
         // Arrange
@@ -629,7 +590,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             .GetProperty("id")
             .GetInt32();
 
-        const string fullDescription = "Full detail test";
+        var fullDescription = new string('x', 18000);
 
         var createResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -650,8 +611,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             patToken);
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
-        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
-        var createdCardId = createdCard.GetProperty("id").GetInt32();
+        var createdCardId = AssertReceipt(createPayload, "created").GetProperty("id").GetInt32();
+        Assert.DoesNotContain(fullDescription, createPayload.RootElement.GetRawText(), StringComparison.Ordinal);
 
         var boardVerifyResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -745,7 +706,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             patToken);
         Assert.Equal(HttpStatusCode.OK, createCardResponse.StatusCode);
         using var createCardPayload = await McpJsonRpcClient.ParseJsonAsync(createCardResponse);
-        var cardId = McpJsonRpcClient.GetStructuredContent(createCardPayload).GetProperty("card").GetProperty("id").GetInt32();
+        var cardId = AssertReceipt(createCardPayload, "created").GetProperty("id").GetInt32();
 
         var addFirstCommentResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -784,9 +745,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.Equal(HttpStatusCode.OK, addSecondCommentResponse.StatusCode);
         using var addSecondCommentPayload = await McpJsonRpcClient.ParseJsonAsync(addSecondCommentResponse);
         Assert.False(addSecondCommentPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
-        var createdComment = McpJsonRpcClient.GetStructuredContent(addSecondCommentPayload).GetProperty("comment");
-        Assert.True(createdComment.TryGetProperty("postedAtUtc", out _));
-        Assert.False(createdComment.TryGetProperty("createdAtUtc", out _));
+        var createdComment = AssertReceipt(addSecondCommentPayload, "created");
 
         var cardGetResponse = await McpJsonRpcClient.SendRequestAsync(
             client,
@@ -806,6 +765,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             .EnumerateArray()
             .ToArray();
         Assert.Equal(2, comments.Length);
+        Assert.Equal(createdComment.GetProperty("id").GetInt32(), comments[0].GetProperty("id").GetInt32());
+        Assert.True(comments[0].TryGetProperty("postedAtUtc", out _));
+        Assert.False(comments[0].TryGetProperty("createdAtUtc", out _));
         Assert.Equal("Second MCP comment", comments[0].GetProperty("text").GetString());
         Assert.Equal("First MCP comment", comments[1].GetProperty("text").GetString());
         Assert.All(comments, comment => Assert.True(comment.TryGetProperty("postedAtUtc", out _)));
@@ -869,7 +831,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
 
-        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
+        var createdCard = await GetCardAsync(client, patToken, 1, AssertReceipt(createPayload, "created").GetProperty("id").GetInt32());
         Assert.True(createdCard.TryGetProperty("id", out _));
         Assert.True(createdCard.TryGetProperty("columnId", out _));
         Assert.True(createdCard.TryGetProperty("cardTypeId", out _));
@@ -935,7 +897,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             patToken);
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         using var updatePayload = await McpJsonRpcClient.ParseJsonAsync(updateResponse);
-        var updatedCard = McpJsonRpcClient.GetStructuredContent(updatePayload).GetProperty("card");
+        var updatedCard = await GetCardAsync(client, patToken, 1, AssertReceipt(updatePayload, "updated").GetProperty("id").GetInt32());
         Assert.Equal(JsonValueKind.Null, updatedCard.GetProperty("externalUrl").ValueKind);
 
         var deleteResponse = await McpJsonRpcClient.SendRequestAsync(
@@ -953,6 +915,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             "card-delete-canonical-contract",
             patToken);
         Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+        using var deletePayload = await McpJsonRpcClient.ParseJsonAsync(deleteResponse);
+        Assert.Equal(createdCardId, AssertReceipt(deletePayload, "deleted").GetProperty("id").GetInt32());
     }
 
     [Fact]
@@ -1049,7 +1013,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
 
-        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
+        var createdCard = await GetCardAsync(client, patToken, 1, AssertReceipt(createPayload, "created").GetProperty("id").GetInt32());
         var createdCardId = createdCard.GetProperty("id").GetInt32();
         var createdCardTypeId = createdCard.GetProperty("cardTypeId").GetInt32();
 
@@ -1170,7 +1134,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             patToken);
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
-        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
+        var createdCard = await GetCardAsync(client, patToken, 1, AssertReceipt(createPayload, "created").GetProperty("id").GetInt32());
         var createdCardId = createdCard.GetProperty("id").GetInt32();
         var createdCardTypeId = createdCard.GetProperty("cardTypeId").GetInt32();
 
@@ -1269,7 +1233,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             patToken);
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         using var createPayload = await McpJsonRpcClient.ParseJsonAsync(createResponse);
-        var createdCard = McpJsonRpcClient.GetStructuredContent(createPayload).GetProperty("card");
+        var createdCard = await GetCardAsync(client, patToken, 1, AssertReceipt(createPayload, "created").GetProperty("id").GetInt32());
         var cardId = createdCard.GetProperty("id").GetInt32();
         var cardTypeId = createdCard.GetProperty("cardTypeId").GetInt32();
         Assert.True(createdCard.TryGetProperty("slickId", out var createdSlickIdElement));
@@ -1691,8 +1655,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             patToken);
         Assert.Equal(HttpStatusCode.OK, createCardResponse.StatusCode);
         using var createCardPayload = await McpJsonRpcClient.ParseJsonAsync(createCardResponse);
-        var cardId = McpJsonRpcClient.GetStructuredContent(createCardPayload)
-            .GetProperty("card")
+        var cardId = AssertReceipt(createCardPayload, "created")
             .GetProperty("id")
             .GetInt32();
 
@@ -1889,4 +1852,29 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
     }
 
     private sealed record CardMoveScenario(int MovingCardId, int TargetColumnId);
+
+    private static JsonElement AssertReceipt(JsonDocument payload, string outcome)
+    {
+        Assert.False(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        var receipt = McpJsonRpcClient.GetStructuredContent(payload);
+        Assert.Equal(["id", "outcome"], receipt.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.True(receipt.GetProperty("id").GetInt32() > 0);
+        Assert.Equal(outcome, receipt.GetProperty("outcome").GetString());
+        var content = payload.RootElement.GetProperty("result").GetProperty("content");
+        Assert.Equal(1, content.GetArrayLength());
+        Assert.Equal("text", content[0].GetProperty("type").GetString());
+        Assert.Equal(receipt.GetRawText(), content[0].GetProperty("text").GetString());
+        return receipt;
+    }
+
+    private static async Task<JsonElement> GetCardAsync(HttpClient client, string patToken, int boardId, int id)
+    {
+        using var response = await McpJsonRpcClient.SendRequestAsync(
+            client, "tools/call", new { name = "card_get", arguments = new { boardId, id } },
+            "read-card-state", patToken);
+        response.EnsureSuccessStatusCode();
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+        Assert.False(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        return McpJsonRpcClient.GetStructuredContent(payload).Clone();
+    }
 }

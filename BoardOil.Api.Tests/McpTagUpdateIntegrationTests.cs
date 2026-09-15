@@ -191,7 +191,6 @@ public sealed class McpTagUpdateIntegrationTests : McpIntegrationTestBase, IClas
             patToken);
         using var createCardPayload = await McpJsonRpcClient.ParseJsonAsync(createCardResponse);
         var cardId = McpJsonRpcClient.GetStructuredContent(createCardPayload)
-            .GetProperty("card")
             .GetProperty("id")
             .GetInt32();
 

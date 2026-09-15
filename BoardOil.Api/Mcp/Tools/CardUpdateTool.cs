@@ -1,5 +1,4 @@
 using BoardOil.Abstractions.Card;
-using BoardOil.Abstractions.Slick;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Common;
@@ -10,14 +9,12 @@ namespace BoardOil.Api.Mcp;
 
 public sealed class CardUpdateTool(
     ICardService cardService,
-    ISlickService slickService,
     IMcpAuthorisationService authorisationService) : McpToolBase<CardUpdateInput, CardMutationOutput>(authorisationService)
 {
     private readonly ICardService _cardService = cardService;
-    private readonly ISlickService _slickService = slickService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardUpdate, "Update a card. Use card_get to load its current values and card_options_get to resolve valid IDs and existing tag or slick names. To add a BoardOil-hosted image, use card_attachment_upload and insert its markdownSnippet into the description after the HTTP PUT succeeds.", ToolSchemas.CardUpdateInput, ToolSchemas.ObjectOutput, MachinePatScopes.McpWrite, ToolDiscoveryOrder.CardUpdate, McpToolBehaviours.IdempotentDestructive);
+        new(ToolNames.CardUpdate, "Update a card. Use card_get to load its current values and card_options_get to resolve valid IDs and existing tag or slick names. To add a BoardOil-hosted image, use card_attachment_upload and insert its markdownSnippet into the description after the HTTP PUT succeeds.", ToolSchemas.CardUpdateInput, ToolSchemas.CardUpdateOutput, MachinePatScopes.McpWrite, ToolDiscoveryOrder.CardUpdate, McpToolBehaviours.IdempotentDestructive);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
@@ -83,18 +80,6 @@ public sealed class CardUpdateTool(
             return Failure(result.ToMcpError());
         }
 
-        IReadOnlyDictionary<int, McpCardSlickSnapshot>? slicksById = null;
-        if (result.Data.SlickId is not null)
-        {
-            var slicksResult = await McpSlickHelpers.LoadBoardSlicksByIdAsync(_slickService, boardId, context.ActorUserId, cancellationToken);
-            if (!slicksResult.Success)
-            {
-                return Failure((slicksResult.Error ?? ApiErrors.InternalError("Failed to load slicks.")).ToMcpError());
-            }
-
-            slicksById = slicksResult.SlicksById;
-        }
-
-        return Success(new CardMutationOutput(result.Data.ToMcp(slicksById), "updated"));
+        return Success(new CardMutationOutput(result.Data.Id, "updated"));
     }
 }
