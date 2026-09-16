@@ -3,6 +3,7 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import { router } from './router';
 import { installFrontendErrorReporting } from './shared/errors/clientErrorReporter';
+import { installRouteChunkRecovery } from './shared/routing/routeChunkRecovery';
 import { useThemeStore } from './shared/stores/themeStore';
 import './style.css';
 
@@ -12,6 +13,7 @@ useThemeStore(pinia).initialize();
 const app = createApp(App);
 
 app.use(pinia);
-app.use(router);
 installFrontendErrorReporting(app, router);
+installRouteChunkRecovery(router);
+app.use(router);
 app.mount('#app');
