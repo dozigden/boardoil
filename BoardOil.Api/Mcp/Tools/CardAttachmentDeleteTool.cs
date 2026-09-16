@@ -13,7 +13,7 @@ public sealed class CardAttachmentDeleteTool(
 {
     public override McpToolDefinition Definition { get; } = new(
         ToolNames.CardAttachmentDelete,
-        "Permanently delete one attachment from a saved live card. Resolve id from card_attachment_list.items[].id or card_get.attachments[].id. Archived attachments cannot be deleted.",
+        "Permanently delete one attachment from a saved live card. Resolve id from card_get.attachments[].id. Archived attachments cannot be deleted.",
         ToolSchemas.CardAttachmentDeleteInput, ToolSchemas.CardAttachmentDeleteOutput, MachinePatScopes.McpWrite,
         ToolDiscoveryOrder.CardAttachmentDelete, McpToolBehaviours.IdempotentDestructive);
 

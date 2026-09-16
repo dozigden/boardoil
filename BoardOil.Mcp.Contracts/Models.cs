@@ -160,13 +160,6 @@ public sealed record CardOptionsGetInput
     public int? Id { get; init; }
 }
 
-public sealed record CardAttachmentListInput
-{
-    public int? BoardId { get; init; }
-    public int? CardId { get; init; }
-    public bool Archived { get; init; }
-}
-
 public sealed record CardAttachmentDeleteInput
 {
     public int? BoardId { get; init; }

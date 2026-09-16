@@ -23,30 +23,6 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
         UseSharedFactory(fixture);
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task List_ShouldReturnLiveOrArchivedMetadataAndLimit(bool archived)
-    {
-        // Arrange
-        var (client, token, card, attachment) = await ArrangeAttachmentAsync();
-        if (archived)
-        {
-            var archive = await client.PostAsync($"/api/boards/1/cards/{card.Id}/archive", null);
-            archive.EnsureSuccessStatusCode();
-        }
-
-        // Act
-        using var payload = await CallAsync(client, token, ToolNames.CardAttachmentList,
-            new { boardId = 1, cardId = card.Id, archived });
-
-        // Assert
-        var output = AssertSuccess(payload);
-        Assert.Equal(10 * 1024 * 1024, output.GetProperty("maxUploadByteLength").GetInt64());
-        var item = Assert.Single(output.GetProperty("items").EnumerateArray());
-        AssertMetadata(attachment, item);
-    }
-
     [Fact]
     public async Task CardGet_ShouldIncludeAttachmentMetadataWithoutFileContents()
     {
@@ -148,24 +124,22 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
         AssertError(payload, "forbidden", 403);
     }
 
-    [Theory]
-    [InlineData(ToolNames.CardAttachmentList)]
-    [InlineData(ToolNames.CardAttachmentDownload)]
-    public async Task AttachmentReadTools_WithWritePatScope_ShouldSucceed(string toolName)
+    [Fact]
+    public async Task Download_WithWritePatScope_ShouldSucceed()
     {
         // Arrange
         var (client, _, card, attachment) = await ArrangeAttachmentAsync();
         var token = await CreateMachinePatAsync(client, [MachinePatScopes.McpWrite]);
 
         // Act
-        using var payload = await CallAsync(client, token, toolName, Arguments(toolName, card.Id, attachment.Id));
+        using var payload = await CallAsync(client, token, ToolNames.CardAttachmentDownload,
+            Arguments(ToolNames.CardAttachmentDownload, card.Id, attachment.Id));
 
         // Assert
         _ = AssertSuccess(payload);
     }
 
     [Theory]
-    [InlineData(ToolNames.CardAttachmentList)]
     [InlineData(ToolNames.CardAttachmentDownload)]
     [InlineData(ToolNames.CardAttachmentUpload)]
     [InlineData(ToolNames.CardAttachmentDelete)]
@@ -191,9 +165,6 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
     }
 
     [Theory]
-    [InlineData(ToolNames.CardAttachmentList, "{\"boardId\":1}")]
-    [InlineData(ToolNames.CardAttachmentList, "{\"boardId\":1,\"cardId\":0}")]
-    [InlineData(ToolNames.CardAttachmentList, "{\"boardId\":1,\"cardId\":1,\"archived\":\"yes\"}")]
     [InlineData(ToolNames.CardAttachmentDelete, "{\"boardId\":1,\"cardId\":1}")]
     [InlineData(ToolNames.CardAttachmentDownload, "{\"boardId\":1}")]
     [InlineData(ToolNames.CardAttachmentUpload, "{\"boardId\":1,\"cardId\":1,\"fileName\":\"file.bin\"}")]
@@ -467,7 +438,7 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
         ToolNames.CardAttachmentDownload => new { boardId = 1, id = attachmentId },
         ToolNames.CardAttachmentUpload => new { boardId = 1, cardId, fileName = "agent.bin", byteLength = 3 },
         ToolNames.CardGet => new { boardId = 1, id = cardId },
-        _ => new { boardId = 1, cardId }
+        _ => throw new ArgumentOutOfRangeException(nameof(toolName), toolName, null)
     };
 
     private static async Task<JsonDocument> CallAsync(HttpClient client, string token, string toolName, object arguments)

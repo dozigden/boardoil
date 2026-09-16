@@ -15,7 +15,6 @@ public static class ToolDiscoveryOrder
     public const int CardCommentCreate = 900;
     public const int CardDelete = 1000;
 
-    public const int CardAttachmentList = 1100;
     public const int CardAttachmentUpload = 1200;
     public const int CardAttachmentDownload = 1300;
     public const int CardAttachmentDelete = 1400;

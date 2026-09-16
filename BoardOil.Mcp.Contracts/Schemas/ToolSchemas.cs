@@ -315,54 +315,13 @@ public static class ToolSchemas
     }
     """;
 
-    public const string CardAttachmentListInput = """
-    {
-      "type": "object",
-      "properties": {
-        "boardId": { "type": "integer", "minimum": 1 },
-        "cardId": { "type": "integer", "minimum": 1, "description": "Board-scoped card number, including the original card number for an archived card. Not an internal database row ID." },
-        "archived": { "type": "boolean", "default": false, "description": "Set true to read attachments of an archived card. Defaults to false." }
-      },
-      "required": ["boardId", "cardId"],
-      "additionalProperties": false
-    }
-    """;
-
-    public const string CardAttachmentListOutput = """
-    {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "integer", "minimum": 1 },
-              "originalFileName": { "type": "string" },
-              "contentType": { "type": "string" },
-              "byteLength": { "type": "integer", "minimum": 0 },
-              "createdAtUtc": { "type": "string", "format": "date-time" },
-              "createdByUserId": { "type": ["integer", "null"] },
-              "hasThumbnail": { "type": "boolean" }
-            },
-            "required": ["id", "originalFileName", "contentType", "byteLength", "createdAtUtc", "createdByUserId", "hasThumbnail"],
-            "additionalProperties": false
-          }
-        },
-        "maxUploadByteLength": { "type": "integer", "minimum": 1 }
-      },
-      "required": ["items", "maxUploadByteLength"],
-      "additionalProperties": false
-    }
-    """;
-
     public const string CardAttachmentDeleteInput = """
     {
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
         "cardId": { "type": "integer", "minimum": 1, "description": "Board-scoped number of the live card owning this attachment." },
-        "id": { "type": "integer", "minimum": 1, "description": "Attachment ID from card_attachment_list.items[].id or card_get.attachments[].id." }
+        "id": { "type": "integer", "minimum": 1, "description": "Attachment ID from card_get.attachments[].id." }
       },
       "required": ["boardId", "cardId", "id"],
       "additionalProperties": false
@@ -386,7 +345,7 @@ public static class ToolSchemas
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "id": { "type": "integer", "minimum": 1, "description": "Attachment ID from card_attachment_list.items[].id or card_get.attachments[].id." }
+        "id": { "type": "integer", "minimum": 1, "description": "Attachment ID from card_get.attachments[].id." }
       },
       "required": ["boardId", "id"],
       "additionalProperties": false

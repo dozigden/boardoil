@@ -915,7 +915,6 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
                 ToolNames.CardSearch,
                 ToolNames.CardGet,
                 ToolNames.CardOptionsGet,
-                ToolNames.CardAttachmentList,
                 ToolNames.CardAttachmentDownload
             ],
             toolsPayload.RootElement
@@ -968,7 +967,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, toolsResponse.StatusCode);
-        Assert.Equal(21, toolsPayload.RootElement
+        Assert.Equal(20, toolsPayload.RootElement
             .GetProperty("result")
             .GetProperty("tools")
             .GetArrayLength());

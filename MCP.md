@@ -100,9 +100,7 @@ OAuth credentials are stored and refreshed by the client. You can inspect or rev
 ## Card attachments
 
 - `card_get` includes an `attachments` array of metadata for the live card. File bytes are never included automatically. Mutation responses and board-wide snapshots do not load attachment lists.
-- `card_attachment_list` accepts `boardId`, `cardId` (the card number within that board), and optional `archived` (default `false`). For archived cards, use the original card number and `archived: true`.
-- The list returns `items` with attachment ID, original filename, content type, byte length, creation time and creator ID, plus `maxUploadByteLength` for the configured per-file upload limit.
-- `card_attachment_delete` accepts `boardId`, `cardId` and `id` (the attachment ID from the list or card snapshot). It permanently deletes that live-card attachment. Archived attachments are read-only.
+- `card_attachment_delete` accepts `boardId`, `cardId` and `id` (the attachment ID from `card_get`). It permanently deletes that live-card attachment. Archived attachments are read-only.
 - Reads require `mcp:read`; upload and deletion require `mcp:write`. The user's normal board permissions still apply. Missing cards/attachments return `not_found`; invalid identifiers return `validation_failed`; denied access returns `forbidden`.
 
 Tool results include the same JSON in both `structuredContent` and a text content block, for clients that consume either representation. Errors include their code, status and any field-level validation details in both formats.
@@ -111,7 +109,7 @@ Attachment byte transfer does not require an MCP-specific resource or filesystem
 
 ### Download original files
 
-Call `card_attachment_download` with `boardId` and `id` (the attachment ID). This requires authenticated MCP with `mcp:read`, and works for live or archived attachments. It returns `url`, `method` (`GET`), a complete `headers.Authorization` value using the dedicated `BoardOilAttachment` scheme, and `expiresAtUtc`. Use those values unchanged in an ordinary HTTP client to download the original bytes; the client does not need access to your MCP connection credentials. Keep the returned header secret, out of URLs, logs and shared transcripts. Do not forward it to another host or follow redirects with it.
+Call `card_attachment_download` with `boardId` and an attachment `id` from `card_get`. This requires authenticated MCP with `mcp:read`. It returns `url`, `method` (`GET`), a complete `headers.Authorization` value using the dedicated `BoardOilAttachment` scheme, and `expiresAtUtc`. Use those values unchanged in an ordinary HTTP client to download the original bytes; the client does not need access to your MCP connection credentials. Keep the returned header secret, out of URLs, logs and shared transcripts. Do not forward it to another host or follow redirects with it.
 
 Tickets allow repeated downloads for up to 2 minutes, capped by the originating credential's expiry. A transfer admitted before expiry may finish afterwards. Each request rechecks the originating PAT/OAuth token and authorization, the active user, board access and the original attachment owner. Revocation, deletion, archive/restore or transfer to another board can invalidate a ticket earlier. Request a new ticket after expiry or an ownership change. Ticket credentials cannot authenticate other API or MCP operations.
 
