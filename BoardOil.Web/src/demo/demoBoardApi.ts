@@ -684,7 +684,14 @@ function archiveCardInternal(cardId: number) {
     title: card.title,
     tagNames: [...card.tagNames],
     archivedAtUtc: now(),
-    card
+    card,
+    comments: clone(state.comments[card.id] ?? []).map(comment => ({
+      text: comment.text,
+      postedAtUtc: comment.postedAtUtc,
+      authorUserId: comment.authorUserId,
+      authorDisplayName: comment.authorDisplayName ?? null,
+      authorImageRelativePath: comment.authorImageRelativePath ?? null
+    }))
   });
   return true;
 }

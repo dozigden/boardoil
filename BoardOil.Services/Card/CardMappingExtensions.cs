@@ -52,14 +52,18 @@ public static class CardMappingExtensions
             archivedCard.ArchivedAtUtc,
             archivedCard.SnapshotJson);
 
-    public static ArchivedCardDetailDto ToArchivedCardDetailDto(this EntityArchivedCard archivedCard, CardDto card) =>
+    public static ArchivedCardDetailDto ToArchivedCardDetailDto(
+        this EntityArchivedCard archivedCard,
+        CardDto card,
+        IReadOnlyList<ArchivedCardCommentDto> comments) =>
         new(
             archivedCard.OriginalCardId,
             archivedCard.BoardId,
             archivedCard.SearchTitle,
             ParseSearchTagsJson(archivedCard.SearchTagsJson),
             archivedCard.ArchivedAtUtc,
-            card);
+            card,
+            comments);
 
     public static ArchivedCardListItemDto ToArchivedCardListItemDto(this EntityArchivedCard archivedCard) =>
         new(

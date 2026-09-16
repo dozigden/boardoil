@@ -53,7 +53,15 @@ public sealed record ArchivedCardDetailDto(
     string Title,
     IReadOnlyList<string> TagNames,
     DateTime ArchivedAtUtc,
-    CardDto Card);
+    CardDto Card,
+    IReadOnlyList<ArchivedCardCommentDto> Comments);
+
+public sealed record ArchivedCardCommentDto(
+    string Text,
+    DateTime PostedAtUtc,
+    int? AuthorUserId = null,
+    string? AuthorDisplayName = null,
+    string? AuthorImageRelativePath = null);
 
 public sealed record ArchivedCardListItemDto(
     int Id,

@@ -14,6 +14,46 @@
           :image-context="descriptionImageContext"
         />
       </section>
+
+      <section class="archived-card-comments-section" aria-label="Archived card comments">
+        <h3 class="archived-card-comments-title">Comments</h3>
+        <p v-if="archivedComments.length === 0" class="archived-card-comments-empty">
+          No comments.
+        </p>
+        <div v-else class="archived-card-comments-list">
+          <article
+            v-for="(comment, index) in archivedComments"
+            :key="`${comment.postedAtUtc}-${index}`"
+            class="archived-card-comment"
+          >
+            <aside class="archived-card-comment-author-rail" aria-label="Comment author">
+              <span class="archived-card-comment-author">
+                <UserAvatar
+                  :image-relative-path="comment.authorImageRelativePath"
+                  :display-name="comment.authorDisplayName ?? 'Unknown user'"
+                  size="sm"
+                  class="archived-card-comment-author-avatar"
+                />
+                <span class="archived-card-comment-author-name">
+                  {{ comment.authorDisplayName ?? 'Unknown user' }}
+                </span>
+              </span>
+            </aside>
+            <div class="archived-card-comment-content">
+              <MdViewer
+                class="archived-card-comment-body"
+                :model-value="comment.text"
+                aria-label="Archived comment content"
+                min-height="1.5rem"
+                :image-context="descriptionImageContext"
+              />
+              <time class="archived-card-comment-timestamp" :datetime="comment.postedAtUtc">
+                {{ formatDateTime(comment.postedAtUtc) }}
+              </time>
+            </div>
+          </article>
+        </div>
+      </section>
     </div>
 
     <aside class="card-editor-options archived-card-detail-options" aria-label="Archived card details">
@@ -88,6 +128,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import MdViewer from '../../shared/components/MdViewer.vue';
+import UserAvatar from '../../shared/components/UserAvatar.vue';
 import Tag from './Tag.vue';
 import CardAttachments from './CardAttachments.vue';
 import type { ArchivedCard } from '../../shared/types/boardTypes';
@@ -101,6 +142,7 @@ const props = defineProps<{
 }>();
 
 const card = computed(() => props.archivedCard.card);
+const archivedComments = computed(() => props.archivedCard.comments ?? []);
 
 const columnLabel = computed(() => {
   const value = props.columnTitle?.trim();
@@ -183,7 +225,9 @@ function formatDateTime(value: string) {
   gap: 0.7rem;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.35rem;
 }
 
 .archived-card-detail-title-row {
@@ -207,9 +251,116 @@ function formatDateTime(value: string) {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  flex: 1 1 0;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.card-editor-description-field :deep(.md-viewer),
+.card-editor-description-field :deep(.md-viewer-content) {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.card-editor-description-field :deep(.md-viewer-content .tiptap) {
+  height: auto;
+  max-height: none;
+  overflow-y: visible;
+}
+
+.archived-card-comments-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--bo-border-soft);
+  padding-top: 0.6rem;
+}
+
+.archived-card-comments-title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.archived-card-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.archived-card-comments-empty {
+  margin: 0;
+  color: var(--bo-ink-muted);
+  font-size: 0.9rem;
+}
+
+.archived-card-comment {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: stretch;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  background: color-mix(in srgb, var(--bo-surface-base) 92%, var(--bo-surface-muted) 8%);
+}
+
+.archived-card-comment-author-rail {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  padding-right: 0.65rem;
+  border-right: 1px solid var(--bo-border-soft);
+}
+
+.archived-card-comment-author {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.archived-card-comment-author-avatar {
+  flex-shrink: 0;
+}
+
+.archived-card-comment-author-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.archived-card-comment-content {
+  position: relative;
+  min-width: 0;
+  padding-right: 3.9rem;
+}
+
+.archived-card-comment-timestamp {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  color: var(--bo-ink-muted);
+  font-size: 0.8rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.archived-card-comment-body :deep(.md-viewer-content) {
+  overflow: visible;
+}
+
+.archived-card-comment-body :deep(.md-viewer-content .tiptap) {
+  height: auto;
+  max-height: none;
+  min-height: 1.5rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow-y: visible;
 }
 
 .card-editor-options {
@@ -310,6 +461,24 @@ function formatDateTime(value: string) {
   .card-editor-options {
     gap: 0.55rem;
     padding-top: 0.6rem;
+  }
+
+  .archived-card-comment {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .archived-card-comment-author-rail {
+    padding-right: 0;
+    padding-bottom: 0.35rem;
+    border-right: none;
+    border-bottom: 1px solid var(--bo-border-soft);
+  }
+
+  .archived-card-comment-author {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.45rem;
   }
 }
 </style>

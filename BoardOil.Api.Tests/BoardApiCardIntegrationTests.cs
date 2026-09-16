@@ -493,6 +493,41 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
+    public async Task CardEndpoints_GetArchivedById_ShouldReturnCommentsWithoutLiveCommentIds()
+    {
+        // Arrange
+        var columnId = await SeedBoardColumnAsync("Archived comments");
+        var cardId = await SeedBoardCardAsync(columnId, "Archive comments", "Desc");
+        var createCommentResponse = await Client.PostAsJsonAsync(
+            $"/api/boards/1/cards/{cardId}/comments",
+            new CreateCardCommentRequest("Preserved comment"));
+        createCommentResponse.EnsureSuccessStatusCode();
+        var archiveResponse = await Client.PostAsync($"/api/boards/1/cards/{cardId}/archive", content: null);
+        archiveResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await Client.GetAsync($"/api/boards/1/cards/archived/{cardId}");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<ArchivedCardDetailDto>>(JsonOptions);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(payload?.Data);
+        var comment = Assert.Single(payload!.Data!.Comments);
+        Assert.Equal("Preserved comment", comment.Text);
+        Assert.NotNull(comment.AuthorUserId);
+        Assert.False(string.IsNullOrWhiteSpace(comment.AuthorDisplayName));
+
+        var commentJson = Assert.Single(json.RootElement.GetProperty("data").GetProperty("comments").EnumerateArray());
+        Assert.Equal(
+            ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath"],
+            commentJson.EnumerateObject().Select(x => x.Name).ToArray());
+        Assert.False(commentJson.TryGetProperty("id", out _));
+        Assert.False(commentJson.TryGetProperty("cardId", out _));
+        Assert.False(commentJson.TryGetProperty("createdAtUtc", out _));
+    }
+
+    [Fact]
     public async Task CardEndpoints_GetArchivedById_ShouldIncludeSlickMembershipInCardContract()
     {
         // Arrange

@@ -116,8 +116,17 @@ export type ArchivedCardListItem = {
   archivedAtUtc: string;
 };
 
+export type ArchivedCardComment = {
+  text: string;
+  postedAtUtc: string;
+  authorUserId: number | null;
+  authorDisplayName: string | null;
+  authorImageRelativePath: string | null;
+};
+
 export type ArchivedCard = ArchivedCardListItem & {
   card: Card;
+  comments: ArchivedCardComment[];
 };
 
 export type ArchivedCardList = {

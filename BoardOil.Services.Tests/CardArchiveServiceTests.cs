@@ -8,6 +8,8 @@ using Xunit;
 using ArchivedCardEntity = BoardOil.Data.Abstractions.Entities.EntityArchivedCard;
 using BoardMemberEntity = BoardOil.Data.Abstractions.Entities.EntityBoardMember;
 using CardTypeEntity = BoardOil.Data.Abstractions.Entities.EntityCardType;
+using ImageEntity = BoardOil.Data.Abstractions.Entities.EntityImage;
+using ImageEntityType = BoardOil.Data.Abstractions.Entities.ImageEntityType;
 using SlickEntity = BoardOil.Data.Abstractions.Entities.EntitySlick;
 using TagEntity = BoardOil.Data.Abstractions.Entities.EntityTag;
 using UserEntity = BoardOil.Data.Abstractions.Entities.EntityUser;
@@ -543,6 +545,66 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.Equal(cardId, result.Data.Card.Id);
         Assert.Equal("Archive me", result.Data.Card.Title);
         Assert.Equal("Desc", result.Data.Card.Description);
+    }
+
+    [Fact]
+    public async Task GetArchivedCardAsync_WhenSnapshotHasComments_ShouldReturnReadOnlyPresentationNewestFirst()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil")
+            .AddColumn("Todo")
+            .AddCard("Archive me", "Desc")
+            .Build();
+        var boardId = board.BoardId;
+        var cardId = board.GetCard("Todo", "Archive me").Id;
+        var author = await CreateBoardMemberUserAsync(boardId);
+        var now = DateTime.UtcNow;
+        DbContextForArrange.Images.Add(new ImageEntity
+        {
+            EntityType = ImageEntityType.UserProfile,
+            EntityId = author.Id,
+            OriginalFileName = "author.png",
+            ContentType = "image/png",
+            RelativePath = "/images/author.png",
+            ByteLength = 42,
+            CreatedAtUtc = now,
+        });
+        DbContextForArrange.CardComments.AddRange(
+            new()
+            {
+                CardId = cardId,
+                AuthorUserId = author.Id,
+                Text = "Known author comment",
+                PostedAtUtc = now,
+            },
+            new()
+            {
+                CardId = cardId,
+                AuthorUserId = null,
+                Text = "Unknown author comment",
+                PostedAtUtc = now.AddMinutes(1),
+            });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<ICardArchiveService>();
+        var archiveResult = await service.ArchiveCardAsync(boardId, cardId, ActorUserId);
+        Assert.True(archiveResult.Success);
+
+        // Act
+        var result = await service.GetArchivedCardAsync(boardId, cardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(["Unknown author comment", "Known author comment"], result.Data!.Comments.Select(x => x.Text).ToArray());
+        var unknownComment = result.Data.Comments[0];
+        Assert.Null(unknownComment.AuthorUserId);
+        Assert.Null(unknownComment.AuthorDisplayName);
+        Assert.Null(unknownComment.AuthorImageRelativePath);
+        var knownComment = result.Data.Comments[1];
+        Assert.Equal(author.Id, knownComment.AuthorUserId);
+        Assert.Equal(author.DisplayName, knownComment.AuthorDisplayName);
+        Assert.Equal("/images/author.png", knownComment.AuthorImageRelativePath);
+        Assert.Equal(now, knownComment.PostedAtUtc);
     }
 
     [Fact]

@@ -101,7 +101,8 @@ public sealed class CardArchiveService(
             snapshot.OriginalColumnName,
             snapshot.AssignedUserEmail);
         currentSnapshotCard = currentSnapshotCard with { Id = archivedCard.OriginalCardId };
-        return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard));
+        var comments = await ResolveArchivedCommentsAsync(snapshot.Comments);
+        return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard, comments));
     }
 
     public async Task<ApiResult<ArchivedCardDto>> ArchiveCardAsync(int boardId, int id, int actorUserId)
@@ -216,7 +217,7 @@ public sealed class CardArchiveService(
         var commentAuthorByNormalisedEmail = new Dictionary<string, EntityUser?>(StringComparer.Ordinal);
         foreach (var snapshotComment in snapshot.Comments)
         {
-            var author = await ResolveCommentAuthorForRestoreAsync(snapshotComment, commentAuthorByNormalisedEmail);
+            var author = await ResolveArchivedCommentAuthorAsync(snapshotComment, commentAuthorByNormalisedEmail);
             var restoredComment = new EntityCardComment
             {
                 Card = restoredCard,
@@ -477,6 +478,37 @@ public sealed class CardArchiveService(
         return card.WithAssignedUserImageRelativePath(image?.RelativePath);
     }
 
+    private async Task<IReadOnlyList<ArchivedCardCommentDto>> ResolveArchivedCommentsAsync(
+        IReadOnlyList<ArchivedCardSnapshotCommentV1Payload> snapshotComments)
+    {
+        var authorByNormalisedEmail = new Dictionary<string, EntityUser?>(StringComparer.Ordinal);
+        var commentsWithAuthors = new List<(ArchivedCardSnapshotCommentV1Payload Comment, EntityUser? Author)>();
+        foreach (var snapshotComment in snapshotComments.OrderByDescending(x => x.CreatedAtUtc))
+        {
+            var author = await ResolveArchivedCommentAuthorAsync(snapshotComment, authorByNormalisedEmail);
+            commentsWithAuthors.Add((snapshotComment, author));
+        }
+
+        var authorUserIds = commentsWithAuthors
+            .Where(x => x.Author is not null)
+            .Select(x => x.Author!.Id)
+            .Distinct()
+            .ToArray();
+        IReadOnlyList<EntityImage> authorImages = authorUserIds.Length == 0
+            ? []
+            : await imageRepository.GetLatestForEntitiesAsync(ImageEntityType.UserProfile, authorUserIds);
+        var imageByAuthorUserId = authorImages.ToDictionary(x => x.EntityId, x => x.RelativePath);
+
+        return commentsWithAuthors
+            .Select(x => new ArchivedCardCommentDto(
+                x.Comment.Text,
+                x.Comment.CreatedAtUtc,
+                x.Author?.Id,
+                x.Author?.DisplayName,
+                x.Author is null ? null : imageByAuthorUserId.GetValueOrDefault(x.Author.Id)))
+            .ToList();
+    }
+
     private async Task<IReadOnlyList<EntityTag>> ResolveTagsForRestoreAsync(int boardId, IReadOnlyList<string> tagNames)
     {
         var resolvedTags = new List<EntityTag>();
@@ -530,7 +562,7 @@ public sealed class CardArchiveService(
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
 
-    private async Task<EntityUser?> ResolveCommentAuthorForRestoreAsync(
+    private async Task<EntityUser?> ResolveArchivedCommentAuthorAsync(
         ArchivedCardSnapshotCommentV1Payload snapshotComment,
         IDictionary<string, EntityUser?> authorByNormalisedEmail)
     {

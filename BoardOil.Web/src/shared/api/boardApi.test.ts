@@ -614,6 +614,7 @@ describe('boardApi archived cards', () => {
         title: 'Archived card',
         tagNames: ['Urgent'],
         archivedAtUtc: '2026-04-19T18:00:00Z',
+        comments: [],
         card: {
           id: 42,
           slick: null,
