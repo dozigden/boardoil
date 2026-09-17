@@ -125,28 +125,69 @@ function commandFailed(result) {
   return Boolean(result.error);
 }
 
+function spawnWithCapturedOutput(command, commandArgs, options) {
+  const outputDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "boardoil-test-output-"));
+  const stdoutPath = path.join(outputDirectory, "stdout.log");
+  const stderrPath = path.join(outputDirectory, "stderr.log");
+  let stdoutFile;
+  let stderrFile;
+
+  try {
+    stdoutFile = fs.openSync(stdoutPath, "w");
+    stderrFile = fs.openSync(stderrPath, "w");
+    const result = spawnSync(command, commandArgs, {
+      ...options,
+      stdio: ["ignore", stdoutFile, stderrFile]
+    });
+
+    fs.closeSync(stdoutFile);
+    stdoutFile = undefined;
+    fs.closeSync(stderrFile);
+    stderrFile = undefined;
+
+    return {
+      ...result,
+      stdout: fs.readFileSync(stdoutPath, "utf8"),
+      stderr: fs.readFileSync(stderrPath, "utf8")
+    };
+  } finally {
+    if (stdoutFile !== undefined) {
+      fs.closeSync(stdoutFile);
+    }
+    if (stderrFile !== undefined) {
+      fs.closeSync(stderrFile);
+    }
+    fs.rmSync(outputDirectory, { recursive: true, force: true });
+  }
+}
+
 function run(label, command, commandArgs, cwd = rootDir) {
   const stepStartedAt = Date.now();
-  const result = spawnSync(command, commandArgs, {
+  const spawnOptions = {
     cwd,
-    stdio: compactOutput ? "pipe" : "inherit",
     shell: process.platform === "win32",
     encoding: "utf8",
     env: childEnv()
-  });
+  };
+  let result;
+  if (compactOutput) {
+    result = spawnWithCapturedOutput(command, commandArgs, spawnOptions);
+  } else {
+    result = spawnSync(command, commandArgs, { ...spawnOptions, stdio: "inherit" });
+  }
   timings.push({ label, elapsedMilliseconds: Date.now() - stepStartedAt });
 
   if (compactOutput && commandFailed(result)) {
     printCapturedOutput(result);
   }
 
-  if (typeof result.status === "number" && result.status !== 0) {
-    process.exit(result.status);
+  if (result.error) {
+    console.error(result.error.message);
+    process.exit(typeof result.status === "number" ? result.status : 1);
   }
 
-  if (result.error && typeof result.status !== "number") {
-    console.error(result.error.message);
-    process.exit(1);
+  if (typeof result.status === "number" && result.status !== 0) {
+    process.exit(result.status);
   }
 
   return result;
