@@ -1,6 +1,7 @@
 <template>
   <aside
-    v-if="displayMessage"
+    ref="toastRef"
+    popover="manual"
     class="ui-feedback-toast"
     :class="`ui-feedback-toast--${displayTone}`"
     :role="displayTone === 'error' ? 'alert' : 'status'"
@@ -13,11 +14,12 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useUiFeedbackStore } from '../stores/uiFeedbackStore';
 
 const feedbackStore = useUiFeedbackStore();
 const { toastMessage, toastTone, warningMessage } = storeToRefs(feedbackStore);
+const toastRef = ref<HTMLElement | null>(null);
 const displayMessage = computed(() => toastMessage.value || warningMessage.value);
 const displayTone = computed(() => toastMessage.value ? toastTone.value : 'warning');
 const displayIcon = computed(() => {
@@ -31,11 +33,30 @@ const displayIcon = computed(() => {
 
   return '\u26a0';
 });
+
+watch(displayMessage, async (message) => {
+  await nextTick();
+  const toast = toastRef.value;
+  if (!toast?.isConnected) {
+    return;
+  }
+
+  const isOpen = toast.matches(':popover-open');
+  if (message && !isOpen) {
+    toast.showPopover();
+    return;
+  }
+
+  if (!message && isOpen) {
+    toast.hidePopover();
+  }
+}, { immediate: true, flush: 'post' });
 </script>
 
 <style scoped>
 .ui-feedback-toast {
   position: fixed;
+  inset: unset;
   top: calc(0.75rem + env(safe-area-inset-top));
   right: calc(0.75rem + env(safe-area-inset-right));
   max-width: min(28rem, calc(100vw - 1.5rem));

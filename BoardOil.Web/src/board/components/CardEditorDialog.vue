@@ -7,6 +7,7 @@
     :close-label="isDuplicatingCard ? 'Cancel duplicate' : 'Cancel editing'"
     @close="closeCardEditor"
     @submit="saveCard"
+    @keydown="handleCardEditorKeydown"
   >
     <template #headerActions>
       <BoDropdown
@@ -329,7 +330,7 @@
           <button
             type="submit"
             class="btn"
-            :disabled="imageUploadBlocking || (isDuplicatingCard && !canCreateDuplicate)"
+            :disabled="cardBusy || imageUploadBlocking || (isDuplicatingCard && !canCreateDuplicate)"
             :aria-label="primaryActionLabel"
             :title="primaryActionLabel"
           >
@@ -364,6 +365,7 @@ import CardExternalUrlEditor from './CardExternalUrlEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useBoardStore } from '../stores/boardStore';
 import { useBoardMembersStore } from '../stores/boardMembersStore';
 import { useCardStore } from '../stores/cardStore';
@@ -394,6 +396,7 @@ const commentStore = useCommentStore();
 const slickStore = useSlickStore();
 const tagStore = useTagStore();
 const { board, currentBoardId } = storeToRefs(boardStore);
+const { busy: cardBusy } = storeToRefs(cardStore);
 const { members: boardMembers, activeBoardId: boardMembersActiveBoardId } = storeToRefs(boardMembersStore);
 const { cardTypes, activeBoardId: cardTypesActiveBoardId, systemCardType } = storeToRefs(cardTypeStore);
 const { slicks, activeBoardId: slicksActiveBoardId } = storeToRefs(slickStore);
@@ -405,6 +408,7 @@ const { loadCardTypes } = cardTypeStore;
 const { loadSlicks } = slickStore;
 const { ensureTagsExist } = tagStore;
 const { confirm } = useConfirm();
+const feedback = useUiFeedbackStore();
 const attachments = useAttachmentStore();
 const maxDescriptionLength = 20_000;
 const maxCommentLength = 4_000;
@@ -649,6 +653,23 @@ async function confirmDiscardUnsavedChanges() {
 
 async function closeCardEditor() {
   await closeCardEditorInternal(false);
+}
+
+function handleCardEditorKeydown(event: KeyboardEvent) {
+  const isSaveShortcut = (event.ctrlKey || event.metaKey)
+    && !event.altKey
+    && !event.shiftKey
+    && event.key.toLowerCase() === 's';
+  if (!isSaveShortcut) {
+    return;
+  }
+
+  event.preventDefault();
+  if (event.repeat || cardBusy.value) {
+    return;
+  }
+
+  void saveCardFromShortcut();
 }
 
 async function closeCardEditorWithoutPrompt() {
@@ -992,9 +1013,17 @@ function initializeDraftForCard(nextBoardId: number, nextCard: Card) {
 }
 
 async function saveCard() {
+  await saveCardDraft(true);
+}
+
+async function saveCardFromShortcut() {
+  await saveCardDraft(false);
+}
+
+async function saveCardDraft(closeAfterSave: boolean) {
   const draft = cardDraft.value;
   const cardId = routeCardId.value;
-  if (!draft || draft.cardTypeId === null || imageUploadBlocking.value) {
+  if (!draft || draft.cardTypeId === null || cardBusy.value || imageUploadBlocking.value) {
     return;
   }
 
@@ -1002,6 +1031,7 @@ async function saveCard() {
     if (cardId === null) { return; }
     const created = await createCardAction(draft, { duplicateFromCardId: cardId });
     if (created?.ok) {
+      feedback.showToast('Created successfully.');
       await closeCardEditorWithoutPrompt();
     }
     return;
@@ -1011,10 +1041,35 @@ async function saveCard() {
     return;
   }
 
-  const saved = await saveCardAction(cardId, draft);
+  const submittedDraft = cloneCardEditModel(draft);
+  const saved = await saveCardAction(cardId, submittedDraft);
   if (saved) {
-    await closeCardEditorWithoutPrompt();
+    feedback.showToast('Saved successfully.');
+    if (closeAfterSave) {
+      await closeCardEditorWithoutPrompt();
+      return;
+    }
+
+    syncDraftAfterSave(cardId, submittedDraft);
   }
+}
+
+function syncDraftAfterSave(cardId: number, submittedDraft: CardEditModel) {
+  const savedCard = cardStore.getCardById(cardId);
+  const currentDraft = cardDraft.value;
+  if (!savedCard || !currentDraft) {
+    return;
+  }
+
+  const savedModel = createCardEditModel(savedCard);
+  cardDraftSource.value = cloneCardEditModel(savedModel);
+  if (areCardEditModelsEqual(currentDraft, submittedDraft)) {
+    cardDraft.value = cloneCardEditModel(savedModel);
+    isCardDraftDirty.value = false;
+    return;
+  }
+
+  isCardDraftDirty.value = !areCardEditModelsEqual(currentDraft, savedModel);
 }
 
 async function addComment() {

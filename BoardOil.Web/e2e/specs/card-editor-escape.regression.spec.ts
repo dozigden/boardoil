@@ -28,3 +28,24 @@ test('Escape closes a card while the plain-text description has focus', async ({
   await expect(dialog).toBeHidden();
   await expect(page).toHaveURL(`/boards/${board.id}`);
 });
+
+test('Escape keeps a dirty card open when discarding changes is cancelled', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Card editor guarded Escape');
+  const card = await api.createCard(board, 'Todo', 'Guarded Escape card', 'Original description');
+  const cardEditor = new CardEditorPage(page);
+  const unsavedDescription = 'Unsaved description';
+
+  await page.goto(`/boards/${board.id}/card/${card.id}`);
+  await cardEditor.descriptionEditor().fill(unsavedDescription);
+  await cardEditor.descriptionEditor().press('Escape');
+
+  const confirmDialog = page.getByRole('dialog').filter({
+    has: page.getByRole('heading', { name: 'Discard unsaved changes' })
+  });
+  await expect(confirmDialog).toBeVisible();
+  await confirmDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+  await expect(confirmDialog).toBeHidden();
+  await expect(page).toHaveURL(`/boards/${board.id}/card/${card.id}`);
+  await expect(cardEditor.descriptionEditor()).toHaveText(unsavedDescription);
+});
