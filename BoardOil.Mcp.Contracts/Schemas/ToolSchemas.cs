@@ -384,7 +384,7 @@ public static class ToolSchemas
           "type": "object",
           "properties": {
             "id": { "type": "integer", "minimum": 1 },
-            "columnId": { "type": "integer", "minimum": 1 },
+            "columnId": { "type": "integer", "minimum": 0 },
             "cardTypeId": { "type": "integer", "minimum": 1 },
             "cardTypeName": { "type": "string" },
             "cardTypeEmoji": { "type": ["string", "null"] },

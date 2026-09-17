@@ -488,6 +488,8 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .EnumerateArray().Select(value => value.GetString()));
         Assert.Contains("archivedAtUtc", cardGetOutputVariants[1].GetProperty("required")
             .EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(1, cardGetOutputVariants[0].GetProperty("properties").GetProperty("columnId").GetProperty("minimum").GetInt32());
+        Assert.Equal(0, cardGetOutputVariants[1].GetProperty("properties").GetProperty("columnId").GetProperty("minimum").GetInt32());
         var archivedCommentSchema = cardGetTool.GetProperty("outputSchema").GetProperty("$defs").GetProperty("archivedComment");
         Assert.False(archivedCommentSchema.GetProperty("properties").TryGetProperty("id", out _));
         Assert.False(archivedCommentSchema.GetProperty("properties").TryGetProperty("cardId", out _));
