@@ -13,7 +13,7 @@ public sealed class CardDeleteTool(
     private readonly ICardService _cardService = cardService;
 
     public override McpToolDefinition Definition { get; } =
-        new(ToolNames.CardDelete, "Delete a card.", ToolSchemas.CardDeleteInput, ToolSchemas.CardDeleteOutput, MachinePatScopes.McpWrite, ToolDiscoveryOrder.CardDelete, McpToolBehaviours.IdempotentDestructive);
+        new(ToolNames.CardDelete, "Permanently delete a live card. Prefer card_archive when recoverable removal is appropriate or permanent deletion was not explicitly requested.", ToolSchemas.CardDeleteInput, ToolSchemas.CardDeleteOutput, MachinePatScopes.McpWrite, ToolDiscoveryOrder.CardDelete, McpToolBehaviours.IdempotentDestructive);
 
     protected override async Task<McpToolResult<CardMutationOutput>> ExecuteCoreAsync(
         McpInvocationContext context,

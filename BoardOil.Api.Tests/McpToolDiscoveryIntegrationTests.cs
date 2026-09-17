@@ -232,7 +232,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(20, GetToolNames(payload).Length);
+        Assert.Equal(21, GetToolNames(payload).Length);
     }
 
     [Fact]
@@ -289,6 +289,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
                 ToolNames.CardUpdate,
                 ToolNames.CardMove,
                 ToolNames.CardCommentCreate,
+                ToolNames.CardArchive,
                 ToolNames.CardDelete,
                 ToolNames.CardAttachmentUpload,
                 ToolNames.CardAttachmentDownload,
@@ -310,6 +311,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             (ToolNames.CardCreate, "created"),
             (ToolNames.CardUpdate, "updated"),
             (ToolNames.CardMove, "moved"),
+            (ToolNames.CardArchive, "archived"),
             (ToolNames.CardDelete, "deleted"),
             (ToolNames.CardCommentCreate, "created")
         })
@@ -338,6 +340,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         AssertToolAnnotations(toolsListPayload, ToolNames.CardUpdate, readOnly: false, destructive: true, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardMove, readOnly: false, destructive: false, idempotent: false);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardCommentCreate, readOnly: false, destructive: false, idempotent: false);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardArchive, readOnly: false, destructive: true, idempotent: false);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardDelete, readOnly: false, destructive: true, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardAttachmentUpload, readOnly: false, destructive: false, idempotent: false);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardAttachmentDownload, readOnly: true, destructive: false, idempotent: true);
@@ -537,6 +540,15 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.True(cardCommentCreateProperties.TryGetProperty("boardId", out _));
         Assert.True(cardCommentCreateProperties.TryGetProperty("id", out _));
         Assert.True(cardCommentCreateProperties.TryGetProperty("text", out _));
+
+        var cardArchiveTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardArchive);
+        Assert.Equal(["boardId", "id"], cardArchiveTool.GetProperty("inputSchema").GetProperty("required")
+            .EnumerateArray().Select(value => value.GetString()).ToArray());
+        Assert.Contains("from the active board", cardArchiveTool.GetProperty("description").GetString(), StringComparison.Ordinal);
+        Assert.Contains("restored if needed", cardArchiveTool.GetProperty("description").GetString(), StringComparison.Ordinal);
+        var cardDeleteTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardDelete);
+        Assert.Contains("Permanently delete", cardDeleteTool.GetProperty("description").GetString(), StringComparison.Ordinal);
+        Assert.Contains(ToolNames.CardArchive, cardDeleteTool.GetProperty("description").GetString(), StringComparison.Ordinal);
 
         var tagCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.TagCreate);
         var tagCreateInputSchema = tagCreateTool.GetProperty("inputSchema");

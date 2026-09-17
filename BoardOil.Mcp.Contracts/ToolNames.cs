@@ -15,6 +15,7 @@ public static class ToolNames
     public const string CardCreate = "card_create";
     public const string CardUpdate = "card_update";
     public const string CardMove = "card_move";
+    public const string CardArchive = "card_archive";
     public const string CardDelete = "card_delete";
     public const string CardCommentCreate = "card_comment_create";
     public const string TagCreate = "tag_create";
