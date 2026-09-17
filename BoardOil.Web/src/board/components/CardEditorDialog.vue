@@ -117,7 +117,7 @@
                   :model-value="newCommentText"
                   aria-label="Comment"
                   :max-length="maxCommentLength"
-                  :min-height="newCommentText.trim().length === 0 ? '3rem' : '6rem'"
+                  min-height="3rem"
                   :show-toolbar="false"
                   :image-context="cardImageContext"
                   :image-remove="removeCommentImage"
