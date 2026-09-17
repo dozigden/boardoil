@@ -1697,6 +1697,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             ("card_update", new { boardId = 0, id = 0, cardTypeId = 0, slickName = (string?)null, externalUrl = (string?)null, title = "Invalid update", description = "validation test", tagNames = Array.Empty<string>() }, "card-update-multi-validation", ["boardId", "id", "cardTypeId"]),
             ("card_move", new { boardId = 0, id = 0, columnId = 0, afterId = 0 }, "card-move-multi-validation", ["boardId", "id", "columnId", "afterId"]),
             ("card_archive", new { boardId = 0, id = 0 }, "card-archive-multi-validation", ["boardId", "id"]),
+            ("card_restore", new { boardId = 0, id = 0 }, "card-restore-multi-validation", ["boardId", "id"]),
             ("card_delete", new { boardId = 0, id = 0 }, "card-delete-multi-validation", ["boardId", "id"])
         };
 

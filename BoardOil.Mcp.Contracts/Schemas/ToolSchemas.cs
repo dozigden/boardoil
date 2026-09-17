@@ -665,6 +665,22 @@ public static class ToolSchemas
     }
     """;
 
+    public const string CardRestoreInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Original board-scoped number of the archived card to restore."
+        }
+      },
+      "required": ["boardId", "id"],
+      "additionalProperties": false
+    }
+    """;
+
     public const string CardCommentCreateInput = """
     {
       "type": "object",
@@ -804,6 +820,7 @@ public static class ToolSchemas
     public static readonly string CardUpdateOutput = CreateMutationReceiptSchema("updated", "Board-scoped number of the updated card.");
     public static readonly string CardMoveOutput = CreateMutationReceiptSchema("moved", "Board-scoped number of the moved card.");
     public static readonly string CardArchiveOutput = CreateMutationReceiptSchema("archived", "Board-scoped number retained by the archived card.");
+    public static readonly string CardRestoreOutput = CreateMutationReceiptSchema("restored", "Original board-scoped number retained by the restored card.");
     public static readonly string CardDeleteOutput = CreateMutationReceiptSchema("deleted", "Board-scoped number of the deleted card.");
     public static readonly string CardCommentCreateOutput = CreateMutationReceiptSchema("created", "Generated comment ID, not the card number.");
 

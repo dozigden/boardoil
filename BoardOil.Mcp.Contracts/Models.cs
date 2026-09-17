@@ -362,6 +362,12 @@ public sealed record CardArchiveInput
     public int? Id { get; init; }
 }
 
+public sealed record CardRestoreInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+}
+
 public sealed record CardCommentCreateInput
 {
     public int? BoardId { get; init; }
