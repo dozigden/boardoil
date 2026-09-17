@@ -404,19 +404,29 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal(["boardId", "query"], searchInput.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
         Assert.False(searchInput.GetProperty("additionalProperties").GetBoolean());
         var searchInputProperties = searchInput.GetProperty("properties");
-        Assert.Equal(["boardId", "query", "offset", "limit"], searchInputProperties.EnumerateObject().Select(p => p.Name).ToArray());
+        Assert.Equal(["boardId", "query", "offset", "limit", "archived"], searchInputProperties.EnumerateObject().Select(p => p.Name).ToArray());
         Assert.Equal(0, searchInputProperties.GetProperty("offset").GetProperty("default").GetInt32());
         Assert.Equal(20, searchInputProperties.GetProperty("limit").GetProperty("default").GetInt32());
         Assert.Equal(100, searchInputProperties.GetProperty("limit").GetProperty("maximum").GetInt32());
+        Assert.False(searchInputProperties.GetProperty("archived").GetProperty("default").GetBoolean());
         var searchOutput = searchTool.GetProperty("outputSchema");
-        Assert.False(searchOutput.GetProperty("additionalProperties").GetBoolean());
-        Assert.Equal(["cards", "totalCount", "offset", "limit"],
-            searchOutput.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
-        var summarySchema = searchOutput.GetProperty("properties").GetProperty("cards").GetProperty("items");
-        Assert.False(summarySchema.GetProperty("additionalProperties").GetBoolean());
-        string[] summaryFields = ["id", "title", "columnId", "cardTypeId", "externalUrl", "tagNames", "slickName"];
-        Assert.Equal(summaryFields, summarySchema.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
-        Assert.Equal(summaryFields, summarySchema.GetProperty("properties").EnumerateObject().Select(p => p.Name).ToArray());
+        var searchOutputVariants = searchOutput.GetProperty("anyOf").EnumerateArray().ToArray();
+        Assert.Equal(2, searchOutputVariants.Length);
+        foreach (var variant in searchOutputVariants)
+        {
+            Assert.False(variant.GetProperty("additionalProperties").GetBoolean());
+            Assert.Equal(["cards", "totalCount", "offset", "limit"],
+                variant.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
+        }
+        var liveSummarySchema = searchOutputVariants[0].GetProperty("properties").GetProperty("cards").GetProperty("items");
+        Assert.False(liveSummarySchema.GetProperty("additionalProperties").GetBoolean());
+        string[] liveSummaryFields = ["id", "title", "columnId", "cardTypeId", "externalUrl", "tagNames", "slickName"];
+        Assert.Equal(liveSummaryFields, liveSummarySchema.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
+        Assert.Equal(liveSummaryFields, liveSummarySchema.GetProperty("properties").EnumerateObject().Select(p => p.Name).ToArray());
+        var archivedSummarySchema = searchOutputVariants[1].GetProperty("properties").GetProperty("cards").GetProperty("items");
+        string[] archivedSummaryFields = ["id", "title", "tagNames", "archivedAtUtc"];
+        Assert.Equal(archivedSummaryFields, archivedSummarySchema.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
+        Assert.Equal(archivedSummaryFields, archivedSummarySchema.GetProperty("properties").EnumerateObject().Select(p => p.Name).ToArray());
 
         var boardListTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.BoardList);
         Assert.True(boardListTool.GetProperty("inputSchema").TryGetProperty("properties", out var boardListProperties));
@@ -465,6 +475,16 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         var cardGetProperties = cardGetTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(cardGetProperties.TryGetProperty("boardId", out _));
         Assert.True(cardGetProperties.TryGetProperty("id", out _));
+        Assert.False(cardGetProperties.GetProperty("archived").GetProperty("default").GetBoolean());
+        var cardGetOutputVariants = cardGetTool.GetProperty("outputSchema").GetProperty("oneOf").EnumerateArray().ToArray();
+        Assert.Equal(2, cardGetOutputVariants.Length);
+        Assert.DoesNotContain("archivedAtUtc", cardGetOutputVariants[0].GetProperty("required")
+            .EnumerateArray().Select(value => value.GetString()));
+        Assert.Contains("archivedAtUtc", cardGetOutputVariants[1].GetProperty("required")
+            .EnumerateArray().Select(value => value.GetString()));
+        var archivedCommentSchema = cardGetTool.GetProperty("outputSchema").GetProperty("$defs").GetProperty("archivedComment");
+        Assert.False(archivedCommentSchema.GetProperty("properties").TryGetProperty("id", out _));
+        Assert.False(archivedCommentSchema.GetProperty("properties").TryGetProperty("cardId", out _));
 
         var attachmentDeleteTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardAttachmentDelete);
         var attachmentDeleteInput = attachmentDeleteTool.GetProperty("inputSchema");

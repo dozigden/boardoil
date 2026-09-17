@@ -128,6 +128,24 @@ public sealed class McpAuthorisationServiceTests
     }
 
     [Fact]
+    public void EnsureScopeAccess_WhenNoEffectiveReadScope_ShouldReturnForbiddenError()
+    {
+        // Arrange
+        var context = new McpAccessContext(
+            42,
+            "PAT",
+            new HashSet<string>(StringComparer.Ordinal));
+
+        // Act
+        var error = _service.EnsureScopeAccess(context, MachinePatScopes.McpRead);
+
+        // Assert
+        Assert.NotNull(error);
+        Assert.Equal("forbidden", error!.Code);
+        Assert.Equal(403, error.StatusCode);
+    }
+
+    [Fact]
     public void EnsureScopeAccess_WhenToolDoesNotRequireScope_ShouldReturnNull()
     {
         // Arrange

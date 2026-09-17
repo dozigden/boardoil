@@ -110,6 +110,47 @@ public sealed record McpCardCommentSnapshot(
     string? AuthorDisplayName,
     string? AuthorImageRelativePath);
 
+public sealed record McpArchivedCardSnapshot(
+    int Id,
+    int ColumnId,
+    int CardTypeId,
+    string CardTypeName,
+    string? CardTypeEmoji,
+    string Title,
+    string Description,
+    string SortKey,
+    IReadOnlyList<McpCardTagSnapshot> Tags,
+    IReadOnlyList<string> TagNames,
+    DateTime CardCreatedUtc,
+    DateTime CardUpdatedUtc,
+    int? AssignedUserId,
+    string? AssignedUserDisplayName,
+    int? SlickId,
+    McpCardSlickSnapshot? Slick,
+    IReadOnlyList<McpArchivedCardCommentSnapshot> Comments,
+    string? ExternalUrl,
+    DateTime ArchivedAtUtc,
+    IReadOnlyList<CardAttachmentDto> Attachments);
+
+public sealed record McpArchivedCardCommentSnapshot(
+    string Text,
+    DateTime PostedAtUtc,
+    int? AuthorUserId,
+    string? AuthorDisplayName,
+    string? AuthorImageRelativePath);
+
+public sealed record McpArchivedCardSearchResult(
+    IReadOnlyList<McpArchivedCardSearchSummary> Cards,
+    int TotalCount,
+    int Offset,
+    int Limit);
+
+public sealed record McpArchivedCardSearchSummary(
+    int Id,
+    string Title,
+    IReadOnlyList<string> TagNames,
+    DateTime ArchivedAtUtc);
+
 public sealed record McpCardTagSnapshot(
     int Id,
     string Name,
@@ -153,6 +194,7 @@ public sealed record CardGetInput
 {
     public int? BoardId { get; init; }
     public int? Id { get; init; }
+    public bool Archived { get; init; }
 }
 
 public sealed record CardOptionsGetInput
@@ -297,6 +339,7 @@ public sealed record CardSearchInput
     public string Query { get; init; } = string.Empty;
     public int Offset { get; init; }
     public int Limit { get; init; } = 20;
+    public bool Archived { get; init; }
 }
 
 public sealed record CardMoveInput

@@ -7,9 +7,10 @@ public static class ToolSchemas
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "query": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Literal substring; whitespace is preserved. Matches card number, title, description, or external URL, ignoring case." },
+        "query": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Case-insensitive literal substring. Live cards match card number, title, description, or external URL. Archived cards match title or tag name." },
         "offset": { "type": "integer", "minimum": 0, "default": 0 },
-        "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+        "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+        "archived": { "type": "boolean", "default": false, "description": "Set true to search archived cards; defaults to live cards." }
       },
       "required": ["boardId", "query"],
       "additionalProperties": false
@@ -18,32 +19,61 @@ public static class ToolSchemas
 
     public const string CardSearchOutput = """
     {
-      "type": "object",
-      "properties": {
-        "cards": {
-          "type": "array",
-          "maxItems": 100,
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "integer", "minimum": 1, "description": "Board-scoped card number." },
-              "title": { "type": "string" },
-              "columnId": { "type": "integer", "minimum": 1 },
-              "cardTypeId": { "type": "integer", "minimum": 1 },
-              "externalUrl": { "type": ["string", "null"] },
-              "tagNames": { "type": "array", "items": { "type": "string" } },
-              "slickName": { "type": ["string", "null"] }
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "cards": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "integer", "minimum": 1, "description": "Board-scoped card number." },
+                  "title": { "type": "string" },
+                  "columnId": { "type": "integer", "minimum": 1 },
+                  "cardTypeId": { "type": "integer", "minimum": 1 },
+                  "externalUrl": { "type": ["string", "null"] },
+                  "tagNames": { "type": "array", "items": { "type": "string" } },
+                  "slickName": { "type": ["string", "null"] }
+                },
+                "required": ["id", "title", "columnId", "cardTypeId", "externalUrl", "tagNames", "slickName"],
+                "additionalProperties": false
+              }
             },
-            "required": ["id", "title", "columnId", "cardTypeId", "externalUrl", "tagNames", "slickName"],
-            "additionalProperties": false
-          }
+            "totalCount": { "type": "integer", "minimum": 0 },
+            "offset": { "type": "integer", "minimum": 0 },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
+          },
+          "required": ["cards", "totalCount", "offset", "limit"],
+          "additionalProperties": false
         },
-        "totalCount": { "type": "integer", "minimum": 0 },
-        "offset": { "type": "integer", "minimum": 0 },
-        "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
-      },
-      "required": ["cards", "totalCount", "offset", "limit"],
-      "additionalProperties": false
+        {
+          "type": "object",
+          "properties": {
+            "cards": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "integer", "minimum": 1, "description": "Board-scoped card number." },
+                  "title": { "type": "string" },
+                  "tagNames": { "type": "array", "items": { "type": "string" } },
+                  "archivedAtUtc": { "type": "string", "format": "date-time" }
+                },
+                "required": ["id", "title", "tagNames", "archivedAtUtc"],
+                "additionalProperties": false
+              }
+            },
+            "totalCount": { "type": "integer", "minimum": 0 },
+            "offset": { "type": "integer", "minimum": 0 },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
+          },
+          "required": ["cards", "totalCount", "offset", "limit"],
+          "additionalProperties": false
+        }
+      ]
     }
     """;
 
@@ -308,10 +338,146 @@ public static class ToolSchemas
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "id": { "type": "integer", "minimum": 1 }
+        "id": { "type": "integer", "minimum": 1 },
+        "archived": { "type": "boolean", "default": false, "description": "Set true to read an archived card; defaults to a live card." }
       },
       "required": ["boardId", "id"],
       "additionalProperties": false
+    }
+    """;
+
+    public const string CardGetOutput = """
+    {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer", "minimum": 1 },
+            "columnId": { "type": "integer", "minimum": 1 },
+            "cardTypeId": { "type": "integer", "minimum": 1 },
+            "cardTypeName": { "type": "string" },
+            "cardTypeEmoji": { "type": ["string", "null"] },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "sortKey": { "type": "string" },
+            "tags": { "type": "array", "items": { "$ref": "#/$defs/tag" } },
+            "tagNames": { "type": "array", "items": { "type": "string" } },
+            "cardCreatedUtc": { "type": "string", "format": "date-time" },
+            "cardUpdatedUtc": { "type": "string", "format": "date-time" },
+            "assignedUserId": { "type": ["integer", "null"] },
+            "assignedUserDisplayName": { "type": ["string", "null"] },
+            "slickId": { "type": ["integer", "null"] },
+            "slick": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/slick" }
+              ]
+            },
+            "comments": { "type": "array", "items": { "$ref": "#/$defs/liveComment" } },
+            "externalUrl": { "type": ["string", "null"] },
+            "attachments": { "type": "array", "items": { "$ref": "#/$defs/attachment" } }
+          },
+          "required": ["id", "columnId", "cardTypeId", "cardTypeName", "cardTypeEmoji", "title", "description", "sortKey", "tags", "tagNames", "cardCreatedUtc", "cardUpdatedUtc", "assignedUserId", "assignedUserDisplayName", "slickId", "slick", "comments", "externalUrl", "attachments"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer", "minimum": 1 },
+            "columnId": { "type": "integer", "minimum": 1 },
+            "cardTypeId": { "type": "integer", "minimum": 1 },
+            "cardTypeName": { "type": "string" },
+            "cardTypeEmoji": { "type": ["string", "null"] },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "sortKey": { "type": "string" },
+            "tags": { "type": "array", "items": { "$ref": "#/$defs/tag" } },
+            "tagNames": { "type": "array", "items": { "type": "string" } },
+            "cardCreatedUtc": { "type": "string", "format": "date-time" },
+            "cardUpdatedUtc": { "type": "string", "format": "date-time" },
+            "assignedUserId": { "type": ["integer", "null"] },
+            "assignedUserDisplayName": { "type": ["string", "null"] },
+            "slickId": { "type": ["integer", "null"] },
+            "slick": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/slick" }
+              ]
+            },
+            "comments": { "type": "array", "items": { "$ref": "#/$defs/archivedComment" } },
+            "externalUrl": { "type": ["string", "null"] },
+            "archivedAtUtc": { "type": "string", "format": "date-time" },
+            "attachments": { "type": "array", "items": { "$ref": "#/$defs/attachment" } }
+          },
+          "required": ["id", "columnId", "cardTypeId", "cardTypeName", "cardTypeEmoji", "title", "description", "sortKey", "tags", "tagNames", "cardCreatedUtc", "cardUpdatedUtc", "assignedUserId", "assignedUserDisplayName", "slickId", "slick", "comments", "externalUrl", "archivedAtUtc", "attachments"],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "tag": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer", "minimum": 1 },
+            "name": { "type": "string" },
+            "styleName": { "type": "string" },
+            "stylePropertiesJson": { "type": "string" },
+            "emoji": { "type": ["string", "null"] }
+          },
+          "required": ["id", "name", "styleName", "stylePropertiesJson", "emoji"],
+          "additionalProperties": false
+        },
+        "slick": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer", "minimum": 1 },
+            "name": { "type": "string" },
+            "styleName": { "type": "string" },
+            "stylePropertiesJson": { "type": "string" }
+          },
+          "required": ["id", "name", "styleName", "stylePropertiesJson"],
+          "additionalProperties": false
+        },
+        "liveComment": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer", "minimum": 1 },
+            "cardId": { "type": "integer", "minimum": 1 },
+            "authorUserId": { "type": ["integer", "null"] },
+            "text": { "type": "string" },
+            "postedAtUtc": { "type": "string", "format": "date-time" },
+            "authorDisplayName": { "type": ["string", "null"] },
+            "authorImageRelativePath": { "type": ["string", "null"] }
+          },
+          "required": ["id", "cardId", "authorUserId", "text", "postedAtUtc", "authorDisplayName", "authorImageRelativePath"],
+          "additionalProperties": false
+        },
+        "archivedComment": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "postedAtUtc": { "type": "string", "format": "date-time" },
+            "authorUserId": { "type": ["integer", "null"] },
+            "authorDisplayName": { "type": ["string", "null"] },
+            "authorImageRelativePath": { "type": ["string", "null"] }
+          },
+          "required": ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath"],
+          "additionalProperties": false
+        },
+        "attachment": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer", "minimum": 1 },
+            "originalFileName": { "type": "string" },
+            "contentType": { "type": "string" },
+            "byteLength": { "type": "integer", "minimum": 0 },
+            "createdAtUtc": { "type": "string", "format": "date-time" },
+            "createdByUserId": { "type": ["integer", "null"] },
+            "hasThumbnail": { "type": "boolean" }
+          },
+          "required": ["id", "originalFileName", "contentType", "byteLength", "createdAtUtc", "createdByUserId", "hasThumbnail"],
+          "additionalProperties": false
+        }
+      }
     }
     """;
 

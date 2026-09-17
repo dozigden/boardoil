@@ -62,6 +62,48 @@ public static class McpMappingExtensions
             comment.AuthorDisplayName,
             comment.AuthorImageRelativePath);
 
+    public static McpArchivedCardSnapshot ToMcp(
+        this ArchivedCardDetailDto archivedCard,
+        IReadOnlyList<CardAttachmentDto> attachments,
+        IReadOnlyDictionary<int, McpCardSlickSnapshot>? slicksById = null)
+    {
+        var card = archivedCard.Card;
+        return new(
+            archivedCard.Id,
+            card.BoardColumnId,
+            card.CardTypeId,
+            card.CardTypeName,
+            card.CardTypeEmoji,
+            card.Title,
+            card.Description,
+            card.SortKey,
+            card.Tags.Select(tag => tag.ToMcp()).ToArray(),
+            card.TagNames,
+            card.CardCreatedUtc,
+            card.CardUpdatedUtc,
+            card.AssignedUserId,
+            card.AssignedUserDisplayName,
+            card.SlickId,
+            ResolveSlickSnapshot(card.SlickId, slicksById),
+            archivedCard.Comments.Select(comment => comment.ToMcp()).ToArray(),
+            card.ExternalUrl,
+            archivedCard.ArchivedAtUtc,
+            attachments);
+    }
+
+    public static McpArchivedCardSearchResult ToMcp(this ArchivedCardListDto archivedCards) =>
+        new(
+            archivedCards.Items
+                .Select(card => new McpArchivedCardSearchSummary(
+                    card.Id,
+                    card.Title,
+                    card.TagNames,
+                    card.ArchivedAtUtc))
+                .ToArray(),
+            archivedCards.TotalCount,
+            archivedCards.Offset,
+            archivedCards.Limit);
+
     public static McpCardSlickSnapshot ToMcp(this SlickDto slick) =>
         new(
             slick.Id,
@@ -95,6 +137,14 @@ public static class McpMappingExtensions
             tag.StyleName,
             tag.StylePropertiesJson,
             tag.Emoji);
+
+    private static McpArchivedCardCommentSnapshot ToMcp(this ArchivedCardCommentDto comment) =>
+        new(
+            comment.Text,
+            comment.PostedAtUtc,
+            comment.AuthorUserId,
+            comment.AuthorDisplayName,
+            comment.AuthorImageRelativePath);
 
     private static McpCardSlickSnapshot? ResolveSlickSnapshot(
         int? slickId,
