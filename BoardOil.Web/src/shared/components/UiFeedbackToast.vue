@@ -60,7 +60,6 @@ watch(displayMessage, async (message) => {
   top: calc(0.75rem + env(safe-area-inset-top));
   right: calc(0.75rem + env(safe-area-inset-right));
   max-width: min(28rem, calc(100vw - 1.5rem));
-  display: flex;
   align-items: center;
   gap: 0.65rem;
   margin: 0;
@@ -68,6 +67,10 @@ watch(displayMessage, async (message) => {
   border-radius: 0.65rem;
   box-shadow: var(--bo-toast-warning-shadow);
   z-index: 1200;
+}
+
+.ui-feedback-toast:popover-open {
+  display: flex;
 }
 
 .ui-feedback-toast--warning {

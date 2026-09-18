@@ -20,6 +20,7 @@ for (const shortcut of ['Control+s', 'Meta+s']) {
     await expect(savedToast).toContainText('Saved successfully.');
     await expect(savedToast).toBeVisible();
     expect(await savedToast.evaluate((toast) => toast.matches(':popover-open'))).toBe(true);
+    await expect(page.getByRole('status')).toBeHidden();
     await expect(cardEditor.descriptionEditor()).toHaveText(updatedDescription);
     await expect(cardEditor.commentEditor()).toHaveText(commentDraft);
 
