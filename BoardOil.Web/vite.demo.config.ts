@@ -64,6 +64,7 @@ export default defineConfig({
     })
   ],
   build: {
+    assetsInlineLimit: 0,
     outDir: fileURLToPath(new URL('./dist-demo', import.meta.url)),
     emptyOutDir: true
   },
