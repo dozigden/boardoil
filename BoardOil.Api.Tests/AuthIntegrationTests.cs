@@ -104,6 +104,46 @@ public sealed class AuthIntegrationTests : ApiFactoryIntegrationTestBase
     }
 
     [Fact]
+    public async Task Refresh_WithExistingCsrfToken_ShouldPreserveToken()
+    {
+        // Arrange
+        var client = CreateClient();
+        _ = await AuthenticateAsInitialAdminAsync(client);
+        var csrfResponse = await client.GetAsync("/api/auth/csrf");
+        var csrfPayload = await csrfResponse.Content.ReadFromJsonAsync<ApiEnvelope<CsrfTokenEnvelope>>();
+
+        // Act
+        var refreshResponse = await client.PostAsJsonAsync("/api/auth/refresh", new { });
+        var refreshPayload = await refreshResponse.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);
+        Assert.NotNull(csrfPayload?.Data);
+        Assert.NotNull(refreshPayload?.Data);
+        Assert.Equal(csrfPayload.Data.CsrfToken, refreshPayload.Data.CsrfToken);
+    }
+
+    [Fact]
+    public async Task GetCsrf_WithAuthenticatedUser_ShouldReturnUncacheableToken()
+    {
+        // Arrange
+        var client = CreateClient();
+        _ = await AuthenticateAsInitialAdminAsync(client);
+
+        // Act
+        var response = await client.GetAsync("/api/auth/csrf");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<CsrfTokenEnvelope>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(payload?.Data);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Data.CsrfToken));
+        Assert.NotNull(response.Headers.CacheControl);
+        Assert.True(response.Headers.CacheControl.NoStore);
+        Assert.True(response.Headers.CacheControl.Private);
+    }
+
+    [Fact]
     public async Task RegisterInitialAdmin_WhenInsecureCookiesDisabled_ShouldSetSecureFlagOnAuthCookies()
     {
         // Arrange
@@ -151,5 +191,7 @@ public sealed class AuthIntegrationTests : ApiFactoryIntegrationTestBase
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record ChangeOwnPasswordRequest(string CurrentPassword, string NewPassword);
     private sealed record BootstrapStatusEnvelope(bool RequiresInitialAdminSetup);
+    private sealed record CsrfTokenEnvelope(string CsrfToken);
+    private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

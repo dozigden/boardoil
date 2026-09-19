@@ -9,6 +9,8 @@ let unauthorizedHandler: (() => void | Promise<void>) | null = null;
 let handlingUnauthorized = false;
 let refreshInFlight: Promise<boolean> | null = null;
 
+const csrfValidationFailureMessage = 'CSRF validation failed.';
+
 export type BinaryResponse = {
   blob: Blob;
   fileName: string;
@@ -140,8 +142,10 @@ export async function uploadFormData<T>(path: string, payload: FormData, onProgr
   }
   if (!response.ok) { return response; }
   if (!response.data.ok) {
-    if (response.data.status === 401) { notifyUnauthorized(); }
     const error = await tryParseErrorPayload(response.data);
+    if (response.data.status === 401 || isCsrfValidationFailure(response.data.status, error?.message)) {
+      notifyUnauthorized();
+    }
     return err({ kind: 'http', statusCode: response.data.status,
       message: error?.message ?? formatStatusMessage(response.data), validationErrors: error?.validationErrors });
   }
@@ -332,32 +336,20 @@ async function sendFormForData<T>(
 
 async function request(path: string, init: RequestInit): Promise<Result<Response, AppError>> {
   try {
-    const response = await send(path, init);
-    if (!response.ok) {
-      if (response.status === 401 && shouldAttemptSessionRefresh(path)) {
-        const refreshed = await tryRefreshSession();
-        if (refreshed) {
-          const retriedResponse = await send(path, init);
-          if (retriedResponse.ok) {
-            return ok(retriedResponse);
-          }
+    let response = await send(path, init);
 
-          const retriedEnvelope = await tryParseErrorPayload(retriedResponse);
-          if (retriedResponse.status === 401 && shouldHandleUnauthorized(path)) {
-            void handleUnauthorized();
-          }
-
-          return err({
-            kind: 'http',
-            message: retriedEnvelope?.message ?? formatStatusMessage(retriedResponse),
-            statusCode: retriedResponse.status,
-            validationErrors: retriedEnvelope?.validationErrors
-          });
-        }
+    if (response.status === 401 && shouldAttemptSessionRefresh(path)) {
+      if (await tryRefreshSession()) {
+        response = await send(path, init);
       }
+    }
 
+    if (!response.ok) {
       const envelope = await tryParseErrorPayload(response);
       if (response.status === 401 && shouldHandleUnauthorized(path)) {
+        void handleUnauthorized();
+      }
+      if (isStateChangingRequest(init) && isCsrfValidationFailure(response.status, envelope?.message)) {
         void handleUnauthorized();
       }
 
@@ -404,6 +396,11 @@ async function send(path: string, init: RequestInit): Promise<Response> {
     headers,
     credentials: 'include'
   });
+}
+
+function isStateChangingRequest(init: RequestInit) {
+  const method = (init.method ?? 'GET').toUpperCase();
+  return method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
 }
 
 function shouldAttemptSessionRefresh(path: string) {
@@ -474,6 +471,10 @@ async function tryRefreshSession() {
   } finally {
     refreshInFlight = null;
   }
+}
+
+function isCsrfValidationFailure(status: number, message: string | undefined) {
+  return status === 403 && message === csrfValidationFailureMessage;
 }
 
 async function tryParseEnvelope(response: Response) {

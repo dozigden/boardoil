@@ -139,6 +139,49 @@ describe('http api client', () => {
     expect(unauthorizedSpy).not.toHaveBeenCalled();
   });
 
+  it('clears stale authentication without retrying when csrf validation fails', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      success: false,
+      statusCode: 403,
+      message: 'CSRF validation failed.'
+    }), { status: 403, headers: { 'Content-Type': 'application/json' } }));
+
+    const unauthorizedSpy = vi.fn();
+    const { postJson, setCsrfToken, setUnauthorizedHandler } = await import('./http');
+    setUnauthorizedHandler(unauthorizedSpy);
+    setCsrfToken('csrf-stale');
+
+    const result = await postJson('/api/boards', { name: 'Rejected' });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: 'http', statusCode: 403, message: 'CSRF validation failed.' }
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(unauthorizedSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry an ordinary forbidden response', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      success: false,
+      statusCode: 403,
+      message: 'Access denied.'
+    }), { status: 403, headers: { 'Content-Type': 'application/json' } }));
+
+    const { postJson, setCsrfToken } = await import('./http');
+    setCsrfToken('csrf-token');
+
+    const result = await postJson('/api/boards', { name: 'Forbidden' });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: 'http', statusCode: 403, message: 'Access denied.' }
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('invokes unauthorized handler when refresh fails after a 401', async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock

@@ -56,6 +56,33 @@ describe('multipart upload transport', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('clears stale authentication without retrying when upload csrf validation fails', async () => {
+    const unauthorizedSpy = vi.fn();
+    const { uploadFormData, setCsrfToken, setUnauthorizedHandler } = await import('./http');
+    setUnauthorizedHandler(unauthorizedSpy);
+    setCsrfToken('old');
+    const result = uploadFormData(
+      '/api/boards/1/cards/1/attachments',
+      new FormData(),
+      vi.fn(),
+      new AbortController().signal
+    );
+    UploadRequest.instances[0]!.status = 403;
+    UploadRequest.instances[0]!.responseText = JSON.stringify({
+      success: false,
+      statusCode: 403,
+      message: 'CSRF validation failed.'
+    });
+    UploadRequest.instances[0]!.onload?.();
+    expect(await result).toMatchObject({
+      ok: false,
+      error: { statusCode: 403, message: 'CSRF validation failed.' }
+    });
+    expect(UploadRequest.instances).toHaveLength(1);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(unauthorizedSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('returns structured size errors and handles cancellation', async () => {
     const { uploadFormData } = await import('./http');
     const tooLarge = uploadFormData('/api/attachments', new FormData(), vi.fn(), new AbortController().signal);

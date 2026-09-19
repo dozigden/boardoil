@@ -59,6 +59,7 @@ public sealed class AuthHttpSessionService(
     public async Task<IResult> RefreshAsync(HttpRequest request, HttpResponse response)
     {
         request.Cookies.TryGetValue(jwtOptions.RefreshTokenCookieName, out var refreshToken);
+        request.Cookies.TryGetValue(csrfOptions.CookieName, out var csrfToken);
         var result = await authService.RefreshAsync(refreshToken);
         if (!result.Success || result.Data is null)
         {
@@ -70,9 +71,12 @@ public sealed class AuthHttpSessionService(
             return result.ToHttpResult();
         }
 
+        var nextCsrfToken = string.IsNullOrWhiteSpace(csrfToken)
+            ? result.Data.CsrfToken
+            : csrfToken;
         WriteAuthCookies(response, result.Data.AccessToken, result.Data.AccessTokenExpiresAtUtc, result.Data.RefreshToken, result.Data.RefreshTokenExpiresAtUtc);
-        WriteCsrfCookie(response, result.Data.CsrfToken, result.Data.RefreshTokenExpiresAtUtc);
-        return ApiResults.Ok(result.Data.ToDto()).ToHttpResult();
+        WriteCsrfCookie(response, nextCsrfToken, result.Data.RefreshTokenExpiresAtUtc);
+        return ApiResults.Ok(result.Data.ToDto() with { CsrfToken = nextCsrfToken }).ToHttpResult();
     }
 
     public async Task<IResult> LogoutAsync(HttpRequest request, HttpResponse response)
@@ -86,6 +90,8 @@ public sealed class AuthHttpSessionService(
 
     public IResult GetCsrf(HttpRequest request, HttpResponse response)
     {
+        response.Headers.CacheControl = "private, no-store";
+
         if (!request.Cookies.TryGetValue(csrfOptions.CookieName, out var csrfToken)
             || string.IsNullOrWhiteSpace(csrfToken))
         {
