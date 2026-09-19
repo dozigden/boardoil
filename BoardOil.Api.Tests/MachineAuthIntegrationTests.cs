@@ -30,6 +30,42 @@ public sealed class MachineAuthIntegrationTests : ApiFactoryIntegrationTestBase
     }
 
     [Fact]
+    public async Task MachineBearer_WriteWithoutCsrf_ShouldReturnCreated()
+    {
+        // Arrange
+        var client = CreateClient();
+        await AuthenticateAsInitialAdminAsync(client);
+        var loginResponse = await client.PostAsJsonAsync(
+            "/api/auth/machine/login", new LoginRequest("admin", "Password1234!"));
+        var loginEnvelope = await loginResponse.Content.ReadFromJsonAsync<ApiEnvelope<MachineAuthEnvelope>>();
+        Assert.NotNull(loginEnvelope?.Data);
+        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+        client.DefaultRequestHeaders.Authorization = new("Bearer", loginEnvelope.Data.AccessToken);
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/boards", new { name = "Machine Board" });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task InvalidBearer_WithValidCookie_ShouldNotFallBackToCookieAuthentication()
+    {
+        // Arrange
+        var client = CreateClient();
+        await AuthenticateAsInitialAdminAsync(client);
+        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+        client.DefaultRequestHeaders.Authorization = new("Bearer", "invalid-token");
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/boards", new { name = "Blocked Board" });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task MachineRefresh_WithInvalidToken_ShouldReturnUnauthorized()
     {
         // Arrange

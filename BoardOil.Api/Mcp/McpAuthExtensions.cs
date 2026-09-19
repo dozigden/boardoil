@@ -58,23 +58,40 @@ public static class McpAuthExtensions
                     OnMessageReceived = context =>
                     {
                         var authHeader = context.Request.Headers.Authorization.ToString();
-                        if (!string.IsNullOrWhiteSpace(authHeader)
-                            && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                        if (!string.IsNullOrWhiteSpace(authHeader))
                         {
-                            var bearerToken = authHeader["Bearer ".Length..].Trim();
-                            if (bearerToken.StartsWith("bo_pat_", StringComparison.OrdinalIgnoreCase))
+                            if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
                             {
-                                context.NoResult();
-                                return Task.CompletedTask;
+                                var bearerToken = authHeader["Bearer ".Length..].Trim();
+                                if (bearerToken.StartsWith("bo_pat_", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    context.NoResult();
+                                    return Task.CompletedTask;
+                                }
+
+                                if (!string.IsNullOrWhiteSpace(bearerToken))
+                                {
+                                    context.Token = bearerToken;
+                                    JwtAuthenticationSourceContext.SetCandidate(
+                                        context.HttpContext, JwtAuthenticationSource.BearerHeader);
+                                }
                             }
+
+                            return Task.CompletedTask;
                         }
 
-                        if (string.IsNullOrWhiteSpace(context.Token)
-                            && context.Request.Cookies.TryGetValue(jwtOptions.AccessTokenCookieName, out var cookieToken))
+                        if (context.Request.Cookies.TryGetValue(jwtOptions.AccessTokenCookieName, out var cookieToken))
                         {
                             context.Token = cookieToken;
+                            JwtAuthenticationSourceContext.SetCandidate(
+                                context.HttpContext, JwtAuthenticationSource.Cookie);
                         }
 
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = context =>
+                    {
+                        JwtAuthenticationSourceContext.ConfirmCandidate(context.HttpContext);
                         return Task.CompletedTask;
                     },
                     OnChallenge = async context =>

@@ -177,6 +177,12 @@ app.Use(async (context, next) =>
         return;
     }
 
+    if (JwtAuthenticationSourceContext.IsValidatedBearerHeader(context))
+    {
+        await next();
+        return;
+    }
+
     var hasCookie = context.Request.Cookies.TryGetValue(csrfOptions.CookieName, out var csrfCookie);
     var hasHeader = context.Request.Headers.TryGetValue(csrfOptions.HeaderName, out var csrfHeader);
     if (!hasCookie
