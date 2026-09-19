@@ -20,7 +20,7 @@ public sealed class AttachmentTransferService(
     IBoardAuthorisationService authorisation, IDbContextScopeFactory scopes, AttachmentStorageOptions options,
     TimeProvider clock, ILogger<AttachmentTransferService> logger) : IAttachmentTransferService
 {
-    private static readonly SemaphoreSlim DownloadAuditWriteLock = new(1, 1);
+    private static readonly SemaphoreSlim DownloadPersistenceLock = new(1, 1);
 
     public async Task<ApiResult<AttachmentDownloadTicket>> IssueDownloadAsync(int boardId, int attachmentId, int actorUserId,
         AttachmentTransferCredential credential, CancellationToken cancellationToken = default)
@@ -52,7 +52,7 @@ public sealed class AttachmentTransferService(
         };
         downloadTickets.Add(ticket);
         await scope.SaveChangesAsync(cancellationToken);
-        await RecordAuditAsync(ticket, AttachmentTransferAuditOutcome.Issued, now, cancellationToken);
+        await RecordDownloadAuditAsync(ticket, AttachmentTransferAuditOutcome.Issued, now, cancellationToken);
         logger.LogInformation("Issued attachment download ticket {TicketId} for user {UserId}, board {BoardId}, attachment {AttachmentId}.",
             ticket.Id, actorUserId, boardId, attachmentId);
         return new AttachmentDownloadTicket(ticket.Id, secret, expires);
@@ -132,16 +132,27 @@ public sealed class AttachmentTransferService(
     {
         var startedAt = clock.GetUtcNow().UtcDateTime;
         if (!HasValidTicketShape(ticketId, secret)) { return InvalidTicket<AttachmentDownload>(); }
-        var admission = await AdmitDownloadAsync(ticketId, secret, startedAt, cancellationToken);
-        if (admission.Ticket is null || admission.Outcome is null) { return admission.Result; }
+
+        DownloadAdmission admission;
+        await DownloadPersistenceLock.WaitAsync(cancellationToken);
         try
         {
-            await RecordAuditAsync(admission.Ticket, admission.Outcome.Value, startedAt, cancellationToken);
+            admission = await AdmitDownloadAsync(ticketId, secret, startedAt, cancellationToken);
+            if (admission.Ticket is null || admission.Outcome is null) { return admission.Result; }
+            try
+            {
+                await PersistDownloadAuditAsync(
+                    admission.Ticket, admission.Outcome.Value, startedAt, cancellationToken);
+            }
+            catch
+            {
+                if (admission.Result.Success) { await admission.Result.Data!.Content.DisposeAsync(); }
+                throw;
+            }
         }
-        catch
+        finally
         {
-            if (admission.Result.Success) { await admission.Result.Data!.Content.DisposeAsync(); }
-            throw;
+            DownloadPersistenceLock.Release();
         }
         if (admission.Result.Success)
         {
@@ -412,21 +423,27 @@ public sealed class AttachmentTransferService(
         return expiredDownloads.Count + incompleteUploads.Count + expiredCompletedUploads.Count;
     }
 
-    private async Task RecordAuditAsync(EntityAttachmentDownloadTicket ticket,
+    private async Task RecordDownloadAuditAsync(EntityAttachmentDownloadTicket ticket,
         AttachmentTransferAuditOutcome outcome, DateTime occurredAtUtc, CancellationToken cancellationToken)
     {
-        await DownloadAuditWriteLock.WaitAsync(cancellationToken);
+        await DownloadPersistenceLock.WaitAsync(cancellationToken);
         try
         {
-            using var suppressed = scopes.SuppressAmbientContext();
-            using var scope = scopes.Create();
-            audits.Add(CreateAudit(ticket, outcome, occurredAtUtc));
-            await scope.SaveChangesAsync(cancellationToken);
+            await PersistDownloadAuditAsync(ticket, outcome, occurredAtUtc, cancellationToken);
         }
         finally
         {
-            DownloadAuditWriteLock.Release();
+            DownloadPersistenceLock.Release();
         }
+    }
+
+    private async Task PersistDownloadAuditAsync(EntityAttachmentDownloadTicket ticket,
+        AttachmentTransferAuditOutcome outcome, DateTime occurredAtUtc, CancellationToken cancellationToken)
+    {
+        using var suppressed = scopes.SuppressAmbientContext();
+        using var scope = scopes.Create();
+        audits.Add(CreateAudit(ticket, outcome, occurredAtUtc));
+        await scope.SaveChangesAsync(cancellationToken);
     }
 
     private async Task RecordAuditAsync(EntityAttachmentUploadTicket ticket,
