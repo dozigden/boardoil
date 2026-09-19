@@ -93,6 +93,61 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase, 
         Assert.Equal(HttpStatusCode.OK, await GetStatusAsync(() => systemPatClient.GetAsync("/api/system/boards")));
     }
 
+    [Theory]
+    [InlineData("create", HttpStatusCode.Created)]
+    [InlineData("update", HttpStatusCode.OK)]
+    [InlineData("delete", HttpStatusCode.OK)]
+    [InlineData("archive", HttpStatusCode.OK)]
+    [InlineData("comment", HttpStatusCode.Created)]
+    public async Task HomeAssistantClientPat_CardWriteWithoutCookiesOrCsrf_ShouldSucceed(
+        string operation, HttpStatusCode expectedStatus)
+    {
+        // Arrange
+        var adminClient = CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var clientAccount = await CreateClientAccountAsync(
+            adminClient, $"home-assistant-{Guid.NewGuid():N}", "Standard",
+            [MachinePatScopes.ApiRead, MachinePatScopes.ApiWrite]);
+        await AddBoardMemberAsAdminAsync(adminClient, 1, clientAccount.Account.Id, "Contributor");
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/boards/1/cards", new CreateCardRequest(null, "HA card", "Original", []));
+        createResponse.EnsureSuccessStatusCode();
+        var cardEnvelope = await createResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>();
+        Assert.NotNull(cardEnvelope?.Data);
+        var card = cardEnvelope.Data;
+
+        var patClient = TrackClient(Factory.CreateClient(new() { HandleCookies = false }));
+        patClient.DefaultRequestHeaders.Authorization = new("Bearer", clientAccount.Token.PlainTextToken);
+        using var request = operation switch
+        {
+            "create" => new HttpRequestMessage(HttpMethod.Post, "/api/boards/1/cards")
+            {
+                Content = JsonContent.Create(new CreateCardRequest(card.BoardColumnId, "Created by HA", "", []))
+            },
+            "update" => new HttpRequestMessage(HttpMethod.Put, $"/api/boards/1/cards/{card.Id}")
+            {
+                Content = JsonContent.Create(new UpdateCardRequest("Updated by HA", "Updated", [], card.CardTypeId))
+            },
+            "delete" => new HttpRequestMessage(HttpMethod.Delete, $"/api/boards/1/cards/{card.Id}"),
+            "archive" => new HttpRequestMessage(HttpMethod.Post, $"/api/boards/1/cards/{card.Id}/archive"),
+            "comment" => new HttpRequestMessage(HttpMethod.Post, $"/api/boards/1/cards/{card.Id}/comments")
+            {
+                Content = JsonContent.Create(new CreateCardCommentRequest("Comment from HA"))
+            },
+            _ => throw new ArgumentOutOfRangeException(nameof(operation))
+        };
+
+        // Act
+        using var response = await patClient.SendAsync(request);
+
+        // Assert
+        Assert.Equal(expectedStatus, response.StatusCode);
+        Assert.False(request.Headers.Contains("Cookie"));
+        Assert.False(request.Headers.Contains("X-BoardOil-CSRF"));
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(payload.RootElement.GetProperty("success").GetBoolean());
+    }
+
     [Fact]
     public async Task ApiReadScope_ShouldAllowCardSearch()
     {
@@ -399,11 +454,7 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase, 
     {
         var response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(userName, password));
         response.EnsureSuccessStatusCode();
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
-        Assert.NotNull(envelope);
-        Assert.NotNull(envelope!.Data);
-        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
-        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
+        await AdminAuthenticationHelper.SetCsrfHeaderAsync(client);
     }
 
     private sealed record LoginRequest(string UserName, string Password);
@@ -420,7 +471,6 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase, 
         int? ExpiresInDays,
         IReadOnlyList<string>? Scopes);
     private sealed record CreateUserRequest(string UserName, string DisplayName, string Email, string Password, string Role);
-    private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
     private sealed record ManagedUserEnvelope(int Id, string UserName, string Role, bool IsActive, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
     private sealed record ClientAccountEnvelope(int Id, string UserName);

@@ -14,6 +14,7 @@ export type AuthSession = {
 
 export type CsrfTokenDto = {
   csrfToken: string;
+  userId: number;
 };
 
 export type BootstrapStatusDto = {

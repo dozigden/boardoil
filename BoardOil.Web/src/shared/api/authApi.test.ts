@@ -22,6 +22,17 @@ describe('authApi', () => {
     postJson.mockResolvedValue(ok(undefined));
   });
 
+  it('returns the token and its authenticated user together', async () => {
+    const api = createAuthApi();
+    getEnvelope.mockResolvedValue(ok({
+      success: true, data: { csrfToken: 'bound-token', userId: 42 }, statusCode: 200
+    }));
+
+    const result = await api.getCsrfToken();
+
+    expect(result).toEqual(ok({ csrfToken: 'bound-token', userId: 42 }));
+  });
+
   it('changeOwnPassword posts to the change-password endpoint', async () => {
     const api = createAuthApi();
 

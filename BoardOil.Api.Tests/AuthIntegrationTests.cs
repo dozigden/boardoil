@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using BoardOil.Api.Tests.Infrastructure;
+using BoardOil.Contracts.Auth;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -129,6 +130,8 @@ public sealed class AuthIntegrationTests : ApiFactoryIntegrationTestBase
         // Arrange
         var client = CreateClient();
         _ = await AuthenticateAsInitialAdminAsync(client);
+        var me = await client.GetFromJsonAsync<ApiEnvelope<AuthUserDto>>("/api/auth/me");
+        Assert.NotNull(me?.Data);
 
         // Act
         var response = await client.GetAsync("/api/auth/csrf");
@@ -138,9 +141,41 @@ public sealed class AuthIntegrationTests : ApiFactoryIntegrationTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(payload?.Data);
         Assert.False(string.IsNullOrWhiteSpace(payload.Data.CsrfToken));
+        Assert.Equal(me.Data.Id, payload.Data.UserId);
         Assert.NotNull(response.Headers.CacheControl);
         Assert.True(response.Headers.CacheControl.NoStore);
         Assert.True(response.Headers.CacheControl.Private);
+    }
+
+    [Fact]
+    public async Task GetCsrf_AfterAccountSwitch_ShouldIdentifyTheCurrentAccount()
+    {
+        // Arrange
+        var client = CreateClient();
+        await AuthenticateAsInitialAdminAsync(client);
+        var original = await client.GetFromJsonAsync<ApiEnvelope<AuthUserDto>>("/api/auth/me");
+        Assert.NotNull(original?.Data);
+        var createdResponse = await client.PostAsJsonAsync("/api/system/users", new
+        {
+            userName = "other-user", displayName = "Other user", email = "other@example.test",
+            password = "Password1234!", role = "Standard"
+        });
+        createdResponse.EnsureSuccessStatusCode();
+        var created = await createdResponse.Content.ReadFromJsonAsync<ApiEnvelope<AuthUserDto>>();
+        Assert.NotNull(created?.Data);
+        var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("other-user", "Password1234!"));
+        login.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await client.GetAsync("/api/auth/csrf");
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<CsrfTokenEnvelope>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(payload?.Data);
+        Assert.Equal(created.Data.Id, payload.Data.UserId);
+        Assert.NotEqual(original.Data.Id, payload.Data.UserId);
+        Assert.False(string.IsNullOrWhiteSpace(payload.Data.CsrfToken));
     }
 
     [Fact]
@@ -191,7 +226,7 @@ public sealed class AuthIntegrationTests : ApiFactoryIntegrationTestBase
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record ChangeOwnPasswordRequest(string CurrentPassword, string NewPassword);
     private sealed record BootstrapStatusEnvelope(bool RequiresInitialAdminSetup);
-    private sealed record CsrfTokenEnvelope(string CsrfToken);
+    private sealed record CsrfTokenEnvelope(string CsrfToken, int UserId);
     private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

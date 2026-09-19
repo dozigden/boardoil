@@ -43,12 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
         return;
       }
 
-      user.value = meResult.data;
-      requiresInitialAdminSetup.value = false;
-      const csrfResult = await api.getCsrfToken();
-      if (csrfResult.ok) {
-        setCsrfToken(csrfResult.data);
-      }
+      await restoreSession(meResult.data);
       initialized.value = true;
     } finally {
       busy.value = false;
@@ -65,11 +60,7 @@ export const useAuthStore = defineStore('auth', () => {
         return false;
       }
 
-      user.value = result.data.user;
-      requiresInitialAdminSetup.value = false;
-      setCsrfToken(result.data.csrfToken);
-      initialized.value = true;
-      return true;
+      return await restoreSession(result.data.user);
     } finally {
       busy.value = false;
     }
@@ -85,14 +76,39 @@ export const useAuthStore = defineStore('auth', () => {
         return false;
       }
 
-      user.value = result.data.user;
-      requiresInitialAdminSetup.value = false;
-      setCsrfToken(result.data.csrfToken);
-      initialized.value = true;
-      return true;
+      const restored = await restoreSession(result.data.user);
+      if (!restored) {
+        errorMessage.value = `Your admin account was created, but sign-in could not be completed. Please sign in. ${errorMessage.value}`;
+        // Setup succeeded. Do not let navigation retry restoration or offer
+        // another registration after a failed follow-up token request.
+        initialized.value = true;
+        await router.replace({ name: 'login' });
+      }
+      return restored;
     } finally {
       busy.value = false;
     }
+  }
+
+  async function restoreSession(authenticatedUser: AuthUser) {
+    clearSession();
+    requiresInitialAdminSetup.value = false;
+    const csrfResult = await api.getCsrfToken();
+    if (!csrfResult.ok) {
+      errorMessage.value = csrfResult.error.message;
+      return false;
+    }
+
+    if (csrfResult.data.userId !== authenticatedUser.id) {
+      errorMessage.value = 'The signed-in account changed. Please sign in again.';
+      return false;
+    }
+
+    setCsrfToken(csrfResult.data.csrfToken);
+    user.value = authenticatedUser;
+    errorMessage.value = null;
+    initialized.value = true;
+    return true;
   }
 
   async function changeOwnPassword(currentPassword: string, newPassword: string) {

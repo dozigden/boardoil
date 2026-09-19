@@ -59,22 +59,21 @@ export class BoardOilApi {
 
   public async ensureInitialAdmin(userName: string, password: string) {
     const bootstrap = await this.read<{ requiresInitialAdminSetup: boolean }>('/api/auth/bootstrap-status');
-    let session: { csrfToken: string };
-
     if (bootstrap.requiresInitialAdminSetup) {
-      session = await this.post<{ csrfToken: string }>('/api/auth/register-initial-admin', {
+      await this.post('/api/auth/register-initial-admin', {
         userName,
         email: 'smoke-admin@boardoil.test',
         password
       }, false);
     } else {
-      session = await this.post<{ csrfToken: string }>('/api/auth/login', {
+      await this.post('/api/auth/login', {
         userName,
         password
       }, false);
     }
 
-    this.csrfToken = session.csrfToken;
+    const tokens = await this.read<{ csrfToken: string }>('/api/auth/csrf');
+    this.csrfToken = tokens.csrfToken;
   }
 
   public async createBoard(name: string) {

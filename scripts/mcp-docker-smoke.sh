@@ -85,15 +85,16 @@ if [ "$register_status" != "201" ] && [ "$register_status" != "409" ]; then
   exit 1
 fi
 
-csrf_token=$(jq -r '.data.csrfToken // empty' /tmp/boardoil-register.json)
-if [ -z "$csrf_token" ] && [ "$register_status" = "409" ]; then
+if [ "$register_status" = "409" ]; then
   echo "[smoke] Logging in as existing admin"
-  login_payload=$(curl -fsS -X POST "$API_URL/api/auth/login" \
+  curl -fsS -o /dev/null -X POST "$API_URL/api/auth/login" \
     -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
-    -d "{\"userName\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}")
-  csrf_token=$(echo "$login_payload" | jq -r '.data.csrfToken // empty')
+    -d "{\"userName\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}"
 fi
+
+csrf_payload=$(curl -fsS "$API_URL/api/auth/csrf" -c "$COOKIE_JAR" -b "$COOKIE_JAR")
+csrf_token=$(echo "$csrf_payload" | jq -r '.data.csrfToken // empty')
 
 if [ -z "$csrf_token" ]; then
   echo "Failed to obtain CSRF token for access token creation" >&2

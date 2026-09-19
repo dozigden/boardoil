@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useAuthStore } from './authStore';
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
-import type { AuthSession, AuthUser } from '../types/authTypes';
+import type { AuthSession, AuthUser, CsrfTokenDto } from '../types/authTypes';
 
 const authApi = {
   registerInitialAdmin: vi.fn(),
@@ -42,7 +42,7 @@ describe('authStore', () => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     authApi.getMe.mockResolvedValue(ok<AuthUser | null>(null));
-    authApi.getCsrfToken.mockResolvedValue(ok('csrf-token'));
+    authApi.getCsrfToken.mockResolvedValue(ok({ csrfToken: 'csrf-token', userId: 1 }));
     authApi.getBootstrapStatus.mockResolvedValue(ok(false));
     authApi.logout.mockResolvedValue(ok(undefined));
     setUnauthorizedHandler.mockClear();
@@ -94,6 +94,7 @@ describe('authStore', () => {
       csrfToken: 'csrf-login'
     };
     authApi.login.mockResolvedValue(ok(session));
+    authApi.getCsrfToken.mockResolvedValue(ok({ csrfToken: 'csrf-token', userId: session.user.id }));
 
     const success = await store.login('member', 'Password1234!');
 
@@ -101,7 +102,8 @@ describe('authStore', () => {
     expect(store.user?.userName).toBe('member');
     expect(store.isAuthenticated).toBe(true);
     expect(store.requiresInitialAdminSetup).toBe(false);
-    expect(setCsrfToken).toHaveBeenCalledWith('csrf-login');
+    expect(setCsrfToken).toHaveBeenLastCalledWith('csrf-token');
+    expect(authApi.getCsrfToken).toHaveBeenCalledTimes(1);
   });
 
   it('registerInitialAdmin stores user and csrf token on success', async () => {
@@ -121,7 +123,116 @@ describe('authStore', () => {
     expect(store.isAuthenticated).toBe(true);
     expect(store.isAdmin).toBe(true);
     expect(store.requiresInitialAdminSetup).toBe(false);
-    expect(setCsrfToken).toHaveBeenCalledWith('csrf-bootstrap');
+    expect(setCsrfToken).toHaveBeenLastCalledWith('csrf-token');
+    expect(authApi.getCsrfToken).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['login', 'registerInitialAdmin', 'initialize'] as const)(
+    '%s waits for token acquisition before publishing authenticated state', async (operation) => {
+      const store = useAuthStore();
+      const user: AuthUser = { id: 2, userName: 'member', displayName: 'Member', role: 'Standard' };
+      authApi.login.mockResolvedValue(ok({ user }));
+      authApi.registerInitialAdmin.mockResolvedValue(ok({ user }));
+      authApi.getMe.mockResolvedValue(ok(user));
+      let completeTokenRequest!: (result: ReturnType<typeof ok<CsrfTokenDto>>) => void;
+      authApi.getCsrfToken.mockReturnValue(new Promise((resolve) => { completeTokenRequest = resolve; }));
+
+      let pending: Promise<unknown>;
+      if (operation === 'login') {
+        pending = store.login('member', 'Password1234!');
+      } else if (operation === 'registerInitialAdmin') {
+        pending = store.registerInitialAdmin('member', 'member@example.test', 'Password1234!');
+      } else {
+        pending = store.initialize();
+      }
+      await vi.waitFor(() => expect(authApi.getCsrfToken).toHaveBeenCalledTimes(1));
+
+      expect(store.isAuthenticated).toBe(false);
+      expect(store.busy).toBe(true);
+      expect(setCsrfToken).toHaveBeenLastCalledWith(null);
+      completeTokenRequest(ok({ csrfToken: 'follow-up-token', userId: user.id }));
+      await pending;
+
+      expect(store.user).toEqual(user);
+      expect(store.isAuthenticated).toBe(true);
+      expect(store.busy).toBe(false);
+      expect(setCsrfToken).toHaveBeenLastCalledWith('follow-up-token');
+    }
+  );
+
+  it.each(['login', 'registerInitialAdmin', 'initialize'] as const)(
+    '%s clears local authentication and exposes token acquisition errors', async (operation) => {
+      const store = useAuthStore();
+      const user: AuthUser = { id: 2, userName: 'member', displayName: 'Member', role: 'Standard' };
+      store.user = { id: 1, userName: 'old', displayName: 'Old user', role: 'Admin' };
+      store.requiresInitialAdminSetup = true;
+      authApi.login.mockResolvedValue(ok({ user }));
+      authApi.registerInitialAdmin.mockResolvedValue(ok({ user }));
+      authApi.getMe.mockResolvedValue(ok(user));
+      authApi.getCsrfToken.mockResolvedValue(err({ kind: 'network', message: 'Token request failed.' }));
+
+      if (operation === 'login') {
+        expect(await store.login('member', 'Password1234!')).toBe(false);
+      } else if (operation === 'registerInitialAdmin') {
+        expect(await store.registerInitialAdmin('member', 'member@example.test', 'Password1234!')).toBe(false);
+      } else {
+        await store.initialize();
+      }
+
+      expect(store.user).toBeNull();
+      expect(store.isAuthenticated).toBe(false);
+      expect(store.requiresInitialAdminSetup).toBe(false);
+      expect(store.busy).toBe(false);
+      expect(store.errorMessage).toContain('Token request failed.');
+      if (operation === 'registerInitialAdmin') {
+        expect(store.initialized).toBe(true);
+        expect(store.errorMessage).toContain('Your admin account was created');
+        expect(router.replace).toHaveBeenCalledWith({ name: 'login' });
+      }
+      expect(setCsrfToken).toHaveBeenLastCalledWith(null);
+    }
+  );
+
+  it.each(['login', 'registerInitialAdmin', 'initialize'] as const)(
+    '%s rejects a token acquired for a different account', async (operation) => {
+      const store = useAuthStore();
+      const user: AuthUser = { id: 1, userName: 'alice', displayName: 'Alice', role: 'Standard' };
+      authApi.login.mockResolvedValue(ok({ user }));
+      authApi.registerInitialAdmin.mockResolvedValue(ok({ user }));
+      authApi.getMe.mockResolvedValue(ok(user));
+      authApi.getCsrfToken.mockResolvedValue(ok({ csrfToken: 'bob-token', userId: 2 }));
+
+      if (operation === 'login') {
+        expect(await store.login('alice', 'Password1234!')).toBe(false);
+      } else if (operation === 'registerInitialAdmin') {
+        expect(await store.registerInitialAdmin('alice', 'alice@example.test', 'Password1234!')).toBe(false);
+      } else {
+        await store.initialize();
+      }
+
+      expect(store.isAuthenticated).toBe(false);
+      expect(store.user).toBeNull();
+      expect(store.errorMessage).toContain('The signed-in account changed. Please sign in again.');
+      expect(setCsrfToken).not.toHaveBeenCalledWith('bob-token');
+      expect(setCsrfToken).toHaveBeenLastCalledWith(null);
+    }
+  );
+
+  it('allows sign-in after account creation succeeds but token acquisition fails', async () => {
+    const store = useAuthStore();
+    const user: AuthUser = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' };
+    authApi.registerInitialAdmin.mockResolvedValue(ok({ user }));
+    authApi.getCsrfToken.mockResolvedValueOnce(err({ kind: 'network', message: 'Token request failed.' }));
+    await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!');
+    authApi.login.mockResolvedValue(ok({ user }));
+
+    const success = await store.login('admin', 'Password1234!');
+
+    expect(success).toBe(true);
+    expect(authApi.registerInitialAdmin).toHaveBeenCalledTimes(1);
+    expect(store.isAuthenticated).toBe(true);
+    expect(store.errorMessage).toBeNull();
+    expect(setCsrfToken).toHaveBeenLastCalledWith('csrf-token');
   });
 
   it('login exposes API error message on failure', async () => {

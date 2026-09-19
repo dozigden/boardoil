@@ -449,18 +449,10 @@ async function tryRefreshSession() {
         return false;
       }
 
-      const envelope = (await response.json().catch(() => null)) as ApiEnvelope<{ csrfToken?: string }> | null;
-      if (envelope?.success === false) {
-        return false;
-      }
-
-      const nextCsrfToken = envelope?.data?.csrfToken;
-      if (typeof nextCsrfToken !== 'string' || nextCsrfToken.length === 0) {
-        return false;
-      }
-
-      setCsrfToken(nextCsrfToken);
-      return true;
+      const envelope = (await response.json().catch(() => null)) as ApiEnvelope<unknown> | null;
+      // Preserve this tab's token: replacing it could authorise a pending write
+      // under an account selected in another tab.
+      return envelope?.success === true;
     } catch {
       return false;
     }

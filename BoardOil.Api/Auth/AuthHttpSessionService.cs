@@ -91,6 +91,11 @@ public sealed class AuthHttpSessionService(
     public IResult GetCsrf(HttpRequest request, HttpResponse response)
     {
         response.Headers.CacheControl = "private, no-store";
+        var userIdClaim = request.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+        {
+            return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
+        }
 
         if (!request.Cookies.TryGetValue(csrfOptions.CookieName, out var csrfToken)
             || string.IsNullOrWhiteSpace(csrfToken))
@@ -99,7 +104,7 @@ public sealed class AuthHttpSessionService(
             WriteCsrfCookie(response, csrfToken, DateTime.UtcNow.AddDays(1));
         }
 
-        return ApiResults.Ok(new CsrfTokenDto(csrfToken)).ToHttpResult();
+        return ApiResults.Ok(new CsrfTokenDto(csrfToken, userId)).ToHttpResult();
     }
 
     public async Task<IResult> GetMeAsync(ClaimsPrincipal claimsPrincipal)

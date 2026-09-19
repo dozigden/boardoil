@@ -213,11 +213,7 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
     {
         var response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(userName, password));
         response.EnsureSuccessStatusCode();
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
-        Assert.NotNull(envelope);
-        Assert.NotNull(envelope!.Data);
-        client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
-        client.DefaultRequestHeaders.Add("X-BoardOil-CSRF", envelope.Data!.CsrfToken);
+        await AdminAuthenticationHelper.SetCsrfHeaderAsync(client);
     }
 
     protected sealed record LoginRequest(string UserName, string Password);
@@ -229,7 +225,6 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
     protected sealed record UpdateConfigurationRequest(
         string? McpPublicBaseUrl,
         bool OAuthLifecycleDiagnosticsEnabled = false);
-    protected sealed record AuthSessionEnvelope(string CsrfToken);
     protected sealed record ConfigurationEnvelope(
         bool AllowInsecureCookies,
         string? McpPublicBaseUrl,

@@ -24,10 +24,7 @@ internal static class AdminAuthenticationHelper
         var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(AdminUserName, AdminPassword));
         login.EnsureSuccessStatusCode();
 
-        var loginEnvelope = await login.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
-        Assert.NotNull(loginEnvelope);
-        Assert.NotNull(loginEnvelope!.Data);
-        SetCsrfHeader(client, loginEnvelope.Data!.CsrfToken);
+        await SetCsrfHeaderAsync(client);
         return TryGetCookieValue(login, AccessCookieName) ?? string.Empty;
     }
 
@@ -95,10 +92,15 @@ internal static class AdminAuthenticationHelper
         }
     }
 
-    private static void SetCsrfHeader(HttpClient client, string csrfToken)
+    public static async Task SetCsrfHeaderAsync(HttpClient client)
     {
+        var response = await client.GetAsync("/api/auth/csrf");
+        response.EnsureSuccessStatusCode();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<CsrfTokenEnvelope>>();
+        Assert.NotNull(envelope?.Data);
+        Assert.False(string.IsNullOrWhiteSpace(envelope.Data.CsrfToken));
         client.DefaultRequestHeaders.Remove(CsrfHeaderName);
-        client.DefaultRequestHeaders.Add(CsrfHeaderName, csrfToken);
+        client.DefaultRequestHeaders.Add(CsrfHeaderName, envelope.Data.CsrfToken);
     }
 
     private static string? TryGetCookieValue(HttpResponseMessage response, string cookieName)
@@ -128,6 +130,6 @@ internal static class AdminAuthenticationHelper
     }
 
     private sealed record LoginRequest(string UserName, string Password);
-    private sealed record AuthSessionEnvelope(string CsrfToken);
+    private sealed record CsrfTokenEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

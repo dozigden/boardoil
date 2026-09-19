@@ -42,15 +42,15 @@ describe('multipart upload transport', () => {
     expect(await result).toEqual({ ok: true, data: { id: 7 } });
   });
 
-  it('refreshes an expired session once and uses the new CSRF token', async () => {
+  it.each([{}, { csrfToken: 'another-token' }])('retains the tab token after refresh with response data %j', async (data) => {
     const { uploadFormData, setCsrfToken } = await import('./http');
     setCsrfToken('old');
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ success: true, data: { csrfToken: 'new' } })));
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ success: true, data })));
     const result = uploadFormData('/api/boards/1/cards/1/attachments', new FormData(), vi.fn(), new AbortController().signal);
     UploadRequest.instances[0]!.status = 401;
     UploadRequest.instances[0]!.onload?.();
     await vi.waitFor(() => expect(UploadRequest.instances).toHaveLength(2));
-    expect(UploadRequest.instances[1]!.headers).toEqual({ 'X-BoardOil-CSRF': 'new' });
+    expect(UploadRequest.instances[1]!.headers).toEqual({ 'X-BoardOil-CSRF': 'old' });
     UploadRequest.instances[1]!.onload?.();
     expect((await result).ok).toBe(true);
     expect(fetch).toHaveBeenCalledTimes(1);

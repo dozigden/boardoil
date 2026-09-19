@@ -44,7 +44,7 @@ export function createAuthApi() {
     return ok(envelopeResult.data.data);
   }
 
-  async function getCsrfToken(): Promise<Result<string, AppError>> {
+  async function getCsrfToken(): Promise<Result<CsrfTokenDto, AppError>> {
     const envelopeResult = await getEnvelope<CsrfTokenDto>('/api/auth/csrf');
     if (!envelopeResult.ok) {
       return envelopeResult;
@@ -57,7 +57,7 @@ export function createAuthApi() {
       });
     }
 
-    return ok(envelopeResult.data.data.csrfToken);
+    return ok(envelopeResult.data.data);
   }
 
   async function getBootstrapStatus(): Promise<Result<boolean, AppError>> {

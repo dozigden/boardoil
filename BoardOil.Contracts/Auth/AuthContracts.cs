@@ -56,7 +56,7 @@ public sealed record AuthSessionDto(
     DateTime RefreshTokenExpiresAtUtc,
     string CsrfToken);
 
-public sealed record CsrfTokenDto(string CsrfToken);
+public sealed record CsrfTokenDto(string CsrfToken, int UserId);
 
 public sealed record MachineAuthSessionDto(
     string AccessToken,

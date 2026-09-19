@@ -232,14 +232,10 @@ default_tags_for_column() {
 log_info "Signing in to $API_BASE as '$USERNAME'..."
 login_body="$(jq -n --arg username "$USERNAME" --arg password "$PASSWORD" '{userName: $username, password: $password}')"
 login_envelope="$(api_request POST "/api/auth/login" "$login_body" 0)"
-login_data="$(extract_data "Login" "$login_envelope")"
-CSRF_TOKEN="$(jq -r '.csrfToken // empty' <<<"$login_data")"
-
-if [[ -z "$CSRF_TOKEN" ]]; then
-  csrf_envelope="$(api_request GET "/api/auth/csrf" "" 0)"
-  csrf_data="$(extract_data "Get CSRF token" "$csrf_envelope")"
-  CSRF_TOKEN="$(jq -r '.csrfToken // empty' <<<"$csrf_data")"
-fi
+assert_success_envelope "Login" "$login_envelope"
+csrf_envelope="$(api_request GET "/api/auth/csrf" "" 0)"
+csrf_data="$(extract_data "Get CSRF token" "$csrf_envelope")"
+CSRF_TOKEN="$(jq -r '.csrfToken // empty' <<<"$csrf_data")"
 
 if [[ -z "$CSRF_TOKEN" ]]; then
   echo "Could not resolve CSRF token." >&2

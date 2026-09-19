@@ -139,6 +139,45 @@ describe('http api client', () => {
     expect(unauthorizedSpy).not.toHaveBeenCalled();
   });
 
+  it.each([{}, { csrfToken: 'another-token' }])('retains the tab token after refresh with response data %j', async (data) => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(new Response('', { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { id: 42 } })));
+    const { postJson, setCsrfToken } = await import('./http');
+    setCsrfToken('tab-token');
+
+    const result = await postJson('/api/boards', { name: 'Created' });
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    for (const index of [0, 2]) {
+      expect(new Headers(fetchMock.mock.calls[index]?.[1]?.headers).get('X-BoardOil-CSRF')).toBe('tab-token');
+    }
+  });
+
+  it('does not replace the token or replay again when a refreshed mutation fails csrf validation', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(new Response('', { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: {} })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: false, statusCode: 403, message: 'CSRF validation failed.'
+      }), { status: 403 }));
+    const unauthorizedSpy = vi.fn();
+    const { postJson, setCsrfToken, setUnauthorizedHandler } = await import('./http');
+    setCsrfToken('stale-tab-token');
+    setUnauthorizedHandler(unauthorizedSpy);
+
+    const result = await postJson('/api/boards', { name: 'Rejected' });
+
+    expect(result).toMatchObject({ ok: false, error: { statusCode: 403 } });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(unauthorizedSpy).toHaveBeenCalledTimes(1);
+    expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).get('X-BoardOil-CSRF')).toBe('stale-tab-token');
+  });
+
   it('clears stale authentication without retrying when csrf validation fails', async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue(new Response(JSON.stringify({
