@@ -11,14 +11,12 @@ using BoardOil.Api.Swagger;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Auth;
 using BoardOil.Abstractions.Image;
-using BoardOil.Contracts.Common;
 using BoardOil.Ef.DependencyInjection;
 using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
-using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configuration);
@@ -43,7 +41,15 @@ builder.Services.AddBoardOilOAuth(jwtOptions);
 builder.Services.AddErrorLogRateLimiting();
 builder.Services.AddAntiforgery(options =>
 {
-    options.Cookie.Name = "boardoil_oauth_antiforgery";
+    options.Cookie.Name = csrfOptions.CookieName;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.Path = "/";
+    options.Cookie.SecurePolicy = jwtOptions.AllowInsecureCookies
+        ? CookieSecurePolicy.None
+        : CookieSecurePolicy.Always;
+    options.HeaderName = csrfOptions.HeaderName;
     options.FormFieldName = "boardoil_oauth_antiforgery";
 });
 builder.Services.AddCors(options =>
@@ -142,64 +148,8 @@ app.UseMiddleware<ApiExceptionLoggingMiddleware>();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.MapBoardOilMcp();
-app.Use(async (context, next) =>
-{
-    if (!HttpMethods.IsPost(context.Request.Method)
-        && !HttpMethods.IsPut(context.Request.Method)
-        && !HttpMethods.IsPatch(context.Request.Method)
-        && !HttpMethods.IsDelete(context.Request.Method))
-    {
-        await next();
-        return;
-    }
-
-    if (!context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
-    {
-        await next();
-        return;
-    }
-
-    if (IsCsrfExemptAuthPath(context.Request.Path))
-    {
-        await next();
-        return;
-    }
-
-    if (context.User.Identity?.IsAuthenticated != true)
-    {
-        await next();
-        return;
-    }
-
-    if (IsPatAuthenticatedPrincipal(context.User))
-    {
-        await next();
-        return;
-    }
-
-    if (JwtAuthenticationSourceContext.IsValidatedBearerHeader(context))
-    {
-        await next();
-        return;
-    }
-
-    var hasCookie = context.Request.Cookies.TryGetValue(csrfOptions.CookieName, out var csrfCookie);
-    var hasHeader = context.Request.Headers.TryGetValue(csrfOptions.HeaderName, out var csrfHeader);
-    if (!hasCookie
-        || !hasHeader
-        || string.IsNullOrWhiteSpace(csrfCookie)
-        || string.IsNullOrWhiteSpace(csrfHeader)
-        || !string.Equals(csrfCookie, csrfHeader.ToString(), StringComparison.Ordinal))
-    {
-        var payload = new ApiResult(false, 403, "CSRF validation failed.");
-        context.Response.StatusCode = 403;
-        await context.Response.WriteAsJsonAsync(payload);
-        return;
-    }
-
-    await next();
-});
 app.UseAuthorization();
+app.UseMiddleware<ApiAntiforgeryMiddleware>();
 app.UseMcpOAuthScopeEnforcement();
 app.UseSwagger();
 app.UseSwaggerUI(options =>
@@ -279,21 +229,6 @@ app.MapFallback(async context =>
 });
 
 app.Run();
-
-static bool IsCsrfExemptAuthPath(PathString path) =>
-    path.StartsWithSegments("/api/auth/register-initial-admin", StringComparison.OrdinalIgnoreCase)
-    || path.StartsWithSegments("/api/auth/login", StringComparison.OrdinalIgnoreCase)
-    || path.StartsWithSegments("/api/auth/refresh", StringComparison.OrdinalIgnoreCase)
-    || path.StartsWithSegments("/api/auth/logout", StringComparison.OrdinalIgnoreCase)
-    || path.StartsWithSegments("/api/auth/machine/login", StringComparison.OrdinalIgnoreCase)
-    || path.StartsWithSegments("/api/auth/machine/refresh", StringComparison.OrdinalIgnoreCase)
-    || path.StartsWithSegments("/api/auth/machine/logout", StringComparison.OrdinalIgnoreCase);
-
-static bool IsPatAuthenticatedPrincipal(ClaimsPrincipal claimsPrincipal)
-{
-    var authType = claimsPrincipal.FindFirst("boardoil_auth_type")?.Value;
-    return string.Equals(authType, "pat", StringComparison.Ordinal);
-}
 
 static void ApplySpaShellCacheHeaders(HttpResponse response)
 {

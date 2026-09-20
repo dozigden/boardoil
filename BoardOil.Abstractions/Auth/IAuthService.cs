@@ -16,5 +16,4 @@ public interface IAuthService
     Task<ApiResult> RevokeMachinePatAsync(int userId, int tokenId);
     Task<ApiResult<AuthUserDto>> GetMeAsync(ClaimsPrincipal claimsPrincipal);
     Task<ApiResult<BootstrapStatusDto>> GetBootstrapStatusAsync();
-    string CreateCsrfToken();
 }

@@ -9,7 +9,6 @@ export type AuthSession = {
   user: AuthUser;
   accessTokenExpiresAtUtc: string;
   refreshTokenExpiresAtUtc: string;
-  csrfToken: string;
 };
 
 export type CsrfTokenDto = {

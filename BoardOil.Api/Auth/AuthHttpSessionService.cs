@@ -4,13 +4,15 @@ using BoardOil.Api.Configuration;
 using BoardOil.Api.Extensions;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Common;
+using Microsoft.AspNetCore.Antiforgery;
 
 namespace BoardOil.Api.Auth;
 
 public sealed class AuthHttpSessionService(
     IAuthService authService,
     JwtAuthOptions jwtOptions,
-    CsrfOptions csrfOptions) : IAuthHttpSessionService
+    CsrfOptions csrfOptions,
+    IAntiforgery antiforgery) : IAuthHttpSessionService
 {
     public async Task<IResult> RegisterInitialAdminAsync(RegisterInitialAdminRequest request, HttpResponse response)
     {
@@ -21,7 +23,6 @@ public sealed class AuthHttpSessionService(
         }
 
         WriteAuthCookies(response, result.Data.AccessToken, result.Data.AccessTokenExpiresAtUtc, result.Data.RefreshToken, result.Data.RefreshTokenExpiresAtUtc);
-        WriteCsrfCookie(response, result.Data.CsrfToken, result.Data.RefreshTokenExpiresAtUtc);
         return ApiResults.Created(result.Data.ToDto()).ToHttpResult();
     }
 
@@ -34,7 +35,6 @@ public sealed class AuthHttpSessionService(
         }
 
         WriteAuthCookies(response, result.Data.AccessToken, result.Data.AccessTokenExpiresAtUtc, result.Data.RefreshToken, result.Data.RefreshTokenExpiresAtUtc);
-        WriteCsrfCookie(response, result.Data.CsrfToken, result.Data.RefreshTokenExpiresAtUtc);
         return ApiResults.Ok(result.Data.ToDto()).ToHttpResult();
     }
 
@@ -59,7 +59,6 @@ public sealed class AuthHttpSessionService(
     public async Task<IResult> RefreshAsync(HttpRequest request, HttpResponse response)
     {
         request.Cookies.TryGetValue(jwtOptions.RefreshTokenCookieName, out var refreshToken);
-        request.Cookies.TryGetValue(csrfOptions.CookieName, out var csrfToken);
         var result = await authService.RefreshAsync(refreshToken);
         if (!result.Success || result.Data is null)
         {
@@ -71,12 +70,8 @@ public sealed class AuthHttpSessionService(
             return result.ToHttpResult();
         }
 
-        var nextCsrfToken = string.IsNullOrWhiteSpace(csrfToken)
-            ? result.Data.CsrfToken
-            : csrfToken;
         WriteAuthCookies(response, result.Data.AccessToken, result.Data.AccessTokenExpiresAtUtc, result.Data.RefreshToken, result.Data.RefreshTokenExpiresAtUtc);
-        WriteCsrfCookie(response, nextCsrfToken, result.Data.RefreshTokenExpiresAtUtc);
-        return ApiResults.Ok(result.Data.ToDto() with { CsrfToken = nextCsrfToken }).ToHttpResult();
+        return ApiResults.Ok(result.Data.ToDto()).ToHttpResult();
     }
 
     public async Task<IResult> LogoutAsync(HttpRequest request, HttpResponse response)
@@ -90,21 +85,15 @@ public sealed class AuthHttpSessionService(
 
     public IResult GetCsrf(HttpRequest request, HttpResponse response)
     {
-        response.Headers.CacheControl = "private, no-store";
+        response.Headers.CacheControl = "private, no-cache, no-store";
         var userIdClaim = request.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!int.TryParse(userIdClaim, out var userId))
         {
             return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
         }
 
-        if (!request.Cookies.TryGetValue(csrfOptions.CookieName, out var csrfToken)
-            || string.IsNullOrWhiteSpace(csrfToken))
-        {
-            csrfToken = authService.CreateCsrfToken();
-            WriteCsrfCookie(response, csrfToken, DateTime.UtcNow.AddDays(1));
-        }
-
-        return ApiResults.Ok(new CsrfTokenDto(csrfToken, userId)).ToHttpResult();
+        var tokens = antiforgery.GetAndStoreTokens(request.HttpContext);
+        return ApiResults.Ok(new CsrfTokenDto(tokens.RequestToken!, userId)).ToHttpResult();
     }
 
     public async Task<IResult> GetMeAsync(ClaimsPrincipal claimsPrincipal)
@@ -134,22 +123,6 @@ public sealed class AuthHttpSessionService(
             jwtOptions.RefreshTokenCookieName,
             refreshToken,
             CreateCookieOptions(refreshTokenExpiresAtUtc));
-    }
-
-    private void WriteCsrfCookie(HttpResponse response, string csrfToken, DateTime expiresAtUtc)
-    {
-        response.Cookies.Append(
-            csrfOptions.CookieName,
-            csrfToken,
-            new CookieOptions
-            {
-                HttpOnly = false,
-                IsEssential = true,
-                SameSite = SameSiteMode.Strict,
-                Secure = UseSecureCookies,
-                Expires = expiresAtUtc,
-                Path = "/"
-            });
     }
 
     private void ClearAuthCookies(HttpResponse response)

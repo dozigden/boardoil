@@ -126,6 +126,23 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
     }
 
     [Fact]
+    public async Task MultipartUpload_WithOnlyFormToken_ShouldStillRequireApiHeader()
+    {
+        // Arrange
+        var card = await CreateCard();
+        var token = Client.DefaultRequestHeaders.GetValues("X-BoardOil-CSRF").Single();
+        Client.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+        using var form = Upload([1], "file.bin");
+        form.Add(new StringContent(token), "boardoil_oauth_antiforgery");
+
+        // Act
+        var response = await Client.PostAsync($"/api/boards/1/cards/{card.Id}/attachments", form);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task ImageContent_ShouldServeDetectedInlineTypeOnlyToAuthenticatedOwnerContext()
     {
         var card = await CreateCard();

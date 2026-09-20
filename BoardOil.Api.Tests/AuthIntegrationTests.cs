@@ -105,23 +105,21 @@ public sealed class AuthIntegrationTests : ApiFactoryIntegrationTestBase
     }
 
     [Fact]
-    public async Task Refresh_WithExistingCsrfToken_ShouldPreserveToken()
+    public async Task WriteAfterRefresh_WithExistingCsrfToken_ShouldSucceed()
     {
         // Arrange
         var client = CreateClient();
         _ = await AuthenticateAsInitialAdminAsync(client);
-        var csrfResponse = await client.GetAsync("/api/auth/csrf");
-        var csrfPayload = await csrfResponse.Content.ReadFromJsonAsync<ApiEnvelope<CsrfTokenEnvelope>>();
+        var refreshResponse = await client.PostAsJsonAsync("/api/auth/refresh", new { });
+        refreshResponse.EnsureSuccessStatusCode();
 
         // Act
-        var refreshResponse = await client.PostAsJsonAsync("/api/auth/refresh", new { });
-        var refreshPayload = await refreshResponse.Content.ReadFromJsonAsync<ApiEnvelope<AuthSessionEnvelope>>();
+        var response = await client.PostAsJsonAsync("/api/boards", new { name = "After refresh" });
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);
-        Assert.NotNull(csrfPayload?.Data);
-        Assert.NotNull(refreshPayload?.Data);
-        Assert.Equal(csrfPayload.Data.CsrfToken, refreshPayload.Data.CsrfToken);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.DoesNotContain(refreshResponse.Headers.GetValues("Set-Cookie"),
+            cookie => cookie.StartsWith("boardoil_csrf=", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -227,6 +225,5 @@ public sealed class AuthIntegrationTests : ApiFactoryIntegrationTestBase
     private sealed record ChangeOwnPasswordRequest(string CurrentPassword, string NewPassword);
     private sealed record BootstrapStatusEnvelope(bool RequiresInitialAdminSetup);
     private sealed record CsrfTokenEnvelope(string CsrfToken, int UserId);
-    private sealed record AuthSessionEnvelope(string CsrfToken);
     private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

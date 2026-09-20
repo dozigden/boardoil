@@ -90,8 +90,7 @@ describe('authStore', () => {
     const session: AuthSession = {
       user: { id: 2, userName: 'member', displayName: 'Member', role: 'Standard' },
       accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
-      refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
-      csrfToken: 'csrf-login'
+      refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
     };
     authApi.login.mockResolvedValue(ok(session));
     authApi.getCsrfToken.mockResolvedValue(ok({ csrfToken: 'csrf-token', userId: session.user.id }));
@@ -111,8 +110,7 @@ describe('authStore', () => {
     const session: AuthSession = {
       user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
       accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
-      refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
-      csrfToken: 'csrf-bootstrap'
+      refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
     };
     authApi.registerInitialAdmin.mockResolvedValue(ok(session));
 
@@ -265,8 +263,7 @@ describe('authStore', () => {
       ok<AuthSession>({
         user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
-        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
-        csrfToken: 'csrf-login'
+        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
       })
     );
     await store.login('admin', 'Password1234!');
@@ -284,8 +281,7 @@ describe('authStore', () => {
       ok<AuthSession>({
         user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
-        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
-        csrfToken: 'csrf-login'
+        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
       })
     );
     authApi.changeOwnPassword.mockResolvedValue(ok(undefined));
@@ -315,8 +311,7 @@ describe('authStore', () => {
       ok<AuthSession>({
         user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
-        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
-        csrfToken: 'csrf-login'
+        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
       })
     );
     await store.login('admin', 'Password1234!');
@@ -334,8 +329,7 @@ describe('authStore', () => {
       ok<AuthSession>({
         user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
-        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z',
-        csrfToken: 'csrf-login'
+        refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
       })
     );
 

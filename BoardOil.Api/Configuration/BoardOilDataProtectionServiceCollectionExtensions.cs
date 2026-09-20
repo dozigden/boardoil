@@ -7,8 +7,8 @@ internal static class BoardOilDataProtectionServiceCollectionExtensions
 {
     public static void AddBoardOilEphemeralDataProtection(this IServiceCollection services)
     {
-        // OAuth consent antiforgery tokens are intentionally scoped to one application lifetime.
-        // A restart expires open consent forms instead of making another key ring persistent installation state.
+        // Browser API and OAuth consent antiforgery tokens are scoped to one application lifetime.
+        // A restart requires fresh tokens instead of adding persistent key-ring installation state.
         services.AddDataProtection()
             .UseEphemeralDataProtectionProvider();
 

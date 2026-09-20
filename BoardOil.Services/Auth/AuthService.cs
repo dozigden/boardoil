@@ -86,7 +86,6 @@ public sealed class AuthService(
             accessTokenExpiresAtUtc,
             refreshToken,
             refreshTokenExpiresAtUtc,
-            CreateCsrfToken(),
             user.ToAuthUserDto());
     }
 
@@ -353,9 +352,6 @@ public sealed class AuthService(
         return new BootstrapStatusDto(!hasUsers);
     }
 
-    public string CreateCsrfToken() =>
-        Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-
     private AuthSessionTokens CreateSession(EntityUser user)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -376,7 +372,6 @@ public sealed class AuthService(
             accessTokenExpiresAtUtc,
             refreshToken,
             refreshTokenExpiresAtUtc,
-            CreateCsrfToken(),
             user.ToAuthUserDto());
     }
 

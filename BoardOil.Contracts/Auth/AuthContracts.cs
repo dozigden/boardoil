@@ -53,8 +53,7 @@ public sealed record AuthUserDto(int Id, string UserName, string DisplayName, st
 public sealed record AuthSessionDto(
     AuthUserDto User,
     DateTime AccessTokenExpiresAtUtc,
-    DateTime RefreshTokenExpiresAtUtc,
-    string CsrfToken);
+    DateTime RefreshTokenExpiresAtUtc);
 
 public sealed record CsrfTokenDto(string CsrfToken, int UserId);
 
@@ -87,11 +86,10 @@ public sealed record AuthSessionTokens(
     DateTime AccessTokenExpiresAtUtc,
     string RefreshToken,
     DateTime RefreshTokenExpiresAtUtc,
-    string CsrfToken,
     AuthUserDto User)
 {
     public AuthSessionDto ToDto() =>
-        new(User, AccessTokenExpiresAtUtc, RefreshTokenExpiresAtUtc, CsrfToken);
+        new(User, AccessTokenExpiresAtUtc, RefreshTokenExpiresAtUtc);
 
     public MachineAuthSessionDto ToMachineDto() =>
         new(AccessToken, AccessTokenExpiresAtUtc, RefreshToken, RefreshTokenExpiresAtUtc, User);
