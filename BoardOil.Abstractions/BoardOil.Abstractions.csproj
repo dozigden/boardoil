@@ -2,7 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BoardOil.Contracts\BoardOil.Contracts.csproj" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
   </ItemGroup>
 
   <PropertyGroup>
