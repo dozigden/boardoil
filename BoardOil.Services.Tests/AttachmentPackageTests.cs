@@ -104,6 +104,7 @@ public sealed class AttachmentPackageTests : TestBaseDb, IAsyncLifetime
             .ImportBoardPackageAsync(new("Imported thumbnails", package), ActorUserId);
 
         Assert.True(imported.Success, imported.Message);
+        Assert.NotNull(imported.Data);
         var records = await DbContextForAssert.CardAttachments.OrderBy(x => x.Id).ToListAsync();
         Assert.NotNull(records[0].ThumbnailStorageKey);
         Assert.Null(records[1].ThumbnailStorageKey);

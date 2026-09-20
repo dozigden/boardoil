@@ -39,7 +39,9 @@ public sealed class OAuthTokenAuditServiceTests : TestBaseDb
             .OrderBy(x => x.ErrorCode)
             .Select(x => x.ErrorCode)
             .ToArrayAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(["equal", "new"], remainingErrorCodes);
+        Assert.Collection(remainingErrorCodes,
+            errorCode => Assert.Equal("equal", errorCode),
+            errorCode => Assert.Equal("new", errorCode));
     }
 
     [Fact]

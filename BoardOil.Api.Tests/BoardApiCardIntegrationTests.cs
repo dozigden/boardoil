@@ -49,7 +49,7 @@ public sealed class BoardApiCardIntegrationTests
         Assert.True(createdCard.Data.CardTypeId > 0);
         Assert.Equal("Story", createdCard.Data.CardTypeName);
         Assert.Null(createdCard.Data.CardTypeEmoji);
-        Assert.NotNull(createdCard.Data.CardCreatedUtc);
+        Assert.NotEqual(default, createdCard.Data.CardCreatedUtc);
         Assert.Equal(createdCard.Data.CardCreatedUtc, createdCard.Data.CardUpdatedUtc);
         var createdCardDataJson = createdCardJson.RootElement.GetProperty("data");
         Assert.True(createdCardDataJson.TryGetProperty("cardCreatedUtc", out _));

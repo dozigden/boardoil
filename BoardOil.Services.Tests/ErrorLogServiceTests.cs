@@ -135,6 +135,7 @@ public sealed class ErrorLogServiceTests : TestBaseDb
         Assert.Equal("/api/test?access_token=[redacted]", errorLog.RequestPath);
         Assert.DoesNotContain("private-value", errorLog.ContextJson, StringComparison.Ordinal);
         Assert.DoesNotContain("context-private", errorLog.ContextJson, StringComparison.Ordinal);
+        Assert.NotNull(errorLog.ContextJson);
         using var contextDocument = JsonDocument.Parse(errorLog.ContextJson);
         Assert.False(contextDocument.RootElement.TryGetProperty("authorization", out _));
         Assert.Equal(

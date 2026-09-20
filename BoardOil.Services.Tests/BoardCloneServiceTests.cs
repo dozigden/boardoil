@@ -104,7 +104,7 @@ public sealed class BoardCloneServiceTests : TestBaseDb
             .OrderBy(x => x.Name)
             .ToListAsync();
         Assert.Equal(["Feature", "Story"], clonedCardTypes.Select(x => x.Name));
-        var clonedDefaultType = Assert.Single(clonedCardTypes.Where(x => x.IsSystem));
+        var clonedDefaultType = Assert.Single(clonedCardTypes, x => x.IsSystem);
         Assert.Equal("Feature", clonedDefaultType.Name);
         Assert.Equal("🎬️", clonedDefaultType.Emoji);
         Assert.Equal("solid", clonedDefaultType.StyleName);

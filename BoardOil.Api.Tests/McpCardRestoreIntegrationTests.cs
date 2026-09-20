@@ -178,6 +178,4 @@ public sealed class McpCardRestoreIntegrationTests : McpIntegrationTestBase, ICl
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await McpJsonRpcClient.ParseJsonAsync(response);
     }
-
-    private sealed record ApiEnvelope<T>(bool Success, T? Data);
 }

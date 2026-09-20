@@ -65,7 +65,7 @@ public sealed class McpCardSearchIntegrationTests : McpIntegrationTestBase, ICla
             Assert.Equal(source.CardTypeId, card.GetProperty("cardTypeId").GetInt32());
             Assert.Equal(source.ExternalUrl, card.GetProperty("externalUrl").GetString());
             Assert.Equal(source.SlickName, card.GetProperty("slickName").GetString());
-            Assert.Equal(source.TagNames, card.GetProperty("tagNames").EnumerateArray().Select(tag => tag.GetString()).ToArray());
+            Assert.Equal(source.TagNames, card.GetProperty("tagNames").EnumerateArray().Select(tag => Assert.IsType<string>(tag.GetString())).ToArray());
         }
         Assert.DoesNotContain(description, payload.RootElement.GetRawText(), StringComparison.Ordinal);
         var text = Assert.Single(result.GetProperty("content").EnumerateArray());

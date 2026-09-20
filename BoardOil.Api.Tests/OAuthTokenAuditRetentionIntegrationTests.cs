@@ -43,7 +43,7 @@ public sealed class OAuthTokenAuditRetentionIntegrationTests : TestBaseIntegrati
         var remainingErrorCodes = await dbContext.OAuthTokenAudits
             .Select(x => x.ErrorCode)
             .ToArrayAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(["kept"], remainingErrorCodes);
+        Assert.Equal("kept", Assert.Single(remainingErrorCodes));
     }
 
     private async Task AddAuditsAsync(params EntityOAuthTokenAudit[] audits)
@@ -102,7 +102,7 @@ public sealed class OAuthTokenAuditStartupCleanupIntegrationTests
             .ToArrayAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(["kept"], remainingErrorCodes);
+        Assert.Equal("kept", Assert.Single(remainingErrorCodes));
     }
 }
 

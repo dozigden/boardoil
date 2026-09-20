@@ -329,7 +329,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             .GetProperty("result")
             .GetProperty("tools")
             .EnumerateArray()
-            .Select(tool => tool.GetProperty("name").GetString())
+            .Select(tool => Assert.IsType<string>(tool.GetProperty("name").GetString()))
             .ToArray();
         Assert.Contains("board_get", toolNames);
         Assert.Contains("card_get", toolNames);
@@ -413,7 +413,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.Equal("PAT", identity.GetProperty("authentication").GetProperty("type").GetString());
         Assert.Equal(
             ["mcp:read"],
-            identity.GetProperty("authentication").GetProperty("scopes").EnumerateArray().Select(scope => scope.GetString()).ToArray());
+            identity.GetProperty("authentication").GetProperty("scopes").EnumerateArray().Select(scope => Assert.IsType<string>(scope.GetString())).ToArray());
     }
 
     [Fact]

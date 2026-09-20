@@ -43,7 +43,7 @@ public sealed class McpArchivedCardReadIntegrationTests : McpIntegrationTestBase
             resultCard.EnumerateObject().Select(property => property.Name).ToArray());
         Assert.Equal(card.Id, resultCard.GetProperty("id").GetInt32());
         Assert.Equal(card.Title, resultCard.GetProperty("title").GetString());
-        Assert.Equal([marker], resultCard.GetProperty("tagNames").EnumerateArray().Select(tag => tag.GetString()).ToArray());
+        Assert.Equal([marker], resultCard.GetProperty("tagNames").EnumerateArray().Select(tag => Assert.IsType<string>(tag.GetString())).ToArray());
         Assert.NotEqual(default, resultCard.GetProperty("archivedAtUtc").GetDateTime());
     }
 
@@ -124,6 +124,4 @@ public sealed class McpArchivedCardReadIntegrationTests : McpIntegrationTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await McpJsonRpcClient.ParseJsonAsync(response);
     }
-
-    private sealed record ApiEnvelope<T>(bool Success, T? Data);
 }

@@ -171,6 +171,7 @@ public sealed class UserAdminServiceTests : TestBaseDb
 
         var persistedUser = await DbContextForAssert.Users.SingleAsync(x => x.Id == user.Id);
         var passwordHashService = ResolveService<IPasswordHashService>();
+        Assert.NotNull(persistedUser.PasswordHash);
         Assert.True(passwordHashService.VerifyPassword("FreshPassword1234!", persistedUser.PasswordHash));
         Assert.False(passwordHashService.VerifyPassword("Password1234!", persistedUser.PasswordHash));
 

@@ -921,7 +921,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
                 .GetProperty("result")
                 .GetProperty("tools")
                 .EnumerateArray()
-                .Select(tool => tool.GetProperty("name").GetString())
+                .Select(tool => Assert.IsType<string>(tool.GetProperty("name").GetString()))
                 .ToArray());
         Assert.False(readPayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
         var identity = McpJsonRpcClient.GetStructuredContent(identityPayload);
@@ -929,7 +929,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Equal("OAuth", identity.GetProperty("authentication").GetProperty("type").GetString());
         Assert.Equal(
             [MachinePatScopes.McpRead],
-            identity.GetProperty("authentication").GetProperty("scopes").EnumerateArray().Select(scope => scope.GetString()).ToArray());
+            identity.GetProperty("authentication").GetProperty("scopes").EnumerateArray().Select(scope => Assert.IsType<string>(scope.GetString())).ToArray());
     }
 
     [Fact]

@@ -249,10 +249,11 @@ public sealed class AttachmentStorageTests : TestBaseDb, IAsyncLifetime
         var uploaded = await service.UploadAsync(board.BoardId, cardId, ActorUserId,
             "image.png", "image/png", new MemoryStream(Png(3, 2)));
         Assert.True(uploaded.Success, uploaded.Message);
+        Assert.NotNull(uploaded.Data);
         var storage = Assert.IsType<TestStorage>(ResolveService<IAttachmentStorageService>());
         storage.FailNextWrite = true;
 
-        await Assert.ThrowsAsync<IOException>(() => service.PutThumbnailAsync(board.BoardId, uploaded.Data!.Id,
+        await Assert.ThrowsAsync<IOException>(() => service.PutThumbnailAsync(board.BoardId, uploaded.Data.Id,
             ActorUserId, "image/png", new MemoryStream(Png(2, 2))));
 
         Assert.Null((await DbContextForAssert.CardAttachments.AsNoTracking().SingleAsync()).ThumbnailStorageKey);

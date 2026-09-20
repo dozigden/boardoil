@@ -102,6 +102,7 @@ public sealed class AuthServiceTests : TestBaseDb
         Assert.Equal(UserIdentityType.User, persistedUser.IdentityType);
         Assert.True(persistedUser.IsActive);
         Assert.NotEqual("Password1234!", persistedUser.PasswordHash);
+        Assert.NotNull(persistedUser.PasswordHash);
 
         var passwordHashService = ResolveService<IPasswordHashService>();
         Assert.True(passwordHashService.VerifyPassword("Password1234!", persistedUser.PasswordHash));
@@ -319,6 +320,7 @@ public sealed class AuthServiceTests : TestBaseDb
 
         var persistedUser = await DbContextForAssert.Users.SingleAsync(x => x.Id == user.Id);
         var passwordHashService = ResolveService<IPasswordHashService>();
+        Assert.NotNull(persistedUser.PasswordHash);
         Assert.True(passwordHashService.VerifyPassword("FreshPassword1234!", persistedUser.PasswordHash));
         Assert.False(passwordHashService.VerifyPassword("Password1234!", persistedUser.PasswordHash));
 

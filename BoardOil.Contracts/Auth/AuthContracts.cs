@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace BoardOil.Contracts.Auth;
 
 public sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
@@ -21,7 +23,7 @@ public static class MachinePatScopes
 
 public static class McpScopeRules
 {
-    public static bool Allows(IEnumerable<string>? grantedScopes, string? requiredScope)
+    public static bool Allows(IEnumerable<string>? grantedScopes, [NotNullWhen(false)] string? requiredScope)
     {
         if (string.IsNullOrWhiteSpace(requiredScope))
         {

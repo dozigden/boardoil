@@ -51,7 +51,7 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.Equal(systemCardType.Id, stored.CardTypeId);
         Assert.Equal("New Card", stored.Title);
         Assert.Equal("Desc", stored.Description);
-        Assert.NotNull(stored.CardCreatedUtc);
+        Assert.NotEqual(default, stored.CardCreatedUtc);
         Assert.Equal(stored.CardCreatedUtc, stored.CardUpdatedUtc);
         Assert.Equal(stored.CardCreatedUtc, result.Data.CardCreatedUtc);
         Assert.Equal(stored.CardUpdatedUtc, result.Data.CardUpdatedUtc);

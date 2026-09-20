@@ -7,7 +7,7 @@ namespace BoardOil.Services.Card;
 public sealed class CardTransferContentPlanner
 {
     public CardTransferContentPlanResult CreatePlan(
-        string rawPolicy,
+        string? rawPolicy,
         int destinationBoardId,
         EntityBoardCard sourceCard,
         EntityCardType destinationDefaultCardType,

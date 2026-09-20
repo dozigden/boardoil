@@ -59,7 +59,7 @@ public sealed class McpCardArchiveIntegrationTests : McpIntegrationTestBase, ICl
         Assert.Equal(card.Id, archivedCard.GetProperty("id").GetInt32());
         Assert.Equal(card.Title, archivedCard.GetProperty("title").GetString());
         Assert.Equal("MCP archive description", archivedCard.GetProperty("description").GetString());
-        Assert.Equal(["MCP"], archivedCard.GetProperty("tagNames").EnumerateArray().Select(tag => tag.GetString()).ToArray());
+        Assert.Equal(["MCP"], archivedCard.GetProperty("tagNames").EnumerateArray().Select(tag => Assert.IsType<string>(tag.GetString())).ToArray());
         Assert.Equal("Preserved archive comment", Assert.Single(archivedCard.GetProperty("comments").EnumerateArray())
             .GetProperty("text").GetString());
         Assert.Equal(attachment.Id, Assert.Single(archivedCard.GetProperty("attachments").EnumerateArray())
@@ -126,6 +126,4 @@ public sealed class McpCardArchiveIntegrationTests : McpIntegrationTestBase, ICl
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await McpJsonRpcClient.ParseJsonAsync(response);
     }
-
-    private sealed record ApiEnvelope<T>(bool Success, T? Data);
 }

@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <Version>1.7.0</Version>
     <AssemblyVersion>1.7.0.0</AssemblyVersion>

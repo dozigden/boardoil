@@ -150,6 +150,4 @@ public sealed class OAuthConnectionManagementApiIntegrationTests
         await using var dbContext = dbContextFactory.CreateDbContext<BoardOilDbContext>();
         return await dbContext.OAuthConnections.AnyAsync(x => x.Id == connectionId);
     }
-
-    private sealed record ApiEnvelope<T>(bool Success, T? Data, int StatusCode, string? Message);
 }

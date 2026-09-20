@@ -22,6 +22,7 @@ RUN npm run build
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
 WORKDIR /src
+COPY Directory.Build.props ./
 COPY BoardOil.Api/ BoardOil.Api/
 COPY BoardOil.Abstractions/ BoardOil.Abstractions/
 COPY BoardOil.Data.Abstractions/ BoardOil.Data.Abstractions/

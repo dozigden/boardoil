@@ -29,7 +29,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal(
             ["oauth", "personal_access_token"],
             payload.RootElement.GetProperty("auth").GetProperty("methods")
-                .EnumerateArray().Select(method => method.GetString()).ToArray());
+                .EnumerateArray().Select(method => Assert.IsType<string>(method.GetString())).ToArray());
         Assert.Equal("oauth", payload.RootElement.GetProperty("setup").GetProperty("preferredAuth").GetString());
         Assert.Equal("personal_access_token", payload.RootElement.GetProperty("setup").GetProperty("manualFallbackAuth").GetString());
         Assert.Equal("/access-tokens", payload.RootElement.GetProperty("setup").GetProperty("patManagementUi").GetString());
@@ -275,7 +275,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             .GetProperty("result")
             .GetProperty("tools")
             .EnumerateArray()
-            .Select(tool => tool.GetProperty("name").GetString())
+            .Select(tool => Assert.IsType<string>(tool.GetProperty("name").GetString()))
             .ToArray();
         Assert.Equal(
             [
@@ -322,14 +322,14 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             Assert.Equal("object", schema.GetProperty("type").GetString());
             Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
             Assert.Equal(["id", "outcome"], schema.GetProperty("required").EnumerateArray()
-                .Select(value => value.GetString()).ToArray());
+                .Select(value => Assert.IsType<string>(value.GetString())).ToArray());
             var properties = schema.GetProperty("properties");
             Assert.Equal(["id", "outcome"], properties.EnumerateObject().Select(property => property.Name).ToArray());
             Assert.Equal("integer", properties.GetProperty("id").GetProperty("type").GetString());
             Assert.Equal(1, properties.GetProperty("id").GetProperty("minimum").GetInt32());
             Assert.Equal("string", properties.GetProperty("outcome").GetProperty("type").GetString());
             Assert.Equal([outcome], properties.GetProperty("outcome").GetProperty("enum").EnumerateArray()
-                .Select(value => value.GetString()).ToArray());
+                .Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         }
 
         AssertToolAnnotations(toolsListPayload, ToolNames.IdentityGet, readOnly: true, destructive: false, idempotent: true);
@@ -407,7 +407,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
 
         var searchTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardSearch);
         var searchInput = searchTool.GetProperty("inputSchema");
-        Assert.Equal(["boardId", "query"], searchInput.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
+        Assert.Equal(["boardId", "query"], searchInput.GetProperty("required").EnumerateArray().Select(p => Assert.IsType<string>(p.GetString())).ToArray());
         Assert.False(searchInput.GetProperty("additionalProperties").GetBoolean());
         var searchInputProperties = searchInput.GetProperty("properties");
         Assert.Equal(["boardId", "query", "offset", "limit", "archived"], searchInputProperties.EnumerateObject().Select(p => p.Name).ToArray());
@@ -422,16 +422,16 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         {
             Assert.False(variant.GetProperty("additionalProperties").GetBoolean());
             Assert.Equal(["cards", "totalCount", "offset", "limit"],
-                variant.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
+                variant.GetProperty("required").EnumerateArray().Select(p => Assert.IsType<string>(p.GetString())).ToArray());
         }
         var liveSummarySchema = searchOutputVariants[0].GetProperty("properties").GetProperty("cards").GetProperty("items");
         Assert.False(liveSummarySchema.GetProperty("additionalProperties").GetBoolean());
         string[] liveSummaryFields = ["id", "title", "columnId", "cardTypeId", "externalUrl", "tagNames", "slickName"];
-        Assert.Equal(liveSummaryFields, liveSummarySchema.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
+        Assert.Equal(liveSummaryFields, liveSummarySchema.GetProperty("required").EnumerateArray().Select(p => Assert.IsType<string>(p.GetString())).ToArray());
         Assert.Equal(liveSummaryFields, liveSummarySchema.GetProperty("properties").EnumerateObject().Select(p => p.Name).ToArray());
         var archivedSummarySchema = searchOutputVariants[1].GetProperty("properties").GetProperty("cards").GetProperty("items");
         string[] archivedSummaryFields = ["id", "title", "tagNames", "archivedAtUtc"];
-        Assert.Equal(archivedSummaryFields, archivedSummarySchema.GetProperty("required").EnumerateArray().Select(p => p.GetString()).ToArray());
+        Assert.Equal(archivedSummaryFields, archivedSummarySchema.GetProperty("required").EnumerateArray().Select(p => Assert.IsType<string>(p.GetString())).ToArray());
         Assert.Equal(archivedSummaryFields, archivedSummarySchema.GetProperty("properties").EnumerateObject().Select(p => p.Name).ToArray());
 
         var boardListTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.BoardList);
@@ -468,7 +468,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             cardCreateProperties.GetProperty("cardTypeId").GetProperty("description").GetString(),
             StringComparison.Ordinal);
         Assert.Contains("card_options_get", cardCreateTool.GetProperty("description").GetString(), StringComparison.Ordinal);
-        var cardCreateRequired = cardCreateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
+        var cardCreateRequired = cardCreateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => Assert.IsType<string>(x.GetString())).ToArray();
         Assert.DoesNotContain("cardTypeId", cardCreateRequired);
         Assert.DoesNotContain("assignedUserId", cardCreateRequired);
         Assert.DoesNotContain("slickName", cardCreateRequired);
@@ -485,9 +485,9 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         var cardGetOutputVariants = cardGetTool.GetProperty("outputSchema").GetProperty("oneOf").EnumerateArray().ToArray();
         Assert.Equal(2, cardGetOutputVariants.Length);
         Assert.DoesNotContain("archivedAtUtc", cardGetOutputVariants[0].GetProperty("required")
-            .EnumerateArray().Select(value => value.GetString()));
+            .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())));
         Assert.Contains("archivedAtUtc", cardGetOutputVariants[1].GetProperty("required")
-            .EnumerateArray().Select(value => value.GetString()));
+            .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())));
         Assert.Equal(1, cardGetOutputVariants[0].GetProperty("properties").GetProperty("columnId").GetProperty("minimum").GetInt32());
         Assert.Equal(0, cardGetOutputVariants[1].GetProperty("properties").GetProperty("columnId").GetProperty("minimum").GetInt32());
         var archivedCommentSchema = cardGetTool.GetProperty("outputSchema").GetProperty("$defs").GetProperty("archivedComment");
@@ -497,22 +497,22 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         var attachmentDeleteTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardAttachmentDelete);
         var attachmentDeleteInput = attachmentDeleteTool.GetProperty("inputSchema");
         Assert.Equal(["boardId", "cardId", "id"], attachmentDeleteInput.GetProperty("required")
-            .EnumerateArray().Select(value => value.GetString()).ToArray());
+            .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         Assert.False(attachmentDeleteInput.GetProperty("properties").TryGetProperty("archived", out _));
         Assert.False(attachmentDeleteInput.GetProperty("additionalProperties").GetBoolean());
 
         var downloadTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardAttachmentDownload);
         Assert.Equal(["boardId", "id"], downloadTool.GetProperty("inputSchema").GetProperty("required")
-            .EnumerateArray().Select(value => value.GetString()).ToArray());
+            .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         Assert.Equal(["url", "method", "headers", "expiresAtUtc"], downloadTool.GetProperty("outputSchema").GetProperty("required")
-            .EnumerateArray().Select(value => value.GetString()).ToArray());
+            .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
 
         var uploadTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardAttachmentUpload);
         Assert.Equal(["boardId", "cardId", "fileName", "byteLength"], uploadTool.GetProperty("inputSchema").GetProperty("required")
-            .EnumerateArray().Select(value => value.GetString()).ToArray());
+            .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         Assert.Equal(["url", "method", "headers", "byteLength", "markdownSnippet", "expiresAtUtc"],
             uploadTool.GetProperty("outputSchema").GetProperty("required")
-                .EnumerateArray().Select(value => value.GetString()).ToArray());
+                .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         Assert.Contains("after the HTTP PUT succeeds",
             uploadTool.GetProperty("outputSchema").GetProperty("properties")
                 .GetProperty("markdownSnippet").GetProperty("description").GetString(),
@@ -533,7 +533,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Contains("card_attachment_upload",
             cardUpdateProperties.GetProperty("description").GetProperty("description").GetString(),
             StringComparison.Ordinal);
-        var cardUpdateRequired = cardUpdateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
+        var cardUpdateRequired = cardUpdateTool.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(x => Assert.IsType<string>(x.GetString())).ToArray();
         Assert.DoesNotContain("columnId", cardUpdateRequired);
         Assert.Contains("cardTypeId", cardUpdateRequired);
         Assert.DoesNotContain("assignedUserId", cardUpdateRequired);
@@ -548,12 +548,12 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
 
         var cardArchiveTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardArchive);
         Assert.Equal(["boardId", "id"], cardArchiveTool.GetProperty("inputSchema").GetProperty("required")
-            .EnumerateArray().Select(value => value.GetString()).ToArray());
+            .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         Assert.Contains("from the active board", cardArchiveTool.GetProperty("description").GetString(), StringComparison.Ordinal);
         Assert.Contains("restored if needed", cardArchiveTool.GetProperty("description").GetString(), StringComparison.Ordinal);
         var cardRestoreTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardRestore);
         Assert.Equal(["boardId", "id"], cardRestoreTool.GetProperty("inputSchema").GetProperty("required")
-            .EnumerateArray().Select(value => value.GetString()).ToArray());
+            .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         Assert.Contains("needed on the active board again", cardRestoreTool.GetProperty("description").GetString(), StringComparison.Ordinal);
         var cardDeleteTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardDelete);
         Assert.Contains("Permanently delete", cardDeleteTool.GetProperty("description").GetString(), StringComparison.Ordinal);
@@ -568,7 +568,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.True(tagCreateProperties.TryGetProperty("style", out var tagCreateStyleSchema));
         Assert.Equal(
             ["boardId", "name", "emoji", "style"],
-            tagCreateInputSchema.GetProperty("required").EnumerateArray().Select(value => value.GetString()).ToArray());
+            tagCreateInputSchema.GetProperty("required").EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
 
         var tagUpdateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.TagUpdate);
         var tagUpdateInputSchema = tagUpdateTool.GetProperty("inputSchema");
@@ -578,20 +578,20 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.True(tagUpdateProperties.TryGetProperty("name", out _));
         Assert.True(tagUpdateProperties.TryGetProperty("emoji", out var emojiSchema));
         Assert.True(tagUpdateProperties.TryGetProperty("style", out var styleSchema));
-        Assert.Contains("null", emojiSchema.GetProperty("type").EnumerateArray().Select(type => type.GetString()));
+        Assert.Contains("null", emojiSchema.GetProperty("type").EnumerateArray().Select(type => Assert.IsType<string>(type.GetString())));
         var styleNames = styleSchema.GetProperty("oneOf")
             .EnumerateArray()
-            .Select(variant => variant.GetProperty("properties").GetProperty("styleName").GetProperty("const").GetString())
+            .Select(variant => Assert.IsType<string>(variant.GetProperty("properties").GetProperty("styleName").GetProperty("const").GetString()))
             .ToArray();
         Assert.Equal(["auto", "presets", "solid", "gradient"], styleNames);
         Assert.Equal(tagCreateStyleSchema.GetRawText(), styleSchema.GetRawText());
         var solidStyleSchema = styleSchema.GetProperty("oneOf")[2];
         var textColorTypes = solidStyleSchema.GetProperty("properties").GetProperty("textColor").GetProperty("type")
             .EnumerateArray()
-            .Select(type => type.GetString())
+            .Select(type => Assert.IsType<string>(type.GetString()))
             .ToArray();
         Assert.Contains("null", textColorTypes);
-        var tagUpdateRequired = tagUpdateInputSchema.GetProperty("required").EnumerateArray().Select(value => value.GetString()).ToArray();
+        var tagUpdateRequired = tagUpdateInputSchema.GetProperty("required").EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray();
         Assert.Equal(["boardId", "currentTagName"], tagUpdateRequired);
         Assert.DoesNotContain("stylePropertiesJson", tagUpdateInputSchema.GetRawText(), StringComparison.Ordinal);
         var tagUpdateOutputSchema = tagUpdateTool.GetProperty("outputSchema");
@@ -614,7 +614,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             ["created", "existing"],
             tagCreateOutputSchema.GetProperty("properties").GetProperty("outcome").GetProperty("enum")
                 .EnumerateArray()
-                .Select(value => value.GetString())
+                .Select(value => Assert.IsType<string>(value.GetString()))
                 .ToArray());
 
         var tagDeleteTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.TagDelete);
@@ -629,14 +629,14 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             ["deleted"],
             tagDeleteTool.GetProperty("outputSchema").GetProperty("properties").GetProperty("outcome").GetProperty("enum")
                 .EnumerateArray()
-                .Select(value => value.GetString())
+                .Select(value => Assert.IsType<string>(value.GetString()))
                 .ToArray());
 
         var slickCreateTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.SlickCreate);
         var slickCreateInputSchema = slickCreateTool.GetProperty("inputSchema");
         Assert.Equal(
             ["boardId", "name", "style"],
-            slickCreateInputSchema.GetProperty("required").EnumerateArray().Select(value => value.GetString()).ToArray());
+            slickCreateInputSchema.GetProperty("required").EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         var slickCreateStyleSchema = slickCreateInputSchema.GetProperty("properties").GetProperty("style");
         var slickCreateStyleNames = slickCreateStyleSchema.GetProperty("oneOf")
             .EnumerateArray()
@@ -649,7 +649,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         var slickUpdateInputSchema = slickUpdateTool.GetProperty("inputSchema");
         Assert.Equal(
             ["boardId", "id"],
-            slickUpdateInputSchema.GetProperty("required").EnumerateArray().Select(value => value.GetString()).ToArray());
+            slickUpdateInputSchema.GetProperty("required").EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         Assert.Equal(
             slickCreateStyleSchema.GetRawText(),
             slickUpdateInputSchema.GetProperty("properties").GetProperty("style").GetRawText());
@@ -667,7 +667,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             ["deleted"],
             slickDeleteTool.GetProperty("outputSchema").GetProperty("properties").GetProperty("outcome").GetProperty("enum")
                 .EnumerateArray()
-                .Select(value => value.GetString())
+                .Select(value => Assert.IsType<string>(value.GetString()))
                 .ToArray());
     }
 
@@ -699,12 +699,12 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Contains("card_update", description, StringComparison.Ordinal);
     }
 
-    private static string?[] GetToolNames(JsonDocument toolsListPayload) =>
+    private static string[] GetToolNames(JsonDocument toolsListPayload) =>
         toolsListPayload.RootElement
             .GetProperty("result")
             .GetProperty("tools")
             .EnumerateArray()
-            .Select(tool => tool.GetProperty("name").GetString())
+            .Select(tool => Assert.IsType<string>(tool.GetProperty("name").GetString()))
             .ToArray();
 
     private sealed record UpdateConfigurationRequest(
