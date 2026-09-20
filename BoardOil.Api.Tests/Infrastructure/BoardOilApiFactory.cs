@@ -157,6 +157,12 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         using var destination = new SqliteConnection($"Data Source={_databasePath}");
         destination.Open();
         DatabaseTemplate.Value.BackupDatabase(destination);
+
+        // Copying the in-memory template creates a rollback-journal database. Match
+        // normal EF file database creation so readers can overlap audit writes.
+        using var journalMode = destination.CreateCommand();
+        journalMode.CommandText = "PRAGMA journal_mode=WAL;";
+        journalMode.ExecuteNonQuery();
     }
 
     private static SqliteConnection CreateDatabaseTemplate()

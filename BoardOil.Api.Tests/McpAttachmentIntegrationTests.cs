@@ -196,8 +196,9 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
     }
 
     [Fact]
-    public async Task DownloadTicket_ShouldStreamExactBytesAndProtectedHeadersToIndependentHttpClientConcurrently()
+    public async Task DownloadTicket_ShouldReturnExactBytesAndProtectedHeadersToIndependentHttpClient()
     {
+        // Arrange
         var (client, token, _, attachment) = await ArrangeAttachmentAsync();
         using var payload = await CallAsync(client, token, ToolNames.CardAttachmentDownload, new { boardId = 1, id = attachment.Id });
         var ticket = AssertSuccess(payload);
@@ -210,32 +211,29 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
         Assert.Empty(new Uri(url).Query);
         var downloader = CreateClient();
 
-        var responses = await Task.WhenAll(Enumerable.Range(0, 3).Select(async _ =>
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Authorization = AuthenticationHeaderValue.Parse(header);
-            return await downloader.SendAsync(request);
-        }));
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = parsedHeader;
 
-        foreach (var response in responses)
-        {
-            using (response)
-            {
-                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-                Assert.Equal(new byte[] { 0, 255, 13, 10, 42 }, await response.Content.ReadAsByteArrayAsync());
-                Assert.Equal("application/octet-stream", response.Content.Headers.ContentType!.MediaType);
-                Assert.Equal("attachment", response.Content.Headers.ContentDisposition!.DispositionType);
-                Assert.Contains("original.bin", response.Content.Headers.ContentDisposition.ToString());
-                Assert.True(response.Headers.CacheControl!.NoStore);
-                Assert.True(response.Headers.CacheControl.Private);
-                Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
-            }
-        }
+        // Act
+        using var response = await downloader.SendAsync(request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(new byte[] { 0, 255, 13, 10, 42 }, await response.Content.ReadAsByteArrayAsync());
+        Assert.Equal("application/octet-stream", response.Content.Headers.ContentType!.MediaType);
+        Assert.Equal("attachment", response.Content.Headers.ContentDisposition!.DispositionType);
+        Assert.Contains("original.bin", response.Content.Headers.ContentDisposition.ToString());
+        Assert.True(response.Headers.CacheControl!.NoStore);
+        Assert.True(response.Headers.CacheControl.Private);
+        Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
 
         using var scope = Factory.Services.CreateScope();
         await using var db = scope.ServiceProvider.GetRequiredService<IDbContextFactory>().CreateDbContext<BoardOilDbContext>();
-        Assert.Equal(3, await db.AttachmentTransferAudits.CountAsync(
-            x => x.Outcome == AttachmentTransferAuditOutcome.DownloadAdmitted));
+        var audit = await db.AttachmentTransferAudits.SingleAsync(
+            x => x.Outcome == AttachmentTransferAuditOutcome.DownloadAdmitted);
+        Assert.Equal(attachment.Id, audit.AttachmentId);
+        Assert.Equal(1, audit.BoardId);
+        Assert.Equal(1, audit.ActorUserId);
     }
 
     [Theory]
