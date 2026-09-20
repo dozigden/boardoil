@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-09-20T16:03:30.659Z",
+  "generatedAtUtc": "2026-09-20T16:24:28.061Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -1553,29 +1553,29 @@
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.IdentityModel.Abstractions",
-      "version": "8.22.0",
+      "version": "8.23.0",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.identitymodel.abstractions/8.22.0/microsoft.identitymodel.abstractions.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-microsoft.identitymodel.abstractions-8.22.0.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.identitymodel.abstractions/8.23.0/microsoft.identitymodel.abstractions.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-microsoft.identitymodel.abstractions-8.23.0.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.IdentityModel.JsonWebTokens",
-      "version": "8.22.0",
+      "version": "8.23.0",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.identitymodel.jsonwebtokens/8.22.0/microsoft.identitymodel.jsonwebtokens.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-microsoft.identitymodel.jsonwebtokens-8.22.0.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.identitymodel.jsonwebtokens/8.23.0/microsoft.identitymodel.jsonwebtokens.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-microsoft.identitymodel.jsonwebtokens-8.23.0.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.IdentityModel.Logging",
-      "version": "8.22.0",
+      "version": "8.23.0",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.identitymodel.logging/8.22.0/microsoft.identitymodel.logging.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-microsoft.identitymodel.logging-8.22.0.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.identitymodel.logging/8.23.0/microsoft.identitymodel.logging.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-microsoft.identitymodel.logging-8.23.0.txt"
     },
     {
       "ecosystem": "nuget",
@@ -1598,11 +1598,11 @@
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.IdentityModel.Tokens",
-      "version": "8.22.0",
+      "version": "8.23.0",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.identitymodel.tokens/8.22.0/microsoft.identitymodel.tokens.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-microsoft.identitymodel.tokens-8.22.0.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.identitymodel.tokens/8.23.0/microsoft.identitymodel.tokens.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-microsoft.identitymodel.tokens-8.23.0.txt"
     },
     {
       "ecosystem": "nuget",
@@ -1886,11 +1886,11 @@
     {
       "ecosystem": "nuget",
       "packageName": "System.IdentityModel.Tokens.Jwt",
-      "version": "8.22.0",
+      "version": "8.23.0",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/system.identitymodel.tokens.jwt/8.22.0/system.identitymodel.tokens.jwt.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-system.identitymodel.tokens.jwt-8.22.0.txt"
+      "sourceFile": "~/.nuget/packages/system.identitymodel.tokens.jwt/8.23.0/system.identitymodel.tokens.jwt.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-system.identitymodel.tokens.jwt-8.23.0.txt"
     }
   ],
   "unresolvedPackages": []
