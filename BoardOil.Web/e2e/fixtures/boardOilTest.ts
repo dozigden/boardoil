@@ -23,11 +23,11 @@ export const test = base.extend<BoardOilFixtures>({
 
 export { expect };
 
-export async function authenticatePage(page: Page) {
+export async function authenticatePage(page: Page, userName = ADMIN_USER_NAME, password = ADMIN_PASSWORD) {
   const response = await page.request.post('/api/auth/login', {
     data: {
-      userName: ADMIN_USER_NAME,
-      password: ADMIN_PASSWORD
+      userName,
+      password
     }
   });
   expect(response.ok(), await response.text()).toBe(true);

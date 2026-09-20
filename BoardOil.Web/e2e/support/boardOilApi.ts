@@ -93,6 +93,10 @@ export class BoardOilApi {
     });
   }
 
+  public async getOwnProfile() {
+    return await this.read<{ id: number; userName: string; displayName: string; email: string }>('/api/users/me');
+  }
+
   public async registerOAuthClient(
     clientName: string,
     redirectUri: string

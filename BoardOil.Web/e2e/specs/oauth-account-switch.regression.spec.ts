@@ -48,6 +48,22 @@ test('switch BoardOil user from the OAuth consent page without losing the author
     await expect(page.getByText(`${SWITCHED_USER_NAME} (@${SWITCHED_USER_NAME})`)).toBeVisible();
     assertAuthorizationParameters(page.url(), expectedParameters);
   });
+
+  await test.step('submit consent with the switched account antiforgery token', async () => {
+    await page.getByLabel('Connection name', { exact: true }).fill('Playwright switched account');
+    const consentResponse = page.waitForResponse(response =>
+      new URL(response.url()).pathname === '/connect/authorize' && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Authorise', exact: true }).click();
+    const response = await consentResponse;
+    expect(response.status()).toBe(302);
+    // This test owns the authorization server journey, not a native callback listener.
+    // Verify the issued redirect directly; nothing is listening on the registered callback port.
+    const callback = new URL((await response.headerValue('location'))!);
+    expect(`${callback.origin}${callback.pathname}`).toBe(REDIRECT_URI);
+    expect(callback.searchParams.get('code')).toBeTruthy();
+    expect(callback.searchParams.get('state')).toBe(expectedParameters.state);
+    expect(callback.searchParams.has('error')).toBe(false);
+  });
 });
 
 function assertAuthorizationParameters(
