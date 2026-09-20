@@ -17,7 +17,7 @@ jobs:
   build:
     name: Build and Validate
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     outputs:
       artifact-id: ${{ steps.demo_artifact.outputs.artifact-id }}
@@ -92,7 +92,7 @@ jobs:
     name: Publish Validated Demo
     needs: build
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     environment: demo-production
 

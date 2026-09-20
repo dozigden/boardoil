@@ -11,7 +11,7 @@ permissions:
 jobs:
   preflight:
     name: Validate Release Metadata
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       version: ${{ steps.release_meta.outputs.version }}
       build: ${{ steps.release_meta.outputs.build }}
