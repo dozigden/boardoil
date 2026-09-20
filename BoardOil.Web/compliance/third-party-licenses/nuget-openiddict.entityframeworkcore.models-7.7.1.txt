@@ -1,5 +1,5 @@
-NuGet Package: OpenIddict.Validation
-Version: 7.6.0
+NuGet Package: OpenIddict.EntityFrameworkCore.Models
+Version: 7.7.1
 Declared Licence Expression: Apache-2.0
 Licence Reference: https://licenses.nuget.org/Apache-2.0
 Copyright: © Kévin Chalet. All rights reserved.
