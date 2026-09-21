@@ -116,6 +116,14 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
 
     protected override IHost CreateHost(IHostBuilder builder)
     {
+        // Configure this before WebApplication.CreateBuilder loads JSON providers;
+        // ConfigureAppConfiguration runs too late to prevent their file watchers.
+        builder.ConfigureHostConfiguration(configuration => configuration.AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["hostBuilder:reloadConfigOnChange"] = "false"
+            }));
+
         InitialiseDatabaseFromTemplate();
         return base.CreateHost(builder);
     }
