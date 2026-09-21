@@ -1,3 +1,3 @@
-using Xunit;
+using Xunit.v3;
 
-[assembly: CollectionBehavior(MaxParallelThreads = 8)]
+[assembly: Parallelization(MaxThreads = 8)]

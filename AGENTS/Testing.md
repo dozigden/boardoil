@@ -143,7 +143,7 @@ The repository test scripts default to compact output when they detect an agent 
 - prints concise pass summaries for xUnit and Vitest test runs
 - prints total and named build/test phase timings after a successful script run
 - replays full stdout/stderr for any failed command before reporting the failed suite
-- passes `--no-progress --no-ansi` to xUnit v3 test applications
+- passes `--progress off --ansi off` to xUnit test applications
 - lets Vitest use its `agent` reporter with `silent: 'passed-only'`
 - suppresses Vite's successful build asset table in agent/CI runs while preserving warnings and errors
 

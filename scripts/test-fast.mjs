@@ -266,7 +266,7 @@ function compactTestRunnerArgs() {
     return [];
   }
 
-  return ["--no-progress", "--no-ansi"];
+  return ["--progress", "off", "--ansi", "off"];
 }
 
 function npmRunArgs(scriptName) {

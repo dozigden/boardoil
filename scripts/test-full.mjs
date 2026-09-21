@@ -198,7 +198,7 @@ function compactTestRunnerArgs() {
     return [];
   }
 
-  return ["--no-progress", "--no-ansi"];
+  return ["--progress", "off", "--ansi", "off"];
 }
 
 function testRunnerArgs(reportPath = null) {
@@ -207,8 +207,8 @@ function testRunnerArgs(reportPath = null) {
     runnerArgs.push(
       "--results-directory",
       path.dirname(reportPath),
-      "--report-xunit",
-      "--report-xunit-filename",
+      "--report-xunit-xml",
+      "--report-xunit-xml-filename",
       path.basename(reportPath)
     );
   }
