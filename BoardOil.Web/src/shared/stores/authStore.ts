@@ -16,6 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => user.value !== null);
   const isAdmin = computed(() => user.value?.role === 'Admin');
+  let initializePromise: Promise<void> | null = null;
 
   setUnauthorizedHandler(async () => {
     const currentPath = router.currentRoute.value.fullPath;
@@ -27,11 +28,16 @@ export const useAuthStore = defineStore('auth', () => {
     }
   });
 
-  async function initialize() {
+  function initialize() {
     if (initialized.value) {
-      return;
+      return Promise.resolve();
     }
 
+    initializePromise ??= initializeSession();
+    return initializePromise;
+  }
+
+  async function initializeSession() {
     busy.value = true;
     try {
       const meResult = await api.getMe();
@@ -47,6 +53,7 @@ export const useAuthStore = defineStore('auth', () => {
       initialized.value = true;
     } finally {
       busy.value = false;
+      initializePromise = null;
     }
   }
 

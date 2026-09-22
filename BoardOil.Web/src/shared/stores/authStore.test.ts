@@ -85,6 +85,24 @@ describe('authStore', () => {
     expect(setCsrfToken).toHaveBeenCalledWith('csrf-token');
   });
 
+  it('shares one session restoration between concurrent initialize calls', async () => {
+    const store = useAuthStore();
+    const user: AuthUser = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' };
+    let completeMeRequest!: (result: ReturnType<typeof ok<AuthUser | null>>) => void;
+    authApi.getMe.mockReturnValue(new Promise(resolve => { completeMeRequest = resolve; }));
+
+    const first = store.initialize();
+    const second = store.initialize();
+    await vi.waitFor(() => expect(authApi.getMe).toHaveBeenCalledTimes(1));
+    completeMeRequest(ok(user));
+    await Promise.all([first, second]);
+
+    expect(authApi.getMe).toHaveBeenCalledTimes(1);
+    expect(authApi.getCsrfToken).toHaveBeenCalledTimes(1);
+    expect(store.user).toEqual(user);
+    expect(store.isAuthenticated).toBe(true);
+  });
+
   it('login stores user and csrf token on success', async () => {
     const store = useAuthStore();
     const session: AuthSession = {
