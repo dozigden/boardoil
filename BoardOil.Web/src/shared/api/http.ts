@@ -10,6 +10,7 @@ let handlingUnauthorized = false;
 let refreshInFlight: Promise<boolean> | null = null;
 
 const csrfValidationFailureMessage = 'CSRF validation failed.';
+const sessionRefreshTimeoutMs = 30_000;
 
 export type BinaryResponse = {
   blob: Blob;
@@ -440,10 +441,13 @@ async function tryRefreshSession() {
   }
 
   refreshInFlight = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), sessionRefreshTimeoutMs);
     try {
       const response = await fetch(buildApiUrl('/api/auth/refresh'), {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        signal: controller.signal
       });
       if (!response.ok) {
         return false;
@@ -455,6 +459,8 @@ async function tryRefreshSession() {
       return envelope?.success === true;
     } catch {
       return false;
+    } finally {
+      clearTimeout(timeout);
     }
   })();
 

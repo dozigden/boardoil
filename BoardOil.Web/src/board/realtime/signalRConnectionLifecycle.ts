@@ -1,7 +1,6 @@
 import { HubConnectionState, type HubConnection } from '@microsoft/signalr';
 
 const unauthorizedStartRetryDelaysMs = [0, 1_000, 3_000, 7_000];
-const terminalRecoveryRetryDelaysMs = [2_000, 10_000];
 
 type SignalRConnectionLifecycleOptions = {
   connection: HubConnection;
@@ -9,7 +8,7 @@ type SignalRConnectionLifecycleOptions = {
   notifyAuthenticationFailure: () => void;
   restoreAfterReconnect: () => Promise<void>;
   onUnavailable: () => Promise<unknown> | unknown;
-  onRecoveryExhausted: () => Promise<unknown> | unknown;
+  onClosed: () => Promise<unknown> | unknown;
   onRecovered: () => Promise<unknown> | unknown;
   reportDiagnostic: (phase: string, error: unknown, connection: HubConnection) => void;
   isSuppressed: () => boolean;
@@ -67,8 +66,6 @@ export function createSignalRConnectionLifecycle(
   });
 
   connection.onclose(async error => {
-    beginReconnectTransition();
-    let recoveryError: unknown = null;
     options.log('Connection closed.', {
       error: error instanceof Error ? error.message : String(error)
     });
@@ -82,26 +79,25 @@ export function createSignalRConnectionLifecycle(
         return;
       }
 
-      await notifyUnavailable();
-      recoveryError = await recoverAfterTerminalClose();
+      await options.onClosed();
     } finally {
-      completeReconnectTransition(recoveryError);
+      completeReconnectTransition(error ?? new Error('Realtime connection closed.'));
     }
   });
 
   async function start() {
-    await ensureStarted(true);
+    await ensureStarted();
   }
 
-  async function ensureStarted(waitForReconnect: boolean) {
-    if (waitForReconnect && reconnectTransition) {
+  async function ensureStarted() {
+    if (reconnectTransition) {
       options.log('Waiting for reconnect recovery to finish.');
       await reconnectTransition;
       if (reconnectTransitionError !== null) {
         throw reconnectTransitionError;
       }
       if (!stopping) {
-        await ensureStarted(true);
+        await ensureStarted();
       }
       return;
     }
@@ -183,48 +179,6 @@ export function createSignalRConnectionLifecycle(
 
     options.notifyAuthenticationFailure();
     throw latestUnauthorizedError;
-  }
-
-  async function recoverAfterTerminalClose() {
-    const attemptCount = terminalRecoveryRetryDelaysMs.length + 1;
-    let latestError: unknown = null;
-    for (let attempt = 0; attempt < attemptCount; attempt += 1) {
-      if (stopping || options.isSuppressed()) {
-        return null;
-      }
-
-      if (attempt > 0) {
-        await wait(terminalRecoveryRetryDelaysMs[attempt - 1]!);
-        if (stopping || options.isSuppressed()) {
-          return null;
-        }
-      }
-
-      try {
-        await ensureStarted(false);
-        await options.restoreAfterReconnect();
-        if (stopping) {
-          return null;
-        }
-
-        await options.onRecovered();
-        options.log('Realtime recovered after terminal close.', { attempt: attempt + 1 });
-        return null;
-      } catch (error) {
-        latestError = error;
-        reportDiagnostic('realtime-recovery-failed', error);
-        await notifyUnavailable();
-        if (isUnauthorizedNegotiationError(error)) {
-          break;
-        }
-      }
-    }
-
-    if (!stopping && !options.isSuppressed()) {
-      await options.onRecoveryExhausted();
-    }
-
-    return latestError;
   }
 
   async function stop(beforeStop?: () => Promise<void>) {

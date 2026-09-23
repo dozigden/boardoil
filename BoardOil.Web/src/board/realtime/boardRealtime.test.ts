@@ -32,7 +32,8 @@ vi.mock('../../shared/errors/clientErrorReporter', () => ({
   }
 }));
 
-vi.mock('@microsoft/signalr', () => {
+vi.mock('@microsoft/signalr', async importOriginal => {
+  const actual = await importOriginal<typeof import('@microsoft/signalr')>();
   connection = {
     eventHandlers: {},
     reconnectingHandler: null,
@@ -83,6 +84,7 @@ vi.mock('@microsoft/signalr', () => {
   }
 
   return {
+    ...actual,
     HubConnectionBuilder,
     HubConnectionState: {
       Connected: 'Connected',
@@ -577,15 +579,13 @@ describe('boardRealtime', () => {
     expect(onResync).toHaveBeenCalledWith(42);
   });
 
-  it('restarts and resyncs after an errorless terminal close', async () => {
+  it('warns after a terminal close without restarting or resyncing', async () => {
     const onConnectionWarning = vi.fn();
-    const onConnectionRecovered = vi.fn();
     const onResync = vi.fn();
     const { createBoardRealtime } = await import('./boardRealtime');
     const realtime = createBoardRealtime({
       ...createHandlers(),
       onConnectionWarning,
-      onConnectionRecovered,
       onResync
     });
 
@@ -593,70 +593,10 @@ describe('boardRealtime', () => {
     connection.state = 'Disconnected';
     await connection.closeHandler?.();
 
-    expect(connection.start).toHaveBeenCalledTimes(2);
-    expect(connection.invoke).toHaveBeenLastCalledWith('SubscribeBoard', 42);
-    expect(onResync).toHaveBeenCalledWith(42);
-    expect(onConnectionWarning).toHaveBeenCalledTimes(1);
-    expect(onConnectionRecovered).toHaveBeenCalledTimes(2);
-  });
-
-  it('tries terminal-close recovery no more than three times', async () => {
-    vi.useFakeTimers();
-    const onConnectionWarning = vi.fn();
-    const onResync = vi.fn();
-    const { createBoardRealtime } = await import('./boardRealtime');
-    const realtime = createBoardRealtime({
-      ...createHandlers(),
-      onConnectionWarning,
-      onResync
-    });
-
-    await realtime.connect(42);
-    connection.start.mockRejectedValue(new Error('network unavailable'));
-    connection.state = 'Disconnected';
-    const closeRecovery = connection.closeHandler?.();
-
-    await vi.runAllTimersAsync();
-    await closeRecovery;
-
-    expect(connection.start).toHaveBeenCalledTimes(4);
+    expect(connection.start).toHaveBeenCalledTimes(1);
     expect(onResync).not.toHaveBeenCalled();
-    expect(onConnectionWarning).toHaveBeenCalled();
     expect(onConnectionWarning).toHaveBeenLastCalledWith(
       'Realtime updates are unavailable. Data may be stale until reconnect.');
-  });
-
-  it('keeps reconnecting connects waiting until terminal-close resync completes', async () => {
-    let finishResync!: () => void;
-    const onConnectionRecovered = vi.fn();
-    const onResync = vi.fn(() => new Promise<void>(resolve => {
-      finishResync = resolve;
-    }));
-    const { createBoardRealtime } = await import('./boardRealtime');
-    const realtime = createBoardRealtime({
-      ...createHandlers(),
-      onConnectionRecovered,
-      onResync
-    });
-
-    await realtime.connect(42);
-    connection.state = 'Reconnecting';
-    connection.reconnectingHandler?.(new Error('network'));
-    const waitingConnect = realtime.connect(42);
-
-    connection.state = 'Disconnected';
-    const closeRecovery = connection.closeHandler?.();
-    await vi.waitFor(() => {
-      expect(onResync).toHaveBeenCalledWith(42);
-    });
-
-    expect(onConnectionRecovered).toHaveBeenCalledTimes(1);
-    finishResync();
-    await Promise.all([closeRecovery, waitingConnect]);
-
-    expect(onConnectionRecovered).toHaveBeenCalledTimes(3);
-    expect(onResync.mock.invocationCallOrder[0]).toBeLessThan(
-      onConnectionRecovered.mock.invocationCallOrder[1]!);
   });
 
   it('reports unexpected realtime close errors', async () => {

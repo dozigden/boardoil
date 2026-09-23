@@ -12,6 +12,7 @@ describe('http api client', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
@@ -219,6 +220,36 @@ describe('http api client', () => {
       error: { kind: 'http', statusCode: 403, message: 'Access denied.' }
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['headers', 'body'])('aborts stalled refresh %s and allows a later refresh', async stage => {
+    vi.useFakeTimers();
+    const fetchMock = vi.mocked(fetch);
+    let refreshSignal!: AbortSignal;
+    fetchMock.mockImplementationOnce(async (_url, init) => {
+      refreshSignal = init!.signal!;
+      const stalled = new Promise<never>((_resolve, reject) => {
+        refreshSignal.addEventListener('abort', () => reject(refreshSignal.reason), { once: true });
+      });
+      if (stage === 'headers') {
+        return stalled;
+      }
+      return { ok: true, json: () => stalled } as unknown as Response;
+    });
+    const { attemptSessionRefresh } = await import('./http');
+    const firstRefresh = attemptSessionRefresh();
+    const sharedRefresh = attemptSessionRefresh();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(refreshSignal.aborted).toBe(true);
+    expect(await firstRefresh).toBe(false);
+    expect(await sharedRefresh).toBe(false);
+
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: true })));
+    expect(await attemptSessionRefresh()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('invokes unauthorized handler when refresh fails after a 401', async () => {

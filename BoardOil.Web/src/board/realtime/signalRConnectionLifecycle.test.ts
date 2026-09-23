@@ -136,61 +136,21 @@ describe('signalRConnectionLifecycle', () => {
     expect(harness.onRecovered).not.toHaveBeenCalled();
   });
 
-  it('restarts, restores state, and then reports recovery after a terminal close', async () => {
+  it('reports a terminal close without restarting the connection', async () => {
     const harness = createHarness();
-
     await harness.lifecycle.start();
+    harness.connection.state = HubConnectionState.Reconnecting;
+    harness.connection.reconnectingHandler?.(new Error('network'));
+    const waitingStart = harness.lifecycle.start();
+    const rejection = expect(waitingStart).rejects.toThrow('Realtime connection closed.');
+
     harness.connection.state = HubConnectionState.Disconnected;
     await harness.connection.closeHandler?.();
+    await rejection;
 
-    expect(harness.connection.start).toHaveBeenCalledTimes(2);
-    expect(harness.restoreAfterReconnect).toHaveBeenCalledTimes(1);
-    expect(harness.onRecovered).toHaveBeenCalledTimes(1);
-    expect(harness.restoreAfterReconnect.mock.invocationCallOrder[0]).toBeLessThan(
-      harness.onRecovered.mock.invocationCallOrder[0]!);
-  });
-
-  it('does not report terminal-close recovery when stopped during restoration', async () => {
-    const harness = createHarness();
-    let finishRestore!: () => void;
-    harness.restoreAfterReconnect.mockImplementation(
-      () => new Promise<void>(resolve => {
-        finishRestore = resolve;
-      })
-    );
-
-    await harness.lifecycle.start();
-    harness.connection.state = HubConnectionState.Disconnected;
-    const recovery = harness.connection.closeHandler?.();
-    await vi.waitFor(() => {
-      expect(harness.restoreAfterReconnect).toHaveBeenCalledTimes(1);
-    });
-
-    await harness.lifecycle.stop();
-    finishRestore();
-    await recovery;
-
-    expect(harness.onRecovered).not.toHaveBeenCalled();
-  });
-
-  it('caps terminal-close recovery at three complete attempts', async () => {
-    vi.useFakeTimers();
-    const harness = createHarness();
-
-    await harness.lifecycle.start();
-    harness.connection.start.mockRejectedValue(new Error('network unavailable'));
-    harness.connection.state = HubConnectionState.Disconnected;
-    const recovery = harness.connection.closeHandler?.();
-
-    await vi.runAllTimersAsync();
-    await recovery;
-
-    expect(harness.connection.start).toHaveBeenCalledTimes(4);
+    expect(harness.connection.start).toHaveBeenCalledTimes(1);
     expect(harness.restoreAfterReconnect).not.toHaveBeenCalled();
-    const recoveryDiagnostics = harness.reportDiagnostic.mock.calls
-      .filter(([phase]) => phase === 'realtime-recovery-failed');
-    expect(recoveryDiagnostics).toHaveLength(3);
-    expect(harness.onRecoveryExhausted).toHaveBeenCalledTimes(1);
+    expect(harness.onClosed).toHaveBeenCalledTimes(1);
   });
 
   it('suppresses close recovery and diagnostics during intentional stop', async () => {
@@ -249,7 +209,7 @@ function createHarness() {
   const notifyAuthenticationFailure = vi.fn();
   const restoreAfterReconnect = vi.fn(async (): Promise<void> => undefined);
   const onUnavailable = vi.fn(async (): Promise<void> => undefined);
-  const onRecoveryExhausted = vi.fn(async (): Promise<void> => undefined);
+  const onClosed = vi.fn(async (): Promise<void> => undefined);
   const onRecovered = vi.fn(async (): Promise<void> => undefined);
   const reportDiagnostic = vi.fn();
   const lifecycle = createSignalRConnectionLifecycle({
@@ -258,7 +218,7 @@ function createHarness() {
     notifyAuthenticationFailure,
     restoreAfterReconnect,
     onUnavailable,
-    onRecoveryExhausted,
+    onClosed,
     onRecovered,
     reportDiagnostic,
     isSuppressed: () => false,
@@ -272,7 +232,7 @@ function createHarness() {
     notifyAuthenticationFailure,
     restoreAfterReconnect,
     onUnavailable,
-    onRecoveryExhausted,
+    onClosed,
     onRecovered,
     reportDiagnostic
   };

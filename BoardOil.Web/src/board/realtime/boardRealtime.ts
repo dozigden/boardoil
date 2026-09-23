@@ -1,4 +1,4 @@
-import { HubConnectionBuilder, LogLevel, type HubConnection } from '@microsoft/signalr';
+import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from '@microsoft/signalr';
 import { boardHubUrl } from '../../shared/api/config';
 import { attemptSessionRefresh, notifyUnauthorized } from '../../shared/api/http';
 import {
@@ -13,6 +13,7 @@ import {
   createSignalRConnectionLifecycle,
   type SignalRConnectionLifecycle
 } from './signalRConnectionLifecycle';
+import { ReconnectHttpClient, signalRReconnectPolicy } from './signalRReconnect';
 
 export type BoardRealtimeHandlers = {
   onColumnCreated: (boardId: number, column: Column) => Promise<unknown> | unknown;
@@ -122,9 +123,14 @@ function createSignalRBoardRealtime(
     }
 
     logRealtime('Creating hub connection.');
-    const connection = new HubConnectionBuilder()
-      .withUrl(boardHubUrl)
-      .withAutomaticReconnect()
+    const connection: HubConnection = new HubConnectionBuilder()
+      .withUrl(boardHubUrl, {
+        httpClient: new ReconnectHttpClient(
+          () => connection.state === HubConnectionState.Reconnecting,
+          attemptSessionRefresh
+        )
+      })
+      .withAutomaticReconnect(signalRReconnectPolicy)
       .configureLogging(signalRLogLevel)
       .build();
 
@@ -136,7 +142,7 @@ function createSignalRBoardRealtime(
       notifyAuthenticationFailure: notifyUnauthorized,
       restoreAfterReconnect: restoreActiveBoard,
       onUnavailable: () => handlers.onConnectionWarning?.(realtimeReconnectingMessage),
-      onRecoveryExhausted: () => handlers.onConnectionWarning?.(realtimeUnavailableMessage),
+      onClosed: () => handlers.onConnectionWarning?.(realtimeUnavailableMessage),
       onRecovered: () => handlers.onConnectionRecovered?.(),
       reportDiagnostic: (phase, error, diagnosticConnection) => {
         void errorReporter.reportRealtimeDiagnostic(phase, error, {
