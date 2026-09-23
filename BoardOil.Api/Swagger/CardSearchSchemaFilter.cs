@@ -1,29 +1,36 @@
+using System.Text.Json.Nodes;
 using BoardOil.Contracts.Card;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace BoardOil.Api.Swagger;
 
 public sealed class CardSearchSchemaFilter : ISchemaFilter
 {
-    public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+    public void Apply(IOpenApiSchema schema, SchemaFilterContext context)
     {
+        if (schema is not OpenApiSchema mutableSchema)
+        {
+            return;
+        }
+
         if (context.Type == typeof(SearchCardsRequest))
         {
-            ApplySearchRequestSchema(schema);
+            ApplySearchRequestSchema(mutableSchema);
             return;
         }
 
         if (context.Type == typeof(CardSearchFilterRequest))
         {
-            ApplySearchFilterSchema(schema);
+            ApplySearchFilterSchema(mutableSchema);
         }
     }
 
     private static void ApplySearchRequestSchema(OpenApiSchema schema)
     {
-        if (!schema.Properties.TryGetValue("filters", out var filtersSchema))
+        if (schema.Properties is null
+            || !schema.Properties.TryGetValue("filters", out var propertySchema)
+            || propertySchema is not OpenApiSchema filtersSchema)
         {
             return;
         }
@@ -31,15 +38,15 @@ public sealed class CardSearchSchemaFilter : ISchemaFilter
         filtersSchema.Description = "Filters to apply. Every filter must match for a card to be returned.";
         filtersSchema.MinItems = CardSearchLimits.MinimumFilterCount;
         filtersSchema.MaxItems = CardSearchLimits.MaximumFilterCount;
-        schema.Example = new OpenApiObject
+        schema.Example = new JsonObject
         {
-            ["filters"] = new OpenApiArray
+            ["filters"] = new JsonArray
             {
-                new OpenApiObject
+                new JsonObject
                 {
-                    ["field"] = new OpenApiString(CardSearchFields.ExternalUrl),
-                    ["operator"] = new OpenApiString(CardSearchOperators.Contains),
-                    ["value"] = new OpenApiString("github.com/example/repository")
+                    ["field"] = CardSearchFields.ExternalUrl,
+                    ["operator"] = CardSearchOperators.Contains,
+                    ["value"] = "github.com/example/repository"
                 }
             }
         };
@@ -47,29 +54,34 @@ public sealed class CardSearchSchemaFilter : ISchemaFilter
 
     private static void ApplySearchFilterSchema(OpenApiSchema schema)
     {
-        if (schema.Properties.TryGetValue("field", out var fieldSchema))
+        if (schema.Properties is null)
         {
-            fieldSchema.Description = "Card field to search.";
-            fieldSchema.Enum = [new OpenApiString(CardSearchFields.ExternalUrl)];
-            fieldSchema.Example = new OpenApiString(CardSearchFields.ExternalUrl);
+            return;
         }
 
-        if (schema.Properties.TryGetValue("operator", out var operatorSchema))
+        if (schema.Properties.TryGetValue("field", out var field) && field is OpenApiSchema fieldSchema)
+        {
+            fieldSchema.Description = "Card field to search.";
+            fieldSchema.Enum = [JsonValue.Create(CardSearchFields.ExternalUrl)];
+            fieldSchema.Example = JsonValue.Create(CardSearchFields.ExternalUrl);
+        }
+
+        if (schema.Properties.TryGetValue("operator", out var matchOperator) && matchOperator is OpenApiSchema operatorSchema)
         {
             operatorSchema.Description = "Match operator to apply to the field value.";
             operatorSchema.Enum =
             [
-                new OpenApiString(CardSearchOperators.Exact),
-                new OpenApiString(CardSearchOperators.Contains)
+                JsonValue.Create(CardSearchOperators.Exact),
+                JsonValue.Create(CardSearchOperators.Contains)
             ];
-            operatorSchema.Example = new OpenApiString(CardSearchOperators.Contains);
+            operatorSchema.Example = JsonValue.Create(CardSearchOperators.Contains);
         }
 
-        if (schema.Properties.TryGetValue("value", out var valueSchema))
+        if (schema.Properties.TryGetValue("value", out var value) && value is OpenApiSchema valueSchema)
         {
             valueSchema.Description = "Non-empty value to match.";
             valueSchema.MinLength = 1;
-            valueSchema.Example = new OpenApiString("github.com/example/repository");
+            valueSchema.Example = JsonValue.Create("github.com/example/repository");
         }
     }
 }

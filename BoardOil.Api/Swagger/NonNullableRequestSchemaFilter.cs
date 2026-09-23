@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace BoardOil.Api.Swagger;
@@ -10,16 +10,16 @@ public sealed class NonNullableRequestSchemaFilter : ISchemaFilter
 {
     private static readonly NullabilityInfoContext NullabilityInfoContext = new();
 
-    public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+    public void Apply(IOpenApiSchema schema, SchemaFilterContext context)
     {
-        if (context.Type is null
-            || !context.Type.Name.EndsWith("Request", StringComparison.Ordinal)
-            || schema.Properties.Count == 0)
+        if (schema is not OpenApiSchema { Properties.Count: > 0 } mutableSchema
+            || context.Type is null
+            || !context.Type.Name.EndsWith("Request", StringComparison.Ordinal))
         {
             return;
         }
 
-        schema.Required ??= new HashSet<string>(StringComparer.Ordinal);
+        mutableSchema.Required ??= new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var property in context.Type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
@@ -35,13 +35,17 @@ public sealed class NonNullableRequestSchemaFilter : ISchemaFilter
             }
 
             var schemaPropertyName = ResolveSchemaPropertyName(property);
-            if (!schema.Properties.TryGetValue(schemaPropertyName, out var propertySchema))
+            if (!mutableSchema.Properties.TryGetValue(schemaPropertyName, out var propertySchema))
             {
                 continue;
             }
 
-            propertySchema.Nullable = false;
-            schema.Required.Add(schemaPropertyName);
+            if (propertySchema is OpenApiSchema mutablePropertySchema)
+            {
+                mutablePropertySchema.Type &= ~JsonSchemaType.Null;
+            }
+
+            mutableSchema.Required.Add(schemaPropertyName);
         }
     }
 

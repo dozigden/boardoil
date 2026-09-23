@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-09-20T16:24:28.061Z",
+  "generatedAtUtc": "2026-09-23T19:52:55.531Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -1607,11 +1607,11 @@
     {
       "ecosystem": "nuget",
       "packageName": "Microsoft.OpenApi",
-      "version": "1.6.14",
+      "version": "2.7.5",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/microsoft.openapi/1.6.14/microsoft.openapi.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-microsoft.openapi-1.6.14.txt"
+      "sourceFile": "~/.nuget/packages/microsoft.openapi/2.7.5/microsoft.openapi.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-microsoft.openapi-2.7.5.txt"
     },
     {
       "ecosystem": "nuget",
@@ -1787,38 +1787,38 @@
     {
       "ecosystem": "nuget",
       "packageName": "Swashbuckle.AspNetCore",
-      "version": "6.6.2",
+      "version": "10.2.3",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/swashbuckle.aspnetcore/6.6.2/swashbuckle.aspnetcore.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-swashbuckle.aspnetcore-6.6.2.txt"
+      "sourceFile": "~/.nuget/packages/swashbuckle.aspnetcore/10.2.3/swashbuckle.aspnetcore.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-swashbuckle.aspnetcore-10.2.3.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Swashbuckle.AspNetCore.Swagger",
-      "version": "6.6.2",
+      "version": "10.2.3",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/swashbuckle.aspnetcore.swagger/6.6.2/swashbuckle.aspnetcore.swagger.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-swashbuckle.aspnetcore.swagger-6.6.2.txt"
+      "sourceFile": "~/.nuget/packages/swashbuckle.aspnetcore.swagger/10.2.3/swashbuckle.aspnetcore.swagger.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-swashbuckle.aspnetcore.swagger-10.2.3.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Swashbuckle.AspNetCore.SwaggerGen",
-      "version": "6.6.2",
+      "version": "10.2.3",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/swashbuckle.aspnetcore.swaggergen/6.6.2/swashbuckle.aspnetcore.swaggergen.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-swashbuckle.aspnetcore.swaggergen-6.6.2.txt"
+      "sourceFile": "~/.nuget/packages/swashbuckle.aspnetcore.swaggergen/10.2.3/swashbuckle.aspnetcore.swaggergen.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-swashbuckle.aspnetcore.swaggergen-10.2.3.txt"
     },
     {
       "ecosystem": "nuget",
       "packageName": "Swashbuckle.AspNetCore.SwaggerUI",
-      "version": "6.6.2",
+      "version": "10.2.3",
       "declaredLicence": "MIT",
       "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/swashbuckle.aspnetcore.swaggerui/6.6.2/swashbuckle.aspnetcore.swaggerui.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-swashbuckle.aspnetcore.swaggerui-6.6.2.txt"
+      "sourceFile": "~/.nuget/packages/swashbuckle.aspnetcore.swaggerui/10.2.3/swashbuckle.aspnetcore.swaggerui.nuspec",
+      "outputFile": "compliance/third-party-licenses/nuget-swashbuckle.aspnetcore.swaggerui-10.2.3.txt"
     },
     {
       "ecosystem": "nuget",

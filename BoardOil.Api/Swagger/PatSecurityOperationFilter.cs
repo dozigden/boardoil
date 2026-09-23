@@ -1,8 +1,8 @@
+using System.Text.Json.Nodes;
 using BoardOil.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace BoardOil.Api.Swagger;
@@ -33,7 +33,7 @@ internal sealed class PatSecurityOperationFilter : IOperationFilter
         }
 
         operation.Security ??= [];
-        AddSecurityRequirement(operation, JwtSchemeName);
+        AddSecurityRequirement(operation, context.Document, JwtSchemeName);
 
         if (pathString.StartsWithSegments("/api/auth/access-tokens", StringComparison.OrdinalIgnoreCase))
         {
@@ -44,8 +44,9 @@ internal sealed class PatSecurityOperationFilter : IOperationFilter
         var httpMethod = context.ApiDescription.HttpMethod ?? HttpMethods.Get;
         var requiredScope = PatApiScopeRules.GetRequiredScope(httpMethod, pathString);
 
-        AddSecurityRequirement(operation, PatSchemeName);
-        operation.Extensions["x-pat-scopes"] = new OpenApiArray { new OpenApiString(requiredScope) };
+        AddSecurityRequirement(operation, context.Document, PatSchemeName);
+        operation.Extensions ??= new Dictionary<string, IOpenApiExtension>();
+        operation.Extensions["x-pat-scopes"] = new JsonNodeExtension(new JsonArray(requiredScope));
 
         var notes = new List<string>
         {
@@ -66,21 +67,12 @@ internal sealed class PatSecurityOperationFilter : IOperationFilter
         return $"/{trimmed}";
     }
 
-    private static void AddSecurityRequirement(OpenApiOperation operation, string schemeName)
+    private static void AddSecurityRequirement(OpenApiOperation operation, OpenApiDocument document, string schemeName)
     {
         operation.Security ??= [];
         operation.Security.Add(new OpenApiSecurityRequirement
         {
-            [
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = schemeName
-                    }
-                }
-            ] = Array.Empty<string>()
+            [new OpenApiSecuritySchemeReference(schemeName, document)] = []
         });
     }
 

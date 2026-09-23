@@ -16,7 +16,7 @@ using BoardOil.Services.DependencyInjection;
 using BoardOil.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.FileProviders;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configuration);
