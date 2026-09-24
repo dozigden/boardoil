@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-09-24T18:07:01.649Z",
+  "generatedAtUtc": "2026-09-24T18:16:15.553Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -527,56 +527,29 @@
     {
       "ecosystem": "npm",
       "packageName": "@vue/devtools-api",
-      "version": "7.7.10",
+      "version": "8.2.1",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/devtools-api/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-api-7.7.10.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "@vue/devtools-api",
-      "version": "8.2.1",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/vue-router/node_modules/@vue/devtools-api/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-api-8.2.1.txt"
+      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-api.txt"
     },
     {
       "ecosystem": "npm",
       "packageName": "@vue/devtools-kit",
-      "version": "7.7.10",
+      "version": "8.2.1",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/devtools-kit/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-kit-7.7.10.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "@vue/devtools-kit",
-      "version": "8.2.1",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/vue-router/node_modules/@vue/devtools-kit/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-kit-8.2.1.txt"
+      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-kit.txt"
     },
     {
       "ecosystem": "npm",
       "packageName": "@vue/devtools-shared",
-      "version": "7.7.10",
+      "version": "8.2.1",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/devtools-shared/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-shared-7.7.10.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "@vue/devtools-shared",
-      "version": "8.2.1",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/vue-router/node_modules/@vue/devtools-shared/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-shared-8.2.1.txt"
+      "outputFile": "compliance/third-party-licenses/npm-vue-devtools-shared.txt"
     },
     {
       "ecosystem": "npm",
@@ -697,15 +670,6 @@
     },
     {
       "ecosystem": "npm",
-      "packageName": "copy-anything",
-      "version": "4.0.5",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/copy-anything/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-copy-anything.txt"
-    },
-    {
-      "ecosystem": "npm",
       "packageName": "csstype",
       "version": "3.2.3",
       "declaredLicence": "MIT",
@@ -796,15 +760,6 @@
     },
     {
       "ecosystem": "npm",
-      "packageName": "is-what",
-      "version": "5.5.0",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/is-what/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-is-what.txt"
-    },
-    {
-      "ecosystem": "npm",
       "packageName": "jsesc",
       "version": "3.1.0",
       "declaredLicence": "MIT",
@@ -865,15 +820,6 @@
       "sourceType": "package",
       "sourceFile": "node_modules/marked/LICENSE.md",
       "outputFile": "compliance/third-party-licenses/npm-marked.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "mitt",
-      "version": "3.0.1",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/mitt/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-mitt.txt"
     },
     {
       "ecosystem": "npm",
@@ -941,20 +887,11 @@
     {
       "ecosystem": "npm",
       "packageName": "perfect-debounce",
-      "version": "1.0.0",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/perfect-debounce/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-perfect-debounce-1.0.0.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "perfect-debounce",
       "version": "2.1.0",
       "declaredLicence": "MIT",
       "sourceType": "package",
-      "sourceFile": "node_modules/vue-router/node_modules/perfect-debounce/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-perfect-debounce-2.1.0.txt"
+      "sourceFile": "node_modules/perfect-debounce/LICENSE",
+      "outputFile": "compliance/third-party-licenses/npm-perfect-debounce.txt"
     },
     {
       "ecosystem": "npm",
@@ -977,7 +914,7 @@
     {
       "ecosystem": "npm",
       "packageName": "pinia",
-      "version": "3.0.4",
+      "version": "4.0.3",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/pinia/LICENSE",
@@ -1183,15 +1120,6 @@
     },
     {
       "ecosystem": "npm",
-      "packageName": "rfdc",
-      "version": "1.4.1",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/rfdc/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-rfdc.txt"
-    },
-    {
-      "ecosystem": "npm",
       "packageName": "rope-sequence",
       "version": "1.3.4",
       "declaredLicence": "MIT",
@@ -1225,24 +1153,6 @@
       "sourceType": "package",
       "sourceFile": "node_modules/source-map-js/LICENSE",
       "outputFile": "compliance/third-party-licenses/npm-source-map-js.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "speakingurl",
-      "version": "14.0.1",
-      "declaredLicence": "BSD-3-Clause",
-      "sourceType": "package",
-      "sourceFile": "node_modules/speakingurl/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-speakingurl.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "superjson",
-      "version": "2.2.6",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/superjson/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-superjson.txt"
     },
     {
       "ecosystem": "npm",
