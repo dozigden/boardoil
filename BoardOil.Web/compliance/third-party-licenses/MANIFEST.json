@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-09-24T18:16:15.553Z",
+  "generatedAtUtc": "2026-09-24T18:50:32.540Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -13,30 +13,12 @@
     },
     {
       "ecosystem": "npm",
-      "packageName": "@babel/generator",
-      "version": "8.0.0",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/@babel/generator/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-babel-generator.txt"
-    },
-    {
-      "ecosystem": "npm",
       "packageName": "@babel/helper-string-parser",
       "version": "7.29.7",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@babel/helper-string-parser/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-babel-helper-string-parser-7.29.7.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "@babel/helper-string-parser",
-      "version": "8.0.0",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/@babel/generator/node_modules/@babel/helper-string-parser/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-babel-helper-string-parser-8.0.0.txt"
+      "outputFile": "compliance/third-party-licenses/npm-babel-helper-string-parser.txt"
     },
     {
       "ecosystem": "npm",
@@ -45,16 +27,7 @@
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@babel/helper-validator-identifier/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-babel-helper-validator-identifier-7.29.7.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "@babel/helper-validator-identifier",
-      "version": "8.0.4",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/@babel/generator/node_modules/@babel/helper-validator-identifier/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-babel-helper-validator-identifier-8.0.4.txt"
+      "outputFile": "compliance/third-party-licenses/npm-babel-helper-validator-identifier.txt"
     },
     {
       "ecosystem": "npm",
@@ -63,16 +36,7 @@
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@babel/parser/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-babel-parser-7.29.8.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "@babel/parser",
-      "version": "8.0.4",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/@babel/generator/node_modules/@babel/parser/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-babel-parser-8.0.4.txt"
+      "outputFile": "compliance/third-party-licenses/npm-babel-parser.txt"
     },
     {
       "ecosystem": "npm",
@@ -81,16 +45,7 @@
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@babel/types/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-babel-types-7.29.8.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "@babel/types",
-      "version": "8.0.4",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/@babel/generator/node_modules/@babel/types/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-babel-types-8.0.4.txt"
+      "outputFile": "compliance/third-party-licenses/npm-babel-types.txt"
     },
     {
       "ecosystem": "npm",
@@ -167,7 +122,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@lucide/vue",
-      "version": "1.38.0",
+      "version": "1.47.0",
       "declaredLicence": "ISC",
       "sourceType": "package",
       "sourceFile": "node_modules/@lucide/vue/LICENSE",
@@ -176,7 +131,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@microsoft/signalr",
-      "version": "10.0.0",
+      "version": "10.0.11",
       "declaredLicence": "MIT",
       "sourceType": "manual",
       "sourceFile": "compliance/third-party-licenses-manual/npm-microsoft-signalr.txt",
@@ -472,15 +427,6 @@
     },
     {
       "ecosystem": "npm",
-      "packageName": "@types/jsesc",
-      "version": "2.5.1",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/@types/jsesc/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-types-jsesc.txt"
-    },
-    {
-      "ecosystem": "npm",
       "packageName": "@vue-macros/common",
       "version": "3.1.4",
       "declaredLicence": "MIT",
@@ -491,7 +437,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@vue/compiler-core",
-      "version": "3.5.40",
+      "version": "3.5.43",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/compiler-core/LICENSE",
@@ -500,7 +446,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@vue/compiler-dom",
-      "version": "3.5.40",
+      "version": "3.5.43",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/compiler-dom/LICENSE",
@@ -509,7 +455,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@vue/compiler-sfc",
-      "version": "3.5.40",
+      "version": "3.5.43",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/compiler-sfc/LICENSE",
@@ -518,7 +464,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@vue/compiler-ssr",
-      "version": "3.5.40",
+      "version": "3.5.43",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/compiler-ssr/LICENSE",
@@ -554,7 +500,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@vue/reactivity",
-      "version": "3.5.40",
+      "version": "3.5.43",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/reactivity/LICENSE",
@@ -563,7 +509,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@vue/runtime-core",
-      "version": "3.5.40",
+      "version": "3.5.43",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/runtime-core/LICENSE",
@@ -572,7 +518,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@vue/runtime-dom",
-      "version": "3.5.40",
+      "version": "3.5.43",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/runtime-dom/LICENSE",
@@ -581,7 +527,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@vue/server-renderer",
-      "version": "3.5.40",
+      "version": "3.5.43",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/server-renderer/LICENSE",
@@ -590,7 +536,7 @@
     {
       "ecosystem": "npm",
       "packageName": "@vue/shared",
-      "version": "3.5.40",
+      "version": "3.5.43",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/@vue/shared/LICENSE",
@@ -760,24 +706,6 @@
     },
     {
       "ecosystem": "npm",
-      "packageName": "jsesc",
-      "version": "3.1.0",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/jsesc/LICENSE-MIT.txt",
-      "outputFile": "compliance/third-party-licenses/npm-jsesc.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "json5",
-      "version": "2.2.3",
-      "declaredLicence": "MIT",
-      "sourceType": "package",
-      "sourceFile": "node_modules/json5/LICENSE.md",
-      "outputFile": "compliance/third-party-licenses/npm-json5.txt"
-    },
-    {
-      "ecosystem": "npm",
       "packageName": "linkifyjs",
       "version": "4.3.3",
       "declaredLicence": "MIT",
@@ -941,7 +869,7 @@
     {
       "ecosystem": "npm",
       "packageName": "postcss",
-      "version": "8.5.25",
+      "version": "8.5.28",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/postcss/LICENSE",
@@ -1229,7 +1157,7 @@
     {
       "ecosystem": "npm",
       "packageName": "vue",
-      "version": "3.5.40",
+      "version": "3.5.43",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/vue/LICENSE",
@@ -1238,7 +1166,7 @@
     {
       "ecosystem": "npm",
       "packageName": "vue-router",
-      "version": "5.2.0",
+      "version": "5.3.1",
       "declaredLicence": "MIT",
       "sourceType": "package",
       "sourceFile": "node_modules/vue-router/LICENSE",
@@ -1288,15 +1216,6 @@
       "sourceType": "package",
       "sourceFile": "node_modules/ws/LICENSE",
       "outputFile": "compliance/third-party-licenses/npm-ws.txt"
-    },
-    {
-      "ecosystem": "npm",
-      "packageName": "yaml",
-      "version": "2.9.0",
-      "declaredLicence": "ISC",
-      "sourceType": "package",
-      "sourceFile": "node_modules/yaml/LICENSE",
-      "outputFile": "compliance/third-party-licenses/npm-yaml.txt"
     },
     {
       "ecosystem": "nuget",
