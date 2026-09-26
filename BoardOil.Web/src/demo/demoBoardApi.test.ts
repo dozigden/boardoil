@@ -257,7 +257,7 @@ describe('demoBoardApi', () => {
   it('archives and restores cards without a server', async () => {
     const api = createDemoBoardApi();
 
-    const archiveResult = await api.archiveCard(1, 101);
+    const archiveResult = await api.archiveCards(1, [101]);
     expect(archiveResult.ok).toBe(true);
 
     const archivedResult = await api.getArchivedCards(1);

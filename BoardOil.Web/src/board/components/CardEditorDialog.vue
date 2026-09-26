@@ -401,7 +401,7 @@ const { members: boardMembers, activeBoardId: boardMembersActiveBoardId } = stor
 const { cardTypes, activeBoardId: cardTypesActiveBoardId, systemCardType } = storeToRefs(cardTypeStore);
 const { slicks, activeBoardId: slicksActiveBoardId } = storeToRefs(slickStore);
 const { busy: commentsBusy } = storeToRefs(commentStore);
-const { createCard: createCardAction, saveCard: saveCardAction, deleteCard, archiveCard } = cardStore;
+const { createCard: createCardAction, saveCard: saveCardAction, deleteCards, archiveCards } = cardStore;
 const { loadCardComments, addCardComment: addCardCommentAction } = commentStore;
 const { loadMembers } = boardMembersStore;
 const { loadCardTypes } = cardTypeStore;
@@ -1120,7 +1120,7 @@ async function deleteEditingCard() {
     return;
   }
 
-  const deleted = await deleteCard(cardId);
+  const deleted = await deleteCards([cardId]);
   if (deleted) {
     await closeCardEditorWithoutPrompt();
   }
@@ -1142,7 +1142,7 @@ async function archiveEditingCard() {
     return;
   }
 
-  const archived = await archiveCard(cardId);
+  const archived = await archiveCards([cardId]);
   if (archived) {
     await closeCardEditorWithoutPrompt();
   }

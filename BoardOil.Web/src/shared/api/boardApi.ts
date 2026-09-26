@@ -29,7 +29,7 @@ import type {
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
-import { deleteJson, getBinary, getBlob, getEnvelope, patchData, postData, postFormData, postJson, putBinary, putData } from './http';
+import { deleteJson, getBinary, getBlob, getEnvelope, patchData, postData, postFormData, putBinary, putData } from './http';
 
 export type BoardApi = ReturnType<typeof createHttpBoardApi>;
 export type BoardExportPackage = {
@@ -295,10 +295,6 @@ function createHttpBoardApi() {
     return patchData<Card[]>(`/api/boards/${boardId}/cards/edit`, request);
   }
 
-  async function deleteCard(boardId: number, cardId: number): Promise<Result<void, AppError>> {
-    return deleteJson(`/api/boards/${boardId}/cards/${cardId}`);
-  }
-
   async function deleteCards(boardId: number, cardIds: number[]): Promise<Result<DeleteCardsSummary, AppError>> {
     return postData<DeleteCardsSummary>(`/api/boards/${boardId}/cards/delete`, { cardIds });
   }
@@ -314,10 +310,6 @@ function createHttpBoardApi() {
 
   async function createCardComment(boardId: number, cardId: number, text: string): Promise<Result<CardComment, AppError>> {
     return postData<CardComment>(`/api/boards/${boardId}/cards/${cardId}/comments`, { text });
-  }
-
-  async function archiveCard(boardId: number, cardId: number): Promise<Result<void, AppError>> {
-    return postJson(`/api/boards/${boardId}/cards/${cardId}/archive`, {});
   }
 
   async function archiveCards(boardId: number, cardIds: number[]): Promise<Result<ArchiveCardsSummary, AppError>> {
@@ -537,11 +529,9 @@ function createHttpBoardApi() {
     moveCard,
     transferCard,
     editCards,
-    deleteCard,
     deleteCards,
     getCardComments,
     createCardComment,
-    archiveCard,
     archiveCards,
     unarchiveCard,
     getArchivedCards,

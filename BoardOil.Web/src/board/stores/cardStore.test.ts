@@ -22,9 +22,7 @@ const api = {
   moveCard: vi.fn(),
   transferCard: vi.fn(),
   editCards: vi.fn(),
-  deleteCard: vi.fn(),
   deleteCards: vi.fn(),
-  archiveCard: vi.fn(),
   archiveCards: vi.fn()
 };
 
@@ -72,9 +70,10 @@ describe('cardStore', () => {
     ]));
     await thumbnailStore.loadBoard(1, true);
     await attachmentStore.open(boardId, cardId, archived);
-    api.deleteCard.mockResolvedValueOnce(ok(undefined));
+    api.deleteCards.mockResolvedValueOnce(ok({ boardId: 1, requestedCount: 1, deletedCount: 1 }));
 
-    expect(await store.deleteCard(101)).toBe(true);
+    expect(await store.deleteCards([101])).toBe(true);
+    expect(api.deleteCards).toHaveBeenCalledWith(1, [101]);
 
     expect(store.getCardById(101)).toBeNull();
     expect(thumbnailStore.getForCard(101)).toBeNull();
@@ -662,15 +661,15 @@ describe('cardStore', () => {
     expect(store.activeBoardId).toBe(2);
   });
 
-  it('archiveCard removes card from active board cache', async () => {
+  it('archiveCards removes a single card from active board cache', async () => {
     const store = useCardStore();
     store.replaceBoardCards(1, makeBoard().columns);
-    api.archiveCard.mockResolvedValue(ok(undefined));
+    api.archiveCards.mockResolvedValue(ok({ boardId: 1, requestedCount: 1, archivedCount: 1 }));
 
-    const archived = await store.archiveCard(101);
+    const archived = await store.archiveCards([101]);
 
     expect(archived).toBe(true);
-    expect(api.archiveCard).toHaveBeenCalledWith(1, 101);
+    expect(api.archiveCards).toHaveBeenCalledWith(1, [101]);
     expect(store.getCardById(101)).toBeNull();
     expect(store.getCardsForColumn(1)).toHaveLength(0);
   });

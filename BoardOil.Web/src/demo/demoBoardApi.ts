@@ -383,15 +383,6 @@ const demoBoardApi: BoardApi = {
     return ok(editedCards);
   },
 
-  async deleteCard(boardId, cardId) {
-    if (boardId !== DemoBoardId) {
-      return notFound('Board not found.');
-    }
-
-    deleteCardInternal(cardId);
-    return ok(undefined);
-  },
-
   async deleteCards(boardId, cardIds) {
     if (boardId !== DemoBoardId) {
       return notFound('Board not found.');
@@ -434,15 +425,6 @@ const demoBoardApi: BoardApi = {
     const card = findCard(cardId)!.card;
     card.cardUpdatedUtc = postedAtUtc;
     return ok(clone(comment));
-  },
-
-  async archiveCard(boardId, cardId) {
-    if (boardId !== DemoBoardId) {
-      return notFound('Board not found.');
-    }
-
-    archiveCardInternal(cardId);
-    return ok(undefined);
   },
 
   async archiveCards(boardId, cardIds) {

@@ -107,21 +107,6 @@ export const useCardStore = defineStore('card', () => {
     return true;
   }
 
-  async function deleteCard(cardId: number) {
-    const boardId = activeBoardId.value;
-    const result = await runBusy(() => api.deleteCard(boardId, cardId), { boardId });
-    if (!result.ok) {
-      return false;
-    }
-
-    if (activeBoardId.value !== boardId) {
-      return false;
-    }
-
-    removeCard(cardId);
-    return true;
-  }
-
   async function transferCard(
     cardId: number,
     destinationBoardId: number,
@@ -164,21 +149,6 @@ export const useCardStore = defineStore('card', () => {
 
     removeCards(uniqueCardIds);
 
-    return true;
-  }
-
-  async function archiveCard(cardId: number) {
-    const boardId = activeBoardId.value;
-    const result = await runBusy(() => api.archiveCard(boardId, cardId), { boardId });
-    if (!result.ok) {
-      return false;
-    }
-
-    if (activeBoardId.value !== boardId) {
-      return false;
-    }
-
-    removeCard(cardId);
     return true;
   }
 
@@ -525,9 +495,7 @@ export const useCardStore = defineStore('card', () => {
     createCard,
     saveCard,
     transferCard,
-    deleteCard,
     deleteCards,
-    archiveCard,
     archiveCards,
     bulkMoveCards,
     bulkEditCards,

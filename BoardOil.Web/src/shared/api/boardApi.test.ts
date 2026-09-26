@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import { createBoardApi } from './boardApi';
-import { getBinary, getEnvelope, postData, postFormData, postJson, putData } from './http';
+import { getBinary, getEnvelope, postData, postFormData, putData } from './http';
 
 vi.mock('./http', () => ({
   deleteJson: vi.fn(),
@@ -10,7 +10,6 @@ vi.mock('./http', () => ({
   getEnvelope: vi.fn(),
   patchData: vi.fn(),
   postData: vi.fn(),
-  postJson: vi.fn(),
   postFormData: vi.fn(),
   putData: vi.fn()
 }));
@@ -661,16 +660,6 @@ describe('boardApi archived cards', () => {
 
     expect(result.error.kind).toBe('api');
     expect(result.error.message).toBe('Missing data');
-  });
-
-  it('archives a card via archive endpoint', async () => {
-    vi.mocked(postJson).mockResolvedValue(ok(undefined));
-
-    const api = createBoardApi();
-    const result = await api.archiveCard(7, 33);
-
-    expect(result.ok).toBe(true);
-    expect(postJson).toHaveBeenCalledWith('/api/boards/7/cards/33/archive', {});
   });
 
   it('archives cards in bulk and returns summary payload', async () => {
