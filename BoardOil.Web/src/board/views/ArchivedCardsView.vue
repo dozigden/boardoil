@@ -98,14 +98,12 @@ import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import Tag from '../components/Tag.vue';
 import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 import { useCardStore } from '../stores/cardStore';
-import { useCardAttachmentThumbnailStore } from '../stores/cardAttachmentThumbnailStore';
 
 const PageLimit = 25;
 
 const api = createBoardApi();
 const boardStore = useBoardStore();
 const cardStore = useCardStore();
-const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
 const route = useRoute();
 const router = useRouter();
 const { currentBoardId, board } = storeToRefs(boardStore);
@@ -312,8 +310,7 @@ async function unarchiveSelectedCard() {
       return;
     }
 
-    cardStore.upsertCard(result.data);
-    await cardAttachmentThumbnailStore.refreshCards(boardId, [result.data.id]);
+    await cardStore.applyCreatedCard(result.data);
     closeDetailModal();
     await loadArchivedCards();
   } finally {

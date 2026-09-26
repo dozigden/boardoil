@@ -169,18 +169,13 @@ export const useCardStore = defineStore('card', () => {
     return true;
   }
 
-  async function bulkMoveCards(
+  function bulkMoveCards(
     cardIds: number[],
     targetColumnId: number,
     targetCardId: number | null
   ) {
-    const uniqueCardIds = [...new Set(cardIds)];
-    if (uniqueCardIds.length === 0) {
-      return true;
-    }
-
     return bulkEditCards(
-      uniqueCardIds,
+      cardIds,
       {
         moveTargetColumnId: targetColumnId,
         moveTargetCardId: targetCardId
