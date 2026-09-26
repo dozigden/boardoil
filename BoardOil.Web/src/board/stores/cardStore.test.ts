@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { watch } from 'vue';
 import { useCardStore } from './cardStore';
 import { useSlickStore } from './slickStore';
 import { useAttachmentStore } from './attachmentStore';
@@ -78,6 +79,80 @@ describe('cardStore', () => {
     expect(store.getCardById(101)).toBeNull();
     expect(thumbnailStore.getForCard(101)).toBeNull();
     expect(attachmentStore.items).toEqual(clearsAttachments ? [] : [attachment]);
+  });
+
+  it('upserts a collection across columns without mutating the previous state', () => {
+    const store = useCardStore();
+    const board = makeBoard();
+    const seed = board.columns[0].cards[0];
+    board.columns[1].cards.push({ ...seed, id: 201, boardColumnId: 2 });
+    store.replaceBoardCards(1, board.columns);
+    const previousCards = store.cardsById;
+    const previousColumns = store.cardIdsByColumnId;
+    const slickStore = useSlickStore();
+    slickStore.activeBoardId = 1;
+    const slick = makeSlick();
+    const cards = [
+      { ...seed, id: 102, boardColumnId: 2, sortKey: 'C' },
+      { ...seed, boardColumnId: 2, sortKey: 'A', slick },
+      { ...seed, id: 201, boardColumnId: 1, sortKey: 'B' }
+    ];
+
+    store.upsertCards(cards);
+
+    expect(store.getCardsForColumn(1).map(card => card.id)).toEqual([201]);
+    expect(store.getCardsForColumn(2).map(card => card.id)).toEqual([101, 102]);
+    expect(store.getCardById(101)?.slick).toEqual(slick);
+    expect(slickStore.slicks).toEqual([slick]);
+    expect(previousCards[101].boardColumnId).toBe(1);
+    expect(previousCards[102]).toBeUndefined();
+    expect(previousColumns).toEqual({ 1: [101], 2: [201] });
+    cards[0].tagNames.push('changed outside store');
+    expect(store.getCardById(102)?.tagNames).toEqual([]);
+  });
+
+  it.each(['deleteCards', 'archiveCards'] as const)('%s publishes one batch and cleans up each removed card', async operation => {
+    const store = useCardStore();
+    const board = makeBoard();
+    const seed = board.columns[0].cards[0];
+    board.columns[1].cards.push(
+      { ...seed, id: 201, boardColumnId: 2 },
+      { ...seed, id: 202, boardColumnId: 2, sortKey: 'Z' }
+    );
+    store.replaceBoardCards(1, board.columns);
+    const previousCards = store.cardsById;
+    const previousColumns = store.cardIdsByColumnId;
+    const thumbnailStore = useCardAttachmentThumbnailStore();
+    api.getCardThumbnails.mockResolvedValueOnce(ok([101, 201, 202].map(cardId => ({
+      cardId, attachmentId: cardId, originalFileName: 'image.png', hasThumbnail: true
+    }))));
+    await thumbnailStore.loadBoard(1, true);
+    const attachmentStore = useAttachmentStore();
+    api.getAttachments.mockResolvedValueOnce(ok({ items: [{
+      id: 201, originalFileName: 'image.png', contentType: 'image/png', byteLength: 3,
+      createdAtUtc: '2026-03-15T00:00:00Z', createdByUserId: null, hasThumbnail: true
+    }], maxUploadByteLength: 10 }));
+    await attachmentStore.open(1, 201, false);
+    api[operation].mockResolvedValueOnce(ok(undefined));
+    const onCardsChanged = vi.fn();
+    const onColumnsChanged = vi.fn();
+    const stopCards = watch(() => store.cardsById, onCardsChanged, { flush: 'sync' });
+    const stopColumns = watch(() => store.cardIdsByColumnId, onColumnsChanged, { flush: 'sync' });
+
+    expect(await store[operation]([101, 201])).toBe(true);
+    stopCards();
+    stopColumns();
+
+    expect(onCardsChanged).toHaveBeenCalledTimes(1);
+    expect(onColumnsChanged).toHaveBeenCalledTimes(1);
+    expect(Object.keys(store.cardsById)).toEqual(['202']);
+    expect(store.cardIdsByColumnId).toEqual({ 2: [202] });
+    expect(thumbnailStore.getForCard(101)).toBeNull();
+    expect(thumbnailStore.getForCard(201)).toBeNull();
+    expect(thumbnailStore.getForCard(202)?.attachmentId).toBe(202);
+    expect(attachmentStore.items).toEqual([]);
+    expect(Object.keys(previousCards)).toEqual(['101', '201', '202']);
+    expect(previousColumns).toEqual({ 1: [101], 2: [201, 202] });
   });
 
   it('creates a card incrementally without reloading board', async () => {
@@ -258,9 +333,18 @@ describe('cardStore', () => {
       { ...store.getCardById(102)!, boardColumnId: 2, sortKey: '00000000000000000005' }
     ]));
 
+    const onCardsChanged = vi.fn();
+    const onColumnsChanged = vi.fn();
+    const stopCards = watch(() => store.cardsById, onCardsChanged, { flush: 'sync' });
+    const stopColumns = watch(() => store.cardIdsByColumnId, onColumnsChanged, { flush: 'sync' });
+
     const moved = await store.bulkMoveCards([101, 102], 2, null);
+    stopCards();
+    stopColumns();
 
     expect(moved).toBe(true);
+    expect(onCardsChanged).toHaveBeenCalledTimes(1);
+    expect(onColumnsChanged).toHaveBeenCalledTimes(1);
     expect(api.editCards).toHaveBeenCalledWith(1, {
       cardIds: [101, 102],
       move: { targetColumnId: 2, positionAfterCardId: 201 },

@@ -162,9 +162,7 @@ export const useCardStore = defineStore('card', () => {
       return false;
     }
 
-    for (const cardId of uniqueCardIds) {
-      removeCard(cardId);
-    }
+    removeCards(uniqueCardIds);
 
     return true;
   }
@@ -196,9 +194,7 @@ export const useCardStore = defineStore('card', () => {
       return false;
     }
 
-    for (const cardId of uniqueCardIds) {
-      removeCard(cardId);
-    }
+    removeCards(uniqueCardIds);
 
     return true;
   }
@@ -282,9 +278,7 @@ export const useCardStore = defineStore('card', () => {
       return false;
     }
 
-    for (const card of result.data) {
-      upsertCard(card);
-    }
+    upsertCards(result.data);
 
     return true;
   }
@@ -347,35 +341,61 @@ export const useCardStore = defineStore('card', () => {
   }
 
   function upsertCard(card: Card) {
-    const nextCardsById: CardMap = {
-      ...cardsById.value,
-      [card.id]: cloneCard(card)
-    };
-    const nextCardIdsByColumnId = cloneCardIdsByColumn(cardIdsByColumnId.value);
+    upsertCards([card]);
+  }
 
-    removeCardIdFromColumns(nextCardIdsByColumnId, card.id);
-    const targetCardIds = nextCardIdsByColumnId[card.boardColumnId] ?? [];
-    targetCardIds.push(card.id);
-    nextCardIdsByColumnId[card.boardColumnId] = sortCardIds(targetCardIds, nextCardsById);
+  function upsertCards(cards: Card[]) {
+    if (cards.length === 0) {
+      return;
+    }
+
+    const nextCardsById = { ...cardsById.value };
+    const nextCardIdsByColumnId = unlinkCardsFromColumns(cardIdsByColumnId.value, new Set(cards.map(card => card.id)));
+    const targetColumnIds = new Set<number>();
+
+    for (const card of cards) {
+      nextCardsById[card.id] = cloneCard(card);
+      const targetCardIds = nextCardIdsByColumnId[card.boardColumnId] ?? [];
+      targetCardIds.push(card.id);
+      nextCardIdsByColumnId[card.boardColumnId] = targetCardIds;
+      targetColumnIds.add(card.boardColumnId);
+    }
+
+    for (const columnId of targetColumnIds) {
+      nextCardIdsByColumnId[columnId] = sortCardIds(nextCardIdsByColumnId[columnId], nextCardsById);
+    }
 
     cardsById.value = nextCardsById;
     cardIdsByColumnId.value = nextCardIdsByColumnId;
-    if (card.slick) {
-      slickStore.upsertSlick(activeBoardId.value, card.slick);
+    for (const card of cards) {
+      if (card.slick) {
+        slickStore.upsertSlick(activeBoardId.value, card.slick);
+      }
     }
   }
 
   function removeCard(cardId: number) {
-    const nextCardsById = { ...cardsById.value };
-    delete nextCardsById[cardId];
+    removeCards([cardId]);
+  }
 
-    const nextCardIdsByColumnId = cloneCardIdsByColumn(cardIdsByColumnId.value);
-    removeCardIdFromColumns(nextCardIdsByColumnId, cardId);
+  function removeCards(cardIds: number[]) {
+    if (cardIds.length === 0) {
+      return;
+    }
+
+    const nextCardsById = { ...cardsById.value };
+    for (const cardId of cardIds) {
+      delete nextCardsById[cardId];
+    }
+
+    const nextCardIdsByColumnId = unlinkCardsFromColumns(cardIdsByColumnId.value, new Set(cardIds));
 
     cardsById.value = nextCardsById;
     cardIdsByColumnId.value = nextCardIdsByColumnId;
-    cardAttachmentThumbnailStore.cardRemoved(activeBoardId.value, cardId);
-    attachmentStore.cardRemoved(activeBoardId.value, cardId);
+    for (const cardId of cardIds) {
+      cardAttachmentThumbnailStore.cardRemoved(activeBoardId.value, cardId);
+      attachmentStore.cardRemoved(activeBoardId.value, cardId);
+    }
   }
 
   function getCardById(cardId: number | null) {
@@ -514,7 +534,9 @@ export const useCardStore = defineStore('card', () => {
     moveCard,
     applyCreatedCard,
     upsertCard,
+    upsertCards,
     removeCard,
+    removeCards,
     getCardById,
     getCardsForColumn,
     removeTagFromCards,
@@ -534,25 +556,16 @@ function cloneCard(card: Card): Card {
   };
 }
 
-function cloneCardIdsByColumn(source: CardIdsByColumnMap): CardIdsByColumnMap {
+function unlinkCardsFromColumns(source: CardIdsByColumnMap, excludedCardIds: Set<number>): CardIdsByColumnMap {
   const next: CardIdsByColumnMap = {};
   for (const [columnId, cardIds] of Object.entries(source)) {
-    next[Number(columnId)] = [...cardIds];
+    const remainingCardIds = cardIds.filter(cardId => !excludedCardIds.has(cardId));
+    if (remainingCardIds.length > 0) {
+      next[Number(columnId)] = remainingCardIds;
+    }
   }
 
   return next;
-}
-
-function removeCardIdFromColumns(cardIdsByColumnId: CardIdsByColumnMap, cardId: number) {
-  for (const [columnId, cardIds] of Object.entries(cardIdsByColumnId)) {
-    const nextCardIds = cardIds.filter(existingCardId => existingCardId !== cardId);
-    if (nextCardIds.length === 0) {
-      delete cardIdsByColumnId[Number(columnId)];
-      continue;
-    }
-
-    cardIdsByColumnId[Number(columnId)] = nextCardIds;
-  }
 }
 
 function sortCardIds(cardIds: number[], cardsById: CardMap) {
