@@ -60,17 +60,44 @@ export const useBoardStore = defineStore('board', () => {
   const currentUserRole = computed(() => boardShell.value?.currentUserRole ?? null);
   const isCurrentUserOwner = computed(() => currentUserRole.value === 'Owner');
 
+  function forCurrentBoard<Args extends unknown[]>(
+    handler: (boardId: number, ...args: Args) => void | Promise<void>
+  ) {
+    return (boardId: number, ...args: Args) => {
+      if (currentBoardId.value !== boardId) {
+        return;
+      }
+
+      return handler(boardId, ...args);
+    };
+  }
+
+  const upsertRealtimeColumn = forCurrentBoard((_boardId, column: Column) => upsertColumn(column));
+  const upsertRealtimeCard = forCurrentBoard((_boardId, card: Card) => cardStore.upsertCard(card));
+
   const realtime = createBoardRealtime({
-    onColumnCreated: upsertColumnFromRealtime,
-    onColumnUpdated: upsertColumnFromRealtime,
-    onColumnDeleted: removeColumnFromRealtime,
-    onCardCreated: createCardFromRealtime,
-    onCardUpdated: upsertCardFromRealtime,
-    onCardDeleted: removeCardFromRealtime,
-    onCardMoved: upsertCardFromRealtime,
-    onCommentCreated: upsertCommentFromRealtime,
-    onAttachmentAdded: addAttachmentFromRealtime,
-    onAttachmentDeleted: deleteAttachmentFromRealtime,
+    onColumnCreated: upsertRealtimeColumn,
+    onColumnUpdated: upsertRealtimeColumn,
+    onColumnDeleted: forCurrentBoard((_boardId, columnId: number) => removeColumn(columnId)),
+    onCardCreated: forCurrentBoard(async (boardId, card: Card) => {
+      cardStore.upsertCard(card);
+      await cardAttachmentThumbnailStore.refreshCards(boardId, [card.id]);
+    }),
+    onCardUpdated: upsertRealtimeCard,
+    onCardDeleted: forCurrentBoard((boardId, cardId: number) => {
+      cardStore.removeCard(cardId);
+      attachmentStore.cardRemoved(boardId, cardId);
+    }),
+    onCardMoved: upsertRealtimeCard,
+    onCommentCreated: forCurrentBoard((_boardId, comment: CardComment) => commentStore.upsertCardComment(comment)),
+    onAttachmentAdded: forCurrentBoard((boardId, cardId: number, attachment: CardAttachment) => {
+      attachmentStore.added(boardId, cardId, attachment);
+      cardAttachmentThumbnailStore.attachmentAdded(boardId, cardId, attachment);
+    }),
+    onAttachmentDeleted: forCurrentBoard(async (boardId, cardId: number, attachmentId: number) => {
+      attachmentStore.removed(boardId, cardId, attachmentId);
+      await cardAttachmentThumbnailStore.attachmentDeleted(boardId, cardId, attachmentId);
+    }),
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
     onConnectionWarning: message => {
       feedback.clearToast();
@@ -87,22 +114,6 @@ export const useBoardStore = defineStore('board', () => {
   });
   let loadRequestVersion = 0;
   let initializeRequestVersion = 0;
-
-  function upsertColumnFromRealtime(boardId: number, column: Column) {
-    if (currentBoardId.value !== boardId) {
-      return;
-    }
-
-    upsertColumn(column);
-  }
-
-  function removeColumnFromRealtime(boardId: number, columnId: number) {
-    if (currentBoardId.value !== boardId) {
-      return;
-    }
-
-    removeColumn(columnId);
-  }
 
   async function resyncBoardFromRealtime(boardId: number) {
     if (currentBoardId.value !== boardId) {
@@ -121,58 +132,6 @@ export const useBoardStore = defineStore('board', () => {
 
     await attachmentStore.reload();
     await systemInfoMessageStore.load(true);
-  }
-
-  function upsertCardFromRealtime(boardId: number, card: Card) {
-    if (currentBoardId.value !== boardId) {
-      return;
-    }
-
-    cardStore.upsertCard(card);
-  }
-
-  async function createCardFromRealtime(boardId: number, card: Card) {
-    if (currentBoardId.value !== boardId) {
-      return;
-    }
-
-    cardStore.upsertCard(card);
-    await cardAttachmentThumbnailStore.refreshCards(boardId, [card.id]);
-  }
-
-  function removeCardFromRealtime(boardId: number, cardId: number) {
-    if (currentBoardId.value !== boardId) {
-      return;
-    }
-
-    cardStore.removeCard(cardId);
-    attachmentStore.cardRemoved(boardId, cardId);
-  }
-
-  function addAttachmentFromRealtime(boardId: number, cardId: number, attachment: CardAttachment) {
-    if (currentBoardId.value !== boardId) {
-      return;
-    }
-
-    attachmentStore.added(boardId, cardId, attachment);
-    cardAttachmentThumbnailStore.attachmentAdded(boardId, cardId, attachment);
-  }
-
-  async function deleteAttachmentFromRealtime(boardId: number, cardId: number, attachmentId: number) {
-    if (currentBoardId.value !== boardId) {
-      return;
-    }
-
-    attachmentStore.removed(boardId, cardId, attachmentId);
-    await cardAttachmentThumbnailStore.attachmentDeleted(boardId, cardId, attachmentId);
-  }
-
-  function upsertCommentFromRealtime(boardId: number, comment: CardComment) {
-    if (currentBoardId.value !== boardId) {
-      return;
-    }
-
-    commentStore.upsertCardComment(comment);
   }
 
   async function loadBoardCatalogues(boardId: number) {
