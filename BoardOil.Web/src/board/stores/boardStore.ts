@@ -32,7 +32,7 @@ export const useBoardStore = defineStore('board', () => {
   const boardShell = ref<BoardShell | null>(null);
   const busy = ref(false);
   const isLoadingBoard = ref(false);
-  const currentBoardId = ref<number | null>(null);
+  const currentBoardId = computed(() => boardShell.value?.id ?? null);
   const feedback = useUiFeedbackStore();
   const cardStore = useCardStore();
   const cardTypeStore = useCardTypeStore();
@@ -194,7 +194,6 @@ export const useBoardStore = defineStore('board', () => {
 
     const sortedBoard = sortBoard(result.data);
     void cardAttachmentThumbnailStore.loadBoard(boardId, sortedBoard.cardAttachmentThumbnailsEnabled);
-    currentBoardId.value = boardId;
     boardShell.value = stripBoardCards(sortedBoard);
     cardStore.replaceBoardCards(boardId, sortedBoard.columns);
     commentStore.dispose();
@@ -324,7 +323,6 @@ export const useBoardStore = defineStore('board', () => {
     attachmentStore.clear();
     cardAttachmentThumbnailStore.clear();
     boardShell.value = null;
-    currentBoardId.value = null;
     cardStore.dispose();
     commentStore.dispose();
     feedback.clearWarning();
