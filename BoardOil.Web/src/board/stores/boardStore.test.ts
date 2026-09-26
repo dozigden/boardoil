@@ -7,7 +7,7 @@ import { useSlickStore } from './slickStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 import type { AppError } from '../../shared/types/appError';
-import type { Board, Card, Column, Tag } from '../../shared/types/boardTypes';
+import type { Board, Card, CardType, Column, Slick, Tag } from '../../shared/types/boardTypes';
 import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
@@ -139,6 +139,68 @@ describe('boardStore', () => {
     expect(initialized).toBe(false);
     expect(store.board).toBeNull();
     expect(store.currentBoardId).toBeNull();
+  });
+
+  it.each(['dispose', 'failed initialization', 'failed resync'])('clears all board catalogues after %s', async trigger => {
+    const store = useBoardStore();
+    const cardTypeStore = useCardTypeStore();
+    const tagStore = useTagStore();
+    const slickStore = useSlickStore();
+    const catalogues = makeCatalogues();
+    api.getCardTypes.mockResolvedValueOnce(ok(catalogues.cardTypes));
+    api.getTags.mockResolvedValueOnce(ok(catalogues.tags));
+    api.getSlicks.mockResolvedValueOnce(ok(catalogues.slicks));
+    await store.initialize(1);
+    expect(cardTypeStore.cardTypes).toHaveLength(1);
+    expect(tagStore.tags).toHaveLength(1);
+    expect(slickStore.slicks).toHaveLength(1);
+
+    if (trigger === 'dispose') {
+      await store.dispose();
+    } else {
+      api.getBoard.mockResolvedValueOnce(err({ kind: 'api', message: 'Board unavailable.' }));
+      if (trigger === 'failed initialization') {
+        await store.initialize(2);
+      } else {
+        await realtimeHandlers!.onResync(1);
+      }
+    }
+
+    expect(store.currentBoardId).toBeNull();
+    expect(cardTypeStore.cardTypes).toEqual([]);
+    expect(tagStore.tags).toEqual([]);
+    expect(slickStore.slicks).toEqual([]);
+    expect(cardTypeStore.activeBoardId).toBeNull();
+    expect(tagStore.activeBoardId).toBeNull();
+    expect(slickStore.activeBoardId).toBeNull();
+  });
+
+  it('ignores catalogue responses that arrive after board disposal', async () => {
+    const store = useBoardStore();
+    const pendingCardTypes = deferred<Result<CardType[], AppError>>();
+    const pendingTags = deferred<Result<Tag[], AppError>>();
+    const pendingSlicks = deferred<Result<Slick[], AppError>>();
+    api.getCardTypes.mockReturnValueOnce(pendingCardTypes.promise);
+    api.getTags.mockReturnValueOnce(pendingTags.promise);
+    api.getSlicks.mockReturnValueOnce(pendingSlicks.promise);
+
+    const initialization = store.initialize(1);
+    await vi.waitFor(() => expect(api.getSlicks).toHaveBeenCalledWith(1));
+    await store.dispose();
+    const catalogues = makeCatalogues();
+    pendingCardTypes.resolve(ok(catalogues.cardTypes));
+    pendingTags.resolve(ok(catalogues.tags));
+    pendingSlicks.resolve(ok(catalogues.slicks));
+
+    expect(await initialization).toBe(false);
+    expect(store.currentBoardId).toBeNull();
+    expect(useCardTypeStore().cardTypes).toEqual([]);
+    expect(useTagStore().tags).toEqual([]);
+    expect(useSlickStore().slicks).toEqual([]);
+    expect(useCardTypeStore().activeBoardId).toBeNull();
+    expect(useTagStore().activeBoardId).toBeNull();
+    expect(useSlickStore().activeBoardId).toBeNull();
+    expect(realtime.connect).not.toHaveBeenCalled();
   });
 
   it('ignores stale load response when board switches quickly', async () => {
@@ -457,6 +519,22 @@ describe('boardStore', () => {
     expect(feedback.warningMessage).toBe('Realtime connection lost. Attempting to reconnect…');
   });
 });
+
+function makeCatalogues() {
+  const definition = {
+    id: 1,
+    name: 'Example',
+    styleName: 'presets' as const,
+    stylePropertiesJson: '{"presetIndex":1}',
+    createdAtUtc: '2026-03-15T00:00:00Z',
+    updatedAtUtc: '2026-03-15T00:00:00Z'
+  };
+  return {
+    cardTypes: [{ ...definition, emoji: null, isSystem: false }],
+    tags: [{ ...definition, emoji: null }],
+    slicks: [definition]
+  };
+}
 
 function makeBoard(id = 1, name = 'Board'): Board {
   return {

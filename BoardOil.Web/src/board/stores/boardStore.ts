@@ -325,6 +325,9 @@ export const useBoardStore = defineStore('board', () => {
     boardShell.value = null;
     cardStore.dispose();
     commentStore.dispose();
+    cardTypeStore.dispose();
+    tagStore.dispose();
+    slickStore.dispose();
     feedback.clearWarning();
   }
 

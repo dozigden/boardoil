@@ -18,7 +18,6 @@ import ConfirmDialogHost from './shared/components/ConfirmDialogHost.vue';
 import UiFeedbackToast from './shared/components/UiFeedbackToast.vue';
 import { useBoardCatalogueStore } from './shared/stores/boardCatalogueStore';
 import { useBoardStore } from './board/stores/boardStore';
-import { useTagStore } from './board/stores/tagStore';
 import { useAuthStore } from './shared/stores/authStore';
 import { useUserProfileImageStore } from './shared/stores/userProfileImageStore';
 import { useThemeStore } from './shared/stores/themeStore';
@@ -37,7 +36,6 @@ import { getPageTitle } from './site/components/appHeaderNavigation';
 
 const boardStore = useBoardStore();
 const boardCatalogueStore = useBoardCatalogueStore();
-const tagStore = useTagStore();
 const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
 const themeStore = useThemeStore();
@@ -75,7 +73,6 @@ onUnmounted(async () => {
   themeStore.dispose();
   await boardStore.dispose();
   boardCatalogueStore.dispose();
-  tagStore.dispose();
 });
 
 watch(
@@ -91,7 +88,6 @@ watch(
 
     await boardStore.dispose();
     boardCatalogueStore.dispose();
-    tagStore.dispose();
     userProfileImageStore.reset();
   }
 );
