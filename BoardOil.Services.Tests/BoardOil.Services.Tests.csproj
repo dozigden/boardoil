@@ -24,4 +24,8 @@
     <ProjectReference Include="..\BoardOil.Ef\BoardOil.Ef.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="../test-data/card-checklist-counts.json" Link="card-checklist-counts.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

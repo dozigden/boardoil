@@ -1,5 +1,6 @@
 import type { BoardApi } from '../shared/api/boardApi';
 import { defaultBoardAttachmentInventoryQuery, type CardAttachment } from '../shared/types/attachmentTypes';
+import { getMarkdownChecklistCounts } from './markdownChecklistCounts';
 import type {
   ArchivedCard,
   Board,
@@ -279,6 +280,8 @@ const demoBoardApi: BoardApi = {
       assignedUserImageRelativePath: null,
       title,
       description: '',
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       externalUrl: null,
       sortKey: createLeadingCardSortKey(column),
       tags: [],
@@ -581,6 +584,11 @@ const demoBoardApi: BoardApi = {
 
 function applyCardEdit(card: Card, model: CardEditModel, cardType: CardType) {
   card.title = model.title.trim();
+  if (card.description !== model.description) {
+    const counts = getMarkdownChecklistCounts(model.description);
+    card.completedChecklistItemCount = counts.completed;
+    card.totalChecklistItemCount = counts.total;
+  }
   card.description = model.description;
   card.externalUrl = model.externalUrl;
   card.cardTypeId = cardType.id;
@@ -874,6 +882,8 @@ function createSeedState(): DemoState {
     const selectedTags = tagIds.map(tagId => tags.find(tag => tag.id === tagId)!).filter(Boolean);
     const assignedMember = members.find(member => member.userId === options.assignedUserId);
     const slick = slicks.find(candidate => candidate.id === options.slickId);
+    const description = options.description ?? `Explore this card to see BoardOil's markdown editor, tags, assignments, and workflow controls.`;
+    const counts = getMarkdownChecklistCounts(description);
     return {
       id,
       boardColumnId: columnId,
@@ -887,7 +897,9 @@ function createSeedState(): DemoState {
       assignedUserDisplayName: assignedMember?.displayName ?? null,
       assignedUserImageRelativePath: null,
       title,
-      description: options.description ?? `Explore this card to see BoardOil's markdown editor, tags, assignments, and workflow controls.`,
+      description,
+      completedChecklistItemCount: counts.completed,
+      totalChecklistItemCount: counts.total,
       externalUrl: null,
       sortKey: '',
       tags: selectedTags.map(toCardTag),
@@ -943,7 +955,7 @@ function createSeedState(): DemoState {
       },
       {
         id: 3,
-        title: 'In progress',
+        title: 'In counts',
         sortKey: '003000',
         createdAtUtc: timestamp,
         updatedAtUtc: timestamp,

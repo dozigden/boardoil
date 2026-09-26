@@ -37,7 +37,9 @@ public sealed record CardDto(
     int? SlickId = null,
     string? SlickName = null,
     string? ExternalUrl = null,
-    SlickDto? Slick = null);
+    SlickDto? Slick = null,
+    int CompletedChecklistItemCount = 0,
+    int TotalChecklistItemCount = 0);
 
 public sealed record ArchivedCardDto(
     int Id,

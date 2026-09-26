@@ -111,6 +111,7 @@ public sealed class CreateCardService(
             CardCreatedUtc = createdAtUtc,
             CardUpdatedUtc = createdAtUtc,
         };
+        CardChecklistCounter.Refresh(card);
         CardTagMutation.ReplaceTags(card, tags);
 
         var orderPlan = insertionOrderPlanner.CreateLeadingPlan(card, cards);

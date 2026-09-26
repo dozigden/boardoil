@@ -221,6 +221,8 @@ function makeCard(overrides: {
       emoji: null
     })),
     tagNames: overrides.tagNames,
+    completedChecklistItemCount: 0,
+    totalChecklistItemCount: 0,
     cardCreatedUtc: '2026-04-03T00:00:00Z',
     cardUpdatedUtc: '2026-04-03T00:00:00Z'
   };

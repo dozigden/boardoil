@@ -269,6 +269,8 @@ describe('boardRealtime', () => {
       sortKey: 'A',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-07-31T12:00:00Z',
       cardUpdatedUtc: '2026-07-31T12:01:00Z'
     };

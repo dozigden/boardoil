@@ -201,6 +201,7 @@ public sealed class CardArchiveService(
             CardCreatedUtc = snapshotCard.CardCreatedUtc,
             CardUpdatedUtc = snapshotCard.CardUpdatedUtc,
         };
+        CardChecklistCounter.Refresh(restoredCard);
         ReplaceTags(restoredCard, resolvedTags);
 
         var orderPlan = insertionOrderPlanner.CreateLeadingPlan(restoredCard, cardsInColumn);

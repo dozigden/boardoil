@@ -21,6 +21,8 @@ public sealed class CardTransferServiceTests : TestBaseDb
         var source = CreateBoard("Source").AddColumn("Todo").AddCard("Move me", "Description").Build();
         var destination = CreateBoard("Destination").AddColumn("Doing").AddCard("Existing").Build();
         var card = source.GetCard("Move me");
+        card.CompletedChecklistItemCount = 1;
+        card.TotalChecklistItemCount = 2;
         var originalEntityId = card.Id;
         var originalBoardCardId = card.BoardCardId;
         var originalCreatedUtc = card.CardCreatedUtc;
@@ -62,6 +64,8 @@ public sealed class CardTransferServiceTests : TestBaseDb
 
         // Assert
         Assert.True(result.Success);
+        Assert.Equal(1, result.Data!.Card.CompletedChecklistItemCount);
+        Assert.Equal(2, result.Data.Card.TotalChecklistItemCount);
         Assert.Equal(destination.BoardId, result.Data!.BoardId);
         Assert.Equal(2, result.Data.Card.Id);
         Assert.Equal(ActorUserId, result.Data.Card.AssignedUserId);

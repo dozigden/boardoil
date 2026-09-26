@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using BoardOil.Services.Card;
 using BoardOil.Data.Abstractions.Entities;
 using Xunit;
@@ -12,6 +13,8 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         // Arrange
         var capturedAtUtc = new DateTime(2026, 4, 19, 16, 0, 0, DateTimeKind.Utc);
         var card = BuildCardEntity();
+        card.CompletedChecklistItemCount = 2;
+        card.TotalChecklistItemCount = 3;
 
         // Act
         var snapshotJson = ArchivedCardSnapshotSerialiser.CreateSnapshotJson(99, card, capturedAtUtc);
@@ -27,6 +30,8 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(99, knownPayload.Payload.BoardId);
         Assert.Equal(card.BoardCardId, knownPayload.Payload.OriginalCardId);
         Assert.Equal(card.Title, knownPayload.Payload.Title);
+        Assert.Equal(2, knownPayload.Payload.CompletedChecklistItemCount);
+        Assert.Equal(3, knownPayload.Payload.TotalChecklistItemCount);
         Assert.Equal(card.ExternalUrl, knownPayload.Payload.ExternalUrl);
         Assert.Equal(card.CardCreatedUtc, knownPayload.Payload.CreatedAtUtc);
         Assert.Equal(card.CardUpdatedUtc, knownPayload.Payload.UpdatedAtUtc);
@@ -58,13 +63,25 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal("Snapshot version is newer than this runtime supports.", error);
     }
 
-    [Fact]
-    public void TryBuildCurrentCardDto_WhenSnapshotIsKnown_ShouldReturnCardDto()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TryBuildCurrentCardDto_WhenSnapshotIsKnown_ShouldReturnCardDto(bool legacySnapshot)
     {
         // Arrange
         var capturedAtUtc = new DateTime(2026, 4, 19, 16, 0, 0, DateTimeKind.Utc);
         var card = BuildCardEntity();
+        card.CompletedChecklistItemCount = 2;
+        card.TotalChecklistItemCount = 3;
         var snapshotJson = ArchivedCardSnapshotSerialiser.CreateSnapshotJson(99, card, capturedAtUtc);
+        if (legacySnapshot)
+        {
+            var json = JsonNode.Parse(snapshotJson)!;
+            var payload = json["payload"]!.AsObject();
+            payload.Remove("completedChecklistItemCount");
+            payload.Remove("totalChecklistItemCount");
+            snapshotJson = json.ToJsonString();
+        }
 
         // Act
         var parsed = ArchivedCardSnapshotSerialiser.TryBuildCurrentCardDto(snapshotJson, out var parsedCard, out var error);
@@ -76,6 +93,8 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.Id, parsedCard!.Id);
         Assert.Equal(card.Title, parsedCard.Title);
         Assert.Equal(card.Description, parsedCard.Description);
+        Assert.Equal(legacySnapshot ? 0 : 2, parsedCard.CompletedChecklistItemCount);
+        Assert.Equal(legacySnapshot ? 0 : 3, parsedCard.TotalChecklistItemCount);
         Assert.Equal(card.ExternalUrl, parsedCard.ExternalUrl);
         Assert.Equal(card.CardCreatedUtc, parsedCard.CardCreatedUtc);
         Assert.Equal(card.CardUpdatedUtc, parsedCard.CardUpdatedUtc);

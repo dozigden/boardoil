@@ -178,6 +178,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000000',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-03-15T00:00:00Z',
       cardUpdatedUtc: '2026-03-15T00:00:00Z'
     };
@@ -232,6 +234,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000000',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-03-15T00:00:00Z',
       cardUpdatedUtc: '2026-03-15T00:00:00Z'
     };
@@ -261,6 +265,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000001',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-03-15T00:00:00Z',
       cardUpdatedUtc: '2026-03-15T00:01:00Z'
     };
@@ -306,6 +312,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000002',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-03-15T00:00:00Z',
       cardUpdatedUtc: '2026-03-15T00:00:00Z'
     });
@@ -322,6 +330,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000003',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-03-15T00:00:00Z',
       cardUpdatedUtc: '2026-03-15T00:00:00Z'
     });
@@ -457,6 +467,8 @@ describe('cardStore', () => {
         sortKey: '00000000000000000010',
         tags: [],
         tagNames: [],
+        completedChecklistItemCount: 0,
+        totalChecklistItemCount: 0,
         cardCreatedUtc: '2026-03-15T00:00:00Z',
         cardUpdatedUtc: '2026-03-15T00:00:00Z'
       },
@@ -473,6 +485,8 @@ describe('cardStore', () => {
         sortKey: '00000000000000000020',
         tags: [],
         tagNames: [],
+        completedChecklistItemCount: 0,
+        totalChecklistItemCount: 0,
         cardCreatedUtc: '2026-03-15T00:00:00Z',
         cardUpdatedUtc: '2026-03-15T00:00:00Z'
       }
@@ -492,6 +506,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000015',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-03-15T00:00:00Z',
       cardUpdatedUtc: '2026-03-15T00:01:00Z'
     };
@@ -519,6 +535,8 @@ describe('cardStore', () => {
         sortKey: '00000000000000000010',
         tags: [],
         tagNames: [],
+        completedChecklistItemCount: 0,
+        totalChecklistItemCount: 0,
         cardCreatedUtc: '2026-03-15T00:00:00Z',
         cardUpdatedUtc: '2026-03-15T00:00:00Z'
       }
@@ -538,6 +556,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000005',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-03-15T00:00:00Z',
       cardUpdatedUtc: '2026-03-15T00:01:00Z'
     };
@@ -578,6 +598,8 @@ describe('cardStore', () => {
         }
       ],
       tagNames: ['Bug'],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-03-15T00:00:00Z',
       cardUpdatedUtc: '2026-03-15T00:02:00Z'
     };
@@ -690,6 +712,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000002',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-03-15T00:00:00Z',
       cardUpdatedUtc: '2026-03-15T00:00:00Z'
     });
@@ -725,6 +749,8 @@ describe('cardStore', () => {
       sortKey: '00000000000000000002',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-03-15T00:00:00Z',
       cardUpdatedUtc: '2026-03-15T00:00:00Z'
     });
@@ -855,6 +881,8 @@ function makeBoard(id = 1, name = 'Board'): Board {
             sortKey: '00000000000000000001',
             tags: [],
             tagNames: [],
+            completedChecklistItemCount: 0,
+            totalChecklistItemCount: 0,
             cardCreatedUtc: '2026-03-15T00:00:00Z',
             cardUpdatedUtc: '2026-03-15T00:00:00Z'
           }

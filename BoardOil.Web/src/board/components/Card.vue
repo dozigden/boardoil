@@ -12,10 +12,10 @@
         'card--drop-after': dropIndicator === 'after',
         'card--static': !interactive,
         'card--has-thumbnail': cardThumbnailUrl,
-        'card--has-task-progress': taskProgress.total > 0
+        'card--has-checklist-counts': checklistCounts.total > 0
       }
     ]"
-    :style="[cardStyle, taskProgressStyle]"
+    :style="[cardStyle, checklistCountsStyle]"
     :draggable="cardDraggable"
     :role="cardRole"
     :aria-checked="cardAriaChecked"
@@ -64,10 +64,10 @@
       </div>
     </div>
     <p
-      v-if="taskProgress.total > 0"
-      class="card-task-progress"
-      :aria-label="`${taskProgress.completed} of ${taskProgress.total} tasks complete`"
-    >{{ taskProgress.completed }}/{{ taskProgress.total }}</p>
+      v-if="checklistCounts.total > 0"
+      class="card-checklist-counts"
+      :aria-label="`${checklistCounts.completed} of ${checklistCounts.total} checklist items complete`"
+    >{{ checklistCounts.completed }}/{{ checklistCounts.total }}</p>
   </div>
 </template>
 
@@ -78,7 +78,6 @@ import type { CardAttachmentImageCandidate } from '../../shared/types/attachment
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useCardAttachmentThumbnailStore } from '../stores/cardAttachmentThumbnailStore';
 import { getCardSurfaceClassList, getCardSurfaceStyle } from '../../shared/utils/cardTypeStyles';
-import { getMarkdownTaskProgress } from '../../shared/utils/markdownTaskProgress';
 import { buildApiUrl } from '../../shared/api/config';
 import { useAttachmentThumbnail } from '../composables/useAttachmentThumbnail';
 import Tag from './Tag.vue';
@@ -114,9 +113,9 @@ const emit = defineEmits<{
 const cardTypeStore = useCardTypeStore();
 const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
 const isDragging = ref(false);
-const taskProgress = computed(() => getMarkdownTaskProgress(props.card.description));
-const taskProgressStyle = computed(() => ({
-  '--card-task-progress-space': `${String(taskProgress.value.completed).length + String(taskProgress.value.total).length + 2}ch`
+const checklistCounts = computed(() => ({ completed: props.card.completedChecklistItemCount, total: props.card.totalChecklistItemCount }));
+const checklistCountsStyle = computed(() => ({
+  '--card-checklist-counts-space': `${String(checklistCounts.value.completed).length + String(checklistCounts.value.total).length + 2}ch`
 }));
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId));
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
@@ -241,18 +240,18 @@ function handlePrimaryAction() {
   padding-right: calc(var(--card-thumbnail-width) + 0.45rem);
 }
 
-.card--has-task-progress:not(.card--has-thumbnail) .card-tags:last-child,
-.card--has-task-progress:not(.card--has-thumbnail) .card-assigned-to:last-child {
+.card--has-checklist-counts:not(.card--has-thumbnail) .card-tags:last-child,
+.card--has-checklist-counts:not(.card--has-thumbnail) .card-assigned-to:last-child {
   box-sizing: border-box;
-  padding-right: var(--card-task-progress-space);
+  padding-right: var(--card-checklist-counts-space);
 }
 
-.card--has-task-progress .card-header:last-child {
+.card--has-checklist-counts .card-header:last-child {
   min-height: 2.5rem;
 }
 
-.card--has-task-progress .card-header:last-child .card-id {
-  min-width: var(--card-task-progress-space);
+.card--has-checklist-counts .card-header:last-child .card-id {
+  min-width: var(--card-checklist-counts-space);
   text-align: right;
 }
 
@@ -353,7 +352,7 @@ function handlePrimaryAction() {
 }
 
 .card--has-thumbnail .card-id,
-.card--has-thumbnail .card-task-progress {
+.card--has-thumbnail .card-checklist-counts {
   text-shadow:
     -3px 0 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
     3px 0 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
@@ -377,7 +376,7 @@ function handlePrimaryAction() {
   margin-top: 0.4rem;
 }
 
-.card-task-progress {
+.card-checklist-counts {
   position: absolute;
   right: 0.6rem;
   bottom: 0.6rem;

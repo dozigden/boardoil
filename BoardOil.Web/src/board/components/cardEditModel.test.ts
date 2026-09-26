@@ -21,6 +21,8 @@ describe('card edit model', () => {
       sortKey: '0001',
       tags: [],
       tagNames: ['Feature', 'UI'],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-08-30T12:00:00Z',
       cardUpdatedUtc: '2026-08-30T12:30:00Z'
     };

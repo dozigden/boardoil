@@ -211,6 +211,8 @@ describe('boardApi saveCard', () => {
       sortKey: '00000000000000000001',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-04-17T00:00:00Z',
       cardUpdatedUtc: '2026-04-17T00:00:00Z'
     };
@@ -263,6 +265,8 @@ describe('boardApi createCard', () => {
       sortKey: '0001',
       tags: [],
       tagNames: ['Feature'],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-08-30T12:00:00Z',
       cardUpdatedUtc: '2026-08-30T12:00:00Z'
     };
@@ -307,6 +311,8 @@ describe('boardApi transferCard', () => {
         sortKey: '00000000000000000001',
         tags: [],
         tagNames: [],
+        completedChecklistItemCount: 0,
+        totalChecklistItemCount: 0,
         cardCreatedUtc: '2026-08-28T00:00:00Z',
         cardUpdatedUtc: '2026-08-28T00:01:00Z'
       }
@@ -628,6 +634,8 @@ describe('boardApi archived cards', () => {
           sortKey: 'A',
           tags: [],
           tagNames: ['Urgent'],
+          completedChecklistItemCount: 0,
+          totalChecklistItemCount: 0,
           cardCreatedUtc: '2026-04-18T18:00:00Z',
           cardUpdatedUtc: '2026-04-19T18:00:00Z'
         }
@@ -717,6 +725,8 @@ describe('boardApi archived cards', () => {
       sortKey: 'A',
       tags: [],
       tagNames: [],
+      completedChecklistItemCount: 0,
+      totalChecklistItemCount: 0,
       cardCreatedUtc: '2026-04-26T12:00:00Z',
       cardUpdatedUtc: '2026-04-26T12:00:00Z'
     }));

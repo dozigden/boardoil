@@ -6,6 +6,24 @@ describe('demoBoardApi', () => {
     resetDemoData();
   });
 
+  it('stores task counts on description writes and retains them on moves', async () => {
+    const api = createDemoBoardApi();
+    const model = {
+      title: 'Checklist', description: '- [x] Done\n- [ ] Open', boardColumnId: 1,
+      cardTypeId: 1, assignedUserId: null, slickName: null, externalUrl: null, tagNames: []
+    };
+    const created = await api.createCard(1, model);
+    expect(created.ok).toBe(true);
+    if (!created.ok) { return; }
+    expect(created.data).toMatchObject({ completedChecklistItemCount: 1, totalChecklistItemCount: 2 });
+
+    const moved = await api.moveCard(1, created.data.id, 3, null);
+    expect(moved).toMatchObject({ ok: true, data: { completedChecklistItemCount: 1, totalChecklistItemCount: 2 } });
+
+    const saved = await api.saveCard(1, created.data.id, { ...model, description: 'No tasks', boardColumnId: 3 });
+    expect(saved).toMatchObject({ ok: true, data: { completedChecklistItemCount: 0, totalChecklistItemCount: 0 } });
+  });
+
   it('exposes three seeded image attachments without attachment mutations', async () => {
     const api = createDemoBoardApi();
 

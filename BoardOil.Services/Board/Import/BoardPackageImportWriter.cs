@@ -162,6 +162,8 @@ public sealed class BoardPackageImportWriter(
                     CardUpdatedUtc = cardUpdatedUtc,
                 };
 
+                CardChecklistCounter.Refresh(createdCard);
+
                 foreach (var importedTagName in importedCard.TagNames)
                 {
                     var normalisedTagName = BoardPackageImportNormalisation.NormaliseTagName(importedTagName);

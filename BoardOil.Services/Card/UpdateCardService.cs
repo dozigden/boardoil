@@ -79,6 +79,7 @@ public sealed class UpdateCardService(
 
         var updatedTitle = request.Title.Trim();
         var updatedDescription = request.Description;
+        var descriptionChanged = updatedDescription != existingCard.Description;
         var updatedExternalUrl = CardExternalUrl.Normalise(request.ExternalUrl);
         var updatedTags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames, _tagRepository, styleDefaultService);
 
@@ -118,7 +119,7 @@ public sealed class UpdateCardService(
         var tagsChanged = planner.TagsChanged(existingCard, updatedTags);
         var cardTypeChanged = selectedCardType!.Id != existingCard.CardTypeId;
         var metadataChanged = updatedTitle != existingCard.Title
-            || updatedDescription != existingCard.Description
+            || descriptionChanged
             || updatedExternalUrl != existingCard.ExternalUrl
             || tagsChanged
             || cardTypeChanged
@@ -129,6 +130,10 @@ public sealed class UpdateCardService(
             existingCard.CardUpdatedUtc = DateTime.UtcNow;
             existingCard.Title = updatedTitle;
             existingCard.Description = updatedDescription;
+            if (descriptionChanged)
+            {
+                CardChecklistCounter.Refresh(existingCard);
+            }
             existingCard.ExternalUrl = updatedExternalUrl;
             if (tagsChanged)
             {

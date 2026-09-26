@@ -3,6 +3,7 @@ using System;
 using BoardOil.Ef;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoardOil.Ef.Migrations
 {
     [DbContext(typeof(BoardOilDbContext))]
-    partial class BoardOilDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260926144813_AddCardTaskProgress")]
+    partial class AddCardTaskProgress
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
@@ -340,7 +343,7 @@ namespace BoardOil.Ef.Migrations
                     b.Property<DateTime>("CardUpdatedUtc")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("CompletedChecklistItemCount")
+                    b.Property<int>("CompletedTaskCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(0);
@@ -369,7 +372,7 @@ namespace BoardOil.Ef.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("TotalChecklistItemCount")
+                    b.Property<int>("TotalTaskCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(0);

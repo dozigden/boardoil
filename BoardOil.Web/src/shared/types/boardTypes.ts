@@ -42,6 +42,8 @@ export type Card = {
   assignedUserImageRelativePath?: string | null;
   title: string;
   description: string;
+  completedChecklistItemCount: number;
+  totalChecklistItemCount: number;
   externalUrl: string | null;
   sortKey: string;
   tags: CardTag[];

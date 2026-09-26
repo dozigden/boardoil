@@ -67,6 +67,8 @@ function makeCard(id: number, title: string, cardTypeId: number): Card {
     sortKey: String(id).padStart(3, '0'),
     tags: [],
     tagNames: [],
+    completedChecklistItemCount: 0,
+    totalChecklistItemCount: 0,
     cardCreatedUtc: '2026-07-13T00:00:00Z',
     cardUpdatedUtc: '2026-07-13T00:00:00Z'
   };

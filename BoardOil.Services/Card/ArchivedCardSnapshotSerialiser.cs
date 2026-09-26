@@ -47,7 +47,9 @@ public static class ArchivedCardSnapshotSerialiser
             null,
             card.Slick?.Name,
             card.ExternalUrl,
-            card.AssignedUser?.Email);
+            card.AssignedUser?.Email,
+            card.CompletedChecklistItemCount,
+            card.TotalChecklistItemCount);
 
         var envelope = new ArchivedCardSnapshotEnvelopeV1(
             SchemaName,
@@ -184,7 +186,9 @@ public static class ArchivedCardSnapshotSerialiser
             null,
             payload.SlickId,
             payload.SlickName,
-            payload.ExternalUrl);
+            payload.ExternalUrl,
+            CompletedChecklistItemCount: payload.CompletedChecklistItemCount,
+            TotalChecklistItemCount: payload.TotalChecklistItemCount);
 
         snapshot = new ArchivedCardSnapshotCurrentDto(
             card,
@@ -222,7 +226,9 @@ public sealed record ArchivedCardSnapshotV1Payload(
     int? SlickId = null,
     string? SlickName = null,
     string? ExternalUrl = null,
-    string? AssignedUserEmail = null);
+    string? AssignedUserEmail = null,
+    int CompletedChecklistItemCount = 0,
+    int TotalChecklistItemCount = 0);
 
 public sealed record ArchivedCardSnapshotCommentV1Payload(
     string Text,

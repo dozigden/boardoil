@@ -30,7 +30,7 @@ public sealed class BoardApiCardIntegrationTests
         // Act
         var createdCardResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/cards",
-            new CreateCardRequest(createdColumnId, "Task A", "Desc", ["Bug", "Urgent"], SlickName: "New slick"));
+            new CreateCardRequest(createdColumnId, "Task A", "- [x] Done\n- [ ] Open", ["Bug", "Urgent"], SlickName: "New slick"));
         createdCardResponse.EnsureSuccessStatusCode();
         var createdCard = await createdCardResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions);
         using var createdCardJson = JsonDocument.Parse(await createdCardResponse.Content.ReadAsStringAsync());
@@ -52,6 +52,8 @@ public sealed class BoardApiCardIntegrationTests
         Assert.NotEqual(default, createdCard.Data.CardCreatedUtc);
         Assert.Equal(createdCard.Data.CardCreatedUtc, createdCard.Data.CardUpdatedUtc);
         var createdCardDataJson = createdCardJson.RootElement.GetProperty("data");
+        Assert.Equal(1, createdCardDataJson.GetProperty("completedChecklistItemCount").GetInt32());
+        Assert.Equal(2, createdCardDataJson.GetProperty("totalChecklistItemCount").GetInt32());
         Assert.True(createdCardDataJson.TryGetProperty("cardCreatedUtc", out _));
         Assert.True(createdCardDataJson.TryGetProperty("cardUpdatedUtc", out _));
         Assert.False(createdCardDataJson.TryGetProperty("createdAtUtc", out _));

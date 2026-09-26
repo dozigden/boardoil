@@ -16,6 +16,31 @@ namespace BoardOil.Services.Tests;
 
 public sealed class BoardImportServiceTests : TestBaseDb
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task ImportBoardPackageAsync_ShouldCalculateChecklistCountsFromDescription(int schemaVersion)
+    {
+        var manifest = BoardPackageContract.CreateManifest("0.3.0") with { SchemaVersion = schemaVersion };
+        var payload = new BoardPackageBoardDto("Checklist import", null,
+            [new BoardPackageCardTypeDto("Story", null, true)], [],
+            [new BoardPackageColumnDto("Todo",
+                [new BoardPackageCardDto("Checklist", "- [x] Done\n- [ ] Open", "Story", [], Id: 1)])]);
+
+        var result = await ResolveService<IBoardPackageImportService>().ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackage(manifest, payload)), ActorUserId);
+
+        Assert.True(result.Success, result.Message);
+        var returned = Assert.Single(Assert.Single(result.Data!.Columns).Cards);
+        Assert.Equal(1, returned.CompletedChecklistItemCount);
+        Assert.Equal(2, returned.TotalChecklistItemCount);
+        var stored = await DbContextForAssert.Cards.SingleAsync(x => x.BoardId == result.Data.Id);
+        Assert.Equal(1, stored.CompletedChecklistItemCount);
+        Assert.Equal(2, stored.TotalChecklistItemCount);
+    }
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [Fact]

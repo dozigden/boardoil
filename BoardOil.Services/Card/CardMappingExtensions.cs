@@ -35,7 +35,9 @@ public static class CardMappingExtensions
             card.SlickId,
             card.Slick?.Name,
             card.ExternalUrl,
-            card.Slick?.ToSlickDto());
+            card.Slick?.ToSlickDto(),
+            card.CompletedChecklistItemCount,
+            card.TotalChecklistItemCount);
 
     public static CardDto WithAssignedUserImageRelativePath(this CardDto card, string? assignedUserImageRelativePath) =>
         card with

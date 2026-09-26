@@ -34,6 +34,11 @@ export class CardEditorPage {
     await expect(this.dialog()).toBeHidden();
   }
 
+  public async setDescriptionMarkdown(markdown: string) {
+    await this.toolbar().getByRole('button', { name: 'Switch to markdown text editor', exact: true }).click();
+    await this.dialog().getByRole('textbox', { name: 'Card description markdown', exact: true }).fill(markdown);
+  }
+
   public async openSlickPicker() {
     await this.dialog().getByTitle('Select slick', { exact: true }).click();
   }

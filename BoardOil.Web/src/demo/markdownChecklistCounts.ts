@@ -3,9 +3,9 @@ import { TaskItem } from '@tiptap/extension-list/task-item';
 import { TaskList } from '@tiptap/extension-list/task-list';
 import { MarkdownManager } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
-import { normaliseMarkdown } from './markdown';
+import { normaliseMarkdown } from '../shared/utils/markdown';
 
-// Reuse the editor's task syntax without mounting an editor for each board card.
+// The standalone demo calculates counts on description writes, like the server.
 const markdownParser = new MarkdownManager({
   extensions: [
     StarterKit.configure({ link: false }),
@@ -14,21 +14,21 @@ const markdownParser = new MarkdownManager({
   ]
 });
 
-export function getMarkdownTaskProgress(description: string): { completed: number; total: number } {
-  const progress = { completed: 0, total: 0 };
+export function getMarkdownChecklistCounts(description: string): { completed: number; total: number } {
+  const counts = { completed: 0, total: 0 };
   const document = markdownParser.parse(normaliseMarkdown(description));
 
-  function countTasks(node: JSONContent) {
+  function countChecklistItems(node: JSONContent) {
     if (node.type === 'taskItem') {
-      progress.total += 1;
+      counts.total += 1;
       if (node.attrs?.checked === true) {
-        progress.completed += 1;
+        counts.completed += 1;
       }
     }
 
-    node.content?.forEach(countTasks);
+    node.content?.forEach(countChecklistItems);
   }
 
-  countTasks(document);
-  return progress;
+  countChecklistItems(document);
+  return counts;
 }

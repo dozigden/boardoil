@@ -1,0 +1,590 @@
+[
+  {
+    "name": "empty",
+    "description": "",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "plain text",
+    "description": "No tasks [x] in prose",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "ordinary bullets",
+    "description": "- Ordinary\n- Another",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "mixed states",
+    "description": "- [ ] Open\n- [x] Done\n- [X] Also done",
+    "completed": 2,
+    "total": 3
+  },
+  {
+    "name": "alternate bullets",
+    "description": "* [x] Done\n* [ ] Open\n\n+ [x] Done",
+    "completed": 2,
+    "total": 3
+  },
+  {
+    "name": "bare markers",
+    "description": "[ ] Open\n[x] Done\n[X] Done",
+    "completed": 2,
+    "total": 3
+  },
+  {
+    "name": "bare no separator",
+    "description": "[x]Not a task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "missing separator",
+    "description": "- [x]Not a task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "empty task without separator",
+    "description": "- [ ]",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "empty task with separator",
+    "description": "- [ ] ",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "invalid state",
+    "description": "- [y] Invalid",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "nested tasks",
+    "description": "- [x] Parent\n  - [ ] Child\n  - [x] Child\n    - [ ] Grandchild",
+    "completed": 2,
+    "total": 4
+  },
+  {
+    "name": "one space nested task",
+    "description": "- [x] Parent\n - [ ] Child",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "nested after blank",
+    "description": "- [x] Parent\n\n    - [ ] Child",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "ordinary parent",
+    "description": "- Bullet\n  - [x] Child",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "ordered parent",
+    "description": "1. Parent\n   - [x] Child",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "ordered checkbox",
+    "description": "1. [x] Ordered",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "quoted tasks",
+    "description": "> - [x] Done\n> - [ ] Open",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "nested quote",
+    "description": "> > - [x] Done",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "quoted bare marker",
+    "description": "> [x] Not a task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "standalone indentation",
+    "description": "    - [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "standalone tab",
+    "description": "\t- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "paragraph indentation",
+    "description": "Paragraph\n    - [x] Continuation",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "indented code",
+    "description": "    Code sample\n    - [x] Code task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "code after blank",
+    "description": "    Code sample\n\n    - [x] Still code\n\n- [ ] Real",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "indented nested text",
+    "description": "- [x] Parent\n    Text\n    - [ ] Child",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "backtick fence",
+    "description": "```markdown\n- [x] Code\n[ ] Bare code\n```\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "tilde fence",
+    "description": "~~~\n- [x] Code\n~~~\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "unfinished fence",
+    "description": "```\n- [x] Code",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "long fence",
+    "description": "````\n```\n- [x] Code\n````\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "wrong closing fence",
+    "description": "```\n- [x] Code\n~~~\n- [ ] Still code",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "quoted fence",
+    "description": "> ```\n> - [x] Code\n> ```\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "leaving quoted fence",
+    "description": "> ```\n> - [x] Code\n\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "nested fence",
+    "description": "- [x] Parent\n  ```\n  - [x] Code\n  ```\n- [ ] Task",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "fence dedent",
+    "description": "- [x] Parent\n  ```\n  - [x] Code\n- [ ] Task",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "inline example",
+    "description": "Example: `- [x] Task`",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "escaped checkbox",
+    "description": "- \\[x] Escaped",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "escaped bullet",
+    "description": "\\- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "comment",
+    "description": "<!--\n- [x] Comment\n-->\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "html block",
+    "description": "<div>\n- [x] HTML\n</div>\n\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "pre block",
+    "description": "<pre>\n- [x] Code\n</pre>\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "line endings",
+    "description": "- [x] Done\r\n- [ ] Open",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "headings",
+    "description": "## Heading\n\n- [x] Done",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "thematic break",
+    "description": "---\n\n- [x] Done",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "quote inside code fence",
+    "description": "```\n> - [x] Code\n```\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "quote inside indented code",
+    "description": "    Code\n    > - [x] Code\n\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "quote inside comment",
+    "description": "<!--\n> - [x] Comment\n-->\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "nested quote inside quoted fence",
+    "description": "> ```\n> > - [x] Code\n> ```\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "blank marker with newline",
+    "description": "- [ ]\n",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "blank marker followed by task",
+    "description": "- [ ]\n- [x] Next",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "blank line in quote",
+    "description": "> - [x] Done\n>\n> - [ ] Open",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "multiword marker spaces",
+    "description": "-    [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "escaped stars",
+    "description": "\\* [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "bare nested",
+    "description": "- [x] Parent\n  [ ] Child",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "ordinary marker inside task",
+    "description": "- [x] Parent\n  - Bullet\n    - [ ] Child",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "list after paragraph",
+    "description": "Paragraph\n- Item\n  - [x] Child",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "spaced closing fence",
+    "description": "```\n- [x] Code\n```   \n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "backtick in fence info",
+    "description": "```invalid`info\n- [x] Task\n```",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "inline code across lines",
+    "description": "Example `\n- [x] Task\n`",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "html after paragraph",
+    "description": "Paragraph\n<div>\n- [x] Hidden\n</div>\n\n- [ ] Visible",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "standalone indented quote",
+    "description": "    > - [x] Code",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "inline HTML after paragraph",
+    "description": "Paragraph\n<span>\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "multiline HTML opening tag",
+    "description": "<div\n  class=\"sample\">\n- [x] HTML\n</div>\n\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "block HTML and text",
+    "description": "<div>text\n- [x] HTML\n\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "standalone inline HTML",
+    "description": "<span>\n- [x] HTML\n</span>\n\n- [ ] Task",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "autolink before task",
+    "description": "<https://example.com>\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "email autolink before task",
+    "description": "<user@example.com>\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "fence starts list item",
+    "description": "- ```\n  - [x] Code\n  ```\n\n- [ ] Real",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "ordered list starts fence",
+    "description": "1. ~~~\n   - [x] Code\n   ~~~\n\n- [ ] Real",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "comment starts list item",
+    "description": "- <!--\n  - [x] Comment\n  -->\n\n- [ ] Real",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "quote starts list item",
+    "description": "- > - [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "quote starts ordered item",
+    "description": "1. > - [x] Task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "underindented task after ordinary item",
+    "description": "- Bullet\n - [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "underindented bare task after ordinary item",
+    "description": "- Bullet\n [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "tab continuation in paragraph",
+    "description": "Paragraph\n\t- [x] Task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "tab continuation bare marker",
+    "description": "Paragraph\n\t[x] Task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "tab indented code",
+    "description": "\tCode\n\t- [x] Task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "tab nested task",
+    "description": "- Bullet\n\t- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "empty marker then heading",
+    "description": "- [ ]\n## Heading\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "empty marker then blank and heading",
+    "description": "- [ ]\n\n## Heading\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "empty marker then thematic break",
+    "description": "- [ ]\n***\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "empty marker then fence",
+    "description": "- [ ]\n```\nCode\n```\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "empty marker then HTML",
+    "description": "- [ ]\n<!-- comment -->\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "empty marker then ordinary item",
+    "description": "- [ ]\n- Plain\n- [x] Task",
+    "completed": 1,
+    "total": 2
+  },
+  {
+    "name": "empty marker then bare task",
+    "description": "- [ ]\n[x] Task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "lone tab under task item",
+    "description": "- [x] Parent\n\t- [x] Child",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "space and tab under task item",
+    "description": "- [x] Parent\n \t- [x] Child",
+    "completed": 2,
+    "total": 2
+  },
+  {
+    "name": "tab and space under task item",
+    "description": "- [x] Parent\n\t - [x] Child",
+    "completed": 2,
+    "total": 2
+  },
+  {
+    "name": "indented nested code after ordinary item",
+    "description": "- Bullet\n      Code\n      - [x] Task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "indented nested fence after ordinary item",
+    "description": "- Bullet\n      ```\n      - [x] Task\n      ```",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "deep standalone task after ordinary item",
+    "description": "- Bullet\n      - [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "empty marker then lazy paragraph",
+    "description": "- [ ]\nText\n- [x] Task",
+    "completed": 0,
+    "total": 0
+  },
+  {
+    "name": "empty marker then separate paragraph",
+    "description": "- [ ]\n\nText\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "empty marker then autolink",
+    "description": "- [ ]\n<https://example.com>\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "empty marker then separate autolink",
+    "description": "- [ ]\n\n<https://example.com>\n- [x] Task",
+    "completed": 1,
+    "total": 1
+  },
+  {
+    "name": "quoted fence starts bullet item",
+    "description": "- > ```\n  > - [x] Code\n  > ```\n\n- [ ] Real",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "HTML starts bullet item",
+    "description": "- <div>\n  - [x] HTML\n  </div>\n\n- [ ] Real",
+    "completed": 0,
+    "total": 1
+  },
+  {
+    "name": "inline HTML starts bullet item",
+    "description": "- <span>\n  - [x] HTML\n  </span>\n\n- [ ] Real",
+    "completed": 0,
+    "total": 1
+  }
+]
