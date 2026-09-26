@@ -1,6 +1,8 @@
 # Frontend Guidance
 
-This file documents the current frontend store pattern and behaviour conventions.
+This file documents frontend dependencies, UI behaviour, styling and API contract conventions.
+
+Read [Pinia Store Guidance](frontend-pinia.md) before adding or changing stores, their callers, or realtime integration. Store architecture and lifecycle guidance live there.
 
 ## Dependency Installation Policy
 
@@ -35,33 +37,8 @@ This file documents the current frontend store pattern and behaviour conventions
 - Fix a blocking dependency or explicitly agree a narrowly scoped exception before changing the gate. An audit-service failure calls for a retry once the service recovers, not a silent bypass. The gate has no automatic override.
 - Dependabot owns ongoing alerts. This gate does not run in ordinary CI, local builds or static demo publication, and does not scan NuGet or container OS packages.
 
-## Store Pattern
-
-BoardOil frontend state uses Pinia stores with a small set of focused stores:
-
-- `authStore`
-  - Session lifecycle, bootstrap state, role checks (`isAuthenticated`, `isAdmin`), csrf token setup.
-- `boardStore`
-  - Active board state, column/card operations, optimistic/incremental state updates, realtime integration.
-- `boardCatalogueStore`
-  - Board list retrieval and create operations for board selection/navigation context.
-- `tagStore`
-  - Tag catalogue load/create/update/delete and tag lookup helpers.
-- `uiFeedbackStore`
-  - User-facing error message state shared across stores/views.
-
-## Typical Data Flow
-
-1. View/component calls a store action.
-2. Store action calls typed API client (`createBoardApi`, `createAuthApi`, etc.).
-3. Store updates local state from API result.
-4. Store writes user-visible errors via `uiFeedbackStore` on failure.
-
 ## Behaviour Conventions
 
-- Keep actions explicit and predictable (load, create, update, delete, move).
-- Use shared `busy` flags for operation progress.
-- Clear feedback errors on successful operations.
 - Route guards and auth checks should remain centralised through store/router integration.
 - Prefer canonical route paths in the router. Do not add legacy/back-compat or convenience redirect/alias routes; 
 - Avoid introductory “wall of text” at the top of pages; interfaces should generally stand on their own unless short context is essential.
@@ -82,7 +59,6 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
   - chip/suggestion controls inside tag editors (`.tag-pill-remove`, `.card-tag-editor-suggestion`)
   - inline title edit trigger (`.card-title-button`)
 - Do not use `$event` in Vue templates. Bind named handlers (for example `@change="onRoleChange"`) and parse event details in script.
-- For delete operations where the request only needs identity, pass the primitive id (for example `userId`) instead of introducing single-field `*RemoveModel` types.
 - Do not use nested ternary expressions in frontend code. Prefer explicit `if`/`switch` branches or helper functions.
 
 ## Style Architecture Conventions
@@ -96,33 +72,9 @@ BoardOil frontend state uses Pinia stores with a small set of focused stores:
 - Keep manual styles (`solid`, `gradient`) as the only modes that emit inline color presentation from user-authored values.
 - If parsing fails, fall back to `auto` style with no properties.
 
-## Contract and Store Authority
-
-- Be explicit about which client store is authoritative for a given kind of data.
-- A denormalised field on an entity read model can exist for convenience without becoming the authoritative source for live rendering or mutation flows.
-- When backend contracts expose both:
-  - rich embedded read data for convenience
-  - and a separate catalogue/store with the same underlying metadata
-  document and preserve which one the UI should treat as authoritative.
-- Prefer this pattern when it avoids broad fan-out updates:
-  - integrations can consume rich embedded data in one hit
-  - the web app can still rely on a dedicated catalogue store for live shared metadata such as styling or labels that affect many entities at once
-- Keep full-update form/edit flows cheap:
-  - if writes remain full replacement updates, stores/components should be able to round-trip unchanged fields without projection-heavy conversion work
-  - avoid introducing client complexity just because a richer read model exists
-- For future entity/store design (not just tags), treat “authoritative source” and “convenience read shape” as separate design decisions and record both when adding new contracts.
-
 ## API Trust and Defensive Coding
-
-- `slickStore` owns the shared slick catalogue. Card read payloads embed a full `slick` definition; card responses and slick create/update responses use the same `upsertSlick` action to insert or replace definitions by ID. Card writes continue to use `slickName`.
 
 - Treat backend API contracts as authoritative for frontend read/write flows.
 - Do not add client-side fallback/normalization code that re-derives API fields “just in case” without a concrete, current failure mode.
 - If a guard is required, document the exact reason in code (what can fail, where it was observed) and keep the guard narrowly scoped.
 - Prefer removing speculative defensive code when it only adds complexity and duplicates backend guarantees.
-
-## Realtime Conventions
-
-- `boardStore` owns realtime connect/disconnect for board workspace views.
-- Realtime handlers apply incremental upserts/removals.
-- On resync events, reload board snapshot to recover consistency.
