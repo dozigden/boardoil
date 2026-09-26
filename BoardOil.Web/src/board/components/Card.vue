@@ -11,10 +11,11 @@
         'card--drop-before': dropIndicator === 'before',
         'card--drop-after': dropIndicator === 'after',
         'card--static': !interactive,
-        'card--has-thumbnail': cardThumbnailUrl
+        'card--has-thumbnail': cardThumbnailUrl,
+        'card--has-task-progress': taskProgress.total > 0
       }
     ]"
-    :style="cardStyle"
+    :style="[cardStyle, taskProgressStyle]"
     :draggable="cardDraggable"
     :role="cardRole"
     :aria-checked="cardAriaChecked"
@@ -50,7 +51,7 @@
           size="md"
           class="card-assigned-avatar"
         />
-        <span>{{ card.assignedUserDisplayName }}</span>
+        <span class="card-assigned-name" :title="card.assignedUserDisplayName">{{ card.assignedUserDisplayName }}</span>
       </p>
 
       <div v-if="card.tags.length > 0" class="card-tags tag-group" aria-label="Card tags">
@@ -62,6 +63,11 @@
         </Tag>
       </div>
     </div>
+    <p
+      v-if="taskProgress.total > 0"
+      class="card-task-progress"
+      :aria-label="`${taskProgress.completed} of ${taskProgress.total} tasks complete`"
+    >{{ taskProgress.completed }}/{{ taskProgress.total }}</p>
   </div>
 </template>
 
@@ -72,6 +78,7 @@ import type { CardAttachmentImageCandidate } from '../../shared/types/attachment
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useCardAttachmentThumbnailStore } from '../stores/cardAttachmentThumbnailStore';
 import { getCardSurfaceClassList, getCardSurfaceStyle } from '../../shared/utils/cardTypeStyles';
+import { getMarkdownTaskProgress } from '../../shared/utils/markdownTaskProgress';
 import { buildApiUrl } from '../../shared/api/config';
 import { useAttachmentThumbnail } from '../composables/useAttachmentThumbnail';
 import Tag from './Tag.vue';
@@ -107,6 +114,10 @@ const emit = defineEmits<{
 const cardTypeStore = useCardTypeStore();
 const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
 const isDragging = ref(false);
+const taskProgress = computed(() => getMarkdownTaskProgress(props.card.description));
+const taskProgressStyle = computed(() => ({
+  '--card-task-progress-space': `${String(taskProgress.value.completed).length + String(taskProgress.value.total).length + 2}ch`
+}));
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId));
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
 const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
@@ -230,6 +241,21 @@ function handlePrimaryAction() {
   padding-right: calc(var(--card-thumbnail-width) + 0.45rem);
 }
 
+.card--has-task-progress:not(.card--has-thumbnail) .card-tags:last-child,
+.card--has-task-progress:not(.card--has-thumbnail) .card-assigned-to:last-child {
+  box-sizing: border-box;
+  padding-right: var(--card-task-progress-space);
+}
+
+.card--has-task-progress .card-header:last-child {
+  min-height: 2.5rem;
+}
+
+.card--has-task-progress .card-header:last-child .card-id {
+  min-width: var(--card-task-progress-space);
+  text-align: right;
+}
+
 .card--selected {
   border-color: color-mix(in oklab, var(--bo-selection-accent) 76%, var(--bo-border-default));
   background: color-mix(in oklab, var(--bo-selection-accent) 10%, var(--bo-surface-base));
@@ -324,6 +350,10 @@ function handlePrimaryAction() {
   position: absolute;
   top: 0;
   right: 0;
+}
+
+.card--has-thumbnail .card-id,
+.card--has-thumbnail .card-task-progress {
   text-shadow:
     -3px 0 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
     3px 0 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
@@ -347,6 +377,18 @@ function handlePrimaryAction() {
   margin-top: 0.4rem;
 }
 
+.card-task-progress {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  z-index: 1;
+  margin: 0;
+  text-align: right;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
 .card-tags :deep(.tag) {
   max-width: 100%;
 }
@@ -363,6 +405,13 @@ function handlePrimaryAction() {
 
 .card-assigned-avatar {
   flex-shrink: 0;
+}
+
+.card-assigned-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 </style>
