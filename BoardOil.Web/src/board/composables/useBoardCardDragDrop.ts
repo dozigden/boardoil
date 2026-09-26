@@ -1,9 +1,7 @@
 import { ref, type ComputedRef, type Ref } from 'vue';
 import type { BoardColumn } from '../../shared/types/boardTypes';
 
-type StartDragOperation = (cardId: number, fromColumnId: number) => void;
-
-type DropCardOperation = (targetColumnId: number, targetCardId: number | null) => Promise<void>;
+type MoveCardOperation = (cardId: number, targetColumnId: number, targetCardId: number | null) => Promise<void>;
 type DropSelectedCardsOperation = (targetColumnId: number, targetCardId: number | null) => Promise<boolean>;
 type CrossColumnDropCallback = (cardId: number, fromColumnId: number, toColumnId: number) => void;
 
@@ -13,8 +11,7 @@ export function useBoardCardDragDrop(
   filteredColumns: ComputedRef<BoardColumn[]>,
   isCardSelectionMode: Ref<boolean>,
   selectedCardIds: Ref<number[]>,
-  startDrag: StartDragOperation,
-  dropCard: DropCardOperation,
+  moveCard: MoveCardOperation,
   dropSelectedCards: DropSelectedCardsOperation,
   onCrossColumnDrop?: CrossColumnDropCallback
 ) {
@@ -23,21 +20,13 @@ export function useBoardCardDragDrop(
   const activeDropPoint = ref<{ columnId: number; targetCardId: number | null } | null>(null);
 
   function onCardDragStart(cardId: number, fromColumnId: number) {
-    if (isCardSelectionMode.value) {
-      if (!selectedCardIds.value.includes(cardId)) {
-        return;
-      }
-
-      draggingCardId.value = cardId;
-      draggingFromColumnId.value = fromColumnId;
-      activeDropPoint.value = null;
+    if (isCardSelectionMode.value && !selectedCardIds.value.includes(cardId)) {
       return;
     }
 
     draggingCardId.value = cardId;
     draggingFromColumnId.value = fromColumnId;
     activeDropPoint.value = null;
-    startDrag(cardId, fromColumnId);
   }
 
   function onCardDragEnd() {
@@ -252,6 +241,10 @@ export function useBoardCardDragDrop(
 
   async function dropAt(columnId: number, targetCardId: number | null) {
     const movedCardId = draggingCardId.value;
+    if (movedCardId === null) {
+      return;
+    }
+
     const fromColumnId = draggingFromColumnId.value;
     try {
       if (isCardSelectionMode.value) {
@@ -259,8 +252,8 @@ export function useBoardCardDragDrop(
         return;
       }
 
-      await dropCard(columnId, targetCardId);
-      if (movedCardId !== null && fromColumnId !== null && fromColumnId !== columnId) {
+      await moveCard(movedCardId, columnId, targetCardId);
+      if (fromColumnId !== null && fromColumnId !== columnId) {
         onCrossColumnDrop?.(movedCardId, fromColumnId, columnId);
       }
     } finally {

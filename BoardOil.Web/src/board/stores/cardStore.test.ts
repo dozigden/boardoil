@@ -192,8 +192,7 @@ describe('cardStore', () => {
     };
     api.moveCard.mockResolvedValue(ok(moved));
 
-    store.startDrag(101, 1);
-    await store.dropCard(2, null);
+    await store.moveCard(101, 2, null);
 
     expect(store.getCardsForColumn(1)).toHaveLength(0);
     expect(store.getCardsForColumn(2).map(x => x.id)).toEqual([101]);
@@ -415,8 +414,7 @@ describe('cardStore', () => {
     };
     api.moveCard.mockResolvedValue(ok(moved));
 
-    store.startDrag(101, 1);
-    await store.dropCard(2, 202);
+    await store.moveCard(101, 2, 202);
 
     expect(api.moveCard).toHaveBeenCalledWith(1, 101, 2, 201);
   });
@@ -462,8 +460,7 @@ describe('cardStore', () => {
     };
     api.moveCard.mockResolvedValue(ok(moved));
 
-    store.startDrag(101, 1);
-    await store.dropCard(2, 201);
+    await store.moveCard(101, 2, 201);
 
     expect(api.moveCard).toHaveBeenCalledWith(1, 101, 2, null);
   });

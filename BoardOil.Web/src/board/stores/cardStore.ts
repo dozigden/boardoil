@@ -27,7 +27,6 @@ export const useCardStore = defineStore('card', () => {
   const attachmentStore = useAttachmentStore();
   const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
   const api = createBoardApi();
-  let dragState: { cardId: number; fromColumnId: number } | null = null;
 
   function replaceBoardCards(boardId: number, columns: BoardColumn[]) {
     const nextCardsById: CardMap = {};
@@ -44,7 +43,6 @@ export const useCardStore = defineStore('card', () => {
     activeBoardId.value = boardId;
     cardsById.value = nextCardsById;
     cardIdsByColumnId.value = nextCardIdsByColumnId;
-    dragState = null;
   }
 
   function dispose() {
@@ -52,7 +50,6 @@ export const useCardStore = defineStore('card', () => {
     cardsById.value = {};
     cardIdsByColumnId.value = {};
     busy.value = false;
-    dragState = null;
   }
 
   async function createCard(
@@ -313,25 +310,15 @@ export const useCardStore = defineStore('card', () => {
     return canonicalName;
   }
 
-  function startDrag(cardId: number, fromColumnId: number) {
-    dragState = { cardId, fromColumnId };
-  }
-
-  async function dropCard(
+  async function moveCard(
+    cardId: number,
     targetColumnId: number,
     targetCardId: number | null
   ) {
-    if (!dragState) {
-      return;
-    }
-
-    const movingCardId = dragState.cardId;
-    dragState = null;
-
     const positionAfterCardId = resolvePositionAfterCardId(
       cardsById.value,
       cardIdsByColumnId.value,
-      movingCardId,
+      cardId,
       targetColumnId,
       targetCardId
     );
@@ -341,7 +328,7 @@ export const useCardStore = defineStore('card', () => {
 
     const boardId = activeBoardId.value;
     const result = await runBusy(
-      () => api.moveCard(boardId, movingCardId, targetColumnId, positionAfterCardId),
+      () => api.moveCard(boardId, cardId, targetColumnId, positionAfterCardId),
       { boardId }
     );
     if (!result.ok) {
@@ -524,8 +511,7 @@ export const useCardStore = defineStore('card', () => {
     archiveCards,
     bulkMoveCards,
     bulkEditCards,
-    startDrag,
-    dropCard,
+    moveCard,
     applyCreatedCard,
     upsertCard,
     removeCard,

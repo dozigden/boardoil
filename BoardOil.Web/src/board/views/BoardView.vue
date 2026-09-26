@@ -247,7 +247,7 @@ const { board, currentBoardId } = storeToRefs(boardStore);
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { slicks } = storeToRefs(slickStore);
 const { tags } = storeToRefs(tagStore);
-const { createCard, startDrag, dropCard, archiveCards, bulkMoveCards, bulkEditCards, deleteCards } = cardStore;
+const { createCard, moveCard, archiveCards, bulkMoveCards, bulkEditCards, deleteCards } = cardStore;
 const { confirm } = useConfirm();
 const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
 const selectionGooStyle = createSelectionGooStyle();
@@ -336,8 +336,7 @@ const {
   filteredColumns,
   isCardSelectionMode,
   selectedCardIds,
-  startDrag,
-  dropCard,
+  moveCard,
   moveSelectedCardsByDropTarget,
   handleCrossColumnDrop
 );
