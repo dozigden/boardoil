@@ -44,7 +44,7 @@ describe('attachments', () => {
     pending.resolve(listing());
     await reload;
     expect(store.items).toEqual([attachment]);
-    store.removed(1, 1, attachment.id);
+    await store.removed(1, 1, attachment.id);
     expect(store.items).toEqual([]);
   });
 
@@ -64,8 +64,61 @@ describe('attachments', () => {
     await store.reload();
     expect(store.revision).toBe(addedRevision);
 
-    store.removed(1, 1, attachment.id);
+    await store.removed(1, 1, attachment.id);
     expect(store.revision).toBeGreaterThan(addedRevision);
+  });
+
+  it.each([
+    { context: 'no card open', openCardId: null },
+    { context: 'another card open', openCardId: 3 },
+    { context: 'the affected card open', openCardId: 2 }
+  ])('updates attachment thumbnails with $context', async ({ openCardId }) => {
+    const store = useAttachmentStore();
+    const thumbnailStore = useCardAttachmentThumbnailStore();
+    await thumbnailStore.loadBoard(1, true);
+    if (openCardId !== null) {
+      api.getAttachments.mockResolvedValue(listing([attachment]));
+      await store.open(1, openCardId);
+    }
+    const initialItems = [...store.items];
+    const image = { ...attachment, id: 2, originalFileName: 'image.png', contentType: 'image/png' };
+
+    store.added(1, 2, image);
+
+    expect(thumbnailStore.getForCard(2)?.attachmentId).toBe(image.id);
+    if (openCardId === 2) {
+      expect(store.items).toEqual([attachment, image]);
+    } else {
+      expect(store.items).toEqual(initialItems);
+    }
+
+    await store.removed(1, 2, image.id);
+
+    expect(store.items).toEqual(initialItems);
+    expect(thumbnailStore.getForCard(2)).toBeNull();
+    expect(api.getCardThumbnails).toHaveBeenLastCalledWith(1, [2]);
+  });
+
+  it('updates the attachment list and thumbnail after local image uploads and deletions', async () => {
+    const store = useAttachmentStore();
+    const thumbnailStore = useCardAttachmentThumbnailStore();
+    await thumbnailStore.loadBoard(1, true);
+    await store.open(1, 1);
+    const image = { ...attachment, originalFileName: 'image.png', contentType: 'image/png' };
+    vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('Decode failed')));
+    api.uploadAttachment.mockResolvedValue(ok(image));
+    api.getAttachments.mockResolvedValue(listing([image]));
+
+    await store.upload([new File(['abc'], image.originalFileName, { type: image.contentType })]);
+
+    expect(store.items).toEqual([image]);
+    expect(thumbnailStore.getForCard(1)?.attachmentId).toBe(image.id);
+
+    api.deleteAttachment.mockResolvedValue(ok(undefined));
+    expect(await store.remove(image.id)).toBe(true);
+
+    expect(store.items).toEqual([]);
+    expect(thumbnailStore.getForCard(1)).toBeNull();
   });
 
   it('uploads sequentially and removes failures from the queue with a warning', async () => {

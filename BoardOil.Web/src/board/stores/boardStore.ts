@@ -23,7 +23,6 @@ import type {
 } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
-import type { CardAttachment } from '../../shared/types/attachmentTypes';
 
 type BoardShell = Omit<Board, 'columns'> & {
   columns: Column[];
@@ -90,14 +89,8 @@ export const useBoardStore = defineStore('board', () => {
     }),
     onCardMoved: upsertRealtimeCard,
     onCommentCreated: forCurrentBoard((_boardId, comment: CardComment) => commentStore.upsertCardComment(comment)),
-    onAttachmentAdded: forCurrentBoard((boardId, cardId: number, attachment: CardAttachment) => {
-      attachmentStore.added(boardId, cardId, attachment);
-      cardAttachmentThumbnailStore.attachmentAdded(boardId, cardId, attachment);
-    }),
-    onAttachmentDeleted: forCurrentBoard(async (boardId, cardId: number, attachmentId: number) => {
-      attachmentStore.removed(boardId, cardId, attachmentId);
-      await cardAttachmentThumbnailStore.attachmentDeleted(boardId, cardId, attachmentId);
-    }),
+    onAttachmentAdded: forCurrentBoard(attachmentStore.added),
+    onAttachmentDeleted: forCurrentBoard(attachmentStore.removed),
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
     onConnectionWarning: message => {
       feedback.clearToast();

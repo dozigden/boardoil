@@ -81,18 +81,22 @@ export const useAttachmentStore = defineStore('attachments', () => {
   }
 
   function added(boardId: number, cardId: number, attachment: CardAttachment) {
-    if (context.value?.boardId !== boardId || context.value.cardId !== cardId || context.value.archived) { return; }
-    eventVersion++;
-    items.value = [...items.value.filter(item => item.id !== attachment.id), attachment]
-      .sort((a, b) => a.createdAtUtc.localeCompare(b.createdAtUtc) || a.id - b.id);
-    revision.value++;
+    if (context.value?.boardId === boardId && context.value.cardId === cardId && !context.value.archived) {
+      eventVersion++;
+      items.value = [...items.value.filter(item => item.id !== attachment.id), attachment]
+        .sort((a, b) => a.createdAtUtc.localeCompare(b.createdAtUtc) || a.id - b.id);
+      revision.value++;
+    }
+    cardAttachmentThumbnailStore.attachmentAdded(boardId, cardId, attachment);
   }
 
-  function removed(boardId: number, cardId: number, attachmentId: number) {
-    if (context.value?.boardId !== boardId || context.value.cardId !== cardId) { return; }
-    eventVersion++;
-    items.value = items.value.filter(item => item.id !== attachmentId);
-    revision.value++;
+  async function removed(boardId: number, cardId: number, attachmentId: number) {
+    if (context.value?.boardId === boardId && context.value.cardId === cardId) {
+      eventVersion++;
+      items.value = items.value.filter(item => item.id !== attachmentId);
+      revision.value++;
+    }
+    await cardAttachmentThumbnailStore.attachmentDeleted(boardId, cardId, attachmentId);
   }
 
   function cardRemoved(boardId: number, cardId: number) {
@@ -134,7 +138,6 @@ export const useAttachmentStore = defineStore('attachments', () => {
       activeUploads.value = activeUploads.value.filter(upload => upload !== item);
       if (result.ok) {
         added(current.boardId, current.cardId, result.data);
-        cardAttachmentThumbnailStore.attachmentAdded(current.boardId, current.cardId, result.data);
         completed.push(result.data);
       } else if (result.error.statusCode === 413) {
         warnOversized(item.file);
@@ -176,8 +179,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
       warningMessages.value.push(`Attachment could not be deleted: ${result.error.message}`);
       return false;
     }
-    removed(current.boardId, current.cardId, attachmentId);
-    await cardAttachmentThumbnailStore.attachmentDeleted(current.boardId, current.cardId, attachmentId);
+    await removed(current.boardId, current.cardId, attachmentId);
     return true;
   }
 
