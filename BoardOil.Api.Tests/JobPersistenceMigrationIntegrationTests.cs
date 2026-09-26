@@ -8,6 +8,51 @@ namespace BoardOil.Api.Tests;
 public sealed class JobPersistenceMigrationIntegrationTests
 {
     private const string TargetMigration = "20260926163515_AddJobPersistence";
+    private const string PendingMigration = "20260926202234_AddPendingScheduleOccurrence";
+
+    [Fact]
+    public async Task PendingScheduleMigration_ShouldPreserveExistingCheckpointAndAllowPendingIntent()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<BoardOilDbContext>()
+            .UseSqlite(connection).Options;
+        await using (var db = new BoardOilDbContext(options))
+        {
+            await db.Database.MigrateAsync(TargetMigration);
+        }
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                INSERT INTO "ScheduledJobSchedulerStates"
+                    ("Name", "LastRunTimeUtc", "LastEvaluatedAtUtc", "CreatedAtUtc", "UpdatedAtUtc")
+                VALUES
+                    ('existing', '2026-09-26T10:00:00Z', '2026-09-26T11:00:00Z',
+                     '2026-09-26T10:00:00Z', '2026-09-26T11:00:00Z');
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await using (var db = new BoardOilDbContext(options))
+        {
+            await db.Database.MigrateAsync(PendingMigration);
+            await db.Database.MigrateAsync(PendingMigration);
+            var state = await db.ScheduledJobSchedulerStates.SingleAsync();
+            Assert.Equal("existing", state.Name);
+            Assert.Equal(new DateTime(2026, 9, 26, 10, 0, 0, DateTimeKind.Utc), state.LastRunTimeUtc);
+            Assert.Equal(new DateTime(2026, 9, 26, 11, 0, 0, DateTimeKind.Utc), state.LastEvaluatedAtUtc);
+            Assert.Null(state.PendingDueAtUtc);
+            state.PendingDueAtUtc = new DateTime(2026, 9, 26, 12, 0, 0, DateTimeKind.Utc);
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = new BoardOilDbContext(options))
+        {
+            var state = await db.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync();
+            Assert.Equal(new DateTime(2026, 9, 26, 12, 0, 0, DateTimeKind.Utc), state.PendingDueAtUtc);
+        }
+    }
 
     [Fact]
     public async Task AddJobPersistence_ShouldPreserveExistingBoardCardAndErrorLogOnRepeatedMigration()

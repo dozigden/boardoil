@@ -11,6 +11,7 @@ public sealed class ScheduledJobSchedulerStateConfiguration : IEntityTypeConfigu
         state.HasKey(x => x.Id);
         state.Property(x => x.Name).HasMaxLength(120).IsRequired();
         state.Property(x => x.LastRunTimeUtc).IsRequired();
+        state.Property(x => x.PendingDueAtUtc);
         state.Property(x => x.CreatedAtUtc).IsRequired();
         state.Property(x => x.UpdatedAtUtc).IsRequired();
         state.HasIndex(x => x.Name).IsUnique();

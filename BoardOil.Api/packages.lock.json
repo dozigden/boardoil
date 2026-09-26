@@ -96,6 +96,11 @@
           "Microsoft.IdentityModel.Tokens": "8.23.0"
         }
       },
+      "Cronos": {
+        "type": "Transitive",
+        "resolved": "0.13.0",
+        "contentHash": "Nkve+Yi0+ol3ntSBRHeW0ka9cJQ8vndSUvvkXqF9LVqwpoqWueyxu/HS275r98RDOmF7/mzRnZW5XXUBXob+TA=="
+      },
       "Humanizer.Core": {
         "type": "Transitive",
         "resolved": "2.14.1",
@@ -515,7 +520,8 @@
         "dependencies": {
           "BoardOil.Abstractions": "[1.7.0, )",
           "BoardOil.Contracts": "[1.7.0, )",
-          "BoardOil.Data.Abstractions": "[1.7.0, )"
+          "BoardOil.Data.Abstractions": "[1.7.0, )",
+          "Cronos": "[0.13.0, )"
         }
       }
     }

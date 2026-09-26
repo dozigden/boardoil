@@ -42,6 +42,11 @@
           "xunit.v3.mtp-v2": "[4.0.1]"
         }
       },
+      "Cronos": {
+        "type": "Transitive",
+        "resolved": "0.13.0",
+        "contentHash": "Nkve+Yi0+ol3ntSBRHeW0ka9cJQ8vndSUvvkXqF9LVqwpoqWueyxu/HS275r98RDOmF7/mzRnZW5XXUBXob+TA=="
+      },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
         "resolved": "2.23.0",
@@ -512,6 +517,7 @@
           "BoardOil.Abstractions": "[1.7.0, )",
           "BoardOil.Contracts": "[1.7.0, )",
           "BoardOil.Data.Abstractions": "[1.7.0, )",
+          "Cronos": "[0.13.0, )",
           "Microsoft.Extensions.Identity.Core": "[10.0.12, )"
         }
       }

@@ -81,8 +81,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IErrorLogService, ErrorLogService>();
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
         services.AddSingleton<JobLifecycleGate>();
+        services.AddSingleton<SchedulingGate>();
         services.AddScoped<IJobService, JobService>();
         services.AddScoped<IJobRunner, JobRunner>();
+        services.AddSingleton<ICronOccurrenceCalculator, CronOccurrenceCalculator>();
+        services.AddScoped<ISystemTimeZoneService, SystemTimeZoneService>();
+        services.AddScoped<IScheduledJobService, ScheduledJobService>();
         services.AddScoped<IColumnService, ColumnService>();
         services.AddScoped<ICardService, CardService>();
         services.AddScoped<ICardOptionsService, CardOptionsService>();
