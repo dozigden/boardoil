@@ -78,15 +78,9 @@ export const useBoardStore = defineStore('board', () => {
     onColumnCreated: upsertRealtimeColumn,
     onColumnUpdated: upsertRealtimeColumn,
     onColumnDeleted: forCurrentBoard((_boardId, columnId: number) => removeColumn(columnId)),
-    onCardCreated: forCurrentBoard(async (boardId, card: Card) => {
-      cardStore.upsertCard(card);
-      await cardAttachmentThumbnailStore.refreshCards(boardId, [card.id]);
-    }),
+    onCardCreated: forCurrentBoard((_boardId, card: Card) => cardStore.applyCreatedCard(card)),
     onCardUpdated: upsertRealtimeCard,
-    onCardDeleted: forCurrentBoard((boardId, cardId: number) => {
-      cardStore.removeCard(cardId);
-      attachmentStore.cardRemoved(boardId, cardId);
-    }),
+    onCardDeleted: forCurrentBoard((_boardId, cardId: number) => cardStore.removeCard(cardId)),
     onCardMoved: upsertRealtimeCard,
     onCommentCreated: forCurrentBoard((_boardId, comment: CardComment) => commentStore.upsertCardComment(comment)),
     onAttachmentAdded: forCurrentBoard(attachmentStore.added),

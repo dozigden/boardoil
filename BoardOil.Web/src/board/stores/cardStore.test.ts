@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useCardStore } from './cardStore';
 import { useSlickStore } from './slickStore';
+import { useAttachmentStore } from './attachmentStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 import type { AppError } from '../../shared/types/appError';
@@ -12,6 +13,7 @@ import type { Result } from '../../shared/types/result';
 const api = {
   supportsAttachments: true,
   getCardThumbnails: vi.fn(),
+  getAttachments: vi.fn(),
   getSlicks: vi.fn(),
   createCard: vi.fn(),
   duplicateCard: vi.fn(),
@@ -49,9 +51,40 @@ describe('cardStore', () => {
     expect(store.getCardsForColumn(2)).toEqual([]);
   });
 
+  it.each([
+    { context: 'the matching live card', boardId: 1, cardId: 101, archived: false, clearsAttachments: true },
+    { context: 'another card', boardId: 1, cardId: 102, archived: false, clearsAttachments: false },
+    { context: 'another board', boardId: 2, cardId: 101, archived: false, clearsAttachments: false },
+    { context: 'an archived card', boardId: 1, cardId: 101, archived: true, clearsAttachments: false }
+  ])('handles attachment cleanup on local deletion with $context open', async ({ boardId, cardId, archived, clearsAttachments }) => {
+    const store = useCardStore();
+    const attachmentStore = useAttachmentStore();
+    const thumbnailStore = useCardAttachmentThumbnailStore();
+    store.replaceBoardCards(1, makeBoard().columns);
+    const attachment = {
+      id: 3, originalFileName: 'image.png', contentType: 'image/png', byteLength: 3,
+      createdAtUtc: '2026-03-15T00:00:00Z', createdByUserId: null, hasThumbnail: true
+    };
+    api.getAttachments.mockResolvedValue(ok({ items: [attachment], maxUploadByteLength: 10 }));
+    api.getCardThumbnails.mockResolvedValueOnce(ok([
+      { cardId: 101, attachmentId: attachment.id, originalFileName: attachment.originalFileName, hasThumbnail: true }
+    ]));
+    await thumbnailStore.loadBoard(1, true);
+    await attachmentStore.open(boardId, cardId, archived);
+    api.deleteCard.mockResolvedValueOnce(ok(undefined));
+
+    expect(await store.deleteCard(101)).toBe(true);
+
+    expect(store.getCardById(101)).toBeNull();
+    expect(thumbnailStore.getForCard(101)).toBeNull();
+    expect(attachmentStore.items).toEqual(clearsAttachments ? [] : [attachment]);
+  });
+
   it('creates a card incrementally without reloading board', async () => {
     const store = useCardStore();
     store.replaceBoardCards(1, makeBoard().columns);
+    await useCardAttachmentThumbnailStore().loadBoard(1, true);
+    api.getCardThumbnails.mockClear();
     const slickStore = useSlickStore();
     slickStore.activeBoardId = 1;
     const slick = makeSlick();
@@ -83,6 +116,7 @@ describe('cardStore', () => {
     expect(store.getCardsForColumn(1).map(x => x.id)).toEqual([102, 101]);
     expect(slickStore.slicks).toEqual([slick]);
     expect(api.getSlicks).not.toHaveBeenCalled();
+    expect(api.getCardThumbnails).not.toHaveBeenCalled();
   });
 
   it('refreshes attachment thumbnail state for a duplicated card', async () => {
@@ -102,6 +136,7 @@ describe('cardStore', () => {
 
     await store.createCard(makeCardEditModel({ title: 'Task A copy' }), { duplicateFromCardId: 101 });
 
+    expect(store.getCardById(102)).toEqual(duplicated);
     expect(api.getCardThumbnails).toHaveBeenLastCalledWith(1, [102]);
     expect(thumbnailStore.getForCard(102)?.attachmentId).toBe(12);
   });

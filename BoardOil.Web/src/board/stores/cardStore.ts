@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useSlickStore } from './slickStore';
+import { useAttachmentStore } from './attachmentStore';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 import type {
   BoardColumn,
@@ -23,6 +24,7 @@ export const useCardStore = defineStore('card', () => {
   const activeBoardId = ref(0);
   const feedback = useUiFeedbackStore();
   const slickStore = useSlickStore();
+  const attachmentStore = useAttachmentStore();
   const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
   const api = createBoardApi();
   let dragState: { cardId: number; fromColumnId: number } | null = null;
@@ -85,9 +87,10 @@ export const useCardStore = defineStore('card', () => {
       return null;
     }
 
-    upsertCard(result.data);
     if (options?.duplicateFromCardId !== undefined) {
-      await cardAttachmentThumbnailStore.refreshCards(boardId, [result.data.id]);
+      await applyCreatedCard(result.data);
+    } else {
+      upsertCard(result.data);
     }
     return result;
   }
@@ -350,6 +353,12 @@ export const useCardStore = defineStore('card', () => {
     }
   }
 
+  async function applyCreatedCard(card: Card) {
+    const boardId = activeBoardId.value;
+    upsertCard(card);
+    await cardAttachmentThumbnailStore.refreshCards(boardId, [card.id]);
+  }
+
   function upsertCard(card: Card) {
     const nextCardsById: CardMap = {
       ...cardsById.value,
@@ -379,6 +388,7 @@ export const useCardStore = defineStore('card', () => {
     cardsById.value = nextCardsById;
     cardIdsByColumnId.value = nextCardIdsByColumnId;
     cardAttachmentThumbnailStore.cardRemoved(activeBoardId.value, cardId);
+    attachmentStore.cardRemoved(activeBoardId.value, cardId);
   }
 
   function getCardById(cardId: number | null) {
@@ -516,6 +526,7 @@ export const useCardStore = defineStore('card', () => {
     bulkEditCards,
     startDrag,
     dropCard,
+    applyCreatedCard,
     upsertCard,
     removeCard,
     getCardById,
