@@ -96,6 +96,26 @@ describe('boardStore', () => {
     expect(feedback.toastMessage).toBe('');
   });
 
+  it('orders columns and cards without mutating the board snapshot', async () => {
+    const store = useBoardStore();
+    const snapshot = makeBoard();
+    const backlog = snapshot.columns[0];
+    backlog.cards.unshift({
+      ...backlog.cards[0],
+      id: 102,
+      sortKey: '00000000000000000002'
+    });
+    snapshot.columns.reverse();
+    api.getBoard.mockResolvedValueOnce(ok(snapshot));
+
+    await store.initialize(1);
+
+    expect(store.board?.columns.map(column => column.id)).toEqual([1, 2]);
+    expect(store.board?.columns[0].cards.map(card => card.id)).toEqual([101, 102]);
+    expect(snapshot.columns.map(column => column.id)).toEqual([2, 1]);
+    expect(backlog.cards.map(card => card.id)).toEqual([102, 101]);
+  });
+
   it('keeps board loaded and warns when realtime connect fails', async () => {
     const store = useBoardStore();
     const feedback = useUiFeedbackStore();

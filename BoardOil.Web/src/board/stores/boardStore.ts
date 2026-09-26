@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
-import { sortBoard } from '../mappers/sortBoard';
 import { createBoardRealtime } from '../realtime/boardRealtime';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useCardStore } from './cardStore';
@@ -192,10 +191,11 @@ export const useBoardStore = defineStore('board', () => {
       return false;
     }
 
-    const sortedBoard = sortBoard(result.data);
-    void cardAttachmentThumbnailStore.loadBoard(boardId, sortedBoard.cardAttachmentThumbnailsEnabled);
-    boardShell.value = stripBoardCards(sortedBoard);
-    cardStore.replaceBoardCards(boardId, sortedBoard.columns);
+    const nextBoardShell = stripBoardCards(result.data);
+    sortColumns(nextBoardShell.columns);
+    void cardAttachmentThumbnailStore.loadBoard(boardId, nextBoardShell.cardAttachmentThumbnailsEnabled);
+    boardShell.value = nextBoardShell;
+    cardStore.replaceBoardCards(boardId, result.data.columns);
     commentStore.dispose();
     feedback.clearError();
     return true;
