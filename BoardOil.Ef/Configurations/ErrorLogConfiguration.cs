@@ -25,6 +25,11 @@ public sealed class ErrorLogConfiguration : IEntityTypeConfiguration<EntityError
         errorLog.HasIndex(x => x.OccurredAtUtc);
         errorLog.HasIndex(x => new { x.Source, x.Area });
         errorLog.HasIndex(x => x.TraceIdentifier);
+        errorLog.HasIndex(x => x.JobId);
+        errorLog.HasOne(x => x.Job)
+            .WithMany()
+            .HasForeignKey(x => x.JobId)
+            .OnDelete(DeleteBehavior.SetNull);
         errorLog.ToTable("ErrorLogs");
     }
 }

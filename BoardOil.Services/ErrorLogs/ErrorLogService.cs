@@ -168,7 +168,8 @@ public sealed class ErrorLogService(
                 RequestMethod = Truncate(Redact(context.RequestMethod), RequestMethodMaxLength),
                 RequestPath = Truncate(Redact(context.RequestPath), RequestPathMaxLength),
                 ActorUserId = context.ActorUserId,
-                ContextJson = BuildBackendContextJson(context.ContextJson)
+                ContextJson = BuildBackendContextJson(context.ContextJson),
+                JobId = context.JobId
             };
 
             repository.Add(entity);
@@ -424,7 +425,8 @@ public sealed class ErrorLogService(
             errorLog.RequestPath,
             errorLog.ActorUserId,
             errorLog.CreatedAtUtc,
-            errorLog.UpdatedAtUtc);
+            errorLog.UpdatedAtUtc,
+            errorLog.JobId);
 
     private static ErrorLogDetailsDto ToDetailsDto(EntityErrorLog errorLog) =>
         new(
@@ -441,5 +443,6 @@ public sealed class ErrorLogService(
             errorLog.ActorUserId,
             errorLog.ContextJson,
             errorLog.CreatedAtUtc,
-            errorLog.UpdatedAtUtc);
+            errorLog.UpdatedAtUtc,
+            errorLog.JobId);
 }

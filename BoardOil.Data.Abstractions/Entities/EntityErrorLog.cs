@@ -13,6 +13,8 @@ public sealed class EntityErrorLog : ISupportCreatedAt, ISupportUpdatedAt
     public string? RequestMethod { get; set; }
     public string? RequestPath { get; set; }
     public int? ActorUserId { get; set; }
+    public int? JobId { get; set; }
+    public EntityJob? Job { get; set; }
     public string? ContextJson { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }

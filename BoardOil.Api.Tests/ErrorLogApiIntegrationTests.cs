@@ -82,6 +82,36 @@ public sealed class ErrorLogApiIntegrationTests : TestBaseIntegration
     }
 
     [Fact]
+    public async Task ListAndGet_ShouldExposePersistedJobLink()
+    {
+        var job = new EntityJob
+        {
+            Type = "sample",
+            Status = JobStatus.Failed,
+            RunAfterUtc = DateTime.UtcNow
+        };
+        var error = NewErrorLog("job failure", DateTime.UtcNow);
+        error.Job = job;
+        await AddErrorLogsAsync(error);
+
+        var listResponse = await Client.GetAsync(
+            "/api/system/error-logs?offset=0&limit=10",
+            TestContext.Current.CancellationToken);
+        var list = await listResponse.Content.ReadFromJsonAsync<ApiResult<ErrorLogListDto>>(
+            TestContext.Current.CancellationToken);
+        var detailResponse = await Client.GetAsync(
+            $"/api/system/error-logs/{error.Id}",
+            TestContext.Current.CancellationToken);
+        var detail = await detailResponse.Content.ReadFromJsonAsync<ApiResult<ErrorLogDetailsDto>>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+        Assert.Equal(job.Id, Assert.Single(list!.Data!.Items).JobId);
+        Assert.Equal(job.Id, detail!.Data!.JobId);
+    }
+
+    [Fact]
     public async Task Purge_ShouldDeleteOnlyLogsOlderThanRetentionPeriod()
     {
         // Arrange

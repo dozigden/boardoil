@@ -7,6 +7,7 @@ using BoardOil.Data.Abstractions.CardType;
 using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Configuration;
 using BoardOil.Data.Abstractions.ErrorLogs;
+using BoardOil.Data.Abstractions.Jobs;
 using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Attachment;
 using BoardOil.Data.Abstractions.OAuth;
@@ -45,6 +46,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAppSettingRepository, AppSettingRepository>();
         services.AddScoped<ISystemInfoMessageRepository, SystemInfoMessageRepository>();
         services.AddScoped<IErrorLogRepository, ErrorLogRepository>();
+        services.AddScoped<IJobRepository, JobRepository>();
+        services.AddScoped<IJobLogRepository, JobLogRepository>();
+        services.AddScoped<IScheduledJobSchedulerStateRepository, ScheduledJobSchedulerStateRepository>();
         services.AddScoped<IColumnRepository, ColumnRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
         services.AddScoped<IBoardCardIdAllocator, BoardCardIdAllocator>();

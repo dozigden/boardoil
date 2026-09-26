@@ -30,7 +30,8 @@ public sealed record ErrorLogDto(
     string? RequestPath,
     int? ActorUserId,
     DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    int? JobId = null);
 
 public sealed record ErrorLogDetailsDto(
     int Id,
@@ -46,7 +47,8 @@ public sealed record ErrorLogDetailsDto(
     int? ActorUserId,
     string? ContextJson,
     DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    int? JobId = null);
 
 public sealed record ErrorLogListDto(
     IReadOnlyList<ErrorLogDto> Items,

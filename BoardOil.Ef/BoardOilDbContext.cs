@@ -32,6 +32,9 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
     public DbSet<EntityAppSetting> AppSettings => Set<EntityAppSetting>();
     public DbSet<EntitySystemInfoMessage> SystemInfoMessages => Set<EntitySystemInfoMessage>();
     public DbSet<EntityErrorLog> ErrorLogs => Set<EntityErrorLog>();
+    public DbSet<EntityJob> Jobs => Set<EntityJob>();
+    public DbSet<EntityJobLog> JobLogs => Set<EntityJobLog>();
+    public DbSet<EntityScheduledJobSchedulerState> ScheduledJobSchedulerStates => Set<EntityScheduledJobSchedulerState>();
     public DbSet<EntityImage> Images => Set<EntityImage>();
     public DbSet<EntityCardAttachment> CardAttachments => Set<EntityCardAttachment>();
     public DbSet<EntityAttachmentDownloadTicket> AttachmentDownloadTickets => Set<EntityAttachmentDownloadTicket>();

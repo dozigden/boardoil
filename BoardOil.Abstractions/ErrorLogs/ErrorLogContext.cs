@@ -7,4 +7,5 @@ public sealed record ErrorLogContext(
     string? RequestMethod = null,
     string? RequestPath = null,
     int? ActorUserId = null,
-    string? ContextJson = null);
+    string? ContextJson = null,
+    int? JobId = null);

@@ -47,6 +47,25 @@ public sealed class ClientErrorReportApiIntegrationTests : TestBaseIntegration
     }
 
     [Fact]
+    public async Task ReportClientError_ShouldIgnoreCallerSuppliedJobId()
+    {
+        var request = JsonSerializer.SerializeToNode(NewRequest())!;
+        request["jobId"] = 12345;
+
+        var response = await Client.PostAsJsonAsync(
+            Endpoint,
+            request,
+            TestContext.Current.CancellationToken);
+        var result = await response.Content.ReadFromJsonAsync<ApiResult<ErrorLogDto>>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(result!.Data!.JobId);
+        await using var dbContext = CreateDbContext();
+        Assert.Null((await dbContext.ErrorLogs.SingleAsync()).JobId);
+    }
+
+    [Fact]
     public async Task ReportClientError_WhenAnonymous_ShouldReturnUnauthorized()
     {
         // Arrange
