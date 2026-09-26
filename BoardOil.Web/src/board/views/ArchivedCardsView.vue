@@ -96,7 +96,6 @@ import { useBoardStore } from '../stores/boardStore';
 import type { ArchivedCard, ArchivedCardList, ArchivedCardListItem } from '../../shared/types/boardTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import Tag from '../components/Tag.vue';
-import { useTagStore } from '../stores/tagStore';
 import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 import { useCardStore } from '../stores/cardStore';
 import { useCardAttachmentThumbnailStore } from '../stores/cardAttachmentThumbnailStore';
@@ -110,7 +109,6 @@ const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
 const route = useRoute();
 const router = useRouter();
 const { currentBoardId, board } = storeToRefs(boardStore);
-const tagStore = useTagStore();
 const boardLayoutRegistry = useBoardLayoutRegistry();
 const conveyorRegistration = boardLayoutRegistry.registerConveyor({
   highlighted: false,
@@ -190,11 +188,8 @@ async function goToBoard() {
 }
 
 async function initializeView() {
-  const boardId = currentBoardId.value!;
-
   searchDraft.value = searchQuery.value;
   await loadArchivedCards();
-  await tagStore.loadTags(boardId);
 }
 
 function handleSearchTextChanged(value: string) {

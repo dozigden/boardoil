@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures/boardOilTest';
+import type { Request } from '@playwright/test';
 import { ArchivedCardsPage } from '../ui/ArchivedCardsPage';
 import { BoardPage } from '../ui/BoardPage';
 
@@ -32,4 +33,39 @@ test('archive and restore a card to its original column', async ({ api, authenti
     await page.reload();
     await expect(boardPage.card('In Progress', cardTitle)).toBeVisible();
   });
+});
+
+test('returning from archive shows the board without reloading its context', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression archive return');
+  const cardTitle = 'Card visible during archive return';
+  await api.createCard(board, 'In Progress', cardTitle);
+
+  const boardPage = new BoardPage(page);
+  const archivedCardsPage = new ArchivedCardsPage(page);
+  await boardPage.open(board.id);
+
+  const boardContextPaths = new Set([
+    `/api/boards/${board.id}`,
+    `/api/boards/${board.id}/tags`,
+    `/api/boards/${board.id}/card-types`,
+    `/api/boards/${board.id}/slicks`
+  ]);
+  const boardContextRequests: string[] = [];
+  const recordBoardContextRequest = (request: Request) => {
+    const path = new URL(request.url()).pathname;
+    if (request.method() === 'GET' && boardContextPaths.has(path)) {
+      boardContextRequests.push(path);
+    }
+  };
+  page.on('request', recordBoardContextRequest);
+
+  try {
+    await boardPage.openArchivedCards();
+    await archivedCardsPage.goBackToBoard();
+    await expect(boardPage.card('In Progress', cardTitle)).toBeVisible();
+    await expect(page.getByText('Loading board...', { exact: true })).toHaveCount(0);
+    expect(boardContextRequests).toEqual([]);
+  } finally {
+    page.off('request', recordBoardContextRequest);
+  }
 });

@@ -7,7 +7,7 @@ import { useSlickStore } from './slickStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 import type { AppError } from '../../shared/types/appError';
-import type { Board, Card, Column } from '../../shared/types/boardTypes';
+import type { Board, Card, Column, Tag } from '../../shared/types/boardTypes';
 import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
@@ -15,6 +15,8 @@ import type { CardAttachment } from '../../shared/types/attachmentTypes';
 const api = {
   supportsAttachments: true,
   getCardThumbnails: vi.fn(),
+  getCardTypes: vi.fn(),
+  getTags: vi.fn(),
   getSlicks: vi.fn(),
   getBoard: vi.fn(),
   createColumn: vi.fn(),
@@ -68,6 +70,9 @@ describe('boardStore', () => {
     systemInfoMessageStore.load.mockClear();
     api.getBoard.mockResolvedValue(ok(makeBoard()));
     api.getCardThumbnails.mockResolvedValue(ok([]));
+    api.getCardTypes.mockResolvedValue(ok([]));
+    api.getTags.mockResolvedValue(ok([]));
+    api.getSlicks.mockResolvedValue(ok([]));
     realtime.connect.mockResolvedValue(undefined);
     realtime.disconnect.mockResolvedValue(undefined);
   });
@@ -105,6 +110,25 @@ describe('boardStore', () => {
     expect(feedback.warningMessage).toBe('Realtime updates are unavailable. Data may be stale until reconnect.');
   });
 
+  it('loads board catalogues together before showing the board context', async () => {
+    const store = useBoardStore();
+    const pendingTags = deferred<Result<Tag[], AppError>>();
+    api.getTags.mockImplementationOnce(() => pendingTags.promise);
+
+    const initialization = store.initialize(1);
+    await vi.waitFor(() => expect(api.getTags).toHaveBeenCalledWith(1));
+
+    expect(api.getCardTypes).toHaveBeenCalledWith(1);
+    expect(api.getSlicks).toHaveBeenCalledWith(1);
+    expect(store.isLoadingBoard).toBe(true);
+    expect(realtime.connect).not.toHaveBeenCalled();
+
+    pendingTags.resolve(ok([]));
+    expect(await initialization).toBe(true);
+    expect(store.isLoadingBoard).toBe(false);
+    expect(realtime.connect).toHaveBeenCalledWith(1);
+  });
+
   it('clears stale board state when requested board fails to load', async () => {
     const store = useBoardStore();
     await store.initialize(1);
@@ -134,6 +158,29 @@ describe('boardStore', () => {
     expect(store.board?.name).toBe('Board 2');
     expect(realtime.connect).toHaveBeenCalledTimes(1);
     expect(realtime.connect).toHaveBeenCalledWith(2);
+  });
+
+  it('does not replace the new board catalogues when an old catalogue request finishes', async () => {
+    const store = useBoardStore();
+    const pendingBoardOneTags = deferred<Result<Tag[], AppError>>();
+    api.getBoard
+      .mockResolvedValueOnce(ok(makeBoard(1, 'Board 1')))
+      .mockResolvedValueOnce(ok(makeBoard(2, 'Board 2')));
+    api.getTags.mockImplementationOnce(() => pendingBoardOneTags.promise);
+
+    const firstInitialization = store.initialize(1);
+    await vi.waitFor(() => expect(api.getTags).toHaveBeenCalledWith(1));
+    expect(api.getCardTypes).toHaveBeenCalledWith(1);
+    expect(api.getSlicks).toHaveBeenCalledWith(1);
+
+    expect(await store.initialize(2)).toBe(true);
+    pendingBoardOneTags.resolve(ok([]));
+    expect(await firstInitialization).toBe(false);
+
+    expect(store.currentBoardId).toBe(2);
+    expect(useTagStore().activeBoardId).toBe(2);
+    expect(useCardTypeStore().activeBoardId).toBe(2);
+    expect(useSlickStore().activeBoardId).toBe(2);
   });
 
   it('ignores in-flight load response after dispose', async () => {
@@ -288,9 +335,9 @@ describe('boardStore', () => {
     await realtimeHandlers!.onResync(1);
 
     expect(api.getBoard).toHaveBeenCalledTimes(2);
-    expect(loadCardTypesSpy).toHaveBeenCalledWith(1);
-    expect(loadTagsSpy).toHaveBeenCalledWith(1);
-    expect(loadSlicksSpy).toHaveBeenCalledWith(1);
+    expect(loadCardTypesSpy).toHaveBeenCalledTimes(2);
+    expect(loadTagsSpy).toHaveBeenCalledTimes(2);
+    expect(loadSlicksSpy).toHaveBeenCalledTimes(2);
   });
 
   it.each(['onCardCreated', 'onCardUpdated', 'onCardMoved'] as const)('%s upserts slicks for the current board', async event => {
@@ -309,11 +356,11 @@ describe('boardStore', () => {
     const card = { ...makeBoard().columns[0].cards[0], slickId: slick.id, slickName: slick.name, slick };
 
     await realtimeHandlers![event](2, card);
-    expect(api.getSlicks).not.toHaveBeenCalled();
+    expect(api.getSlicks).toHaveBeenCalledTimes(1);
     await realtimeHandlers![event](1, card);
 
     expect(slickStore.slicks).toEqual([slick]);
-    expect(api.getSlicks).not.toHaveBeenCalled();
+    expect(api.getSlicks).toHaveBeenCalledTimes(1);
     expect(store.board?.columns[0].cards[0].slickId).toBe(7);
     expect(api.getBoard).toHaveBeenCalledTimes(1);
   });
@@ -374,6 +421,9 @@ describe('boardStore', () => {
     const loadSlicksSpy = vi.spyOn(slickStore, 'loadSlicks').mockResolvedValue(true);
 
     await store.initialize(1);
+    loadCardTypesSpy.mockClear();
+    loadTagsSpy.mockClear();
+    loadSlicksSpy.mockClear();
     api.getBoard.mockResolvedValueOnce(err({ kind: 'api', message: 'Board not found.' }));
     expect(realtimeHandlers).not.toBeNull();
 

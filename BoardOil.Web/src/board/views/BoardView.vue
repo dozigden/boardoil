@@ -14,12 +14,7 @@
       </defs>
     </svg>
 
-    <section v-if="isLoading" class="board-loading" aria-live="polite">
-      <span class="board-loading-indicator" aria-hidden="true" />
-      <p class="board-loading-label">Loading board...</p>
-    </section>
-
-    <section v-else-if="board" class="board-view">
+    <section v-if="board" class="board-view">
       <Teleport :to="`#${boardLayoutRegistry.conveyorContentTargetId}`">
         <BoardCardFilters
           embedded
@@ -51,12 +46,12 @@
 
       <section class="board" :ref="setBoardRefs">
         <GooLayer
-          v-if="!isLoading && gooRendererMode === 'full'"
+          v-if="gooRendererMode === 'full'"
           :groups="gooGroups"
           :blob-border-radius-px="gooBlobBorderRadiusPx"
         />
         <GooLayer
-          v-if="!isLoading && gooRendererMode === 'full' && selectionGooGroup"
+          v-if="gooRendererMode === 'full' && selectionGooGroup"
           :groups="[selectionGooGroup]"
           :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
           layer-class="goo-layer--selection"
@@ -92,13 +87,13 @@
               }"
             >
               <LiteGooLayer
-                v-if="!isLoading && gooRendererMode === 'lite'"
+                v-if="gooRendererMode === 'lite'"
                 :groups="gooGroupsByColumnId.get(column.id) ?? []"
                 :blob-border-radius-px="gooBlobBorderRadiusPx"
                 layer-class="goo-layer--column"
               />
               <LiteGooLayer
-                v-if="!isLoading && gooRendererMode === 'lite'"
+                v-if="gooRendererMode === 'lite'"
                 :groups="selectionGooGroupsByColumnId.get(column.id) ?? []"
                 :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
                 layer-class="goo-layer--column goo-layer--selection"
@@ -232,7 +227,6 @@ type InlineCardCreateDraft = Pick<CardEditModel, 'boardColumnId' | 'title' | 'ca
 const newCardDrafts = ref<Record<number, InlineCardCreateDraft>>({});
 const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
 const newCardDraftErrors = ref<Record<number, string>>({});
-const isLoading = ref(true);
 const isBulkEditDialogOpen = ref(false);
 const isApplyingBulkEdit = ref(false);
 const bulkEditTagStates = ref<TagFilterStateMap>({});
@@ -701,20 +695,9 @@ async function initializeView() {
   resetSelectionState();
   closeBulkEditDialog();
 
-  const boardId = currentBoardId.value!;
-
-  isLoading.value = true;
-  try {
-    await tagStore.loadTags(boardId);
-    await cardTypeStore.loadCardTypes(boardId);
-    await slickStore.loadSlicks(boardId);
-
-    await nextTick();
-    scheduleGooStructureRefresh();
-    scheduleSelectionGooStructureRefresh();
-  } finally {
-    isLoading.value = false;
-  }
+  await nextTick();
+  scheduleGooStructureRefresh();
+  scheduleSelectionGooStructureRefresh();
 }
 </script>
 
@@ -725,12 +708,6 @@ async function initializeView() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-@keyframes bo-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .board-view {
@@ -763,31 +740,6 @@ async function initializeView() {
   scroll-padding-inline: var(--bo-board-scroll-inline-padding, 0);
   padding-bottom: 0;
   flex: 1;
-}
-
-.board-loading {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  justify-items: center;
-  gap: 0.75rem;
-  padding: 1.5rem;
-}
-
-.board-loading-indicator {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  border: 3px solid color-mix(in srgb, var(--bo-border-default) 55%, transparent);
-  border-top-color: var(--bo-colour-brand);
-  animation: bo-spin 0.85s linear infinite;
-}
-
-.board-loading-label {
-  margin: 0;
-  color: var(--bo-ink-muted);
 }
 
 .column {

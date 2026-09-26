@@ -114,9 +114,11 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    await cardTypeStore.loadCardTypes(boardId);
-    await tagStore.loadTags(boardId);
-    await slickStore.loadSlicks(boardId);
+    await loadBoardCatalogues(boardId);
+    if (currentBoardId.value !== boardId) {
+      return;
+    }
+
     await attachmentStore.reload();
     await systemInfoMessageStore.load(true);
   }
@@ -173,6 +175,14 @@ export const useBoardStore = defineStore('board', () => {
     commentStore.upsertCardComment(comment);
   }
 
+  async function loadBoardCatalogues(boardId: number) {
+    await Promise.all([
+      cardTypeStore.loadCardTypes(boardId),
+      tagStore.loadTags(boardId),
+      slickStore.loadSlicks(boardId)
+    ]);
+  }
+
   async function initialize(boardId: number) {
     const requestVersion = ++initializeRequestVersion;
     isLoadingBoard.value = true;
@@ -182,6 +192,11 @@ export const useBoardStore = defineStore('board', () => {
         return false;
       }
 
+      if (requestVersion !== initializeRequestVersion) {
+        return false;
+      }
+
+      await loadBoardCatalogues(boardId);
       if (requestVersion !== initializeRequestVersion) {
         return false;
       }
