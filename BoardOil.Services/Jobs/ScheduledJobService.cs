@@ -99,13 +99,23 @@ public sealed class ScheduledJobService : IScheduledJobService
                 scheduledPrefix, adHocPrefix, cancellationToken);
             var latestStarted = await _jobs.GetLatestStartedByCorrelationPrefixesAsync(
                 scheduledPrefix, adHocPrefix, cancellationToken);
-            var next = configuration.Enabled
-                ? _dailyOccurrences.GetNextOccurrence(configuration.DailyTime, timeZone, nowUtc)
-                : null;
+            DateTime? next = null;
+            if (configuration.Enabled)
+            {
+                if (configuration.Kind == ScheduledJobKind.Once)
+                {
+                    if (state?.RunRequested == true) { next = nowUtc; }
+                }
+                else
+                {
+                    next = _dailyOccurrences.GetNextOccurrence(configuration.DailyTime!.Value, timeZone, nowUtc);
+                }
+            }
             items.Add(new ScheduledJobDto(
                 schedule.Name, schedule.DisplayName, configuration.Enabled,
                 configuration.DailyTime, timeZone.Id, state?.LastEvaluatedAtUtc,
-                next, ToRunDto(current), ToRunDto(latestStarted)));
+                next, ToRunDto(current), ToRunDto(latestStarted),
+                configuration.Kind.ToString().ToLowerInvariant()));
         }
 
         return ApiResults.Ok<IReadOnlyList<ScheduledJobDto>>(items);
@@ -172,7 +182,11 @@ public sealed class ScheduledJobService : IScheduledJobService
             state = await _states.GetByNameAsync(schedule.SchedulerStateName, cancellationToken);
         }
 
-        if (!configuration.Enabled || (state is null && !configuration.RunOnInitialisation))
+        if (configuration.Kind == ScheduledJobKind.Once)
+        {
+            if (!configuration.Enabled || state?.RunRequested != true) { return; }
+        }
+        else if (!configuration.Enabled || (state is null && !configuration.RunOnInitialisation))
         {
             await AdvanceCheckpointAsync(schedule, nowUtc, cancellationToken);
             return;
@@ -181,10 +195,10 @@ public sealed class ScheduledJobService : IScheduledJobService
         DateTime? dueAtUtc = state?.PendingDueAtUtc;
         if (dueAtUtc is null)
         {
-            dueAtUtc = state is null
+            dueAtUtc = state is null || configuration.Kind == ScheduledJobKind.Once
                 ? nowUtc
                 : _dailyOccurrences.GetLatestOccurrence(
-                    configuration.DailyTime, timeZone, state.LastRunTimeUtc, nowUtc);
+                    configuration.DailyTime!.Value, timeZone, state.LastRunTimeUtc, nowUtc);
         }
 
         if (dueAtUtc is not null)
@@ -247,7 +261,8 @@ public sealed class ScheduledJobService : IScheduledJobService
             }
         }
 
-        await AdvanceCheckpointAsync(schedule, nowUtc, cancellationToken);
+        await AdvanceCheckpointAsync(schedule, nowUtc, cancellationToken,
+            completeRequest: configuration.Kind == ScheduledJobKind.Once);
     }
 
     private async Task<ScheduledJobDefinitionConfiguration> GetValidConfigurationAsync(
@@ -259,11 +274,24 @@ public sealed class ScheduledJobService : IScheduledJobService
             throw new InvalidOperationException($"Schedule '{schedule.Name}' returned no configuration.");
         }
 
+        var valid = configuration.Kind switch
+        {
+            ScheduledJobKind.Daily => configuration.DailyTime is not null,
+            ScheduledJobKind.Once => configuration.DailyTime is null && !configuration.RunOnInitialisation,
+            _ => false
+        };
+        if (!valid)
+        {
+            throw new InvalidOperationException(
+                $"Schedule '{schedule.Name}' must specify a daily time for Daily, or no time/initialisation run for Once.");
+        }
+
         return configuration;
     }
 
     private async Task AdvanceCheckpointAsync(
-        IScheduledJobDefinition schedule, DateTime nowUtc, CancellationToken cancellationToken)
+        IScheduledJobDefinition schedule, DateTime nowUtc, CancellationToken cancellationToken,
+        bool completeRequest = false)
     {
         using var scope = _scopes.Create(DbContextScopeOption.ForceCreateNew);
         var state = await _states.GetByNameAsync(schedule.SchedulerStateName, cancellationToken);
@@ -282,6 +310,7 @@ public sealed class ScheduledJobService : IScheduledJobService
             state.LastRunTimeUtc = nowUtc;
             state.LastEvaluatedAtUtc = nowUtc;
             state.PendingDueAtUtc = null;
+            if (completeRequest) { state.RunRequested = false; }
         }
 
         await scope.SaveChangesAsync(cancellationToken);

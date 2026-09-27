@@ -51,15 +51,7 @@ public sealed class UpdateCardService(
             return ApiErrors.NotFound("Card not found.");
         }
 
-        var updateValidationErrors = await validator.ValidateUpdateAsync(boardId, request);
-        if (updateValidationErrors.Count > 0)
-        {
-            return ApiErrors.ValidationFailed(updateValidationErrors);
-        }
-
-        var currentColumnId = existingCard.BoardColumnId;
-        var requestedColumnId = request.BoardColumnId ?? currentColumnId;
-        if (request.BoardColumnId is int explicitColumnId && explicitColumnId != currentColumnId)
+        if (request.BoardColumnId is int explicitColumnId && explicitColumnId != existingCard.BoardColumnId)
         {
             var hasMovePermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardMove);
             if (!hasMovePermission)
@@ -67,6 +59,46 @@ public sealed class UpdateCardService(
                 return ApiErrors.Forbidden("You do not have permission for this action.");
             }
         }
+
+        var saved = await SaveAsync(existingCard, request);
+        if (!saved.Success)
+        {
+            return new(false, null, saved.StatusCode, saved.Message, saved.ValidationErrors);
+        }
+
+        await scope.SaveChangesAsync();
+        var dto = await CardDtoEnrichment.EnrichAssignedUserImageAsync(existingCard.ToCardDto(), imageRepository);
+        if (saved.Data!.Moved)
+        {
+            await boardEvents.CardMovedAsync(boardId, dto);
+            if (saved.Data.ResyncRequired)
+            {
+                await boardEvents.ResyncRequestedAsync(boardId);
+            }
+        }
+        else
+        {
+            await boardEvents.CardUpdatedAsync(boardId, dto);
+        }
+
+        return dto;
+    }
+
+    internal async Task<ApiResult<CardSaveResult>> SaveAsync(
+        EntityBoardCard existingCard, UpdateCardRequest request, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var scope = scopeFactory.Create();
+        var boardId = existingCard.BoardId;
+
+        var updateValidationErrors = await validator.ValidateUpdateAsync(boardId, request, existingCard.AssignedUserId);
+        if (updateValidationErrors.Count > 0)
+        {
+            return ApiErrors.ValidationFailed(updateValidationErrors);
+        }
+
+        var currentColumnId = existingCard.BoardColumnId;
+        var requestedColumnId = request.BoardColumnId ?? currentColumnId;
 
         if (request.BoardColumnId is int updateColumnId)
         {
@@ -128,62 +160,55 @@ public sealed class UpdateCardService(
         if (metadataChanged || movementChanged)
         {
             existingCard.CardUpdatedUtc = DateTime.UtcNow;
-            existingCard.Title = updatedTitle;
-            existingCard.Description = updatedDescription;
-            if (descriptionChanged)
-            {
-                CardChecklistCounter.Refresh(existingCard);
-            }
-            existingCard.ExternalUrl = updatedExternalUrl;
-            if (tagsChanged)
-            {
-                CardTagMutation.ReplaceTags(existingCard, updatedTags);
-            }
-
-            if (cardTypeChanged)
-            {
-                existingCard.CardTypeId = selectedCardType.Id;
-                existingCard.CardType = selectedCardType;
-            }
-
-            if (assignmentChanged)
-            {
-                existingCard.AssignedUserId = request.AssignedUserId;
-                existingCard.AssignedUser = null;
-            }
-
-            if (slickChanged)
-            {
-                existingCard.Slick = selectedSlick;
-                existingCard.SlickId = selectedSlickId > 0 ? selectedSlickId : null;
-            }
-
-            if (movementChanged)
-            {
-                foreach (var assignment in movementPlan!.Assignments)
-                {
-                    assignment.Card.SortKey = assignment.SortKey;
-                }
-
-                existingCard.BoardColumnId = requestedColumnId;
-            }
-
-            await scope.SaveChangesAsync();
         }
 
-        var dto = await CardDtoEnrichment.EnrichAssignedUserImageAsync(existingCard.ToCardDto(), imageRepository);
+        existingCard.Title = updatedTitle;
+        existingCard.Description = updatedDescription;
+        existingCard.ExternalUrl = updatedExternalUrl;
+        if (tagsChanged)
+        {
+            CardTagMutation.ReplaceTags(existingCard, updatedTags);
+        }
+
+        if (cardTypeChanged)
+        {
+            existingCard.CardTypeId = selectedCardType.Id;
+            existingCard.CardType = selectedCardType;
+        }
+
+        if (assignmentChanged)
+        {
+            existingCard.AssignedUserId = request.AssignedUserId;
+            existingCard.AssignedUser = null;
+        }
+
+        if (slickChanged)
+        {
+            existingCard.Slick = selectedSlick;
+            existingCard.SlickId = selectedSlickId > 0 ? selectedSlickId : null;
+        }
+
         if (movementChanged)
         {
-            await boardEvents.CardMovedAsync(boardId, dto);
-            if (movementPlan!.Renormalised)
+            foreach (var assignment in movementPlan!.Assignments)
             {
-                await boardEvents.ResyncRequestedAsync(boardId);
+                assignment.Card.SortKey = assignment.SortKey;
             }
-        }
-        else
-        {
-            await boardEvents.CardUpdatedAsync(boardId, dto);
+
+            existingCard.BoardColumnId = requestedColumnId;
         }
 
-        return dto;
-    }}
+        var previousCompleted = existingCard.CompletedChecklistItemCount;
+        var previousTotal = existingCard.TotalChecklistItemCount;
+        CardChecklistCounter.Refresh(existingCard);
+        var derivedValuesChanged = previousCompleted != existingCard.CompletedChecklistItemCount
+            || previousTotal != existingCard.TotalChecklistItemCount;
+
+        await scope.SaveChangesAsync(cancellationToken);
+        return new CardSaveResult(
+            metadataChanged || movementChanged || derivedValuesChanged,
+            movementChanged, movementPlan?.Renormalised == true);
+    }
+}
+
+internal sealed record CardSaveResult(bool Changed, bool Moved, bool ResyncRequired);

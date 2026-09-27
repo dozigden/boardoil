@@ -426,8 +426,50 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.Null(clearResult.Data.AssignedUserDisplayName);
     }
 
-    [Fact]
-    public async Task UpdateCardAsync_WhenAssignedUserIsNotActiveBoardMember_ShouldReturnValidationError()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task UpdateCardAsync_WhenUnchangedAssigneeIsNotActiveBoardMember_ShouldPreserveAssignment(bool isActive)
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Title", "Old").Build();
+        var card = board.GetCard("Title");
+        var assignee = new UserEntity
+        {
+            UserName = "assignee",
+            DisplayName = "Assignee",
+            Email = "assignee@localhost",
+            NormalisedEmail = "ASSIGNEE@LOCALHOST",
+            PasswordHash = "hash",
+            IsActive = isActive,
+        };
+        DbContextForArrange.Users.Add(assignee);
+        card.AssignedUser = assignee;
+        if (!isActive)
+        {
+            DbContextForArrange.BoardMembers.Add(new BoardMemberEntity
+            {
+                BoardId = board.BoardId,
+                User = assignee,
+                Role = BoardOil.Data.Abstractions.Entities.BoardMemberRole.Contributor,
+            });
+        }
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await CreateService().UpdateCardAsync(board.BoardId, card.BoardCardId,
+            new UpdateCardRequest("Updated", "New description", [], card.CardTypeId, null, assignee.Id), ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.Equal(assignee.Id, result.Data!.AssignedUserId);
+        var stored = await DbContextForAssert.Cards.SingleAsync(x => x.Id == card.Id);
+        Assert.Equal("Updated", stored.Title);
+        Assert.Equal("New description", stored.Description);
+        Assert.Equal(assignee.Id, stored.AssignedUserId);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task UpdateCardAsync_WhenAssignedUserIsNotActiveBoardMember_ShouldReturnValidationError(bool isActive)
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -445,9 +487,18 @@ public sealed class CardServiceTests : TestBaseDb
             Email = outsiderEmail,
             NormalisedEmail = outsiderEmail,
             PasswordHash = "hash",
-            IsActive = true,
+            IsActive = isActive,
         };
         DbContextForArrange.Users.Add(outsider);
+        if (!isActive)
+        {
+            DbContextForArrange.BoardMembers.Add(new BoardMemberEntity
+            {
+                BoardId = board.BoardId,
+                User = outsider,
+                Role = BoardOil.Data.Abstractions.Entities.BoardMemberRole.Contributor,
+            });
+        }
         await DbContextForArrange.SaveChangesAsync();
 
         var systemCardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);

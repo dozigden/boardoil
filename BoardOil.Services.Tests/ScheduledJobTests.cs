@@ -537,13 +537,214 @@ public sealed class ScheduledJobTests : TestBaseDb
             Assert.Throws<InvalidOperationException>(() => ResolveService<IScheduledJobService>()).Message);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OnceWithoutRequest_ShouldNotRunOrCreateCheckpoint(bool existingState)
+    {
+        _definitions.Add(OnceDefinition());
+        if (existingState)
+        {
+            DbContextForArrange.ScheduledJobSchedulerStates.Add(new()
+            {
+                Name = "once-state", LastRunTimeUtc = Start, LastEvaluatedAtUtc = Start
+            });
+            await DbContextForArrange.SaveChangesAsync();
+        }
+        _clock.Set(Start.AddDays(30));
+
+        var result = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+
+        Assert.Empty(result);
+        Assert.Empty(await DbContextForAssert.Jobs.ToListAsync());
+        Assert.Equal(existingState ? 1 : 0, await DbContextForAssert.ScheduledJobSchedulerStates.CountAsync());
+    }
+
+    [Fact]
+    public async Task OnceRequest_ShouldQueueEveryTargetAndCompleteBeforeJobsExecute()
+    {
+        _definitions.Add(OnceDefinition());
+        await ArmOnceAsync();
+
+        var result = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.All(result, item => Assert.Equal(Start, item.DueAtUtc));
+        var state = await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync();
+        Assert.False(state.RunRequested);
+        Assert.Null(state.PendingDueAtUtc);
+        Assert.Equal(Start, state.LastEvaluatedAtUtc);
+        Assert.All(await DbContextForAssert.Jobs.ToListAsync(), job => Assert.Equal(JobStatus.Pending, job.Status));
+    }
+
+    [Fact]
+    public async Task CompletedOnceRequest_ShouldNotRepeatAfterRestart()
+    {
+        _definitions.Add(OnceDefinition());
+        await ArmOnceAsync();
+        await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+        _clock.Set(Start.AddDays(10));
+
+        var result = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+
+        Assert.Empty(result);
+        Assert.Equal(2, await DbContextForAssert.Jobs.CountAsync());
+    }
+
+    [Fact]
+    public async Task OncePartialEnqueue_ShouldRetainRequestAndResumeOriginalOccurrence()
+    {
+        var definition = OnceDefinition();
+        var valid = definition.Occurrences;
+        definition.Occurrences = [valid[0], valid[1] with { PayloadJson = "{broken" }];
+        _definitions.Add(definition);
+        await ArmOnceAsync();
+        await Assert.ThrowsAsync<AggregateException>(() => ResolveService<IScheduledJobService>().EnqueueDueJobsAsync());
+        var pending = await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync();
+        Assert.True(pending.RunRequested);
+        Assert.Equal(Start, pending.PendingDueAtUtc);
+        definition.Occurrences = valid;
+        _clock.Set(Start.AddDays(3));
+
+        var result = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.Single(result, item => item.Enqueued);
+        Assert.All(result, item => Assert.Equal(Start, item.DueAtUtc));
+        Assert.Equal(2, await DbContextForAssert.Jobs.CountAsync());
+        Assert.False((await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync()).RunRequested);
+    }
+
+    [Fact]
+    public async Task OnceCheckpointFailure_ShouldRetryWithoutDuplicatingQueuedJobs()
+    {
+        _definitions.Add(OnceDefinition());
+        await ArmOnceAsync();
+        _faults.FailNextFinalCheckpoint();
+        await Assert.ThrowsAsync<AggregateException>(() => ResolveService<IScheduledJobService>().EnqueueDueJobsAsync());
+        _clock.Set(Start.AddDays(1));
+
+        var result = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.All(result, item => Assert.False(item.Enqueued));
+        Assert.Equal(2, await DbContextForAssert.Jobs.CountAsync());
+        Assert.False((await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync()).RunRequested);
+    }
+
+    [Fact]
+    public async Task DisabledOnceAndTimezoneChange_ShouldPreserveRequestAndPendingOccurrence()
+    {
+        var definition = OnceDefinition();
+        definition.Enabled = false;
+        _definitions.Add(definition);
+        await ArmOnceAsync(Start.AddHours(-1));
+        await ResolveService<ISystemTimeZoneService>().UpdateAsync(new UpdateSystemTimeZoneRequest("Europe/London"));
+
+        var result = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+
+        Assert.Empty(result);
+        var state = await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync();
+        Assert.True(state.RunRequested);
+        Assert.Equal(Start.AddHours(-1), state.PendingDueAtUtc);
+        Assert.Empty(await DbContextForAssert.Jobs.ToListAsync());
+    }
+
+    [Fact]
+    public async Task EmptyOncePass_ShouldClearRequestWithoutJobs()
+    {
+        var definition = OnceDefinition();
+        definition.Occurrences = [];
+        _definitions.Add(definition);
+        await ArmOnceAsync();
+
+        var result = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+
+        Assert.Empty(result);
+        Assert.Empty(await DbContextForAssert.Jobs.ToListAsync());
+        Assert.False((await DbContextForAssert.ScheduledJobSchedulerStates.SingleAsync()).RunRequested);
+    }
+
+    [Fact]
+    public async Task RearmedOnce_ShouldQueueFreshPass()
+    {
+        _definitions.Add(OnceDefinition());
+        await ArmOnceAsync();
+        await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+        using (var db = CreateDbContextForAct())
+        {
+            var state = await db.ScheduledJobSchedulerStates.SingleAsync();
+            state.RunRequested = true;
+            state.PendingDueAtUtc = null;
+            await db.SaveChangesAsync();
+        }
+        _clock.Set(Start.AddDays(1));
+
+        var result = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.All(result, item => Assert.True(item.Enqueued));
+        Assert.Equal(4, await DbContextForAssert.Jobs.CountAsync());
+        Assert.False((await DbContextForAssert.ScheduledJobSchedulerStates.SingleAsync()).RunRequested);
+    }
+
+    [Fact]
+    public async Task OnceRunNow_ShouldLeaveAutomaticRequestAndPendingOccurrenceUntouched()
+    {
+        _definitions.Add(OnceDefinition());
+        await ArmOnceAsync(Start.AddHours(-1));
+
+        var result = await ResolveService<IScheduledJobService>().RunNowAsync("once", ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Data!.EnqueuedCount);
+        var state = await DbContextForAssert.ScheduledJobSchedulerStates.SingleAsync();
+        Assert.True(state.RunRequested);
+        Assert.Equal(Start.AddHours(-1), state.PendingDueAtUtc);
+        Assert.Null(state.LastEvaluatedAtUtc);
+    }
+
+    [Theory]
+    [InlineData(ScheduledJobKind.Daily, null, false)]
+    [InlineData(ScheduledJobKind.Once, 3, false)]
+    [InlineData(ScheduledJobKind.Once, null, true)]
+    [InlineData((ScheduledJobKind)99, null, false)]
+    public async Task InvalidTimingConfiguration_ShouldFailBeforeQueueing(ScheduledJobKind kind, int? hour, bool initial)
+    {
+        _definitions.Add(new TestDefinition("invalid", initial)
+        {
+            Kind = kind, DailyTime = hour.HasValue ? new TimeOnly(hour.Value, 0) : null
+        });
+
+        await Assert.ThrowsAsync<AggregateException>(() => ResolveService<IScheduledJobService>().EnqueueDueJobsAsync());
+
+        Assert.Empty(await DbContextForAssert.Jobs.ToListAsync());
+        Assert.Empty(await DbContextForAssert.ScheduledJobSchedulerStates.ToListAsync());
+    }
+
+    private static TestDefinition OnceDefinition() => new("once", false)
+    {
+        Kind = ScheduledJobKind.Once, DailyTime = null,
+        Occurrences = [new("maintenance", "{}", "first"), new("maintenance", "{}", "second")]
+    };
+
+    private async Task ArmOnceAsync(DateTime? pending = null)
+    {
+        DbContextForArrange.ScheduledJobSchedulerStates.Add(new()
+        {
+            Name = "once-state", RunRequested = true, LastRunTimeUtc = Start.AddDays(-1), PendingDueAtUtc = pending
+        });
+        await DbContextForArrange.SaveChangesAsync();
+    }
+
     private sealed class TestDefinition(string name, bool initial) : IScheduledJobDefinition
     {
         public string Name => name;
         public string DisplayName => name;
         public string SchedulerStateName => StateName ?? $"{name}-state";
         public string? StateName { get; set; }
-        public TimeOnly DailyTime { get; set; } = new(12, 0);
+        public TimeOnly? DailyTime { get; set; } = new(12, 0);
+        public ScheduledJobKind Kind { get; set; } = ScheduledJobKind.Daily;
         public bool Enabled { get; set; } = true;
         public IReadOnlyList<ScheduledJobOccurrence> Occurrences { get; set; } =
             [new ScheduledJobOccurrence("maintenance")];
@@ -557,7 +758,7 @@ public sealed class ScheduledJobTests : TestBaseDb
                 await BeforeConfiguration();
             }
 
-            return new ScheduledJobDefinitionConfiguration(Enabled, DailyTime, initial);
+            return new ScheduledJobDefinitionConfiguration(Enabled, DailyTime, initial, Kind);
         }
 
         public Task<IReadOnlyList<ScheduledJobOccurrence>> CreateOccurrencesAsync(

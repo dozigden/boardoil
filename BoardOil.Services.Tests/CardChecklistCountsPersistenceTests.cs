@@ -59,7 +59,7 @@ public sealed class CardChecklistCountsPersistenceTests : TestBaseDb
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task UnchangedDescription_ShouldRetainLegacyZeroCounts(bool changeTitle)
+    public async Task UnchangedDescription_ShouldRecalculateAndPublishCountsOnSave(bool changeTitle)
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("Legacy", Checklist).Build();
         var card = board.GetCard("Legacy");
@@ -68,10 +68,13 @@ public sealed class CardChecklistCountsPersistenceTests : TestBaseDb
             new UpdateCardRequest(changeTitle ? "Renamed" : card.Title, Checklist, [], card.CardTypeId), ActorUserId);
 
         Assert.True(result.Success);
-        AssertCounts(result.Data!, 0, 0);
+        AssertCounts(result.Data!, 1, 2);
         var stored = await DbContextForAssert.Cards.SingleAsync();
-        Assert.Equal(0, stored.TotalChecklistItemCount);
+        Assert.Equal(2, stored.TotalChecklistItemCount);
         Assert.Equal(Checklist, stored.Description);
+        if (!changeTitle) { Assert.Equal(card.CardUpdatedUtc, stored.CardUpdatedUtc); }
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        AssertCounts(Assert.Single(events.CardUpdatedEvents).Card, 1, 2);
     }
 
     [Fact]

@@ -66,6 +66,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBoardService, BoardService>();
+        services.AddScoped<IBoardResaveService, BoardResaveService>();
         services.AddScoped<IBoardCloneService, BoardCloneService>();
         services.AddScoped<IBoardExportService, BoardExportService>();
         services.AddScoped<BoardPackageImportReader>();
@@ -88,10 +89,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IJobHandler, ErrorLogPurgeJobHandler>();
         services.AddScoped<IJobHandler, OAuthTokenAuditPurgeJobHandler>();
         services.AddScoped<IJobHandler, HistoryPurgeJobHandler>();
+        services.AddScoped<IJobHandler, ResaveBoardJobHandler>();
         services.AddSingleton<IScheduledJobDefinition, OAuthClientRegistrationCleanupScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, ErrorLogPurgeScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, OAuthTokenAuditPurgeScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, HistoryPurgeScheduledJobDefinition>();
+        services.AddScoped<IScheduledJobDefinition, ResaveAllBoardsScheduledJobDefinition>();
         services.AddSingleton<IDailyOccurrenceCalculator, DailyOccurrenceCalculator>();
         services.AddScoped<ISystemTimeZoneService, SystemTimeZoneService>();
         services.AddScoped<IScheduledJobService, ScheduledJobService>();

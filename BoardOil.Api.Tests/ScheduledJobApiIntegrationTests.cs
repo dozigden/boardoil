@@ -17,14 +17,19 @@ namespace BoardOil.Api.Tests;
 public sealed class ScheduledJobApiIntegrationTests : TestBaseIntegration
 {
     [Fact]
-    public async Task List_ShouldExposeFourDefinitionsAndUninitialisedTiming()
+    public async Task List_ShouldExposeDailyAndUnrequestedOnceDefinitions()
     {
         var response = await Client.GetAsync("/api/system/scheduled-jobs");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<ApiResult<ScheduledJobDto[]>>();
-        Assert.Equal(4, result!.Data!.Length);
-        Assert.All(result.Data, item =>
+        Assert.Equal(5, result!.Data!.Length);
+        var once = Assert.Single(result.Data, item => item.Kind == "once");
+        Assert.Equal("resave-all-boards", once.Name);
+        Assert.Null(once.DailyTime);
+        Assert.Null(once.NextOccurrenceUtc);
+        Assert.Null(once.LastEvaluatedAtUtc);
+        Assert.All(result.Data.Where(item => item.Kind == "daily"), item =>
         {
             Assert.True(item.Enabled);
             Assert.Equal(new TimeOnly(3, 0), item.DailyTime);

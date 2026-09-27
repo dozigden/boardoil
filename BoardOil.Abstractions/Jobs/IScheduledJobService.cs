@@ -28,8 +28,11 @@ public interface IDailyOccurrenceCalculator
     DateTime? GetNextOccurrence(TimeOnly dailyTime, TimeZoneInfo timeZone, DateTime afterUtc);
 }
 
+public enum ScheduledJobKind { Daily, Once }
+
 public sealed record ScheduledJobDefinitionConfiguration(
-    bool Enabled, TimeOnly DailyTime, bool RunOnInitialisation = false);
+    bool Enabled, TimeOnly? DailyTime = null, bool RunOnInitialisation = false,
+    ScheduledJobKind Kind = ScheduledJobKind.Daily);
 
 // TargetKey is required for every occurrence when a definition fans out. Keep it stable across retries.
 public sealed record ScheduledJobOccurrence(

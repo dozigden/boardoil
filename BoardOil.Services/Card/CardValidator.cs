@@ -55,7 +55,7 @@ public sealed class CardValidator(
         return tagValidationErrors;
     }
 
-    public async Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(int boardId, UpdateCardRequest request)
+    public async Task<IReadOnlyList<ValidationError>> ValidateUpdateAsync(int boardId, UpdateCardRequest request, int? currentAssignedUserId)
     {
         var errors = new List<ValidationError>();
         if (request.Title.IsTrimmedNullOrEmpty())
@@ -86,7 +86,10 @@ public sealed class CardValidator(
             errors.Add(new ValidationError("cardTypeId", "Card type is required."));
         }
 
-        await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
+        if (request.AssignedUserId != currentAssignedUserId)
+        {
+            await ValidateAssignedUserIdAsync(boardId, request.AssignedUserId, errors);
+        }
         var updateSlickValidationError = SlickNameValidation.ValidateOptional(request.SlickName, "slickName");
         if (updateSlickValidationError is not null)
         {

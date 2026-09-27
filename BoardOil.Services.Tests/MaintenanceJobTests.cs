@@ -42,7 +42,8 @@ public sealed class MaintenanceJobTests : TestBaseDb
             ("history-purge", MaintenanceJobTypes.HistoryPurge, new TimeOnly(3, 0))
         };
 
-        Assert.Equal(expected.Length, definitions.Length);
+        Assert.Equal(expected.Length + 1, definitions.Length);
+        Assert.Contains(definitions, item => item.Name == ResaveAllBoardsScheduledJobDefinition.ScheduleName);
         foreach (var (name, type, dailyTime) in expected)
         {
             var definition = Assert.Single(definitions, item => item.Name == name);

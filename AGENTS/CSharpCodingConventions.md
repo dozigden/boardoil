@@ -5,6 +5,7 @@ Use these conventions for C# code in `BoardOil.*` projects.
 ## Naming and Language
 
 - Prefer British English spellings in code, contracts, and schema names unless integrating with an external API that requires a specific spelling.
+- Prefer self-explanatory code. Comment only to explain non-obvious reasons or constraints, not what the code does.
 
 ## Method Design
 

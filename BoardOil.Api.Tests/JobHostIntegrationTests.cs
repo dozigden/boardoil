@@ -40,10 +40,18 @@ public sealed class JobHostIntegrationTests
                     .Count(service => service is JobSchedulerService));
                 var definitions = scope.ServiceProvider.GetServices<IScheduledJobDefinition>().ToArray();
                 var handlers = scope.ServiceProvider.GetServices<IJobHandler>().ToArray();
-                Assert.Equal(4, definitions.Length);
+                Assert.Equal(5, definitions.Length);
                 foreach (var definition in definitions)
                 {
-                    Assert.Equal(new TimeOnly(3, 0), (await definition.GetConfigurationAsync()).DailyTime);
+                    var configuration = await definition.GetConfigurationAsync();
+                    if (configuration.Kind == ScheduledJobKind.Once)
+                    {
+                        Assert.Null(configuration.DailyTime);
+                    }
+                    else
+                    {
+                        Assert.Equal(new TimeOnly(3, 0), configuration.DailyTime);
+                    }
                     var occurrence = Assert.Single(await definition.CreateOccurrencesAsync(FixedNow));
                     Assert.Contains(handlers, handler => handler.Type == occurrence.JobType);
                 }

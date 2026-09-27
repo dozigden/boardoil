@@ -8,6 +8,17 @@ namespace BoardOil.Ef.Repositories;
 public sealed class BoardRepository(IAmbientDbContextLocator ambientDbContextLocator)
     : RepositoryBase<EntityBoard>(ambientDbContextLocator), IBoardRepository
 {
+    public async Task<IReadOnlyList<int>> GetBoardIdsAsync(CancellationToken cancellationToken = default) =>
+        await DbSet.OrderBy(x => x.Id).Select(x => x.Id).ToListAsync(cancellationToken);
+
+    public Task<EntityBoard?> GetForResaveAsync(int boardId, CancellationToken cancellationToken = default) =>
+        DbSet.AsSplitQuery()
+            .Include(x => x.Columns).ThenInclude(x => x.Cards).ThenInclude(x => x.CardTags)
+            .Include(x => x.CardTypes)
+            .Include(x => x.Tags)
+            .Include(x => x.Slicks)
+            .SingleOrDefaultAsync(x => x.Id == boardId, cancellationToken);
+
     public async Task<IReadOnlyList<EntityBoard>> GetBoardsOrderedAsync() =>
         await DbSet
             .OrderBy(x => x.Id)
