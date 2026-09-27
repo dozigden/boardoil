@@ -543,14 +543,14 @@ public sealed class JobExecutionTests : TestBaseDb
     }
 
     [Fact]
-    public void ServiceRegistration_ShouldResolveRunnerWithoutProductionHandlerOrHostedWorker()
+    public void ServiceRegistration_ShouldResolveRunnerWithMaintenanceHandlersAndWithoutHostedWorker()
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddBoardOilServices();
         BoardOil.Ef.DependencyInjection.ServiceCollectionExtensions.AddBoardOilEfInfrastructure(
             services, "DataSource=:memory:");
-        Assert.DoesNotContain(services, x => x.ServiceType == typeof(IJobHandler));
+        Assert.Equal(3, services.Count(x => x.ServiceType == typeof(IJobHandler)));
         Assert.DoesNotContain(services, x => x.ServiceType.FullName == "Microsoft.Extensions.Hosting.IHostedService");
         Assert.Contains(services, x => x.ServiceType == typeof(IJobRunner));
         Assert.Contains(services, x => x.ServiceType == typeof(IJobService));

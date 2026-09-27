@@ -2,6 +2,8 @@ using System.Threading.RateLimiting;
 using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Api.Configuration;
+using BoardOil.Api.Jobs;
+using BoardOil.Abstractions.Jobs;
 using BoardOil.Abstractions.OAuth;
 using BoardOil.Contracts.Auth;
 using BoardOil.Ef;
@@ -38,6 +40,7 @@ public static class OAuthServiceCollectionExtensions
         services.AddSingleton<OAuthTokenAuditCaptureState>();
         services.AddScoped<IOAuthProtectedResourceMetadataService, OAuthProtectedResourceMetadataService>();
         services.AddScoped<IOAuthDynamicClientRegistrationService, OAuthDynamicClientRegistrationService>();
+        services.AddScoped<IJobHandler, OAuthClientRegistrationCleanupJobHandler>();
         services.AddSingleton<OAuthDynamicClientRegistrationCleanupFailureLogger>();
         services.AddHostedService<OAuthDynamicClientRegistrationCleanupService>();
 

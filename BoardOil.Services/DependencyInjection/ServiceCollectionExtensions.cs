@@ -84,6 +84,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<SchedulingGate>();
         services.AddScoped<IJobService, JobService>();
         services.AddScoped<IJobRunner, JobRunner>();
+        services.AddScoped<IJobHandler, ErrorLogPurgeJobHandler>();
+        services.AddScoped<IJobHandler, OAuthTokenAuditPurgeJobHandler>();
+        services.AddScoped<IJobHandler, HistoryPurgeJobHandler>();
+        services.AddSingleton<IScheduledJobDefinition, OAuthClientRegistrationCleanupScheduledJobDefinition>();
+        services.AddSingleton<IScheduledJobDefinition, ErrorLogPurgeScheduledJobDefinition>();
+        services.AddSingleton<IScheduledJobDefinition, OAuthTokenAuditPurgeScheduledJobDefinition>();
+        services.AddSingleton<IScheduledJobDefinition, HistoryPurgeScheduledJobDefinition>();
         services.AddSingleton<ICronOccurrenceCalculator, CronOccurrenceCalculator>();
         services.AddScoped<ISystemTimeZoneService, SystemTimeZoneService>();
         services.AddScoped<IScheduledJobService, ScheduledJobService>();

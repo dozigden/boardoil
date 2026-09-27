@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using BoardOil.Api.OAuth;
+using BoardOil.Abstractions.Jobs;
+using BoardOil.Contracts.Jobs;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Auth;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -576,17 +578,29 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
         var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
         var expired = CreateApplicationDescriptor("expired-client", DateTimeOffset.UtcNow.AddMinutes(-1));
         var active = CreateApplicationDescriptor("active-client", DateTimeOffset.UtcNow.AddDays(1));
+        var staticClient = new OpenIddictApplicationDescriptor
+        {
+            ClientId = "static-client",
+            ClientType = ClientTypes.Public,
+            DisplayName = "static-client"
+        };
         await manager.CreateAsync(expired);
         await manager.CreateAsync(active);
-        var cleanup = scope.ServiceProvider.GetRequiredService<IOAuthDynamicClientRegistrationService>();
+        await manager.CreateAsync(staticClient);
+        var handler = Assert.Single(scope.ServiceProvider.GetServices<IJobHandler>(),
+            candidate => candidate.Type == MaintenanceJobTypes.OAuthClientRegistrationCleanup);
 
         // Act
-        var deleted = await cleanup.CleanupExpiredRegistrationsAsync();
+        var result = await handler.HandleAsync(
+            new JobContext(1, MaintenanceJobTypes.OAuthClientRegistrationCleanup, "{}"),
+            TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(1, deleted);
+        Assert.True(result.Success);
+        Assert.Equal(1, JsonDocument.Parse(result.ResultJson).RootElement.GetProperty("deletedCount").GetInt32());
         Assert.Null(await manager.FindByClientIdAsync("expired-client"));
         Assert.NotNull(await manager.FindByClientIdAsync("active-client"));
+        Assert.NotNull(await manager.FindByClientIdAsync("static-client"));
     }
 
     private async Task ConfigurePublicBaseAsync(HttpClient client)
