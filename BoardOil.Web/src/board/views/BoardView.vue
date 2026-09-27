@@ -15,7 +15,7 @@
     </svg>
 
     <section v-if="board" class="board-view">
-      <Teleport :to="`#${boardLayoutRegistry.conveyorContentTargetId}`">
+      <Teleport defer :to="`#${boardLayoutRegistry.conveyorContentTargetId}`">
         <BoardCardFilters
           embedded
           :search-text="cardSearchText"
