@@ -38,6 +38,9 @@ public sealed class JobExecutionTests : TestBaseDb
                 new DbContextScopeFactory(provider.GetRequiredService<IDbContextFactory>()), _faults));
         services.AddSingleton<IJobHandler>(_handler);
         services.AddSingleton<IJobHandler>(_typedHandler);
+        services.RemoveAll<IJobInvalidations>();
+        services.AddSingleton<IJobInvalidations>(provider => new RecordingInvalidations(
+            provider.GetRequiredService<IDbContextFactory>()));
     }
 
     [Fact]
@@ -58,6 +61,25 @@ public sealed class JobExecutionTests : TestBaseDb
         Assert.Equal("batch-1", job.CorrelationId);
         Assert.Single(job.Logs);
         Assert.Equal("Job enqueued.", job.Logs[0].Message);
+    }
+
+    [Fact]
+    public async Task Invalidations_ShouldFollowCommittedStatesAndFailureMustNotReplayHandler()
+    {
+        var invalidations = (RecordingInvalidations)ResolveService<IJobInvalidations>();
+        var service = ResolveService<IJobService>();
+        invalidations.Throw = true;
+
+        var id = (await service.EnqueueAsync(new CreateJobRequest("sample"))).Data!.Id;
+        Assert.True(await ResolveService<IJobRunner>().RunNextDueAsync());
+
+        Assert.Equal([JobStatus.Pending, JobStatus.Running, JobStatus.Completed],
+            invalidations.States.Where(state => state.JobId == id).Select(state => state.Status));
+        Assert.Equal(1, _handler.Calls);
+        Assert.Equal(JobStatus.Completed,
+            (await DbContextForAssert.Jobs.AsNoTracking().SingleAsync(job => job.Id == id)).Status);
+        Assert.False(await ResolveService<IJobRunner>().RunNextDueAsync());
+        Assert.Equal(1, _handler.Calls);
     }
 
     [Fact]
@@ -273,7 +295,7 @@ public sealed class JobExecutionTests : TestBaseDb
     {
         var handlers = new IJobHandler[] { new RecordingHandler(), new RecordingHandler() };
         var error = Assert.Throws<InvalidOperationException>(() =>
-            new JobRunner(null!, null!, null!, handlers, null!, null!, null!, null!));
+            new JobRunner(null!, null!, null!, handlers, null!, null!, null!, null!, null!));
         Assert.Contains("Duplicate job handler type", error.Message);
     }
 
@@ -426,6 +448,8 @@ public sealed class JobExecutionTests : TestBaseDb
         Assert.Equal(committed.CompletedAtUtc, reloaded.CompletedAtUtc);
         Assert.Single(reloaded.Logs, x => x.Message == "Job completed.");
         Assert.Equal(1, _handler.Calls);
+        var invalidations = (RecordingInvalidations)ResolveService<IJobInvalidations>();
+        Assert.Equal(1, invalidations.States.Count(state => state.JobId == id && state.Status == JobStatus.Completed));
     }
 
     [Fact]
@@ -491,6 +515,8 @@ public sealed class JobExecutionTests : TestBaseDb
             Assert.Contains("restart", job.ErrorMessage);
             Assert.Single(job.Logs, x => x.Message.Contains("restart"));
         }
+        var invalidations = (RecordingInvalidations)ResolveService<IJobInvalidations>();
+        Assert.Equal([0], invalidations.RunningCountsAtJobHistoryPublication);
 
         Assert.True(await runner.RunNextDueAsync());
         Assert.Equal([pending.Id], _handler.SeenIds);
@@ -584,6 +610,30 @@ public sealed class JobExecutionTests : TestBaseDb
             }
 
             return Result;
+        }
+    }
+
+    private sealed class RecordingInvalidations(IDbContextFactory factory) : IJobInvalidations
+    {
+        public bool Throw { get; set; }
+        public List<(int JobId, JobStatus Status)> States { get; } = [];
+        public List<int> RunningCountsAtJobHistoryPublication { get; } = [];
+
+        public async Task JobChangedAsync(int jobId)
+        {
+            await using var db = factory.CreateDbContext<BoardOilDbContext>();
+            var status = await db.Jobs.AsNoTracking()
+                .Where(job => job.Id == jobId).Select(job => job.Status).SingleAsync();
+            States.Add((jobId, status));
+            if (Throw) throw new InvalidOperationException("Notifier unavailable.");
+        }
+
+        public async Task JobHistoryChangedAsync()
+        {
+            await using var db = factory.CreateDbContext<BoardOilDbContext>();
+            RunningCountsAtJobHistoryPublication.Add(
+                await db.Jobs.AsNoTracking().CountAsync(job => job.Status == JobStatus.Running));
+            if (Throw) throw new InvalidOperationException("Notifier unavailable.");
         }
     }
 

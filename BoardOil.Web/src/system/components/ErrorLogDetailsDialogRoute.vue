@@ -47,6 +47,10 @@
           <dt>Actor</dt>
           <dd>{{ nullableReference(currentErrorLog.actorUserId) }}</dd>
         </div>
+        <div v-if="currentErrorLog.jobId !== null">
+          <dt>Job</dt>
+          <dd><RouterLink :to="{ name: 'system-job-details', params: { jobId: currentErrorLog.jobId } }">#{{ currentErrorLog.jobId }}</RouterLink></dd>
+        </div>
         <div>
           <dt>Trace</dt>
           <dd>{{ currentErrorLog.traceIdentifier ?? '-' }}</dd>
@@ -86,7 +90,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { copyTextToClipboard } from '../../shared/utils/clipboard';

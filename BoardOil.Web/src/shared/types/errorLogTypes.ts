@@ -11,6 +11,7 @@ export type ErrorLog = {
   actorUserId: number | null;
   createdAtUtc: string;
   updatedAtUtc: string;
+  jobId: number | null;
 };
 
 export type ErrorLogDetails = ErrorLog & {

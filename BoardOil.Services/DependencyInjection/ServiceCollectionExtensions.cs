@@ -83,6 +83,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<JobLifecycleGate>();
         services.AddSingleton<SchedulingGate>();
         services.AddScoped<IJobService, JobService>();
+        services.TryAddSingleton<IJobInvalidations, NoOpJobInvalidations>();
         services.AddScoped<IJobRunner, JobRunner>();
         services.AddScoped<IJobHandler, ErrorLogPurgeJobHandler>();
         services.AddScoped<IJobHandler, OAuthTokenAuditPurgeJobHandler>();

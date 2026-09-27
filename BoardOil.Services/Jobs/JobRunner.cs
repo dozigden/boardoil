@@ -16,7 +16,8 @@ public sealed class JobRunner(
     IErrorLogService errorLogs,
     JobLifecycleGate lifecycleGate,
     TimeProvider clock,
-    ILogger<JobRunner> logger) : IJobRunner
+    ILogger<JobRunner> logger,
+    IJobInvalidations invalidations) : IJobRunner
 {
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(10);
     private readonly IReadOnlyDictionary<string, IJobHandler> _handlers = BuildHandlerMap(handlers);
@@ -97,6 +98,7 @@ public sealed class JobRunner(
             }
 
             await scope.SaveChangesAsync(token);
+            await PublishJobHistoryAsync();
         }, cancellationToken);
 
     private async Task<StartedJob?> ClaimNextDueAsync(CancellationToken cancellationToken)
@@ -121,6 +123,7 @@ public sealed class JobRunner(
             LoggedAtUtc = now
         });
         await scope.SaveChangesAsync(cancellationToken);
+        await PublishJobAsync(job.Id);
         return new StartedJob(new JobContext(job.Id, job.Type, job.PayloadJson));
     }
 
@@ -134,10 +137,19 @@ public sealed class JobRunner(
             {
                 using var scope = scopes.Create(DbContextScopeOption.ForceCreateNew);
                 var job = await jobs.GetForUpdateAsync(outcome.JobId, cancellationToken);
-                if (job is null || job.Status != JobStatus.Running)
+                if (job is null)
+                {
+                    return;
+                }
+                if (job.Status != JobStatus.Running)
                 {
                     // A prior commit may have succeeded despite the caller seeing an exception,
                     // or recovery/another actor may already have made the job terminal.
+                    if (job.Status is JobStatus.Completed or JobStatus.Failed or JobStatus.Cancelled)
+                    {
+                        break;
+                    }
+
                     return;
                 }
 
@@ -156,7 +168,7 @@ public sealed class JobRunner(
                     LoggedAtUtc = outcome.CompletedAtUtc
                 });
                 await scope.SaveChangesAsync(cancellationToken);
-                return;
+                break;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -167,6 +179,34 @@ public sealed class JobRunner(
                 logger.LogError(exception, "Could not persist terminal outcome for job {JobId}; retrying.", outcome.JobId);
                 await Task.Delay(RetryDelay, clock, cancellationToken);
             }
+        }
+
+        // Notification is outside the persistence retry loop. It cannot replay the handler
+        // or another terminal save if publication fails.
+        await PublishJobAsync(outcome.JobId);
+    }
+
+    private async Task PublishJobAsync(int jobId)
+    {
+        try
+        {
+            await invalidations.JobChangedAsync(jobId);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not publish invalidation for committed job {JobId}.", jobId);
+        }
+    }
+
+    private async Task PublishJobHistoryAsync()
+    {
+        try
+        {
+            await invalidations.JobHistoryChangedAsync();
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not publish committed job recovery invalidation.");
         }
     }
 

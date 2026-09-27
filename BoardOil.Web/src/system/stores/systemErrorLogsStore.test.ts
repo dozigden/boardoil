@@ -129,6 +129,7 @@ function newErrorLog(id: number, message: string): ErrorLog {
     requestMethod: 'GET',
     requestPath: '/api/test',
     actorUserId: 1,
+    jobId: null,
     createdAtUtc: '2026-08-09T12:00:00Z',
     updatedAtUtc: '2026-08-09T12:00:00Z'
   };

@@ -5,6 +5,7 @@ using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Jobs;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Jobs;
+using Microsoft.Extensions.Logging;
 
 namespace BoardOil.Services.Jobs;
 
@@ -12,7 +13,9 @@ public sealed class JobService(
     IDbContextScopeFactory scopes,
     IJobRepository jobs,
     IJobLogRepository logs,
-    TimeProvider clock) : IJobService
+    TimeProvider clock,
+    IJobInvalidations invalidations,
+    ILogger<JobService>? logger = null) : IJobService
 {
     public async Task<ApiResult<JobListDto>> ListAsync(
         JobListRequest request, CancellationToken cancellationToken = default)
@@ -95,6 +98,14 @@ public sealed class JobService(
             LoggedAtUtc = now
         });
         await scope.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await invalidations.JobChangedAsync(job.Id);
+        }
+        catch (Exception exception)
+        {
+            logger?.LogWarning(exception, "Could not publish invalidation for committed job {JobId}.", job.Id);
+        }
         return ApiResults.Created(ToDto(job));
     }
 

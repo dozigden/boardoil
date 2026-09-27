@@ -56,6 +56,7 @@ function newErrorLog(): ErrorLogDetails {
     requestMethod: 'POST',
     requestPath: '/api/cards',
     actorUserId: 7,
+    jobId: null,
     contextJson: '{"endpoint":"card-create"}',
     createdAtUtc: '2026-08-09T12:00:00Z',
     updatedAtUtc: '2026-08-09T12:00:00Z'

@@ -94,6 +94,7 @@ builder.Services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
 builder.Services.AddScoped<IAuthHttpSessionService, AuthHttpSessionService>();
 builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 builder.Services.AddSingleton<IBoardEvents, BoardRealtimeNotifier>();
+builder.Services.AddSingleton<BoardOil.Abstractions.Jobs.IJobInvalidations, SystemJobInvalidations>();
 builder.Services.AddSingleton<IAuthorizationHandler, RequirePatApiScopeHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, McpOAuthConnectionAuthorizationHandler>();
 builder.Services.AddBoardOilAuthentication(jwtOptions);
@@ -174,6 +175,7 @@ app.MapInternalRealtimeEndpoints();
 app.MapConfigurationEndpoints();
 app.MapSystemInfoMessageEndpoints();
 app.MapErrorLogEndpoints();
+app.MapSystemJobEndpoints();
 app.MapUserEndpoints();
 app.MapClientAccountEndpoints();
 app.MapOAuthConnectionEndpoints();
@@ -184,6 +186,8 @@ app.MapAuthEndpoints();
 
 app.MapHub<BoardHub>("/hubs/board")
     .RequireAuthorization(BoardOilPolicies.AuthenticatedUser);
+app.MapHub<SystemJobsHub>("/hubs/system-jobs")
+    .RequireAuthorization(BoardOilPolicies.AdminOnly);
 
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions

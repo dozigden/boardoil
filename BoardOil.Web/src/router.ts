@@ -301,6 +301,19 @@ const routes: RouteRecordRaw[] = [
           default: () => import('./system/views/ErrorLogsManagerView.vue'),
           dialog: () => import('./system/components/ErrorLogDetailsDialogRoute.vue')
         }
+      },
+      {
+        path: 'jobs',
+        name: 'system-jobs',
+        component: () => import('./system/views/JobsManagerView.vue')
+      },
+      {
+        path: 'jobs/:jobId(\\d+)',
+        name: 'system-job-details',
+        components: {
+          default: () => import('./system/views/JobsManagerView.vue'),
+          dialog: () => import('./system/components/JobDetailsDialogRoute.vue')
+        }
       }
     ]
   },
