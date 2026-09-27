@@ -1,7 +1,8 @@
-// Ported from KST's schedule descriptions; BoardOil's four definitions share this cadence.
-export function describeSchedule(expression: string): string {
-  if (expression.trim().split(/\s+/).join(' ') === '0 3 * * *') return 'Daily at 03:00';
-  return expression;
+// TimeOnly is serialised as HH:mm:ss with optional fractional seconds.
+export function describeSchedule(dailyTime: string): string {
+  let displayTime = dailyTime;
+  if (dailyTime.endsWith(':00')) displayTime = dailyTime.slice(0, -3);
+  return `Daily at ${displayTime}`;
 }
 
 export function formatScheduleDate(value: string, timeZone: string): string {

@@ -36,21 +36,21 @@ public sealed class MaintenanceJobTests : TestBaseDb
         var definitions = ResolveService<IEnumerable<IScheduledJobDefinition>>().ToArray();
         var expected = new[]
         {
-            ("oauth-client-registration-cleanup", MaintenanceJobTypes.OAuthClientRegistrationCleanup, "0 3 * * *"),
-            ("error-log-purge", MaintenanceJobTypes.ErrorLogPurge, "0 3 * * *"),
-            ("oauth-token-audit-purge", MaintenanceJobTypes.OAuthTokenAuditPurge, "0 3 * * *"),
-            ("history-purge", MaintenanceJobTypes.HistoryPurge, "0 3 * * *")
+            ("oauth-client-registration-cleanup", MaintenanceJobTypes.OAuthClientRegistrationCleanup, new TimeOnly(3, 0)),
+            ("error-log-purge", MaintenanceJobTypes.ErrorLogPurge, new TimeOnly(3, 0)),
+            ("oauth-token-audit-purge", MaintenanceJobTypes.OAuthTokenAuditPurge, new TimeOnly(3, 0)),
+            ("history-purge", MaintenanceJobTypes.HistoryPurge, new TimeOnly(3, 0))
         };
 
         Assert.Equal(expected.Length, definitions.Length);
-        foreach (var (name, type, cron) in expected)
+        foreach (var (name, type, dailyTime) in expected)
         {
             var definition = Assert.Single(definitions, item => item.Name == name);
             var configuration = await definition.GetConfigurationAsync();
             var occurrence = Assert.Single(await definition.CreateOccurrencesAsync(Now));
             Assert.True(configuration.Enabled);
             Assert.True(configuration.RunOnInitialisation);
-            Assert.Equal(cron, configuration.CronExpression);
+            Assert.Equal(dailyTime, configuration.DailyTime);
             Assert.Equal($"{name}-checkpoint", definition.SchedulerStateName);
             Assert.Equal(type, occurrence.JobType);
             Assert.Equal("{}", occurrence.PayloadJson);

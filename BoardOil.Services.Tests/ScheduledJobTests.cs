@@ -68,7 +68,7 @@ public sealed class ScheduledJobTests : TestBaseDb
         var pending = await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync();
         Assert.Equal(Start, pending.PendingDueAtUtc);
         Assert.Null(pending.LastEvaluatedAtUtc);
-        _clock.Set(Start.AddHours(2));
+        _clock.Set(Start.AddDays(2));
         var retry = await service.EnqueueDueJobsAsync();
 
         Assert.Single(retry);
@@ -76,8 +76,8 @@ public sealed class ScheduledJobTests : TestBaseDb
         Assert.Equal("scheduled:initial:20260926T120000Z", retry[0].CorrelationId);
         Assert.Single(await DbContextForAssert.Jobs.AsNoTracking().ToListAsync());
         var completed = await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync();
-        Assert.Equal(Start.AddHours(2), completed.LastRunTimeUtc);
-        Assert.Equal(Start.AddHours(2), completed.LastEvaluatedAtUtc);
+        Assert.Equal(Start.AddDays(2), completed.LastRunTimeUtc);
+        Assert.Equal(Start.AddDays(2), completed.LastEvaluatedAtUtc);
         Assert.Null(completed.PendingDueAtUtc);
     }
 
@@ -90,7 +90,7 @@ public sealed class ScheduledJobTests : TestBaseDb
 
         await Assert.ThrowsAsync<AggregateException>(() => service.EnqueueDueJobsAsync());
         Assert.Single(await DbContextForAssert.Jobs.AsNoTracking().ToListAsync());
-        _clock.Set(Start.AddHours(1));
+        _clock.Set(Start.AddDays(1));
         var retry = await service.EnqueueDueJobsAsync();
 
         Assert.False(Assert.Single(retry).Enqueued);
@@ -104,7 +104,7 @@ public sealed class ScheduledJobTests : TestBaseDb
     {
         var definition = new TestDefinition("fan", false)
         {
-            Cron = "0 * * * *",
+            DailyTime = new TimeOnly(12, 0),
             Occurrences =
             [
                 new ScheduledJobOccurrence("maintenance", "{}", "first"),
@@ -114,70 +114,70 @@ public sealed class ScheduledJobTests : TestBaseDb
         _definitions.Add(definition);
         var service = ResolveService<IScheduledJobService>();
         await service.EnqueueDueJobsAsync();
-        _clock.Set(Start.AddHours(1));
+        _clock.Set(Start.AddDays(1));
 
         var error = await Assert.ThrowsAsync<AggregateException>(() => service.EnqueueDueJobsAsync());
         Assert.Contains("fan", error.InnerExceptions[0].Message);
         var pending = await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync();
         Assert.Equal(Start, pending.LastRunTimeUtc);
         Assert.Equal(Start, pending.LastEvaluatedAtUtc);
-        Assert.Equal(Start.AddHours(1), pending.PendingDueAtUtc);
+        Assert.Equal(Start.AddDays(1), pending.PendingDueAtUtc);
         definition.Occurrences =
         [
             new ScheduledJobOccurrence("maintenance", "{}", "first"),
             new ScheduledJobOccurrence("maintenance", "{}", "second")
         ];
-        _clock.Set(Start.AddHours(3));
+        _clock.Set(Start.AddDays(3));
 
         var retry = await service.EnqueueDueJobsAsync();
 
         Assert.Equal(2, retry.Count);
         Assert.Single(retry, x => x.Enqueued);
-        Assert.All(retry, x => Assert.Equal(Start.AddHours(1), x.DueAtUtc));
+        Assert.All(retry, x => Assert.Equal(Start.AddDays(1), x.DueAtUtc));
         Assert.Equal(
-            ["scheduled:fan:first:20260926T130000Z", "scheduled:fan:second:20260926T130000Z"],
+            ["scheduled:fan:first:20260927T120000Z", "scheduled:fan:second:20260927T120000Z"],
             (await DbContextForAssert.Jobs.AsNoTracking().OrderBy(x => x.Id).ToListAsync())
                 .Select(x => x.CorrelationId));
-        Assert.Equal(Start.AddHours(3),
+        Assert.Equal(Start.AddDays(3),
             (await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync()).LastRunTimeUtc);
     }
 
     [Fact]
     public async Task DueBoundaryAndCatchUp_ShouldUseLatestOccurrenceTime()
     {
-        _definitions.Add(new TestDefinition("hourly", false) { Cron = "0 * * * *" });
+        _definitions.Add(new TestDefinition("daily", false) { DailyTime = new TimeOnly(12, 0) });
         var service = ResolveService<IScheduledJobService>();
         await service.EnqueueDueJobsAsync();
-        _clock.Set(Start.AddMinutes(59));
+        _clock.Set(Start.AddDays(1).AddTicks(-1));
         Assert.Empty(await service.EnqueueDueJobsAsync());
-        _clock.Set(Start.AddHours(1));
+        _clock.Set(Start.AddDays(1));
         var onBoundary = await service.EnqueueDueJobsAsync();
-        _clock.Set(Start.AddHours(4).AddMinutes(30));
+        _clock.Set(Start.AddDays(4).AddMinutes(30));
         var catchUp = await service.EnqueueDueJobsAsync();
 
-        Assert.Equal(Start.AddHours(1), Assert.Single(onBoundary).DueAtUtc);
-        Assert.Equal(Start.AddHours(4), Assert.Single(catchUp).DueAtUtc);
+        Assert.Equal(Start.AddDays(1), Assert.Single(onBoundary).DueAtUtc);
+        Assert.Equal(Start.AddDays(4), Assert.Single(catchUp).DueAtUtc);
         var jobs = await DbContextForAssert.Jobs.AsNoTracking().OrderBy(x => x.Id).ToListAsync();
-        Assert.Equal([Start.AddHours(1), Start.AddHours(4)], jobs.Select(x => x.RunAfterUtc));
+        Assert.Equal([Start.AddDays(1), Start.AddDays(4)], jobs.Select(x => x.RunAfterUtc));
         Assert.Equal(
-            ["scheduled:hourly:20260926T130000Z", "scheduled:hourly:20260926T160000Z"],
+            ["scheduled:daily:20260927T120000Z", "scheduled:daily:20260930T120000Z"],
             jobs.Select(x => x.CorrelationId));
     }
 
     [Fact]
     public async Task DisabledSchedule_ShouldAdvanceWithoutJobsThenResumeFromNewBaseline()
     {
-        var definition = new TestDefinition("toggle", false) { Cron = "0 * * * *", Enabled = false };
+        var definition = new TestDefinition("toggle", false) { DailyTime = new TimeOnly(12, 0), Enabled = false };
         _definitions.Add(definition);
         var service = ResolveService<IScheduledJobService>();
         await service.EnqueueDueJobsAsync();
-        _clock.Set(Start.AddHours(3));
+        _clock.Set(Start.AddDays(3));
         await service.EnqueueDueJobsAsync();
         definition.Enabled = true;
-        _clock.Set(Start.AddHours(4));
+        _clock.Set(Start.AddDays(4));
         var result = await service.EnqueueDueJobsAsync();
 
-        Assert.Equal(Start.AddHours(4), Assert.Single(result).DueAtUtc);
+        Assert.Equal(Start.AddDays(4), Assert.Single(result).DueAtUtc);
         Assert.Single(await DbContextForAssert.Jobs.AsNoTracking().ToListAsync());
     }
 
@@ -189,19 +189,19 @@ public sealed class ScheduledJobTests : TestBaseDb
     [InlineData(JobStatus.Cancelled)]
     public async Task Retry_ShouldSuppressPersistedOccurrenceRegardlessOfStatus(JobStatus status)
     {
-        _definitions.Add(new TestDefinition("daily", false) { Cron = "0 * * * *" });
+        _definitions.Add(new TestDefinition("daily", false) { DailyTime = new TimeOnly(12, 0) });
         DbContextForArrange.ScheduledJobSchedulerStates.Add(new EntityScheduledJobSchedulerState
         {
             Name = "daily-state", LastRunTimeUtc = Start, LastEvaluatedAtUtc = Start,
-            PendingDueAtUtc = Start.AddHours(1)
+            PendingDueAtUtc = Start.AddDays(1)
         });
         DbContextForArrange.Jobs.Add(new EntityJob
         {
-            Type = "maintenance", Status = status, RunAfterUtc = Start.AddHours(1),
-            CorrelationId = "scheduled:daily:20260926T130000Z"
+            Type = "maintenance", Status = status, RunAfterUtc = Start.AddDays(1),
+            CorrelationId = "scheduled:daily:20260927T120000Z"
         });
         await DbContextForArrange.SaveChangesAsync();
-        _clock.Set(Start.AddHours(2));
+        _clock.Set(Start.AddDays(2));
 
         var result = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
 
@@ -212,7 +212,7 @@ public sealed class ScheduledJobTests : TestBaseDb
     [Fact]
     public async Task BrokenDefinition_ShouldLeaveItsCheckpointAndAdvanceHealthyDefinition()
     {
-        _definitions.Add(new TestDefinition("broken", false) { Cron = "not cron" });
+        _definitions.Add(new TestDefinition("broken", false) { BeforeConfiguration = () => throw new InvalidOperationException("Broken configuration") });
         _definitions.Add(new TestDefinition("healthy", false));
 
         var error = await Assert.ThrowsAsync<AggregateException>(() =>
@@ -270,14 +270,14 @@ public sealed class ScheduledJobTests : TestBaseDb
         var scheduled = ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
         var changed = ResolveService<ISystemTimeZoneService>()
             .UpdateAsync(new UpdateSystemTimeZoneRequest("Europe/London"));
-        _clock.Set(Start.AddHours(2));
+        _clock.Set(Start.AddDays(2));
         Assert.False(scheduled.IsCompleted);
         Assert.False(changed.IsCompleted);
         held.Dispose();
 
         await Task.WhenAll(scheduled, changed).WaitAsync(TimeSpan.FromSeconds(5));
 
-        Assert.Equal(Start.AddHours(2),
+        Assert.Equal(Start.AddDays(2),
             (await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync()).LastRunTimeUtc);
         Assert.Equal("Europe/London",
             (await ResolveService<ISystemTimeZoneService>().GetAsync()).Data!.SystemTimeZoneId);
@@ -323,7 +323,7 @@ public sealed class ScheduledJobTests : TestBaseDb
     [Fact]
     public async Task ConfiguredTimeZone_ShouldAffectNextOccurrenceAndFallbackFromInvalidStoredValue()
     {
-        _definitions.Add(new TestDefinition("local", false) { Cron = "0 9 * * *" });
+        _definitions.Add(new TestDefinition("local", false) { DailyTime = new TimeOnly(9, 0) });
         var zones = ResolveService<ISystemTimeZoneService>();
         Assert.Equal(400, (await zones.UpdateAsync(new UpdateSystemTimeZoneRequest("Invalid/Zone"))).StatusCode);
         Assert.Null(zones.Validate("Europe/London"));
@@ -355,9 +355,9 @@ public sealed class ScheduledJobTests : TestBaseDb
         _definitions.Add(definition);
         var service = ResolveService<IScheduledJobService>();
         await service.EnqueueDueJobsAsync();
-        _clock.Set(Start.AddHours(1));
+        _clock.Set(Start.AddDays(1));
         await Assert.ThrowsAsync<AggregateException>(() => service.EnqueueDueJobsAsync());
-        _clock.Set(Start.AddHours(2));
+        _clock.Set(Start.AddDays(2));
         await ResolveService<ISystemTimeZoneService>()
             .UpdateAsync(new UpdateSystemTimeZoneRequest("Europe/London"));
         definition.Occurrences =
@@ -368,9 +368,30 @@ public sealed class ScheduledJobTests : TestBaseDb
 
         var retry = await service.EnqueueDueJobsAsync();
 
-        Assert.All(retry, item => Assert.Equal(Start.AddHours(1), item.DueAtUtc));
+        Assert.All(retry, item => Assert.Equal(Start.AddDays(1), item.DueAtUtc));
         Assert.Single(retry, item => item.Enqueued);
         Assert.Equal(2, await DbContextForAssert.Jobs.AsNoTracking().CountAsync());
+    }
+
+    [Fact]
+    public async Task PendingOccurrence_ShouldRetainDueTimeFromPreviousScheduleDefinition()
+    {
+        var pendingDue = Start.AddHours(1);
+        _definitions.Add(new TestDefinition("daily", false) { DailyTime = new TimeOnly(3, 0) });
+        DbContextForArrange.ScheduledJobSchedulerStates.Add(new EntityScheduledJobSchedulerState
+        {
+            Name = "daily-state", LastRunTimeUtc = Start, LastEvaluatedAtUtc = Start,
+            PendingDueAtUtc = pendingDue
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        _clock.Set(Start.AddDays(2));
+
+        var result = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
+
+        Assert.Equal(pendingDue, Assert.Single(result).DueAtUtc);
+        Assert.Equal("scheduled:daily:20260926T130000Z", result[0].CorrelationId);
+        Assert.Equal(pendingDue, (await DbContextForAssert.Jobs.AsNoTracking().SingleAsync()).RunAfterUtc);
+        Assert.Null((await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync()).PendingDueAtUtc);
     }
 
     [Fact]
@@ -522,7 +543,7 @@ public sealed class ScheduledJobTests : TestBaseDb
         public string DisplayName => name;
         public string SchedulerStateName => StateName ?? $"{name}-state";
         public string? StateName { get; set; }
-        public string Cron { get; set; } = "0 * * * *";
+        public TimeOnly DailyTime { get; set; } = new(12, 0);
         public bool Enabled { get; set; } = true;
         public IReadOnlyList<ScheduledJobOccurrence> Occurrences { get; set; } =
             [new ScheduledJobOccurrence("maintenance")];
@@ -536,7 +557,7 @@ public sealed class ScheduledJobTests : TestBaseDb
                 await BeforeConfiguration();
             }
 
-            return new ScheduledJobDefinitionConfiguration(Enabled, Cron, initial);
+            return new ScheduledJobDefinitionConfiguration(Enabled, DailyTime, initial);
         }
 
         public Task<IReadOnlyList<ScheduledJobOccurrence>> CreateOccurrencesAsync(

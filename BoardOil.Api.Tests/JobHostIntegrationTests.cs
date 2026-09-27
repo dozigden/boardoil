@@ -43,7 +43,7 @@ public sealed class JobHostIntegrationTests
                 Assert.Equal(4, definitions.Length);
                 foreach (var definition in definitions)
                 {
-                    Assert.Equal("0 3 * * *", (await definition.GetConfigurationAsync()).CronExpression);
+                    Assert.Equal(new TimeOnly(3, 0), (await definition.GetConfigurationAsync()).DailyTime);
                     var occurrence = Assert.Single(await definition.CreateOccurrencesAsync(FixedNow));
                     Assert.Contains(handlers, handler => handler.Type == occurrence.JobType);
                 }

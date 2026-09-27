@@ -5,7 +5,7 @@ export type ScheduledJob = {
   name: string;
   displayName: string;
   enabled: boolean;
-  cronExpression: string;
+  dailyTime: string;
   timeZoneId: string;
   lastEvaluatedAtUtc: string | null;
   nextOccurrenceUtc: string | null;

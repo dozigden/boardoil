@@ -21,16 +21,15 @@ public interface IScheduledJobDefinition
         DateTime dueAtUtc, CancellationToken cancellationToken = default);
 }
 
-public interface ICronOccurrenceCalculator
+public interface IDailyOccurrenceCalculator
 {
     DateTime? GetLatestOccurrence(
-        string cronExpression, TimeZoneInfo timeZone, DateTime fromUtcExclusive, DateTime throughUtcInclusive);
-    DateTime? GetNextOccurrence(string cronExpression, TimeZoneInfo timeZone, DateTime afterUtc);
-    void Validate(string cronExpression);
+        TimeOnly dailyTime, TimeZoneInfo timeZone, DateTime fromUtcExclusive, DateTime throughUtcInclusive);
+    DateTime? GetNextOccurrence(TimeOnly dailyTime, TimeZoneInfo timeZone, DateTime afterUtc);
 }
 
 public sealed record ScheduledJobDefinitionConfiguration(
-    bool Enabled, string CronExpression, bool RunOnInitialisation = false);
+    bool Enabled, TimeOnly DailyTime, bool RunOnInitialisation = false);
 
 // TargetKey is required for every occurrence when a definition fans out. Keep it stable across retries.
 public sealed record ScheduledJobOccurrence(

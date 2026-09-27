@@ -27,7 +27,7 @@ public sealed class ScheduledJobApiIntegrationTests : TestBaseIntegration
         Assert.All(result.Data, item =>
         {
             Assert.True(item.Enabled);
-            Assert.Equal("0 3 * * *", item.CronExpression);
+            Assert.Equal(new TimeOnly(3, 0), item.DailyTime);
             Assert.Equal("UTC", item.TimeZoneId);
             Assert.NotNull(item.NextOccurrenceUtc);
             Assert.Null(item.LastEvaluatedAtUtc);
@@ -160,7 +160,7 @@ public sealed class ScheduledJobApiIntegrationTests : TestBaseIntegration
         public string DisplayName => "Empty schedule";
         public string SchedulerStateName => "empty-checkpoint";
         public Task<ScheduledJobDefinitionConfiguration> GetConfigurationAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ScheduledJobDefinitionConfiguration(true, "0 3 * * *"));
+            Task.FromResult(new ScheduledJobDefinitionConfiguration(true, new TimeOnly(3, 0)));
         public Task<IReadOnlyList<ScheduledJobOccurrence>> CreateOccurrencesAsync(DateTime dueAtUtc, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ScheduledJobOccurrence>>([]);
     }

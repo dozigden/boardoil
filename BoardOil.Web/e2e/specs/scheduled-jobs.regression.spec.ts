@@ -20,6 +20,7 @@ test('admin runs maintenance, inspects completion and changes the schedule timez
     await expect(schedules.region()).toContainText('OAuth token audit purge');
     await expect(schedules.region()).toContainText('Error log purge');
     await expect(schedules.region()).toContainText('Job history purge');
+    await expect(schedules.region().getByText('Daily at 03:00', { exact: true })).toHaveCount(4);
     await expect(schedules.region()).toContainText('Times use the system timezone (UTC)');
     const nextDue = await schedules.nextDue('Job history purge').getAttribute('datetime');
     await page.screenshot({ path: testInfo.outputPath('scheduled-jobs.png') });

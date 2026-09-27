@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-09-27T07:33:12.589Z",
+  "generatedAtUtc": "2026-09-27T12:46:05.585Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -1216,15 +1216,6 @@
       "sourceType": "package",
       "sourceFile": "node_modules/ws/LICENSE",
       "outputFile": "compliance/third-party-licenses/npm-ws.txt"
-    },
-    {
-      "ecosystem": "nuget",
-      "packageName": "Cronos",
-      "version": "0.13.0",
-      "declaredLicence": "MIT",
-      "sourceType": "nuget-license-expression",
-      "sourceFile": "~/.nuget/packages/cronos/0.13.0/cronos.nuspec",
-      "outputFile": "compliance/third-party-licenses/nuget-cronos-0.13.0.txt"
     },
     {
       "ecosystem": "nuget",

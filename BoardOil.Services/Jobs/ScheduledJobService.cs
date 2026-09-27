@@ -16,7 +16,7 @@ public sealed class ScheduledJobService : IScheduledJobService
     private readonly IScheduledJobSchedulerStateRepository _states;
     private readonly IJobService _jobService;
     private readonly ISystemTimeZoneService _timeZones;
-    private readonly ICronOccurrenceCalculator _cron;
+    private readonly IDailyOccurrenceCalculator _dailyOccurrences;
     private readonly SchedulingGate _gate;
     private readonly TimeProvider _clock;
     private readonly IReadOnlyList<IScheduledJobDefinition> _schedules;
@@ -28,7 +28,7 @@ public sealed class ScheduledJobService : IScheduledJobService
         IJobService jobService,
         IEnumerable<IScheduledJobDefinition> schedules,
         ISystemTimeZoneService timeZones,
-        ICronOccurrenceCalculator cron,
+        IDailyOccurrenceCalculator dailyOccurrences,
         SchedulingGate gate,
         TimeProvider clock)
     {
@@ -37,7 +37,7 @@ public sealed class ScheduledJobService : IScheduledJobService
         _states = states;
         _jobService = jobService;
         _timeZones = timeZones;
-        _cron = cron;
+        _dailyOccurrences = dailyOccurrences;
         _gate = gate;
         _clock = clock;
         _schedules = schedules.ToArray();
@@ -100,11 +100,11 @@ public sealed class ScheduledJobService : IScheduledJobService
             var latestStarted = await _jobs.GetLatestStartedByCorrelationPrefixesAsync(
                 scheduledPrefix, adHocPrefix, cancellationToken);
             var next = configuration.Enabled
-                ? _cron.GetNextOccurrence(configuration.CronExpression, timeZone, nowUtc)
+                ? _dailyOccurrences.GetNextOccurrence(configuration.DailyTime, timeZone, nowUtc)
                 : null;
             items.Add(new ScheduledJobDto(
                 schedule.Name, schedule.DisplayName, configuration.Enabled,
-                configuration.CronExpression, timeZone.Id, state?.LastEvaluatedAtUtc,
+                configuration.DailyTime, timeZone.Id, state?.LastEvaluatedAtUtc,
                 next, ToRunDto(current), ToRunDto(latestStarted)));
         }
 
@@ -183,8 +183,8 @@ public sealed class ScheduledJobService : IScheduledJobService
         {
             dueAtUtc = state is null
                 ? nowUtc
-                : _cron.GetLatestOccurrence(
-                    configuration.CronExpression, timeZone, state.LastRunTimeUtc, nowUtc);
+                : _dailyOccurrences.GetLatestOccurrence(
+                    configuration.DailyTime, timeZone, state.LastRunTimeUtc, nowUtc);
         }
 
         if (dueAtUtc is not null)
@@ -192,7 +192,7 @@ public sealed class ScheduledJobService : IScheduledJobService
             if (state?.PendingDueAtUtc is null)
             {
                 // Save the intended due time before jobs. A retry after a partial enqueue or
-                // checkpoint failure resumes this identity even across a later cron boundary.
+                // checkpoint failure resumes this identity even across a later daily boundary.
                 await RecordPendingAsync(schedule, dueAtUtc.Value, cancellationToken);
             }
 
@@ -257,17 +257,6 @@ public sealed class ScheduledJobService : IScheduledJobService
         if (configuration is null)
         {
             throw new InvalidOperationException($"Schedule '{schedule.Name}' returned no configuration.");
-        }
-
-        try
-        {
-            _cron.Validate(configuration.CronExpression);
-        }
-        catch (Exception exception)
-        {
-            throw new InvalidOperationException(
-                $"Schedule '{schedule.Name}' has invalid cron expression '{configuration.CronExpression}'.",
-                exception);
         }
 
         return configuration;

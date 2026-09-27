@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="Cronos" Version="0.13.0" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.12" />
     <ProjectReference Include="..\BoardOil.Abstractions\BoardOil.Abstractions.csproj" />
     <ProjectReference Include="..\BoardOil.Contracts\BoardOil.Contracts.csproj" />

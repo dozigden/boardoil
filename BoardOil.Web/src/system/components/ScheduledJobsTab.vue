@@ -6,8 +6,8 @@
       <template #cell(name)="{ row }">
         <strong>{{ row.displayName }}</strong>
       </template>
-      <template #cell(cronExpression)="{ row }">
-        <span :title="String(row.cronExpression)">{{ describeSchedule(String(row.cronExpression)) }}</span>
+      <template #cell(dailyTime)="{ row }">
+        <span>{{ describeSchedule(String(row.dailyTime)) }}</span>
       </template>
       <template #cell(lastEvaluatedAtUtc)="{ row }">
         <time v-if="row.lastEvaluatedAtUtc" :datetime="String(row.lastEvaluatedAtUtc)" :title="utcDate(String(row.lastEvaluatedAtUtc))">
@@ -52,7 +52,7 @@ const timeZoneId = computed(() => store.schedules[0]?.timeZoneId);
 const rows = computed(() => store.schedules as unknown as Record<string, unknown>[]);
 const columns = [
   { key: 'name', label: 'Schedule', rowKeyColumn: true, width: 'minmax(12rem, 1.4fr)' },
-  { key: 'cronExpression', label: 'Timing', width: 'minmax(10rem, 1fr)' },
+  { key: 'dailyTime', label: 'Timing', width: 'minmax(10rem, 1fr)' },
   { key: 'lastEvaluatedAtUtc', label: 'Last evaluated', width: 'minmax(9rem, 1fr)' },
   { key: 'nextOccurrenceUtc', label: 'Next due', width: 'minmax(9rem, 1fr)' },
   { key: 'latestStartedJob', label: 'Latest job', width: 'max-content' },

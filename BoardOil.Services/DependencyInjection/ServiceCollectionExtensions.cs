@@ -92,7 +92,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IScheduledJobDefinition, ErrorLogPurgeScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, OAuthTokenAuditPurgeScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, HistoryPurgeScheduledJobDefinition>();
-        services.AddSingleton<ICronOccurrenceCalculator, CronOccurrenceCalculator>();
+        services.AddSingleton<IDailyOccurrenceCalculator, DailyOccurrenceCalculator>();
         services.AddScoped<ISystemTimeZoneService, SystemTimeZoneService>();
         services.AddScoped<IScheduledJobService, ScheduledJobService>();
         services.AddScoped<IColumnService, ColumnService>();
