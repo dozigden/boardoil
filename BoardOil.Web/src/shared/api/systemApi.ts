@@ -1,3 +1,4 @@
+import type { SystemTimeZoneOptions } from '../types/scheduledJobTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import type { BoardMember, BoardMemberEditModel, BoardMemberRole, SystemBoardSummary } from '../types/boardTypes';
@@ -34,6 +35,13 @@ export function createSystemApi() {
       });
     }
 
+    return ok(result.data.data);
+  }
+
+  async function getTimeZoneOptions(): Promise<Result<SystemTimeZoneOptions, AppError>> {
+    const result = await getEnvelope<SystemTimeZoneOptions>('/api/system/timezone/options');
+    if (!result.ok) return result;
+    if (!result.data.data) return err({ kind: 'api', message: 'Failed to load timezone options.' });
     return ok(result.data.data);
   }
 
@@ -165,6 +173,7 @@ export function createSystemApi() {
 
   return {
     getConfiguration,
+    getTimeZoneOptions,
     updateConfiguration,
     getSystemInfoMessage,
     updateSystemInfoMessage,

@@ -224,7 +224,8 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
     protected sealed record UpdateClientAccountRequest(string Email, string Role, bool IsActive);
     protected sealed record UpdateConfigurationRequest(
         string? McpPublicBaseUrl,
-        bool OAuthLifecycleDiagnosticsEnabled = false);
+        bool OAuthLifecycleDiagnosticsEnabled = false,
+        string SystemTimeZoneId = "UTC");
     protected sealed record ConfigurationEnvelope(
         bool AllowInsecureCookies,
         string? McpPublicBaseUrl,

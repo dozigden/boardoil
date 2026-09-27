@@ -59,15 +59,27 @@ public sealed class SystemTimeZoneService(
         var error = Validate(request.SystemTimeZoneId);
         if (error is not null)
         {
-            return error;
+            return error with { ValidationErrors = new() { ["systemTimeZoneId"] = [error.Message] } };
         }
 
         using var coordination = await schedulingGate.EnterAsync(cancellationToken);
-        var nowUtc = clock.GetUtcNow().UtcDateTime;
         var id = request.SystemTimeZoneId.Trim();
         using var scope = scopes.Create(DbContextScopeOption.ForceCreateNew);
+        await ApplyValidatedChangeAsync(id, cancellationToken);
+        await scope.SaveChangesAsync(cancellationToken);
+        return ApiResults.Ok(new SystemTimeZoneDto(id));
+    }
+
+    public async Task<bool> ApplyValidatedChangeAsync(string timeZoneId, CancellationToken cancellationToken = default)
+    {
+        var id = timeZoneId.Trim();
+        var nowUtc = clock.GetUtcNow().UtcDateTime;
         var setting = await settings.GetByKeyAsync(SystemTimeZoneSettings.Key);
         var changed = setting is null || !string.Equals(setting.Value, id, StringComparison.Ordinal);
+        var previousId = SystemTimeZoneSettings.Validate(setting?.Value) is null
+            ? setting!.Value.Trim()
+            : SystemTimeZoneSettings.DefaultId;
+        var timingChanged = !string.Equals(previousId, id, StringComparison.Ordinal);
         if (setting is null)
         {
             settings.Add(new EntityAppSetting { Key = SystemTimeZoneSettings.Key, Value = id });
@@ -77,7 +89,7 @@ public sealed class SystemTimeZoneService(
             setting.Value = id;
         }
 
-        if (changed)
+        if (timingChanged)
         {
             foreach (var state in await states.ListAsync(cancellationToken))
             {
@@ -85,7 +97,6 @@ public sealed class SystemTimeZoneService(
             }
         }
 
-        await scope.SaveChangesAsync(cancellationToken);
-        return ApiResults.Ok(new SystemTimeZoneDto(id));
+        return changed;
     }
 }

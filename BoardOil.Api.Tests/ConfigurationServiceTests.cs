@@ -5,6 +5,9 @@ using BoardOil.Api.OAuth;
 using BoardOil.Contracts.Configuration;
 using BoardOil.Data.Abstractions.Configuration;
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Data.Abstractions.Jobs;
+using BoardOil.Services.Configuration;
+using BoardOil.Services.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -44,7 +47,7 @@ public sealed class ConfigurationServiceTests
 
         // Act
         var result = await service.UpdateConfigurationAsync(
-            new UpdateConfigurationRequest("https://boardoil.example.com/", false));
+            new UpdateConfigurationRequest("https://boardoil.example.com/", false, "UTC"));
 
         // Assert
         Assert.True(result.Success);
@@ -72,7 +75,7 @@ public sealed class ConfigurationServiceTests
 
         // Act
         var result = await service.UpdateConfigurationAsync(
-            new UpdateConfigurationRequest(null, false));
+            new UpdateConfigurationRequest(null, false, "UTC"));
 
         // Assert
         Assert.True(result.Success);
@@ -97,7 +100,7 @@ public sealed class ConfigurationServiceTests
 
         // Act
         var result = await service.UpdateConfigurationAsync(
-            new UpdateConfigurationRequest("relative/path", true));
+            new UpdateConfigurationRequest("relative/path", true, "UTC"));
 
         // Assert
         Assert.False(result.Success);
@@ -120,7 +123,7 @@ public sealed class ConfigurationServiceTests
 
         // Act
         var result = await service.UpdateConfigurationAsync(
-            new UpdateConfigurationRequest(null, true));
+            new UpdateConfigurationRequest(null, true, "UTC"));
 
         // Assert
         Assert.True(result.Success);
@@ -149,7 +152,7 @@ public sealed class ConfigurationServiceTests
 
         // Act
         var result = await service.UpdateConfigurationAsync(
-            new UpdateConfigurationRequest(null, false));
+            new UpdateConfigurationRequest(null, false, "UTC"));
 
         // Assert
         Assert.True(result.Success);
@@ -171,11 +174,26 @@ public sealed class ConfigurationServiceTests
             AllowInsecureCookies = true
         };
 
+        var gate = new SchedulingGate();
+        var timeZones = new SystemTimeZoneService(scopes, appSettingRepository, new EmptySchedulerStates(), gate, TimeProvider.System);
         return new ConfigurationService(
             jwtOptions,
             captureState ?? new OAuthTokenAuditCaptureState(),
             scopes,
-            appSettingRepository);
+            appSettingRepository, timeZones, gate);
+    }
+
+    private sealed class EmptySchedulerStates : IScheduledJobSchedulerStateRepository
+    {
+        public Task<IReadOnlyList<EntityScheduledJobSchedulerState>> ListAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<EntityScheduledJobSchedulerState>>([]);
+        public Task<EntityScheduledJobSchedulerState?> GetByNameAsync(string name, CancellationToken cancellationToken = default) => Task.FromResult<EntityScheduledJobSchedulerState?>(null);
+        public IQueryable<EntityScheduledJobSchedulerState> Query() => Array.Empty<EntityScheduledJobSchedulerState>().AsQueryable();
+        public EntityScheduledJobSchedulerState? Get(int id) => null;
+        public void Add(EntityScheduledJobSchedulerState entity) => throw new NotSupportedException();
+        public void AddRange(IEnumerable<EntityScheduledJobSchedulerState> entities) => throw new NotSupportedException();
+        public void Remove(EntityScheduledJobSchedulerState entity) => throw new NotSupportedException();
+        public void RemoveRange(IEnumerable<EntityScheduledJobSchedulerState> entities) => throw new NotSupportedException();
     }
 
     private sealed class InMemoryAppSettingRepository : IAppSettingRepository

@@ -130,6 +130,7 @@ function createConfigurationApi(enabled: boolean) {
     allowInsecureCookies: false,
     mcpPublicBaseUrl: null,
     oauthLifecycleDiagnosticsEnabled: enabled,
+    systemTimeZoneId: 'UTC',
     oauthLifecycleDiagnosticsRetentionDays: 14
   };
   return {

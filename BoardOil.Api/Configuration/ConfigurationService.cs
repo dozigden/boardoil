@@ -1,4 +1,6 @@
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Abstractions.Configuration;
+using BoardOil.Services.Jobs;
 using BoardOil.Contracts.Configuration;
 using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Configuration;
@@ -12,7 +14,9 @@ public sealed class ConfigurationService(
     JwtAuthOptions jwtOptions,
     OAuthTokenAuditCaptureState oauthTokenAuditCaptureState,
     IDbContextScopeFactory scopeFactory,
-    IAppSettingRepository appSettingRepository) : IConfigurationService
+    IAppSettingRepository appSettingRepository,
+    ISystemTimeZoneService timeZones,
+    SchedulingGate schedulingGate) : IConfigurationService
 {
     private const string McpPublicBaseUrlKey = "mcp_public_base_url";
 
@@ -20,7 +24,8 @@ public sealed class ConfigurationService(
     {
         using var scope = scopeFactory.CreateReadOnly();
         var mcpPublicBaseUrl = await GetSettingValueAsync(McpPublicBaseUrlKey);
-        return CreateConfigurationDto(mcpPublicBaseUrl);
+        var timeZone = await timeZones.GetAsync();
+        return CreateConfigurationDto(mcpPublicBaseUrl, timeZone.Data!.SystemTimeZoneId);
     }
 
     public async Task<ApiResult<ConfigurationDto>> UpdateConfigurationAsync(UpdateConfigurationRequest request)
@@ -31,7 +36,14 @@ public sealed class ConfigurationService(
             return normalisedBaseUrlResult.Error!;
         }
 
-        using var scope = scopeFactory.Create();
+        var timeZoneError = timeZones.Validate(request.SystemTimeZoneId);
+        if (timeZoneError is not null)
+        {
+            return timeZoneError with { ValidationErrors = new() { ["systemTimeZoneId"] = [timeZoneError.Message] } };
+        }
+
+        using var coordination = await schedulingGate.EnterAsync(CancellationToken.None);
+        using var scope = scopeFactory.Create(DbContextScopeOption.ForceCreateNew);
         var existingSetting = await appSettingRepository.GetByKeyAsync(McpPublicBaseUrlKey);
         var existingOAuthDiagnosticsSetting = await appSettingRepository.GetByKeyAsync(
             OAuthTokenAuditCaptureState.SettingKey);
@@ -84,13 +96,15 @@ public sealed class ConfigurationService(
             hasChanges = true;
         }
 
+        hasChanges |= await timeZones.ApplyValidatedChangeAsync(request.SystemTimeZoneId);
+
         if (hasChanges)
         {
             await scope.SaveChangesAsync();
         }
 
         oauthTokenAuditCaptureState.SetEnabled(request.OAuthLifecycleDiagnosticsEnabled);
-        return CreateConfigurationDto(normalisedBaseUrl);
+        return CreateConfigurationDto(normalisedBaseUrl, request.SystemTimeZoneId.Trim());
     }
 
     public async Task<string?> GetMcpPublicBaseUrlAsync()
@@ -107,12 +121,13 @@ public sealed class ConfigurationService(
             : setting.Value.Trim();
     }
 
-    private ConfigurationDto CreateConfigurationDto(string? mcpPublicBaseUrl) =>
+    private ConfigurationDto CreateConfigurationDto(string? mcpPublicBaseUrl, string systemTimeZoneId) =>
         new(
             jwtOptions.AllowInsecureCookies,
             mcpPublicBaseUrl,
             oauthTokenAuditCaptureState.IsEnabled,
-            OAuthTokenAuditRetention.RetentionDays);
+            OAuthTokenAuditRetention.RetentionDays,
+            systemTimeZoneId);
 
     private static (bool Success, string? Value, ApiError? Error) NormaliseMcpPublicBaseUrl(string? rawValue)
     {

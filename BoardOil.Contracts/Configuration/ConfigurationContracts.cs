@@ -8,12 +8,14 @@ public sealed record ConfigurationDto(
     [property: JsonPropertyName("oauthLifecycleDiagnosticsEnabled")]
     bool OAuthLifecycleDiagnosticsEnabled,
     [property: JsonPropertyName("oauthLifecycleDiagnosticsRetentionDays")]
-    int OAuthLifecycleDiagnosticsRetentionDays);
+    int OAuthLifecycleDiagnosticsRetentionDays,
+    string SystemTimeZoneId);
 
 public sealed record UpdateConfigurationRequest(
     string? McpPublicBaseUrl,
     [property: JsonPropertyName("oauthLifecycleDiagnosticsEnabled")]
-    bool OAuthLifecycleDiagnosticsEnabled);
+    bool OAuthLifecycleDiagnosticsEnabled,
+    string SystemTimeZoneId);
 
 public sealed record SystemInfoMessageDto(
     bool Enabled,

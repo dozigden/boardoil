@@ -13,10 +13,13 @@ function job(id: number, status: JobStatus) {
 const envelope = (data: unknown) => ({ success: true, statusCode: 200, data });
 
 test('real maintenance jobs appear on the administrator history page', async ({ authenticatedPage: page }, testInfo) => {
+  let historyJobId: number | undefined;
   await expect.poll(async () => {
     const response = await page.request.get('/api/system/jobs?offset=0&limit=100');
     if (!response.ok()) return 0;
-    const body = await response.json() as { data?: { items: Array<{ status: string }> } };
+    const body = await response.json() as { data?: { items: Array<{ id: number; type: string; status: string }> } };
+    historyJobId = body.data?.items.find(item => item.type === 'history.purge' && item.status === 'completed')?.id;
+    if (historyJobId === undefined) return 0;
     return body.data?.items.filter(item => item.status === 'completed').length ?? 0;
   }, { timeout: 30_000 }).toBeGreaterThanOrEqual(4);
 
@@ -24,7 +27,7 @@ test('real maintenance jobs appear on the administrator history page', async ({ 
   await expect(page.getByRole('table')).toContainText('History purge');
   await expect(page.getByRole('table')).toContainText('Error log purge');
   await page.screenshot({ path: testInfo.outputPath('job-history.png') });
-  await page.getByRole('row').filter({ hasText: 'History purge' }).click();
+  await page.getByRole('row').filter({ has: page.getByText(`#${historyJobId}`, { exact: true }) }).click();
   await expect(page.getByRole('dialog').getByText('Job completed.')).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('job-details.png') });
 });

@@ -83,6 +83,14 @@ export class BoardOilApi {
     });
   }
 
+  public async getSystemTimeZone() {
+    return await this.read<{ systemTimeZoneId: string }>('/api/system/timezone');
+  }
+
+  public async setSystemTimeZone(systemTimeZoneId: string) {
+    return await this.put<{ systemTimeZoneId: string }>('/api/system/timezone', { systemTimeZoneId });
+  }
+
   public async createUser(userName: string, password: string) {
     return await this.post<{ id: number; userName: string }>('/api/system/users', {
       userName,

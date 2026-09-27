@@ -6,6 +6,7 @@ public static class SystemTimeZoneSettings
 {
     public const string Key = "system_timezone";
     public const string DefaultId = "UTC";
+    private static readonly Lazy<IReadOnlyList<string>> SupportedIds = new(CreateSupportedIds);
 
     public static ApiError? Validate(string? timeZoneId)
     {
@@ -14,28 +15,9 @@ public static class SystemTimeZoneSettings
             return ApiErrors.BadRequest("System timezone is required.");
         }
 
-        var id = timeZoneId.Trim();
-        if (!TimeZoneInfo.TryConvertIanaIdToWindowsId(id, out _))
-        {
-            return ApiErrors.BadRequest(
-                "System timezone must be a valid IANA timezone identifier available on this system.");
-        }
-
-        try
-        {
-            _ = TimeZoneInfo.FindSystemTimeZoneById(id);
-            return null;
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return ApiErrors.BadRequest(
-                "System timezone must be a valid IANA timezone identifier available on this system.");
-        }
-        catch (InvalidTimeZoneException)
-        {
-            return ApiErrors.BadRequest(
-                "System timezone must be a valid IANA timezone identifier available on this system.");
-        }
+        return GetSupportedIds().Contains(timeZoneId.Trim(), StringComparer.Ordinal)
+            ? null
+            : ApiErrors.BadRequest("Choose a timezone from the supported timezone list.");
     }
 
     public static TimeZoneInfo ResolveOrUtc(string? timeZoneId) =>
@@ -43,13 +25,15 @@ public static class SystemTimeZoneSettings
             ? TimeZoneInfo.FindSystemTimeZoneById(timeZoneId!.Trim())
             : TimeZoneInfo.Utc;
 
-    public static IReadOnlyList<string> GetSupportedIds()
+    public static IReadOnlyList<string> GetSupportedIds() => SupportedIds.Value;
+
+    private static IReadOnlyList<string> CreateSupportedIds()
     {
         var ids = new HashSet<string>(StringComparer.Ordinal) { DefaultId };
         foreach (var zone in TimeZoneInfo.GetSystemTimeZones())
         {
             var id = zone.Id;
-            if (Validate(id) is not null)
+            if (!CanResolveIanaId(id))
             {
                 if (!TimeZoneInfo.TryConvertWindowsIdToIanaId(id, out var ianaId))
                 {
@@ -59,12 +43,34 @@ public static class SystemTimeZoneSettings
                 id = ianaId;
             }
 
-            if (Validate(id) is null)
+            if (CanResolveIanaId(id))
             {
                 ids.Add(id);
             }
         }
 
-        return ids.Order(StringComparer.Ordinal).ToArray();
+        return Array.AsReadOnly(ids.Order(StringComparer.Ordinal).ToArray());
+    }
+
+    private static bool CanResolveIanaId(string id)
+    {
+        if (!TimeZoneInfo.TryConvertIanaIdToWindowsId(id, out _))
+        {
+            return false;
+        }
+
+        try
+        {
+            _ = TimeZoneInfo.FindSystemTimeZoneById(id);
+            return true;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return false;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return false;
+        }
     }
 }

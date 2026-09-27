@@ -709,5 +709,6 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
 
     private sealed record UpdateConfigurationRequest(
         string? McpPublicBaseUrl,
-        bool OAuthLifecycleDiagnosticsEnabled = false);
+        bool OAuthLifecycleDiagnosticsEnabled = false,
+        string SystemTimeZoneId = "UTC");
 }

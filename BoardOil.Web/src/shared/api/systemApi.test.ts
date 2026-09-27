@@ -136,17 +136,19 @@ describe('systemApi', () => {
     }
   });
 
-  it('updateConfiguration sends the OAuth diagnostics capture setting', async () => {
+  it('updateConfiguration sends all editable settings in one request', async () => {
     const api = createSystemApi();
 
     await api.updateConfiguration({
       mcpPublicBaseUrl: 'https://boardoil.example.test',
-      oauthLifecycleDiagnosticsEnabled: true
+      oauthLifecycleDiagnosticsEnabled: true,
+      systemTimeZoneId: 'Europe/London'
     });
 
     expect(putData).toHaveBeenCalledWith('/api/system/configuration', {
       mcpPublicBaseUrl: 'https://boardoil.example.test',
-      oauthLifecycleDiagnosticsEnabled: true
+      oauthLifecycleDiagnosticsEnabled: true,
+      systemTimeZoneId: 'Europe/London'
     });
   });
 });

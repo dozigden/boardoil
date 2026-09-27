@@ -176,6 +176,7 @@ app.MapConfigurationEndpoints();
 app.MapSystemInfoMessageEndpoints();
 app.MapErrorLogEndpoints();
 app.MapSystemJobEndpoints();
+app.MapScheduledJobEndpoints();
 app.MapUserEndpoints();
 app.MapClientAccountEndpoints();
 app.MapOAuthConnectionEndpoints();

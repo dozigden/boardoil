@@ -304,16 +304,27 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'jobs',
-        name: 'system-jobs',
-        component: () => import('./system/views/JobsManagerView.vue')
-      },
-      {
-        path: 'jobs/:jobId(\\d+)',
-        name: 'system-job-details',
-        components: {
-          default: () => import('./system/views/JobsManagerView.vue'),
-          dialog: () => import('./system/components/JobDetailsDialogRoute.vue')
-        }
+        component: () => import('./system/views/JobsManagerView.vue'),
+        children: [
+          {
+            path: '',
+            name: 'system-jobs',
+            component: () => import('./system/components/JobHistoryTab.vue')
+          },
+          {
+            path: 'scheduled',
+            name: 'system-scheduled-jobs',
+            component: () => import('./system/components/ScheduledJobsTab.vue')
+          },
+          {
+            path: ':jobId(\\d+)',
+            name: 'system-job-details',
+            components: {
+              default: () => import('./system/components/JobHistoryTab.vue'),
+              dialog: () => import('./system/components/JobDetailsDialogRoute.vue')
+            }
+          }
+        ]
       }
     ]
   },

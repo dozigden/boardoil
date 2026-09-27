@@ -396,7 +396,7 @@ public sealed class McpAttachmentIntegrationTests : McpIntegrationTestBase, ICla
         var (client, token, card, attachment) = await ArrangeAttachmentAsync();
         const string publicBaseUrl = "https://gateway.example.com/boardoil";
         using var configuration = await client.PutAsJsonAsync(
-            "/api/system/configuration", new UpdateConfigurationRequest(publicBaseUrl, false));
+            "/api/system/configuration", new UpdateConfigurationRequest(publicBaseUrl, false, "UTC"));
         configuration.EnsureSuccessStatusCode();
 
         using var downloadPayload = await CallAsync(client, token, ToolNames.CardAttachmentDownload,

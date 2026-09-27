@@ -86,18 +86,32 @@
             Leave blank to use automatic relative discovery URLs, recommended for Docker and proxy setups.
           </p>
         </section>
+        <section class="configuration-setting">
+          <label :for="timeZoneInputId" class="configuration-input-label">System timezone</label>
+          <SearchableSelect :id="timeZoneInputId" v-model="timeZoneDraft" label="System timezone"
+            :options="timeZoneOptions" :disabled="saving || configuration === null" />
+          <p class="configuration-hint">Used for scheduled job run times. Changing it resets schedule catch-up from now.</p>
+          <p v-if="timeZoneError" class="error" role="alert">{{ timeZoneError }}</p>
+        </section>
       </section>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, useId } from 'vue';
+import SearchableSelect from '../../shared/components/SearchableSelect.vue';
 import { createSystemApi } from '../../shared/api/systemApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { ConfigurationDto } from '../../shared/types/configurationTypes';
 
 const systemApi = createSystemApi();
+const timeZoneInputId = `configuration-timezone-${useId()}`;
+const timeZoneDraft = ref('');
+const timeZoneOptions = ref<{ value: string; label: string }[]>([]);
+const timeZoneError = ref<string | null>(null);
+let disposed = false;
+onBeforeUnmount(() => { disposed = true; });
 const feedback = useUiFeedbackStore();
 const configuration = ref<ConfigurationDto | null>(null);
 const errorMessage = ref<string | null>(null);
@@ -106,25 +120,36 @@ const mcpPublicBaseUrlDraft = ref('');
 const oauthLifecycleDiagnosticsEnabledDraft = ref(false);
 
 onMounted(async () => {
-  const configurationResult = await systemApi.getConfiguration();
+  const [configurationResult, optionsResult] = await Promise.all([systemApi.getConfiguration(), systemApi.getTimeZoneOptions()]);
+  if (disposed) return;
 
   if (!configurationResult.ok) {
     errorMessage.value = configurationResult.error.message;
     return;
   }
 
+  if (!optionsResult.ok) {
+    errorMessage.value = optionsResult.error.message;
+    return;
+  }
+  timeZoneOptions.value = optionsResult.data.options.map(option => ({ value: option.id, label: option.displayName }));
   applyConfigurationDraft(configurationResult.data);
 });
 
 async function saveConfiguration() {
+  if (saving.value || !configuration.value) return;
   saving.value = true;
+  timeZoneError.value = null;
   try {
     const requestValue = mcpPublicBaseUrlDraft.value.trim();
     const configurationResult = await systemApi.updateConfiguration({
       mcpPublicBaseUrl: requestValue.length > 0 ? requestValue : null,
-      oauthLifecycleDiagnosticsEnabled: oauthLifecycleDiagnosticsEnabledDraft.value
+      oauthLifecycleDiagnosticsEnabled: oauthLifecycleDiagnosticsEnabledDraft.value,
+      systemTimeZoneId: timeZoneDraft.value
     });
+    if (disposed) return;
     if (!configurationResult.ok) {
+      timeZoneError.value = configurationResult.error.validationErrors?.systemTimeZoneId?.join(' ') ?? null;
       feedback.showToast(configurationResult.error.message, 'error');
       return;
     }
@@ -142,6 +167,7 @@ function useAutomaticUrl() {
 
 function applyConfigurationDraft(nextConfiguration: ConfigurationDto) {
   configuration.value = nextConfiguration;
+  timeZoneDraft.value = nextConfiguration.systemTimeZoneId;
   mcpPublicBaseUrlDraft.value = nextConfiguration.mcpPublicBaseUrl ?? '';
   oauthLifecycleDiagnosticsEnabledDraft.value = nextConfiguration.oauthLifecycleDiagnosticsEnabled;
 }

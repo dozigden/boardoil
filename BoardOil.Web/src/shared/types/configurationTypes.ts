@@ -11,10 +11,12 @@ export type ConfigurationDto = {
   allowInsecureCookies: boolean;
   mcpPublicBaseUrl: string | null;
   oauthLifecycleDiagnosticsEnabled: boolean;
+  systemTimeZoneId: string;
   oauthLifecycleDiagnosticsRetentionDays: number;
 };
 
 export type UpdateConfigurationRequest = {
   mcpPublicBaseUrl: string | null;
   oauthLifecycleDiagnosticsEnabled: boolean;
+  systemTimeZoneId: string;
 };
