@@ -1,4 +1,5 @@
 using BoardOil.Abstractions.Auth;
+using BoardOil.Api.Jobs;
 using BoardOil.Ef.DependencyInjection;
 using BoardOil.Services.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
@@ -25,6 +26,7 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
     private readonly string? _mcpEventRelayAllowedSourceIps;
     private readonly IReadOnlyDictionary<string, string?> _configurationOverrides;
     private readonly Action<IServiceCollection>? _configureTestServices;
+    private readonly bool _runJobs;
 
     public BoardOilApiFactory(
         string databasePath,
@@ -32,7 +34,8 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         string? mcpEventRelayApiKey = null,
         string? mcpEventRelayAllowedSourceIps = null,
         IReadOnlyDictionary<string, string?>? configurationOverrides = null,
-        Action<IServiceCollection>? configureTestServices = null)
+        Action<IServiceCollection>? configureTestServices = null,
+        bool runJobs = false)
     {
         _databasePath = databasePath;
         _allowInsecureCookies = allowInsecureCookies;
@@ -40,6 +43,7 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         _mcpEventRelayAllowedSourceIps = mcpEventRelayAllowedSourceIps;
         _configurationOverrides = configurationOverrides ?? new Dictionary<string, string?>();
         _configureTestServices = configureTestServices;
+        _runJobs = runJobs;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -110,6 +114,14 @@ public sealed class BoardOilApiFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IPasswordHashService>();
             services.AddSingleton<IPasswordHashService, FastPasswordHashService>();
+            if (!_runJobs)
+            {
+                var jobsHost = services.Single(descriptor =>
+                    descriptor.ServiceType == typeof(IHostedService)
+                    && descriptor.ImplementationType == typeof(JobSchedulerService));
+                services.Remove(jobsHost);
+            }
+
             _configureTestServices?.Invoke(services);
         });
     }

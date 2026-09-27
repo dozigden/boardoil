@@ -3,6 +3,7 @@ using BoardOil.Api.Configuration;
 using BoardOil.Api.Endpoints;
 using BoardOil.Api.ErrorLogs;
 using BoardOil.Api.Extensions;
+using BoardOil.Api.Jobs;
 using BoardOil.Api.Mcp;
 using BoardOil.Api.Middleware;
 using BoardOil.Api.OAuth;
@@ -38,6 +39,7 @@ builder.Services.AddBoardOilServices();
 builder.Services.AddSingleton(attachmentStorageOptions);
 builder.Services.AddBoardOilEfInfrastructure(connectionString);
 builder.Services.AddBoardOilOAuth(jwtOptions);
+builder.Services.AddBoardOilJobs();
 builder.Services.AddErrorLogRateLimiting();
 builder.Services.AddAntiforgery(options =>
 {
@@ -141,8 +143,6 @@ app.LogMcpStartupWarnings();
 await app.Services.InitializeBoardOilEfInfrastructureAsync();
 await app.Services.CleanupAttachmentsAtStartupAsync();
 await app.Services.InitializeOAuthTokenAuditCaptureStateAsync();
-await app.Services.PurgeExpiredErrorLogsAsync();
-await app.Services.PurgeExpiredOAuthTokenAuditsAsync();
 app.UseCors("BoardOilDevClient");
 app.UseMiddleware<ApiExceptionLoggingMiddleware>();
 app.UseRateLimiter();

@@ -41,8 +41,6 @@ public static class OAuthServiceCollectionExtensions
         services.AddScoped<IOAuthProtectedResourceMetadataService, OAuthProtectedResourceMetadataService>();
         services.AddScoped<IOAuthDynamicClientRegistrationService, OAuthDynamicClientRegistrationService>();
         services.AddScoped<IJobHandler, OAuthClientRegistrationCleanupJobHandler>();
-        services.AddSingleton<OAuthDynamicClientRegistrationCleanupFailureLogger>();
-        services.AddHostedService<OAuthDynamicClientRegistrationCleanupService>();
 
         services.AddOpenIddict()
             .AddCore(openIddict =>

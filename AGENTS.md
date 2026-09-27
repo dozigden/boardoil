@@ -9,6 +9,7 @@ Read area guidance before working in that part of the system:
 - [AGENTS/Frontend.md](AGENTS/Frontend.md)
 - [AGENTS/frontend-pinia.md](AGENTS/frontend-pinia.md) - Read before adding or changing frontend stores, their callers, or realtime integration
 - [AGENTS/GooAndSlicks.md](AGENTS/GooAndSlicks.md) - Read before changing slick/goo rendering in board view
+- [AGENTS/Jobs.md](AGENTS/Jobs.md) - Read before changing durable jobs, schedules, handlers, or their host
 - [AGENTS/StoryBoardAndSourceControl.md](AGENTS/StoryBoardAndSourceControl.md) - Read when working with stories or planning any new work
 - [AGENTS/Testing.md](AGENTS/Testing.md)
 

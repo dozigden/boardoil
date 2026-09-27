@@ -74,7 +74,7 @@ public sealed class OAuthTokenAuditRetentionIntegrationTests : TestBaseIntegrati
 public sealed class OAuthTokenAuditStartupCleanupIntegrationTests
 {
     [Fact]
-    public async Task ApplicationStartup_ShouldPurgeExpiredOAuthTokenAudits()
+    public async Task ApplicationStartup_ShouldLeaveOAuthTokenAuditsForScheduledPurge()
     {
         // Arrange
         var databasePath = ApiFactoryIntegrationTestBase.BuildDbPath(
@@ -102,7 +102,9 @@ public sealed class OAuthTokenAuditStartupCleanupIntegrationTests
             .ToArrayAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal("kept", Assert.Single(remainingErrorCodes));
+        Assert.Equal(2, remainingErrorCodes.Length);
+        Assert.Contains("old", remainingErrorCodes);
+        Assert.Contains("kept", remainingErrorCodes);
     }
 }
 

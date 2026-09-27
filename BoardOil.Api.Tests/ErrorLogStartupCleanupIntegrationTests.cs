@@ -12,7 +12,7 @@ namespace BoardOil.Api.Tests;
 public sealed class ErrorLogStartupCleanupIntegrationTests
 {
     [Fact]
-    public async Task ApplicationStartup_ShouldPurgeExpiredErrorLogs()
+    public async Task ApplicationStartup_ShouldLeaveErrorLogsForScheduledPurge()
     {
         // Arrange
         var databasePath = ApiFactoryIntegrationTestBase.BuildDbPath(nameof(ErrorLogStartupCleanupIntegrationTests));
@@ -35,7 +35,9 @@ public sealed class ErrorLogStartupCleanupIntegrationTests
             .ToArrayAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(["kept"], remaining);
+        Assert.Equal(2, remaining.Length);
+        Assert.Contains("old", remaining);
+        Assert.Contains("kept", remaining);
     }
 
     private static BoardOilDbContext CreateDbContext(IServiceProvider serviceProvider)
