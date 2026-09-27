@@ -2,7 +2,8 @@ const labels: Record<string, string> = {
   'oauth.client-registration.cleanup': 'OAuth client registration cleanup',
   'error-log.purge': 'Error log purge',
   'oauth-token-audit.purge': 'OAuth token audit purge',
-  'history.purge': 'History purge'
+  'history.purge': 'History purge',
+  'resave-board': 'Resave board'
 };
 
 export function jobTypeLabel(type: string) { return labels[type] ?? type; }

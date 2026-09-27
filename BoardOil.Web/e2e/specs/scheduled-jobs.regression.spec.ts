@@ -15,11 +15,13 @@ test('admin runs maintenance, inspects completion and changes the schedule timez
   try {
     await api.setSystemTimeZone('UTC');
     await schedules.goto();
-    await expect(schedules.region().getByRole('row')).toHaveCount(5);
+    await expect(schedules.region().getByRole('row')).toHaveCount(6);
     await expect(schedules.region()).toContainText('OAuth client registration cleanup');
     await expect(schedules.region()).toContainText('OAuth token audit purge');
     await expect(schedules.region()).toContainText('Error log purge');
     await expect(schedules.region()).toContainText('Job history purge');
+    await expect(schedules.row('Resave all boards').getByText('Once', { exact: true })).toBeVisible();
+    await expect(schedules.row('Resave all boards').getByText('Not scheduled', { exact: true })).toBeVisible();
     await expect(schedules.region().getByText('Daily at 03:00', { exact: true })).toHaveCount(4);
     await expect(schedules.region()).toContainText('Times use the system timezone (UTC)');
     const nextDue = await schedules.nextDue('Job history purge').getAttribute('datetime');
@@ -53,6 +55,26 @@ test('admin runs maintenance, inspects completion and changes the schedule timez
   } finally {
     await api.setSystemTimeZone(originalZone.systemTimeZoneId);
   }
+});
+
+test('Once schedules show immediate requests and completed requests without a daily time', async ({ authenticatedPage: page }) => {
+  const schedules = new ScheduledJobsPage(page);
+  let requested = true;
+  await page.route('**/api/system/scheduled-jobs', async route => {
+    const response = await route.fetch();
+    const body = await response.json();
+    const once = body.data.find((schedule: { kind: string }) => schedule.kind === 'once');
+    once.nextOccurrenceUtc = requested ? new Date().toISOString() : null;
+    await route.fulfill({ response, json: body });
+  });
+
+  await schedules.goto();
+  await expect(schedules.row('Resave all boards').getByText('Once', { exact: true })).toBeVisible();
+  await expect(schedules.row('Resave all boards').getByText('Now', { exact: true })).toBeVisible();
+  requested = false;
+  await page.reload();
+  await expect(schedules.row('Resave all boards').getByText('Not scheduled', { exact: true })).toBeVisible();
+  await expect(schedules.row('Resave all boards').getByRole('button', { name: 'Run now', exact: true })).toBeEnabled();
 });
 
 test('schedule actions distinguish empty and multiple results and show failures', async ({ authenticatedPage: page }) => {

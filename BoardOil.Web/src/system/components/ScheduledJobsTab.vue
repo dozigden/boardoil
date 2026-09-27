@@ -7,7 +7,7 @@
         <strong>{{ row.displayName }}</strong>
       </template>
       <template #cell(dailyTime)="{ row }">
-        <span>{{ describeSchedule(String(row.dailyTime)) }}</span>
+        <span>{{ describeSchedule(schedule(row)) }}</span>
       </template>
       <template #cell(lastEvaluatedAtUtc)="{ row }">
         <time v-if="row.lastEvaluatedAtUtc" :datetime="String(row.lastEvaluatedAtUtc)" :title="utcDate(String(row.lastEvaluatedAtUtc))">
@@ -16,7 +16,8 @@
         <span v-else>Not yet evaluated</span>
       </template>
       <template #cell(nextOccurrenceUtc)="{ row }">
-        <time v-if="row.nextOccurrenceUtc" :datetime="String(row.nextOccurrenceUtc)" :title="utcDate(String(row.nextOccurrenceUtc))">
+        <span v-if="row.kind === 'once' && row.nextOccurrenceUtc">Now</span>
+        <time v-else-if="row.nextOccurrenceUtc" :datetime="String(row.nextOccurrenceUtc)" :title="utcDate(String(row.nextOccurrenceUtc))">
           {{ formatScheduleDate(String(row.nextOccurrenceUtc), String(row.timeZoneId)) }}
         </time>
         <span v-else>Not scheduled</span>

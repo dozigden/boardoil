@@ -20,6 +20,78 @@ public sealed class JobHostIntegrationTests
 {
     private static readonly DateTime FixedNow = new(2026, 9, 27, 4, 0, 0, DateTimeKind.Utc);
 
+    [Theory]
+    [InlineData("20260912173931_AddBoardCardAttachmentThumbnailsSetting")]
+    [InlineData("20260927150238_AddScheduledJobRunRequest")]
+    public async Task Upgrade_ShouldResaveEachBoardAfterMigrationAndNotRepeatOnRestart(string previousMigration)
+    {
+        var directory = Directory.CreateTempSubdirectory("boardoil-resave-upgrade-");
+        var path = Path.Combine(directory.FullName, "jobs.db");
+        var options = new DbContextOptionsBuilder<BoardOilDbContext>()
+            .UseSqlite($"Data Source={path}").UseOpenIddict().Options;
+        try
+        {
+            await using (var arrange = new BoardOilDbContext(options))
+            {
+                await arrange.Database.MigrateAsync(previousMigration);
+                await arrange.Database.ExecuteSqlRawAsync("""
+                    INSERT INTO "Boards" ("Id", "Name", "Description", "CreatedAtUtc", "UpdatedAtUtc")
+                    VALUES (1, 'First', '', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z'),
+                           (2, 'Second', '', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z');
+                    INSERT INTO "CardTypes" ("Id", "BoardId", "Name", "StyleName", "StylePropertiesJson", "IsSystem", "CreatedAtUtc", "UpdatedAtUtc")
+                    VALUES (1, 1, 'Story', 'auto', '{{}}', 1, '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z'),
+                           (2, 2, 'Story', 'auto', '{{}}', 1, '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z');
+                    INSERT INTO "Columns" ("Id", "BoardId", "Title", "SortKey", "CreatedAtUtc", "UpdatedAtUtc")
+                    VALUES (1, 1, 'Todo', 'U', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z'),
+                           (2, 2, 'Todo', 'U', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z');
+                    INSERT INTO "Cards" ("Id", "BoardId", "BoardCardId", "BoardColumnId", "CardTypeId", "Title", "Description", "SortKey", "CardCreatedUtc", "CardUpdatedUtc", "CreatedAtUtc", "UpdatedAtUtc")
+                    VALUES (1, 1, 1, 1, 1, 'Completed item', '- [x] Done', 'U', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z'),
+                           (2, 2, 1, 2, 2, 'Open item', '- [ ] Open', 'U', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z');
+                    """);
+            }
+
+            var signals = new HostSignals();
+            DateTime[] savedAt;
+            await using (var host = CreateHostFactory(path, new BlockingHandler(), signals))
+            {
+                using var client = host.CreateClient();
+                await signals.Idle.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                await using var db = CreateDb(host.Services);
+                var cards = await db.Cards.AsNoTracking().OrderBy(x => x.Id).ToArrayAsync();
+                Assert.Equal(2, cards.Length);
+                Assert.Equal([1, 0], cards.Select(x => x.CompletedChecklistItemCount));
+                Assert.All(cards, card =>
+                {
+                    Assert.Equal(1, card.TotalChecklistItemCount);
+                    Assert.Equal(new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), card.CardUpdatedUtc);
+                    Assert.Equal("U", card.SortKey);
+                });
+                Assert.Equal(["- [x] Done", "- [ ] Open"], cards.Select(x => x.Description));
+                var jobs = await db.Jobs.AsNoTracking().Where(x => x.Type == ResaveBoardJobHandler.JobType).ToArrayAsync();
+                Assert.Equal(2, jobs.Length);
+                Assert.All(jobs, job => Assert.Equal(JobStatus.Completed, job.Status));
+                var checkpoint = await db.ScheduledJobSchedulerStates.SingleAsync(x => x.Name == "resave-all-boards-checkpoint");
+                Assert.False(checkpoint.RunRequested);
+                Assert.Null(checkpoint.PendingDueAtUtc);
+                savedAt = cards.Select(x => x.UpdatedAtUtc).ToArray();
+            }
+
+            var restartSignals = new HostSignals();
+            await using (var restarted = CreateHostFactory(path, new BlockingHandler(), restartSignals))
+            {
+                using var client = restarted.CreateClient();
+                await restartSignals.Idle.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                await using var db = CreateDb(restarted.Services);
+                Assert.Equal(2, await db.Jobs.CountAsync(x => x.Type == ResaveBoardJobHandler.JobType));
+                Assert.Equal(savedAt, await db.Cards.OrderBy(x => x.Id).Select(x => x.UpdatedAtUtc).ToArrayAsync());
+            }
+        }
+        finally
+        {
+            DeleteDisposableDatabase(directory, path);
+        }
+    }
+
     [Fact]
     public async Task RealHostMigratesFreshDatabaseBeforeRecoveryAndRegistersAllMaintenanceHandlers()
     {
@@ -56,7 +128,7 @@ public sealed class JobHostIntegrationTests
                     Assert.Contains(handlers, handler => handler.Type == occurrence.JobType);
                 }
                 await using var db = CreateDb(factory.Services);
-                Assert.Equal(4, await db.ScheduledJobSchedulerStates.AsNoTracking().CountAsync());
+                Assert.Equal(5, await db.ScheduledJobSchedulerStates.AsNoTracking().CountAsync());
                 Assert.NotEmpty(await db.Database.GetAppliedMigrationsAsync());
             }
         }
@@ -234,6 +306,7 @@ public sealed class JobHostIntegrationTests
         public TaskCompletionSource Recovery { get; } = NewSignal();
         public TaskCompletionSource Schedule { get; } = NewSignal();
         public TaskCompletionSource RunCompleted { get; } = NewSignal();
+        public TaskCompletionSource Idle { get; } = NewSignal();
 
         private static TaskCompletionSource NewSignal() =>
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -251,6 +324,7 @@ public sealed class JobHostIntegrationTests
         {
             var ran = await inner.RunNextDueAsync(cancellationToken);
             if (ran) signals.RunCompleted.TrySetResult();
+            else if (signals.Schedule.Task.IsCompletedSuccessfully) signals.Idle.TrySetResult();
             return ran;
         }
     }

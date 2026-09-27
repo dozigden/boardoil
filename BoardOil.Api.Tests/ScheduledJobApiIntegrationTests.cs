@@ -16,9 +16,19 @@ namespace BoardOil.Api.Tests;
 
 public sealed class ScheduledJobApiIntegrationTests : TestBaseIntegration
 {
-    [Fact]
-    public async Task List_ShouldExposeDailyAndUnrequestedOnceDefinitions()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task List_ShouldExposeDailyAndOnceDefinitions(bool requested)
     {
+        using (var scope = Factory.Services.CreateScope())
+        {
+            await using var db = scope.ServiceProvider.GetRequiredService<IDbContextFactory>().CreateDbContext<BoardOilDbContext>();
+            var state = await db.ScheduledJobSchedulerStates.SingleAsync(x => x.Name == "resave-all-boards-checkpoint");
+            state.RunRequested = requested;
+            await db.SaveChangesAsync();
+        }
+
         var response = await Client.GetAsync("/api/system/scheduled-jobs");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -27,7 +37,7 @@ public sealed class ScheduledJobApiIntegrationTests : TestBaseIntegration
         var once = Assert.Single(result.Data, item => item.Kind == "once");
         Assert.Equal("resave-all-boards", once.Name);
         Assert.Null(once.DailyTime);
-        Assert.Null(once.NextOccurrenceUtc);
+        Assert.Equal(requested, once.NextOccurrenceUtc.HasValue);
         Assert.Null(once.LastEvaluatedAtUtc);
         Assert.All(result.Data.Where(item => item.Kind == "daily"), item =>
         {

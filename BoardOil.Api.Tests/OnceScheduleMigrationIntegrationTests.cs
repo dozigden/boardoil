@@ -16,6 +16,36 @@ public sealed class OnceScheduleMigrationIntegrationTests
     private const string CheckpointName = "resave-all-boards-checkpoint";
     private static readonly DateTime Baseline = new(2026, 9, 26, 10, 0, 0, DateTimeKind.Utc);
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData(TargetMigration)]
+    public async Task InitialActivation_ShouldOnlyArmRequestWithoutQueueingJobs(string? previousMigration)
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        await using (var arrange = new BoardOilDbContext(options))
+        {
+            if (previousMigration is not null)
+            {
+                await arrange.Database.MigrateAsync(previousMigration);
+            }
+        }
+
+        await using (var migrate = new BoardOilDbContext(options))
+        {
+            await migrate.Database.MigrateAsync();
+        }
+
+        await using var assert = new BoardOilDbContext(options);
+        var state = await assert.ScheduledJobSchedulerStates.SingleAsync();
+        Assert.Equal(CheckpointName, state.Name);
+        Assert.True(state.RunRequested);
+        Assert.Null(state.PendingDueAtUtc);
+        Assert.Null(state.LastEvaluatedAtUtc);
+        Assert.Empty(await assert.Jobs.ToListAsync());
+        Assert.False(assert.Database.HasPendingModelChanges());
+    }
+
     [Fact]
     public async Task Upgrade_ShouldDefaultRequestToFalseAndPreserveExistingCheckpoint()
     {
@@ -58,7 +88,7 @@ public sealed class OnceScheduleMigrationIntegrationTests
         var options = CreateOptions(connection);
         await using (var arrange = new BoardOilDbContext(options))
         {
-            await arrange.Database.MigrateAsync();
+            await arrange.Database.MigrateAsync(TargetMigration);
         }
 
         await using (var insert = new BoardOilDbContext(options))
@@ -83,7 +113,7 @@ public sealed class OnceScheduleMigrationIntegrationTests
         var options = CreateOptions(connection);
         await using (var arrange = new BoardOilDbContext(options))
         {
-            await arrange.Database.MigrateAsync();
+            await arrange.Database.MigrateAsync(TargetMigration);
         }
 
         await using (var request = new BoardOilDbContext(options))
@@ -117,7 +147,7 @@ public sealed class OnceScheduleMigrationIntegrationTests
         var previousUpdatedAtUtc = Baseline.AddHours(1);
         await using (var arrange = new BoardOilDbContext(options))
         {
-            await arrange.Database.MigrateAsync();
+            await arrange.Database.MigrateAsync(TargetMigration);
             var state = CreateState(CheckpointName, alreadyRequested);
             arrange.AddRange(state, CreateState("unrelated-daily", false));
             await arrange.SaveChangesAsync();
@@ -152,7 +182,7 @@ public sealed class OnceScheduleMigrationIntegrationTests
         var options = CreateOptions(connection);
         await using (var arrange = new BoardOilDbContext(options))
         {
-            await arrange.Database.MigrateAsync();
+            await arrange.Database.MigrateAsync(TargetMigration);
             arrange.Add(CreateState(CheckpointName, true));
             await arrange.SaveChangesAsync();
         }
@@ -178,7 +208,7 @@ public sealed class OnceScheduleMigrationIntegrationTests
         var options = CreateOptions(connection);
         await using (var arrange = new BoardOilDbContext(options))
         {
-            await arrange.Database.MigrateAsync();
+            await arrange.Database.MigrateAsync(TargetMigration);
             arrange.Add(CreateState(CheckpointName, false));
             await arrange.SaveChangesAsync();
         }

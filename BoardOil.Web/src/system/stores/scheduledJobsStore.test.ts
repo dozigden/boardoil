@@ -8,7 +8,7 @@ vi.mock('../../shared/api/scheduledJobsApi', () => ({ createScheduledJobsApi: vi
 
 function schedule(zone = 'UTC', currentId: number | null = null): ScheduledJob {
   return { name: 'history-purge', displayName: 'Job history purge', enabled: true,
-    dailyTime: '03:00:00', timeZoneId: zone, lastEvaluatedAtUtc: null,
+    kind: 'daily', dailyTime: '03:00:00', timeZoneId: zone, lastEvaluatedAtUtc: null,
     nextOccurrenceUtc: '2026-10-01T03:00:00Z', latestStartedJob: null,
     currentJob: currentId === null ? null : { id: currentId, status: 'pending', startedAtUtc: null } };
 }

@@ -1,5 +1,8 @@
-// TimeOnly is serialised as HH:mm:ss with optional fractional seconds.
-export function describeSchedule(dailyTime: string): string {
+import type { ScheduledJobTiming } from '../../shared/types/scheduledJobTypes';
+
+export function describeSchedule(schedule: ScheduledJobTiming): string {
+  if (schedule.kind === 'once') return 'Once';
+  const dailyTime = schedule.dailyTime;
   let displayTime = dailyTime;
   if (dailyTime.endsWith(':00')) displayTime = dailyTime.slice(0, -3);
   return `Daily at ${displayTime}`;

@@ -32,7 +32,7 @@ public sealed class ConfigurationTimeZoneIntegrationTests : TestBaseIntegration
         Assert.Equal("Europe/London", saved.Data.SystemTimeZoneId);
         using var scope = Factory.Services.CreateScope();
         await using var db = scope.ServiceProvider.GetRequiredService<IDbContextFactory>().CreateDbContext<BoardOilDbContext>();
-        var state = await db.ScheduledJobSchedulerStates.SingleAsync();
+        var state = await db.ScheduledJobSchedulerStates.SingleAsync(x => x.Name == "test-checkpoint");
         Assert.True(state.LastRunTimeUtc > Baseline);
         Assert.Equal(Baseline, state.PendingDueAtUtc);
         Assert.Equal("Europe/London", (await db.AppSettings.SingleAsync(x => x.Key == "system_timezone")).Value);
@@ -94,7 +94,7 @@ public sealed class ConfigurationTimeZoneIntegrationTests : TestBaseIntegration
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var scope = Factory.Services.CreateScope();
         await using var db = scope.ServiceProvider.GetRequiredService<IDbContextFactory>().CreateDbContext<BoardOilDbContext>();
-        Assert.Equal(Baseline, (await db.ScheduledJobSchedulerStates.SingleAsync()).LastRunTimeUtc);
+        Assert.Equal(Baseline, (await db.ScheduledJobSchedulerStates.SingleAsync(x => x.Name == "test-checkpoint")).LastRunTimeUtc);
     }
 
     private async Task SeedAsync()
@@ -119,7 +119,7 @@ public sealed class ConfigurationTimeZoneIntegrationTests : TestBaseIntegration
         Assert.Equal("https://old.example.com", (await db.AppSettings.SingleAsync(x => x.Key == "mcp_public_base_url")).Value);
         Assert.Equal("UTC", (await db.AppSettings.SingleAsync(x => x.Key == "system_timezone")).Value);
         Assert.Equal("false", (await db.AppSettings.SingleAsync(x => x.Key == "oauth_lifecycle_diagnostics_enabled")).Value);
-        var state = await db.ScheduledJobSchedulerStates.SingleAsync();
+        var state = await db.ScheduledJobSchedulerStates.SingleAsync(x => x.Name == "test-checkpoint");
         Assert.Equal(Baseline, state.LastRunTimeUtc);
         Assert.Equal(Baseline, state.PendingDueAtUtc);
         Assert.False(scope.ServiceProvider.GetRequiredService<OAuthTokenAuditCaptureState>().IsEnabled);
