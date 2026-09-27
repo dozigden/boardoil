@@ -38,19 +38,26 @@ public sealed class JobPersistenceMigrationIntegrationTests
         {
             await db.Database.MigrateAsync(PendingMigration);
             await db.Database.MigrateAsync(PendingMigration);
-            var state = await db.ScheduledJobSchedulerStates.SingleAsync();
+            // Select only historical columns; newer scheduler fields are absent at this migration.
+            var state = await db.ScheduledJobSchedulerStates.Select(x => new
+            {
+                x.Name, x.LastRunTimeUtc, x.LastEvaluatedAtUtc, x.PendingDueAtUtc
+            }).SingleAsync();
             Assert.Equal("existing", state.Name);
             Assert.Equal(new DateTime(2026, 9, 26, 10, 0, 0, DateTimeKind.Utc), state.LastRunTimeUtc);
             Assert.Equal(new DateTime(2026, 9, 26, 11, 0, 0, DateTimeKind.Utc), state.LastEvaluatedAtUtc);
             Assert.Null(state.PendingDueAtUtc);
-            state.PendingDueAtUtc = new DateTime(2026, 9, 26, 12, 0, 0, DateTimeKind.Utc);
-            await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlRawAsync("""
+                UPDATE "ScheduledJobSchedulerStates"
+                SET "PendingDueAtUtc" = '2026-09-26T12:00:00Z', "UpdatedAtUtc" = '2026-09-26T12:00:00Z'
+                WHERE "Name" = 'existing';
+                """);
         }
 
         await using (var db = new BoardOilDbContext(options))
         {
-            var state = await db.ScheduledJobSchedulerStates.AsNoTracking().SingleAsync();
-            Assert.Equal(new DateTime(2026, 9, 26, 12, 0, 0, DateTimeKind.Utc), state.PendingDueAtUtc);
+            var pending = await db.ScheduledJobSchedulerStates.Select(x => x.PendingDueAtUtc).SingleAsync();
+            Assert.Equal(new DateTime(2026, 9, 26, 12, 0, 0, DateTimeKind.Utc), pending);
         }
     }
 
