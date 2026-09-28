@@ -71,6 +71,19 @@ public sealed class ScheduledJobService : IScheduledJobService
             }
         }
 
+        try
+        {
+            await RemoveObsoleteCheckpointsAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            failures.Add(new InvalidOperationException("Obsolete scheduler checkpoint removal failed.", exception));
+        }
+
         if (failures.Count > 0)
         {
             throw new AggregateException(
@@ -166,6 +179,19 @@ public sealed class ScheduledJobService : IScheduledJobService
         }
 
         return ApiResults.Ok(new RunScheduledJobNowResultDto(jobIds.Count, jobIds));
+    }
+
+    private async Task RemoveObsoleteCheckpointsAsync(CancellationToken cancellationToken)
+    {
+        var registeredNames = _schedules.Select(schedule => schedule.SchedulerStateName)
+            .ToHashSet(StringComparer.Ordinal);
+        using var scope = _scopes.Create(DbContextScopeOption.ForceCreateNew);
+        var states = await _states.ListAsync(cancellationToken);
+        var obsoleteStates = states.Where(state => !registeredNames.Contains(state.Name)).ToArray();
+        if (obsoleteStates.Length == 0) { return; }
+
+        _states.RemoveRange(obsoleteStates);
+        await scope.SaveChangesAsync(cancellationToken);
     }
 
     private async Task EvaluateAsync(

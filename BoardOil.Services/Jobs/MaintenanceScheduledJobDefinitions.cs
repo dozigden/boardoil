@@ -19,9 +19,9 @@ public abstract class MaintenanceScheduledJobDefinition(
         Task.FromResult<IReadOnlyList<ScheduledJobOccurrence>>([new(jobType)]);
 }
 
-public sealed class OAuthClientRegistrationCleanupScheduledJobDefinition()
-    : MaintenanceScheduledJobDefinition("oauth-client-registration-cleanup", "OAuth client registration cleanup",
-        MaintenanceJobTypes.OAuthClientRegistrationCleanup, new TimeOnly(3, 0));
+public sealed class OAuthClientRegistrationPurgeScheduledJobDefinition()
+    : MaintenanceScheduledJobDefinition("oauth-client-registration-purge", "OAuth client registration purge",
+        MaintenanceJobTypes.OAuthClientRegistrationPurge, new TimeOnly(3, 0));
 
 public sealed class ErrorLogPurgeScheduledJobDefinition()
     : MaintenanceScheduledJobDefinition("error-log-purge", "Error log purge",

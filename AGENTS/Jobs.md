@@ -14,6 +14,8 @@ For future board normalisation, update the ordinary save rules, then add a data-
 
 Add a new job type through an `IJobHandler` in the service layer, or in the API layer when it depends on API-owned services such as OAuth registration. Register one handler per type. Define a schedule through `IScheduledJobDefinition`, with a stable name and target key for fan-out occurrences. Do not add a second hosted consumer or perform the same cleanup on API startup; admin purge endpoints remain explicit operations.
 
+At the end of each scheduling evaluation pass, `ScheduledJobService` removes checkpoint rows whose names do not belong to any registered `IScheduledJobDefinition`. This also runs after individual schedule evaluation failures. Disabled schedules, inactive Once schedules and failing registered schedules retain their checkpoints. Cancellation stops the pass without forcing cleanup. Jobs and logs remain governed by execution and history retention; checkpoint removal does not delete them.
+
 ## Administration
 
 The admin-only history routes are `GET /api/system/jobs` and `GET /api/system/jobs/{id}`. The Jobs page and routed details share the system-jobs store and an admin-only `/hubs/system-jobs` connection. `IJobInvalidations` publishes committed job IDs or a history change; notifier failures must not change a job's persisted outcome or replay its handler.

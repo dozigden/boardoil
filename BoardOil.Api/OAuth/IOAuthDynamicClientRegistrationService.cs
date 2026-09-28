@@ -6,5 +6,5 @@ public interface IOAuthDynamicClientRegistrationService
         OAuthDynamicClientRegistrationRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<int> CleanupExpiredRegistrationsAsync(CancellationToken cancellationToken = default);
+    Task<int> PurgeExpiredRegistrationsAsync(CancellationToken cancellationToken = default);
 }

@@ -90,7 +90,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IJobHandler, OAuthTokenAuditPurgeJobHandler>();
         services.AddScoped<IJobHandler, HistoryPurgeJobHandler>();
         services.AddScoped<IJobHandler, ResaveBoardJobHandler>();
-        services.AddSingleton<IScheduledJobDefinition, OAuthClientRegistrationCleanupScheduledJobDefinition>();
+        services.AddSingleton<IScheduledJobDefinition, OAuthClientRegistrationPurgeScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, ErrorLogPurgeScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, OAuthTokenAuditPurgeScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, HistoryPurgeScheduledJobDefinition>();

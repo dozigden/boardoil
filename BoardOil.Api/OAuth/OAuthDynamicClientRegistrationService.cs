@@ -90,7 +90,7 @@ public sealed class OAuthDynamicClientRegistrationService(
             applicationType));
     }
 
-    public async Task<int> CleanupExpiredRegistrationsAsync(CancellationToken cancellationToken = default)
+    public async Task<int> PurgeExpiredRegistrationsAsync(CancellationToken cancellationToken = default)
     {
         var now = timeProvider.GetUtcNow();
         var deleted = 0;

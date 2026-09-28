@@ -16,7 +16,7 @@ test('admin runs maintenance, inspects completion and changes the schedule timez
     await api.setSystemTimeZone('UTC');
     await schedules.goto();
     await expect(schedules.region().getByRole('row')).toHaveCount(6);
-    await expect(schedules.region()).toContainText('OAuth client registration cleanup');
+    await expect(schedules.region()).toContainText('OAuth client registration purge');
     await expect(schedules.region()).toContainText('OAuth token audit purge');
     await expect(schedules.region()).toContainText('Error log purge');
     await expect(schedules.region()).toContainText('Job history purge');

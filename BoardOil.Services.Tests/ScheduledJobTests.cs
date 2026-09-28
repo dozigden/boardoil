@@ -57,6 +57,80 @@ public sealed class ScheduledJobTests : TestBaseDb
         Assert.Single(await DbContextForAssert.Jobs.AsNoTracking().ToListAsync());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Evaluation_ShouldRemoveObsoleteCheckpointsAndRetainRegisteredSchedulesAndJobs(bool evaluationFails)
+    {
+        var disabled = OnceDefinition();
+        disabled.Enabled = false;
+        _definitions.Add(disabled);
+        var active = new TestDefinition("active", false) { StateName = "custom-checkpoint" };
+        if (evaluationFails)
+        {
+            active.BeforeConfiguration = () => throw new InvalidOperationException("Configuration unavailable.");
+        }
+        _definitions.Add(active);
+        await ArmOnceAsync(Start.AddHours(-1));
+        DbContextForArrange.ScheduledJobSchedulerStates.AddRange(
+            new EntityScheduledJobSchedulerState
+            {
+                Name = "custom-checkpoint", LastRunTimeUtc = Start, PendingDueAtUtc = Start
+            },
+            new EntityScheduledJobSchedulerState
+            {
+                Name = "oauth-client-registration-cleanup-checkpoint", LastRunTimeUtc = Start,
+                PendingDueAtUtc = Start, RunRequested = true
+            });
+        var oldJob = new EntityJob
+        {
+            Type = "oauth.client-registration.cleanup", Status = JobStatus.Pending, RunAfterUtc = Start,
+            Logs = [new EntityJobLog { Message = "Existing log", LoggedAtUtc = Start }]
+        };
+        DbContextForArrange.Jobs.Add(oldJob);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var error = await Record.ExceptionAsync(() => ResolveService<IScheduledJobService>().EnqueueDueJobsAsync());
+
+        if (evaluationFails)
+        {
+            Assert.IsType<AggregateException>(error);
+        }
+        else
+        {
+            Assert.Null(error);
+        }
+        var states = await DbContextForAssert.ScheduledJobSchedulerStates.AsNoTracking().ToListAsync();
+        Assert.Equal(2, states.Count);
+        var disabledState = Assert.Single(states, state => state.Name == "once-state");
+        Assert.True(disabledState.RunRequested);
+        Assert.Equal(Start.AddHours(-1), disabledState.PendingDueAtUtc);
+        var activeState = Assert.Single(states, state => state.Name == "custom-checkpoint");
+        if (evaluationFails) { Assert.Equal(Start, activeState.PendingDueAtUtc); }
+        var retainedJob = await DbContextForAssert.Jobs.AsNoTracking().Include(job => job.Logs)
+            .SingleAsync(job => job.Id == oldJob.Id);
+        Assert.Equal(JobStatus.Pending, retainedJob.Status);
+        Assert.Equal("oauth.client-registration.cleanup", retainedJob.Type);
+        Assert.Equal("Existing log", Assert.Single(retainedJob.Logs).Message);
+    }
+
+    [Fact]
+    public async Task SubsequentEvaluationWithoutSchedules_ShouldRemoveAllObsoleteCheckpoints()
+    {
+        var service = ResolveService<IScheduledJobService>();
+        await service.EnqueueDueJobsAsync();
+        DbContextForArrange.ScheduledJobSchedulerStates.Add(new()
+        {
+            Name = "removed-state", LastRunTimeUtc = Start, RunRequested = true, PendingDueAtUtc = Start
+        });
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await service.EnqueueDueJobsAsync();
+
+        Assert.Empty(result);
+        Assert.Empty(await DbContextForAssert.ScheduledJobSchedulerStates.ToListAsync());
+    }
+
     [Fact]
     public async Task InitialCheckpointFailure_ShouldRetryOriginalIdentityAfterClockAdvances()
     {

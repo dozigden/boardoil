@@ -570,7 +570,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
     }
 
     [Fact]
-    public async Task CleanupExpiredRegistrations_ShouldDeleteOnlyExpiredDynamicClients()
+    public async Task PurgeExpiredRegistrations_ShouldDeleteOnlyExpiredDynamicClients()
     {
         // Arrange
         _ = CreateClient();
@@ -588,11 +588,11 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
         await manager.CreateAsync(active);
         await manager.CreateAsync(staticClient);
         var handler = Assert.Single(scope.ServiceProvider.GetServices<IJobHandler>(),
-            candidate => candidate.Type == MaintenanceJobTypes.OAuthClientRegistrationCleanup);
+            candidate => candidate.Type == MaintenanceJobTypes.OAuthClientRegistrationPurge);
 
         // Act
         var result = await handler.HandleAsync(
-            new JobContext(1, MaintenanceJobTypes.OAuthClientRegistrationCleanup, "{}"),
+            new JobContext(1, MaintenanceJobTypes.OAuthClientRegistrationPurge, "{}"),
             TestContext.Current.CancellationToken);
 
         // Assert

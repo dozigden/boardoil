@@ -36,7 +36,7 @@ public sealed class MaintenanceJobTests : TestBaseDb
         var definitions = ResolveService<IEnumerable<IScheduledJobDefinition>>().ToArray();
         var expected = new[]
         {
-            ("oauth-client-registration-cleanup", MaintenanceJobTypes.OAuthClientRegistrationCleanup, new TimeOnly(3, 0)),
+            ("oauth-client-registration-purge", MaintenanceJobTypes.OAuthClientRegistrationPurge, new TimeOnly(3, 0)),
             ("error-log-purge", MaintenanceJobTypes.ErrorLogPurge, new TimeOnly(3, 0)),
             ("oauth-token-audit-purge", MaintenanceJobTypes.OAuthTokenAuditPurge, new TimeOnly(3, 0)),
             ("history-purge", MaintenanceJobTypes.HistoryPurge, new TimeOnly(3, 0))

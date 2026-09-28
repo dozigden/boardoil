@@ -1,5 +1,5 @@
 const labels: Record<string, string> = {
-  'oauth.client-registration.cleanup': 'OAuth client registration cleanup',
+  'oauth.client-registration.purge': 'OAuth client registration purge',
   'error-log.purge': 'Error log purge',
   'oauth-token-audit.purge': 'OAuth token audit purge',
   'history.purge': 'History purge',

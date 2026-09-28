@@ -40,7 +40,7 @@ public static class OAuthServiceCollectionExtensions
         services.AddSingleton<OAuthTokenAuditCaptureState>();
         services.AddScoped<IOAuthProtectedResourceMetadataService, OAuthProtectedResourceMetadataService>();
         services.AddScoped<IOAuthDynamicClientRegistrationService, OAuthDynamicClientRegistrationService>();
-        services.AddScoped<IJobHandler, OAuthClientRegistrationCleanupJobHandler>();
+        services.AddScoped<IJobHandler, OAuthClientRegistrationPurgeJobHandler>();
 
         services.AddOpenIddict()
             .AddCore(openIddict =>
