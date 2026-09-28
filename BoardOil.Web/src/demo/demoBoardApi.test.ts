@@ -6,6 +6,32 @@ describe('demoBoardApi', () => {
     resetDemoData();
   });
 
+  it('loads the curated public fixture with its image attachments', async () => {
+    const api = createDemoBoardApi();
+    const boardResult = await api.getBoard(1);
+    expect(boardResult.ok).toBe(true);
+    if (!boardResult.ok) { return; }
+
+    expect(boardResult.data.name).toBe('BoardOil Development');
+    expect(boardResult.data.columns.map(column => [column.title, column.cards.length])).toEqual([
+      ['Ideation', 5], ['Todo', 8], ['In Progress', 3], ['Done', 11]
+    ]);
+    const cards = boardResult.data.columns.flatMap(column => column.cards);
+    expect(cards).toHaveLength(27);
+    expect(cards.map(card => card.id)).toContain(899);
+    expect(cards.find(card => card.id === 891)?.description).toContain('## Example request');
+    expect(cards.find(card => card.id === 892)).toMatchObject({
+      completedChecklistItemCount: 2,
+      totalChecklistItemCount: 23
+    });
+
+    for (const cardId of [101, 105, 106]) {
+      const attachments = await api.getAttachments(1, cardId, false);
+      expect(attachments).toMatchObject({ ok: true, data: { items: [{ hasThumbnail: true }] } });
+      expect(cards.find(card => card.id === cardId)?.description).toContain('![');
+    }
+  });
+
   it('stores task counts on description writes and retains them on moves', async () => {
     const api = createDemoBoardApi();
     const model = {
@@ -24,54 +50,6 @@ describe('demoBoardApi', () => {
     expect(saved).toMatchObject({ ok: true, data: { completedChecklistItemCount: 0, totalChecklistItemCount: 0 } });
   });
 
-  it('exposes three seeded image attachments without attachment mutations', async () => {
-    const api = createDemoBoardApi();
-
-    expect(api.supportsAttachments).toBe(true);
-    expect(api.supportsAttachmentMutations).toBe(false);
-
-    const candidatesResult = await api.getCardThumbnails(1);
-    expect(candidatesResult).toEqual({
-      ok: true,
-      data: [
-        { cardId: 101, attachmentId: 1, originalFileName: 'restyle-buttons.webp', hasThumbnail: true },
-        { cardId: 105, attachmentId: 2, originalFileName: 'web-traffic-pie-chart.webp', hasThumbnail: true },
-        { cardId: 106, attachmentId: 3, originalFileName: 'pay-the-cat-tax.webp', hasThumbnail: true }
-      ]
-    });
-
-    const filteredResult = await api.getCardThumbnails(1, [105, 999]);
-    expect(filteredResult).toEqual({
-      ok: true,
-      data: [
-        { cardId: 105, attachmentId: 2, originalFileName: 'web-traffic-pie-chart.webp', hasThumbnail: true }
-      ]
-    });
-
-    const attachmentsResult = await api.getAttachments(1, 101, false);
-    expect(attachmentsResult).toEqual({
-      ok: true,
-      data: {
-        items: [expect.objectContaining({
-          id: 1,
-          originalFileName: 'restyle-buttons.webp',
-          contentType: 'image/webp',
-          hasThumbnail: true
-        })],
-        maxUploadByteLength: 0
-      }
-    });
-
-    const boardResult = await api.getBoard(1);
-    expect(boardResult.ok).toBe(true);
-    if (boardResult.ok) {
-      const seededCards = boardResult.data.columns.flatMap(column => column.cards)
-        .filter(card => [101, 105, 106].includes(card.id));
-      expect(seededCards).toHaveLength(3);
-      expect(seededCards.every(card => card.description.includes('.webp)'))).toBe(true);
-    }
-  });
-
   it('creates, edits, and moves cards entirely in browser-local state', async () => {
     const api = createDemoBoardApi();
     const createResult = await api.createCard(1, {
@@ -82,7 +60,7 @@ describe('demoBoardApi', () => {
       tagNames: ['UI'],
       cardTypeId: 1,
       assignedUserId: 2,
-      slickName: 'Launch polish'
+      slickName: 'Agent Auth'
     });
     expect(createResult.ok).toBe(true);
     if (!createResult.ok) {
@@ -93,7 +71,7 @@ describe('demoBoardApi', () => {
       externalUrl: 'https://example.test/demo-card',
       tagNames: ['UI'],
       assignedUserId: 2,
-      slickName: 'Launch polish'
+      slickName: 'Agent Auth'
     });
 
     const editResult = await api.saveCard(1, createResult.data.id, {
@@ -123,7 +101,7 @@ describe('demoBoardApi', () => {
     expect(movedCard).toMatchObject({
       title: 'Try the polished interactive preview',
       boardColumnId: 3,
-      assignedUserDisplayName: 'Jane Doe',
+      assignedUserDisplayName: 'Doz',
       tagNames: ['Feature']
     });
   });
@@ -176,14 +154,14 @@ describe('demoBoardApi', () => {
       return;
     }
 
-    const ideasColumn = initialBoardResult.data.columns.find(column => column.id === 1);
-    const originalFirstCard = ideasColumn?.cards[0];
+    const ideationColumn = initialBoardResult.data.columns.find(column => column.id === 1);
+    const originalFirstCard = ideationColumn?.cards[0];
     expect(originalFirstCard).toBeDefined();
     if (!originalFirstCard) {
       return;
     }
 
-    const moveResult = await api.moveCard(1, 103, 1, null);
+    const moveResult = await api.moveCard(1, 244, 1, null);
     expect(moveResult.ok).toBe(true);
     if (!moveResult.ok) {
       return;
@@ -198,17 +176,19 @@ describe('demoBoardApi', () => {
     }
 
     expect(updatedBoardResult.data.columns.find(column => column.id === 1)?.cards.map(card => card.id)).toEqual([
-      103,
-      101,
-      102
+      244,
+      869,
+      483,
+      239,
+      105
     ]);
   });
 
   it('creates visitor slicks in memory with an id and preset style', async () => {
     const api = createDemoBoardApi();
 
-    const editResult = await api.saveCard(1, 101, {
-      title: 'Restyle buttons',
+    const editResult = await api.saveCard(1, 869, {
+      title: 'Allow linking between stories',
       description: 'Grouped in the demo session.',
       externalUrl: null,
       tagNames: ['Feature'],
@@ -223,10 +203,10 @@ describe('demoBoardApi', () => {
     }
 
     expect(editResult.data).toMatchObject({
-      slickId: 2,
+      slickId: 4,
       slickName: 'Visitor slick',
       slick: {
-        id: 2,
+        id: 4,
         name: 'Visitor slick',
         styleName: 'presets',
         stylePropertiesJson: '{"presetIndex":0}'
@@ -240,7 +220,7 @@ describe('demoBoardApi', () => {
     }
 
     expect(slicksResult.data).toContainEqual(expect.objectContaining({
-      id: 2,
+      id: 4,
       name: 'Visitor slick',
       styleName: 'presets',
       stylePropertiesJson: '{"presetIndex":0}'
@@ -275,7 +255,7 @@ describe('demoBoardApi', () => {
   it('archives and restores cards without a server', async () => {
     const api = createDemoBoardApi();
 
-    const archiveResult = await api.archiveCards(1, [101]);
+    const archiveResult = await api.archiveCards(1, [869]);
     expect(archiveResult.ok).toBe(true);
 
     const archivedResult = await api.getArchivedCards(1);
@@ -283,9 +263,9 @@ describe('demoBoardApi', () => {
     if (!archivedResult.ok) {
       return;
     }
-    expect(archivedResult.data.items.map(item => item.id)).toContain(101);
+    expect(archivedResult.data.items.map(item => item.id)).toContain(869);
 
-    const restoreResult = await api.unarchiveCard(1, 101);
+    const restoreResult = await api.unarchiveCard(1, 869);
     expect(restoreResult.ok).toBe(true);
 
     const boardResult = await api.getBoard(1);
@@ -293,6 +273,6 @@ describe('demoBoardApi', () => {
     if (!boardResult.ok) {
       return;
     }
-    expect(boardResult.data.columns.flatMap(column => column.cards).map(card => card.id)).toContain(101);
+    expect(boardResult.data.columns.flatMap(column => column.cards).map(card => card.id)).toContain(869);
   });
 });

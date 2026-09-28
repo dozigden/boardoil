@@ -22,6 +22,7 @@ import restyleButtonsImageUrl from './assets/restyle-buttons.webp?url';
 import restyleButtonsThumbnailUrl from './assets/restyle-buttons-thumbnail.webp?url';
 import webTrafficPieChartImageUrl from './assets/web-traffic-pie-chart.webp?url';
 import webTrafficPieChartThumbnailUrl from './assets/web-traffic-pie-chart-thumbnail.webp?url';
+import publicDemoBoard from './data/public-demo-board.json';
 
 const DemoBoardId = 1;
 const DemoUserId = 1;
@@ -32,7 +33,7 @@ const MaximumSortKeyValue = (SortKeyBase ** BigInt(SortKeyLength)) - 1n;
 const SortKeySpaceSize = MaximumSortKeyValue + 1n;
 const PreferredSortKeyRangeStart = SortKeySpaceSize / 4n;
 const PreferredSortKeyRangeSize = SortKeySpaceSize / 2n;
-const DemoAttachmentTimestamp = '2026-08-12T09:00:00.000Z';
+const DemoFixtureTimestamp = '2026-09-28T07:30:00.000Z';
 
 type DemoAttachmentImage = {
   cardId: number;
@@ -41,14 +42,56 @@ type DemoAttachmentImage = {
   thumbnailUrl: string;
 };
 
-const demoAttachmentImages: DemoAttachmentImage[] = [
-  makeDemoAttachmentImage(1, 101, 'restyle-buttons.webp', 5468,
-    restyleButtonsImageUrl, restyleButtonsThumbnailUrl),
-  makeDemoAttachmentImage(2, 105, 'web-traffic-pie-chart.webp', 5164,
-    webTrafficPieChartImageUrl, webTrafficPieChartThumbnailUrl),
-  makeDemoAttachmentImage(3, 106, 'pay-the-cat-tax.webp', 11942,
-    catTaxImageUrl, catTaxThumbnailUrl)
-];
+type DemoFixtureImage = 'buttons' | 'chart' | 'cat';
+
+type DemoFixtureCard = {
+  id: number;
+  title: string;
+  description: string;
+  cardTypeName: string;
+  tagNames: string[];
+  slickName: string | null;
+  cardCreatedUtc: string;
+  cardUpdatedUtc: string;
+  image?: DemoFixtureImage;
+};
+
+type DemoFixtureColumn = { title: string; cards: DemoFixtureCard[] };
+
+const demoImageAssets = {
+  buttons: { id: 1, fileName: 'restyle-buttons.webp', byteLength: 5468,
+    alt: 'Three vertically stacked application buttons in BoardOil colours',
+    imageUrl: restyleButtonsImageUrl, thumbnailUrl: restyleButtonsThumbnailUrl },
+  chart: { id: 2, fileName: 'web-traffic-pie-chart.webp', byteLength: 5164,
+    alt: 'Rough hand-drawn pie chart of web traffic',
+    imageUrl: webTrafficPieChartImageUrl, thumbnailUrl: webTrafficPieChartThumbnailUrl },
+  cat: { id: 3, fileName: 'pay-the-cat-tax.webp', byteLength: 11942,
+    alt: 'Black-and-white cat sitting on a chair',
+    imageUrl: catTaxImageUrl, thumbnailUrl: catTaxThumbnailUrl }
+} satisfies Record<DemoFixtureImage, {
+  id: number; fileName: string; byteLength: number; alt: string; imageUrl: string; thumbnailUrl: string
+}>;
+
+const fixtureColumns: DemoFixtureColumn[] = publicDemoBoard.columns as DemoFixtureColumn[];
+const fixtureCards = fixtureColumns.flatMap(column => column.cards);
+const demoAttachmentImages: DemoAttachmentImage[] = fixtureCards.flatMap(card => {
+  if (!card.image) { return []; }
+  const asset = demoImageAssets[card.image];
+  return [{
+    cardId: card.id,
+    attachment: {
+      id: asset.id,
+      originalFileName: asset.fileName,
+      contentType: 'image/webp',
+      byteLength: asset.byteLength,
+      createdAtUtc: DemoFixtureTimestamp,
+      createdByUserId: DemoUserId,
+      hasThumbnail: true
+    },
+    imageUrl: asset.imageUrl,
+    thumbnailUrl: asset.thumbnailUrl
+  }];
+});
 
 type DemoState = {
   version: 1;
@@ -811,51 +854,33 @@ function createEvenlySpacedSortKeys(count: number) {
 }
 
 function createSeedState(): DemoState {
-  const timestamp = '2026-08-12T09:00:00.000Z';
-  const tags: Tag[] = [
-    makeTag(1, 'Feature', '🎬️', 'presets', '{"presetIndex":0}', timestamp),
-    makeTag(2, 'UI', '✨️', 'presets', '{"presetIndex":2}', timestamp),
-    makeTag(3, 'MCP', '🤖', 'presets', '{"presetIndex":4}', timestamp),
-    makeTag(4, 'Testing', '🧪', 'presets', '{"presetIndex":6}', timestamp),
-    makeTag(5, 'Release', '🚀', 'presets', '{"presetIndex":8}', timestamp)
-  ];
-  const cardTypes: CardType[] = [
-    {
-      id: 1,
-      name: 'Story',
-      emoji: null,
-      isSystem: true,
-      styleName: 'auto',
-      stylePropertiesJson: '{}',
-      createdAtUtc: timestamp,
-      updatedAtUtc: timestamp
-    },
-    {
-      id: 2,
-      name: 'Bug',
-      emoji: '🕷️',
-      isSystem: false,
-      styleName: 'presets',
-      stylePropertiesJson: '{"presetIndex":4,"textColorMode":"auto"}',
-      createdAtUtc: timestamp,
-      updatedAtUtc: timestamp
-    }
-  ];
-  const slicks: Slick[] = [
-    {
-      id: 1,
-      name: 'Launch polish',
-      styleName: 'presets',
-      stylePropertiesJson: '{"presetIndex":2,"textColorMode":"auto"}',
-      createdAtUtc: timestamp,
-      updatedAtUtc: timestamp
-    }
-  ];
+  const timestamp = DemoFixtureTimestamp;
+  const tags: Tag[] = publicDemoBoard.tags.map((tag, index) => ({
+    ...tag,
+    id: index + 1,
+    styleName: tag.styleName as Tag['styleName'],
+    createdAtUtc: timestamp,
+    updatedAtUtc: timestamp
+  }));
+  const cardTypes: CardType[] = publicDemoBoard.cardTypes.map((cardType, index) => ({
+    ...cardType,
+    id: index + 1,
+    styleName: cardType.styleName as CardType['styleName'],
+    createdAtUtc: timestamp,
+    updatedAtUtc: timestamp
+  }));
+  const slicks: Slick[] = publicDemoBoard.slicks.map((slick, index) => ({
+    ...slick,
+    id: index + 1,
+    styleName: slick.styleName as Slick['styleName'],
+    createdAtUtc: timestamp,
+    updatedAtUtc: timestamp
+  }));
   const members: BoardMember[] = [
     {
       userId: DemoUserId,
-      userName: 'jane.doe',
-      displayName: 'Jane Doe',
+      userName: 'doz',
+      displayName: 'Doz',
       profileImageRelativePath: null,
       role: 'Owner',
       createdAtUtc: timestamp,
@@ -863,211 +888,90 @@ function createSeedState(): DemoState {
     },
     {
       userId: 2,
-      userName: 'a.n.other',
-      displayName: 'A. N. Other',
+      userName: 'sam',
+      displayName: 'Sam',
       profileImageRelativePath: null,
       role: 'Contributor',
       createdAtUtc: timestamp,
       updatedAtUtc: timestamp
     }
   ];
-  const createCard = (
-    id: number,
-    columnId: number,
-    title: string,
-    tagIds: number[],
-    options: { description?: string; cardTypeId?: number; assignedUserId?: number | null; slickId?: number | null } = {}
-  ): Card => {
-    const cardType = cardTypes.find(candidate => candidate.id === (options.cardTypeId ?? 1))!;
-    const selectedTags = tagIds.map(tagId => tags.find(tag => tag.id === tagId)!).filter(Boolean);
-    const assignedMember = members.find(member => member.userId === options.assignedUserId);
-    const slick = slicks.find(candidate => candidate.id === options.slickId);
-    const description = options.description ?? `Explore this card to see BoardOil's markdown editor, tags, assignments, and workflow controls.`;
-    const counts = getMarkdownChecklistCounts(description);
-    return {
-      id,
-      boardColumnId: columnId,
-      cardTypeId: cardType.id,
-      cardTypeName: cardType.name,
-      cardTypeEmoji: cardType.emoji,
-      slickId: slick?.id ?? null,
-      slickName: slick?.name ?? null,
-      slick: slick ? { ...slick } : null,
-      assignedUserId: assignedMember?.userId ?? null,
-      assignedUserDisplayName: assignedMember?.displayName ?? null,
-      assignedUserImageRelativePath: null,
-      title,
-      description,
-      completedChecklistItemCount: counts.completed,
-      totalChecklistItemCount: counts.total,
-      externalUrl: null,
-      sortKey: '',
-      tags: selectedTags.map(toCardTag),
-      tagNames: selectedTags.map(tag => tag.name),
-      cardCreatedUtc: timestamp,
-      cardUpdatedUtc: timestamp
-    };
-  };
 
-  const board: Board = {
-    id: DemoBoardId,
-    name: 'Live Demo',
-    description: 'A fictional launch board for the interactive BoardOil preview.',
-    slickCohesionModeEnabled: true,
-    cardAttachmentThumbnailsEnabled: true,
-    currentUserRole: 'Owner',
-    createdAtUtc: timestamp,
-    updatedAtUtc: timestamp,
-    columns: [
-      {
-        id: 1,
-        title: 'Ideas',
-        sortKey: '001000',
-        createdAtUtc: timestamp,
-        updatedAtUtc: timestamp,
-        cards: [
-          createCard(101, 1, 'Restyle buttons', [1, 2], {
-            description: imageDescription(
-              'Bring the primary, secondary, and destructive actions into one consistent visual system.',
-              'Three vertically stacked application buttons in BoardOil colours',
-              restyleButtonsImageUrl)
-          }),
-          createCard(102, 1, 'Interactive onboarding checklist', [1]),
-          createCard(103, 1, 'AI-assisted acceptance criteria', [3])
-        ]
-      },
-      {
-        id: 2,
-        title: 'Ready',
-        sortKey: '002000',
-        createdAtUtc: timestamp,
-        updatedAtUtc: timestamp,
-        cards: [
-          createCard(104, 2, 'Keyboard shortcut guide', [2]),
-          createCard(105, 2, 'Include pie chart of web traffic', [1, 5], {
-            description: imageDescription(
-              'Add a quick traffic breakdown to the analytics summary.',
-              'Rough hand-drawn pie chart of web traffic',
-              webTrafficPieChartImageUrl),
-            slickId: 1
-          })
-        ]
-      },
-      {
-        id: 3,
-        title: 'In counts',
-        sortKey: '003000',
-        createdAtUtc: timestamp,
-        updatedAtUtc: timestamp,
-        cards: [
-          createCard(107, 3, 'Polish card editing flow', [1, 2], { assignedUserId: DemoUserId, slickId: 1 }),
-          createCard(108, 3, 'Realtime reconnect banner', [4], { assignedUserId: 2 }),
-          createCard(109, 3, 'Fix compact drag handles', [2], { cardTypeId: 2 })
-        ]
-      },
-      {
-        id: 4,
-        title: 'Done',
-        sortKey: '004000',
-        createdAtUtc: timestamp,
-        updatedAtUtc: timestamp,
-        cards: [
-          createCard(106, 4, 'Pay the cat tax', [2], {
-            description: imageDescription(
-              'Every project update is improved by paying the cat tax.',
-              'Black-and-white cat sitting on a chair',
-              catTaxImageUrl),
-            assignedUserId: 2,
-            slickId: 1
-          }),
-          createCard(110, 4, 'Agree launch success measures', [5]),
-          createCard(111, 4, 'Publish visual design tokens', [2, 5], { slickId: 1 }),
-          createCard(112, 4, 'Add critical browser smoke tests', [4]),
-          createCard(113, 4, 'Document installation options', [1]),
-          createCard(114, 4, 'Review keyboard accessibility', [2, 4]),
-          createCard(115, 4, 'Prepare launch screenshots', [2, 5]),
-          createCard(116, 4, 'Validate archive workflow', [4]),
-          createCard(117, 4, 'Tune mobile card spacing', [2]),
-          createCard(118, 4, 'Publish release notes', [5]),
-          createCard(119, 4, 'Run final launch checklist', [1, 5])
-        ]
-      }
-    ]
-  };
-  const seedState: DemoState = {
+  const cardTypesByName = new Map(cardTypes.map(cardType => [cardType.name, cardType]));
+  const tagsByName = new Map(tags.map(tag => [tag.name, tag]));
+  const slicksByName = new Map(slicks.map(slick => [slick.name, slick]));
+  const columns: Board['columns'] = fixtureColumns.map((column, index) => {
+    const columnId = index + 1;
+    const sortKeys = createEvenlySpacedSortKeys(column.cards.length);
+    return {
+      id: columnId,
+      title: column.title,
+      sortKey: String(columnId).padStart(3, '0') + '000',
+      createdAtUtc: timestamp,
+      updatedAtUtc: timestamp,
+      cards: column.cards.map((source, cardIndex) => {
+        const cardType = cardTypesByName.get(source.cardTypeName)!;
+        const selectedTags = source.tagNames.map(name => tagsByName.get(name)!);
+        const slick = source.slickName ? slicksByName.get(source.slickName)! : null;
+        const description = source.image
+          ? imageDescription(source.description, source.image)
+          : source.description;
+        const counts = getMarkdownChecklistCounts(description);
+        return {
+          id: source.id,
+          boardColumnId: columnId,
+          cardTypeId: cardType.id,
+          cardTypeName: cardType.name,
+          cardTypeEmoji: cardType.emoji,
+          slickId: slick?.id ?? null,
+          slickName: slick?.name ?? null,
+          slick: slick ? { ...slick } : null,
+          assignedUserId: null,
+          assignedUserDisplayName: null,
+          assignedUserImageRelativePath: null,
+          title: source.title,
+          description,
+          completedChecklistItemCount: counts.completed,
+          totalChecklistItemCount: counts.total,
+          externalUrl: null,
+          sortKey: sortKeys[cardIndex]!,
+          tags: selectedTags.map(toCardTag),
+          tagNames: [...source.tagNames],
+          cardCreatedUtc: source.cardCreatedUtc,
+          cardUpdatedUtc: source.cardUpdatedUtc
+        };
+      })
+    };
+  });
+  return {
     version: 1,
-    board,
+    board: {
+      id: DemoBoardId,
+      name: publicDemoBoard.name,
+      description: publicDemoBoard.description,
+      slickCohesionModeEnabled: publicDemoBoard.slickCohesionModeEnabled,
+      cardAttachmentThumbnailsEnabled: publicDemoBoard.cardAttachmentThumbnailsEnabled,
+      currentUserRole: 'Owner',
+      createdAtUtc: timestamp,
+      updatedAtUtc: timestamp,
+      columns
+    },
     tags,
     slicks,
     cardTypes,
     members,
-    comments: {
-      107: [
-        {
-          id: 1,
-          cardId: 107,
-          authorUserId: 2,
-          authorDisplayName: 'A. N. Other',
-          authorImageRelativePath: null,
-          text: 'The new editor flow is ready for a final interaction pass.',
-          postedAtUtc: '2026-08-12T10:15:00.000Z'
-        }
-      ]
-    },
+    comments: {},
     archivedCards: [],
-    nextCardId: 120,
-    nextTagId: 6,
-    nextSlickId: 2,
-    nextCommentId: 2
-  };
-
-  for (const column of seedState.board.columns) {
-    const sortKeys = createEvenlySpacedSortKeys(column.cards.length);
-    column.cards.forEach((card, index) => {
-      card.sortKey = sortKeys[index]!;
-    });
-  }
-
-  return seedState;
-}
-
-function makeTag(
-  id: number,
-  name: string,
-  emoji: string,
-  styleName: Tag['styleName'],
-  stylePropertiesJson: string,
-  timestamp: string
-): Tag {
-  return { id, name, emoji, styleName, stylePropertiesJson, createdAtUtc: timestamp, updatedAtUtc: timestamp };
-}
-
-function makeDemoAttachmentImage(
-  attachmentId: number,
-  cardId: number,
-  originalFileName: string,
-  byteLength: number,
-  imageUrl: string,
-  thumbnailUrl: string
-): DemoAttachmentImage {
-  return {
-    cardId,
-    attachment: {
-      id: attachmentId,
-      originalFileName,
-      contentType: 'image/webp',
-      byteLength,
-      createdAtUtc: DemoAttachmentTimestamp,
-      createdByUserId: DemoUserId,
-      hasThumbnail: true
-    },
-    imageUrl,
-    thumbnailUrl
+    nextCardId: Math.max(...fixtureCards.map(card => card.id)) + 1,
+    nextTagId: tags.length + 1,
+    nextSlickId: slicks.length + 1,
+    nextCommentId: 1
   };
 }
 
-function imageDescription(introduction: string, alt: string, imageUrl: string) {
-  return `${introduction}\n\n![${alt}](${absoluteDemoAssetUrl(imageUrl)})`;
+function imageDescription(description: string, image: DemoFixtureImage) {
+  const asset = demoImageAssets[image];
+  return `${description}\n\n![${asset.alt}](${absoluteDemoAssetUrl(asset.imageUrl)})`;
 }
 
 function absoluteDemoAssetUrl(assetUrl: string) {

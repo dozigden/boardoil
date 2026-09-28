@@ -5,6 +5,7 @@
 BoardOil.Web/node_modules/
 BoardOil.Web/dist/
 BoardOil.Web/dist-demo/
+BoardOil.Web/src/demo/data/demo-board-20*.json
 BoardOil.Web/test-results/
 BoardOil.Web/playwright-report/
 

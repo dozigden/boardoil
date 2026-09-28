@@ -1,0 +1,470 @@
+{
+  "name": "BoardOil Development",
+  "description": "An interactive preview of a BoardOil development board.",
+  "cardTypes": [
+    {
+      "name": "Story",
+      "emoji": "📙",
+      "isSystem": true,
+      "styleName": "auto",
+      "stylePropertiesJson": "{}"
+    },
+    {
+      "name": "Bug",
+      "emoji": "🕷️",
+      "isSystem": false,
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":4}"
+    },
+    {
+      "name": "Idea",
+      "emoji": "💡",
+      "isSystem": false,
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":5}"
+    },
+    {
+      "name": "Release",
+      "emoji": "🏁",
+      "isSystem": false,
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":10}"
+    }
+  ],
+  "tags": [
+    {
+      "name": "API",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#F66151\",\"rightColor\":\"#400040\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🌐"
+    },
+    {
+      "name": "Auth",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#F9F06B\",\"rightColor\":\"#986A44\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🔑"
+    },
+    {
+      "name": "Blocked",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":9}",
+      "emoji": "⛔️"
+    },
+    {
+      "name": "Bug",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#F66151\",\"rightColor\":\"#A51D2D\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🪲"
+    },
+    {
+      "name": "Documentation",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":10}",
+      "emoji": "📝"
+    },
+    {
+      "name": "Feature",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#99C1F1\",\"rightColor\":\"#3584E4\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🎬️"
+    },
+    {
+      "name": "GH Issue",
+      "styleName": "solid",
+      "stylePropertiesJson": "{\"backgroundColor\":\"#5E5C64\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🐙"
+    },
+    {
+      "name": "MCP",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#FBF490\",\"rightColor\":\"#DDAF0F\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🤖"
+    },
+    {
+      "name": "Mobile",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#FFBE6F\",\"rightColor\":\"#E66100\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "📱"
+    },
+    {
+      "name": "Roadmap",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#DC8ADD\",\"rightColor\":\"#613583\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🔮"
+    },
+    {
+      "name": "Security",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#ED333B\",\"rightColor\":\"#5C1A1A\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🔒️"
+    },
+    {
+      "name": "Tech Debt",
+      "styleName": "solid",
+      "stylePropertiesJson": "{\"backgroundColor\":\"#26A269\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "💰️"
+    },
+    {
+      "name": "UI",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#DC8ADD\",\"rightColor\":\"#1A5FB4\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "✨️"
+    }
+  ],
+  "slicks": [
+    {
+      "name": "Agent Auth",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":5,\"textColorMode\":\"auto\"}"
+    },
+    {
+      "name": "Dependancy updates",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":3}"
+    },
+    {
+      "name": "Job porting",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":7}"
+    }
+  ],
+  "slickCohesionModeEnabled": true,
+  "cardAttachmentThumbnailsEnabled": true,
+  "columns": [
+    {
+      "title": "Ideation",
+      "cards": [
+        {
+          "id": 869,
+          "title": "Allow linking between stories",
+          "description": "## Idea\n\nLink to another story from a card description using a number such as `#123`.\n\n## Questions to explore\n\n- Should a link preview show the story title and column?\n- What should happen when the target is archived or unavailable?\n- How can the parser leave numbers inside code blocks alone?\n\n**Next step:** agree the link syntax and try it in the Markdown preview.",
+          "cardTypeName": "Idea",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-19T08:22:34.9684837Z",
+          "cardUpdatedUtc": "2026-09-25T09:03:36.3408631Z"
+        },
+        {
+          "id": 483,
+          "title": "Mermaid diagrams",
+          "description": "## Status\n\nIdeation — needs discovery before promotion to implementation.\n\n## Idea\n\nExplore Mermaid diagram support in Markdown content so technical stories and documentation can include diagrams alongside text.\n\n## Discovery questions\n\n- Which editor modes should render diagrams: rich, preview, plain text, or a combination?\n- How should invalid Mermaid syntax be presented without disrupting editing?\n- What sanitisation and content-security constraints are required?\n- Is the client dependency and bundle-size cost justified?\n- How should diagrams behave in exported or archived content?\n\n## Promotion gate\n\nDefine the intended editing/rendering experience, security boundary, dependency cost, and a small acceptance-testable first slice before moving this beyond Ideation.",
+          "cardTypeName": "Idea",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-05-31T14:49:03.6316263Z",
+          "cardUpdatedUtc": "2026-09-25T09:03:46.4513225Z"
+        },
+        {
+          "id": 244,
+          "title": "Story history",
+          "description": "## Status\n\nRoadmap idea — discovery required before implementation.\n\n## Objective\n\nProvide an auditable history of meaningful story changes so users can understand what changed, when, and by whom.\n\n## Discovery questions\n\n- Which changes belong in history: content, column, order, tags, assignment, links, and comments?\n- What actor, timestamp, and before/after detail should be retained?\n- What retention, authorization, and privacy rules apply?\n- Should history be exposed through the UI, API, exports, and integrations?\n- How should imported or archived stories preserve their history?\n\n## Promotion gate\n\nDefine the event model, retention and permission rules, user experience, and a bounded first vertical slice before implementation.",
+          "cardTypeName": "Idea",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-04-18T13:25:58.9411144Z",
+          "cardUpdatedUtc": "2026-09-25T09:04:00.7961631Z"
+        },
+        {
+          "id": 239,
+          "title": "Realtime updates for integrations",
+          "description": "## Status\n\nRoadmap idea — discovery required before implementation.\n\n## Objective\n\nAllow external integrations to receive timely board and card changes without repeatedly polling the API.\n\n## Discovery questions\n\n- Which delivery mechanism is appropriate: webhooks, server-sent events, MCP subscriptions, or another contract?\n- How are subscriptions scoped and authorized per board?\n- What ordering, retry, deduplication, and replay guarantees are required?\n- Which event payloads are stable public contracts?\n- How are delivery failures observed and managed?\n\n## Promotion gate\n\nChoose the integration transport and define its authorization, delivery guarantees, payload contract, observability, and a bounded first vertical slice before implementation.",
+          "cardTypeName": "Idea",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-04-17T12:51:41.8236735Z",
+          "cardUpdatedUtc": "2026-09-25T09:04:07.7891029Z"
+        },
+        {
+          "id": 105,
+          "title": "Include pie chart of web traffic",
+          "description": "## Goal\n\nAdd a quick visual breakdown of web traffic to the analytics summary.\n\n- Compare the main traffic sources at a glance.\n- Keep chart labels readable on narrow screens.\n- Provide a text summary for people who cannot use the image.\n\nThe sketch below is an example image for the demo.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Feature",
+            "UI"
+          ],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-28T07:30:00.000Z",
+          "cardUpdatedUtc": "2026-09-28T07:30:00.000Z",
+          "image": "chart"
+        }
+      ]
+    },
+    {
+      "title": "Todo",
+      "cards": [
+        {
+          "id": 891,
+          "title": "Bulk card deletion should be idempotent",
+          "description": "## Problem\n\nBulk card deletion fails when a requested card is already absent. Repeating the same request should be safe.\n\n## Example request\n\n```http\nPOST /api/boards/{boardId}/cards/delete\nContent-Type: application/json\n\n{\"cardIds\": [42]}\n```\n\n## Reproduction\n\n1. Delete an existing card with the request above.\n2. Send the same card ID again.\n3. The second request reports that a card does not exist.\n\nA mixed request containing existing and absent IDs also fails as a whole.\n\n## Expected behavior\n\nDelete the cards that remain and treat missing cards as already deleted. Keep the requested and deleted counts accurate, and preserve board permissions and attachment cleanup.",
+          "cardTypeName": "Bug",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-26T11:38:02.2763387Z",
+          "cardUpdatedUtc": "2026-09-28T07:26:50.6609648Z"
+        },
+        {
+          "id": 885,
+          "title": "Issue creating new story",
+          "description": "## Problem\n\nA new story title can disappear when the session refreshes while the editor is open.\n\n## Reproduction\n\n1. Choose **New story** and type a title.\n2. Leave the draft open while the session renews.\n3. Return to the editor and check whether the title is still there.\n\n**Expected:** the unsaved draft remains in place until the visitor saves or discards it.",
+          "cardTypeName": "Bug",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-22T11:31:59.0525663Z",
+          "cardUpdatedUtc": "2026-09-28T07:26:32.4807439Z"
+        },
+        {
+          "id": 868,
+          "title": "Release v1.8",
+          "description": "**Status:** planned for `v1.8.0`; release execution has not started.\n\n## Release preparation\n\n- [ ] Confirm release-blocking stories are finished.\n- [ ] Set the application and frontend versions to `1.8.0`.\n- [ ] Run the frontend release check and complete test suite.\n- [ ] Verify CI for the exact commit that will be tagged.\n\n## Publication\n\n1. Create and push the release tag.\n2. Wait for the tagged build and container smoke test.\n3. Publish the release notes and record the image digests.\n\nThe release is complete when the published packages match the validated commit.",
+          "cardTypeName": "Release",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-19T08:17:18.1361548Z",
+          "cardUpdatedUtc": "2026-09-19T08:23:54.6582404Z"
+        },
+        {
+          "id": 887,
+          "title": "Upgrade frontend tooling to Node 26 after LTS transition",
+          "description": "Move the frontend build and test toolchain to Node 26 after it enters Active LTS. The checklist below is illustrative demo content.\n\n## Migration checklist\n\n- [x] List the frontend build and test commands\n- [x] Identify where CI selects its Node version\n- [ ] Try a Node 26 build in a temporary environment\n- [ ] Review package compatibility and lockfile changes\n- [ ] Update the Node engine and CI configuration\n- [ ] Run frontend checks and the static demo smoke test",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Blocked",
+            "Tech Debt"
+          ],
+          "slickName": "Dependancy updates",
+          "cardCreatedUtc": "2026-09-24T18:32:05.6215257Z",
+          "cardUpdatedUtc": "2026-09-25T09:07:24.0918771Z"
+        },
+        {
+          "id": 780,
+          "title": "Track MCP OAuth refresh-token persistence",
+          "description": "## Question\n\nDoes an MCP client retain a newly refreshed MCP OAuth token when its connection is idle or restarted?\n\n## Investigation\n\n- Compare the token used before and after a refresh.\n- Test an idle connection and a fresh connection separately.\n- Confirm whether a client update changes the result.\n\n**Decision:** keep this as compatibility tracking until the client behavior is clear. Do not weaken BoardOil's token rotation to hide a client-side persistence issue.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Auth",
+            "Blocked",
+            "MCP"
+          ],
+          "slickName": "Agent Auth",
+          "cardCreatedUtc": "2026-08-21T10:13:12.496902Z",
+          "cardUpdatedUtc": "2026-09-25T18:17:46.4762985Z"
+        },
+        {
+          "id": 755,
+          "title": "Support Home Assistant OAuth for MCP",
+          "description": "## Context\n\nHome Assistant's MCP integration requires a pre-registered confidential OAuth client with a client ID and client secret. BoardOil currently supports dynamically registered public PKCE clients, so this connection needs an additional client type.\n\n## Outcome\n\nAllow a BoardOil system administrator to register and manage confidential OAuth clients so Home Assistant can connect securely to `/mcp/oauth`.\n\n## Acceptance criteria\n\n- System administrators can create a confidential OAuth client with a display name and one or more exact HTTPS redirect URIs.\n- BoardOil generates a client ID and client secret, displaying the complete secret only when the client is created.\n- Registered confidential clients can use authorization-code and refresh-token flows for `mcp:read` and `mcp:write`.\n- OAuth discovery advertises the client-secret authentication method used by Home Assistant.\n- PKCE remains required for dynamically registered public clients but is not globally required for confidential clients that do not support it.\n- System administrators can list and revoke confidential client registrations.\n- Redirect URI validation prevents unsafe or unintended callback destinations.\n- Revoking a client invalidates its active authorizations, tokens, and BoardOil OAuth connections.\n- Home Assistant can connect to `/mcp/oauth`, complete consent, refresh its token, and call MCP tools.\n- Automated coverage exercises discovery, client creation, authorization, token exchange, refresh, revocation, permissions, and redirect validation.\n- MCP installation documentation includes Home Assistant setup using the generated client ID and secret.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Auth",
+            "Feature",
+            "MCP"
+          ],
+          "slickName": "Agent Auth",
+          "cardCreatedUtc": "2026-08-15T09:44:26.6123047Z",
+          "cardUpdatedUtc": "2026-09-28T07:27:14.0146304Z"
+        },
+        {
+          "id": 736,
+          "title": "Non docker based install instructions",
+          "description": "## Goal\n\nProvide a normal, portable Linux installation using downloadable release archives. The installation must not require Docker, Node.js, the .NET SDK, or a source checkout.\n\nImplementation is deferred; this story remains in Todo.\n\n## Supported release artifacts\n\nPublish framework-dependent archives for mainstream glibc-based Linux distributions:\n\n- `boardoil-<version>-linux-x64.tar.gz`\n- `boardoil-<version>-linux-arm64.tar.gz`\n- SHA-256 checksums for each archive\n\nThe host must have the .NET 10 ASP.NET Core Runtime installed. Alpine/musl support is out of scope initially and must be stated explicitly.\n\nEach archive must contain the published API and the compiled Vue frontend under `wwwroot`, so it can run without build tooling.\n\n## Installation layout\n\nUse conventional, separated locations:\n\n- `/opt/boardoil/<version>/` — immutable versioned application files\n- `/opt/boardoil/current` — symlink to the active version\n- `/etc/boardoil/` — administrator-managed configuration\n- `/var/lib/boardoil/` — SQLite database, images, generated signing key, and migration backups\n\nRun BoardOil as a dedicated, unprivileged `boardoil` user. Only the persistent data directory should be writable by that user.\n\n## Portable runtime contract\n\nDocument direct foreground execution as the primary, service-manager-neutral method. It must configure:\n\n- `ConnectionStrings__BoardOil=Data Source=/var/lib/boardoil/boardoil.db`\n- `BoardOil__ImageRootPath=/var/lib/boardoil/images`\n- `ASPNETCORE_URLS=http://127.0.0.1:5000`\n- `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`\n\nThe executable command is `/opt/boardoil/current/BoardOil.Api`.\n\nAny supervisor may run this contract. Provide systemd as one worked example, while making clear that systemd is optional and OpenRC, runit, s6, and other supervisors can supply the same user, environment, working directory, and command.\n\n## Release pipeline\n\nFor a tagged release:\n\n1. Build the Vue frontend with release version metadata.\n2. Publish the API for `linux-x64` and `linux-arm64` as framework-dependent deployments.\n3. Copy the compiled frontend into each published application's `wwwroot`.\n4. Package each target as a versioned `.tar.gz` archive.\n5. Smoke-test the extracted x64 archive, including the SPA and `/api/health`.\n6. Generate SHA-256 checksums.\n7. Attach the archives and checksums to the tagged GitHub release.\n\n## Documentation\n\nDocument:\n\n- supported distributions and architectures\n- installation of the .NET 10 ASP.NET Core Runtime\n- creating the service user and directories with appropriate permissions\n- downloading and verifying an archive\n- configuration and foreground startup\n- optional systemd integration\n- reverse proxy, forwarded headers, HTTPS, and secure cookies\n- health verification through `/api/health`\n- initial administrator setup\n- backups, upgrades, rollback, and uninstall\n- preserving `/var/lib/boardoil` across upgrades\n\nUpgrade instructions must account for automatic database migrations and their pre-migration backups.\n\n## Out of scope\n\n- Windows or macOS packaging\n- an APT, RPM, or other package repository\n- Alpine/musl release archives\n- dedicated integrations for every Linux init system\n- self-contained .NET runtime bundles\n",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-08-08T12:59:17.8200189Z",
+          "cardUpdatedUtc": "2026-09-03T19:33:16.7234494Z"
+        },
+        {
+          "id": 101,
+          "title": "Restyle buttons",
+          "description": "## Design goal\n\nBring the main button states into one consistent visual system.\n\n- **Primary:** make the main action easy to find.\n- **Secondary:** stay visible without competing with the main action.\n- **Danger:** make destructive actions recognizable before confirmation.\n\nCheck the styles in light and dark themes, then compare them with the sketch below.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Feature",
+            "UI"
+          ],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-28T07:30:00.000Z",
+          "cardUpdatedUtc": "2026-09-28T07:30:00.000Z",
+          "image": "buttons"
+        }
+      ]
+    },
+    {
+      "title": "In Progress",
+      "cards": [
+        {
+          "id": 880,
+          "title": "v1.8 Release notes",
+          "description": "## Changes\n\n- Show Markdown checklist progress on board cards.\n- Make scheduled maintenance easier to review from the system area.\n\n## Fixes\n\n- Improve handling of concurrent attachment downloads.\n- Keep board navigation responsive when returning from the archive.\n\nThese notes are a draft for the `v1.8` release.",
+          "cardTypeName": "Release",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-20T16:24:37.7336899Z",
+          "cardUpdatedUtc": "2026-09-27T19:42:56.3013358Z"
+        },
+        {
+          "id": 892,
+          "title": "Review all frontend stores against the Pinia guidance",
+          "description": "Review each store against AGENTS/frontend-pinia.md and agree any cleanup with the user. Tick a store once its review and agreed changes are complete. Board and card stores were reviewed in #889; supporting changes in other stores do not count as a full review. Mutation naming is tracked separately in #890.\n\n## Board stores\n\n- [ ] attachmentStore\n- [ ] boardAttachmentInventoryStore\n- [ ] boardMembersStore\n- [x] boardStore\n- [ ] cardAttachmentThumbnailStore\n- [x] cardStore\n- [ ] cardTypeStore\n- [ ] commentStore\n- [ ] slickStore\n- [ ] tagStore\n\n## Shared stores\n\n- [ ] authStore\n- [ ] boardCatalogueStore\n- [ ] systemInfoMessageStore\n- [ ] themeStore\n- [ ] uiFeedbackStore\n- [ ] userProfileImageStore\n- [ ] userProfileStore\n\n## System stores\n\n- [ ] systemBoardMembersStore\n- [ ] systemBoardStore\n- [ ] systemClientAccountsStore\n- [ ] systemErrorLogsStore\n- [ ] systemOAuthTokenAuditsStore\n- [ ] systemUsersManagerStore",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-26T13:39:09.6230381Z",
+          "cardUpdatedUtc": "2026-09-28T07:23:26.3181105Z"
+        },
+        {
+          "id": 899,
+          "title": "Job porting 7/7: Add schedule administration and verify the complete port",
+          "description": "## Goal\n\nGive administrators a clear way to review and run scheduled jobs.\n\n## Demo checklist\n\n- [x] Show schedules alongside job history.\n- [x] Display the configured system timezone.\n- [ ] Review the run-now feedback and history link.\n- [ ] Verify the complete journey in the browser.\n\nA schedule change should have an understandable result before the administrator leaves the page.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "API",
+            "Feature",
+            "UI"
+          ],
+          "slickName": "Job porting",
+          "cardCreatedUtc": "2026-09-26T16:24:45.6691468Z",
+          "cardUpdatedUtc": "2026-09-28T07:24:47.5532705Z"
+        }
+      ]
+    },
+    {
+      "title": "Done",
+      "cards": [
+        {
+          "id": 900,
+          "title": "Replace Cronos with explicit daily job schedules",
+          "description": "## Outcome\n\nRecurring maintenance uses an explicit local time in the configured system timezone.\n\n## Behavior to preserve\n\n- Handle daylight-saving changes without creating duplicate runs.\n- Recover a missed occurrence after a restart.\n- Keep the daily maintenance time visible as `03:00` in administration.\n\nThe schedule definition now describes *when* to run directly, without a cron expression.",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-27T07:08:15.2710098Z",
+          "cardUpdatedUtc": "2026-09-27T19:01:00.4018708Z"
+        },
+        {
+          "id": 898,
+          "title": "Job porting 6/7: Add admin job history, details and live updates",
+          "description": "## Outcome\n\nAdministrators can follow a job from start to completion without manually reloading the page.\n\n- Browse recent jobs and open a detail view.\n- Read ordered logs and a clear failure reason.\n- Follow live status changes and refresh after reconnecting.\n\nDiagnostic payloads are displayed as text so their contents cannot render as page markup.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "API",
+            "Feature",
+            "UI"
+          ],
+          "slickName": "Job porting",
+          "cardCreatedUtc": "2026-09-26T16:24:42.8951826Z",
+          "cardUpdatedUtc": "2026-09-28T07:24:54.9169054Z"
+        },
+        {
+          "id": 897,
+          "title": "Job porting 5/7: Activate independent scheduling and execution loops",
+          "description": "## Outcome\n\nScheduling and execution run independently so a long job does not delay the next schedule check.\n\n- Recover incomplete work when the application starts.\n- Execute queued jobs one at a time.\n- Give cleanup one owner to avoid duplicate runs.\n\nThe job history shows each transition as work moves through the queue.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "API",
+            "Tech Debt"
+          ],
+          "slickName": "Job porting",
+          "cardCreatedUtc": "2026-09-26T16:22:52.0826274Z",
+          "cardUpdatedUtc": "2026-09-28T07:24:58.8149729Z"
+        },
+        {
+          "id": 896,
+          "title": "Job porting 4/7: Add maintenance handlers and job-history retention",
+          "description": "## Outcome\n\nAdd the routine maintenance jobs and keep their history for a bounded period.\n\n## Daily work\n\n- Remove expired temporary records.\n- Purge old OAuth registrations when appropriate.\n- Retain useful job results while clearing older logs.\n\nMaintenance follows the system timezone and reports its result in job history.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "API",
+            "Tech Debt"
+          ],
+          "slickName": "Job porting",
+          "cardCreatedUtc": "2026-09-26T16:22:48.9291085Z",
+          "cardUpdatedUtc": "2026-09-28T07:25:01.0631928Z"
+        },
+        {
+          "id": 895,
+          "title": "Job porting 3/7: Port cron schedules and timezone policy",
+          "description": "## Outcome\n\nEvaluate recurring schedules using the configured timezone and recover work missed during downtime.\n\n## Cases to handle\n\n- The local clock changes for daylight saving.\n- The application restarts after a scheduled time.\n- A previous enqueue completed only part of its work.\n\nEach occurrence should have one durable identity so recovery can finish it safely.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "API",
+            "Tech Debt"
+          ],
+          "slickName": "Job porting",
+          "cardCreatedUtc": "2026-09-26T16:21:05.7868673Z",
+          "cardUpdatedUtc": "2026-09-28T07:25:05.0209991Z"
+        },
+        {
+          "id": 894,
+          "title": "Job porting 2/7: Port job execution and reliable finalisation",
+          "description": "## Outcome\n\nA queued job records its progress and final result so it can survive an application restart.\n\n- Claim one pending job for execution.\n- Record logs in order as the handler runs.\n- Save success or failure as a terminal state.\n- Recover jobs left running by an interrupted process.\n\nHandler changes and job state must be committed consistently.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "API",
+            "Tech Debt"
+          ],
+          "slickName": "Job porting",
+          "cardCreatedUtc": "2026-09-26T16:21:01.9608186Z",
+          "cardUpdatedUtc": "2026-09-27T19:01:26.2122404Z"
+        },
+        {
+          "id": 893,
+          "title": "Job porting 1/7: Add EF persistence and migration coverage",
+          "description": "## Outcome\n\nStore jobs, their logs, and scheduler state in the database.\n\n## Data model\n\n- `Job` records type, status, and lifecycle timestamps.\n- `JobLog` keeps ordered execution messages.\n- `SchedulerState` remembers the last evaluated occurrence.\n\nMigration tests cover creating the schema and opening an existing database.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "API",
+            "Tech Debt"
+          ],
+          "slickName": "Job porting",
+          "cardCreatedUtc": "2026-09-26T16:18:43.1567444Z",
+          "cardUpdatedUtc": "2026-09-28T07:25:06.7503374Z"
+        },
+        {
+          "id": 905,
+          "title": "Rename OAuth client registration cleanup to purge",
+          "description": "## Change\n\nCall the OAuth registration cleanup job **purge** throughout the UI and job definitions.\n\n- Remove scheduler checkpoints for schedule definitions that no longer exist.\n- Keep checkpoints for registered schedules, including disabled ones.\n\nThe names now describe the action consistently wherever an administrator sees it.",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-28T06:35:26.2511993Z",
+          "cardUpdatedUtc": "2026-09-28T07:24:31.4735595Z"
+        },
+        {
+          "id": 902,
+          "title": "Add Once schedules and reusable board resaving",
+          "description": "## Outcome\n\nAdd one-time schedules and a reusable operation that resaves every board.\n\n## How it runs\n\n1. An administrator requests a run.\n2. The scheduler queues one job for each current board.\n3. Each job recalculates saved card checklist counts.\n\nLater board-normalization work can reuse the same resave operation.",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-27T15:01:04.8740396Z",
+          "cardUpdatedUtc": "2026-09-27T18:58:06.4304054Z"
+        },
+        {
+          "id": 888,
+          "title": "Idea: use markdown checkboxes",
+          "description": "## Goal\n\nShow Markdown checklist progress on each board card without opening its description.\n\n- [x] Count checked and unchecked tasks in saved Markdown.\n- [x] Show `completed/total` on cards that contain tasks.\n- [x] Hide the indicator when a card has no tasks.\n\nThe counter follows nested task lists and ignores checkbox examples inside code blocks.",
+          "cardTypeName": "Idea",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-25T07:44:57.076682Z",
+          "cardUpdatedUtc": "2026-09-26T18:56:37.569378Z"
+        },
+        {
+          "id": 106,
+          "title": "Pay the cat tax",
+          "description": "## A little project tradition\n\nEvery project update is improved by paying the cat tax.\n\n- Pick a good photo.\n- Add useful alternative text.\n- Enjoy a brief break from the task list.\n\nThe image below is included as a demo attachment.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-28T07:30:00.000Z",
+          "cardUpdatedUtc": "2026-09-28T07:30:00.000Z",
+          "image": "cat"
+        }
+      ]
+    }
+  ]
+}

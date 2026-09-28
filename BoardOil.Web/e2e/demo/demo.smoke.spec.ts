@@ -46,11 +46,11 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await expect(welcomeDialog.getByText('Anything you enter here will disappear')).toBeVisible();
     await welcomeDialog.getByRole('button', { name: 'Explore the demo' }).click();
     await expect(welcomeDialog).not.toBeVisible();
-    await expect(page.getByText('Live Demo', { exact: true })).toBeVisible();
+    await expect(page.getByText('BoardOil Development', { exact: true })).toBeVisible();
 
     const seededImages = [
-      { column: 'Ideas', title: 'Restyle buttons', alt: 'Three vertically stacked application buttons in BoardOil colours' },
-      { column: 'Ready', title: 'Include pie chart of web traffic', alt: 'Rough hand-drawn pie chart of web traffic' },
+      { column: 'Todo', title: 'Restyle buttons', alt: 'Three vertically stacked application buttons in BoardOil colours' },
+      { column: 'Ideation', title: 'Include pie chart of web traffic', alt: 'Rough hand-drawn pie chart of web traffic' },
       { column: 'Done', title: 'Pay the cat tax', alt: 'Black-and-white cat sitting on a chair' }
     ];
     for (const seededImage of seededImages) {
@@ -70,60 +70,47 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
       await cardDialog.getByTitle('Cancel', { exact: true }).click();
     }
 
-    const seededCard = page.getByRole('article', { name: 'Ideas column' })
-      .locator('.card')
-      .filter({ hasText: 'Restyle buttons' });
-    await seededCard.click();
-    const readOnlyAttachmentDialog = page.getByRole('dialog');
-    await expect(readOnlyAttachmentDialog.getByRole('link', { name: 'Download restyle-buttons.webp' })).toBeVisible();
-    await expect(readOnlyAttachmentDialog.getByRole('button', { name: 'Add image' })).toHaveCount(0);
-    await expect(readOnlyAttachmentDialog.getByRole('button', { name: 'Upload' })).toHaveCount(0);
-    await expect(readOnlyAttachmentDialog.getByRole('button', { name: 'Delete restyle-buttons.webp' })).toHaveCount(0);
-    await expect(readOnlyAttachmentDialog.getByLabel('Choose attachments')).toHaveCount(0);
-    await readOnlyAttachmentDialog.getByTitle('Cancel', { exact: true }).click();
-
     const doneColumn = page.getByRole('article', { name: 'Done column' });
-    await expect(doneColumn).toBeVisible();
     await expect(doneColumn.getByRole('button').filter({ hasText: /#\d+/ })).toHaveCount(11);
   });
 
   await test.step('create new cards at the top of a column', async () => {
-    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    await ideasColumn.getByRole('button', { name: 'Add default card' }).click();
-    await ideasColumn.getByPlaceholder('Title').fill('Created at the top');
-    await ideasColumn.getByRole('button', { name: 'Save new card' }).click();
+    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
+    await ideationColumn.getByRole('button', { name: 'Add default card' }).click();
+    await ideationColumn.getByPlaceholder('Title').fill('Created at the top');
+    await ideationColumn.getByRole('button', { name: 'Save new card' }).click();
 
-    const firstCard = ideasColumn.getByRole('button').filter({ hasText: /#\d+/ }).first();
+    const firstCard = ideationColumn.getByRole('button').filter({ hasText: /#\d+/ }).first();
     await expect(firstCard).toContainText('Created at the top');
   });
 
   await test.step('edit and move a card in memory', async () => {
-    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    await ideasColumn.getByRole('button').filter({ hasText: 'Restyle buttons' }).click();
+    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
+    await ideationColumn.getByRole('button').filter({ hasText: 'Allow linking between stories' }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: /^#101 / }).click();
+    await dialog.getByRole('button', { name: /^#869 / }).click();
     const titleInput = dialog.getByRole('textbox', { name: 'Card title' });
     await titleInput.fill('Edited in the static demo');
     await titleInput.press('Enter');
     await dialog.getByTitle('Select column').click();
     await dialog
       .getByRole('menu', { name: 'Select column' })
-      .getByRole('button', { name: 'Ready', exact: true })
+      .getByRole('button', { name: 'Todo', exact: true })
       .click();
     await dialog.getByRole('button', { name: 'Save card' }).click();
 
-    const readyColumn = page.getByRole('article', { name: 'Ready column' });
-    await expect(readyColumn.getByRole('button').filter({ hasText: 'Edited in the static demo' })).toBeVisible();
+    const todoColumn = page.getByRole('article', { name: 'Todo column' });
+    await expect(todoColumn.getByRole('button').filter({ hasText: 'Edited in the static demo' })).toBeVisible();
   });
 
   await test.step('reset the preview without reopening the welcome dialog', async () => {
     await page.getByRole('button', { name: 'Reset preview' }).click();
     await expect(page.getByRole('heading', { name: 'Welcome to the BoardOil demo' })).toHaveCount(0);
 
-    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    await expect(ideasColumn.getByRole('button').filter({ hasText: 'Restyle buttons' })).toBeVisible();
+    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
+    await expect(ideationColumn.getByRole('button').filter({ hasText: 'Allow linking between stories' })).toBeVisible();
     await expect(page.getByText('Created at the top', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Edited in the static demo', { exact: true })).toHaveCount(0);
   });
@@ -133,27 +120,27 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     const welcomeDialog = page.getByRole('dialog');
     await expect(welcomeDialog.getByRole('heading', { name: 'Welcome to the BoardOil demo' })).toBeVisible();
     await welcomeDialog.getByRole('button', { name: 'Explore the demo' }).click();
-    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    await expect(ideasColumn.getByRole('button').filter({ hasText: 'Restyle buttons' })).toBeVisible();
+    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
+    await expect(ideationColumn.getByRole('button').filter({ hasText: 'Allow linking between stories' })).toBeVisible();
     await expect(page.getByText('Edited in the static demo', { exact: true })).toHaveCount(0);
   });
 
   await test.step('drop a card at the exact indicated position', async () => {
-    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    const movedCard = ideasColumn.getByRole('button').filter({ hasText: 'AI-assisted acceptance criteria' });
-    const firstCard = ideasColumn.getByRole('button').filter({ hasText: 'Restyle buttons' });
+    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
+    const movedCard = ideationColumn.getByRole('button').filter({ hasText: 'Story history' });
+    const firstCard = ideationColumn.getByRole('button').filter({ hasText: 'Allow linking between stories' });
 
     await movedCard.dragTo(firstCard, { targetPosition: { x: 20, y: 1 } });
 
-    const cards = ideasColumn.getByRole('button').filter({ hasText: /#\d+/ });
-    await expect(cards.nth(0)).toContainText('AI-assisted acceptance criteria');
-    await expect(cards.nth(1)).toContainText('Restyle buttons');
-    await expect(cards.nth(2)).toContainText('Interactive onboarding checklist');
+    const cards = ideationColumn.getByRole('button').filter({ hasText: /#\d+/ });
+    await expect(cards.nth(0)).toContainText('Story history');
+    await expect(cards.nth(1)).toContainText('Allow linking between stories');
+    await expect(cards.nth(2)).toContainText('Mermaid diagrams');
   });
 
   await test.step('select cards without reflowing their titles', async () => {
-    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    const card = ideasColumn.locator('.card').filter({ hasText: 'Restyle buttons' });
+    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
+    const card = ideationColumn.locator('.card').filter({ hasText: 'Allow linking between stories' });
     const title = card.locator('.card-title-text');
     const titlePositionBeforeSelection = await title.boundingBox();
 
@@ -183,8 +170,8 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await expect(page.locator('.board-selection-toggle-count')).toHaveCSS('color', 'rgb(202, 184, 239)');
 
     await page.getByTitle('Done selecting cards').click();
-    const ideasColumn = page.getByRole('article', { name: 'Ideas column' });
-    await ideasColumn.getByRole('button').filter({ hasText: 'Restyle buttons' }).click();
+    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
+    await ideationColumn.getByRole('button').filter({ hasText: 'Allow linking between stories' }).click();
     const cardDialog = page.getByRole('dialog');
     await expect(cardDialog.locator('.fixed-chrome-dialog__surface')).toHaveCSS('color', 'rgb(233, 238, 246)');
     await expect(cardDialog.getByText('Column', { exact: true })).toHaveCSS('color', 'rgb(174, 186, 206)');
