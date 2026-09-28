@@ -63,16 +63,55 @@
         </Tag>
       </div>
     </div>
+    <svg
+      v-if="cardThumbnailUrl && checklistCounts.total > 0"
+      class="card-checklist-halo-definition"
+      width="0"
+      height="0"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <filter :id="checklistHaloId" x="-100%" y="-200%" width="300%" height="500%" color-interpolation-filters="sRGB">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="0.5" result="tightHalo" />
+          <feOffset
+            v-for="([dx, dy], index) in checklistHaloOffsets"
+            :key="index"
+            in="tightHalo"
+            :dx="dx"
+            :dy="dy"
+            :result="`haloOffset${index}`"
+          />
+          <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="softHalo" />
+          <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="wideHalo" />
+          <feMerge result="haloAlpha">
+            <feMergeNode in="wideHalo" />
+            <feMergeNode in="softHalo" />
+            <feMergeNode v-for="(_, index) in checklistHaloOffsets" :key="index" :in="`haloOffset${index}`" />
+          </feMerge>
+          <feFlood class="card-checklist-halo-color" result="haloColor" />
+          <feComposite in="haloColor" in2="haloAlpha" operator="in" result="halo" />
+          <feMerge>
+            <feMergeNode in="halo" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+    </svg>
     <p
       v-if="checklistCounts.total > 0"
       class="card-checklist-counts"
       :aria-label="`${checklistCounts.completed} of ${checklistCounts.total} checklist items complete`"
-    >{{ checklistCounts.completed }}/{{ checklistCounts.total }}</p>
+    >
+      <SquareCheck :size="16" class="card-checklist-icon" aria-hidden="true" />
+      <span class="card-checklist-counts-text">{{ checklistCounts.completed }}/{{ checklistCounts.total }}</span>
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef } from 'vue';
+import { computed, ref, toRef, useId } from 'vue';
+import { SquareCheck } from '@lucide/vue';
 import type { Card as BoardCard } from '../../shared/types/boardTypes';
 import type { CardAttachmentImageCandidate } from '../../shared/types/attachmentTypes';
 import { useCardTypeStore } from '../stores/cardTypeStore';
@@ -113,9 +152,14 @@ const emit = defineEmits<{
 const cardTypeStore = useCardTypeStore();
 const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
 const isDragging = ref(false);
+const checklistHaloId = `card-checklist-halo-${useId()}`;
+// Match the counter text shadow: eight 1px-blur offsets, then 8px and 14px glows.
+// SVG standard deviation is half the equivalent CSS shadow blur radius.
+const checklistHaloOffsets = [[-3, 0], [3, 0], [0, -3], [0, 3], [-2, -2], [2, -2], [-2, 2], [2, 2]];
 const checklistCounts = computed(() => ({ completed: props.card.completedChecklistItemCount, total: props.card.totalChecklistItemCount }));
 const checklistCountsStyle = computed(() => ({
-  '--card-checklist-counts-space': `${String(checklistCounts.value.completed).length + String(checklistCounts.value.total).length + 2}ch`
+  '--card-checklist-counts-space': `calc(${String(checklistCounts.value.completed).length + String(checklistCounts.value.total).length + 2}ch + 16px + 0.2rem)`,
+  '--card-checklist-halo-filter': `url(#${checklistHaloId})`
 }));
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId));
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
@@ -352,7 +396,7 @@ function handlePrimaryAction() {
 }
 
 .card--has-thumbnail .card-id,
-.card--has-thumbnail .card-checklist-counts {
+.card--has-thumbnail .card-checklist-counts-text {
   text-shadow:
     -3px 0 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
     3px 0 1px var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base))),
@@ -381,11 +425,35 @@ function handlePrimaryAction() {
   right: 0.6rem;
   bottom: 0.6rem;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
   margin: 0;
   text-align: right;
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
+}
+
+.card-checklist-icon {
+  flex-shrink: 0;
+}
+
+.card-checklist-counts-text {
+  font-weight: 500;
+}
+
+.card-checklist-halo-definition {
+  position: absolute;
+  pointer-events: none;
+}
+
+.card-checklist-halo-color {
+  flood-color: var(--bo-card-thumbnail-halo-color, var(--bo-card-surface-background, var(--bo-surface-base)));
+}
+
+.card--has-thumbnail .card-checklist-icon {
+  filter: var(--card-checklist-halo-filter);
 }
 
 .card-tags :deep(.tag) {
