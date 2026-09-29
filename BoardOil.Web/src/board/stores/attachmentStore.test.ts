@@ -4,6 +4,7 @@ import { useAttachmentStore } from './attachmentStore';
 import { err, ok } from '../../shared/types/result';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
+import * as attachmentThumbnails from '../utils/attachmentThumbnails';
 
 const api = { supportsAttachments: true, supportsAttachmentMutations: true, getAttachments: vi.fn(), getCardThumbnails: vi.fn(), uploadAttachment: vi.fn(), deleteAttachment: vi.fn(), downloadAttachment: vi.fn() };
 vi.mock('../../shared/api/boardApi', () => ({ createBoardApi: () => api }));
@@ -12,7 +13,10 @@ const attachment: CardAttachment = { id: 1, originalFileName: 'file.bin', byteLe
 const listing = (items: CardAttachment[] = []) => ok({ items, maxUploadByteLength: 10 });
 
 describe('attachments', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -134,6 +138,185 @@ describe('attachments', () => {
     expect(store.busy).toBe(false);
     expect(store.activeUploads).toHaveLength(0);
     expect(store.warningMessages).toEqual(['file.bin: Storage unavailable']);
+  });
+
+  it('keeps overlapping upload results and progress with their callers', async () => {
+    const firstResponse = deferred<ReturnType<typeof ok<CardAttachment>>>();
+    const secondResponse = deferred<ReturnType<typeof ok<CardAttachment>>>();
+    const secondAttachment = { ...attachment, id: 2, originalFileName: 'second.bin' };
+    api.uploadAttachment.mockReturnValueOnce(firstResponse.promise).mockReturnValueOnce(secondResponse.promise);
+    api.getAttachments.mockResolvedValueOnce(listing()).mockResolvedValueOnce(listing([attachment]))
+      .mockResolvedValueOnce(listing([attachment, secondAttachment]));
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+    const firstFile = new File(['a'], 'first.bin');
+    const secondFile = new File(['b'], 'second.bin');
+    const firstProgress = vi.fn();
+    const secondProgress = vi.fn();
+    const first = store.upload([firstFile], firstProgress);
+    const secondSettled = vi.fn();
+    const second = store.upload([secondFile], secondProgress).then(result => {
+      secondSettled();
+      return result;
+    });
+
+    await Promise.resolve();
+    expect(secondSettled).not.toHaveBeenCalled();
+    expect(api.uploadAttachment).toHaveBeenCalledTimes(1);
+    const firstCallback = api.uploadAttachment.mock.calls[0]![3] as (percent: number) => void;
+    firstCallback(25);
+    expect(firstProgress).toHaveBeenCalledWith(firstFile, 25);
+    expect(secondProgress).not.toHaveBeenCalled();
+
+    firstResponse.resolve(ok(attachment));
+    expect(await first).toEqual([attachment]);
+    expect(secondSettled).not.toHaveBeenCalled();
+    expect(api.uploadAttachment).toHaveBeenCalledTimes(2);
+    const secondCallback = api.uploadAttachment.mock.calls[1]![3] as (percent: number) => void;
+    secondCallback(75);
+    expect(secondProgress).toHaveBeenCalledWith(secondFile, 75);
+    expect(firstProgress).toHaveBeenCalledTimes(1);
+
+    secondResponse.resolve(ok(secondAttachment));
+    expect(await second).toEqual([secondAttachment]);
+    expect(store.items).toEqual([attachment, secondAttachment]);
+    expect(store.activeUploads).toEqual([]);
+    expect(store.busy).toBe(false);
+  });
+
+  it('drains uploads queued while the preceding batch is refreshing', async () => {
+    const refresh = deferred<ReturnType<typeof listing>>();
+    const secondAttachment = { ...attachment, id: 2, originalFileName: 'second.bin' };
+    api.uploadAttachment.mockResolvedValueOnce(ok(attachment)).mockResolvedValueOnce(ok(secondAttachment));
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+    api.getAttachments.mockReturnValueOnce(refresh.promise).mockResolvedValueOnce(listing([attachment, secondAttachment]));
+    const first = store.upload([new File(['a'], 'first.bin')]);
+    await vi.waitFor(() => expect(api.getAttachments).toHaveBeenCalledTimes(2));
+    const second = store.upload([new File(['b'], 'second.bin')]);
+    expect(store.busy).toBe(true);
+    expect(api.uploadAttachment).toHaveBeenCalledTimes(1);
+
+    refresh.resolve(listing([attachment]));
+
+    expect(await first).toEqual([attachment]);
+    expect(await second).toEqual([secondAttachment]);
+    expect(store.items).toEqual([attachment, secondAttachment]);
+    expect(store.activeUploads).toEqual([]);
+    expect(store.busy).toBe(false);
+  });
+
+  it.each(['cancel', 'clear'] as const)('stops uploads safely during thumbnail generation on %s', async action => {
+    const thumbnail = deferred<Blob>();
+    vi.spyOn(attachmentThumbnails, 'createAttachmentThumbnail').mockReturnValueOnce(thumbnail.promise);
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+    const uploading = store.upload([new File(['x'], 'image.png')]);
+
+    store[action]();
+    thumbnail.resolve(new Blob(['thumbnail']));
+
+    expect(await uploading).toEqual([]);
+    expect(api.uploadAttachment).not.toHaveBeenCalled();
+    expect(store.activeUploads).toEqual([]);
+    expect(store.busy).toBe(false);
+  });
+
+  it('keeps a new upload active when cancelled thumbnail generation finishes', async () => {
+    const thumbnail = deferred<Blob>();
+    const newResponse = deferred<ReturnType<typeof ok<CardAttachment>>>();
+    vi.spyOn(attachmentThumbnails, 'createAttachmentThumbnail').mockReturnValueOnce(thumbnail.promise);
+    api.uploadAttachment.mockReturnValueOnce(newResponse.promise);
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+    const oldProgress = vi.fn();
+    const oldUpload = store.upload([new File(['x'], 'old.png')], oldProgress);
+    store.cancel();
+    const newFile = new File(['y'], 'new.bin');
+    const newUpload = store.upload([newFile]);
+    const newSignal = api.uploadAttachment.mock.calls[0]![4] as AbortSignal;
+
+    thumbnail.resolve(new Blob(['thumbnail']));
+    expect(await oldUpload).toEqual([]);
+    expect(api.uploadAttachment).toHaveBeenCalledTimes(1);
+    expect(api.uploadAttachment.mock.calls[0]![2]).toBe(newFile);
+    expect(store.busy).toBe(true);
+    expect(store.activeUploads).toHaveLength(1);
+    expect(newSignal.aborted).toBe(false);
+    expect(oldProgress).not.toHaveBeenCalled();
+
+    newResponse.resolve(ok(attachment));
+    expect(await newUpload).toEqual([attachment]);
+    expect(store.busy).toBe(false);
+  });
+
+  it('settles cancelled batches with their completed files and ignores late progress and responses', async () => {
+    const pending = deferred<ReturnType<typeof ok<CardAttachment>>>();
+    api.uploadAttachment.mockResolvedValueOnce(ok(attachment)).mockReturnValueOnce(pending.promise);
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+    const firstProgress = vi.fn();
+    const first = store.upload([new File(['a'], 'done.bin'), new File(['b'], 'pending.bin')], firstProgress);
+    const second = store.upload([new File(['c'], 'queued.bin')]);
+    await vi.waitFor(() => expect(api.uploadAttachment).toHaveBeenCalledTimes(2));
+    const callback = api.uploadAttachment.mock.calls[1]![3] as (percent: number) => void;
+    const signal = api.uploadAttachment.mock.calls[1]![4] as AbortSignal;
+
+    store.cancel();
+
+    expect(await first).toEqual([attachment]);
+    expect(await second).toEqual([]);
+    expect(signal.aborted).toBe(true);
+    callback(99);
+    pending.resolve(ok({ ...attachment, id: 2 }));
+    await Promise.resolve();
+    expect(firstProgress).not.toHaveBeenCalled();
+    expect(store.items).toEqual([attachment]);
+    expect(api.uploadAttachment).toHaveBeenCalledTimes(2);
+    expect(store.activeUploads).toEqual([]);
+    expect(store.busy).toBe(false);
+  });
+
+  it('does not let a cancelled final refresh complete or clear a new queue', async () => {
+    const refresh = deferred<ReturnType<typeof listing>>();
+    const newResponse = deferred<ReturnType<typeof ok<CardAttachment>>>();
+    api.uploadAttachment.mockResolvedValueOnce(ok(attachment)).mockReturnValueOnce(newResponse.promise);
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+    api.getAttachments.mockReturnValueOnce(refresh.promise);
+    const oldUpload = store.upload([new File(['a'], 'old.bin')]);
+    await vi.waitFor(() => expect(api.getAttachments).toHaveBeenCalledTimes(2));
+    store.clear();
+    await store.open(2, 2);
+    const newUpload = store.upload([new File(['b'], 'new.bin')]);
+
+    refresh.resolve(listing([attachment]));
+    expect(await oldUpload).toEqual([attachment]);
+    expect(store.items).toEqual([]);
+    expect(store.busy).toBe(true);
+    expect(store.activeUploads).toHaveLength(1);
+    newResponse.resolve(ok({ ...attachment, id: 2 }));
+    expect(await newUpload).toEqual([{ ...attachment, id: 2 }]);
+    expect(store.busy).toBe(false);
+  });
+
+  it('releases queued callers and busy state if an upload unexpectedly rejects', async () => {
+    const pending = deferred<ReturnType<typeof ok<CardAttachment>>>();
+    api.uploadAttachment.mockReturnValueOnce(pending.promise);
+    const store = useAttachmentStore();
+    await store.open(1, 1);
+    const first = store.upload([new File(['a'], 'first.bin')]);
+    const second = store.upload([new File(['b'], 'second.bin')]);
+    const firstRejected = expect(first).rejects.toThrow('Unexpected upload failure');
+    const secondRejected = expect(second).rejects.toThrow('Unexpected upload failure');
+
+    pending.reject(new Error('Unexpected upload failure'));
+
+    await Promise.all([firstRejected, secondRejected]);
+    expect(store.busy).toBe(false);
+    expect(store.activeUploads).toEqual([]);
+    api.uploadAttachment.mockResolvedValueOnce(ok(attachment));
+    expect(await store.upload([new File(['c'], 'next.bin')])).toEqual([attachment]);
   });
 
   it('loads read-only attachments without allowing uploads or deletions', async () => {
@@ -321,6 +504,7 @@ describe('attachments', () => {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>(done => { resolve = done; });
-  return { promise, resolve };
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
+  return { promise, resolve, reject };
 }

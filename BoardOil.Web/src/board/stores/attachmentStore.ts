@@ -8,6 +8,13 @@ import { isSupportedImageFileName } from '../../shared/components/markdownImages
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 
 type Upload = { file: File; progress: number; status: 'queued' | 'uploading' };
+type UploadBatch = {
+  uploads: Upload[];
+  completed: CardAttachment[];
+  onProgress?: (file: File, percent: number) => void;
+  resolve: (attachments: CardAttachment[]) => void;
+  reject: (reason: unknown) => void;
+};
 type AttachmentContext = { boardId: number; cardId: number; archived: boolean };
 
 export const useAttachmentStore = defineStore('attachments', () => {
@@ -27,6 +34,7 @@ export const useAttachmentStore = defineStore('attachments', () => {
   let eventVersion = 0;
   let runVersion = 0;
   let controller: AbortController | null = null;
+  let uploadBatches: UploadBatch[] = [];
 
   function cancel() {
     runVersion++;
@@ -34,6 +42,8 @@ export const useAttachmentStore = defineStore('attachments', () => {
     controller = null;
     busy.value = false;
     activeUploads.value = [];
+    for (const batch of uploadBatches) { batch.resolve(batch.completed); }
+    uploadBatches = [];
   }
 
   function clearWarnings() { warningMessages.value = []; }
@@ -107,59 +117,82 @@ export const useAttachmentStore = defineStore('attachments', () => {
     warningMessages.value.push(`${file.name}: The file exceeds the upload limit of ${formatAttachmentSize(maxUploadByteLength.value)} per file and was not uploaded.`);
   }
 
-  async function runQueue(onProgress?: (file: File, percent: number) => void) {
-    const current = context.value;
-    if (busy.value || !current || current.archived || !supported || !mutable) { return []; }
-    const completed: CardAttachment[] = [];
-    let refreshThumbnailProjection = false;
+  async function runQueue(current: AttachmentContext) {
     const version = ++runVersion;
     busy.value = true;
-    while (version === runVersion) {
-      const item = activeUploads.value.find(upload => upload.status === 'queued');
-      if (!item) { break; }
-      if (item.file.size > maxUploadByteLength.value) {
-        warnOversized(item.file);
-        activeUploads.value = activeUploads.value.filter(upload => upload !== item);
-        continue;
+
+    function isCurrentRun() {
+      return version === runVersion && context.value === current;
+    }
+
+    try {
+      while (isCurrentRun() && uploadBatches.length > 0) {
+        const batch = uploadBatches[0]!;
+        let refreshThumbnailProjection = false;
+        for (const item of batch.uploads) {
+          if (item.file.size > maxUploadByteLength.value) {
+            warnOversized(item.file);
+            activeUploads.value = activeUploads.value.filter(upload => upload !== item);
+            continue;
+          }
+          const uploadController = new AbortController();
+          controller = uploadController;
+          item.status = 'uploading';
+          let thumbnail: Blob | null = null;
+          if (isSupportedImageFileName(item.file.name)) {
+            try { thumbnail = await createAttachmentThumbnail(item.file); }
+            catch { /* The original remains uploadable when the browser cannot decode the image. */ }
+          }
+          if (!isCurrentRun()) { return; }
+          const result = await api.uploadAttachment(current.boardId, current.cardId, item.file,
+            percent => {
+              if (!isCurrentRun()) { return; }
+              item.progress = percent;
+              batch.onProgress?.(item.file, percent);
+            }, uploadController.signal, thumbnail);
+          if (!isCurrentRun()) { return; }
+          controller = null;
+          activeUploads.value = activeUploads.value.filter(upload => upload !== item);
+          if (result.ok) {
+            added(current.boardId, current.cardId, result.data);
+            batch.completed.push(result.data);
+          } else if (result.error.statusCode === 413) {
+            warnOversized(item.file);
+          } else if (result.error.kind === 'network' || result.error.kind === 'parse') {
+            refreshThumbnailProjection = true;
+            warningMessages.value.push(`${item.file.name}: The upload could not be confirmed. Check the attachment list before uploading again.`);
+          } else {
+            warningMessages.value.push(`${item.file.name}: ${result.error.message}`);
+          }
+        }
+        // Reconcile this batch before completing its caller, including uploads with lost responses.
+        await reload();
+        if (!isCurrentRun()) { return; }
+        if (refreshThumbnailProjection) {
+          await cardAttachmentThumbnailStore.refreshCards(current.boardId, [current.cardId]);
+          if (!isCurrentRun()) { return; }
+        }
+        uploadBatches.shift();
+        batch.resolve(batch.completed);
+        // Batches added during reconciliation remain in the same draining lifecycle.
       }
-      controller = new AbortController();
-      item.status = 'uploading';
-      let thumbnail: Blob | null = null;
-      if (isSupportedImageFileName(item.file.name)) {
-        try { thumbnail = await createAttachmentThumbnail(item.file); }
-        catch { /* The original remains uploadable when the browser cannot decode the image. */ }
+    } catch (error) {
+      if (isCurrentRun()) {
+        for (const batch of uploadBatches) { batch.reject(error); }
+        uploadBatches = [];
+        activeUploads.value = [];
       }
-      const result = await api.uploadAttachment(current.boardId, current.cardId, item.file,
-        percent => {
-          item.progress = percent;
-          onProgress?.(item.file, percent);
-        }, controller.signal, thumbnail);
-      if (version !== runVersion) { return completed; }
-      activeUploads.value = activeUploads.value.filter(upload => upload !== item);
-      if (result.ok) {
-        added(current.boardId, current.cardId, result.data);
-        completed.push(result.data);
-      } else if (result.error.statusCode === 413) {
-        warnOversized(item.file);
-      } else if (result.error.kind === 'network' || result.error.kind === 'parse') {
-        refreshThumbnailProjection = true;
-        warningMessages.value.push(`${item.file.name}: The upload could not be confirmed. Check the attachment list before uploading again.`);
-      } else {
-        warningMessages.value.push(`${item.file.name}: ${result.error.message}`);
+    } finally {
+      if (isCurrentRun()) {
+        controller = null;
+        busy.value = false;
       }
     }
-    controller = null;
-    // A lost response may still have committed. Refresh the saved list, without retaining failed entries.
-    await reload();
-    if (refreshThumbnailProjection && version === runVersion && context.value === current) {
-      await cardAttachmentThumbnailStore.refreshCards(current.boardId, [current.cardId]);
-    }
-    if (version === runVersion) { busy.value = false; }
-    return completed;
   }
 
   async function upload(files: File[], onProgress?: (file: File, percent: number) => void) {
-    if (!supported || !mutable || !context.value || context.value.archived) { return []; }
+    const current = context.value;
+    if (!supported || !mutable || !current || current.archived) { return []; }
     const accepted: File[] = [];
     for (const file of files) {
       if (file.size > maxUploadByteLength.value) { warnOversized(file); }
@@ -167,7 +200,11 @@ export const useAttachmentStore = defineStore('attachments', () => {
     }
     if (accepted.length === 0) { return []; }
     activeUploads.value.push(...accepted.map(file => ({ file, progress: 0, status: 'queued' as const })));
-    return await runQueue(onProgress);
+    const uploads = activeUploads.value.slice(-accepted.length);
+    return await new Promise<CardAttachment[]>((resolve, reject) => {
+      uploadBatches.push({ uploads, completed: [], onProgress, resolve, reject });
+      if (!busy.value) { void runQueue(current); }
+    });
   }
 
   async function remove(attachmentId: number) {
