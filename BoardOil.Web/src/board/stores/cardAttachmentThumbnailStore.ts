@@ -14,9 +14,13 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
   let requestVersion = 0;
   let mutationVersion = 0;
   const cardRefreshVersions = new Map<number, number>();
+  const thumbnailImageUrls = new Map<number, string>();
 
   async function loadBoard(boardId: number, thumbnailsEnabled: boolean) {
     const version = ++requestVersion;
+    if (activeBoardId.value !== boardId) {
+      clearThumbnailImages();
+    }
     activeBoardId.value = boardId;
     setEnabled(thumbnailsEnabled);
     candidatesByCardId.value = {};
@@ -106,6 +110,13 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
   }
 
   async function attachmentDeleted(boardId: number, cardId: number, attachmentId: number) {
+    if (activeBoardId.value === boardId) {
+      const imageUrl = thumbnailImageUrls.get(attachmentId);
+      if (imageUrl) {
+        URL.revokeObjectURL(imageUrl);
+        thumbnailImageUrls.delete(attachmentId);
+      }
+    }
     if (!canHandle(boardId)) {
       return;
     }
@@ -143,6 +154,33 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
     return candidatesByCardId.value[cardId] ?? null;
   }
 
+  function getThumbnailImageUrl(boardId: number, attachmentId: number) {
+    if (activeBoardId.value !== boardId) {
+      return null;
+    }
+    return thumbnailImageUrls.get(attachmentId) ?? null;
+  }
+
+  function cacheThumbnailImage(boardId: number, attachmentId: number, image: Blob) {
+    if (activeBoardId.value !== boardId) {
+      return null;
+    }
+    const cached = thumbnailImageUrls.get(attachmentId);
+    if (cached) {
+      return cached;
+    }
+    const imageUrl = URL.createObjectURL(image);
+    thumbnailImageUrls.set(attachmentId, imageUrl);
+    return imageUrl;
+  }
+
+  function clearThumbnailImages() {
+    for (const imageUrl of thumbnailImageUrls.values()) {
+      URL.revokeObjectURL(imageUrl);
+    }
+    thumbnailImageUrls.clear();
+  }
+
   function markHasThumbnail(cardId: number, attachmentId: number) {
     const candidate = candidatesByCardId.value[cardId];
     if (!candidate || candidate.attachmentId !== attachmentId || candidate.hasThumbnail) {
@@ -163,6 +201,7 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
     enabled.value = false;
     candidatesByCardId.value = {};
     cardRefreshVersions.clear();
+    clearThumbnailImages();
   }
 
   function setEnabled(value: boolean) {
@@ -188,6 +227,8 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
     attachmentDeleted,
     cardRemoved,
     getForCard,
+    getThumbnailImageUrl,
+    cacheThumbnailImage,
     markHasThumbnail,
     clear
   };

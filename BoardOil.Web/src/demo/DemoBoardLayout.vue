@@ -167,7 +167,7 @@ function parseRouteIntParam(value: unknown) {
 
 @media (max-width: 767px) {
   .demo-layout {
-    --bo-board-layout-inline-gutter: 0;
+    --bo-board-layout-inline-gutter: 0px;
     --bo-board-scroll-inline-padding: 0.375rem;
     --bo-board-layout-gap: 0.3rem;
   }

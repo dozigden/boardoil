@@ -11,7 +11,7 @@
         'card--drop-before': dropIndicator === 'before',
         'card--drop-after': dropIndicator === 'after',
         'card--static': !interactive,
-        'card--has-thumbnail': cardThumbnailUrl,
+        'card--has-thumbnail': thumbnailAttachment !== null,
         'card--has-checklist-counts': checklistCounts.total > 0
       }
     ]"

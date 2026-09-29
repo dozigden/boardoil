@@ -2,6 +2,7 @@ import { onBeforeUnmount, ref, toValue, watch, type MaybeRefOrGetter } from 'vue
 import { createBoardApi } from '../../shared/api/boardApi';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
 import { attachmentThumbnailQueue, createAttachmentThumbnail } from '../utils/attachmentThumbnails';
+import { useCardAttachmentThumbnailStore } from '../stores/cardAttachmentThumbnailStore';
 
 type ThumbnailAttachment = Pick<CardAttachment, 'id' | 'originalFileName' | 'hasThumbnail'>;
 
@@ -14,7 +15,9 @@ export function useAttachmentThumbnail(options: {
   onThumbnailStored?: (attachmentId: number) => void;
 }) {
   const api = createBoardApi();
+  const thumbnailStore = useCardAttachmentThumbnailStore();
   const imageUrl = ref<string | null>(null);
+  let ownedImageUrl: string | null = null;
   let loadVersion = 0;
 
   watch(
@@ -46,11 +49,17 @@ export function useAttachmentThumbnail(options: {
       return;
     }
 
+    const cached = thumbnailStore.getThumbnailImageUrl(boardId, attachment.id);
+    if (cached) {
+      imageUrl.value = cached;
+      return;
+    }
+
     if (attachment.hasThumbnail) {
       const existing = await api.getAttachmentThumbnail(boardId, attachment.id);
       if (version !== loadVersion) { return; }
       if (existing.ok) {
-        show(existing.data);
+        show(boardId, attachment.id, existing.data);
         return;
       }
       if (existing.error.statusCode !== 404) { return; }
@@ -74,18 +83,25 @@ export function useAttachmentThumbnail(options: {
 
     const result = await api.getAttachmentThumbnail(boardId, attachment.id);
     if (version === loadVersion && result.ok) {
-      show(result.data);
+      show(boardId, attachment.id, result.data);
     }
   }
 
-  function show(blob: Blob) {
+  function show(boardId: number, attachmentId: number, blob: Blob) {
     clearImage();
-    imageUrl.value = URL.createObjectURL(blob);
+    const cached = thumbnailStore.cacheThumbnailImage(boardId, attachmentId, blob);
+    if (cached) {
+      imageUrl.value = cached;
+      return;
+    }
+    ownedImageUrl = URL.createObjectURL(blob);
+    imageUrl.value = ownedImageUrl;
   }
 
   function clearImage() {
-    if (imageUrl.value) {
-      URL.revokeObjectURL(imageUrl.value);
+    if (ownedImageUrl) {
+      URL.revokeObjectURL(ownedImageUrl);
+      ownedImageUrl = null;
     }
     imageUrl.value = null;
   }

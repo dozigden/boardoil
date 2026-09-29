@@ -1,8 +1,36 @@
 import { expect, test } from '../fixtures/boardOilTest';
 import { AttachmentPanel } from '../ui/AttachmentPanel';
 import { BoardPage } from '../ui/BoardPage';
+import { ArchivedCardsPage } from '../ui/ArchivedCardsPage';
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+
+test('returning from archive reuses the loaded thumbnail without requesting it again', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Regression cached card thumbnail');
+  const card = await api.createCard(board, 'Todo', 'Image card');
+  await api.uploadAttachment(board.id, card.id, 'cover.png', 'image/png', png);
+  const boardPage = new BoardPage(page);
+  const archivePage = new ArchivedCardsPage(page);
+  await boardPage.open(board.id);
+  const thumbnail = boardPage.cardThumbnail('Todo', 'Image card');
+  await expect(thumbnail).toBeVisible();
+  await expect.poll(() => thumbnail.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  const imageUrl = await thumbnail.getAttribute('src');
+
+  await boardPage.openArchivedCards();
+  await expect(thumbnail).toHaveCount(0);
+  const thumbnailRequests: string[] = [];
+  await page.route('**/attachments/*/thumbnail', async route => {
+    thumbnailRequests.push(route.request().url());
+    await route.abort();
+  });
+  await archivePage.goBackToBoard();
+
+  await expect(thumbnail).toBeVisible();
+  await expect(thumbnail).toHaveAttribute('src', imageUrl!);
+  await expect.poll(() => thumbnail.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  expect(thumbnailRequests).toEqual([]);
+});
 
 test('the first image stays on the card until deletion selects the next image', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Regression card thumbnail lifecycle');

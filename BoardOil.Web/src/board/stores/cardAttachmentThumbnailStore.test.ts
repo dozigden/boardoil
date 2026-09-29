@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { err, ok } from '../../shared/types/result';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
@@ -16,6 +16,11 @@ vi.mock('../../shared/api/boardApi', () => ({
 }));
 
 describe('cardAttachmentThumbnailStore', () => {
+  afterEach(() => {
+    useCardAttachmentThumbnailStore().clear();
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
@@ -75,6 +80,58 @@ describe('cardAttachmentThumbnailStore', () => {
 
     store.markHasThumbnail(2, 8);
     expect(store.getForCard(2)?.hasThumbnail).toBe(true);
+  });
+
+  it('retains downloaded thumbnails across refreshes of the same board', async () => {
+    const store = useCardAttachmentThumbnailStore();
+    const image = new Blob(['thumbnail'], { type: 'image/png' });
+    await store.loadBoard(4, true);
+    const imageUrl = store.cacheThumbnailImage(4, 8, image);
+
+    await store.loadBoard(4, true);
+
+    expect(imageUrl).toEqual(expect.any(String));
+    expect(store.getThumbnailImageUrl(4, 8)).toBe(imageUrl);
+    expect(store.cacheThumbnailImage(4, 8, image)).toBe(imageUrl);
+    expect(store.getThumbnailImageUrl(5, 8)).toBeNull();
+  });
+
+  it('clears downloaded thumbnails on board changes and disposal', async () => {
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL');
+    const store = useCardAttachmentThumbnailStore();
+    const image = new Blob(['thumbnail'], { type: 'image/png' });
+    await store.loadBoard(4, true);
+    const firstUrl = store.cacheThumbnailImage(4, 8, image);
+
+    await store.loadBoard(5, true);
+    store.cacheThumbnailImage(4, 8, image);
+    expect(revokeUrl).toHaveBeenCalledWith(firstUrl);
+    expect(store.getThumbnailImageUrl(5, 8)).toBeNull();
+
+    await store.loadBoard(4, true);
+    expect(store.getThumbnailImageUrl(4, 8)).toBeNull();
+    const secondUrl = store.cacheThumbnailImage(4, 8, image);
+    store.clear();
+    expect(revokeUrl).toHaveBeenCalledWith(secondUrl);
+    store.cacheThumbnailImage(4, 8, image);
+    await store.loadBoard(4, true);
+    expect(store.getThumbnailImageUrl(4, 8)).toBeNull();
+  });
+
+  it('discards a deleted attachment thumbnail while retaining other images', async () => {
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL');
+    const store = useCardAttachmentThumbnailStore();
+    const image = new Blob(['thumbnail'], { type: 'image/png' });
+    await store.loadBoard(4, true);
+    const deletedUrl = store.cacheThumbnailImage(4, 8, image);
+    const retainedUrl = store.cacheThumbnailImage(4, 9, image);
+
+    await store.attachmentDeleted(4, 2, 8);
+
+    expect(store.getThumbnailImageUrl(4, 8)).toBeNull();
+    expect(store.getThumbnailImageUrl(4, 9)).toBe(retainedUrl);
+    expect(revokeUrl).toHaveBeenCalledWith(deletedUrl);
+    expect(revokeUrl).not.toHaveBeenCalledWith(retainedUrl);
   });
 
   it('uses the first supported image attachment added to a card', async () => {

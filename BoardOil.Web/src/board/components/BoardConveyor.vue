@@ -1,7 +1,8 @@
 <template>
-  <header class="board-conveyor" :class="{ 'board-conveyor--highlighted': highlighted }">
+  <TransitionGroup tag="header" name="board-conveyor" class="board-conveyor" :class="{ 'board-conveyor--highlighted': highlighted }">
     <button
       v-if="hasLeftAction"
+      key="left"
       type="button"
       class="board-conveyor-end board-conveyor-end--left"
       :aria-label="leftAriaLabel ?? leftLabel ?? undefined"
@@ -21,12 +22,13 @@
       </div>
     </button>
 
-    <section class="board-conveyor-main">
+    <section key="main" class="board-conveyor-main" aria-label="Card controls">
       <slot />
     </section>
 
     <button
       v-if="hasRightAction"
+      key="right"
       type="button"
       class="board-conveyor-end board-conveyor-end--right"
       :aria-label="rightAriaLabel ?? rightLabel ?? undefined"
@@ -45,7 +47,7 @@
       </div>
       <BoardConveyorTip side="right" />
     </button>
-  </header>
+  </TransitionGroup>
 </template>
 
 <script setup lang="ts">
@@ -85,9 +87,48 @@ const hasRightAction = computed(() => (props.rightLabel ?? '').trim().length > 0
   --bo-conveyor-min-height: 44px;
   --bo-conveyor-tip-width: 22px;
   display: flex;
+  position: relative;
   align-items: stretch;
   gap: calc(var(--bo-standard-gap) / 2);
   margin-inline: 0;
+}
+
+.board-conveyor-move,
+.board-conveyor-enter-active,
+.board-conveyor-leave-active {
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.board-conveyor-leave-active {
+  position: absolute;
+  inset-block: 0;
+  pointer-events: none;
+}
+
+.board-conveyor-end--left.board-conveyor-leave-active {
+  left: 0;
+}
+
+.board-conveyor-end--right.board-conveyor-leave-active {
+  right: 0;
+}
+
+.board-conveyor-end--left.board-conveyor-enter-from,
+.board-conveyor-end--left.board-conveyor-leave-to {
+  transform: translate3d(calc(-100% - var(--bo-board-layout-inline-gutter, 0px) - 0.25rem), 0, 0);
+}
+
+.board-conveyor-end--right.board-conveyor-enter-from,
+.board-conveyor-end--right.board-conveyor-leave-to {
+  transform: translate3d(calc(100% + var(--bo-board-layout-inline-gutter, 0px) + 0.25rem), 0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-conveyor-move,
+  .board-conveyor-enter-active,
+  .board-conveyor-leave-active {
+    transition: none;
+  }
 }
 
 .board-conveyor-main {

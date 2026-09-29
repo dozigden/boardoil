@@ -174,7 +174,7 @@ function parseRouteIntParam(value: unknown) {
 
 @media (max-width: 767px) {
   .app-layout--board-with-conveyor {
-    --bo-board-layout-inline-gutter: 0;
+    --bo-board-layout-inline-gutter: 0px;
     --bo-board-scroll-inline-padding: 0.375rem;
     --bo-board-layout-gap: 0.3rem;
     --bo-header-margin-active: var(--bo-header-margin-conveyor-mobile);
