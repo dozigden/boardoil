@@ -83,7 +83,7 @@ The action that applies a domain change owns its related state updates. Views an
 - Run independent loads together. The tag, card-type and slick catalogue loads use `Promise.all`; keep genuinely dependent stages ordered.
 - Capture the operation's context before awaiting a request and verify it before applying a result that could belong to a previous board or selection. Use request versions for load/replacement lifecycles where a newer request or disposal must invalidate an older response.
 - The context owner owns teardown. `boardStore.dispose` disconnects realtime and clears its board context, including cards, comments, attachment state, thumbnails and board catalogues. App-level cleanup calls that owner instead of separately disposing the same child stores.
-- Child-store disposal clears owned data and invalidates pending loads so late responses cannot repopulate a disposed context. Board snapshot load failures also clear the owned context through the shared cleanup path.
+- Child-store disposal clears owned data and invalidates pending loads so late responses cannot repopulate a disposed context. Initial board snapshot failures and loss of access clear the owned context through the shared cleanup path. Temporary background refresh failures retain the loaded board and active drafts while retrying; board changes and disposal cancel pending retries.
 - Keep board-scoped and application-scoped lifecycles distinct. Leaving a board workspace does not imply clearing every store in the application.
 - Do not add extra snapshot reloads or event buffering to cover hypothetical startup races. Introduce recovery work for a concrete requirement or observed failure; the rare initial-load/realtime race was explicitly left outside these refactors.
 

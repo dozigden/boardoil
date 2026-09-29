@@ -27,6 +27,8 @@ type BoardShell = Omit<Board, 'columns'> & {
   columns: Column[];
 };
 
+const boardResyncRetryDelaysMs = [2_000, 5_000, 10_000];
+
 export const useBoardStore = defineStore('board', () => {
   const boardShell = ref<BoardShell | null>(null);
   const busy = ref(false);
@@ -89,28 +91,38 @@ export const useBoardStore = defineStore('board', () => {
       feedback.clearToast();
       feedback.setWarning(message);
     },
-    onConnectionRecovered: () => {
-      const wasRecovering = feedback.warningMessage !== '';
-      feedback.clearWarning();
-      if (wasRecovering) {
-        feedback.showToast('Realtime updates restored.');
-      }
-    },
+    onConnectionRecovered: reportConnectionRecovered,
     onResync: resyncBoardFromRealtime
   });
   let loadRequestVersion = 0;
   let initializeRequestVersion = 0;
+  let resyncPending = false;
+  let resyncRetryAttempt = 0;
+  let resyncRetryTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function reportConnectionRecovered() {
+    if (resyncPending) {
+      return;
+    }
+    const wasRecovering = feedback.warningMessage !== '';
+    feedback.clearWarning();
+    if (wasRecovering) {
+      feedback.showToast('Realtime updates restored.');
+    }
+  }
 
   async function resyncBoardFromRealtime(boardId: number) {
     if (currentBoardId.value !== boardId) {
       return;
     }
 
-    const loaded = await loadBoard(boardId);
+    clearResyncRetry();
+    const loaded = await loadBoard(boardId, { backgroundRefresh: true });
     if (!loaded) {
       return;
     }
 
+    const requestVersion = loadRequestVersion;
     await loadBoardCatalogues(boardId);
     if (currentBoardId.value !== boardId) {
       return;
@@ -118,6 +130,28 @@ export const useBoardStore = defineStore('board', () => {
 
     await attachmentStore.reload();
     await systemInfoMessageStore.load(true);
+    if (requestVersion === loadRequestVersion && currentBoardId.value === boardId && resyncPending) {
+      resyncPending = false;
+      resyncRetryAttempt = 0;
+      reportConnectionRecovered();
+    }
+  }
+
+  function scheduleResyncRetry(boardId: number) {
+    clearResyncRetry();
+    const delayMs = boardResyncRetryDelaysMs[resyncRetryAttempt]!;
+    resyncRetryAttempt = Math.min(resyncRetryAttempt + 1, boardResyncRetryDelaysMs.length - 1);
+    resyncRetryTimeout = setTimeout(() => {
+      resyncRetryTimeout = null;
+      void resyncBoardFromRealtime(boardId);
+    }, delayMs);
+  }
+
+  function clearResyncRetry() {
+    if (resyncRetryTimeout !== null) {
+      clearTimeout(resyncRetryTimeout);
+      resyncRetryTimeout = null;
+    }
   }
 
   async function loadBoardCatalogues(boardId: number) {
@@ -130,6 +164,9 @@ export const useBoardStore = defineStore('board', () => {
 
   async function initialize(boardId: number) {
     const requestVersion = ++initializeRequestVersion;
+    clearResyncRetry();
+    resyncPending = false;
+    resyncRetryAttempt = 0;
     isLoadingBoard.value = true;
     try {
       const loaded = await loadBoard(boardId);
@@ -173,12 +210,13 @@ export const useBoardStore = defineStore('board', () => {
   async function dispose() {
     initializeRequestVersion += 1;
     loadRequestVersion += 1;
+    clearResyncRetry();
     await realtime.disconnect();
     clearBoardContext();
     isLoadingBoard.value = false;
   }
 
-  async function loadBoard(boardId: number) {
+  async function loadBoard(boardId: number, options: { backgroundRefresh?: boolean } = {}) {
     const requestVersion = ++loadRequestVersion;
     const result = await api.getBoard(boardId);
     if (requestVersion !== loadRequestVersion) {
@@ -186,6 +224,13 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     if (!result.ok) {
+      if (options.backgroundRefresh && currentBoardId.value === boardId && isTemporaryBoardLoadError(result.error)) {
+        resyncPending = true;
+        feedback.clearToast();
+        feedback.setWarning('Board updates are delayed. Retrying…');
+        scheduleResyncRetry(boardId);
+        return false;
+      }
       clearBoardContext();
       reportError(result.error);
       return false;
@@ -320,6 +365,9 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   function clearBoardContext() {
+    clearResyncRetry();
+    resyncPending = false;
+    resyncRetryAttempt = 0;
     attachmentStore.clear();
     cardAttachmentThumbnailStore.clear();
     boardShell.value = null;
@@ -381,6 +429,13 @@ export const useBoardStore = defineStore('board', () => {
     getColumnById
   };
 });
+
+function isTemporaryBoardLoadError(error: AppError) {
+  return error.kind === 'network'
+    || error.statusCode === 408
+    || error.statusCode === 429
+    || (error.statusCode !== undefined && error.statusCode >= 500 && error.statusCode <= 599);
+}
 
 function stripBoardCards(source: Board): BoardShell {
   return {

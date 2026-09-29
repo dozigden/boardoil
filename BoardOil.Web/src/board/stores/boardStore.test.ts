@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useBoardStore } from './boardStore';
 import { useCardTypeStore } from './cardTypeStore';
@@ -62,6 +62,11 @@ vi.mock('../../shared/stores/systemInfoMessageStore', () => ({
 }));
 
 describe('boardStore', () => {
+  afterEach(async () => {
+    await useBoardStore().dispose();
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
@@ -537,6 +542,140 @@ describe('boardStore', () => {
     await realtimeHandlers!.onConnectionWarning?.('Realtime connection lost. Attempting to reconnect…');
     expect(feedback.toastMessage).toBe('');
     expect(feedback.warningMessage).toBe('Realtime connection lost. Attempting to reconnect…');
+  });
+
+  it.each<AppError>([
+    { kind: 'network', message: 'Connection lost.' },
+    { kind: 'http', statusCode: 408, message: 'Request timed out.' },
+    { kind: 'http', statusCode: 429, message: 'Too many requests.' },
+    { kind: 'http', statusCode: 503, message: 'Temporarily unavailable.' }
+  ])('preserves the board through a temporary resync failure: $message', async error => {
+    vi.useFakeTimers();
+    const store = useBoardStore();
+    const feedback = useUiFeedbackStore();
+    const catalogues = makeCatalogues();
+    api.getCardTypes.mockResolvedValue(ok(catalogues.cardTypes));
+    api.getTags.mockResolvedValue(ok(catalogues.tags));
+    api.getSlicks.mockResolvedValue(ok(catalogues.slicks));
+    await store.initialize(1);
+    const originalBoard = store.board;
+    api.getBoard.mockResolvedValueOnce(err(error));
+
+    await realtimeHandlers!.onResync(1);
+    await realtimeHandlers!.onConnectionRecovered?.();
+
+    expect(store.board).toBe(originalBoard);
+    expect(store.isLoadingBoard).toBe(false);
+    expect(useCardTypeStore().cardTypes).toEqual(catalogues.cardTypes);
+    expect(useTagStore().tags).toEqual(catalogues.tags);
+    expect(useSlickStore().slicks).toEqual(catalogues.slicks);
+    expect(feedback.warningMessage).toBe('Board updates are delayed. Retrying…');
+    expect(feedback.toastMessage).toBe('');
+    expect(feedback.errorMessage).toBe('');
+
+    const recoveredBoard = makeBoard();
+    recoveredBoard.columns[0]!.cards[0]!.title = 'Updated during recovery';
+    api.getBoard.mockResolvedValueOnce(ok(recoveredBoard));
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(api.getBoard).toHaveBeenCalledTimes(3);
+    expect(store.board?.columns[0]?.cards[0]?.title).toBe('Updated during recovery');
+    expect(feedback.warningMessage).toBe('');
+    expect(feedback.toastMessage).toBe('Realtime updates restored.');
+  });
+
+  it('backs off background retries to ten seconds and resets after recovery', async () => {
+    vi.useFakeTimers();
+    const store = useBoardStore();
+    await store.initialize(1);
+    const failure = err<AppError>({ kind: 'network', message: 'Offline.' });
+    api.getBoard.mockResolvedValue(failure);
+    await realtimeHandlers!.onResync(1);
+
+    let requests = 2;
+    for (const delayMs of [2_000, 5_000, 10_000, 10_000]) {
+      await vi.advanceTimersByTimeAsync(delayMs - 1);
+      expect(api.getBoard).toHaveBeenCalledTimes(requests);
+      await vi.advanceTimersByTimeAsync(1);
+      requests++;
+      expect(api.getBoard).toHaveBeenCalledTimes(requests);
+      expect(store.currentBoardId).toBe(1);
+    }
+
+    api.getBoard.mockResolvedValueOnce(ok(makeBoard()));
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(useUiFeedbackStore().warningMessage).toBe('');
+    await realtimeHandlers!.onResync(1);
+    const requestsBeforeRetry = api.getBoard.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(api.getBoard).toHaveBeenCalledTimes(requestsBeforeRetry);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(api.getBoard).toHaveBeenCalledTimes(requestsBeforeRetry + 1);
+  });
+
+  it('refreshes immediately on a new resync event and cancels the scheduled retry', async () => {
+    vi.useFakeTimers();
+    const store = useBoardStore();
+    await store.initialize(1);
+    api.getBoard.mockResolvedValueOnce(err({ kind: 'network', message: 'Offline.' }));
+    await realtimeHandlers!.onResync(1);
+
+    await realtimeHandlers!.onResync(1);
+    expect(api.getBoard).toHaveBeenCalledTimes(3);
+    expect(useUiFeedbackStore().warningMessage).toBe('');
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(api.getBoard).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([401, 403, 404])('clears the board without retrying when resync returns %s', async statusCode => {
+    vi.useFakeTimers();
+    const store = useBoardStore();
+    await store.initialize(1);
+    api.getBoard.mockResolvedValueOnce(err({ kind: 'http', statusCode, message: 'Board unavailable.' }));
+
+    await realtimeHandlers!.onResync(1);
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(store.board).toBeNull();
+    expect(api.getBoard).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['dispose', 'board change'])('cancels a pending resync retry after %s', async trigger => {
+    vi.useFakeTimers();
+    const store = useBoardStore();
+    await store.initialize(1);
+    api.getBoard.mockResolvedValueOnce(err({ kind: 'network', message: 'Offline.' }));
+    await realtimeHandlers!.onResync(1);
+
+    if (trigger === 'dispose') {
+      await store.dispose();
+    } else {
+      api.getBoard.mockResolvedValueOnce(ok({ ...makeBoard(), id: 2 }));
+      await store.initialize(2);
+    }
+    api.getBoard.mockClear();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(api.getBoard).not.toHaveBeenCalled();
+    expect(store.currentBoardId).toBe(trigger === 'dispose' ? null : 2);
+  });
+
+  it('ignores a retry response after the board has been disposed', async () => {
+    vi.useFakeTimers();
+    const store = useBoardStore();
+    await store.initialize(1);
+    api.getBoard.mockResolvedValueOnce(err({ kind: 'network', message: 'Offline.' }));
+    await realtimeHandlers!.onResync(1);
+    const retry = deferred<Result<Board, AppError>>();
+    api.getBoard.mockReturnValueOnce(retry.promise);
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    await store.dispose();
+    retry.resolve(ok(makeBoard()));
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(store.board).toBeNull();
+    expect(api.getBoard).toHaveBeenCalledTimes(3);
   });
 });
 
