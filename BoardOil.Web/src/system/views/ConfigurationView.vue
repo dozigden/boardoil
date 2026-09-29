@@ -16,10 +16,7 @@
       </div>
     </header>
 
-    <div v-if="loading" class="configuration-loading" role="status">
-      <span class="configuration-loading-indicator" aria-hidden="true" />
-      <span>Loading configuration...</span>
-    </div>
+    <LoadingIndicator v-if="loading" label="Loading configuration..." />
     <p v-else-if="errorMessage" class="error">{{ errorMessage }}</p>
 
     <div v-else class="configuration-sections">
@@ -106,6 +103,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import SearchableSelect from '../../shared/components/SearchableSelect.vue';
+import LoadingIndicator from '../../shared/components/LoadingIndicator.vue';
 import { createSystemApi } from '../../shared/api/systemApi';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
@@ -227,29 +225,6 @@ function applyConfigurationDraft(nextConfiguration: ConfigurationDto) {
 
 .configuration-header h2 {
   margin: 0;
-}
-
-.configuration-loading {
-  display: grid;
-  justify-items: center;
-  gap: 0.75rem;
-  padding: 1.5rem;
-  color: var(--bo-ink-muted);
-}
-
-.configuration-loading-indicator {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  border: 3px solid var(--bo-border-soft);
-  border-top-color: var(--bo-link);
-  animation: configuration-spin 0.9s linear infinite;
-}
-
-@keyframes configuration-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .configuration-sections {

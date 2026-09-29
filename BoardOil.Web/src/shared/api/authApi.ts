@@ -1,6 +1,7 @@
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
+import type { SystemTimeZoneOptions } from '../types/scheduledJobTypes';
 import type {
   AccessToken,
   AuthSession,
@@ -15,8 +16,17 @@ import { deleteJson, getEnvelope, postData, postJson, putData } from './http';
 export type AuthApi = ReturnType<typeof createAuthApi>;
 
 export function createAuthApi() {
-  async function registerInitialAdmin(userName: string, email: string, password: string): Promise<Result<AuthSession, AppError>> {
-    return postData<AuthSession>('/api/auth/register-initial-admin', { userName, email, password });
+  async function registerInitialAdmin(userName: string, email: string, password: string, systemTimeZoneId: string): Promise<Result<AuthSession, AppError>> {
+    return postData<AuthSession>('/api/auth/register-initial-admin', { userName, email, password, systemTimeZoneId });
+  }
+
+  async function getTimeZoneOptions(): Promise<Result<SystemTimeZoneOptions, AppError>> {
+    const result = await getEnvelope<SystemTimeZoneOptions>('/api/auth/timezone-options');
+    if (!result.ok) return result;
+    if (!result.data.data) {
+      return err({ kind: 'api', message: result.data.message ?? 'Failed to load timezone options.' });
+    }
+    return ok(result.data.data);
   }
 
   async function login(userName: string, password: string): Promise<Result<AuthSession, AppError>> {
@@ -88,6 +98,7 @@ export function createAuthApi() {
 
   return {
     registerInitialAdmin,
+    getTimeZoneOptions,
     login,
     logout,
     changeOwnPassword,

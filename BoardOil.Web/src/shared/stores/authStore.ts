@@ -73,11 +73,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function registerInitialAdmin(userName: string, email: string, password: string) {
+  async function registerInitialAdmin(userName: string, email: string, password: string, systemTimeZoneId: string) {
     busy.value = true;
     errorMessage.value = null;
     try {
-      const result = await api.registerInitialAdmin(userName, email, password);
+      const result = await api.registerInitialAdmin(userName, email, password, systemTimeZoneId);
       if (!result.ok) {
         errorMessage.value = result.error.message;
         return false;

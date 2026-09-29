@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Abstractions.Auth;
+using BoardOil.Abstractions.Configuration;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Auth;
@@ -9,6 +10,7 @@ using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Common;
 using BoardOil.Services.Users;
+using BoardOil.Services.Jobs;
 
 namespace BoardOil.Services.Auth;
 
@@ -21,17 +23,26 @@ public sealed class AuthService(
     IAccessTokenIssuer accessTokenIssuer,
     AuthSessionOptions sessionOptions,
     TimeProvider timeProvider,
+    ISystemTimeZoneService timeZones,
+    SchedulingGate schedulingGate,
     IDbContextScopeFactory scopeFactory) : IAuthService
 {
     public async Task<ApiResult<AuthSessionTokens>> RegisterInitialAdminAsync(RegisterInitialAdminRequest request)
     {
-        using var scope = scopeFactory.Create();
-
         var validation = ValidateCredentials(request.UserName, request.UserName, request.Email, request.Password);
         if (validation.Count > 0)
         {
             return ApiErrors.ValidationFailed(validation);
         }
+
+        var timeZoneError = timeZones.Validate(request.SystemTimeZoneId);
+        if (timeZoneError is not null)
+        {
+            return ApiErrors.ValidationFailed([new ValidationError("systemTimeZoneId", timeZoneError.Message)]);
+        }
+
+        using var coordination = await schedulingGate.EnterAsync(CancellationToken.None);
+        using var scope = scopeFactory.Create();
 
         if (await authUserRepository.AnyAsync())
         {
@@ -78,6 +89,7 @@ public sealed class AuthService(
         };
 
         authUserRepository.Add(user);
+        await timeZones.ApplyValidatedChangeAsync(request.SystemTimeZoneId);
         await scope.SaveChangesAsync();
 
         var accessToken = accessTokenIssuer.CreateAccessToken(user.Id, user.UserName, user.Role.ToString(), now, accessTokenExpiresAtUtc);

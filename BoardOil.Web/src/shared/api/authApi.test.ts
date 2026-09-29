@@ -44,4 +44,25 @@ describe('authApi', () => {
     });
   });
 
+  it('includes the selected system timezone in initial admin registration', async () => {
+    const api = createAuthApi();
+
+    await api.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!', 'Europe/London');
+
+    expect(postData).toHaveBeenCalledWith('/api/auth/register-initial-admin', {
+      userName: 'admin', email: 'admin@example.test', password: 'Password1234!', systemTimeZoneId: 'Europe/London'
+    });
+  });
+
+  it('loads the timezone catalogue through the initial setup endpoint', async () => {
+    const api = createAuthApi();
+    const options = { defaultId: 'UTC', options: [{ id: 'UTC', displayName: 'UTC [UTC+00:00]' }] };
+    getEnvelope.mockResolvedValue(ok({ success: true, statusCode: 200, data: options }));
+
+    const result = await api.getTimeZoneOptions();
+
+    expect(getEnvelope).toHaveBeenCalledWith('/api/auth/timezone-options');
+    expect(result).toEqual(ok(options));
+  });
+
 });

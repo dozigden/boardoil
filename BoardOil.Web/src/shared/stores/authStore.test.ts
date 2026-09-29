@@ -132,9 +132,10 @@ describe('authStore', () => {
     };
     authApi.registerInitialAdmin.mockResolvedValue(ok(session));
 
-    const success = await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!');
+    const success = await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!', 'Europe/London');
 
     expect(success).toBe(true);
+    expect(authApi.registerInitialAdmin).toHaveBeenCalledWith('admin', 'admin@example.test', 'Password1234!', 'Europe/London');
     expect(store.user?.userName).toBe('admin');
     expect(store.isAuthenticated).toBe(true);
     expect(store.isAdmin).toBe(true);
@@ -157,7 +158,7 @@ describe('authStore', () => {
       if (operation === 'login') {
         pending = store.login('member', 'Password1234!');
       } else if (operation === 'registerInitialAdmin') {
-        pending = store.registerInitialAdmin('member', 'member@example.test', 'Password1234!');
+        pending = store.registerInitialAdmin('member', 'member@example.test', 'Password1234!', 'Europe/London');
       } else {
         pending = store.initialize();
       }
@@ -190,7 +191,7 @@ describe('authStore', () => {
       if (operation === 'login') {
         expect(await store.login('member', 'Password1234!')).toBe(false);
       } else if (operation === 'registerInitialAdmin') {
-        expect(await store.registerInitialAdmin('member', 'member@example.test', 'Password1234!')).toBe(false);
+        expect(await store.registerInitialAdmin('member', 'member@example.test', 'Password1234!', 'Europe/London')).toBe(false);
       } else {
         await store.initialize();
       }
@@ -221,7 +222,7 @@ describe('authStore', () => {
       if (operation === 'login') {
         expect(await store.login('alice', 'Password1234!')).toBe(false);
       } else if (operation === 'registerInitialAdmin') {
-        expect(await store.registerInitialAdmin('alice', 'alice@example.test', 'Password1234!')).toBe(false);
+        expect(await store.registerInitialAdmin('alice', 'alice@example.test', 'Password1234!', 'Europe/London')).toBe(false);
       } else {
         await store.initialize();
       }
@@ -239,7 +240,7 @@ describe('authStore', () => {
     const user: AuthUser = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' };
     authApi.registerInitialAdmin.mockResolvedValue(ok({ user }));
     authApi.getCsrfToken.mockResolvedValueOnce(err({ kind: 'network', message: 'Token request failed.' }));
-    await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!');
+    await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!', 'Europe/London');
     authApi.login.mockResolvedValue(ok({ user }));
 
     const success = await store.login('admin', 'Password1234!');
@@ -268,7 +269,7 @@ describe('authStore', () => {
     const apiError: AppError = { kind: 'api', message: 'Initial admin already exists.' };
     authApi.registerInitialAdmin.mockResolvedValue(err(apiError));
 
-    const success = await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!');
+    const success = await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!', 'Europe/London');
 
     expect(success).toBe(false);
     expect(store.errorMessage).toBe('Initial admin already exists.');

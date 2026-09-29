@@ -1,7 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using BoardOil.Api.Tests.Infrastructure;
+using BoardOil.Abstractions.Configuration;
 using BoardOil.Contracts.Auth;
+using BoardOil.Contracts.Common;
+using BoardOil.Contracts.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -17,10 +21,54 @@ public sealed class AuthIntegrationTests : ApiFactoryIntegrationTestBase
         // Act
         var response = await client.PostAsJsonAsync(
             "/api/auth/register-initial-admin",
-            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!", "Europe/London"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var scope = Factory.Services.CreateScope();
+        var timeZone = await scope.ServiceProvider.GetRequiredService<ISystemTimeZoneService>().GetAsync();
+        Assert.Equal("Europe/London", timeZone.Data!.SystemTimeZoneId);
+    }
+
+    [Fact]
+    public async Task InitialAdminTimezoneOptions_WithoutSession_ShouldReturnPublicCatalogue()
+    {
+        var client = CreateClient();
+
+        var response = await client.GetAsync("/api/auth/timezone-options");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ApiResult<SystemTimeZoneOptionsDto>>();
+        Assert.Equal("UTC", result!.Data!.DefaultId);
+        Assert.Contains(result.Data.Options, option => option.Id == "Europe/London");
+    }
+
+    [Fact]
+    public async Task RegisterInitialAdmin_WithInvalidTimezone_ShouldReturnFieldValidation()
+    {
+        var client = CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin",
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!", "invalid-zone"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ApiResult<AuthSessionDto>>();
+        Assert.Contains("systemTimeZoneId", result!.ValidationErrors!.Keys);
+        Assert.False(response.Headers.Contains("Set-Cookie"));
+    }
+
+    [Fact]
+    public async Task RegisterInitialAdmin_WhenTimezoneOmitted_ShouldDefaultToUtc()
+    {
+        var client = CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/register-initial-admin",
+            new { UserName = "admin", Email = "admin@localhost", Password = "Password1234!" });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var scope = Factory.Services.CreateScope();
+        var timeZone = await scope.ServiceProvider.GetRequiredService<ISystemTimeZoneService>().GetAsync();
+        Assert.Equal("UTC", timeZone.Data!.SystemTimeZoneId);
     }
 
     [Fact]
@@ -220,7 +268,6 @@ public sealed class AuthIntegrationTests : ApiFactoryIntegrationTestBase
         return false;
     }
 
-    private sealed record RegisterInitialAdminRequest(string UserName, string Email, string Password);
     private sealed record LoginRequest(string UserName, string Password);
     private sealed record ChangeOwnPasswordRequest(string CurrentPassword, string NewPassword);
     private sealed record BootstrapStatusEnvelope(bool RequiresInitialAdminSetup);

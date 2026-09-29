@@ -19,6 +19,8 @@ public sealed class AuthPolicyEndpointMappingTests : ApiFactoryIntegrationTestBa
         new("POST", "/api/auth/machine/refresh"),
         new("POST", "/api/auth/machine/logout"),
         new("GET", "/api/auth/bootstrap-status"),
+        // Public timezone catalogue for initial setup before an admin session exists.
+        new("GET", "/api/auth/timezone-options"),
         new("GET", "/api/health"),
         new("GET", "/api/version"),
         // Authenticates a narrowly scoped transfer ticket in the endpoint, not an API identity.

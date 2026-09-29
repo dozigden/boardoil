@@ -35,7 +35,7 @@ public sealed class AuthServiceTests : TestBaseDb
 
         // Act
         var result = await service.RegisterInitialAdminAsync(
-            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!"));
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!", "Europe/London"));
 
         // Assert
         Assert.False(result.Success);
@@ -43,6 +43,7 @@ public sealed class AuthServiceTests : TestBaseDb
         Assert.Equal("Initial admin already exists.", result.Message);
         Assert.Equal(1, await DbContextForAssert.Users.CountAsync());
         Assert.Empty(await DbContextForAssert.RefreshTokens.ToListAsync());
+        Assert.Empty(await DbContextForAssert.AppSettings.ToListAsync());
     }
 
     [Fact]
@@ -86,7 +87,7 @@ public sealed class AuthServiceTests : TestBaseDb
 
         // Act
         var result = await service.RegisterInitialAdminAsync(
-            new RegisterInitialAdminRequest("  admin  ", " ADMIN@LOCALHOST ", "Password1234!"));
+            new RegisterInitialAdminRequest("  admin  ", " ADMIN@LOCALHOST ", "Password1234!", " Europe/London "));
 
         // Assert
         Assert.True(result.Success);
@@ -119,6 +120,60 @@ public sealed class AuthServiceTests : TestBaseDb
             .ToListAsync();
         Assert.Equal(2, boardMemberships.Count);
         Assert.All(boardMemberships, x => Assert.Equal(BoardMemberRole.Owner, x.Role));
+        Assert.Equal("Europe/London", (await DbContextForAssert.AppSettings.SingleAsync(x => x.Key == "system_timezone")).Value);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not-a-timezone")]
+    public async Task RegisterInitialAdminAsync_WhenTimezoneInvalid_ShouldNotCreateAccountOrSetting(string timeZoneId)
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        var result = await service.RegisterInitialAdminAsync(
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!", timeZoneId));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("systemTimeZoneId", result.ValidationErrors!.Keys);
+        Assert.Empty(await DbContextForAssert.Users.ToListAsync());
+        Assert.Empty(await DbContextForAssert.RefreshTokens.ToListAsync());
+        Assert.Empty(await DbContextForAssert.AppSettings.ToListAsync());
+    }
+
+    [Fact]
+    public async Task RegisterInitialAdminAsync_WhenTimezoneWriteFails_ShouldRollBackAccountAndScheduleBaseline()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var baseline = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        DbContextForArrange.ScheduledJobSchedulerStates.Add(new EntityScheduledJobSchedulerState
+        {
+            Name = "test-checkpoint", LastRunTimeUtc = baseline, PendingDueAtUtc = baseline
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        await DbContextForArrange.Database.ExecuteSqlRawAsync("""
+            CREATE TRIGGER reject_initial_timezone BEFORE INSERT ON AppSettings
+            WHEN NEW.Key = 'system_timezone'
+            BEGIN SELECT RAISE(ABORT, 'Test initial timezone failure'); END;
+            """);
+        var service = ResolveService<IAuthService>();
+
+        // Act
+        await Assert.ThrowsAsync<DbUpdateException>(() => service.RegisterInitialAdminAsync(
+            new RegisterInitialAdminRequest("admin", "admin@localhost", "Password1234!", "Europe/London")));
+
+        // Assert
+        Assert.Empty(await DbContextForAssert.Users.ToListAsync());
+        Assert.Empty(await DbContextForAssert.RefreshTokens.ToListAsync());
+        Assert.Empty(await DbContextForAssert.AppSettings.ToListAsync());
+        var state = await DbContextForAssert.ScheduledJobSchedulerStates.SingleAsync();
+        Assert.Equal(baseline, state.LastRunTimeUtc);
+        Assert.Equal(baseline, state.PendingDueAtUtc);
     }
 
     [Fact]

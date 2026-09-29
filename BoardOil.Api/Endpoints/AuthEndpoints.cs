@@ -1,5 +1,6 @@
 using BoardOil.Api.Extensions;
 using BoardOil.Abstractions.Auth;
+using BoardOil.Abstractions.Configuration;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Common;
 using BoardOil.Services.Auth;
@@ -60,6 +61,9 @@ public static class AuthEndpoints
             .WithTags("Auth");
         app.MapGet("/api/auth/bootstrap-status", (IAuthHttpSessionService authHttpService) =>
                 authHttpService.GetBootstrapStatusAsync())
+            .WithTags("Auth");
+        app.MapGet("/api/auth/timezone-options", (ISystemTimeZoneService timeZones) =>
+                timeZones.GetOptions().ToHttpResult())
             .WithTags("Auth");
 
         return app;

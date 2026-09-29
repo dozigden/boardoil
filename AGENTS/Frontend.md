@@ -42,6 +42,8 @@ Read [Pinia Store Guidance](frontend-pinia.md) before adding or changing stores,
 - Route guards and auth checks should remain centralised through store/router integration.
 - Prefer canonical route paths in the router. Do not add legacy/back-compat or convenience redirect/alias routes; 
 - Avoid introductory “wall of text” at the top of pages; interfaces should generally stand on their own unless short context is essential.
+- Describe settings and features by their stable product meaning. Do not narrow their labels or helper text to the code paths that happen to use them today; those uses can grow, and implementation-specific caveats create unnecessary copy maintenance.
+- Add explanatory text only when it helps users make a decision or understand a meaningful consequence. Keep incidental implementation details in technical guidance, and let a clear label stand on its own.
 - Use the shared button styles in `BoardOil.Web/src/styles/buttons.css` (`.btn`, `.btn--secondary`, `.btn--danger`, etc.) instead of creating one-off button variants per view.
 - Prefer `.btn.btn--tab` for tab toggles.
 - Prefer `.btn.btn--toolbar` for markdown toolbar actions/mode toggles.
