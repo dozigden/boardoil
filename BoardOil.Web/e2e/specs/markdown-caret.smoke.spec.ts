@@ -30,7 +30,35 @@ test('plain-text editing preserves the caret and synchronises back to rich mode'
   await dialog.getByRole('button', { name: 'Switch to rich editor' }).click();
   const richEditor = dialog.getByLabel('Card description', { exact: true });
   await expect(richEditor.locator('strong')).toHaveText('Synchronised draft');
-  await dialog.getByRole('button', { name: 'Save card' }).click();
+
+  let releaseSaveResponse!: () => void;
+  const saveResponseGate = new Promise<void>(resolve => { releaseSaveResponse = resolve; });
+  let saveResponseReady = false;
+  await page.route(`**/api/boards/${board.id}/cards/${card.id}`, async route => {
+    if (route.request().method() !== 'PUT') {
+      await route.continue();
+      return;
+    }
+
+    const response = await route.fetch();
+    saveResponseReady = true;
+    await saveResponseGate;
+    await route.fulfill({ response });
+  });
+
+  const saveButton = dialog.getByRole('button', { name: 'Save card' });
+  try {
+    await saveButton.click();
+    await expect.poll(() => saveResponseReady).toBe(true);
+    await expect(dialog).toBeVisible();
+    await expect(saveButton).toBeDisabled();
+    await expect(page).toHaveURL(`/boards/${board.id}/card/${card.id}`);
+  } finally {
+    releaseSaveResponse();
+  }
+
+  await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL(`/boards/${board.id}`);
 
   await page.goto(`/boards/${board.id}/card/${card.id}`);
   await expect(dialog.getByLabel('Card description', { exact: true }).locator('strong'))
