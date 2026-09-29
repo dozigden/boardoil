@@ -8,7 +8,7 @@
         <button
           type="button"
           class="btn"
-          :disabled="saving || configuration === null"
+          :disabled="saving || !hasUnsavedChanges"
           @click="saveConfiguration"
         >
           {{ saving ? 'Saving...' : 'Save' }}
@@ -16,7 +16,11 @@
       </div>
     </header>
 
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+    <div v-if="loading" class="configuration-loading" role="status">
+      <span class="configuration-loading-indicator" aria-hidden="true" />
+      <span>Loading configuration...</span>
+    </div>
+    <p v-else-if="errorMessage" class="error">{{ errorMessage }}</p>
 
     <div v-else class="configuration-sections">
       <section class="panel panel-stack panel-stack--cozy">
@@ -99,9 +103,11 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, useId } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import SearchableSelect from '../../shared/components/SearchableSelect.vue';
 import { createSystemApi } from '../../shared/api/systemApi';
+import { useConfirm } from '../../shared/composables/useConfirm';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { ConfigurationDto } from '../../shared/types/configurationTypes';
 
@@ -113,15 +119,44 @@ const timeZoneError = ref<string | null>(null);
 let disposed = false;
 onBeforeUnmount(() => { disposed = true; });
 const feedback = useUiFeedbackStore();
+const { confirm } = useConfirm();
 const configuration = ref<ConfigurationDto | null>(null);
+const loading = ref(true);
 const errorMessage = ref<string | null>(null);
 const saving = ref(false);
 const mcpPublicBaseUrlDraft = ref('');
 const oauthLifecycleDiagnosticsEnabledDraft = ref(false);
+const hasUnsavedChanges = computed(() => {
+  if (!configuration.value) return false;
+
+  return timeZoneDraft.value !== configuration.value.systemTimeZoneId
+    || mcpPublicBaseUrlDraft.value.trim() !== (configuration.value.mcpPublicBaseUrl ?? '')
+    || oauthLifecycleDiagnosticsEnabledDraft.value !== configuration.value.oauthLifecycleDiagnosticsEnabled;
+});
+
+function onBeforeUnload(event: BeforeUnloadEvent) {
+  if (!hasUnsavedChanges.value) return;
+  event.preventDefault();
+  event.returnValue = '';
+}
+
+onBeforeRouteLeave(async () => {
+  if (saving.value) return false;
+  if (!hasUnsavedChanges.value) return true;
+
+  return await confirm({
+    title: 'Discard unsaved changes',
+    message: 'You have unsaved changes in configuration. Discard them and leave?',
+    confirmLabel: 'Discard',
+    danger: true
+  });
+});
 
 onMounted(async () => {
+  window.addEventListener('beforeunload', onBeforeUnload);
   const [configurationResult, optionsResult] = await Promise.all([systemApi.getConfiguration(), systemApi.getTimeZoneOptions()]);
   if (disposed) return;
+  loading.value = false;
 
   if (!configurationResult.ok) {
     errorMessage.value = configurationResult.error.message;
@@ -136,8 +171,10 @@ onMounted(async () => {
   applyConfigurationDraft(configurationResult.data);
 });
 
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload));
+
 async function saveConfiguration() {
-  if (saving.value || !configuration.value) return;
+  if (saving.value || !hasUnsavedChanges.value) return;
   saving.value = true;
   timeZoneError.value = null;
   try {
@@ -190,6 +227,29 @@ function applyConfigurationDraft(nextConfiguration: ConfigurationDto) {
 
 .configuration-header h2 {
   margin: 0;
+}
+
+.configuration-loading {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  color: var(--bo-ink-muted);
+}
+
+.configuration-loading-indicator {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 3px solid var(--bo-border-soft);
+  border-top-color: var(--bo-link);
+  animation: configuration-spin 0.9s linear infinite;
+}
+
+@keyframes configuration-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .configuration-sections {
