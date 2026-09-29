@@ -393,6 +393,7 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
     [Theory]
     [InlineData("card")]
     [InlineData("bulk")]
+    [InlineData("bulk-mixed")]
     [InlineData("column")]
     [InlineData("board")]
     [InlineData("archived-board")]
@@ -415,6 +416,7 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         {
             "card" => await ResolveService<ICardService>().DeleteCardAsync(boardId, cardId, ActorUserId),
             "bulk" => await ResolveService<BulkDeleteCardsService>().ExecuteAsync(boardId, new([cardId]), ActorUserId),
+            "bulk-mixed" => await ResolveService<BulkDeleteCardsService>().ExecuteAsync(boardId, new([cardId, 999_999]), ActorUserId),
             "column" => await ResolveService<IColumnService>().DeleteColumnAsync(boardId, columnId, ActorUserId),
             _ => await ResolveService<IBoardService>().DeleteBoardAsync(boardId, ActorUserId)
         };

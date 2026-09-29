@@ -1674,28 +1674,99 @@ public sealed class CardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task BulkDeleteCardsAsync_WhenAnyCardMissing_ShouldReturnValidationErrorAndDeleteNothing()
+    public async Task BulkDeleteCardsAsync_WhenRequestMixesExistingMissingAndDuplicateIds_ShouldDeleteExistingCardsOnce()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
             .AddColumn("Todo")
             .AddCard("Delete me", "Desc")
+            .AddCard("Keep me", "Desc")
             .Build();
-        var cardId = board.GetCard("Todo", "Delete me").Id;
+        var cardId = board.GetCard("Todo", "Delete me").BoardCardId;
         var service = CreateService();
 
         // Act
         var result = await service.BulkDeleteCardsAsync(
             board.BoardId,
-            new BulkDeleteCardsRequest([cardId, 999_999]),
+            new BulkDeleteCardsRequest([cardId, 999_999, cardId, 999_999]),
             ActorUserId);
 
         // Assert
-        Assert.False(result.Success);
-        Assert.Equal(400, result.StatusCode);
-        Assert.NotNull(result.ValidationErrors);
-        Assert.True(result.ValidationErrors!.ContainsKey("cardIds"));
-        Assert.Equal(1, await DbContextForAssert.Cards.CountAsync());
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(new BulkDeleteCardsSummaryDto(board.BoardId, 2, 1), result.Data);
+        Assert.Equal("Keep me", (await DbContextForAssert.Cards.SingleAsync()).Title);
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        Assert.Equal((board.BoardId, cardId), Assert.Single(events.CardDeletedEvents));
+    }
+
+    [Fact]
+    public async Task BulkDeleteCardsAsync_WhenRepeated_ShouldSucceedWithoutFurtherDeletionsOrEvents()
+    {
+        // Arrange
+        var board = CreateBoard().AddColumn("Todo").AddCard("Delete me").Build();
+        var cardId = board.GetCard("Delete me").BoardCardId;
+        var request = new BulkDeleteCardsRequest([cardId]);
+        var service = CreateService();
+        Assert.True((await service.BulkDeleteCardsAsync(board.BoardId, request, ActorUserId)).Success);
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        events.CardDeletedEvents.Clear();
+
+        // Act
+        var result = await service.BulkDeleteCardsAsync(board.BoardId, request, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(new BulkDeleteCardsSummaryDto(board.BoardId, 1, 0), result.Data);
+        Assert.Empty(await DbContextForAssert.Cards.ToListAsync());
+        Assert.Empty(events.CardDeletedEvents);
+    }
+
+    [Fact]
+    public async Task BulkDeleteCardsAsync_WhenAllIdsAbsent_ShouldSucceedAndLeaveUnrelatedCardsUntouched()
+    {
+        // Arrange
+        var board = CreateBoard().AddColumn("Todo").AddCard("Keep me").Build();
+        var service = CreateService();
+
+        // Act
+        var result = await service.BulkDeleteCardsAsync(board.BoardId,
+            new BulkDeleteCardsRequest([999_999, 999_998, 999_999]), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(new BulkDeleteCardsSummaryDto(board.BoardId, 2, 0), result.Data);
+        Assert.Equal("Keep me", (await DbContextForAssert.Cards.SingleAsync()).Title);
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        Assert.Empty(events.CardDeletedEvents);
+    }
+
+    [Fact]
+    public async Task BulkDeleteCardsAsync_WhenNumbersExistOnAnotherBoard_ShouldDeleteAndPublishOnlyForCurrentBoard()
+    {
+        // Arrange
+        var otherBoard = CreateBoard("Other").AddColumn("Todo")
+            .AddCard("Other first").AddCard("Other second").Build();
+        var board = CreateBoard("Target").AddColumn("Todo").AddCard("Delete me").Build();
+        var card = board.GetCard("Delete me");
+        var otherCardNumber = otherBoard.GetCard("Other second").BoardCardId;
+        var service = CreateService();
+
+        // Act
+        var result = await service.BulkDeleteCardsAsync(board.BoardId,
+            new BulkDeleteCardsRequest([card.BoardCardId, otherCardNumber]), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(new BulkDeleteCardsSummaryDto(board.BoardId, 2, 1), result.Data);
+        var remainingCards = await DbContextForAssert.Cards.ToListAsync();
+        Assert.Equal(2, remainingCards.Count);
+        Assert.All(remainingCards, remaining => Assert.Equal(otherBoard.BoardId, remaining.BoardId));
+        Assert.NotEqual(card.Id, card.BoardCardId);
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        Assert.Equal((board.BoardId, card.BoardCardId), Assert.Single(events.CardDeletedEvents));
     }
 
     [Fact]

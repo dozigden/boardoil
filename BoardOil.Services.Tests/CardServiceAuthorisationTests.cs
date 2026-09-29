@@ -145,8 +145,10 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
         Assert.Equal(BoardPermission.CardUpdate, _boardAuthorisationService.LastPermission);
     }
 
-    [Fact]
-    public async Task BulkDeleteCardsAsync_WhenPermissionDenied_ShouldCheckCardDeletePermission()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BulkDeleteCardsAsync_WhenPermissionDenied_ShouldCheckCardDeletePermission(bool requestMissingCard)
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -159,13 +161,14 @@ public sealed class CardServiceAuthorisationTests : TestBaseDb
         // Act
         var result = await service.BulkDeleteCardsAsync(
             board.BoardId,
-            new BulkDeleteCardsRequest([cardId]),
+            new BulkDeleteCardsRequest([requestMissingCard ? 999_999 : cardId]),
             ActorUserId);
 
         // Assert
         Assert.False(result.Success);
         Assert.Equal(403, result.StatusCode);
         Assert.Equal(BoardPermission.CardDelete, _boardAuthorisationService.LastPermission);
+        Assert.Single(await DbContextForAssert.Cards.ToListAsync());
     }
 
     [Fact]

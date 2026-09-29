@@ -33,9 +33,9 @@ public sealed class BulkDeleteCardsService(
         }
 
         var cards = await cardRepository.GetWithTagsAndBoardByIdsAsync(boardId, uniqueCardIds);
-        if (cards.Count != uniqueCardIds.Count)
+        if (cards.Count == 0)
         {
-            return ApiErrors.ValidationFailed([new ValidationError("cardIds", "One or more cards do not exist in board.")]);
+            return ApiResults.Ok(new BulkDeleteCardsSummaryDto(boardId, uniqueCardIds.Count, 0));
         }
 
         var deletedAttachmentKeys = await attachments.DeleteForCardsAsync(cards.Select(x => x.Id).ToList());
@@ -43,11 +43,11 @@ public sealed class BulkDeleteCardsService(
         await scope.SaveChangesAsync();
         await attachments.DeleteFilesAsync(deletedAttachmentKeys);
 
-        foreach (var cardId in uniqueCardIds)
+        foreach (var card in cards)
         {
-            await boardEvents.CardDeletedAsync(boardId, cardId);
+            await boardEvents.CardDeletedAsync(boardId, card.RequireBoardCardId());
         }
 
-        return ApiResults.Ok(new BulkDeleteCardsSummaryDto(boardId, uniqueCardIds.Count, uniqueCardIds.Count));
+        return ApiResults.Ok(new BulkDeleteCardsSummaryDto(boardId, uniqueCardIds.Count, cards.Count));
     }
 }
