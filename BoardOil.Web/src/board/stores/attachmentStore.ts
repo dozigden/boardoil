@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
-import type { CardAttachment } from '../../shared/types/attachmentTypes';
+import type { CardAttachment, CardAttachmentList } from '../../shared/types/attachmentTypes';
 import { formatAttachmentSize } from '../utils/formatAttachmentSize';
 import { createAttachmentThumbnail } from '../utils/attachmentThumbnails';
 import { isSupportedImageFileName } from '../../shared/components/markdownImages';
@@ -35,6 +35,37 @@ export const useAttachmentStore = defineStore('attachments', () => {
   let runVersion = 0;
   let controller: AbortController | null = null;
   let uploadBatches: UploadBatch[] = [];
+
+  function SET_ATTACHMENTS(current: AttachmentContext, list: CardAttachmentList) {
+    if (context.value !== current) { return; }
+
+    const nextItems = list.items;
+    const attachmentSetChanged = nextItems.length !== items.value.length
+      || nextItems.some((item, index) => item.id !== items.value[index]?.id
+        || item.originalFileName !== items.value[index]?.originalFileName);
+    items.value = nextItems;
+    if (attachmentSetChanged) {
+      revision.value++;
+    }
+    maxUploadByteLength.value = list.maxUploadByteLength;
+  }
+
+  function UPSERT_ATTACHMENT(boardId: number, cardId: number, attachment: CardAttachment) {
+    if (context.value?.boardId !== boardId || context.value.cardId !== cardId || context.value.archived) { return; }
+
+    eventVersion++;
+    items.value = [...items.value.filter(item => item.id !== attachment.id), attachment]
+      .sort((a, b) => a.createdAtUtc.localeCompare(b.createdAtUtc) || a.id - b.id);
+    revision.value++;
+  }
+
+  function REMOVE_ATTACHMENT(boardId: number, cardId: number, attachmentId: number) {
+    if (context.value?.boardId !== boardId || context.value.cardId !== cardId) { return; }
+
+    eventVersion++;
+    items.value = items.value.filter(item => item.id !== attachmentId);
+    revision.value++;
+  }
 
   function cancel() {
     runVersion++;
@@ -79,33 +110,16 @@ export const useAttachmentStore = defineStore('attachments', () => {
       warningMessages.value.push(`Attachments could not be loaded: ${result.error.message}`);
       return;
     }
-    const nextItems = result.data.items;
-    const attachmentSetChanged = nextItems.length !== items.value.length
-      || nextItems.some((item, index) => item.id !== items.value[index]?.id
-        || item.originalFileName !== items.value[index]?.originalFileName);
-    items.value = nextItems;
-    if (attachmentSetChanged) {
-      revision.value++;
-    }
-    maxUploadByteLength.value = result.data.maxUploadByteLength;
+    SET_ATTACHMENTS(current, result.data);
   }
 
   function added(boardId: number, cardId: number, attachment: CardAttachment) {
-    if (context.value?.boardId === boardId && context.value.cardId === cardId && !context.value.archived) {
-      eventVersion++;
-      items.value = [...items.value.filter(item => item.id !== attachment.id), attachment]
-        .sort((a, b) => a.createdAtUtc.localeCompare(b.createdAtUtc) || a.id - b.id);
-      revision.value++;
-    }
+    UPSERT_ATTACHMENT(boardId, cardId, attachment);
     cardAttachmentThumbnailStore.attachmentAdded(boardId, cardId, attachment);
   }
 
   async function removed(boardId: number, cardId: number, attachmentId: number) {
-    if (context.value?.boardId === boardId && context.value.cardId === cardId) {
-      eventVersion++;
-      items.value = items.value.filter(item => item.id !== attachmentId);
-      revision.value++;
-    }
+    REMOVE_ATTACHMENT(boardId, cardId, attachmentId);
     await cardAttachmentThumbnailStore.attachmentDeleted(boardId, cardId, attachmentId);
   }
 
