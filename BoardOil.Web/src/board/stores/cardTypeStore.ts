@@ -16,6 +16,38 @@ export const useCardTypeStore = defineStore('cardType', () => {
 
   const systemCardType = computed(() => cardTypes.value.find(x => x.isSystem) ?? null);
 
+  function SET_CARD_TYPES(boardId: number, nextCardTypes: CardType[]) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    cardTypes.value = sortCardTypes(nextCardTypes);
+  }
+
+  function UPSERT_CARD_TYPE(boardId: number, cardType: CardType) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    const existingIndex = cardTypes.value.findIndex(x => x.id === cardType.id);
+    if (existingIndex < 0) {
+      cardTypes.value = sortCardTypes([...cardTypes.value, cardType]);
+      return;
+    }
+
+    const next = [...cardTypes.value];
+    next[existingIndex] = cardType;
+    cardTypes.value = sortCardTypes(next);
+  }
+
+  function REMOVE_CARD_TYPE(boardId: number, cardTypeId: number) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    cardTypes.value = cardTypes.value.filter(x => x.id !== cardTypeId);
+  }
+
   function dispose() {
     loadRequestVersion += 1;
     cardTypes.value = [];
@@ -40,7 +72,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
       return false;
     }
 
-    cardTypes.value = sortCardTypes(result.data);
+    SET_CARD_TYPES(boardId, result.data);
     feedback.clearError();
     return true;
   }
@@ -54,11 +86,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
       return null;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return result.data;
-    }
-
-    upsertCardType(result.data);
+    UPSERT_CARD_TYPE(boardId, result.data);
     return result.data;
   }
 
@@ -72,11 +100,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
       return null;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return result.data;
-    }
-
-    upsertCardType(result.data);
+    UPSERT_CARD_TYPE(boardId, result.data);
     return result.data;
   }
 
@@ -86,11 +110,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
       return false;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return true;
-    }
-
-    removeCardType(cardTypeId);
+    REMOVE_CARD_TYPE(boardId, cardTypeId);
     return true;
   }
 
@@ -130,22 +150,6 @@ export const useCardTypeStore = defineStore('cardType', () => {
     } finally {
       busy.value = false;
     }
-  }
-
-  function upsertCardType(cardType: CardType) {
-    const existingIndex = cardTypes.value.findIndex(x => x.id === cardType.id);
-    if (existingIndex < 0) {
-      cardTypes.value = sortCardTypes([...cardTypes.value, cardType]);
-      return;
-    }
-
-    const next = [...cardTypes.value];
-    next[existingIndex] = cardType;
-    cardTypes.value = sortCardTypes(next);
-  }
-
-  function removeCardType(cardTypeId: number) {
-    cardTypes.value = cardTypes.value.filter(x => x.id !== cardTypeId);
   }
 
   function reportError(error: AppError) {

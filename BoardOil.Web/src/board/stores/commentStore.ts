@@ -15,6 +15,19 @@ export const useCommentStore = defineStore('comment', () => {
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
 
+  function SET_CARD_COMMENTS(cardId: number, comments: CardComment[]) {
+    commentsByCardId.value = {
+      ...commentsByCardId.value,
+      [cardId]: normalizeComments(comments)
+    };
+  }
+
+  function UPSERT_CARD_COMMENT(comment: CardComment) {
+    const existingComments = commentsByCardId.value[comment.cardId] ?? [];
+    const withoutExisting = existingComments.filter(existing => existing.id !== comment.id);
+    SET_CARD_COMMENTS(comment.cardId, [comment, ...withoutExisting]);
+  }
+
   function dispose() {
     activeBoardId.value = 0;
     commentsByCardId.value = {};
@@ -29,7 +42,7 @@ export const useCommentStore = defineStore('comment', () => {
     }
 
     if (activeBoardId.value === boardId) {
-      setCardComments(cardId, result.data);
+      SET_CARD_COMMENTS(cardId, result.data);
     }
 
     return result;
@@ -46,7 +59,7 @@ export const useCommentStore = defineStore('comment', () => {
       return null;
     }
 
-    upsertCardComment(result.data);
+    UPSERT_CARD_COMMENT(result.data);
     return result;
   }
 
@@ -58,17 +71,8 @@ export const useCommentStore = defineStore('comment', () => {
     return commentsByCardId.value[cardId] ?? [];
   }
 
-  function setCardComments(cardId: number, comments: CardComment[]) {
-    commentsByCardId.value = {
-      ...commentsByCardId.value,
-      [cardId]: normalizeComments(comments)
-    };
-  }
-
   function upsertCardComment(comment: CardComment) {
-    const existingComments = commentsByCardId.value[comment.cardId] ?? [];
-    const withoutExisting = existingComments.filter(existing => existing.id !== comment.id);
-    setCardComments(comment.cardId, [comment, ...withoutExisting]);
+    UPSERT_CARD_COMMENT(comment);
   }
 
   async function runBusy<T>(operation: () => Promise<Result<T, AppError>>, boardId: number) {

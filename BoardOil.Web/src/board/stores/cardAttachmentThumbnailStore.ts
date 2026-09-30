@@ -16,13 +16,122 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
   const cardRefreshVersions = new Map<number, number>();
   const thumbnailImageUrls = new Map<number, string>();
 
+  function SET_CANDIDATES(boardId: number, candidates: CardAttachmentImageCandidate[]) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    candidatesByCardId.value = toCandidateMap(candidates);
+  }
+
+  function APPLY_CARD_REFRESH(
+    boardId: number,
+    cardIds: number[],
+    candidates: CardAttachmentImageCandidate[],
+    refreshVersions: Map<number, number>,
+    attachmentIdsAtStart: Map<number, number | null>
+  ) {
+    if (!canHandle(boardId)) {
+      return;
+    }
+
+    const refreshedCandidates = toCandidateMap(candidates);
+    const nextCandidates = { ...candidatesByCardId.value };
+    for (const cardId of cardIds) {
+      if (cardRefreshVersions.get(cardId) !== refreshVersions.get(cardId)) {
+        continue;
+      }
+
+      const candidate = refreshedCandidates[cardId];
+      if (candidate) {
+        const currentCandidate = candidatesByCardId.value[cardId];
+        nextCandidates[cardId] = currentCandidate?.attachmentId === candidate.attachmentId && currentCandidate.hasThumbnail
+          ? { ...candidate, hasThumbnail: true }
+          : candidate;
+      } else if (candidatesByCardId.value[cardId]?.attachmentId !== attachmentIdsAtStart.get(cardId)) {
+        continue;
+      } else {
+        delete nextCandidates[cardId];
+      }
+    }
+
+    candidatesByCardId.value = nextCandidates;
+  }
+
+  function ADD_CANDIDATE(boardId: number, cardId: number, attachment: CardAttachment) {
+    if (!canHandle(boardId) || !isSupportedImageFileName(attachment.originalFileName)) {
+      return;
+    }
+
+    mutationVersion++;
+    if (candidatesByCardId.value[cardId]) {
+      return;
+    }
+
+    candidatesByCardId.value = {
+      ...candidatesByCardId.value,
+      [cardId]: {
+        cardId,
+        attachmentId: attachment.id,
+        originalFileName: attachment.originalFileName,
+        hasThumbnail: attachment.hasThumbnail
+      }
+    };
+  }
+
+  function REMOVE_CANDIDATE(boardId: number, cardId: number, attachmentId?: number) {
+    if (!canHandle(boardId)) {
+      return false;
+    }
+
+    const candidate = candidatesByCardId.value[cardId];
+    if (attachmentId !== undefined && (!candidate || candidate.attachmentId !== attachmentId)) {
+      return false;
+    }
+
+    mutationVersion++;
+    advanceCardRefreshVersion(cardId);
+    if (!candidate) {
+      return false;
+    }
+
+    const nextCandidates = { ...candidatesByCardId.value };
+    delete nextCandidates[cardId];
+    candidatesByCardId.value = nextCandidates;
+    return true;
+  }
+
+  function CLEAR_THUMBNAIL_IMAGES() {
+    for (const imageUrl of thumbnailImageUrls.values()) {
+      URL.revokeObjectURL(imageUrl);
+    }
+    thumbnailImageUrls.clear();
+  }
+
+  function MARK_HAS_THUMBNAIL(cardId: number, attachmentId: number) {
+    const candidate = candidatesByCardId.value[cardId];
+    if (!candidate || candidate.attachmentId !== attachmentId || candidate.hasThumbnail) {
+      return;
+    }
+
+    mutationVersion++;
+    candidatesByCardId.value = {
+      ...candidatesByCardId.value,
+      [cardId]: { ...candidate, hasThumbnail: true }
+    };
+  }
+
+  function SET_ENABLED(value: boolean) {
+    enabled.value = value && api.supportsAttachments;
+  }
+
   async function loadBoard(boardId: number, thumbnailsEnabled: boolean) {
     const version = ++requestVersion;
     if (activeBoardId.value !== boardId) {
-      clearThumbnailImages();
+      CLEAR_THUMBNAIL_IMAGES();
     }
     activeBoardId.value = boardId;
-    setEnabled(thumbnailsEnabled);
+    SET_ENABLED(thumbnailsEnabled);
     candidatesByCardId.value = {};
     cardRefreshVersions.clear();
     if (!thumbnailsEnabled || !api.supportsAttachments) {
@@ -39,7 +148,7 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
       return;
     }
 
-    candidatesByCardId.value = toCandidateMap(result.data);
+    SET_CANDIDATES(boardId, result.data);
   }
 
   async function refreshCards(boardId: number, cardIds: number[]) {
@@ -61,52 +170,15 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
     }
 
     const result = await api.getCardThumbnails(boardId, uniqueCardIds);
-    if (!canHandle(boardId) || !result.ok) {
+    if (!result.ok) {
       return;
     }
 
-    const refreshedCandidates = toCandidateMap(result.data);
-    const nextCandidates = { ...candidatesByCardId.value };
-    for (const cardId of uniqueCardIds) {
-      if (cardRefreshVersions.get(cardId) !== refreshVersions.get(cardId)) {
-        continue;
-      }
-
-      const candidate = refreshedCandidates[cardId];
-      if (candidate) {
-        const currentCandidate = candidatesByCardId.value[cardId];
-        nextCandidates[cardId] = currentCandidate?.attachmentId === candidate.attachmentId && currentCandidate.hasThumbnail
-          ? { ...candidate, hasThumbnail: true }
-          : candidate;
-      } else if (candidatesByCardId.value[cardId]?.attachmentId !== attachmentIdsAtStart.get(cardId)) {
-        continue;
-      } else {
-        delete nextCandidates[cardId];
-      }
-    }
-
-    candidatesByCardId.value = nextCandidates;
+    APPLY_CARD_REFRESH(boardId, uniqueCardIds, result.data, refreshVersions, attachmentIdsAtStart);
   }
 
   function attachmentAdded(boardId: number, cardId: number, attachment: CardAttachment) {
-    if (!canHandle(boardId) || !isSupportedImageFileName(attachment.originalFileName)) {
-      return;
-    }
-
-    mutationVersion++;
-    if (candidatesByCardId.value[cardId]) {
-      return;
-    }
-
-    candidatesByCardId.value = {
-      ...candidatesByCardId.value,
-      [cardId]: {
-        cardId,
-        attachmentId: attachment.id,
-        originalFileName: attachment.originalFileName,
-        hasThumbnail: attachment.hasThumbnail
-      }
-    };
+    ADD_CANDIDATE(boardId, cardId, attachment);
   }
 
   async function attachmentDeleted(boardId: number, cardId: number, attachmentId: number) {
@@ -117,37 +189,15 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
         thumbnailImageUrls.delete(attachmentId);
       }
     }
-    if (!canHandle(boardId)) {
+    if (!REMOVE_CANDIDATE(boardId, cardId, attachmentId)) {
       return;
     }
 
-    const candidate = candidatesByCardId.value[cardId];
-    if (!candidate || candidate.attachmentId !== attachmentId) {
-      return;
-    }
-
-    mutationVersion++;
-    advanceCardRefreshVersion(cardId);
-    const nextCandidates = { ...candidatesByCardId.value };
-    delete nextCandidates[cardId];
-    candidatesByCardId.value = nextCandidates;
     await refreshCards(boardId, [cardId]);
   }
 
   function cardRemoved(boardId: number, cardId: number) {
-    if (!canHandle(boardId)) {
-      return;
-    }
-
-    mutationVersion++;
-    advanceCardRefreshVersion(cardId);
-    if (!candidatesByCardId.value[cardId]) {
-      return;
-    }
-
-    const nextCandidates = { ...candidatesByCardId.value };
-    delete nextCandidates[cardId];
-    candidatesByCardId.value = nextCandidates;
+    REMOVE_CANDIDATE(boardId, cardId);
   }
 
   function getForCard(cardId: number) {
@@ -174,24 +224,8 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
     return imageUrl;
   }
 
-  function clearThumbnailImages() {
-    for (const imageUrl of thumbnailImageUrls.values()) {
-      URL.revokeObjectURL(imageUrl);
-    }
-    thumbnailImageUrls.clear();
-  }
-
   function markHasThumbnail(cardId: number, attachmentId: number) {
-    const candidate = candidatesByCardId.value[cardId];
-    if (!candidate || candidate.attachmentId !== attachmentId || candidate.hasThumbnail) {
-      return;
-    }
-
-    mutationVersion++;
-    candidatesByCardId.value = {
-      ...candidatesByCardId.value,
-      [cardId]: { ...candidate, hasThumbnail: true }
-    };
+    MARK_HAS_THUMBNAIL(cardId, attachmentId);
   }
 
   function clear() {
@@ -201,11 +235,7 @@ export const useCardAttachmentThumbnailStore = defineStore('cardAttachmentThumbn
     enabled.value = false;
     candidatesByCardId.value = {};
     cardRefreshVersions.clear();
-    clearThumbnailImages();
-  }
-
-  function setEnabled(value: boolean) {
-    enabled.value = value && api.supportsAttachments;
+    CLEAR_THUMBNAIL_IMAGES();
   }
 
   function canHandle(boardId: number) {
