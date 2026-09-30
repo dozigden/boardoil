@@ -4,6 +4,8 @@ import { useTagStore } from './tagStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { err, ok } from '../../shared/types/result';
 import type { Tag } from '../../shared/types/boardTypes';
+import type { AppError } from '../../shared/types/appError';
+import type { Result } from '../../shared/types/result';
 
 const api = {
   getTags: vi.fn(),
@@ -42,30 +44,43 @@ describe('tagStore', () => {
     expect(store.tags.map(x => x.name)).toEqual(['Release']);
   });
 
-  it('ignores stale loadTags responses when board changes mid-load', async () => {
-    const store = useTagStore();
-    const firstRequest = createDeferred<ReturnType<typeof ok<Tag[]>>>();
-    const secondRequest = createDeferred<ReturnType<typeof ok<Tag[]>>>();
+  describe.each(['board change', 'disposal'] as const)('pending loads after %s', change => {
+    it.each(['success', 'failure'] as const)('ignores late %s without changing feedback', async outcome => {
+      const store = useTagStore();
+      const feedback = useUiFeedbackStore();
+      const pending = createDeferred<Result<Tag[], AppError>>();
+      api.getTags.mockReturnValueOnce(pending.promise);
+      const load = store.loadTags(1);
 
-    api.getTags
-      .mockImplementationOnce(() => firstRequest.promise)
-      .mockImplementationOnce(() => secondRequest.promise);
+      if (change === 'board change') {
+        api.getTags.mockResolvedValueOnce(ok([makeTag(20, 'Second Board Tag', 'auto', '{}', null)]));
+        await store.loadTags(2);
+      } else {
+        store.dispose();
+      }
+      feedback.setError('Current feedback');
 
-    const firstLoad = store.loadTags(1);
-    const secondLoad = store.loadTags(2);
+      if (outcome === 'success') {
+        pending.resolve(ok([makeTag(10, 'First Board Tag', 'auto', '{}', null)]));
+      } else {
+        pending.resolve(err({ kind: 'api', message: 'Old board load failed' }));
+      }
 
-    secondRequest.resolve(ok([makeTag(20, 'Second Board Tag', 'auto', '{}', null)]));
-    await secondLoad;
-
-    firstRequest.resolve(ok([makeTag(10, 'First Board Tag', 'auto', '{}', null)]));
-    await firstLoad;
-
-    expect(store.activeBoardId).toBe(2);
-    expect(store.tags.map(x => x.name)).toEqual(['Second Board Tag']);
+      expect(await load).toBe(false);
+      expect(feedback.errorMessage).toBe('Current feedback');
+      if (change === 'board change') {
+        expect(store.activeBoardId).toBe(2);
+        expect(store.tags.map(x => x.name)).toEqual(['Second Board Tag']);
+      } else {
+        expect(store.activeBoardId).toBeNull();
+        expect(store.tags).toEqual([]);
+      }
+    });
   });
 
   it('saveTag create flow uses one typed model through create and style update', async () => {
     const store = useTagStore();
+    await store.loadTags(3);
     const model = {
       name: 'Release',
       emoji: '🚀',
@@ -79,6 +94,7 @@ describe('tagStore', () => {
     expect(result?.savedTag?.id).toBe(7);
     expect(api.createTag).toHaveBeenCalledWith(3, 'Release', '🚀');
     expect(api.updateTagStyle).toHaveBeenCalledWith(3, 7, model);
+    expect(store.tags).toEqual([result?.savedTag]);
   });
 
   it('loads create default style', async () => {
@@ -92,6 +108,8 @@ describe('tagStore', () => {
 
   it('saveTag update flow updates existing tag from typed model', async () => {
     const store = useTagStore();
+    api.getTags.mockResolvedValueOnce(ok([makeTag(7, 'Release', 'auto', '{}', null)]));
+    await store.loadTags(3);
     const model = {
       name: 'Release',
       emoji: null,
@@ -105,10 +123,12 @@ describe('tagStore', () => {
     expect(result?.createdTag).toBeNull();
     expect(result?.savedTag?.styleName).toBe('solid');
     expect(api.updateTagStyle).toHaveBeenCalledWith(3, 7, model);
+    expect(store.tags).toEqual([result?.savedTag]);
   });
 
   it('returns created tag when create succeeded but style update failed', async () => {
     const store = useTagStore();
+    await store.loadTags(3);
     const feedback = useUiFeedbackStore();
     const model = {
       name: 'Release',
@@ -123,6 +143,39 @@ describe('tagStore', () => {
     expect(result?.createdTag?.id).toBe(7);
     expect(result?.savedTag).toBeNull();
     expect(feedback.errorMessage).toBe('Could not update style.');
+    expect(store.tags).toEqual([result?.createdTag]);
+  });
+
+  it('ensures tags using canonical names without duplicate creates', async () => {
+    const store = useTagStore();
+    const existing = makeTag(1, 'Existing', 'auto', '{}', null);
+    const created = makeTag(7, 'Release', 'auto', '{}', null);
+    api.getTags.mockResolvedValueOnce(ok([existing]));
+    await store.loadTags(3);
+
+    const names = await store.ensureTagsExist(3, [' existing ', 'Release', 'release', '', 'Existing']);
+
+    expect(names).toEqual(['Existing', 'Release']);
+    expect(api.createTag).toHaveBeenCalledTimes(1);
+    expect(api.createTag).toHaveBeenCalledWith(3, 'Release', undefined);
+    expect(store.tags).toEqual([existing, created]);
+  });
+
+  it('replaces and sorts a renamed tag, then removes it after deletion', async () => {
+    const store = useTagStore();
+    const first = makeTag(7, 'Alpha', 'auto', '{}', null);
+    const other = makeTag(8, 'Middle', 'auto', '{}', null);
+    const renamed = { ...first, name: 'Zulu' };
+    api.getTags.mockResolvedValueOnce(ok([other, first]));
+    await store.loadTags(3);
+    expect(store.tags).toEqual([first, other]);
+    api.updateTagStyle.mockResolvedValueOnce(ok(renamed));
+
+    await store.updateTagStyle(3, first.id, renamed);
+    expect(store.tags).toEqual([other, renamed]);
+    expect(await store.deleteTag(3, first.id)).toBe(true);
+    expect(store.tags).toEqual([other]);
+    expect(api.getTags).toHaveBeenCalledTimes(1);
   });
 
   it('ignores stale createTag mutation response when active board changes', async () => {

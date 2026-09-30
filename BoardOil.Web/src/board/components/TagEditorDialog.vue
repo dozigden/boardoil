@@ -374,26 +374,28 @@ async function saveTag() {
 }
 
 async function deleteEditingTag() {
-  if (!editingTag.value) {
+  const tag = editingTag.value;
+  const targetBoardId = boardId.value;
+  if (!tag) {
     return;
   }
 
   const confirmed = await confirm({
     title: 'Delete tag',
-    message: `Delete tag "${editingTag.value.name}"?\n\nThis removes the tag from all cards and cannot be undone.`,
+    message: `Delete tag "${tag.name}"?\n\nThis removes the tag from all cards and cannot be undone.`,
     confirmLabel: 'Delete',
     danger: true
   });
-  if (!confirmed) {
+  if (!confirmed || boardId.value !== targetBoardId) {
     return;
   }
 
-  const deleted = await deleteTag(boardId.value, editingTag.value.id);
-  if (!deleted) {
+  const deleted = await deleteTag(targetBoardId, tag.id);
+  if (!deleted || boardId.value !== targetBoardId) {
     return;
   }
 
-  cardStore.removeTagFromCards(editingTag.value.name);
+  cardStore.removeTagFromCards(tag.name);
   await closeTagEditor();
 }
 

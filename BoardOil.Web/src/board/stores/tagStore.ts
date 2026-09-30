@@ -12,24 +12,53 @@ export const useTagStore = defineStore('tag', () => {
   const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
-  let loadRequestVersion = 0;
+
+  function SET_TAGS(boardId: number, nextTags: Tag[]) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    tags.value = sortTags(nextTags);
+  }
+
+  function UPSERT_TAG(boardId: number, tag: Tag) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    const existingIndex = tags.value.findIndex(x => x.id === tag.id || x.name === tag.name);
+    if (existingIndex < 0) {
+      tags.value = sortTags([...tags.value, tag]);
+      return;
+    }
+
+    const next = [...tags.value];
+    next[existingIndex] = tag;
+    tags.value = sortTags(next);
+  }
+
+  function REMOVE_TAG(boardId: number, tagId: number) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    tags.value = tags.value.filter(tag => tag.id !== tagId);
+  }
 
   function dispose() {
-    loadRequestVersion += 1;
     activeBoardId.value = null;
     tags.value = [];
     busy.value = false;
   }
 
   async function loadTags(boardId: number) {
-    const requestVersion = ++loadRequestVersion;
     if (activeBoardId.value !== boardId) {
       tags.value = [];
     }
 
     activeBoardId.value = boardId;
     const result = await api.getTags(boardId);
-    if (requestVersion !== loadRequestVersion) {
+    if (activeBoardId.value !== boardId) {
       return false;
     }
 
@@ -38,13 +67,19 @@ export const useTagStore = defineStore('tag', () => {
       return false;
     }
 
-    tags.value = [...result.data].sort((a, b) => a.name.localeCompare(b.name));
+    SET_TAGS(boardId, result.data);
     feedback.clearError();
     return true;
   }
 
   async function createTag(boardId: number, tagName: string, emoji?: string | null) {
-    return createTagForBoard(boardId, tagName, emoji);
+    const result = await runBusy(() => api.createTag(boardId, tagName, emoji));
+    if (!result.ok) {
+      return null;
+    }
+
+    UPSERT_TAG(boardId, result.data);
+    return result.data;
   }
 
   async function getCreateDefaultStyle(boardId: number): Promise<StyleDefault | null> {
@@ -70,7 +105,7 @@ export const useTagStore = defineStore('tag', () => {
         continue;
       }
 
-      const created = await createTagForBoard(boardId, trimmedTagName);
+      const created = await createTag(boardId, trimmedTagName);
       if (created) {
         resolvedTagNames.push(created.name);
       }
@@ -84,7 +119,13 @@ export const useTagStore = defineStore('tag', () => {
     tagId: number,
     model: TagEditModel
   ) {
-    return updateTagStyleForBoard(boardId, tagId, model);
+    const result = await runBusy(() => api.updateTagStyle(boardId, tagId, model));
+    if (!result.ok) {
+      return null;
+    }
+
+    UPSERT_TAG(boardId, result.data);
+    return result.data;
   }
 
   async function saveTag(
@@ -93,16 +134,16 @@ export const useTagStore = defineStore('tag', () => {
     model: TagEditModel
   ) {
     if (tagId === null) {
-      const createdTag = await createTagForBoard(boardId, model.name, model.emoji);
+      const createdTag = await createTag(boardId, model.name, model.emoji);
       if (!createdTag) {
         return null;
       }
 
-      const styledTag = await updateTagStyleForBoard(boardId, createdTag.id, model);
+      const styledTag = await updateTagStyle(boardId, createdTag.id, model);
       return { createdTag, savedTag: styledTag };
     }
 
-    const updatedTag = await updateTagStyleForBoard(boardId, tagId, model);
+    const updatedTag = await updateTagStyle(boardId, tagId, model);
     if (!updatedTag) {
       return null;
     }
@@ -116,11 +157,7 @@ export const useTagStore = defineStore('tag', () => {
       return false;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return true;
-    }
-
-    removeTag(tagId);
+    REMOVE_TAG(boardId, tagId);
     return true;
   }
 
@@ -158,52 +195,8 @@ export const useTagStore = defineStore('tag', () => {
     }
   }
 
-  function upsertTag(tag: Tag) {
-    const existingIndex = tags.value.findIndex(x => x.id === tag.id || x.name === tag.name);
-    if (existingIndex < 0) {
-      tags.value = [...tags.value, tag].sort((a, b) => a.name.localeCompare(b.name));
-      return;
-    }
-
-    const next = [...tags.value];
-    next[existingIndex] = tag;
-    tags.value = next.sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  function removeTag(tagId: number) {
-    tags.value = tags.value.filter(tag => tag.id !== tagId);
-  }
-
   function reportError(error: AppError) {
     feedback.setError(error.message);
-  }
-
-  async function createTagForBoard(boardId: number, tagName: string, emoji?: string | null) {
-    const result = await runBusy(() => api.createTag(boardId, tagName, emoji));
-    if (!result.ok) {
-      return null;
-    }
-
-    if (activeBoardId.value !== boardId) {
-      return result.data;
-    }
-
-    upsertTag(result.data);
-    return result.data;
-  }
-
-  async function updateTagStyleForBoard(boardId: number, tagId: number, model: TagEditModel) {
-    const result = await runBusy(() => api.updateTagStyle(boardId, tagId, model));
-    if (!result.ok) {
-      return null;
-    }
-
-    if (activeBoardId.value !== boardId) {
-      return result.data;
-    }
-
-    upsertTag(result.data);
-    return result.data;
   }
 
   return {
@@ -222,6 +215,10 @@ export const useTagStore = defineStore('tag', () => {
     getTagByName
   };
 });
+
+function sortTags(tags: Tag[]) {
+  return [...tags].sort((left, right) => left.name.localeCompare(right.name));
+}
 
 function dedupeTagNames(tagNames: string[]) {
   const deduped: string[] = [];
