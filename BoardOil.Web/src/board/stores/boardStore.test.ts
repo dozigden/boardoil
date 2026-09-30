@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useBoardStore } from './boardStore';
 import { useCardTypeStore } from './cardTypeStore';
+import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
 import { useSlickStore } from './slickStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 import type { AppError } from '../../shared/types/appError';
-import type { Board, Card, CardType, Column, Slick, Tag } from '../../shared/types/boardTypes';
+import type { Board, Card, CardComment, CardType, Column, Slick, Tag } from '../../shared/types/boardTypes';
 import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
@@ -34,6 +35,7 @@ type RealtimeHandlers = {
   onCardMoved: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCardUpdated: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCardDeleted: (boardId: number, cardId: number) => Promise<unknown> | unknown;
+  onCommentCreated: (boardId: number, comment: CardComment) => Promise<unknown> | unknown;
   onAttachmentAdded: (boardId: number, cardId: number, attachment: CardAttachment) => Promise<unknown> | unknown;
   onAttachmentDeleted: (boardId: number, cardId: number, attachmentId: number) => Promise<unknown> | unknown;
   onResync: (boardId: number) => Promise<unknown> | unknown;
@@ -99,6 +101,41 @@ describe('boardStore', () => {
     await realtimeHandlers!.onConnectionRecovered?.();
 
     expect(feedback.toastMessage).toBe('');
+  });
+
+  it('accepts realtime comments before opening an editor and after resync', async () => {
+    const store = useBoardStore();
+    const comments = useCommentStore();
+    const comment: CardComment = {
+      id: 1,
+      cardId: 101,
+      authorUserId: null,
+      text: 'Realtime comment',
+      postedAtUtc: '2026-03-15T00:00:00Z'
+    };
+    realtime.connect.mockImplementationOnce(async () => {
+      await realtimeHandlers!.onCommentCreated(1, comment);
+    });
+
+    await store.initialize(1);
+    expect(comments.getCommentsForCard(101)).toEqual([comment]);
+
+    await realtimeHandlers!.onResync(1);
+    expect(comments.getCommentsForCard(101)).toEqual([]);
+    await realtimeHandlers!.onCommentCreated(1, comment);
+    expect(comments.getCommentsForCard(101)).toEqual([comment]);
+
+    api.getBoard.mockResolvedValueOnce(ok(makeBoard(2, 'Second board')));
+    await store.initialize(2);
+    await realtimeHandlers!.onCommentCreated(1, comment);
+    expect(comments.getCommentsForCard(101)).toEqual([]);
+    const current = { ...comment, id: 2, text: 'Current board comment' };
+    await realtimeHandlers!.onCommentCreated(2, current);
+    expect(comments.getCommentsForCard(101)).toEqual([current]);
+
+    await store.dispose();
+    await realtimeHandlers!.onCommentCreated(2, current);
+    expect(comments.commentsByCardId).toEqual({});
   });
 
   it('orders columns and cards without mutating the board snapshot', async () => {

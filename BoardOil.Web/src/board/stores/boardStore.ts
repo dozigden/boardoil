@@ -15,7 +15,6 @@ import type {
   Board,
   BoardSummary,
   Card,
-  CardComment,
   Column,
   ColumnCreateModel,
   ColumnEditModel
@@ -83,7 +82,7 @@ export const useBoardStore = defineStore('board', () => {
     onCardUpdated: upsertRealtimeCard,
     onCardDeleted: forCurrentBoard((_boardId, cardId: number) => cardStore.removeCard(cardId)),
     onCardMoved: upsertRealtimeCard,
-    onCommentCreated: forCurrentBoard((_boardId, comment: CardComment) => commentStore.upsertCardComment(comment)),
+    onCommentCreated: forCurrentBoard(commentStore.upsertCardComment),
     onAttachmentAdded: forCurrentBoard(attachmentStore.added),
     onAttachmentDeleted: forCurrentBoard(attachmentStore.removed),
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
@@ -241,7 +240,7 @@ export const useBoardStore = defineStore('board', () => {
     void cardAttachmentThumbnailStore.loadBoard(boardId, nextBoardShell.cardAttachmentThumbnailsEnabled);
     boardShell.value = nextBoardShell;
     cardStore.replaceBoardCards(boardId, result.data.columns);
-    commentStore.dispose();
+    commentStore.initialize(boardId);
     feedback.clearError();
     return true;
   }

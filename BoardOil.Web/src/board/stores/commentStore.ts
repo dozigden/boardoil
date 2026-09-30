@@ -15,17 +15,31 @@ export const useCommentStore = defineStore('comment', () => {
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
 
-  function SET_CARD_COMMENTS(cardId: number, comments: CardComment[]) {
+  function SET_CARD_COMMENTS(boardId: number, cardId: number, comments: CardComment[]) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
     commentsByCardId.value = {
       ...commentsByCardId.value,
       [cardId]: normalizeComments(comments)
     };
   }
 
-  function UPSERT_CARD_COMMENT(comment: CardComment) {
+  function UPSERT_CARD_COMMENT(boardId: number, comment: CardComment) {
+    if (activeBoardId.value !== boardId) {
+      return false;
+    }
+
     const existingComments = commentsByCardId.value[comment.cardId] ?? [];
     const withoutExisting = existingComments.filter(existing => existing.id !== comment.id);
-    SET_CARD_COMMENTS(comment.cardId, [comment, ...withoutExisting]);
+    SET_CARD_COMMENTS(boardId, comment.cardId, [comment, ...withoutExisting]);
+    return true;
+  }
+
+  function initialize(boardId: number) {
+    dispose();
+    activeBoardId.value = boardId;
   }
 
   function dispose() {
@@ -35,31 +49,26 @@ export const useCommentStore = defineStore('comment', () => {
   }
 
   async function loadCardComments(boardId: number, cardId: number) {
-    activeBoardId.value = boardId;
     const result = await runBusy(() => api.getCardComments(boardId, cardId), boardId);
     if (!result.ok) {
       return result;
     }
 
-    if (activeBoardId.value === boardId) {
-      SET_CARD_COMMENTS(cardId, result.data);
-    }
+    SET_CARD_COMMENTS(boardId, cardId, result.data);
 
     return result;
   }
 
   async function addCardComment(boardId: number, cardId: number, text: string) {
-    activeBoardId.value = boardId;
     const result = await runBusy(() => api.createCardComment(boardId, cardId, text), boardId);
     if (!result.ok) {
       return result;
     }
 
-    if (activeBoardId.value !== boardId) {
+    if (!UPSERT_CARD_COMMENT(boardId, result.data)) {
       return null;
     }
 
-    UPSERT_CARD_COMMENT(result.data);
     return result;
   }
 
@@ -71,8 +80,8 @@ export const useCommentStore = defineStore('comment', () => {
     return commentsByCardId.value[cardId] ?? [];
   }
 
-  function upsertCardComment(comment: CardComment) {
-    UPSERT_CARD_COMMENT(comment);
+  function upsertCardComment(boardId: number, comment: CardComment) {
+    UPSERT_CARD_COMMENT(boardId, comment);
   }
 
   async function runBusy<T>(operation: () => Promise<Result<T, AppError>>, boardId: number) {
@@ -98,6 +107,7 @@ export const useCommentStore = defineStore('comment', () => {
   return {
     commentsByCardId,
     busy,
+    initialize,
     dispose,
     loadCardComments,
     addCardComment,
