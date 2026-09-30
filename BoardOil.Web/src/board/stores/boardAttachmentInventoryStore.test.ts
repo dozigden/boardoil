@@ -6,7 +6,7 @@ import { err, ok } from '../../shared/types/result';
 import { defaultBoardAttachmentInventoryQuery, type BoardAttachmentInventory } from '../../shared/types/attachmentTypes';
 
 const api = { supportsAttachments: true, supportsAttachmentMutations: true,
-  getBoardAttachments: vi.fn(), downloadAttachment: vi.fn(), deleteBoardAttachment: vi.fn() };
+  getBoardAttachments: vi.fn(), deleteBoardAttachment: vi.fn() };
 vi.mock('../../shared/api/boardApi', () => ({ createBoardApi: () => api }));
 const empty: BoardAttachmentInventory = { items: [], totalCount: 0, totalByteLength: 0, matchingCount: 0, offset: 0, limit: 50 };
 const populated: BoardAttachmentInventory = {
@@ -62,18 +62,6 @@ describe('boardAttachmentInventoryStore', () => {
 
     expect(store.inventory).toBeNull();
     expect(store.loading).toBe(false);
-  });
-
-  it('reports download failures through shared feedback', async () => {
-    api.getBoardAttachments.mockResolvedValueOnce(ok(empty));
-    api.downloadAttachment.mockResolvedValueOnce(err({ kind: 'api', message: 'File missing' }));
-    const store = useBoardAttachmentInventoryStore();
-    await store.load(12);
-
-    await store.download(3);
-
-    expect(api.downloadAttachment).toHaveBeenCalledWith(12, 3);
-    expect(useUiFeedbackStore().errorMessage).toBe('Attachment could not be downloaded: File missing');
   });
 
   it('passes paging and filters to the API and ignores an older sort response on the same board', async () => {

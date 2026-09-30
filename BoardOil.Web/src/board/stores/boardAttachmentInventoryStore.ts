@@ -66,23 +66,5 @@ export const useBoardAttachmentInventoryStore = defineStore('boardAttachmentInve
     }
   }
 
-  async function download(attachmentId: number) {
-    const id = boardId.value;
-    if (id === null) { return; }
-    const result = await api.downloadAttachment(id, attachmentId);
-    if (boardId.value !== id) { return; }
-    if (!result.ok) {
-      feedback.setError(`Attachment could not be downloaded: ${result.error.message}`);
-      return;
-    }
-    feedback.clearError();
-    const url = URL.createObjectURL(result.data.blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = result.data.fileName;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  return { inventory, loading, error, deletingId, mutable, load, clear, download, remove };
+  return { inventory, loading, error, deletingId, mutable, load, clear, remove };
 });

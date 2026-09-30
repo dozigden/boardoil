@@ -47,10 +47,7 @@
           @next-page="nextPage"
         >
           <template #cell(id)="{ row }">
-            <a class="attachment-cell" :title="String(row.originalFileName)"
-              :href="buildApiUrl(`/api/boards/${currentBoardId}/attachments/${row.id}/download`)"
-              :download="String(row.originalFileName)" :aria-label="`Download ${row.originalFileName}`"
-              @click.left.exact.prevent="store.download(Number(row.id))">{{ row.originalFileName }}</a>
+            <span class="attachment-cell" :title="String(row.originalFileName)">{{ row.originalFileName }}</span>
           </template>
           <template #cell(contentType)="{ row }">
             <span class="attachment-cell" :title="String(row.contentType)">{{ row.contentType }}</span>
@@ -87,7 +84,6 @@ import BoGrid from '../../shared/components/BoGrid.vue';
 import { useBoardStore } from '../stores/boardStore';
 import { useBoardAttachmentInventoryStore } from '../stores/boardAttachmentInventoryStore';
 import { formatAttachmentSize } from '../utils/formatAttachmentSize';
-import { buildApiUrl } from '../../shared/api/config';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { defaultBoardAttachmentInventoryQuery, type BoardAttachmentInventoryItem, type BoardAttachmentInventoryQuery } from '../../shared/types/attachmentTypes';
 
