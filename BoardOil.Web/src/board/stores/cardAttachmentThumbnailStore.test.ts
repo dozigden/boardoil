@@ -172,8 +172,8 @@ describe('cardAttachmentThumbnailStore', () => {
     });
   });
 
-  it('does not refresh when an attachment other than the displayed candidate is deleted', async () => {
-    api.getCardThumbnails.mockResolvedValueOnce(ok([
+  it('refreshes when an attachment other than the displayed candidate is deleted', async () => {
+    api.getCardThumbnails.mockResolvedValue(ok([
       { cardId: 2, attachmentId: 8, originalFileName: 'first.png', hasThumbnail: true }
     ]));
     const store = useCardAttachmentThumbnailStore();
@@ -182,8 +182,86 @@ describe('cardAttachmentThumbnailStore', () => {
 
     await store.attachmentDeleted(4, 2, 9);
 
-    expect(api.getCardThumbnails).not.toHaveBeenCalled();
+    expect(api.getCardThumbnails).toHaveBeenCalledWith(4, [2]);
     expect(store.getForCard(2)?.attachmentId).toBe(8);
+  });
+
+  it('refreshes a second deletion while the first fallback is still pending', async () => {
+    api.getCardThumbnails.mockResolvedValueOnce(ok([
+      { cardId: 2, attachmentId: 8, originalFileName: 'first.png', hasThumbnail: true }
+    ]));
+    const store = useCardAttachmentThumbnailStore();
+    await store.loadBoard(4, true);
+    const first = deferred<Result<CardAttachmentImageCandidate[], AppError>>();
+    const second = deferred<Result<CardAttachmentImageCandidate[], AppError>>();
+    api.getCardThumbnails.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+
+    const firstDeletion = store.attachmentDeleted(4, 2, 8);
+    expect(store.getForCard(2)).toBeNull();
+    const secondDeletion = store.attachmentDeleted(4, 2, 9);
+
+    expect(api.getCardThumbnails).toHaveBeenCalledTimes(3);
+    expect(api.getCardThumbnails).toHaveBeenLastCalledWith(4, [2]);
+    first.resolve(ok([
+      { cardId: 2, attachmentId: 9, originalFileName: 'second.png', hasThumbnail: true }
+    ]));
+    await firstDeletion;
+    second.resolve(ok([
+      { cardId: 2, attachmentId: 10, originalFileName: 'third.png', hasThumbnail: true }
+    ]));
+    await secondDeletion;
+
+    expect(store.getForCard(2)?.attachmentId).toBe(10);
+  });
+
+  it('clears a card with no remaining image without changing other cards', async () => {
+    api.getCardThumbnails.mockResolvedValueOnce(ok([
+      { cardId: 2, attachmentId: 8, originalFileName: 'first.png', hasThumbnail: true },
+      { cardId: 3, attachmentId: 9, originalFileName: 'other.png', hasThumbnail: true }
+    ]));
+    const store = useCardAttachmentThumbnailStore();
+    await store.loadBoard(4, true);
+
+    await store.attachmentDeleted(4, 2, 8);
+
+    expect(store.getForCard(2)).toBeNull();
+    expect(store.getForCard(3)?.attachmentId).toBe(9);
+  });
+
+  describe.each(['load', 'refresh'] as const)('pending %s responses', operation => {
+    it.each(['board change', 'clear', 'disable'] as const)('ignores a response after %s', async change => {
+      const store = useCardAttachmentThumbnailStore();
+      await store.loadBoard(4, true);
+      const pending = deferred<Result<CardAttachmentImageCandidate[], AppError>>();
+      api.getCardThumbnails.mockReturnValueOnce(pending.promise);
+      const request = operation === 'load' ? store.loadBoard(4, true) : store.refreshCards(4, [2]);
+
+      switch (change) {
+        case 'board change':
+          api.getCardThumbnails.mockResolvedValueOnce(ok([
+            { cardId: 2, attachmentId: 10, originalFileName: 'other-board.png', hasThumbnail: true }
+          ]));
+          await store.loadBoard(5, true);
+          break;
+        case 'clear':
+          store.clear();
+          break;
+        case 'disable':
+          await store.loadBoard(4, false);
+          break;
+      }
+
+      pending.resolve(ok([
+        { cardId: 2, attachmentId: 8, originalFileName: 'old.png', hasThumbnail: true }
+      ]));
+      await request;
+
+      if (change === 'board change') {
+        expect(store.getForCard(2)?.attachmentId).toBe(10);
+      } else {
+        expect(store.getForCard(2)).toBeNull();
+      }
+    });
   });
 
   it('suppresses targeted refreshes while thumbnails are disabled', async () => {
