@@ -154,7 +154,7 @@ async function removeMember(member: BoardMember) {
     return;
   }
 
-  await boardMembersStore.removeMember(currentBoardId.value!, member.userId);
+  await boardMembersStore.deleteMember(currentBoardId.value!, member.userId);
 }
 
 function focusMemberRoleControl(userId: number) {

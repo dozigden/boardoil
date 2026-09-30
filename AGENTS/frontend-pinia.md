@@ -34,7 +34,7 @@ The usual flow is:
 
 1. A view or composable calls a store action with explicit inputs.
 2. The action calls the typed API client.
-3. After success and the relevant context checks, it applies the response through shared state-update actions.
+3. After success, it applies the response through shared internal mutations, which own the relevant context checks.
 4. Failures use the established feedback path.
 
 - Keep request actions, state-update actions and pure helpers recognisable as separate responsibilities. A server delete action and a local removal action do different work.
@@ -43,9 +43,21 @@ The usual flow is:
 - Keep actions explicit and predictable: load, create, update, delete, move, upsert and remove. Prefer names that describe the actual scope; `unlinkCardsFromColumns` returns a column membership map excluding the specified cards. It leaves card entities and attachments untouched.
 - Pass primitive IDs when identity is all an operation needs, or an ID collection for a collection operation. Do not introduce single-field removal models.
 - Preserve the return contract callers use to decide whether to close an editor, display validation or continue another operation.
+- When the API returns the authoritative entity, apply that response locally. Do not reload the collection just to reflect the write. Completing a write must not select or restore the board the request originally targeted.
 - Use small helpers for genuine shared work. First check whether callers can use an existing action directly before adding a generic request/orchestration wrapper.
 
-Uppercase `VERB_NOUN` naming for state mutations is a separate proposal tracked in story #890. It has not been adopted; retain current camelCase names until that decision is made.
+## Internal Mutation Convention
+
+- Name internal state-mutation helpers in uppercase `VERB_NOUN` form, for example `UPSERT_MEMBER` and `REMOVE_MEMBER`.
+- Keep them strictly internal to the store. In setup stores, omit them from the returned object; callers must not invoke uppercase helpers through the store API.
+- Group them together at the top of the store body, immediately after state and dependency declarations, before public actions and other helpers.
+- Keep public actions and other helpers in camelCase, including request actions such as `addMember`, `updateMemberRole` and `deleteMember`, and lifecycle actions such as `loadMembers` and `dispose`.
+- Internal mutations synchronously apply local state changes. Keep API requests and asynchronous orchestration in actions. This is a naming and organisation convention for ordinary functions; use direct calls without a Vuex-style `commit` or mutation registry.
+- Pass the operation's board/card identity to a scoped mutation. The mutation owns the check against the store's current context and ignores data for a different context. Callers share that check by delegating to the mutation.
+- Reuse the same internal mutation wherever the local state change is the same. For example, successful addition and role update both call `UPSERT_MEMBER(boardId, member)`; successful deletion calls `REMOVE_MEMBER(boardId, userId)`.
+- When realtime routing or another store needs to apply a change, expose a camelCase action that delegates to the internal mutation and owns any related orchestration. Keep the uppercase helper private.
+
+Apply this convention as stores are changed or reviewed. Existing camelCase public state-update actions remain public contracts; do not rename them to uppercase or migrate unrelated stores as part of a scoped change.
 
 ## Collection Operations
 
@@ -113,6 +125,7 @@ The action that applies a domain change owns its related state updates. Views an
 
 Reference files:
 
+- [boardMembersStore.ts](../BoardOil.Web/src/board/stores/boardMembersStore.ts): internal uppercase mutations grouped at the top, shared by public request actions, with board checks inside the mutations.
 - [boardStore.ts](../BoardOil.Web/src/board/stores/boardStore.ts): context ownership, derived identity, guarded realtime routing and catalogue loading.
 - [cardStore.ts](../BoardOil.Web/src/board/stores/cardStore.ts): collection updates, ordering and shared card side effects.
 - [attachmentStore.ts](../BoardOil.Web/src/board/stores/attachmentStore.ts): open-context handling and thumbnail coordination.

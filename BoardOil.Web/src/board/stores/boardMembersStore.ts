@@ -17,6 +17,23 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
   const api = createBoardApi();
   let loadRequestVersion = 0;
 
+  function UPSERT_MEMBER(boardId: number, member: BoardMember) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    members.value = [...members.value.filter(existing => existing.userId !== member.userId), member]
+      .sort((left, right) => left.displayName.localeCompare(right.displayName));
+  }
+
+  function REMOVE_MEMBER(boardId: number, userId: number) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    members.value = members.value.filter(member => member.userId !== userId);
+  }
+
   function dispose() {
     loadRequestVersion += 1;
     activeBoardId.value = null;
@@ -60,28 +77,27 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
       return null;
     }
 
-    await loadMembers(boardId);
+    UPSERT_MEMBER(boardId, result.data);
     return result.data;
   }
 
   async function updateMemberRole(boardId: number, model: BoardMemberEditModel) {
     const result = await runBusy(() => api.updateBoardMemberRole(boardId, model));
     if (!result.ok) {
-      await loadMembers(boardId);
       return null;
     }
 
-    await loadMembers(boardId);
+    UPSERT_MEMBER(boardId, result.data);
     return result.data;
   }
 
-  async function removeMember(boardId: number, userId: number) {
+  async function deleteMember(boardId: number, userId: number) {
     const result = await runBusy(() => api.removeBoardMember(boardId, userId));
     if (!result.ok) {
       return false;
     }
 
-    await loadMembers(boardId);
+    REMOVE_MEMBER(boardId, userId);
     return true;
   }
 
@@ -113,6 +129,6 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
     loadMembers,
     addMember,
     updateMemberRole,
-    removeMember
+    deleteMember
   };
 });
