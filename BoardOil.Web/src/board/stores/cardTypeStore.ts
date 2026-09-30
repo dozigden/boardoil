@@ -12,7 +12,6 @@ export const useCardTypeStore = defineStore('cardType', () => {
   const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
-  let loadRequestVersion = 0;
 
   const systemCardType = computed(() => cardTypes.value.find(x => x.isSystem) ?? null);
 
@@ -49,21 +48,19 @@ export const useCardTypeStore = defineStore('cardType', () => {
   }
 
   function dispose() {
-    loadRequestVersion += 1;
     cardTypes.value = [];
     busy.value = false;
     activeBoardId.value = null;
   }
 
   async function loadCardTypes(boardId: number) {
-    const requestVersion = ++loadRequestVersion;
     if (activeBoardId.value !== boardId) {
       cardTypes.value = [];
     }
 
     activeBoardId.value = boardId;
     const result = await api.getCardTypes(boardId);
-    if (requestVersion !== loadRequestVersion) {
+    if (activeBoardId.value !== boardId) {
       return false;
     }
 

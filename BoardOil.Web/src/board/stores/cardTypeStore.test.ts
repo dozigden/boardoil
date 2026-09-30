@@ -3,6 +3,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useCardTypeStore } from './cardTypeStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { err, ok } from '../../shared/types/result';
+import type { AppError } from '../../shared/types/appError';
+import type { Result } from '../../shared/types/result';
 
 const api = {
   getCardTypes: vi.fn(),
@@ -38,26 +40,38 @@ describe('cardTypeStore', () => {
     expect(store.cardTypes.map(x => x.name)).toEqual(['Story']);
   });
 
-  it('ignores stale loadCardTypes responses when board changes mid-load', async () => {
-    const store = useCardTypeStore();
-    const firstRequest = createDeferred<{ ok: true; data: ReturnType<typeof makeCardType>[] }>();
-    const secondRequest = createDeferred<{ ok: true; data: ReturnType<typeof makeCardType>[] }>();
+  describe.each(['board change', 'disposal'] as const)('pending loads after %s', change => {
+    it.each(['success', 'failure'] as const)('ignores late %s without changing feedback', async outcome => {
+      const store = useCardTypeStore();
+      const feedback = useUiFeedbackStore();
+      const pending = createDeferred<Result<ReturnType<typeof makeCardType>[], AppError>>();
+      api.getCardTypes.mockReturnValueOnce(pending.promise);
+      const load = store.loadCardTypes(1);
 
-    api.getCardTypes
-      .mockImplementationOnce(() => firstRequest.promise)
-      .mockImplementationOnce(() => secondRequest.promise);
+      if (change === 'board change') {
+        api.getCardTypes.mockResolvedValueOnce(ok([makeCardType(20, 'Second Board Type')]));
+        await store.loadCardTypes(2);
+      } else {
+        store.dispose();
+      }
+      feedback.setError('Current feedback');
 
-    const firstLoad = store.loadCardTypes(1);
-    const secondLoad = store.loadCardTypes(2);
+      if (outcome === 'success') {
+        pending.resolve(ok([makeCardType(10, 'First Board Type')]));
+      } else {
+        pending.resolve(err({ kind: 'api', message: 'Old board load failed' }));
+      }
 
-    secondRequest.resolve({ ok: true, data: [makeCardType(20, 'Second Board Type')] });
-    await secondLoad;
-
-    firstRequest.resolve({ ok: true, data: [makeCardType(10, 'First Board Type')] });
-    await firstLoad;
-
-    expect(store.activeBoardId).toBe(2);
-    expect(store.cardTypes.map(x => x.name)).toEqual(['Second Board Type']);
+      expect(await load).toBe(false);
+      expect(feedback.errorMessage).toBe('Current feedback');
+      if (change === 'board change') {
+        expect(store.activeBoardId).toBe(2);
+        expect(store.cardTypes.map(x => x.name)).toEqual(['Second Board Type']);
+      } else {
+        expect(store.activeBoardId).toBeNull();
+        expect(store.cardTypes).toEqual([]);
+      }
+    });
   });
 
   it('reports errors from API operations', async () => {
