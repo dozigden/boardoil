@@ -3,6 +3,9 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useSlickStore } from './slickStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { err, ok } from '../../shared/types/result';
+import type { AppError } from '../../shared/types/appError';
+import type { Slick } from '../../shared/types/boardTypes';
+import type { Result } from '../../shared/types/result';
 
 const api = {
   getSlicks: vi.fn(),
@@ -41,26 +44,80 @@ describe('slickStore', () => {
     expect(store.slicks.map(x => x.name)).toEqual(['Release Train']);
   });
 
-  it('ignores stale loadSlicks responses when board changes mid-load', async () => {
-    const store = useSlickStore();
-    const firstRequest = createDeferred<{ ok: true; data: ReturnType<typeof makeSlick>[] }>();
-    const secondRequest = createDeferred<{ ok: true; data: ReturnType<typeof makeSlick>[] }>();
+  describe.each(['board change', 'disposal'] as const)('pending loads after %s', change => {
+    it.each(['success', 'failure'] as const)('ignores late %s without changing feedback', async outcome => {
+      const store = useSlickStore();
+      const feedback = useUiFeedbackStore();
+      const pending = createDeferred<Result<Slick[], AppError>>();
+      api.getSlicks.mockReturnValueOnce(pending.promise);
+      const load = store.loadSlicks(1);
 
-    api.getSlicks
-      .mockImplementationOnce(() => firstRequest.promise)
-      .mockImplementationOnce(() => secondRequest.promise);
+      if (change === 'board change') {
+        api.getSlicks.mockResolvedValueOnce(ok([makeSlick(20, 'Second Board Slick', 'presets', '{"presetIndex":1}')]));
+        await store.loadSlicks(2);
+      } else {
+        store.dispose();
+      }
+      feedback.setError('Current feedback');
 
-    const firstLoad = store.loadSlicks(1);
-    const secondLoad = store.loadSlicks(2);
+      if (outcome === 'success') {
+        pending.resolve(ok([makeSlick(10, 'First Board Slick', 'presets', '{"presetIndex":2}')]));
+      } else {
+        pending.resolve(err({ kind: 'api', message: 'Old board load failed' }));
+      }
 
-    secondRequest.resolve({ ok: true, data: [makeSlick(20, 'Second Board Slick', 'presets', '{"presetIndex":1}')] });
-    await secondLoad;
+      expect(await load).toBe(false);
+      expect(feedback.errorMessage).toBe('Current feedback');
+      if (change === 'board change') {
+        expect(store.activeBoardId).toBe(2);
+        expect(store.slicks.map(x => x.name)).toEqual(['Second Board Slick']);
+      } else {
+        expect(store.activeBoardId).toBeNull();
+        expect(store.slicks).toEqual([]);
+      }
+    });
+  });
 
-    firstRequest.resolve({ ok: true, data: [makeSlick(10, 'First Board Slick', 'presets', '{"presetIndex":2}')] });
-    await firstLoad;
+  describe.each(['create', 'update', 'delete'] as const)('pending %s', operation => {
+    it.each(['board change', 'disposal'] as const)('does not alter the catalogue after %s', async change => {
+      const store = useSlickStore();
+      await store.loadSlicks(1);
+      const saved = makeSlick(7, 'Old board slick', 'presets', '{"presetIndex":2}');
+      const pending = createDeferred<Result<Slick | void, AppError>>();
+      let write: Promise<Slick | boolean | null>;
+      switch (operation) {
+        case 'create':
+          api.createSlick.mockReturnValueOnce(pending.promise);
+          write = store.createSlick(saved, 1);
+          break;
+        case 'update':
+          api.updateSlick.mockReturnValueOnce(pending.promise);
+          write = store.updateSlick(saved.id, saved, 1);
+          break;
+        case 'delete':
+          api.deleteSlick.mockReturnValueOnce(pending.promise);
+          write = store.deleteSlick(saved.id, 1);
+          break;
+      }
 
-    expect(store.activeBoardId).toBe(2);
-    expect(store.slicks.map(x => x.name)).toEqual(['Second Board Slick']);
+      const current = makeSlick(7, 'Current board slick', 'presets', '{"presetIndex":3}');
+      if (change === 'board change') {
+        api.getSlicks.mockResolvedValueOnce(ok([current]));
+        await store.loadSlicks(2);
+      } else {
+        store.dispose();
+      }
+
+      if (operation === 'delete') {
+        pending.resolve(ok(undefined));
+        expect(await write).toBe(true);
+      } else {
+        pending.resolve(ok(saved));
+        expect(await write).toEqual(saved);
+      }
+      expect(store.slicks).toEqual(change === 'board change' ? [current] : []);
+      expect(api.getSlicks).toHaveBeenCalledTimes(change === 'board change' ? 2 : 1);
+    });
   });
 
   it('creates and caches slick', async () => {

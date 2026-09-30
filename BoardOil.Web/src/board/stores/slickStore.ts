@@ -12,24 +12,53 @@ export const useSlickStore = defineStore('slick', () => {
   const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
-  let loadRequestVersion = 0;
+
+  function SET_SLICKS(boardId: number, nextSlicks: Slick[]) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    slicks.value = sortSlicks(nextSlicks);
+  }
+
+  function UPSERT_SLICK(boardId: number, slick: Slick) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    const existingIndex = slicks.value.findIndex(x => x.id === slick.id);
+    if (existingIndex < 0) {
+      slicks.value = sortSlicks([...slicks.value, slick]);
+      return;
+    }
+
+    const next = [...slicks.value];
+    next[existingIndex] = slick;
+    slicks.value = sortSlicks(next);
+  }
+
+  function REMOVE_SLICK(boardId: number, slickId: number) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    slicks.value = slicks.value.filter(x => x.id !== slickId);
+  }
 
   function dispose() {
-    loadRequestVersion += 1;
     activeBoardId.value = null;
     slicks.value = [];
     busy.value = false;
   }
 
   async function loadSlicks(boardId: number) {
-    const requestVersion = ++loadRequestVersion;
     if (activeBoardId.value !== boardId) {
       slicks.value = [];
     }
 
     activeBoardId.value = boardId;
     const result = await api.getSlicks(boardId);
-    if (requestVersion !== loadRequestVersion) {
+    if (activeBoardId.value !== boardId) {
       return false;
     }
 
@@ -38,7 +67,7 @@ export const useSlickStore = defineStore('slick', () => {
       return false;
     }
 
-    slicks.value = [...result.data].sort((a, b) => a.name.localeCompare(b.name));
+    SET_SLICKS(boardId, result.data);
     feedback.clearError();
     return true;
   }
@@ -52,7 +81,7 @@ export const useSlickStore = defineStore('slick', () => {
       return null;
     }
 
-    upsertSlick(boardId, result.data);
+    UPSERT_SLICK(boardId, result.data);
     return result.data;
   }
 
@@ -75,7 +104,7 @@ export const useSlickStore = defineStore('slick', () => {
       return null;
     }
 
-    upsertSlick(boardId, result.data);
+    UPSERT_SLICK(boardId, result.data);
     return result.data;
   }
 
@@ -85,11 +114,7 @@ export const useSlickStore = defineStore('slick', () => {
       return false;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return true;
-    }
-
-    slicks.value = slicks.value.filter(x => x.id !== slickId);
+    REMOVE_SLICK(boardId, slickId);
     return true;
   }
 
@@ -118,19 +143,7 @@ export const useSlickStore = defineStore('slick', () => {
   }
 
   function upsertSlick(boardId: number, slick: Slick) {
-    if (activeBoardId.value !== boardId) {
-      return;
-    }
-
-    const existingIndex = slicks.value.findIndex(x => x.id === slick.id);
-    if (existingIndex < 0) {
-      slicks.value = [...slicks.value, slick].sort((a, b) => a.name.localeCompare(b.name));
-      return;
-    }
-
-    const next = [...slicks.value];
-    next[existingIndex] = slick;
-    slicks.value = next.sort((a, b) => a.name.localeCompare(b.name));
+    UPSERT_SLICK(boardId, slick);
   }
 
   function reportError(error: AppError) {
@@ -151,3 +164,7 @@ export const useSlickStore = defineStore('slick', () => {
     getSlickById
   };
 });
+
+function sortSlicks(slicks: Slick[]) {
+  return [...slicks].sort((left, right) => left.name.localeCompare(right.name));
+}
