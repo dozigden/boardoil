@@ -18,6 +18,12 @@ export const useBoardAttachmentInventoryStore = defineStore('boardAttachmentInve
   let requestVersion = 0;
   let contextVersion = 0;
 
+  function SET_INVENTORY(id: number, snapshot: BoardAttachmentInventory | null) {
+    if (boardId.value !== id) { return; }
+
+    inventory.value = snapshot;
+  }
+
   function clear() {
     requestVersion++;
     contextVersion++;
@@ -39,12 +45,12 @@ export const useBoardAttachmentInventoryStore = defineStore('boardAttachmentInve
     if (version !== requestVersion) { return; }
     loading.value = false;
     if (!result.ok) {
-      inventory.value = null;
+      SET_INVENTORY(id, null);
       error.value = result.error.message;
       feedback.setError(result.error.message);
       return;
     }
-    inventory.value = result.data;
+    SET_INVENTORY(id, result.data);
     feedback.clearError();
   }
 
