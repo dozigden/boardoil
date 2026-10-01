@@ -18,6 +18,31 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role === 'Admin');
   let initializePromise: Promise<void> | null = null;
 
+  function SET_SESSION(authenticatedUser: AuthUser, csrfToken: string) {
+    setCsrfToken(csrfToken);
+    user.value = authenticatedUser;
+    errorMessage.value = null;
+    initialized.value = true;
+  }
+
+  function CLEAR_SESSION() {
+    user.value = null;
+    setCsrfToken(null);
+  }
+
+  function UPDATE_OWN_PROFILE(displayName: string, userName: string, role: string) {
+    if (!user.value) {
+      return;
+    }
+
+    user.value = {
+      ...user.value,
+      userName,
+      displayName,
+      role
+    };
+  }
+
   setUnauthorizedHandler(async () => {
     const currentPath = router.currentRoute.value.fullPath;
     handleUnauthorized();
@@ -44,7 +69,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (!meResult.ok || !meResult.data) {
         const bootstrapStatusResult = await api.getBootstrapStatus();
         requiresInitialAdminSetup.value = bootstrapStatusResult.ok && bootstrapStatusResult.data;
-        clearSession();
+        CLEAR_SESSION();
         initialized.value = true;
         return;
       }
@@ -98,7 +123,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function restoreSession(authenticatedUser: AuthUser) {
-    clearSession();
+    CLEAR_SESSION();
     requiresInitialAdminSetup.value = false;
     const csrfResult = await api.getCsrfToken();
     if (!csrfResult.ok) {
@@ -111,10 +136,7 @@ export const useAuthStore = defineStore('auth', () => {
       return false;
     }
 
-    setCsrfToken(csrfResult.data.csrfToken);
-    user.value = authenticatedUser;
-    errorMessage.value = null;
-    initialized.value = true;
+    SET_SESSION(authenticatedUser, csrfResult.data.csrfToken);
     return true;
   }
 
@@ -128,7 +150,7 @@ export const useAuthStore = defineStore('auth', () => {
         return false;
       }
 
-      clearSession();
+      CLEAR_SESSION();
       return true;
     } finally {
       busy.value = false;
@@ -140,31 +162,17 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       await api.logout();
     } finally {
-      clearSession();
+      CLEAR_SESSION();
       busy.value = false;
     }
   }
 
   function handleUnauthorized() {
-    clearSession();
-  }
-
-  function clearSession() {
-    user.value = null;
-    setCsrfToken(null);
+    CLEAR_SESSION();
   }
 
   function setOwnProfile(displayName: string, userName: string, role: string) {
-    if (!user.value) {
-      return;
-    }
-
-    user.value = {
-      ...user.value,
-      userName,
-      displayName,
-      role
-    };
+    UPDATE_OWN_PROFILE(displayName, userName, role);
   }
 
   return {
