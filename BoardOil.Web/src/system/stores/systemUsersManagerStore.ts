@@ -15,12 +15,28 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
   const api = createSystemApi();
   const feedback = useUiFeedbackStore();
 
+  function SET_USERS(nextUsers: ManagedUser[]) {
+    users.value = nextUsers;
+  }
+
+  function ADD_USER(user: ManagedUser) {
+    SET_USERS([...users.value, user].sort((left, right) => left.userName.localeCompare(right.userName)));
+  }
+
+  function UPDATE_USER(userId: number, updatedUser: ManagedUser) {
+    SET_USERS(users.value.map(user => (user.id === userId ? updatedUser : user)));
+  }
+
+  function REMOVE_USER(userId: number) {
+    SET_USERS(users.value.filter(user => user.id !== userId));
+  }
+
   function clearMessages() {
     errorMessage.value = null;
   }
 
   function dispose() {
-    users.value = [];
+    SET_USERS([]);
     busy.value = false;
     clearMessages();
   }
@@ -32,11 +48,11 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
       const result = await api.getUsers();
       if (!result.ok) {
         errorMessage.value = result.error.message;
-        users.value = [];
+        SET_USERS([]);
         return false;
       }
 
-      users.value = result.data;
+      SET_USERS(result.data);
       return true;
     } finally {
       busy.value = false;
@@ -53,7 +69,7 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
         return false;
       }
 
-      users.value = [...users.value, result.data].sort((left, right) => left.userName.localeCompare(right.userName));
+      ADD_USER(result.data);
       feedback.showToast('Created successfully.');
       return true;
     } finally {
@@ -71,7 +87,7 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
         return false;
       }
 
-      users.value = users.value.map(user => (user.id === userId ? result.data : user));
+      UPDATE_USER(userId, result.data);
       feedback.showToast('Saved successfully.');
       return true;
     } finally {
@@ -106,7 +122,7 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
         return false;
       }
 
-      users.value = users.value.filter(entry => entry.id !== userId);
+      REMOVE_USER(userId);
       feedback.showToast('Deleted successfully.');
       return true;
     } finally {

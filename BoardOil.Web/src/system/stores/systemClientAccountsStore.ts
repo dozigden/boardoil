@@ -17,12 +17,36 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
   const api = createSystemApi();
   const feedback = useUiFeedbackStore();
 
+  function SET_CLIENTS(nextClients: ClientAccount[]) {
+    clients.value = nextClients;
+  }
+
+  function ADD_CLIENT(client: ClientAccount) {
+    SET_CLIENTS([...clients.value, client].sort((left, right) => left.userName.localeCompare(right.userName)));
+  }
+
+  function UPDATE_CLIENT(clientId: number, updatedClient: ClientAccount) {
+    SET_CLIENTS(clients.value.map(client => (client.id === clientId ? updatedClient : client)));
+  }
+
+  function REMOVE_CLIENT(clientId: number) {
+    SET_CLIENTS(clients.value.filter(client => client.id !== clientId));
+  }
+
+  function SET_CLIENT_IMAGE(clientId: number, relativePath: string | null) {
+    SET_CLIENTS(clients.value.map(client =>
+      client.id === clientId
+        ? { ...client, profileImageRelativePath: relativePath }
+        : client
+    ));
+  }
+
   function clearMessages() {
     errorMessage.value = null;
   }
 
   function dispose() {
-    clients.value = [];
+    SET_CLIENTS([]);
     busy.value = false;
     clearMessages();
   }
@@ -34,11 +58,11 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
       const result = await api.getClientAccounts();
       if (!result.ok) {
         errorMessage.value = result.error.message;
-        clients.value = [];
+        SET_CLIENTS([]);
         return false;
       }
 
-      clients.value = result.data;
+      SET_CLIENTS(result.data);
       return true;
     } finally {
       busy.value = false;
@@ -55,7 +79,7 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
         return null;
       }
 
-      clients.value = [...clients.value, result.data.account].sort((left, right) => left.userName.localeCompare(right.userName));
+      ADD_CLIENT(result.data.account);
       feedback.showToast('Created successfully.');
       return result.data;
     } finally {
@@ -73,7 +97,7 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
         return null;
       }
 
-      clients.value = clients.value.map(client => (client.id === clientId ? result.data : client));
+      UPDATE_CLIENT(clientId, result.data);
       feedback.showToast('Saved successfully.');
       return result.data;
     } finally {
@@ -91,7 +115,7 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
         return false;
       }
 
-      clients.value = clients.value.filter(entry => entry.id !== clientId);
+      REMOVE_CLIENT(clientId);
       feedback.showToast('Deleted successfully.');
       return true;
     } finally {
@@ -109,11 +133,7 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
         return null;
       }
 
-      clients.value = clients.value.map(client =>
-        client.id === clientId
-          ? { ...client, profileImageRelativePath: result.data.relativePath }
-          : client
-      );
+      SET_CLIENT_IMAGE(clientId, result.data.relativePath);
       feedback.showToast('Saved successfully.');
       return result.data;
     } finally {
@@ -131,11 +151,7 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
         return false;
       }
 
-      clients.value = clients.value.map(entry =>
-        entry.id === clientId
-          ? { ...entry, profileImageRelativePath: null }
-          : entry
-      );
+      SET_CLIENT_IMAGE(clientId, null);
       feedback.showToast('Removed successfully.');
       return true;
     } finally {

@@ -111,8 +111,9 @@ const displayName = computed(() => user.value?.displayName ?? userName.value);
 const userRole = computed(() => user.value?.role ?? 'Unknown');
 
 watch(
-  () => user.value,
-  async (nextUser) => {
+  () => user.value?.id,
+  async () => {
+    const nextUser = user.value;
     if (!nextUser) {
       editDisplayName.value = '';
       editEmail.value = '';
@@ -190,7 +191,6 @@ async function saveProfile() {
     return;
   }
 
-  authStore.setOwnProfile(result.displayName, result.userName, result.role);
   editDisplayName.value = result.displayName;
   editEmail.value = result.email;
   feedback.showToast('Saved successfully.');
