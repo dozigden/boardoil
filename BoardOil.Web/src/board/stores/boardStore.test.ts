@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useBoardStore } from './boardStore';
+import { useCardStore } from './cardStore';
 import { useBoardMembersStore } from './boardMembersStore';
 import { useCardTypeStore } from './cardTypeStore';
 import { useCommentStore } from './commentStore';
@@ -25,7 +26,8 @@ const api = {
   createColumn: vi.fn(),
   saveColumn: vi.fn(),
   moveColumn: vi.fn(),
-  deleteColumn: vi.fn()
+  deleteColumn: vi.fn(),
+  deleteSlick: vi.fn()
 };
 
 const realtime = {
@@ -83,8 +85,54 @@ describe('boardStore', () => {
     api.getCardTypes.mockResolvedValue(ok([]));
     api.getTags.mockResolvedValue(ok([]));
     api.getSlicks.mockResolvedValue(ok([]));
+    api.deleteSlick.mockResolvedValue(ok(undefined));
     realtime.connect.mockResolvedValue(undefined);
     realtime.disconnect.mockResolvedValue(undefined);
+  });
+
+  it.each(['success', 'failure', 'board change', 'disposal'])('coordinates slick deletion after %s', async outcome => {
+    const store = useBoardStore();
+    const cards = useCardStore();
+    const slicks = useSlickStore();
+    const slick = makeCatalogues().slicks[0]!;
+    const otherSlick = { ...slick, id: slick.id + 1, name: 'Other slick' };
+    const board = makeBoard();
+    const card = board.columns[0]!.cards[0]!;
+    Object.assign(card, { slickId: slick.id, slickName: slick.name, slick });
+    const otherCard = { ...card, id: 102, slickId: otherSlick.id, slickName: otherSlick.name, slick: otherSlick };
+    board.columns[0]!.cards.push(otherCard);
+    api.getBoard.mockResolvedValue(ok(board));
+    api.getSlicks.mockResolvedValue(ok([slick, otherSlick]));
+    await store.initialize(1);
+    const pending = deferred<Result<void, AppError>>();
+    api.deleteSlick.mockReturnValueOnce(pending.promise);
+    const deleting = store.deleteSlick(slick.id, 1);
+    if (outcome === 'board change') {
+      api.getBoard.mockResolvedValueOnce(ok({ ...board, id: 2 }));
+      await store.initialize(2);
+    } else if (outcome === 'disposal') {
+      await store.dispose();
+    }
+    if (outcome === 'failure') {
+      pending.resolve(err({ kind: 'api', message: 'Deletion failed.' }));
+    } else {
+      pending.resolve(ok(undefined));
+    }
+
+    expect(await deleting).toBe(outcome !== 'failure');
+    expect(api.deleteSlick).toHaveBeenCalledWith(1, slick.id);
+    if (outcome === 'disposal') {
+      expect(cards.getCardById(card.id)).toBeNull();
+      expect(slicks.slicks).toEqual([]);
+    } else if (outcome === 'success') {
+      expect(cards.getCardById(card.id)).toMatchObject({ slickId: null, slickName: null, slick: null });
+      expect(cards.getCardById(otherCard.id)).toEqual(otherCard);
+      expect(slicks.slicks).toEqual([otherSlick]);
+    } else {
+      expect(cards.getCardById(card.id)).toEqual(card);
+      expect(cards.getCardById(otherCard.id)).toEqual(otherCard);
+      expect(slicks.slicks).toHaveLength(2);
+    }
   });
 
   it('initializes board and connects realtime', async () => {

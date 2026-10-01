@@ -78,6 +78,7 @@ The action that applies a domain change owns its related state updates. Views an
 - Attachment additions/deletions go through `attachmentStore.added`/`removed`. These update the matching open context and coordinate board thumbnail updates. Thumbnail work must still happen when no card is open or a different card is open.
 - `cardStore.applyCreatedCard` combines upsert with thumbnail refresh. Realtime creation, duplication and archive restoration use it. Ordinary local creation uses upsert because it has no copied attachments to fetch; do not introduce extra requests solely to make callers look uniform.
 - Keep cleanup context-aware. Removing a live card must not clear attachment state for another board/card or an archived snapshot.
+- Slick deletion is coordinated by `boardStore.deleteSlick`: it calls `slickStore.deleteSlick`, then clears matching card membership only while that board is current. Editors call this one action. Keep the existing `cardStore` → `slickStore` dependency directed; do not add a reverse dependency for deletion cleanup.
 - Await related asynchronous work when the caller depends on its completion. A wrapper must return the delegated promise so its caller can await it.
 
 ## Catalogue Authority and API Contracts
@@ -101,6 +102,7 @@ The action that applies a domain change owns its related state updates. Views an
 - Child-store disposal clears owned data and invalidates pending loads so late responses cannot repopulate a disposed context. Initial board snapshot failures and loss of access clear the owned context through the shared cleanup path. Temporary background refresh failures retain the loaded board and active drafts while retrying; board changes and disposal cancel pending retries.
 - Keep board-scoped and application-scoped lifecycles distinct. Leaving a board workspace does not imply clearing every store in the application.
 - Do not add extra snapshot reloads or event buffering to cover hypothetical startup races. Introduce recovery work for a concrete requirement or observed failure; the rare initial-load/realtime race was explicitly left outside these refactors.
+- Keep board-ID guards for shared state. Do not add route snapshots, unmount flags or watcher cancellation solely to prevent late editor navigation after a pending save/delete; that navigation edge case is explicitly accepted. Assess each additional guard against the behaviour it protects rather than replacing one tracking mechanism with another.
 
 ## Realtime Routing
 

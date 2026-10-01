@@ -384,6 +384,18 @@ export const useBoardStore = defineStore('board', () => {
     feedback.clearWarning();
   }
 
+  async function deleteSlick(slickId: number, boardId: number) {
+    const deleted = await slickStore.deleteSlick(slickId, boardId);
+    if (!deleted) {
+      return false;
+    }
+
+    if (currentBoardId.value === boardId) {
+      cardStore.removeSlickFromCards(slickId);
+    }
+    return true;
+  }
+
   function upsertColumn(column: Column) {
     mutateBoardShell(draft => {
       const existingIndex = draft.columns.findIndex(x => x.id === column.id);
@@ -430,6 +442,7 @@ export const useBoardStore = defineStore('board', () => {
     saveColumn,
     moveColumn,
     deleteColumn,
+    deleteSlick,
     applyBoardSummaryUpdate,
     getColumnById
   };

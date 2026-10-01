@@ -120,6 +120,57 @@ describe('slickStore', () => {
     });
   });
 
+  describe.each(['create', 'update', 'delete', 'default style'] as const)('%s feedback', operation => {
+    it.each(['board change', 'disposal'] as const)('preserves current feedback and busy state after %s', async transition => {
+      const store = useSlickStore();
+      const feedback = useUiFeedbackStore();
+      await store.loadSlicks(1);
+      const model = makeSlick(7, 'Old slick', 'presets', '{"presetIndex":2}');
+      const success = createDeferred<Result<Slick | void, AppError>>();
+      const failure = createDeferred<Result<never, AppError>>();
+      let requests: Promise<unknown>[];
+      switch (operation) {
+        case 'create':
+          api.createSlick.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+          requests = [store.createSlick(model, 1), store.createSlick(model, 1)];
+          break;
+        case 'update':
+          api.updateSlick.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+          requests = [store.updateSlick(7, model, 1), store.updateSlick(7, model, 1)];
+          break;
+        case 'delete':
+          api.deleteSlick.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+          requests = [store.deleteSlick(7, 1), store.deleteSlick(7, 1)];
+          break;
+        case 'default style':
+          api.getSlickCreateDefaultStyle.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+          requests = [store.getCreateDefaultStyle(1), store.getCreateDefaultStyle(1)];
+          break;
+      }
+      const current = createDeferred<Result<Slick, AppError>>();
+      let currentRequest: Promise<unknown> | undefined;
+      if (transition === 'board change') {
+        await store.loadSlicks(2);
+        api.createSlick.mockReturnValueOnce(current.promise);
+        currentRequest = store.createSlick(model, 2);
+      } else {
+        store.dispose();
+      }
+      feedback.setError('Current feedback');
+      success.resolve(ok(operation === 'delete' ? undefined : model));
+      await requests[0];
+      expect(feedback.errorMessage).toBe('Current feedback');
+      expect(store.busy).toBe(transition === 'board change');
+      failure.resolve(err({ kind: 'api', message: 'Old failure' }));
+      await requests[1];
+      expect(feedback.errorMessage).toBe('Current feedback');
+      expect(store.busy).toBe(transition === 'board change');
+      expect(store.slicks).toEqual([]);
+      current.resolve(ok(model));
+      await currentRequest;
+    });
+  });
+
   it('creates and caches slick', async () => {
     const store = useSlickStore();
     store.activeBoardId = 3;

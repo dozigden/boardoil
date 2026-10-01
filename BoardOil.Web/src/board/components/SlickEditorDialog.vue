@@ -142,7 +142,6 @@ import { Check, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useCardStore } from '../stores/cardStore';
 import { useBoardStore } from '../stores/boardStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useStyleDraft } from '../composables/useStyleDraft';
@@ -155,7 +154,6 @@ import { useConfirm } from '../../shared/composables/useConfirm';
 
 const route = useRoute();
 const router = useRouter();
-const cardStore = useCardStore();
 const boardStore = useBoardStore();
 const slickStore = useSlickStore();
 const { confirm } = useConfirm();
@@ -164,12 +162,11 @@ const { busy } = storeToRefs(slickStore);
 const {
   createSlick,
   updateSlick,
-  deleteSlick,
   getSlickById,
   loadSlicks,
   getCreateDefaultStyle
 } = slickStore;
-const { removeSlickFromCards } = cardStore;
+const { deleteSlick } = boardStore;
 const {
   draft,
   stylePropertiesJson,
@@ -300,13 +297,15 @@ async function saveSlick() {
 }
 
 async function deleteEditingSlick() {
-  if (!editingSlick.value) {
+  const slick = editingSlick.value;
+  const targetBoardId = boardId.value;
+  if (!slick) {
     return;
   }
 
   const shouldDelete = await confirm({
     title: 'Delete slick',
-    message: `Delete slick "${editingSlick.value.name}"?\n\nCards in this slick will become unslicked.`,
+    message: `Delete slick "${slick.name}"?\n\nCards in this slick will become unslicked.`,
     confirmLabel: 'Delete',
     danger: true
   });
@@ -314,13 +313,11 @@ async function deleteEditingSlick() {
     return;
   }
 
-  const slickId = editingSlick.value.id;
-  const deleted = await deleteSlick(slickId, boardId.value);
+  const deleted = await deleteSlick(slick.id, targetBoardId);
   if (!deleted) {
     return;
   }
 
-  removeSlickFromCards(slickId);
   await closeSlickEditor();
 }
 

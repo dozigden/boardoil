@@ -76,7 +76,7 @@ export const useSlickStore = defineStore('slick', () => {
     model: SlickEditModel,
     boardId: number
   ) {
-    const result = await runBusy(() => api.createSlick(boardId, model));
+    const result = await runBusy(boardId, () => api.createSlick(boardId, model));
     if (!result.ok) {
       return null;
     }
@@ -86,7 +86,7 @@ export const useSlickStore = defineStore('slick', () => {
   }
 
   async function getCreateDefaultStyle(boardId: number): Promise<StyleDefault | null> {
-    const result = await runBusy(() => api.getSlickCreateDefaultStyle(boardId));
+    const result = await runBusy(boardId, () => api.getSlickCreateDefaultStyle(boardId));
     if (!result.ok) {
       return null;
     }
@@ -99,7 +99,7 @@ export const useSlickStore = defineStore('slick', () => {
     model: SlickEditModel,
     boardId: number
   ) {
-    const result = await runBusy(() => api.updateSlick(boardId, slickId, model));
+    const result = await runBusy(boardId, () => api.updateSlick(boardId, slickId, model));
     if (!result.ok) {
       return null;
     }
@@ -109,7 +109,7 @@ export const useSlickStore = defineStore('slick', () => {
   }
 
   async function deleteSlick(slickId: number, boardId: number) {
-    const result = await runBusy(() => api.deleteSlick(boardId, slickId));
+    const result = await runBusy(boardId, () => api.deleteSlick(boardId, slickId));
     if (!result.ok) {
       return false;
     }
@@ -126,10 +126,16 @@ export const useSlickStore = defineStore('slick', () => {
     return slicks.value.find(x => x.id === slickId) ?? null;
   }
 
-  async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
-    busy.value = true;
+  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+    if (activeBoardId.value === boardId) {
+      busy.value = true;
+    }
     try {
       const result = await operation();
+      if (activeBoardId.value !== boardId) {
+        return result;
+      }
+
       if (!result.ok) {
         reportError(result.error);
       } else {
@@ -138,7 +144,9 @@ export const useSlickStore = defineStore('slick', () => {
 
       return result;
     } finally {
-      busy.value = false;
+      if (activeBoardId.value === boardId) {
+        busy.value = false;
+      }
     }
   }
 
