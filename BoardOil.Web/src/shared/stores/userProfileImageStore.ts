@@ -15,6 +15,17 @@ export const useUserProfileImageStore = defineStore('userProfileImage', () => {
     userProfileImage.value ? buildApiUrl(`/images/${userProfileImage.value.relativePath}`) : null
   );
 
+  function SET_PROFILE_IMAGE(image: UserProfileImage | null) {
+    userProfileImage.value = image;
+    loaded.value = true;
+  }
+
+  function CLEAR_PROFILE_IMAGE() {
+    userProfileImage.value = null;
+    loaded.value = false;
+    errorMessage.value = null;
+  }
+
   async function loadOwnProfileImage(force = false) {
     if (loaded.value && !force) {
       return true;
@@ -25,8 +36,7 @@ export const useUserProfileImageStore = defineStore('userProfileImage', () => {
       return false;
     }
 
-    userProfileImage.value = result.data;
-    loaded.value = true;
+    SET_PROFILE_IMAGE(result.data);
     return true;
   }
 
@@ -40,8 +50,7 @@ export const useUserProfileImageStore = defineStore('userProfileImage', () => {
         return false;
       }
 
-      userProfileImage.value = result.data;
-      loaded.value = true;
+      SET_PROFILE_IMAGE(result.data);
       return true;
     } finally {
       busy.value = false;
@@ -58,8 +67,7 @@ export const useUserProfileImageStore = defineStore('userProfileImage', () => {
         return false;
       }
 
-      userProfileImage.value = null;
-      loaded.value = true;
+      SET_PROFILE_IMAGE(null);
       return true;
     } finally {
       busy.value = false;
@@ -67,9 +75,7 @@ export const useUserProfileImageStore = defineStore('userProfileImage', () => {
   }
 
   function reset() {
-    userProfileImage.value = null;
-    loaded.value = false;
-    errorMessage.value = null;
+    CLEAR_PROFILE_IMAGE();
   }
 
   return {

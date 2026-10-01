@@ -18,12 +18,20 @@ export const useThemeStore = defineStore('theme', () => {
 
   const isSystemMode = computed(() => mode.value === 'system');
 
+  function SET_MODE(nextMode: ThemeMode) {
+    mode.value = nextMode;
+  }
+
+  function SET_ACTIVE_THEME(nextTheme: ThemeValue) {
+    activeTheme.value = nextTheme;
+  }
+
   function initialize() {
     if (initialized.value) {
       return;
     }
 
-    mode.value = readStoredMode();
+    SET_MODE(readStoredMode());
     systemThemeQuery = resolveSystemThemeQuery();
     registerSystemThemeListener();
     applyTheme();
@@ -31,7 +39,7 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function setMode(nextMode: ThemeMode) {
-    mode.value = nextMode;
+    SET_MODE(nextMode);
     persistMode(nextMode);
     applyTheme();
   }
@@ -70,7 +78,7 @@ export const useThemeStore = defineStore('theme', () => {
 
   function applyTheme() {
     const nextTheme = resolveTheme(mode.value, systemThemeQuery?.matches ?? false);
-    activeTheme.value = nextTheme;
+    SET_ACTIVE_THEME(nextTheme);
 
     const root = globalThis.document?.documentElement;
     if (!root) {

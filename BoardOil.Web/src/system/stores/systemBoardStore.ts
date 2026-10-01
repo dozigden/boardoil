@@ -10,17 +10,21 @@ export const useSystemBoardStore = defineStore('systemBoard', () => {
   const feedback = useUiFeedbackStore();
   const api = createSystemApi();
 
+  function SET_BOARDS(nextBoards: SystemBoardSummary[]) {
+    boards.value = [...nextBoards].sort((left, right) => left.id - right.id);
+  }
+
   async function loadBoards() {
     busy.value = true;
     try {
       const result = await api.getBoards();
       if (!result.ok) {
         feedback.setError(result.error.message);
-        boards.value = [];
+        SET_BOARDS([]);
         return false;
       }
 
-      boards.value = [...result.data].sort((left, right) => left.id - right.id);
+      SET_BOARDS(result.data);
       feedback.clearError();
       return true;
     } finally {
@@ -29,7 +33,7 @@ export const useSystemBoardStore = defineStore('systemBoard', () => {
   }
 
   function dispose() {
-    boards.value = [];
+    SET_BOARDS([]);
     busy.value = false;
   }
 

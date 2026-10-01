@@ -10,35 +10,51 @@ export const useUiFeedbackStore = defineStore('uiFeedback', () => {
   const toastTone = ref<UiToastTone>('success');
   let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  function setError(message: string) {
+  function SET_ERROR(message: string) {
     errorMessage.value = message;
   }
 
-  function clearError() {
-    errorMessage.value = '';
-  }
-
-  function setWarning(message: string) {
+  function SET_WARNING(message: string) {
     warningMessage.value = message;
   }
 
+  function SET_TOAST(message: string, tone: UiToastTone) {
+    toastMessage.value = message;
+    toastTone.value = tone;
+  }
+
+  function CLEAR_TOAST() {
+    toastMessage.value = '';
+  }
+
+  function setError(message: string) {
+    SET_ERROR(message);
+  }
+
+  function clearError() {
+    SET_ERROR('');
+  }
+
+  function setWarning(message: string) {
+    SET_WARNING(message);
+  }
+
   function clearWarning() {
-    warningMessage.value = '';
+    SET_WARNING('');
   }
 
   function showToast(message: string, tone: UiToastTone = 'success') {
     clearToastTimeout();
-    toastMessage.value = message;
-    toastTone.value = tone;
+    SET_TOAST(message, tone);
     toastTimeout = setTimeout(() => {
-      toastMessage.value = '';
+      CLEAR_TOAST();
       toastTimeout = null;
     }, 3000);
   }
 
   function clearToast() {
     clearToastTimeout();
-    toastMessage.value = '';
+    CLEAR_TOAST();
   }
 
   function clearToastTimeout() {
