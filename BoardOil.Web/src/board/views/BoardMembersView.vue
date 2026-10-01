@@ -74,7 +74,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { createUsersApi } from '../../shared/api/usersApi';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import AddBoardMemberDialog from '../../system/components/AddBoardMemberDialog.vue';
@@ -99,10 +99,6 @@ const { members, busy } = storeToRefs(boardMembersStore);
 const users = ref<UserDirectoryEntry[]>([]);
 const usersBusy = ref(false);
 const isAddMemberDialogOpen = ref(false);
-
-onUnmounted(() => {
-  boardMembersStore.dispose();
-});
 
 onMounted(() => {
   void initializeView();
@@ -144,17 +140,22 @@ function onRoleChange(userId: number) {
 }
 
 async function removeMember(member: BoardMember) {
+  const boardId = currentBoardId.value;
+  if (boardId === null) {
+    return;
+  }
+
   const shouldRemove = await confirm({
     title: 'Remove board member',
     message: `Remove ${member.displayName} from this board?`,
     confirmLabel: 'Remove',
     danger: true
   });
-  if (!shouldRemove) {
+  if (!shouldRemove || currentBoardId.value !== boardId) {
     return;
   }
 
-  await boardMembersStore.deleteMember(currentBoardId.value!, member.userId);
+  await boardMembersStore.deleteMember(boardId, member.userId);
 }
 
 function focusMemberRoleControl(userId: number) {

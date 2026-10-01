@@ -4,6 +4,7 @@ import { createBoardApi } from '../../shared/api/boardApi';
 import { createBoardRealtime } from '../realtime/boardRealtime';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useCardStore } from './cardStore';
+import { useBoardMembersStore } from './boardMembersStore';
 import { useCardTypeStore } from './cardTypeStore';
 import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
@@ -35,6 +36,7 @@ export const useBoardStore = defineStore('board', () => {
   const currentBoardId = computed(() => boardShell.value?.id ?? null);
   const feedback = useUiFeedbackStore();
   const cardStore = useCardStore();
+  const boardMembersStore = useBoardMembersStore();
   const cardTypeStore = useCardTypeStore();
   const commentStore = useCommentStore();
   const tagStore = useTagStore();
@@ -236,6 +238,9 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     const nextBoardShell = stripBoardCards(result.data);
+    if (currentBoardId.value !== boardId) {
+      boardMembersStore.dispose();
+    }
     sortColumns(nextBoardShell.columns);
     void cardAttachmentThumbnailStore.loadBoard(boardId, nextBoardShell.cardAttachmentThumbnailsEnabled);
     boardShell.value = nextBoardShell;
@@ -371,6 +376,7 @@ export const useBoardStore = defineStore('board', () => {
     cardAttachmentThumbnailStore.clear();
     boardShell.value = null;
     cardStore.dispose();
+    boardMembersStore.dispose();
     commentStore.dispose();
     cardTypeStore.dispose();
     tagStore.dispose();

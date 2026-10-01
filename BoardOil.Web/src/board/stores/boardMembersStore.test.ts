@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useBoardMembersStore } from './boardMembersStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import { err, ok } from '../../shared/types/result';
+import { err, ok, type Result } from '../../shared/types/result';
+import type { BoardMember } from '../../shared/types/boardTypes';
+import type { AppError } from '../../shared/types/appError';
 
 const api = {
   getBoardMembers: vi.fn(),
@@ -254,6 +256,110 @@ describe('boardMembersStore', () => {
 
     expect(loaded).toBe(false);
     expect(feedback.errorMessage).toBe('Could not load members.');
+    expect(store.activeBoardId).toBeNull();
+    expect(store.busy).toBe(false);
+  });
+
+  it('can load members again after a failed lookup clears its context', async () => {
+    const store = useBoardMembersStore();
+    api.getBoardMembers.mockResolvedValueOnce(err({ kind: 'api', message: 'Unavailable.' }));
+    await store.loadMembers(3);
+    expect(store.activeBoardId).toBeNull();
+    const member = makeMember(7, 'A User', 'a.user', 'Contributor');
+    api.getBoardMembers.mockResolvedValueOnce(ok([member]));
+
+    expect(await store.loadMembers(3)).toBe(true);
+    expect(store.activeBoardId).toBe(3);
+    expect(store.members).toEqual([member]);
+    expect(useUiFeedbackStore().errorMessage).toBe('');
+  });
+
+  it.each(['switch', 'dispose'])('ignores late load success and failure after %s', async transition => {
+    const store = useBoardMembersStore();
+    const feedback = useUiFeedbackStore();
+    const success = createDeferred<Result<BoardMember[], AppError>>();
+    const failure = createDeferred<Result<never, AppError>>();
+    api.getBoardMembers.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+    const successfulLoad = store.loadMembers(1);
+    const failedLoad = store.loadMembers(1);
+    const currentLoad = createDeferred<Result<BoardMember[], AppError>>();
+    let loading: Promise<boolean> | undefined;
+    if (transition === 'switch') {
+      api.getBoardMembers.mockReturnValueOnce(currentLoad.promise);
+      loading = store.loadMembers(2);
+    } else {
+      store.dispose();
+    }
+    feedback.setError('Current error.');
+    success.resolve(ok([makeMember(7, 'Old User', 'old.user', 'Owner')]));
+    failure.resolve(err({ kind: 'api', message: 'Old error.' }));
+
+    expect(await successfulLoad).toBe(false);
+    expect(await failedLoad).toBe(false);
+    expect(store.members).toEqual([]);
+    expect(feedback.errorMessage).toBe('Current error.');
+    expect(store.busy).toBe(transition === 'switch');
+    currentLoad.resolve(ok([]));
+    await loading;
+  });
+
+  it('applies same-board loads in response arrival order', async () => {
+    const store = useBoardMembersStore();
+    const first = createDeferred<Result<BoardMember[], AppError>>();
+    api.getBoardMembers.mockReturnValueOnce(first.promise);
+    const loading = store.loadMembers(1);
+    await store.loadMembers(1);
+    const member = makeMember(7, 'A User', 'a.user', 'Contributor');
+    first.resolve(ok([member]));
+
+    expect(await loading).toBe(true);
+    expect(store.members).toEqual([member]);
+  });
+
+  it.each([
+    ['add', 'switch'], ['update', 'switch'], ['delete', 'switch'],
+    ['add', 'dispose'], ['update', 'dispose'], ['delete', 'dispose']
+  ])('ignores late %s feedback and busy changes after %s', async (operation, transition) => {
+    const store = useBoardMembersStore();
+    const feedback = useUiFeedbackStore();
+    await store.loadMembers(1);
+    const success = createDeferred<Result<BoardMember | undefined, AppError>>();
+    const failure = createDeferred<Result<never, AppError>>();
+    let requests: Promise<unknown>[];
+    if (operation === 'add') {
+      api.addBoardMember.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+      requests = [store.addMember(1, { userId: 7, role: 'Owner' }), store.addMember(1, { userId: 8, role: 'Owner' })];
+    } else if (operation === 'update') {
+      api.updateBoardMemberRole.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+      requests = [store.updateMemberRole(1, { userId: 7, role: 'Owner' }), store.updateMemberRole(1, { userId: 8, role: 'Owner' })];
+    } else {
+      api.removeBoardMember.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+      requests = [store.deleteMember(1, 7), store.deleteMember(1, 8)];
+    }
+    const currentLoad = createDeferred<Result<BoardMember[], AppError>>();
+    let loading: Promise<boolean> | undefined;
+    if (transition === 'switch') {
+      api.getBoardMembers.mockReturnValueOnce(currentLoad.promise);
+      loading = store.loadMembers(2);
+    } else {
+      store.dispose();
+    }
+    feedback.setError('Current error.');
+    if (operation === 'delete') {
+      success.resolve(ok(undefined));
+    } else {
+      success.resolve(ok(makeMember(7, 'Old User', 'old.user', 'Owner')));
+    }
+    await requests[0];
+    expect(feedback.errorMessage).toBe('Current error.');
+    expect(store.busy).toBe(transition === 'switch');
+    failure.resolve(err({ kind: 'api', message: 'Old error.' }));
+    await requests[1];
+    expect(feedback.errorMessage).toBe('Current error.');
+    expect(store.busy).toBe(transition === 'switch');
+    expect(store.members).toEqual([]);
+    currentLoad.resolve(ok([]));
+    await loading;
   });
 });
 
@@ -262,13 +368,15 @@ function makeMember(
   displayName: string,
   userName: string,
   role: 'Owner' | 'Contributor'
-) {
+): BoardMember {
   return {
     userId,
     displayName,
     userName,
     role,
-    profileImageRelativePath: null
+    profileImageRelativePath: null,
+    createdAtUtc: '2026-10-01T00:00:00Z',
+    updatedAtUtc: '2026-10-01T00:00:00Z'
   };
 }
 

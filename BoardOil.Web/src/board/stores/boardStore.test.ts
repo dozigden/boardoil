@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useBoardStore } from './boardStore';
+import { useBoardMembersStore } from './boardMembersStore';
 import { useCardTypeStore } from './cardTypeStore';
 import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
@@ -20,6 +21,7 @@ const api = {
   getTags: vi.fn(),
   getSlicks: vi.fn(),
   getBoard: vi.fn(),
+  getBoardMembers: vi.fn(),
   createColumn: vi.fn(),
   saveColumn: vi.fn(),
   moveColumn: vi.fn(),
@@ -76,6 +78,7 @@ describe('boardStore', () => {
     systemInfoMessageStore.setMessage.mockReset();
     systemInfoMessageStore.load.mockClear();
     api.getBoard.mockResolvedValue(ok(makeBoard()));
+    api.getBoardMembers.mockResolvedValue(ok([{ userId: 7, displayName: 'Member', userName: 'member', role: 'Owner', profileImageRelativePath: null }]));
     api.getCardThumbnails.mockResolvedValue(ok([]));
     api.getCardTypes.mockResolvedValue(ok([]));
     api.getTags.mockResolvedValue(ok([]));
@@ -205,6 +208,7 @@ describe('boardStore', () => {
 
   it.each(['dispose', 'failed initialization', 'failed resync'])('clears all board catalogues after %s', async trigger => {
     const store = useBoardStore();
+    const membersStore = useBoardMembersStore();
     const cardTypeStore = useCardTypeStore();
     const tagStore = useTagStore();
     const slickStore = useSlickStore();
@@ -213,6 +217,8 @@ describe('boardStore', () => {
     api.getTags.mockResolvedValueOnce(ok(catalogues.tags));
     api.getSlicks.mockResolvedValueOnce(ok(catalogues.slicks));
     await store.initialize(1);
+    await membersStore.loadMembers(1);
+    expect(membersStore.members).toHaveLength(1);
     expect(cardTypeStore.cardTypes).toHaveLength(1);
     expect(tagStore.tags).toHaveLength(1);
     expect(slickStore.slicks).toHaveLength(1);
@@ -229,12 +235,30 @@ describe('boardStore', () => {
     }
 
     expect(store.currentBoardId).toBeNull();
+    expect(membersStore.members).toEqual([]);
+    expect(membersStore.activeBoardId).toBeNull();
     expect(cardTypeStore.cardTypes).toEqual([]);
     expect(tagStore.tags).toEqual([]);
     expect(slickStore.slicks).toEqual([]);
     expect(cardTypeStore.activeBoardId).toBeNull();
     expect(tagStore.activeBoardId).toBeNull();
     expect(slickStore.activeBoardId).toBeNull();
+  });
+
+  it('retains member lookups on same-board refresh and clears them on board change', async () => {
+    const store = useBoardStore();
+    const membersStore = useBoardMembersStore();
+    await store.initialize(1);
+    await membersStore.loadMembers(1);
+
+    await realtimeHandlers!.onResync(1);
+    expect(membersStore.activeBoardId).toBe(1);
+    expect(membersStore.members).toHaveLength(1);
+
+    api.getBoard.mockResolvedValueOnce(ok({ ...makeBoard(), id: 2 }));
+    await store.initialize(2);
+    expect(membersStore.activeBoardId).toBeNull();
+    expect(membersStore.members).toEqual([]);
   });
 
   it('ignores catalogue responses that arrive after board disposal', async () => {
