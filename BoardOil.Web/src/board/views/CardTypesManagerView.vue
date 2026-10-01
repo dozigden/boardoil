@@ -71,24 +71,17 @@ const boardStore = useBoardStore();
 const cardTypeStore = useCardTypeStore();
 const { board, currentUserRole, currentBoardId } = storeToRefs(boardStore);
 const { cardTypes, busy } = storeToRefs(cardTypeStore);
-const { loadCardTypes, setDefaultCardType } = cardTypeStore;
+const { setDefaultCardType } = cardTypeStore;
 
 const isOwner = computed(() => currentUserRole.value === 'Owner');
 const boardId = computed(() => currentBoardId.value!);
 const cardTypeUsageCountById = computed<Record<number, number>>(() => countCardsByCardTypeId(board.value));
 
 onMounted(() => {
-  void initializeView();
-});
-
-async function initializeView() {
   if (!isOwner.value) {
-    await router.replace({ name: 'board', params: { boardId: boardId.value } });
-    return;
+    void router.replace({ name: 'board', params: { boardId: boardId.value } });
   }
-
-  await loadCardTypes(boardId.value);
-}
+});
 
 async function openEditor(cardTypeId: number) {
   await router.push({ name: 'card-types-card-type', params: { boardId: boardId.value, cardTypeId } });

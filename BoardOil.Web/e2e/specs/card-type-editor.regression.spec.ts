@@ -43,9 +43,24 @@ test('cancelling card-type deletion keeps the type and editor', async ({ api, au
   await expect(page).toHaveURL(`/boards/${board.id}/admin/card-types/${cardType.id}`);
 });
 
-test('a missing card type returns to the card-type list', async ({ api, authenticatedPage: page }) => {
+test('the card-type list reuses its catalogue after a missing type redirect and a same-board remount', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Missing card type');
+  await api.createCardType(board.id, 'Retained type');
+  let catalogueLoads = 0;
+  page.on('request', request => {
+    if (request.method() === 'GET' && request.url().endsWith(`/api/boards/${board.id}/card-types`)) {
+      catalogueLoads++;
+    }
+  });
   await page.goto(`/boards/${board.id}/admin/card-types/2147483647`);
   await expect(page).toHaveURL(`/boards/${board.id}/admin/card-types`);
-  await expect(page.getByRole('button', { name: 'Add card type', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit card type Retained type', exact: true })).toBeVisible();
+  expect(catalogueLoads).toBe(1);
+
+  await page.getByRole('link', { name: 'Open current board', exact: true }).click();
+  await expect(page.getByRole('article', { name: 'Todo column', exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(`/boards/${board.id}/admin/card-types`);
+  await expect(page.getByRole('button', { name: 'Edit card type Retained type', exact: true })).toBeVisible();
+  expect(catalogueLoads).toBe(1);
 });
