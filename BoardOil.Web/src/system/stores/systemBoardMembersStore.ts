@@ -12,70 +12,110 @@ import type { Result } from '../../shared/types/result';
 export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () => {
   const members = ref<BoardMember[]>([]);
   const busy = ref(false);
-  const activeBoardId = ref(0);
+  const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createSystemApi();
 
+  function SET_MEMBERS(boardId: number, nextMembers: BoardMember[]) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    members.value = [...nextMembers].sort((left, right) => left.displayName.localeCompare(right.displayName));
+  }
+
+  function UPSERT_MEMBER(boardId: number, member: BoardMember) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    members.value = [...members.value.filter(existing => existing.userId !== member.userId), member]
+      .sort((left, right) => left.displayName.localeCompare(right.displayName));
+  }
+
+  function REMOVE_MEMBER(boardId: number, userId: number) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    members.value = members.value.filter(member => member.userId !== userId);
+  }
+
   function dispose() {
-    activeBoardId.value = 0;
+    activeBoardId.value = null;
     members.value = [];
     busy.value = false;
   }
 
   async function loadMembers(boardId: number) {
+    if (activeBoardId.value !== boardId) {
+      members.value = [];
+    }
+
     activeBoardId.value = boardId;
     busy.value = true;
     try {
       const result = await api.getBoardMembers(boardId);
-      if (!result.ok) {
-        reportError(result.error);
-        members.value = [];
+      if (activeBoardId.value !== boardId) {
         return false;
       }
 
-      members.value = [...result.data].sort((left, right) => left.displayName.localeCompare(right.displayName));
+      if (!result.ok) {
+        reportError(result.error);
+        dispose();
+        return false;
+      }
+
+      SET_MEMBERS(boardId, result.data);
       feedback.clearError();
       return true;
     } finally {
-      busy.value = false;
+      if (activeBoardId.value === boardId) {
+        busy.value = false;
+      }
     }
   }
 
-  async function addMember(model: BoardMemberEditModel) {
-    const result = await runBusy(() => api.addBoardMember(activeBoardId.value, model));
+  async function addMember(boardId: number, model: BoardMemberEditModel) {
+    const result = await runBusy(boardId, () => api.addBoardMember(boardId, model));
     if (!result.ok) {
       return null;
     }
 
-    await loadMembers(activeBoardId.value);
+    UPSERT_MEMBER(boardId, result.data);
     return result.data;
   }
 
-  async function updateMemberRole(model: BoardMemberEditModel) {
-    const result = await runBusy(() => api.updateBoardMemberRole(activeBoardId.value, model));
+  async function updateMemberRole(boardId: number, model: BoardMemberEditModel) {
+    const result = await runBusy(boardId, () => api.updateBoardMemberRole(boardId, model));
     if (!result.ok) {
-      await loadMembers(activeBoardId.value);
       return null;
     }
 
-    await loadMembers(activeBoardId.value);
+    UPSERT_MEMBER(boardId, result.data);
     return result.data;
   }
 
-  async function removeMember(userId: number) {
-    const result = await runBusy(() => api.removeBoardMember(activeBoardId.value, userId));
+  async function deleteMember(boardId: number, userId: number) {
+    const result = await runBusy(boardId, () => api.removeBoardMember(boardId, userId));
     if (!result.ok) {
       return false;
     }
 
-    await loadMembers(activeBoardId.value);
+    REMOVE_MEMBER(boardId, userId);
     return true;
   }
 
-  async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
-    busy.value = true;
+  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+    if (activeBoardId.value === boardId) {
+      busy.value = true;
+    }
     try {
       const result = await operation();
+      if (activeBoardId.value !== boardId) {
+        return result;
+      }
+
       if (!result.ok) {
         reportError(result.error);
       } else {
@@ -84,7 +124,9 @@ export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () =
 
       return result;
     } finally {
-      busy.value = false;
+      if (activeBoardId.value === boardId) {
+        busy.value = false;
+      }
     }
   }
 
@@ -100,6 +142,6 @@ export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () =
     loadMembers,
     addMember,
     updateMemberRole,
-    removeMember
+    deleteMember
   };
 });

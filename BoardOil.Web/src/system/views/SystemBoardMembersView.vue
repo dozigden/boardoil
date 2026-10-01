@@ -141,7 +141,7 @@ function closeAddMemberDialog() {
 }
 
 async function addMember(model: BoardMemberEditModel) {
-  const added = await boardMembersStore.addMember(model);
+  const added = await boardMembersStore.addMember(boardId.value!, model);
   if (!added) {
     return;
   }
@@ -154,7 +154,7 @@ async function updateRole(userId: number, role: BoardMemberRole) {
     userId,
     role
   };
-  await boardMembersStore.updateMemberRole(model);
+  await boardMembersStore.updateMemberRole(boardId.value!, model);
 }
 
 function onRoleChange(userId: number) {
@@ -167,17 +167,22 @@ function onRoleChange(userId: number) {
 }
 
 async function removeMember(member: BoardMember) {
+  const requestBoardId = boardMembersStore.activeBoardId;
+  if (requestBoardId === null) {
+    return;
+  }
+
   const shouldRemove = await confirm({
     title: 'Remove board member',
     message: `Remove ${member.displayName} from this board?`,
     confirmLabel: 'Remove',
     danger: true
   });
-  if (!shouldRemove) {
+  if (!shouldRemove || boardMembersStore.activeBoardId !== requestBoardId) {
     return;
   }
 
-  await boardMembersStore.removeMember(member.userId);
+  await boardMembersStore.deleteMember(requestBoardId, member.userId);
 }
 
 function focusMemberRoleControl(userId: number) {
