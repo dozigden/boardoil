@@ -23,7 +23,7 @@ Current examples:
 | `uiFeedbackStore` | Shared user-facing errors, warnings and toasts. |
 
 - Keep transient interaction state in the component or composable that owns the interaction. For example, `useBoardCardDragDrop` owns dragging state and passes an explicit card ID to `cardStore.moveCard`.
-- Derive values from their authoritative state where possible. `boardStore.currentBoardId` is computed from `boardShell`; it is not a second independently writable ID.
+- Derive values from their authoritative state where possible. `boardStore.currentBoardId` owns board selection: initialization sets it before loading, and disposal clears it immediately. `boardShell` is the loaded snapshot for that selection; responses must not select a board.
 - A child store may need its own active context identity to scope requests and reject stale responses. That has a separate lifecycle purpose; do not replace it with a parent-store dependency merely to eliminate an ID field.
 - Compose read models instead of maintaining duplicate mutable copies. `boardStore` combines its column metadata with cards from `cardStore` when exposing the board.
 - Keep dependencies directed: the context owner coordinates child stores; child stores own their data. Do not introduce circular dependencies to recover context or trigger cleanup.
@@ -95,8 +95,8 @@ The action that applies a domain change owns its related state updates. Views an
 - The shared board layout owns board workspace initialization. Reuse the initialized context when moving between board and archive views for the same board.
 - A child view should not reload a shared snapshot or catalogue just because it remounts. Realtime remains connected while visiting the archive, so shared metadata continues to receive resync updates.
 - Run independent loads together. The tag, card-type and slick catalogue loads use `Promise.all`; keep genuinely dependent stages ordered.
-- Capture the operation's context before awaiting a request and verify it before applying a result that could belong to a previous board or selection. Use request versions for load/replacement lifecycles where a newer request or disposal must invalidate an older response.
-- The context owner owns teardown. `boardStore.dispose` disconnects realtime and clears its board context, including cards, comments, members, attachment state, thumbnails and board catalogues. App-level cleanup calls that owner instead of separately disposing the same child stores.
+- Capture the operation's board ID before awaiting a request and guard its results against the selected board. Board initialization, snapshot loading and layout watchers use board IDs without version counters. Same-board out-of-order responses are accepted; do not add request generations to distinguish them. Assess other lifecycles against their actual requirements.
+- The context owner owns teardown. Board selection changes clear the previous shared context before loading. `boardStore.dispose` clears selection and child state before awaiting realtime disconnect, so pending work cannot repopulate disposed state. Cleanup covers cards, comments, members, attachment state, thumbnails and board catalogues. App-level cleanup calls that owner instead of separately disposing the same child stores.
 - Member lookups are shared between the Members view and card editor. `boardStore` clears them when changing boards or clearing board context; leaving the Members view does not dispose them. Failed member loads clear their context so the next editor lookup retries.
 - `boardStore` establishes the comment store's board context when applying a board snapshot. Comment loads and posts do not select a board; API responses and realtime additions pass their board ID to the shared guarded mutations.
 - The card editor loads comments when opening a card or when a board snapshot resets their cached state. Ordinary card updates retain loaded comments and use incremental comment events. Post completion clears the submitted draft only while the originating editor route and draft text are unchanged.
@@ -133,7 +133,7 @@ The action that applies a domain change owns its related state updates. Views an
 Reference files:
 
 - [boardMembersStore.ts](../BoardOil.Web/src/board/stores/boardMembersStore.ts): internal uppercase mutations grouped at the top, shared by public request actions, with board checks inside the mutations.
-- [boardStore.ts](../BoardOil.Web/src/board/stores/boardStore.ts): context ownership, derived identity, guarded realtime routing and catalogue loading.
+- [boardStore.ts](../BoardOil.Web/src/board/stores/boardStore.ts): context ownership, explicit board selection, guarded realtime routing and catalogue loading.
 - [cardStore.ts](../BoardOil.Web/src/board/stores/cardStore.ts): collection updates, ordering and shared card side effects.
 - [attachmentStore.ts](../BoardOil.Web/src/board/stores/attachmentStore.ts): open-context handling and thumbnail coordination.
 - [useBoardCardDragDrop.ts](../BoardOil.Web/src/board/composables/useBoardCardDragDrop.ts): interaction ownership with explicit store-action inputs.

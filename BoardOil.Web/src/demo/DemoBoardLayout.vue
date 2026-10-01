@@ -58,12 +58,10 @@ const hasBoardContext = computed(() => {
     && currentBoardId.value === boardId
     && board.value?.id === boardId;
 });
-let requestVersion = 0;
 
 watch(
   routeBoardId,
   async boardId => {
-    const activeRequest = ++requestVersion;
     if (boardId === null) {
       await router.replace({ name: 'board', params: { boardId: 1 } });
       return;
@@ -74,7 +72,7 @@ watch(
     }
 
     const loaded = await boardStore.initialize(boardId);
-    if (activeRequest !== requestVersion || loaded) {
+    if (routeBoardId.value !== boardId || loaded) {
       return;
     }
 

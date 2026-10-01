@@ -90,6 +90,108 @@ describe('boardStore', () => {
     realtime.disconnect.mockResolvedValue(undefined);
   });
 
+  it('selects the requested board and clears previous data before its snapshot arrives', async () => {
+    const store = useBoardStore();
+    const members = useBoardMembersStore();
+    await store.initialize(1);
+    await members.loadMembers(1);
+    const pending = deferred<Result<Board, AppError>>();
+    api.getBoard.mockReturnValueOnce(pending.promise);
+
+    const initialization = store.initialize(2);
+
+    expect(store.currentBoardId).toBe(2);
+    expect(store.board).toBeNull();
+    expect(store.isLoadingBoard).toBe(true);
+    expect(useCardStore().cardsById).toEqual({});
+    expect(members.members).toEqual([]);
+    await realtimeHandlers!.onCardUpdated(1, makeBoard().columns[0].cards[0]);
+    expect(useCardStore().cardsById).toEqual({});
+
+    pending.resolve(ok(makeBoard(2)));
+    expect(await initialization).toBe(true);
+    expect(store.board?.id).toBe(2);
+    expect(store.isLoadingBoard).toBe(false);
+  });
+
+  it.each(['success', 'failure'] as const)('ignores an old snapshot %s while the selected board is still loading', async outcome => {
+    const store = useBoardStore();
+    const feedback = useUiFeedbackStore();
+    const oldSnapshot = deferred<Result<Board, AppError>>();
+    const selectedSnapshot = deferred<Result<Board, AppError>>();
+    api.getBoard.mockReturnValueOnce(oldSnapshot.promise).mockReturnValueOnce(selectedSnapshot.promise);
+    const oldInitialization = store.initialize(1);
+    const selectedInitialization = store.initialize(2);
+    feedback.setError('Current feedback');
+
+    oldSnapshot.resolve(outcome === 'success'
+      ? ok(makeBoard(1))
+      : err({ kind: 'api', message: 'Old board unavailable' }));
+    expect(await oldInitialization).toBe(false);
+    expect(store.currentBoardId).toBe(2);
+    expect(store.board).toBeNull();
+    expect(store.isLoadingBoard).toBe(true);
+    expect(feedback.errorMessage).toBe('Current feedback');
+    expect(api.getTags).not.toHaveBeenCalled();
+    expect(realtime.connect).not.toHaveBeenCalled();
+
+    selectedSnapshot.resolve(ok(makeBoard(2)));
+    expect(await selectedInitialization).toBe(true);
+    expect(store.board?.id).toBe(2);
+    expect(store.isLoadingBoard).toBe(false);
+  });
+
+  it('clears selection before disconnect finishes and ignores snapshots arriving during disposal', async () => {
+    const store = useBoardStore();
+    const snapshot = deferred<Result<Board, AppError>>();
+    const disconnected = deferred<void>();
+    api.getBoard.mockReturnValueOnce(snapshot.promise);
+    realtime.disconnect.mockReturnValueOnce(disconnected.promise);
+    const initialization = store.initialize(1);
+    const disposal = store.dispose();
+
+    expect(store.currentBoardId).toBeNull();
+    expect(store.isLoadingBoard).toBe(false);
+    snapshot.resolve(ok(makeBoard(1)));
+    expect(await initialization).toBe(false);
+    expect(store.board).toBeNull();
+    expect(realtime.connect).not.toHaveBeenCalled();
+    disconnected.resolve();
+    await disposal;
+  });
+
+  it('does not clear a new board when an earlier disposal finishes', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    const disconnected = deferred<void>();
+    realtime.disconnect.mockReturnValueOnce(disconnected.promise);
+    const disposal = store.dispose();
+    api.getBoard.mockResolvedValueOnce(ok(makeBoard(2)));
+    expect(await store.initialize(2)).toBe(true);
+
+    disconnected.resolve();
+    await disposal;
+    expect(store.currentBoardId).toBe(2);
+    expect(store.board?.id).toBe(2);
+    expect(useCardStore().activeBoardId).toBe(2);
+  });
+
+  it('does not disconnect the current board when an old initialization finishes connecting', async () => {
+    const store = useBoardStore();
+    const connected = deferred<void>();
+    realtime.connect.mockReturnValueOnce(connected.promise);
+    const oldInitialization = store.initialize(1);
+    await vi.waitFor(() => expect(realtime.connect).toHaveBeenCalledWith(1));
+    api.getBoard.mockResolvedValueOnce(ok(makeBoard(2)));
+    expect(await store.initialize(2)).toBe(true);
+
+    connected.resolve();
+    expect(await oldInitialization).toBe(false);
+    expect(realtime.disconnect).not.toHaveBeenCalled();
+    expect(store.currentBoardId).toBe(2);
+    expect(store.board?.id).toBe(2);
+  });
+
   describe.each(['board change', 'disposal'] as const)('column responses after %s', change => {
     it.each(['create', 'save', 'move', 'delete'] as const)('ignores late %s state changes', async operation => {
       const store = useBoardStore();

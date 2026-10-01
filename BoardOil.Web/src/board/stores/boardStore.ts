@@ -32,7 +32,7 @@ export const useBoardStore = defineStore('board', () => {
   const boardShell = ref<BoardShell | null>(null);
   const busy = ref(false);
   const isLoadingBoard = ref(false);
-  const currentBoardId = computed(() => boardShell.value?.id ?? null);
+  const currentBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const cardStore = useCardStore();
   const boardMembersStore = useBoardMembersStore();
@@ -60,15 +60,13 @@ export const useBoardStore = defineStore('board', () => {
   const currentUserRole = computed(() => boardShell.value?.currentUserRole ?? null);
   const isCurrentUserOwner = computed(() => currentUserRole.value === 'Owner');
 
-  let loadRequestVersion = 0;
-  let initializeRequestVersion = 0;
   let resyncPending = false;
   let resyncRetryAttempt = 0;
   let resyncRetryTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function SET_BOARD(nextBoard: BoardShell) {
     if (currentBoardId.value !== nextBoard.id) {
-      busy.value = false;
+      return;
     }
     sortColumns(nextBoard.columns);
     boardShell.value = nextBoard;
@@ -174,7 +172,6 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const requestVersion = loadRequestVersion;
     await loadBoardCatalogues(boardId);
     if (currentBoardId.value !== boardId) {
       return;
@@ -182,7 +179,7 @@ export const useBoardStore = defineStore('board', () => {
 
     await attachmentStore.reload();
     await systemInfoMessageStore.load(true);
-    if (requestVersion === loadRequestVersion && currentBoardId.value === boardId && resyncPending) {
+    if (currentBoardId.value === boardId && resyncPending) {
       resyncPending = false;
       resyncRetryAttempt = 0;
       reportConnectionRecovered();
@@ -215,7 +212,10 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   async function initialize(boardId: number) {
-    const requestVersion = ++initializeRequestVersion;
+    if (currentBoardId.value !== boardId) {
+      clearBoardContext();
+    }
+    currentBoardId.value = boardId;
     clearResyncRetry();
     resyncPending = false;
     resyncRetryAttempt = 0;
@@ -226,25 +226,20 @@ export const useBoardStore = defineStore('board', () => {
         return false;
       }
 
-      if (requestVersion !== initializeRequestVersion) {
+      if (currentBoardId.value !== boardId) {
         return false;
       }
 
       await loadBoardCatalogues(boardId);
-      if (requestVersion !== initializeRequestVersion) {
+      if (currentBoardId.value !== boardId) {
         return false;
       }
 
       try {
         await realtime.connect(boardId);
-        if (requestVersion !== initializeRequestVersion) {
-          await realtime.disconnect();
-          return false;
-        }
-
-        return true;
+        return currentBoardId.value === boardId;
       } catch {
-        if (requestVersion !== initializeRequestVersion) {
+        if (currentBoardId.value !== boardId) {
           return false;
         }
 
@@ -253,30 +248,25 @@ export const useBoardStore = defineStore('board', () => {
         return true;
       }
     } finally {
-      if (requestVersion === initializeRequestVersion) {
+      if (currentBoardId.value === boardId) {
         isLoadingBoard.value = false;
       }
     }
   }
 
   async function dispose() {
-    initializeRequestVersion += 1;
-    loadRequestVersion += 1;
-    clearResyncRetry();
-    await realtime.disconnect();
     clearBoardContext();
-    isLoadingBoard.value = false;
+    await realtime.disconnect();
   }
 
   async function loadBoard(boardId: number, options: { backgroundRefresh?: boolean } = {}) {
-    const requestVersion = ++loadRequestVersion;
     const result = await api.getBoard(boardId);
-    if (requestVersion !== loadRequestVersion) {
+    if (currentBoardId.value !== boardId) {
       return false;
     }
 
     if (!result.ok) {
-      if (options.backgroundRefresh && currentBoardId.value === boardId && isTemporaryBoardLoadError(result.error)) {
+      if (options.backgroundRefresh && isTemporaryBoardLoadError(result.error)) {
         resyncPending = true;
         feedback.clearToast();
         feedback.setWarning('Board updates are delayed. Retrying…');
@@ -289,9 +279,6 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     const nextBoardShell = stripBoardCards(result.data);
-    if (currentBoardId.value !== boardId) {
-      boardMembersStore.dispose();
-    }
     void cardAttachmentThumbnailStore.loadBoard(boardId, nextBoardShell.cardAttachmentThumbnailsEnabled);
     SET_BOARD(nextBoardShell);
     cardStore.replaceBoardCards(boardId, result.data.columns);
@@ -417,6 +404,8 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   function clearBoardContext() {
+    currentBoardId.value = null;
+    isLoadingBoard.value = false;
     clearResyncRetry();
     resyncPending = false;
     resyncRetryAttempt = 0;
