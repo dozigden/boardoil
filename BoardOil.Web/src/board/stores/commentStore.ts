@@ -85,7 +85,9 @@ export const useCommentStore = defineStore('comment', () => {
   }
 
   async function runBusy<T>(operation: () => Promise<Result<T, AppError>>, boardId: number) {
-    busy.value = true;
+    if (activeBoardId.value === boardId) {
+      busy.value = true;
+    }
     try {
       const result = await operation();
       if (activeBoardId.value !== boardId) {
@@ -100,7 +102,9 @@ export const useCommentStore = defineStore('comment', () => {
 
       return result;
     } finally {
-      busy.value = false;
+      if (activeBoardId.value === boardId) {
+        busy.value = false;
+      }
     }
   }
 

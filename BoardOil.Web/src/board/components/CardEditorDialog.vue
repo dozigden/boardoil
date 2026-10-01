@@ -1078,13 +1078,15 @@ async function addComment() {
     return;
   }
 
-  const text = newCommentText.value.trim().slice(0, maxCommentLength);
+  const submittedDraft = newCommentText.value;
+  const editorRoute = router.currentRoute.value;
+  const text = submittedDraft.trim().slice(0, maxCommentLength);
   if (text.length === 0) {
     return;
   }
 
   const result = await addCardCommentAction(boardId.value, cardId, text);
-  if (!result?.ok) {
+  if (!result?.ok || router.currentRoute.value !== editorRoute || newCommentText.value !== submittedDraft) {
     return;
   }
 
@@ -1170,16 +1172,15 @@ watch(
       return;
     }
 
-    initializeDraftForCard(nextBoardId, nextCard);
+    const draftInitialized = initializeDraftForCard(nextBoardId, nextCard);
 
     const lookupsLoaded = await ensureEditorLookupsLoaded(nextBoardId, () => cancelled);
-    if (!lookupsLoaded) {
+    if (!lookupsLoaded || cancelled) {
       return;
     }
 
-    await loadCardComments(nextBoardId, nextCard.id);
-    if (cancelled) {
-      return;
+    if (draftInitialized || commentStore.commentsByCardId[nextCard.id] === undefined) {
+      await loadCardComments(nextBoardId, nextCard.id);
     }
   },
   { immediate: true }

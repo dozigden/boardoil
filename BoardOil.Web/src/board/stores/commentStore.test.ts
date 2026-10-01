@@ -4,7 +4,7 @@ import { useCommentStore } from './commentStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { AppError } from '../../shared/types/appError';
 import type { CardComment } from '../../shared/types/boardTypes';
-import { ok } from '../../shared/types/result';
+import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 
 const api = {
@@ -136,6 +136,65 @@ describe('commentStore', () => {
     store.upsertCardComment(2, { ...current, text: 'Current update' });
 
     expect(store.getCommentsForCard(7)).toEqual([{ ...current, text: 'Current update' }]);
+  });
+
+  describe.each(['load', 'post'] as const)('%s busy state', operation => {
+    it.each(['board change', 'disposal'] as const)('ignores late success and failure after %s', async transition => {
+      const store = useCommentStore();
+      const feedback = useUiFeedbackStore();
+      store.initialize(1);
+      const success = deferred<Result<CardComment | CardComment[], AppError>>();
+      const failure = deferred<Result<never, AppError>>();
+      let requests: Promise<unknown>[];
+      if (operation === 'load') {
+        api.getCardComments.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+        requests = [store.loadCardComments(1, 7), store.loadCardComments(1, 8)];
+      } else {
+        api.createCardComment.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+        requests = [store.addCardComment(1, 7, 'Old comment'), store.addCardComment(1, 8, 'Old comment')];
+      }
+      const current = deferred<Result<CardComment[], AppError>>();
+      let currentRequest: Promise<unknown> | undefined;
+      if (transition === 'board change') {
+        store.initialize(2);
+        api.getCardComments.mockReturnValueOnce(current.promise);
+        currentRequest = store.loadCardComments(2, 7);
+      } else {
+        store.dispose();
+      }
+      feedback.setError('Current feedback');
+      const comment = makeComment(1, 7, 'Old comment');
+      success.resolve(ok(operation === 'load' ? [comment] : comment));
+      await requests[0];
+      expect(store.busy).toBe(transition === 'board change');
+      expect(feedback.errorMessage).toBe('Current feedback');
+      failure.resolve(err({ kind: 'api', message: 'Old failure' }));
+      await requests[1];
+      expect(store.busy).toBe(transition === 'board change');
+      expect(feedback.errorMessage).toBe('Current feedback');
+      expect(store.commentsByCardId).toEqual({});
+      current.resolve(ok([]));
+      await currentRequest;
+      expect(store.busy).toBe(false);
+    });
+
+    it('does not set busy for a request belonging to another board', async () => {
+      const store = useCommentStore();
+      store.initialize(2);
+      const pending = deferred<Result<never, AppError>>();
+      let request: Promise<unknown>;
+      if (operation === 'load') {
+        api.getCardComments.mockReturnValueOnce(pending.promise);
+        request = store.loadCardComments(1, 7);
+      } else {
+        api.createCardComment.mockReturnValueOnce(pending.promise);
+        request = store.addCardComment(1, 7, 'Old comment');
+      }
+      expect(store.busy).toBe(false);
+      pending.resolve(err({ kind: 'api', message: 'Old failure' }));
+      await request;
+      expect(store.busy).toBe(false);
+    });
   });
 });
 
