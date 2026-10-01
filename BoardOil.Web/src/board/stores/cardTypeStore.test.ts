@@ -84,6 +84,65 @@ describe('cardTypeStore', () => {
     expect(loaded).toBe(false);
     expect(feedback.errorMessage).toBe('Could not load card types.');
   });
+
+  describe.each(['create', 'update', 'delete', 'default'] as const)('%s completion', operation => {
+    it.each(['board change', 'disposal'] as const)('preserves current feedback and busy state after %s', async transition => {
+      const store = useCardTypeStore();
+      const feedback = useUiFeedbackStore();
+      await store.loadCardTypes(1);
+      const success = createDeferred<Result<ReturnType<typeof makeCardType> | undefined, AppError>>();
+      const failure = createDeferred<Result<never, AppError>>();
+      const model = { name: 'Story', emoji: null, styleName: 'auto' as const, stylePropertiesJson: '{}' };
+      let requests: Promise<unknown>[];
+      switch (operation) {
+        case 'create':
+          api.createCardType.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+          requests = [store.createCardType(model, 1), store.createCardType(model, 1)];
+          break;
+        case 'update':
+          api.updateCardType.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+          requests = [store.updateCardType(10, model, 1), store.updateCardType(10, model, 1)];
+          break;
+        case 'delete':
+          api.deleteCardType.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+          requests = [store.deleteCardType(10, 1), store.deleteCardType(10, 1)];
+          break;
+        case 'default':
+          api.setDefaultCardType.mockReturnValueOnce(success.promise).mockReturnValueOnce(failure.promise);
+          requests = [store.setDefaultCardType(10, 1), store.setDefaultCardType(10, 1)];
+          break;
+      }
+
+      let currentRequest: Promise<unknown> | undefined;
+      const current = createDeferred<Result<ReturnType<typeof makeCardType>, AppError>>();
+      if (transition === 'board change') {
+        await store.loadCardTypes(2);
+        api.createCardType.mockReturnValueOnce(current.promise);
+        currentRequest = store.createCardType(model, 2);
+      } else {
+        store.dispose();
+      }
+      feedback.setError('Current feedback');
+      const loadCount = api.getCardTypes.mock.calls.length;
+      if (operation === 'create' || operation === 'update') {
+        success.resolve(ok(makeCardType(10, 'Old board type')));
+      } else {
+        success.resolve(ok(undefined));
+      }
+      await requests[0];
+      expect(feedback.errorMessage).toBe('Current feedback');
+      expect(store.busy).toBe(transition === 'board change');
+      failure.resolve(err({ kind: 'api', message: 'Old failure' }));
+      await requests[1];
+      expect(feedback.errorMessage).toBe('Current feedback');
+      expect(store.busy).toBe(transition === 'board change');
+      expect(store.cardTypes).toEqual([]);
+      expect(api.getCardTypes).toHaveBeenCalledTimes(loadCount);
+
+      current.resolve(ok(makeCardType(20, 'Current type')));
+      await currentRequest;
+    });
+  });
 });
 
 function makeCardType(id: number, name: string) {

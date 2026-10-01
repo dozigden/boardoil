@@ -278,7 +278,12 @@ const previewCardStyleClasses = computed(() => {
 
 watch(
   [boardId, routeCardTypeId, isCreateMode, editingCardType],
-  async ([nextBoardId, nextCardTypeId, nextIsCreate, nextCardType]) => {
+  async ([nextBoardId, nextCardTypeId, nextIsCreate, nextCardType], _previous, onCleanup) => {
+    let cancelled = false;
+    onCleanup(() => {
+      cancelled = true;
+    });
+
     if (nextIsCreate) {
       if (draftSourceKey.value === 'create') {
         return;
@@ -302,7 +307,7 @@ watch(
 
     if (!nextCardType) {
       const loaded = await loadCardTypes(nextBoardId);
-      if (!loaded) {
+      if (!loaded || cancelled) {
         return;
       }
 
@@ -333,6 +338,8 @@ async function closeDialog() {
 }
 
 async function saveCardType() {
+  const targetBoardId = boardId.value;
+  const editorRoute = router.currentRoute.value;
   const canonicalName = (draftName.value ?? '').trim();
   if (!canonicalName || !draftStyle.value) {
     return;
@@ -351,8 +358,8 @@ async function saveCardType() {
   };
 
   if (isCreateMode.value) {
-    const created = await createCardType(saveModel, boardId.value);
-    if (!created) {
+    const created = await createCardType(saveModel, targetBoardId);
+    if (!created || router.currentRoute.value !== editorRoute || boardId.value !== targetBoardId) {
       return;
     }
 
@@ -364,8 +371,8 @@ async function saveCardType() {
     return;
   }
 
-  const updated = await updateCardType(editingCardType.value.id, saveModel, boardId.value);
-  if (!updated) {
+  const updated = await updateCardType(editingCardType.value.id, saveModel, targetBoardId);
+  if (!updated || router.currentRoute.value !== editorRoute || boardId.value !== targetBoardId) {
     return;
   }
 
@@ -373,22 +380,25 @@ async function saveCardType() {
 }
 
 async function deleteEditingCardType() {
-  if (!editingCardType.value || editingCardType.value.isSystem) {
+  const cardType = editingCardType.value;
+  const targetBoardId = boardId.value;
+  const editorRoute = router.currentRoute.value;
+  if (!cardType || cardType.isSystem) {
     return;
   }
 
   const confirmed = await confirm({
     title: 'Delete card type',
-    message: `Delete card type "${editingCardType.value.name}"?\n\nCards using this type will be reassigned to the board default type.`,
+    message: `Delete card type "${cardType.name}"?\n\nCards using this type will be reassigned to the board default type.`,
     confirmLabel: 'Delete',
     danger: true
   });
-  if (!confirmed) {
+  if (!confirmed || router.currentRoute.value !== editorRoute || boardId.value !== targetBoardId) {
     return;
   }
 
-  const deleted = await deleteCardType(editingCardType.value.id, boardId.value);
-  if (!deleted) {
+  const deleted = await deleteCardType(cardType.id, targetBoardId);
+  if (!deleted || router.currentRoute.value !== editorRoute || boardId.value !== targetBoardId) {
     return;
   }
 

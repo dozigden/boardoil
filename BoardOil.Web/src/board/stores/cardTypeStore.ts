@@ -78,7 +78,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
     model: CardTypeEditModel,
     boardId: number
   ) {
-    const result = await runBusy(() => api.createCardType(boardId, model));
+    const result = await runBusy(boardId, () => api.createCardType(boardId, model));
     if (!result.ok) {
       return null;
     }
@@ -92,7 +92,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
     model: CardTypeEditModel,
     boardId: number
   ) {
-    const result = await runBusy(() => api.updateCardType(boardId, cardTypeId, model));
+    const result = await runBusy(boardId, () => api.updateCardType(boardId, cardTypeId, model));
     if (!result.ok) {
       return null;
     }
@@ -102,7 +102,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
   }
 
   async function deleteCardType(cardTypeId: number, boardId: number) {
-    const result = await runBusy(() => api.deleteCardType(boardId, cardTypeId));
+    const result = await runBusy(boardId, () => api.deleteCardType(boardId, cardTypeId));
     if (!result.ok) {
       return false;
     }
@@ -112,7 +112,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
   }
 
   async function setDefaultCardType(cardTypeId: number, boardId: number) {
-    const result = await runBusy(() => api.setDefaultCardType(boardId, cardTypeId));
+    const result = await runBusy(boardId, () => api.setDefaultCardType(boardId, cardTypeId));
     if (!result.ok) {
       return false;
     }
@@ -133,10 +133,16 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return cardTypes.value.find(x => x.id === cardTypeId) ?? null;
   }
 
-  async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
-    busy.value = true;
+  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+    if (activeBoardId.value === boardId) {
+      busy.value = true;
+    }
     try {
       const result = await operation();
+      if (activeBoardId.value !== boardId) {
+        return result;
+      }
+
       if (!result.ok) {
         reportError(result.error);
       } else {
@@ -145,7 +151,9 @@ export const useCardTypeStore = defineStore('cardType', () => {
 
       return result;
     } finally {
-      busy.value = false;
+      if (activeBoardId.value === boardId) {
+        busy.value = false;
+      }
     }
   }
 

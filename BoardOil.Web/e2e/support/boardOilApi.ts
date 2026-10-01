@@ -210,6 +210,15 @@ export class BoardOilApi {
     });
   }
 
+  public async createCardType(boardId: number, name: string) {
+    return await this.post<SmokeCardType>(`/api/boards/${boardId}/card-types`, {
+      name,
+      emoji: null,
+      styleName: 'auto',
+      stylePropertiesJson: '{}'
+    });
+  }
+
   private async read<T>(path: string) {
     const response = await this.request.get(path);
     return await readEnvelope<T>(response);
