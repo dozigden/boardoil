@@ -15,7 +15,6 @@ import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessage
 import type {
   Board,
   BoardSummary,
-  Card,
   Column,
   ColumnCreateModel,
   ColumnEditModel
@@ -61,8 +60,66 @@ export const useBoardStore = defineStore('board', () => {
   const currentUserRole = computed(() => boardShell.value?.currentUserRole ?? null);
   const isCurrentUserOwner = computed(() => currentUserRole.value === 'Owner');
 
+  let loadRequestVersion = 0;
+  let initializeRequestVersion = 0;
+  let resyncPending = false;
+  let resyncRetryAttempt = 0;
+  let resyncRetryTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function SET_BOARD(nextBoard: BoardShell) {
+    if (currentBoardId.value !== nextBoard.id) {
+      busy.value = false;
+    }
+    sortColumns(nextBoard.columns);
+    boardShell.value = nextBoard;
+  }
+
+  function UPSERT_COLUMN(boardId: number, column: Column) {
+    UPDATE_BOARD(boardId, draft => {
+      const existingIndex = draft.columns.findIndex(x => x.id === column.id);
+      if (existingIndex >= 0) {
+        draft.columns.splice(existingIndex, 1);
+      }
+
+      draft.columns.push(column);
+      sortColumns(draft.columns);
+    });
+  }
+
+  function REMOVE_COLUMN(boardId: number, columnId: number) {
+    UPDATE_BOARD(boardId, draft => {
+      const index = draft.columns.findIndex(x => x.id === columnId);
+      if (index < 0) {
+        return;
+      }
+
+      draft.columns.splice(index, 1);
+    });
+  }
+
+  function UPDATE_BOARD(boardId: number, mutator: (draft: BoardShell) => void) {
+    if (boardShell.value?.id !== boardId) {
+      return;
+    }
+
+    const draft = cloneBoardShell(boardShell.value);
+    mutator(draft);
+    boardShell.value = draft;
+  }
+
+  function UPDATE_BOARD_SUMMARY(summary: Pick<BoardSummary,
+    'id' | 'name' | 'description' | 'slickCohesionModeEnabled' | 'cardAttachmentThumbnailsEnabled' | 'updatedAtUtc'>) {
+    UPDATE_BOARD(summary.id, draft => {
+      draft.name = summary.name;
+      draft.description = summary.description;
+      draft.slickCohesionModeEnabled = summary.slickCohesionModeEnabled;
+      draft.cardAttachmentThumbnailsEnabled = summary.cardAttachmentThumbnailsEnabled;
+      draft.updatedAtUtc = summary.updatedAtUtc;
+    });
+  }
+
   function forCurrentBoard<Args extends unknown[]>(
-    handler: (boardId: number, ...args: Args) => void | Promise<void>
+    handler: (boardId: number, ...args: Args) => Promise<unknown> | unknown
   ) {
     return (boardId: number, ...args: Args) => {
       if (currentBoardId.value !== boardId) {
@@ -73,16 +130,16 @@ export const useBoardStore = defineStore('board', () => {
     };
   }
 
-  const upsertRealtimeColumn = forCurrentBoard((_boardId, column: Column) => upsertColumn(column));
-  const upsertRealtimeCard = forCurrentBoard((_boardId, card: Card) => cardStore.upsertCard(card));
+  const upsertRealtimeColumn = forCurrentBoard(UPSERT_COLUMN);
+  const upsertRealtimeCard = forCurrentBoard(cardStore.upsertCard);
 
   const realtime = createBoardRealtime({
     onColumnCreated: upsertRealtimeColumn,
     onColumnUpdated: upsertRealtimeColumn,
-    onColumnDeleted: forCurrentBoard((_boardId, columnId: number) => removeColumn(columnId)),
-    onCardCreated: forCurrentBoard((_boardId, card: Card) => cardStore.applyCreatedCard(card)),
+    onColumnDeleted: forCurrentBoard(REMOVE_COLUMN),
+    onCardCreated: forCurrentBoard(cardStore.applyCreatedCard),
     onCardUpdated: upsertRealtimeCard,
-    onCardDeleted: forCurrentBoard((_boardId, cardId: number) => cardStore.removeCard(cardId)),
+    onCardDeleted: forCurrentBoard(cardStore.removeCard),
     onCardMoved: upsertRealtimeCard,
     onCommentCreated: forCurrentBoard(commentStore.upsertCardComment),
     onAttachmentAdded: forCurrentBoard(attachmentStore.added),
@@ -95,12 +152,6 @@ export const useBoardStore = defineStore('board', () => {
     onConnectionRecovered: reportConnectionRecovered,
     onResync: resyncBoardFromRealtime
   });
-  let loadRequestVersion = 0;
-  let initializeRequestVersion = 0;
-  let resyncPending = false;
-  let resyncRetryAttempt = 0;
-  let resyncRetryTimeout: ReturnType<typeof setTimeout> | null = null;
-
   function reportConnectionRecovered() {
     if (resyncPending) {
       return;
@@ -241,9 +292,8 @@ export const useBoardStore = defineStore('board', () => {
     if (currentBoardId.value !== boardId) {
       boardMembersStore.dispose();
     }
-    sortColumns(nextBoardShell.columns);
     void cardAttachmentThumbnailStore.loadBoard(boardId, nextBoardShell.cardAttachmentThumbnailsEnabled);
-    boardShell.value = nextBoardShell;
+    SET_BOARD(nextBoardShell);
     cardStore.replaceBoardCards(boardId, result.data.columns);
     commentStore.initialize(boardId);
     feedback.clearError();
@@ -261,12 +311,12 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(() => api.createColumn(boardId, model));
+    const result = await runBusy(boardId, () => api.createColumn(boardId, model));
     if (!result.ok) {
       return;
     }
 
-    upsertColumn(result.data);
+    UPSERT_COLUMN(boardId, result.data);
   }
 
   async function saveColumn(columnId: number, model: ColumnEditModel) {
@@ -275,12 +325,12 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(() => api.saveColumn(boardId, columnId, model));
+    const result = await runBusy(boardId, () => api.saveColumn(boardId, columnId, model));
     if (!result.ok) {
       return;
     }
 
-    upsertColumn(result.data);
+    UPSERT_COLUMN(boardId, result.data);
   }
 
   async function moveColumn(columnId: number, positionAfterColumnId: number | null) {
@@ -289,12 +339,12 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(() => api.moveColumn(boardId, columnId, positionAfterColumnId));
+    const result = await runBusy(boardId, () => api.moveColumn(boardId, columnId, positionAfterColumnId));
     if (!result.ok) {
       return;
     }
 
-    upsertColumn(result.data);
+    UPSERT_COLUMN(boardId, result.data);
   }
 
   async function deleteColumn(columnId: number) {
@@ -303,29 +353,19 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(() => api.deleteColumn(boardId, columnId));
+    const result = await runBusy(boardId, () => api.deleteColumn(boardId, columnId));
     if (!result.ok) {
       return;
     }
 
-    removeColumn(columnId);
+    REMOVE_COLUMN(boardId, columnId);
   }
 
   function applyBoardSummaryUpdate(summary: Pick<BoardSummary,
     'id' | 'name' | 'description' | 'slickCohesionModeEnabled' | 'cardAttachmentThumbnailsEnabled' | 'updatedAtUtc'>) {
     const thumbnailSettingChanged = boardShell.value?.id === summary.id
       && boardShell.value.cardAttachmentThumbnailsEnabled !== summary.cardAttachmentThumbnailsEnabled;
-    mutateBoardShell(draft => {
-      if (draft.id !== summary.id) {
-        return;
-      }
-
-      draft.name = summary.name;
-      draft.description = summary.description;
-      draft.slickCohesionModeEnabled = summary.slickCohesionModeEnabled;
-      draft.cardAttachmentThumbnailsEnabled = summary.cardAttachmentThumbnailsEnabled;
-      draft.updatedAtUtc = summary.updatedAtUtc;
-    });
+    UPDATE_BOARD_SUMMARY(summary);
     if (thumbnailSettingChanged) {
       void cardAttachmentThumbnailStore.loadBoard(summary.id, summary.cardAttachmentThumbnailsEnabled);
     }
@@ -339,10 +379,16 @@ export const useBoardStore = defineStore('board', () => {
     return boardShell.value.columns.find(x => x.id === columnId) ?? null;
   }
 
-  async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
-    busy.value = true;
+  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+    if (currentBoardId.value === boardId) {
+      busy.value = true;
+    }
     try {
       const result = await operation();
+      if (currentBoardId.value !== boardId) {
+        return result;
+      }
+
       if (!result.ok) {
         reportError(result.error);
       } else {
@@ -351,7 +397,9 @@ export const useBoardStore = defineStore('board', () => {
 
       return result;
     } finally {
-      busy.value = false;
+      if (currentBoardId.value === boardId) {
+        busy.value = false;
+      }
     }
   }
 
@@ -375,6 +423,7 @@ export const useBoardStore = defineStore('board', () => {
     attachmentStore.clear();
     cardAttachmentThumbnailStore.clear();
     boardShell.value = null;
+    busy.value = false;
     cardStore.dispose();
     boardMembersStore.dispose();
     commentStore.dispose();
@@ -390,43 +439,8 @@ export const useBoardStore = defineStore('board', () => {
       return false;
     }
 
-    if (currentBoardId.value === boardId) {
-      cardStore.removeSlickFromCards(slickId);
-    }
+    cardStore.removeSlickFromCards(boardId, slickId);
     return true;
-  }
-
-  function upsertColumn(column: Column) {
-    mutateBoardShell(draft => {
-      const existingIndex = draft.columns.findIndex(x => x.id === column.id);
-      if (existingIndex >= 0) {
-        draft.columns.splice(existingIndex, 1);
-      }
-
-      draft.columns.push(column);
-      sortColumns(draft.columns);
-    });
-  }
-
-  function removeColumn(columnId: number) {
-    mutateBoardShell(draft => {
-      const index = draft.columns.findIndex(x => x.id === columnId);
-      if (index < 0) {
-        return;
-      }
-
-      draft.columns.splice(index, 1);
-    });
-  }
-
-  function mutateBoardShell(mutator: (draft: BoardShell) => void) {
-    if (!boardShell.value) {
-      return;
-    }
-
-    const draft = cloneBoardShell(boardShell.value);
-    mutator(draft);
-    boardShell.value = draft;
   }
 
   return {

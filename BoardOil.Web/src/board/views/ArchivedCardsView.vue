@@ -310,7 +310,7 @@ async function unarchiveSelectedCard() {
       return;
     }
 
-    await cardStore.applyCreatedCard(result.data);
+    await cardStore.applyCreatedCard(boardId, result.data);
     closeDetailModal();
     await loadArchivedCards();
   } finally {

@@ -28,7 +28,7 @@ export const useCardStore = defineStore('card', () => {
   const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
   const api = createBoardApi();
 
-  function replaceBoardCards(boardId: number, columns: BoardColumn[]) {
+  function SET_BOARD_CARDS(boardId: number, columns: BoardColumn[]) {
     const nextCardsById: CardMap = {};
     const nextCardIdsByColumnId: CardIdsByColumnMap = {};
 
@@ -40,9 +40,131 @@ export const useCardStore = defineStore('card', () => {
       }
     }
 
+    if (activeBoardId.value !== boardId) {
+      busy.value = false;
+    }
     activeBoardId.value = boardId;
     cardsById.value = nextCardsById;
     cardIdsByColumnId.value = nextCardIdsByColumnId;
+  }
+
+  function UPSERT_CARDS(boardId: number, cards: Card[]) {
+    if (activeBoardId.value !== boardId) {
+      return false;
+    }
+    if (cards.length === 0) {
+      return true;
+    }
+
+    const nextCardsById = { ...cardsById.value };
+    const nextCardIdsByColumnId = unlinkCardsFromColumns(cardIdsByColumnId.value, new Set(cards.map(card => card.id)));
+    const targetColumnIds = new Set<number>();
+
+    for (const card of cards) {
+      nextCardsById[card.id] = cloneCard(card);
+      const targetCardIds = nextCardIdsByColumnId[card.boardColumnId] ?? [];
+      targetCardIds.push(card.id);
+      nextCardIdsByColumnId[card.boardColumnId] = targetCardIds;
+      targetColumnIds.add(card.boardColumnId);
+    }
+
+    for (const columnId of targetColumnIds) {
+      nextCardIdsByColumnId[columnId] = sortCardIds(nextCardIdsByColumnId[columnId], nextCardsById);
+    }
+
+    cardsById.value = nextCardsById;
+    cardIdsByColumnId.value = nextCardIdsByColumnId;
+    return true;
+  }
+
+  function REMOVE_CARDS(boardId: number, cardIds: number[]) {
+    if (activeBoardId.value !== boardId) {
+      return false;
+    }
+    if (cardIds.length === 0) {
+      return true;
+    }
+
+    const nextCardsById = { ...cardsById.value };
+    for (const cardId of cardIds) {
+      delete nextCardsById[cardId];
+    }
+
+    const nextCardIdsByColumnId = unlinkCardsFromColumns(cardIdsByColumnId.value, new Set(cardIds));
+
+    cardsById.value = nextCardsById;
+    cardIdsByColumnId.value = nextCardIdsByColumnId;
+    return true;
+  }
+
+  function REMOVE_TAG_FROM_CARDS(boardId: number, tagName: string) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    const normalisedTagName = tagName.trim().toUpperCase();
+    if (!normalisedTagName) {
+      return;
+    }
+
+    const nextCardsById: CardMap = {};
+    let hasChanges = false;
+
+    for (const [key, card] of Object.entries(cardsById.value)) {
+      const nextTagNames = card.tagNames.filter(existingTagName => existingTagName.trim().toUpperCase() !== normalisedTagName);
+      const nextTags = card.tags.filter(existingTag => existingTag.name.trim().toUpperCase() !== normalisedTagName);
+      if (nextTagNames.length !== card.tagNames.length) {
+        hasChanges = true;
+        nextCardsById[Number(key)] = {
+          ...card,
+          tags: nextTags,
+          tagNames: nextTagNames
+        };
+        continue;
+      }
+
+      nextCardsById[Number(key)] = card;
+    }
+
+    if (hasChanges) {
+      cardsById.value = nextCardsById;
+    }
+  }
+
+  function REMOVE_SLICK_FROM_CARDS(boardId: number, slickId: number) {
+    if (activeBoardId.value !== boardId) {
+      return;
+    }
+
+    if (slickId <= 0) {
+      return;
+    }
+
+    const nextCardsById: CardMap = {};
+    let hasChanges = false;
+
+    for (const [key, card] of Object.entries(cardsById.value)) {
+      if (card.slickId === slickId) {
+        hasChanges = true;
+        nextCardsById[Number(key)] = {
+          ...card,
+          slickId: null,
+          slickName: null,
+          slick: null
+        };
+        continue;
+      }
+
+      nextCardsById[Number(key)] = card;
+    }
+
+    if (hasChanges) {
+      cardsById.value = nextCardsById;
+    }
+  }
+
+  function replaceBoardCards(boardId: number, columns: BoardColumn[]) {
+    SET_BOARD_CARDS(boardId, columns);
   }
 
   function dispose() {
@@ -80,16 +202,11 @@ export const useCardStore = defineStore('card', () => {
       return result;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return null;
-    }
-
     if (options?.duplicateFromCardId !== undefined) {
-      await applyCreatedCard(result.data);
-    } else {
-      upsertCard(result.data);
+      const applied = await applyCreatedCard(boardId, result.data);
+      return applied ? result : null;
     }
-    return result;
+    return upsertCard(boardId, result.data) ? result : null;
   }
 
   async function saveCard(cardId: number, model: CardEditModel) {
@@ -99,12 +216,7 @@ export const useCardStore = defineStore('card', () => {
       return false;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return false;
-    }
-
-    upsertCard(result.data);
-    return true;
+    return upsertCard(boardId, result.data);
   }
 
   async function transferCard(
@@ -128,9 +240,7 @@ export const useCardStore = defineStore('card', () => {
       return result;
     }
 
-    if (activeBoardId.value === sourceBoardId) {
-      removeCard(cardId);
-    }
+    removeCard(sourceBoardId, cardId);
 
     return result;
   }
@@ -143,13 +253,7 @@ export const useCardStore = defineStore('card', () => {
       return false;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return false;
-    }
-
-    removeCards(uniqueCardIds);
-
-    return true;
+    return removeCards(boardId, uniqueCardIds);
   }
 
   async function archiveCards(cardIds: number[]) {
@@ -160,13 +264,7 @@ export const useCardStore = defineStore('card', () => {
       return false;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return false;
-    }
-
-    removeCards(uniqueCardIds);
-
-    return true;
+    return removeCards(boardId, uniqueCardIds);
   }
 
   function bulkMoveCards(
@@ -239,13 +337,7 @@ export const useCardStore = defineStore('card', () => {
       return false;
     }
 
-    if (activeBoardId.value !== boardId) {
-      return false;
-    }
-
-    upsertCards(result.data);
-
-    return true;
+    return upsertCards(boardId, result.data);
   }
 
   function normaliseTagNames(tagNames: string[]) {
@@ -294,73 +386,54 @@ export const useCardStore = defineStore('card', () => {
       return;
     }
 
-    if (activeBoardId.value === boardId) {
-      upsertCard(result.data);
-    }
+    upsertCard(boardId, result.data);
   }
 
-  async function applyCreatedCard(card: Card) {
-    const boardId = activeBoardId.value;
-    upsertCard(card);
+  async function applyCreatedCard(boardId: number, card: Card) {
+    if (!upsertCard(boardId, card)) {
+      return false;
+    }
     await cardAttachmentThumbnailStore.refreshCards(boardId, [card.id]);
+    return true;
   }
 
-  function upsertCard(card: Card) {
-    upsertCards([card]);
+  function upsertCard(boardId: number, card: Card) {
+    return upsertCards(boardId, [card]);
   }
 
-  function upsertCards(cards: Card[]) {
-    if (cards.length === 0) {
-      return;
+  function upsertCards(boardId: number, cards: Card[]) {
+    if (!UPSERT_CARDS(boardId, cards)) {
+      return false;
     }
-
-    const nextCardsById = { ...cardsById.value };
-    const nextCardIdsByColumnId = unlinkCardsFromColumns(cardIdsByColumnId.value, new Set(cards.map(card => card.id)));
-    const targetColumnIds = new Set<number>();
-
-    for (const card of cards) {
-      nextCardsById[card.id] = cloneCard(card);
-      const targetCardIds = nextCardIdsByColumnId[card.boardColumnId] ?? [];
-      targetCardIds.push(card.id);
-      nextCardIdsByColumnId[card.boardColumnId] = targetCardIds;
-      targetColumnIds.add(card.boardColumnId);
-    }
-
-    for (const columnId of targetColumnIds) {
-      nextCardIdsByColumnId[columnId] = sortCardIds(nextCardIdsByColumnId[columnId], nextCardsById);
-    }
-
-    cardsById.value = nextCardsById;
-    cardIdsByColumnId.value = nextCardIdsByColumnId;
     for (const card of cards) {
       if (card.slick) {
-        slickStore.upsertSlick(activeBoardId.value, card.slick);
+        slickStore.upsertSlick(boardId, card.slick);
       }
     }
+    return true;
   }
 
-  function removeCard(cardId: number) {
-    removeCards([cardId]);
+  function removeCard(boardId: number, cardId: number) {
+    return removeCards(boardId, [cardId]);
   }
 
-  function removeCards(cardIds: number[]) {
-    if (cardIds.length === 0) {
-      return;
+  function removeCards(boardId: number, cardIds: number[]) {
+    if (!REMOVE_CARDS(boardId, cardIds)) {
+      return false;
     }
-
-    const nextCardsById = { ...cardsById.value };
     for (const cardId of cardIds) {
-      delete nextCardsById[cardId];
+      cardAttachmentThumbnailStore.cardRemoved(boardId, cardId);
+      attachmentStore.cardRemoved(boardId, cardId);
     }
+    return true;
+  }
 
-    const nextCardIdsByColumnId = unlinkCardsFromColumns(cardIdsByColumnId.value, new Set(cardIds));
+  function removeTagFromCards(boardId: number, tagName: string) {
+    REMOVE_TAG_FROM_CARDS(boardId, tagName);
+  }
 
-    cardsById.value = nextCardsById;
-    cardIdsByColumnId.value = nextCardIdsByColumnId;
-    for (const cardId of cardIds) {
-      cardAttachmentThumbnailStore.cardRemoved(activeBoardId.value, cardId);
-      attachmentStore.cardRemoved(activeBoardId.value, cardId);
-    }
+  function removeSlickFromCards(boardId: number, slickId: number) {
+    REMOVE_SLICK_FROM_CARDS(boardId, slickId);
   }
 
   function getCardById(cardId: number | null) {
@@ -388,80 +461,24 @@ export const useCardStore = defineStore('card', () => {
     return cards;
   }
 
-  function removeTagFromCards(tagName: string) {
-    const normalisedTagName = tagName.trim().toUpperCase();
-    if (!normalisedTagName) {
-      return;
-    }
-
-    const nextCardsById: CardMap = {};
-    let hasChanges = false;
-
-    for (const [key, card] of Object.entries(cardsById.value)) {
-      const nextTagNames = card.tagNames.filter(existingTagName => existingTagName.trim().toUpperCase() !== normalisedTagName);
-      const nextTags = card.tags.filter(existingTag => existingTag.name.trim().toUpperCase() !== normalisedTagName);
-      if (nextTagNames.length !== card.tagNames.length) {
-        hasChanges = true;
-        nextCardsById[Number(key)] = {
-          ...card,
-          tags: nextTags,
-          tagNames: nextTagNames
-        };
-        continue;
-      }
-
-      nextCardsById[Number(key)] = card;
-    }
-
-    if (hasChanges) {
-      cardsById.value = nextCardsById;
-    }
-  }
-
-  function removeSlickFromCards(slickId: number) {
-    if (slickId <= 0) {
-      return;
-    }
-
-    const nextCardsById: CardMap = {};
-    let hasChanges = false;
-
-    for (const [key, card] of Object.entries(cardsById.value)) {
-      if (card.slickId === slickId) {
-        hasChanges = true;
-        nextCardsById[Number(key)] = {
-          ...card,
-          slickId: null,
-          slickName: null,
-          slick: null
-        };
-        continue;
-      }
-
-      nextCardsById[Number(key)] = card;
-    }
-
-    if (hasChanges) {
-      cardsById.value = nextCardsById;
-    }
-  }
-
   async function runBusy<T>(
     operation: () => Promise<Result<T, AppError>>,
-    options?: {
-      boardId?: number;
+    options: {
+      boardId: number;
       suppressError?: (error: AppError) => boolean;
     }
   ) {
-    busy.value = true;
+    if (activeBoardId.value === options.boardId) {
+      busy.value = true;
+    }
     try {
       const result = await operation();
-      if (options?.boardId !== undefined && activeBoardId.value !== options.boardId) {
+      if (activeBoardId.value !== options.boardId) {
         return result;
       }
 
       if (!result.ok) {
-        if (options?.suppressError?.(result.error)) {
+        if (options.suppressError?.(result.error)) {
           feedback.clearError();
         } else {
           reportError(result.error);
@@ -472,7 +489,9 @@ export const useCardStore = defineStore('card', () => {
 
       return result;
     } finally {
-      busy.value = false;
+      if (activeBoardId.value === options.boardId) {
+        busy.value = false;
+      }
     }
   }
 

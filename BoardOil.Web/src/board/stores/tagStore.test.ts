@@ -33,6 +33,36 @@ describe('tagStore', () => {
     api.deleteTag.mockResolvedValue(ok(undefined));
   });
 
+  it.each(['success', 'failure'] as const)('keeps current tag feedback and busy state after old-board %s', async outcome => {
+    const store = useTagStore();
+    const feedback = useUiFeedbackStore();
+    await store.loadTags(1);
+    const pending = createDeferred<Result<Tag, AppError>>();
+    api.createTag.mockReturnValueOnce(pending.promise);
+    const oldRequest = store.createTag(1, 'Old');
+    expect(store.busy).toBe(true);
+    await store.loadTags(2);
+    expect(store.busy).toBe(false);
+    const current = createDeferred<Result<Tag, AppError>>();
+    api.createTag.mockReturnValueOnce(current.promise);
+    const currentRequest = store.createTag(2, 'Current');
+    feedback.setError('Current feedback');
+
+    pending.resolve(outcome === 'success'
+      ? ok(makeTag(7, 'Old', 'auto', '{}', null))
+      : err({ kind: 'api', message: 'Old error' }));
+    await oldRequest;
+    expect(store.busy).toBe(true);
+    expect(feedback.errorMessage).toBe('Current feedback');
+    expect(store.tags).toEqual([]);
+
+    current.resolve(ok(makeTag(8, 'Current', 'auto', '{}', null)));
+    await currentRequest;
+    expect(store.busy).toBe(false);
+    expect(feedback.errorMessage).toBe('');
+    expect(store.tags.map(tag => tag.name)).toEqual(['Current']);
+  });
+
   it('loads tags for the selected board', async () => {
     const store = useTagStore();
     api.getTags.mockResolvedValueOnce(ok([makeTag(7, 'Release', 'presets', '{"presetIndex":2,"textColorMode":"auto"}', null)]));

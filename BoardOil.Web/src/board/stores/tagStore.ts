@@ -54,6 +54,7 @@ export const useTagStore = defineStore('tag', () => {
   async function loadTags(boardId: number) {
     if (activeBoardId.value !== boardId) {
       tags.value = [];
+      busy.value = false;
     }
 
     activeBoardId.value = boardId;
@@ -73,7 +74,7 @@ export const useTagStore = defineStore('tag', () => {
   }
 
   async function createTag(boardId: number, tagName: string, emoji?: string | null) {
-    const result = await runBusy(() => api.createTag(boardId, tagName, emoji));
+    const result = await runBusy(boardId, () => api.createTag(boardId, tagName, emoji));
     if (!result.ok) {
       return null;
     }
@@ -83,7 +84,7 @@ export const useTagStore = defineStore('tag', () => {
   }
 
   async function getCreateDefaultStyle(boardId: number): Promise<StyleDefault | null> {
-    const result = await runBusy(() => api.getTagCreateDefaultStyle(boardId));
+    const result = await runBusy(boardId, () => api.getTagCreateDefaultStyle(boardId));
     if (!result.ok) {
       return null;
     }
@@ -119,7 +120,7 @@ export const useTagStore = defineStore('tag', () => {
     tagId: number,
     model: TagEditModel
   ) {
-    const result = await runBusy(() => api.updateTagStyle(boardId, tagId, model));
+    const result = await runBusy(boardId, () => api.updateTagStyle(boardId, tagId, model));
     if (!result.ok) {
       return null;
     }
@@ -152,7 +153,7 @@ export const useTagStore = defineStore('tag', () => {
   }
 
   async function deleteTag(boardId: number, tagId: number) {
-    const result = await runBusy(() => api.deleteTag(boardId, tagId));
+    const result = await runBusy(boardId, () => api.deleteTag(boardId, tagId));
     if (!result.ok) {
       return false;
     }
@@ -179,10 +180,16 @@ export const useTagStore = defineStore('tag', () => {
       ?? null;
   }
 
-  async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
-    busy.value = true;
+  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+    if (activeBoardId.value === boardId) {
+      busy.value = true;
+    }
     try {
       const result = await operation();
+      if (activeBoardId.value !== boardId) {
+        return result;
+      }
+
       if (!result.ok) {
         reportError(result.error);
       } else {
@@ -191,7 +198,9 @@ export const useTagStore = defineStore('tag', () => {
 
       return result;
     } finally {
-      busy.value = false;
+      if (activeBoardId.value === boardId) {
+        busy.value = false;
+      }
     }
   }
 

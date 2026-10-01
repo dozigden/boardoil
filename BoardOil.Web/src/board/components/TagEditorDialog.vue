@@ -395,7 +395,7 @@ async function deleteEditingTag() {
     return;
   }
 
-  cardStore.removeTagFromCards(tag.name);
+  cardStore.removeTagFromCards(targetBoardId, tag.name);
   await closeTagEditor();
 }
 

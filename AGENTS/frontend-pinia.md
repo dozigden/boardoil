@@ -54,6 +54,7 @@ The usual flow is:
 - Keep public actions and other helpers in camelCase, including request actions such as `addMember`, `updateMemberRole` and `deleteMember`, and lifecycle actions such as `loadMembers` and `dispose`.
 - Internal mutations synchronously apply local state changes. Keep API requests and asynchronous orchestration in actions. This is a naming and organisation convention for ordinary functions; use direct calls without a Vuex-style `commit` or mutation registry.
 - Pass the operation's board/card identity to a scoped mutation. The mutation owns the check against the store's current context and ignores data for a different context. Callers share that check by delegating to the mutation.
+- Card state-update actions take an explicit board ID and delegate to guarded internal mutations. Those mutations report whether the update was accepted so actions can preserve their return contracts and skip related slick/attachment/thumbnail work for a different board. Snapshot replacement establishes the selected board; it is a lifecycle operation.
 - Reuse the same internal mutation wherever the local state change is the same. For example, successful addition and role update both call `UPSERT_MEMBER(boardId, member)`; successful deletion calls `REMOVE_MEMBER(boardId, userId)`.
 - When realtime routing or another store needs to apply a change, expose a camelCase action that delegates to the internal mutation and owns any related orchestration. Keep the uppercase helper private.
 
@@ -117,6 +118,7 @@ The action that applies a domain change owns its related state updates. Views an
 - Expose operation progress through store busy/loading state and restore it in `finally`. Keep initial context loading distinct where it controls the workspace loading UI.
 - Reuse the store's established request/feedback helper. Shared failures normally go through `uiFeedbackStore`; preserve deliberate inline-validation or operation-specific feedback paths.
 - Successful operations clear feedback through the established path. When composing loaders, let the loaders report their own failures rather than adding duplicate error toasts in the orchestration layer.
+- Scope request feedback and busy-state completion to the captured board ID. Switching boards or clearing context resets busy state; an old-board response must not clear a current-board request’s busy state or change its feedback.
 - Treat feedback ownership for concurrent operations as an explicit design concern. These refactors do not establish a new error-list/identifier model or claim to solve concurrent error clearing.
 - Keep session and permission checks centralised through auth/store/router integration.
 

@@ -37,6 +37,77 @@ describe('cardStore', () => {
     api.getCardThumbnails.mockResolvedValue(ok([]));
   });
 
+  it.each(['board change', 'disposal'] as const)('ignores card updates and related work after %s', async change => {
+    const store = useCardStore();
+    const slicks = useSlickStore();
+    const thumbnails = useCardAttachmentThumbnailStore();
+    const attachments = useAttachmentStore();
+    const board = makeBoard();
+    const slick = makeSlick();
+    const card: Card = {
+      ...board.columns[0].cards[0], slick, slickId: slick.id, slickName: slick.name,
+      tagNames: ['bug'], tags: [{ id: 1, name: 'bug', emoji: null, styleName: 'auto', stylePropertiesJson: '{}' }]
+    };
+    board.columns[0].cards[0] = card;
+    store.replaceBoardCards(1, board.columns);
+    if (change === 'board change') {
+      store.replaceBoardCards(2, board.columns);
+    } else {
+      store.dispose();
+    }
+    const expectedCards = store.cardsById;
+    const expectedColumns = store.cardIdsByColumnId;
+    const slickUpsert = vi.spyOn(slicks, 'upsertSlick');
+    const thumbnailRefresh = vi.spyOn(thumbnails, 'refreshCards');
+    const thumbnailRemoval = vi.spyOn(thumbnails, 'cardRemoved');
+    const attachmentRemoval = vi.spyOn(attachments, 'cardRemoved');
+
+    expect(store.upsertCards(1, [{ ...card, title: 'Old update' }])).toBe(false);
+    expect(await store.applyCreatedCard(1, card)).toBe(false);
+    expect(store.removeCards(1, [card.id])).toBe(false);
+    store.removeTagFromCards(1, 'bug');
+    store.removeSlickFromCards(1, slick.id);
+
+    expect(store.cardsById).toBe(expectedCards);
+    expect(store.cardIdsByColumnId).toBe(expectedColumns);
+    expect(slickUpsert).not.toHaveBeenCalled();
+    expect(thumbnailRefresh).not.toHaveBeenCalled();
+    expect(thumbnailRemoval).not.toHaveBeenCalled();
+    expect(attachmentRemoval).not.toHaveBeenCalled();
+  });
+
+  it.each(['success', 'failure'] as const)('keeps current card feedback and busy state after old-board %s', async outcome => {
+    const store = useCardStore();
+    const feedback = useUiFeedbackStore();
+    const board = makeBoard();
+    const card = board.columns[0].cards[0];
+    store.replaceBoardCards(1, board.columns);
+    const pending = deferred<Result<Card, AppError>>();
+    api.saveCard.mockReturnValueOnce(pending.promise);
+    const oldRequest = store.saveCard(card.id, makeCardEditModel());
+    expect(store.busy).toBe(true);
+    store.replaceBoardCards(2, board.columns);
+    expect(store.busy).toBe(false);
+    const current = deferred<Result<Card, AppError>>();
+    api.saveCard.mockReturnValueOnce(current.promise);
+    const currentRequest = store.saveCard(card.id, makeCardEditModel());
+    feedback.setError('Current feedback');
+
+    pending.resolve(outcome === 'success'
+      ? ok({ ...card, title: 'Old update' })
+      : err({ kind: 'api', message: 'Old error' }));
+    expect(await oldRequest).toBe(false);
+    expect(store.busy).toBe(true);
+    expect(feedback.errorMessage).toBe('Current feedback');
+    expect(store.getCardById(card.id)?.title).toBe(card.title);
+
+    current.resolve(ok({ ...card, title: 'Current update' }));
+    expect(await currentRequest).toBe(true);
+    expect(store.busy).toBe(false);
+    expect(feedback.errorMessage).toBe('');
+    expect(store.getCardById(card.id)?.title).toBe('Current update');
+  });
+
   it('hydrates cards by column from a board snapshot', () => {
     const store = useCardStore();
     const board = makeBoard();
@@ -97,7 +168,7 @@ describe('cardStore', () => {
       { ...seed, id: 201, boardColumnId: 1, sortKey: 'B' }
     ];
 
-    store.upsertCards(cards);
+    store.upsertCards(1, cards);
 
     expect(store.getCardsForColumn(1).map(card => card.id)).toEqual([201]);
     expect(store.getCardsForColumn(2).map(card => card.id)).toEqual([101, 102]);
@@ -792,7 +863,7 @@ describe('cardStore', () => {
     ];
     store.replaceBoardCards(board.id, board.columns);
 
-    store.removeTagFromCards(' bug ');
+    store.removeTagFromCards(1, ' bug ');
 
     expect(store.getCardById(101)?.tagNames).toEqual(['urgent']);
     expect(store.getCardById(101)?.tags.map(tag => tag.name)).toEqual(['urgent']);
@@ -804,7 +875,7 @@ describe('cardStore', () => {
     board.columns[0].cards[0].slickId = 15;
     store.replaceBoardCards(board.id, board.columns);
 
-    store.removeSlickFromCards(15);
+    store.removeSlickFromCards(1, 15);
 
     expect(store.getCardById(101)?.slickId).toBeNull();
   });

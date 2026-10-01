@@ -90,6 +90,75 @@ describe('boardStore', () => {
     realtime.disconnect.mockResolvedValue(undefined);
   });
 
+  describe.each(['board change', 'disposal'] as const)('column responses after %s', change => {
+    it.each(['create', 'save', 'move', 'delete'] as const)('ignores late %s state changes', async operation => {
+      const store = useBoardStore();
+      await store.initialize(1);
+      const column = { ...makeBoard().columns[0], title: 'Old board response' };
+      const pending = deferred<Result<Column | void, AppError>>();
+      let request: Promise<void>;
+      switch (operation) {
+        case 'create':
+          api.createColumn.mockReturnValueOnce(pending.promise);
+          request = store.createColumn({ title: column.title });
+          break;
+        case 'save':
+          api.saveColumn.mockReturnValueOnce(pending.promise);
+          request = store.saveColumn(column.id, { title: column.title });
+          break;
+        case 'move':
+          api.moveColumn.mockReturnValueOnce(pending.promise);
+          request = store.moveColumn(column.id, null);
+          break;
+        case 'delete':
+          api.deleteColumn.mockReturnValueOnce(pending.promise);
+          request = store.deleteColumn(column.id);
+          break;
+      }
+      expect(store.busy).toBe(true);
+      if (change === 'board change') {
+        api.getBoard.mockResolvedValueOnce(ok(makeBoard(2, 'Other board')));
+        await store.initialize(2);
+      } else {
+        await store.dispose();
+      }
+      expect(store.busy).toBe(false);
+      const expectedBoard = store.board;
+      pending.resolve(ok(operation === 'delete' ? undefined : column));
+      await request;
+      expect(store.board).toEqual(expectedBoard);
+      expect(store.busy).toBe(false);
+    });
+  });
+
+  it.each(['success', 'failure'] as const)('keeps current column feedback and busy state after old-board %s', async outcome => {
+    const store = useBoardStore();
+    const feedback = useUiFeedbackStore();
+    await store.initialize(1);
+    const pending = deferred<Result<Column, AppError>>();
+    api.createColumn.mockReturnValueOnce(pending.promise);
+    const oldRequest = store.createColumn({ title: 'Old' });
+    api.getBoard.mockResolvedValueOnce(ok(makeBoard(2)));
+    await store.initialize(2);
+    const current = deferred<Result<Column, AppError>>();
+    api.createColumn.mockReturnValueOnce(current.promise);
+    const currentRequest = store.createColumn({ title: 'Current' });
+    feedback.setError('Current feedback');
+
+    pending.resolve(outcome === 'success'
+      ? ok(makeBoard().columns[0])
+      : err({ kind: 'api', message: 'Old error' }));
+    await oldRequest;
+    expect(store.busy).toBe(true);
+    expect(feedback.errorMessage).toBe('Current feedback');
+
+    current.resolve(ok({ ...makeBoard().columns[0], title: 'Current' }));
+    await currentRequest;
+    expect(store.busy).toBe(false);
+    expect(feedback.errorMessage).toBe('');
+    expect(store.getColumnById(1)?.title).toBe('Current');
+  });
+
   it.each(['success', 'failure', 'board change', 'disposal'])('coordinates slick deletion after %s', async outcome => {
     const store = useBoardStore();
     const cards = useCardStore();
