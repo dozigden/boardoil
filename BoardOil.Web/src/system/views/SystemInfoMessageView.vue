@@ -156,6 +156,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { storeToRefs } from 'pinia';
 import { createSystemApi } from '../../shared/api/systemApi';
 import { useStyleDraft } from '../../board/composables/useStyleDraft';
 import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
@@ -163,6 +164,7 @@ import { createRestrictedStyleDraft } from '../../shared/utils/styleDraftAdapter
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
 import type { SystemInfoMessageDto } from '../../shared/types/configurationTypes';
 import type { StylePresentation } from '../../shared/utils/styleTypes';
 
@@ -172,8 +174,9 @@ const allowedSystemInfoStyleNames = new Set<StylePresentation['styleName']>(['au
 
 const systemApi = createSystemApi();
 const feedback = useUiFeedbackStore();
+const systemInfoMessageStore = useSystemInfoMessageStore();
+const { saving } = storeToRefs(systemInfoMessageStore);
 const errorMessage = ref<string | null>(null);
-const saving = ref(false);
 const savedSnapshot = ref('');
 const systemInfoEnabledDraft = ref(false);
 const systemInfoEmojiDraft = ref<string | null>(null);
@@ -232,22 +235,16 @@ async function saveSystemInfoMessage() {
     return;
   }
 
-  saving.value = true;
-  try {
-    const systemInfoMessage = buildCurrentSystemInfoMessage();
-
-    const systemInfoResult = await systemApi.updateSystemInfoMessage(systemInfoMessage);
-    if (!systemInfoResult.ok) {
-      feedback.showToast(systemInfoResult.error.message, 'error');
-      return;
-    }
-
-    const persistedMessage = systemInfoResult.data ?? systemInfoMessage;
-    savedSnapshot.value = serialiseSystemInfoMessage(persistedMessage);
-    feedback.showToast('Saved successfully.');
-  } finally {
-    saving.value = false;
+  const systemInfoMessage = buildCurrentSystemInfoMessage();
+  const systemInfoResult = await systemInfoMessageStore.save(systemInfoMessage);
+  if (!systemInfoResult.ok) {
+    feedback.showToast(systemInfoResult.error.message, 'error');
+    return;
   }
+
+  const persistedMessage = systemInfoResult.data ?? systemInfoMessage;
+  savedSnapshot.value = serialiseSystemInfoMessage(persistedMessage);
+  feedback.showToast('Saved successfully.');
 }
 
 function applySystemInfoDraft(systemInfoMessage: SystemInfoMessageDto | null) {

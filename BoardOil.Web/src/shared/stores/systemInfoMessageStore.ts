@@ -8,6 +8,17 @@ export const useSystemInfoMessageStore = defineStore('systemInfoMessage', () => 
   const message = ref<SystemInfoMessageDto | null>(null);
   const loaded = ref(false);
   const busy = ref(false);
+  const saving = ref(false);
+
+  function SET_MESSAGE(nextMessage: SystemInfoMessageDto | null) {
+    message.value = nextMessage;
+    loaded.value = true;
+  }
+
+  function CLEAR_MESSAGE() {
+    message.value = null;
+    loaded.value = false;
+  }
 
   async function load(force = false) {
     if (loaded.value && !force) {
@@ -18,34 +29,45 @@ export const useSystemInfoMessageStore = defineStore('systemInfoMessage', () => 
     try {
       const result = await api.getSystemInfoMessage();
       if (!result.ok) {
-        message.value = null;
-        loaded.value = true;
+        SET_MESSAGE(null);
         return false;
       }
 
-      message.value = result.data;
-      loaded.value = true;
+      SET_MESSAGE(result.data);
       return true;
     } finally {
       busy.value = false;
     }
   }
 
+  async function save(nextMessage: SystemInfoMessageDto | null) {
+    saving.value = true;
+    try {
+      const result = await api.updateSystemInfoMessage(nextMessage);
+      if (result.ok) {
+        SET_MESSAGE(result.data);
+      }
+      return result;
+    } finally {
+      saving.value = false;
+    }
+  }
+
   function setMessage(nextMessage: SystemInfoMessageDto | null) {
-    message.value = nextMessage;
-    loaded.value = true;
+    SET_MESSAGE(nextMessage);
   }
 
   function clear() {
-    message.value = null;
-    loaded.value = false;
+    CLEAR_MESSAGE();
   }
 
   return {
     message,
     loaded,
     busy,
+    saving,
     load,
+    save,
     setMessage,
     clear
   };
