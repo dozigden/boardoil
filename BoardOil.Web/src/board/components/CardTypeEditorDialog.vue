@@ -208,7 +208,7 @@ const cardTypeStore = useCardTypeStore();
 const { confirm } = useConfirm();
 const { currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(cardTypeStore);
-const { createCardType, updateCardType, deleteCardType, getCardTypeById, loadCardTypes } = cardTypeStore;
+const { createCardType, updateCardType, deleteCardType, getCardTypeById } = cardTypeStore;
 
 const draftName = ref<string | null>(null);
 const draftEmoji = ref<string | null>(null);
@@ -278,12 +278,7 @@ const previewCardStyleClasses = computed(() => {
 
 watch(
   [boardId, routeCardTypeId, isCreateMode, editingCardType],
-  async ([nextBoardId, nextCardTypeId, nextIsCreate, nextCardType], _previous, onCleanup) => {
-    let cancelled = false;
-    onCleanup(() => {
-      cancelled = true;
-    });
-
+  async ([nextBoardId, nextCardTypeId, nextIsCreate, nextCardType]) => {
     if (nextIsCreate) {
       if (draftSourceKey.value === 'create') {
         return;
@@ -299,22 +294,7 @@ watch(
       return;
     }
 
-    if (nextCardTypeId === null) {
-      clearDraft();
-      await router.replace({ name: 'card-types', params: { boardId: nextBoardId } });
-      return;
-    }
-
-    if (!nextCardType) {
-      const loaded = await loadCardTypes(nextBoardId);
-      if (!loaded || cancelled) {
-        return;
-      }
-
-      nextCardType = getCardTypeById(nextCardTypeId);
-    }
-
-    if (!nextCardType) {
+    if (nextCardTypeId === null || !nextCardType) {
       clearDraft();
       await router.replace({ name: 'card-types', params: { boardId: nextBoardId } });
       return;
@@ -339,7 +319,6 @@ async function closeDialog() {
 
 async function saveCardType() {
   const targetBoardId = boardId.value;
-  const editorRoute = router.currentRoute.value;
   const canonicalName = (draftName.value ?? '').trim();
   if (!canonicalName || !draftStyle.value) {
     return;
@@ -359,7 +338,7 @@ async function saveCardType() {
 
   if (isCreateMode.value) {
     const created = await createCardType(saveModel, targetBoardId);
-    if (!created || router.currentRoute.value !== editorRoute || boardId.value !== targetBoardId) {
+    if (!created) {
       return;
     }
 
@@ -372,7 +351,7 @@ async function saveCardType() {
   }
 
   const updated = await updateCardType(editingCardType.value.id, saveModel, targetBoardId);
-  if (!updated || router.currentRoute.value !== editorRoute || boardId.value !== targetBoardId) {
+  if (!updated) {
     return;
   }
 
@@ -382,7 +361,6 @@ async function saveCardType() {
 async function deleteEditingCardType() {
   const cardType = editingCardType.value;
   const targetBoardId = boardId.value;
-  const editorRoute = router.currentRoute.value;
   if (!cardType || cardType.isSystem) {
     return;
   }
@@ -393,12 +371,12 @@ async function deleteEditingCardType() {
     confirmLabel: 'Delete',
     danger: true
   });
-  if (!confirmed || router.currentRoute.value !== editorRoute || boardId.value !== targetBoardId) {
+  if (!confirmed || boardId.value !== targetBoardId) {
     return;
   }
 
   const deleted = await deleteCardType(cardType.id, targetBoardId);
-  if (!deleted || router.currentRoute.value !== editorRoute || boardId.value !== targetBoardId) {
+  if (!deleted) {
     return;
   }
 

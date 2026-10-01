@@ -27,7 +27,8 @@ const api = {
   saveColumn: vi.fn(),
   moveColumn: vi.fn(),
   deleteColumn: vi.fn(),
-  deleteSlick: vi.fn()
+  deleteSlick: vi.fn(),
+  deleteTag: vi.fn()
 };
 
 const realtime = {
@@ -86,6 +87,7 @@ describe('boardStore', () => {
     api.getTags.mockResolvedValue(ok([]));
     api.getSlicks.mockResolvedValue(ok([]));
     api.deleteSlick.mockResolvedValue(ok(undefined));
+    api.deleteTag.mockResolvedValue(ok(undefined));
     realtime.connect.mockResolvedValue(undefined);
     realtime.disconnect.mockResolvedValue(undefined);
   });
@@ -259,6 +261,49 @@ describe('boardStore', () => {
     expect(store.busy).toBe(false);
     expect(feedback.errorMessage).toBe('');
     expect(store.getColumnById(1)?.title).toBe('Current');
+  });
+
+  it.each(['success', 'failure', 'board change', 'disposal'])('coordinates tag deletion after %s', async outcome => {
+    const store = useBoardStore();
+    const cards = useCardStore();
+    const tags = useTagStore();
+    const tag = makeCatalogues().tags[0]!;
+    const otherTag = { ...tag, id: tag.id + 1, name: 'Retained' };
+    const board = makeBoard();
+    const card = board.columns[0]!.cards[0]!;
+    Object.assign(card, { tags: [tag, otherTag], tagNames: [tag.name, otherTag.name] });
+    const otherCard = { ...card, id: 102, tags: [otherTag], tagNames: [otherTag.name] };
+    board.columns[0]!.cards.push(otherCard);
+    api.getBoard.mockResolvedValue(ok(board));
+    api.getTags.mockResolvedValue(ok([tag, otherTag]));
+    await store.initialize(1);
+    const pending = deferred<Result<void, AppError>>();
+    api.deleteTag.mockReturnValueOnce(pending.promise);
+    const deleting = store.deleteTag(1, tag.id);
+    if (outcome === 'board change') {
+      api.getBoard.mockResolvedValueOnce(ok({ ...board, id: 2 }));
+      await store.initialize(2);
+    } else if (outcome === 'disposal') {
+      await store.dispose();
+    }
+    pending.resolve(outcome === 'failure'
+      ? err({ kind: 'api', message: 'Deletion failed.' })
+      : ok(undefined));
+
+    expect(await deleting).toBe(outcome !== 'failure');
+    expect(api.deleteTag).toHaveBeenCalledWith(1, tag.id);
+    if (outcome === 'disposal') {
+      expect(cards.getCardById(card.id)).toBeNull();
+      expect(tags.tags).toEqual([]);
+    } else if (outcome === 'success') {
+      expect(cards.getCardById(card.id)).toMatchObject({ tags: [otherTag], tagNames: [otherTag.name] });
+      expect(cards.getCardById(otherCard.id)).toEqual(otherCard);
+      expect(tags.tags).toEqual([otherTag]);
+    } else {
+      expect(cards.getCardById(card.id)).toEqual(card);
+      expect(cards.getCardById(otherCard.id)).toEqual(otherCard);
+      expect(tags.tags).toHaveLength(2);
+    }
   });
 
   it.each(['success', 'failure', 'board change', 'disposal'])('coordinates slick deletion after %s', async outcome => {

@@ -180,7 +180,6 @@ import { Check, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useCardStore } from '../stores/cardStore';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
@@ -200,7 +199,6 @@ import { useConfirm } from '../../shared/composables/useConfirm';
 
 const route = useRoute();
 const router = useRouter();
-const cardStore = useCardStore();
 const boardStore = useBoardStore();
 const tagStore = useTagStore();
 const { confirm } = useConfirm();
@@ -209,7 +207,6 @@ const { currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(tagStore);
 const {
   saveTag: saveTagAction,
-  deleteTag,
   getTagById,
   getTagByName,
   loadTags,
@@ -390,12 +387,11 @@ async function deleteEditingTag() {
     return;
   }
 
-  const deleted = await deleteTag(targetBoardId, tag.id);
-  if (!deleted || boardId.value !== targetBoardId) {
+  const deleted = await boardStore.deleteTag(targetBoardId, tag.id);
+  if (!deleted) {
     return;
   }
 
-  cardStore.removeTagFromCards(targetBoardId, tag.name);
   await closeTagEditor();
 }
 

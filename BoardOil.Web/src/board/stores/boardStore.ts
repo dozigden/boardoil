@@ -422,6 +422,21 @@ export const useBoardStore = defineStore('board', () => {
     feedback.clearWarning();
   }
 
+  async function deleteTag(boardId: number, tagId: number) {
+    const tag = tagStore.getTagById(tagId);
+    if (!tag) {
+      return false;
+    }
+
+    const deleted = await tagStore.deleteTag(boardId, tagId);
+    if (!deleted) {
+      return false;
+    }
+
+    cardStore.removeTagFromCards(boardId, tag.name);
+    return true;
+  }
+
   async function deleteSlick(slickId: number, boardId: number) {
     const deleted = await slickStore.deleteSlick(slickId, boardId);
     if (!deleted) {
@@ -446,6 +461,7 @@ export const useBoardStore = defineStore('board', () => {
     moveColumn,
     deleteColumn,
     deleteSlick,
+    deleteTag,
     applyBoardSummaryUpdate,
     getColumnById
   };
