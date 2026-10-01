@@ -33,6 +33,36 @@ describe('systemInfoMessageStore', () => {
     expect(api.getSystemInfoMessage).toHaveBeenCalledTimes(1);
   });
 
+  it('retries an initial load after a failed request', async () => {
+    const store = useSystemInfoMessageStore();
+    api.getSystemInfoMessage.mockResolvedValueOnce(err({ kind: 'network', message: 'Load failed.' }));
+
+    expect(await store.load()).toBe(false);
+    expect(store.message).toBeNull();
+    expect(store.loaded).toBe(false);
+    expect(store.busy).toBe(false);
+
+    const message = makeMessage('Recovered');
+    api.getSystemInfoMessage.mockResolvedValueOnce(ok(message));
+    expect(await store.load()).toBe(true);
+    expect(store.message).toEqual(message);
+    expect(store.loaded).toBe(true);
+    expect(store.busy).toBe(false);
+    expect(api.getSystemInfoMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves the current message when a forced refresh fails', async () => {
+    const store = useSystemInfoMessageStore();
+    const message = makeMessage('Current');
+    store.setMessage(message);
+    api.getSystemInfoMessage.mockResolvedValueOnce(err({ kind: 'network', message: 'Refresh failed.' }));
+
+    expect(await store.load(true)).toBe(false);
+    expect(store.message).toEqual(message);
+    expect(store.loaded).toBe(true);
+    expect(store.busy).toBe(false);
+  });
+
   it('refreshes a realtime message on forced load and reloads after clearing', async () => {
     const store = useSystemInfoMessageStore();
     store.setMessage(makeMessage('Realtime'));

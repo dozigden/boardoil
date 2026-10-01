@@ -29,7 +29,6 @@ export const useSystemInfoMessageStore = defineStore('systemInfoMessage', () => 
     try {
       const result = await api.getSystemInfoMessage();
       if (!result.ok) {
-        SET_MESSAGE(null);
         return false;
       }
 
