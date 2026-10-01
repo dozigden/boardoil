@@ -66,12 +66,11 @@ async function deleteBoard() {
   }
   const nextBoardId = boardId.value;
 
-  const deleted = await boardCatalogueStore.deleteBoard(nextBoardId);
+  const deleted = await boardStore.deleteBoard(nextBoardId);
   if (!deleted) {
     return;
   }
 
-  await boardStore.dispose();
   await router.push({ name: 'boards' });
 }
 

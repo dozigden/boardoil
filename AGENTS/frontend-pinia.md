@@ -13,7 +13,7 @@ Current examples:
 | Owner | Responsibility |
 | --- | --- |
 | `authStore` | Session lifecycle, bootstrap, role checks and CSRF setup. |
-| `boardCatalogueStore` | Board selection catalogue and board creation. |
+| `boardCatalogueStore` | Signed-in user’s board catalogue and its load/create/clone/import/save/delete requests. |
 | `boardStore` | Active board metadata and columns, board context initialization/cleanup, realtime connection and event routing. |
 | `cardStore` | Card entities, column membership, card ordering and card operations. |
 | `tagStore`, `cardTypeStore`, `slickStore` | Shared board catalogues and their operations. |
@@ -79,6 +79,7 @@ The action that applies a domain change owns its related state updates. Views an
 - Attachment additions/deletions go through `attachmentStore.added`/`removed`. These update the matching open context and coordinate board thumbnail updates. Thumbnail work must still happen when no card is open or a different card is open.
 - `cardStore.applyCreatedCard` combines upsert with thumbnail refresh. Realtime creation, duplication and archive restoration use it. Ordinary local creation uses upsert because it has no copied attachments to fetch; do not introduce extra requests solely to make callers look uniform.
 - Keep cleanup context-aware. Removing a live card must not clear attachment state for another board/card or an archived snapshot.
+- Board settings views call `boardStore.saveBoard`/`deleteBoard`. These delegate catalogue requests, then apply the saved summary through the guarded board mutation or dispose the workspace only if the deleted board is still selected. The catalogue remains valid across board switches; do not scope its writes to the currently selected board.
 - Tag deletion is coordinated by `boardStore.deleteTag`: capture the tag before deletion, call `tagStore.deleteTag`, then clear matching card tags through the board-guarded card action. The editor calls this one action.
 - Slick deletion is coordinated by `boardStore.deleteSlick`: it calls `slickStore.deleteSlick`, then clears matching card membership only while that board is current. Editors call this one action. Keep the existing `cardStore` → `slickStore` dependency directed; do not add a reverse dependency for deletion cleanup.
 - Await related asynchronous work when the caller depends on its completion. A wrapper must return the delegated promise so its caller can await it.

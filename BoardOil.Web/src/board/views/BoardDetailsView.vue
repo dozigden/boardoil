@@ -77,7 +77,6 @@ const boardCatalogueStore = useBoardCatalogueStore();
 const feedbackStore = useUiFeedbackStore();
 const boardApi = createBoardApi();
 const { board, currentBoardId } = storeToRefs(boardStore);
-const { applyBoardSummaryUpdate } = boardStore;
 const { busy } = storeToRefs(boardCatalogueStore);
 const exporting = ref(false);
 const boardDetailsDraft = ref<BoardEditModel>({
@@ -124,15 +123,11 @@ async function saveBoardDetails() {
     slickCohesionModeEnabled: boardDetailsDraft.value.slickCohesionModeEnabled,
     cardAttachmentThumbnailsEnabled: boardDetailsDraft.value.cardAttachmentThumbnailsEnabled
   };
-  const saved = await boardCatalogueStore.saveBoard(
+  const saved = await boardStore.saveBoard(
     nextBoardId,
     saveModel);
   if (!saved) {
     return;
-  }
-
-  if (board.value?.id === nextBoardId) {
-    applyBoardSummaryUpdate(saved);
   }
 
   boardDetailsDraft.value = {

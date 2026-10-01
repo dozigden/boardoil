@@ -8,9 +8,10 @@ import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
 import { useSlickStore } from './slickStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
 import type { AppError } from '../../shared/types/appError';
-import type { Board, Card, CardComment, CardType, Column, Slick, Tag } from '../../shared/types/boardTypes';
+import type { Board, BoardSummary, Card, CardComment, CardType, Column, Slick, Tag } from '../../shared/types/boardTypes';
 import { err, ok } from '../../shared/types/result';
 import type { Result } from '../../shared/types/result';
 import type { CardAttachment } from '../../shared/types/attachmentTypes';
@@ -22,6 +23,9 @@ const api = {
   getTags: vi.fn(),
   getSlicks: vi.fn(),
   getBoard: vi.fn(),
+  getBoards: vi.fn(),
+  saveBoard: vi.fn(),
+  deleteBoard: vi.fn(),
   getBoardMembers: vi.fn(),
   createColumn: vi.fn(),
   saveColumn: vi.fn(),
@@ -81,6 +85,7 @@ describe('boardStore', () => {
     systemInfoMessageStore.setMessage.mockReset();
     systemInfoMessageStore.load.mockClear();
     api.getBoard.mockResolvedValue(ok(makeBoard()));
+    api.getBoards.mockResolvedValue(ok([makeBoard(1), makeBoard(2)]));
     api.getBoardMembers.mockResolvedValue(ok([{ userId: 7, displayName: 'Member', userName: 'member', role: 'Owner', profileImageRelativePath: null }]));
     api.getCardThumbnails.mockResolvedValue(ok([]));
     api.getCardTypes.mockResolvedValue(ok([]));
@@ -90,6 +95,68 @@ describe('boardStore', () => {
     api.deleteTag.mockResolvedValue(ok(undefined));
     realtime.connect.mockResolvedValue(undefined);
     realtime.disconnect.mockResolvedValue(undefined);
+  });
+
+  it.each(['success', 'failure', 'board change', 'disposal'])('coordinates board save after %s', async outcome => {
+    const store = useBoardStore();
+    const catalogue = useBoardCatalogueStore();
+    await catalogue.loadBoards();
+    await store.initialize(1);
+    const saved = { ...makeBoard(1), name: 'Renamed board' };
+    const pending = deferred<Result<BoardSummary, AppError>>();
+    api.saveBoard.mockReturnValueOnce(pending.promise);
+    const saving = store.saveBoard(1, saved);
+    if (outcome === 'board change') {
+      api.getBoard.mockResolvedValueOnce(ok(makeBoard(2, 'Selected board')));
+      await store.initialize(2);
+    } else if (outcome === 'disposal') {
+      await store.dispose();
+    }
+    pending.resolve(outcome === 'failure'
+      ? err({ kind: 'api', message: 'Save failed' })
+      : ok(saved));
+
+    expect(await saving).toEqual(outcome === 'failure' ? null : saved);
+    expect(catalogue.boards.find(board => board.id === 1)?.name).toBe(outcome === 'failure' ? 'Board' : saved.name);
+    if (outcome === 'disposal') {
+      expect(store.board).toBeNull();
+    } else if (outcome === 'board change') {
+      expect(store.board).toMatchObject({ id: 2, name: 'Selected board' });
+    } else {
+      expect(store.board?.name).toBe(outcome === 'failure' ? 'Board' : saved.name);
+      expect(store.board?.columns[0].cards).toHaveLength(1);
+    }
+  });
+
+  it.each(['success', 'failure', 'board change', 'disposal'])('coordinates board deletion after %s', async outcome => {
+    const store = useBoardStore();
+    const catalogue = useBoardCatalogueStore();
+    await catalogue.loadBoards();
+    await store.initialize(1);
+    const pending = deferred<Result<void, AppError>>();
+    api.deleteBoard.mockReturnValueOnce(pending.promise);
+    const deleting = store.deleteBoard(1);
+    if (outcome === 'board change') {
+      api.getBoard.mockResolvedValueOnce(ok(makeBoard(2, 'Selected board')));
+      await store.initialize(2);
+    } else if (outcome === 'disposal') {
+      await store.dispose();
+    }
+    realtime.disconnect.mockClear();
+    pending.resolve(outcome === 'failure'
+      ? err({ kind: 'api', message: 'Delete failed' })
+      : ok(undefined));
+
+    expect(await deleting).toBe(outcome !== 'failure');
+    expect(catalogue.boards.map(board => board.id)).toEqual(outcome === 'failure' ? [1, 2] : [2]);
+    if (outcome === 'success' || outcome === 'disposal') {
+      expect(store.board).toBeNull();
+      expect(useCardStore().cardsById).toEqual({});
+    } else {
+      expect(store.board?.id).toBe(outcome === 'board change' ? 2 : 1);
+      expect(useCardStore().getCardById(101)).not.toBeNull();
+    }
+    expect(realtime.disconnect).toHaveBeenCalledTimes(outcome === 'success' ? 1 : 0);
   });
 
   it('selects the requested board and clears previous data before its snapshot arrives', async () => {

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { createBoardRealtime } from '../realtime/boardRealtime';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useCardStore } from './cardStore';
 import { useBoardMembersStore } from './boardMembersStore';
 import { useCardTypeStore } from './cardTypeStore';
@@ -15,6 +16,7 @@ import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessage
 import type {
   Board,
   BoardSummary,
+  BoardEditModel,
   Column,
   ColumnCreateModel,
   ColumnEditModel
@@ -34,6 +36,7 @@ export const useBoardStore = defineStore('board', () => {
   const isLoadingBoard = ref(false);
   const currentBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
+  const boardCatalogueStore = useBoardCatalogueStore();
   const cardStore = useCardStore();
   const boardMembersStore = useBoardMembersStore();
   const cardTypeStore = useCardTypeStore();
@@ -422,6 +425,28 @@ export const useBoardStore = defineStore('board', () => {
     feedback.clearWarning();
   }
 
+  async function saveBoard(boardId: number, model: BoardEditModel) {
+    const saved = await boardCatalogueStore.saveBoard(boardId, model);
+    if (!saved) {
+      return null;
+    }
+
+    applyBoardSummaryUpdate(saved);
+    return saved;
+  }
+
+  async function deleteBoard(boardId: number) {
+    const deleted = await boardCatalogueStore.deleteBoard(boardId);
+    if (!deleted) {
+      return false;
+    }
+
+    if (currentBoardId.value === boardId) {
+      await dispose();
+    }
+    return true;
+  }
+
   async function deleteTag(boardId: number, tagId: number) {
     const tag = tagStore.getTagById(tagId);
     if (!tag) {
@@ -460,6 +485,8 @@ export const useBoardStore = defineStore('board', () => {
     saveColumn,
     moveColumn,
     deleteColumn,
+    saveBoard,
+    deleteBoard,
     deleteSlick,
     deleteTag,
     applyBoardSummaryUpdate,

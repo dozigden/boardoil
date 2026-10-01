@@ -12,6 +12,18 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
 
+  function SET_BOARDS(nextBoards: BoardSummary[]) {
+    boards.value = [...nextBoards].sort((left, right) => left.id - right.id);
+  }
+
+  function UPSERT_BOARD(board: BoardSummary) {
+    SET_BOARDS([...boards.value.filter(existing => existing.id !== board.id), board]);
+  }
+
+  function REMOVE_BOARD(boardId: number) {
+    boards.value = boards.value.filter(board => board.id !== boardId);
+  }
+
   async function loadBoards() {
     const result = await api.getBoards();
     if (!result.ok) {
@@ -19,7 +31,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
       return false;
     }
 
-    boards.value = [...result.data].sort((left, right) => left.id - right.id);
+    SET_BOARDS(result.data);
     feedback.clearError();
     return true;
   }
@@ -31,7 +43,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     }
 
     const created = toBoardSummary(result.data);
-    boards.value = [...boards.value, created].sort((left, right) => left.id - right.id);
+    UPSERT_BOARD(created);
     return created;
   }
 
@@ -42,7 +54,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     }
 
     const created = toBoardSummary(result.data);
-    boards.value = [...boards.value, created].sort((left, right) => left.id - right.id);
+    UPSERT_BOARD(created);
     return created;
   }
 
@@ -53,7 +65,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     }
 
     const created = toBoardSummary(result.data);
-    boards.value = [...boards.value, created].sort((left, right) => left.id - right.id);
+    UPSERT_BOARD(created);
     return created;
   }
 
@@ -63,9 +75,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
       return null;
     }
 
-    boards.value = boards.value
-      .map(board => (board.id === boardId ? result.data : board))
-      .sort((left, right) => left.id - right.id);
+    UPSERT_BOARD(result.data);
     return result.data;
   }
 
@@ -75,12 +85,12 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
       return false;
     }
 
-    boards.value = boards.value.filter(board => board.id !== boardId);
+    REMOVE_BOARD(boardId);
     return true;
   }
 
   function dispose() {
-    boards.value = [];
+    SET_BOARDS([]);
     busy.value = false;
   }
 

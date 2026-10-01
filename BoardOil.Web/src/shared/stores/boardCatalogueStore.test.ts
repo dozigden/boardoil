@@ -29,6 +29,70 @@ describe('boardCatalogueStore', () => {
     api.deleteBoard.mockResolvedValue(ok(undefined));
   });
 
+  it('loads boards in ID order without changing the response array', async () => {
+    const store = useBoardCatalogueStore();
+    const response = [makeSummary(20, 'Later'), makeSummary(2, 'Earlier')];
+    api.getBoards.mockResolvedValueOnce(ok(response));
+
+    expect(await store.loadBoards()).toBe(true);
+    expect(store.boards.map(board => board.id)).toEqual([2, 20]);
+    expect(response.map(board => board.id)).toEqual([20, 2]);
+  });
+
+  it.each(['create', 'clone', 'import', 'save'] as const)('%s upserts a board already present in the catalogue', async operation => {
+    const store = useBoardCatalogueStore();
+    const original = makeSummary(10, 'Original');
+    const other = makeSummary(20, 'Unrelated');
+    api.getBoards.mockResolvedValueOnce(ok([other, original]));
+    await store.loadBoards();
+    const previous = store.boards;
+    const updated = makeBoard(10, 'Updated');
+    switch (operation) {
+      case 'create':
+        api.createBoard.mockResolvedValueOnce(ok(updated));
+        await store.createBoard('Updated');
+        break;
+      case 'clone':
+        api.cloneBoard.mockResolvedValueOnce(ok(updated));
+        await store.cloneBoard(1, 'Updated');
+        break;
+      case 'import':
+        api.importBoardPackage.mockResolvedValueOnce(ok(updated));
+        await store.importBoardPackage(new File(['data'], 'board.zip'));
+        break;
+      case 'save':
+        api.saveBoard.mockResolvedValueOnce(ok(makeSummary(10, 'Updated')));
+        await store.saveBoard(10, updated);
+        break;
+    }
+
+    expect(store.boards).toEqual([makeSummary(10, 'Updated'), other]);
+    expect(previous).toEqual([original, other]);
+    expect(store.boards[0]).not.toHaveProperty('columns');
+  });
+
+  it('adds an authoritative saved board missing from the catalogue', async () => {
+    const store = useBoardCatalogueStore();
+    const saved = await store.saveBoard(10, makeSummary(10, 'Roadmap'));
+    expect(saved).toEqual(makeSummary(10, 'Roadmap'));
+    expect(store.boards).toEqual([saved]);
+  });
+
+  it.each(['success', 'failure'] as const)('handles board deletion %s without changing unrelated entries', async outcome => {
+    const store = useBoardCatalogueStore();
+    const first = makeSummary(10, 'First');
+    const second = makeSummary(20, 'Second');
+    api.getBoards.mockResolvedValueOnce(ok([first, second]));
+    await store.loadBoards();
+    api.deleteBoard.mockResolvedValueOnce(outcome === 'success'
+      ? ok(undefined)
+      : err({ kind: 'api', message: 'Delete failed' }));
+
+    expect(await store.deleteBoard(10)).toBe(outcome === 'success');
+    expect(store.boards).toEqual(outcome === 'success' ? [second] : [first, second]);
+    expect(store.busy).toBe(false);
+  });
+
   it('imports board package and appends it to catalogue', async () => {
     const store = useBoardCatalogueStore();
     const file = new File(['zip-data'], 'board.boardoil.zip', { type: 'application/zip' });
