@@ -6,7 +6,7 @@ import {
 } from '../../shared/api/oauthTokenAuditsApi';
 import { createSystemApi, type SystemApi } from '../../shared/api/systemApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { OAuthTokenAudit } from '../../shared/types/oauthTokenAuditTypes';
+import type { OAuthTokenAudit, OAuthTokenAuditList } from '../../shared/types/oauthTokenAuditTypes';
 
 export const OAUTH_TOKEN_AUDIT_PAGE_SIZE_OPTIONS = [50, 100, 200] as const;
 export const DEFAULT_OAUTH_TOKEN_AUDIT_PAGE_SIZE = 100;
@@ -27,22 +27,34 @@ export function createSystemOAuthTokenAuditsStore(
     const limit = ref(DEFAULT_OAUTH_TOKEN_AUDIT_PAGE_SIZE);
     const totalCount = ref(0);
 
+    function SET_AUDIT_PAGE(page: OAuthTokenAuditList) {
+      audits.value = page.items;
+      offset.value = page.offset;
+      limit.value = page.limit;
+      totalCount.value = page.totalCount;
+    }
+
+    function CLEAR_AUDIT_PAGE() {
+      audits.value = [];
+      totalCount.value = 0;
+    }
+
+    function SET_CAPTURE_ENABLED(enabled: boolean | null) {
+      captureEnabled.value = enabled;
+    }
+
     async function loadAudits(nextOffset = offset.value, nextLimit = limit.value) {
       listLoading.value = true;
       listErrorMessage.value = null;
       try {
         const result = await oauthTokenAuditsApi.getOAuthTokenAudits(nextOffset, nextLimit);
         if (!result.ok) {
-          audits.value = [];
-          totalCount.value = 0;
+          CLEAR_AUDIT_PAGE();
           listErrorMessage.value = result.error.message;
           return false;
         }
 
-        audits.value = result.data.items;
-        offset.value = result.data.offset;
-        limit.value = result.data.limit;
-        totalCount.value = result.data.totalCount;
+        SET_AUDIT_PAGE(result.data);
         return true;
       } finally {
         listLoading.value = false;
@@ -55,12 +67,12 @@ export function createSystemOAuthTokenAuditsStore(
       try {
         const result = await systemApi.getConfiguration();
         if (!result.ok) {
-          captureEnabled.value = null;
+          SET_CAPTURE_ENABLED(null);
           captureStateErrorMessage.value = result.error.message;
           return false;
         }
 
-        captureEnabled.value = result.data.oauthLifecycleDiagnosticsEnabled;
+        SET_CAPTURE_ENABLED(result.data.oauthLifecycleDiagnosticsEnabled);
         return true;
       } finally {
         captureStateLoading.value = false;

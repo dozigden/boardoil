@@ -8,6 +8,7 @@ import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type {
   ErrorLog,
   ErrorLogDetails,
+  ErrorLogList,
   ErrorLogPurgeResult
 } from '../../shared/types/errorLogTypes';
 
@@ -40,22 +41,81 @@ export function createSystemErrorLogsStore(
         .filter(errorLog => errorLog !== undefined)
     );
 
+    function SET_ERROR_LOG_PAGE(page: ErrorLogList) {
+      const nextById: Record<number, ErrorLogEntity> = { ...errorLogById.value };
+      for (const summary of page.items) {
+        nextById[summary.id] = mergeErrorLogSummary(errorLogById.value[summary.id], summary);
+      }
+
+      orderedErrorLogIds.value = page.items.map(errorLog => errorLog.id);
+      errorLogById.value = nextById;
+      offset.value = page.offset;
+      limit.value = page.limit;
+      totalCount.value = page.totalCount;
+    }
+
+    function CLEAR_ERROR_LOG_PAGE() {
+      orderedErrorLogIds.value = [];
+      totalCount.value = 0;
+    }
+
+    function UPSERT_ERROR_LOG_DETAILS(details: ErrorLogDetails) {
+      const existing = errorLogById.value[details.id];
+      const { stackTrace, contextJson, ...summary } = details;
+      errorLogById.value = {
+        ...errorLogById.value,
+        [details.id]: {
+          ...mergeErrorLogSummary(existing, summary),
+          stackTrace,
+          contextJson,
+          hasCachedDetails: true
+        }
+      };
+    }
+
+    function CLEAR_ERROR_LOG_DETAILS(errorLogId: number) {
+      const existing = errorLogById.value[errorLogId];
+      if (!existing) {
+        return;
+      }
+
+      errorLogById.value = {
+        ...errorLogById.value,
+        [errorLogId]: {
+          ...existing,
+          stackTrace: null,
+          contextJson: null,
+          hasCachedDetails: false
+        }
+      };
+    }
+
+    function SET_DETAIL_LOADING(errorLogId: number, isLoading: boolean) {
+      detailLoadingById.value = {
+        ...detailLoadingById.value,
+        [errorLogId]: isLoading
+      };
+    }
+
+    function SET_DETAIL_ERROR(errorLogId: number, message: string | null) {
+      detailErrorById.value = {
+        ...detailErrorById.value,
+        [errorLogId]: message
+      };
+    }
+
     async function loadErrorLogs(nextOffset = offset.value, nextLimit = limit.value) {
       listLoading.value = true;
       listErrorMessage.value = null;
       try {
         const result = await errorLogsApi.getErrorLogs(nextOffset, nextLimit);
         if (!result.ok) {
-          orderedErrorLogIds.value = [];
-          totalCount.value = 0;
+          CLEAR_ERROR_LOG_PAGE();
           listErrorMessage.value = result.error.message;
           return false;
         }
 
-        mergeErrorLogSummaries(result.data.items);
-        offset.value = result.data.offset;
-        limit.value = result.data.limit;
-        totalCount.value = result.data.totalCount;
+        SET_ERROR_LOG_PAGE(result.data);
         return true;
       } finally {
         listLoading.value = false;
@@ -67,20 +127,20 @@ export function createSystemErrorLogsStore(
         return errorLogById.value[errorLogId] ?? null;
       }
 
-      setDetailLoading(errorLogId, true);
-      setDetailError(errorLogId, null);
+      SET_DETAIL_LOADING(errorLogId, true);
+      SET_DETAIL_ERROR(errorLogId, null);
       try {
         const result = await errorLogsApi.getErrorLogDetails(errorLogId);
         if (!result.ok) {
-          setDetailError(errorLogId, result.error.message);
-          markDetailsNotCached(errorLogId);
+          SET_DETAIL_ERROR(errorLogId, result.error.message);
+          CLEAR_ERROR_LOG_DETAILS(errorLogId);
           return null;
         }
 
-        mergeErrorLogDetails(result.data);
+        UPSERT_ERROR_LOG_DETAILS(result.data);
         return errorLogById.value[errorLogId] ?? null;
       } finally {
-        setDetailLoading(errorLogId, false);
+        SET_DETAIL_LOADING(errorLogId, false);
       }
     }
 
@@ -115,16 +175,6 @@ export function createSystemErrorLogsStore(
       return result.data;
     }
 
-    function mergeErrorLogSummaries(summaries: ErrorLog[]) {
-      const nextById: Record<number, ErrorLogEntity> = { ...errorLogById.value };
-      for (const summary of summaries) {
-        nextById[summary.id] = mergeErrorLogSummary(errorLogById.value[summary.id], summary);
-      }
-
-      orderedErrorLogIds.value = summaries.map(errorLog => errorLog.id);
-      errorLogById.value = nextById;
-    }
-
     function mergeErrorLogSummary(
       existing: ErrorLogEntity | undefined,
       summary: ErrorLog
@@ -134,51 +184,6 @@ export function createSystemErrorLogsStore(
         stackTrace: existing?.stackTrace ?? null,
         contextJson: existing?.contextJson ?? null,
         hasCachedDetails: existing?.hasCachedDetails ?? false
-      };
-    }
-
-    function mergeErrorLogDetails(details: ErrorLogDetails) {
-      const existing = errorLogById.value[details.id];
-      const { stackTrace, contextJson, ...summary } = details;
-      errorLogById.value = {
-        ...errorLogById.value,
-        [details.id]: {
-          ...mergeErrorLogSummary(existing, summary),
-          stackTrace,
-          contextJson,
-          hasCachedDetails: true
-        }
-      };
-    }
-
-    function markDetailsNotCached(errorLogId: number) {
-      const existing = errorLogById.value[errorLogId];
-      if (!existing) {
-        return;
-      }
-
-      errorLogById.value = {
-        ...errorLogById.value,
-        [errorLogId]: {
-          ...existing,
-          stackTrace: null,
-          contextJson: null,
-          hasCachedDetails: false
-        }
-      };
-    }
-
-    function setDetailLoading(errorLogId: number, isLoading: boolean) {
-      detailLoadingById.value = {
-        ...detailLoadingById.value,
-        [errorLogId]: isLoading
-      };
-    }
-
-    function setDetailError(errorLogId: number, message: string | null) {
-      detailErrorById.value = {
-        ...detailErrorById.value,
-        [errorLogId]: message
       };
     }
 
