@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { defineStore } from 'pinia';
 import { createScheduledJobsApi, type ScheduledJobsApi } from '../../shared/api/scheduledJobsApi';
-import type { RunScheduledJobResult, ScheduledJob } from '../../shared/types/scheduledJobTypes';
+import type { ScheduledJob } from '../../shared/types/scheduledJobTypes';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 
 export function createScheduledJobsStore(api: Pick<ScheduledJobsApi, 'getSchedules' | 'runNow'> = createScheduledJobsApi()) {
@@ -11,41 +11,43 @@ export function createScheduledJobsStore(api: Pick<ScheduledJobsApi, 'getSchedul
     const loading = ref(false);
     const error = ref<string | null>(null);
     const running = ref<Record<string, boolean>>({});
-    const runResults = ref<Record<string, RunScheduledJobResult>>({});
-    const runErrors = ref<Record<string, string>>({});
-    let generation = 0;
-    let loadVersion = 0;
+
+    function SET_SCHEDULES(nextSchedules: ScheduledJob[]) {
+      schedules.value = nextSchedules;
+    }
+
+    function SET_RUNNING(name: string, isRunning: boolean) {
+      running.value = { ...running.value, [name]: isRunning };
+    }
+
+    function CLEAR_STATE() {
+      schedules.value = [];
+      loading.value = false;
+      error.value = null;
+      running.value = {};
+    }
 
     async function loadSchedules() {
-      const version = ++loadVersion;
-      const context = generation;
       loading.value = true;
       error.value = null;
       try {
         const result = await api.getSchedules();
-        if (context !== generation || version !== loadVersion) return;
         if (!result.ok) { error.value = result.error.message; return; }
-        schedules.value = result.data;
+        SET_SCHEDULES(result.data);
       } finally {
-        if (context === generation && version === loadVersion) loading.value = false;
+        loading.value = false;
       }
     }
 
     async function runNow(name: string) {
       if (running.value[name]) return;
-      const context = generation;
-      running.value = { ...running.value, [name]: true };
-      runErrors.value = { ...runErrors.value, [name]: '' };
-      runResults.value = Object.fromEntries(Object.entries(runResults.value).filter(([key]) => key !== name));
+      SET_RUNNING(name, true);
       try {
         const result = await api.runNow(name);
-        if (context !== generation) return;
         if (!result.ok) {
-          runErrors.value = { ...runErrors.value, [name]: result.error.message };
           feedback.showToast(result.error.message, 'error');
           return;
         }
-        runResults.value = { ...runResults.value, [name]: result.data };
         const count = result.data.enqueuedCount;
         let message = `${count} jobs queued.`;
         if (count === 0) message = 'No jobs to queue.';
@@ -53,21 +55,15 @@ export function createScheduledJobsStore(api: Pick<ScheduledJobsApi, 'getSchedul
         feedback.showToast(message, 'success');
         await loadSchedules();
       } finally {
-        if (context === generation) running.value = { ...running.value, [name]: false };
+        SET_RUNNING(name, false);
       }
     }
 
     function dispose() {
-      generation++;
-      schedules.value = [];
-      loading.value = false;
-      error.value = null;
-      running.value = {};
-      runResults.value = {};
-      runErrors.value = {};
+      CLEAR_STATE();
     }
 
-    return { schedules, loading, error, running, runResults, runErrors, loadSchedules, runNow, dispose };
+    return { schedules, loading, error, running, loadSchedules, runNow, dispose };
   });
 }
 

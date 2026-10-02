@@ -1,8 +1,9 @@
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createScheduledJobsStore } from './scheduledJobsStore';
 import type { ScheduledJob } from '../../shared/types/scheduledJobTypes';
 import { err, ok } from '../../shared/types/result';
+import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 
 vi.mock('../../shared/api/scheduledJobsApi', () => ({ createScheduledJobsApi: vi.fn() }));
 
@@ -26,6 +27,7 @@ function setup() {
 }
 
 beforeEach(() => setActivePinia(createPinia()));
+afterEach(() => useUiFeedbackStore().clearToast());
 
 describe('scheduled jobs', () => {
   it('loads schedules on entry', async () => {
@@ -47,16 +49,21 @@ describe('scheduled jobs', () => {
     expect(store.running['error-log-purge']).toBe(false);
     pending.resolve(ok({ enqueuedCount: 1, jobIds: [8] }));
     await first;
-    expect(store.runResults['history-purge'].jobIds).toEqual([8]);
+    expect(api.getSchedules).toHaveBeenCalledTimes(2);
     expect(store.running['history-purge']).toBe(false);
   });
 
-  it.each([{ ids: [] }, { ids: [7] }, { ids: [7, 8] }])('preserves the actual queued IDs $ids and refreshes job links', async ({ ids }) => {
+  it.each([
+    { ids: [], message: 'No jobs to queue.' },
+    { ids: [7], message: 'Job queued.' },
+    { ids: [7, 8], message: '2 jobs queued.' }
+  ])('reports "$message" and refreshes job links', async ({ ids, message }) => {
     const { api, store } = setup();
     api.runNow.mockResolvedValue(ok({ enqueuedCount: ids.length, jobIds: ids }));
     api.getSchedules.mockResolvedValue(ok([schedule('UTC', ids[0] ?? null)]));
     await store.runNow('history-purge');
-    expect(store.runResults['history-purge']).toEqual({ enqueuedCount: ids.length, jobIds: ids });
+    expect(useUiFeedbackStore().toastMessage).toBe(message);
+    expect(useUiFeedbackStore().toastTone).toBe('success');
     expect(store.schedules[0].currentJob?.id ?? null).toBe(ids[0] ?? null);
     expect(api.getSchedules).toHaveBeenCalledTimes(1);
   });
@@ -65,8 +72,9 @@ describe('scheduled jobs', () => {
     const { api, store } = setup();
     api.runNow.mockResolvedValue(err({ kind: 'http', message: 'Queue failed.' }));
     await store.runNow('history-purge');
-    expect(store.runErrors['history-purge']).toBe('Queue failed.');
-    expect(store.runResults['history-purge']).toBeUndefined();
+    expect(useUiFeedbackStore().toastMessage).toBe('Queue failed.');
+    expect(useUiFeedbackStore().toastTone).toBe('error');
+    expect(api.runNow).toHaveBeenCalledTimes(1);
     expect(store.running['history-purge']).toBe(false);
     expect(api.getSchedules).not.toHaveBeenCalled();
   });
@@ -75,39 +83,48 @@ describe('scheduled jobs', () => {
     const { api, store } = setup();
     api.getSchedules.mockResolvedValue(err({ kind: 'network', message: 'Refresh failed.' }));
     await store.runNow('history-purge');
-    expect(store.runResults['history-purge'].jobIds).toEqual([7]);
+    expect(useUiFeedbackStore().toastMessage).toBe('Job queued.');
+    expect(useUiFeedbackStore().toastTone).toBe('success');
     expect(store.error).toBe('Refresh failed.');
+    expect(store.running['history-purge']).toBe(false);
   });
 
-
-
-
-
-  it('ignores an older list response after a newer refresh', async () => {
+  it('applies list responses in arrival order', async () => {
     const { api, store } = setup();
     const pending = deferred<ReturnType<typeof ok<ScheduledJob[]>>>();
     api.getSchedules.mockReturnValueOnce(pending.promise);
     const old = store.loadSchedules();
     api.getSchedules.mockResolvedValue(ok([schedule('Europe/London', 7)]));
     await store.loadSchedules();
+    expect(store.schedules).toEqual([schedule('Europe/London', 7)]);
     pending.resolve(ok([schedule()]));
     await old;
-    expect(store.schedules).toEqual([schedule('Europe/London', 7)]);
+    expect(store.schedules).toEqual([schedule()]);
   });
 
-  it('ignores initial data and errors after disposal', async () => {
+  it('clears state on disposal and accepts an outstanding load response', async () => {
     const { api, store } = setup();
+    await store.runNow('history-purge');
+    api.getSchedules.mockResolvedValueOnce(err({ kind: 'network', message: 'Refresh failed.' }));
+    await store.loadSchedules();
+    store.dispose();
+    expect(store.schedules).toEqual([]);
+    expect(store.loading).toBe(false);
+    expect(store.error).toBeNull();
+    expect(store.running).toEqual({});
     const pending = deferred<ReturnType<typeof ok<ScheduledJob[]>>>();
     api.getSchedules.mockReturnValueOnce(pending.promise);
     const load = store.loadSchedules();
+    expect(store.loading).toBe(true);
     store.dispose();
+    expect(store.loading).toBe(false);
     pending.resolve(ok([schedule()]));
     await load;
-    expect(store.schedules).toEqual([]);
+    expect(store.schedules).toEqual([schedule()]);
     expect(store.loading).toBe(false);
   });
 
-  it('does not publish a late run result or refresh a new page lifetime', async () => {
+  it('reports a successful run and refreshes even after disposal', async () => {
     const { api, store } = setup();
     const pending = deferred<ReturnType<typeof ok<{ enqueuedCount: number; jobIds: number[] }>>>();
     api.runNow.mockReturnValueOnce(pending.promise);
@@ -116,9 +133,9 @@ describe('scheduled jobs', () => {
     await store.loadSchedules();
     pending.resolve(ok({ enqueuedCount: 1, jobIds: [8] }));
     await run;
-    expect(store.runResults).toEqual({});
-    expect(store.running).toEqual({});
-    expect(api.getSchedules).toHaveBeenCalledTimes(1);
+    expect(useUiFeedbackStore().toastMessage).toBe('Job queued.');
+    expect(useUiFeedbackStore().toastTone).toBe('success');
+    expect(store.running['history-purge']).toBe(false);
+    expect(api.getSchedules).toHaveBeenCalledTimes(2);
   });
-
 });
