@@ -57,10 +57,10 @@ const job = computed(() => id.value === null ? null : byId.value[id.value] ?? nu
 const loading = computed(() => id.value !== null && detailLoading.value[id.value] === true);
 const error = computed(() => id.value === null ? null : detailError.value[id.value] ?? null);
 watch(id, value => {
-  store.openDetailId = value;
+  store.setOpenDetail(value);
   if (value !== null) void store.loadDetails(value);
 }, { immediate: true });
-onUnmounted(() => { store.openDetailId = null; });
+onUnmounted(() => { store.setOpenDetail(null); });
 function close() { void router.replace({ name: 'system-jobs' }); }
 function refreshDetails() { if (id.value !== null) void store.loadDetails(id.value); }
 </script>

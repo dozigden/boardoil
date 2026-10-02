@@ -2,7 +2,7 @@ import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { createJobsApi, type JobsApi } from '../../shared/api/jobsApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { Job, JobDetails, JobLog } from '../../shared/types/jobTypes';
+import type { Job, JobDetails, JobList, JobLog } from '../../shared/types/jobTypes';
 
 export const JOB_PAGE_SIZE_OPTIONS = [50, 100, 200] as const;
 export type JobEntity = Job & { logs: JobLog[] | null };
@@ -22,127 +22,61 @@ export function createSystemJobsStore(api: JobsApi = createJobsApi()) {
     const visible = ref(false);
     const openDetailId = ref<number | null>(null);
     const jobs = computed(() => ids.value.map(id => byId.value[id]).filter(job => job !== undefined));
-    let generation = 0;
-    let listVersion = 0;
-    let entityRevision = 0;
     let requestedOffset = 0;
     let requestedLimit = 100;
-    const revisionById: Record<number, number> = {};
-    const detailVersionById: Record<number, number> = {};
 
-    function mergeEntity(
-      job: Job, logs: JobLog[] | null, requestRevision: number,
-      previous: JobEntity | undefined
-    ): JobEntity {
-      if ((revisionById[job.id] ?? 0) > requestRevision && previous &&
-        compareJobUpdateTimes(previous.updatedAtUtc, job.updatedAtUtc) >= 0) {
-        if (logs !== null && previous?.updatedAtUtc === job.updatedAtUtc) {
-          revisionById[job.id] = ++entityRevision;
-          return { ...previous, logs };
-        }
-        return previous;
+    function SET_JOB_PAGE(page: JobList) {
+      const nextById = { ...byId.value };
+      for (const job of page.items) {
+        nextById[job.id] = mergeJobSummary(nextById[job.id], job);
       }
-      // List summaries only retain logs if the job has not changed since details loaded.
-      const retainedLogs = previous?.updatedAtUtc === job.updatedAtUtc ? previous.logs : null;
-      revisionById[job.id] = ++entityRevision;
-      return { ...job, logs: logs ?? retainedLogs ?? null };
+      byId.value = nextById;
+      ids.value = page.items.map(job => job.id);
+      offset.value = page.offset;
+      limit.value = page.limit;
+      totalCount.value = page.totalCount;
     }
 
-    function applyEntity(job: Job, logs: JobLog[] | null, requestRevision: number) {
+    function UPSERT_JOB_DETAILS(details: JobDetails) {
       byId.value = {
         ...byId.value,
-        [job.id]: mergeEntity(job, logs, requestRevision, byId.value[job.id])
+        [details.id]: {
+          ...details,
+          logs: [...details.logs].sort((a, b) => a.loggedAtUtc.localeCompare(b.loggedAtUtc) || a.id - b.id)
+        }
       };
     }
 
-    async function loadJobs(nextOffset = requestedOffset, nextLimit = requestedLimit) {
-      requestedOffset = nextOffset;
-      requestedLimit = nextLimit;
-      const currentGeneration = generation;
-      const requestVersion = ++listVersion;
-      const requestRevision = entityRevision;
-      listLoading.value = true;
-      listError.value = null;
-      try {
-        const result = await api.getJobs(nextOffset, nextLimit);
-        if (currentGeneration !== generation || requestVersion !== listVersion) return false;
-        if (!result.ok) {
-          listError.value = result.error.message;
-          feedback.showToast(result.error.message, 'error');
-          return false;
-        }
-        const nextById = { ...byId.value };
-        for (const job of result.data.items) {
-          nextById[job.id] = mergeEntity(job, null, requestRevision, nextById[job.id]);
-        }
-        byId.value = nextById;
-        ids.value = result.data.items.map(job => job.id);
-        offset.value = result.data.offset;
-        limit.value = result.data.limit;
-        totalCount.value = result.data.totalCount;
-        return true;
-      } finally {
-        if (currentGeneration === generation && requestVersion === listVersion) listLoading.value = false;
-      }
+    function REMOVE_JOB(id: number) {
+      byId.value = Object.fromEntries(Object.entries(byId.value).filter(([key]) => Number(key) !== id));
     }
 
-    async function loadDetails(id: number, retryIfStale = true) {
-      const currentGeneration = generation;
-      const requestVersion = (detailVersionById[id] ?? 0) + 1;
-      detailVersionById[id] = requestVersion;
-      const requestRevision = entityRevision;
-      detailLoading.value = { ...detailLoading.value, [id]: true };
-      detailError.value = { ...detailError.value, [id]: null };
-      try {
-        const result = await api.getJobDetails(id);
-        if (currentGeneration !== generation || requestVersion !== detailVersionById[id]) return null;
-        if (!result.ok) {
-          detailError.value = { ...detailError.value, [id]: result.error.message };
-          if (result.error.statusCode === 404) {
-            byId.value = Object.fromEntries(Object.entries(byId.value).filter(([key]) => Number(key) !== id));
-          }
-          feedback.showToast(result.error.message, 'error');
-          return null;
-        }
-        // A newer list/detail response may have arrived while this request was in flight.
-        const { logs, ...job } = result.data as JobDetails;
-        applyEntity(job, [...logs].sort((a, b) => a.loggedAtUtc.localeCompare(b.loggedAtUtc) || a.id - b.id), requestRevision);
-        const current = byId.value[id];
-        if (retryIfStale && current?.logs === null &&
-          compareJobUpdateTimes(current.updatedAtUtc, job.updatedAtUtc) > 0) {
-          return await loadDetails(id, false);
-        }
-        return byId.value[id] ?? null;
-      } finally {
-        if (currentGeneration === generation && requestVersion === detailVersionById[id]) {
-          detailLoading.value = { ...detailLoading.value, [id]: false };
-        }
-      }
-    }
-
-    async function invalidated(id: number | null) {
+    function CLEAR_JOB_LOGS(id: number | null) {
       if (id !== null) {
         const existing = byId.value[id];
         if (existing) byId.value = { ...byId.value, [id]: { ...existing, logs: null } };
       } else {
         byId.value = Object.fromEntries(Object.entries(byId.value).map(([key, value]) => [key, { ...value, logs: null }]));
       }
-      if (!visible.value) return;
-      const loads: Promise<unknown>[] = [loadJobs()];
-      if (openDetailId.value !== null && (id === null || id === openDetailId.value)) loads.push(loadDetails(openDetailId.value));
-      await Promise.all(loads);
     }
 
-    async function recovered() {
-      if (!visible.value) return;
-      const loads: Promise<unknown>[] = [loadJobs()];
-      if (openDetailId.value !== null) loads.push(loadDetails(openDetailId.value));
-      await Promise.all(loads);
+    function SET_DETAIL_LOADING(id: number, loading: boolean) {
+      detailLoading.value = { ...detailLoading.value, [id]: loading };
     }
 
-    function dispose() {
-      generation++;
-      listVersion++;
+    function SET_DETAIL_ERROR(id: number, message: string | null) {
+      detailError.value = { ...detailError.value, [id]: message };
+    }
+
+    function SET_VISIBLE(isVisible: boolean) {
+      visible.value = isVisible;
+    }
+
+    function SET_OPEN_DETAIL(id: number | null) {
+      openDetailId.value = id;
+    }
+
+    function CLEAR_STATE() {
       byId.value = {};
       ids.value = [];
       offset.value = 0;
@@ -156,9 +90,70 @@ export function createSystemJobsStore(api: JobsApi = createJobsApi()) {
       detailError.value = {};
       visible.value = false;
       openDetailId.value = null;
-      for (const key of Object.keys(revisionById)) delete revisionById[Number(key)];
-      for (const key of Object.keys(detailVersionById)) delete detailVersionById[Number(key)];
-      entityRevision = 0;
+    }
+
+    async function loadJobs(nextOffset = requestedOffset, nextLimit = requestedLimit) {
+      requestedOffset = nextOffset;
+      requestedLimit = nextLimit;
+      listLoading.value = true;
+      listError.value = null;
+      try {
+        const result = await api.getJobs(nextOffset, nextLimit);
+        if (!result.ok) {
+          listError.value = result.error.message;
+          feedback.showToast(result.error.message, 'error');
+          return false;
+        }
+        SET_JOB_PAGE(result.data);
+        return true;
+      } finally {
+        listLoading.value = false;
+      }
+    }
+
+    async function loadDetails(id: number) {
+      SET_DETAIL_LOADING(id, true);
+      SET_DETAIL_ERROR(id, null);
+      try {
+        const result = await api.getJobDetails(id);
+        if (!result.ok) {
+          SET_DETAIL_ERROR(id, result.error.message);
+          if (result.error.statusCode === 404) REMOVE_JOB(id);
+          feedback.showToast(result.error.message, 'error');
+          return null;
+        }
+        UPSERT_JOB_DETAILS(result.data);
+        return byId.value[id] ?? null;
+      } finally {
+        SET_DETAIL_LOADING(id, false);
+      }
+    }
+
+    async function invalidated(id: number | null) {
+      CLEAR_JOB_LOGS(id);
+      if (!visible.value) return;
+      const loads: Promise<unknown>[] = [loadJobs()];
+      if (openDetailId.value !== null && (id === null || id === openDetailId.value)) loads.push(loadDetails(openDetailId.value));
+      await Promise.all(loads);
+    }
+
+    async function recovered() {
+      if (!visible.value) return;
+      const loads: Promise<unknown>[] = [loadJobs()];
+      if (openDetailId.value !== null) loads.push(loadDetails(openDetailId.value));
+      await Promise.all(loads);
+    }
+
+    function setVisible(isVisible: boolean) {
+      SET_VISIBLE(isVisible);
+    }
+
+    function setOpenDetail(id: number | null) {
+      SET_OPEN_DETAIL(id);
+    }
+
+    function dispose() {
+      CLEAR_STATE();
     }
 
     function goPreviousPage() {
@@ -171,20 +166,15 @@ export function createSystemJobsStore(api: JobsApi = createJobsApi()) {
     }
     function setPageSize(size: number) { return loadJobs(0, size); }
 
+    function mergeJobSummary(previous: JobEntity | undefined, job: Job): JobEntity {
+      const logs = previous?.updatedAtUtc === job.updatedAtUtc ? previous.logs : null;
+      return { ...job, logs };
+    }
+
     return { byId, ids, jobs, offset, limit, totalCount, listLoading, listError,
       detailLoading, detailError, visible, openDetailId, loadJobs, loadDetails,
-      invalidated, recovered, dispose, goPreviousPage, goNextPage, setPageSize };
+      invalidated, recovered, setVisible, setOpenDetail, dispose, goPreviousPage, goNextPage, setPageSize };
   });
-}
-
-// Both timestamps come from the same UTC DateTime API contract. Compare its seven
-// fractional digits so two writes within one millisecond retain their order.
-function compareJobUpdateTimes(left: string, right: string): number {
-  const seconds = left.slice(0, 19).localeCompare(right.slice(0, 19));
-  if (seconds !== 0) return seconds;
-  const fraction = (value: string) =>
-    Number((/^\.(\d{1,7})/.exec(value.slice(19))?.[1] ?? '').padEnd(7, '0'));
-  return fraction(left) - fraction(right);
 }
 
 export const useSystemJobsStore = createSystemJobsStore();

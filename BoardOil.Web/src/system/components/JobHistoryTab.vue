@@ -59,8 +59,8 @@ function onPageSizeChanged(event: Event) {
   if (target instanceof HTMLSelectElement) void store.setPageSize(Number(target.value));
 }
 function refresh() { void store.loadJobs(); }
-onMounted(() => { store.visible = true; void store.loadJobs(); });
-onUnmounted(() => { store.visible = false; });
+onMounted(() => { store.setVisible(true); void store.loadJobs(); });
+onUnmounted(() => { store.setVisible(false); });
 </script>
 
 <style scoped>

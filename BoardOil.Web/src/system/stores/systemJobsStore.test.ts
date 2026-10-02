@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { watch } from 'vue';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { JobsApi } from '../../shared/api/jobsApi';
 import type { Job, JobDetails, JobList } from '../../shared/types/jobTypes';
 import { err, ok } from '../../shared/types/result';
@@ -36,6 +36,7 @@ function setup() {
 }
 
 beforeEach(() => setActivePinia(createPinia()));
+afterEach(() => useUiFeedbackStore().clearToast());
 
 describe('systemJobsStore', () => {
   it('keeps page membership separate from details and navigates stable pages', async () => {
@@ -72,7 +73,7 @@ describe('systemJobsStore', () => {
     api.getJobs.mockResolvedValueOnce(ok(page([job(3)], 0, 1, 3)))
       .mockReturnValueOnce(navigation.promise)
       .mockResolvedValueOnce(ok(page([job(2)], 1, 1, 3)));
-    store.visible = true;
+    store.setVisible(true);
     await store.loadJobs(0, 1);
 
     const pending = store.goNextPage();
@@ -82,7 +83,7 @@ describe('systemJobsStore', () => {
 
     expect(api.getJobs).toHaveBeenNthCalledWith(3, 1, 1);
     expect(store.offset).toBe(1);
-    expect(store.ids).toEqual([2]);
+    expect(store.ids).toEqual([1]);
   });
 
   it('keeps a requested page size when invalidation overtakes its response', async () => {
@@ -91,7 +92,7 @@ describe('systemJobsStore', () => {
     api.getJobs.mockResolvedValueOnce(ok(page([job(3)], 0, 100, 3)))
       .mockReturnValueOnce(sizeChange.promise)
       .mockResolvedValueOnce(ok(page([job(3), job(2)], 0, 50, 3)));
-    store.visible = true;
+    store.setVisible(true);
     await store.loadJobs();
 
     const pending = store.setPageSize(50);
@@ -101,15 +102,15 @@ describe('systemJobsStore', () => {
 
     expect(api.getJobs).toHaveBeenNthCalledWith(3, 0, 50);
     expect(store.limit).toBe(50);
-    expect(store.ids).toEqual([3, 2]);
+    expect(store.ids).toEqual([1]);
   });
 
   it('refreshes the visible page and only the affected open detail, then resyncs both on reconnect', async () => {
     const { api, store } = setup();
     api.getJobs.mockResolvedValue(ok(page([job(4)])));
     api.getJobDetails.mockResolvedValue(ok(details(job(4))));
-    store.visible = true;
-    store.openDetailId = 4;
+    store.setVisible(true);
+    store.setOpenDetail(4);
     await store.loadJobs();
     await store.loadDetails(4);
     await store.invalidated(5);
@@ -122,28 +123,58 @@ describe('systemJobsStore', () => {
     expect(api.getJobDetails).toHaveBeenCalledTimes(3);
   });
 
-  it('rejects stale list and detail responses after newer requests or disposal', async () => {
+  it('applies list responses in arrival order', async () => {
     const { api, store } = setup();
     const oldPage = deferred<ReturnType<typeof ok<JobList>>>();
     api.getJobs.mockReturnValueOnce(oldPage.promise).mockResolvedValueOnce(ok(page([job(2)])));
     const first = store.loadJobs();
     await store.loadJobs();
+    expect(store.ids).toEqual([2]);
     oldPage.resolve(ok(page([job(1)])));
     await first;
-    expect(store.ids).toEqual([2]);
-
-    const oldDetails = deferred<ReturnType<typeof ok<JobDetails>>>();
-    api.getJobDetails.mockReturnValueOnce(oldDetails.promise);
-    const pending = store.loadDetails(2);
-    store.dispose();
-    oldDetails.resolve(ok(details(job(2))));
-    await pending;
-    expect(store.byId).toEqual({});
-    expect(store.ids).toEqual([]);
-    expect(store.openDetailId).toBeNull();
+    expect(store.ids).toEqual([1]);
+    expect(store.listLoading).toBe(false);
   });
 
-  it('does not let an older list response replace newer detail state', async () => {
+  it('clears state on disposal and accepts outstanding list and detail responses', async () => {
+    const { api, store } = setup();
+    api.getJobs.mockResolvedValueOnce(ok(page([job(1)], 50, 50, 200)));
+    await store.loadJobs(50, 50);
+    store.setVisible(true);
+    store.setOpenDetail(2);
+    const oldPage = deferred<ReturnType<typeof ok<JobList>>>();
+    const oldDetails = deferred<ReturnType<typeof ok<JobDetails>>>();
+    api.getJobs.mockReturnValueOnce(oldPage.promise);
+    api.getJobDetails.mockReturnValueOnce(oldDetails.promise);
+    const list = store.loadJobs();
+    const detail = store.loadDetails(2);
+
+    store.dispose();
+    expect(store.byId).toEqual({});
+    expect(store.ids).toEqual([]);
+    expect(store.offset).toBe(0);
+    expect(store.limit).toBe(100);
+    expect(store.totalCount).toBe(0);
+    expect(store.listLoading).toBe(false);
+    expect(store.detailLoading).toEqual({});
+    expect(store.visible).toBe(false);
+    expect(store.openDetailId).toBeNull();
+
+    oldPage.resolve(ok(page([job(1)])));
+    oldDetails.resolve(ok(details(job(2))));
+    await Promise.all([list, detail]);
+    expect(store.ids).toEqual([1]);
+    expect(store.byId[2].logs).toHaveLength(2);
+    expect(store.detailLoading[2]).toBe(false);
+    expect(store.visible).toBe(false);
+    expect(store.openDetailId).toBeNull();
+
+    api.getJobs.mockResolvedValueOnce(ok(page([])));
+    await store.loadJobs();
+    expect(api.getJobs).toHaveBeenLastCalledWith(0, 100);
+  });
+
+  it('applies a late older summary and clears logs that no longer match', async () => {
     const { api, store } = setup();
     const oldPage = deferred<ReturnType<typeof ok<JobList>>>();
     api.getJobs.mockReturnValueOnce(oldPage.promise);
@@ -152,16 +183,15 @@ describe('systemJobsStore', () => {
     await store.loadDetails(7);
     oldPage.resolve(ok(page([job(7, 'running', '2026-09-27T10:01:00Z')])));
     await pending;
-    expect(store.byId[7].status).toBe('completed');
-    expect(store.byId[7].logs).toHaveLength(2);
+    expect(store.byId[7].status).toBe('running');
+    expect(store.byId[7].logs).toBeNull();
     expect(store.ids).toEqual([7]);
   });
 
-  it('reloads details when a newer list overtakes an in-flight detail response', async () => {
+  it('applies a late older detail response without retrying', async () => {
     const { api, store } = setup();
     const oldDetails = deferred<ReturnType<typeof ok<JobDetails>>>();
-    api.getJobDetails.mockReturnValueOnce(oldDetails.promise)
-      .mockResolvedValueOnce(ok(details(job(9, 'completed', '2026-09-27T10:02:00Z'))));
+    api.getJobDetails.mockReturnValueOnce(oldDetails.promise);
     api.getJobs.mockResolvedValue(ok(page([job(9, 'completed', '2026-09-27T10:02:00Z')])));
 
     const pending = store.loadDetails(9);
@@ -169,28 +199,59 @@ describe('systemJobsStore', () => {
     oldDetails.resolve(ok(details(job(9, 'running', '2026-09-27T10:01:00Z'))));
     await pending;
 
-    expect(api.getJobDetails).toHaveBeenCalledTimes(2);
-    expect(store.byId[9].status).toBe('completed');
+    expect(api.getJobDetails).toHaveBeenCalledTimes(1);
+    expect(store.byId[9].status).toBe('running');
     expect(store.byId[9].logs).toHaveLength(2);
   });
 
-  it('orders same-millisecond DateTime ticks when refreshing stale details', async () => {
+  it('retains cached logs only while the summary timestamp matches', async () => {
     const { api, store } = setup();
-    const oldDetails = deferred<ReturnType<typeof ok<JobDetails>>>();
-    const older = '2026-09-27T10:00:00.1231000Z';
-    const newer = '2026-09-27T10:00:00.1239000Z';
-    api.getJobDetails.mockReturnValueOnce(oldDetails.promise)
-      .mockResolvedValueOnce(ok(details(job(9, 'completed', newer))));
-    api.getJobs.mockResolvedValue(ok(page([job(9, 'completed', newer)])));
+    const original = job(9, 'running', '2026-09-27T10:00:00.1231000Z');
+    const changed = job(9, 'completed', '2026-09-27T10:00:00.1239000Z');
+    const result = details(original);
+    api.getJobDetails.mockResolvedValue(ok(result));
+    await store.loadDetails(9);
+    api.getJobs.mockResolvedValueOnce(ok(page([original])))
+      .mockResolvedValueOnce(ok(page([changed])));
 
-    const pending = store.loadDetails(9);
     await store.loadJobs();
-    oldDetails.resolve(ok(details(job(9, 'running', older))));
-    await pending;
-
-    expect(api.getJobDetails).toHaveBeenCalledTimes(2);
+    expect(store.byId[9].logs?.map(log => log.id)).toEqual([1, 2]);
+    expect(result.logs.map(log => log.id)).toEqual([2, 1]);
+    await store.loadJobs();
     expect(store.byId[9].status).toBe('completed');
-    expect(store.byId[9].logs).toHaveLength(2);
+    expect(store.byId[9].logs).toBeNull();
+  });
+
+  it('invalidates matching cached logs while hidden without requesting data', async () => {
+    const { api, store } = setup();
+    api.getJobDetails.mockImplementation(async (id: number) => ok(details(job(id))));
+    await store.loadDetails(1);
+    await store.loadDetails(2);
+    store.setVisible(false);
+    store.setOpenDetail(null);
+
+    await store.invalidated(1);
+    expect(store.byId[1].logs).toBeNull();
+    expect(store.byId[2].logs).toHaveLength(2);
+    await store.invalidated(null);
+    expect(store.byId[2].logs).toBeNull();
+    await store.recovered();
+    expect(api.getJobs).not.toHaveBeenCalled();
+    expect(api.getJobDetails).toHaveBeenCalledTimes(2);
+  });
+
+  it('removes only the missing job after a detail 404', async () => {
+    const { api, store } = setup();
+    api.getJobs.mockResolvedValue(ok(page([job(1), job(2)])));
+    await store.loadJobs();
+    api.getJobDetails.mockResolvedValue(err({ kind: 'http', statusCode: 404, message: 'Job not found.' }));
+
+    expect(await store.loadDetails(1)).toBeNull();
+
+    expect(store.byId[1]).toBeUndefined();
+    expect(store.jobs.map(value => value.id)).toEqual([2]);
+    expect(store.detailError[1]).toBe('Job not found.');
+    expect(store.detailLoading[1]).toBe(false);
   });
 
   it('reports request failures through inline state and feedback', async () => {
