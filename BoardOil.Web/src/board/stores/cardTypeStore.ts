@@ -70,7 +70,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
     }
 
     SET_CARD_TYPES(boardId, result.data);
-    feedback.clearError();
+    feedback.clearError('cardType');
     return true;
   }
 
@@ -146,7 +146,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
       if (!result.ok) {
         reportError(result.error);
       } else {
-        feedback.clearError();
+        feedback.clearError('cardType');
       }
 
       return result;
@@ -158,7 +158,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
   }
 
   function reportError(error: AppError) {
-    feedback.setError(error.message);
+    feedback.setError(error.message, 'cardType');
   }
 
   return {

@@ -46,7 +46,7 @@ describe('tagStore', () => {
     const current = createDeferred<Result<Tag, AppError>>();
     api.createTag.mockReturnValueOnce(current.promise);
     const currentRequest = store.createTag(2, 'Current');
-    feedback.setError('Current feedback');
+    feedback.setError('Current feedback', 'tag');
 
     pending.resolve(outcome === 'success'
       ? ok(makeTag(7, 'Old', 'auto', '{}', null))
@@ -88,7 +88,7 @@ describe('tagStore', () => {
       } else {
         store.dispose();
       }
-      feedback.setError('Current feedback');
+      feedback.setError('Current feedback', 'tag');
 
       if (outcome === 'success') {
         pending.resolve(ok([makeTag(10, 'First Board Tag', 'auto', '{}', null)]));

@@ -125,9 +125,9 @@ The action that applies a domain change owns its related state updates. Views an
 
 - Expose operation progress through store busy/loading state and restore it in `finally`. Keep initial context loading distinct where it controls the workspace loading UI.
 - Reuse the store's established request/feedback helper. Shared failures normally go through `uiFeedbackStore`; preserve deliberate inline-validation or operation-specific feedback paths.
-- Successful operations clear feedback through the established path. When composing loaders, let the loaders report their own failures rather than adding duplicate error toasts in the orchestration layer.
+- Shared errors carry a source: use `setError(message, source)` and `clearError(source)` with the same stable store or operation name. A successful request may clear only its source's error. When composing loaders, let the loaders report their own failures rather than adding duplicate error toasts in the orchestration layer.
 - Scope request feedback and busy-state completion to the captured board ID. Switching boards or clearing context resets busy state; an old-board response must not clear a current-board request’s busy state or change its feedback.
-- Treat feedback ownership for concurrent operations as an explicit design concern. These refactors do not establish a new error-list/identifier model or claim to solve concurrent error clearing.
+- The shared error banner displays the latest reported error; it is not an error queue. Different sources cannot clear one another's errors, even when their message text matches. Requests within one source retain arrival-order semantics. `resetError()` is reserved for context teardown, such as clearing the board workspace, rather than request success.
 - Keep session and permission checks centralised through auth/store/router integration.
 
 ## Validation and Reference Implementations

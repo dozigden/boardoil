@@ -290,7 +290,7 @@ describe('boardMembersStore', () => {
     } else {
       store.dispose();
     }
-    feedback.setError('Current error.');
+    feedback.setError('Current error.', 'boardMembers');
     success.resolve(ok([makeMember(7, 'Old User', 'old.user', 'Owner')]));
     failure.resolve(err({ kind: 'api', message: 'Old error.' }));
 
@@ -344,7 +344,7 @@ describe('boardMembersStore', () => {
     } else {
       store.dispose();
     }
-    feedback.setError('Current error.');
+    feedback.setError('Current error.', 'boardMembers');
     if (operation === 'delete') {
       success.resolve(ok(undefined));
     } else {

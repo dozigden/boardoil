@@ -167,8 +167,11 @@ describe('boardStore', () => {
     const pending = deferred<Result<Board, AppError>>();
     api.getBoard.mockReturnValueOnce(pending.promise);
 
+    const feedback = useUiFeedbackStore();
+    feedback.setError('Previous board member error.', 'boardMembers');
     const initialization = store.initialize(2);
 
+    expect(feedback.errorMessage).toBe('');
     expect(store.currentBoardId).toBe(2);
     expect(store.board).toBeNull();
     expect(store.isLoadingBoard).toBe(true);
@@ -191,7 +194,7 @@ describe('boardStore', () => {
     api.getBoard.mockReturnValueOnce(oldSnapshot.promise).mockReturnValueOnce(selectedSnapshot.promise);
     const oldInitialization = store.initialize(1);
     const selectedInitialization = store.initialize(2);
-    feedback.setError('Current feedback');
+    feedback.setError('Current feedback', 'board');
 
     oldSnapshot.resolve(outcome === 'success'
       ? ok(makeBoard(1))
@@ -314,7 +317,7 @@ describe('boardStore', () => {
     const current = deferred<Result<Column, AppError>>();
     api.createColumn.mockReturnValueOnce(current.promise);
     const currentRequest = store.createColumn({ title: 'Current' });
-    feedback.setError('Current feedback');
+    feedback.setError('Current feedback', 'board');
 
     pending.resolve(outcome === 'success'
       ? ok(makeBoard().columns[0])

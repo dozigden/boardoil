@@ -32,7 +32,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     }
 
     SET_BOARDS(result.data);
-    feedback.clearError();
+    feedback.clearError('boardCatalogue');
     return true;
   }
 
@@ -101,7 +101,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
       if (!result.ok) {
         reportError(result.error);
       } else {
-        feedback.clearError();
+        feedback.clearError('boardCatalogue');
       }
 
       return result;
@@ -111,7 +111,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
   }
 
   function reportError(error: AppError) {
-    feedback.setError(error.message);
+    feedback.setError(error.message, 'boardCatalogue');
   }
 
   return {

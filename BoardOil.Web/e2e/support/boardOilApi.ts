@@ -176,6 +176,10 @@ export class BoardOilApi {
     });
   }
 
+  public async addCardComment(boardId: number, cardId: number, text: string) {
+    await this.post(`/api/boards/${boardId}/cards/${cardId}/comments`, { text });
+  }
+
   public async uploadAttachment(boardId: number, cardId: number, name: string, mimeType: string, buffer: Buffer) {
     const response = await this.request.post(`/api/boards/${boardId}/cards/${cardId}/attachments`, {
       multipart: { file: { name, mimeType, buffer } },

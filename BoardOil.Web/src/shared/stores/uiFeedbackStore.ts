@@ -5,12 +5,14 @@ export type UiToastTone = 'success' | 'error';
 
 export const useUiFeedbackStore = defineStore('uiFeedback', () => {
   const errorMessage = ref('');
+  const errorSource = ref<string | null>(null);
   const warningMessage = ref('');
   const toastMessage = ref('');
   const toastTone = ref<UiToastTone>('success');
   let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  function SET_ERROR(message: string) {
+  function SET_ERROR(message: string, source: string | null) {
+    errorSource.value = source;
     errorMessage.value = message;
   }
 
@@ -27,12 +29,18 @@ export const useUiFeedbackStore = defineStore('uiFeedback', () => {
     toastMessage.value = '';
   }
 
-  function setError(message: string) {
-    SET_ERROR(message);
+  function setError(message: string, source: string) {
+    SET_ERROR(message, source);
   }
 
-  function clearError() {
-    SET_ERROR('');
+  function clearError(source: string) {
+    if (errorSource.value === source) {
+      resetError();
+    }
+  }
+
+  function resetError() {
+    SET_ERROR('', null);
   }
 
   function setWarning(message: string) {
@@ -68,11 +76,13 @@ export const useUiFeedbackStore = defineStore('uiFeedback', () => {
 
   return {
     errorMessage,
+    errorSource,
     warningMessage,
     toastMessage,
     toastTone,
     setError,
     clearError,
+    resetError,
     setWarning,
     clearWarning,
     showToast,

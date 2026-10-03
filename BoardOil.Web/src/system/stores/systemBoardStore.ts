@@ -19,13 +19,13 @@ export const useSystemBoardStore = defineStore('systemBoard', () => {
     try {
       const result = await api.getBoards();
       if (!result.ok) {
-        feedback.setError(result.error.message);
+        feedback.setError(result.error.message, 'systemBoard');
         SET_BOARDS([]);
         return false;
       }
 
       SET_BOARDS(result.data);
-      feedback.clearError();
+      feedback.clearError('systemBoard');
       return true;
     } finally {
       busy.value = false;

@@ -69,7 +69,7 @@ export const useTagStore = defineStore('tag', () => {
     }
 
     SET_TAGS(boardId, result.data);
-    feedback.clearError();
+    feedback.clearError('tag');
     return true;
   }
 
@@ -193,7 +193,7 @@ export const useTagStore = defineStore('tag', () => {
       if (!result.ok) {
         reportError(result.error);
       } else {
-        feedback.clearError();
+        feedback.clearError('tag');
       }
 
       return result;
@@ -205,7 +205,7 @@ export const useTagStore = defineStore('tag', () => {
   }
 
   function reportError(error: AppError) {
-    feedback.setError(error.message);
+    feedback.setError(error.message, 'tag');
   }
 
   return {

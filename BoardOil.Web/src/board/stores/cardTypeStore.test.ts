@@ -54,7 +54,7 @@ describe('cardTypeStore', () => {
       } else {
         store.dispose();
       }
-      feedback.setError('Current feedback');
+      feedback.setError('Current feedback', 'cardType');
 
       if (outcome === 'success') {
         pending.resolve(ok([makeCardType(10, 'First Board Type')]));
@@ -122,7 +122,7 @@ describe('cardTypeStore', () => {
       } else {
         store.dispose();
       }
-      feedback.setError('Current feedback');
+      feedback.setError('Current feedback', 'cardType');
       const loadCount = api.getCardTypes.mock.calls.length;
       if (operation === 'create' || operation === 'update') {
         success.resolve(ok(makeCardType(10, 'Old board type')));

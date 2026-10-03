@@ -58,7 +58,7 @@ describe('slickStore', () => {
       } else {
         store.dispose();
       }
-      feedback.setError('Current feedback');
+      feedback.setError('Current feedback', 'slick');
 
       if (outcome === 'success') {
         pending.resolve(ok([makeSlick(10, 'First Board Slick', 'presets', '{"presetIndex":2}')]));
@@ -156,7 +156,7 @@ describe('slickStore', () => {
       } else {
         store.dispose();
       }
-      feedback.setError('Current feedback');
+      feedback.setError('Current feedback', 'slick');
       success.resolve(ok(operation === 'delete' ? undefined : model));
       await requests[0];
       expect(feedback.errorMessage).toBe('Current feedback');

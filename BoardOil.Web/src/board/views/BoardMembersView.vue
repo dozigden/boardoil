@@ -174,11 +174,12 @@ async function loadUsers() {
   try {
     const result = await usersApi.getAllUsers();
     if (!result.ok) {
-      feedback.setError(result.error.message);
+      feedback.setError(result.error.message, 'boardMemberUsers');
       users.value = [];
       return false;
     }
 
+    feedback.clearError('boardMemberUsers');
     users.value = [...result.data].sort((left, right) => left.displayName.localeCompare(right.displayName));
     return true;
   } finally {

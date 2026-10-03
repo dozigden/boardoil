@@ -47,11 +47,11 @@ export const useBoardAttachmentInventoryStore = defineStore('boardAttachmentInve
     if (!result.ok) {
       SET_INVENTORY(id, null);
       error.value = result.error.message;
-      feedback.setError(result.error.message);
+      feedback.setError(result.error.message, 'boardAttachmentInventory');
       return;
     }
     SET_INVENTORY(id, result.data);
-    feedback.clearError();
+    feedback.clearError('boardAttachmentInventory');
   }
 
   async function remove(id: number, attachmentId: number) {
@@ -62,7 +62,7 @@ export const useBoardAttachmentInventoryStore = defineStore('boardAttachmentInve
       const result = await api.deleteBoardAttachment(id, attachmentId);
       if (version !== contextVersion) { return false; }
       if (!result.ok) {
-        feedback.setError(`Attachment could not be deleted: ${result.error.message}`);
+        feedback.setError(`Attachment could not be deleted: ${result.error.message}`, 'boardAttachmentInventory');
         return false;
       }
       await load(id, activeQuery);

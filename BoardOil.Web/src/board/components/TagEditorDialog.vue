@@ -340,7 +340,7 @@ async function saveTag() {
   if (isCreateMode.value) {
     const existingTag = getTagByName(canonicalTagName);
     if (existingTag) {
-      feedbackStore.setError(`Tag '${existingTag.name}' already exists.`);
+      feedbackStore.setError(`Tag '${existingTag.name}' already exists.`, 'tag');
       return;
     }
 

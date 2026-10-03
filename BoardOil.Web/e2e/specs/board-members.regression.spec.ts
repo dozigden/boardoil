@@ -56,7 +56,8 @@ test('accepting member removal after browser Back to another board sends no dele
 
 test('reopening a card retries a failed member lookup', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Member lookup retry');
-  await api.createCard(board, 'Todo', 'Retry member lookup');
+  const card = await api.createCard(board, 'Todo', 'Retry member lookup');
+  await api.addCardComment(board.id, card.id, 'Comments loaded successfully.');
   let memberLoads = 0;
   await page.route(`**/api/boards/${board.id}/members`, async route => {
     memberLoads++;
@@ -69,11 +70,14 @@ test('reopening a card retries a failed member lookup', async ({ api, authentica
   const boardPage = new BoardPage(page);
   await boardPage.open(board.id);
   await boardPage.openCard('Todo', 'Retry member lookup');
+  await expect(page.getByRole('region', { name: 'Card comments' })
+    .getByText('Comments loaded successfully.', { exact: true })).toBeVisible();
   await expect(page.getByText('Member lookup unavailable.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel editing', exact: true }).and(page.getByTitle('Cancel editing', { exact: true })).click();
   await expect(page.getByRole('dialog')).toBeHidden();
   await boardPage.openCard('Todo', 'Retry member lookup');
   await page.getByTitle('Select assigned user', { exact: true }).click();
   await expect(page.getByRole('menu', { name: 'Select assigned user' }).getByRole('button', { name: /smoke-admin/ })).toBeVisible();
+  await expect(page.getByText('Member lookup unavailable.', { exact: true })).toBeHidden();
   expect(memberLoads).toBe(2);
 });

@@ -91,7 +91,7 @@ describe('cardStore', () => {
     const current = deferred<Result<Card, AppError>>();
     api.saveCard.mockReturnValueOnce(current.promise);
     const currentRequest = store.saveCard(card.id, makeCardEditModel());
-    feedback.setError('Current feedback');
+    feedback.setError('Current feedback', 'card');
 
     pending.resolve(outcome === 'success'
       ? ok({ ...card, title: 'Old update' })

@@ -40,6 +40,33 @@ describe('commentStore', () => {
     expect(store.getCommentsForCard(7)).toEqual([boardTwoComment]);
   });
 
+  it('preserves another source\'s error after comments load successfully', async () => {
+    const store = useCommentStore();
+    const feedback = useUiFeedbackStore();
+    store.initialize(1);
+    feedback.setError('Member lookup unavailable.', 'boardMembers');
+    api.getCardComments.mockResolvedValueOnce(ok([makeComment(1, 7, 'Loaded comment')]));
+
+    await store.loadCardComments(1, 7);
+
+    expect(store.getCommentsForCard(7)).toHaveLength(1);
+    expect(feedback.errorMessage).toBe('Member lookup unavailable.');
+  });
+
+  it('clears its own load failure when a retry succeeds', async () => {
+    const store = useCommentStore();
+    const feedback = useUiFeedbackStore();
+    store.initialize(1);
+    api.getCardComments.mockResolvedValueOnce(err({ kind: 'api', message: 'Comments unavailable.' }));
+    await store.loadCardComments(1, 7);
+    expect(feedback.errorMessage).toBe('Comments unavailable.');
+    api.getCardComments.mockResolvedValueOnce(ok([]));
+
+    await store.loadCardComments(1, 7);
+
+    expect(feedback.errorMessage).toBe('');
+  });
+
   it('orders comments by their semantic posting time', async () => {
     const store = useCommentStore();
     store.initialize(1);
@@ -94,7 +121,7 @@ describe('commentStore', () => {
       store.dispose();
     }
     const currentComments = store.getCommentsForCard(7);
-    feedback.setError('Current feedback');
+    feedback.setError('Current feedback', 'comment');
 
     pending.resolve(ok(makeComment(1, 7, 'Old board comment')));
 
@@ -162,7 +189,7 @@ describe('commentStore', () => {
       } else {
         store.dispose();
       }
-      feedback.setError('Current feedback');
+      feedback.setError('Current feedback', 'comment');
       const comment = makeComment(1, 7, 'Old comment');
       success.resolve(ok(operation === 'load' ? [comment] : comment));
       await requests[0];

@@ -95,9 +95,9 @@ export const useCommentStore = defineStore('comment', () => {
       }
 
       if (!result.ok) {
-        feedback.setError(result.error.message);
+        feedback.setError(result.error.message, 'comment');
       } else {
-        feedback.clearError();
+        feedback.clearError('comment');
       }
 
       return result;

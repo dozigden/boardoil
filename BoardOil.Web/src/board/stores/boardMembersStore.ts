@@ -67,7 +67,7 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
       }
 
       SET_MEMBERS(boardId, result.data);
-      feedback.clearError();
+      feedback.clearError('boardMembers');
       return true;
     } finally {
       if (activeBoardId.value === boardId) {
@@ -119,7 +119,7 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
       if (!result.ok) {
         reportError(result.error);
       } else {
-        feedback.clearError();
+        feedback.clearError('boardMembers');
       }
 
       return result;
@@ -131,7 +131,7 @@ export const useBoardMembersStore = defineStore('boardMembers', () => {
   }
 
   function reportError(error: AppError) {
-    feedback.setError(error.message);
+    feedback.setError(error.message, 'boardMembers');
   }
 
   return {

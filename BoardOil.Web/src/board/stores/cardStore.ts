@@ -479,12 +479,12 @@ export const useCardStore = defineStore('card', () => {
 
       if (!result.ok) {
         if (options.suppressError?.(result.error)) {
-          feedback.clearError();
+          feedback.clearError('card');
         } else {
           reportError(result.error);
         }
       } else {
-        feedback.clearError();
+        feedback.clearError('card');
       }
 
       return result;
@@ -496,7 +496,7 @@ export const useCardStore = defineStore('card', () => {
   }
 
   function reportError(error: AppError) {
-    feedback.setError(error.message);
+    feedback.setError(error.message, 'card');
   }
 
   return {

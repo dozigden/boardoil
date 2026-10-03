@@ -68,7 +68,7 @@ export const useSlickStore = defineStore('slick', () => {
     }
 
     SET_SLICKS(boardId, result.data);
-    feedback.clearError();
+    feedback.clearError('slick');
     return true;
   }
 
@@ -139,7 +139,7 @@ export const useSlickStore = defineStore('slick', () => {
       if (!result.ok) {
         reportError(result.error);
       } else {
-        feedback.clearError();
+        feedback.clearError('slick');
       }
 
       return result;
@@ -155,7 +155,7 @@ export const useSlickStore = defineStore('slick', () => {
   }
 
   function reportError(error: AppError) {
-    feedback.setError(error.message);
+    feedback.setError(error.message, 'slick');
   }
 
   return {

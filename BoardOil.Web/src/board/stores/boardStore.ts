@@ -286,7 +286,7 @@ export const useBoardStore = defineStore('board', () => {
     SET_BOARD(nextBoardShell);
     cardStore.replaceBoardCards(boardId, result.data.columns);
     commentStore.initialize(boardId);
-    feedback.clearError();
+    feedback.clearError('board');
     return true;
   }
 
@@ -382,7 +382,7 @@ export const useBoardStore = defineStore('board', () => {
       if (!result.ok) {
         reportError(result.error);
       } else {
-        feedback.clearError();
+        feedback.clearError('board');
       }
 
       return result;
@@ -394,12 +394,12 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   function reportError(error: AppError) {
-    feedback.setError(error.message);
+    feedback.setError(error.message, 'board');
   }
 
   function getCurrentBoardIdOrReport() {
     if (currentBoardId.value === null) {
-      feedback.setError('No board selected.');
+      feedback.setError('No board selected.', 'board');
       return null;
     }
 
@@ -407,6 +407,7 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   function clearBoardContext() {
+    feedback.resetError();
     currentBoardId.value = null;
     isLoadingBoard.value = false;
     clearResyncRetry();

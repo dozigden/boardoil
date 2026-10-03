@@ -161,11 +161,11 @@ async function exportBoardPackage() {
   try {
     const result = await boardApi.exportBoard(nextBoardId);
     if (!result.ok) {
-      feedbackStore.setError(result.error.message);
+      feedbackStore.setError(result.error.message, 'boardExport');
       return;
     }
 
-    feedbackStore.clearError();
+    feedbackStore.clearError('boardExport');
     const objectUrl = URL.createObjectURL(result.data.blob);
     const anchor = document.createElement('a');
     anchor.href = objectUrl;

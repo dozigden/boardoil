@@ -67,7 +67,7 @@ export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () =
       }
 
       SET_MEMBERS(boardId, result.data);
-      feedback.clearError();
+      feedback.clearError('systemBoardMembers');
       return true;
     } finally {
       if (activeBoardId.value === boardId) {
@@ -119,7 +119,7 @@ export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () =
       if (!result.ok) {
         reportError(result.error);
       } else {
-        feedback.clearError();
+        feedback.clearError('systemBoardMembers');
       }
 
       return result;
@@ -131,7 +131,7 @@ export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () =
   }
 
   function reportError(error: AppError) {
-    feedback.setError(error.message);
+    feedback.setError(error.message, 'systemBoardMembers');
   }
 
   return {
