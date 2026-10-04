@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Common;
 
@@ -9,6 +10,7 @@ public interface ICardService
     Task<ApiResult<CardTextSearchResultDto>> SearchCardsByTextAsync(int boardId, CardTextSearchRequest request, int actorUserId, CancellationToken cancellationToken = default);
     Task<ApiResult<IReadOnlyList<CardDto>>> SearchCardsAsync(int boardId, SearchCardsRequest request, int actorUserId);
     Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId);
+    Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId, IReadOnlyDictionary<string, JsonElement>? fields);
     Task<ApiResult<CardDto>> DuplicateCardAsync(int boardId, int cardId, CreateCardRequest request, int actorUserId, CancellationToken cancellationToken = default);
     Task<ApiResult<CardDto>> UpdateCardAsync(int boardId, int id, UpdateCardRequest request, int actorUserId);
     Task<ApiResult<CardDto>> MoveCardAsync(int boardId, int id, MoveCardRequest request, int actorUserId);

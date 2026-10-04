@@ -1,4 +1,6 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using BoardOil.Contracts.CardField;
 using BoardOil.Contracts.Card;
 
 namespace BoardOil.Mcp.Contracts;
@@ -74,7 +76,8 @@ public sealed record McpBoardCardSnapshot(
     string? AssignedUserDisplayName,
     int? SlickId,
     McpCardSlickSnapshot? Slick,
-    string? ExternalUrl);
+    string? ExternalUrl,
+    IReadOnlyDictionary<string, JsonElement> Fields);
 
 public sealed record McpCardSnapshot(
     int Id,
@@ -94,7 +97,8 @@ public sealed record McpCardSnapshot(
     int? SlickId,
     McpCardSlickSnapshot? Slick,
     IReadOnlyList<McpCardCommentSnapshot> Comments,
-    string? ExternalUrl)
+    string? ExternalUrl,
+    IReadOnlyDictionary<string, JsonElement> Fields)
 {
     // Loaded by card_get only. Omit on mutation responses rather than imply an empty attachment list.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -255,7 +259,8 @@ public sealed record McpCardOptionMember(
 public sealed record McpCardOptionCardType(
     int Id,
     string Name,
-    string? Emoji);
+    string? Emoji,
+    IReadOnlyList<CardFieldDefinition> Fields);
 
 public sealed record McpCardOptionTag(
     int Id,
@@ -271,6 +276,7 @@ public sealed record McpCardOptionSlick(
 public sealed record CardCreateInput
 {
     public int? BoardId { get; init; }
+    public JsonElement Fields { get; init; }
     public int? ColumnId { get; init; }
     public int? CardTypeId { get; init; }
     public int? AssignedUserId { get; init; }
@@ -291,6 +297,7 @@ public sealed record CardUpdateInput
     private bool _externalUrlSpecified;
 
     public int? BoardId { get; init; }
+    public JsonElement Fields { get; init; }
     public int? Id { get; init; }
     public int? ColumnId { get; init; }
     public int? CardTypeId { get; init; }

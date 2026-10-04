@@ -12,7 +12,8 @@ internal static class McpToolCallHelpers
 {
     private static readonly JsonSerializerOptions SerialiserOptions = new(JsonSerializerDefaults.Web)
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        AllowOutOfOrderMetadataProperties = true
     };
     private static readonly ConcurrentDictionary<Type, IReadOnlySet<string>> AllowedArgumentNamesByInputType = new();
 

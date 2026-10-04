@@ -65,6 +65,12 @@ public sealed class CardUpdateTool(
             assignedUserId = existingCardResult.Data.AssignedUserId;
         }
 
+        var fields = McpCardFieldInputs.ParseValues(input.Fields);
+        if (!fields.IsValid)
+        {
+            return Failure(fields.Errors);
+        }
+
         var request = new UpdateCardRequest(
             input.Title,
             input.Description,
@@ -73,7 +79,8 @@ public sealed class CardUpdateTool(
             input.ColumnId,
             assignedUserId,
             input.SlickName,
-            input.ExternalUrl);
+            input.ExternalUrl,
+            fields.Value);
         var result = await _cardService.UpdateCardAsync(boardId, cardId, request, context.ActorUserId);
         if (!result.Success || result.Data is null)
         {

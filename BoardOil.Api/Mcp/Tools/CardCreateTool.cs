@@ -43,6 +43,12 @@ public sealed class CardCreateTool(
             return Failure(accessError);
         }
 
+        var fields = McpCardFieldInputs.ParseValues(input.Fields);
+        if (!fields.IsValid)
+        {
+            return Failure(fields.Errors);
+        }
+
         var request = new CreateCardRequest(
             columnId,
             input.Title,
@@ -52,7 +58,7 @@ public sealed class CardCreateTool(
             input.AssignedUserId,
             input.SlickName,
             input.ExternalUrl);
-        var result = await _cardService.CreateCardAsync(boardId, request, context.ActorUserId);
+        var result = await _cardService.CreateCardAsync(boardId, request, context.ActorUserId, fields.Value);
         if (!result.Success || result.Data is null)
         {
             return Failure(result.ToMcpError());

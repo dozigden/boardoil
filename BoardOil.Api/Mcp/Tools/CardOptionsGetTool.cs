@@ -99,7 +99,8 @@ public sealed class CardOptionsGetTool(
             result.Data.CardTypes.Select(cardType => new McpCardOptionCardType(
                 cardType.Id,
                 cardType.Name,
-                cardType.Emoji)).ToArray(),
+                cardType.Emoji,
+                cardType.Fields)).ToArray(),
             result.Data.DefaultCardTypeId,
             tags,
             slicks));

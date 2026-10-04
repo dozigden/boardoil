@@ -42,6 +42,45 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task Create_WithInitialFields_ShouldNormaliseValuesAndDefaultOnlyMissingFields()
+    {
+        var board = CreateBoard().AddColumn("Todo").Build();
+        var type = await DbContextForArrange.CardTypes.SingleAsync();
+        type.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(Definitions);
+        await DbContextForArrange.SaveChangesAsync();
+        var fields = CardFieldJsonCodec.DeserialiseValues("{\"ref\":null,\"due\":\"2024-02-29\"}");
+
+        var result = await ResolveService<CardService>().CreateCardAsync(board.BoardId,
+            new CreateCardRequest(null, "Created", null, null), ActorUserId, fields);
+
+        Assert.True(result.Success);
+        var stored = await DbContextForAssert.Cards.SingleAsync();
+        Assert.Equal("{\"Ref\":null,\"Points\":0,\"Due\":\"2024-02-29\"}", stored.FieldValuesJson);
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        Assert.Equal(stored.FieldValuesJson, CardFieldJsonCodec.SerialiseValues(Assert.Single(events.CardCreatedEvents).Card.Fields));
+    }
+
+    [Theory]
+    [InlineData("{\"Points\":11}")]
+    [InlineData("{\"Points\":null}")]
+    [InlineData("{\"Unknown\":1}")]
+    public async Task Create_WithInvalidInitialFields_ShouldNotCreateOrPublishCard(string json)
+    {
+        var board = CreateBoard().AddColumn("Todo").Build();
+        var type = await DbContextForArrange.CardTypes.SingleAsync();
+        type.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(Definitions);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await ResolveService<CardService>().CreateCardAsync(board.BoardId,
+            new CreateCardRequest(null, "Invalid", null, null), ActorUserId, CardFieldJsonCodec.DeserialiseValues(json));
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Empty(await DbContextForAssert.Cards.ToListAsync());
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).CardCreatedEvents);
+    }
+
+    [Fact]
     public async Task Update_WhenFieldsOmitted_ShouldPreserveStoredValues()
     {
         var card = await ArrangeCardAsync();

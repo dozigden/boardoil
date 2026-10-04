@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BoardOil.Abstractions;
 using BoardOil.Services.Attachment;
 using BoardOil.Abstractions.Board;
@@ -185,6 +186,12 @@ public sealed class CardService(
     public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId)
     {
         return await createCardService.ExecuteAsync(boardId, request, actorUserId);
+    }
+
+    public async Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId,
+        IReadOnlyDictionary<string, JsonElement>? fields)
+    {
+        return await createCardService.ExecuteAsync(boardId, request, actorUserId, fields: fields);
     }
 
     public async Task<ApiResult<CardDto>> DuplicateCardAsync(int boardId, int cardId, CreateCardRequest request, int actorUserId,

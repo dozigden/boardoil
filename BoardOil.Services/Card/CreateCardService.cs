@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BoardOil.Services.Attachment;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
@@ -38,7 +39,8 @@ public sealed class CreateCardService(
     private readonly ITagRepository _tagRepository = tagRepository;
 
     public async Task<ApiResult<CardDto>> ExecuteAsync(int boardId, CreateCardRequest request, int actorUserId,
-        int? duplicateFromCardId = null, CancellationToken cancellationToken = default)
+        int? duplicateFromCardId = null, CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, JsonElement>? fields = null)
     {
         using var scope = scopeFactory.Create();
 
@@ -148,13 +150,13 @@ public sealed class CreateCardService(
                 fieldError = ApiErrors.ValidationFailed([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
                 return;
             }
-            var fields = CardFieldRules.CreateValues(CardFieldJsonCodec.DeserialiseDefinitions(definitionsJson));
-            if (!fields.IsValid)
+            var initialValues = CardFieldRules.CreateValues(CardFieldJsonCodec.DeserialiseDefinitions(definitionsJson), fields);
+            if (!initialValues.IsValid)
             {
-                fieldError = ApiErrors.ValidationFailed(fields.Errors);
+                fieldError = ApiErrors.ValidationFailed(initialValues.Errors);
                 return;
             }
-            card.FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fields.Value!);
+            card.FieldValuesJson = CardFieldJsonCodec.SerialiseValues(initialValues.Value!);
             card.BoardCardId = await boardCardIdAllocator.AllocateNextAsync(boardId);
             if (attachmentCopy is not null) { await attachments.AttachCopyAsync(attachmentCopy, card, actorUserId); }
             cardRepository.Add(card);

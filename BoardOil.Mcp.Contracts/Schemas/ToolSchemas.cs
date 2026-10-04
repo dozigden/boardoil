@@ -2,6 +2,77 @@ namespace BoardOil.Mcp.Contracts.Schemas;
 
 public static class ToolSchemas
 {
+    private const string CardFieldValueSchema = """
+    { "anyOf": [
+      { "type": "string", "maxLength": 250 },
+      { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+      { "type": "null" }
+    ] }
+    """;
+
+    private static readonly string CardFieldValuesSchema = $$"""
+    {
+      "type": "object",
+      "maxProperties": 10,
+      "additionalProperties": {{CardFieldValueSchema}},
+      "description": "Values keyed by fieldcode; dates use YYYY-MM-DD strings. See card_options_get for definitions."
+    }
+    """;
+
+    private const string CardFieldDefinitionsSchema = """
+    {
+      "type": "array", "maxItems": 10,
+      "items": { "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "text"},
+            "fieldCode": {"type": "string", "minLength": 1, "maxLength": 40, "pattern": "^[A-Za-z0-9]+$"},
+            "displayName": {"type": "string", "minLength": 1, "maxLength": 40},
+            "emoji": {"type": ["string", "null"]},
+            "nullable": {"type": "boolean"},
+            "showOnCard": {"type": "boolean"},
+            "defaultValue": {"type": ["string", "null"], "maxLength": 250},
+            "minLength": {"type": ["integer", "null"], "minimum": 0, "maximum": 250},
+            "maxLength": {"type": ["integer", "null"], "minimum": 0, "maximum": 250}
+          },
+          "required": ["type", "fieldCode", "displayName", "emoji", "nullable", "showOnCard", "defaultValue", "minLength", "maxLength"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "integer"},
+            "fieldCode": {"type": "string", "minLength": 1, "maxLength": 40, "pattern": "^[A-Za-z0-9]+$"},
+            "displayName": {"type": "string", "minLength": 1, "maxLength": 40},
+            "emoji": {"type": ["string", "null"]},
+            "nullable": {"type": "boolean"},
+            "showOnCard": {"type": "boolean"},
+            "defaultValue": {"type": ["integer", "null"], "minimum": -2147483648, "maximum": 2147483647},
+            "min": {"type": ["integer", "null"], "minimum": -2147483648, "maximum": 2147483647},
+            "max": {"type": ["integer", "null"], "minimum": -2147483648, "maximum": 2147483647}
+          },
+          "required": ["type", "fieldCode", "displayName", "emoji", "nullable", "showOnCard", "defaultValue", "min", "max"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "date"},
+            "fieldCode": {"type": "string", "minLength": 1, "maxLength": 40, "pattern": "^[A-Za-z0-9]+$"},
+            "displayName": {"type": "string", "minLength": 1, "maxLength": 40},
+            "emoji": {"type": ["string", "null"]},
+            "nullable": {"type": "boolean"},
+            "showOnCard": {"type": "boolean"},
+            "defaultValue": {"type": ["string", "null"], "format": "date"}
+          },
+          "required": ["type", "fieldCode", "displayName", "emoji", "nullable", "showOnCard", "defaultValue"],
+          "additionalProperties": false
+        }
+      ] }
+    }
+    """;
+
     public const string CardSearchInput = """
     {
       "type": "object",
@@ -346,12 +417,13 @@ public static class ToolSchemas
     }
     """;
 
-    public const string CardGetOutput = """
+    public static readonly string CardGetOutput = $$"""
     {
       "oneOf": [
         {
           "type": "object",
           "properties": {
+            "fields": {{CardFieldValuesSchema}},
             "id": { "type": "integer", "minimum": 1 },
             "columnId": { "type": "integer", "minimum": 1 },
             "cardTypeId": { "type": "integer", "minimum": 1 },
@@ -377,7 +449,7 @@ public static class ToolSchemas
             "externalUrl": { "type": ["string", "null"] },
             "attachments": { "type": "array", "items": { "$ref": "#/$defs/attachment" } }
           },
-          "required": ["id", "columnId", "cardTypeId", "cardTypeName", "cardTypeEmoji", "title", "description", "sortKey", "tags", "tagNames", "cardCreatedUtc", "cardUpdatedUtc", "assignedUserId", "assignedUserDisplayName", "slickId", "slick", "comments", "externalUrl", "attachments"],
+          "required": ["id", "columnId", "cardTypeId", "cardTypeName", "cardTypeEmoji", "title", "description", "sortKey", "tags", "tagNames", "cardCreatedUtc", "cardUpdatedUtc", "assignedUserId", "assignedUserDisplayName", "slickId", "slick", "comments", "externalUrl", "attachments", "fields"],
           "additionalProperties": false
         },
         {
@@ -578,10 +650,15 @@ public static class ToolSchemas
     }
     """;
 
-    public const string CardCreateInput = """
+    public static readonly string CardCreateInput = $$"""
     {
       "type": "object",
       "properties": {
+        "fields": {
+          "type": "object", "maxProperties": 10,
+          "additionalProperties": {{CardFieldValueSchema}},
+          "description": "Optional initial values keyed by fieldcode. Omitted fields use defaults or null; explicit null clears nullable values. Dates use YYYY-MM-DD."
+        },
         "boardId": { "type": "integer", "minimum": 1 },
         "columnId": { "type": "integer", "minimum": 1, "description": "Resolve from card_options_get.columns[].id." },
         "cardTypeId": { "type": ["integer", "null"], "minimum": 1, "description": "Resolve from card_options_get.cardTypes[].id. Omit or use null to select defaultCardTypeId." },
@@ -601,10 +678,15 @@ public static class ToolSchemas
     }
     """;
 
-    public const string CardUpdateInput = """
+    public static readonly string CardUpdateInput = $$"""
     {
       "type": "object",
       "properties": {
+        "fields": {
+          "type": "object", "maxProperties": 10,
+          "additionalProperties": {{CardFieldValueSchema}},
+          "description": "Omit to preserve current values. When supplied, include every field of the current/original card type, including explicit nulls. Values are applied before any type conversion. Dates use YYYY-MM-DD."
+        },
         "boardId": { "type": "integer", "minimum": 1 },
         "id": { "type": "integer", "minimum": 1 },
         "columnId": { "type": ["integer", "null"], "minimum": 1, "description": "Resolve from card_options_get.columns[].id, or omit to preserve the current column." },
@@ -941,9 +1023,10 @@ public static class ToolSchemas
             "properties": {
               "id": { "type": "integer" },
               "name": { "type": "string" },
-              "emoji": { "type": ["string", "null"] }
+              "emoji": { "type": ["string", "null"] },
+              "fields": {{CardFieldDefinitionsSchema}}
             },
-            "required": ["id", "name", "emoji"],
+            "required": ["id", "name", "emoji", "fields"],
             "additionalProperties": false
           }
         },
