@@ -575,6 +575,9 @@ namespace BoardOil.Ef.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("EditedAtUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("PostedAtUtc")
                         .HasColumnType("TEXT");
 
