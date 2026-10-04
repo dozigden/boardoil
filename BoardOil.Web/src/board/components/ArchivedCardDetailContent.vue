@@ -260,6 +260,8 @@ function formatDateTime(value: string) {
 .card-editor-description-field :deep(.md-viewer),
 .card-editor-description-field :deep(.md-viewer-content) {
   flex: 0 0 auto;
+  min-width: 0;
+  width: 100%;
   overflow: visible;
 }
 
