@@ -16,6 +16,15 @@ namespace BoardOil.Services.Tests;
 public sealed class BoardResaveTests : TestBaseDb
 {
     private const string Description = "- [x] Done\n- [ ] Open";
+    private const string FieldDefinitions = """
+        [
+          {"type":"text","fieldCode":"Reference","displayName":"Reference","nullable":false,"defaultValue":"Default","emoji":"🔖","showOnCard":true,"maxLength":25},
+          {"type":"integer","fieldCode":"Points","displayName":"Estimate","nullable":false,"defaultValue":5,"min":0,"max":10},
+          {"type":"date","fieldCode":"Due","displayName":"Due date","nullable":true},
+          {"type":"text","fieldCode":"Optional","displayName":"Optional","nullable":true,"defaultValue":"Default"}
+        ]
+        """;
+    private const string FieldValues = """{"Reference":"Saved","Points":0,"Due":"2024-02-29","Optional":null}""";
 
     protected override void ConfigureTestServices(IServiceCollection services) => services.AddLogging();
 
@@ -155,10 +164,53 @@ public sealed class BoardResaveTests : TestBaseDb
         Assert.Empty(Events.CardUpdatedEvents);
     }
 
-    [Fact]
-    public async Task RepeatedResave_ShouldNotChangeTimestampsOrPublishAnotherResync()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Resave_ShouldPreserveCustomFieldDefinitionsAndValues(bool customType)
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Fields", Description).Build();
+        var card = board.GetCard("Fields");
+        if (customType)
+        {
+            card.CardType = new EntityCardType
+            {
+                BoardId = board.BoardId, Name = "Custom", StyleName = "auto", StylePropertiesJson = "{}"
+            };
+        }
+        card.CardType.FieldDefinitionsJson = FieldDefinitions;
+        card.FieldValuesJson = FieldValues;
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await ResolveService<IBoardResaveService>().ResaveAsync(board.BoardId);
+
+        Assert.Equal(new BoardResaveResult(board.BoardId, false, 1, 1), result);
+        var stored = await DbContextForAssert.Cards.Include(x => x.CardType).SingleAsync();
+        Assert.Equal(FieldDefinitions, stored.CardType.FieldDefinitionsJson);
+        Assert.Equal(FieldValues, stored.FieldValuesJson);
+        Assert.Equal(card.CardTypeId, stored.CardTypeId);
+        Assert.Equal(card.CardType.UpdatedAtUtc, stored.CardType.UpdatedAtUtc);
+        Assert.Equal(card.CardCreatedUtc, stored.CardCreatedUtc);
+        Assert.Equal(card.CardUpdatedUtc, stored.CardUpdatedUtc);
+        Assert.Equal(Description, stored.Description);
+        Assert.Equal(1, stored.CompletedChecklistItemCount);
+        Assert.Equal(2, stored.TotalChecklistItemCount);
+        Assert.Equal([board.BoardId], Events.ResyncRequestedBoardIds);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RepeatedResave_ShouldNotChangeTimestampsOrPublishAnotherResync(bool withFields)
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("Checklist", Description).Build();
+        if (withFields)
+        {
+            var card = board.GetCard("Checklist");
+            card.CardType.FieldDefinitionsJson = FieldDefinitions;
+            card.FieldValuesJson = FieldValues;
+            await DbContextForArrange.SaveChangesAsync();
+        }
         await ResolveService<IBoardResaveService>().ResaveAsync(board.BoardId);
         var before = await DbContextForAssert.Cards.AsNoTracking().SingleAsync();
         Events.ResyncRequestedBoardIds.Clear();
@@ -166,7 +218,10 @@ public sealed class BoardResaveTests : TestBaseDb
         var result = await ResolveService<IBoardResaveService>().ResaveAsync(board.BoardId);
 
         Assert.Equal(new BoardResaveResult(board.BoardId, false, 1, 0), result);
-        Assert.Equal(before.UpdatedAtUtc, (await DbContextForAssert.Cards.AsNoTracking().SingleAsync()).UpdatedAtUtc);
+        var after = await DbContextForAssert.Cards.AsNoTracking().SingleAsync();
+        Assert.Equal(before.UpdatedAtUtc, after.UpdatedAtUtc);
+        Assert.Equal(before.CardUpdatedUtc, after.CardUpdatedUtc);
+        Assert.Equal(before.FieldValuesJson, after.FieldValuesJson);
         Assert.Empty(Events.ResyncRequestedBoardIds);
     }
 
