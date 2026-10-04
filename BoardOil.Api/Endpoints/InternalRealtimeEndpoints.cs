@@ -144,6 +144,9 @@ public static class InternalRealtimeEndpoints
             BoardRealtimeEventTypes.CommentUpdated => request.Comment is null
                 ? ApiErrors.BadRequest("Comment payload is required for comment_updated.")
                 : null,
+            BoardRealtimeEventTypes.CommentDeleted => request.CardId is not > 0 || request.CommentId is not > 0
+                ? ApiErrors.BadRequest("Positive CardId and CommentId are required for comment_deleted.")
+                : null,
             _ => ApiErrors.BadRequest("Unsupported realtime event type.")
         };
     }
@@ -160,6 +163,7 @@ public static class InternalRealtimeEndpoints
             BoardRealtimeEventTypes.CardMoved => boardEvents.CardMovedAsync(request.BoardId, request.Card!),
             BoardRealtimeEventTypes.CommentCreated => boardEvents.CommentCreatedAsync(request.BoardId, request.Comment!),
             BoardRealtimeEventTypes.CommentUpdated => boardEvents.CommentUpdatedAsync(request.BoardId, request.Comment!),
+            BoardRealtimeEventTypes.CommentDeleted => boardEvents.CommentDeletedAsync(request.BoardId, request.CardId!.Value, request.CommentId!.Value),
             _ => Task.CompletedTask
         };
 }

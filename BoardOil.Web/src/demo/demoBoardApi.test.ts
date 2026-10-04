@@ -6,6 +6,20 @@ describe('demoBoardApi', () => {
     resetDemoData();
   });
 
+  it('deletes comments without allowing a later edit to recreate them', async () => {
+    const api = createDemoBoardApi();
+    const created = await api.createCardComment(1, 869, 'Remove this comment');
+    expect(created.ok).toBe(true);
+    if (!created.ok) { return; }
+
+    expect(await api.deleteCardComment(1, 869, created.data.id)).toEqual({ ok: true, data: undefined });
+
+    expect(await api.getCardComments(1, 869)).toMatchObject({ ok: true, data: [] });
+    expect(await api.updateCardComment(1, 869, created.data.id, 'Older draft')).toMatchObject({ ok: false });
+    expect(await api.deleteCardComment(1, 869, created.data.id)).toEqual({ ok: true, data: undefined });
+    expect(await api.deleteCardComment(1, Number.MAX_SAFE_INTEGER, created.data.id)).toEqual({ ok: true, data: undefined });
+  });
+
   it('edits comments while retaining timestamps and archived edit metadata', async () => {
     const api = createDemoBoardApi();
     const created = await api.createCardComment(1, 869, 'Original comment');

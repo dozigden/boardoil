@@ -25,6 +25,7 @@ export type BoardRealtimeHandlers = {
   onCardMoved: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCommentCreated: (boardId: number, comment: CardComment) => Promise<unknown> | unknown;
   onCommentUpdated?: (boardId: number, comment: CardComment) => Promise<unknown> | unknown;
+  onCommentDeleted?: (boardId: number, cardId: number, commentId: number) => Promise<unknown> | unknown;
   onAttachmentAdded?: (boardId: number, cardId: number, attachment: CardAttachment) => Promise<unknown> | unknown;
   onAttachmentDeleted?: (boardId: number, cardId: number, attachmentId: number) => Promise<unknown> | unknown;
   onSystemInfoMessageUpdated: (systemInfoMessage: SystemInfoMessageDto | null) => Promise<unknown> | unknown;
@@ -293,6 +294,10 @@ function registerBoardEventHandlers(
   connection.on('CommentUpdated', async (comment: CardComment, boardId: number) => {
     logRealtime('Event: CommentUpdated', { boardId, commentId: comment.id, cardId: comment.cardId });
     await handlers.onCommentUpdated?.(boardId, comment);
+  });
+  connection.on('CommentDeleted', async (commentId: number, cardId: number, boardId: number) => {
+    logRealtime('Event: CommentDeleted', { boardId, commentId, cardId });
+    await handlers.onCommentDeleted?.(boardId, cardId, commentId);
   });
   connection.on('ResyncRequested', async (boardId: number) => {
     logRealtime('Event: ResyncRequested', { boardId });

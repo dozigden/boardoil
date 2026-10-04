@@ -10,5 +10,6 @@ public enum BoardPermission
     CardUpdate = 8,
     CardDelete = 9,
     CardMove = 10,
-    TagManage = 11
+    TagManage = 11,
+    CommentModerate = 12
 }

@@ -48,6 +48,7 @@ public static class McpServiceCollectionExtensions
         RegisterTool<CardDeleteTool>(services);
         RegisterTool<CardCommentCreateTool>(services);
         RegisterTool<CardCommentUpdateTool>(services);
+        RegisterTool<CardCommentDeleteTool>(services);
         RegisterTool<TagCreateTool>(services);
         RegisterTool<TagUpdateTool>(services);
         RegisterTool<TagDeleteTool>(services);

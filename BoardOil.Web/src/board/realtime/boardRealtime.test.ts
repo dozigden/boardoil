@@ -241,6 +241,17 @@ describe('boardRealtime', () => {
     expect(onCommentCreated).toHaveBeenCalledWith(42, comment);
   });
 
+  it('forwards comment deletions with board, card and comment identifiers', async () => {
+    const onCommentDeleted = vi.fn();
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({ ...createHandlers(), onCommentDeleted });
+
+    await realtime.connect(42);
+    await connection.eventHandlers.CommentDeleted?.(123, 55, 42);
+
+    expect(onCommentDeleted).toHaveBeenCalledWith(42, 55, 123);
+  });
+
   it('forwards edited comments with their metadata', async () => {
     const onCommentUpdated = vi.fn();
     const { createBoardRealtime } = await import('./boardRealtime');

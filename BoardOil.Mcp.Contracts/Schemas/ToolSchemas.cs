@@ -710,6 +710,19 @@ public static class ToolSchemas
     }
     """;
 
+    public const string CardCommentDeleteInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "cardId": { "type": "integer", "minimum": 1, "description": "Board-scoped number of the live card owning this comment." },
+        "id": { "type": "integer", "minimum": 1, "description": "Comment ID from card_get.comments[].id." }
+      },
+      "required": ["boardId", "cardId", "id"],
+      "additionalProperties": false
+    }
+    """;
+
     public static readonly string TagCreateInput = $$"""
     {
       "type": "object",
@@ -840,6 +853,7 @@ public static class ToolSchemas
     public static readonly string CardDeleteOutput = CreateMutationReceiptSchema("deleted", "Board-scoped number of the deleted card.");
     public static readonly string CardCommentCreateOutput = CreateMutationReceiptSchema("created", "Generated comment ID, not the card number.");
     public static readonly string CardCommentUpdateOutput = CreateMutationReceiptSchema("updated", "Updated comment ID, not the card number.");
+    public static readonly string CardCommentDeleteOutput = CreateMutationReceiptSchema("deleted", "Deleted comment ID, not the card number.");
 
     private static string CreateMutationReceiptSchema(string outcome, string idDescription) => $$"""
     {

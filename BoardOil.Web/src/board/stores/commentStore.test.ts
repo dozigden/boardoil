@@ -10,7 +10,8 @@ import type { Result } from '../../shared/types/result';
 const api = {
   getCardComments: vi.fn(),
   createCardComment: vi.fn(),
-  updateCardComment: vi.fn()
+  updateCardComment: vi.fn(),
+  deleteCardComment: vi.fn()
 };
 
 vi.mock('../../shared/api/boardApi', () => ({
@@ -21,6 +22,94 @@ describe('commentStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
+  });
+
+  it('removes a deleted comment once and retains unrelated comments', async () => {
+    const store = useCommentStore();
+    store.initialize(1);
+    const deleted = makeComment(1, 7, 'Deleted');
+    const kept = makeComment(2, 7, 'Kept');
+    store.upsertCardComment(1, deleted);
+    store.upsertCardComment(1, kept);
+    api.deleteCardComment.mockResolvedValueOnce(ok(undefined));
+
+    expect(await store.deleteCardComment(1, 7, deleted.id)).toEqual(ok(undefined));
+    store.removeCardComment(1, 7, deleted.id);
+
+    expect(store.getCommentsForCard(7)).toEqual([kept]);
+    expect(store.isCommentDeleted(deleted.id)).toBe(true);
+  });
+
+  it('preserves a comment on failed deletion and ignores deletion events for another board', async () => {
+    const store = useCommentStore();
+    store.initialize(1);
+    const comment = makeComment(1, 7, 'Kept');
+    store.upsertCardComment(1, comment);
+    api.deleteCardComment.mockResolvedValueOnce(err({ kind: 'api', message: 'Delete failed.' }));
+
+    await store.deleteCardComment(1, 7, comment.id);
+    store.removeCardComment(2, 7, comment.id);
+
+    expect(store.getCommentsForCard(7)).toEqual([comment]);
+    expect(store.isCommentDeleted(comment.id)).toBe(false);
+    expect(useUiFeedbackStore().errorMessage).toBe('Delete failed.');
+  });
+
+  it('ignores deletion completing after the board changes', async () => {
+    const store = useCommentStore();
+    store.initialize(1);
+    const pending = deferred<Result<void, AppError>>();
+    api.deleteCardComment.mockReturnValueOnce(pending.promise);
+    const deleting = store.deleteCardComment(1, 7, 1);
+    store.initialize(2);
+    const current = makeComment(1, 7, 'Current board');
+    store.upsertCardComment(2, current);
+    pending.resolve(ok(undefined));
+
+    expect(await deleting).toBeNull();
+    expect(store.getCommentsForCard(7)).toEqual([current]);
+    expect(store.isCommentDeleted(1)).toBe(false);
+  });
+
+  it('does not resurrect a deletion from delayed edits, reads or realtime events, including after resync', async () => {
+    const store = useCommentStore();
+    store.initialize(1);
+    const comment = makeComment(1, 7, 'Original');
+    store.upsertCardComment(1, comment);
+    const editResult = deferred<Result<CardComment, AppError>>();
+    const loadResult = deferred<Result<CardComment[], AppError>>();
+    api.updateCardComment.mockReturnValueOnce(editResult.promise);
+    api.getCardComments.mockReturnValueOnce(loadResult.promise);
+    const editing = store.updateCardComment(1, 7, 1, 'Late edit');
+    const loading = store.loadCardComments(1, 7);
+    store.removeCardComment(1, 7, 1);
+    store.initialize(1);
+    editResult.resolve(ok({ ...comment, text: 'Late edit' }));
+    loadResult.resolve(ok([comment]));
+    await editing;
+    await loading;
+    store.upsertCardComment(1, comment);
+
+    expect(store.getCommentsForCard(7)).toEqual([]);
+    expect(store.isCommentDeleted(1)).toBe(true);
+  });
+
+  it('recovers missed deletions on reconnect and clears deletion tracking when switching boards', async () => {
+    const store = useCommentStore();
+    store.initialize(1);
+    const comment = makeComment(1, 7, 'Deleted while disconnected');
+    store.upsertCardComment(1, comment);
+    store.initialize(1);
+    api.getCardComments.mockResolvedValueOnce(ok([]));
+
+    await store.loadCardComments(1, 7);
+    store.upsertCardComment(1, comment);
+
+    expect(store.getCommentsForCard(7)).toEqual([]);
+    expect(store.isCommentDeleted(1)).toBe(true);
+    store.initialize(2);
+    store.upsertCardComment(2, comment);
+    expect(store.getCommentsForCard(7)).toEqual([comment]);
   });
 
   it('replaces an edited comment without changing posting order or duplicating realtime updates', async () => {

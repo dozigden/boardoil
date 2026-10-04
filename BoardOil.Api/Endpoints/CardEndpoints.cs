@@ -65,6 +65,9 @@ public static class CardEndpoints
         cardEndpoints.MapPut("/{id:int}/comments/{commentId:int}", async (int boardId, int id, int commentId, UpdateCardCommentRequest request, ICardCommentService cardCommentService, HttpContext httpContext) =>
             (await cardCommentService.UpdateCommentAsync(boardId, id, commentId, request, httpContext.GetActorUserId())).ToHttpResult());
 
+        cardEndpoints.MapDelete("/{id:int}/comments/{commentId:int}", async (int boardId, int id, int commentId, ICardCommentService cardCommentService, HttpContext httpContext) =>
+            (await cardCommentService.DeleteCommentAsync(boardId, id, commentId, httpContext.GetActorUserId())).ToHttpResult());
+
         cardEndpoints.MapPatch("/{id:int}/move", async (int boardId, int id, MoveCardRequest request, ICardService cardService, HttpContext httpContext) =>
             (await cardService.MoveCardAsync(boardId, id, request, httpContext.GetActorUserId())).ToHttpResult());
 

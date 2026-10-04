@@ -229,6 +229,7 @@ public sealed class SystemInfoMessageServiceTests
         public Task CardMovedAsync(int boardId, BoardOil.Contracts.Card.CardDto card) => Task.CompletedTask;
         public Task CommentCreatedAsync(int boardId, BoardOil.Contracts.Card.CardCommentDto comment) => Task.CompletedTask;
         public Task CommentUpdatedAsync(int boardId, BoardOil.Contracts.Card.CardCommentDto comment) => Task.CompletedTask;
+        public Task CommentDeletedAsync(int boardId, int cardId, int commentId) => Task.CompletedTask;
         public Task AttachmentAddedAsync(int boardId, int cardId, BoardOil.Contracts.Card.CardAttachmentDto attachment) => Task.CompletedTask;
         public Task AttachmentDeletedAsync(int boardId, int cardId, int attachmentId) => Task.CompletedTask;
         public Task ResyncRequestedAsync(int boardId) => Task.CompletedTask;

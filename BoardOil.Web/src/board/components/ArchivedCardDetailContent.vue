@@ -47,9 +47,9 @@
                 min-height="1.5rem"
                 :image-context="descriptionImageContext"
               />
-              <time class="archived-card-comment-timestamp" :datetime="comment.postedAtUtc">
-                <span v-if="comment.editedAtUtc" :title="`Edited ${formatDateTime(comment.editedAtUtc)}`">edited · </span>
-                {{ formatDateTime(comment.postedAtUtc) }}
+              <time class="archived-card-comment-timestamp" :datetime="comment.editedAtUtc ?? comment.postedAtUtc">
+                <span v-if="comment.editedAtUtc" :title="`Edited ${formatDateTime(comment.editedAtUtc)}`">Edited · </span>
+                {{ formatDateTime(comment.editedAtUtc ?? comment.postedAtUtc) }}
               </time>
             </div>
           </article>

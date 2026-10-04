@@ -9,6 +9,7 @@ public sealed class TestBoardEvents : IBoardEvents
 {
     public readonly List<(int BoardId, CardCommentDto Comment)> CommentCreatedEvents = [];
     public readonly List<(int BoardId, CardCommentDto Comment)> CommentUpdatedEvents = [];
+    public readonly List<(int BoardId, int CardId, int CommentId)> CommentDeletedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardCreatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardUpdatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardMovedEvents = [];
@@ -53,6 +54,12 @@ public sealed class TestBoardEvents : IBoardEvents
     public Task CommentUpdatedAsync(int boardId, CardCommentDto comment)
     {
         CommentUpdatedEvents.Add((boardId, comment));
+        return Task.CompletedTask;
+    }
+
+    public Task CommentDeletedAsync(int boardId, int cardId, int commentId)
+    {
+        CommentDeletedEvents.Add((boardId, cardId, commentId));
         return Task.CompletedTask;
     }
 

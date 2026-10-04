@@ -42,6 +42,33 @@ public sealed class BoardApiCardIntegrationTests
         Assert.Equal(JsonValueKind.String, json.RootElement.GetProperty("data").GetProperty("editedAtUtc").ValueKind);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CardCommentsEndpoints_Delete_ShouldReturnSuccessAndSubsequentReadsShouldBeEmpty(bool repeat)
+    {
+        var columnId = await SeedBoardColumnAsync("Comment delete");
+        var cardId = await SeedBoardCardAsync(columnId, "Comment delete", "");
+        var createdResponse = await Client.PostAsJsonAsync($"/api/boards/1/cards/{cardId}/comments", new CreateCardCommentRequest("Original"));
+        createdResponse.EnsureSuccessStatusCode();
+        var comment = (await createdResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardCommentDto>>(JsonOptions))!.Data!;
+        if (repeat)
+        {
+            var firstDelete = await Client.DeleteAsync($"/api/boards/1/cards/{cardId}/comments/{comment.Id}");
+            firstDelete.EnsureSuccessStatusCode();
+        }
+
+        var response = await Client.DeleteAsync($"/api/boards/1/cards/{cardId}/comments/{comment.Id}");
+        var read = await Client.GetAsync($"/api/boards/1/cards/{cardId}/comments");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(payload.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(200, payload.RootElement.GetProperty("statusCode").GetInt32());
+        read.EnsureSuccessStatusCode();
+        Assert.Empty((await read.Content.ReadFromJsonAsync<ApiEnvelope<CardCommentDto[]>>(JsonOptions))!.Data!);
+    }
+
     [Fact]
     public async Task CardCommentsEndpoints_WhenEditIsEmpty_ShouldReturnFieldValidation()
     {

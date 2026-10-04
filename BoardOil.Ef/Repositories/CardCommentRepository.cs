@@ -32,6 +32,9 @@ public sealed class CardCommentRepository(IAmbientDbContextLocator ambientDbCont
             .ToListAsync();
     }
 
+    public Task<int> DeleteByIdAsync(int cardId, int commentId) =>
+        DbSet.Where(x => x.CardId == cardId && x.Id == commentId).ExecuteDeleteAsync();
+
     public Task<EntityCardComment?> GetByIdWithAuthorAsync(int id) =>
         DbSet
             .Include(x => x.AuthorUser)

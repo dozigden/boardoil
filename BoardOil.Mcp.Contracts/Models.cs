@@ -385,6 +385,13 @@ public sealed record CardCommentUpdateInput
     public string Text { get; init; } = string.Empty;
 }
 
+public sealed record CardCommentDeleteInput
+{
+    public int? BoardId { get; init; }
+    public int? CardId { get; init; }
+    public int? Id { get; init; }
+}
+
 public sealed record SlickCreateInput
 {
     public int? BoardId { get; init; }

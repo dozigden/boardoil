@@ -497,6 +497,29 @@ const demoBoardApi: BoardApi = {
     return ok(clone(comment));
   },
 
+  async deleteCardComment(boardId, cardId, commentId) {
+    if (boardId !== DemoBoardId) {
+      return notFound('Board not found.');
+    }
+    if (!findCard(cardId)) {
+      return ok(undefined);
+    }
+    const comment = state.comments[cardId]?.find(item => item.id === commentId);
+    if (!comment) {
+      if (Object.values(state.comments).some(comments => comments.some(item => item.id === commentId))) {
+        return notFound('Comment not found.');
+      }
+      return ok(undefined);
+    }
+    const member = state.members.find(item => item.userId === DemoUserId);
+    if (comment.authorUserId !== DemoUserId && member?.role !== 'Owner') {
+      return err({ kind: 'api', message: 'You can only delete your own comments unless you own this board.' });
+    }
+    state.comments[cardId] = state.comments[cardId].filter(item => item.id !== commentId);
+    findCard(cardId)!.card.cardUpdatedUtc = new Date().toISOString();
+    return ok(undefined);
+  },
+
   async archiveCards(boardId, cardIds) {
     if (boardId !== DemoBoardId) {
       return notFound('Board not found.');

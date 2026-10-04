@@ -43,6 +43,17 @@ export class CardEditorPage {
     await expect(imageDialog).toBeHidden();
   }
 
+  public async requestCommentDeletion(text: string) {
+    const comment = this.dialog().getByRole('article').filter({ hasText: text });
+    await comment.getByRole('button', { name: 'Comment actions', exact: true }).click();
+    await comment.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(this.page.getByRole('dialog', { name: 'Delete comment', exact: true })).toBeVisible();
+  }
+
+  public async confirmCommentDeletion() {
+    await this.page.getByRole('dialog', { name: 'Delete comment', exact: true }).getByRole('button', { name: 'Delete', exact: true }).click();
+  }
+
   private editingCommentRegion() {
     return this.dialog().getByRole('article').filter({ has: this.page.getByLabel('Edit comment', { exact: true }) });
   }

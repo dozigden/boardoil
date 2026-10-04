@@ -35,15 +35,48 @@ public sealed class McpCommentUpdateIntegrationTests : McpIntegrationTestBase, I
         Assert.Equal(JsonValueKind.String, edited.GetProperty("editedAtUtc").ValueKind);
     }
 
-    [Fact]
-    public async Task CommentUpdate_WithoutWriteScope_ShouldReturnMcpErrorAndPreserveText()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CommentDelete_ShouldReturnReceiptAndRemoveCommentFromCardGet(bool repeat)
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var token = await CreateMachinePatAsync(client);
+        var comment = await CreateCommentAsync(client);
+        if (repeat)
+        {
+            var firstDelete = await CallToolAsync(client, token, "card_comment_delete", new { boardId = 1, cardId = comment.CardId, id = comment.Id });
+            Assert.False(firstDelete.GetProperty("isError").GetBoolean());
+        }
+
+        var receipt = await CallToolAsync(client, token, "card_comment_delete", new { boardId = 1, cardId = comment.CardId, id = comment.Id });
+        var read = await CallToolAsync(client, token, "card_get", new { boardId = 1, id = comment.CardId });
+
+        Assert.False(receipt.GetProperty("isError").GetBoolean());
+        var data = receipt.GetProperty("structuredContent");
+        Assert.Equal(comment.Id, data.GetProperty("id").GetInt32());
+        Assert.Equal("deleted", data.GetProperty("outcome").GetString());
+        Assert.False(read.GetProperty("isError").GetBoolean());
+        Assert.Empty(read.GetProperty("structuredContent").GetProperty("comments").EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("card_comment_update")]
+    [InlineData("card_comment_delete")]
+    public async Task CommentMutation_WithoutWriteScope_ShouldReturnMcpErrorAndPreserveText(string tool)
     {
         var client = CreateClient();
         await RegisterInitialAdminAsync(client);
         var token = await CreateMachinePatAsync(client, ["mcp:read"]);
         var comment = await CreateCommentAsync(client);
 
-        var result = await CallToolAsync(client, token, "card_comment_update", new { boardId = 1, cardId = comment.CardId, id = comment.Id, text = "Forbidden edit" });
+        object arguments = new { boardId = 1, cardId = comment.CardId, id = comment.Id };
+        if (tool == "card_comment_update")
+        {
+            arguments = new { boardId = 1, cardId = comment.CardId, id = comment.Id, text = "Forbidden edit" };
+        }
+        var result = await CallToolAsync(client, token, tool, arguments);
 
         Assert.True(result.GetProperty("isError").GetBoolean());
         var response = await client.GetAsync($"/api/boards/1/cards/{comment.CardId}/comments");

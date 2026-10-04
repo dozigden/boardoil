@@ -20,6 +20,7 @@ public static class BoardRealtimeEventTypes
     public const string CardMoved = "card_moved";
     public const string CommentCreated = "comment_created";
     public const string CommentUpdated = "comment_updated";
+    public const string CommentDeleted = "comment_deleted";
 }
 
 public sealed record BoardRealtimeRelayEvent(
@@ -29,4 +30,5 @@ public sealed record BoardRealtimeRelayEvent(
     int? ColumnId = null,
     CardDto? Card = null,
     int? CardId = null,
-    CardCommentDto? Comment = null);
+    CardCommentDto? Comment = null,
+    int? CommentId = null);

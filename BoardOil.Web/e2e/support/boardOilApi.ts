@@ -184,6 +184,23 @@ export class BoardOilApi {
     return await this.put<{ id: number; text: string; postedAtUtc: string; editedAtUtc: string | null }>(`/api/boards/${boardId}/cards/${cardId}/comments/${commentId}`, { text });
   }
 
+  public async deleteCardComment(boardId: number, cardId: number, commentId: number) {
+    const response = await this.request.delete(`/api/boards/${boardId}/cards/${cardId}/comments/${commentId}`, {
+      headers: { 'X-BoardOil-CSRF': this.csrfToken }
+    });
+    const result = await readJson<{ success: boolean }>(response);
+    if (!result.success) { throw new Error('Comment deletion failed.'); }
+  }
+
+  public async addBoardMember(boardId: number, userId: number, role: 'Owner' | 'Contributor') {
+    return await this.post<{ userId: number; role: string }>(`/api/boards/${boardId}/members`, { userId, role });
+  }
+
+  public async login(userName: string, password: string) {
+    await this.post('/api/auth/login', { userName, password }, false);
+    this.csrfToken = (await this.read<{ csrfToken: string }>('/api/auth/csrf')).csrfToken;
+  }
+
   public async uploadAttachment(boardId: number, cardId: number, name: string, mimeType: string, buffer: Buffer) {
     const response = await this.request.post(`/api/boards/${boardId}/cards/${cardId}/attachments`, {
       multipart: { file: { name, mimeType, buffer } },

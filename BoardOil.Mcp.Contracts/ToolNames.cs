@@ -20,6 +20,7 @@ public static class ToolNames
     public const string CardDelete = "card_delete";
     public const string CardCommentCreate = "card_comment_create";
     public const string CardCommentUpdate = "card_comment_update";
+    public const string CardCommentDelete = "card_comment_delete";
     public const string TagCreate = "tag_create";
     public const string TagUpdate = "tag_update";
     public const string TagDelete = "tag_delete";

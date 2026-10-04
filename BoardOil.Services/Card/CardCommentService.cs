@@ -142,7 +142,14 @@ public sealed class CardCommentService(
             comment.Text = text;
             comment.EditedAtUtc = DateTime.UtcNow;
             card.CardUpdatedUtc = comment.EditedAtUtc.Value;
-            await scope.SaveChangesAsync();
+            try
+            {
+                await scope.SaveChangesAsync();
+            }
+            catch (ConcurrencyException)
+            {
+                return ApiErrors.NotFound("Comment not found.");
+            }
         }
 
         var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, actorUserId);
@@ -155,6 +162,63 @@ public sealed class CardCommentService(
         }
 
         return ApiResults.Ok(updatedComment);
+    }
+
+    public async Task<ApiResult> DeleteCommentAsync(int boardId, int cardId, int commentId, int actorUserId)
+    {
+        using var scope = _scopeFactory.Create();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        var card = await cardRepository.GetWithTagsAndBoardAsync(boardId, cardId);
+        if (card is null)
+        {
+            return ApiResults.Ok();
+        }
+
+        var comment = await cardCommentRepository.GetByIdWithAuthorAsync(commentId);
+        if (comment is null)
+        {
+            return ApiResults.Ok();
+        }
+        if (comment.CardId != card.Id)
+        {
+            return ApiErrors.NotFound("Comment not found.");
+        }
+
+        if (comment.AuthorUserId != actorUserId
+            && !await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CommentModerate))
+        {
+            return ApiErrors.Forbidden("You can only delete your own comments unless you own this board.");
+        }
+
+        var deleted = false;
+        await scope.Transaction(async (transactionScope, transaction) =>
+        {
+            var affectedRows = await cardCommentRepository.DeleteByIdAsync(card.Id, commentId);
+            if (affectedRows == 0)
+            {
+                return;
+            }
+
+            card.CardUpdatedUtc = DateTime.UtcNow;
+            await transactionScope.SaveChangesAsync();
+            await transaction.CommitAsync();
+            deleted = true;
+        });
+        if (!deleted)
+        {
+            return ApiResults.Ok();
+        }
+
+        var updatedCard = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
+        await boardEvents.CardUpdatedAsync(boardId, updatedCard);
+        await boardEvents.CommentDeletedAsync(boardId, cardId, commentId);
+        return ApiResults.Ok();
     }
 
     private static IReadOnlyList<ValidationError> ValidateText(string? rawText)

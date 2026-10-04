@@ -1,8 +1,153 @@
-import { expect, test } from '../fixtures/boardOilTest';
+import { expect, getBaseUrl, test } from '../fixtures/boardOilTest';
 import { interceptBoardConnection } from '../support/boardRealtimeConnection';
 import { BoardPage } from '../ui/BoardPage';
 import { CardEditorPage } from '../ui/CardEditorPage';
 import { AttachmentPanel } from '../ui/AttachmentPanel';
+import { BoardOilApi } from '../support/boardOilApi';
+
+test('comment deletion confirms the selected comment, preserves failures and attachments, and reaches other viewers', async ({ api, browser, authenticatedPage: page }) => {
+  const board = await api.createBoard('Comment deletion');
+  const card = await api.createCard(board, 'Todo', 'Delete comments');
+  const comment = await api.addCardComment(board.id, card.id, 'Selected comment to remove');
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+  const attachment = await api.uploadAttachment(board.id, card.id, 'kept-image.png', 'image/png', png);
+  const secondContext = await browser.newContext({ baseURL: getBaseUrl(), storageState: await page.context().storageState() });
+  try {
+    const secondPage = await secondContext.newPage();
+    const editor = new CardEditorPage(page);
+    const viewer = new CardEditorPage(secondPage);
+    await page.goto(`/boards/${board.id}/card/${card.id}`);
+    await secondPage.goto(`/boards/${board.id}/card/${card.id}`);
+    await expect(viewer.commentContent()).toHaveText('Selected comment to remove');
+    await editor.requestCommentDeletion('Selected comment to remove');
+    const prompt = page.getByRole('dialog', { name: 'Delete comment', exact: true });
+    await expect(prompt).toContainText('Selected comment to remove');
+    await prompt.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(editor.commentContent()).toHaveText('Selected comment to remove');
+
+    const routePattern = `**/api/boards/${board.id}/cards/${card.id}/comments/${comment.id}`;
+    await page.route(routePattern, route => route.fulfill({ status: 500, json: { success: false, statusCode: 500, message: 'Comment deletion failed.' } }));
+    await editor.requestCommentDeletion('Selected comment to remove');
+    await editor.confirmCommentDeletion();
+    await expect(page.getByText('Comment deletion failed.', { exact: true })).toBeVisible();
+    await expect(editor.commentContent()).toHaveText('Selected comment to remove');
+    await expect(viewer.commentContent()).toHaveText('Selected comment to remove');
+
+    await page.unroute(routePattern);
+    await editor.requestCommentDeletion('Selected comment to remove');
+    await editor.confirmCommentDeletion();
+    await expect(editor.commentContent()).toHaveCount(0);
+    await expect(viewer.commentContent()).toHaveCount(0);
+    expect(await new AttachmentPanel(page).download(attachment.originalFileName)).toEqual({ name: attachment.originalFileName, bytes: png });
+    await page.reload();
+    await expect(page.getByText('No comments yet.', { exact: true })).toBeVisible();
+  } finally {
+    await secondContext.close();
+  }
+});
+
+test('owners can moderate another author while that author retains a deleted comment draft', async ({ api, browser, authenticatedPage: page }) => {
+  const board = await api.createBoard('Comment moderation');
+  const card = await api.createCard(board, 'Todo', 'Moderate comments');
+  await api.addCardComment(board.id, card.id, 'Owner comment');
+  const userName = `comment-author-${board.id}`;
+  const password = 'Password1234!';
+  const author = await api.createUser(userName, password);
+  await api.addBoardMember(board.id, author.id, 'Contributor');
+  const authorContext = await browser.newContext({ baseURL: getBaseUrl() });
+  try {
+    const authorPage = await authorContext.newPage();
+    const authorApi = new BoardOilApi(authorPage.request);
+    await authorApi.login(userName, password);
+    await authorApi.addCardComment(board.id, card.id, 'Contributor comment');
+    const ownerEditor = new CardEditorPage(page);
+    const authorEditor = new CardEditorPage(authorPage);
+    await page.goto(`/boards/${board.id}/card/${card.id}`);
+    await authorPage.goto(`/boards/${board.id}/card/${card.id}`);
+    const ownerCommentForContributor = authorPage.getByRole('article').filter({ hasText: 'Owner comment' });
+    await expect(ownerCommentForContributor.getByRole('button', { name: 'Comment actions', exact: true })).toHaveCount(0);
+    const contributorCommentForOwner = page.getByRole('dialog').getByRole('article').filter({ hasText: 'Contributor comment' });
+    await contributorCommentForOwner.getByRole('button', { name: 'Comment actions', exact: true }).click();
+    await expect(contributorCommentForOwner.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+    await expect(contributorCommentForOwner.getByRole('button', { name: 'Delete', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await authorEditor.editComment('Contributor comment');
+    await authorEditor.editedCommentEditor().fill('Keep my unfinished draft');
+
+    await ownerEditor.requestCommentDeletion('Contributor comment');
+    await ownerEditor.confirmCommentDeletion();
+
+    await expect(ownerEditor.commentContent()).toHaveText(['Owner comment']);
+    await expect(authorPage.getByText('This comment was deleted. Copy any text you want to keep before cancelling.', { exact: true })).toBeVisible();
+    await expect(authorEditor.editedCommentEditor()).toHaveText('Keep my unfinished draft');
+    await expect(authorPage.getByRole('button', { name: 'Save comment', exact: true })).toBeDisabled();
+    await authorPage.getByTitle('Cancel editing', { exact: true }).click();
+    await authorPage.getByRole('dialog', { name: 'Discard unsaved changes', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(authorEditor.editedCommentEditor()).toHaveText('Keep my unfinished draft');
+    await authorEditor.cancelCommentEdit();
+    await expect(authorEditor.commentContent()).toHaveText(['Owner comment']);
+  } finally {
+    await authorContext.close();
+  }
+});
+
+test('a delayed successful edit response cannot resurrect a deleted comment or clear its draft', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Comment deletion race');
+  const card = await api.createCard(board, 'Todo', 'Delayed edit');
+  const comment = await api.addCardComment(board.id, card.id, 'Original comment');
+  const editor = new CardEditorPage(page);
+  await page.goto(`/boards/${board.id}/card/${card.id}`);
+  await editor.editComment('Original comment');
+  await editor.editedCommentEditor().fill('Submitted draft');
+  let release!: () => void;
+  let persisted!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const saved = new Promise<void>(resolve => { persisted = resolve; });
+  const pattern = `**/api/boards/${board.id}/cards/${card.id}/comments/${comment.id}`;
+  await page.route(pattern, async route => {
+    const response = await route.fetch();
+    persisted();
+    await gate;
+    await route.fulfill({ response });
+  });
+  try {
+    await editor.saveCommentEdit();
+    await saved;
+    await api.deleteCardComment(board.id, card.id, comment.id);
+    await expect(page.getByText('This comment was deleted. Copy any text you want to keep before cancelling.', { exact: true })).toBeVisible();
+    const completed = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith(`/comments/${comment.id}`));
+    release();
+    await completed;
+    await expect(editor.editedCommentEditor()).toHaveText('Submitted draft');
+    await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeDisabled();
+    await editor.cancelCommentEdit();
+    await expect(editor.commentContent()).toHaveCount(0);
+  } finally {
+    release();
+  }
+});
+
+test('reconnect recovers a missed deletion while preserving the open draft', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Missed comment deletion');
+  const card = await api.createCard(board, 'Todo', 'Reconnect deletion');
+  const comment = await api.addCardComment(board.id, card.id, 'Original comment');
+  const connection = await interceptBoardConnection(page);
+  const editor = new CardEditorPage(page);
+  await page.goto(`/boards/${board.id}/card/${card.id}`);
+  await editor.editComment('Original comment');
+  await editor.editedCommentEditor().fill('Local unfinished draft');
+  connection.pauseEvents();
+  await api.deleteCardComment(board.id, card.id, comment.id);
+  await expect(page.getByText('This comment was deleted. Copy any text you want to keep before cancelling.', { exact: true })).toHaveCount(0);
+
+  await connection.disconnect();
+
+  await expect(page.getByText('This comment was deleted. Copy any text you want to keep before cancelling.', { exact: true })).toBeVisible();
+  await expect(editor.editedCommentEditor()).toHaveText('Local unfinished draft');
+  await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeDisabled();
+  await editor.cancelCommentEdit();
+  await expect(editor.commentContent()).toHaveCount(0);
+});
 
 test('comments can be edited, cancelled and saved without changing posting order', async ({ api, authenticatedPage: page }, testInfo) => {
   const board = await api.createBoard('Comment editing');
@@ -20,7 +165,7 @@ test('comments can be edited, cancelled and saved without changing posting order
   await editor.editComment('Original comment');
   await editor.saveCommentEdit();
   await expect(editor.editedCommentEditor()).toBeHidden();
-  await expect(page.getByText('edited ·', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Edited ·', { exact: true })).toHaveCount(0);
 
   await editor.editComment('Original comment');
   await editor.editedCommentEditor().fill('Corrected comment');
@@ -30,10 +175,10 @@ test('comments can be edited, cancelled and saved without changing posting order
   await expect(editor.editedCommentEditor()).toBeHidden();
   await expect(editor.commentContent()).toHaveText(['Newer comment', 'Corrected comment']);
   await expect(editor.commentContent().filter({ hasText: 'Corrected comment' }).locator('strong')).toHaveText('Corrected comment');
-  await expect(page.getByText('edited ·', { exact: true })).toBeVisible();
+  await expect(page.getByText('Edited ·', { exact: true })).toBeVisible();
   await page.reload();
   await expect(editor.commentContent()).toHaveText(['Newer comment', 'Corrected comment']);
-  await expect(page.getByText('edited ·', { exact: true })).toBeVisible();
+  await expect(page.getByText('Edited ·', { exact: true })).toBeVisible();
 });
 
 test('remote edits and reconnect preserve a local draft and the last save wins', async ({ api, authenticatedPage: page }) => {
@@ -51,7 +196,7 @@ test('remote edits and reconnect preserve a local draft and the last save wins',
   await editor.editedCommentEditor().fill('Local draft saved last');
 
   await api.updateCardComment(board.id, card.id, comment.id, 'Remote change');
-  await expect(page.getByText('edited ·', { exact: true })).toBeVisible();
+  await expect(page.getByText('Edited ·', { exact: true })).toBeVisible();
   expect(loads).toBe(1);
   await expect(editor.editedCommentEditor()).toHaveText('Local draft saved last');
   await connection.disconnect();
@@ -108,7 +253,7 @@ test('typing during a comment save preserves the next draft and the keyboard sho
   } finally {
     release();
   }
-  await expect(page.getByText('edited ·', { exact: true })).toBeVisible();
+  await expect(page.getByText('Edited ·', { exact: true })).toBeVisible();
   await expect(editor.editedCommentEditor()).toHaveText('Next unfinished edit');
   await editor.editedCommentEditor().press('Control+s');
   await expect(editor.editedCommentEditor()).toBeHidden();
@@ -160,10 +305,10 @@ for (const changed of [false, true]) {
     await editor.saveCommentEdit();
     await expect(editor.editedCommentEditor()).toBeHidden();
     await expect(editor.commentContent().getByRole('button', { name: `Enlarge image: ${expectedAlt}`, exact: true })).toBeVisible();
-    await expect(page.getByText('edited ·', { exact: true })).toHaveCount(changed ? 1 : 0);
+    await expect(page.getByText('Edited ·', { exact: true })).toHaveCount(changed ? 1 : 0);
     await page.reload();
     await expect(editor.commentContent().getByRole('button', { name: `Enlarge image: ${expectedAlt}`, exact: true })).toBeVisible();
-    await expect(page.getByText('edited ·', { exact: true })).toHaveCount(changed ? 1 : 0);
+    await expect(page.getByText('Edited ·', { exact: true })).toHaveCount(changed ? 1 : 0);
   });
 }
 

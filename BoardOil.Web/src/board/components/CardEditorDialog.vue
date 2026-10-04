@@ -166,7 +166,7 @@
                 </aside>
                 <div class="card-editor-comment-content" :class="{ 'card-editor-comment-content--editing': editingCommentId === comment.id }">
                   <BoDropdown
-                    v-if="canEditComment(comment) && editingCommentId !== comment.id"
+                    v-if="(canEditComment(comment) || canDeleteComment(comment)) && editingCommentId !== comment.id"
                     class="card-editor-comment-actions"
                     align="right"
                     label="Comment actions"
@@ -176,12 +176,16 @@
                     :icon-size="14"
                   >
                     <template #default="{ close }">
-                      <button type="button" class="bo-dropdown-item" :disabled="commentsBusy || imageUploadBlocking" @click="close(); void beginCommentEdit(comment)">
+                      <button v-if="canEditComment(comment)" type="button" class="bo-dropdown-item" :disabled="commentsBusy || imageUploadBlocking" @click="close(); void beginCommentEdit(comment)">
                         Edit
+                      </button>
+                      <button v-if="canDeleteComment(comment)" type="button" class="bo-dropdown-item" :disabled="commentsBusy || imageUploadBlocking" @click="close(); void deleteComment(comment)">
+                        Delete
                       </button>
                     </template>
                   </BoDropdown>
                   <div v-if="editingCommentId === comment.id" class="card-editor-comment-edit" @keydown="handleCommentEditKeydown">
+                    <p v-if="editedCommentDeleted" role="status">This comment was deleted. Copy any text you want to keep before cancelling.</p>
                     <MdEditor
                       :ref="setEditedCommentEditorRef"
                       :model-value="editedCommentText"
@@ -191,7 +195,7 @@
                       :show-toolbar="false"
                       :image-context="cardImageContext"
                       :image-remove="removeEditedCommentImage"
-                      :image-upload="cardImageUpload"
+                      :image-upload="editedCommentDeleted ? null : cardImageUpload"
                       :image-upload-cancel="attachments.cancel"
                       @update:model-value="updateEditedCommentText"
                       @user-edit="applyUserEditedCommentChange"
@@ -203,7 +207,7 @@
                       @image-upload-blocking-change="handleEditedCommentImageBlockingChange"
                     />
                     <div class="card-editor-comment-edit-actions">
-                      <button type="button" class="btn" :disabled="commentsBusy || editedCommentImageBlocking || editedCommentText.trim().length === 0" @click="saveCommentEdit">Save comment</button>
+                      <button type="button" class="btn" :disabled="editedCommentDeleted || commentsBusy || editedCommentImageBlocking || editedCommentText.trim().length === 0" @click="saveCommentEdit">Save comment</button>
                       <button type="button" class="btn btn--secondary" :disabled="editedCommentImageBlocking" @click="cancelCommentEdit">Cancel</button>
                     </div>
                   </div>
@@ -218,10 +222,10 @@
                   />
                   <time
                     class="card-editor-comment-timestamp"
-                    :datetime="comment.postedAtUtc"
+                    :datetime="comment.editedAtUtc ?? comment.postedAtUtc"
                   >
-                    <span v-if="comment.editedAtUtc" :title="`Edited ${formatCommentDateTime(comment.editedAtUtc)}`">edited · </span>
-                    {{ formatCommentDateTime(comment.postedAtUtc) }}
+                    <span v-if="comment.editedAtUtc" :title="`Edited ${formatCommentDateTime(comment.editedAtUtc)}`">Edited · </span>
+                    {{ formatCommentDateTime(comment.editedAtUtc ?? comment.postedAtUtc) }}
                   </time>
                 </div>
               </article>
@@ -448,7 +452,7 @@ const { cardTypes, activeBoardId: cardTypesActiveBoardId, systemCardType } = sto
 const { slicks, activeBoardId: slicksActiveBoardId } = storeToRefs(slickStore);
 const { busy: commentsBusy } = storeToRefs(commentStore);
 const { createCard: createCardAction, saveCard: saveCardAction, deleteCards, archiveCards } = cardStore;
-const { loadCardComments, addCardComment: addCardCommentAction, updateCardComment } = commentStore;
+const { loadCardComments, addCardComment: addCardCommentAction, updateCardComment, deleteCardComment } = commentStore;
 const { loadMembers } = boardMembersStore;
 const { loadCardTypes } = cardTypeStore;
 const { loadSlicks } = slickStore;
@@ -470,6 +474,8 @@ const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const commentEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const editedCommentEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const editingCommentId = ref<number | null>(null);
+const editingCommentSnapshot = ref<CardComment | null>(null);
+const editedCommentDeleted = computed(() => editingCommentId.value !== null && commentStore.isCommentDeleted(editingCommentId.value));
 const editedCommentText = ref('');
 const editedCommentSourceText = ref('');
 const isEditedCommentDirty = ref(false);
@@ -526,7 +532,13 @@ const routeCardId = computed<number | null>(() => {
 const boardId = computed(() => currentBoardId.value!);
 
 const editingCard = computed(() => cardStore.getCardById(routeCardId.value));
-const cardComments = computed(() => commentStore.getCommentsForCard(routeCardId.value));
+const cardComments = computed(() => {
+  const savedComments = commentStore.getCommentsForCard(routeCardId.value);
+  if (editedCommentDeleted.value && editingCommentSnapshot.value) {
+    return [...savedComments, editingCommentSnapshot.value];
+  }
+  return savedComments;
+});
 const boardColumns = computed(() => board.value?.columns ?? []);
 const selectedBoardColumnLabel = computed(() => {
   if (!cardDraft.value) {
@@ -697,7 +709,31 @@ function resetCommentDraft() {
 }
 
 function canEditComment(comment: CardComment) {
-  return boardStore.currentUserRole !== null && comment.authorUserId === authStore.user?.id;
+  return boardStore.currentUserRole !== null && comment.authorUserId === authStore.user?.id && !commentStore.isCommentDeleted(comment.id);
+}
+
+function canDeleteComment(comment: CardComment) {
+  return boardStore.currentUserRole !== null && !commentStore.isCommentDeleted(comment.id)
+    && (comment.authorUserId === authStore.user?.id || boardStore.isCurrentUserOwner);
+}
+
+async function deleteComment(comment: CardComment) {
+  const targetBoardId = boardId.value;
+  const cardId = routeCardId.value;
+  if (cardId === null || !canDeleteComment(comment) || commentsBusy.value || imageUploadBlocking.value) {
+    return;
+  }
+  const confirmed = await confirm({
+    title: 'Delete comment',
+    message: `Delete this comment by ${comment.authorDisplayName ?? 'Unknown user'}?\n\n${comment.text.slice(0, 200)}`,
+    confirmLabel: 'Delete',
+    danger: true
+  });
+  if (!confirmed || boardId.value !== targetBoardId || routeCardId.value !== cardId
+    || !canDeleteComment(comment) || commentsBusy.value || imageUploadBlocking.value) {
+    return;
+  }
+  await deleteCardComment(targetBoardId, cardId, comment.id);
 }
 
 function setEditedCommentEditorRef(instance: Element | ComponentPublicInstance | null) {
@@ -716,6 +752,7 @@ async function beginCommentEdit(comment: CardComment) {
   }
   resetCommentEdit();
   editingCommentId.value = comment.id;
+  editingCommentSnapshot.value = { ...comment };
   editedCommentText.value = comment.text;
   editedCommentSourceText.value = comment.text;
   activeEditor.value = 'commentEdit';
@@ -725,6 +762,7 @@ async function beginCommentEdit(comment: CardComment) {
 
 function resetCommentEdit() {
   editingCommentId.value = null;
+  editingCommentSnapshot.value = null;
   editedCommentText.value = '';
   editedCommentSourceText.value = '';
   isEditedCommentDirty.value = false;
@@ -784,7 +822,7 @@ async function removeEditedCommentImage(): Promise<boolean> {
 async function saveCommentEdit() {
   const cardId = routeCardId.value;
   const commentId = editingCommentId.value;
-  if (cardId === null || commentId === null || commentsBusy.value || editedCommentImageBlocking.value) {
+  if (cardId === null || commentId === null || editedCommentDeleted.value || commentsBusy.value || editedCommentImageBlocking.value) {
     return;
   }
   const submittedDraft = editedCommentText.value;
@@ -1577,7 +1615,7 @@ onBeforeRouteUpdate(async (to, from) => {
   position: relative;
   align-self: stretch;
   min-width: 0;
-  min-height: 100%;
+  min-height: 3rem;
   padding-right: 3.9rem;
 }
 
