@@ -39,7 +39,7 @@ function valueError(field: CardFieldDefinition, value: string | number | null): 
 
 export function planDemoFields(
   source: CardFieldDefinition[], original: CardFieldValues, supplied: CardFieldValues | undefined,
-  destination: CardFieldDefinition[], changingType: boolean, description: string
+  destination: CardFieldDefinition[], changingType: boolean, description: string, matchByCode = false
 ): Result<{ fields: CardFieldValues; description: string }, AppError> {
   const errors: Record<string, string[]> = {};
   const values: CardFieldValues = {};
@@ -61,7 +61,9 @@ export function planDemoFields(
   const fields = demoFieldDefaults(destination);
   const preserved = new Set<string>();
   for (const target of destination) {
-    const from = source.find(field => field.displayName.toLowerCase() === target.displayName.toLowerCase());
+    const from = source.find(field => matchByCode
+      ? field.fieldCode.toLowerCase() === target.fieldCode.toLowerCase()
+      : field.displayName.toLowerCase() === target.displayName.toLowerCase());
     if (!from) continue;
     let candidate = values[from.fieldCode];
     if (candidate !== null && from.type !== target.type) {

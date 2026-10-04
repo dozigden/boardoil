@@ -1,4 +1,5 @@
 using BoardOil.Contracts.Slick;
+using BoardOil.Contracts.CardField;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -62,7 +63,10 @@ public sealed record ArchivedCardDetailDto(
     IReadOnlyList<string> TagNames,
     DateTime ArchivedAtUtc,
     CardDto Card,
-    IReadOnlyList<ArchivedCardCommentDto> Comments);
+    IReadOnlyList<ArchivedCardCommentDto> Comments)
+{
+    public IReadOnlyList<CardFieldDefinition> FieldDefinitions { get; init; } = [];
+}
 
 public sealed record ArchivedCardCommentDto(
     string Text,

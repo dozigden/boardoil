@@ -1,4 +1,6 @@
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.CardField;
+using BoardOil.Services.CardField;
 using BoardOil.Data.Abstractions.Entities;
 using System.Text.Json;
 
@@ -9,7 +11,7 @@ public static class ArchivedCardSnapshotSerialiser
     public const string SchemaName = "archived-card";
     public const int CurrentVersion = 1;
 
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web) { AllowOutOfOrderMetadataProperties = true };
 
     public static string CreateSnapshotJson(int boardId, EntityBoardCard card, DateTime capturedAtUtc)
     {
@@ -50,7 +52,9 @@ public static class ArchivedCardSnapshotSerialiser
             card.ExternalUrl,
             card.AssignedUser?.Email,
             card.CompletedChecklistItemCount,
-            card.TotalChecklistItemCount);
+            card.TotalChecklistItemCount,
+            CardFieldJsonCodec.DeserialiseDefinitions(card.CardType.FieldDefinitionsJson),
+            CardFieldJsonCodec.DeserialiseValues(card.FieldValuesJson));
 
         var envelope = new ArchivedCardSnapshotEnvelopeV1(
             SchemaName,
@@ -136,7 +140,7 @@ public static class ArchivedCardSnapshotSerialiser
             error = "Snapshot version is not supported.";
             return false;
         }
-        catch (JsonException)
+        catch (Exception exception) when (exception is JsonException or NotSupportedException)
         {
             error = "Snapshot JSON is invalid.";
             return false;
@@ -189,13 +193,17 @@ public static class ArchivedCardSnapshotSerialiser
             payload.SlickName,
             payload.ExternalUrl,
             CompletedChecklistItemCount: payload.CompletedChecklistItemCount,
-            TotalChecklistItemCount: payload.TotalChecklistItemCount);
+            TotalChecklistItemCount: payload.TotalChecklistItemCount)
+        {
+            Fields = payload.Fields ?? new Dictionary<string, JsonElement>()
+        };
 
         snapshot = new ArchivedCardSnapshotCurrentDto(
             card,
             payload.Comments?.ToList() ?? [],
             payload.OriginalColumnName,
-            payload.AssignedUserEmail);
+            payload.AssignedUserEmail,
+            payload.FieldDefinitions ?? []);
         return true;
     }
 
@@ -229,7 +237,9 @@ public sealed record ArchivedCardSnapshotV1Payload(
     string? ExternalUrl = null,
     string? AssignedUserEmail = null,
     int CompletedChecklistItemCount = 0,
-    int TotalChecklistItemCount = 0);
+    int TotalChecklistItemCount = 0,
+    IReadOnlyList<CardFieldDefinition>? FieldDefinitions = null,
+    IReadOnlyDictionary<string, JsonElement>? Fields = null);
 
 public sealed record ArchivedCardSnapshotCommentV1Payload(
     string Text,
@@ -248,4 +258,5 @@ public sealed record ArchivedCardSnapshotCurrentDto(
     CardDto Card,
     IReadOnlyList<ArchivedCardSnapshotCommentV1Payload> Comments,
     string? OriginalColumnName,
-    string? AssignedUserEmail);
+    string? AssignedUserEmail,
+    IReadOnlyList<CardFieldDefinition> FieldDefinitions);

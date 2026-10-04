@@ -479,9 +479,11 @@ public static class ToolSchemas
             "comments": { "type": "array", "items": { "$ref": "#/$defs/archivedComment" } },
             "externalUrl": { "type": ["string", "null"] },
             "archivedAtUtc": { "type": "string", "format": "date-time" },
+            "fields": {{CardFieldValuesSchema}},
+            "fieldDefinitions": {{CardFieldDefinitionsSchema}},
             "attachments": { "type": "array", "items": { "$ref": "#/$defs/attachment" } }
           },
-          "required": ["id", "columnId", "cardTypeId", "cardTypeName", "cardTypeEmoji", "title", "description", "sortKey", "tags", "tagNames", "cardCreatedUtc", "cardUpdatedUtc", "assignedUserId", "assignedUserDisplayName", "slickId", "slick", "comments", "externalUrl", "archivedAtUtc", "attachments"],
+          "required": ["id", "columnId", "cardTypeId", "cardTypeName", "cardTypeEmoji", "title", "description", "sortKey", "tags", "tagNames", "cardCreatedUtc", "cardUpdatedUtc", "assignedUserId", "assignedUserDisplayName", "slickId", "slick", "comments", "externalUrl", "archivedAtUtc", "attachments", "fields", "fieldDefinitions"],
           "additionalProperties": false
         }
       ],

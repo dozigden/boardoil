@@ -134,6 +134,7 @@ export type ArchivedCardComment = {
 };
 
 export type ArchivedCard = ArchivedCardListItem & {
+  fieldDefinitions: CardFieldDefinition[];
   card: Card;
   comments: ArchivedCardComment[];
 };

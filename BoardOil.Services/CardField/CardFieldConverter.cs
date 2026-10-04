@@ -11,19 +11,27 @@ public static class CardFieldConverter
         IReadOnlyList<CardFieldDefinition> sourceDefinitions,
         IReadOnlyDictionary<string, JsonElement> sourceValues,
         IReadOnlyList<CardFieldDefinition> destinationDefinitions) =>
-        Convert(sourceDefinitions, sourceValues, destinationDefinitions, editingDefinitions: false);
+        Convert(sourceDefinitions, sourceValues, destinationDefinitions, editingDefinitions: false, matchByCode: false);
 
     public static CardFieldRuleResult<CardFieldConversionResult> ApplyDefinitionChanges(
         IReadOnlyList<CardFieldDefinition> sourceDefinitions,
         IReadOnlyDictionary<string, JsonElement> sourceValues,
         IReadOnlyList<CardFieldDefinition> destinationDefinitions) =>
-        Convert(sourceDefinitions, sourceValues, destinationDefinitions, editingDefinitions: true);
+        Convert(sourceDefinitions, sourceValues, destinationDefinitions, editingDefinitions: true, matchByCode: true);
+
+    public static CardFieldRuleResult<CardFieldConversionResult> Restore(
+        IReadOnlyList<CardFieldDefinition> sourceDefinitions,
+        IReadOnlyDictionary<string, JsonElement> sourceValues,
+        IReadOnlyList<CardFieldDefinition> destinationDefinitions,
+        bool sameType) =>
+        Convert(sourceDefinitions, sourceValues, destinationDefinitions, editingDefinitions: false, matchByCode: sameType);
 
     private static CardFieldRuleResult<CardFieldConversionResult> Convert(
         IReadOnlyList<CardFieldDefinition> sourceDefinitions,
         IReadOnlyDictionary<string, JsonElement> sourceValues,
         IReadOnlyList<CardFieldDefinition> destinationDefinitions,
-        bool editingDefinitions)
+        bool editingDefinitions,
+        bool matchByCode)
     {
         var source = CardFieldRules.NormaliseDefinitions(sourceDefinitions);
         var destination = CardFieldRules.NormaliseDefinitions(destinationDefinitions);
@@ -40,13 +48,13 @@ public static class CardFieldConverter
         var sourceFields = source.Value!;
         var originalValues = sourceValueResult.Value!;
         var sourcesByIdentity = sourceFields.ToDictionary(
-            field => MatchIdentity(field, editingDefinitions), StringComparer.OrdinalIgnoreCase);
+            field => MatchIdentity(field, matchByCode), StringComparer.OrdinalIgnoreCase);
         var preserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var values = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
         var errors = new List<ValidationError>();
         foreach (var target in destination.Value!)
         {
-            if (!sourcesByIdentity.TryGetValue(MatchIdentity(target, editingDefinitions), out var original))
+            if (!sourcesByIdentity.TryGetValue(MatchIdentity(target, matchByCode), out var original))
             {
                 // Adding a nullable definition to existing cards differs from creating/converting a card.
                 var initialValue = CardFieldRules.DefaultValue(target);
@@ -93,9 +101,9 @@ public static class CardFieldConverter
         return new(new(values, losses), []);
     }
 
-    private static string MatchIdentity(CardFieldDefinition definition, bool editingDefinitions)
+    private static string MatchIdentity(CardFieldDefinition definition, bool matchByCode)
     {
-        if (editingDefinitions)
+        if (matchByCode)
         {
             return definition.FieldCode;
         }

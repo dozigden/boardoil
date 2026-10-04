@@ -29,6 +29,25 @@ describe('demoBoardApi', () => {
     expect(board.data.columns.flatMap(column => column.cards).find(card => card.id === created.data.id)?.fields).toEqual(fields);
   });
 
+  it('archives captured field definitions and restores every value', async () => {
+    const api = createDemoBoardApi();
+    const types = await api.getCardTypes(1);
+    if (!types.ok) throw new Error('Expected demo card types');
+    const type = types.data.find(item => item.fields.length > 0)!;
+    const model = { title: 'Archive fields', description: 'Keep', boardColumnId: 1, cardTypeId: type.id,
+      assignedUserId: null, slickName: null, externalUrl: null, tagNames: [] };
+    const created = await api.createCard(1, model);
+    if (!created.ok) throw new Error('Expected demo source card');
+    const fields = { Reference: null, Points: 0, Due: '2024-02-29' };
+    await api.saveCard(1, created.data.id, { ...model, fields });
+    await api.archiveCards(1, [created.data.id]);
+
+    const archived = await api.getArchivedCard(1, created.data.id);
+    expect(archived).toMatchObject({ ok: true, data: { fieldDefinitions: type.fields, card: { fields } } });
+    const restored = await api.unarchiveCard(1, created.data.id);
+    expect(restored).toMatchObject({ ok: true, data: { fields, description: 'Keep' } });
+  });
+
   it('deletes comments without allowing a later edit to recreate them', async () => {
     const api = createDemoBoardApi();
     const created = await api.createCardComment(1, 869, 'Remove this comment');

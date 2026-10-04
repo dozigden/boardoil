@@ -1,5 +1,6 @@
 import { authenticatePage, expect, getBaseUrl, test } from '../fixtures/boardOilTest';
 import { CardEditorPage } from '../ui/CardEditorPage';
+import { ArchivedCardsPage } from '../ui/ArchivedCardsPage';
 import { BoardPage } from '../ui/BoardPage';
 import type { CardFieldDefinition } from '../../src/shared/types/cardFieldTypes';
 
@@ -185,3 +186,34 @@ for (const changeType of [false, true]) {
     await expect(editor.field('Estimate')).toHaveValue('7');
   });
 }
+
+
+test('archived fields retain their labels and convert on restore', async ({ api, authenticatedPage: page }, testInfo) => {
+  const board = await api.createBoard('Archive custom fields');
+  await api.configureDefaultFields(board.id, definitions);
+  const card = await api.createCard(board, 'Todo', 'Captured fields');
+  await api.archiveCard(board.id, card.id);
+  await api.configureDefaultFields(board.id, [
+    { ...definitions[1]!, displayName: 'Renamed estimate' }
+  ]);
+  const boardPage = new BoardPage(page);
+  const archive = new ArchivedCardsPage(page);
+  await boardPage.open(board.id);
+  await boardPage.openArchivedCards();
+  await archive.openCard(card.title);
+  const fields = page.getByRole('region', { name: 'Custom Fields', exact: true });
+  await expect(fields).toContainText('Reference');
+  await expect(fields).toContainText('Ready');
+  await expect(fields).toContainText('Estimate');
+  await expect(fields.getByText('0', { exact: true })).toBeVisible();
+  await expect(fields).toContainText('2026-10-04');
+  await expect(fields).not.toContainText('Renamed estimate');
+  await page.screenshot({ path: testInfo.outputPath('archived-custom-fields.png') });
+  await archive.unarchiveOpenCard(card.title);
+  expect((await api.getCard(board.id, card.id)).fields).toEqual({ Points: 0 });
+  expect((await api.getCard(board.id, card.id)).description).toContain('Reference: Ready');
+  await archive.goBackToBoard();
+  const editor = new CardEditorPage(page);
+  await editor.open(board.id, card.id);
+  await expect(editor.field('Renamed estimate')).toHaveValue('0');
+});

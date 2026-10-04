@@ -135,7 +135,11 @@ public sealed record McpArchivedCardSnapshot(
     IReadOnlyList<McpArchivedCardCommentSnapshot> Comments,
     string? ExternalUrl,
     DateTime ArchivedAtUtc,
-    IReadOnlyList<CardAttachmentDto> Attachments);
+    IReadOnlyList<CardAttachmentDto> Attachments)
+{
+    public IReadOnlyDictionary<string, JsonElement> Fields { get; init; } = new Dictionary<string, JsonElement>();
+    public IReadOnlyList<CardFieldDefinition> FieldDefinitions { get; init; } = [];
+}
 
 public sealed record McpArchivedCardCommentSnapshot(
     string Text,

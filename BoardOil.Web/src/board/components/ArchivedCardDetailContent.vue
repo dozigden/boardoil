@@ -106,6 +106,14 @@
         <span v-else>-</span>
       </div>
 
+      <section v-if="archivedCard.fieldDefinitions.length" class="archived-card-fields" aria-label="Custom Fields">
+        <h3>Custom Fields</h3>
+        <div v-for="field in archivedCard.fieldDefinitions" :key="field.fieldCode" class="card-editor-option-section">
+          <span class="card-editor-field-label"><span v-if="field.emoji" class="bo-emoji" aria-hidden="true">{{ field.emoji }} </span>{{ field.displayName }}</span>
+          <span class="archived-card-field-value">{{ card.fields[field.fieldCode] ?? '—' }}</span>
+        </div>
+      </section>
+
       <CardAttachments :board-id="archivedCard.boardId" :card-id="archivedCard.id" archived read-only />
 
       <div class="card-editor-option-section">
@@ -211,6 +219,11 @@ function formatDateTime(value: string) {
 </script>
 
 <style scoped>
+.archived-card-fields { display: grid; gap: 0.65rem; }
+.archived-card-fields h3 { margin: 0; font-size: 0.9rem; }
+.archived-card-fields .bo-emoji { margin-right: 0.25rem; }
+.archived-card-field-value { overflow-wrap: anywhere; }
+
 .card-editor-layout {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(14rem, 1fr);

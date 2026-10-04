@@ -14,6 +14,7 @@ using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Services.Style;
+using BoardOil.Services.CardField;
 using BoardOil.Services.Slick;
 using BoardOil.Services.Users;
 using System.Text;
@@ -102,7 +103,10 @@ public sealed class CardArchiveService(
             snapshot.AssignedUserEmail);
         currentSnapshotCard = currentSnapshotCard with { Id = archivedCard.OriginalCardId };
         var comments = await ResolveArchivedCommentsAsync(snapshot.Comments);
-        return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard, comments));
+        return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard, comments) with
+        {
+            FieldDefinitions = snapshot.FieldDefinitions
+        });
     }
 
     public async Task<ApiResult<ArchivedCardDto>> ArchiveCardAsync(int boardId, int id, int actorUserId)
@@ -177,6 +181,24 @@ public sealed class CardArchiveService(
             return ApiErrors.BadRequest("Archived card snapshot cannot be restored.", validationErrors);
         }
 
+        var fieldPlan = CardFieldConverter.Restore(snapshot.FieldDefinitions, snapshotCard.Fields,
+            CardFieldJsonCodec.DeserialiseDefinitions(selectedCardType.FieldDefinitionsJson),
+            snapshotCard.CardTypeId == selectedCardType.Id);
+        if (!fieldPlan.IsValid)
+        {
+            return ApiErrors.BadRequest("Archived card snapshot cannot be restored.", fieldPlan.Errors);
+        }
+        var description = snapshotCard.Description;
+        if (fieldPlan.Value!.LostValues.Count > 0)
+        {
+            description = CardFieldLossDescription.Append(description, fieldPlan.Value.LostValues, "archive restore");
+        }
+        if (description.Length > CardValidator.MaxDescriptionLength)
+        {
+            return ApiErrors.ValidationFailed([new ValidationError("description",
+                "The description has insufficient space to record removed field values.")]);
+        }
+
         var title = snapshotCard.Title.Trim();
         var cardsInColumn = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
         var resolvedAssignedUser = await ResolveAssignedUserAsync(boardId, snapshot.AssignedUserEmail);
@@ -195,7 +217,8 @@ public sealed class CardArchiveService(
             SlickId = resolvedSlick?.Id,
             Slick = resolvedSlick,
             Title = title,
-            Description = snapshotCard.Description,
+            Description = description,
+            FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fieldPlan.Value.Values),
             ExternalUrl = CardExternalUrl.Normalise(snapshotCard.ExternalUrl),
             SortKey = string.Empty,
             CardCreatedUtc = snapshotCard.CardCreatedUtc,

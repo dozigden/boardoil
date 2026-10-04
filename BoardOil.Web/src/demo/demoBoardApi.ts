@@ -567,6 +567,17 @@ const demoBoardApi: BoardApi = {
     const archivedCard = state.archivedCards[archiveIndex]!;
     const column = getColumn(archivedCard.card.boardColumnId) ?? state.board.columns[0]!;
     const restoredCard = clone(archivedCard.card);
+    const type = state.cardTypes.find(candidate => candidate.name.toLowerCase() === restoredCard.cardTypeName.toLowerCase())
+      ?? getCardType(null)!;
+    const sameType = type.id === restoredCard.cardTypeId;
+    const fieldPlan = planDemoFields(archivedCard.fieldDefinitions, restoredCard.fields, undefined,
+      type.fields, true, restoredCard.description, sameType);
+    if (!fieldPlan.ok) return fieldPlan;
+    restoredCard.fields = fieldPlan.data.fields;
+    restoredCard.description = fieldPlan.data.description;
+    restoredCard.cardTypeId = type.id;
+    restoredCard.cardTypeName = type.name;
+    restoredCard.cardTypeEmoji = type.emoji;
     restoredCard.boardColumnId = column.id;
     restoredCard.sortKey = createSortKeyBetween(column.cards[column.cards.length - 1]?.sortKey ?? null, null);
     column.cards.push(restoredCard);
@@ -784,6 +795,7 @@ function archiveCardInternal(cardId: number) {
     title: card.title,
     tagNames: [...card.tagNames],
     archivedAtUtc: now(),
+    fieldDefinitions: clone(getCardType(card.cardTypeId)!.fields),
     card,
     comments: clone(state.comments[card.id] ?? []).map(comment => ({
       text: comment.text,

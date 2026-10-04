@@ -90,7 +90,11 @@ public static class McpMappingExtensions
             archivedCard.Comments.Select(comment => comment.ToMcp()).ToArray(),
             card.ExternalUrl,
             archivedCard.ArchivedAtUtc,
-            attachments);
+            attachments)
+        {
+            Fields = card.Fields,
+            FieldDefinitions = archivedCard.FieldDefinitions
+        };
     }
 
     public static McpArchivedCardSearchResult ToMcp(this ArchivedCardListDto archivedCards) =>

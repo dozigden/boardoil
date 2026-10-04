@@ -13,6 +13,31 @@ public sealed class McpCardFieldsIntegrationTests : McpIntegrationTestBase, ICla
     public McpCardFieldsIntegrationTests(DefaultApiFactoryFixture fixture) => UseSharedFactory(fixture);
 
     [Fact]
+    public async Task ArchivedReads_ShouldExposeCapturedFieldsAndDefinitionsThroughRestAndMcp()
+    {
+        var (client, token, typeId, columnId) = await ArrangeAsync();
+        var created = await CallAsync(client, token, ToolNames.CardCreate,
+            new { boardId = 1, columnId, cardTypeId = typeId, title = "Archive fields", description = "",
+                fields = new { Points = 0, Ref = (string?)null } });
+        var id = created.GetProperty("id").GetInt32();
+        using var archive = await client.PostAsync($"/api/boards/1/cards/{id}/archive", null);
+        archive.EnsureSuccessStatusCode();
+
+        var archived = await CallAsync(client, token, ToolNames.CardGet, new { boardId = 1, id, archived = true });
+        using var rest = await client.GetAsync($"/api/boards/1/cards/archived/{id}");
+        rest.EnsureSuccessStatusCode();
+        using var document = JsonDocument.Parse(await rest.Content.ReadAsStringAsync());
+        var detail = document.RootElement.GetProperty("data");
+
+        Assert.Equal("""{"Ref":null,"Points":0,"Due":"2024-02-29"}""", archived.GetProperty("fields").GetRawText());
+        Assert.Equal(archived.GetProperty("fields").GetRawText(), detail.GetProperty("card").GetProperty("fields").GetRawText());
+        var definitions = archived.GetProperty("fieldDefinitions");
+        Assert.Equal(new[] { "text", "integer", "date" }, definitions.EnumerateArray().Select(field => field.GetProperty("type").GetString()));
+        Assert.Equal("Reference", definitions[0].GetProperty("displayName").GetString());
+        Assert.Equal(definitions.GetRawText(), detail.GetProperty("fieldDefinitions").GetRawText());
+    }
+
+    [Fact]
     public async Task Create_WithPartialFields_ShouldExposeDefaultsAndValuesOnCardAndBoardReads()
     {
         var (client, token, typeId, columnId) = await ArrangeAsync();
