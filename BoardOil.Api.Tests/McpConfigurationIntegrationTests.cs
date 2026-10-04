@@ -52,7 +52,7 @@ public sealed class McpNoAuthConfigurationIntegrationTests : McpIntegrationTestB
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(payload.RootElement.TryGetProperty("result", out var result));
         Assert.True(result.TryGetProperty("tools", out var tools));
-        Assert.Equal(22, tools.GetArrayLength());
+        Assert.Equal(23, tools.GetArrayLength());
     }
 
     [Fact]

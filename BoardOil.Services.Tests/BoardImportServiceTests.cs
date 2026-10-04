@@ -18,6 +18,28 @@ public sealed class BoardImportServiceTests : TestBaseDb
 {
     [Theory]
     [InlineData(1)]
+    [InlineData(4)]
+    public async Task ImportBoardPackageAsync_WhenCommentsLackEditMetadata_ShouldImportAsUnedited(int schemaVersion)
+    {
+        var manifest = BoardPackageContract.CreateManifest("legacy") with { SchemaVersion = schemaVersion };
+        const string boardJson = """
+            {"name":"Legacy comments","cardTypes":[{"name":"Story","isSystem":true}],"tags":[],
+             "columns":[{"title":"Todo","cards":[{"id":1,"title":"Card","description":"","cardTypeName":"Story","tagNames":[],
+               "comments":[{"text":"Original comment","postedAtUtc":"2026-05-01T08:00:00Z"}]}]}]}
+            """;
+
+        var result = await ResolveService<IBoardPackageImportService>().ImportBoardPackageAsync(
+            new ImportBoardPackageRequest(null, BuildBoardPackageWithRawBoardPayload(manifest, boardJson)), ActorUserId);
+
+        Assert.True(result.Success, result.Message);
+        var comment = await DbContextForAssert.CardComments.SingleAsync();
+        Assert.Equal("Original comment", comment.Text);
+        Assert.Equal(new DateTime(2026, 5, 1, 8, 0, 0, DateTimeKind.Utc), comment.PostedAtUtc);
+        Assert.Null(comment.EditedAtUtc);
+    }
+
+    [Theory]
+    [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
@@ -1207,8 +1229,10 @@ public sealed class BoardImportServiceTests : TestBaseDb
         {
             WriteJsonEntry(archive, BoardPackageContract.ManifestPath, manifest);
             var boardEntry = archive.CreateEntry(BoardPackageContract.BoardEntryPath, CompressionLevel.Optimal);
-            using var writer = new StreamWriter(boardEntry.Open());
-            writer.Write(rawBoardPayload);
+            using (var writer = new StreamWriter(boardEntry.Open()))
+            {
+                writer.Write(rawBoardPayload);
+            }
             if (manifest.Entries.Any(x => x.Kind == BoardPackageContract.ArchiveEntryKind && x.Path == BoardPackageContract.ArchiveEntryPath))
             {
                 WriteJsonEntry(archive, BoardPackageContract.ArchiveEntryPath, archivePayload ?? new BoardPackageArchiveDto([]));

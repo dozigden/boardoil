@@ -177,7 +177,11 @@ export class BoardOilApi {
   }
 
   public async addCardComment(boardId: number, cardId: number, text: string) {
-    await this.post(`/api/boards/${boardId}/cards/${cardId}/comments`, { text });
+    return await this.post<{ id: number; text: string; postedAtUtc: string; editedAtUtc: string | null }>(`/api/boards/${boardId}/cards/${cardId}/comments`, { text });
+  }
+
+  public async updateCardComment(boardId: number, cardId: number, commentId: number, text: string) {
+    return await this.put<{ id: number; text: string; postedAtUtc: string; editedAtUtc: string | null }>(`/api/boards/${boardId}/cards/${cardId}/comments/${commentId}`, { text });
   }
 
   public async uploadAttachment(boardId: number, cardId: number, name: string, mimeType: string, buffer: Buffer) {

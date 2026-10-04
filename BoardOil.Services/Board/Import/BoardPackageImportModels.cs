@@ -71,7 +71,8 @@ public sealed record CardImportDefinition(
 public sealed record CommentImportDefinition(
     string Text,
     DateTime PostedAtUtc,
-    string? AuthorNormalisedEmail);
+    string? AuthorNormalisedEmail,
+    DateTime? EditedAtUtc = null);
 
 public sealed record ArchivedCardImportDefinition(
     int OriginalCardId,

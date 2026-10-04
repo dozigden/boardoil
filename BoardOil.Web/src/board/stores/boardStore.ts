@@ -143,6 +143,7 @@ export const useBoardStore = defineStore('board', () => {
     onCardDeleted: forCurrentBoard(cardStore.removeCard),
     onCardMoved: upsertRealtimeCard,
     onCommentCreated: forCurrentBoard(commentStore.upsertCardComment),
+    onCommentUpdated: forCurrentBoard(commentStore.upsertCardComment),
     onAttachmentAdded: forCurrentBoard(attachmentStore.added),
     onAttachmentDeleted: forCurrentBoard(attachmentStore.removed),
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,

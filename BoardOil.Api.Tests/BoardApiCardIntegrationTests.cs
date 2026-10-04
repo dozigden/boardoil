@@ -20,6 +20,45 @@ public sealed class BoardApiCardIntegrationTests
     }
 
     [Fact]
+    public async Task CardCommentsEndpoints_ShouldUpdateCommentAndReturnEditMetadata()
+    {
+        var columnId = await SeedBoardColumnAsync("Todo");
+        var cardId = await SeedBoardCardAsync(columnId, "Comment edit", "");
+        var createdResponse = await Client.PostAsJsonAsync($"/api/boards/1/cards/{cardId}/comments", new CreateCardCommentRequest("Original"));
+        createdResponse.EnsureSuccessStatusCode();
+        var created = (await createdResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardCommentDto>>(JsonOptions))!.Data!;
+
+        var response = await Client.PutAsJsonAsync($"/api/boards/1/cards/{cardId}/comments/{created.Id}", new UpdateCardCommentRequest("Corrected"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ApiEnvelope<CardCommentDto>>(JsonOptions);
+        Assert.True(result!.Success);
+        Assert.Equal(created.Id, result.Data!.Id);
+        Assert.Equal("Corrected", result.Data.Text);
+        Assert.Equal(created.PostedAtUtc, result.Data.PostedAtUtc);
+        Assert.Equal(created.AuthorUserId, result.Data.AuthorUserId);
+        Assert.NotNull(result.Data.EditedAtUtc);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(JsonValueKind.String, json.RootElement.GetProperty("data").GetProperty("editedAtUtc").ValueKind);
+    }
+
+    [Fact]
+    public async Task CardCommentsEndpoints_WhenEditIsEmpty_ShouldReturnFieldValidation()
+    {
+        var columnId = await SeedBoardColumnAsync("Todo");
+        var cardId = await SeedBoardCardAsync(columnId, "Comment edit validation", "");
+        var createdResponse = await Client.PostAsJsonAsync($"/api/boards/1/cards/{cardId}/comments", new CreateCardCommentRequest("Original"));
+        createdResponse.EnsureSuccessStatusCode();
+        var created = (await createdResponse.Content.ReadFromJsonAsync<ApiEnvelope<CardCommentDto>>(JsonOptions))!.Data!;
+
+        var response = await Client.PutAsJsonAsync($"/api/boards/1/cards/{cardId}/comments/{created.Id}", new UpdateCardCommentRequest(" "));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.GetProperty("validationErrors").TryGetProperty("text", out _));
+    }
+
+    [Fact]
     public async Task CardEndpoints_ShouldCreateCard_WithTagNamesAndSlickDefinition()
     {
         // Arrange
@@ -522,7 +561,7 @@ public sealed class BoardApiCardIntegrationTests
 
         var commentJson = Assert.Single(json.RootElement.GetProperty("data").GetProperty("comments").EnumerateArray());
         Assert.Equal(
-            ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath"],
+            ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath", "editedAtUtc"],
             commentJson.EnumerateObject().Select(x => x.Name).ToArray());
         Assert.False(commentJson.TryGetProperty("id", out _));
         Assert.False(commentJson.TryGetProperty("cardId", out _));

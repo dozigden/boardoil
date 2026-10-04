@@ -1048,13 +1048,16 @@ function saveImageAlt(alt: string) {
     return;
   }
   const node = editor.state.doc.nodeAt(image.position);
-  if (node?.type.name === 'image') {
-    editor.commands.command(({ tr, dispatch }) => {
+  if (node?.type.name === 'image' && node.attrs.alt !== alt) {
+    const updated = editor.commands.command(({ tr, dispatch }) => {
       if (dispatch) {
         dispatch(tr.setNodeMarkup(image.position, undefined, { ...node.attrs, alt }, node.marks));
       }
       return true;
     });
+    if (updated) {
+      emit('user-edit', normaliseMarkdown(editor.getMarkdown()));
+    }
   }
   closeImageDialog();
 }
@@ -1062,8 +1065,17 @@ function saveImageAlt(alt: string) {
 defineExpose({
   runToolbarAction,
   selectImage,
-  togglePlainTextMode
+  togglePlainTextMode,
+  focus
 });
+
+function focus() {
+  if (isPlainTextMode.value) {
+    plainTextAreaRef.value?.focus();
+    return;
+  }
+  tiptapEditor.value?.commands.focus();
+}
 
 function openLinkDialog(editor: TiptapEditor) {
   editor.chain().focus().run();

@@ -241,6 +241,22 @@ describe('boardRealtime', () => {
     expect(onCommentCreated).toHaveBeenCalledWith(42, comment);
   });
 
+  it('forwards edited comments with their metadata', async () => {
+    const onCommentUpdated = vi.fn();
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime({
+      onColumnCreated: vi.fn(), onColumnUpdated: vi.fn(), onColumnDeleted: vi.fn(),
+      onCardCreated: vi.fn(), onCardUpdated: vi.fn(), onCardDeleted: vi.fn(), onCardMoved: vi.fn(),
+      onCommentCreated: vi.fn(), onCommentUpdated, onSystemInfoMessageUpdated: vi.fn(), onResync: vi.fn()
+    });
+    const comment = { id: 123, cardId: 55, authorUserId: 4, text: 'Edited', postedAtUtc: '2026-05-02T07:00:00Z', editedAtUtc: '2026-05-03T07:00:00Z' };
+
+    await realtime.connect(42);
+    await connection.eventHandlers.CommentUpdated?.(comment, 42);
+
+    expect(onCommentUpdated).toHaveBeenCalledWith(42, comment);
+  });
+
   it('forwards the source board id with card events', async () => {
     const onCardUpdated = vi.fn(async () => undefined);
     const { createBoardRealtime } = await import('./boardRealtime');

@@ -226,6 +226,7 @@ public sealed class CardArchiveService(
                 AuthorUser = author,
                 Text = snapshotComment.Text,
                 PostedAtUtc = snapshotComment.CreatedAtUtc,
+                EditedAtUtc = snapshotComment.EditedAtUtc,
                 CreatedAtUtc = snapshotComment.CreatedAtUtc
             };
             cardCommentRepository.Add(restoredComment);
@@ -506,7 +507,8 @@ public sealed class CardArchiveService(
                 x.Comment.CreatedAtUtc,
                 x.Author?.Id,
                 x.Author?.DisplayName,
-                x.Author is null ? null : imageByAuthorUserId.GetValueOrDefault(x.Author.Id)))
+                x.Author is null ? null : imageByAuthorUserId.GetValueOrDefault(x.Author.Id),
+                x.Comment.EditedAtUtc))
             .ToList();
     }
 
@@ -649,6 +651,11 @@ public sealed class CardArchiveService(
             if (comment.CreatedAtUtc == default)
             {
                 errors.Add(new ValidationError($"{propertyPrefix}.createdAtUtc", "Comment created time is required."));
+            }
+
+            if (comment.EditedAtUtc == default(DateTime))
+            {
+                errors.Add(new ValidationError($"{propertyPrefix}.editedAtUtc", "Comment edited time must be a valid timestamp."));
             }
         }
 

@@ -164,8 +164,51 @@
                     <span class="card-editor-comment-author-name">{{ comment.authorDisplayName ?? 'Unknown user' }}</span>
                   </span>
                 </aside>
-                <div class="card-editor-comment-content">
+                <div class="card-editor-comment-content" :class="{ 'card-editor-comment-content--editing': editingCommentId === comment.id }">
+                  <BoDropdown
+                    v-if="canEditComment(comment) && editingCommentId !== comment.id"
+                    class="card-editor-comment-actions"
+                    align="right"
+                    label="Comment actions"
+                    :teleport="false"
+                    :icon="Ellipsis"
+                    :icon-only="true"
+                    :icon-size="14"
+                  >
+                    <template #default="{ close }">
+                      <button type="button" class="bo-dropdown-item" :disabled="commentsBusy || imageUploadBlocking" @click="close(); void beginCommentEdit(comment)">
+                        Edit
+                      </button>
+                    </template>
+                  </BoDropdown>
+                  <div v-if="editingCommentId === comment.id" class="card-editor-comment-edit" @keydown="handleCommentEditKeydown">
+                    <MdEditor
+                      :ref="setEditedCommentEditorRef"
+                      :model-value="editedCommentText"
+                      aria-label="Edit comment"
+                      :max-length="maxCommentLength"
+                      min-height="3rem"
+                      :show-toolbar="false"
+                      :image-context="cardImageContext"
+                      :image-remove="removeEditedCommentImage"
+                      :image-upload="cardImageUpload"
+                      :image-upload-cancel="attachments.cancel"
+                      @update:model-value="updateEditedCommentText"
+                      @user-edit="applyUserEditedCommentChange"
+                      @focus="handleEditedCommentFocus"
+                      @blur="handleEditedCommentBlur"
+                      @escape="cancelCommentEdit"
+                      @toolbar-state-change="handleEditedCommentToolbarStateChange"
+                      @plain-text-mode-change="handleEditedCommentPlainTextModeChange"
+                      @image-upload-blocking-change="handleEditedCommentImageBlockingChange"
+                    />
+                    <div class="card-editor-comment-edit-actions">
+                      <button type="button" class="btn" :disabled="commentsBusy || editedCommentImageBlocking || editedCommentText.trim().length === 0" @click="saveCommentEdit">Save comment</button>
+                      <button type="button" class="btn btn--secondary" :disabled="editedCommentImageBlocking" @click="cancelCommentEdit">Cancel</button>
+                    </div>
+                  </div>
                   <MdViewer
+                    v-else
                     class="card-editor-comment-body"
                     :model-value="comment.text"
                     aria-label="Comment content"
@@ -177,6 +220,7 @@
                     class="card-editor-comment-timestamp"
                     :datetime="comment.postedAtUtc"
                   >
+                    <span v-if="comment.editedAtUtc" :title="`Edited ${formatCommentDateTime(comment.editedAtUtc)}`">edited · </span>
                     {{ formatCommentDateTime(comment.postedAtUtc) }}
                   </time>
                 </div>
@@ -350,7 +394,7 @@
 <script setup lang="ts">
 import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch, type ComponentPublicInstance } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import MdEditor from '../../shared/components/MdEditor.vue';
 import CardAttachments from './CardAttachments.vue';
@@ -373,11 +417,12 @@ import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useCommentStore } from '../stores/commentStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
+import { useAuthStore } from '../../shared/stores/authStore';
 import { resolveSelectedCardTypeEmoji } from './cardTypeSelection';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
 import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
 import { areCardEditModelsEqual, cloneCardEditModel, createCardEditModel } from './cardEditModel';
-import type { Card, CardEditModel } from '../../shared/types/boardTypes';
+import type { Card, CardComment, CardEditModel } from '../../shared/types/boardTypes';
 import { apiBase } from '../../shared/api/config';
 import type {
   MarkdownImageActivation,
@@ -395,6 +440,7 @@ const cardTypeStore = useCardTypeStore();
 const commentStore = useCommentStore();
 const slickStore = useSlickStore();
 const tagStore = useTagStore();
+const authStore = useAuthStore();
 const { board, currentBoardId } = storeToRefs(boardStore);
 const { busy: cardBusy } = storeToRefs(cardStore);
 const { members: boardMembers, activeBoardId: boardMembersActiveBoardId } = storeToRefs(boardMembersStore);
@@ -402,7 +448,7 @@ const { cardTypes, activeBoardId: cardTypesActiveBoardId, systemCardType } = sto
 const { slicks, activeBoardId: slicksActiveBoardId } = storeToRefs(slickStore);
 const { busy: commentsBusy } = storeToRefs(commentStore);
 const { createCard: createCardAction, saveCard: saveCardAction, deleteCards, archiveCards } = cardStore;
-const { loadCardComments, addCardComment: addCardCommentAction } = commentStore;
+const { loadCardComments, addCardComment: addCardCommentAction, updateCardComment } = commentStore;
 const { loadMembers } = boardMembersStore;
 const { loadCardTypes } = cardTypeStore;
 const { loadSlicks } = slickStore;
@@ -422,7 +468,16 @@ const newCommentText = ref('');
 const isCommentDraftDirty = ref(false);
 const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const commentEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
-const activeEditor = ref<'description' | 'comment'>('description');
+const editedCommentEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
+const editingCommentId = ref<number | null>(null);
+const editedCommentText = ref('');
+const editedCommentSourceText = ref('');
+const isEditedCommentDirty = ref(false);
+const editedCommentFocused = ref(false);
+const editedCommentToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>({});
+const editedCommentIsPlainTextMode = ref(false);
+const editedCommentImageBlocking = ref(false);
+const activeEditor = ref<'description' | 'comment' | 'commentEdit'>('description');
 const descriptionEditorFocused = ref(false);
 const commentEditorFocused = ref(false);
 const descriptionToolbarState = ref<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>({});
@@ -432,7 +487,7 @@ const commentIsPlainTextMode = ref(false);
 const descriptionImageBlocking = ref(false);
 const commentImageBlocking = ref(false);
 
-const hasUnsavedChanges = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value);
+const hasUnsavedChanges = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value || isEditedCommentDirty.value);
 const isTransferDisabled = computed(() => hasUnsavedChanges.value || attachments.busy);
 const transferActionTitle = computed(() => isTransferDisabled.value
   ? 'Save or discard unsaved changes before moving this card.'
@@ -445,7 +500,7 @@ const canCreateDuplicate = computed(() => (
   Boolean(cardDraft.value?.title.trim()) && cardDraft.value?.cardTypeId !== null
 ));
 const primaryActionLabel = computed(() => isDuplicatingCard.value ? 'Create duplicate card' : 'Save card');
-const imageUploadBlocking = computed(() => descriptionImageBlocking.value || commentImageBlocking.value);
+const imageUploadBlocking = computed(() => descriptionImageBlocking.value || commentImageBlocking.value || editedCommentImageBlocking.value);
 const cardImageContext = computed<MarkdownImageContext | null>(() => {
   const cardId = routeCardId.value;
   if (!attachments.supported || cardId === null) {
@@ -522,6 +577,9 @@ const disabledToolbarState = computed<Partial<Record<MdEditorToolbarActionId, Md
   return createDisabledToolbarState(mdEditorToolbarActions.map(action => action.id));
 });
 const activeToolbarState = computed(() => {
+  if (activeEditor.value === 'commentEdit') {
+    return editedCommentToolbarState.value;
+  }
   return resolveActiveToolbarState(
     activeEditor.value,
     descriptionToolbarState.value,
@@ -530,13 +588,16 @@ const activeToolbarState = computed(() => {
   );
 });
 const activeIsPlainTextMode = computed(() => {
+  if (activeEditor.value === 'commentEdit') {
+    return editedCommentIsPlainTextMode.value;
+  }
   return resolveActiveIsPlainTextMode(
     activeEditor.value,
     descriptionIsPlainTextMode.value,
     commentIsPlainTextMode.value
   );
 });
-function setActiveEditor(editor: 'description' | 'comment') {
+function setActiveEditor(editor: 'description' | 'comment' | 'commentEdit') {
   activeEditor.value = editor;
 }
 
@@ -582,24 +643,25 @@ function handleCommentPlainTextModeChange(isPlainTextMode: boolean) {
 }
 
 function runSharedToolbarAction(actionEvent: MdEditorToolbarActionEvent) {
-  const editor = activeEditor.value === 'comment'
-    ? commentEditorRef.value
-    : descriptionEditorRef.value;
-  editor?.runToolbarAction(actionEvent);
+  getActiveEditor()?.runToolbarAction(actionEvent);
 }
 
 function selectActiveEditorImage() {
-  const editor = activeEditor.value === 'comment'
-    ? commentEditorRef.value
-    : descriptionEditorRef.value;
-  editor?.selectImage();
+  getActiveEditor()?.selectImage();
 }
 
 function toggleSharedToolbarPlainTextMode() {
-  const editor = activeEditor.value === 'comment'
-    ? commentEditorRef.value
-    : descriptionEditorRef.value;
-  editor?.togglePlainTextMode();
+  getActiveEditor()?.togglePlainTextMode();
+}
+
+function getActiveEditor() {
+  if (activeEditor.value === 'commentEdit') {
+    return editedCommentEditorRef.value;
+  }
+  if (activeEditor.value === 'comment') {
+    return commentEditorRef.value;
+  }
+  return descriptionEditorRef.value;
 }
 
 function formatCommentDateTime(value: string) {
@@ -621,6 +683,7 @@ function formatCardDateTime(value: string) {
 function clearDraft() {
   clearCardDraft();
   resetCommentDraft();
+  resetCommentEdit();
   activeEditor.value = 'description';
   descriptionEditorFocused.value = false;
   commentEditorFocused.value = false;
@@ -631,6 +694,122 @@ function clearDraft() {
 function resetCommentDraft() {
   newCommentText.value = '';
   isCommentDraftDirty.value = false;
+}
+
+function canEditComment(comment: CardComment) {
+  return boardStore.currentUserRole !== null && comment.authorUserId === authStore.user?.id;
+}
+
+function setEditedCommentEditorRef(instance: Element | ComponentPublicInstance | null) {
+  editedCommentEditorRef.value = instance as InstanceType<typeof MdEditor> | null;
+}
+
+async function beginCommentEdit(comment: CardComment) {
+  if (!canEditComment(comment) || commentsBusy.value || imageUploadBlocking.value) {
+    return;
+  }
+  if (isEditedCommentDirty.value) {
+    const discard = await confirm({ title: 'Discard comment changes', message: 'Discard your unsaved comment changes?', confirmLabel: 'Discard', danger: true });
+    if (!discard) {
+      return;
+    }
+  }
+  resetCommentEdit();
+  editingCommentId.value = comment.id;
+  editedCommentText.value = comment.text;
+  editedCommentSourceText.value = comment.text;
+  activeEditor.value = 'commentEdit';
+  await nextTick();
+  editedCommentEditorRef.value?.focus();
+}
+
+function resetCommentEdit() {
+  editingCommentId.value = null;
+  editedCommentText.value = '';
+  editedCommentSourceText.value = '';
+  isEditedCommentDirty.value = false;
+  editedCommentFocused.value = false;
+  editedCommentToolbarState.value = {};
+  editedCommentIsPlainTextMode.value = false;
+  editedCommentImageBlocking.value = false;
+  if (activeEditor.value === 'commentEdit') {
+    activeEditor.value = 'description';
+  }
+}
+
+function cancelCommentEdit() {
+  if (editedCommentImageBlocking.value) {
+    return;
+  }
+  resetCommentEdit();
+}
+
+function updateEditedCommentText(value: string) {
+  if (editedCommentFocused.value && editedCommentText.value !== value) {
+    isEditedCommentDirty.value = value !== editedCommentSourceText.value;
+  }
+  editedCommentText.value = value;
+}
+
+function applyUserEditedCommentChange(value: string) {
+  editedCommentText.value = value;
+  isEditedCommentDirty.value = value !== editedCommentSourceText.value;
+}
+
+function handleEditedCommentFocus() {
+  editedCommentFocused.value = true;
+  activeEditor.value = 'commentEdit';
+}
+
+function handleEditedCommentBlur() {
+  editedCommentFocused.value = false;
+}
+
+function handleEditedCommentToolbarStateChange(state: Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>) {
+  editedCommentToolbarState.value = state;
+}
+
+function handleEditedCommentPlainTextModeChange(value: boolean) {
+  editedCommentIsPlainTextMode.value = value;
+}
+
+function handleEditedCommentImageBlockingChange(value: boolean) {
+  editedCommentImageBlocking.value = value;
+}
+
+async function removeEditedCommentImage(): Promise<boolean> {
+  return await confirm({ title: 'Remove image', message: 'Remove this image from the comment?', confirmLabel: 'Remove' });
+}
+
+async function saveCommentEdit() {
+  const cardId = routeCardId.value;
+  const commentId = editingCommentId.value;
+  if (cardId === null || commentId === null || commentsBusy.value || editedCommentImageBlocking.value) {
+    return;
+  }
+  const submittedDraft = editedCommentText.value;
+  const submittedText = isEditedCommentDirty.value ? submittedDraft : editedCommentSourceText.value;
+  const editorRoute = router.currentRoute.value;
+  const result = await updateCardComment(boardId.value, cardId, commentId, submittedText);
+  if (!result?.ok || router.currentRoute.value !== editorRoute || editingCommentId.value !== commentId) {
+    return;
+  }
+  if (editedCommentText.value === submittedDraft) {
+    resetCommentEdit();
+    return;
+  }
+  editedCommentSourceText.value = result.data.text;
+  isEditedCommentDirty.value = editedCommentText.value !== result.data.text;
+}
+
+function handleCommentEditKeydown(event: KeyboardEvent) {
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 's') {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!event.repeat) {
+      void saveCommentEdit();
+    }
+  }
 }
 
 async function confirmDiscardUnsavedChanges() {
@@ -1009,6 +1188,7 @@ function initializeDraftForCard(nextBoardId: number, nextCard: Card) {
   }
 
   resetCommentDraft();
+  resetCommentEdit();
   return true;
 }
 
@@ -1046,6 +1226,11 @@ async function saveCardDraft(closeAfterSave: boolean) {
   if (saved) {
     feedback.showToast('Saved successfully.');
     if (closeAfterSave) {
+      if (isEditedCommentDirty.value) {
+        syncDraftAfterSave(cardId, submittedDraft);
+        await closeCardEditor();
+        return;
+      }
       await closeCardEditorWithoutPrompt();
       return;
     }
@@ -1406,6 +1591,28 @@ onBeforeRouteUpdate(async (to, from) => {
   white-space: nowrap;
 }
 
+.card-editor-comment-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.card-editor-comment-edit {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 1.5rem;
+}
+
+.card-editor-comment-content--editing {
+  padding-right: 0;
+}
+
+.card-editor-comment-edit-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
 .card-editor-comment-entry {
   display: flex;
   flex-direction: column;
@@ -1424,14 +1631,17 @@ onBeforeRouteUpdate(async (to, from) => {
   align-self: end;
 }
 
-.card-editor-comment-entry :deep(.md-editor) {
+.card-editor-comment-entry :deep(.md-editor),
+.card-editor-comment-edit :deep(.md-editor) {
   flex: 0 0 auto;
   min-height: fit-content;
   width: 100%;
 }
 
 .card-editor-comment-entry :deep(.md-editor-input),
-.card-editor-comment-entry :deep(.md-editor-content) {
+.card-editor-comment-edit :deep(.md-editor-input),
+.card-editor-comment-entry :deep(.md-editor-content),
+.card-editor-comment-edit :deep(.md-editor-content) {
   flex: 0 0 auto;
   min-height: fit-content;
   overflow: visible;
@@ -1439,7 +1649,9 @@ onBeforeRouteUpdate(async (to, from) => {
 }
 
 .card-editor-comment-entry :deep(.md-editor-content .tiptap),
-.card-editor-comment-entry :deep(.md-editor-textarea) {
+.card-editor-comment-edit :deep(.md-editor-content .tiptap),
+.card-editor-comment-entry :deep(.md-editor-textarea),
+.card-editor-comment-edit :deep(.md-editor-textarea) {
   height: auto;
   max-height: none;
   overflow-y: visible;
@@ -1447,7 +1659,9 @@ onBeforeRouteUpdate(async (to, from) => {
 }
 
 .card-editor-comment-entry :deep(.md-editor-content .tiptap),
+.card-editor-comment-edit :deep(.md-editor-content .tiptap),
 .card-editor-comment-entry :deep(.md-editor-textarea),
+.card-editor-comment-edit :deep(.md-editor-textarea),
 .card-editor-description-field :deep(.md-editor-content .tiptap),
 .card-editor-description-field :deep(.md-editor-textarea) {
   padding-top: 0.3rem;
@@ -1455,11 +1669,13 @@ onBeforeRouteUpdate(async (to, from) => {
 }
 
 .card-editor-comment-entry :deep(.md-editor-content .tiptap > :first-child),
+.card-editor-comment-edit :deep(.md-editor-content .tiptap > :first-child),
 .card-editor-description-field :deep(.md-editor-content .tiptap > :first-child) {
   margin-top: 0;
 }
 
 .card-editor-comment-entry :deep(.md-editor-content .tiptap > :last-child),
+.card-editor-comment-edit :deep(.md-editor-content .tiptap > :last-child),
 .card-editor-description-field :deep(.md-editor-content .tiptap > :last-child) {
   margin-bottom: 0;
 }

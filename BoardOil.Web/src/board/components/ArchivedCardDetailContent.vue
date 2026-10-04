@@ -48,6 +48,7 @@
                 :image-context="descriptionImageContext"
               />
               <time class="archived-card-comment-timestamp" :datetime="comment.postedAtUtc">
+                <span v-if="comment.editedAtUtc" :title="`Edited ${formatDateTime(comment.editedAtUtc)}`">edited · </span>
                 {{ formatDateTime(comment.postedAtUtc) }}
               </time>
             </div>

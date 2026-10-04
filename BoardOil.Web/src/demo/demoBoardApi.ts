@@ -465,11 +465,35 @@ const demoBoardApi: BoardApi = {
       authorDisplayName: member.displayName,
       authorImageRelativePath: null,
       text: text.trim(),
-      postedAtUtc
+      postedAtUtc,
+      editedAtUtc: null
     };
     state.comments[cardId] = [comment, ...(state.comments[cardId] ?? [])];
     const card = findCard(cardId)!.card;
     card.cardUpdatedUtc = postedAtUtc;
+    return ok(clone(comment));
+  },
+
+  async updateCardComment(boardId, cardId, commentId, text) {
+    if (boardId !== DemoBoardId || !findCard(cardId)) {
+      return notFound('Card not found.');
+    }
+    const comment = state.comments[cardId]?.find(item => item.id === commentId);
+    if (!comment) {
+      return notFound('Comment not found.');
+    }
+    if (comment.authorUserId !== DemoUserId) {
+      return err({ kind: 'api', message: 'You can only edit your own comments.' });
+    }
+    const trimmedText = text.trim();
+    if (trimmedText.length === 0 || trimmedText.length > 4000) {
+      return err({ kind: 'api', message: 'Comment text must contain between 1 and 4,000 characters.' });
+    }
+    if (comment.text !== trimmedText) {
+      comment.text = trimmedText;
+      comment.editedAtUtc = new Date().toISOString();
+      findCard(cardId)!.card.cardUpdatedUtc = comment.editedAtUtc;
+    }
     return ok(clone(comment));
   },
 
@@ -723,7 +747,8 @@ function archiveCardInternal(cardId: number) {
       postedAtUtc: comment.postedAtUtc,
       authorUserId: comment.authorUserId,
       authorDisplayName: comment.authorDisplayName ?? null,
-      authorImageRelativePath: comment.authorImageRelativePath ?? null
+      authorImageRelativePath: comment.authorImageRelativePath ?? null,
+      editedAtUtc: comment.editedAtUtc ?? null
     }))
   });
   return true;

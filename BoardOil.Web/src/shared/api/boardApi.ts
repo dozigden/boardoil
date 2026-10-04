@@ -312,6 +312,10 @@ function createHttpBoardApi() {
     return postData<CardComment>(`/api/boards/${boardId}/cards/${cardId}/comments`, { text });
   }
 
+  async function updateCardComment(boardId: number, cardId: number, commentId: number, text: string): Promise<Result<CardComment, AppError>> {
+    return putData<CardComment>(`/api/boards/${boardId}/cards/${cardId}/comments/${commentId}`, { text });
+  }
+
   async function archiveCards(boardId: number, cardIds: number[]): Promise<Result<ArchiveCardsSummary, AppError>> {
     return postData<ArchiveCardsSummary>(`/api/boards/${boardId}/cards/archive`, { cardIds });
   }
@@ -532,6 +536,7 @@ function createHttpBoardApi() {
     deleteCards,
     getCardComments,
     createCardComment,
+    updateCardComment,
     archiveCards,
     unarchiveCard,
     getArchivedCards,

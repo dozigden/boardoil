@@ -108,7 +108,8 @@ public sealed record McpCardCommentSnapshot(
     string Text,
     DateTime PostedAtUtc,
     string? AuthorDisplayName,
-    string? AuthorImageRelativePath);
+    string? AuthorImageRelativePath,
+    DateTime? EditedAtUtc = null);
 
 public sealed record McpArchivedCardSnapshot(
     int Id,
@@ -137,7 +138,8 @@ public sealed record McpArchivedCardCommentSnapshot(
     DateTime PostedAtUtc,
     int? AuthorUserId,
     string? AuthorDisplayName,
-    string? AuthorImageRelativePath);
+    string? AuthorImageRelativePath,
+    DateTime? EditedAtUtc = null);
 
 public sealed record McpArchivedCardSearchResult(
     IReadOnlyList<McpArchivedCardSearchSummary> Cards,
@@ -371,6 +373,14 @@ public sealed record CardRestoreInput
 public sealed record CardCommentCreateInput
 {
     public int? BoardId { get; init; }
+    public int? Id { get; init; }
+    public string Text { get; init; } = string.Empty;
+}
+
+public sealed record CardCommentUpdateInput
+{
+    public int? BoardId { get; init; }
+    public int? CardId { get; init; }
     public int? Id { get; init; }
     public string Text { get; init; } = string.Empty;
 }

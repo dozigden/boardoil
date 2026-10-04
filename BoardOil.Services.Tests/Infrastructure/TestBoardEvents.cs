@@ -8,6 +8,7 @@ namespace BoardOil.Services.Tests.Infrastructure;
 public sealed class TestBoardEvents : IBoardEvents
 {
     public readonly List<(int BoardId, CardCommentDto Comment)> CommentCreatedEvents = [];
+    public readonly List<(int BoardId, CardCommentDto Comment)> CommentUpdatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardCreatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardUpdatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardMovedEvents = [];
@@ -46,6 +47,12 @@ public sealed class TestBoardEvents : IBoardEvents
     public Task CommentCreatedAsync(int boardId, CardCommentDto comment)
     {
         CommentCreatedEvents.Add((boardId, comment));
+        return Task.CompletedTask;
+    }
+
+    public Task CommentUpdatedAsync(int boardId, CardCommentDto comment)
+    {
+        CommentUpdatedEvents.Add((boardId, comment));
         return Task.CompletedTask;
     }
 

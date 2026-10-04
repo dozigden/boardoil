@@ -699,6 +699,11 @@ public sealed class BoardPackageImportPlanner
                 validationErrors.Add(new ValidationError($"{commentPropertyPrefix}.postedAtUtc", "Comment posted time is required."));
             }
 
+            if (importedComment.EditedAtUtc == default(DateTime))
+            {
+                validationErrors.Add(new ValidationError($"{commentPropertyPrefix}.editedAtUtc", "Comment edited time must be a valid timestamp."));
+            }
+
             if (validationErrors.Count > errorCountBeforeComment)
             {
                 continue;
@@ -707,7 +712,8 @@ public sealed class BoardPackageImportPlanner
             canonicalComments.Add(new CommentImportDefinition(
                 canonicalText,
                 importedComment.PostedAtUtc,
-                BoardPackageImportNormalisation.ResolveNormalisedEmailOrNull(importedComment.AuthorEmail)));
+                BoardPackageImportNormalisation.ResolveNormalisedEmailOrNull(importedComment.AuthorEmail),
+                importedComment.EditedAtUtc));
         }
 
         return canonicalComments;

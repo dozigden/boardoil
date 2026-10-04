@@ -65,7 +65,7 @@ public sealed class CardCommentService(
             return ApiErrors.NotFound("Card not found.");
         }
 
-        var validationErrors = ValidateCreateRequest(request);
+        var validationErrors = ValidateText(request.Text);
         if (validationErrors.Count > 0)
         {
             return ApiErrors.ValidationFailed(validationErrors);
@@ -102,10 +102,65 @@ public sealed class CardCommentService(
         return ApiResults.Created(createdComment);
     }
 
-    private static IReadOnlyList<ValidationError> ValidateCreateRequest(CreateCardCommentRequest request)
+    public async Task<ApiResult<CardCommentDto>> UpdateCommentAsync(int boardId, int cardId, int commentId, UpdateCardCommentRequest request, int actorUserId)
+    {
+        using var scope = _scopeFactory.Create();
+
+        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate);
+        if (!hasPermission)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        var card = await cardRepository.GetWithTagsAndBoardAsync(boardId, cardId);
+        if (card is null)
+        {
+            return ApiErrors.NotFound("Card not found.");
+        }
+
+        var comment = await cardCommentRepository.GetByIdWithAuthorAsync(commentId);
+        if (comment is null || comment.CardId != card.Id)
+        {
+            return ApiErrors.NotFound("Comment not found.");
+        }
+
+        if (comment.AuthorUserId != actorUserId)
+        {
+            return ApiErrors.Forbidden("You can only edit your own comments.");
+        }
+
+        var validationErrors = ValidateText(request.Text);
+        if (validationErrors.Count > 0)
+        {
+            return ApiErrors.ValidationFailed(validationErrors);
+        }
+
+        var text = request.Text.Trim();
+        var changed = !string.Equals(comment.Text, text, StringComparison.Ordinal);
+        if (changed)
+        {
+            comment.Text = text;
+            comment.EditedAtUtc = DateTime.UtcNow;
+            card.CardUpdatedUtc = comment.EditedAtUtc.Value;
+            await scope.SaveChangesAsync();
+        }
+
+        var image = await imageRepository.GetLatestForEntityAsync(ImageEntityType.UserProfile, actorUserId);
+        var updatedComment = comment.ToCardCommentDto(cardId, comment.AuthorUser?.DisplayName, image?.RelativePath);
+        if (changed)
+        {
+            var updatedCard = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
+            await boardEvents.CardUpdatedAsync(boardId, updatedCard);
+            await boardEvents.CommentUpdatedAsync(boardId, updatedComment);
+        }
+
+        return ApiResults.Ok(updatedComment);
+    }
+
+    private static IReadOnlyList<ValidationError> ValidateText(string? rawText)
     {
         var errors = new List<ValidationError>();
-        var text = request.Text?.Trim() ?? string.Empty;
+        var text = rawText?.Trim() ?? string.Empty;
         if (text.Length == 0)
         {
             errors.Add(new ValidationError("text", "Comment text is required."));

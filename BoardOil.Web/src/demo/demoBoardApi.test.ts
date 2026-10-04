@@ -6,6 +6,25 @@ describe('demoBoardApi', () => {
     resetDemoData();
   });
 
+  it('edits comments while retaining timestamps and archived edit metadata', async () => {
+    const api = createDemoBoardApi();
+    const created = await api.createCardComment(1, 869, 'Original comment');
+    expect(created.ok).toBe(true);
+    if (!created.ok) { return; }
+    const unchanged = await api.updateCardComment(1, 869, created.data.id, ' Original comment ');
+    expect(unchanged).toEqual(created);
+    const edited = await api.updateCardComment(1, 869, created.data.id, 'Edited comment');
+    expect(edited.ok).toBe(true);
+    if (!edited.ok) { return; }
+    expect(edited.data.postedAtUtc).toBe(created.data.postedAtUtc);
+    expect(edited.data.editedAtUtc).toBeTruthy();
+
+    await api.archiveCards(1, [869]);
+    const archived = await api.getArchivedCard(1, 869);
+    expect(archived).toMatchObject({ ok: true, data: { comments: [{ text: 'Edited comment', editedAtUtc: edited.data.editedAtUtc }] } });
+    expect(await api.updateCardComment(1, 869, created.data.id, 'Archived edit')).toMatchObject({ ok: false });
+  });
+
   it('loads the curated public fixture with its image attachments', async () => {
     const api = createDemoBoardApi();
     const boardResult = await api.getBoard(1);

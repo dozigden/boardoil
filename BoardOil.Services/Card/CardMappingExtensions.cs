@@ -105,7 +105,8 @@ public static class CardMappingExtensions
             comment.Text,
             comment.PostedAtUtc,
             authorDisplayName ?? comment.AuthorUser?.DisplayName ?? UnknownCommentAuthorDisplayName,
-            authorImageRelativePath);
+            authorImageRelativePath,
+            comment.EditedAtUtc);
 
     private static IReadOnlyList<string> ParseSearchTagsJson(string searchTagsJson)
     {

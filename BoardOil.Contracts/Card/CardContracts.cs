@@ -16,7 +16,8 @@ public sealed record CardCommentDto(
     string Text,
     DateTime PostedAtUtc,
     string? AuthorDisplayName = null,
-    string? AuthorImageRelativePath = null);
+    string? AuthorImageRelativePath = null,
+    DateTime? EditedAtUtc = null);
 
 public sealed record CardDto(
     int Id,
@@ -63,7 +64,8 @@ public sealed record ArchivedCardCommentDto(
     DateTime PostedAtUtc,
     int? AuthorUserId = null,
     string? AuthorDisplayName = null,
-    string? AuthorImageRelativePath = null);
+    string? AuthorImageRelativePath = null,
+    DateTime? EditedAtUtc = null);
 
 public sealed record ArchivedCardListItemDto(
     int Id,
@@ -174,4 +176,7 @@ public sealed record BulkDeleteCardsSummaryDto(
     int DeletedCount);
 
 public sealed record CreateCardCommentRequest(
+    string Text);
+
+public sealed record UpdateCardCommentRequest(
     string Text);

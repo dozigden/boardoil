@@ -446,9 +446,10 @@ public static class ToolSchemas
             "text": { "type": "string" },
             "postedAtUtc": { "type": "string", "format": "date-time" },
             "authorDisplayName": { "type": ["string", "null"] },
-            "authorImageRelativePath": { "type": ["string", "null"] }
+            "authorImageRelativePath": { "type": ["string", "null"] },
+            "editedAtUtc": { "type": ["string", "null"], "format": "date-time" }
           },
-          "required": ["id", "cardId", "authorUserId", "text", "postedAtUtc", "authorDisplayName", "authorImageRelativePath"],
+          "required": ["id", "cardId", "authorUserId", "text", "postedAtUtc", "authorDisplayName", "authorImageRelativePath", "editedAtUtc"],
           "additionalProperties": false
         },
         "archivedComment": {
@@ -458,9 +459,10 @@ public static class ToolSchemas
             "postedAtUtc": { "type": "string", "format": "date-time" },
             "authorUserId": { "type": ["integer", "null"] },
             "authorDisplayName": { "type": ["string", "null"] },
-            "authorImageRelativePath": { "type": ["string", "null"] }
+            "authorImageRelativePath": { "type": ["string", "null"] },
+            "editedAtUtc": { "type": ["string", "null"], "format": "date-time" }
           },
-          "required": ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath"],
+          "required": ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath", "editedAtUtc"],
           "additionalProperties": false
         },
         "attachment": {
@@ -694,6 +696,20 @@ public static class ToolSchemas
     }
     """;
 
+    public const string CardCommentUpdateInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "cardId": { "type": "integer", "minimum": 1, "description": "Board-scoped number of the live card owning this comment." },
+        "id": { "type": "integer", "minimum": 1, "description": "Comment ID from card_get.comments[].id." },
+        "text": { "type": "string", "minLength": 1, "maxLength": 4000 }
+      },
+      "required": ["boardId", "cardId", "id", "text"],
+      "additionalProperties": false
+    }
+    """;
+
     public static readonly string TagCreateInput = $$"""
     {
       "type": "object",
@@ -823,6 +839,7 @@ public static class ToolSchemas
     public static readonly string CardRestoreOutput = CreateMutationReceiptSchema("restored", "Original board-scoped number retained by the restored card.");
     public static readonly string CardDeleteOutput = CreateMutationReceiptSchema("deleted", "Board-scoped number of the deleted card.");
     public static readonly string CardCommentCreateOutput = CreateMutationReceiptSchema("created", "Generated comment ID, not the card number.");
+    public static readonly string CardCommentUpdateOutput = CreateMutationReceiptSchema("updated", "Updated comment ID, not the card number.");
 
     private static string CreateMutationReceiptSchema(string outcome, string idDescription) => $$"""
     {

@@ -26,6 +26,7 @@ export type CardComment = {
   postedAtUtc: string;
   authorDisplayName?: string | null;
   authorImageRelativePath?: string | null;
+  editedAtUtc?: string | null;
 };
 
 export type Card = {
@@ -124,6 +125,7 @@ export type ArchivedCardComment = {
   authorUserId: number | null;
   authorDisplayName: string | null;
   authorImageRelativePath: string | null;
+  editedAtUtc?: string | null;
 };
 
 export type ArchivedCard = ArchivedCardListItem & {

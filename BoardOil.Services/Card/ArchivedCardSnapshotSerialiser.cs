@@ -42,7 +42,8 @@ public static class ArchivedCardSnapshotSerialiser
                     x.Text,
                     x.PostedAtUtc,
                     x.AuthorUserId,
-                    x.AuthorUser?.Email))
+                    x.AuthorUser?.Email,
+                    x.EditedAtUtc))
                 .ToList(),
             null,
             card.Slick?.Name,
@@ -234,7 +235,8 @@ public sealed record ArchivedCardSnapshotCommentV1Payload(
     string Text,
     DateTime CreatedAtUtc,
     int? AuthorUserId = null,
-    string? AuthorEmail = null);
+    string? AuthorEmail = null,
+    DateTime? EditedAtUtc = null);
 
 public sealed record ArchivedCardSnapshotKnownPayload(
     string Schema,

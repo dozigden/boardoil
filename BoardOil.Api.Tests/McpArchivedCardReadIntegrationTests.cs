@@ -82,7 +82,7 @@ public sealed class McpArchivedCardReadIntegrationTests : McpIntegrationTestBase
         Assert.False(output.TryGetProperty("snapshotJson", out _));
         var comment = Assert.Single(output.GetProperty("comments").EnumerateArray());
         Assert.Equal(
-            ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath"],
+            ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath", "editedAtUtc"],
             comment.EnumerateObject().Select(property => property.Name).ToArray());
         Assert.Equal("Archived MCP comment", comment.GetProperty("text").GetString());
         Assert.False(comment.TryGetProperty("id", out _));

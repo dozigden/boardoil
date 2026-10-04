@@ -232,7 +232,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(22, GetToolNames(payload).Length);
+        Assert.Equal(23, GetToolNames(payload).Length);
     }
 
     [Fact]
@@ -289,6 +289,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
                 ToolNames.CardUpdate,
                 ToolNames.CardMove,
                 ToolNames.CardCommentCreate,
+                ToolNames.CardCommentUpdate,
                 ToolNames.CardArchive,
                 ToolNames.CardRestore,
                 ToolNames.CardDelete,
@@ -315,7 +316,8 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             (ToolNames.CardArchive, "archived"),
             (ToolNames.CardRestore, "restored"),
             (ToolNames.CardDelete, "deleted"),
-            (ToolNames.CardCommentCreate, "created")
+            (ToolNames.CardCommentCreate, "created"),
+            (ToolNames.CardCommentUpdate, "updated")
         })
         {
             var schema = McpJsonRpcClient.GetToolByName(toolsListPayload, toolName).GetProperty("outputSchema");
@@ -342,6 +344,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         AssertToolAnnotations(toolsListPayload, ToolNames.CardUpdate, readOnly: false, destructive: true, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardMove, readOnly: false, destructive: false, idempotent: false);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardCommentCreate, readOnly: false, destructive: false, idempotent: false);
+        AssertToolAnnotations(toolsListPayload, ToolNames.CardCommentUpdate, readOnly: false, destructive: true, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardArchive, readOnly: false, destructive: true, idempotent: false);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardRestore, readOnly: false, destructive: true, idempotent: false);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardDelete, readOnly: false, destructive: true, idempotent: true);

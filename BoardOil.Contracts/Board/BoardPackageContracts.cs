@@ -58,7 +58,8 @@ public sealed record BoardPackageSlickDto(
 public sealed record BoardPackageCommentDto(
     string Text,
     DateTime PostedAtUtc,
-    string? AuthorEmail = null);
+    string? AuthorEmail = null,
+    DateTime? EditedAtUtc = null);
 
 public sealed record BoardPackageArchiveDto(
     IReadOnlyList<BoardPackageArchivedCardDto> Cards);

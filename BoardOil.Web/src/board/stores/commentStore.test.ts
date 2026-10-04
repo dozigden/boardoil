@@ -9,7 +9,8 @@ import type { Result } from '../../shared/types/result';
 
 const api = {
   getCardComments: vi.fn(),
-  createCardComment: vi.fn()
+  createCardComment: vi.fn(),
+  updateCardComment: vi.fn()
 };
 
 vi.mock('../../shared/api/boardApi', () => ({
@@ -20,6 +21,52 @@ describe('commentStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
+  });
+
+  it('replaces an edited comment without changing posting order or duplicating realtime updates', async () => {
+    const store = useCommentStore();
+    store.initialize(1);
+    const earlier = makeComment(1, 7, 'Earlier');
+    const later = makeComment(2, 7, 'Later');
+    store.upsertCardComment(1, earlier);
+    store.upsertCardComment(1, later);
+    const edited = { ...earlier, text: 'Edited earlier', editedAtUtc: '2026-08-01T12:00:00Z' };
+    api.updateCardComment.mockResolvedValueOnce(ok(edited));
+
+    expect(await store.updateCardComment(1, 7, earlier.id, edited.text)).toEqual(ok(edited));
+    store.upsertCardComment(1, edited);
+
+    expect(api.updateCardComment).toHaveBeenCalledWith(1, 7, earlier.id, edited.text);
+    expect(store.getCommentsForCard(7)).toEqual([later, edited]);
+  });
+
+  it('keeps saved comments intact on a failed edit', async () => {
+    const store = useCommentStore();
+    store.initialize(1);
+    const comment = makeComment(1, 7, 'Original');
+    store.upsertCardComment(1, comment);
+    api.updateCardComment.mockResolvedValueOnce(err({ kind: 'api', message: 'Edit failed.' }));
+
+    await store.updateCardComment(1, 7, comment.id, 'Replacement');
+
+    expect(store.getCommentsForCard(7)).toEqual([comment]);
+    expect(useUiFeedbackStore().errorMessage).toBe('Edit failed.');
+  });
+
+  it('ignores an edit completing after the selected board changes', async () => {
+    const store = useCommentStore();
+    store.initialize(1);
+    const pending = deferred<Result<CardComment, AppError>>();
+    api.updateCardComment.mockReturnValueOnce(pending.promise);
+    const update = store.updateCardComment(1, 7, 1, 'Old board edit');
+    store.initialize(2);
+    const current = makeComment(1, 7, 'Current board');
+    store.upsertCardComment(2, current);
+    pending.resolve(ok(makeComment(1, 7, 'Old board edit')));
+
+    expect(await update).toBeNull();
+    expect(store.getCommentsForCard(7)).toEqual([current]);
+    expect(store.busy).toBe(false);
   });
 
   it('does not apply an old-board response over comments for the same card id on the current board', async () => {

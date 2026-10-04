@@ -15,6 +15,38 @@ export class CardEditorPage {
     return this.dialog().getByLabel('Comment content', { exact: true });
   }
 
+  public editedCommentEditor() {
+    return this.dialog().getByLabel('Edit comment', { exact: true });
+  }
+
+  public async editComment(text: string) {
+    const comment = this.dialog().getByRole('article').filter({ hasText: text });
+    await comment.getByRole('button', { name: 'Comment actions', exact: true }).click();
+    await comment.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(this.editedCommentEditor()).toBeVisible();
+  }
+
+  public async saveCommentEdit() {
+    await this.editingCommentRegion().getByRole('button', { name: 'Save comment', exact: true }).click();
+  }
+
+  public async cancelCommentEdit() {
+    await this.editingCommentRegion().getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(this.editedCommentEditor()).toBeHidden();
+  }
+
+  public async editCommentImageAlternativeText(currentAlt: string, nextAlt: string) {
+    await this.editedCommentEditor().getByRole('button', { name: `Enlarge image: ${currentAlt}`, exact: true }).click();
+    const imageDialog = this.page.getByRole('dialog', { name: 'Image preview', exact: true });
+    await imageDialog.getByRole('textbox', { name: 'Alternative text' }).fill(nextAlt);
+    await imageDialog.getByRole('button', { name: 'Save alternative text', exact: true }).click();
+    await expect(imageDialog).toBeHidden();
+  }
+
+  private editingCommentRegion() {
+    return this.dialog().getByRole('article').filter({ has: this.page.getByLabel('Edit comment', { exact: true }) });
+  }
+
   public async formatAllText(editor: Locator, actionName: 'Bold' | 'Italic') {
     await editor.selectText();
     await expect(editor).toBeFocused();

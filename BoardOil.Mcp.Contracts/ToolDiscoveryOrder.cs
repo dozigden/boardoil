@@ -13,6 +13,7 @@ public static class ToolDiscoveryOrder
     public const int CardUpdate = 700;
     public const int CardMove = 800;
     public const int CardCommentCreate = 900;
+    public const int CardCommentUpdate = 950;
     public const int CardArchive = 1000;
     public const int CardRestore = 1050;
     public const int CardDelete = 1100;

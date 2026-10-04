@@ -80,6 +80,17 @@ export const useCommentStore = defineStore('comment', () => {
     return commentsByCardId.value[cardId] ?? [];
   }
 
+  async function updateCardComment(boardId: number, cardId: number, commentId: number, text: string) {
+    const result = await runBusy(() => api.updateCardComment(boardId, cardId, commentId, text), boardId);
+    if (!result.ok) {
+      return result;
+    }
+    if (!UPSERT_CARD_COMMENT(boardId, result.data)) {
+      return null;
+    }
+    return result;
+  }
+
   function upsertCardComment(boardId: number, comment: CardComment) {
     UPSERT_CARD_COMMENT(boardId, comment);
   }
@@ -115,6 +126,7 @@ export const useCommentStore = defineStore('comment', () => {
     dispose,
     loadCardComments,
     addCardComment,
+    updateCardComment,
     getCommentsForCard,
     upsertCardComment
   };

@@ -200,7 +200,8 @@ public sealed class BoardPackageImportWriter(
                         AuthorUserId = commentAuthor?.Id,
                         AuthorUser = commentAuthor,
                         Text = importedComment.Text,
-                        PostedAtUtc = importedComment.PostedAtUtc
+                        PostedAtUtc = importedComment.PostedAtUtc,
+                        EditedAtUtc = importedComment.EditedAtUtc
                     });
                 }
             }
