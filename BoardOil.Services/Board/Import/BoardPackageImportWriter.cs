@@ -39,7 +39,7 @@ public sealed class BoardPackageImportWriter(
         }
         var sortKeyPlan = sortKeyPlanResult.Plan!;
 
-        using var scope = scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
+        using var scope = scopeFactory.Create(DbContextScopeOption.ForceCreateNew);
 
         var now = DateTime.UtcNow;
         var board = new EntityBoard
@@ -65,6 +65,7 @@ public sealed class BoardPackageImportWriter(
         systemCardType.Emoji = importPlan.SystemCardTypeEmoji;
         systemCardType.StyleName = importPlan.SystemCardTypeStyleName;
         systemCardType.StylePropertiesJson = importPlan.SystemCardTypeStylePropertiesJson;
+        systemCardType.FieldDefinitionsJson = importPlan.SystemCardTypeFieldDefinitionsJson;
         var cardTypesByNormalisedName = new Dictionary<string, EntityCardType>(StringComparer.Ordinal)
         {
             [importPlan.SystemCardTypeNormalisedName] = systemCardType
@@ -80,6 +81,7 @@ public sealed class BoardPackageImportWriter(
                 StyleName = cardType.StyleName,
                 StylePropertiesJson = cardType.StylePropertiesJson,
                 IsSystem = false,
+                FieldDefinitionsJson = cardType.FieldDefinitionsJson,
             };
 
             cardTypeRepository.Add(createdCardType);
@@ -156,6 +158,7 @@ public sealed class BoardPackageImportWriter(
                         : slicksByNormalisedName[importedCard.SlickNormalisedName],
                     Title = importedCard.Title,
                     Description = importedCard.Description,
+                    FieldValuesJson = importedCard.FieldValuesJson,
                     ExternalUrl = importedCard.ExternalUrl,
                     SortKey = sortKeyPlan.CardKeysByColumn[columnIndex][cardIndex],
                     CardCreatedUtc = cardCreatedUtc,
@@ -211,6 +214,7 @@ public sealed class BoardPackageImportWriter(
 
         board.CardIdSequence!.NextCardId = importPlan.NextCardId;
 
+        var createdArchives = new List<EntityArchivedCard>();
         if (importPlan.ArchivedCards.Count > 0)
         {
             for (var archivedCardIndex = 0; archivedCardIndex < importPlan.ArchivedCards.Count; archivedCardIndex++)
@@ -230,12 +234,24 @@ public sealed class BoardPackageImportWriter(
                     SearchTextNormalised = searchTextNormalised
                 };
                 archivedCardRepository.Add(archivedCard);
+                createdArchives.Add(archivedCard);
                 if (attachments is not null) { await attachmentImporter.AttachAsync(attachments, null, archivedCard); }
             }
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        await scope.SaveChangesAsync(cancellationToken);
+        await scope.Transaction(async (transactionScope, transaction) =>
+        {
+            await transactionScope.SaveChangesAsync(cancellationToken);
+            var typeIds = importPlan.SourceCardTypeNames.ToDictionary(
+                pair => pair.Key, pair => cardTypesByNormalisedName[pair.Value].Id);
+            foreach (var archivedCard in createdArchives)
+            {
+                archivedCard.SnapshotJson = BoardPackageArchiveFields.RemapTypeId(archivedCard.SnapshotJson, typeIds);
+            }
+            if (createdArchives.Count > 0) { await transactionScope.SaveChangesAsync(cancellationToken); }
+            await transaction.CommitAsync();
+        });
 
         var columnDtos = createdColumns
             .OrderBy(x => x.SortKey)

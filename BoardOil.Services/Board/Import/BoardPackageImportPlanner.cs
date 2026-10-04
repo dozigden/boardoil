@@ -2,6 +2,8 @@ using System.Text;
 using System.Text.Json;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Common;
+using BoardOil.Contracts.CardField;
+using BoardOil.Services.CardField;
 using BoardOil.Services.Card;
 using BoardOil.Services.Style;
 using BoardOil.Services.Tag;
@@ -65,6 +67,9 @@ public sealed class BoardPackageImportPlanner
         string? systemCardTypeEmoji = null;
         var systemCardTypeStyleName = CardTypeDefaults.DefaultStyleName;
         var systemCardTypeStylePropertiesJson = CardTypeDefaults.DefaultStylePropertiesJson;
+        var systemCardTypeFieldsJson = "[]";
+        var fieldsByTypeName = new Dictionary<string, IReadOnlyList<CardFieldDefinition>>(StringComparer.Ordinal);
+        var sourceCardTypeNames = new Dictionary<int, string>();
         var hasSystemCardType = false;
         var knownCardTypeNames = new HashSet<string>(StringComparer.Ordinal);
 
@@ -110,6 +115,25 @@ public sealed class BoardPackageImportPlanner
                     continue;
                 }
 
+                if (importedCardType.Fields is null)
+                {
+                    validationErrors.Add(new ValidationError($"{cardTypePropertyPrefix}.fields", "Field definitions must be an array."));
+                    continue;
+                }
+                var fields = CardFieldRules.NormaliseDefinitions(importedCardType.Fields);
+                validationErrors.AddRange(fields.Errors.Select(error =>
+                    new ValidationError($"{cardTypePropertyPrefix}.{error.Property}", error.Message)));
+                if (!fields.IsValid) { continue; }
+                fieldsByTypeName.Add(cardTypeNameValidation.NormalisedName, fields.Value!);
+                var fieldsJson = CardFieldJsonCodec.SerialiseDefinitions(fields.Value!);
+                if (importedCardType.Id is int sourceId)
+                {
+                    if (sourceId <= 0 || !sourceCardTypeNames.TryAdd(sourceId, cardTypeNameValidation.NormalisedName))
+                    {
+                        validationErrors.Add(new ValidationError($"{cardTypePropertyPrefix}.id", "Card type ID must be positive and unique."));
+                    }
+                }
+
                 if (importedCardType.IsSystem)
                 {
                     if (hasSystemCardType)
@@ -126,6 +150,7 @@ public sealed class BoardPackageImportPlanner
                     systemCardTypeEmoji = emojiValidation.CanonicalEmoji;
                     systemCardTypeStyleName = styleValidation.StyleName;
                     systemCardTypeStylePropertiesJson = styleValidation.StylePropertiesJson;
+                    systemCardTypeFieldsJson = fieldsJson;
                     continue;
                 }
 
@@ -134,7 +159,7 @@ public sealed class BoardPackageImportPlanner
                     cardTypeNameValidation.NormalisedName,
                     emojiValidation.CanonicalEmoji,
                     styleValidation.StyleName,
-                    styleValidation.StylePropertiesJson));
+                    styleValidation.StylePropertiesJson, fieldsJson));
             }
         }
 
@@ -357,6 +382,19 @@ public sealed class BoardPackageImportPlanner
                             $"Card type '{cardTypeValidation.CanonicalName}' does not exist in the package card type list."));
                     }
 
+                    var fieldValuesJson = "{}";
+                    if (importedCard.Fields is null)
+                    {
+                        validationErrors.Add(new ValidationError($"{cardPropertyPrefix}.fields", "Field values must be an object."));
+                    }
+                    else if (fieldsByTypeName.TryGetValue(cardTypeValidation.NormalisedName, out var definitions))
+                    {
+                        var values = CardFieldRules.NormaliseValues(definitions, importedCard.Fields);
+                        validationErrors.AddRange(values.Errors.Select(error =>
+                            new ValidationError($"{cardPropertyPrefix}.{error.Property}", error.Message)));
+                        if (values.IsValid) { fieldValuesJson = CardFieldJsonCodec.SerialiseValues(values.Value!); }
+                    }
+
                     var canonicalTagNames = ValidateAndCanonicaliseCardTagNames(importedCard.TagNames, $"{cardPropertyPrefix}.tagNames", validationErrors);
                     var cardSlickNormalisedName = ResolveCardSlickNormalisedName(
                         importedCard.SlickName,
@@ -384,7 +422,8 @@ public sealed class BoardPackageImportPlanner
                         externalUrl,
                         boardCardId,
                         importedCard.CardCreatedUtc,
-                        importedCard.CardUpdatedUtc));
+                        importedCard.CardUpdatedUtc,
+                        fieldValuesJson));
                 }
 
                 if (validationErrors.Count > errorCountBeforeColumn)
@@ -450,6 +489,10 @@ public sealed class BoardPackageImportPlanner
                     }
 
                     var snapshotJson = archivedCard.SnapshotJson?.Trim() ?? string.Empty;
+                    var snapshotFields = BoardPackageArchiveFields.Normalise(snapshotJson,
+                        $"{archivedCardPropertyPrefix}.snapshotJson");
+                    validationErrors.AddRange(snapshotFields.Errors);
+                    if (snapshotFields.IsValid) { snapshotJson = snapshotFields.Value!; }
                     if (snapshotJson.Length == 0)
                     {
                         validationErrors.Add(new ValidationError($"{archivedCardPropertyPrefix}.snapshotJson", "Archived card snapshot JSON is required."));
@@ -542,7 +585,11 @@ public sealed class BoardPackageImportPlanner
                 plannedSlickDefinitionsByNormalisedName.Values.ToList(),
                 plannedColumns,
                 plannedArchivedCards,
-                boardPayload.CardAttachmentThumbnailsEnabled),
+                boardPayload.CardAttachmentThumbnailsEnabled)
+            {
+                SystemCardTypeFieldDefinitionsJson = systemCardTypeFieldsJson,
+                SourceCardTypeNames = sourceCardTypeNames
+            },
             null);
     }
 

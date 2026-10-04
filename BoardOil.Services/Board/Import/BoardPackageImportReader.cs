@@ -7,7 +7,11 @@ namespace BoardOil.Services.Board.Import;
 
 public sealed class BoardPackageImportReader
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        AllowOutOfOrderMetadataProperties = true,
+        AllowDuplicateProperties = false
+    };
 
     public BoardPackageReadResult TryReadBoardPackage(byte[] packageContent)
     {
@@ -137,7 +141,7 @@ public sealed class BoardPackageImportReader
                 null,
                 ApiErrors.ValidationFailed([new ValidationError("file", "Uploaded file is not a valid ZIP archive.")]));
         }
-        catch (JsonException)
+        catch (Exception exception) when (exception is JsonException or NotSupportedException)
         {
             return new BoardPackageReadResult(
                 null,

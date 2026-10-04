@@ -1,3 +1,6 @@
+using System.Text.Json;
+using BoardOil.Contracts.CardField;
+
 namespace BoardOil.Contracts.Board;
 
 public sealed record BoardPackageManifestDto(
@@ -25,7 +28,11 @@ public sealed record BoardPackageCardTypeDto(
     string? Emoji,
     bool IsSystem,
     string? StyleName = null,
-    string? StylePropertiesJson = null);
+    string? StylePropertiesJson = null,
+    int? Id = null)
+{
+    public IReadOnlyList<CardFieldDefinition> Fields { get; init; } = [];
+}
 
 public sealed record BoardPackageTagDto(
     string Name,
@@ -48,7 +55,10 @@ public sealed record BoardPackageCardDto(
     string? ExternalUrl = null,
     int? Id = null,
     DateTime? CardCreatedUtc = null,
-    DateTime? CardUpdatedUtc = null);
+    DateTime? CardUpdatedUtc = null)
+{
+    public IReadOnlyDictionary<string, JsonElement> Fields { get; init; } = new Dictionary<string, JsonElement>();
+}
 
 public sealed record BoardPackageSlickDto(
     string Name,

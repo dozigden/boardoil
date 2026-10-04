@@ -2,6 +2,8 @@ using System.IO.Compression;
 using System.Text.Json;
 using BoardOil.Abstractions.Board;
 using BoardOil.Contracts.Board;
+using BoardOil.Contracts.CardField;
+using BoardOil.Services.CardField;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
@@ -219,6 +221,59 @@ public sealed class BoardExportServiceTests : TestBaseDb
         Assert.False(result.Success);
         Assert.Equal(403, result.StatusCode);
         Assert.Equal("You do not have permission for this action.", result.Message);
+    }
+
+    [Fact]
+    public async Task ExportBoardAsync_ShouldIncludeCustomFieldDefinitionsAndNativeValues()
+    {
+        CardFieldDefinition[] definitions =
+        [
+            new TextFieldDefinition { FieldCode = "Ref", DisplayName = "Reference", Nullable = true, Emoji = "🔖", ShowOnCard = true, MaxLength = 25 },
+            new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Estimate", DefaultValue = 0, Min = 0, Max = 10 },
+            new DateFieldDefinition { FieldCode = "Due", DisplayName = "Due date", Nullable = true }
+        ];
+        const string values = """{"Ref":null,"Points":0,"Due":"2024-02-29"}""";
+        var board = CreateBoard().AddColumn("Todo").AddCard("System").AddCard("Custom").Build();
+        var systemCard = board.GetCard("System");
+        systemCard.CardType.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(definitions);
+        systemCard.FieldValuesJson = values;
+        var customCard = board.GetCard("Custom");
+        var customType = new EntityCardType
+        {
+            BoardId = board.BoardId, Name = "Custom", StyleName = "auto", StylePropertiesJson = "{}",
+            FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(definitions.Reverse().ToArray())
+        };
+        DbContextForArrange.CardTypes.Add(customType);
+        customCard.CardType = customType;
+        customCard.FieldValuesJson = values;
+        await DbContextForArrange.SaveChangesAsync();
+        var result = await ResolveService<IBoardExportService>().ExportBoardAsync(board.BoardId, ActorUserId, "test");
+
+        Assert.True(result.Success, result.Message);
+        using var content = result.Data!.Content;
+        using var zip = new ZipArchive(content, ZipArchiveMode.Read);
+        using var input = zip.GetEntry("board.json")!.Open();
+        using var json = await JsonDocument.ParseAsync(input);
+        var types = json.RootElement.GetProperty("cardTypes").EnumerateArray().ToArray();
+        var system = types.Single(type => type.GetProperty("isSystem").GetBoolean());
+        var custom = types.Single(type => !type.GetProperty("isSystem").GetBoolean());
+        Assert.Equal(systemCard.CardTypeId, system.GetProperty("id").GetInt32());
+        Assert.Equal(new[] { "Ref", "Points", "Due" }, system.GetProperty("fields").EnumerateArray().Select(field => field.GetProperty("fieldCode").GetString()));
+        Assert.Equal(new[] { "Due", "Points", "Ref" }, custom.GetProperty("fields").EnumerateArray().Select(field => field.GetProperty("fieldCode").GetString()));
+        Assert.Equal("🔖", system.GetProperty("fields")[0].GetProperty("emoji").GetString());
+        Assert.Equal(25, system.GetProperty("fields")[0].GetProperty("maxLength").GetInt32());
+        Assert.True(system.GetProperty("fields")[0].GetProperty("showOnCard").GetBoolean());
+        Assert.Equal(10, system.GetProperty("fields")[1].GetProperty("max").GetInt32());
+        var cards = json.RootElement.GetProperty("columns")[0].GetProperty("cards");
+        Assert.Equal(2, cards.GetArrayLength());
+        foreach (var card in cards.EnumerateArray())
+        {
+            var fields = card.GetProperty("fields");
+            Assert.Equal(3, fields.EnumerateObject().Count());
+            Assert.Equal(JsonValueKind.Null, fields.GetProperty("Ref").ValueKind);
+            Assert.Equal(0, fields.GetProperty("Points").GetInt32());
+            Assert.Equal("2024-02-29", fields.GetProperty("Due").GetString());
+        }
     }
 
     private async Task<int> CreateForeignBoardAsync(string boardName)

@@ -29,14 +29,19 @@ public sealed record BoardPackageImportPlan(
     IReadOnlyList<SlickImportDefinition> SlickDefinitions,
     IReadOnlyList<ColumnImportDefinition> Columns,
     IReadOnlyList<ArchivedCardImportDefinition> ArchivedCards,
-    bool CardAttachmentThumbnailsEnabled = true);
+    bool CardAttachmentThumbnailsEnabled = true)
+{
+    public string SystemCardTypeFieldDefinitionsJson { get; init; } = "[]";
+    public IReadOnlyDictionary<int, string> SourceCardTypeNames { get; init; } = new Dictionary<int, string>();
+}
 
 public sealed record CardTypeImportDefinition(
     string Name,
     string NormalisedName,
     string? Emoji,
     string StyleName,
-    string StylePropertiesJson);
+    string StylePropertiesJson,
+    string FieldDefinitionsJson = "[]");
 
 public sealed record TagImportDefinition(
     string Name,
@@ -66,7 +71,8 @@ public sealed record CardImportDefinition(
     string? ExternalUrl = null,
     int BoardCardId = 0,
     DateTime? CardCreatedUtc = null,
-    DateTime? CardUpdatedUtc = null);
+    DateTime? CardUpdatedUtc = null,
+    string FieldValuesJson = "{}");
 
 public sealed record CommentImportDefinition(
     string Text,

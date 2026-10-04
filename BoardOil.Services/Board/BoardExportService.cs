@@ -15,6 +15,7 @@ using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Card;
+using BoardOil.Services.CardField;
 using BoardOil.Data.Abstractions.Attachment;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Attachment;
@@ -124,14 +125,20 @@ public sealed class BoardExportService(
                         card.ExternalUrl,
                         card.RequireBoardCardId(),
                         card.CardCreatedUtc,
-                        card.CardUpdatedUtc))
+                        card.CardUpdatedUtc)
+                    {
+                        Fields = CardFieldJsonCodec.DeserialiseValues(card.FieldValuesJson)
+                    })
                     .ToList());
 
         var boardPayload = new BoardPackageBoardDto(
             board.Name,
             board.Description,
             cardTypes
-                .Select(x => new BoardPackageCardTypeDto(x.Name, x.Emoji, x.IsSystem, x.StyleName, x.StylePropertiesJson))
+                .Select(x => new BoardPackageCardTypeDto(x.Name, x.Emoji, x.IsSystem, x.StyleName, x.StylePropertiesJson, x.Id)
+                {
+                    Fields = CardFieldJsonCodec.DeserialiseDefinitions(x.FieldDefinitionsJson)
+                })
                 .ToList(),
             tags
                 .Select(x => new BoardPackageTagDto(x.Name, x.StyleName, x.StylePropertiesJson, x.Emoji))
