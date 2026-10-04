@@ -1,5 +1,8 @@
 <template>
   <FixedChromeDialog
+    ref="editorDialog"
+    :busy="savingCard"
+    class="card-editor-dialog"
     :open="editingCard !== null"
     :title="isDuplicatingCard ? 'Duplicate Card' : 'Edit Card'"
     size="fill"
@@ -75,6 +78,10 @@
       </div>
     </template>
     <template v-if="cardDraft">
+      <div v-if="cardSaveError && (Object.keys(cardSaveError.validationErrors ?? {}).length === 0 || Object.keys(cardSummaryErrors).length)" ref="cardErrorSummary" class="card-save-errors" role="alert" tabindex="-1">
+        <p v-if="Object.keys(cardSaveError.validationErrors ?? {}).length === 0"><CircleAlert :size="14" aria-hidden="true" />{{ cardSaveError.message }}</p>
+        <p v-for="(messages, path) in cardSummaryErrors" :key="path"><CircleAlert :size="14" aria-hidden="true" />{{ messages.join(' ') }}</p>
+      </div>
       <div class="card-editor-layout">
         <div class="card-editor-main">
           <MdEditorToolbar
@@ -271,6 +278,7 @@
             <BoDropdown
               align="left"
               label="Select card type"
+              :disabled="cardBusy"
               :teleport="false"
               :text="selectedCardTypeLabel"
             >
@@ -356,6 +364,17 @@
             @update:external-url="updateDraftExternalUrlFromEditor"
           />
 
+          <p v-if="cardTypeWillChange && !isDuplicatingCard" class="card-field-conversion-note">Fields will convert when you save.</p>
+          <CardFieldValuesEditor
+            v-if="!isDuplicatingCard"
+            ref="fieldValuesEditor"
+            :definitions="cardFieldDefinitions"
+            :values="cardDraft.fields ?? {}"
+            :errors="cardSaveError?.validationErrors ?? {}"
+            :disabled="cardBusy"
+            @change="updateDraftField"
+          />
+
           <CardAttachments v-if="routeCardId !== null" :board-id="boardId" :card-id="routeCardId"
             :read-only="isDuplicatingCard" :duplicating="isDuplicatingCard" />
 
@@ -396,12 +415,16 @@
 </template>
 
 <script setup lang="ts">
-import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Trash2, X } from '@lucide/vue';
+import { Archive, ArrowRightLeft, Check, CircleAlert, Copy, Ellipsis, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref, watch, type ComponentPublicInstance } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import MdEditor from '../../shared/components/MdEditor.vue';
 import CardAttachments from './CardAttachments.vue';
+import CardFieldValuesEditor from './CardFieldValuesEditor.vue';
+import { buildCardFieldValues } from '../utils/cardFieldValues';
+import type { CardFieldDefinition } from '../../shared/types/cardFieldTypes';
+import type { AppError } from '../../shared/types/appError';
 import { useAttachmentStore } from '../stores/attachmentStore';
 import MdEditorToolbar from '../../shared/components/MdEditorToolbar.vue';
 import MdViewer from '../../shared/components/MdViewer.vue';
@@ -463,10 +486,19 @@ const attachments = useAttachmentStore();
 const maxDescriptionLength = 20_000;
 const maxCommentLength = 4_000;
 const cardDraft = ref<CardEditModel | null>(null);
+const editorDialog = ref<InstanceType<typeof FixedChromeDialog> | null>(null);
+const savingCard = ref(false);
 const cardDraftBoardId = ref<number | null>(null);
 const cardDraftId = ref<number | null>(null);
 const cardDraftSource = ref<CardEditModel | null>(null);
 const isCardDraftDirty = ref(false);
+const cardFieldDefinitions = ref<CardFieldDefinition[]>([]);
+const cardSaveError = ref<AppError | null>(null);
+const cardErrorSummary = ref<HTMLElement | null>(null);
+const fieldValuesEditor = ref<InstanceType<typeof CardFieldValuesEditor> | null>(null);
+const cardTypeWillChange = computed(() => cardDraft.value?.cardTypeId !== cardDraftSource.value?.cardTypeId);
+const cardSummaryErrors = computed(() => Object.fromEntries(Object.entries(cardSaveError.value?.validationErrors ?? {})
+  .filter(([path]) => !cardFieldDefinitions.value.some(field => path === `fields.${field.fieldCode}`))));
 const isDuplicatingCard = ref(false);
 const newCommentText = ref('');
 const isCommentDraftDirty = ref(false);
@@ -1108,6 +1140,16 @@ function handleCommentEditorBlur() {
   commentEditorFocused.value = false;
 }
 
+function updateDraftField(code: string, value: string) {
+  if (!cardDraft.value) return;
+  patchFromUser({ fields: { ...cardDraft.value.fields, [code]: value } });
+  if (cardSaveError.value?.validationErrors) {
+    const errors = { ...cardSaveError.value.validationErrors };
+    delete errors[`fields.${code}`];
+    cardSaveError.value = Object.keys(errors).length ? { ...cardSaveError.value, validationErrors: errors } : null;
+  }
+}
+
 function setDraftCardTypeId(cardTypeId: number, close?: () => void) {
   patchFromUser({ cardTypeId });
   close?.();
@@ -1124,6 +1166,9 @@ function setDraftAssignedUserId(assignedUserId: number | null, close?: () => voi
 }
 
 function clearCardDraft() {
+  cardFieldDefinitions.value = [];
+  cardSaveError.value = null;
+  cardStore.clearSaveError();
   cardDraft.value = null;
   cardDraftBoardId.value = null;
   cardDraftId.value = null;
@@ -1138,6 +1183,8 @@ function initializeDraftFromCard(sourceBoardId: number, card: Card) {
   }
 
   const initialModel = createCardEditModel(card);
+  cardFieldDefinitions.value = (cardTypeStore.getCardTypeById(card.cardTypeId)?.fields ?? []).map(field => ({ ...field }));
+  cardSaveError.value = null;
   cardDraft.value = initialModel;
   cardDraftSource.value = cloneCardEditModel(initialModel);
   cardDraftBoardId.value = sourceBoardId;
@@ -1235,19 +1282,26 @@ async function saveCard() {
 }
 
 async function saveCardFromShortcut() {
+  if (savingCard.value || !editorDialog.value?.reportValidity()) return;
   await saveCardDraft(false);
 }
 
 async function saveCardDraft(closeAfterSave: boolean) {
   const draft = cardDraft.value;
   const cardId = routeCardId.value;
-  if (!draft || draft.cardTypeId === null || cardBusy.value || imageUploadBlocking.value) {
+  if (!draft || draft.cardTypeId === null || savingCard.value || cardBusy.value || imageUploadBlocking.value) {
     return;
   }
 
   if (isDuplicatingCard.value) {
     if (cardId === null) { return; }
-    const created = await createCardAction(draft, { duplicateFromCardId: cardId });
+    savingCard.value = true;
+    let created;
+    try {
+      created = await createCardAction(draft, { duplicateFromCardId: cardId });
+    } finally {
+      savingCard.value = false;
+    }
     if (created?.ok) {
       feedback.showToast('Created successfully.');
       await closeCardEditorWithoutPrompt();
@@ -1260,24 +1314,40 @@ async function saveCardDraft(closeAfterSave: boolean) {
   }
 
   const submittedDraft = cloneCardEditModel(draft);
-  const saved = await saveCardAction(cardId, submittedDraft);
+  savingCard.value = true;
+  let saved = false;
+  try {
+    saved = await saveCardAction(cardId, {
+      ...submittedDraft,
+      fields: buildCardFieldValues(cardFieldDefinitions.value, submittedDraft.fields ?? {})
+    }, { inlineErrors: true });
+    if (saved) syncDraftAfterSave(cardId);
+  } finally {
+    savingCard.value = false;
+  }
+  await nextTick();
+  if (!saved) {
+    cardSaveError.value = cardStore.saveError;
+    await nextTick();
+    if (Object.keys(cardSummaryErrors.value).length || !cardSaveError.value?.validationErrors) cardErrorSummary.value?.focus();
+    else fieldValuesEditor.value?.focusError();
+    return;
+  }
+  cardSaveError.value = null;
   if (saved) {
     feedback.showToast('Saved successfully.');
     if (closeAfterSave) {
       if (isEditedCommentDirty.value) {
-        syncDraftAfterSave(cardId, submittedDraft);
         await closeCardEditor();
         return;
       }
       await closeCardEditorWithoutPrompt();
       return;
     }
-
-    syncDraftAfterSave(cardId, submittedDraft);
   }
 }
 
-function syncDraftAfterSave(cardId: number, submittedDraft: CardEditModel) {
+function syncDraftAfterSave(cardId: number) {
   const savedCard = cardStore.getCardById(cardId);
   const currentDraft = cardDraft.value;
   if (!savedCard || !currentDraft) {
@@ -1285,14 +1355,10 @@ function syncDraftAfterSave(cardId: number, submittedDraft: CardEditModel) {
   }
 
   const savedModel = createCardEditModel(savedCard);
+  cardFieldDefinitions.value = (cardTypeStore.getCardTypeById(savedCard.cardTypeId)?.fields ?? []).map(field => ({ ...field }));
   cardDraftSource.value = cloneCardEditModel(savedModel);
-  if (areCardEditModelsEqual(currentDraft, submittedDraft)) {
-    cardDraft.value = cloneCardEditModel(savedModel);
-    isCardDraftDirty.value = false;
-    return;
-  }
-
-  isCardDraftDirty.value = !areCardEditModelsEqual(currentDraft, savedModel);
+  cardDraft.value = cloneCardEditModel(savedModel);
+  isCardDraftDirty.value = false;
 }
 
 async function addComment() {
@@ -1395,13 +1461,12 @@ watch(
       return;
     }
 
-    const draftInitialized = initializeDraftForCard(nextBoardId, nextCard);
-
     const lookupsLoaded = await ensureEditorLookupsLoaded(nextBoardId, () => cancelled);
     if (!lookupsLoaded || cancelled) {
       return;
     }
 
+    const draftInitialized = initializeDraftForCard(nextBoardId, nextCard);
     if (draftInitialized || commentStore.commentsByCardId[nextCard.id] === undefined) {
       await loadCardComments(nextBoardId, nextCard.id);
     }
@@ -1466,6 +1531,12 @@ onBeforeRouteUpdate(async (to, from) => {
 </script>
 
 <style scoped>
+.card-editor-dialog :deep(.fixed-chrome-dialog__body) { display: flex; flex-direction: column; }
+.card-save-errors { color: var(--bo-colour-danger-ink); font-size: 0.85rem; max-height: 20dvh; overflow-y: auto; }
+.card-save-errors p { display: flex; gap: 0.25rem; align-items: flex-start; margin: 0 0 0.3rem; }
+.card-save-errors svg { flex-shrink: 0; }
+.card-field-conversion-note { margin: 0; font-size: 0.8rem; color: var(--bo-ink-subtle); }
+
 .dialog-title-with-pill {
   display: flex;
   align-items: center;

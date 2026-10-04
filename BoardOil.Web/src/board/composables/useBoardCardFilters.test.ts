@@ -60,6 +60,7 @@ function makeCard(id: number, title: string, cardTypeId: number): Card {
     boardColumnId: 10,
     cardTypeId,
     cardTypeName: 'Story',
+    fields: {},
     cardTypeEmoji: null,
     title,
     description: '',

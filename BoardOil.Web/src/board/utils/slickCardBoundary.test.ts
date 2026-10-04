@@ -56,6 +56,7 @@ function makeCard(id: number, slickId: number | null) {
     cardTypeId: 1,
     slickId,
     cardTypeName: 'Story',
+    fields: {},
     cardTypeEmoji: null,
     title: `Card ${id}`,
     description: '',

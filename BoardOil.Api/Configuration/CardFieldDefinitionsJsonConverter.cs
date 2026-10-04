@@ -60,7 +60,7 @@ public sealed class CardFieldDefinitionsJsonConverter : JsonConverter<IReadOnlyL
 
         if (errors.Count > 0)
         {
-            throw new CardFieldDefinitionValidationException(errors);
+            throw new CardFieldValidationException(errors);
         }
     }
 

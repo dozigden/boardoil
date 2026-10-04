@@ -1,3 +1,4 @@
+import { demoFieldDefaults, demoFieldDefinitions, planDemoFields } from './demoCardFields';
 import type { BoardApi } from '../shared/api/boardApi';
 import { defaultBoardAttachmentInventoryQuery, type CardAttachment } from '../shared/types/attachmentTypes';
 import { getMarkdownChecklistCounts } from './markdownChecklistCounts';
@@ -310,6 +311,7 @@ const demoBoardApi: BoardApi = {
 
     const timestamp = now();
     const card: Card = {
+      fields: demoFieldDefaults(cardType.fields),
       id: state.nextCardId++,
       slick: null,
       boardColumnId: column.id,
@@ -353,6 +355,9 @@ const demoBoardApi: BoardApi = {
     }
 
     const card = located.card;
+    const fieldPlan = planDemoFields(getCardType(card.cardTypeId)!.fields, card.fields, model.fields,
+      cardType.fields, card.cardTypeId !== cardType.id, model.description);
+    if (!fieldPlan.ok) return fieldPlan;
     if (located.column.id !== targetColumn.id) {
       located.column.cards.splice(located.index, 1);
       card.sortKey = createSortKeyBetween(targetColumn.cards[targetColumn.cards.length - 1]?.sortKey ?? null, null);
@@ -360,7 +365,8 @@ const demoBoardApi: BoardApi = {
       card.boardColumnId = targetColumn.id;
     }
 
-    applyCardEdit(card, model, cardType);
+    card.fields = fieldPlan.data.fields;
+    applyCardEdit(card, { ...model, description: fieldPlan.data.description }, cardType);
     return ok(clone(card));
   },
 
@@ -914,7 +920,7 @@ function createSeedState(): DemoState {
     ...cardType,
     id: index + 1,
     styleName: cardType.styleName as CardType['styleName'],
-    fields: [],
+    fields: cardType.name === 'Story' ? demoFieldDefinitions.map(field => ({ ...field })) : [],
     createdAtUtc: timestamp,
     updatedAtUtc: timestamp
   }));
@@ -972,6 +978,7 @@ function createSeedState(): DemoState {
           cardTypeId: cardType.id,
           cardTypeName: cardType.name,
           cardTypeEmoji: cardType.emoji,
+          fields: demoFieldDefaults(cardType.fields),
           slickId: slick?.id ?? null,
           slickName: slick?.name ?? null,
           slick: slick ? { ...slick } : null,

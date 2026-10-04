@@ -21,12 +21,17 @@ export const useCardStore = defineStore('card', () => {
   const cardsById = ref<CardMap>({});
   const cardIdsByColumnId = ref<CardIdsByColumnMap>({});
   const busy = ref(false);
+  const saveError = ref<AppError | null>(null);
   const activeBoardId = ref(0);
   const feedback = useUiFeedbackStore();
   const slickStore = useSlickStore();
   const attachmentStore = useAttachmentStore();
   const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
   const api = createBoardApi();
+
+  function SET_SAVE_ERROR(error: AppError | null) {
+    saveError.value = error;
+  }
 
   function SET_BOARD_CARDS(boardId: number, columns: BoardColumn[]) {
     const nextCardsById: CardMap = {};
@@ -41,6 +46,7 @@ export const useCardStore = defineStore('card', () => {
     }
 
     if (activeBoardId.value !== boardId) {
+      clearSaveError();
       busy.value = false;
     }
     activeBoardId.value = boardId;
@@ -167,7 +173,12 @@ export const useCardStore = defineStore('card', () => {
     SET_BOARD_CARDS(boardId, columns);
   }
 
+  function clearSaveError() {
+    SET_SAVE_ERROR(null);
+  }
+
   function dispose() {
+    clearSaveError();
     activeBoardId.value = 0;
     cardsById.value = {};
     cardIdsByColumnId.value = {};
@@ -209,9 +220,13 @@ export const useCardStore = defineStore('card', () => {
     return upsertCard(boardId, result.data) ? result : null;
   }
 
-  async function saveCard(cardId: number, model: CardEditModel) {
+  async function saveCard(cardId: number, model: CardEditModel, options?: { inlineErrors?: boolean }) {
     const boardId = activeBoardId.value;
-    const result = await runBusy(() => api.saveCard(boardId, cardId, model), { boardId });
+    clearSaveError();
+    const result = await runBusy(() => api.saveCard(boardId, cardId, model), {
+      boardId,
+      suppressError: options?.inlineErrors ? error => { SET_SAVE_ERROR(error); return true; } : undefined
+    });
     if (!result.ok) {
       return false;
     }
@@ -503,6 +518,8 @@ export const useCardStore = defineStore('card', () => {
     cardsById,
     cardIdsByColumnId,
     busy,
+    saveError,
+    clearSaveError,
     activeBoardId,
     replaceBoardCards,
     dispose,
@@ -533,6 +550,7 @@ function hasValidationErrors(error: AppError) {
 function cloneCard(card: Card): Card {
   return {
     ...card,
+    fields: { ...card.fields },
     tags: card.tags.map(tag => ({ ...tag })),
     tagNames: [...card.tagNames]
   };

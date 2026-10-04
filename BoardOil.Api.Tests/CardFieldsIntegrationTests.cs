@@ -74,6 +74,21 @@ public sealed class CardFieldsIntegrationTests : BoardApiIntegrationTestBase, IC
     }
 
     [Theory]
+    [InlineData("2147483648")]
+    [InlineData("1.5")]
+    public async Task Update_WithInvalidNumericShape_ShouldReturnFieldSpecificValidation(string value)
+    {
+        var card = await CreateCardAsync();
+        var body = $$$"""{"title":"Do not save","description":"","tagNames":[],"cardTypeId":{{{card.CardTypeId}}},"fields":{"Points":{{{value}}},"Note":null,"Due":null}}""";
+
+        var response = await Client.PutAsync($"/api/boards/1/cards/{card.Id}", new StringContent(body, Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Whole number required", json.RootElement.GetProperty("validationErrors").GetProperty("fields.Points")[0].GetString());
+    }
+
+    [Theory]
     [InlineData("null")]
     [InlineData("[]")]
     [InlineData("{\"Points\":1,\"Points\":2,\"Note\":null,\"Due\":null}")]

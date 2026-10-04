@@ -2,6 +2,7 @@ import type { Card, CardEditModel } from '../../shared/types/boardTypes';
 
 export function createCardEditModel(card: Card): CardEditModel {
   return {
+    fields: { ...card.fields },
     title: card.title,
     description: card.description,
     externalUrl: card.externalUrl,
@@ -16,6 +17,7 @@ export function createCardEditModel(card: Card): CardEditModel {
 export function cloneCardEditModel(model: CardEditModel): CardEditModel {
   return {
     ...model,
+    ...(model.fields === undefined ? {} : { fields: { ...model.fields } }),
     tagNames: [...model.tagNames]
   };
 }
@@ -35,6 +37,12 @@ export function areCardEditModelsEqual(left: CardEditModel, right: CardEditModel
     return false;
   }
 
+  if (left.fields === undefined || right.fields === undefined) {
+    if (left.fields !== right.fields) return false;
+  } else if (Object.keys(left.fields).length !== Object.keys(right.fields).length
+    || Object.entries(left.fields).some(([code, value]) => right.fields![code] !== value)) {
+    return false;
+  }
   return areStringArraysEqual(left.tagNames, right.tagNames);
 }
 

@@ -44,6 +44,13 @@
         <span class="card-id">#{{ card.id }}</span>
       </div>
 
+      <dl v-if="displayFields.length" class="card-custom-fields" aria-label="Custom Fields">
+        <div v-for="field in displayFields" :key="field.fieldCode">
+          <dt><span v-if="field.emoji" class="bo-emoji" aria-hidden="true">{{ field.emoji }} </span>{{ field.displayName }}</dt>
+          <dd>{{ field.value }}</dd>
+        </div>
+      </dl>
+
       <p v-if="card.assignedUserDisplayName" class="card-assigned-to">
         <UserAvatar
           :image-url="assignedUserImageUrl"
@@ -120,6 +127,7 @@ import { getCardSurfaceClassList, getCardSurfaceStyle } from '../../shared/utils
 import { buildApiUrl } from '../../shared/api/config';
 import { useAttachmentThumbnail } from '../composables/useAttachmentThumbnail';
 import Tag from './Tag.vue';
+import { visibleCardFields } from '../utils/cardFieldValues';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 
 const props = withDefaults(defineProps<{
@@ -162,6 +170,7 @@ const checklistCountsStyle = computed(() => ({
   '--card-checklist-halo-filter': `url(#${checklistHaloId})`
 }));
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId));
+const displayFields = computed(() => visibleCardFields(resolvedCardType.value?.fields ?? [], props.card.fields));
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
 const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
 const cardStyleClasses = computed(() => getCardSurfaceClassList(resolvedCardType.value));
@@ -249,6 +258,12 @@ function handlePrimaryAction() {
 </script>
 
 <style scoped>
+.card-custom-fields { display: grid; gap: 0.2rem; margin: 0.4rem 0 0; font-size: 0.8rem; }
+.card-custom-fields > div { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; }
+.card-custom-fields dt { flex-shrink: 0; max-width: 45%; opacity: 0.8; overflow-wrap: anywhere; }
+.card-custom-fields .bo-emoji { margin-right: 0.25rem; }
+.card-custom-fields dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
 .card {
   --card-thumbnail-width: min(100px, 38%);
   border: 1px solid var(--bo-card-surface-border-color, var(--bo-border-soft));

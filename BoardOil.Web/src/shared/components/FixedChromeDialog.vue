@@ -4,10 +4,11 @@
     class="fixed-chrome-dialog"
     :class="[`fixed-chrome-dialog--${size}`, `fixed-chrome-dialog--body-${bodyMode}`]"
     :aria-labelledby="titleId"
-    @cancel.self.prevent="emit('close')"
+    :aria-busy="busy"
+    @cancel.self.prevent="requestClose"
     @click="onDialogClick"
   >
-    <form v-if="open" class="editor fixed-chrome-dialog__surface" @submit.prevent="emit('submit')">
+    <form v-if="open" ref="formRef" class="editor fixed-chrome-dialog__surface" :inert="busy" @submit.prevent="emit('submit')">
       <header class="fixed-chrome-dialog__header">
         <div class="fixed-chrome-dialog__header-actions">
           <slot name="headerActions" />
@@ -17,7 +18,7 @@
           class="btn btn--secondary btn--icon fixed-chrome-dialog__close"
           :aria-label="closeLabel"
           :title="closeLabel"
-          @click="emit('close')"
+          @click="requestClose"
         >
           <X :size="18" aria-hidden="true" />
         </button>
@@ -34,12 +35,16 @@
         <slot name="actions" />
       </footer>
     </form>
+    <div v-if="open && busy" class="fixed-chrome-dialog__busy">
+      <LoadingIndicator label="Saving…" />
+    </div>
   </dialog>
 </template>
 
 <script setup lang="ts">
 import { X } from '@lucide/vue';
 import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
+import LoadingIndicator from './LoadingIndicator.vue';
 
 const props = withDefaults(defineProps<{
   open: boolean;
@@ -47,6 +52,7 @@ const props = withDefaults(defineProps<{
   size?: 'md' | 'fill';
   closeLabel?: string;
   bodyMode?: 'scroll' | 'managed';
+  busy?: boolean;
 }>(), {
   size: 'md',
   closeLabel: 'Cancel',
@@ -59,13 +65,32 @@ const emit = defineEmits<{
 }>();
 
 const dialogRef = ref<HTMLDialogElement | null>(null);
+const formRef = ref<HTMLFormElement | null>(null);
 const titleId = `fixed-chrome-dialog-title-${useId()}`;
+
+defineExpose({ reportValidity: () => formRef.value?.reportValidity() ?? false });
+
+function requestClose() {
+  if (!props.busy) emit('close');
+}
 
 function onDialogClick(event: MouseEvent) {
   if (event.target === dialogRef.value) {
-    emit('close');
+    requestClose();
   }
 }
+
+let focusedBeforeSave: HTMLElement | null = null;
+watch(() => props.busy, async busy => {
+  if (busy) {
+    focusedBeforeSave = document.activeElement instanceof HTMLElement && formRef.value?.contains(document.activeElement)
+      ? document.activeElement : null;
+    return;
+  }
+  await nextTick();
+  if (props.open && focusedBeforeSave?.isConnected) focusedBeforeSave.focus();
+  focusedBeforeSave = null;
+});
 
 async function syncDialogState() {
   await nextTick();
@@ -127,6 +152,31 @@ onBeforeUnmount(() => {
 
 .fixed-chrome-dialog--md {
   width: min(34rem, calc(100vw - 2rem));
+}
+
+.fixed-chrome-dialog__busy {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  background: var(--bo-overlay-backdrop);
+  animation: save-indicator-appear 150ms ease-out 250ms both;
+}
+
+@keyframes save-indicator-appear {
+  from { opacity: 0; visibility: hidden; }
+  to { opacity: 1; visibility: visible; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fixed-chrome-dialog__busy { animation-duration: 0ms; }
+}
+
+.fixed-chrome-dialog__busy :deep(.loading-indicator) {
+  border-radius: 14px;
+  background: var(--bo-surface-base);
 }
 
 .fixed-chrome-dialog--fill {

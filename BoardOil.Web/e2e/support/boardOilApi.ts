@@ -28,6 +28,7 @@ type SmokeCardType = {
 };
 
 export type SmokeCard = {
+  fields: Record<string, string | number | null>;
   id: number;
   boardColumnId: number;
   cardTypeId: number;
@@ -249,6 +250,13 @@ export class BoardOilApi {
 
   public async getCardTypes(boardId: number) {
     return await this.read<CardType[]>(`/api/boards/${boardId}/card-types`);
+  }
+
+  public async getCard(boardId: number, cardId: number) {
+    const board = await this.read<{ columns: Array<{ cards: SmokeCard[] }> }>(`/api/boards/${boardId}`);
+    const card = board.columns.flatMap(column => column.cards).find(card => card.id === cardId);
+    if (!card) throw new Error(`Card ${cardId} was not found on board ${boardId}.`);
+    return card;
   }
 
   public async configureDefaultFields(boardId: number, fields: CardFieldDefinition[]) {

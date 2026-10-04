@@ -116,7 +116,7 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task TypeChange_ShouldConvertOrUseSuppliedValuesAndAppendLosses(bool supplyValues)
+    public async Task TypeChange_ShouldApplyOriginalFieldEditsBeforeConversionAndAppendEditedLosses(bool supplyValues)
     {
         var card = await ArrangeCardAsync();
         var target = new EntityCardType
@@ -130,7 +130,7 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
         IReadOnlyDictionary<string, JsonElement>? fields = null;
         if (supplyValues)
         {
-            fields = CardFieldJsonCodec.DeserialiseValues("{\"Estimate\":\"User override\"}");
+            fields = CardFieldJsonCodec.DeserialiseValues("{\"Ref\":\"Edited reference\",\"Points\":7,\"Due\":null}");
         }
         var request = new UpdateCardRequest(card.Title, "Edited description", [], target.Id, Fields: fields);
 
@@ -139,21 +139,24 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
         Assert.True(result.Success);
         var stored = await DbContextForAssert.Cards.SingleAsync();
         Assert.Equal(target.Id, stored.CardTypeId);
-        Assert.Equal(supplyValues ? "User override" : "5", result.Data!.Fields["Estimate"].GetString());
+        Assert.Equal(supplyValues ? "7" : "5", result.Data!.Fields["Estimate"].GetString());
         Assert.Single(result.Data.Fields);
-        Assert.Equal("Edited description\n\nFields removed during card type change:\n\n- Reference: Existing", stored.Description);
+        Assert.Equal("Edited description\n\nFields removed during card type change:\n\n- Reference: "
+            + (supplyValues ? "Edited reference" : "Existing"), stored.Description);
         Assert.Empty(await DbContextForAssert.CardComments.ToListAsync());
     }
 
-    [Fact]
-    public async Task TypeChange_WhenSuppliedFieldsInvalid_ShouldNotSaveConversionOrHistory()
+    [Theory]
+    [InlineData("{\"Ref\":null,\"Points\":11,\"Due\":null}")]
+    [InlineData("{}")]
+    public async Task TypeChange_WhenSuppliedFieldsInvalid_ShouldNotSaveConversionOrHistory(string json)
     {
         var card = await ArrangeCardAsync();
         var target = new EntityCardType { BoardId = card.BoardId, Name = "Empty", StyleName = "auto", StylePropertiesJson = "{}" };
         DbContextForArrange.CardTypes.Add(target);
         await DbContextForArrange.SaveChangesAsync();
         var request = new UpdateCardRequest(card.Title, card.Description, [], target.Id,
-            Fields: CardFieldJsonCodec.DeserialiseValues(card.FieldValuesJson));
+            Fields: CardFieldJsonCodec.DeserialiseValues(json));
 
         var result = await ResolveService<CardService>().UpdateCardAsync(card.BoardId, card.BoardCardId, request, ActorUserId);
 

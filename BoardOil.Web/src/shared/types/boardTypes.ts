@@ -1,4 +1,4 @@
-import type { CardFieldDefinition, CardFieldDefinitionInput } from './cardFieldTypes';
+import type { CardFieldDefinition, CardFieldDefinitionInput, CardFieldValues } from './cardFieldTypes';
 
 export type TagStyleName = 'solid' | 'gradient' | 'auto' | 'presets';
 export type SlickStyleName = 'solid' | 'presets';
@@ -32,6 +32,7 @@ export type CardComment = {
 };
 
 export type Card = {
+  fields: CardFieldValues;
   id: number;
   boardColumnId: number;
   cardTypeId: number;
@@ -56,6 +57,7 @@ export type Card = {
 };
 
 export type CardEditModel = {
+  fields?: CardFieldValues;
   title: string;
   description: string;
   externalUrl: string | null;

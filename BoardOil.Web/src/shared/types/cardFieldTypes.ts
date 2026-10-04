@@ -19,3 +19,5 @@ export type CardFieldDefinitionInput = CardFieldDefinitionBase & (
   | { type: 'integer'; defaultValue: number | string | null; min: number | string | null; max: number | string | null }
   | { type: 'date'; defaultValue: string | null }
 );
+
+export type CardFieldValues = Record<string, string | number | null>;

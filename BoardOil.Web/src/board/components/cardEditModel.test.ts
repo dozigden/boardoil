@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Card } from '../../shared/types/boardTypes';
-import { createCardEditModel } from './cardEditModel';
+import { areCardEditModelsEqual, cloneCardEditModel, createCardEditModel } from './cardEditModel';
 
 describe('card edit model', () => {
   it('copies every editable card field without retaining the tag-name array', () => {
@@ -10,6 +10,7 @@ describe('card edit model', () => {
       boardColumnId: 4,
       cardTypeId: 3,
       cardTypeName: 'Story',
+      fields: { Points: 0, Note: 'Draft', Due: null },
       cardTypeEmoji: '📙',
       assignedUserId: 9,
       assignedUserDisplayName: 'User',
@@ -30,6 +31,7 @@ describe('card edit model', () => {
     const model = createCardEditModel(card);
 
     expect(model).toEqual({
+      fields: card.fields,
       boardColumnId: 4,
       cardTypeId: 3,
       assignedUserId: 9,
@@ -40,5 +42,12 @@ describe('card edit model', () => {
       tagNames: ['Feature', 'UI']
     });
     expect(model.tagNames).not.toBe(card.tagNames);
+    expect(model.fields).not.toBe(card.fields);
+    const copy = cloneCardEditModel(model);
+    expect(copy.fields).not.toBe(model.fields);
+    expect(areCardEditModelsEqual(model, copy)).toBe(true);
+    copy.fields!.Points = '1e-400';
+    expect(areCardEditModelsEqual(model, copy)).toBe(false);
+    expect(model.fields!.Points).toBe(0);
   });
 });

@@ -1113,6 +1113,7 @@ function makeBoard(id = 1, name = 'Board'): Board {
             boardColumnId: 1,
             cardTypeId: 1,
             cardTypeName: 'Story',
+            fields: {},
             cardTypeEmoji: null,
             title: 'Task A',
             description: 'Seed',

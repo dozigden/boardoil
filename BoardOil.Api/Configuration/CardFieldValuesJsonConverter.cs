@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BoardOil.Services.CardField;
+using BoardOil.Contracts.Common;
 
 namespace BoardOil.Api.Configuration;
 
@@ -13,6 +14,21 @@ public sealed class CardFieldValuesJsonConverter : JsonConverter<IReadOnlyDictio
         ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using var document = JsonDocument.ParseValue(ref reader);
+        if (document.RootElement.ValueKind == JsonValueKind.Object)
+        {
+            var errors = new List<ValidationError>();
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (property.Value.ValueKind == JsonValueKind.Number && !property.Value.TryGetInt32(out _))
+                {
+                    errors.Add(new($"fields.{property.Name}", "Whole number required"));
+                }
+            }
+            if (errors.Count > 0)
+            {
+                throw new CardFieldValidationException(errors);
+            }
+        }
         return CardFieldJsonCodec.DeserialiseValues(document.RootElement.GetRawText());
     }
 

@@ -1,0 +1,146 @@
+import { authenticatePage, expect, getBaseUrl, test } from '../fixtures/boardOilTest';
+import { CardEditorPage } from '../ui/CardEditorPage';
+import { BoardPage } from '../ui/BoardPage';
+import type { CardFieldDefinition } from '../../src/shared/types/cardFieldTypes';
+
+const definitions: CardFieldDefinition[] = [
+  { type: 'text', fieldCode: 'Reference', displayName: 'Reference', emoji: null, nullable: true, showOnCard: false, defaultValue: 'Ready', minLength: null, maxLength: 250 },
+  { type: 'integer', fieldCode: 'Points', displayName: 'Estimate', emoji: '🎯', nullable: true, showOnCard: true, defaultValue: 0, min: 0, max: 10 },
+  { type: 'date', fieldCode: 'Due', displayName: 'Due date', emoji: null, nullable: true, showOnCard: true, defaultValue: '2026-10-04' }
+];
+
+test('card fields save, reload and render on board cards, with inline backend errors', async ({ api, authenticatedPage: page }, testInfo) => {
+  const board = await api.createBoard('Card values');
+  await api.configureDefaultFields(board.id, definitions);
+  const card = await api.createCard(board, 'Todo', 'Field values');
+  const editor = new CardEditorPage(page);
+  const boardPage = new BoardPage(page);
+  await boardPage.open(board.id);
+  await expect(boardPage.card('Todo', card.title).getByText('0', { exact: true })).toBeVisible();
+  await expect(boardPage.card('Todo', card.title).getByText('Ready', { exact: true })).toHaveCount(0);
+  await editor.open(board.id, card.id);
+  await expect(editor.field('Estimate')).toHaveValue('0');
+  await expect(editor.field('Due date')).toHaveValue('2026-10-04');
+  await editor.field('Reference').fill('Draft reference');
+  await editor.field('Estimate').fill('1e-400');
+  await editor.submit();
+  await expect(editor.field('Estimate')).toHaveAccessibleDescription('Whole number required');
+  await expect(editor.field('Estimate')).toHaveValue('1e-400');
+  await expect(editor.field('Reference')).toHaveValue('Draft reference');
+  await page.screenshot({ path: testInfo.outputPath('card-fields-validation.png') });
+  await editor.field('Estimate').fill('7');
+  await editor.field('Due date').fill('2026-12-25');
+  await editor.saveCard();
+  expect((await api.getCard(board.id, card.id)).fields).toEqual({ Reference: 'Draft reference', Points: 7, Due: '2026-12-25' });
+  await expect(boardPage.card('Todo', card.title).getByText('7', { exact: true })).toBeVisible();
+  await editor.open(board.id, card.id);
+  await expect(editor.field('Reference')).toHaveValue('Draft reference');
+  await expect(editor.field('Due date')).toHaveValue('2026-12-25');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await editor.field('Due date').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('card-fields-mobile.png') });
+  await editor.field('Reference').fill('');
+  await editor.field('Estimate').fill('');
+  await editor.field('Due date').fill('');
+  await editor.saveCard();
+  expect((await api.getCard(board.id, card.id)).fields).toEqual({ Reference: null, Points: null, Due: null });
+});
+
+test('type changes apply original field edits before converting on save', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Convert edited fields');
+  const source = await api.configureDefaultFields(board.id, definitions);
+  const target = await api.createCardType(board.id, 'Delivery', [
+    { type: 'text', fieldCode: 'Effort', displayName: 'Estimate', emoji: null, nullable: true, showOnCard: true, defaultValue: null, minLength: null, maxLength: 250 }
+  ]);
+  const card = await api.createCard(board, 'Todo', 'Convert this card');
+  const editor = new CardEditorPage(page);
+  await editor.open(board.id, card.id);
+  await editor.field('Reference').fill('Edited loss');
+  await editor.field('Estimate').fill('7');
+  await editor.selectType(target.name);
+  await expect(editor.field('Reference')).toHaveValue('Edited loss');
+  await editor.selectType(source.name);
+  await editor.selectType(target.name);
+  await expect(editor.field('Estimate')).toHaveValue('7');
+  let releaseSave!: () => void;
+  const saveGate = new Promise<void>(resolve => { releaseSave = resolve; });
+  await page.route(`**/api/boards/${board.id}/cards/${card.id}`, async route => {
+    await saveGate;
+    await route.continue();
+  }, { times: 1 });
+  try {
+    await editor.field('Estimate').press('Control+s');
+    await expect(page.getByRole('status').filter({ hasText: 'Saving…' })).toBeVisible();
+    await expect(page.getByRole('dialog').locator('form')).toHaveAttribute('inert', '');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.keyboard.type('Must not change the draft');
+  } finally {
+    releaseSave();
+  }
+  await expect(page.getByRole('dialog')).toHaveAttribute('aria-busy', 'false');
+  await expect(editor.field('Reference')).toHaveCount(0);
+  await expect(editor.field('Estimate')).toHaveValue('7');
+  const saved = await api.getCard(board.id, card.id);
+  expect(saved.cardTypeId).toBe(target.id);
+  expect(saved.fields).toEqual({ Effort: '7' });
+  expect(saved.description).toContain('Reference: Edited loss');
+  await expect(editor.descriptionEditor()).toContainText('Reference: Edited loss');
+  await editor.field('Estimate').fill('After conversion');
+  await editor.saveCard();
+  expect((await api.getCard(board.id, card.id)).fields).toEqual({ Effort: 'After conversion' });
+  expect((await api.getCard(board.id, card.id)).description).toBe(saved.description);
+});
+
+test('keyboard save rejects an incomplete date without clearing the saved value', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Incomplete date');
+  await api.configureDefaultFields(board.id, definitions);
+  const card = await api.createCard(board, 'Todo', 'Keep the date');
+  const editor = new CardEditorPage(page);
+  await editor.open(board.id, card.id);
+  const date = editor.field('Due date');
+  await date.focus();
+  await date.press('ArrowRight');
+  await date.press('Backspace');
+  expect(await date.evaluate((input: HTMLInputElement) => input.validity.badInput)).toBe(true);
+  await date.evaluate(input => input.addEventListener('invalid', () => input.setAttribute('data-invalid-reported', 'true')));
+  await date.press('Control+s');
+  await expect(date).toHaveAttribute('data-invalid-reported', 'true');
+  expect((await api.getCard(board.id, card.id)).fields.Due).toBe('2026-10-04');
+  await expect(date).toBeFocused();
+  await date.fill('2026-12-25');
+  await date.press('Control+s');
+  await expect(page.getByRole('status').filter({ hasText: 'Saved successfully.' })).toBeVisible();
+  expect((await api.getCard(board.id, card.id)).fields.Due).toBe('2026-12-25');
+});
+
+test('realtime updates preserve the open field draft and stale definitions fail on save', async ({ api, browser, authenticatedPage: page }) => {
+  const board = await api.createBoard('Realtime field drafts');
+  await api.configureDefaultFields(board.id, definitions);
+  const card = await api.createCard(board, 'Todo', 'Shared fields');
+  const context = await browser.newContext({ baseURL: getBaseUrl() });
+  try {
+    const remote = await context.newPage();
+    await authenticatePage(remote);
+    const observer = new BoardPage(page);
+    await observer.open(board.id);
+    const remoteEditor = new CardEditorPage(remote);
+    await remoteEditor.open(board.id, card.id);
+    await remoteEditor.field('Estimate').fill('5');
+    await remoteEditor.saveCard();
+    await expect(observer.card('Todo', card.title).getByText('5', { exact: true })).toBeVisible();
+    const editor = new CardEditorPage(page);
+    await editor.open(board.id, card.id);
+    await editor.field('Reference').fill('Local draft');
+    await api.configureDefaultFields(board.id, [...definitions,
+      { type: 'text', fieldCode: 'Added', displayName: 'Added later', emoji: null, nullable: true, showOnCard: true, defaultValue: null, minLength: null, maxLength: 250 }
+    ]);
+    await editor.submit();
+    await expect(page.getByRole('alert')).toContainText('Field must be supplied');
+    await expect(editor.field('Reference')).toHaveValue('Local draft');
+    await expect(editor.field('Estimate')).toHaveValue('5');
+    expect((await api.getCard(board.id, card.id)).fields.Reference).toBe('Ready');
+  } finally {
+    await context.close();
+  }
+});

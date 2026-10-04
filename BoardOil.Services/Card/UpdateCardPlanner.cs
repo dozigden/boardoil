@@ -15,29 +15,30 @@ public sealed class UpdateCardPlanner
             return new(new(card.FieldValuesJson, []), []);
         }
 
-        var definitions = CardFieldJsonCodec.DeserialiseDefinitions(target.FieldDefinitionsJson);
+        var source = CardFieldJsonCodec.DeserialiseDefinitions(card.CardType.FieldDefinitionsJson);
         var values = CardFieldJsonCodec.DeserialiseValues(card.FieldValuesJson);
+        if (request.Fields is not null)
+        {
+            // Submitted values describe the original type, even when this save changes the type.
+            var validation = CardFieldRules.NormaliseValues(source, request.Fields);
+            if (!validation.IsValid)
+            {
+                return new(null, validation.Errors);
+            }
+            values = validation.Value!;
+        }
+
         IReadOnlyList<LostCardFieldValue> losses = [];
         if (card.CardTypeId != target.Id)
         {
-            var conversion = CardFieldConverter.ConvertBetweenTypes(
-                CardFieldJsonCodec.DeserialiseDefinitions(card.CardType.FieldDefinitionsJson), values, definitions);
+            var destination = CardFieldJsonCodec.DeserialiseDefinitions(target.FieldDefinitionsJson);
+            var conversion = CardFieldConverter.ConvertBetweenTypes(source, values, destination);
             if (!conversion.IsValid)
             {
                 return new(null, conversion.Errors);
             }
             values = conversion.Value!.Values;
             losses = conversion.Value.LostValues;
-        }
-
-        if (request.Fields is not null)
-        {
-            var validation = CardFieldRules.NormaliseValues(definitions, request.Fields);
-            if (!validation.IsValid)
-            {
-                return new(null, validation.Errors);
-            }
-            values = validation.Value!;
         }
 
         return new(new(CardFieldJsonCodec.SerialiseValues(values), losses), []);

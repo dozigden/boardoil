@@ -21,7 +21,7 @@ public sealed class ApiExceptionLoggingMiddleware(
         {
             throw;
         }
-        catch (CardFieldDefinitionValidationException exception) when (IsApiRequest(context))
+        catch (CardFieldValidationException exception) when (IsApiRequest(context))
         {
             if (context.Response.HasStarted)
             {

@@ -3,6 +3,24 @@ import { expect, type Locator, type Page } from '@playwright/test';
 export class CardEditorPage {
   public constructor(private readonly page: Page) {}
 
+  public async open(boardId: number, cardId: number) {
+    await this.page.goto(`/boards/${boardId}/card/${cardId}`);
+    await expect(this.descriptionEditor()).toBeVisible();
+  }
+
+  public field(name: string) {
+    return this.dialog().getByRole('region', { name: 'Custom Fields', exact: true }).getByLabel(name, { exact: true });
+  }
+
+  public async selectType(name: string) {
+    await this.dialog().getByTitle('Select card type', { exact: true }).click();
+    await this.dialog().getByRole('menu', { name: 'Select card type', exact: true }).getByRole('button', { name, exact: true }).click();
+  }
+
+  public async submit() {
+    await this.dialog().getByRole('button', { name: 'Save card', exact: true }).click();
+  }
+
   public descriptionEditor() {
     return this.dialog().getByLabel('Card description', { exact: true });
   }

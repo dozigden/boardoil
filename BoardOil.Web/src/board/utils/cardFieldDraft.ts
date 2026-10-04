@@ -61,14 +61,6 @@ export function resetFieldTypeOptions(field: CardFieldDraft) {
 
 // Only encode exact decimal integers as numbers; preserve other input for API validation.
 export function buildCardFieldDefinitions(drafts: CardFieldDraft[]) {
-  function numberInput(value: string): number | string | null {
-    const text = value.trim();
-    if (!text) return null;
-    if (!/^[+-]?\d+$/.test(text)) return text;
-    const number = Number(text);
-    return Number.isSafeInteger(number) ? number : text;
-  }
-
   const fields: CardFieldDefinitionInput[] = drafts.map(draft => {
     const common = {
       fieldCode: draft.fieldCode.trim(),
@@ -79,11 +71,11 @@ export function buildCardFieldDefinitions(drafts: CardFieldDraft[]) {
     };
     switch (draft.type) {
       case 'integer':
-        return { ...common, type: 'integer', defaultValue: numberInput(draft.defaultValue),
-          min: numberInput(draft.minimum), max: numberInput(draft.maximum) };
+        return { ...common, type: 'integer', defaultValue: cardFieldNumberInput(draft.defaultValue),
+          min: cardFieldNumberInput(draft.minimum), max: cardFieldNumberInput(draft.maximum) };
       case 'text':
         return { ...common, type: 'text', defaultValue: draft.defaultValue.trim() || null,
-          minLength: numberInput(draft.minimum), maxLength: numberInput(draft.maximum) };
+          minLength: cardFieldNumberInput(draft.minimum), maxLength: cardFieldNumberInput(draft.maximum) };
       case 'date':
         return { ...common, type: 'date', defaultValue: draft.defaultValue || null };
     }
@@ -149,4 +141,13 @@ export function describeFieldError(path: string, drafts: CardFieldDraft[]) {
 
 export function isInlineFieldError(path: string) {
   return /^fields\[\d+\]\.(fieldCode|displayName|type|emoji|defaultValue|minLength|maxLength|min|max)$/.test(path);
+}
+
+// Preserve input that cannot be represented as an exact integer for backend validation.
+export function cardFieldNumberInput(value: string): number | string | null {
+  const text = value.trim();
+  if (!text) return null;
+  if (!/^[+-]?\d+$/.test(text)) return text;
+  const number = Number(text);
+  return Number.isSafeInteger(number) ? number : text;
 }
