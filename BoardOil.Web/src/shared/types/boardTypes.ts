@@ -1,3 +1,5 @@
+import type { CardFieldDefinition, CardFieldDefinitionInput } from './cardFieldTypes';
+
 export type TagStyleName = 'solid' | 'gradient' | 'auto' | 'presets';
 export type SlickStyleName = 'solid' | 'presets';
 export type BoardMemberRole = 'Owner' | 'Contributor' | string;
@@ -92,6 +94,7 @@ export type CardTransferResult = {
 };
 
 export type CardTypeEditModel = {
+  fields?: CardFieldDefinitionInput[];
   name: string;
   emoji: string | null;
   styleName: TagStyleName;
@@ -169,6 +172,7 @@ export type Slick = {
 };
 
 export type CardType = {
+  fields: CardFieldDefinition[];
   id: number;
   name: string;
   styleName: TagStyleName;

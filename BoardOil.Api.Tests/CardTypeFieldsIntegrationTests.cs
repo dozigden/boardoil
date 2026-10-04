@@ -113,5 +113,27 @@ public sealed class CardTypeFieldsIntegrationTests : BoardApiIntegrationTestBase
         });
     }
 
+    [Theory]
+    [InlineData("integer", "defaultValue", "\"abc\"", "Whole number required")]
+    [InlineData("integer", "defaultValue", "1.5", "Whole number required")]
+    [InlineData("integer", "min", "2147483648", "2147483647 maximum")]
+    [InlineData("text", "maxLength", "\"abc\"", "Whole number required")]
+    [InlineData("date", "defaultValue", "\"2026-02-30\"", "Date in YYYY-MM-DD format required")]
+    public async Task DefinitionWrites_WithInvalidScalars_ShouldReturnPropertyValidation(
+        string type, string property, string value, string message)
+    {
+        var body = $$"""
+            {"name":"Invalid scalar","fields":[{"type":"{{type}}","fieldCode":"F","displayName":"Field","nullable":true,"{{property}}":{{value}}}]}
+            """;
+
+        var response = await Client.PostAsync("/api/boards/1/card-types", Json(body));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var errors = payload.RootElement.GetProperty("validationErrors");
+        Assert.Equal(message, errors.GetProperty($"fields[0].{property}")[0].GetString());
+        await UseDbContextAsync(async db => Assert.False(await db.CardTypes.AnyAsync(item => item.Name == "Invalid scalar")));
+    }
+
     private static StringContent Json(string json) => new(json, Encoding.UTF8, "application/json");
 }

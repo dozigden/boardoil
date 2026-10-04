@@ -79,7 +79,7 @@ public sealed class CardTypeService(
             var existing = await cardTypeRepository.GetByNormalisedNameAsync(boardId, nameValidation.NormalisedName);
             if (existing is not null)
             {
-                validationErrors.Add(new ValidationError("name", $"Card type '{nameValidation.CanonicalName}' already exists."));
+                validationErrors.Add(new ValidationError("name", "Name already used"));
             }
         }
 
@@ -163,7 +163,7 @@ public sealed class CardTypeService(
             var byName = await cardTypeRepository.GetByNormalisedNameAsync(boardId, nameValidation.NormalisedName);
             if (byName is not null && byName.Id != existing.Id)
             {
-                validationErrors.Add(new ValidationError("name", $"Card type '{nameValidation.CanonicalName}' already exists."));
+                validationErrors.Add(new ValidationError("name", "Name already used"));
             }
         }
 
@@ -310,7 +310,7 @@ public sealed class CardTypeService(
     {
         if (string.IsNullOrWhiteSpace(rawName))
         {
-            return new CardTypeNameValidationResult(string.Empty, string.Empty, new ValidationError(propertyName, "Card type name is required."));
+            return new CardTypeNameValidationResult(string.Empty, string.Empty, new ValidationError(propertyName, "Required"));
         }
 
         var canonicalName = rawName.Trim();
@@ -319,7 +319,7 @@ public sealed class CardTypeService(
             return new CardTypeNameValidationResult(
                 string.Empty,
                 string.Empty,
-                new ValidationError(propertyName, $"Card type '{canonicalName}' must be {MaxCardTypeNameLength} characters or fewer."));
+                new ValidationError(propertyName, $"{MaxCardTypeNameLength} characters maximum"));
         }
 
         return new CardTypeNameValidationResult(canonicalName, NormaliseName(canonicalName), null);

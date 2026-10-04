@@ -1,5 +1,8 @@
 <template>
   <FixedChromeDialog
+    class="card-type-dialog"
+    :class="{ 'card-type-dialog--fields': showCustomFields }"
+    :body-mode="showCustomFields ? 'managed' : 'scroll'"
     :open="isCreateMode || editingCardType !== null"
     :title="dialogTitle"
     :close-label="isCreateMode ? 'Cancel creating' : 'Cancel editing'"
@@ -7,140 +10,163 @@
     @submit="saveCardType"
   >
     <template v-if="draftName !== null && draftStyle !== null">
-      <div class="card-types-dialog-preview">
-        <span class="badge">Preview</span>
-        <article class="card-type-preview-card" :class="previewCardStyleClasses" :style="previewCardStyle">
-          <div class="card-header">
-            <strong class="card-title">{{ previewTitle }}</strong>
-            <span class="card-id">#123</span>
-          </div>
-        </article>
+      <div v-if="hasSummaryError" ref="errorSummary" class="error card-type-errors" role="alert" tabindex="-1">
+        <p v-if="Object.keys(summaryErrors).length === 0"><CircleAlert :size="14" aria-hidden="true" /><span>{{ editorError?.message }}</span></p>
+        <p v-for="(messages, path) in summaryErrors" :key="path"><CircleAlert :size="14" aria-hidden="true" /><span>{{ messages.join(' ') }}</span></p>
       </div>
-
-      <label>
-        Name
-        <input
-          :value="draftName"
-          maxlength="40"
-          :placeholder="isCreateMode ? 'New card type name' : 'Card type name'"
-          :disabled="busy"
-          autocomplete="off"
-          data-lpignore="true"
-          @input="draftName = ($event.target as HTMLInputElement).value"
-        />
-      </label>
-
-      <label>
-        Emoji
-        <div class="card-types-emoji-picker-wrap">
-          <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" :teleport="false" placeholder="Select emoji" />
-        </div>
-      </label>
-
-      <label>
-        Style
-        <select :value="draftStyle.styleName" :disabled="busy" @change="setStyleName(parseStyleNameInput(($event.target as HTMLSelectElement).value))">
-          <option value="auto">Auto</option>
-          <option value="presets">Presets</option>
-          <option value="solid">Solid</option>
-          <option value="gradient">Gradient</option>
-        </select>
-      </label>
-
-      <template v-if="draftStyle.styleName === 'presets'">
-        <label>
-          Preset
-          <div class="card-types-preset-picker" role="radiogroup" aria-label="Card type preset colour">
-            <button
-              v-for="preset in presetColours"
-              :key="preset.cssVar"
-              type="button"
-              class="card-types-preset-swatch"
-              :class="{ 'card-types-preset-swatch--selected': draftStyle.presetIndex === preset.index }"
-              :style="{ backgroundColor: preset.cssValue }"
-              :disabled="busy"
-              :aria-pressed="draftStyle.presetIndex === preset.index"
-              :aria-label="`Preset ${preset.index + 1}`"
-              @click="setDraftStyleField('presetIndex', preset.index)"
-            />
+      <div class="card-type-columns">
+        <section class="card-type-appearance" aria-labelledby="card-type-appearance-heading">
+          <div class="card-type-appearance-header">
+            <h4 id="card-type-appearance-heading" class="card-type-section-heading">Appearance</h4>
+            <button v-if="!showCustomFields" type="button" class="btn btn--secondary card-type-fields-toggle" :disabled="busy" @click="openCustomFields">
+              Custom Fields &gt;
+            </button>
           </div>
-        </label>
-      </template>
+          <div class="card-type-name-control">
+            <label>
+              Name
+              <input
+                v-model="draftName"
+                ref="nameInput"
+                :aria-invalid="Boolean(validationErrors.name)"
+                :aria-describedby="validationErrors.name ? 'card-type-name-error' : undefined"
+                maxlength="40"
+                :placeholder="isCreateMode ? 'New card type name' : 'Card type name'"
+                :disabled="busy"
+                autocomplete="off"
+                data-lpignore="true"
+              />
+            </label>
+            <small v-if="validationErrors.name" id="card-type-name-error" class="error card-type-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ validationErrors.name.join(' ') }}</span></small>
+          </div>
+          <div class="card-types-dialog-preview">
+            <span class="badge">Preview</span>
+            <article class="card-type-preview-card" :class="previewCardStyleClasses" :style="previewCardStyle">
+              <div class="card-header">
+                <strong class="card-title">{{ previewTitle }}</strong>
+                <span class="card-id">#123</span>
+              </div>
+            </article>
+          </div>
 
-      <template v-else-if="draftStyle.styleName === 'solid'">
-        <label>
-          Background Color
-          <input
-            type="color"
-            class="card-types-colour-input"
-            :value="draftStyle.backgroundColor"
-            :disabled="busy"
-            @input="setDraftStyleField('backgroundColor', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-      </template>
+          <label>
+            Emoji
+            <div class="card-types-emoji-picker-wrap">
+              <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" :teleport="false" placeholder="Select emoji" />
+            </div>
+          </label>
 
-      <template v-else-if="draftStyle.styleName === 'gradient'">
-        <label>
-          Left Color
-          <input
-            type="color"
-            class="card-types-colour-input"
-            :value="draftStyle.leftColor"
-            :disabled="busy"
-            @input="setDraftStyleField('leftColor', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-        <label>
-          Right Color
-          <input
-            type="color"
-            class="card-types-colour-input"
-            :value="draftStyle.rightColor"
-            :disabled="busy"
-            @input="setDraftStyleField('rightColor', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-      </template>
+          <label>
+            Style
+            <select :value="draftStyle.styleName" :disabled="busy" @change="onStyleNameChange">
+              <option value="auto">Auto</option>
+              <option value="presets">Presets</option>
+              <option value="solid">Solid</option>
+              <option value="gradient">Gradient</option>
+            </select>
+          </label>
 
-      <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
-        Text Color Mode
-        <select :value="draftStyle.textColorMode" :disabled="busy" @change="setTextMode(($event.target as HTMLSelectElement).value)">
-          <option value="auto">Auto Contrast</option>
-          <option value="custom">Custom</option>
-        </select>
-      </label>
+          <template v-if="draftStyle.styleName === 'presets'">
+            <label>
+              Preset
+              <div class="card-types-preset-picker" role="radiogroup" aria-label="Card type preset colour">
+                <button
+                  v-for="preset in presetColours"
+                  :key="preset.cssVar"
+                  type="button"
+                  class="card-types-preset-swatch"
+                  :class="{ 'card-types-preset-swatch--selected': draftStyle.presetIndex === preset.index }"
+                  :style="{ backgroundColor: preset.cssValue }"
+                  :disabled="busy"
+                  :aria-pressed="draftStyle.presetIndex === preset.index"
+                  :aria-label="`Preset ${preset.index + 1}`"
+                  @click="setDraftStyleField('presetIndex', preset.index)"
+                />
+              </div>
+            </label>
+          </template>
 
-      <label v-if="(draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient') && draftStyle.textColorMode === 'custom'">
-        Text Color
-        <input
-          type="color"
-          class="card-types-colour-input"
-          :value="draftStyle.textColor"
-          :disabled="busy"
-          @input="setDraftStyleField('textColor', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
+          <template v-else-if="draftStyle.styleName === 'solid'">
+            <label>
+              Background Color
+              <input
+                type="color"
+                class="card-types-colour-input"
+                :value="draftStyle.backgroundColor"
+                :disabled="busy"
+                @input="onBackgroundColorInput"
+              />
+            </label>
+          </template>
 
-      <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
-        Border
-        <select :value="draftStyle.borderMode" :disabled="busy" @change="setBorderMode(($event.target as HTMLSelectElement).value)">
-          <option value="auto">Auto</option>
-          <option value="custom">Custom</option>
-          <option value="none">None</option>
-        </select>
-      </label>
+          <template v-else-if="draftStyle.styleName === 'gradient'">
+            <label>
+              Left Color
+              <input
+                type="color"
+                class="card-types-colour-input"
+                :value="draftStyle.leftColor"
+                :disabled="busy"
+                @input="onLeftColorInput"
+              />
+            </label>
+            <label>
+              Right Color
+              <input
+                type="color"
+                class="card-types-colour-input"
+                :value="draftStyle.rightColor"
+                :disabled="busy"
+                @input="onRightColorInput"
+              />
+            </label>
+          </template>
 
-      <label v-if="(draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient') && draftStyle.borderMode === 'custom'">
-        Border Color
-        <input
-          type="color"
-          class="card-types-colour-input"
-          :value="draftStyle.borderColor"
-          :disabled="busy"
-          @input="setDraftStyleField('borderColor', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
+          <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
+            Text Color Mode
+            <select :value="draftStyle.textColorMode" :disabled="busy" @change="onTextModeChange">
+              <option value="auto">Auto Contrast</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+
+          <label v-if="(draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient') && draftStyle.textColorMode === 'custom'">
+            Text Color
+            <input
+              type="color"
+              class="card-types-colour-input"
+              :value="draftStyle.textColor"
+              :disabled="busy"
+              @input="onTextColorInput"
+            />
+          </label>
+
+          <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
+            Border
+            <select :value="draftStyle.borderMode" :disabled="busy" @change="onBorderModeChange">
+              <option value="auto">Auto</option>
+              <option value="custom">Custom</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+
+          <label v-if="(draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient') && draftStyle.borderMode === 'custom'">
+            Border Color
+            <input
+              type="color"
+              class="card-types-colour-input"
+              :value="draftStyle.borderColor"
+              :disabled="busy"
+              @input="onBorderColorInput"
+            />
+          </label>
+        </section>
+        <Transition name="custom-fields-pane" @after-enter="focusCustomFields">
+          <div v-if="showCustomFields" class="card-type-fields">
+            <CardTypeFieldsEditor ref="fieldsEditor" v-model="draftFields" :busy="busy" :errors="validationErrors" :original-fields="editingCardType?.fields ?? []" />
+          </div>
+        </Transition>
+      </div>
     </template>
 
     <template #actions>
@@ -180,14 +206,17 @@
 </template>
 
 <script setup lang="ts">
-import { Check, Trash2, X } from '@lucide/vue';
+import { Check, CircleAlert, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardTypeEditModel } from '../../shared/types/boardTypes';
+import CardTypeFieldsEditor from './CardTypeFieldsEditor.vue';
+import type { AppError } from '../../shared/types/appError';
+import { buildCardFieldDefinitions, createCardFieldDraft, fieldErrorIndex, isInlineFieldError, retainCardFieldErrors, type CardFieldDraft } from '../utils/cardFieldDraft';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import {
@@ -212,6 +241,17 @@ const { createCardType, updateCardType, deleteCardType, getCardTypeById } = card
 
 const draftName = ref<string | null>(null);
 const draftEmoji = ref<string | null>(null);
+const draftFields = ref<CardFieldDraft[]>([]);
+const customFieldsOpened = ref(false);
+const fieldsEditor = ref<InstanceType<typeof CardTypeFieldsEditor> | null>(null);
+const editorError = ref<AppError | null>(null);
+const errorSummary = ref<HTMLElement | null>(null);
+const nameInput = ref<HTMLInputElement | null>(null);
+const validationErrors = computed(() => editorError.value?.validationErrors ?? {});
+const summaryErrors = computed(() => Object.fromEntries(Object.entries(validationErrors.value)
+  .filter(([path]) => path !== 'name' && !path.startsWith('fields') && !path.startsWith('cards['))));
+const hasSummaryError = computed(() => editorError.value !== null
+  && (Object.keys(validationErrors.value).length === 0 || Object.keys(summaryErrors.value).length > 0));
 const {
   draft: draftStyle,
   stylePropertiesJson,
@@ -232,6 +272,7 @@ const routeCardTypeId = computed<number | null>(() => {
   return Number.isFinite(parsed) ? parsed : null;
 });
 const editingCardType = computed(() => getCardTypeById(routeCardTypeId.value));
+const showCustomFields = computed(() => customFieldsOpened.value || draftFields.value.length > 0 || (editingCardType.value?.fields.length ?? 0) > 0);
 const dialogTitle = computed(() => {
   if (isCreateMode.value) {
     return 'Add Card Type';
@@ -280,17 +321,18 @@ watch(
   [boardId, routeCardTypeId, isCreateMode, editingCardType],
   async ([nextBoardId, nextCardTypeId, nextIsCreate, nextCardType]) => {
     if (nextIsCreate) {
-      if (draftSourceKey.value === 'create') {
+      if (draftSourceKey.value === `create:${nextBoardId}`) {
         return;
       }
 
+      clearDraft();
       draftName.value = '';
       draftEmoji.value = null;
       setDraftStyle(createCardTypeStyleDraft({
         styleName: DEFAULT_CARD_TYPE_STYLE_NAME,
         stylePropertiesJson: DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON
       }));
-      draftSourceKey.value = 'create';
+      draftSourceKey.value = `create:${nextBoardId}`;
       return;
     }
 
@@ -300,11 +342,13 @@ watch(
       return;
     }
 
-    const sourceKey = `edit:${nextCardTypeId}`;
+    const sourceKey = `edit:${nextBoardId}:${nextCardTypeId}`;
     if (draftSourceKey.value === sourceKey) {
       return;
     }
 
+    clearDraft();
+    draftFields.value = nextCardType.fields.map(createCardFieldDraft);
     draftName.value = nextCardType.name;
     draftEmoji.value = nextCardType.emoji;
     setDraftStyle(createCardTypeStyleDraft(nextCardType));
@@ -329,7 +373,10 @@ async function saveCardType() {
     return;
   }
 
+  const fields = buildCardFieldDefinitions(draftFields.value);
+
   const saveModel: CardTypeEditModel = {
+    fields,
     name: canonicalName,
     emoji: draftEmoji.value,
     styleName: draftStyle.value.styleName,
@@ -339,6 +386,7 @@ async function saveCardType() {
   if (isCreateMode.value) {
     const created = await createCardType(saveModel, targetBoardId);
     if (!created) {
+      await showSaveError(cardTypeStore.saveError);
       return;
     }
 
@@ -352,6 +400,7 @@ async function saveCardType() {
 
   const updated = await updateCardType(editingCardType.value.id, saveModel, targetBoardId);
   if (!updated) {
+    await showSaveError(cardTypeStore.saveError);
     return;
   }
 
@@ -377,13 +426,68 @@ async function deleteEditingCardType() {
 
   const deleted = await deleteCardType(cardType.id, targetBoardId);
   if (!deleted) {
+    await showSaveError(cardTypeStore.saveError);
     return;
   }
 
   await closeDialog();
 }
 
+watch(() => ({
+  name: draftName.value,
+  emoji: draftEmoji.value,
+  styleName: draftStyle.value?.styleName,
+  stylePropertiesJson: stylePropertiesJson.value,
+  fields: draftFields.value.map(field => ({ ...field }))
+}), (current, previous) => {
+  const error = editorError.value;
+  if (!error) return;
+  const errors = retainCardFieldErrors(error.validationErrors ?? {}, previous.fields, current.fields);
+  for (const property of ['name', 'emoji', 'styleName', 'stylePropertiesJson'] as const) {
+    if (current[property] !== previous[property]) delete errors[property];
+  }
+  editorError.value = Object.keys(errors).length ? { ...error, validationErrors: errors } : null;
+});
+
+async function showSaveError(error: AppError | null) {
+  editorError.value = error;
+  await nextTick();
+  if (validationErrors.value.name) {
+    nameInput.value?.focus();
+    return;
+  }
+  const fieldPath = Object.keys(validationErrors.value).find(isInlineFieldError);
+  if (fieldPath) {
+    const index = fieldErrorIndex(fieldPath, draftFields.value);
+    if (index !== null) await fieldsEditor.value?.revealField(index);
+    return;
+  }
+  if (hasSummaryError.value) errorSummary.value?.focus();
+  else fieldsEditor.value?.focusSummary();
+}
+
+function onStyleNameChange(event: Event) { setStyleName(parseStyleNameInput((event.target as HTMLSelectElement).value)); }
+function onTextModeChange(event: Event) { setTextMode((event.target as HTMLSelectElement).value); }
+function onBorderModeChange(event: Event) { setBorderMode((event.target as HTMLSelectElement).value); }
+function onBackgroundColorInput(event: Event) { setDraftStyleField('backgroundColor', (event.target as HTMLInputElement).value); }
+function onLeftColorInput(event: Event) { setDraftStyleField('leftColor', (event.target as HTMLInputElement).value); }
+function onRightColorInput(event: Event) { setDraftStyleField('rightColor', (event.target as HTMLInputElement).value); }
+function onTextColorInput(event: Event) { setDraftStyleField('textColor', (event.target as HTMLInputElement).value); }
+function onBorderColorInput(event: Event) { setDraftStyleField('borderColor', (event.target as HTMLInputElement).value); }
+
+function openCustomFields() {
+  customFieldsOpened.value = true;
+}
+
+function focusCustomFields() {
+  fieldsEditor.value?.focusAddButton();
+}
+
 function clearDraft() {
+  customFieldsOpened.value = false;
+  draftFields.value = [];
+  editorError.value = null;
+  cardTypeStore.clearSaveError();
   draftName.value = null;
   draftEmoji.value = null;
   clearDraftStyle();
@@ -392,6 +496,166 @@ function clearDraft() {
 </script>
 
 <style scoped>
+.card-type-dialog {
+  width: min(34rem, calc(100vw - 2rem));
+  transition: width 220ms ease;
+}
+
+.card-type-dialog--fields {
+  width: min(64rem, calc(100vw - 2rem));
+}
+
+.card-type-dialog--fields :deep(.fixed-chrome-dialog__surface) {
+  height: min(48rem, calc(100dvh - 2rem));
+}
+
+.card-type-dialog--fields :deep(.fixed-chrome-dialog__body) {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-type-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
+  min-height: 0;
+  gap: 0;
+  transition: grid-template-columns 220ms ease, gap 220ms ease;
+}
+
+.card-type-dialog--fields .card-type-columns {
+  flex: 1;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+}
+
+.card-type-section-heading {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.card-type-appearance {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px;
+}
+
+.card-type-dialog--fields .card-type-appearance {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.card-type-appearance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.card-type-appearance-header .card-type-section-heading {
+  margin: 0;
+}
+
+.card-type-fields-toggle {
+  margin-left: auto;
+}
+
+.card-type-fields {
+  min-width: 0;
+  min-height: 0;
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--bo-border-soft);
+}
+
+.custom-fields-pane-enter-active,
+.custom-fields-pane-leave-active {
+  overflow: hidden;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.custom-fields-pane-enter-from,
+.custom-fields-pane-leave-to {
+  opacity: 0;
+  transform: translateX(0.75rem);
+}
+
+@media (max-width: 800px) {
+  .card-type-columns {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 0fr);
+    transition: grid-template-rows 220ms ease, gap 220ms ease;
+  }
+
+  .custom-fields-pane-enter-from,
+  .custom-fields-pane-leave-to {
+    transform: translateY(0.75rem);
+  }
+
+  .card-type-dialog--fields .card-type-columns {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 1rem;
+  }
+
+  .card-type-fields {
+    padding: 1rem 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--bo-border-soft);
+  }
+}
+
+@media (max-width: 720px) {
+  .card-type-dialog {
+    width: 100vw;
+  }
+
+  .card-type-dialog--fields :deep(.fixed-chrome-dialog__surface) {
+    height: 100%;
+  }
+}
+
+.card-type-name-control {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.card-type-name-control .card-type-inline-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  margin: 0;
+  color: var(--bo-colour-danger-ink);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.card-type-errors {
+  flex-shrink: 0;
+  max-height: 20dvh;
+  overflow-y: auto;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.card-type-inline-error > svg, .card-type-errors p > svg {
+  flex-shrink: 0;
+  margin-top: 0.1em;
+}
+
+.card-type-errors p {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  margin: 0 0 0.3rem;
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--bo-colour-danger);
+}
+
 .card-types-dialog-preview {
   display: flex;
   align-items: center;
@@ -400,7 +664,8 @@ function clearDraft() {
 }
 
 .card-type-preview-card {
-  min-width: 15rem;
+  flex: 1;
+  min-width: 0;
   border: 1px solid var(--bo-card-surface-border-color, var(--bo-border-soft));
   border-radius: 12px;
   padding: 0.6rem;
@@ -460,5 +725,13 @@ function clearDraft() {
 .card-types-preset-swatch--selected {
   outline: 2px solid var(--bo-focus-ring);
   outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-type-dialog,
+  .card-type-columns,
+  .custom-fields-pane-enter-active,
+  .custom-fields-pane-leave-active {
+    transition: none;
+  }
 }
 </style>

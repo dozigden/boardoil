@@ -20,7 +20,7 @@ public static class CardFieldRules
         var errors = new List<ValidationError>();
         if (definitions.Count > MaximumFieldCount)
         {
-            errors.Add(new("fields", $"A card type can have at most {MaximumFieldCount} fields."));
+            errors.Add(new("fields", $"{MaximumFieldCount} fields maximum"));
         }
 
         var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -32,33 +32,49 @@ public static class CardFieldRules
             var path = $"fields[{index}]";
             if (definition is null)
             {
-                errors.Add(new(path, "Field definition is required."));
+                errors.Add(new(path, "Required"));
                 continue;
             }
 
             var code = definition.FieldCode?.Trim() ?? string.Empty;
             var name = definition.DisplayName?.Trim() ?? string.Empty;
-            if (code.Length is 0 or > MaximumNameLength || !code.All(char.IsAsciiLetterOrDigit))
+            if (code.Length == 0)
             {
-                errors.Add(new($"{path}.fieldCode", $"Field code must contain 1–{MaximumNameLength} letters or digits; underscores are reserved for system fields."));
+                errors.Add(new($"{path}.fieldCode", "Required"));
             }
-            if (!codes.Add(code))
+            else if (code.Length > MaximumNameLength)
             {
-                errors.Add(new($"{path}.fieldCode", "Field codes must be unique, ignoring case."));
+                errors.Add(new($"{path}.fieldCode", $"{MaximumNameLength} characters maximum"));
             }
-            if (name.Length is 0 or > MaximumNameLength || HasLineBreak(name))
+            else if (!code.All(char.IsAsciiLetterOrDigit))
             {
-                errors.Add(new($"{path}.displayName", $"Display name must contain 1–{MaximumNameLength} characters on a single line."));
+                errors.Add(new($"{path}.fieldCode", "Characters A-Z, a-z, 0-9 only"));
             }
-            if (!names.Add(name))
+            else if (!codes.Add(code))
             {
-                errors.Add(new($"{path}.displayName", "Display names must be unique, ignoring case."));
+                errors.Add(new($"{path}.fieldCode", "Code already used"));
+            }
+            if (name.Length == 0)
+            {
+                errors.Add(new($"{path}.displayName", "Required"));
+            }
+            else if (name.Length > MaximumNameLength)
+            {
+                errors.Add(new($"{path}.displayName", $"{MaximumNameLength} characters maximum"));
+            }
+            else if (HasLineBreak(name))
+            {
+                errors.Add(new($"{path}.displayName", "Single line only"));
+            }
+            else if (!names.Add(name))
+            {
+                errors.Add(new($"{path}.displayName", "Name already used"));
             }
 
             var emoji = TagEmojiValidator.ValidateAndNormalise(definition.Emoji, $"{path}.emoji");
             if (emoji.Error is not null)
             {
-                errors.Add(emoji.Error);
+                errors.Add(new(emoji.Error.Property, "Single emoji only"));
             }
 
             var field = definition with { FieldCode = code, DisplayName = name, Emoji = emoji.CanonicalEmoji };
@@ -67,28 +83,28 @@ public static class CardFieldRules
                 case TextFieldDefinition text:
                     if (text.MinLength is < 0 or > MaximumTextLength)
                     {
-                        errors.Add(new($"{path}.minLength", $"Minimum length must be between 0 and {MaximumTextLength}."));
+                        errors.Add(new($"{path}.minLength", $"0–{MaximumTextLength} only"));
                     }
                     if (text.MaxLength is < 0 or > MaximumTextLength)
                     {
-                        errors.Add(new($"{path}.maxLength", $"Maximum length must be between 0 and {MaximumTextLength}."));
+                        errors.Add(new($"{path}.maxLength", $"0–{MaximumTextLength} only"));
                     }
                     if (text.MinLength > text.MaxLength)
                     {
-                        errors.Add(new($"{path}.maxLength", "Maximum length cannot be less than minimum length."));
+                        errors.Add(new($"{path}.maxLength", "Must be at least the minimum"));
                     }
                     field = text with { DefaultValue = NormaliseText(text.DefaultValue) };
                     break;
                 case IntegerFieldDefinition integer:
                     if (integer.Min > integer.Max)
                     {
-                        errors.Add(new($"{path}.max", "Maximum cannot be less than minimum."));
+                        errors.Add(new($"{path}.max", "Must be at least the minimum"));
                     }
                     break;
                 case DateFieldDefinition:
                     break;
                 default:
-                    errors.Add(new($"{path}.type", "Field type is not supported."));
+                    errors.Add(new($"{path}.type", "Unsupported type"));
                     continue;
             }
 
@@ -187,7 +203,7 @@ public static class CardFieldRules
             {
                 return (NullValue, null);
             }
-            return (default, new(path, "A non-null value is required."));
+            return (default, new(path, "Required"));
         }
 
         switch (definition)
@@ -195,37 +211,45 @@ public static class CardFieldRules
             case TextFieldDefinition text:
                 if (value.ValueKind != JsonValueKind.String)
                 {
-                    return (default, new(path, "Value must be text."));
+                    return (default, new(path, "Text only"));
                 }
                 var content = value.GetString()!;
                 if (HasLineBreak(content))
                 {
-                    return (default, new(path, "Text must be a single line."));
+                    return (default, new(path, "Single line only"));
                 }
-                if (content.Length < (text.MinLength ?? 0) || content.Length > (text.MaxLength ?? MaximumTextLength))
+                if (content.Length < (text.MinLength ?? 0))
                 {
-                    return (default, new(path, $"Text length must be between {text.MinLength ?? 0} and {text.MaxLength ?? MaximumTextLength}."));
+                    return (default, new(path, $"{text.MinLength} characters minimum"));
+                }
+                if (content.Length > (text.MaxLength ?? MaximumTextLength))
+                {
+                    return (default, new(path, $"{text.MaxLength ?? MaximumTextLength} characters maximum"));
                 }
                 return (value, null);
             case IntegerFieldDefinition integer:
                 if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var number))
                 {
-                    return (default, new(path, "Value must be a 32-bit integer."));
+                    return (default, new(path, "Whole number required"));
                 }
-                if (number < integer.Min || number > integer.Max)
+                if (number < integer.Min)
                 {
-                    return (default, new(path, $"Integer must be between {integer.Min ?? int.MinValue} and {integer.Max ?? int.MaxValue}."));
+                    return (default, new(path, $"{integer.Min} minimum"));
+                }
+                if (number > integer.Max)
+                {
+                    return (default, new(path, $"{integer.Max} maximum"));
                 }
                 return (JsonSerializer.SerializeToElement(number), null);
             case DateFieldDefinition:
                 if (value.ValueKind != JsonValueKind.String
                     || !DateOnly.TryParseExact(value.GetString(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
                 {
-                    return (default, new(path, "Value must be a calendar date in YYYY-MM-DD format."));
+                    return (default, new(path, "Date in YYYY-MM-DD format required"));
                 }
                 return (JsonSerializer.SerializeToElement(date), null);
             default:
-                return (default, new(path, "Field type is not supported."));
+                return (default, new(path, "Unsupported type"));
         }
     }
 

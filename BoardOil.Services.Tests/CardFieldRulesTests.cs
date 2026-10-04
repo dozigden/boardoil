@@ -11,6 +11,31 @@ public sealed class CardFieldRulesTests
     private static IntegerFieldDefinition Integer => new() { FieldCode = "F", DisplayName = "Field", Nullable = true };
     private static DateFieldDefinition Date => new() { FieldCode = "F", DisplayName = "Field", Nullable = true };
 
+    public static TheoryData<CardFieldDefinition, string, string> DefinitionMessages => new()
+    {
+        { Text with { FieldCode = "" }, "fieldCode", "Required" },
+        { Text with { FieldCode = new string('a', 41) }, "fieldCode", "40 characters maximum" },
+        { Text with { FieldCode = "my_field" }, "fieldCode", "Characters A-Z, a-z, 0-9 only" },
+        { Text with { DisplayName = " " }, "displayName", "Required" },
+        { Text with { DisplayName = new string('a', 41) }, "displayName", "40 characters maximum" },
+        { Text with { DisplayName = "Two\nlines" }, "displayName", "Single line only" },
+        { Text with { Nullable = false }, "defaultValue", "Required" },
+        { Text with { DefaultValue = "a", MinLength = 2 }, "defaultValue", "2 characters minimum" },
+        { Text with { DefaultValue = "abc", MaxLength = 2 }, "defaultValue", "2 characters maximum" },
+        { Integer with { DefaultValue = 0, Min = 1 }, "defaultValue", "1 minimum" },
+        { Integer with { DefaultValue = 2, Max = 1 }, "defaultValue", "1 maximum" }
+    };
+
+    [Theory]
+    [MemberData(nameof(DefinitionMessages))]
+    public void Definitions_ShouldReturnConcisePropertyMessages(CardFieldDefinition field, string property, string message)
+    {
+        var result = CardFieldRules.NormaliseDefinitions([field]);
+
+        var error = Assert.Single(result.Errors, item => item.Property == $"fields[0].{property}");
+        Assert.Equal(message, error.Message);
+    }
+
     [Fact]
     public void Definitions_ShouldNormaliseWithoutChangingOriginals()
     {

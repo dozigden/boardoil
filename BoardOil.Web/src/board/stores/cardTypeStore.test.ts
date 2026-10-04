@@ -85,6 +85,47 @@ describe('cardTypeStore', () => {
     expect(feedback.errorMessage).toBe('Could not load card types.');
   });
 
+  it('retains save validation details across catalogue refreshes and clears them on retry', async () => {
+    const store = useCardTypeStore();
+    await store.loadCardTypes(1);
+    const error: AppError = { kind: 'api', message: 'Invalid fields', validationErrors: { 'fields[0].defaultValue': ['A default is required.'] } };
+    api.updateCardType.mockResolvedValueOnce(err(error));
+    const model = { name: 'Story', emoji: null, styleName: 'auto' as const, stylePropertiesJson: '{}' };
+    expect(await store.updateCardType(10, model, 1)).toBeNull();
+    await store.loadCardTypes(1);
+    expect(store.saveError).toEqual(error);
+    await store.updateCardType(10, model, 1);
+    expect(store.saveError).toBeNull();
+  });
+
+  it.each(['create', 'update', 'delete'] as const)('keeps %s errors in the dialog without publishing a page banner', async operation => {
+    const store = useCardTypeStore();
+    const feedback = useUiFeedbackStore();
+    await store.loadCardTypes(1);
+    const error: AppError = { kind: 'api', message: 'Validation failed.', validationErrors: { name: ['Name already used'] } };
+    const model = { name: 'Story', emoji: null, styleName: 'auto' as const, stylePropertiesJson: '{}' };
+    api[`${operation}CardType`].mockResolvedValueOnce(err(error));
+
+    if (operation === 'create') await store.createCardType(model, 1);
+    if (operation === 'update') await store.updateCardType(10, model, 1);
+    if (operation === 'delete') await store.deleteCardType(10, 1);
+
+    expect(store.saveError).toEqual(error);
+    expect(feedback.errorMessage).toBe('');
+  });
+
+  it('still publishes page errors when setting the default card type fails', async () => {
+    const store = useCardTypeStore();
+    const feedback = useUiFeedbackStore();
+    await store.loadCardTypes(1);
+    api.setDefaultCardType.mockResolvedValueOnce(err({ kind: 'api', message: 'Could not set default.' }));
+
+    expect(await store.setDefaultCardType(10, 1)).toBe(false);
+
+    expect(feedback.errorMessage).toBe('Could not set default.');
+    expect(store.saveError).toBeNull();
+  });
+
   describe.each(['create', 'update', 'delete', 'default'] as const)('%s completion', operation => {
     it.each(['board change', 'disposal'] as const)('preserves current feedback and busy state after %s', async transition => {
       const store = useCardTypeStore();
@@ -137,6 +178,7 @@ describe('cardTypeStore', () => {
       expect(feedback.errorMessage).toBe('Current feedback');
       expect(store.busy).toBe(transition === 'board change');
       expect(store.cardTypes).toEqual([]);
+      expect(store.saveError).toBeNull();
       expect(api.getCardTypes).toHaveBeenCalledTimes(loadCount);
 
       current.resolve(ok(makeCardType(20, 'Current type')));
@@ -152,6 +194,7 @@ function makeCardType(id: number, name: string) {
     styleName: 'auto' as const,
     stylePropertiesJson: '{}',
     emoji: null,
+    fields: [],
     isSystem: false,
     createdAtUtc: '2026-05-16T00:00:00Z',
     updatedAtUtc: '2026-05-16T00:00:00Z'

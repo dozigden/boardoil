@@ -914,6 +914,7 @@ function createSeedState(): DemoState {
     ...cardType,
     id: index + 1,
     styleName: cardType.styleName as CardType['styleName'],
+    fields: [],
     createdAtUtc: timestamp,
     updatedAtUtc: timestamp
   }));

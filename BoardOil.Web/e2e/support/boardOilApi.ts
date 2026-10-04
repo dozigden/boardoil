@@ -1,3 +1,5 @@
+import type { CardType } from '../../src/shared/types/boardTypes';
+import type { CardFieldDefinition } from '../../src/shared/types/cardFieldTypes';
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 
 type ApiEnvelope<T> = {
@@ -235,12 +237,26 @@ export class BoardOilApi {
     });
   }
 
-  public async createCardType(boardId: number, name: string) {
-    return await this.post<SmokeCardType>(`/api/boards/${boardId}/card-types`, {
+  public async createCardType(boardId: number, name: string, fields: CardFieldDefinition[] = []) {
+    return await this.post<CardType>(`/api/boards/${boardId}/card-types`, {
+      fields,
       name,
       emoji: null,
       styleName: 'auto',
       stylePropertiesJson: '{}'
+    });
+  }
+
+  public async getCardTypes(boardId: number) {
+    return await this.read<CardType[]>(`/api/boards/${boardId}/card-types`);
+  }
+
+  public async configureDefaultFields(boardId: number, fields: CardFieldDefinition[]) {
+    const types = await this.getCardTypes(boardId);
+    const cardType = types.find(type => type.isSystem)!;
+    return await this.put<CardType>(`/api/boards/${boardId}/card-types/${cardType.id}`, {
+      name: cardType.name, emoji: cardType.emoji, styleName: cardType.styleName,
+      stylePropertiesJson: cardType.stylePropertiesJson, fields
     });
   }
 

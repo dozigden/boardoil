@@ -1084,7 +1084,7 @@ function makeCatalogues() {
     updatedAtUtc: '2026-03-15T00:00:00Z'
   };
   return {
-    cardTypes: [{ ...definition, emoji: null, isSystem: false }],
+    cardTypes: [{ ...definition, emoji: null, isSystem: false, fields: [] }],
     tags: [{ ...definition, emoji: null }],
     slicks: [definition]
   };

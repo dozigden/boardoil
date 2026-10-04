@@ -9,6 +9,7 @@ import type { Result } from '../../shared/types/result';
 export const useCardTypeStore = defineStore('cardType', () => {
   const cardTypes = ref<CardType[]>([]);
   const busy = ref(false);
+  const saveError = ref<AppError | null>(null);
   const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const api = createBoardApi();
@@ -47,7 +48,16 @@ export const useCardTypeStore = defineStore('cardType', () => {
     cardTypes.value = cardTypes.value.filter(x => x.id !== cardTypeId);
   }
 
+  function SET_SAVE_ERROR(error: AppError | null) {
+    saveError.value = error;
+  }
+
+  function clearSaveError() {
+    SET_SAVE_ERROR(null);
+  }
+
   function dispose() {
+    clearSaveError();
     cardTypes.value = [];
     busy.value = false;
     activeBoardId.value = null;
@@ -55,6 +65,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
 
   async function loadCardTypes(boardId: number) {
     if (activeBoardId.value !== boardId) {
+      clearSaveError();
       cardTypes.value = [];
     }
 
@@ -112,7 +123,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
   }
 
   async function setDefaultCardType(cardTypeId: number, boardId: number) {
-    const result = await runBusy(boardId, () => api.setDefaultCardType(boardId, cardTypeId));
+    const result = await runBusy(boardId, () => api.setDefaultCardType(boardId, cardTypeId), 'page');
     if (!result.ok) {
       return false;
     }
@@ -133,9 +144,11 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return cardTypes.value.find(x => x.id === cardTypeId) ?? null;
   }
 
-  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>, errorTarget: 'dialog' | 'page' = 'dialog') {
     if (activeBoardId.value === boardId) {
       busy.value = true;
+      clearSaveError();
+      feedback.clearError('cardType');
     }
     try {
       const result = await operation();
@@ -144,7 +157,11 @@ export const useCardTypeStore = defineStore('cardType', () => {
       }
 
       if (!result.ok) {
-        reportError(result.error);
+        if (errorTarget === 'dialog') {
+          SET_SAVE_ERROR(result.error);
+        } else {
+          reportError(result.error);
+        }
       } else {
         feedback.clearError('cardType');
       }
@@ -164,6 +181,8 @@ export const useCardTypeStore = defineStore('cardType', () => {
   return {
     cardTypes,
     busy,
+    saveError,
+    clearSaveError,
     activeBoardId,
     systemCardType,
     dispose,
