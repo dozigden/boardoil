@@ -64,7 +64,7 @@ public sealed class CardCommentEditedAtMigrationIntegrationTests
         Assert.Equal(createdAtUtc, comment.CreatedAtUtc);
         Assert.Equal(postedAtUtc, comment.PostedAtUtc);
         Assert.Null(comment.EditedAtUtc);
-        var card = await assertDb.Cards.SingleAsync();
+        var card = await assertDb.Cards.Select(item => new { item.CardCreatedUtc, item.CardUpdatedUtc }).SingleAsync();
         Assert.Equal(createdAtUtc, card.CardCreatedUtc);
         Assert.Equal(postedAtUtc, card.CardUpdatedUtc);
     }

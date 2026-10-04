@@ -14,6 +14,7 @@ public sealed class CardTypeConfiguration : IEntityTypeConfiguration<EntityCardT
         cardType.Property(x => x.Emoji).HasMaxLength(32).IsRequired(false);
         cardType.Property(x => x.StyleName).HasMaxLength(64).IsRequired();
         cardType.Property(x => x.StylePropertiesJson).IsRequired();
+        cardType.Property(x => x.FieldDefinitionsJson).HasDefaultValue("[]").IsRequired();
         cardType.Property(x => x.IsSystem).IsRequired();
         cardType.ToTable("CardTypes");
         cardType.HasIndex(x => x.BoardId);

@@ -13,6 +13,7 @@ using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Services.Style;
+using BoardOil.Services.CardField;
 
 namespace BoardOil.Services.Card;
 
@@ -86,6 +87,12 @@ public sealed class CreateCardService(
         }
         var selectedCardType = cardTypeSelection.SelectedCardType!;
 
+        var fields = CardFieldRules.CreateValues(CardFieldJsonCodec.DeserialiseDefinitions(selectedCardType.FieldDefinitionsJson));
+        if (!fields.IsValid)
+        {
+            return ApiErrors.ValidationFailed(fields.Errors);
+        }
+
         var cards = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
         var draft = planner.BuildDraft(request, targetColumn, selectedCardType);
         var tags = await CardTagMutation.ResolveTagsAsync(
@@ -106,6 +113,7 @@ public sealed class CreateCardService(
             Slick = selectedSlick,
             Title = draft.Title,
             Description = draft.Description,
+            FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fields.Value!),
             ExternalUrl = draft.ExternalUrl,
             SortKey = string.Empty,
             CardCreatedUtc = createdAtUtc,

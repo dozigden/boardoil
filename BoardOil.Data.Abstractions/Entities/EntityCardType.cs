@@ -8,6 +8,7 @@ public sealed class EntityCardType : ISupportCreatedAt, ISupportUpdatedAt
     public string? Emoji { get; set; }
     public string StyleName { get; set; } = string.Empty;
     public string StylePropertiesJson { get; set; } = string.Empty;
+    public string FieldDefinitionsJson { get; set; } = "[]";
     public bool IsSystem { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; internal set; }

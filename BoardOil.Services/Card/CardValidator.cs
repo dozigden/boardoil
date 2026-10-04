@@ -11,7 +11,7 @@ public sealed class CardValidator(
     ICardRepository cardRepository,
     IBoardMemberRepository boardMemberRepository) : ICardValidator
 {
-    private const int MaxDescriptionLength = 20_000;
+    internal const int MaxDescriptionLength = 20_000;
     private const int MaxTagNameLength = 40;
     private static readonly Regex EphemeralImageSourcePattern = new(
         @"!\[(?:\\.|[^\]\\])*\]\(\s*<?\s*(?:data|blob):",

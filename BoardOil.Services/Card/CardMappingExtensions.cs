@@ -1,6 +1,7 @@
 using BoardOil.Contracts.Card;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Slick;
+using BoardOil.Services.CardField;
 using System.Text.Json;
 
 namespace BoardOil.Services.Card;
@@ -37,7 +38,10 @@ public static class CardMappingExtensions
             card.ExternalUrl,
             card.Slick?.ToSlickDto(),
             card.CompletedChecklistItemCount,
-            card.TotalChecklistItemCount);
+            card.TotalChecklistItemCount)
+        {
+            Fields = CardFieldJsonCodec.DeserialiseValues(card.FieldValuesJson)
+        };
 
     public static CardDto WithAssignedUserImageRelativePath(this CardDto card, string? assignedUserImageRelativePath) =>
         card with

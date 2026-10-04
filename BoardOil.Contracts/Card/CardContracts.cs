@@ -1,4 +1,6 @@
 using BoardOil.Contracts.Slick;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace BoardOil.Contracts.Card;
 
@@ -40,7 +42,10 @@ public sealed record CardDto(
     string? ExternalUrl = null,
     SlickDto? Slick = null,
     int CompletedChecklistItemCount = 0,
-    int TotalChecklistItemCount = 0);
+    int TotalChecklistItemCount = 0)
+{
+    public IReadOnlyDictionary<string, JsonElement> Fields { get; init; } = new Dictionary<string, JsonElement>();
+}
 
 public sealed record ArchivedCardDto(
     int Id,
@@ -106,7 +111,9 @@ public sealed record UpdateCardRequest(
     int? BoardColumnId = null,
     int? AssignedUserId = null,
     string? SlickName = null,
-    string? ExternalUrl = null);
+    string? ExternalUrl = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyDictionary<string, JsonElement>? Fields = null);
 
 public sealed record SearchCardsRequest(
     IReadOnlyList<CardSearchFilterRequest> Filters);

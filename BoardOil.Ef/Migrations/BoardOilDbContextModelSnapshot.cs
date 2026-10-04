@@ -356,6 +356,12 @@ namespace BoardOil.Ef.Migrations
                     b.Property<string>("ExternalUrl")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("FieldValuesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("{}");
+
                     b.Property<int?>("SlickId")
                         .HasColumnType("INTEGER");
 
@@ -632,6 +638,12 @@ namespace BoardOil.Ef.Migrations
                     b.Property<string>("Emoji")
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("FieldDefinitionsJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("[]");
 
                     b.Property<bool>("IsSystem")
                         .HasColumnType("INTEGER");

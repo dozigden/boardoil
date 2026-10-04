@@ -13,6 +13,7 @@ using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Services.Style;
+using BoardOil.Services.CardField;
 
 namespace BoardOil.Services.Card;
 
@@ -111,9 +112,7 @@ public sealed class UpdateCardService(
 
         var updatedTitle = request.Title.Trim();
         var updatedDescription = request.Description;
-        var descriptionChanged = updatedDescription != existingCard.Description;
         var updatedExternalUrl = CardExternalUrl.Normalise(request.ExternalUrl);
-        var updatedTags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames, _tagRepository, styleDefaultService);
 
         var selectedCardType = await cardTypeRepository.GetByIdInBoardAsync(boardId, request.CardTypeId);
         var cardTypeSelection = planner.SelectCardType(selectedCardType);
@@ -122,6 +121,23 @@ public sealed class UpdateCardService(
             return cardTypeSelection.Error;
         }
 
+        var fieldPlan = planner.PlanFields(existingCard, selectedCardType!, request);
+        if (!fieldPlan.IsValid)
+        {
+            return ApiErrors.ValidationFailed(fieldPlan.Errors);
+        }
+        if (fieldPlan.Value!.LostValues.Count > 0)
+        {
+            updatedDescription = CardFieldLossDescription.Append(updatedDescription, fieldPlan.Value.LostValues);
+            if (updatedDescription.Length > CardValidator.MaxDescriptionLength)
+            {
+                return ApiErrors.ValidationFailed([new ValidationError("description",
+                    "The description has insufficient space to record removed field values. Shorten it before changing the card type.")]);
+            }
+        }
+        var descriptionChanged = updatedDescription != existingCard.Description;
+        var fieldsChanged = fieldPlan.Value.ValuesJson != existingCard.FieldValuesJson;
+        var updatedTags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames, _tagRepository, styleDefaultService);
         var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository, styleDefaultService);
         var selectedSlickId = selectedSlick?.Id;
 
@@ -152,6 +168,7 @@ public sealed class UpdateCardService(
         var cardTypeChanged = selectedCardType!.Id != existingCard.CardTypeId;
         var metadataChanged = updatedTitle != existingCard.Title
             || descriptionChanged
+            || fieldsChanged
             || updatedExternalUrl != existingCard.ExternalUrl
             || tagsChanged
             || cardTypeChanged
@@ -164,6 +181,7 @@ public sealed class UpdateCardService(
 
         existingCard.Title = updatedTitle;
         existingCard.Description = updatedDescription;
+        existingCard.FieldValuesJson = fieldPlan.Value.ValuesJson;
         existingCard.ExternalUrl = updatedExternalUrl;
         if (tagsChanged)
         {
