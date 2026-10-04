@@ -11,6 +11,7 @@ using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
 using BoardOil.Services.Style;
 using BoardOil.Services.Tag;
+using BoardOil.Services.CardField;
 
 namespace BoardOil.Services.CardType;
 
@@ -98,7 +99,12 @@ public sealed class CardTypeService(
             return ApiErrors.ValidationFailed(validationErrors);
         }
 
-        var now = DateTime.UtcNow;
+        var fields = CardFieldRules.NormaliseDefinitions(request.Fields ?? []);
+        if (!fields.IsValid)
+        {
+            return ApiErrors.ValidationFailed(fields.Errors);
+        }
+
         var entity = new EntityCardType
         {
             BoardId = boardId,
@@ -106,6 +112,7 @@ public sealed class CardTypeService(
             Emoji = emojiValidation.CanonicalEmoji,
             StyleName = styleResolution.StyleName,
             StylePropertiesJson = styleResolution.StylePropertiesJson,
+            FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(fields.Value!),
             IsSystem = false,
         };
         cardTypeRepository.Add(entity);
@@ -118,7 +125,8 @@ public sealed class CardTypeService(
 
     public async Task<ApiResult<CardTypeDto>> UpdateCardTypeAsync(int boardId, int cardTypeId, UpdateCardTypeRequest request, int actorUserId)
     {
-        using var scope = _scopeFactory.Create();
+        // Keep the affected-card read and all resulting writes in the same transaction.
+        using var scope = _scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         if (boardRepository.Get(boardId) is null)
         {
@@ -175,6 +183,24 @@ public sealed class CardTypeService(
             return ApiErrors.ValidationFailed(validationErrors);
         }
 
+        if (request.Fields is not null)
+        {
+            var fields = CardFieldRules.NormaliseDefinitions(request.Fields);
+            if (!fields.IsValid)
+            {
+                return ApiErrors.ValidationFailed(fields.Errors);
+            }
+            var source = CardFieldJsonCodec.DeserialiseDefinitions(existing.FieldDefinitionsJson);
+            var cards = await cardRepository.GetByBoardAndCardTypeAsync(boardId, existing.Id);
+            var changes = CardTypeFieldChanges.Plan(cards, source, fields.Value!);
+            if (!changes.IsValid)
+            {
+                return ApiErrors.ValidationFailed(changes.Errors);
+            }
+            CardTypeFieldChanges.Apply(changes.Value!);
+            existing.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(fields.Value!);
+        }
+
         existing.Name = nameValidation.CanonicalName;
         existing.Emoji = emojiValidation.CanonicalEmoji;
         existing.StyleName = styleResolution.StyleName;
@@ -229,7 +255,7 @@ public sealed class CardTypeService(
 
     public async Task<ApiResult> DeleteCardTypeAsync(int boardId, int cardTypeId, int actorUserId)
     {
-        using var scope = _scopeFactory.Create();
+        using var scope = _scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         if (boardRepository.Get(boardId) is null)
         {
@@ -259,11 +285,19 @@ public sealed class CardTypeService(
             return ApiErrors.InternalError("System card type not found for board.");
         }
 
-        var now = DateTime.UtcNow;
         var cardsToReassign = await cardRepository.GetByBoardAndCardTypeAsync(boardId, existing.Id);
+        var changes = CardTypeFieldChanges.Plan(cardsToReassign,
+            CardFieldJsonCodec.DeserialiseDefinitions(existing.FieldDefinitionsJson),
+            CardFieldJsonCodec.DeserialiseDefinitions(systemCardType.FieldDefinitionsJson), changingType: true);
+        if (!changes.IsValid)
+        {
+            return ApiErrors.ValidationFailed(changes.Errors);
+        }
+        CardTypeFieldChanges.Apply(changes.Value!);
         foreach (var card in cardsToReassign)
         {
             card.CardTypeId = systemCardType.Id;
+            card.CardType = systemCardType;
         }
 
         cardTypeRepository.Remove(existing);

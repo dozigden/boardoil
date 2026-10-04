@@ -14,6 +14,7 @@ using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Services.Style;
 using BoardOil.Services.CardField;
+using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Services.Card;
 
@@ -87,12 +88,6 @@ public sealed class CreateCardService(
         }
         var selectedCardType = cardTypeSelection.SelectedCardType!;
 
-        var fields = CardFieldRules.CreateValues(CardFieldJsonCodec.DeserialiseDefinitions(selectedCardType.FieldDefinitionsJson));
-        if (!fields.IsValid)
-        {
-            return ApiErrors.ValidationFailed(fields.Errors);
-        }
-
         var cards = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
         var draft = planner.BuildDraft(request, targetColumn, selectedCardType);
         var tags = await CardTagMutation.ResolveTagsAsync(
@@ -113,7 +108,6 @@ public sealed class CreateCardService(
             Slick = selectedSlick,
             Title = draft.Title,
             Description = draft.Description,
-            FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fields.Value!),
             ExternalUrl = draft.ExternalUrl,
             SortKey = string.Empty,
             CardCreatedUtc = createdAtUtc,
@@ -140,8 +134,27 @@ public sealed class CreateCardService(
             attachmentCopy = await attachments.PrepareCopyAsync(boardId, duplicateFromCardId.Value, actorUserId, cancellationToken);
         }
 
+        ApiError? fieldError = null;
         await scope.Transaction(async (transactionScope, transaction) =>
         {
+            // A definition edit may have committed while the draft or attachments were prepared.
+            // Project fresh JSON rather than reuse the previously tracked card type.
+            var definitionsJson = await cardTypeRepository.Query()
+                .Where(type => type.BoardId == boardId && type.Id == selectedCardType.Id)
+                .Select(type => type.FieldDefinitionsJson)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (definitionsJson is null)
+            {
+                fieldError = ApiErrors.ValidationFailed([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
+                return;
+            }
+            var fields = CardFieldRules.CreateValues(CardFieldJsonCodec.DeserialiseDefinitions(definitionsJson));
+            if (!fields.IsValid)
+            {
+                fieldError = ApiErrors.ValidationFailed(fields.Errors);
+                return;
+            }
+            card.FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fields.Value!);
             card.BoardCardId = await boardCardIdAllocator.AllocateNextAsync(boardId);
             if (attachmentCopy is not null) { await attachments.AttachCopyAsync(attachmentCopy, card, actorUserId); }
             cardRepository.Add(card);
@@ -149,6 +162,10 @@ public sealed class CreateCardService(
             await transactionScope.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync();
         });
+        if (fieldError is not null)
+        {
+            return fieldError;
+        }
 
         var created = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
         await boardEvents.CardCreatedAsync(boardId, created);

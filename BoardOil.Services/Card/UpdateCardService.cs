@@ -38,7 +38,8 @@ public sealed class UpdateCardService(
 
     public async Task<ApiResult<CardDto>> ExecuteAsync(int boardId, int id, UpdateCardRequest request, int actorUserId)
     {
-        using var scope = scopeFactory.Create();
+        // Definition edits and ordinary card edits must validate against a consistent view.
+        using var scope = scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         var hasUpdatePermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CardUpdate);
         if (!hasUpdatePermission)

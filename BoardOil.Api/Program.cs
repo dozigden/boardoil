@@ -37,7 +37,10 @@ var attachmentStorageOptions = BoardOilAttachmentStorageOptions.Resolve(builder.
     imageStorageOptions.RootPath, builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot"));
 builder.Services.AddBoardOilServices();
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new CardFieldValuesJsonConverter()));
+{
+    options.SerializerOptions.Converters.Add(new CardFieldValuesJsonConverter());
+    options.SerializerOptions.Converters.Add(new CardFieldDefinitionsJsonConverter());
+});
 builder.Services.AddSingleton(attachmentStorageOptions);
 builder.Services.AddBoardOilEfInfrastructure(connectionString);
 builder.Services.AddBoardOilOAuth(jwtOptions);

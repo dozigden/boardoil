@@ -1,5 +1,6 @@
 using BoardOil.Contracts.CardType;
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Services.CardField;
 
 namespace BoardOil.Services.CardType;
 
@@ -14,5 +15,8 @@ public static class CardTypeMappingExtensions
             cardType.StylePropertiesJson,
             cardType.IsSystem,
             cardType.CreatedAtUtc,
-            cardType.UpdatedAtUtc);
+            cardType.UpdatedAtUtc)
+        {
+            Fields = CardFieldJsonCodec.DeserialiseDefinitions(cardType.FieldDefinitionsJson)
+        };
 }
