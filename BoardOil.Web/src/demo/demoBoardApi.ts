@@ -216,7 +216,21 @@ const demoBoardApi: BoardApi = {
   },
   async deleteAttachment() { return unavailable(); },
   async deleteBoardAttachment() { return unavailable(); },
-  async duplicateCard(boardId, _cardId, model) { return demoBoardApi.createCard(boardId, model); },
+  async duplicateCard(boardId, cardId, model) {
+    if (boardId !== DemoBoardId) return notFound('Board not found.');
+    const source = findCard(cardId)?.card;
+    const targetType = getCardType(model.cardTypeId);
+    if (!source) return notFound('Card not found.');
+    if (!targetType) return validationError('Card type is required.');
+    const fieldPlan = planDemoFields(getCardType(source.cardTypeId)!.fields, source.fields, model.fields,
+      targetType.fields, source.cardTypeId !== targetType.id, model.description);
+    if (!fieldPlan.ok) return fieldPlan;
+    const created = await demoBoardApi.createCard(boardId, { ...model, description: fieldPlan.data.description });
+    if (!created.ok) return created;
+    const duplicate = findCard(created.data.id)!.card;
+    duplicate.fields = fieldPlan.data.fields;
+    return ok(clone(duplicate));
+  },
   async getBoards() {
     return ok([toBoardSummary(state.board)]);
   },

@@ -187,7 +187,7 @@ export const useCardStore = defineStore('card', () => {
 
   async function createCard(
     model: CardEditModel,
-    options?: { suppressValidationFeedback?: boolean; duplicateFromCardId?: number }
+    options?: { suppressValidationFeedback?: boolean; duplicateFromCardId?: number; inlineErrors?: boolean }
   ) {
     model.title = model.title.trim();
     if (!model.title) {
@@ -204,9 +204,10 @@ export const useCardStore = defineStore('card', () => {
       },
       {
         boardId,
-        suppressError: options?.suppressValidationFeedback
-          ? error => hasValidationErrors(error)
-          : undefined
+        suppressError: error => {
+          if (options?.inlineErrors) return true;
+          return Boolean(options?.suppressValidationFeedback && hasValidationErrors(error));
+        }
       }
     );
     if (!result.ok) {

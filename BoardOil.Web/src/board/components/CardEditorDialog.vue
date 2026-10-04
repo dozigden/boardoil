@@ -364,9 +364,8 @@
             @update:external-url="updateDraftExternalUrlFromEditor"
           />
 
-          <p v-if="cardTypeWillChange && !isDuplicatingCard" class="card-field-conversion-note">Fields will convert when you save.</p>
+          <p v-if="cardTypeWillChange" class="card-field-conversion-note">Fields will convert when you {{ isDuplicatingCard ? 'create the duplicate' : 'save' }}.</p>
           <CardFieldValuesEditor
-            v-if="!isDuplicatingCard"
             ref="fieldValuesEditor"
             :definitions="cardFieldDefinitions"
             :values="cardDraft.fields ?? {}"
@@ -1298,13 +1297,18 @@ async function saveCardDraft(closeAfterSave: boolean) {
     savingCard.value = true;
     let created;
     try {
-      created = await createCardAction(draft, { duplicateFromCardId: cardId });
+      created = await createCardAction({
+        ...cloneCardEditModel(draft),
+        fields: buildCardFieldValues(cardFieldDefinitions.value, draft.fields ?? {})
+      }, { duplicateFromCardId: cardId, inlineErrors: true });
     } finally {
       savingCard.value = false;
     }
     if (created?.ok) {
       feedback.showToast('Created successfully.');
       await closeCardEditorWithoutPrompt();
+    } else if (created && !created.ok) {
+      await showCardSaveError(created.error);
     }
     return;
   }
@@ -1327,10 +1331,7 @@ async function saveCardDraft(closeAfterSave: boolean) {
   }
   await nextTick();
   if (!saved) {
-    cardSaveError.value = cardStore.saveError;
-    await nextTick();
-    if (Object.keys(cardSummaryErrors.value).length || !cardSaveError.value?.validationErrors) cardErrorSummary.value?.focus();
-    else fieldValuesEditor.value?.focusError();
+    await showCardSaveError(cardStore.saveError);
     return;
   }
   cardSaveError.value = null;
@@ -1345,6 +1346,13 @@ async function saveCardDraft(closeAfterSave: boolean) {
       return;
     }
   }
+}
+
+async function showCardSaveError(error: AppError | null) {
+  cardSaveError.value = error;
+  await nextTick();
+  if (Object.keys(cardSummaryErrors.value).length || !error?.validationErrors) cardErrorSummary.value?.focus();
+  else fieldValuesEditor.value?.focusError();
 }
 
 function syncDraftAfterSave(cardId: number) {

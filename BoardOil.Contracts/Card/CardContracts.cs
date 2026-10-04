@@ -115,6 +115,18 @@ public sealed record UpdateCardRequest(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     IReadOnlyDictionary<string, JsonElement>? Fields = null);
 
+public sealed record DuplicateCardRequest(
+    int? BoardColumnId,
+    string Title,
+    string? Description,
+    IReadOnlyList<string>? TagNames,
+    int? CardTypeId = null,
+    int? AssignedUserId = null,
+    string? SlickName = null,
+    string? ExternalUrl = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyDictionary<string, JsonElement>? Fields = null);
+
 public sealed record SearchCardsRequest(
     IReadOnlyList<CardSearchFilterRequest> Filters);
 

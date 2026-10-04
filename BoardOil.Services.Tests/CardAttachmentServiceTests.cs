@@ -4,8 +4,10 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.Column;
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.CardField;
 using BoardOil.Services.Attachment;
 using BoardOil.Services.Card;
+using BoardOil.Services.CardField;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -353,6 +355,52 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Single(await DbContextForAssert.CardAttachments.ToListAsync());
         Assert.Single(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
         Assert.Single(await DbContextForAssert.Cards.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Duplicate_WithInvalidFields_ShouldNotPrepareAnyCopies()
+    {
+        var (boardId, cardId, _) = await ArrangeAttachment();
+        var source = await DbContextForArrange.Cards.Include(card => card.CardType).SingleAsync();
+        source.CardType.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
+            [new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Points", DefaultValue = 0, Max = 10 }]);
+        source.FieldValuesJson = """{"Points":5}""";
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await ResolveService<ICardService>().DuplicateCardAsync(boardId, cardId,
+            new CreateCardRequest(null, "Duplicate", "", [], source.CardTypeId), ActorUserId,
+            fields: CardFieldJsonCodec.DeserialiseValues("""{"Points":11}"""));
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("fields.Points", result.ValidationErrors!.Keys);
+        Assert.Single(await DbContextForAssert.CardAttachments.ToListAsync());
+        Assert.Single(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+        var unchanged = Assert.Single(await DbContextForAssert.Cards.ToListAsync());
+        Assert.Equal(source.FieldValuesJson, unchanged.FieldValuesJson);
+    }
+
+    [Fact]
+    public async Task Duplicate_WhenLossRecordExceedsDescriptionLimit_ShouldNotPrepareAnyCopies()
+    {
+        var (boardId, cardId, _) = await ArrangeAttachment();
+        var source = await DbContextForArrange.Cards.Include(card => card.CardType).SingleAsync();
+        source.CardType.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
+            [new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Points", DefaultValue = 0 }]);
+        source.FieldValuesJson = """{"Points":5}""";
+        var target = new EntityCardType { BoardId = boardId, Name = "Empty", StyleName = "auto", StylePropertiesJson = "{}" };
+        DbContextForArrange.CardTypes.Add(target);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await ResolveService<ICardService>().DuplicateCardAsync(boardId, cardId,
+            new CreateCardRequest(null, "Duplicate", new string('x', 20_000), [], target.Id), ActorUserId);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("description", result.ValidationErrors!.Keys);
+        Assert.Single(await DbContextForAssert.CardAttachments.ToListAsync());
+        Assert.Single(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+        var unchanged = Assert.Single(await DbContextForAssert.Cards.ToListAsync());
+        Assert.Equal(source.FieldValuesJson, unchanged.FieldValuesJson);
+        Assert.Equal(source.Description, unchanged.Description);
     }
 
     [Fact]

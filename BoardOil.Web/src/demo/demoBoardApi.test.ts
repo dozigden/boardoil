@@ -6,6 +6,29 @@ describe('demoBoardApi', () => {
     resetDemoData();
   });
 
+  it('duplicates field values independently and rejects invalid duplicate drafts', async () => {
+    const api = createDemoBoardApi();
+    const types = await api.getCardTypes(1);
+    if (!types.ok) throw new Error('Expected demo card types');
+    const type = types.data.find(item => item.fields.length > 0)!;
+    const model = { title: 'Source', description: '', boardColumnId: 1, cardTypeId: type.id,
+      assignedUserId: null, slickName: null, externalUrl: null, tagNames: [] };
+    const created = await api.createCard(1, model);
+    if (!created.ok) throw new Error('Expected demo source card');
+    const fields = { Reference: 'Saved', Points: 7, Due: '2026-10-04' };
+    await api.saveCard(1, created.data.id, { ...model, fields });
+
+    const duplicate = await api.duplicateCard(1, created.data.id, { ...model, title: 'Copy' });
+    expect(duplicate).toMatchObject({ ok: true, data: { fields } });
+    expect(await api.duplicateCard(1, created.data.id, { ...model, fields: { ...fields, Points: 101 } }))
+      .toMatchObject({ ok: false, error: { validationErrors: { 'fields.Points': ['100 maximum'] } } });
+    if (!duplicate.ok) throw new Error('Expected demo duplicate');
+    await api.saveCard(1, duplicate.data.id, { ...model, fields: { ...fields, Reference: null } });
+    const board = await api.getBoard(1);
+    if (!board.ok) throw new Error('Expected demo board');
+    expect(board.data.columns.flatMap(column => column.cards).find(card => card.id === created.data.id)?.fields).toEqual(fields);
+  });
+
   it('deletes comments without allowing a later edit to recreate them', async () => {
     const api = createDemoBoardApi();
     const created = await api.createCardComment(1, 869, 'Remove this comment');

@@ -195,11 +195,11 @@ public sealed class CardService(
     }
 
     public async Task<ApiResult<CardDto>> DuplicateCardAsync(int boardId, int cardId, CreateCardRequest request, int actorUserId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, IReadOnlyDictionary<string, JsonElement>? fields = null)
     {
         try
         {
-            return await createCardService.ExecuteAsync(boardId, request, actorUserId, cardId, cancellationToken);
+            return await createCardService.ExecuteAsync(boardId, request, actorUserId, cardId, cancellationToken, fields);
         }
         catch (UnauthorizedAccessException exception) { return ApiErrors.Forbidden(exception.Message); }
         catch (AttachmentOwnerChangedException) { return new ApiError(409, "The source card or its attachments changed. Reload and retry."); }

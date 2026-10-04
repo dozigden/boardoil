@@ -109,6 +109,28 @@ public sealed class CardFieldsIntegrationTests : BoardApiIntegrationTestBase, IC
         });
     }
 
+    [Fact]
+    public async Task Duplicate_ShouldBindFieldValuesWithoutAddingThemToNormalCreation()
+    {
+        var source = await CreateCardAsync();
+        var fields = CardFieldJsonCodec.DeserialiseValues("""{"Points":7,"Note":"Copy only","Due":null}""");
+
+        var response = await Client.PostAsJsonAsync($"/api/boards/1/cards/{source.Id}/duplicate",
+            new DuplicateCardRequest(source.BoardColumnId, "Duplicate", "", [], source.CardTypeId, Fields: fields));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var duplicate = (await response.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions))!.Data!;
+        Assert.NotEqual(source.Id, duplicate.Id);
+        Assert.Equal(7, duplicate.Fields["Points"].GetInt32());
+        Assert.Equal(JsonValueKind.Null, duplicate.Fields["Due"].ValueKind);
+        await UseDbContextAsync(async db =>
+        {
+            var stored = await db.Cards.SingleAsync(card => card.BoardId == 1 && card.BoardCardId == source.Id);
+            Assert.Equal(0, CardFieldJsonCodec.DeserialiseValues(stored.FieldValuesJson)["Points"].GetInt32());
+        });
+        Assert.Null(typeof(CreateCardRequest).GetProperty("Fields"));
+    }
+
     private async Task<CardDto> CreateCardAsync()
     {
         var typeId = await SeedTypeAsync();

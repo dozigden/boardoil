@@ -270,6 +270,92 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
         Assert.Contains(@"\!\[image\]\(data:image/png;base64,AAAA\)", result.Data!.Description);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Duplicate_ShouldPreserveSourceFieldsOrApplyCompleteDraftWithoutChangingSource(bool supplyFields)
+    {
+        var source = await ArrangeCardAsync();
+        var fields = supplyFields ? CardFieldJsonCodec.DeserialiseValues("""{"Ref":null,"Points":0,"Due":"2024-02-29"}""") : null;
+
+        var result = await ResolveService<CardService>().DuplicateCardAsync(source.BoardId, source.BoardCardId,
+            new CreateCardRequest(null, "Duplicate", source.Description, [], source.CardTypeId), ActorUserId, fields: fields);
+
+        Assert.True(result.Success);
+        var cards = await DbContextForAssert.Cards.OrderBy(card => card.BoardCardId).ToListAsync();
+        Assert.Equal(2, cards.Count);
+        Assert.Equal(source.FieldValuesJson, cards[0].FieldValuesJson);
+        Assert.Equal(source.CardUpdatedUtc, cards[0].CardUpdatedUtc);
+        var expected = supplyFields ? """{"Ref":null,"Points":0,"Due":"2024-02-29"}""" : source.FieldValuesJson;
+        Assert.Equal(expected, cards[1].FieldValuesJson);
+        Assert.Equal(source.Description, cards[1].Description);
+        Assert.Equal(expected, CardFieldJsonCodec.SerialiseValues(result.Data!.Fields));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Duplicate_WithDifferentType_ShouldConvertOriginalValuesAndRecordLossOnlyOnDuplicate(bool supplyFields)
+    {
+        var source = await ArrangeCardAsync();
+        var target = new EntityCardType
+        {
+            BoardId = source.BoardId, Name = "Target", StyleName = "auto", StylePropertiesJson = "{}",
+            FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
+                [new TextFieldDefinition { FieldCode = "Estimate", DisplayName = "Points", Nullable = true }])
+        };
+        DbContextForArrange.CardTypes.Add(target);
+        await DbContextForArrange.SaveChangesAsync();
+        var fields = supplyFields ? CardFieldJsonCodec.DeserialiseValues("""{"Ref":"Edited loss","Points":7,"Due":null}""") : null;
+
+        var result = await ResolveService<CardService>().DuplicateCardAsync(source.BoardId, source.BoardCardId,
+            new CreateCardRequest(null, "Converted", source.Description, [], target.Id), ActorUserId, fields: fields);
+
+        Assert.True(result.Success);
+        Assert.Equal(supplyFields ? "7" : "5", result.Data!.Fields["Estimate"].GetString());
+        Assert.Contains(supplyFields ? "Reference: Edited loss" : "Reference: Existing", result.Data.Description);
+        var unchanged = await DbContextForAssert.Cards.SingleAsync(card => card.Id == source.Id);
+        Assert.Equal(source.Description, unchanged.Description);
+        Assert.Equal(source.FieldValuesJson, unchanged.FieldValuesJson);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"Ref":null,"Points":11,"Due":null}""")]
+    [InlineData("""{"Ref":null,"Points":0,"Due":null,"Unknown":1}""")]
+    public async Task Duplicate_WithInvalidFields_ShouldNotCreateCardOrRelatedData(string json)
+    {
+        var source = await ArrangeCardAsync();
+
+        var result = await ResolveService<CardService>().DuplicateCardAsync(source.BoardId, source.BoardCardId,
+            new CreateCardRequest(null, "Invalid", "", ["New tag"], source.CardTypeId, SlickName: "New slick"), ActorUserId,
+            fields: CardFieldJsonCodec.DeserialiseValues(json));
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(source.FieldValuesJson, (await DbContextForAssert.Cards.SingleAsync()).FieldValuesJson);
+        Assert.Empty(await DbContextForAssert.Tags.ToListAsync());
+        Assert.Empty(await DbContextForAssert.Slicks.ToListAsync());
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).CardCreatedEvents);
+    }
+
+    [Fact]
+    public async Task Duplicate_WhenLossRecordWouldExceedDescriptionLimit_ShouldNotCreateCard()
+    {
+        var source = await ArrangeCardAsync();
+        var target = new EntityCardType { BoardId = source.BoardId, Name = "Empty", StyleName = "auto", StylePropertiesJson = "{}" };
+        DbContextForArrange.CardTypes.Add(target);
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await ResolveService<CardService>().DuplicateCardAsync(source.BoardId, source.BoardCardId,
+            new CreateCardRequest(null, "Too long", new string('x', 20_000), [], target.Id), ActorUserId);
+
+        Assert.False(result.Success);
+        Assert.Contains("description", result.ValidationErrors!.Keys);
+        Assert.Equal(source.Description, (await DbContextForAssert.Cards.SingleAsync()).Description);
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).CardCreatedEvents);
+    }
+
     private async Task<EntityBoardCard> ArrangeCardAsync()
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("Card", "Description").Build();

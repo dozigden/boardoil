@@ -132,31 +132,29 @@ public sealed class CreateCardService(
         CardAttachmentCopy? attachmentCopy = null;
         if (duplicateFromCardId.HasValue)
         {
+            var fieldPlan = await PlanFieldsAsync(boardId, selectedCardType.Id, duplicateFromCardId,
+                fields, draft.Description, cancellationToken);
+            if (!fieldPlan.Success)
+            {
+                return new(false, null, fieldPlan.StatusCode, fieldPlan.Message, fieldPlan.ValidationErrors);
+            }
             // All draft validation has passed; only now create independent attachment files.
             attachmentCopy = await attachments.PrepareCopyAsync(boardId, duplicateFromCardId.Value, actorUserId, cancellationToken);
         }
 
-        ApiError? fieldError = null;
+        ApiResult<CardDto>? fieldError = null;
         await scope.Transaction(async (transactionScope, transaction) =>
         {
-            // A definition edit may have committed while the draft or attachments were prepared.
-            // Project fresh JSON rather than reuse the previously tracked card type.
-            var definitionsJson = await cardTypeRepository.Query()
-                .Where(type => type.BoardId == boardId && type.Id == selectedCardType.Id)
-                .Select(type => type.FieldDefinitionsJson)
-                .SingleOrDefaultAsync(cancellationToken);
-            if (definitionsJson is null)
+            var fieldPlan = await PlanFieldsAsync(boardId, selectedCardType.Id, duplicateFromCardId,
+                fields, draft.Description, cancellationToken);
+            if (!fieldPlan.Success)
             {
-                fieldError = ApiErrors.ValidationFailed([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
+                fieldError = new(false, null, fieldPlan.StatusCode, fieldPlan.Message, fieldPlan.ValidationErrors);
                 return;
             }
-            var initialValues = CardFieldRules.CreateValues(CardFieldJsonCodec.DeserialiseDefinitions(definitionsJson), fields);
-            if (!initialValues.IsValid)
-            {
-                fieldError = ApiErrors.ValidationFailed(initialValues.Errors);
-                return;
-            }
-            card.FieldValuesJson = CardFieldJsonCodec.SerialiseValues(initialValues.Value!);
+            card.FieldValuesJson = fieldPlan.Data!.ValuesJson;
+            card.Description = fieldPlan.Data.Description;
+            CardChecklistCounter.Refresh(card);
             card.BoardCardId = await boardCardIdAllocator.AllocateNextAsync(boardId);
             if (attachmentCopy is not null) { await attachments.AttachCopyAsync(attachmentCopy, card, actorUserId); }
             cardRepository.Add(card);
@@ -178,4 +176,58 @@ public sealed class CreateCardService(
 
         return ApiResults.Created(created);
     }
+
+    private async Task<ApiResult<CardCreationFieldPlan>> PlanFieldsAsync(int boardId, int targetTypeId, int? sourceCardId,
+        IReadOnlyDictionary<string, JsonElement>? fields, string description, CancellationToken cancellationToken)
+    {
+        // Read fresh JSON so the publication check does not reuse tracked definitions from before file preparation.
+        var definitionsJson = await cardTypeRepository.Query()
+            .Where(type => type.BoardId == boardId && type.Id == targetTypeId)
+            .Select(type => type.FieldDefinitionsJson)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (definitionsJson is null)
+        {
+            return ApiErrors.ValidationFailed([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
+        }
+        var definitions = CardFieldJsonCodec.DeserialiseDefinitions(definitionsJson);
+        IReadOnlyList<LostCardFieldValue> losses = [];
+        CardFieldRuleResult<IReadOnlyDictionary<string, JsonElement>> initialValues;
+        if (sourceCardId is int id)
+        {
+            var source = await cardRepository.Query()
+                .Where(item => item.BoardId == boardId && item.BoardCardId == id)
+                .Select(item => new { item.CardTypeId, item.FieldValuesJson, item.CardType.FieldDefinitionsJson })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (source is null) { throw new AttachmentOwnerChangedException(); }
+            var sourceDefinitions = CardFieldJsonCodec.DeserialiseDefinitions(source.FieldDefinitionsJson);
+            initialValues = CardFieldRules.NormaliseValues(sourceDefinitions,
+                fields ?? CardFieldJsonCodec.DeserialiseValues(source.FieldValuesJson));
+            if (initialValues.IsValid && source.CardTypeId != targetTypeId)
+            {
+                var conversion = CardFieldConverter.ConvertBetweenTypes(sourceDefinitions, initialValues.Value!, definitions);
+                initialValues = new(conversion.Value?.Values, conversion.Errors);
+                losses = conversion.Value?.LostValues ?? [];
+            }
+        }
+        else
+        {
+            initialValues = CardFieldRules.CreateValues(definitions, fields);
+        }
+        if (!initialValues.IsValid)
+        {
+            return ApiErrors.ValidationFailed(initialValues.Errors);
+        }
+        if (losses.Count > 0)
+        {
+            description = CardFieldLossDescription.Append(description, losses);
+            if (description.Length > CardValidator.MaxDescriptionLength)
+            {
+                return ApiErrors.ValidationFailed([new ValidationError("description",
+                    "The description has insufficient space to record removed field values. Shorten it before changing the card type.")]);
+            }
+        }
+        return new CardCreationFieldPlan(CardFieldJsonCodec.SerialiseValues(initialValues.Value!), description);
+    }
+
+    private sealed record CardCreationFieldPlan(string ValuesJson, string Description);
 }

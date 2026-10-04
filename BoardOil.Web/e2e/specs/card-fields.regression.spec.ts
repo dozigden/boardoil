@@ -144,3 +144,44 @@ test('realtime updates preserve the open field draft and stale definitions fail 
     await context.close();
   }
 });
+
+for (const changeType of [false, true]) {
+  test(`duplicate drafts preserve fields and source values${changeType ? ' through type conversion' : ''}`, async ({ api, authenticatedPage: page }) => {
+    const board = await api.createBoard('Duplicate custom fields');
+    await api.configureDefaultFields(board.id, definitions);
+    const target = await api.createCardType(board.id, 'Delivery', [
+      { type: 'text', fieldCode: 'Effort', displayName: 'Estimate', emoji: null, nullable: true, showOnCard: true, defaultValue: null, minLength: null, maxLength: 250 }
+    ]);
+    const source = await api.createCard(board, 'Todo', 'Source fields');
+    const editor = new CardEditorPage(page);
+    await editor.open(board.id, source.id);
+    await page.getByRole('button', { name: 'Card actions' }).click();
+    await page.getByRole('menu', { name: 'Card actions' }).getByRole('button', { name: 'Duplicate', exact: true }).click();
+    await expect(editor.field('Reference')).toHaveValue('Ready');
+    await expect(editor.field('Estimate')).toHaveValue('0');
+    await expect(editor.field('Due date')).toHaveValue('2026-10-04');
+    await editor.field('Reference').fill('Edited duplicate');
+    await editor.field('Estimate').fill('invalid');
+    const create = page.getByRole('button', { name: 'Create duplicate card', exact: true });
+    await create.click();
+    await expect(editor.field('Estimate')).toHaveAccessibleDescription('Whole number required');
+    await expect(editor.field('Reference')).toHaveValue('Edited duplicate');
+    await editor.field('Estimate').fill('7');
+    await editor.field('Due date').fill('');
+    if (changeType) await editor.selectType(target.name);
+    const response = page.waitForResponse(res => res.url().endsWith(`/cards/${source.id}/duplicate`) && res.request().method() === 'POST');
+    await create.click();
+    const duplicate = (await (await response).json()).data;
+    await expect(page.getByRole('dialog')).toBeHidden();
+    expect((await api.getCard(board.id, source.id)).fields).toEqual({ Reference: 'Ready', Points: 0, Due: '2026-10-04' });
+    const saved = await api.getCard(board.id, duplicate.id);
+    if (changeType) {
+      expect(saved.fields).toEqual({ Effort: '7' });
+      expect(saved.description).toContain('Reference: Edited duplicate');
+    } else {
+      expect(saved.fields).toEqual({ Reference: 'Edited duplicate', Points: 7, Due: null });
+    }
+    await editor.open(board.id, duplicate.id);
+    await expect(editor.field('Estimate')).toHaveValue('7');
+  });
+}

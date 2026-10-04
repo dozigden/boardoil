@@ -20,9 +20,12 @@ public static class CardEndpoints
         cardEndpoints.MapPost(string.Empty, async (int boardId, CreateCardRequest request, ICardService cardService, HttpContext httpContext) =>
             (await cardService.CreateCardAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 
-        cardEndpoints.MapPost("/{id:int}/duplicate", async (int boardId, int id, CreateCardRequest request,
+        cardEndpoints.MapPost("/{id:int}/duplicate", async (int boardId, int id, DuplicateCardRequest request,
             ICardService service, HttpContext context) =>
-            (await service.DuplicateCardAsync(boardId, id, request, context.GetActorUserId(), context.RequestAborted)).ToHttpResult());
+            (await service.DuplicateCardAsync(boardId, id,
+                new CreateCardRequest(request.BoardColumnId, request.Title, request.Description, request.TagNames,
+                    request.CardTypeId, request.AssignedUserId, request.SlickName, request.ExternalUrl),
+                context.GetActorUserId(), context.RequestAborted, request.Fields)).ToHttpResult());
 
         cardEndpoints
             .MapPost("/search", async (int boardId, SearchCardsRequest request, ICardService cardService, HttpContext httpContext) =>
