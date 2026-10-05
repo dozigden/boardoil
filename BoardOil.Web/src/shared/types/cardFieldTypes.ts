@@ -21,3 +21,11 @@ export type CardFieldDefinitionInput = CardFieldDefinitionBase & (
 );
 
 export type CardFieldValues = Record<string, string | number | null>;
+
+export type CardTypeFieldsPreview = { fields: CardTypeFieldImpact[] };
+export type CardTypeFieldImpact = {
+  fieldCode: string;
+  displayName: string;
+  change: 'deleted' | 'replaced';
+  cardCount: number;
+};

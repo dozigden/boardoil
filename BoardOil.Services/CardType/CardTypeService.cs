@@ -212,6 +212,41 @@ public sealed class CardTypeService(
         return existing.ToCardTypeDto();
     }
 
+    public async Task<ApiResult<CardTypeFieldsPreviewDto>> PreviewFieldsAsync(
+        int boardId, int cardTypeId, PreviewCardTypeFieldsRequest request, int actorUserId)
+    {
+        using var scope = _scopeFactory.CreateReadOnly();
+        var permitted = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageSettings);
+        if (!permitted)
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+        var existing = await cardTypeRepository.GetByIdInBoardAsync(boardId, cardTypeId);
+        if (existing is null) { return ApiErrors.NotFound("Card type not found."); }
+        if (request.Fields is null)
+        {
+            return ApiErrors.ValidationFailed([new ValidationError("fields", "Required")]);
+        }
+        var fields = CardFieldRules.NormaliseDefinitions(request.Fields);
+        if (!fields.IsValid) { return ApiErrors.ValidationFailed(fields.Errors); }
+
+        var source = CardFieldJsonCodec.DeserialiseDefinitions(existing.FieldDefinitionsJson);
+        var cards = await cardRepository.GetByBoardAndCardTypeAsync(boardId, cardTypeId);
+        var plan = CardTypeFieldChanges.Plan(cards, source, fields.Value!);
+        if (!plan.IsValid) { return ApiErrors.ValidationFailed(plan.Errors); }
+
+        // Display names are unique in the source definitions; losses retain those original names.
+        var counts = plan.Value!.SelectMany(change => change.LostValues)
+            .GroupBy(loss => loss.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+        var destinationCodes = fields.Value!.Select(field => field.FieldCode).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var impacts = source.Where(field => counts.ContainsKey(field.DisplayName))
+            .Select(field => new CardTypeFieldImpactDto(field.FieldCode, field.DisplayName,
+                destinationCodes.Contains(field.FieldCode) ? "replaced" : "deleted", counts[field.DisplayName]))
+            .ToArray();
+        return new CardTypeFieldsPreviewDto(impacts);
+    }
+
     public async Task<ApiResult> SetDefaultCardTypeAsync(int boardId, int cardTypeId, int actorUserId)
     {
         using var scope = _scopeFactory.Create();

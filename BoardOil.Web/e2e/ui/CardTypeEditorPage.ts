@@ -26,6 +26,12 @@ export class CardTypeEditorPage {
     if (await button.getAttribute('aria-expanded') !== 'true') await button.click();
   }
 
+  public async removeField(name: string) {
+    await this.expandField(name);
+    await this.page.getByRole('region', { name: new RegExp(`${name} (Text|Number|Date)`) })
+      .getByRole('button', { name: 'Remove field', exact: true }).click();
+  }
+
   public async save(create = false) {
     await this.submit(create);
     await expect(this.page.getByRole('dialog')).toBeHidden();

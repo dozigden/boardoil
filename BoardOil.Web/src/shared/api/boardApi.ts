@@ -1,3 +1,4 @@
+import type { CardFieldDefinitionInput, CardTypeFieldsPreview } from '../types/cardFieldTypes';
 import { uploadFormData } from './http';
 import type { BoardAttachmentInventory, BoardAttachmentInventoryQuery, CardAttachment, CardAttachmentImageCandidate, CardAttachmentList } from '../types/attachmentTypes';
 import type {
@@ -449,6 +450,10 @@ function createHttpBoardApi() {
     return putData<CardType>(`/api/boards/${boardId}/card-types/${cardTypeId}`, model);
   }
 
+  async function previewCardTypeFields(boardId: number, cardTypeId: number, fields: CardFieldDefinitionInput[]) {
+    return postData<CardTypeFieldsPreview>(`/api/boards/${boardId}/card-types/${cardTypeId}/fields/preview`, { fields });
+  }
+
   async function setDefaultCardType(boardId: number, cardTypeId: number): Promise<Result<void, AppError>> {
     return patchData<void>(`/api/boards/${boardId}/card-types/${cardTypeId}/default`, {});
   }
@@ -554,6 +559,7 @@ function createHttpBoardApi() {
     getCardTypes,
     createCardType,
     updateCardType,
+    previewCardTypeFields,
     setDefaultCardType,
     deleteCardType,
     getSlicks,

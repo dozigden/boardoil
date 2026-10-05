@@ -139,7 +139,7 @@ public sealed class CardTypeFieldManagementTests : TestBaseDb
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Update_TighteningLimits_ShouldRejectAllChangesIfAnyCardBecomesInvalid(bool text)
+    public async Task Update_TighteningLimits_ShouldReplaceInvalidValuesAndRecordLosses(bool text)
     {
         CardFieldDefinition original = Integer;
         CardFieldDefinition updated = Integer with { Max = 5 };
@@ -155,15 +155,19 @@ public sealed class CardTypeFieldManagementTests : TestBaseDb
         var result = await ResolveService<CardTypeService>().UpdateCardTypeAsync(type.BoardId, type.Id,
             new UpdateCardTypeRequest("Do not rename", Fields: [updated, Text with { FieldCode = "New", DisplayName = "New", Nullable = false, DefaultValue = "Added" }]), ActorUserId);
 
-        Assert.False(result.Success);
-        Assert.Contains(result.ValidationErrors!.Keys, key => key.StartsWith("cards[2].fields."));
-        var storedType = await DbContextForAssert.CardTypes.SingleAsync();
-        Assert.Equal(type.Name, storedType.Name);
-        Assert.Equal(type.FieldDefinitionsJson, storedType.FieldDefinitionsJson);
+        Assert.True(result.Success, result.Message);
         var cards = await DbContextForAssert.Cards.OrderBy(card => card.BoardCardId).ToListAsync();
-        Assert.Equal(values, cards.Select(card => card.FieldValuesJson));
+        var first = CardFieldJsonCodec.DeserialiseValues(cards[0].FieldValuesJson);
+        var second = CardFieldJsonCodec.DeserialiseValues(cards[1].FieldValuesJson);
+        Assert.True(JsonElement.DeepEquals(CardFieldJsonCodec.DeserialiseValues(values[0])[original.FieldCode], first[original.FieldCode]));
+        if (text) Assert.Equal(JsonValueKind.Null, second[original.FieldCode].ValueKind);
+        else Assert.Equal(0, second[original.FieldCode].GetInt32());
         Assert.All(cards, card => Assert.Equal("Description", card.Description));
-        Assert.Empty(Events.ResyncRequestedBoardIds);
+        Assert.Equal("Added", second["New"].GetString());
+        var comment = await DbContextForAssert.CardComments.SingleAsync();
+        Assert.Equal(cards[1].Id, comment.CardId);
+        Assert.True(comment.IsSystem);
+        Assert.Contains(text ? "Reference: Long value" : "Points: 9", comment.Text);
     }
 
     [Fact]
@@ -297,6 +301,90 @@ public sealed class CardTypeFieldManagementTests : TestBaseDb
         Assert.All(cards, card => Assert.Equal("Description", card.Description));
         Assert.Equal(new[] { "{\"Ref\":\"First\"}", "{\"Ref\":\"Second\"}" }, cards.Select(card => card.FieldValuesJson));
         Assert.Empty(Events.ResyncRequestedBoardIds);
+    }
+
+    [Fact]
+    public async Task Preview_ShouldCountOnlyPopulatedLossesAndAgreeWithSave()
+    {
+        string[] values = ["{\"Ref\":\"12\",\"Points\":0}", "{\"Ref\":\"Bad\",\"Points\":7}", "{\"Ref\":null,\"Points\":null}"];
+        var type = await ArrangeTypeAsync([Text, Integer with { Nullable = true }], values);
+        CardFieldDefinition[] destination = [new IntegerFieldDefinition
+        {
+            FieldCode = "Ref", DisplayName = "Renamed", Nullable = true
+        }];
+        var service = ResolveService<CardTypeService>();
+
+        var preview = await service.PreviewFieldsAsync(type.BoardId, type.Id, new(destination), ActorUserId);
+
+        Assert.True(preview.Success, preview.Message);
+        Assert.Equal(new[]
+        {
+            new CardTypeFieldImpactDto("Ref", "Reference", "replaced", 1),
+            new CardTypeFieldImpactDto("Points", "Points", "deleted", 2)
+        }, preview.Data!.Fields);
+        Assert.Equal(values, (await DbContextForAssert.Cards.OrderBy(card => card.BoardCardId).ToListAsync()).Select(card => card.FieldValuesJson));
+        Assert.Equal(type.FieldDefinitionsJson, (await DbContextForAssert.CardTypes.SingleAsync()).FieldDefinitionsJson);
+        Assert.Empty(await DbContextForAssert.CardComments.ToListAsync());
+        Assert.Empty(Events.ResyncRequestedBoardIds);
+
+        var saved = await service.UpdateCardTypeAsync(type.BoardId, type.Id, new(type.Name, Fields: destination), ActorUserId);
+        Assert.True(saved.Success, saved.Message);
+        var comments = await DbContextForAssert.CardComments.AsNoTracking().ToListAsync();
+        Assert.Equal(2, comments.Count);
+        foreach (var impact in preview.Data.Fields)
+        {
+            Assert.Equal(impact.CardCount, comments.Count(comment => comment.Text.Contains($"    {impact.DisplayName}:")));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Preview_ShouldOmitSuccessfulConversionsAndDefaultFilling(bool required)
+    {
+        var type = await ArrangeTypeAsync([Text], required ? "{\"Ref\":null}" : "{\"Ref\":\"12\"}");
+        CardFieldDefinition changed = new IntegerFieldDefinition { FieldCode = "Ref", DisplayName = "Reference", DefaultValue = 0 };
+        if (required) changed = Text with { Nullable = false, DefaultValue = "Default" };
+
+        var result = await ResolveService<CardTypeService>().PreviewFieldsAsync(type.BoardId, type.Id,
+            new([changed, Integer]), ActorUserId);
+
+        Assert.True(result.Success, result.Message);
+        Assert.Empty(result.Data!.Fields);
+        Assert.Empty(await DbContextForAssert.CardComments.ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Preview_ShouldRejectMissingOrInvalidDefinitions(bool missing)
+    {
+        var type = await ArrangeTypeAsync([Integer], "{\"Points\":7}");
+        var request = new PreviewCardTypeFieldsRequest(missing ? null : [Integer with { Min = 10, Max = 5 }]);
+
+        var result = await ResolveService<CardTypeService>().PreviewFieldsAsync(type.BoardId, type.Id, request, ActorUserId);
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotEmpty(result.ValidationErrors!);
+        Assert.Empty(await DbContextForAssert.CardComments.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Preview_ShouldRequireBoardOwner()
+    {
+        var type = await ArrangeTypeAsync([Integer], "{\"Points\":7}");
+        var user = new EntityUser { UserName = "Contributor", Email = "contributor@localhost", NormalisedEmail = "contributor@localhost",
+            PasswordHash = "test", Role = UserRole.Standard, IsActive = true };
+        DbContextForArrange.Users.Add(user);
+        await DbContextForArrange.SaveChangesAsync();
+        DbContextForArrange.BoardMembers.Add(new EntityBoardMember { BoardId = type.BoardId, UserId = user.Id, Role = BoardMemberRole.Contributor });
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await ResolveService<CardTypeService>().PreviewFieldsAsync(type.BoardId, type.Id, new([]), user.Id);
+
+        Assert.False(result.Success);
+        Assert.Equal(403, result.StatusCode);
     }
 
     private async Task<EntityCardType> ArrangeTypeAsync(IReadOnlyList<CardFieldDefinition> fields, params string[] values)

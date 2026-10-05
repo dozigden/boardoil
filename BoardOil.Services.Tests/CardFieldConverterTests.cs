@@ -246,7 +246,7 @@ public sealed class CardFieldConverterTests
 
     [Theory]
     [MemberData(nameof(TightenedLimits))]
-    public void DefinitionChanges_ShouldRejectTightenedLimitsWithoutReturningPartialChangesOrLosses(
+    public void DefinitionChanges_ShouldReplaceInvalidValuesAndRecordLosses(
         CardFieldDefinition source, CardFieldDefinition target, object value)
     {
         var removed = Text with { FieldCode = "Removed", DisplayName = "Removed field" };
@@ -259,9 +259,11 @@ public sealed class CardFieldConverterTests
 
         var result = CardFieldConverter.ApplyDefinitionChanges([removed, source], values, [target]);
 
-        Assert.False(result.IsValid);
-        Assert.Null(result.Value);
-        Assert.Equal("fields.F", Assert.Single(result.Errors).Property);
+        Assert.True(result.IsValid);
+        if (target is TextFieldDefinition text) Assert.Equal(text.DefaultValue, result.Value!.Values["F"].GetString());
+        else Assert.Equal(0, result.Value!.Values["F"].GetInt32());
+        Assert.Equal(2, result.Value.LostValues.Count);
+        Assert.Contains(result.Value.LostValues, loss => loss.DisplayName == "Field" && loss.Value == value.ToString());
         Assert.Equal(originalJson, CardFieldJsonCodec.SerialiseValues(values));
     }
 

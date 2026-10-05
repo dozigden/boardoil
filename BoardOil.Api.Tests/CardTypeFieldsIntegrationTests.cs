@@ -64,7 +64,7 @@ public sealed class CardTypeFieldsIntegrationTests : BoardApiIntegrationTestBase
     }
 
     [Fact]
-    public async Task Update_WithTighterLimits_ShouldReturnAffectedCardValidationAndPreserveDefinitions()
+    public async Task Preview_WithTighterLimits_ShouldReturnImpactWithoutSaving()
     {
         await SeedBoardColumnAsync("Todo");
         var createType = await Client.PostAsJsonAsync("/api/boards/1/card-types", new CreateCardTypeRequest("Configured", Fields:
@@ -75,16 +75,19 @@ public sealed class CardTypeFieldsIntegrationTests : BoardApiIntegrationTestBase
         createCard.EnsureSuccessStatusCode();
         var card = (await createCard.Content.ReadFromJsonAsync<ApiEnvelope<CardDto>>(JsonOptions))!.Data!;
 
-        var response = await Client.PutAsJsonAsync($"/api/boards/1/card-types/{type.Id}", new UpdateCardTypeRequest("Do not rename", Fields:
+        var response = await Client.PostAsJsonAsync($"/api/boards/1/card-types/{type.Id}/fields/preview", new PreviewCardTypeFieldsRequest(
             [new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Points", DefaultValue = 0, Max = 5 }]));
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.True(payload.RootElement.GetProperty("validationErrors").TryGetProperty($"cards[{card.Id}].fields.Points", out _));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var preview = (await response.Content.ReadFromJsonAsync<ApiEnvelope<CardTypeFieldsPreviewDto>>(JsonOptions))!.Data!;
+        Assert.Equal(new CardTypeFieldImpactDto("Points", "Points", "replaced", 1), Assert.Single(preview.Fields));
         await UseDbContextAsync(async db =>
         {
             Assert.Equal(type.Name, (await db.CardTypes.SingleAsync(item => item.Id == type.Id)).Name);
+            Assert.Equal("{\"Points\":10}", (await db.Cards.SingleAsync(item => item.BoardId == 1 && item.BoardCardId == card.Id)).FieldValuesJson);
+            Assert.Empty(await db.CardComments.ToListAsync());
         });
+
     }
 
     [Theory]
@@ -103,7 +106,9 @@ public sealed class CardTypeFieldsIntegrationTests : BoardApiIntegrationTestBase
 
         var createResponse = await Client.PostAsync("/api/boards/1/card-types", Json(body));
         var updateResponse = await Client.PutAsync($"/api/boards/1/card-types/{typeId}", Json(body));
+        var previewResponse = await Client.PostAsync($"/api/boards/1/card-types/{typeId}/fields/preview", Json(body));
 
+        Assert.Equal(HttpStatusCode.BadRequest, previewResponse.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, createResponse.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
         await UseDbContextAsync(async db =>

@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
 using BoardOil.Contracts.CardField;
-using BoardOil.Contracts.Common;
 
 namespace BoardOil.Services.CardField;
 
@@ -51,7 +50,6 @@ public static class CardFieldConverter
             field => MatchIdentity(field, matchByCode), StringComparer.OrdinalIgnoreCase);
         var preserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var values = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
-        var errors = new List<ValidationError>();
         foreach (var target in destination.Value!)
         {
             if (!sourcesByIdentity.TryGetValue(MatchIdentity(target, matchByCode), out var original))
@@ -77,20 +75,8 @@ public static class CardFieldConverter
                     preserved.Add(original.FieldCode);
                     continue;
                 }
-
-                if (editingDefinitions && original.GetType() == target.GetType()
-                    && originalValue.ValueKind != JsonValueKind.Null)
-                {
-                    errors.Add(checkedValue.Error);
-                    continue;
-                }
             }
             values.Add(target.FieldCode, CardFieldRules.DefaultValue(target));
-        }
-
-        if (errors.Count > 0)
-        {
-            return new(null, errors);
         }
 
         var losses = sourceFields

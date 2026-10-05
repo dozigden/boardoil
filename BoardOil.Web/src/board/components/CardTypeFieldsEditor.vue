@@ -18,7 +18,6 @@
         </p>
       </div>
       <p v-if="model.length === 0" class="field-note field-empty">No custom fields yet.</p>
-      <p v-if="hasConversions" class="field-note">Removing fields or changing their type can discard values. Discarded values will be recorded on each affected card when you save.</p>
       <ol class="entity-rows-list">
         <li v-for="(field, index) in model" :key="field.key" class="entity-row field-row">
           <div class="field-row-header">
@@ -124,14 +123,12 @@
 import { ArrowDown, ArrowUp, ChevronDown, CircleAlert, Plus, Trash2 } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
-import type { CardFieldDefinition } from '../../shared/types/cardFieldTypes';
 import { createCardFieldDraft, describeFieldError, fieldErrorIndex, isInlineFieldError, resetFieldTypeOptions, updateFieldDisplayName, type CardFieldDraft } from '../utils/cardFieldDraft';
 
 const model = defineModel<CardFieldDraft[]>({ required: true });
 const props = defineProps<{
   busy: boolean;
   errors: Record<string, string[]>;
-  originalFields: CardFieldDefinition[];
 }>();
 const expandedKey = ref<string | null>(null);
 const pendingFocusKey = ref<string | null>(null);
@@ -140,10 +137,7 @@ const errorSummary = ref<HTMLElement | null>(null);
 const summaryErrors = computed(() => Object.fromEntries(Object.entries(props.errors)
   .filter(([path]) => (path.startsWith('fields') || path.startsWith('cards[')) && !isInlineFieldError(path))));
 const typeLabels = { text: 'Text', integer: 'Number', date: 'Date' };
-const hasConversions = computed(() => props.originalFields.some(original => {
-  const draft = model.value.find(field => field.fieldCode === original.fieldCode);
-  return !draft || draft.type !== original.type;
-}));
+
 
 function onDisplayNameInput(field: CardFieldDraft, event: Event) {
   updateFieldDisplayName(field, (event.target as HTMLInputElement).value);

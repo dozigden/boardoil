@@ -671,6 +671,9 @@ const demoBoardApi: BoardApi = {
     return unavailable();
   },
 
+  async previewCardTypeFields() {
+    return unavailable();
+  },
   async updateCardType() {
     return unavailable();
   },

@@ -14,6 +14,19 @@
         <p v-if="Object.keys(summaryErrors).length === 0"><CircleAlert :size="14" aria-hidden="true" /><span>{{ editorError?.message }}</span></p>
         <p v-for="(messages, path) in summaryErrors" :key="path"><CircleAlert :size="14" aria-hidden="true" /><span>{{ messages.join(' ') }}</span></p>
       </div>
+      <div v-if="fieldImpacts.length" class="card-type-preview" role="status" aria-label="Field change warnings">
+        <TriangleAlert :size="16" aria-hidden="true" />
+        <div>
+          <p v-for="impact in fieldImpacts" :key="impact.fieldCode">
+            <template v-if="impact.change === 'deleted'">Deleted field '{{ impact.displayName }}' will be removed from {{ impact.cardCount }} {{ impact.cardCount === 1 ? 'card' : 'cards' }}.</template>
+            <template v-else>Changes to '{{ impact.displayName }}' will replace values on {{ impact.cardCount }} {{ impact.cardCount === 1 ? 'card' : 'cards' }}.</template>
+          </p>
+          <p>Removed values will be saved to comments.</p>
+        </div>
+      </div>
+      <p v-else-if="previewError && !previewError.validationErrors" class="error card-type-preview-error" role="alert">
+        <CircleAlert :size="14" aria-hidden="true" /> Unable to preview field changes.
+      </p>
       <div class="card-type-columns">
         <section class="card-type-appearance" aria-labelledby="card-type-appearance-heading">
           <div class="card-type-appearance-header">
@@ -163,7 +176,7 @@
         </section>
         <Transition name="custom-fields-pane" @after-enter="focusCustomFields">
           <div v-if="showCustomFields" class="card-type-fields">
-            <CardTypeFieldsEditor ref="fieldsEditor" v-model="draftFields" :busy="busy" :errors="validationErrors" :original-fields="editingCardType?.fields ?? []" />
+            <CardTypeFieldsEditor ref="fieldsEditor" v-model="draftFields" :busy="busy" :errors="validationErrors" />
           </div>
         </Transition>
       </div>
@@ -206,7 +219,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, CircleAlert, Trash2, X } from '@lucide/vue';
+import { Check, CircleAlert, TriangleAlert, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -215,6 +228,7 @@ import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardTypeEditModel } from '../../shared/types/boardTypes';
 import CardTypeFieldsEditor from './CardTypeFieldsEditor.vue';
+import { useCardTypeFieldsPreview } from '../composables/useCardTypeFieldsPreview';
 import type { AppError } from '../../shared/types/appError';
 import { buildCardFieldDefinitions, createCardFieldDraft, fieldErrorIndex, isInlineFieldError, retainCardFieldErrors, type CardFieldDraft } from '../utils/cardFieldDraft';
 import { useBoardStore } from '../stores/boardStore';
@@ -247,7 +261,7 @@ const fieldsEditor = ref<InstanceType<typeof CardTypeFieldsEditor> | null>(null)
 const editorError = ref<AppError | null>(null);
 const errorSummary = ref<HTMLElement | null>(null);
 const nameInput = ref<HTMLInputElement | null>(null);
-const validationErrors = computed(() => editorError.value?.validationErrors ?? {});
+const validationErrors = computed(() => ({ ...previewError.value?.validationErrors, ...editorError.value?.validationErrors }));
 const summaryErrors = computed(() => Object.fromEntries(Object.entries(validationErrors.value)
   .filter(([path]) => path !== 'name' && !path.startsWith('fields') && !path.startsWith('cards['))));
 const hasSummaryError = computed(() => editorError.value !== null
@@ -272,6 +286,15 @@ const routeCardTypeId = computed<number | null>(() => {
   return Number.isFinite(parsed) ? parsed : null;
 });
 const editingCardType = computed(() => getCardTypeById(routeCardTypeId.value));
+const previewRequest = computed(() => {
+  const type = editingCardType.value;
+  if (isCreateMode.value || !type || draftSourceKey.value !== `edit:${boardId.value}:${type.id}`) return null;
+  const fields = buildCardFieldDefinitions(draftFields.value);
+  const original = buildCardFieldDefinitions(type.fields.map(createCardFieldDraft));
+  if (JSON.stringify(fields) === JSON.stringify(original)) return null;
+  return { boardId: boardId.value, cardTypeId: type.id, fields };
+});
+const { impacts: fieldImpacts, error: previewError } = useCardTypeFieldsPreview(() => previewRequest.value);
 const showCustomFields = computed(() => customFieldsOpened.value || draftFields.value.length > 0 || (editingCardType.value?.fields.length ?? 0) > 0);
 const dialogTitle = computed(() => {
   if (isCreateMode.value) {
@@ -513,6 +536,28 @@ function clearDraft() {
   display: flex;
   flex-direction: column;
 }
+
+.card-type-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  max-height: 9rem;
+  overflow-y: auto;
+  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--bo-toast-warning-border);
+  border-radius: 0.5rem;
+  background: var(--bo-toast-warning-bg);
+  color: var(--bo-toast-warning-text);
+  font-size: 0.875rem;
+}
+
+.card-type-preview > svg { flex-shrink: 0; margin-top: 0.15rem; }
+.card-type-preview > div { min-width: 0; overflow-wrap: anywhere; }
+.card-type-preview p { margin: 0; }
+.card-type-preview p + p { margin-top: 0.25rem; }
+.card-type-preview-error { font-size: 0.875rem; }
 
 .card-type-columns {
   display: grid;

@@ -31,3 +31,9 @@ public sealed record UpdateCardTypeRequest(
     string? StylePropertiesJson = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     IReadOnlyList<CardFieldDefinition>? Fields = null);
+
+public sealed record PreviewCardTypeFieldsRequest(IReadOnlyList<CardFieldDefinition>? Fields);
+
+public sealed record CardTypeFieldsPreviewDto(IReadOnlyList<CardTypeFieldImpactDto> Fields);
+
+public sealed record CardTypeFieldImpactDto(string FieldCode, string DisplayName, string Change, int CardCount);

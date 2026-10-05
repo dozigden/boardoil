@@ -51,26 +51,40 @@ test('configure fields, reorder, reopen and cancel removal without changing save
   expect((await api.getCardTypes(board.id)).find(type => type.id === saved.id)?.fields.map(field => field.fieldCode)).toEqual(['Reference', 'Points']);
 });
 
-test('existing-card validation keeps the draft and links back to the field', async ({ api, authenticatedPage: page }) => {
-  const board = await api.createBoard('Field limits');
+test('definition changes preview losses and preserve replaced values in comments', async ({ api, authenticatedPage: page }, testInfo) => {
+  const board = await api.createBoard('Field impact');
   const type = await api.configureDefaultFields(board.id, [{
     type: 'integer', fieldCode: 'Points', displayName: 'Estimate', emoji: null,
     nullable: false, showOnCard: true, defaultValue: 10, min: 0, max: 20
+  }, {
+    type: 'date', fieldCode: 'Due', displayName: 'Due Date', emoji: null,
+    nullable: true, showOnCard: false, defaultValue: '2026-10-04'
   }]);
   const card = await api.createCard(board, 'Todo', 'Existing estimate');
   const editor = new CardTypeEditorPage(page);
   await editor.open(board.id, type.id);
+  const warning = page.getByRole('status', { name: 'Field change warnings' });
+  await expect(warning).toHaveCount(0);
   await editor.expandField('Estimate');
   await page.getByLabel('Default value (required)', { exact: true }).fill('0');
   await page.getByLabel('Maximum value', { exact: true }).fill('5');
-  await editor.submit();
-  const error = page.getByRole('alert');
-  await expect(error).toContainText(`Card #${card.id} · Estimate`);
-  await error.getByRole('button', { name: `Card #${card.id} · Estimate`, exact: true }).click();
-  await expect(page.getByLabel('Maximum value', { exact: true })).toHaveValue('5');
-  await expect(page.getByLabel('Default value (required)', { exact: true })).toHaveValue('0');
-  await page.getByLabel('Maximum value', { exact: true }).fill('15');
+  await expect(warning).toContainText("Changes to 'Estimate' will replace values on 1 card.");
+  expect((await api.getCard(board.id, card.id)).fields.Points).toBe(10);
+  await editor.removeField('Due Date');
+  await expect(warning).toContainText("Deleted field 'Due Date' will be removed from 1 card.");
+  await expect(warning).toContainText('Removed values will be saved to comments.');
+  await page.screenshot({ path: testInfo.outputPath('field-change-warnings.png') });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(warning).toBeVisible();
+  await expect.poll(async () => (await page.getByRole('dialog').boundingBox())!.width).toBeLessThanOrEqual(390);
+  expect(await page.getByRole('dialog').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('field-change-warnings-mobile.png') });
   await editor.save();
+  expect((await api.getCard(board.id, card.id)).fields).toEqual({ Points: 0 });
+  await page.goto(`/boards/${board.id}/card/${card.id}`);
+  const comment = page.getByRole('article').filter({ hasText: 'Estimate: 10' });
+  await expect(comment).toContainText('Due Date: 2026-10-04');
+  await expect(comment.getByLabel('System comment', { exact: true })).toBeVisible();
 });
 
 test('required defaults are validated and new fields stop at ten', async ({ api, authenticatedPage: page }) => {

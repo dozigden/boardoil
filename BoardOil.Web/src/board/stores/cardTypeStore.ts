@@ -1,3 +1,4 @@
+import type { CardFieldDefinitionInput } from '../../shared/types/cardFieldTypes';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
@@ -112,6 +113,10 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return result.data;
   }
 
+  function previewFields(boardId: number, cardTypeId: number, fields: CardFieldDefinitionInput[]) {
+    return api.previewCardTypeFields(boardId, cardTypeId, fields);
+  }
+
   async function deleteCardType(cardTypeId: number, boardId: number) {
     const result = await runBusy(boardId, () => api.deleteCardType(boardId, cardTypeId));
     if (!result.ok) {
@@ -189,6 +194,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
     loadCardTypes,
     createCardType,
     updateCardType,
+    previewFields,
     setDefaultCardType,
     deleteCardType,
     getCardTypeById
