@@ -588,7 +588,7 @@ public sealed class BoardApiCardIntegrationTests
 
         var commentJson = Assert.Single(json.RootElement.GetProperty("data").GetProperty("comments").EnumerateArray());
         Assert.Equal(
-            ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath", "editedAtUtc"],
+            ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath", "editedAtUtc", "isSystem"],
             commentJson.EnumerateObject().Select(x => x.Name).ToArray());
         Assert.False(commentJson.TryGetProperty("id", out _));
         Assert.False(commentJson.TryGetProperty("cardId", out _));

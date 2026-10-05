@@ -113,7 +113,8 @@ public sealed record McpCardCommentSnapshot(
     DateTime PostedAtUtc,
     string? AuthorDisplayName,
     string? AuthorImageRelativePath,
-    DateTime? EditedAtUtc = null);
+    DateTime? EditedAtUtc = null,
+    bool IsSystem = false);
 
 public sealed record McpArchivedCardSnapshot(
     int Id,
@@ -147,7 +148,8 @@ public sealed record McpArchivedCardCommentSnapshot(
     int? AuthorUserId,
     string? AuthorDisplayName,
     string? AuthorImageRelativePath,
-    DateTime? EditedAtUtc = null);
+    DateTime? EditedAtUtc = null,
+    bool IsSystem = false);
 
 public sealed record McpArchivedCardSearchResult(
     IReadOnlyList<McpArchivedCardSearchSummary> Cards,

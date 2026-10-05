@@ -124,7 +124,7 @@ public sealed class CardCommentService(
             return ApiErrors.NotFound("Comment not found.");
         }
 
-        if (comment.AuthorUserId != actorUserId)
+        if (comment.IsSystem || comment.AuthorUserId != actorUserId)
         {
             return ApiErrors.Forbidden("You can only edit your own comments.");
         }
@@ -190,7 +190,7 @@ public sealed class CardCommentService(
             return ApiErrors.NotFound("Comment not found.");
         }
 
-        if (comment.AuthorUserId != actorUserId
+        if ((comment.IsSystem || comment.AuthorUserId != actorUserId)
             && !await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.CommentModerate))
         {
             return ApiErrors.Forbidden("You can only delete your own comments unless you own this board.");

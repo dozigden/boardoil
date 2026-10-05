@@ -160,8 +160,9 @@
                 :key="comment.id"
                 class="card-editor-comment"
               >
-                <aside class="card-editor-comment-author-rail" aria-label="Comment author">
-                  <span class="card-editor-comment-author">
+                <aside class="card-editor-comment-author-rail" :aria-label="comment.isSystem ? 'System comment' : 'Comment author'">
+                  <span v-if="comment.isSystem" class="card-editor-comment-author-name">System</span>
+                  <span v-else class="card-editor-comment-author">
                     <UserAvatar
                       :image-relative-path="comment.authorImageRelativePath ?? null"
                       :display-name="comment.authorDisplayName ?? 'Unknown user'"
@@ -740,12 +741,12 @@ function resetCommentDraft() {
 }
 
 function canEditComment(comment: CardComment) {
-  return boardStore.currentUserRole !== null && comment.authorUserId === authStore.user?.id && !commentStore.isCommentDeleted(comment.id);
+  return !comment.isSystem && boardStore.currentUserRole !== null && comment.authorUserId === authStore.user?.id && !commentStore.isCommentDeleted(comment.id);
 }
 
 function canDeleteComment(comment: CardComment) {
   return boardStore.currentUserRole !== null && !commentStore.isCommentDeleted(comment.id)
-    && (comment.authorUserId === authStore.user?.id || boardStore.isCurrentUserOwner);
+    && ((!comment.isSystem && comment.authorUserId === authStore.user?.id) || boardStore.isCurrentUserOwner);
 }
 
 async function deleteComment(comment: CardComment) {
@@ -756,7 +757,9 @@ async function deleteComment(comment: CardComment) {
   }
   const confirmed = await confirm({
     title: 'Delete comment',
-    message: `Delete this comment by ${comment.authorDisplayName ?? 'Unknown user'}?\n\n${comment.text.slice(0, 200)}`,
+    message: comment.isSystem
+      ? `Delete this system comment?\n\n${comment.text.slice(0, 200)}`
+      : `Delete this comment by ${comment.authorDisplayName ?? 'Unknown user'}?\n\n${comment.text.slice(0, 200)}`,
     confirmLabel: 'Delete',
     danger: true
   });

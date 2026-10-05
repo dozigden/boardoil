@@ -1,7 +1,11 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Card;
+using BoardOil.Ef;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -11,6 +15,51 @@ public sealed class McpCommentUpdateIntegrationTests : McpIntegrationTestBase, I
     public McpCommentUpdateIntegrationTests(DefaultApiFactoryFixture fixture)
     {
         UseSharedFactory(fixture);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SystemComments_ShouldExposeAuthorlessMarkerInRestAndMcp(bool archived)
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var token = await CreateMachinePatAsync(client);
+        var comment = await CreateCommentAsync(client);
+        Assert.False(comment.IsSystem);
+        var factory = Factory.Services.GetRequiredService<IDbContextFactory>();
+        await using (var db = factory.CreateDbContext<BoardOilDbContext>())
+        {
+            var stored = await db.CardComments.SingleAsync(x => x.Id == comment.Id);
+            stored.IsSystem = true;
+            stored.AuthorUserId = null;
+            await db.SaveChangesAsync();
+        }
+        if (archived)
+        {
+            var archiveResponse = await client.PostAsync($"/api/boards/1/cards/{comment.CardId}/archive", null);
+            archiveResponse.EnsureSuccessStatusCode();
+        }
+
+        var mcp = await CallToolAsync(client, token, "card_get", new { boardId = 1, id = comment.CardId, archived });
+        var path = archived
+            ? $"/api/boards/1/cards/archived/{comment.CardId}"
+            : $"/api/boards/1/cards/{comment.CardId}/comments";
+        var response = await client.GetAsync(path);
+
+        response.EnsureSuccessStatusCode();
+        Assert.False(mcp.GetProperty("isError").GetBoolean());
+        var rest = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var restComments = archived ? rest.GetProperty("data").GetProperty("comments") : rest.GetProperty("data");
+        foreach (var comments in new[] { restComments, mcp.GetProperty("structuredContent").GetProperty("comments") })
+        {
+            var system = Assert.Single(comments.EnumerateArray());
+            Assert.True(system.GetProperty("isSystem").GetBoolean());
+            Assert.Equal(JsonValueKind.Null, system.GetProperty("authorUserId").ValueKind);
+            Assert.Equal(JsonValueKind.Null, system.GetProperty("authorDisplayName").ValueKind);
+            Assert.Equal(JsonValueKind.Null, system.GetProperty("authorImageRelativePath").ValueKind);
+            Assert.Equal(comment.Text, system.GetProperty("text").GetString());
+        }
     }
 
     [Fact]

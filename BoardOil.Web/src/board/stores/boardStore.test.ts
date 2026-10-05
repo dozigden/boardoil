@@ -447,6 +447,7 @@ describe('boardStore', () => {
       id: 1,
       cardId: 101,
       authorUserId: null,
+      isSystem: false,
       text: 'Realtime comment',
       postedAtUtc: '2026-03-15T00:00:00Z'
     };

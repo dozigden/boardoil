@@ -521,9 +521,10 @@ public static class ToolSchemas
             "postedAtUtc": { "type": "string", "format": "date-time" },
             "authorDisplayName": { "type": ["string", "null"] },
             "authorImageRelativePath": { "type": ["string", "null"] },
-            "editedAtUtc": { "type": ["string", "null"], "format": "date-time" }
+            "editedAtUtc": { "type": ["string", "null"], "format": "date-time" },
+            "isSystem": { "type": "boolean" }
           },
-          "required": ["id", "cardId", "authorUserId", "text", "postedAtUtc", "authorDisplayName", "authorImageRelativePath", "editedAtUtc"],
+          "required": ["id", "cardId", "authorUserId", "text", "postedAtUtc", "authorDisplayName", "authorImageRelativePath", "editedAtUtc", "isSystem"],
           "additionalProperties": false
         },
         "archivedComment": {
@@ -534,9 +535,10 @@ public static class ToolSchemas
             "authorUserId": { "type": ["integer", "null"] },
             "authorDisplayName": { "type": ["string", "null"] },
             "authorImageRelativePath": { "type": ["string", "null"] },
-            "editedAtUtc": { "type": ["string", "null"], "format": "date-time" }
+            "editedAtUtc": { "type": ["string", "null"], "format": "date-time" },
+            "isSystem": { "type": "boolean" }
           },
-          "required": ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath", "editedAtUtc"],
+          "required": ["text", "postedAtUtc", "authorUserId", "authorDisplayName", "authorImageRelativePath", "editedAtUtc", "isSystem"],
           "additionalProperties": false
         },
         "attachment": {

@@ -26,8 +26,9 @@
             :key="`${comment.postedAtUtc}-${index}`"
             class="archived-card-comment"
           >
-            <aside class="archived-card-comment-author-rail" aria-label="Comment author">
-              <span class="archived-card-comment-author">
+            <aside class="archived-card-comment-author-rail" :aria-label="comment.isSystem ? 'System comment' : 'Comment author'">
+              <span v-if="comment.isSystem" class="archived-card-comment-author-name">System</span>
+              <span v-else class="archived-card-comment-author">
                 <UserAvatar
                   :image-relative-path="comment.authorImageRelativePath"
                   :display-name="comment.authorDisplayName ?? 'Unknown user'"

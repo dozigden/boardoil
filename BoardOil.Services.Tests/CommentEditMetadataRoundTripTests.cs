@@ -11,9 +11,11 @@ namespace BoardOil.Services.Tests;
 public sealed class CommentEditMetadataRoundTripTests : TestBaseDb
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ExportImportAndRestore_ShouldPreserveLiveAndArchivedCommentEditMetadata(bool edited)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task ExportImportAndRestore_ShouldPreserveLiveAndArchivedCommentMetadata(bool edited, bool isSystem)
     {
         var board = CreateBoard("Source").AddColumn("Todo").AddCard("Live").AddCard("Archived").Build();
         var liveCard = board.GetCard("Live");
@@ -25,7 +27,7 @@ public sealed class CommentEditMetadataRoundTripTests : TestBaseDb
         {
             DbContextForArrange.CardComments.Add(new EntityCardComment
             {
-                CardId = card.Id, AuthorUserId = ActorUserId, Text = $"{card.Title} comment",
+                CardId = card.Id, AuthorUserId = isSystem ? null : ActorUserId, IsSystem = isSystem, Text = $"{card.Title} comment",
                 PostedAtUtc = postedAtUtc, EditedAtUtc = editedAtUtc
             });
         }
@@ -49,6 +51,13 @@ public sealed class CommentEditMetadataRoundTripTests : TestBaseDb
 
         Assert.True(restored.Success, restored.Message);
         var archivedComment = Assert.Single(archivedDetail.Data!.Comments);
+        Assert.Equal(isSystem, archivedComment.IsSystem);
+        if (isSystem)
+        {
+            Assert.Null(archivedComment.AuthorUserId);
+            Assert.Null(archivedComment.AuthorDisplayName);
+            Assert.Null(archivedComment.AuthorImageRelativePath);
+        }
         Assert.Equal(editedAtUtc, archivedComment.EditedAtUtc);
         Assert.Equal(postedAtUtc, archivedComment.PostedAtUtc);
         var stored = await DbContextForAssert.CardComments
@@ -58,7 +67,8 @@ public sealed class CommentEditMetadataRoundTripTests : TestBaseDb
         Assert.Equal(new[] { "Archived comment", "Live comment" }, stored.Select(x => x.Text));
         Assert.All(stored, comment =>
         {
-            Assert.Equal(ActorUserId, comment.AuthorUserId);
+            Assert.Equal(isSystem, comment.IsSystem);
+            Assert.Equal(isSystem ? (int?)null : ActorUserId, comment.AuthorUserId);
             Assert.Equal(postedAtUtc, comment.PostedAtUtc);
             Assert.Equal(editedAtUtc, comment.EditedAtUtc);
         });

@@ -56,7 +56,10 @@ public sealed class CardCommentEditedAtMigrationIntegrationTests
         }
 
         await using var assertDb = new BoardOilDbContext(options);
-        var comment = await assertDb.CardComments.SingleAsync();
+        var comment = await assertDb.CardComments.Select(item => new
+        {
+            item.Id, item.CardId, item.AuthorUserId, item.Text, item.CreatedAtUtc, item.PostedAtUtc, item.EditedAtUtc
+        }).SingleAsync();
         Assert.Equal(1, comment.Id);
         Assert.Equal(1, comment.CardId);
         Assert.Null(comment.AuthorUserId);

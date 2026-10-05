@@ -62,7 +62,8 @@ public static class McpMappingExtensions
             comment.PostedAtUtc,
             comment.AuthorDisplayName,
             comment.AuthorImageRelativePath,
-            comment.EditedAtUtc);
+            comment.EditedAtUtc,
+            comment.IsSystem);
 
     public static McpArchivedCardSnapshot ToMcp(
         this ArchivedCardDetailDto archivedCard,
@@ -152,7 +153,8 @@ public static class McpMappingExtensions
             comment.AuthorUserId,
             comment.AuthorDisplayName,
             comment.AuthorImageRelativePath,
-            comment.EditedAtUtc);
+            comment.EditedAtUtc,
+            comment.IsSystem);
 
     private static McpCardSlickSnapshot? ResolveSlickSnapshot(
         int? slickId,

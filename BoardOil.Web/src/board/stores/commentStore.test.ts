@@ -366,6 +366,7 @@ function makeComment(id: number, cardId: number, text: string): CardComment {
     id,
     cardId,
     authorUserId: null,
+    isSystem: false,
     text,
     postedAtUtc: `2026-07-31T12:0${id}:00Z`
   };

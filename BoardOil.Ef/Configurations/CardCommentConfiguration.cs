@@ -11,6 +11,7 @@ public sealed class CardCommentConfiguration : IEntityTypeConfiguration<EntityCa
         cardComment.HasKey(x => x.Id);
         cardComment.Property(x => x.CardId).IsRequired();
         cardComment.Property(x => x.AuthorUserId).IsRequired(false);
+        cardComment.Property(x => x.IsSystem).HasDefaultValue(false).IsRequired();
         cardComment.Property(x => x.Text).HasMaxLength(4_000).IsRequired();
         cardComment.Property(x => x.PostedAtUtc).IsRequired();
         cardComment.Property(x => x.EditedAtUtc).IsRequired(false);

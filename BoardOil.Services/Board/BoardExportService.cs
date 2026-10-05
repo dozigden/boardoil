@@ -101,8 +101,9 @@ public sealed class BoardExportService(
                     .Select(comment => new BoardPackageCommentDto(
                         comment.Text,
                         comment.PostedAtUtc,
-                        comment.AuthorUser?.Email,
-                        comment.EditedAtUtc))
+                        comment.IsSystem ? null : comment.AuthorUser?.Email,
+                        comment.EditedAtUtc,
+                        comment.IsSystem))
                     .ToList());
 
         var cardsByColumnId = cards

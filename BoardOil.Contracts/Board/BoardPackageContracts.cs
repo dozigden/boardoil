@@ -69,7 +69,8 @@ public sealed record BoardPackageCommentDto(
     string Text,
     DateTime PostedAtUtc,
     string? AuthorEmail = null,
-    DateTime? EditedAtUtc = null);
+    DateTime? EditedAtUtc = null,
+    bool IsSystem = false);
 
 public sealed record BoardPackageArchiveDto(
     IReadOnlyList<BoardPackageArchivedCardDto> Cards);

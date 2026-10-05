@@ -20,7 +20,8 @@ public sealed record CardCommentDto(
     DateTime PostedAtUtc,
     string? AuthorDisplayName = null,
     string? AuthorImageRelativePath = null,
-    DateTime? EditedAtUtc = null);
+    DateTime? EditedAtUtc = null,
+    bool IsSystem = false);
 
 public sealed record CardDto(
     int Id,
@@ -74,7 +75,8 @@ public sealed record ArchivedCardCommentDto(
     int? AuthorUserId = null,
     string? AuthorDisplayName = null,
     string? AuthorImageRelativePath = null,
-    DateTime? EditedAtUtc = null);
+    DateTime? EditedAtUtc = null,
+    bool IsSystem = false);
 
 public sealed record ArchivedCardListItemDto(
     int Id,

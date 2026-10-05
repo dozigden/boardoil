@@ -249,6 +249,7 @@ public sealed class CardArchiveService(
                 AuthorUser = author,
                 Text = snapshotComment.Text,
                 PostedAtUtc = snapshotComment.CreatedAtUtc,
+                IsSystem = snapshotComment.IsSystem,
                 EditedAtUtc = snapshotComment.EditedAtUtc,
                 CreatedAtUtc = snapshotComment.CreatedAtUtc
             };
@@ -531,7 +532,8 @@ public sealed class CardArchiveService(
                 x.Author?.Id,
                 x.Author?.DisplayName,
                 x.Author is null ? null : imageByAuthorUserId.GetValueOrDefault(x.Author.Id),
-                x.Comment.EditedAtUtc))
+                x.Comment.EditedAtUtc,
+                x.Comment.IsSystem))
             .ToList();
     }
 
@@ -592,6 +594,11 @@ public sealed class CardArchiveService(
         ArchivedCardSnapshotCommentV1Payload snapshotComment,
         IDictionary<string, EntityUser?> authorByNormalisedEmail)
     {
+        if (snapshotComment.IsSystem)
+        {
+            return null;
+        }
+
         if (string.IsNullOrWhiteSpace(snapshotComment.AuthorEmail))
         {
             return null;

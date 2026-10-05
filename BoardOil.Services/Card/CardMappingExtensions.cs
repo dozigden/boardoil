@@ -105,12 +105,13 @@ public static class CardMappingExtensions
         new(
             comment.Id,
             boardCardId,
-            comment.AuthorUserId,
+            comment.IsSystem ? null : comment.AuthorUserId,
             comment.Text,
             comment.PostedAtUtc,
-            authorDisplayName ?? comment.AuthorUser?.DisplayName ?? UnknownCommentAuthorDisplayName,
-            authorImageRelativePath,
-            comment.EditedAtUtc);
+            comment.IsSystem ? null : authorDisplayName ?? comment.AuthorUser?.DisplayName ?? UnknownCommentAuthorDisplayName,
+            comment.IsSystem ? null : authorImageRelativePath,
+            comment.EditedAtUtc,
+            comment.IsSystem);
 
     private static IReadOnlyList<string> ParseSearchTagsJson(string searchTagsJson)
     {

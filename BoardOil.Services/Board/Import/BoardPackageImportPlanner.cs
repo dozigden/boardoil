@@ -759,8 +759,9 @@ public sealed class BoardPackageImportPlanner
             canonicalComments.Add(new CommentImportDefinition(
                 canonicalText,
                 importedComment.PostedAtUtc,
-                BoardPackageImportNormalisation.ResolveNormalisedEmailOrNull(importedComment.AuthorEmail),
-                importedComment.EditedAtUtc));
+                importedComment.IsSystem ? null : BoardPackageImportNormalisation.ResolveNormalisedEmailOrNull(importedComment.AuthorEmail),
+                importedComment.EditedAtUtc,
+                importedComment.IsSystem));
         }
 
         return canonicalComments;

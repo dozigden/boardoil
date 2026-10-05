@@ -584,6 +584,11 @@ namespace BoardOil.Ef.Migrations
                     b.Property<DateTime?>("EditedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsSystem")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime>("PostedAtUtc")
                         .HasColumnType("TEXT");
 

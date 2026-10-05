@@ -34,6 +34,7 @@ public sealed class CardCommentServiceTests : TestBaseDb
         Assert.NotNull(result.Data);
         Assert.Equal(cardId, result.Data!.CardId);
         Assert.Equal("First comment", result.Data.Text);
+        Assert.False(result.Data.IsSystem);
 
         var stored = await DbContextForAssert.CardComments.SingleAsync();
         Assert.Equal(cardId, stored.CardId);

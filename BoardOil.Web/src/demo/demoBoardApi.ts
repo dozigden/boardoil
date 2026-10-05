@@ -486,7 +486,8 @@ const demoBoardApi: BoardApi = {
       authorImageRelativePath: null,
       text: text.trim(),
       postedAtUtc,
-      editedAtUtc: null
+      editedAtUtc: null,
+      isSystem: false
     };
     state.comments[cardId] = [comment, ...(state.comments[cardId] ?? [])];
     const card = findCard(cardId)!.card;
@@ -502,7 +503,7 @@ const demoBoardApi: BoardApi = {
     if (!comment) {
       return notFound('Comment not found.');
     }
-    if (comment.authorUserId !== DemoUserId) {
+    if (comment.isSystem || comment.authorUserId !== DemoUserId) {
       return err({ kind: 'api', message: 'You can only edit your own comments.' });
     }
     const trimmedText = text.trim();
@@ -532,7 +533,7 @@ const demoBoardApi: BoardApi = {
       return ok(undefined);
     }
     const member = state.members.find(item => item.userId === DemoUserId);
-    if (comment.authorUserId !== DemoUserId && member?.role !== 'Owner') {
+    if ((comment.isSystem || comment.authorUserId !== DemoUserId) && member?.role !== 'Owner') {
       return err({ kind: 'api', message: 'You can only delete your own comments unless you own this board.' });
     }
     state.comments[cardId] = state.comments[cardId].filter(item => item.id !== commentId);
@@ -803,7 +804,8 @@ function archiveCardInternal(cardId: number) {
       authorUserId: comment.authorUserId,
       authorDisplayName: comment.authorDisplayName ?? null,
       authorImageRelativePath: comment.authorImageRelativePath ?? null,
-      editedAtUtc: comment.editedAtUtc ?? null
+      editedAtUtc: comment.editedAtUtc ?? null,
+      isSystem: comment.isSystem
     }))
   });
   return true;

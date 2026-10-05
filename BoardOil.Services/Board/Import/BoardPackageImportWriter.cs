@@ -204,6 +204,7 @@ public sealed class BoardPackageImportWriter(
                         AuthorUser = commentAuthor,
                         Text = importedComment.Text,
                         PostedAtUtc = importedComment.PostedAtUtc,
+                        IsSystem = importedComment.IsSystem,
                         EditedAtUtc = importedComment.EditedAtUtc
                     });
                 }

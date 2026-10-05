@@ -29,6 +29,7 @@ export type CardComment = {
   authorDisplayName?: string | null;
   authorImageRelativePath?: string | null;
   editedAtUtc?: string | null;
+  isSystem: boolean;
 };
 
 export type Card = {
@@ -131,6 +132,7 @@ export type ArchivedCardComment = {
   authorDisplayName: string | null;
   authorImageRelativePath: string | null;
   editedAtUtc?: string | null;
+  isSystem: boolean;
 };
 
 export type ArchivedCard = ArchivedCardListItem & {
