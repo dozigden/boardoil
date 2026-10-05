@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { watch } from 'vue';
 import { useCardStore } from './cardStore';
+import { useCommentStore } from './commentStore';
 import { useSlickStore } from './slickStore';
 import { useAttachmentStore } from './attachmentStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
@@ -53,6 +54,22 @@ describe('cardStore', () => {
     expect(store.getCardById(101)?.fields).toEqual({ Points: 0 });
     store.dispose();
     expect(store.saveError).toBeNull();
+  });
+
+  it.each([false, true])('reloads conversion comments only when the saved type changes (%s)', async changingType => {
+    const store = useCardStore();
+    const comments = useCommentStore();
+    const load = vi.spyOn(comments, 'loadCardComments').mockResolvedValue(ok([]));
+    const board = makeBoard();
+    store.replaceBoardCards(1, board.columns);
+    const card = board.columns[0].cards[0];
+    const cardTypeId = card.cardTypeId + (changingType ? 1 : 0);
+    api.saveCard.mockResolvedValueOnce(ok({ ...card, cardTypeId }));
+
+    expect(await store.saveCard(card.id, { ...makeCardEditModel(), cardTypeId })).toBe(true);
+
+    if (changingType) expect(load).toHaveBeenCalledWith(1, card.id);
+    else expect(load).not.toHaveBeenCalled();
   });
 
   it('copies field dictionaries on realtime updates without aliasing the response', () => {

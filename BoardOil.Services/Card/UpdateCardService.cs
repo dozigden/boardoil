@@ -83,6 +83,10 @@ public sealed class UpdateCardService(
             await boardEvents.CardUpdatedAsync(boardId, dto);
         }
 
+        if (saved.Data!.LossComment is { } lossComment)
+        {
+            await boardEvents.CommentCreatedAsync(boardId, lossComment.ToCardCommentDto(id));
+        }
         return dto;
     }
 
@@ -127,17 +131,8 @@ public sealed class UpdateCardService(
         {
             return ApiErrors.ValidationFailed(fieldPlan.Errors);
         }
-        if (fieldPlan.Value!.LostValues.Count > 0)
-        {
-            updatedDescription = CardFieldLossDescription.Append(updatedDescription, fieldPlan.Value.LostValues);
-            if (updatedDescription.Length > CardValidator.MaxDescriptionLength)
-            {
-                return ApiErrors.ValidationFailed([new ValidationError("description",
-                    "The description has insufficient space to record removed field values. Shorten it before changing the card type.")]);
-            }
-        }
         var descriptionChanged = updatedDescription != existingCard.Description;
-        var fieldsChanged = fieldPlan.Value.ValuesJson != existingCard.FieldValuesJson;
+        var fieldsChanged = fieldPlan.Value!.ValuesJson != existingCard.FieldValuesJson;
         var updatedTags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames, _tagRepository, styleDefaultService);
         var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository, styleDefaultService);
         var selectedSlickId = selectedSlick?.Id;
@@ -182,7 +177,7 @@ public sealed class UpdateCardService(
 
         existingCard.Title = updatedTitle;
         existingCard.Description = updatedDescription;
-        existingCard.FieldValuesJson = fieldPlan.Value.ValuesJson;
+        existingCard.FieldValuesJson = fieldPlan.Value!.ValuesJson;
         existingCard.ExternalUrl = updatedExternalUrl;
         if (tagsChanged)
         {
@@ -223,11 +218,13 @@ public sealed class UpdateCardService(
         var derivedValuesChanged = previousCompleted != existingCard.CompletedChecklistItemCount
             || previousTotal != existingCard.TotalChecklistItemCount;
 
+        var lossComment = CardFieldLossComment.Add(existingCard, fieldPlan.Value!.LostValues);
         await scope.SaveChangesAsync(cancellationToken);
         return new CardSaveResult(
             metadataChanged || movementChanged || derivedValuesChanged,
-            movementChanged, movementPlan?.Renormalised == true);
+            movementChanged, movementPlan?.Renormalised == true, lossComment);
     }
 }
 
-internal sealed record CardSaveResult(bool Changed, bool Moved, bool ResyncRequired);
+internal sealed record CardSaveResult(bool Changed, bool Moved, bool ResyncRequired,
+    BoardOil.Data.Abstractions.Entities.EntityCardComment? LossComment = null);

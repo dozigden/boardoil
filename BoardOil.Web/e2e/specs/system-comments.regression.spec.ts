@@ -3,23 +3,22 @@ import { CardEditorPage } from '../ui/CardEditorPage';
 
 test('system comments have no author or edit action in live and archived views', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('System comment presentation');
+  const literal = '![image](https://example.invalid/image.png)';
+  await api.configureDefaultFields(board.id, [
+    { type: 'integer', fieldCode: 'Points', displayName: 'Estimate', emoji: null, nullable: true,
+      showOnCard: false, defaultValue: 7, min: null, max: null },
+    { type: 'text', fieldCode: 'Reference', displayName: 'Reference', emoji: null, nullable: true,
+      showOnCard: false, defaultValue: literal, minLength: null, maxLength: 250 }
+  ]);
   const card = await api.createCard(board, 'Todo', 'Recorded field values');
-  await api.addCardComment(board.id, card.id, 'Estimate: **7**');
-
-  // System-comment generation is a later slice; exercise the read contract here.
-  const systemMetadata = { isSystem: true, authorUserId: null, authorDisplayName: null, authorImageRelativePath: null };
-  await page.route(`**/api/boards/${board.id}/cards/${card.id}/comments`, async route => {
-    const response = await route.fetch();
-    const body = await response.json();
-    body.data = body.data.map((comment: object) => ({ ...comment, ...systemMetadata }));
-    await route.fulfill({ response, json: body });
-  });
+  await api.configureDefaultFields(board.id, []);
   await page.goto(`/boards/${board.id}/card/${card.id}`);
   const editor = new CardEditorPage(page);
   const comment = page.getByRole('article').filter({ hasText: 'Estimate: 7' });
   await expect(comment.getByLabel('System comment', { exact: true })).toHaveText('System');
   await expect(comment.getByText('Unknown user', { exact: true })).toHaveCount(0);
   await expect(comment.getByRole('img')).toHaveCount(0);
+  await expect(comment.locator('pre code')).toContainText(literal);
   await comment.getByRole('button', { name: 'Comment actions', exact: true }).click();
   await expect(comment.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
   await expect(comment.getByRole('button', { name: 'Delete', exact: true })).toBeVisible();
@@ -30,12 +29,6 @@ test('system comments have no author or edit action in live and archived views',
   await prompt.getByRole('button', { name: 'Cancel', exact: true }).click();
 
   await api.archiveCard(board.id, card.id);
-  await page.route(`**/api/boards/${board.id}/cards/archived/${card.id}`, async route => {
-    const response = await route.fetch();
-    const body = await response.json();
-    body.data.comments = body.data.comments.map((item: object) => ({ ...item, ...systemMetadata }));
-    await route.fulfill({ response, json: body });
-  });
   await page.goto(`/boards/${board.id}/archived/${card.id}`);
   const archivedComment = page.getByRole('article').filter({ hasText: 'Estimate: 7' });
   await expect(archivedComment.getByLabel('System comment', { exact: true })).toHaveText('System');

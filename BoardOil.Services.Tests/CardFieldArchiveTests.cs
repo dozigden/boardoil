@@ -82,10 +82,13 @@ public sealed class CardFieldArchiveTests : TestBaseDb
         else Assert.Equal("0", fields["Points"].GetString());
         Assert.Equal("Default", fields["New"].GetString());
         Assert.Equal(2, fields.Count);
-        Assert.Contains("Reference: Saved", result.Data.Description);
-        Assert.Contains("Due date: 2024\\-02\\-29", result.Data.Description);
-        Assert.Equal(tightenLimit, result.Data.Description.Contains("Estimate: 0"));
-        Assert.DoesNotContain("Empty:", result.Data.Description);
+        Assert.Equal(source.Description, result.Data.Description);
+        var lossComment = await DbContextForAssert.CardComments.SingleAsync();
+        Assert.True(lossComment.IsSystem);
+        Assert.Contains("Reference: Saved", lossComment.Text);
+        Assert.Contains("Due date: 2024-02-29", lossComment.Text);
+        Assert.Equal(tightenLimit, lossComment.Text.Contains("Estimate: 0"));
+        Assert.DoesNotContain("Empty:", lossComment.Text);
     }
 
     [Fact]
@@ -114,8 +117,11 @@ public sealed class CardFieldArchiveTests : TestBaseDb
         Assert.True(result.Success, result.Message);
         Assert.Equal(systemType.Id, result.Data!.CardTypeId);
         Assert.Equal("0", Assert.Single(result.Data.Fields).Value.GetString());
-        Assert.Contains("Reference: Saved", result.Data.Description);
-        Assert.DoesNotContain("Estimate: 0", result.Data.Description);
+        Assert.Equal(source.Description, result.Data.Description);
+        var lossComment = await DbContextForAssert.CardComments.SingleAsync();
+        Assert.True(lossComment.IsSystem);
+        Assert.Contains("Reference: Saved", lossComment.Text);
+        Assert.DoesNotContain("Estimate: 0", lossComment.Text);
     }
 
     [Fact]
@@ -160,7 +166,7 @@ public sealed class CardFieldArchiveTests : TestBaseDb
     }
 
     [Fact]
-    public async Task Restore_WhenLossRecordDoesNotFit_ShouldKeepArchiveAndCreateNoCard()
+    public async Task Restore_WithFullDescription_ShouldPreserveDescriptionAndRecordComment()
     {
         var source = await ArrangeCardAsync();
         source.Description = new string('x', 20_000);
@@ -172,10 +178,11 @@ public sealed class CardFieldArchiveTests : TestBaseDb
 
         var result = await service.UnarchiveCardAsync(source.BoardId, source.BoardCardId, ActorUserId);
 
-        Assert.False(result.Success);
-        Assert.Contains("description", result.ValidationErrors!.Keys);
-        Assert.Empty(await DbContextForAssert.Cards.ToListAsync());
-        Assert.Single(await DbContextForAssert.ArchivedCards.ToListAsync());
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(source.Description, result.Data!.Description);
+        Assert.Single(await DbContextForAssert.Cards.ToListAsync());
+        Assert.Empty(await DbContextForAssert.ArchivedCards.ToListAsync());
+        Assert.True((await DbContextForAssert.CardComments.SingleAsync()).IsSystem);
     }
 
     [Fact]

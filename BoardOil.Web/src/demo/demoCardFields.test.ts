@@ -5,7 +5,7 @@ describe('demo field updates', () => {
   const original = { Reference: 'Old', Points: 0, Due: null };
   it('normalises values and preserves explicit clears', () => {
     expect(planDemoFields(demoFieldDefinitions, original, { Reference: ' New ', Points: 5, Due: '2026-10-04' }, demoFieldDefinitions, false, ''))
-      .toEqual({ ok: true, data: { fields: { Reference: 'New', Points: 5, Due: '2026-10-04' }, description: '' } });
+      .toEqual({ ok: true, data: { fields: { Reference: 'New', Points: 5, Due: '2026-10-04' }, description: '', losses: [] } });
   });
   it.each([
     [{ Reference: null, Points: 101, Due: null }, 'fields.Points'],
@@ -21,6 +21,6 @@ describe('demo field updates', () => {
   it('converts edited source values and records the edited losses', () => {
     const result = planDemoFields(demoFieldDefinitions, original, { Reference: 'Edited', Points: 7, Due: null },
       [{ type: 'text', fieldCode: 'Effort', displayName: 'Estimate', emoji: null, nullable: true, showOnCard: true, defaultValue: null, minLength: null, maxLength: null }], true, 'Description');
-    expect(result).toEqual({ ok: true, data: { fields: { Effort: '7' }, description: 'Description\n\nFields removed during card type change:\n\n- Reference: Edited' } });
+    expect(result).toEqual({ ok: true, data: { fields: { Effort: '7' }, description: 'Description', losses: [{ displayName: 'Reference', value: 'Edited' }] } });
   });
 });

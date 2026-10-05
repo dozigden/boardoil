@@ -1,4 +1,5 @@
 using System.Data;
+using BoardOil.Services.CardField;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
@@ -125,6 +126,15 @@ public sealed class TransferCardService(
         }
 
         var contentPlan = contentPlanResult.Plan!;
+        var fieldPlan = CardFieldConverter.ConvertBetweenTypes(
+            CardFieldJsonCodec.DeserialiseDefinitions(sourceCard.CardType.FieldDefinitionsJson),
+            CardFieldJsonCodec.DeserialiseValues(sourceCard.FieldValuesJson),
+            CardFieldJsonCodec.DeserialiseDefinitions(contentPlan.CardType.FieldDefinitionsJson));
+        if (!fieldPlan.IsValid)
+        {
+            return ApiErrors.ValidationFailed(fieldPlan.Errors);
+        }
+
         var destinationCards = await cardRepository.GetCardsInColumnOrderedAsync(destinationColumn.Id);
         var orderPlan = insertionOrderPlanner.CreateLeadingPlan(sourceCard, destinationCards);
         if (orderPlan.Error is not null)
@@ -168,6 +178,8 @@ public sealed class TransferCardService(
             sourceCard.AssignedUser = null;
         }
         sourceCard.CardUpdatedUtc = DateTime.UtcNow;
+        sourceCard.FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fieldPlan.Value!.Values);
+        var lossComment = CardFieldLossComment.Add(sourceCard, fieldPlan.Value.LostValues, "board transfer");
         CardTagMutation.ReplaceTags(sourceCard, contentPlan.Tags);
         foreach (var assignment in orderPlan.Assignments)
         {
@@ -193,6 +205,10 @@ public sealed class TransferCardService(
             imageRepository);
         await boardEvents.CardDeletedAsync(sourceBoardId, sourceCardNumber);
         await boardEvents.CardCreatedAsync(request.DestinationBoardId, transferredCard);
+        if (lossComment is not null)
+        {
+            await boardEvents.CommentCreatedAsync(request.DestinationBoardId, lossComment.ToCardCommentDto(sourceCard.BoardCardId));
+        }
         if (contentPlan.CreatedDefinitions || orderPlan.Renormalised)
         {
             await boardEvents.ResyncRequestedAsync(request.DestinationBoardId);

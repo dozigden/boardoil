@@ -29,6 +29,37 @@ describe('demoBoardApi', () => {
     expect(board.data.columns.flatMap(column => column.cards).find(card => card.id === created.data.id)?.fields).toEqual(fields);
   });
 
+  it.each(['save', 'duplicate'] as const)('records conversion losses as system comments on %s', async operation => {
+    const api = createDemoBoardApi();
+    const types = await api.getCardTypes(1);
+    if (!types.ok) throw new Error('Expected demo card types');
+    const sourceType = types.data.find(type => type.fields.length > 0)!;
+    const targetType = types.data.find(type => type.fields.length === 0)!;
+    const model = { title: 'Convert fields', description: 'Keep description', boardColumnId: 1,
+      cardTypeId: sourceType.id, assignedUserId: null, slickName: null, externalUrl: null, tagNames: [] };
+    const source = await api.createCard(1, model);
+    if (!source.ok) throw new Error('Expected demo source');
+    const changed = { ...model, cardTypeId: targetType.id, fields: { Reference: 'Edited', Points: 0, Due: null } };
+
+    const converted = operation === 'save'
+      ? await api.saveCard(1, source.data.id, changed)
+      : await api.duplicateCard(1, source.data.id, changed);
+
+    expect(converted).toMatchObject({ ok: true, data: { description: model.description, fields: {} } });
+    if (!converted.ok) throw new Error('Expected conversion');
+    const comments = await api.getCardComments(1, converted.data.id);
+    expect(comments).toMatchObject({ ok: true, data: [{ isSystem: true, authorUserId: null,
+      text: 'Fields removed during card type change:\n\n    Reference: Edited\n    Estimate: 0' }] });
+    if (operation === 'duplicate') {
+      expect(await api.getCardComments(1, source.data.id)).toMatchObject({ ok: true, data: [] });
+    }
+    await api.archiveCards(1, [converted.data.id]);
+    expect(await api.getArchivedCard(1, converted.data.id)).toMatchObject({ ok: true,
+      data: { comments: [{ isSystem: true, authorUserId: null }], card: { description: model.description } } });
+    await api.unarchiveCard(1, converted.data.id);
+    expect(await api.getCardComments(1, converted.data.id)).toEqual(comments);
+  });
+
   it('archives captured field definitions and restores every value', async () => {
     const api = createDemoBoardApi();
     const types = await api.getCardTypes(1);

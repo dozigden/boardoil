@@ -1,4 +1,4 @@
-import { demoFieldDefaults, demoFieldDefinitions, planDemoFields } from './demoCardFields';
+import { demoFieldDefaults, demoFieldDefinitions, planDemoFields, type DemoFieldLoss } from './demoCardFields';
 import type { BoardApi } from '../shared/api/boardApi';
 import { defaultBoardAttachmentInventoryQuery, type CardAttachment } from '../shared/types/attachmentTypes';
 import { getMarkdownChecklistCounts } from './markdownChecklistCounts';
@@ -229,6 +229,7 @@ const demoBoardApi: BoardApi = {
     if (!created.ok) return created;
     const duplicate = findCard(created.data.id)!.card;
     duplicate.fields = fieldPlan.data.fields;
+    addFieldLossComment(duplicate, fieldPlan.data.losses);
     return ok(clone(duplicate));
   },
   async getBoards() {
@@ -381,6 +382,7 @@ const demoBoardApi: BoardApi = {
 
     card.fields = fieldPlan.data.fields;
     applyCardEdit(card, { ...model, description: fieldPlan.data.description }, cardType);
+    addFieldLossComment(card, fieldPlan.data.losses);
     return ok(clone(card));
   },
 
@@ -582,6 +584,7 @@ const demoBoardApi: BoardApi = {
     restoredCard.boardColumnId = column.id;
     restoredCard.sortKey = createSortKeyBetween(column.cards[column.cards.length - 1]?.sortKey ?? null, null);
     column.cards.push(restoredCard);
+    addFieldLossComment(restoredCard, fieldPlan.data.losses, 'archive restore');
     state.archivedCards.splice(archiveIndex, 1);
     return ok(clone(restoredCard));
   },
@@ -780,6 +783,19 @@ function deleteCardInternal(cardId: number) {
   located.column.cards.splice(located.index, 1);
   delete state.comments[cardId];
   return true;
+}
+
+function addFieldLossComment(card: Card, losses: DemoFieldLoss[], reason = 'card type change') {
+  if (losses.length === 0) return;
+  const postedAtUtc = now();
+  const comment: CardComment = {
+    id: state.nextCommentId++, cardId: card.id, isSystem: true,
+    authorUserId: null, authorDisplayName: null, authorImageRelativePath: null,
+    text: `Fields removed during ${reason}:\n\n` + losses.map(loss => `    ${loss.displayName}: ${loss.value}`).join('\n'),
+    postedAtUtc, editedAtUtc: null
+  };
+  state.comments[card.id] = [comment, ...(state.comments[card.id] ?? [])];
+  card.cardUpdatedUtc = postedAtUtc;
 }
 
 function archiveCardInternal(cardId: number) {

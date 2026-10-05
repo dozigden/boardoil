@@ -180,13 +180,15 @@ public sealed class CardTypeFieldManagementTests : TestBaseDb
         Assert.Equal("{\"Ref\":12}", cards[0].FieldValuesJson);
         Assert.Equal("Description", cards[0].Description);
         Assert.Equal("{\"Ref\":0}", cards[1].FieldValuesJson);
-        Assert.EndsWith("- Reference: Not a number", cards[1].Description);
-        Assert.DoesNotContain("Renamed:", cards[1].Description);
-        Assert.Empty(await DbContextForAssert.CardComments.ToListAsync());
+        Assert.Equal("Description", cards[1].Description);
+        var comment = await DbContextForAssert.CardComments.SingleAsync();
+        Assert.Equal(cards[1].Id, comment.CardId);
+        Assert.EndsWith("    Reference: Not a number", comment.Text);
+        Assert.DoesNotContain("Renamed:", comment.Text);
     }
 
     [Fact]
-    public async Task Update_EmptyArray_ShouldRemoveAllFieldsAndKeepLostValuesInDescriptions()
+    public async Task Update_EmptyArray_ShouldRemoveAllFieldsAndKeepLostValuesInSystemComments()
     {
         var type = await ArrangeTypeAsync([Text, Integer], "{\"Ref\":\"Existing\",\"Points\":0}");
 
@@ -197,7 +199,10 @@ public sealed class CardTypeFieldManagementTests : TestBaseDb
         Assert.Empty(result.Data!.Fields);
         var card = await DbContextForAssert.Cards.SingleAsync();
         Assert.Equal("{}", card.FieldValuesJson);
-        Assert.Equal("Description\n\nFields removed during field definition change:\n\n- Reference: Existing\n- Points: 0", card.Description);
+        Assert.Equal("Description", card.Description);
+        var comment = await DbContextForAssert.CardComments.SingleAsync();
+        Assert.Equal("Fields removed during field definition change:\n\n    Reference: Existing\n    Points: 0", comment.Text);
+        Assert.True(comment.IsSystem);
     }
 
     [Fact]
@@ -220,6 +225,7 @@ public sealed class CardTypeFieldManagementTests : TestBaseDb
         Assert.Equal(new[] { "{\"Ref\":\"First\"}", "{\"Ref\":\"Second\"}" }, cards.Select(card => card.FieldValuesJson));
         Assert.All(cards, card => Assert.Equal("Description", card.Description));
         Assert.Empty(Events.ResyncRequestedBoardIds);
+        Assert.Empty(await DbContextForAssert.CardComments.ToListAsync());
     }
 
     [Fact]
@@ -243,7 +249,8 @@ public sealed class CardTypeFieldManagementTests : TestBaseDb
         var card = await DbContextForAssert.Cards.SingleAsync();
         Assert.Equal(target.Id, card.CardTypeId);
         Assert.Equal("{\"Effort\":\"5\"}", card.FieldValuesJson);
-        Assert.EndsWith("- Reference: Lost", card.Description);
+        Assert.Equal("Description", card.Description);
+        Assert.EndsWith("    Reference: Lost", (await DbContextForAssert.CardComments.SingleAsync()).Text);
         Assert.True(card.CardUpdatedUtc > card.CardCreatedUtc);
     }
 

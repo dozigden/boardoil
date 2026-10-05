@@ -380,7 +380,7 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
     }
 
     [Fact]
-    public async Task Duplicate_WhenLossRecordExceedsDescriptionLimit_ShouldNotPrepareAnyCopies()
+    public async Task Duplicate_WhenDescriptionExceedsLimit_ShouldNotPrepareAnyCopies()
     {
         var (boardId, cardId, _) = await ArrangeAttachment();
         var source = await DbContextForArrange.Cards.Include(card => card.CardType).SingleAsync();
@@ -392,7 +392,7 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         await DbContextForArrange.SaveChangesAsync();
 
         var result = await ResolveService<ICardService>().DuplicateCardAsync(boardId, cardId,
-            new CreateCardRequest(null, "Duplicate", new string('x', 20_000), [], target.Id), ActorUserId);
+            new CreateCardRequest(null, "Duplicate", new string('x', 20_001), [], target.Id), ActorUserId);
 
         Assert.Equal(400, result.StatusCode);
         Assert.Contains("description", result.ValidationErrors!.Keys);

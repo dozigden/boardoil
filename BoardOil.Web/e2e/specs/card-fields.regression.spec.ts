@@ -85,8 +85,9 @@ test('type changes apply original field edits before converting on save', async 
   const saved = await api.getCard(board.id, card.id);
   expect(saved.cardTypeId).toBe(target.id);
   expect(saved.fields).toEqual({ Effort: '7' });
-  expect(saved.description).toContain('Reference: Edited loss');
-  await expect(editor.descriptionEditor()).toContainText('Reference: Edited loss');
+  expect(saved.description).toBe(card.description);
+  await expect(editor.commentContent()).toContainText('Reference: Edited loss');
+  await expect(page.getByLabel('System comment', { exact: true })).toBeVisible();
   await editor.field('Estimate').fill('After conversion');
   await editor.saveCard();
   expect((await api.getCard(board.id, card.id)).fields).toEqual({ Effort: 'After conversion' });
@@ -178,11 +179,12 @@ for (const changeType of [false, true]) {
     const saved = await api.getCard(board.id, duplicate.id);
     if (changeType) {
       expect(saved.fields).toEqual({ Effort: '7' });
-      expect(saved.description).toContain('Reference: Edited duplicate');
+      expect(saved.description).toBe(source.description);
     } else {
       expect(saved.fields).toEqual({ Reference: 'Edited duplicate', Points: 7, Due: null });
     }
     await editor.open(board.id, duplicate.id);
+    if (changeType) await expect(editor.commentContent()).toContainText('Reference: Edited duplicate');
     await expect(editor.field('Estimate')).toHaveValue('7');
   });
 }
@@ -211,9 +213,10 @@ test('archived fields retain their labels and convert on restore', async ({ api,
   await page.screenshot({ path: testInfo.outputPath('archived-custom-fields.png') });
   await archive.unarchiveOpenCard(card.title);
   expect((await api.getCard(board.id, card.id)).fields).toEqual({ Points: 0 });
-  expect((await api.getCard(board.id, card.id)).description).toContain('Reference: Ready');
+  expect((await api.getCard(board.id, card.id)).description).toBe(card.description);
   await archive.goBackToBoard();
   const editor = new CardEditorPage(page);
   await editor.open(board.id, card.id);
   await expect(editor.field('Renamed estimate')).toHaveValue('0');
+  await expect(editor.commentContent()).toContainText('Reference: Ready');
 });

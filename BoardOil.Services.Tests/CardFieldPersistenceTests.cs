@@ -155,7 +155,7 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task TypeChange_ShouldApplyOriginalFieldEditsBeforeConversionAndAppendEditedLosses(bool supplyValues)
+    public async Task TypeChange_ShouldApplyOriginalFieldEditsBeforeConversionAndRecordEditedLosses(bool supplyValues)
     {
         var card = await ArrangeCardAsync();
         var target = new EntityCardType
@@ -180,9 +180,12 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
         Assert.Equal(target.Id, stored.CardTypeId);
         Assert.Equal(supplyValues ? "7" : "5", result.Data!.Fields["Estimate"].GetString());
         Assert.Single(result.Data.Fields);
-        Assert.Equal("Edited description\n\nFields removed during card type change:\n\n- Reference: "
-            + (supplyValues ? "Edited reference" : "Existing"), stored.Description);
-        Assert.Empty(await DbContextForAssert.CardComments.ToListAsync());
+        Assert.Equal("Edited description", stored.Description);
+        var comment = await DbContextForAssert.CardComments.SingleAsync();
+        Assert.Equal("Fields removed during card type change:\n\n    Reference: "
+            + (supplyValues ? "Edited reference" : "Existing"), comment.Text);
+        Assert.True(comment.IsSystem);
+        Assert.Null(comment.AuthorUserId);
     }
 
     [Theory]
@@ -227,7 +230,7 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task TypeChange_WhenHistoryExceedsDescriptionLimit_ShouldLeaveCardUnchanged()
+    public async Task TypeChange_WithFullDescription_ShouldKeepDescriptionAndRecordComment()
     {
         var card = await ArrangeCardAsync();
         var target = new EntityCardType { BoardId = card.BoardId, Name = "Empty", StyleName = "auto", StylePropertiesJson = "{}" };
@@ -237,16 +240,14 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
         var result = await ResolveService<CardService>().UpdateCardAsync(card.BoardId, card.BoardCardId,
             new UpdateCardRequest(card.Title, new string('a', 20_000), [], target.Id), ActorUserId);
 
-        Assert.False(result.Success);
-        Assert.Contains("description", result.ValidationErrors!.Keys);
-        var stored = await DbContextForAssert.Cards.SingleAsync();
-        Assert.Equal(card.CardTypeId, stored.CardTypeId);
-        Assert.Equal(card.FieldValuesJson, stored.FieldValuesJson);
-        Assert.Equal(card.Description, stored.Description);
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(new string('a', 20_000), result.Data!.Description);
+        Assert.Equal(target.Id, result.Data.CardTypeId);
+        Assert.True((await DbContextForAssert.CardComments.SingleAsync()).IsSystem);
     }
 
     [Fact]
-    public async Task TypeChange_WhenLostTextLooksLikeMarkdown_ShouldEscapeItAndAllowSubsequentEdits()
+    public async Task TypeChange_WhenLostTextLooksLikeMarkdown_ShouldRecordLiteralTextAndAllowSubsequentEdits()
     {
         var card = await ArrangeCardAsync();
         const string text = "![image](data:image/png;base64,AAAA)";
@@ -267,7 +268,8 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
             new UpdateCardRequest("Renamed", converted.Data!.Description, [], target.Id), ActorUserId);
 
         Assert.True(result.Success);
-        Assert.Contains(@"\!\[image\]\(data:image/png;base64,AAAA\)", result.Data!.Description);
+        Assert.Equal(card.Description, result.Data!.Description);
+        Assert.Contains("    Reference: " + text, (await DbContextForAssert.CardComments.SingleAsync()).Text);
     }
 
     [Theory]
@@ -313,7 +315,11 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
 
         Assert.True(result.Success);
         Assert.Equal(supplyFields ? "7" : "5", result.Data!.Fields["Estimate"].GetString());
-        Assert.Contains(supplyFields ? "Reference: Edited loss" : "Reference: Existing", result.Data.Description);
+        Assert.Equal(source.Description, result.Data.Description);
+        var lossComment = await DbContextForAssert.CardComments.Include(comment => comment.Card).SingleAsync();
+        Assert.Contains(supplyFields ? "Reference: Edited loss" : "Reference: Existing", lossComment.Text);
+        Assert.Equal(result.Data.Id, lossComment.Card.BoardCardId);
+        Assert.NotEqual(source.Id, lossComment.CardId);
         var unchanged = await DbContextForAssert.Cards.SingleAsync(card => card.Id == source.Id);
         Assert.Equal(source.Description, unchanged.Description);
         Assert.Equal(source.FieldValuesJson, unchanged.FieldValuesJson);
@@ -340,7 +346,7 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task Duplicate_WhenLossRecordWouldExceedDescriptionLimit_ShouldNotCreateCard()
+    public async Task Duplicate_WithFullDescription_ShouldCreateCardAndLossComment()
     {
         var source = await ArrangeCardAsync();
         var target = new EntityCardType { BoardId = source.BoardId, Name = "Empty", StyleName = "auto", StylePropertiesJson = "{}" };
@@ -350,10 +356,10 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
         var result = await ResolveService<CardService>().DuplicateCardAsync(source.BoardId, source.BoardCardId,
             new CreateCardRequest(null, "Too long", new string('x', 20_000), [], target.Id), ActorUserId);
 
-        Assert.False(result.Success);
-        Assert.Contains("description", result.ValidationErrors!.Keys);
-        Assert.Equal(source.Description, (await DbContextForAssert.Cards.SingleAsync()).Description);
-        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).CardCreatedEvents);
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(new string('x', 20_000), result.Data!.Description);
+        Assert.Equal(2, await DbContextForAssert.Cards.CountAsync());
+        Assert.True((await DbContextForAssert.CardComments.SingleAsync()).IsSystem);
     }
 
     private async Task<EntityBoardCard> ArrangeCardAsync()

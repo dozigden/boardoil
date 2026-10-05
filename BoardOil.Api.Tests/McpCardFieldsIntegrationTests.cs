@@ -104,7 +104,11 @@ public sealed class McpCardFieldsIntegrationTests : McpIntegrationTestBase, ICla
 
         var card = await CallAsync(client, token, ToolNames.CardGet, new { boardId = 1, id });
         Assert.Equal("7", card.GetProperty("fields").GetProperty("Estimate").GetString());
-        Assert.Contains("Reference: Edited loss", card.GetProperty("description").GetString());
+        Assert.Equal(string.Empty, card.GetProperty("description").GetString());
+        var comment = Assert.Single(card.GetProperty("comments").EnumerateArray());
+        Assert.Contains("Reference: Edited loss", comment.GetProperty("text").GetString());
+        Assert.True(comment.GetProperty("isSystem").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, comment.GetProperty("authorUserId").ValueKind);
     }
 
     [Theory]

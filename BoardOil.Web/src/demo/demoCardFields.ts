@@ -37,10 +37,12 @@ function valueError(field: CardFieldDefinition, value: string | number | null): 
   return null;
 }
 
+export type DemoFieldLoss = { displayName: string; value: string };
+
 export function planDemoFields(
   source: CardFieldDefinition[], original: CardFieldValues, supplied: CardFieldValues | undefined,
   destination: CardFieldDefinition[], changingType: boolean, description: string, matchByCode = false
-): Result<{ fields: CardFieldValues; description: string }, AppError> {
+): Result<{ fields: CardFieldValues; description: string; losses: DemoFieldLoss[] }, AppError> {
   const errors: Record<string, string[]> = {};
   const values: CardFieldValues = {};
   const input = new Map(Object.entries(supplied ?? original).map(([code, value]) => [code.toLowerCase(), value]));
@@ -56,7 +58,7 @@ export function planDemoFields(
     values[field.fieldCode] = canonical;
   }
   if (Object.keys(errors).length) return err({ kind: 'api', message: 'Validation failed.', validationErrors: errors });
-  if (!changingType) return ok({ fields: values, description });
+  if (!changingType) return ok({ fields: values, description, losses: [] });
 
   const fields = demoFieldDefaults(destination);
   const preserved = new Set<string>();
@@ -76,10 +78,7 @@ export function planDemoFields(
     fields[target.fieldCode] = candidate;
     preserved.add(from.fieldCode);
   }
-  const escape = (value: string) => value.replace(/([\\`*_{}\[\]()#+\-.!|>~<])/g, '\\$1');
-  const losses = source.filter(field => !preserved.has(field.fieldCode) && values[field.fieldCode] !== null);
-  if (losses.length) description += '\n\nFields removed during card type change:\n\n'
-    + losses.map(field => `- ${escape(field.displayName)}: ${escape(String(values[field.fieldCode]))}`).join('\n');
-  if (description.length > 20_000) return err({ kind: 'api', message: 'Validation failed.', validationErrors: { description: ['The description has insufficient space to record removed field values. Shorten it before changing the card type.'] } });
-  return ok({ fields, description });
+  const losses = source.filter(field => !preserved.has(field.fieldCode) && values[field.fieldCode] !== null)
+    .map(field => ({ displayName: field.displayName, value: String(values[field.fieldCode]) }));
+  return ok({ fields, description, losses });
 }

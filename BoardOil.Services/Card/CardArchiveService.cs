@@ -188,17 +188,6 @@ public sealed class CardArchiveService(
         {
             return ApiErrors.BadRequest("Archived card snapshot cannot be restored.", fieldPlan.Errors);
         }
-        var description = snapshotCard.Description;
-        if (fieldPlan.Value!.LostValues.Count > 0)
-        {
-            description = CardFieldLossDescription.Append(description, fieldPlan.Value.LostValues, "archive restore");
-        }
-        if (description.Length > CardValidator.MaxDescriptionLength)
-        {
-            return ApiErrors.ValidationFailed([new ValidationError("description",
-                "The description has insufficient space to record removed field values.")]);
-        }
-
         var title = snapshotCard.Title.Trim();
         var cardsInColumn = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
         var resolvedAssignedUser = await ResolveAssignedUserAsync(boardId, snapshot.AssignedUserEmail);
@@ -217,8 +206,8 @@ public sealed class CardArchiveService(
             SlickId = resolvedSlick?.Id,
             Slick = resolvedSlick,
             Title = title,
-            Description = description,
-            FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fieldPlan.Value.Values),
+            Description = snapshotCard.Description,
+            FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fieldPlan.Value!.Values),
             ExternalUrl = CardExternalUrl.Normalise(snapshotCard.ExternalUrl),
             SortKey = string.Empty,
             CardCreatedUtc = snapshotCard.CardCreatedUtc,
@@ -256,6 +245,7 @@ public sealed class CardArchiveService(
             cardCommentRepository.Add(restoredComment);
         }
 
+        var lossComment = CardFieldLossComment.Add(restoredCard, fieldPlan.Value!.LostValues, "archive restore");
         cardRepository.Add(restoredCard);
         await attachments.RestoreAsync(archivedCard, restoredCard);
         archivedCardRepository.Remove(archivedCard);
@@ -263,6 +253,10 @@ public sealed class CardArchiveService(
 
         var dto = await EnrichAssignedUserImageAsync(restoredCard.ToCardDto());
         await boardEvents.CardCreatedAsync(boardId, dto);
+        if (lossComment is not null)
+        {
+            await boardEvents.CommentCreatedAsync(boardId, lossComment.ToCardCommentDto(restoredCard.BoardCardId));
+        }
         if (orderPlan.Renormalised)
         {
             await boardEvents.ResyncRequestedAsync(boardId);

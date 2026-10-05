@@ -293,7 +293,7 @@ public sealed class CardTypeService(
         {
             return ApiErrors.ValidationFailed(changes.Errors);
         }
-        CardTypeFieldChanges.Apply(changes.Value!);
+        CardTypeFieldChanges.Apply(changes.Value!, "card type change");
         foreach (var card in cardsToReassign)
         {
             card.CardTypeId = systemCardType.Id;

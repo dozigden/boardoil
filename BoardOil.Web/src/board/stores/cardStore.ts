@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useCommentStore } from './commentStore';
 import { useSlickStore } from './slickStore';
 import { useAttachmentStore } from './attachmentStore';
 import { useCardAttachmentThumbnailStore } from './cardAttachmentThumbnailStore';
@@ -25,6 +26,7 @@ export const useCardStore = defineStore('card', () => {
   const activeBoardId = ref(0);
   const feedback = useUiFeedbackStore();
   const slickStore = useSlickStore();
+  const commentStore = useCommentStore();
   const attachmentStore = useAttachmentStore();
   const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
   const api = createBoardApi();
@@ -223,6 +225,7 @@ export const useCardStore = defineStore('card', () => {
 
   async function saveCard(cardId: number, model: CardEditModel, options?: { inlineErrors?: boolean }) {
     const boardId = activeBoardId.value;
+    const previousTypeId = cardsById.value[cardId]?.cardTypeId;
     clearSaveError();
     const result = await runBusy(() => api.saveCard(boardId, cardId, model), {
       boardId,
@@ -232,7 +235,11 @@ export const useCardStore = defineStore('card', () => {
       return false;
     }
 
-    return upsertCard(boardId, result.data);
+    const applied = upsertCard(boardId, result.data);
+    if (applied && previousTypeId !== result.data.cardTypeId) {
+      await commentStore.loadCardComments(boardId, cardId);
+    }
+    return applied;
   }
 
   async function transferCard(

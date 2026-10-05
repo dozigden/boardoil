@@ -133,7 +133,7 @@ public sealed class CreateCardService(
         if (duplicateFromCardId.HasValue)
         {
             var fieldPlan = await PlanFieldsAsync(boardId, selectedCardType.Id, duplicateFromCardId,
-                fields, draft.Description, cancellationToken);
+                fields, cancellationToken);
             if (!fieldPlan.Success)
             {
                 return new(false, null, fieldPlan.StatusCode, fieldPlan.Message, fieldPlan.ValidationErrors);
@@ -143,17 +143,18 @@ public sealed class CreateCardService(
         }
 
         ApiResult<CardDto>? fieldError = null;
+        EntityCardComment? lossComment = null;
         await scope.Transaction(async (transactionScope, transaction) =>
         {
             var fieldPlan = await PlanFieldsAsync(boardId, selectedCardType.Id, duplicateFromCardId,
-                fields, draft.Description, cancellationToken);
+                fields, cancellationToken);
             if (!fieldPlan.Success)
             {
                 fieldError = new(false, null, fieldPlan.StatusCode, fieldPlan.Message, fieldPlan.ValidationErrors);
                 return;
             }
             card.FieldValuesJson = fieldPlan.Data!.ValuesJson;
-            card.Description = fieldPlan.Data.Description;
+            lossComment = CardFieldLossComment.Add(card, fieldPlan.Data.LostValues);
             CardChecklistCounter.Refresh(card);
             card.BoardCardId = await boardCardIdAllocator.AllocateNextAsync(boardId);
             if (attachmentCopy is not null) { await attachments.AttachCopyAsync(attachmentCopy, card, actorUserId); }
@@ -169,6 +170,10 @@ public sealed class CreateCardService(
 
         var created = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), imageRepository);
         await boardEvents.CardCreatedAsync(boardId, created);
+        if (lossComment is not null)
+        {
+            await boardEvents.CommentCreatedAsync(boardId, lossComment.ToCardCommentDto(card.BoardCardId));
+        }
         if (orderPlan.Renormalised)
         {
             await boardEvents.ResyncRequestedAsync(boardId);
@@ -178,7 +183,7 @@ public sealed class CreateCardService(
     }
 
     private async Task<ApiResult<CardCreationFieldPlan>> PlanFieldsAsync(int boardId, int targetTypeId, int? sourceCardId,
-        IReadOnlyDictionary<string, JsonElement>? fields, string description, CancellationToken cancellationToken)
+        IReadOnlyDictionary<string, JsonElement>? fields, CancellationToken cancellationToken)
     {
         // Read fresh JSON so the publication check does not reuse tracked definitions from before file preparation.
         var definitionsJson = await cardTypeRepository.Query()
@@ -217,17 +222,8 @@ public sealed class CreateCardService(
         {
             return ApiErrors.ValidationFailed(initialValues.Errors);
         }
-        if (losses.Count > 0)
-        {
-            description = CardFieldLossDescription.Append(description, losses);
-            if (description.Length > CardValidator.MaxDescriptionLength)
-            {
-                return ApiErrors.ValidationFailed([new ValidationError("description",
-                    "The description has insufficient space to record removed field values. Shorten it before changing the card type.")]);
-            }
-        }
-        return new CardCreationFieldPlan(CardFieldJsonCodec.SerialiseValues(initialValues.Value!), description);
+        return new CardCreationFieldPlan(CardFieldJsonCodec.SerialiseValues(initialValues.Value!), losses);
     }
 
-    private sealed record CardCreationFieldPlan(string ValuesJson, string Description);
+    private sealed record CardCreationFieldPlan(string ValuesJson, IReadOnlyList<LostCardFieldValue> LostValues);
 }

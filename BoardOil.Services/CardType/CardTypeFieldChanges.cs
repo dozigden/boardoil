@@ -29,41 +29,29 @@ internal static class CardTypeFieldChanges
             }
 
             var converted = result.Value!;
-            var description = card.Description;
-            if (converted.LostValues.Count > 0)
-            {
-                var reason = changingType ? "card type change" : "field definition change";
-                description = CardFieldLossDescription.Append(description, converted.LostValues, reason);
-                if (description.Length > CardValidator.MaxDescriptionLength)
-                {
-                    return new(null, [new ValidationError($"cards[{card.BoardCardId}].description",
-                        "The description has insufficient space to record removed field values. Shorten it before changing the fields.")]);
-                }
-            }
-
             var valuesChanged = originalValues.Count != converted.Values.Count
                 || originalValues.Any(pair => !converted.Values.TryGetValue(pair.Key, out var value)
                     || !JsonElement.DeepEquals(pair.Value, value));
-            changes.Add(new(card, CardFieldJsonCodec.SerialiseValues(converted.Values), description,
-                changingType || valuesChanged || description != card.Description));
+            changes.Add(new(card, CardFieldJsonCodec.SerialiseValues(converted.Values), converted.LostValues,
+                changingType || valuesChanged));
         }
         return new(changes, []);
     }
 
-    public static void Apply(IReadOnlyList<CardFieldChange> changes)
+    public static void Apply(IReadOnlyList<CardFieldChange> changes, string reason = "field definition change")
     {
         var now = DateTime.UtcNow;
         foreach (var change in changes)
         {
             change.Card.FieldValuesJson = change.ValuesJson;
-            change.Card.Description = change.Description;
             if (change.Changed)
             {
                 change.Card.CardUpdatedUtc = now;
                 CardChecklistCounter.Refresh(change.Card);
             }
+            CardFieldLossComment.Add(change.Card, change.LostValues, reason);
         }
     }
 }
 
-internal sealed record CardFieldChange(EntityBoardCard Card, string ValuesJson, string Description, bool Changed);
+internal sealed record CardFieldChange(EntityBoardCard Card, string ValuesJson, IReadOnlyList<LostCardFieldValue> LostValues, bool Changed);
