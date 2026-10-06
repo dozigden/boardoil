@@ -2,7 +2,6 @@ using System.Security.Claims;
 using System.Text.Json;
 using BoardOil.Abstractions.ErrorLogs;
 using BoardOil.Api.Auth;
-using BoardOil.Api.Configuration;
 using BoardOil.Contracts.Common;
 
 namespace BoardOil.Api.Middleware;
@@ -20,19 +19,6 @@ public sealed class ApiExceptionLoggingMiddleware(
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
             throw;
-        }
-        catch (CardFieldValidationException exception) when (IsApiRequest(context))
-        {
-            if (context.Response.HasStarted)
-            {
-                throw;
-            }
-
-            context.Response.Clear();
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await context.Response.WriteAsJsonAsync(
-                (ApiResult)ApiErrors.ValidationFailed(exception.Errors),
-                context.RequestAborted);
         }
         catch (BadHttpRequestException exception) when (IsApiRequest(context))
         {

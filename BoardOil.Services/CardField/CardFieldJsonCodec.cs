@@ -33,6 +33,25 @@ public static class CardFieldJsonCodec
         return definitions;
     }
 
+    public static IReadOnlyList<CardFieldDefinitionInput> DeserialiseDefinitionInputs(string json)
+    {
+        List<CardFieldDefinitionInput> inputs;
+        try
+        {
+            inputs = JsonSerializer.Deserialize<List<CardFieldDefinitionInput>>(json, JsonOptions)
+                ?? throw new JsonException("Field definitions must be an array.");
+        }
+        catch (NotSupportedException exception)
+        {
+            throw new JsonException("Each field definition must specify a supported type.", exception);
+        }
+        if (inputs.Any(input => input is null))
+        {
+            throw new JsonException("Each field definition must be an object.");
+        }
+        return inputs;
+    }
+
     public static string SerialiseDefinitions(IReadOnlyList<CardFieldDefinition> definitions)
     {
         ArgumentNullException.ThrowIfNull(definitions);

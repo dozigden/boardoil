@@ -1,11 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BoardOil.Services.CardField;
-using BoardOil.Contracts.Common;
 
 namespace BoardOil.Api.Configuration;
 
-// Keep REST field dictionaries as strict as persisted JSON, including duplicate-key rejection.
+// Validate the dictionary structure here; preserve submitted values for the shared field rules.
 public sealed class CardFieldValuesJsonConverter : JsonConverter<IReadOnlyDictionary<string, JsonElement>>
 {
     public override bool HandleNull => true;
@@ -14,22 +13,19 @@ public sealed class CardFieldValuesJsonConverter : JsonConverter<IReadOnlyDictio
         ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using var document = JsonDocument.ParseValue(ref reader);
-        if (document.RootElement.ValueKind == JsonValueKind.Object)
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
         {
-            var errors = new List<ValidationError>();
-            foreach (var property in document.RootElement.EnumerateObject())
+            throw new JsonException("Field values must be an object.");
+        }
+        var values = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            if (!values.TryAdd(property.Name, property.Value.Clone()))
             {
-                if (property.Value.ValueKind == JsonValueKind.Number && !property.Value.TryGetInt32(out _))
-                {
-                    errors.Add(new($"fields.{property.Name}", "Whole number required"));
-                }
-            }
-            if (errors.Count > 0)
-            {
-                throw new CardFieldValidationException(errors);
+                throw new JsonException($"Field code '{property.Name}' is repeated.");
             }
         }
-        return CardFieldJsonCodec.DeserialiseValues(document.RootElement.GetRawText());
+        return values;
     }
 
     public override void Write(Utf8JsonWriter writer, IReadOnlyDictionary<string, JsonElement> value, JsonSerializerOptions options)

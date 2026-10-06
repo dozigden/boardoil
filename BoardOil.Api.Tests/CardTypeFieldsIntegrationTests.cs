@@ -140,5 +140,35 @@ public sealed class CardTypeFieldsIntegrationTests : BoardApiIntegrationTestBase
         await UseDbContextAsync(async db => Assert.False(await db.CardTypes.AnyAsync(item => item.Name == "Invalid scalar")));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateAndPreview_WithInvalidScalars_ShouldReturnStructuredErrorsWithoutSaving(bool preview)
+    {
+        var typeId = await SeedBoardCardTypeAsync("Unchanged");
+        const string body = """
+            {"name":"Do not save","fields":[{"type":"integer","fieldCode":"F","displayName":"Field","nullable":true,"min":"bad"}]}
+            """;
+        var path = $"/api/boards/1/card-types/{typeId}";
+
+        var response = preview
+            ? await Client.PostAsync($"{path}/fields/preview", Json(body))
+            : await Client.PutAsync(path, Json(body));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Whole number required", payload.RootElement.GetProperty("validationErrors").GetProperty("fields[0].min")[0].GetString());
+        await UseDbContextAsync(async db => Assert.Equal("Unchanged", (await db.CardTypes.SingleAsync(type => type.Id == typeId)).Name));
+    }
+
+    [Fact]
+    public async Task Create_WithMalformedJson_ShouldRemainAParsingFailure()
+    {
+        var response = await Client.PostAsync("/api/boards/1/card-types", Json("{\"name\":\"Invalid JSON\",\"fields\":["));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(await response.Content.ReadAsStringAsync());
+    }
+
     private static StringContent Json(string json) => new(json, Encoding.UTF8, "application/json");
 }

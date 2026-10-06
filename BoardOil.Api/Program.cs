@@ -39,7 +39,7 @@ builder.Services.AddBoardOilServices();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new CardFieldValuesJsonConverter());
-    options.SerializerOptions.Converters.Add(new CardFieldDefinitionsJsonConverter());
+    options.SerializerOptions.Converters.Add(new CardFieldDefinitionInputsJsonConverter());
 });
 builder.Services.AddSingleton(attachmentStorageOptions);
 builder.Services.AddBoardOilEfInfrastructure(connectionString);
@@ -140,6 +140,7 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Access token. Paste the raw `bo_pat_...` value; Swagger UI will add `Bearer`."
     });
     options.OperationFilter<PatSecurityOperationFilter>();
+    options.OperationFilter<CardTypeRequestOperationFilter>();
 });
 var app = builder.Build();
 app.InitialiseMcpServiceProvider();

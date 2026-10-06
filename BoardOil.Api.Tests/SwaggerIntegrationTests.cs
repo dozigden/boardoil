@@ -16,6 +16,21 @@ public sealed class SwaggerIntegrationTests
         UseSharedFactory(fixture);
     }
 
+    [Theory]
+    [InlineData("/api/boards/{boardId}/card-types", "post", "CreateCardTypeRequest")]
+    [InlineData("/api/boards/{boardId}/card-types/{cardTypeId}", "put", "UpdateCardTypeRequest")]
+    [InlineData("/api/boards/{boardId}/card-types/{cardTypeId}/fields/preview", "post", "PreviewCardTypeFieldsRequest")]
+    public async Task CardTypeWrites_ShouldKeepTheirExistingDocumentedContracts(string path, string method, string schema)
+    {
+        var client = CreateClient();
+
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/swagger/v1/swagger.json"));
+
+        var body = document.RootElement.GetProperty("paths").GetProperty(path).GetProperty(method)
+            .GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema");
+        Assert.Equal($"#/components/schemas/{schema}", body.GetProperty("$ref").GetString());
+    }
+
     [Fact]
     public async Task Document_ShouldRemainOpenApi30WithJwtAndPatBearerDefinitions()
     {
