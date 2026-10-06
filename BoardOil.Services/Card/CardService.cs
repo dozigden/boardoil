@@ -206,6 +206,10 @@ public sealed class CardService(
         catch (IOException) { return new ApiError(409, "An attachment could not be copied. No duplicate was created."); }
     }
 
+    public Task<ApiResult<CardTypeChangePreviewDto>> PreviewTypeChangeAsync(
+        int boardId, int id, PreviewCardTypeChangeRequest request, int actorUserId) =>
+        updateCardService.PreviewTypeChangeAsync(boardId, id, request, actorUserId);
+
     public async Task<ApiResult<CardDto>> UpdateCardAsync(int boardId, int id, UpdateCardRequest request, int actorUserId)
     {
         return await updateCardService.ExecuteAsync(boardId, id, request, actorUserId);

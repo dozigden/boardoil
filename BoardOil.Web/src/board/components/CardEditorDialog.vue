@@ -412,6 +412,12 @@
       </div>
     </template>
   </FixedChromeDialog>
+  <CardTypeChangeDialog
+    v-if="pendingTypeChange"
+    :preview="pendingTypeChange.preview"
+    @confirm="confirmTypeChange"
+    @cancel="cancelTypeChange"
+  />
 </template>
 
 <script setup lang="ts">
@@ -422,8 +428,9 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vu
 import MdEditor from '../../shared/components/MdEditor.vue';
 import CardAttachments from './CardAttachments.vue';
 import CardFieldValuesEditor from './CardFieldValuesEditor.vue';
+import CardTypeChangeDialog from './CardTypeChangeDialog.vue';
 import { buildCardFieldValues } from '../utils/cardFieldValues';
-import type { CardFieldDefinition } from '../../shared/types/cardFieldTypes';
+import type { CardFieldDefinition, CardTypeChangePreview } from '../../shared/types/cardFieldTypes';
 import type { AppError } from '../../shared/types/appError';
 import { useAttachmentStore } from '../stores/attachmentStore';
 import MdEditorToolbar from '../../shared/components/MdEditorToolbar.vue';
@@ -488,6 +495,13 @@ const maxCommentLength = 4_000;
 const cardDraft = ref<CardEditModel | null>(null);
 const editorDialog = ref<InstanceType<typeof FixedChromeDialog> | null>(null);
 const savingCard = ref(false);
+const pendingTypeChange = ref<{
+  preview: CardTypeChangePreview;
+  cardId: number;
+  draft: CardEditModel;
+  closeAfterSave: boolean;
+  duplicating: boolean;
+} | null>(null);
 const cardDraftBoardId = ref<number | null>(null);
 const cardDraftId = ref<number | null>(null);
 const cardDraftSource = ref<CardEditModel | null>(null);
@@ -1168,6 +1182,7 @@ function setDraftAssignedUserId(assignedUserId: number | null, close?: () => voi
 }
 
 function clearCardDraft() {
+  pendingTypeChange.value = null;
   cardFieldDefinitions.value = [];
   cardSaveError.value = null;
   cardStore.clearSaveError();
@@ -1184,6 +1199,7 @@ function initializeDraftFromCard(sourceBoardId: number, card: Card) {
     return false;
   }
 
+  pendingTypeChange.value = null;
   const initialModel = createCardEditModel(card);
   cardFieldDefinitions.value = (cardTypeStore.getCardTypeById(card.cardTypeId)?.fields ?? []).map(field => ({ ...field }));
   cardSaveError.value = null;
@@ -1291,22 +1307,54 @@ async function saveCardFromShortcut() {
 async function saveCardDraft(closeAfterSave: boolean) {
   const draft = cardDraft.value;
   const cardId = routeCardId.value;
-  if (!draft || draft.cardTypeId === null || savingCard.value || cardBusy.value || imageUploadBlocking.value) {
-    return;
-  }
+  if (!draft || draft.cardTypeId === null || cardId === null || savingCard.value || pendingTypeChange.value
+    || cardBusy.value || imageUploadBlocking.value) return;
 
-  if (isDuplicatingCard.value) {
-    if (cardId === null) { return; }
-    savingCard.value = true;
-    let created;
-    try {
-      created = await createCardAction({
-        ...cloneCardEditModel(draft),
-        fields: buildCardFieldValues(cardFieldDefinitions.value, draft.fields ?? {})
-      }, { duplicateFromCardId: cardId, inlineErrors: true });
-    } finally {
-      savingCard.value = false;
+  const submittedDraft = {
+    ...cloneCardEditModel(draft),
+    fields: buildCardFieldValues(cardFieldDefinitions.value, draft.fields ?? {})
+  };
+  const duplicating = isDuplicatingCard.value;
+  savingCard.value = true;
+  try {
+    if (cardTypeWillChange.value) {
+      const preview = await cardStore.previewTypeChange(boardId.value, cardId, draft.cardTypeId, submittedDraft.fields);
+      if (!preview.ok) {
+        savingCard.value = false;
+        await showCardSaveError(preview.error);
+        return;
+      }
+      if (preview.data.requiresConfirmation) {
+        pendingTypeChange.value = { preview: preview.data, cardId, draft: submittedDraft, closeAfterSave, duplicating };
+        return;
+      }
     }
+    await persistCardDraft(cardId, submittedDraft, closeAfterSave, duplicating);
+  } finally {
+    savingCard.value = false;
+  }
+}
+
+function cancelTypeChange() {
+  pendingTypeChange.value = null;
+}
+
+async function confirmTypeChange() {
+  const pending = pendingTypeChange.value;
+  if (!pending || savingCard.value) return;
+  pendingTypeChange.value = null;
+  savingCard.value = true;
+  try {
+    await persistCardDraft(pending.cardId, pending.draft, pending.closeAfterSave, pending.duplicating);
+  } finally {
+    savingCard.value = false;
+  }
+}
+
+async function persistCardDraft(cardId: number, submittedDraft: CardEditModel, closeAfterSave: boolean, duplicating: boolean) {
+  if (duplicating) {
+    const created = await createCardAction(submittedDraft, { duplicateFromCardId: cardId, inlineErrors: true });
+    savingCard.value = false;
     if (created?.ok) {
       feedback.showToast('Created successfully.');
       await closeCardEditorWithoutPrompt();
@@ -1316,38 +1364,22 @@ async function saveCardDraft(closeAfterSave: boolean) {
     return;
   }
 
-  if (cardId === null) {
-    return;
-  }
-
-  const submittedDraft = cloneCardEditModel(draft);
-  savingCard.value = true;
-  let saved = false;
-  try {
-    saved = await saveCardAction(cardId, {
-      ...submittedDraft,
-      fields: buildCardFieldValues(cardFieldDefinitions.value, submittedDraft.fields ?? {})
-    }, { inlineErrors: true });
-    if (saved) syncDraftAfterSave(cardId);
-  } finally {
-    savingCard.value = false;
-  }
+  const saved = await saveCardAction(cardId, submittedDraft, { inlineErrors: true });
+  if (saved) syncDraftAfterSave(cardId);
+  savingCard.value = false;
   await nextTick();
   if (!saved) {
     await showCardSaveError(cardStore.saveError);
     return;
   }
   cardSaveError.value = null;
-  if (saved) {
-    feedback.showToast('Saved successfully.');
-    if (closeAfterSave) {
-      if (isEditedCommentDirty.value) {
-        await closeCardEditor();
-        return;
-      }
-      await closeCardEditorWithoutPrompt();
+  feedback.showToast('Saved successfully.');
+  if (closeAfterSave) {
+    if (isEditedCommentDirty.value) {
+      await closeCardEditor();
       return;
     }
+    await closeCardEditorWithoutPrompt();
   }
 }
 

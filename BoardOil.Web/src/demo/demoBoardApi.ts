@@ -1,4 +1,4 @@
-import { demoFieldDefaults, demoFieldDefinitions, planDemoFields, type DemoFieldLoss } from './demoCardFields';
+import { demoFieldDefaults, demoFieldDefinitions, planDemoFields, previewDemoTypeChange, type DemoFieldLoss } from './demoCardFields';
 import type { BoardApi } from '../shared/api/boardApi';
 import { defaultBoardAttachmentInventoryQuery, type CardAttachment } from '../shared/types/attachmentTypes';
 import { getMarkdownChecklistCounts } from './markdownChecklistCounts';
@@ -354,6 +354,16 @@ const demoBoardApi: BoardApi = {
     card.cardUpdatedUtc = timestamp;
     column.cards.unshift(card);
     return ok(clone(card));
+  },
+
+  async previewCardTypeChange(boardId, cardId, cardTypeId, fields) {
+    if (boardId !== DemoBoardId) return notFound('Board not found.');
+    const located = findCard(cardId);
+    if (!located) return notFound('Card not found.');
+    const target = getCardType(cardTypeId);
+    if (!target) return validationError('Card type does not exist in board.');
+    const card = located.card;
+    return previewDemoTypeChange(getCardType(card.cardTypeId)!, card.fields, fields, target, card.cardTypeId !== target.id);
   },
 
   async saveCard(boardId, cardId, model) {

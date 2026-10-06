@@ -1,4 +1,4 @@
-import type { CardFieldDefinitionInput, CardTypeFieldsPreview } from '../types/cardFieldTypes';
+import type { CardFieldDefinitionInput, CardTypeFieldsPreview, CardFieldValues, CardTypeChangePreview } from '../types/cardFieldTypes';
 import { uploadFormData } from './http';
 import type { BoardAttachmentInventory, BoardAttachmentInventoryQuery, CardAttachment, CardAttachmentImageCandidate, CardAttachmentList } from '../types/attachmentTypes';
 import type {
@@ -247,6 +247,10 @@ function createHttpBoardApi() {
 
   async function deleteBoardAttachment(boardId: number, attachmentId: number): Promise<Result<void, AppError>> {
     return deleteJson(`/api/boards/${boardId}/attachments/${attachmentId}`);
+  }
+
+  async function previewCardTypeChange(boardId: number, cardId: number, cardTypeId: number, fields?: CardFieldValues) {
+    return postData<CardTypeChangePreview>(`/api/boards/${boardId}/cards/${cardId}/type-change/preview`, { cardTypeId, fields });
   }
 
   async function saveCard(
@@ -539,6 +543,7 @@ function createHttpBoardApi() {
     deleteColumn,
     createCard,
     saveCard,
+    previewCardTypeChange,
     moveCard,
     transferCard,
     editCards,

@@ -25,6 +25,7 @@
         <h3 :id="titleId" class="fixed-chrome-dialog__title">
           <slot name="title">{{ title }}</slot>
         </h3>
+        <slot name="headerContent" />
       </header>
 
       <div class="fixed-chrome-dialog__body">

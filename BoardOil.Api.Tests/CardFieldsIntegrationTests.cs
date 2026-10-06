@@ -131,6 +131,56 @@ public sealed class CardFieldsIntegrationTests : BoardApiIntegrationTestBase, IC
         Assert.Null(typeof(CreateCardRequest).GetProperty("Fields"));
     }
 
+    [Fact]
+    public async Task TypeChangePreview_ShouldReturnAlignedNativeValuesWithoutSaving()
+    {
+        var card = await CreateCardAsync();
+        var targetId = await SeedBoardCardTypeAsync("Target");
+        await ArrangeAsync(async db =>
+        {
+            var target = await db.CardTypes.SingleAsync(type => type.Id == targetId);
+            target.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
+                [new TextFieldDefinition { FieldCode = "Effort", DisplayName = "Points", Nullable = true }]);
+        });
+        var body = $$$"""{"cardTypeId":{{{targetId}}},"fields":{"Points":7,"Note":"Draft","Due":null}}""";
+
+        var response = await Client.PostAsync($"/api/boards/1/cards/{card.Id}/type-change/preview",
+            new StringContent(body, Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var data = json.RootElement.GetProperty("data");
+        Assert.True(data.GetProperty("requiresConfirmation").GetBoolean());
+        Assert.True(data.GetProperty("hasLosses").GetBoolean());
+        var rows = data.GetProperty("rows");
+        Assert.Equal(7, rows[0].GetProperty("original").GetProperty("value").GetInt32());
+        Assert.Equal("7", rows[0].GetProperty("destination").GetProperty("value").GetString());
+        Assert.Equal("text", rows[0].GetProperty("destination").GetProperty("type").GetString());
+        Assert.Equal(JsonValueKind.Null, rows[1].GetProperty("destination").ValueKind);
+        Assert.True(rows[1].GetProperty("losesValue").GetBoolean());
+        await UseDbContextAsync(async db =>
+        {
+            var stored = await db.Cards.SingleAsync(item => item.BoardId == 1 && item.BoardCardId == card.Id);
+            Assert.Equal(card.CardTypeId, stored.CardTypeId);
+            Assert.Equal(0, CardFieldJsonCodec.DeserialiseValues(stored.FieldValuesJson)["Points"].GetInt32());
+            Assert.Empty(await db.CardComments.Where(comment => comment.CardId == stored.Id).ToListAsync());
+        });
+    }
+
+    [Fact]
+    public async Task TypeChangePreview_ShouldReturnOriginalFieldValidation()
+    {
+        var card = await CreateCardAsync();
+        var body = $$$"""{"cardTypeId":{{{card.CardTypeId}}},"fields":{"Points":"invalid","Note":null,"Due":null}}""";
+
+        var response = await Client.PostAsync($"/api/boards/1/cards/{card.Id}/type-change/preview",
+            new StringContent(body, Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Whole number required", json.RootElement.GetProperty("validationErrors").GetProperty("fields.Points")[0].GetString());
+    }
+
     private async Task<CardDto> CreateCardAsync()
     {
         var typeId = await SeedTypeAsync();

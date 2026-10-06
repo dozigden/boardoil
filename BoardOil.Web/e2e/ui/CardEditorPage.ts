@@ -21,6 +21,33 @@ export class CardEditorPage {
     await this.dialog().getByRole('button', { name: 'Save card', exact: true }).click();
   }
 
+  public async cancelEditing() {
+    await this.dialog().getByTitle('Cancel', { exact: true }).click();
+    await expect(this.dialog()).toBeHidden();
+  }
+
+  public async discardUnsavedChanges() {
+    await this.page.getByRole('dialog', { name: 'Discard unsaved changes', exact: true })
+      .getByRole('button', { name: 'Discard', exact: true }).click();
+  }
+
+  public typeChangePreview() {
+    return this.page.getByRole('dialog', { name: 'Change card type', exact: true });
+  }
+
+  public typeChangeRow(name: string) {
+    return this.typeChangePreview().getByRole('row').filter({ has: this.page.getByText(name, { exact: true }) });
+  }
+
+  public async confirmTypeChange() {
+    await this.typeChangePreview().getByRole('button', { name: 'Confirm & Save', exact: true }).click();
+  }
+
+  public async cancelTypeChange() {
+    await this.typeChangePreview().getByRole('button', { name: 'Cancel', exact: true }).last().click();
+    await expect(this.typeChangePreview()).toBeHidden();
+  }
+
   public descriptionEditor() {
     return this.dialog().getByLabel('Card description', { exact: true });
   }

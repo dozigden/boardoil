@@ -29,3 +29,22 @@ export type CardTypeFieldImpact = {
   change: 'deleted' | 'replaced';
   cardCount: number;
 };
+
+export type CardTypeChangeValue = {
+  displayName: string;
+  emoji: string | null;
+  type: CardFieldDefinition['type'];
+  value: string | number | null;
+};
+export type CardTypeChangeRow = {
+  original: CardTypeChangeValue | null;
+  destination: CardTypeChangeValue | null;
+  losesValue: boolean;
+};
+export type CardTypeChangePreview = {
+  originalTypeName: string;
+  destinationTypeName: string;
+  requiresConfirmation: boolean;
+  hasLosses: boolean;
+  rows: CardTypeChangeRow[];
+};

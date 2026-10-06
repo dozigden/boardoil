@@ -36,6 +36,24 @@ public sealed class UpdateCardService(
 {
     private readonly ITagRepository _tagRepository = tagRepository;
 
+    public async Task<ApiResult<CardTypeChangePreviewDto>> PreviewTypeChangeAsync(
+        int boardId, int id, PreviewCardTypeChangeRequest request, int actorUserId)
+    {
+        using var scope = scopeFactory.CreateReadOnly();
+        var permitted = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardAccess);
+        if (!permitted) { return ApiErrors.Forbidden("You do not have access to this board."); }
+
+        var card = await cardRepository.GetWithTagsAndBoardAsync(boardId, id);
+        if (card is null) { return ApiErrors.NotFound("Card not found."); }
+        var target = await cardTypeRepository.GetByIdInBoardAsync(boardId, request.CardTypeId);
+        var selection = planner.SelectCardType(target);
+        if (selection.Error is not null) { return selection.Error; }
+
+        var preview = planner.PreviewFields(card, target!, request.Fields);
+        if (!preview.IsValid) { return ApiErrors.ValidationFailed(preview.Errors); }
+        return preview.Value!;
+    }
+
     public async Task<ApiResult<CardDto>> ExecuteAsync(int boardId, int id, UpdateCardRequest request, int actorUserId)
     {
         // Definition edits and ordinary card edits must validate against a consistent view.
@@ -126,7 +144,7 @@ public sealed class UpdateCardService(
             return cardTypeSelection.Error;
         }
 
-        var fieldPlan = planner.PlanFields(existingCard, selectedCardType!, request);
+        var fieldPlan = planner.PlanFields(existingCard, selectedCardType!, request.Fields);
         if (!fieldPlan.IsValid)
         {
             return ApiErrors.ValidationFailed(fieldPlan.Errors);

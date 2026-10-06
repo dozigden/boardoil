@@ -1,4 +1,4 @@
-import type { CardFieldDefinition, CardFieldValues } from '../shared/types/cardFieldTypes';
+import type { CardFieldDefinition, CardFieldValues, CardTypeChangePreview, CardTypeChangeRow, CardTypeChangeValue } from '../shared/types/cardFieldTypes';
 import type { AppError } from '../shared/types/appError';
 import { err, ok, type Result } from '../shared/types/result';
 
@@ -81,4 +81,36 @@ export function planDemoFields(
   const losses = source.filter(field => !preserved.has(field.fieldCode) && values[field.fieldCode] !== null)
     .map(field => ({ displayName: field.displayName, value: String(values[field.fieldCode]) }));
   return ok({ fields, description, losses });
+}
+
+export function previewDemoTypeChange(
+  source: { name: string; fields: CardFieldDefinition[] }, original: CardFieldValues,
+  supplied: CardFieldValues | undefined, destination: { name: string; fields: CardFieldDefinition[] }, changingType: boolean
+): Result<CardTypeChangePreview, AppError> {
+  const before = planDemoFields(source.fields, original, supplied, source.fields, false, '');
+  if (!before.ok) return before;
+  const after = planDemoFields(source.fields, original, supplied, destination.fields, changingType, '');
+  if (!after.ok) return after;
+  const value = (field: CardFieldDefinition, values: CardFieldValues): CardTypeChangeValue => ({
+    displayName: field.displayName, emoji: field.emoji, type: field.type, value: values[field.fieldCode]!
+  });
+  const rows: CardTypeChangeRow[] = source.fields.map(field => {
+    const match = destination.fields.find(target => target.displayName.toLowerCase() === field.displayName.toLowerCase());
+    return {
+      original: value(field, before.data.fields),
+      destination: match ? value(match, after.data.fields) : null,
+      losesValue: after.data.losses.some(loss => loss.displayName === field.displayName)
+    };
+  });
+  for (const field of destination.fields) {
+    if (!source.fields.some(from => from.displayName.toLowerCase() === field.displayName.toLowerCase())) {
+      rows.push({ original: null, destination: value(field, after.data.fields), losesValue: false });
+    }
+  }
+  return ok({
+    originalTypeName: source.name, destinationTypeName: destination.name,
+    requiresConfirmation: changingType && rows.some(row => !row.original || !row.destination || row.losesValue
+      || row.original.type !== row.destination.type || row.original.value !== row.destination.value),
+    hasLosses: after.data.losses.length > 0, rows
+  });
 }

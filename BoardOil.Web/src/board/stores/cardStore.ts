@@ -12,6 +12,7 @@ import type {
   CardEditModel,
   CardTransferPolicy
 } from '../../shared/types/boardTypes';
+import type { CardFieldValues } from '../../shared/types/cardFieldTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -221,6 +222,10 @@ export const useCardStore = defineStore('card', () => {
       return applied ? result : null;
     }
     return upsertCard(boardId, result.data) ? result : null;
+  }
+
+  function previewTypeChange(boardId: number, cardId: number, cardTypeId: number, fields?: CardFieldValues) {
+    return api.previewCardTypeChange(boardId, cardId, cardTypeId, fields);
   }
 
   async function saveCard(cardId: number, model: CardEditModel, options?: { inlineErrors?: boolean }) {
@@ -533,6 +538,7 @@ export const useCardStore = defineStore('card', () => {
     dispose,
     createCard,
     saveCard,
+    previewTypeChange,
     transferCard,
     deleteCards,
     archiveCards,

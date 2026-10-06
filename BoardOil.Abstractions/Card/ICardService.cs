@@ -13,6 +13,7 @@ public interface ICardService
     Task<ApiResult<CardDto>> CreateCardAsync(int boardId, CreateCardRequest request, int actorUserId, IReadOnlyDictionary<string, JsonElement>? fields);
     Task<ApiResult<CardDto>> DuplicateCardAsync(int boardId, int cardId, CreateCardRequest request, int actorUserId, CancellationToken cancellationToken = default,
         IReadOnlyDictionary<string, JsonElement>? fields = null);
+    Task<ApiResult<CardTypeChangePreviewDto>> PreviewTypeChangeAsync(int boardId, int id, PreviewCardTypeChangeRequest request, int actorUserId);
     Task<ApiResult<CardDto>> UpdateCardAsync(int boardId, int id, UpdateCardRequest request, int actorUserId);
     Task<ApiResult<CardDto>> MoveCardAsync(int boardId, int id, MoveCardRequest request, int actorUserId);
     Task<ApiResult<TransferCardResultDto>> TransferCardAsync(int boardId, int id, TransferCardRequest request, int actorUserId);

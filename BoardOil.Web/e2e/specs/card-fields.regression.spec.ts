@@ -47,7 +47,7 @@ test('card fields save, reload and render on board cards, with inline backend er
   expect((await api.getCard(board.id, card.id)).fields).toEqual({ Reference: null, Points: null, Due: null });
 });
 
-test('type changes apply original field edits before converting on save', async ({ api, authenticatedPage: page }) => {
+test('type changes preview edited values, cancel intact and convert on confirmation', async ({ api, authenticatedPage: page }, testInfo) => {
   const board = await api.createBoard('Convert edited fields');
   const source = await api.configureDefaultFields(board.id, definitions);
   const target = await api.createCardType(board.id, 'Delivery', [
@@ -57,12 +57,29 @@ test('type changes apply original field edits before converting on save', async 
   const editor = new CardEditorPage(page);
   await editor.open(board.id, card.id);
   await editor.field('Reference').fill('Edited loss');
-  await editor.field('Estimate').fill('7');
+  await editor.field('Estimate').fill('invalid');
   await editor.selectType(target.name);
+  await editor.submit();
+  await expect(editor.field('Estimate')).toHaveAccessibleDescription('Whole number required');
+  await expect(editor.typeChangePreview()).toBeHidden();
+  await editor.field('Estimate').fill('7');
   await expect(editor.field('Reference')).toHaveValue('Edited loss');
   await editor.selectType(source.name);
   await editor.selectType(target.name);
   await expect(editor.field('Estimate')).toHaveValue('7');
+  await editor.field('Estimate').press('Control+s');
+  await expect(editor.typeChangePreview()).toBeVisible();
+  await expect(editor.typeChangeRow('Estimate').getByRole('cell')).toHaveText(['🎯 EstimateNumber7', ' EstimateText7']);
+  await expect(editor.typeChangeRow('Reference')).toContainText('Edited loss');
+  await expect(editor.typeChangeRow('Reference')).toContainText('Removed · saved to comments');
+  expect((await api.getCard(board.id, card.id)).cardTypeId).toBe(source.id);
+  await page.screenshot({ path: testInfo.outputPath('type-change-preview.png') });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: testInfo.outputPath('type-change-preview-mobile.png') });
+  await editor.cancelTypeChange();
+  await expect(editor.field('Reference')).toHaveValue('Edited loss');
+  await expect(editor.field('Estimate')).toHaveValue('7');
+  await page.setViewportSize({ width: 1280, height: 900 });
   let releaseSave!: () => void;
   const saveGate = new Promise<void>(resolve => { releaseSave = resolve; });
   await page.route(`**/api/boards/${board.id}/cards/${card.id}`, async route => {
@@ -71,6 +88,7 @@ test('type changes apply original field edits before converting on save', async 
   }, { times: 1 });
   try {
     await editor.field('Estimate').press('Control+s');
+    await editor.confirmTypeChange();
     await expect(page.getByRole('status').filter({ hasText: 'Saving…' })).toBeVisible();
     await expect(page.getByRole('dialog').locator('form')).toHaveAttribute('inert', '');
     await page.keyboard.press('Escape');
@@ -92,6 +110,34 @@ test('type changes apply original field edits before converting on save', async 
   await editor.saveCard();
   expect((await api.getCard(board.id, card.id)).fields).toEqual({ Effort: 'After conversion' });
   expect((await api.getCard(board.id, card.id)).description).toBe(saved.description);
+});
+
+test('discarding changes through browser history closes the previous card type preview', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Discard type preview');
+  await api.configureDefaultFields(board.id, definitions);
+  const target = await api.createCardType(board.id, 'No fields', []);
+  const first = await api.createCard(board, 'Todo', 'First card');
+  const second = await api.createCard(board, 'Todo', 'Second card');
+  const editor = new CardEditorPage(page);
+  await editor.open(board.id, first.id);
+  await editor.cancelEditing();
+  await new BoardPage(page).openCard('Todo', second.title);
+  await expect(page).toHaveURL(new RegExp(`/card/${second.id}$`));
+  await editor.field('Reference').fill('Discard this value');
+  await editor.selectType(target.name);
+  await editor.submit();
+  await expect(editor.typeChangePreview()).toBeVisible();
+
+  // Select the first card from browser history, skipping the intervening board entry.
+  await page.evaluate(() => history.go(-2));
+  await editor.discardUnsavedChanges();
+
+  await expect(page).toHaveURL(new RegExp(`/card/${first.id}$`));
+  await expect(editor.typeChangePreview()).toBeHidden();
+  await expect(editor.field('Reference')).toHaveValue('Ready');
+  const unchanged = await api.getCard(board.id, second.id);
+  expect(unchanged.cardTypeId).toBe(second.cardTypeId);
+  expect(unchanged.fields).toEqual(second.fields);
 });
 
 test('keyboard save rejects an incomplete date without clearing the saved value', async ({ api, authenticatedPage: page }) => {
@@ -173,6 +219,7 @@ for (const changeType of [false, true]) {
     if (changeType) await editor.selectType(target.name);
     const response = page.waitForResponse(res => res.url().endsWith(`/cards/${source.id}/duplicate`) && res.request().method() === 'POST');
     await create.click();
+    if (changeType) await editor.confirmTypeChange();
     const duplicate = (await (await response).json()).data;
     await expect(page.getByRole('dialog')).toBeHidden();
     expect((await api.getCard(board.id, source.id)).fields).toEqual({ Reference: 'Ready', Points: 0, Due: '2026-10-04' });
@@ -219,4 +266,20 @@ test('archived fields retain their labels and convert on restore', async ({ api,
   await editor.open(board.id, card.id);
   await expect(editor.field('Renamed estimate')).toHaveValue('0');
   await expect(editor.commentContent()).toContainText('Reference: Ready');
+});
+
+test('equivalent fields save directly when only codes and presentation differ', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Equivalent fields');
+  await api.configureDefaultFields(board.id, definitions);
+  const target = await api.createCardType(board.id, 'Equivalent', definitions.map(field => ({
+    ...field, fieldCode: `New${field.fieldCode}`, emoji: null, showOnCard: !field.showOnCard
+  })).reverse());
+  const card = await api.createCard(board, 'Todo', 'Skip confirmation');
+  const editor = new CardEditorPage(page);
+  await editor.open(board.id, card.id);
+  await editor.field('Estimate').fill('5');
+  await editor.selectType(target.name);
+  await editor.saveCard();
+  await expect(editor.typeChangePreview()).toBeHidden();
+  expect((await api.getCard(board.id, card.id)).fields).toEqual({ NewReference: 'Ready', NewPoints: 5, NewDue: '2026-10-04' });
 });
