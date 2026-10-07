@@ -259,12 +259,13 @@ export class BoardOilApi {
     return card;
   }
 
-  public async configureDefaultFields(boardId: number, fields: CardFieldDefinition[]) {
+  public async configureDefaultFields(boardId: number, fields: CardFieldDefinition[],
+    appearance: Partial<Pick<CardType, 'emoji' | 'styleName' | 'stylePropertiesJson'>> = {}) {
     const types = await this.getCardTypes(boardId);
     const cardType = types.find(type => type.isSystem)!;
     return await this.put<CardType>(`/api/boards/${boardId}/card-types/${cardType.id}`, {
       name: cardType.name, emoji: cardType.emoji, styleName: cardType.styleName,
-      stylePropertiesJson: cardType.stylePropertiesJson, fields
+      stylePropertiesJson: cardType.stylePropertiesJson, fields, ...appearance
     });
   }
 

@@ -21,15 +21,23 @@ export class CardTypeEditorPage {
     await expect(this.page.getByLabel('Display name', { exact: true })).toHaveCount(1);
   }
 
+  public async duplicate(boardId: number, name: string) {
+    await this.page.goto(`/boards/${boardId}/admin/card-types`);
+    const row = this.page.getByRole('article').filter({
+      has: this.page.getByRole('button', { name: `Edit card type ${name}`, exact: true })
+    });
+    await row.getByRole('button', { name: 'Card type actions', exact: true }).click();
+    await this.page.getByRole('button', { name: 'Duplicate', exact: true }).click();
+    await expect(this.page.getByRole('dialog', { name: `Duplicate Card Type: ${name}`, exact: true })).toBeVisible();
+  }
+
   public async expandField(name: string) {
     const button = this.page.getByRole('button', { name: new RegExp(`${name} (Text|Number|Date)`) });
     if (await button.getAttribute('aria-expanded') !== 'true') await button.click();
   }
 
   public async removeField(name: string) {
-    await this.expandField(name);
-    await this.page.getByRole('region', { name: new RegExp(`${name} (Text|Number|Date)`) })
-      .getByRole('button', { name: 'Remove field', exact: true }).click();
+    await this.page.getByRole('button', { name: `Remove ${name}`, exact: true }).click();
   }
 
   public async save(create = false) {

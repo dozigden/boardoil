@@ -41,6 +41,7 @@
               <input
                 v-model="draftName"
                 ref="nameInput"
+                :autofocus="isDuplicateMode"
                 :aria-invalid="Boolean(validationErrors.name)"
                 :aria-describedby="validationErrors.name ? 'card-type-name-error' : undefined"
                 maxlength="40"
@@ -280,6 +281,12 @@ const draftSourceKey = ref<string | null>(null);
 const presetColours = PRESET_TOKENS;
 
 const isCreateMode = computed(() => route.name === 'card-types-new');
+const isDuplicateMode = computed(() => isCreateMode.value && route.query.duplicateFrom !== undefined);
+const duplicateSource = computed(() => {
+  const value = route.query.duplicateFrom;
+  if (!isDuplicateMode.value || typeof value !== 'string' || !/^\d+$/.test(value)) return null;
+  return getCardTypeById(Number(value));
+});
 const boardId = computed(() => currentBoardId.value!);
 const routeCardTypeId = computed<number | null>(() => {
   const parsed = Number.parseInt(String(route.params.cardTypeId ?? ''), 10);
@@ -297,6 +304,9 @@ const previewRequest = computed(() => {
 const { impacts: fieldImpacts, error: previewError } = useCardTypeFieldsPreview(() => previewRequest.value);
 const showCustomFields = computed(() => customFieldsOpened.value || draftFields.value.length > 0 || (editingCardType.value?.fields.length ?? 0) > 0);
 const dialogTitle = computed(() => {
+  if (isDuplicateMode.value) {
+    return `Duplicate Card Type: ${duplicateSource.value?.name ?? ''}`;
+  }
   if (isCreateMode.value) {
     return 'Add Card Type';
   }
@@ -341,21 +351,34 @@ const previewCardStyleClasses = computed(() => {
 });
 
 watch(
-  [boardId, routeCardTypeId, isCreateMode, editingCardType],
-  async ([nextBoardId, nextCardTypeId, nextIsCreate, nextCardType]) => {
+  [boardId, routeCardTypeId, isCreateMode, editingCardType, isDuplicateMode, duplicateSource],
+  async ([nextBoardId, nextCardTypeId, nextIsCreate, nextCardType, nextIsDuplicate, nextDuplicateSource]) => {
     if (nextIsCreate) {
-      if (draftSourceKey.value === `create:${nextBoardId}`) {
+      if (nextIsDuplicate && !nextDuplicateSource) {
+        clearDraft();
+        await router.replace({ name: 'card-types', params: { boardId: nextBoardId } });
+        return;
+      }
+      const sourceKey = `create:${nextBoardId}:${nextDuplicateSource?.id ?? 'new'}`;
+      if (draftSourceKey.value === sourceKey) {
         return;
       }
 
       clearDraft();
       draftName.value = '';
-      draftEmoji.value = null;
-      setDraftStyle(createCardTypeStyleDraft({
+      draftEmoji.value = nextDuplicateSource?.emoji ?? null;
+      draftFields.value = (nextDuplicateSource?.fields ?? []).map(field => ({
+        ...createCardFieldDraft(field), persisted: false, fieldCodeEdited: true
+      }));
+      setDraftStyle(createCardTypeStyleDraft(nextDuplicateSource ?? {
         styleName: DEFAULT_CARD_TYPE_STYLE_NAME,
         stylePropertiesJson: DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON
       }));
-      draftSourceKey.value = `create:${nextBoardId}`;
+      draftSourceKey.value = sourceKey;
+      if (nextIsDuplicate) {
+        await nextTick();
+        nameInput.value?.focus();
+      }
       return;
     }
 

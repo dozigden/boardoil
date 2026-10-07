@@ -40,6 +40,9 @@
               <button type="button" class="bo-dropdown-item" @click="openEditorFromMenu(cardType.id, close)">
                 Edit
               </button>
+              <button type="button" class="bo-dropdown-item" @click="openDuplicateFromMenu(cardType.id, close)">
+                Duplicate
+              </button>
               <button
                 v-if="!cardType.isSystem"
                 type="button"
@@ -98,6 +101,11 @@ async function setAsDefault(cardTypeId: number) {
 async function openEditorFromMenu(cardTypeId: number, close: () => void) {
   close();
   await openEditor(cardTypeId);
+}
+
+async function openDuplicateFromMenu(cardTypeId: number, close: () => void) {
+  close();
+  await router.push({ name: 'card-types-new', params: { boardId: boardId.value }, query: { duplicateFrom: cardTypeId } });
 }
 
 async function setAsDefaultFromMenu(cardTypeId: number, close: () => void) {

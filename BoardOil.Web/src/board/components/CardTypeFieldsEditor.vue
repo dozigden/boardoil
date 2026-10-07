@@ -17,7 +17,6 @@
           <span v-else>{{ describeFieldError(path, model) }}</span>: {{ messages.join(' ') }}</span>
         </p>
       </div>
-      <p v-if="model.length === 0" class="field-note field-empty">No custom fields yet.</p>
       <ol class="entity-rows-list">
         <li v-for="(field, index) in model" :key="field.key" class="entity-row field-row">
           <div class="field-row-header">
@@ -37,6 +36,7 @@
             <div class="entity-row-actions">
               <button type="button" class="btn btn--secondary entity-row-action-icon" :disabled="busy || index === 0" :aria-label="`Move ${field.displayName || 'field'} up`" title="Move up" @click="moveField(index, -1)"><ArrowUp :size="16" aria-hidden="true" /></button>
               <button type="button" class="btn btn--secondary entity-row-action-icon" :disabled="busy || index === model.length - 1" :aria-label="`Move ${field.displayName || 'field'} down`" title="Move down" @click="moveField(index, 1)"><ArrowDown :size="16" aria-hidden="true" /></button>
+              <button type="button" class="btn btn--danger entity-row-action-icon" :disabled="busy" :aria-label="`Remove ${field.displayName || 'field'}`" title="Remove field" @click="removeField(index)"><Trash2 :size="16" aria-hidden="true" /></button>
             </div>
           </div>
           <Transition name="field-expand" @after-enter="focusRevealedField(field.key)" @before-leave="onFieldPanelClosing">
@@ -106,9 +106,6 @@
                     </div>
                   </div>
                   <p v-if="field.type === 'text'" class="field-note">Single line, up to 250 characters. Blank text counts as empty.</p>
-                  <div class="field-remove">
-                    <button type="button" class="btn btn--secondary" :disabled="busy" @click="removeField(index)"><Trash2 :size="16" aria-hidden="true" /> Remove field</button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -324,10 +321,6 @@ defineExpose({ revealField, focusAddButton, focusSummary });
   font-size: 0.85rem;
 }
 
-.field-empty {
-  padding: 1rem 0;
-}
-
 .field-row {
   display: block;
   min-width: 0;
@@ -410,11 +403,6 @@ defineExpose({ revealField, focusAddButton, focusSummary });
 
 .field-checkbox input {
   margin: 0;
-}
-
-.field-remove {
-  display: flex;
-  justify-content: flex-end;
 }
 
 input[readonly] {
