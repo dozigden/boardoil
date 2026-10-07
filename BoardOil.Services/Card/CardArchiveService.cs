@@ -245,7 +245,8 @@ public sealed class CardArchiveService(
             cardCommentRepository.Add(restoredComment);
         }
 
-        var lossComment = CardFieldLossComment.Add(restoredCard, fieldPlan.Value!.LostValues, "archive restore");
+        var lossComment = CardFieldLossComment.Add(restoredCard, fieldPlan.Value!.LostValues,
+            snapshotCard.CardTypeName, selectedCardType.Name, "archive restore");
         cardRepository.Add(restoredCard);
         await attachments.RestoreAsync(archivedCard, restoredCard);
         archivedCardRepository.Remove(archivedCard);

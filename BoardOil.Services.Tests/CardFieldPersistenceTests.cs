@@ -182,7 +182,7 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
         Assert.Single(result.Data.Fields);
         Assert.Equal("Edited description", stored.Description);
         var comment = await DbContextForAssert.CardComments.SingleAsync();
-        Assert.Equal("Fields removed during card type change:\n\n    Reference: "
+        Assert.Equal($"Fields removed during card type change:\n\n    Card type: {card.CardType.Name} → Target\n\n    Reference: "
             + (supplyValues ? "Edited reference" : "Existing"), comment.Text);
         Assert.True(comment.IsSystem);
         Assert.Null(comment.AuthorUserId);
@@ -317,6 +317,7 @@ public sealed class CardFieldPersistenceTests : TestBaseDb
         Assert.Equal(supplyFields ? "7" : "5", result.Data!.Fields["Estimate"].GetString());
         Assert.Equal(source.Description, result.Data.Description);
         var lossComment = await DbContextForAssert.CardComments.Include(comment => comment.Card).SingleAsync();
+        Assert.Contains($"    Card type: {source.CardType.Name} → Target\n", lossComment.Text);
         Assert.Contains(supplyFields ? "Reference: Edited loss" : "Reference: Existing", lossComment.Text);
         Assert.Equal(result.Data.Id, lossComment.Card.BoardCardId);
         Assert.NotEqual(source.Id, lossComment.CardId);

@@ -179,6 +179,7 @@ public sealed class UpdateCardService(
         var assignmentChanged = request.AssignedUserId != existingCard.AssignedUserId;
         var slickChanged = selectedSlickId != existingCard.SlickId;
         var tagsChanged = planner.TagsChanged(existingCard, updatedTags);
+        var originalTypeName = existingCard.CardType.Name;
         var cardTypeChanged = selectedCardType!.Id != existingCard.CardTypeId;
         var metadataChanged = updatedTitle != existingCard.Title
             || descriptionChanged
@@ -236,7 +237,8 @@ public sealed class UpdateCardService(
         var derivedValuesChanged = previousCompleted != existingCard.CompletedChecklistItemCount
             || previousTotal != existingCard.TotalChecklistItemCount;
 
-        var lossComment = CardFieldLossComment.Add(existingCard, fieldPlan.Value!.LostValues);
+        var lossComment = CardFieldLossComment.Add(existingCard, fieldPlan.Value!.LostValues,
+            originalTypeName, selectedCardType.Name);
         await scope.SaveChangesAsync(cancellationToken);
         return new CardSaveResult(
             metadataChanged || movementChanged || derivedValuesChanged,

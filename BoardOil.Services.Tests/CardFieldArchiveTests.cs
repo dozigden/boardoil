@@ -87,6 +87,7 @@ public sealed class CardFieldArchiveTests : TestBaseDb
         Assert.True(lossComment.IsSystem);
         Assert.Contains("Reference: Saved", lossComment.Text);
         Assert.Contains("Due date: 2024-02-29", lossComment.Text);
+        Assert.Contains($"    Card type: {source.CardType.Name} → {source.CardType.Name}\n", lossComment.Text);
         Assert.Equal(tightenLimit, lossComment.Text.Contains("Estimate: 0"));
         Assert.DoesNotContain("Empty:", lossComment.Text);
     }
@@ -122,6 +123,7 @@ public sealed class CardFieldArchiveTests : TestBaseDb
         Assert.True(lossComment.IsSystem);
         Assert.Contains("Reference: Saved", lossComment.Text);
         Assert.DoesNotContain("Estimate: 0", lossComment.Text);
+        Assert.Contains($"    Card type: Removed type → {systemType.Name}\n", lossComment.Text);
     }
 
     [Fact]

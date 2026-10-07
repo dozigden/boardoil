@@ -197,7 +197,7 @@ public sealed class CardTypeService(
             {
                 return ApiErrors.ValidationFailed(changes.Errors);
             }
-            CardTypeFieldChanges.Apply(changes.Value!);
+            CardTypeFieldChanges.Apply(changes.Value!, existing.Name, nameValidation.CanonicalName);
             existing.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(fields.Value!);
         }
 
@@ -328,7 +328,7 @@ public sealed class CardTypeService(
         {
             return ApiErrors.ValidationFailed(changes.Errors);
         }
-        CardTypeFieldChanges.Apply(changes.Value!, "card type change");
+        CardTypeFieldChanges.Apply(changes.Value!, existing.Name, systemCardType.Name, "card type change");
         foreach (var card in cardsToReassign)
         {
             card.CardTypeId = systemCardType.Id;

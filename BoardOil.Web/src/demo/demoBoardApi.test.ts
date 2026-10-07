@@ -49,7 +49,7 @@ describe('demoBoardApi', () => {
     if (!converted.ok) throw new Error('Expected conversion');
     const comments = await api.getCardComments(1, converted.data.id);
     expect(comments).toMatchObject({ ok: true, data: [{ isSystem: true, authorUserId: null,
-      text: 'Fields removed during card type change:\n\n    Reference: Edited\n    Estimate: 0' }] });
+      text: `Fields removed during card type change:\n\n    Card type: ${sourceType.name} → ${targetType.name}\n\n    Reference: Edited\n    Estimate: 0` }] });
     if (operation === 'duplicate') {
       expect(await api.getCardComments(1, source.data.id)).toMatchObject({ ok: true, data: [] });
     }

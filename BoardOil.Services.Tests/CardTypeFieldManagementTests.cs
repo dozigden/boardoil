@@ -168,6 +168,7 @@ public sealed class CardTypeFieldManagementTests : TestBaseDb
         Assert.Equal(cards[1].Id, comment.CardId);
         Assert.True(comment.IsSystem);
         Assert.Contains(text ? "Reference: Long value" : "Points: 9", comment.Text);
+        Assert.Contains($"    Card type: {type.Name} → Do not rename\n", comment.Text);
     }
 
     [Fact]
@@ -205,7 +206,7 @@ public sealed class CardTypeFieldManagementTests : TestBaseDb
         Assert.Equal("{}", card.FieldValuesJson);
         Assert.Equal("Description", card.Description);
         var comment = await DbContextForAssert.CardComments.SingleAsync();
-        Assert.Equal("Fields removed during field definition change:\n\n    Reference: Existing\n    Points: 0", comment.Text);
+        Assert.Equal($"Fields removed during field definition change:\n\n    Card type: {type.Name} → {type.Name}\n\n    Reference: Existing\n    Points: 0", comment.Text);
         Assert.True(comment.IsSystem);
     }
 
@@ -254,7 +255,9 @@ public sealed class CardTypeFieldManagementTests : TestBaseDb
         Assert.Equal(target.Id, card.CardTypeId);
         Assert.Equal("{\"Effort\":\"5\"}", card.FieldValuesJson);
         Assert.Equal("Description", card.Description);
-        Assert.EndsWith("    Reference: Lost", (await DbContextForAssert.CardComments.SingleAsync()).Text);
+        var comment = await DbContextForAssert.CardComments.SingleAsync();
+        Assert.Contains($"    Card type: {type.Name} → Default\n", comment.Text);
+        Assert.EndsWith("    Reference: Lost", comment.Text);
         Assert.True(card.CardUpdatedUtc > card.CardCreatedUtc);
     }
 

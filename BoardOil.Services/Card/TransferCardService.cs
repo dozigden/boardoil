@@ -165,6 +165,7 @@ public sealed class TransferCardService(
             : null;
 
         var sourceCardNumber = sourceCard.RequireBoardCardId();
+        var originalTypeName = sourceCard.CardType.Name;
         sourceCard.BoardId = request.DestinationBoardId;
         sourceCard.BoardColumnId = destinationColumn.Id;
         sourceCard.BoardColumn = destinationColumn;
@@ -179,7 +180,8 @@ public sealed class TransferCardService(
         }
         sourceCard.CardUpdatedUtc = DateTime.UtcNow;
         sourceCard.FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fieldPlan.Value!.Values);
-        var lossComment = CardFieldLossComment.Add(sourceCard, fieldPlan.Value.LostValues, "board transfer");
+        var lossComment = CardFieldLossComment.Add(sourceCard, fieldPlan.Value.LostValues,
+            originalTypeName, contentPlan.CardType.Name, "board transfer");
         CardTagMutation.ReplaceTags(sourceCard, contentPlan.Tags);
         foreach (var assignment in orderPlan.Assignments)
         {

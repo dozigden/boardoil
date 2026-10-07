@@ -38,7 +38,8 @@ internal static class CardTypeFieldChanges
         return new(changes, []);
     }
 
-    public static void Apply(IReadOnlyList<CardFieldChange> changes, string reason = "field definition change")
+    public static void Apply(IReadOnlyList<CardFieldChange> changes, string sourceTypeName,
+        string destinationTypeName, string reason = "field definition change")
     {
         var now = DateTime.UtcNow;
         foreach (var change in changes)
@@ -49,7 +50,7 @@ internal static class CardTypeFieldChanges
                 change.Card.CardUpdatedUtc = now;
                 CardChecklistCounter.Refresh(change.Card);
             }
-            CardFieldLossComment.Add(change.Card, change.LostValues, reason);
+            CardFieldLossComment.Add(change.Card, change.LostValues, sourceTypeName, destinationTypeName, reason);
         }
     }
 }

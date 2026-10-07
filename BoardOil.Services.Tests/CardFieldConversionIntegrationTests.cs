@@ -20,6 +20,8 @@ public sealed class CardFieldConversionIntegrationTests : TestBaseDb
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("One").AddCard("Two").AddCard("Empty").Build();
         var type = board.GetCard("One").CardType;
+        type.Name = new string('`', 40);
+        var renamedType = new string('~', 38) + "\nX";
         var definitions = Enumerable.Range(0, 10).Select(index => new TextFieldDefinition
         {
             FieldCode = $"Code{index}", DisplayName = index + new string('`', 39), Nullable = true
@@ -34,7 +36,7 @@ public sealed class CardFieldConversionIntegrationTests : TestBaseDb
         await DbContextForArrange.SaveChangesAsync();
 
         var result = await ResolveService<CardTypeService>().UpdateCardTypeAsync(board.BoardId, type.Id,
-            new UpdateCardTypeRequest(type.Name, Fields: []), ActorUserId);
+            new UpdateCardTypeRequest(renamedType, Fields: []), ActorUserId);
 
         Assert.True(result.Success, result.Message);
         var comments = await DbContextForAssert.CardComments.Include(comment => comment.Card).ToListAsync();
@@ -45,6 +47,7 @@ public sealed class CardFieldConversionIntegrationTests : TestBaseDb
             Assert.True(comment.IsSystem);
             Assert.Null(comment.AuthorUserId);
             Assert.InRange(comment.Text.Length, 1, 4_000);
+            Assert.Contains($"    Card type: {type.Name} → {new string('~', 38)}\n    X\n", comment.Text);
             Assert.DoesNotContain("Code", comment.Text);
             foreach (var definition in definitions)
             {
@@ -67,6 +70,7 @@ public sealed class CardFieldConversionIntegrationTests : TestBaseDb
         var source = CreateBoard("Source").AddColumn("Todo").AddCard("Move", "Keep description").Build();
         var destination = CreateBoard("Destination").AddColumn("Todo").Build();
         var card = source.GetCard("Move");
+        card.CardType.Name = "Source type";
         card.CardType.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
         [
             new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Estimate", DefaultValue = 0 },
@@ -74,6 +78,7 @@ public sealed class CardFieldConversionIntegrationTests : TestBaseDb
         ]);
         card.FieldValuesJson = """{"Points":0,"Ref":"Lost value"}""";
         var target = await DbContextForArrange.CardTypes.SingleAsync(type => type.BoardId == destination.BoardId);
+        target.Name = policy == CardTransferPolicies.DestinationDefaults ? "Target type" : "Source type";
         target.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
             [new TextFieldDefinition { FieldCode = "Effort", DisplayName = "estimate", Nullable = true }]);
         await DbContextForArrange.SaveChangesAsync();
@@ -89,7 +94,7 @@ public sealed class CardFieldConversionIntegrationTests : TestBaseDb
             (await DbContextForAssert.CardTypes.SingleAsync(type => type.Id == target.Id)).FieldDefinitionsJson);
         var comment = await DbContextForAssert.CardComments.SingleAsync();
         Assert.Equal(card.Id, comment.CardId);
-        Assert.Equal("Fields removed during board transfer:\n\n    Reference: Lost value", comment.Text);
+        Assert.Equal($"Fields removed during board transfer:\n\n    Card type: {card.CardType.Name} → {target.Name}\n\n    Reference: Lost value", comment.Text);
         Assert.True(comment.IsSystem);
         var notification = Assert.Single(Events.CommentCreatedEvents);
         Assert.Equal(destination.BoardId, notification.BoardId);
