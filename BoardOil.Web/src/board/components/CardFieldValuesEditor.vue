@@ -1,6 +1,5 @@
 <template>
   <section v-if="definitions.length" ref="root" class="card-field-values" aria-label="Custom Fields">
-    <h3>Custom Fields</h3>
     <div v-for="field in definitions" :key="field.fieldCode" class="card-field-control">
       <label>
         <span><span v-if="field.emoji" class="bo-emoji" aria-hidden="true">{{ field.emoji }} </span>{{ field.displayName }}<span v-if="!field.nullable" class="required-marker" aria-label="required"> *</span></span>
@@ -46,8 +45,12 @@ function updateValue(code: string, event: Event) {
 </script>
 
 <style scoped>
-.card-field-values { display: grid; gap: 0.65rem; }
-.card-field-values h3 { margin: 0; font-size: 0.9rem; }
+.card-field-values {
+  display: grid;
+  gap: 0.65rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--bo-border-soft);
+}
 .card-field-control { display: grid; gap: 0.2rem; min-width: 0; }
 .card-field-control label { display: grid; gap: 0.25rem; font-size: 0.85rem; }
 .card-field-control input { min-width: 0; width: 100%; }

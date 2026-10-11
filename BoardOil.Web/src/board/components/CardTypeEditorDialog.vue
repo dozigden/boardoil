@@ -54,12 +54,16 @@
             <small v-if="validationErrors.name" id="card-type-name-error" class="error card-type-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ validationErrors.name.join(' ') }}</span></small>
           </div>
           <div class="card-types-dialog-preview">
-            <span class="badge">Preview</span>
-            <article class="card-type-preview-card" :class="previewCardStyleClasses" :style="previewCardStyle">
+            <span class="card-type-preview-label">Preview</span>
+            <article class="card-type-preview-card" aria-label="Card preview" :class="previewCardStyleClasses" :style="previewCardStyle">
               <div class="card-header">
-                <strong class="card-title">{{ previewTitle }}</strong>
+                <strong class="card-title">
+                  <span v-if="previewEmoji" class="card-title-emoji bo-emoji" aria-hidden="true">{{ previewEmoji }}</span>
+                  <span class="card-title-text">{{ previewName }}</span>
+                </strong>
                 <span class="card-id">#123</span>
               </div>
+              <CardFieldsDisplay :fields="previewFields" />
             </article>
           </div>
 
@@ -229,6 +233,8 @@ import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardTypeEditModel } from '../../shared/types/boardTypes';
 import CardTypeFieldsEditor from './CardTypeFieldsEditor.vue';
+import CardFieldsDisplay from './CardFieldsDisplay.vue';
+import { previewCardFields } from '../utils/cardFieldPreview';
 import { useCardTypeFieldsPreview } from '../composables/useCardTypeFieldsPreview';
 import type { AppError } from '../../shared/types/appError';
 import { buildCardFieldDefinitions, createCardFieldDraft, fieldErrorIndex, isInlineFieldError, retainCardFieldErrors, type CardFieldDraft } from '../utils/cardFieldDraft';
@@ -328,7 +334,7 @@ const previewName = computed(() => {
   return isCreateMode.value ? 'New card type' : (editingCardType.value?.name ?? 'Card type');
 });
 const previewEmoji = computed(() => normaliseCardTypeEmojiForRender(draftEmoji.value));
-const previewTitle = computed(() => (previewEmoji.value ? `${previewEmoji.value} ${previewName.value}` : previewName.value));
+const previewFields = computed(() => previewCardFields(draftFields.value));
 const previewCardStyle = computed(() => {
   if (!draftStyle.value) {
     return getCardSurfaceStyle(editingCardType.value);
@@ -725,14 +731,17 @@ input[aria-invalid="true"] {
 }
 
 .card-types-dialog-preview {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.card-type-preview-label {
+  font-size: 0.85rem;
 }
 
 .card-type-preview-card {
-  flex: 1;
+  --card-icon-width: 1.5rem;
+  --card-icon-gap: 0.3rem;
   min-width: 0;
   border: 1px solid var(--bo-card-surface-border-color, var(--bo-border-soft));
   border-radius: 12px;
@@ -755,6 +764,7 @@ input[aria-invalid="true"] {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
+  margin-bottom: 0.55rem;
 }
 
 .card-type-dialog-leading-actions {
@@ -763,15 +773,26 @@ input[aria-invalid="true"] {
   gap: 0.35rem;
 }
 
+.card-title,
+.card-id {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
 .card-title {
+  display: inline-flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: var(--card-icon-gap);
   min-width: 0;
   line-height: 1.25;
-  overflow-wrap: anywhere;
 }
+
+.card-title-emoji { flex: 0 0 var(--card-icon-width); text-align: center; }
+.card-title-text { min-width: 0; overflow-wrap: anywhere; }
 
 .card-id {
   flex: 0 0 auto;
-  font-weight: 600;
   line-height: 1.25;
 }
 

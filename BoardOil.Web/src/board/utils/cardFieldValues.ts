@@ -1,6 +1,22 @@
 import type { CardFieldDefinition, CardFieldValues } from '../../shared/types/cardFieldTypes';
 import { cardFieldNumberInput } from './cardFieldDraft';
 
+export type CardFieldDisplay = {
+  key: string;
+  displayName: string;
+  emoji: string | null;
+  type: CardFieldDefinition['type'];
+  value: string;
+};
+
+export function formatCardFieldValue(type: CardFieldDefinition['type'], value: string | number) {
+  if (type === 'date') {
+    // ISO date-only values parse as UTC; keep that calendar day in every browser timezone.
+    return new Date(String(value)).toLocaleDateString(undefined, { timeZone: 'UTC' });
+  }
+  return String(value);
+}
+
 export function buildCardFieldValues(definitions: CardFieldDefinition[], draft: CardFieldValues): CardFieldValues {
   const kinds = new Map(definitions.map(field => [field.fieldCode, field.type]));
   // Keep the draft's keys: a stale editor must fail server validation rather than silently drop values.
@@ -14,12 +30,6 @@ export function buildCardFieldValues(definitions: CardFieldDefinition[], draft: 
 export function visibleCardFields(definitions: CardFieldDefinition[], values: CardFieldValues) {
   return definitions.filter(field => field.showOnCard && values[field.fieldCode] !== null
     && values[field.fieldCode] !== undefined && values[field.fieldCode] !== '')
-    .map(field => {
-      let value = String(values[field.fieldCode]);
-      if (field.type === 'date') {
-        // ISO date-only values parse as UTC; keep that calendar day in every browser timezone.
-        value = new Date(value).toLocaleDateString(undefined, { timeZone: 'UTC' });
-      }
-      return { ...field, value };
-    });
+    .map(field => ({ ...field, key: field.fieldCode,
+      value: formatCardFieldValue(field.type, values[field.fieldCode]!) }));
 }
