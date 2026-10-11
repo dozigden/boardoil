@@ -39,15 +39,20 @@
     <div class="card-content">
       <div class="card-header">
         <strong class="card-title">
-          <span class="card-title-text"><span v-if="resolvedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ resolvedCardTypeEmoji }}</span>{{ resolvedCardTypeEmoji ? ' ' : '' }}{{ card.title }}</span>
+          <span v-if="resolvedCardTypeEmoji" class="card-title-emoji bo-emoji" aria-hidden="true">{{ resolvedCardTypeEmoji }}</span>
+          <span class="card-title-text">{{ card.title }}</span>
         </strong>
         <span class="card-id">#{{ card.id }}</span>
       </div>
 
       <dl v-if="displayFields.length" class="card-custom-fields" aria-label="Custom Fields">
-        <div v-for="field in displayFields" :key="field.fieldCode">
-          <dt><span v-if="field.emoji" class="bo-emoji" aria-hidden="true">{{ field.emoji }} </span>{{ field.displayName }}</dt>
-          <dd>{{ field.value }}</dd>
+        <div v-for="field in displayFields" :key="field.fieldCode" :title="`${field.displayName}: ${field.value}`">
+          <dt>
+            <span v-if="field.emoji" class="bo-emoji" aria-hidden="true">{{ field.emoji }}</span>
+            <span v-else class="card-field-bullet" aria-hidden="true"></span>
+            <span class="card-field-label--hidden">{{ field.displayName }}</span>
+          </dt>
+          <dd :class="{ 'card-field-value--text': field.type === 'text' }">{{ field.value }}</dd>
         </div>
       </dl>
 
@@ -258,13 +263,51 @@ function handlePrimaryAction() {
 </script>
 
 <style scoped>
-.card-custom-fields { display: grid; gap: 0.2rem; margin: 0.4rem 0 0; font-size: 0.8rem; }
-.card-custom-fields > div { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; }
-.card-custom-fields dt { flex-shrink: 0; max-width: 45%; opacity: 0.8; overflow-wrap: anywhere; }
-.card-custom-fields .bo-emoji { margin-right: 0.25rem; }
+.card-custom-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.2rem 0.6rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+.card-custom-fields > div { display: flex; align-items: baseline; gap: var(--card-icon-gap); min-width: 0; }
+.card-custom-fields > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.card-custom-fields dt {
+  flex: 0 0 var(--card-icon-width);
+  opacity: 0.8;
+  text-align: center;
+}
+.card-field-bullet {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+}
+
+.card-field-label--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 .card-custom-fields dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.card-field-value--text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .card {
+  --card-icon-width: 1.5rem;
+  --card-icon-gap: 0.3rem;
   --card-thumbnail-width: min(100px, 38%);
   border: 1px solid var(--bo-card-surface-border-color, var(--bo-border-soft));
   border-radius: 12px;
@@ -386,21 +429,33 @@ function handlePrimaryAction() {
   margin-bottom: 0.55rem;
 }
 
+.card-title,
+.card-id {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
 .card-title {
   display: inline-flex;
+  flex: 1;
   align-items: flex-start;
-  gap: 0.45rem;
+  gap: var(--card-icon-gap);
   min-width: 0;
   line-height: 1.25;
 }
 
+.card-title-emoji {
+  flex: 0 0 var(--card-icon-width);
+  text-align: center;
+}
+
 .card-title-text {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 
 .card-id {
   flex: 0 0 auto;
-  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -445,7 +500,7 @@ function handlePrimaryAction() {
   gap: 0.2rem;
   margin: 0;
   text-align: right;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
 }
@@ -455,7 +510,7 @@ function handlePrimaryAction() {
 }
 
 .card-checklist-counts-text {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .card-checklist-halo-definition {
@@ -477,16 +532,19 @@ function handlePrimaryAction() {
 
 .card-assigned-to {
   margin: 0.3rem 0 0;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
+  font-weight: 400;
   color: inherit;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--card-icon-gap);
   width: 100%;
 }
 
 .card-assigned-avatar {
   flex-shrink: 0;
+  width: var(--card-icon-width);
+  height: var(--card-icon-width);
 }
 
 .card-assigned-name {

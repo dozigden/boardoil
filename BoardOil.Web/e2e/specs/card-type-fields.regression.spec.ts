@@ -114,6 +114,46 @@ test('configure fields, reorder, reopen and cancel removal without changing save
   expect((await api.getCardTypes(board.id)).find(type => type.id === saved.id)?.fields.map(field => field.fieldCode)).toEqual(['Reference', 'Points']);
 });
 
+for (const openAnotherField of [false, true]) {
+  test(`incomplete date defaults block saving after ${openAnotherField ? 'opening another field' : 'collapsing their field'}`, async ({ api, authenticatedPage: page }) => {
+    const board = await api.createBoard('Incomplete date default');
+    const type = await api.createCardType(board.id, 'Date defaults', [
+      { type: 'date', fieldCode: 'Due', displayName: 'Due', emoji: null, nullable: true,
+        showOnCard: true, defaultValue: '2026-10-04' },
+      { type: 'text', fieldCode: 'Reference', displayName: 'Reference', emoji: null, nullable: true,
+        showOnCard: false, defaultValue: null, minLength: null, maxLength: 250 }
+    ]);
+    const editor = new CardTypeEditorPage(page);
+    await editor.open(board.id, type.id);
+    await editor.expandField('Due');
+    const date = page.getByRole('region', { name: 'Due Date · Optional', exact: true }).getByLabel('Default value', { exact: true });
+    await date.focus();
+    await date.press('ArrowRight');
+    await date.press('Backspace');
+    expect(await date.evaluate((input: HTMLInputElement) => input.validity.badInput)).toBe(true);
+
+    if (openAnotherField) {
+      await editor.expandField('Reference');
+      await page.getByRole('button', { name: 'Move Due down', exact: true }).click();
+    } else {
+      await page.getByRole('button', { name: 'Due Date · Optional', exact: true }).click();
+    }
+    await expect(date).toBeHidden();
+    await editor.submit();
+    await expect(date).toBeVisible();
+    await expect(date).toBeFocused();
+    expect(await date.evaluate((input: HTMLInputElement) => input.validity.badInput)).toBe(true);
+    expect((await api.getCardTypes(board.id)).find(item => item.id === type.id)!.fields[0].defaultValue).toBe('2026-10-04');
+
+    const corrected = openAnotherField ? '' : '2026-12-25';
+    await date.fill(corrected);
+    await page.getByRole('button', { name: 'Due Date · Optional', exact: true }).click();
+    await editor.save();
+    const saved = (await api.getCardTypes(board.id)).find(item => item.id === type.id)!;
+    expect(saved.fields.find(field => field.fieldCode === 'Due')!.defaultValue).toBe(corrected || null);
+  });
+}
+
 test('definition changes preview losses and preserve replaced values in comments', async ({ api, authenticatedPage: page }, testInfo) => {
   const board = await api.createBoard('Field impact');
   const type = await api.configureDefaultFields(board.id, [{

@@ -17,7 +17,7 @@ describe('card field values', () => {
 
   it('renders configured fields in definition order, including zero, omitting null and hidden fields', () => {
     expect(visibleCardFields(definitions, { Note: 'Private', Due: '2026-10-04', Points: 0 }).map(field => [field.displayName, field.value]))
-      .toEqual([['Estimate', '0'], ['Due date', '2026-10-04']]);
+      .toEqual([['Estimate', '0'], ['Due date', new Date('2026-10-04').toLocaleDateString(undefined, { timeZone: 'UTC' })]]);
     expect(visibleCardFields(definitions, { Points: null, Due: null, Note: 'Private' })).toEqual([]);
   });
 });

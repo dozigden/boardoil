@@ -14,5 +14,12 @@ export function buildCardFieldValues(definitions: CardFieldDefinition[], draft: 
 export function visibleCardFields(definitions: CardFieldDefinition[], values: CardFieldValues) {
   return definitions.filter(field => field.showOnCard && values[field.fieldCode] !== null
     && values[field.fieldCode] !== undefined && values[field.fieldCode] !== '')
-    .map(field => ({ ...field, value: String(values[field.fieldCode]) }));
+    .map(field => {
+      let value = String(values[field.fieldCode]);
+      if (field.type === 'date') {
+        // ISO date-only values parse as UTC; keep that calendar day in every browser timezone.
+        value = new Date(value).toLocaleDateString(undefined, { timeZone: 'UTC' });
+      }
+      return { ...field, value };
+    });
 }

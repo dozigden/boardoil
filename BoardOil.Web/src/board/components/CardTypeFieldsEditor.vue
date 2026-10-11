@@ -39,8 +39,8 @@
               <button type="button" class="btn btn--danger entity-row-action-icon" :disabled="busy" :aria-label="`Remove ${field.displayName || 'field'}`" title="Remove field" @click="removeField(index)"><Trash2 :size="16" aria-hidden="true" /></button>
             </div>
           </div>
-          <Transition name="field-expand" @after-enter="focusRevealedField(field.key)" @before-leave="onFieldPanelClosing">
-            <div v-if="expandedKey === field.key" :id="`field-panel-${field.key}`" role="region" :aria-labelledby="`field-heading-${field.key}`" class="field-panel-expansion">
+          <Transition name="field-expand" @before-enter="onFieldPanelOpening" @after-enter="focusRevealedField(field.key)" @before-leave="onFieldPanelClosing">
+            <div v-if="expandedKey === field.key || (field.type === 'date' && incompleteDateKeys.has(field.key))" v-show="expandedKey === field.key" :id="`field-panel-${field.key}`" role="region" :aria-labelledby="`field-heading-${field.key}`" class="field-panel-expansion">
               <div class="field-panel-clip">
                 <div class="field-panel">
                   <div class="field-pair">
@@ -63,7 +63,7 @@
                     <div class="field-control">
                       <label>
                         Type
-                        <select v-model="field.type" :disabled="busy" :aria-invalid="hasError(index, 'type')" @change="resetFieldTypeOptions(field)" :aria-describedby="hasError(index, 'type') ? fieldErrorId(field, 'type') : undefined">
+                        <select v-model="field.type" :disabled="busy" :aria-invalid="hasError(index, 'type')" @change="onFieldTypeChange(field)" :aria-describedby="hasError(index, 'type') ? fieldErrorId(field, 'type') : undefined">
                           <option value="text">Text</option><option value="integer">Number</option><option value="date">Date</option>
                         </select>
                       </label>
@@ -84,7 +84,7 @@
                   <div class="field-control">
                     <label>
                       Default value{{ field.required ? ' (required)' : '' }}
-                      <input v-if="field.type === 'date'" v-model="field.defaultValue" type="date" :disabled="busy" :aria-invalid="hasError(index, 'defaultValue')" :aria-describedby="hasError(index, 'defaultValue') ? fieldErrorId(field, 'defaultValue') : undefined" />
+                      <input v-if="field.type === 'date'" :value="field.defaultValue" type="date" :disabled="busy" :aria-invalid="hasError(index, 'defaultValue') || incompleteDateKeys.has(field.key)" :aria-describedby="hasError(index, 'defaultValue') ? fieldErrorId(field, 'defaultValue') : undefined" @input="(event: Event) => onDateDefaultInput(field, event)" @invalid="(event: Event) => onDateDefaultInvalid(field.key, event)" />
                       <input v-else v-model="field.defaultValue" type="text" :inputmode="field.type === 'integer' ? 'numeric' : 'text'" :maxlength="field.type === 'text' ? 250 : undefined" :disabled="busy" autocomplete="off" :aria-invalid="hasError(index, 'defaultValue')" :aria-describedby="hasError(index, 'defaultValue') ? fieldErrorId(field, 'defaultValue') : undefined" />
                     </label>
                     <small v-if="hasError(index, 'defaultValue')" :id="fieldErrorId(field, 'defaultValue')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, 'defaultValue') }}</span></small>
@@ -129,6 +129,9 @@ const props = defineProps<{
 }>();
 const expandedKey = ref<string | null>(null);
 const pendingFocusKey = ref<string | null>(null);
+// An incomplete native date has an empty value; keep its input mounted so collapse cannot erase badInput.
+const incompleteDateKeys = ref(new Set<string>());
+const pendingDateValidityKey = ref<string | null>(null);
 const addButton = ref<HTMLButtonElement | null>(null);
 const errorSummary = ref<HTMLElement | null>(null);
 const summaryErrors = computed(() => Object.fromEntries(Object.entries(props.errors)
@@ -144,6 +147,26 @@ function markFieldCodeEdited(field: CardFieldDraft) {
   field.fieldCodeEdited = true;
 }
 
+function onDateDefaultInput(field: CardFieldDraft, event: Event) {
+  const input = event.target as HTMLInputElement;
+  field.defaultValue = input.value;
+  if (input.validity.badInput) incompleteDateKeys.value.add(field.key);
+  else incompleteDateKeys.value.delete(field.key);
+}
+
+function onDateDefaultInvalid(key: string, event: Event) {
+  if (expandedKey.value === key) return;
+  event.preventDefault();
+  pendingFocusKey.value = key;
+  pendingDateValidityKey.value = key;
+  expandedKey.value = key;
+}
+
+function onFieldTypeChange(field: CardFieldDraft) {
+  incompleteDateKeys.value.delete(field.key);
+  resetFieldTypeOptions(field);
+}
+
 function fieldError(index: number, property: string) {
   return props.errors[`fields[${index}].${property}`]?.join(' ') ?? '';
 }
@@ -153,7 +176,8 @@ function fieldErrorId(field: CardFieldDraft, property: string) {
 }
 
 function fieldHasErrors(index: number) {
-  return Object.keys(props.errors).some(path => fieldErrorIndex(path, model.value) === index);
+  return incompleteDateKeys.value.has(model.value[index].key)
+    || Object.keys(props.errors).some(path => fieldErrorIndex(path, model.value) === index);
 }
 
 function focusSummary() {
@@ -190,6 +214,10 @@ function onFieldPanelClosing(element: Element) {
   element.setAttribute('inert', '');
 }
 
+function onFieldPanelOpening(element: Element) {
+  element.removeAttribute('inert');
+}
+
 function focusRevealedField(key: string) {
   if (pendingFocusKey.value !== key) return;
   pendingFocusKey.value = null;
@@ -197,6 +225,10 @@ function focusRevealedField(key: string) {
   const invalid = panel?.querySelector<HTMLElement>('[aria-invalid="true"]');
   const input = invalid?.querySelector<HTMLElement>('button, input, select') ?? invalid ?? panel?.querySelector<HTMLInputElement>('input');
   input?.focus();
+  if (pendingDateValidityKey.value === key) {
+    pendingDateValidityKey.value = null;
+    panel?.querySelector<HTMLInputElement>('input[type="date"]')?.reportValidity();
+  }
 }
 
 async function addField() {
@@ -214,6 +246,7 @@ function moveField(index: number, direction: number) {
 }
 
 function removeField(index: number) {
+  incompleteDateKeys.value.delete(model.value[index].key);
   model.value = model.value.filter((_, position) => position !== index);
 }
 
