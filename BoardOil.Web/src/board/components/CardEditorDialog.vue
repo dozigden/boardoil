@@ -366,10 +366,10 @@
           />
 
           <p v-if="cardTypeWillChange" class="card-field-conversion-note">Fields will convert when you {{ isDuplicatingCard ? 'create the duplicate' : 'save' }}.</p>
-          <CardFieldValuesEditor
+          <CustomFieldValuesEditor
             ref="fieldValuesEditor"
-            :definitions="cardFieldDefinitions"
-            :values="cardDraft.fields ?? {}"
+            :definitions="customFieldDefinitions"
+            :values="cardDraft.customFieldValues ?? {}"
             :errors="cardSaveError?.validationErrors ?? {}"
             :disabled="cardBusy"
             @change="updateDraftField"
@@ -427,10 +427,10 @@ import { computed, nextTick, ref, watch, type ComponentPublicInstance } from 'vu
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import MdEditor from '../../shared/components/MdEditor.vue';
 import CardAttachments from './CardAttachments.vue';
-import CardFieldValuesEditor from './CardFieldValuesEditor.vue';
+import CustomFieldValuesEditor from './CustomFieldValuesEditor.vue';
 import CardTypeChangeDialog from './CardTypeChangeDialog.vue';
-import { buildCardFieldValues } from '../utils/cardFieldValues';
-import type { CardFieldDefinition, CardTypeChangePreview } from '../../shared/types/cardFieldTypes';
+import { buildCustomFieldValues } from '../utils/customFieldValues';
+import type { CustomFieldDefinition, CardTypeChangePreview } from '../../shared/types/customFieldTypes';
 import type { AppError } from '../../shared/types/appError';
 import { useAttachmentStore } from '../stores/attachmentStore';
 import MdEditorToolbar from '../../shared/components/MdEditorToolbar.vue';
@@ -506,13 +506,13 @@ const cardDraftBoardId = ref<number | null>(null);
 const cardDraftId = ref<number | null>(null);
 const cardDraftSource = ref<CardEditModel | null>(null);
 const isCardDraftDirty = ref(false);
-const cardFieldDefinitions = ref<CardFieldDefinition[]>([]);
+const customFieldDefinitions = ref<CustomFieldDefinition[]>([]);
 const cardSaveError = ref<AppError | null>(null);
 const cardErrorSummary = ref<HTMLElement | null>(null);
-const fieldValuesEditor = ref<InstanceType<typeof CardFieldValuesEditor> | null>(null);
+const fieldValuesEditor = ref<InstanceType<typeof CustomFieldValuesEditor> | null>(null);
 const cardTypeWillChange = computed(() => cardDraft.value?.cardTypeId !== cardDraftSource.value?.cardTypeId);
 const cardSummaryErrors = computed(() => Object.fromEntries(Object.entries(cardSaveError.value?.validationErrors ?? {})
-  .filter(([path]) => !cardFieldDefinitions.value.some(field => path === `fields.${field.fieldCode}`))));
+  .filter(([path]) => !customFieldDefinitions.value.some(field => path === `customFieldValues.${field.code}`))));
 const isDuplicatingCard = ref(false);
 const newCommentText = ref('');
 const isCommentDraftDirty = ref(false);
@@ -1158,10 +1158,10 @@ function handleCommentEditorBlur() {
 
 function updateDraftField(code: string, value: string) {
   if (!cardDraft.value) return;
-  patchFromUser({ fields: { ...cardDraft.value.fields, [code]: value } });
+  patchFromUser({ customFieldValues: { ...cardDraft.value.customFieldValues, [code]: value } });
   if (cardSaveError.value?.validationErrors) {
     const errors = { ...cardSaveError.value.validationErrors };
-    delete errors[`fields.${code}`];
+    delete errors[`customFieldValues.${code}`];
     cardSaveError.value = Object.keys(errors).length ? { ...cardSaveError.value, validationErrors: errors } : null;
   }
 }
@@ -1183,7 +1183,7 @@ function setDraftAssignedUserId(assignedUserId: number | null, close?: () => voi
 
 function clearCardDraft() {
   pendingTypeChange.value = null;
-  cardFieldDefinitions.value = [];
+  customFieldDefinitions.value = [];
   cardSaveError.value = null;
   cardStore.clearSaveError();
   cardDraft.value = null;
@@ -1201,7 +1201,7 @@ function initializeDraftFromCard(sourceBoardId: number, card: Card) {
 
   pendingTypeChange.value = null;
   const initialModel = createCardEditModel(card);
-  cardFieldDefinitions.value = (cardTypeStore.getCardTypeById(card.cardTypeId)?.fields ?? []).map(field => ({ ...field }));
+  customFieldDefinitions.value = (cardTypeStore.getCardTypeById(card.cardTypeId)?.customFields ?? []).map(field => ({ ...field }));
   cardSaveError.value = null;
   cardDraft.value = initialModel;
   cardDraftSource.value = cloneCardEditModel(initialModel);
@@ -1312,13 +1312,13 @@ async function saveCardDraft(closeAfterSave: boolean) {
 
   const submittedDraft = {
     ...cloneCardEditModel(draft),
-    fields: buildCardFieldValues(cardFieldDefinitions.value, draft.fields ?? {})
+    customFieldValues: buildCustomFieldValues(customFieldDefinitions.value, draft.customFieldValues ?? {})
   };
   const duplicating = isDuplicatingCard.value;
   savingCard.value = true;
   try {
     if (cardTypeWillChange.value) {
-      const preview = await cardStore.previewTypeChange(boardId.value, cardId, draft.cardTypeId, submittedDraft.fields);
+      const preview = await cardStore.previewTypeChange(boardId.value, cardId, draft.cardTypeId, submittedDraft.customFieldValues);
       if (!preview.ok) {
         savingCard.value = false;
         await showCardSaveError(preview.error);
@@ -1398,7 +1398,7 @@ function syncDraftAfterSave(cardId: number) {
   }
 
   const savedModel = createCardEditModel(savedCard);
-  cardFieldDefinitions.value = (cardTypeStore.getCardTypeById(savedCard.cardTypeId)?.fields ?? []).map(field => ({ ...field }));
+  customFieldDefinitions.value = (cardTypeStore.getCardTypeById(savedCard.cardTypeId)?.customFields ?? []).map(field => ({ ...field }));
   cardDraftSource.value = cloneCardEditModel(savedModel);
   cardDraft.value = cloneCardEditModel(savedModel);
   isCardDraftDirty.value = false;

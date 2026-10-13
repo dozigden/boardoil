@@ -9,6 +9,8 @@ public sealed class BoardConfiguration : IEntityTypeConfiguration<EntityBoard>
     public void Configure(EntityTypeBuilder<EntityBoard> board)
     {
         board.HasKey(x => x.Id);
+        board.HasMany(x => x.CustomFields).WithOne(x => x.Board)
+            .HasForeignKey(x => x.BoardId).OnDelete(DeleteBehavior.Cascade);
         board.Property(x => x.Name).HasMaxLength(120).IsRequired();
         board.Property(x => x.Description).HasMaxLength(5_000).IsRequired();
         board.Property(x => x.SlickCohesionModeEnabled).HasDefaultValue(true).IsRequired();

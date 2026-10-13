@@ -1,10 +1,10 @@
 using System.Text.Json;
 using BoardOil.Abstractions;
 using BoardOil.Contracts.Card;
-using BoardOil.Contracts.CardField;
+using BoardOil.Contracts.CustomField;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
-using BoardOil.Services.CardField;
+using BoardOil.Services.CustomField;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -14,18 +14,14 @@ namespace BoardOil.Services.Tests;
 public sealed class CardTypeChangePreviewTests : TestBaseDb
 {
     [Fact]
-    public void EquivalentFields_ShouldIgnoreCodesCasingOrderEmojiAndSettings()
+    public void SharedFields_ShouldPreserveValuesWithoutConfirmation()
     {
-        CardFieldDefinition[] source =
+        CustomFieldDefinition[] source =
         [
-            new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Estimate", Nullable = true },
-            new TextFieldDefinition { FieldCode = "Note", DisplayName = "Note", Nullable = true }
+            new IntegerCustomFieldDefinition { Code = "Points", Name = "Estimate", Nullable = true },
+            new TextCustomFieldDefinition { Code = "Note", Name = "Note", Nullable = true }
         ];
-        CardFieldDefinition[] destination =
-        [
-            new TextFieldDefinition { FieldCode = "OtherNote", DisplayName = "NOTE", Nullable = true, MaxLength = 20, DefaultValue = "Default" },
-            new IntegerFieldDefinition { FieldCode = "Effort", DisplayName = "estimate", Nullable = true, Emoji = "🎯", ShowOnCard = true, Min = 0 }
-        ];
+        CustomFieldDefinition[] destination = source;
         var (card, target) = MakeCard(source, """{"Points":0,"Note":null}""", destination);
 
         var result = new UpdateCardPlanner().PreviewFields(card, target, null);
@@ -33,7 +29,7 @@ public sealed class CardTypeChangePreviewTests : TestBaseDb
         Assert.True(result.IsValid);
         Assert.False(result.Value!.RequiresConfirmation);
         Assert.False(result.Value.HasLosses);
-        Assert.Equal("estimate", result.Value.Rows[0].Destination!.DisplayName);
+        Assert.Equal("Estimate", result.Value.Rows[0].Destination!.Name);
         Assert.Equal(0, result.Value.Rows[0].Destination!.Value.GetInt32());
     }
 
@@ -49,23 +45,23 @@ public sealed class CardTypeChangePreviewTests : TestBaseDb
     }
 
     [Fact]
-    public void Rows_ShouldAlignConversionsReplacementsRemovalsAndAdditions()
+    public void Rows_ShouldAlignSharedFieldsRemovalsAndAdditions()
     {
-        CardFieldDefinition[] source =
+        CustomFieldDefinition[] source =
         [
-            new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Estimate", Nullable = true },
-            new TextFieldDefinition { FieldCode = "Bad", DisplayName = "Quantity", Nullable = true },
-            new DateFieldDefinition { FieldCode = "Due", DisplayName = "Due date", Nullable = true },
-            new TextFieldDefinition { FieldCode = "Empty", DisplayName = "Empty", Nullable = true }
+            new IntegerCustomFieldDefinition { Code = "Points", Name = "Estimate", Nullable = true },
+            new TextCustomFieldDefinition { Code = "Bad", Name = "Quantity", Nullable = true },
+            new DateCustomFieldDefinition { Code = "Due", Name = "Due date", Nullable = true },
+            new TextCustomFieldDefinition { Code = "Empty", Name = "Empty", Nullable = true }
         ];
-        CardFieldDefinition[] destination =
+        CustomFieldDefinition[] destination =
         [
-            new IntegerFieldDefinition { FieldCode = "Quantity", DisplayName = "Quantity", DefaultValue = 2 },
-            new TextFieldDefinition { FieldCode = "Effort", DisplayName = "Estimate", Nullable = true },
-            new DateFieldDefinition { FieldCode = "New", DisplayName = "New date", DefaultValue = new DateOnly(2026, 10, 6) }
+            new IntegerCustomFieldDefinition { Code = "Quantity", Name = "New quantity", DefaultValue = 2 },
+            new IntegerCustomFieldDefinition { Code = "Points", Name = "Estimate", Nullable = true },
+            new DateCustomFieldDefinition { Code = "New", Name = "New date", DefaultValue = new DateOnly(2026, 10, 6) }
         ];
         var (card, target) = MakeCard(source, """{"Points":0,"Bad":"invalid","Due":"2026-01-01","Empty":null}""", destination);
-        var edited = CardFieldJsonCodec.DeserialiseValues("""{"Points":7,"Bad":" edited ","Due":"2026-02-01","Empty":null}""");
+        var edited = CustomFieldJsonCodec.DeserialiseValues("""{"Points":7,"Bad":" edited ","Due":"2026-02-01","Empty":null}""");
 
         var result = new UpdateCardPlanner().PreviewFields(card, target, edited);
 
@@ -73,31 +69,33 @@ public sealed class CardTypeChangePreviewTests : TestBaseDb
         var preview = result.Value!;
         Assert.True(preview.RequiresConfirmation);
         Assert.True(preview.HasLosses);
-        Assert.Equal(5, preview.Rows.Count);
+        Assert.Equal(6, preview.Rows.Count);
         Assert.Equal(7, preview.Rows[0].Original!.Value.GetInt32());
-        Assert.Equal("7", preview.Rows[0].Destination!.Value.GetString());
+        Assert.Equal(7, preview.Rows[0].Destination!.Value.GetInt32());
         Assert.False(preview.Rows[0].LosesValue);
         Assert.Equal("edited", preview.Rows[1].Original!.Value.GetString());
-        Assert.Equal(2, preview.Rows[1].Destination!.Value.GetInt32());
+        Assert.Null(preview.Rows[1].Destination);
         Assert.True(preview.Rows[1].LosesValue);
         Assert.Null(preview.Rows[2].Destination);
         Assert.True(preview.Rows[2].LosesValue);
         Assert.Null(preview.Rows[3].Destination);
         Assert.False(preview.Rows[3].LosesValue);
         Assert.Null(preview.Rows[4].Original);
-        Assert.Equal("2026-10-06", preview.Rows[4].Destination!.Value.GetString());
+        Assert.Equal(2, preview.Rows[4].Destination!.Value.GetInt32());
+        Assert.Null(preview.Rows[5].Original);
+        Assert.Equal("2026-10-06", preview.Rows[5].Destination!.Value.GetString());
     }
 
     [Theory]
     [InlineData("integer", "0", true)]
     [InlineData("integer", "null", false)]
     [InlineData("text", "null", false)]
-    public void ChangedKindOrReplacement_ShouldRequireConfirmation(string targetKind, string value, bool hasLosses)
+    public void DifferentFields_ShouldRequireConfirmation(string targetKind, string value, bool hasLosses)
     {
-        CardFieldDefinition original = new IntegerFieldDefinition { FieldCode = "Original", DisplayName = "Value", Nullable = true };
-        CardFieldDefinition target = targetKind == "text"
-            ? new TextFieldDefinition { FieldCode = "Target", DisplayName = "Value", Nullable = true }
-            : new IntegerFieldDefinition { FieldCode = "Target", DisplayName = "Value", Min = 1, DefaultValue = 1 };
+        CustomFieldDefinition original = new IntegerCustomFieldDefinition { Code = "Original", Name = "Value", Nullable = true };
+        CustomFieldDefinition target = targetKind == "text"
+            ? new TextCustomFieldDefinition { Code = "Target", Name = "New value", Nullable = true }
+            : new IntegerCustomFieldDefinition { Code = "Target", Name = "New value", Min = 1, DefaultValue = 1 };
         var (card, destination) = MakeCard([original], $$"""{"Original":{{value}}}""", [target]);
 
         var result = new UpdateCardPlanner().PreviewFields(card, destination, null);
@@ -113,10 +111,10 @@ public sealed class CardTypeChangePreviewTests : TestBaseDb
     public void InvalidOriginalDraft_ShouldReturnValidationErrors(string json)
     {
         var (card, target) = MakeCard(
-            [new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Estimate", Nullable = true }],
+            [new IntegerCustomFieldDefinition { Code = "Points", Name = "Estimate", Nullable = true }],
             """{"Points":0}""", []);
 
-        var result = new UpdateCardPlanner().PreviewFields(card, target, CardFieldJsonCodec.DeserialiseValues(json));
+        var result = new UpdateCardPlanner().PreviewFields(card, target, CustomFieldJsonCodec.DeserialiseValues(json));
 
         Assert.False(result.IsValid);
         Assert.NotEmpty(result.Errors);
@@ -127,13 +125,13 @@ public sealed class CardTypeChangePreviewTests : TestBaseDb
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("Card", "Description").Build();
         var card = board.GetCard("Card");
-        card.CardType.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
-            [new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Estimate", Nullable = true }]);
-        card.FieldValuesJson = """{"Points":0}""";
+        SetFields(card.CardType,
+            [new IntegerCustomFieldDefinition { Code = "Points", Name = "Estimate", Nullable = true }]);
+        card.CustomFieldValuesJson = """{"Points":0}""";
         var target = new EntityCardType { BoardId = board.BoardId, Name = "Target" };
         DbContextForArrange.CardTypes.Add(target);
         await DbContextForArrange.SaveChangesAsync();
-        var fields = CardFieldJsonCodec.DeserialiseValues("""{"Points":7}""");
+        var fields = CustomFieldJsonCodec.DeserialiseValues("""{"Points":7}""");
         var service = ResolveService<CardService>();
 
         var preview = await service.PreviewTypeChangeAsync(board.BoardId, card.BoardCardId,
@@ -143,17 +141,17 @@ public sealed class CardTypeChangePreviewTests : TestBaseDb
         var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
         var updatesBeforeSave = events.CardUpdatedEvents.Count;
         var saved = await service.UpdateCardAsync(board.BoardId, card.BoardCardId,
-            new(card.Title, card.Description, [], target.Id, Fields: fields), ActorUserId);
+            new(card.Title, card.Description, [], target.Id, CustomFieldValues: fields), ActorUserId);
 
         Assert.True(preview.Success);
         Assert.True(preview.Data!.HasLosses);
         Assert.Equal(7, preview.Data.Rows[0].Original!.Value.GetInt32());
         Assert.Equal(card.CardTypeId, unchanged.CardTypeId);
-        Assert.Equal(card.FieldValuesJson, unchanged.FieldValuesJson);
+        Assert.Equal(card.CustomFieldValuesJson, unchanged.CustomFieldValuesJson);
         Assert.Equal(0, commentsBeforeSave);
         Assert.Equal(0, updatesBeforeSave);
         Assert.True(saved.Success);
-        Assert.Empty(saved.Data!.Fields);
+        Assert.Empty(saved.Data!.CustomFieldValues);
         Assert.Contains("Estimate: 7", (await DbContextForAssert.CardComments.SingleAsync()).Text);
     }
 
@@ -174,10 +172,13 @@ public sealed class CardTypeChangePreviewTests : TestBaseDb
     }
 
     private static (EntityBoardCard Card, EntityCardType Target) MakeCard(
-        CardFieldDefinition[] source, string values, CardFieldDefinition[] destination)
+        CustomFieldDefinition[] source, string values, CustomFieldDefinition[] destination)
     {
-        var sourceType = new EntityCardType { Id = 1, Name = "Source", FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(source) };
-        return (new EntityBoardCard { CardTypeId = 1, CardType = sourceType, FieldValuesJson = values },
-            new EntityCardType { Id = 2, Name = "Destination", FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(destination) });
+        var board = new EntityBoard();
+        var sourceType = new EntityCardType { Id = 1, Board = board, Name = "Source" };
+        var targetType = new EntityCardType { Id = 2, Board = board, Name = "Destination" };
+        SetFields(sourceType, source);
+        SetFields(targetType, destination);
+        return (new EntityBoardCard { CardTypeId = 1, CardType = sourceType, CustomFieldValuesJson = values }, targetType);
     }
 }

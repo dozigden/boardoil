@@ -348,6 +348,12 @@ namespace BoardOil.Ef.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CustomFieldValuesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("{}");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(20000)
@@ -355,12 +361,6 @@ namespace BoardOil.Ef.Migrations
 
                     b.Property<string>("ExternalUrl")
                         .HasColumnType("TEXT");
-
-                    b.Property<string>("FieldValuesJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
-                        .HasDefaultValue("{}");
 
                     b.Property<int?>("SlickId")
                         .HasColumnType("INTEGER");
@@ -644,12 +644,6 @@ namespace BoardOil.Ef.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("FieldDefinitionsJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
-                        .HasDefaultValue("[]");
-
                     b.Property<bool>("IsSystem")
                         .HasColumnType("INTEGER");
 
@@ -677,6 +671,92 @@ namespace BoardOil.Ef.Migrations
                         .HasFilter("\"IsSystem\" = 1");
 
                     b.ToTable("CardTypes", (string)null);
+                });
+
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCustomField", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AppliesToAllCardTypes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BoardId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConfigurationJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DataType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Emoji")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalisedCode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalisedName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Nullable")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ShowOnCard")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardId", "NormalisedCode")
+                        .IsUnique();
+
+                    b.HasIndex("BoardId", "NormalisedName")
+                        .IsUnique();
+
+                    b.ToTable("CustomFields", (string)null);
+                });
+
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCustomFieldCardType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BoardId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CardTypeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CustomFieldId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardId", "CardTypeId");
+
+                    b.HasIndex("BoardId", "CustomFieldId");
+
+                    b.HasIndex("CustomFieldId", "CardTypeId")
+                        .IsUnique();
+
+                    b.ToTable("CustomFieldCardTypes", (string)null);
                 });
 
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityErrorLog", b =>
@@ -1883,6 +1963,38 @@ namespace BoardOil.Ef.Migrations
                     b.Navigation("Board");
                 });
 
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCustomField", b =>
+                {
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityBoard", "Board")
+                        .WithMany("CustomFields")
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Board");
+                });
+
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCustomFieldCardType", b =>
+                {
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityCardType", "CardType")
+                        .WithMany()
+                        .HasForeignKey("BoardId", "CardTypeId")
+                        .HasPrincipalKey("BoardId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BoardOil.Data.Abstractions.Entities.EntityCustomField", "CustomField")
+                        .WithMany("CardTypeAssignments")
+                        .HasForeignKey("BoardId", "CustomFieldId")
+                        .HasPrincipalKey("BoardId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CardType");
+
+                    b.Navigation("CustomField");
+                });
+
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityErrorLog", b =>
                 {
                     b.HasOne("BoardOil.Data.Abstractions.Entities.EntityJob", "Job")
@@ -2025,6 +2137,8 @@ namespace BoardOil.Ef.Migrations
 
                     b.Navigation("Columns");
 
+                    b.Navigation("CustomFields");
+
                     b.Navigation("Members");
 
                     b.Navigation("Slicks");
@@ -2047,6 +2161,11 @@ namespace BoardOil.Ef.Migrations
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCardType", b =>
                 {
                     b.Navigation("Cards");
+                });
+
+            modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityCustomField", b =>
+                {
+                    b.Navigation("CardTypeAssignments");
                 });
 
             modelBuilder.Entity("BoardOil.Data.Abstractions.Entities.EntityJob", b =>

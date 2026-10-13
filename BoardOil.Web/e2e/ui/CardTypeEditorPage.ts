@@ -11,12 +11,12 @@ export class CardTypeEditorPage {
     await expect(this.page.getByRole('region', { name: 'Custom Fields', exact: true })).toBeVisible();
   }
 
-  public async addField(name: string, code: string, type: 'text' | 'integer' | 'date', defaultValue = '') {
+  public async addField(name: string, code: string, dataType: 'text' | 'integer' | 'date', defaultValue = '') {
     await this.page.getByRole('button', { name: 'Add field', exact: true }).click();
     await this.page.getByRole('region', { name: 'New field Text · Optional', exact: true }).getByLabel('Display name', { exact: true }).fill(name);
     const field = this.page.getByRole('region', { name: new RegExp(`${name} (Text|Number|Date)`) });
     await field.getByLabel('Field code', { exact: true }).fill(code);
-    await field.getByRole('combobox', { name: 'Type', exact: true }).selectOption(type);
+    await field.getByRole('combobox', { name: 'Type', exact: true }).selectOption(dataType);
     await field.getByLabel('Default value', { exact: true }).fill(defaultValue);
     await expect(this.page.getByLabel('Display name', { exact: true })).toHaveCount(1);
   }

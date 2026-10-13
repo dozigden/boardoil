@@ -2,7 +2,7 @@ import type { Card, CardEditModel } from '../../shared/types/boardTypes';
 
 export function createCardEditModel(card: Card): CardEditModel {
   return {
-    fields: { ...card.fields },
+    customFieldValues: { ...card.customFieldValues },
     title: card.title,
     description: card.description,
     externalUrl: card.externalUrl,
@@ -17,7 +17,7 @@ export function createCardEditModel(card: Card): CardEditModel {
 export function cloneCardEditModel(model: CardEditModel): CardEditModel {
   return {
     ...model,
-    ...(model.fields === undefined ? {} : { fields: { ...model.fields } }),
+    ...(model.customFieldValues === undefined ? {} : { customFieldValues: { ...model.customFieldValues } }),
     tagNames: [...model.tagNames]
   };
 }
@@ -37,10 +37,10 @@ export function areCardEditModelsEqual(left: CardEditModel, right: CardEditModel
     return false;
   }
 
-  if (left.fields === undefined || right.fields === undefined) {
-    if (left.fields !== right.fields) return false;
-  } else if (Object.keys(left.fields).length !== Object.keys(right.fields).length
-    || Object.entries(left.fields).some(([code, value]) => right.fields![code] !== value)) {
+  if (left.customFieldValues === undefined || right.customFieldValues === undefined) {
+    if (left.customFieldValues !== right.customFieldValues) return false;
+  } else if (Object.keys(left.customFieldValues).length !== Object.keys(right.customFieldValues).length
+    || Object.entries(left.customFieldValues).some(([code, value]) => right.customFieldValues![code] !== value)) {
     return false;
   }
   return areStringArraysEqual(left.tagNames, right.tagNames);

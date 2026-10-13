@@ -1,3 +1,4 @@
+using BoardOil.Services.CustomField;
 using System.Text.Json;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
@@ -16,12 +17,12 @@ namespace BoardOil.Services.Tests;
 public sealed class BoardResaveTests : TestBaseDb
 {
     private const string Description = "- [x] Done\n- [ ] Open";
-    private const string FieldDefinitions = """
+    private const string CustomFieldDefinitions = """
         [
-          {"type":"text","fieldCode":"Reference","displayName":"Reference","nullable":false,"defaultValue":"Default","emoji":"🔖","showOnCard":true,"maxLength":25},
-          {"type":"integer","fieldCode":"Points","displayName":"Estimate","nullable":false,"defaultValue":5,"min":0,"max":10},
-          {"type":"date","fieldCode":"Due","displayName":"Due date","nullable":true},
-          {"type":"text","fieldCode":"Optional","displayName":"Optional","nullable":true,"defaultValue":"Default"}
+          {"dataType":"text","code":"Reference","name":"Reference","nullable":false,"defaultValue":"Default","emoji":"🔖","showOnCard":true,"maxLength":25},
+          {"dataType":"integer","code":"Points","name":"Estimate","nullable":false,"defaultValue":5,"min":0,"max":10},
+          {"dataType":"date","code":"Due","name":"Due date","nullable":true},
+          {"dataType":"text","code":"Optional","name":"Optional","nullable":true,"defaultValue":"Default"}
         ]
         """;
     private const string FieldValues = """{"Reference":"Saved","Points":0,"Due":"2024-02-29","Optional":null}""";
@@ -169,25 +170,26 @@ public sealed class BoardResaveTests : TestBaseDb
     [InlineData(true)]
     public async Task Resave_ShouldPreserveCustomFieldDefinitionsAndValues(bool customType)
     {
-        var board = CreateBoard().AddColumn("Todo").AddCard("Fields", Description).Build();
-        var card = board.GetCard("Fields");
+        var board = CreateBoard().AddColumn("Todo").AddCard("CustomFieldValues", Description).Build();
+        var card = board.GetCard("CustomFieldValues");
         if (customType)
         {
             card.CardType = new EntityCardType
             {
-                BoardId = board.BoardId, Name = "Custom", StyleName = "auto", StylePropertiesJson = "{}"
+                BoardId = board.BoardId, Board = card.Board, Name = "Custom", StyleName = "auto", StylePropertiesJson = "{}"
             };
         }
-        card.CardType.FieldDefinitionsJson = FieldDefinitions;
-        card.FieldValuesJson = FieldValues;
+        await DbContextForArrange.SaveChangesAsync();
+        SetFields(card.CardType, CustomFieldJsonCodec.DeserialiseDefinitions(CustomFieldDefinitions));
+        card.CustomFieldValuesJson = FieldValues;
         await DbContextForArrange.SaveChangesAsync();
 
         var result = await ResolveService<IBoardResaveService>().ResaveAsync(board.BoardId);
 
         Assert.Equal(new BoardResaveResult(board.BoardId, false, 1, 1), result);
-        var stored = await DbContextForAssert.Cards.Include(x => x.CardType).SingleAsync();
-        Assert.Equal(FieldDefinitions, stored.CardType.FieldDefinitionsJson);
-        Assert.Equal(FieldValues, stored.FieldValuesJson);
+        var stored = await DbContextForAssert.Cards.Include(x => x.CardType).ThenInclude(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync();
+        Assert.Equal(CustomFieldJsonCodec.DeserialiseDefinitions(CustomFieldDefinitions), CustomFieldCatalogue.Resolve(stored.CardType));
+        Assert.Equal(FieldValues, stored.CustomFieldValuesJson);
         Assert.Equal(card.CardTypeId, stored.CardTypeId);
         Assert.Equal(card.CardType.UpdatedAtUtc, stored.CardType.UpdatedAtUtc);
         Assert.Equal(card.CardCreatedUtc, stored.CardCreatedUtc);
@@ -207,8 +209,8 @@ public sealed class BoardResaveTests : TestBaseDb
         if (withFields)
         {
             var card = board.GetCard("Checklist");
-            card.CardType.FieldDefinitionsJson = FieldDefinitions;
-            card.FieldValuesJson = FieldValues;
+            SetFields(card.CardType, CustomFieldJsonCodec.DeserialiseDefinitions(CustomFieldDefinitions));
+            card.CustomFieldValuesJson = FieldValues;
             await DbContextForArrange.SaveChangesAsync();
         }
         await ResolveService<IBoardResaveService>().ResaveAsync(board.BoardId);
@@ -221,7 +223,7 @@ public sealed class BoardResaveTests : TestBaseDb
         var after = await DbContextForAssert.Cards.AsNoTracking().SingleAsync();
         Assert.Equal(before.UpdatedAtUtc, after.UpdatedAtUtc);
         Assert.Equal(before.CardUpdatedUtc, after.CardUpdatedUtc);
-        Assert.Equal(before.FieldValuesJson, after.FieldValuesJson);
+        Assert.Equal(before.CustomFieldValuesJson, after.CustomFieldValuesJson);
         Assert.Empty(Events.ResyncRequestedBoardIds);
     }
 

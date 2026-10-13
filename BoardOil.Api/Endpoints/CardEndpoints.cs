@@ -25,7 +25,7 @@ public static class CardEndpoints
             (await service.DuplicateCardAsync(boardId, id,
                 new CreateCardRequest(request.BoardColumnId, request.Title, request.Description, request.TagNames,
                     request.CardTypeId, request.AssignedUserId, request.SlickName, request.ExternalUrl),
-                context.GetActorUserId(), context.RequestAborted, request.Fields)).ToHttpResult());
+                context.GetActorUserId(), context.RequestAborted, request.CustomFieldValues)).ToHttpResult());
 
         cardEndpoints
             .MapPost("/search", async (int boardId, SearchCardsRequest request, ICardService cardService, HttpContext httpContext) =>

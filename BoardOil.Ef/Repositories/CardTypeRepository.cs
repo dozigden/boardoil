@@ -9,24 +9,24 @@ public sealed class CardTypeRepository(IAmbientDbContextLocator ambientDbContext
     : RepositoryBase<EntityCardType>(ambientDbContextLocator), ICardTypeRepository
 {
     public async Task<IReadOnlyList<EntityCardType>> GetAllForBoardAsync(int boardId) =>
-        await DbSet
+        await DbSet.Include(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Where(x => x.BoardId == boardId)
             .OrderByDescending(x => x.IsSystem)
             .ThenBy(x => x.Name)
             .ToListAsync();
 
     public Task<EntityCardType?> GetByIdInBoardAsync(int boardId, int cardTypeId) =>
-        DbSet
+        DbSet.Include(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Where(x => x.BoardId == boardId && x.Id == cardTypeId)
             .FirstOrDefaultAsync();
 
     public Task<EntityCardType?> GetByNormalisedNameAsync(int boardId, string normalisedName) =>
-        DbSet
+        DbSet.Include(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Where(x => x.BoardId == boardId && x.Name.ToUpper() == normalisedName)
             .FirstOrDefaultAsync();
 
     public Task<EntityCardType?> GetSystemByBoardIdAsync(int boardId) =>
-        DbSet
+        DbSet.Include(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Where(x => x.BoardId == boardId && x.IsSystem)
             .OrderBy(x => x.Id)
             .FirstOrDefaultAsync();

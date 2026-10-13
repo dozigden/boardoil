@@ -19,7 +19,9 @@ public sealed class SwaggerIntegrationTests
     [Theory]
     [InlineData("/api/boards/{boardId}/card-types", "post", "CreateCardTypeRequest")]
     [InlineData("/api/boards/{boardId}/card-types/{cardTypeId}", "put", "UpdateCardTypeRequest")]
-    [InlineData("/api/boards/{boardId}/card-types/{cardTypeId}/fields/preview", "post", "PreviewCardTypeFieldsRequest")]
+    [InlineData("/api/boards/{boardId}/custom-fields", "post", "CustomFieldDto")]
+    [InlineData("/api/boards/{boardId}/custom-fields/{code}", "put", "CustomFieldDto")]
+    [InlineData("/api/boards/{boardId}/custom-fields/{code}/preview", "post", "CustomFieldPreviewContract")]
     public async Task CardTypeWrites_ShouldKeepTheirExistingDocumentedContracts(string path, string method, string schema)
     {
         var client = CreateClient();

@@ -17,9 +17,9 @@
       <div v-if="fieldImpacts.length" class="card-type-preview" role="status" aria-label="Field change warnings">
         <TriangleAlert :size="16" aria-hidden="true" />
         <div>
-          <p v-for="impact in fieldImpacts" :key="impact.fieldCode">
-            <template v-if="impact.change === 'deleted'">Deleted field '{{ impact.displayName }}' will be removed from {{ impact.cardCount }} {{ impact.cardCount === 1 ? 'card' : 'cards' }}.</template>
-            <template v-else>Changes to '{{ impact.displayName }}' will replace values on {{ impact.cardCount }} {{ impact.cardCount === 1 ? 'card' : 'cards' }}.</template>
+          <p v-for="impact in fieldImpacts" :key="impact.code">
+            <template v-if="impact.change === 'deleted'">Deleted field '{{ impact.name }}' will be removed from {{ impact.cardCount }} {{ impact.cardCount === 1 ? 'card' : 'cards' }}.</template>
+            <template v-else>Changes to '{{ impact.name }}' will replace values on {{ impact.cardCount }} {{ impact.cardCount === 1 ? 'card' : 'cards' }}.</template>
           </p>
           <p>Removed values will be saved to comments.</p>
         </div>
@@ -63,7 +63,7 @@
                 </strong>
                 <span class="card-id">#123</span>
               </div>
-              <CardFieldsDisplay :fields="previewFields" />
+              <CustomFieldsDisplay  :custom-field-values="previewFields" />
             </article>
           </div>
 
@@ -233,11 +233,11 @@ import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardTypeEditModel } from '../../shared/types/boardTypes';
 import CardTypeFieldsEditor from './CardTypeFieldsEditor.vue';
-import CardFieldsDisplay from './CardFieldsDisplay.vue';
-import { previewCardFields } from '../utils/cardFieldPreview';
+import CustomFieldsDisplay from './CustomFieldsDisplay.vue';
+import { previewCustomFields } from '../utils/customFieldPreview';
 import { useCardTypeFieldsPreview } from '../composables/useCardTypeFieldsPreview';
 import type { AppError } from '../../shared/types/appError';
-import { buildCardFieldDefinitions, createCardFieldDraft, fieldErrorIndex, isInlineFieldError, retainCardFieldErrors, type CardFieldDraft } from '../utils/cardFieldDraft';
+import { buildCustomFieldDefinitions, createCustomFieldDraft, fieldErrorIndex, isInlineFieldError, retainCustomFieldErrors, type CustomFieldDraft } from '../utils/customFieldDraft';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import {
@@ -262,7 +262,7 @@ const { createCardType, updateCardType, deleteCardType, getCardTypeById } = card
 
 const draftName = ref<string | null>(null);
 const draftEmoji = ref<string | null>(null);
-const draftFields = ref<CardFieldDraft[]>([]);
+const draftFields = ref<CustomFieldDraft[]>([]);
 const customFieldsOpened = ref(false);
 const fieldsEditor = ref<InstanceType<typeof CardTypeFieldsEditor> | null>(null);
 const editorError = ref<AppError | null>(null);
@@ -270,7 +270,7 @@ const errorSummary = ref<HTMLElement | null>(null);
 const nameInput = ref<HTMLInputElement | null>(null);
 const validationErrors = computed(() => ({ ...previewError.value?.validationErrors, ...editorError.value?.validationErrors }));
 const summaryErrors = computed(() => Object.fromEntries(Object.entries(validationErrors.value)
-  .filter(([path]) => path !== 'name' && !path.startsWith('fields') && !path.startsWith('cards['))));
+  .filter(([path]) => path !== 'name' && !path.startsWith('customFieldValues') && !path.startsWith('cards['))));
 const hasSummaryError = computed(() => editorError.value !== null
   && (Object.keys(validationErrors.value).length === 0 || Object.keys(summaryErrors.value).length > 0));
 const {
@@ -302,13 +302,13 @@ const editingCardType = computed(() => getCardTypeById(routeCardTypeId.value));
 const previewRequest = computed(() => {
   const type = editingCardType.value;
   if (isCreateMode.value || !type || draftSourceKey.value !== `edit:${boardId.value}:${type.id}`) return null;
-  const fields = buildCardFieldDefinitions(draftFields.value);
-  const original = buildCardFieldDefinitions(type.fields.map(createCardFieldDraft));
+  const fields = buildCustomFieldDefinitions(draftFields.value);
+  const original = buildCustomFieldDefinitions(type.customFields.map(createCustomFieldDraft));
   if (JSON.stringify(fields) === JSON.stringify(original)) return null;
-  return { boardId: boardId.value, cardTypeId: type.id, fields };
+  return { boardId: boardId.value, cardTypeId: type.id, customFields: fields };
 });
 const { impacts: fieldImpacts, error: previewError } = useCardTypeFieldsPreview(() => previewRequest.value);
-const showCustomFields = computed(() => customFieldsOpened.value || draftFields.value.length > 0 || (editingCardType.value?.fields.length ?? 0) > 0);
+const showCustomFields = computed(() => customFieldsOpened.value || draftFields.value.length > 0 || (editingCardType.value?.customFields.length ?? 0) > 0);
 const dialogTitle = computed(() => {
   if (isDuplicateMode.value) {
     return `Duplicate Card Type: ${duplicateSource.value?.name ?? ''}`;
@@ -334,7 +334,7 @@ const previewName = computed(() => {
   return isCreateMode.value ? 'New card type' : (editingCardType.value?.name ?? 'Card type');
 });
 const previewEmoji = computed(() => normaliseCardTypeEmojiForRender(draftEmoji.value));
-const previewFields = computed(() => previewCardFields(draftFields.value));
+const previewFields = computed(() => previewCustomFields(draftFields.value));
 const previewCardStyle = computed(() => {
   if (!draftStyle.value) {
     return getCardSurfaceStyle(editingCardType.value);
@@ -373,8 +373,8 @@ watch(
       clearDraft();
       draftName.value = '';
       draftEmoji.value = nextDuplicateSource?.emoji ?? null;
-      draftFields.value = (nextDuplicateSource?.fields ?? []).map(field => ({
-        ...createCardFieldDraft(field), persisted: false, fieldCodeEdited: true
+      draftFields.value = (nextDuplicateSource?.customFields ?? []).map(field => ({
+        ...createCustomFieldDraft(field), persisted: false, codeEdited: true
       }));
       setDraftStyle(createCardTypeStyleDraft(nextDuplicateSource ?? {
         styleName: DEFAULT_CARD_TYPE_STYLE_NAME,
@@ -400,7 +400,7 @@ watch(
     }
 
     clearDraft();
-    draftFields.value = nextCardType.fields.map(createCardFieldDraft);
+    draftFields.value = nextCardType.customFields.map(createCustomFieldDraft);
     draftName.value = nextCardType.name;
     draftEmoji.value = nextCardType.emoji;
     setDraftStyle(createCardTypeStyleDraft(nextCardType));
@@ -425,10 +425,10 @@ async function saveCardType() {
     return;
   }
 
-  const fields = buildCardFieldDefinitions(draftFields.value);
+  const fields = buildCustomFieldDefinitions(draftFields.value);
 
   const saveModel: CardTypeEditModel = {
-    fields,
+    customFields: fields,
     name: canonicalName,
     emoji: draftEmoji.value,
     styleName: draftStyle.value.styleName,
@@ -490,11 +490,11 @@ watch(() => ({
   emoji: draftEmoji.value,
   styleName: draftStyle.value?.styleName,
   stylePropertiesJson: stylePropertiesJson.value,
-  fields: draftFields.value.map(field => ({ ...field }))
+  customFieldValues: draftFields.value.map(field => ({ ...field }))
 }), (current, previous) => {
   const error = editorError.value;
   if (!error) return;
-  const errors = retainCardFieldErrors(error.validationErrors ?? {}, previous.fields, current.fields);
+  const errors = retainCustomFieldErrors(error.validationErrors ?? {}, previous.customFieldValues, current.customFieldValues);
   for (const property of ['name', 'emoji', 'styleName', 'stylePropertiesJson'] as const) {
     if (current[property] !== previous[property]) delete errors[property];
   }

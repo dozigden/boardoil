@@ -31,7 +31,7 @@ public sealed record BoardPackageImportPlan(
     IReadOnlyList<ArchivedCardImportDefinition> ArchivedCards,
     bool CardAttachmentThumbnailsEnabled = true)
 {
-    public string SystemCardTypeFieldDefinitionsJson { get; init; } = "[]";
+    public IReadOnlyList<BoardPackageCustomField> CustomFields { get; init; } = [];
     public IReadOnlyDictionary<int, string> SourceCardTypeNames { get; init; } = new Dictionary<int, string>();
 }
 
@@ -40,8 +40,7 @@ public sealed record CardTypeImportDefinition(
     string NormalisedName,
     string? Emoji,
     string StyleName,
-    string StylePropertiesJson,
-    string FieldDefinitionsJson = "[]");
+    string StylePropertiesJson);
 
 public sealed record TagImportDefinition(
     string Name,
@@ -72,7 +71,7 @@ public sealed record CardImportDefinition(
     int BoardCardId = 0,
     DateTime? CardCreatedUtc = null,
     DateTime? CardUpdatedUtc = null,
-    string FieldValuesJson = "{}");
+    string CustomFieldValuesJson = "{}");
 
 public sealed record CommentImportDefinition(
     string Text,

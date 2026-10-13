@@ -45,7 +45,7 @@
         <span class="card-id">#{{ card.id }}</span>
       </div>
 
-      <CardFieldsDisplay :fields="displayFields" />
+      <CustomFieldsDisplay  :custom-field-values="displayFields" />
 
       <p v-if="card.assignedUserDisplayName" class="card-assigned-to">
         <UserAvatar
@@ -123,8 +123,8 @@ import { getCardSurfaceClassList, getCardSurfaceStyle } from '../../shared/utils
 import { buildApiUrl } from '../../shared/api/config';
 import { useAttachmentThumbnail } from '../composables/useAttachmentThumbnail';
 import Tag from './Tag.vue';
-import { visibleCardFields } from '../utils/cardFieldValues';
-import CardFieldsDisplay from './CardFieldsDisplay.vue';
+import { visibleCustomFields } from '../utils/customFieldValues';
+import CustomFieldsDisplay from './CustomFieldsDisplay.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 
 const props = withDefaults(defineProps<{
@@ -167,7 +167,7 @@ const checklistCountsStyle = computed(() => ({
   '--card-checklist-halo-filter': `url(#${checklistHaloId})`
 }));
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId));
-const displayFields = computed(() => visibleCardFields(resolvedCardType.value?.fields ?? [], props.card.fields));
+const displayFields = computed(() => visibleCustomFields(resolvedCardType.value?.customFields ?? [], props.card.customFieldValues));
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
 const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
 const cardStyleClasses = computed(() => getCardSurfaceClassList(resolvedCardType.value));

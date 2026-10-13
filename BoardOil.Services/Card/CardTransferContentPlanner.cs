@@ -71,7 +71,7 @@ public sealed class CardTransferContentPlanner
                 Emoji = sourceCard.CardType.Emoji,
                 StyleName = sourceCard.CardType.StyleName,
                 StylePropertiesJson = sourceCard.CardType.StylePropertiesJson,
-                FieldDefinitionsJson = sourceCard.CardType.FieldDefinitionsJson,
+                Board = destinationDefaultCardType.Board,
                 IsSystem = false,
             };
             newCardTypes.Add(selectedCardType);

@@ -10,7 +10,7 @@ describe('card edit model', () => {
       boardColumnId: 4,
       cardTypeId: 3,
       cardTypeName: 'Story',
-      fields: { Points: 0, Note: 'Draft', Due: null },
+      customFieldValues: { Points: 0, Note: 'Draft', Due: null },
       cardTypeEmoji: '📙',
       assignedUserId: 9,
       assignedUserDisplayName: 'User',
@@ -31,7 +31,7 @@ describe('card edit model', () => {
     const model = createCardEditModel(card);
 
     expect(model).toEqual({
-      fields: card.fields,
+      customFieldValues: card.customFieldValues,
       boardColumnId: 4,
       cardTypeId: 3,
       assignedUserId: 9,
@@ -42,12 +42,12 @@ describe('card edit model', () => {
       tagNames: ['Feature', 'UI']
     });
     expect(model.tagNames).not.toBe(card.tagNames);
-    expect(model.fields).not.toBe(card.fields);
+    expect(model.customFieldValues).not.toBe(card.customFieldValues);
     const copy = cloneCardEditModel(model);
-    expect(copy.fields).not.toBe(model.fields);
+    expect(copy.customFieldValues).not.toBe(model.customFieldValues);
     expect(areCardEditModelsEqual(model, copy)).toBe(true);
-    copy.fields!.Points = '1e-400';
+    copy.customFieldValues!.Points = '1e-400';
     expect(areCardEditModelsEqual(model, copy)).toBe(false);
-    expect(model.fields!.Points).toBe(0);
+    expect(model.customFieldValues!.Points).toBe(0);
   });
 });

@@ -13,6 +13,8 @@ public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> option
         value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
 
     public DbSet<EntityBoard> Boards => Set<EntityBoard>();
+    public DbSet<EntityCustomField> CustomFields => Set<EntityCustomField>();
+    public DbSet<EntityCustomFieldCardType> CustomFieldCardTypes => Set<EntityCustomFieldCardType>();
     public DbSet<EntityBoardCardIdSequence> BoardCardIdSequences => Set<EntityBoardCardIdSequence>();
     public DbSet<EntityBoardColumn> Columns => Set<EntityBoardColumn>();
     public DbSet<EntityBoardCard> Cards => Set<EntityBoardCard>();

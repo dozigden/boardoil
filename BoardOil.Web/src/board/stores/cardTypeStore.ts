@@ -1,4 +1,4 @@
-import type { CardFieldDefinitionInput } from '../../shared/types/cardFieldTypes';
+import type { CustomFieldDefinitionInput } from '../../shared/types/customFieldTypes';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
@@ -113,8 +113,8 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return result.data;
   }
 
-  function previewFields(boardId: number, cardTypeId: number, fields: CardFieldDefinitionInput[]) {
-    return api.previewCardTypeFields(boardId, cardTypeId, fields);
+  function previewFields(boardId: number, cardTypeId: number, customFields: CustomFieldDefinitionInput[]) {
+    return api.previewCardTypeFields(boardId, cardTypeId, customFields);
   }
 
   async function deleteCardType(cardTypeId: number, boardId: number) {

@@ -43,7 +43,7 @@ public sealed class CardCreateTool(
             return Failure(accessError);
         }
 
-        var fields = McpCardFieldInputs.ParseValues(input.Fields);
+        var fields = McpCustomFieldInputs.ParseValues(input.CustomFieldValues);
         if (!fields.IsValid)
         {
             return Failure(fields.Errors);

@@ -118,6 +118,7 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         var column = new EntityBoardColumn { Id = 7, BoardId = board.Id, Title = "Todo", SortKey = "A", Board = board };
         var cardType = new EntityCardType
         {
+            Board = board,
             Id = 4,
             BoardId = board.Id,
             Name = "Story",

@@ -4,7 +4,7 @@ namespace BoardOil.Contracts.Card;
 
 public sealed record PreviewCardTypeChangeRequest(
     int CardTypeId,
-    IReadOnlyDictionary<string, JsonElement>? Fields = null);
+    IReadOnlyDictionary<string, JsonElement>? CustomFieldValues = null);
 
 public sealed record CardTypeChangePreviewDto(
     string OriginalTypeName,
@@ -19,7 +19,7 @@ public sealed record CardTypeChangeRowDto(
     bool LosesValue);
 
 public sealed record CardTypeChangeValueDto(
-    string DisplayName,
+    string Name,
     string? Emoji,
-    string Type,
+    string DataType,
     JsonElement Value);

@@ -1,5 +1,5 @@
 using BoardOil.Contracts.Slick;
-using BoardOil.Contracts.CardField;
+using BoardOil.Contracts.CustomField;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -46,7 +46,7 @@ public sealed record CardDto(
     int CompletedChecklistItemCount = 0,
     int TotalChecklistItemCount = 0)
 {
-    public IReadOnlyDictionary<string, JsonElement> Fields { get; init; } = new Dictionary<string, JsonElement>();
+    public IReadOnlyDictionary<string, JsonElement> CustomFieldValues { get; init; } = new Dictionary<string, JsonElement>();
 }
 
 public sealed record ArchivedCardDto(
@@ -66,7 +66,7 @@ public sealed record ArchivedCardDetailDto(
     CardDto Card,
     IReadOnlyList<ArchivedCardCommentDto> Comments)
 {
-    public IReadOnlyList<CardFieldDefinition> FieldDefinitions { get; init; } = [];
+    public IReadOnlyList<CustomFieldDefinition> CustomFieldDefinitions { get; init; } = [];
 }
 
 public sealed record ArchivedCardCommentDto(
@@ -119,7 +119,7 @@ public sealed record UpdateCardRequest(
     string? SlickName = null,
     string? ExternalUrl = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    IReadOnlyDictionary<string, JsonElement>? Fields = null);
+    IReadOnlyDictionary<string, JsonElement>? CustomFieldValues = null);
 
 public sealed record DuplicateCardRequest(
     int? BoardColumnId,
@@ -131,7 +131,7 @@ public sealed record DuplicateCardRequest(
     string? SlickName = null,
     string? ExternalUrl = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    IReadOnlyDictionary<string, JsonElement>? Fields = null);
+    IReadOnlyDictionary<string, JsonElement>? CustomFieldValues = null);
 
 public sealed record SearchCardsRequest(
     IReadOnlyList<CardSearchFilterRequest> Filters);

@@ -1,3 +1,4 @@
+using BoardOil.Services.Board.Import;
 using System.Data;
 using BoardOil.Abstractions.Attachment;
 using System.Security.Cryptography;
@@ -15,7 +16,7 @@ using BoardOil.Data.Abstractions.Column;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Card;
-using BoardOil.Services.CardField;
+using BoardOil.Services.CustomField;
 using BoardOil.Data.Abstractions.Attachment;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Attachment;
@@ -128,7 +129,7 @@ public sealed class BoardExportService(
                         card.CardCreatedUtc,
                         card.CardUpdatedUtc)
                     {
-                        Fields = CardFieldJsonCodec.DeserialiseValues(card.FieldValuesJson)
+                        CustomFieldValues = CustomFieldJsonCodec.DeserialiseValues(card.CustomFieldValuesJson)
                     })
                     .ToList());
 
@@ -136,10 +137,7 @@ public sealed class BoardExportService(
             board.Name,
             board.Description,
             cardTypes
-                .Select(x => new BoardPackageCardTypeDto(x.Name, x.Emoji, x.IsSystem, x.StyleName, x.StylePropertiesJson, x.Id)
-                {
-                    Fields = CardFieldJsonCodec.DeserialiseDefinitions(x.FieldDefinitionsJson)
-                })
+                .Select(x => new BoardPackageCardTypeDto(x.Name, x.Emoji, x.IsSystem, x.StyleName, x.StylePropertiesJson, x.Id))
                 .ToList(),
             tags
                 .Select(x => new BoardPackageTagDto(x.Name, x.StyleName, x.StylePropertiesJson, x.Emoji))
@@ -156,7 +154,10 @@ public sealed class BoardExportService(
                     x.StylePropertiesJson))
                 .ToList(),
             board.SlickCohesionModeEnabled,
-            board.CardAttachmentThumbnailsEnabled);
+            board.CardAttachmentThumbnailsEnabled)
+        {
+            CustomFields = BoardPackageCustomFields.Export(board.CustomFields, cardTypes)
+        };
         var archivePayload = new BoardPackageArchiveDto(
             archivedCards
                 .Select(x => x.ToArchivedCardDto())

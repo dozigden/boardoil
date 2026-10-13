@@ -65,7 +65,7 @@ public sealed class CardUpdateTool(
             assignedUserId = existingCardResult.Data.AssignedUserId;
         }
 
-        var fields = McpCardFieldInputs.ParseValues(input.Fields);
+        var fields = McpCustomFieldInputs.ParseValues(input.CustomFieldValues);
         if (!fields.IsValid)
         {
             return Failure(fields.Errors);

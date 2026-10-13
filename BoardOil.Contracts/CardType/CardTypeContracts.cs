@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using BoardOil.Contracts.CardField;
+using BoardOil.Contracts.CustomField;
 
 namespace BoardOil.Contracts.CardType;
 
@@ -13,7 +13,7 @@ public sealed record CardTypeDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc)
 {
-    public IReadOnlyList<CardFieldDefinition> Fields { get; init; } = [];
+    public IReadOnlyList<CustomFieldDefinition> CustomFields { get; init; } = [];
 }
 
 public sealed record CreateCardTypeRequest(
@@ -21,19 +21,10 @@ public sealed record CreateCardTypeRequest(
     string? Emoji = null,
     string? StyleName = null,
     string? StylePropertiesJson = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    IReadOnlyList<CardFieldDefinition>? Fields = null);
+    int? CopyFieldAssignmentsFromCardTypeId = null);
 
 public sealed record UpdateCardTypeRequest(
     string Name,
     string? Emoji = null,
     string? StyleName = null,
-    string? StylePropertiesJson = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    IReadOnlyList<CardFieldDefinition>? Fields = null);
-
-public sealed record PreviewCardTypeFieldsRequest(IReadOnlyList<CardFieldDefinition>? Fields);
-
-public sealed record CardTypeFieldsPreviewDto(IReadOnlyList<CardTypeFieldImpactDto> Fields);
-
-public sealed record CardTypeFieldImpactDto(string FieldCode, string DisplayName, string Change, int CardCount);
+    string? StylePropertiesJson = null);

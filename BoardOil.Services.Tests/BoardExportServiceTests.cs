@@ -2,8 +2,8 @@ using System.IO.Compression;
 using System.Text.Json;
 using BoardOil.Abstractions.Board;
 using BoardOil.Contracts.Board;
-using BoardOil.Contracts.CardField;
-using BoardOil.Services.CardField;
+using BoardOil.Contracts.CustomField;
+using BoardOil.Services.CustomField;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
 using BoardOil.Services.Tests.Infrastructure;
@@ -226,26 +226,27 @@ public sealed class BoardExportServiceTests : TestBaseDb
     [Fact]
     public async Task ExportBoardAsync_ShouldIncludeCustomFieldDefinitionsAndNativeValues()
     {
-        CardFieldDefinition[] definitions =
+        CustomFieldDefinition[] definitions =
         [
-            new TextFieldDefinition { FieldCode = "Ref", DisplayName = "Reference", Nullable = true, Emoji = "🔖", ShowOnCard = true, MaxLength = 25 },
-            new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Estimate", DefaultValue = 0, Min = 0, Max = 10 },
-            new DateFieldDefinition { FieldCode = "Due", DisplayName = "Due date", Nullable = true }
+            new TextCustomFieldDefinition { Code = "Ref", Name = "Reference", Nullable = true, Emoji = "🔖", ShowOnCard = true, MaxLength = 25 },
+            new IntegerCustomFieldDefinition { Code = "Points", Name = "Estimate", DefaultValue = 0, Min = 0, Max = 10 },
+            new DateCustomFieldDefinition { Code = "Due", Name = "Due date", Nullable = true }
         ];
         const string values = """{"Ref":null,"Points":0,"Due":"2024-02-29"}""";
         var board = CreateBoard().AddColumn("Todo").AddCard("System").AddCard("Custom").Build();
         var systemCard = board.GetCard("System");
-        systemCard.CardType.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(definitions);
-        systemCard.FieldValuesJson = values;
+        SetFields(systemCard.CardType, definitions);
+        systemCard.CustomFieldValuesJson = values;
         var customCard = board.GetCard("Custom");
         var customType = new EntityCardType
         {
             BoardId = board.BoardId, Name = "Custom", StyleName = "auto", StylePropertiesJson = "{}",
-            FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(definitions.Reverse().ToArray())
         };
         DbContextForArrange.CardTypes.Add(customType);
         customCard.CardType = customType;
-        customCard.FieldValuesJson = values;
+        customCard.CustomFieldValuesJson = values;
+        await DbContextForArrange.SaveChangesAsync();
+        SetFields(customType, definitions.Reverse().ToArray());
         await DbContextForArrange.SaveChangesAsync();
         var result = await ResolveService<IBoardExportService>().ExportBoardAsync(board.BoardId, ActorUserId, "test");
 
@@ -258,17 +259,17 @@ public sealed class BoardExportServiceTests : TestBaseDb
         var system = types.Single(type => type.GetProperty("isSystem").GetBoolean());
         var custom = types.Single(type => !type.GetProperty("isSystem").GetBoolean());
         Assert.Equal(systemCard.CardTypeId, system.GetProperty("id").GetInt32());
-        Assert.Equal(new[] { "Ref", "Points", "Due" }, system.GetProperty("fields").EnumerateArray().Select(field => field.GetProperty("fieldCode").GetString()));
-        Assert.Equal(new[] { "Due", "Points", "Ref" }, custom.GetProperty("fields").EnumerateArray().Select(field => field.GetProperty("fieldCode").GetString()));
-        Assert.Equal("🔖", system.GetProperty("fields")[0].GetProperty("emoji").GetString());
-        Assert.Equal(25, system.GetProperty("fields")[0].GetProperty("maxLength").GetInt32());
-        Assert.True(system.GetProperty("fields")[0].GetProperty("showOnCard").GetBoolean());
-        Assert.Equal(10, system.GetProperty("fields")[1].GetProperty("max").GetInt32());
+        Assert.Equal(new[] { "Ref", "Points", "Due" }, json.RootElement.GetProperty("customFields").EnumerateArray().Select(field => field.GetProperty("definition").GetProperty("code").GetString()));
+        Assert.False(custom.TryGetProperty("customFields", out _));
+        Assert.Equal("🔖", json.RootElement.GetProperty("customFields")[0].GetProperty("definition").GetProperty("emoji").GetString());
+        Assert.Equal(25, json.RootElement.GetProperty("customFields")[0].GetProperty("definition").GetProperty("maxLength").GetInt32());
+        Assert.True(json.RootElement.GetProperty("customFields")[0].GetProperty("definition").GetProperty("showOnCard").GetBoolean());
+        Assert.Equal(10, json.RootElement.GetProperty("customFields")[1].GetProperty("definition").GetProperty("max").GetInt32());
         var cards = json.RootElement.GetProperty("columns")[0].GetProperty("cards");
         Assert.Equal(2, cards.GetArrayLength());
         foreach (var card in cards.EnumerateArray())
         {
-            var fields = card.GetProperty("fields");
+            var fields = card.GetProperty("customFieldValues");
             Assert.Equal(3, fields.EnumerateObject().Count());
             Assert.Equal(JsonValueKind.Null, fields.GetProperty("Ref").ValueKind);
             Assert.Equal(0, fields.GetProperty("Points").GetInt32());

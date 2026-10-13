@@ -5,6 +5,7 @@ public sealed class EntityBoard : ISupportCreatedAt, ISupportUpdatedAt
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public ICollection<EntityCustomField> CustomFields { get; set; } = new List<EntityCustomField>();
     public bool SlickCohesionModeEnabled { get; set; } = true;
     public bool CardAttachmentThumbnailsEnabled { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; }

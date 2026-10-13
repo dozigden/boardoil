@@ -13,7 +13,7 @@ using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Services.Style;
-using BoardOil.Services.CardField;
+using BoardOil.Services.CustomField;
 
 namespace BoardOil.Services.Card;
 
@@ -49,7 +49,7 @@ public sealed class UpdateCardService(
         var selection = planner.SelectCardType(target);
         if (selection.Error is not null) { return selection.Error; }
 
-        var preview = planner.PreviewFields(card, target!, request.Fields);
+        var preview = planner.PreviewFields(card, target!, request.CustomFieldValues);
         if (!preview.IsValid) { return ApiErrors.ValidationFailed(preview.Errors); }
         return preview.Value!;
     }
@@ -144,13 +144,13 @@ public sealed class UpdateCardService(
             return cardTypeSelection.Error;
         }
 
-        var fieldPlan = planner.PlanFields(existingCard, selectedCardType!, request.Fields);
+        var fieldPlan = planner.PlanFields(existingCard, selectedCardType!, request.CustomFieldValues);
         if (!fieldPlan.IsValid)
         {
             return ApiErrors.ValidationFailed(fieldPlan.Errors);
         }
         var descriptionChanged = updatedDescription != existingCard.Description;
-        var fieldsChanged = fieldPlan.Value!.ValuesJson != existingCard.FieldValuesJson;
+        var fieldsChanged = fieldPlan.Value!.ValuesJson != existingCard.CustomFieldValuesJson;
         var updatedTags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames, _tagRepository, styleDefaultService);
         var selectedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, request.SlickName, slickRepository, styleDefaultService);
         var selectedSlickId = selectedSlick?.Id;
@@ -196,7 +196,7 @@ public sealed class UpdateCardService(
 
         existingCard.Title = updatedTitle;
         existingCard.Description = updatedDescription;
-        existingCard.FieldValuesJson = fieldPlan.Value!.ValuesJson;
+        existingCard.CustomFieldValuesJson = fieldPlan.Value!.ValuesJson;
         existingCard.ExternalUrl = updatedExternalUrl;
         if (tagsChanged)
         {
@@ -237,7 +237,7 @@ public sealed class UpdateCardService(
         var derivedValuesChanged = previousCompleted != existingCard.CompletedChecklistItemCount
             || previousTotal != existingCard.TotalChecklistItemCount;
 
-        var lossComment = CardFieldLossComment.Add(existingCard, fieldPlan.Value!.LostValues,
+        var lossComment = CustomFieldLossComment.Add(existingCard, fieldPlan.Value!.LostValues,
             originalTypeName, selectedCardType.Name);
         await scope.SaveChangesAsync(cancellationToken);
         return new CardSaveResult(

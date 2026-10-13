@@ -1,3 +1,5 @@
+using BoardOil.Abstractions.CustomField;
+using BoardOil.Services.CustomField;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Configuration;
 using BoardOil.Abstractions.Auth;
@@ -104,6 +106,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICardCommentService, CardCommentService>();
         services.AddScoped<ICardArchiveService, CardArchiveService>();
         services.AddScoped<ICardTypeService, CardTypeService>();
+        services.AddScoped<ICustomFieldService, CustomFieldService>();
         services.AddScoped<IBoardStyleDefaultService, BoardStyleDefaultService>();
         services.AddScoped<ITagService, TagService>();
         services.AddScoped<ISlickService, SlickService>();

@@ -1,3 +1,5 @@
+using BoardOil.Contracts.CustomField;
+using BoardOil.Services.CustomField;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Ef;
@@ -42,6 +44,25 @@ public abstract class TestBaseDb : IAsyncLifetime
 
     protected FluentBoardBuilder CreateBoard(string name = "BoardOil") =>
         new(DbContextForArrange, name, FixedNow, ActorUserId);
+
+    protected static void SetFields(EntityCardType type, IReadOnlyList<CustomFieldDefinition> definitions)
+    {
+        var fields = CustomFieldCatalogue.Read(type.Board.CustomFields).ToList();
+        fields = CustomFieldCatalogue.RemoveType(fields, type.Id).ToList();
+        foreach (var definition in definitions)
+        {
+            var index = fields.FindIndex(field => field.Definition.Code == definition.Code);
+            if (index >= 0)
+            {
+                var selected = (SelectedCardTypes)fields[index].AppliesTo;
+                fields[index] = new(definition, new SelectedCardTypes([..selected.CardTypeIds, type.Id]));
+            }
+            else { fields.Add(new(definition, new SelectedCardTypes([type.Id]))); }
+        }
+        // Seed only the definitions used by this fixture. Unused-definition behaviour is tested through services.
+        fields.RemoveAll(field => field.AppliesTo is SelectedCardTypes selected && selected.CardTypeIds.Count == 0);
+        CustomFieldCatalogue.Apply(type.Board, fields);
+    }
 
     protected T ResolveService<T>() where T : notnull
     {

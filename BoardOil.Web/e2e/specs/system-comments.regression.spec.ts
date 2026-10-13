@@ -5,9 +5,9 @@ test('system comments have no author or edit action in live and archived views',
   const board = await api.createBoard('System comment presentation');
   const literal = '![image](https://example.invalid/image.png)';
   await api.configureDefaultFields(board.id, [
-    { type: 'integer', fieldCode: 'Points', displayName: 'Estimate', emoji: null, nullable: true,
+    { dataType: 'integer', code: 'Points', name: 'Estimate', emoji: null, nullable: true,
       showOnCard: false, defaultValue: 7, min: null, max: null },
-    { type: 'text', fieldCode: 'Reference', displayName: 'Reference', emoji: null, nullable: true,
+    { dataType: 'text', code: 'Reference', name: 'Reference', emoji: null, nullable: true,
       showOnCard: false, defaultValue: literal, minLength: null, maxLength: 250 }
   ]);
   const card = await api.createCard(board, 'Todo', 'Recorded field values');

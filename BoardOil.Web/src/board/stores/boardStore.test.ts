@@ -1085,7 +1085,7 @@ function makeCatalogues() {
     updatedAtUtc: '2026-03-15T00:00:00Z'
   };
   return {
-    cardTypes: [{ ...definition, emoji: null, isSystem: false, fields: [] }],
+    cardTypes: [{ ...definition, emoji: null, isSystem: false, customFields: [] }],
     tags: [{ ...definition, emoji: null }],
     slicks: [definition]
   };
@@ -1114,7 +1114,7 @@ function makeBoard(id = 1, name = 'Board'): Board {
             boardColumnId: 1,
             cardTypeId: 1,
             cardTypeName: 'Story',
-            fields: {},
+            customFieldValues: {},
             cardTypeEmoji: null,
             title: 'Task A',
             description: 'Seed',

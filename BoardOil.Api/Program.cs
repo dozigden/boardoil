@@ -38,8 +38,8 @@ var attachmentStorageOptions = BoardOilAttachmentStorageOptions.Resolve(builder.
 builder.Services.AddBoardOilServices();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
-    options.SerializerOptions.Converters.Add(new CardFieldValuesJsonConverter());
-    options.SerializerOptions.Converters.Add(new CardFieldDefinitionInputsJsonConverter());
+    options.SerializerOptions.Converters.Add(new CustomFieldValuesJsonConverter());
+    options.SerializerOptions.Converters.Add(new CustomFieldInputJsonConverter());
 });
 builder.Services.AddSingleton(attachmentStorageOptions);
 builder.Services.AddBoardOilEfInfrastructure(connectionString);
@@ -140,7 +140,7 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Access token. Paste the raw `bo_pat_...` value; Swagger UI will add `Bearer`."
     });
     options.OperationFilter<PatSecurityOperationFilter>();
-    options.OperationFilter<CardTypeRequestOperationFilter>();
+    options.OperationFilter<CustomFieldRequestOperationFilter>();
 });
 var app = builder.Build();
 app.InitialiseMcpServiceProvider();
@@ -175,6 +175,7 @@ app.MapCardEndpoints();
 app.MapAttachmentEndpoints();
 app.MapAttachmentTransferEndpoints();
 app.MapCardTypeEndpoints();
+app.MapCustomFieldEndpoints();
 app.MapTagEndpoints();
 app.MapSlickEndpoints();
 app.MapInternalRealtimeEndpoints();

@@ -42,16 +42,16 @@ describe('cardStore', () => {
     const store = useCardStore();
     const feedback = useUiFeedbackStore();
     const board = makeBoard();
-    board.columns[0].cards[0].fields = { Points: 0 };
+    board.columns[0].cards[0].customFieldValues = { Points: 0 };
     store.replaceBoardCards(1, board.columns);
-    const error: AppError = { kind: 'api', message: 'Validation failed.', validationErrors: { 'fields.Points': ['Whole number required'] } };
+    const error: AppError = { kind: 'api', message: 'Validation failed.', validationErrors: { 'customFieldValues.Points': ['Whole number required'] } };
     api.saveCard.mockResolvedValueOnce(err(error));
 
-    expect(await store.saveCard(101, { ...makeCardEditModel(), fields: { Points: 'bad' } }, { inlineErrors: true })).toBe(false);
+    expect(await store.saveCard(101, { ...makeCardEditModel(), customFieldValues: { Points: 'bad' } }, { inlineErrors: true })).toBe(false);
 
     expect(store.saveError).toEqual(error);
     expect(feedback.errorMessage).toBe('');
-    expect(store.getCardById(101)?.fields).toEqual({ Points: 0 });
+    expect(store.getCardById(101)?.customFieldValues).toEqual({ Points: 0 });
     store.dispose();
     expect(store.saveError).toBeNull();
   });
@@ -76,12 +76,12 @@ describe('cardStore', () => {
     const store = useCardStore();
     const board = makeBoard();
     store.replaceBoardCards(1, board.columns);
-    const card = { ...board.columns[0].cards[0], fields: { Points: 7 } };
+    const card = { ...board.columns[0].cards[0], customFieldValues: { Points: 7 } };
 
     expect(store.upsertCard(1, card)).toBe(true);
-    card.fields.Points = 9;
+    card.customFieldValues.Points = 9;
 
-    expect(store.getCardById(101)?.fields).toEqual({ Points: 7 });
+    expect(store.getCardById(101)?.customFieldValues).toEqual({ Points: 7 });
   });
 
   it.each(['board change', 'disposal'] as const)('ignores card updates and related work after %s', async change => {
@@ -289,7 +289,7 @@ describe('cardStore', () => {
       boardColumnId: 1,
       cardTypeId: 1,
       cardTypeName: 'Story',
-      fields: {},
+      customFieldValues: {},
       cardTypeEmoji: null,
       title: 'Task B',
       description: '',
@@ -346,7 +346,7 @@ describe('cardStore', () => {
       boardColumnId: 1,
       cardTypeId: 2,
       cardTypeName: 'Bug',
-      fields: {},
+      customFieldValues: {},
       cardTypeEmoji: '🕷️',
       title: 'Task C',
       description: '',
@@ -378,7 +378,7 @@ describe('cardStore', () => {
       boardColumnId: 2,
       cardTypeId: 1,
       cardTypeName: 'Story',
-      fields: {},
+      customFieldValues: {},
       cardTypeEmoji: null,
       title: 'Task A',
       description: 'Seed',
@@ -426,7 +426,7 @@ describe('cardStore', () => {
       boardColumnId: 1,
       cardTypeId: 1,
       cardTypeName: 'Story',
-      fields: {},
+      customFieldValues: {},
       cardTypeEmoji: null,
       title: 'Task B',
       description: '',
@@ -445,7 +445,7 @@ describe('cardStore', () => {
       boardColumnId: 2,
       cardTypeId: 1,
       cardTypeName: 'Story',
-      fields: {},
+      customFieldValues: {},
       cardTypeEmoji: null,
       title: 'Task C',
       description: '',
@@ -583,7 +583,7 @@ describe('cardStore', () => {
         boardColumnId: 2,
         cardTypeId: 1,
         cardTypeName: 'Story',
-        fields: {},
+        customFieldValues: {},
         cardTypeEmoji: null,
         title: 'Task B',
         description: 'Seed',
@@ -602,7 +602,7 @@ describe('cardStore', () => {
         boardColumnId: 2,
         cardTypeId: 1,
         cardTypeName: 'Story',
-        fields: {},
+        customFieldValues: {},
         cardTypeEmoji: null,
         title: 'Task C',
         description: 'Seed',
@@ -624,7 +624,7 @@ describe('cardStore', () => {
       boardColumnId: 2,
       cardTypeId: 1,
       cardTypeName: 'Story',
-      fields: {},
+      customFieldValues: {},
       cardTypeEmoji: null,
       title: 'Task A',
       description: 'Seed',
@@ -654,7 +654,7 @@ describe('cardStore', () => {
         boardColumnId: 2,
         cardTypeId: 1,
         cardTypeName: 'Story',
-        fields: {},
+        customFieldValues: {},
         cardTypeEmoji: null,
         title: 'Task B',
         description: 'Seed',
@@ -676,7 +676,7 @@ describe('cardStore', () => {
       boardColumnId: 2,
       cardTypeId: 1,
       cardTypeName: 'Story',
-      fields: {},
+      customFieldValues: {},
       cardTypeEmoji: null,
       title: 'Task A',
       description: 'Seed',
@@ -711,7 +711,7 @@ describe('cardStore', () => {
       boardColumnId: 1,
       cardTypeId: 1,
       cardTypeName: 'Story',
-      fields: {},
+      customFieldValues: {},
       cardTypeEmoji: null,
       title: 'Task A+',
       description: 'Updated',
@@ -834,7 +834,7 @@ describe('cardStore', () => {
       boardColumnId: 1,
       cardTypeId: 1,
       cardTypeName: 'Story',
-      fields: {},
+      customFieldValues: {},
       cardTypeEmoji: null,
       title: 'Task B',
       description: 'Seed',
@@ -872,7 +872,7 @@ describe('cardStore', () => {
       boardColumnId: 1,
       cardTypeId: 1,
       cardTypeName: 'Story',
-      fields: {},
+      customFieldValues: {},
       cardTypeEmoji: null,
       title: 'Task B',
       description: 'Seed',
@@ -1005,7 +1005,7 @@ function makeBoard(id = 1, name = 'Board'): Board {
             boardColumnId: 1,
             cardTypeId: 1,
             cardTypeName: 'Story',
-            fields: {},
+            customFieldValues: {},
             cardTypeEmoji: null,
             title: 'Task A',
             description: 'Seed',

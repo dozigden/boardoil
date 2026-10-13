@@ -1,5 +1,5 @@
 import type { CardType } from '../../src/shared/types/boardTypes';
-import type { CardFieldDefinition } from '../../src/shared/types/cardFieldTypes';
+import type { CustomFieldDefinition } from '../../src/shared/types/customFieldTypes';
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 
 type ApiEnvelope<T> = {
@@ -28,7 +28,7 @@ type SmokeCardType = {
 };
 
 export type SmokeCard = {
-  fields: Record<string, string | number | null>;
+  customFieldValues: Record<string, string | number | null>;
   id: number;
   boardColumnId: number;
   cardTypeId: number;
@@ -238,9 +238,9 @@ export class BoardOilApi {
     });
   }
 
-  public async createCardType(boardId: number, name: string, fields: CardFieldDefinition[] = []) {
+  public async createCardType(boardId: number, name: string, customFields: CustomFieldDefinition[] = []) {
     return await this.post<CardType>(`/api/boards/${boardId}/card-types`, {
-      fields,
+      customFields,
       name,
       emoji: null,
       styleName: 'auto',
@@ -259,13 +259,13 @@ export class BoardOilApi {
     return card;
   }
 
-  public async configureDefaultFields(boardId: number, fields: CardFieldDefinition[],
+  public async configureDefaultFields(boardId: number, customFields: CustomFieldDefinition[],
     appearance: Partial<Pick<CardType, 'emoji' | 'styleName' | 'stylePropertiesJson'>> = {}) {
     const types = await this.getCardTypes(boardId);
     const cardType = types.find(type => type.isSystem)!;
     return await this.put<CardType>(`/api/boards/${boardId}/card-types/${cardType.id}`, {
       name: cardType.name, emoji: cardType.emoji, styleName: cardType.styleName,
-      stylePropertiesJson: cardType.stylePropertiesJson, fields, ...appearance
+      stylePropertiesJson: cardType.stylePropertiesJson, customFields, ...appearance
     });
   }
 

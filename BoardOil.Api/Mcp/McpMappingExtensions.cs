@@ -51,7 +51,7 @@ public static class McpMappingExtensions
             ResolveSlickSnapshot(card.SlickId, slicksById),
             [],
             card.ExternalUrl,
-            card.Fields);
+            card.CustomFieldValues);
 
     public static McpCardCommentSnapshot ToMcp(this CardCommentDto comment) =>
         new(
@@ -93,8 +93,8 @@ public static class McpMappingExtensions
             archivedCard.ArchivedAtUtc,
             attachments)
         {
-            Fields = card.Fields,
-            FieldDefinitions = archivedCard.FieldDefinitions
+            CustomFieldValues = card.CustomFieldValues,
+            CustomFieldDefinitions = archivedCard.CustomFieldDefinitions
         };
     }
 
@@ -136,7 +136,7 @@ public static class McpMappingExtensions
             card.SlickId,
             ResolveSlickSnapshot(card.SlickId, slicksById),
             card.ExternalUrl,
-            card.Fields);
+            card.CustomFieldValues);
 
     private static McpCardTagSnapshot ToMcp(this CardTagDto tag) =>
         new(

@@ -14,7 +14,7 @@ using BoardOil.Data.Abstractions.Image;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Services.Style;
-using BoardOil.Services.CardField;
+using BoardOil.Services.CustomField;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Services.Card;
@@ -153,8 +153,8 @@ public sealed class CreateCardService(
                 fieldError = new(false, null, fieldPlan.StatusCode, fieldPlan.Message, fieldPlan.ValidationErrors);
                 return;
             }
-            card.FieldValuesJson = fieldPlan.Data!.ValuesJson;
-            lossComment = CardFieldLossComment.Add(card, fieldPlan.Data.LostValues,
+            card.CustomFieldValuesJson = fieldPlan.Data!.ValuesJson;
+            lossComment = CustomFieldLossComment.Add(card, fieldPlan.Data.LostValues,
                 fieldPlan.Data.SourceTypeName, fieldPlan.Data.DestinationTypeName);
             CardChecklistCounter.Refresh(card);
             card.BoardCardId = await boardCardIdAllocator.AllocateNextAsync(boardId);
@@ -186,48 +186,48 @@ public sealed class CreateCardService(
     private async Task<ApiResult<CardCreationFieldPlan>> PlanFieldsAsync(int boardId, int targetTypeId, int? sourceCardId,
         IReadOnlyDictionary<string, JsonElement>? fields, CancellationToken cancellationToken)
     {
-        // Read fresh JSON so the publication check does not reuse tracked definitions from before file preparation.
-        var target = await cardTypeRepository.Query()
+        // Read fresh entities so publication does not reuse definitions tracked before file preparation.
+        var target = await cardTypeRepository.Query().AsNoTracking()
+            .Include(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Where(type => type.BoardId == boardId && type.Id == targetTypeId)
-            .Select(type => new { type.Name, type.FieldDefinitionsJson })
             .SingleOrDefaultAsync(cancellationToken);
         if (target is null)
         {
             return ApiErrors.ValidationFailed([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
         }
-        var definitions = CardFieldJsonCodec.DeserialiseDefinitions(target.FieldDefinitionsJson);
+        var definitions = CustomFieldCatalogue.Resolve(target);
         var sourceTypeName = target.Name;
-        IReadOnlyList<LostCardFieldValue> losses = [];
-        CardFieldRuleResult<IReadOnlyDictionary<string, JsonElement>> initialValues;
+        IReadOnlyList<LostCustomFieldValue> losses = [];
+        CustomFieldRuleResult<IReadOnlyDictionary<string, JsonElement>> initialValues;
         if (sourceCardId is int id)
         {
-            var source = await cardRepository.Query()
+            var source = await cardRepository.Query().AsNoTracking()
+                .Include(item => item.CardType).ThenInclude(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
                 .Where(item => item.BoardId == boardId && item.BoardCardId == id)
-                .Select(item => new { item.CardTypeId, item.FieldValuesJson, item.CardType.FieldDefinitionsJson, item.CardType.Name })
                 .SingleOrDefaultAsync(cancellationToken);
             if (source is null) { throw new AttachmentOwnerChangedException(); }
-            sourceTypeName = source.Name;
-            var sourceDefinitions = CardFieldJsonCodec.DeserialiseDefinitions(source.FieldDefinitionsJson);
-            initialValues = CardFieldRules.NormaliseValues(sourceDefinitions,
-                fields ?? CardFieldJsonCodec.DeserialiseValues(source.FieldValuesJson));
+            sourceTypeName = source.CardType.Name;
+            var sourceDefinitions = CustomFieldCatalogue.Resolve(source.CardType);
+            initialValues = CustomFieldRules.NormaliseValues(sourceDefinitions,
+                fields ?? CustomFieldJsonCodec.DeserialiseValues(source.CustomFieldValuesJson));
             if (initialValues.IsValid && source.CardTypeId != targetTypeId)
             {
-                var conversion = CardFieldConverter.ConvertBetweenTypes(sourceDefinitions, initialValues.Value!, definitions);
+                var conversion = CustomFieldConverter.ChangeType(sourceDefinitions, initialValues.Value!, definitions);
                 initialValues = new(conversion.Value?.Values, conversion.Errors);
                 losses = conversion.Value?.LostValues ?? [];
             }
         }
         else
         {
-            initialValues = CardFieldRules.CreateValues(definitions, fields);
+            initialValues = CustomFieldRules.CreateValues(definitions, fields);
         }
         if (!initialValues.IsValid)
         {
             return ApiErrors.ValidationFailed(initialValues.Errors);
         }
-        return new CardCreationFieldPlan(CardFieldJsonCodec.SerialiseValues(initialValues.Value!), losses, sourceTypeName, target.Name);
+        return new CardCreationFieldPlan(CustomFieldJsonCodec.SerialiseValues(initialValues.Value!), losses, sourceTypeName, target.Name);
     }
 
-    private sealed record CardCreationFieldPlan(string ValuesJson, IReadOnlyList<LostCardFieldValue> LostValues,
+    private sealed record CardCreationFieldPlan(string ValuesJson, IReadOnlyList<LostCustomFieldValue> LostValues,
         string SourceTypeName, string DestinationTypeName);
 }

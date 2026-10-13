@@ -24,15 +24,15 @@
         <tr v-for="(row, index) in preview.rows" :key="index">
           <td>
             <template v-if="row.original">
-              <div class="field-name">{{ row.original.emoji }} {{ row.original.displayName }}</div>
-              <div class="field-type">{{ typeLabel(row.original.type) }}</div>
+              <div class="field-name">{{ row.original.emoji }} {{ row.original.name }}</div>
+              <div class="field-type">{{ typeLabel(row.original.dataType) }}</div>
               <div class="field-value" :class="{ 'field-value--empty': row.original.value === null }">{{ formatValue(row.original.value) }}</div>
             </template>
           </td>
           <td>
             <template v-if="row.destination">
-              <div class="field-name">{{ row.destination.emoji }} {{ row.destination.displayName }}</div>
-              <div class="field-type">{{ typeLabel(row.destination.type) }}</div>
+              <div class="field-name">{{ row.destination.emoji }} {{ row.destination.name }}</div>
+              <div class="field-type">{{ typeLabel(row.destination.dataType) }}</div>
               <div class="field-value" :class="{ 'field-value--empty': row.destination.value === null }">{{ formatValue(row.destination.value) }}</div>
               <div v-if="row.losesValue" class="field-loss field-loss--replacement"><TriangleAlert :size="14" aria-hidden="true" /><span>Original value removed · saved to comments</span></div>
             </template>
@@ -54,13 +54,13 @@
 <script setup lang="ts">
 import { ArrowRight, Check, TriangleAlert, X } from '@lucide/vue';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
-import type { CardFieldDefinition, CardTypeChangePreview } from '../../shared/types/cardFieldTypes';
+import type { CustomFieldDefinition, CardTypeChangePreview } from '../../shared/types/customFieldTypes';
 
 defineProps<{ preview: CardTypeChangePreview }>();
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
 
-function typeLabel(type: CardFieldDefinition['type']) {
-  switch (type) {
+function typeLabel(dataType: CustomFieldDefinition['dataType']) {
+  switch (dataType) {
     case 'integer': return 'Number';
     case 'date': return 'Date';
     case 'text': return 'Text';

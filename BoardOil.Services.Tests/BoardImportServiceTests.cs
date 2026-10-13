@@ -1,8 +1,8 @@
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using BoardOil.Contracts.CardField;
-using BoardOil.Services.CardField;
+using BoardOil.Contracts.CustomField;
+using BoardOil.Services.CustomField;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Board;
@@ -1184,28 +1184,28 @@ public sealed class BoardImportServiceTests : TestBaseDb
             new ImportBoardPackageRequest("Imported", CustomFieldPackage(schemaVersion, CustomFieldsBoardJson)), ActorUserId);
 
         Assert.True(imported.Success, imported.Message);
-        var importedTypes = await DbContextForAssert.CardTypes.Where(type => type.BoardId == imported.Data!.Id).ToListAsync();
-        var systemFields = CardFieldJsonCodec.DeserialiseDefinitions(importedTypes.Single(type => type.IsSystem).FieldDefinitionsJson);
-        var customFields = CardFieldJsonCodec.DeserialiseDefinitions(importedTypes.Single(type => !type.IsSystem).FieldDefinitionsJson);
-        Assert.Equal(new[] { "Ref", "Points", "Due" }, systemFields.Select(field => field.FieldCode));
-        Assert.Equal(new[] { "Due", "Points", "Ref" }, customFields.Select(field => field.FieldCode));
-        var reference = Assert.IsType<TextFieldDefinition>(systemFields[0]);
-        Assert.Equal("Reference", reference.DisplayName);
+        var importedTypes = await DbContextForAssert.CardTypes.Include(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).Where(type => type.BoardId == imported.Data!.Id).ToListAsync();
+        var systemFields = CustomFieldCatalogue.Resolve(importedTypes.Single(type => type.IsSystem));
+        var customFields = CustomFieldCatalogue.Resolve(importedTypes.Single(type => !type.IsSystem));
+        Assert.Equal(new[] { "Ref", "Points", "Due" }, systemFields.Select(field => field.Code));
+        Assert.Equal(new[] { "Ref", "Points", "Due" }, customFields.Select(field => field.Code));
+        var reference = Assert.IsType<TextCustomFieldDefinition>(systemFields[0]);
+        Assert.Equal("Reference", reference.Name);
         Assert.Equal("🔖", reference.Emoji);
         Assert.True(reference.ShowOnCard);
         Assert.Equal(25, reference.MaxLength);
-        var estimate = Assert.IsType<IntegerFieldDefinition>(systemFields[1]);
+        var estimate = Assert.IsType<IntegerCustomFieldDefinition>(systemFields[1]);
         Assert.Equal(0, estimate.DefaultValue);
         Assert.Equal(0, estimate.Min);
         Assert.Equal(10, estimate.Max);
-        Assert.IsType<DateFieldDefinition>(systemFields[2]);
-        Assert.Equal(systemFields.Reverse(), customFields);
+        Assert.IsType<DateCustomFieldDefinition>(systemFields[2]);
+        Assert.Equal(systemFields, customFields);
         Assert.Equal(2, imported.Data!.Columns.SelectMany(column => column.Cards).Count());
         foreach (var card in imported.Data.Columns.SelectMany(column => column.Cards))
         {
-            Assert.Equal(JsonValueKind.Null, card.Fields["Ref"].ValueKind);
-            Assert.Equal(0, card.Fields["Points"].GetInt32());
-            Assert.Equal("2024-02-29", card.Fields["Due"].GetString());
+            Assert.Equal(JsonValueKind.Null, card.CustomFieldValues["Ref"].ValueKind);
+            Assert.Equal(0, card.CustomFieldValues["Points"].GetInt32());
+            Assert.Equal("2024-02-29", card.CustomFieldValues["Due"].GetString());
         }
     }
 
@@ -1225,35 +1225,39 @@ public sealed class BoardImportServiceTests : TestBaseDb
             new ImportBoardPackageRequest("Legacy", CustomFieldPackage(schemaVersion, boardJson)), ActorUserId);
 
         Assert.True(result.Success, result.Message);
-        Assert.Empty(Assert.Single(Assert.Single(result.Data!.Columns).Cards).Fields);
-        Assert.Equal("[]", (await DbContextForAssert.CardTypes.SingleAsync()).FieldDefinitionsJson);
+        Assert.Empty(Assert.Single(Assert.Single(result.Data!.Columns).Cards).CustomFieldValues);
+        Assert.Empty(await DbContextForAssert.CustomFields.ToListAsync());
     }
 
     [Theory]
-    [InlineData("invalid-default")]
+    [InlineData("invalid-default", "board.customFields[1].definition.defaultValue")]
     [InlineData("unknown-value")]
     [InlineData("missing-value")]
     [InlineData("range")]
-    [InlineData("null-definitions")]
-    [InlineData("null-values")]
+    [InlineData("null-definitions", "board.customFields")]
+    [InlineData("null-definition", "board.customFields[1].definition")]
+    [InlineData("null-values", "board.columns[0].cards[0].customFieldValues")]
+    [InlineData("invalid-applicability", "board.customFields[1].appliesTo")]
     [InlineData("variant")]
     [InlineData("missing-discriminator")]
     [InlineData("duplicate-code")]
-    public async Task Import_InvalidFieldData_ShouldRejectWithoutCreatingBoard(string error)
+    public async Task Import_InvalidFieldData_ShouldRejectWithoutCreatingBoard(string error, string? expectedPath = null)
     {
         var json = JsonNode.Parse(CustomFieldsBoardJson)!;
-        var field = json["cardTypes"]![0]!["fields"]![1]!;
-        var values = json["columns"]![0]!["cards"]![0]!["fields"]!.AsObject();
+        var field = json["customFields"]![1]!["definition"]!;
+        var values = json["columns"]![0]!["cards"]![0]!["customFieldValues"]!.AsObject();
         switch (error)
         {
             case "invalid-default": field["defaultValue"] = 11; break;
             case "unknown-value": values["Unknown"] = 1; break;
             case "missing-value": values.Remove("Points"); break;
             case "range": values["Points"] = 11; break;
-            case "null-definitions": json["cardTypes"]![0]!["fields"] = null; break;
-            case "null-values": json["columns"]![0]!["cards"]![0]!["fields"] = null; break;
+            case "null-definitions": json["customFields"] = null; break;
+            case "null-definition": json["customFields"]![1]!["definition"] = null; break;
+            case "null-values": json["columns"]![0]!["cards"]![0]!["customFieldValues"] = null; break;
+            case "invalid-applicability": json["customFields"]![1]!["appliesTo"]!["mode"] = "invalid"; break;
             case "variant": field["maxLength"] = 10; break;
-            case "missing-discriminator": field.AsObject().Remove("type"); break;
+            case "missing-discriminator": field.AsObject().Remove("dataType"); break;
             case "duplicate-code": values["points"] = 7; break;
         }
 
@@ -1263,6 +1267,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
         Assert.NotEmpty(result.ValidationErrors!);
+        if (expectedPath is not null) { Assert.Contains(expectedPath, result.ValidationErrors!.Keys); }
         Assert.Empty(await DbContextForAssert.Boards.ToListAsync());
     }
 
@@ -1270,10 +1275,10 @@ public sealed class BoardImportServiceTests : TestBaseDb
     public async Task Import_DefinitionDiscriminatorMayAppearLast()
     {
         var json = JsonNode.Parse(CustomFieldsBoardJson)!;
-        var definition = json["cardTypes"]![0]!["fields"]![0]!.AsObject();
-        var kind = definition["type"]!.GetValue<string>();
-        definition.Remove("type");
-        definition["type"] = kind;
+        var definition = json["customFields"]![0]!["definition"]!.AsObject();
+        var kind = definition["dataType"]!.GetValue<string>();
+        definition.Remove("dataType");
+        definition["dataType"] = kind;
 
         var result = await ResolveService<IBoardPackageImportService>().ImportBoardPackageAsync(
             new ImportBoardPackageRequest("Out of order", CustomFieldPackage(4, json.ToJsonString())), ActorUserId);
@@ -1284,39 +1289,28 @@ public sealed class BoardImportServiceTests : TestBaseDb
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ExportImportArchive_ShouldPreserveTypeIdentityAcrossNewIds(bool replaceType)
+    public async Task ExportImportArchive_ShouldPreserveFieldIdentityAcrossNewTypeIds(bool replaceType)
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("Archived").Build();
         var card = board.GetCard("Archived");
-        var original = new EntityCardType
-        {
-            BoardId = board.BoardId, Name = "Custom", StyleName = "auto", StylePropertiesJson = "{}",
-            FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
-                [new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Estimate", DefaultValue = 0 }])
-        };
+        var original = new EntityCardType { BoardId = board.BoardId, Name = "Custom", StyleName = "auto", StylePropertiesJson = "{}" };
         DbContextForArrange.CardTypes.Add(original);
         card.CardType = original;
-        card.FieldValuesJson = """{"Points":7}""";
+        card.CustomFieldValuesJson = "{\"Points\":7}";
+        CustomFieldCatalogue.Apply(card.Board, [new(
+            new IntegerCustomFieldDefinition { Code = "Points", Name = "Estimate", DefaultValue = 0 }, new AllCardTypes())]);
         await DbContextForArrange.SaveChangesAsync();
         var archiveService = ResolveService<ICardArchiveService>();
         Assert.True((await archiveService.ArchiveCardAsync(board.BoardId, card.BoardCardId, ActorUserId)).Success);
+        DbContextForArrange.Entry(card).State = EntityState.Detached;
         if (replaceType)
         {
-            DbContextForArrange.Entry(card).State = EntityState.Detached;
             DbContextForArrange.CardTypes.Remove(original);
             await DbContextForArrange.SaveChangesAsync();
-            DbContextForArrange.CardTypes.Add(new EntityCardType
-            {
-                BoardId = board.BoardId, Name = "Custom", StyleName = "auto", StylePropertiesJson = "{}",
-                FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
-                    [new IntegerFieldDefinition { FieldCode = "Effort", DisplayName = "Estimate", DefaultValue = 0 }])
-            });
+            DbContextForArrange.CardTypes.Add(new EntityCardType { BoardId = board.BoardId, Name = "Custom", StyleName = "auto", StylePropertiesJson = "{}" });
         }
-        else
-        {
-            original.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
-                [new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Renamed", DefaultValue = 0 }]);
-        }
+        CustomFieldCatalogue.Apply(card.Board, [new(
+            new IntegerCustomFieldDefinition { Code = "Points", Name = "Renamed", DefaultValue = 0 }, new AllCardTypes())]);
         await DbContextForArrange.SaveChangesAsync();
         var export = await ResolveService<IBoardExportService>().ExportBoardAsync(board.BoardId, ActorUserId, "test");
         Assert.True(export.Success, export.Message);
@@ -1329,8 +1323,8 @@ public sealed class BoardImportServiceTests : TestBaseDb
 
         Assert.True(restored.Success, restored.Message);
         Assert.NotEqual(original.Id, restored.Data!.CardTypeId);
-        Assert.Equal(7, restored.Data.Fields[replaceType ? "Effort" : "Points"].GetInt32());
-        Assert.DoesNotContain("Fields removed", restored.Data.Description);
+        Assert.Equal(7, restored.Data.CustomFieldValues["Points"].GetInt32());
+        Assert.Empty(await DbContextForAssert.CardComments.Where(comment => comment.Card.BoardId == imported.Data.Id).ToListAsync());
     }
 
     [Theory]
@@ -1338,12 +1332,12 @@ public sealed class BoardImportServiceTests : TestBaseDb
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
-    public async Task ImportArchive_WithoutSourceTypeMapping_ShouldNotMistakeCollidingIdForSameType(int version)
+    public async Task ImportArchive_WithoutSourceTypeMapping_ShouldUseCustomFieldCodeIdentity(int version)
     {
         const string boardJson = """
-            {"name":"Collision","cardTypes":[{"name":"Story","isSystem":true,"fields":[
-              {"type":"integer","fieldCode":"Effort","displayName":"Estimate","defaultValue":0}
-            ]}],"tags":[],"columns":[{"title":"Todo","cards":[]}]}
+            {"name":"Collision","cardTypes":[{"name":"Story","isSystem":true}],"customFields":[
+              {"definition":{"dataType":"integer","code":"Points","name":"Renamed","defaultValue":0},"appliesTo":{"mode":"all"}}
+            ],"tags":[],"columns":[{"title":"Todo","cards":[]}]}
             """;
         var archived = new BoardPackageArchiveDto(
             [new BoardPackageArchivedCardDto(99, "Archived", [], DateTime.UtcNow, CustomFieldArchiveSnapshot)]);
@@ -1355,7 +1349,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var restored = await ResolveService<ICardArchiveService>().UnarchiveCardAsync(imported.Data!.Id, 99, ActorUserId);
 
         Assert.True(restored.Success, restored.Message);
-        Assert.Equal(7, restored.Data!.Fields["Effort"].GetInt32());
+        Assert.Equal(7, restored.Data!.CustomFieldValues["Points"].GetInt32());
         Assert.DoesNotContain("Fields removed", restored.Data.Description);
     }
 
@@ -1370,10 +1364,10 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var payload = snapshot["payload"]!;
         switch (error)
         {
-            case "unknown": payload["fields"]!["Unknown"] = 3; break;
-            case "range": payload["fields"]!["Points"] = 11; break;
-            case "definition": payload["fieldDefinitions"]![0]!["min"] = 5; break;
-            case "shape": payload["fields"] = new JsonArray(); break;
+            case "unknown": payload["customFieldValues"]!["Unknown"] = 3; break;
+            case "range": payload["customFieldValues"]!["Points"] = 11; break;
+            case "definition": payload["customFieldDefinitions"]![0]!["min"] = 5; break;
+            case "shape": payload["customFieldValues"] = new JsonArray(); break;
         }
         var archived = new BoardPackageArchiveDto(
             [new BoardPackageArchivedCardDto(99, "Archived", [], DateTime.UtcNow, snapshot.ToJsonString())]);
@@ -1389,7 +1383,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
     [Fact]
     public async Task Import_UnknownArchiveVersion_ShouldPreserveOpaqueSnapshot()
     {
-        const string snapshot = """{"schema":"archived-card","version":999,"payload":{"fields":["future"]}}""";
+        const string snapshot = """{"schema":"archived-card","version":999,"payload":{"customFields":["future"]}}""";
         var archived = new BoardPackageArchiveDto(
             [new BoardPackageArchivedCardDto(99, "Future", [], DateTime.UtcNow, snapshot)]);
 
@@ -1414,16 +1408,16 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var detail = await ResolveService<ICardArchiveService>().GetArchivedCardAsync(imported.Data!.Id, 99, ActorUserId);
 
         Assert.True(detail.Success, detail.Message);
-        Assert.Equal(new[] { "Points", "Ref", "Empty" }, detail.Data!.FieldDefinitions.Select(field => field.FieldCode));
-        Assert.Equal("Estimate", detail.Data.FieldDefinitions[0].DisplayName);
-        Assert.Equal("Default", Assert.IsType<TextFieldDefinition>(detail.Data.FieldDefinitions[1]).DefaultValue);
-        Assert.Equal(7, detail.Data.Card.Fields["Points"].GetInt32());
-        Assert.Equal("Saved", detail.Data.Card.Fields["Ref"].GetString());
-        Assert.Equal(JsonValueKind.Null, detail.Data.Card.Fields["Empty"].ValueKind);
-        Assert.All(detail.Data.FieldDefinitions, field => Assert.True(detail.Data.Card.Fields.ContainsKey(field.FieldCode)));
+        Assert.Equal(new[] { "Points", "Ref", "Empty" }, detail.Data!.CustomFieldDefinitions.Select(field => field.Code));
+        Assert.Equal("Estimate", detail.Data.CustomFieldDefinitions[0].Name);
+        Assert.Equal("Default", Assert.IsType<TextCustomFieldDefinition>(detail.Data.CustomFieldDefinitions[1]).DefaultValue);
+        Assert.Equal(7, detail.Data.Card.CustomFieldValues["Points"].GetInt32());
+        Assert.Equal("Saved", detail.Data.Card.CustomFieldValues["Ref"].GetString());
+        Assert.Equal(JsonValueKind.Null, detail.Data.Card.CustomFieldValues["Empty"].ValueKind);
+        Assert.All(detail.Data.CustomFieldDefinitions, field => Assert.True(detail.Data.Card.CustomFieldValues.ContainsKey(field.Code)));
         var stored = await DbContextForAssert.ArchivedCards.SingleAsync();
         using var saved = JsonDocument.Parse(stored.SnapshotJson);
-        Assert.Equal("""{"Points":7,"Ref":"Saved","Empty":null}""", saved.RootElement.GetProperty("payload").GetProperty("fields").GetRawText());
+        Assert.Equal("""{"Points":7,"Ref":"Saved","Empty":null}""", saved.RootElement.GetProperty("payload").GetProperty("customFieldValues").GetRawText());
     }
 
     private const string CustomFieldArchiveSnapshot = """
@@ -1431,74 +1425,24 @@ public sealed class BoardImportServiceTests : TestBaseDb
         "boardId":1,"originalCardId":99,"boardColumnId":1,"originalColumnName":"Todo",
         "cardTypeId":1,"cardTypeName":"Story","title":"Archived","description":"","sortKey":"A",
         "tags":[],"tagNames":[],"createdAtUtc":"2026-10-04T12:00:00Z","updatedAtUtc":"2026-10-04T12:00:00Z",
-        "fieldDefinitions":[{"type":"integer","fieldCode":"Points","displayName":"Estimate","defaultValue":0,"max":10}],
-        "fields":{"Points":7}}}
+        "customFieldDefinitions":[{"dataType":"integer","code":"Points","name":"Estimate","defaultValue":0,"max":10}],
+        "customFieldValues":{"Points":7}}}
         """;
 
     private const string CustomFieldsBoardJson = """
         {
-          "name": "Fields",
+          "name": "CustomFieldValues",
           "description": "",
           "cardTypes": [
             {
               "id": 51,
               "name": "Story",
-              "isSystem": true,
-              "fields": [
-                {
-                  "type": "text",
-                  "fieldCode": "Ref",
-                  "displayName": "Reference",
-                  "nullable": true,
-                  "emoji": "🔖",
-                  "showOnCard": true,
-                  "maxLength": 25
-                },
-                {
-                  "type": "integer",
-                  "fieldCode": "Points",
-                  "displayName": "Estimate",
-                  "defaultValue": 0,
-                  "min": 0,
-                  "max": 10
-                },
-                {
-                  "type": "date",
-                  "fieldCode": "Due",
-                  "displayName": "Due date",
-                  "nullable": true
-                }
-              ]
+              "isSystem": true
             },
             {
               "id": 52,
               "name": "Custom",
-              "isSystem": false,
-              "fields": [
-                {
-                  "type": "date",
-                  "fieldCode": "Due",
-                  "displayName": "Due date",
-                  "nullable": true
-                },
-                {
-                  "type": "integer",
-                  "fieldCode": "Points",
-                  "displayName": "Estimate",
-                  "defaultValue": 0,
-                  "min": 0,
-                  "max": 10
-                },
-                {
-                  "type": "text",
-                  "fieldCode": "Ref",
-                  "displayName": "Reference",
-                  "nullable": true,
-                  "emoji": "🔖",
-                  "showOnCard": true,
-                  "maxLength": 25
-                }
-              ]
+              "isSystem": false
             }
           ],
           "tags": [],
@@ -1512,7 +1456,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
                   "description": "",
                   "cardTypeName": "Story",
                   "tagNames": [],
-                  "fields": {
+                  "customFieldValues": {
                     "Ref": null,
                     "Points": 0,
                     "Due": "2024-02-29"
@@ -1524,13 +1468,65 @@ public sealed class BoardImportServiceTests : TestBaseDb
                   "description": "",
                   "cardTypeName": "Custom",
                   "tagNames": [],
-                  "fields": {
+                  "customFieldValues": {
                     "Ref": null,
                     "Points": 0,
                     "Due": "2024-02-29"
                   }
                 }
               ]
+            }
+          ],
+          "customFields": [
+            {
+              "definition": {
+                "dataType": "text",
+                "code": "Ref",
+                "name": "Reference",
+                "nullable": true,
+                "emoji": "🔖",
+                "showOnCard": true,
+                "maxLength": 25
+              },
+              "appliesTo": {
+                "mode": "selected",
+                "cardTypeNames": [
+                  "Story",
+                  "Custom"
+                ]
+              }
+            },
+            {
+              "definition": {
+                "dataType": "integer",
+                "code": "Points",
+                "name": "Estimate",
+                "defaultValue": 0,
+                "min": 0,
+                "max": 10
+              },
+              "appliesTo": {
+                "mode": "selected",
+                "cardTypeNames": [
+                  "Story",
+                  "Custom"
+                ]
+              }
+            },
+            {
+              "definition": {
+                "dataType": "date",
+                "code": "Due",
+                "name": "Due date",
+                "nullable": true
+              },
+              "appliesTo": {
+                "mode": "selected",
+                "cardTypeNames": [
+                  "Story",
+                  "Custom"
+                ]
+              }
             }
           ]
         }
@@ -1544,7 +1540,7 @@ public sealed class BoardImportServiceTests : TestBaseDb
               "title": "Archived",
               "tagNames": [],
               "archivedAtUtc": "2026-10-04T12:00:00Z",
-              "snapshotJson": "{\"schema\":\"archived-card\",\"version\":1,\"capturedAtUtc\":\"2026-10-04T12:00:00Z\",\"payload\":{\"boardId\":1,\"originalCardId\":99,\"boardColumnId\":1,\"originalColumnName\":\"Todo\",\"cardTypeId\":51,\"cardTypeName\":\"Story\",\"title\":\"Archived\",\"description\":\"\",\"sortKey\":\"A\",\"tags\":[],\"tagNames\":[],\"createdAtUtc\":\"2026-10-04T12:00:00Z\",\"updatedAtUtc\":\"2026-10-04T12:00:00Z\",\"fieldDefinitions\":[{\"type\":\"integer\",\"fieldCode\":\" Points \",\"displayName\":\" Estimate \",\"defaultValue\":0},{\"type\":\"text\",\"fieldCode\":\"Ref\",\"displayName\":\"Reference\",\"nullable\":true,\"defaultValue\":\" Default \"},{\"type\":\"text\",\"fieldCode\":\"Empty\",\"displayName\":\"Empty\",\"nullable\":true}],\"fields\":{\"points\":7,\"ref\":\" Saved \",\"empty\":\"   \"}}}"
+              "snapshotJson": "{\"schema\":\"archived-card\",\"version\":1,\"capturedAtUtc\":\"2026-10-04T12:00:00Z\",\"payload\":{\"boardId\":1,\"originalCardId\":99,\"boardColumnId\":1,\"originalColumnName\":\"Todo\",\"cardTypeId\":51,\"cardTypeName\":\"Story\",\"title\":\"Archived\",\"description\":\"\",\"sortKey\":\"A\",\"tags\":[],\"tagNames\":[],\"createdAtUtc\":\"2026-10-04T12:00:00Z\",\"updatedAtUtc\":\"2026-10-04T12:00:00Z\",\"customFieldDefinitions\":[{\"dataType\":\"integer\",\"code\":\" Points \",\"name\":\" Estimate \",\"defaultValue\":0},{\"dataType\":\"text\",\"code\":\"Ref\",\"name\":\"Reference\",\"nullable\":true,\"defaultValue\":\" Default \"},{\"dataType\":\"text\",\"code\":\"Empty\",\"name\":\"Empty\",\"nullable\":true}],\"customFieldValues\":{\"points\":7,\"ref\":\" Saved \",\"empty\":\"   \"}}}"
             }
           ]
         }

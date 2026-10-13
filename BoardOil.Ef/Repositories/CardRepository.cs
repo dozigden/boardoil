@@ -11,7 +11,8 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
 {
     public Task<EntityBoardCard?> GetWithTagsAndBoardAsync(int boardId, int boardCardId) =>
         DbSet
-            .Include(x => x.CardType)
+            .AsSplitQuery()
+            .Include(x => x.CardType).ThenInclude(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Include(x => x.AssignedUser)
             .Include(x => x.Slick)
             .Include(x => x.CardTags)
@@ -31,7 +32,7 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
         return await DbSet
             .Where(x => x.BoardId == boardId && boardCardIds.Contains(x.BoardCardId))
             .AsSplitQuery()
-            .Include(x => x.CardType)
+            .Include(x => x.CardType).ThenInclude(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Include(x => x.AssignedUser)
             .Include(x => x.Slick)
             .Include(x => x.CardTags)
@@ -44,6 +45,8 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
 
     public async Task<IReadOnlyList<EntityBoardCard>> GetByBoardAndCardTypeAsync(int boardId, int cardTypeId) =>
         await DbSet
+            .AsSplitQuery()
+            .Include(x => x.CardType).ThenInclude(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Where(x => x.CardTypeId == cardTypeId && x.BoardColumn.BoardId == boardId)
             .ToListAsync();
 
@@ -54,7 +57,8 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
         await DbSet
             .Where(x => x.BoardColumnId == columnId)
             .OrderBy(x => x.SortKey)
-            .Include(x => x.CardType)
+            .AsSplitQuery()
+            .Include(x => x.CardType).ThenInclude(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Include(x => x.AssignedUser)
             .Include(x => x.Slick)
             .Include(x => x.CardTags)
@@ -71,7 +75,8 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
         return await DbSet
             .Where(x => columnIds.Contains(x.BoardColumnId))
             .OrderBy(x => x.SortKey)
-            .Include(x => x.CardType)
+            .AsSplitQuery()
+            .Include(x => x.CardType).ThenInclude(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Include(x => x.AssignedUser)
             .Include(x => x.Slick)
             .Include(x => x.CardTags)
@@ -125,7 +130,8 @@ public sealed class CardRepository(IAmbientDbContextLocator ambientDbContextLoca
             .Where(x => x.BoardColumn.BoardId == boardId)
             .OrderBy(x => x.BoardColumn.SortKey)
             .ThenBy(x => x.SortKey)
-            .Include(x => x.CardType)
+            .AsSplitQuery()
+            .Include(x => x.CardType).ThenInclude(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments)
             .Include(x => x.AssignedUser)
             .Include(x => x.Slick)
             .Include(x => x.CardTags)

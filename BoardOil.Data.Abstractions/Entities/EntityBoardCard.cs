@@ -11,7 +11,7 @@ public sealed class EntityBoardCard : ISupportCreatedAt, ISupportUpdatedAt
     public int? SlickId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string FieldValuesJson { get; set; } = "{}";
+    public string CustomFieldValuesJson { get; set; } = "{}";
     public int CompletedChecklistItemCount { get; set; }
     public int TotalChecklistItemCount { get; set; }
     public string? ExternalUrl { get; set; }

@@ -4,11 +4,11 @@ import { CardTypeEditorPage } from '../ui/CardTypeEditorPage';
 test('duplicate a default card type with all settings and backend name validation', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Duplicate type');
   const source = await api.configureDefaultFields(board.id, [
-    { type: 'text', fieldCode: 'Ref', displayName: 'Reference', emoji: '📎', nullable: true,
+    { dataType: 'text', code: 'Ref', name: 'Reference', emoji: '📎', nullable: true,
       showOnCard: true, defaultValue: 'Ready', minLength: 2, maxLength: 80 },
-    { type: 'integer', fieldCode: 'Points', displayName: 'Estimate', emoji: null, nullable: false,
+    { dataType: 'integer', code: 'Points', name: 'Estimate', emoji: null, nullable: false,
       showOnCard: false, defaultValue: 0, min: 0, max: 20 },
-    { type: 'date', fieldCode: 'Due', displayName: 'Due date', emoji: '📅', nullable: true,
+    { dataType: 'date', code: 'Due', name: 'Due date', emoji: '📅', nullable: true,
       showOnCard: true, defaultValue: '2026-10-07' }
   ], { emoji: '📦', styleName: 'presets', stylePropertiesJson: '{"presetIndex":2}' });
   const card = await api.createCard(board, 'Todo', 'Original card');
@@ -29,7 +29,7 @@ test('duplicate a default card type with all settings and backend name validatio
   const copy = types.find(type => type.name === 'Delivery')!;
   expect(copy.id).not.toBe(source.id);
   expect(copy).toMatchObject({ isSystem: false, emoji: source.emoji, styleName: source.styleName,
-    stylePropertiesJson: source.stylePropertiesJson, fields: source.fields });
+    stylePropertiesJson: source.stylePropertiesJson, customFields: source.customFields });
   expect(types.find(type => type.id === source.id)).toEqual(source);
   expect((await api.getCard(board.id, card.id)).cardTypeId).toBe(source.id);
 });
@@ -37,7 +37,7 @@ test('duplicate a default card type with all settings and backend name validatio
 test('duplicate drafts can be edited or cancelled independently of their source', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Independent duplicate');
   const source = await api.createCardType(board.id, 'Original', [
-    { type: 'text', fieldCode: 'Ref', displayName: 'Reference', emoji: null, nullable: true,
+    { dataType: 'text', code: 'Ref', name: 'Reference', emoji: null, nullable: true,
       showOnCard: false, defaultValue: 'Ready', minLength: null, maxLength: 80 }
   ]);
   const editor = new CardTypeEditorPage(page);
@@ -60,7 +60,7 @@ test('duplicate drafts can be edited or cancelled independently of their source'
   await page.getByLabel('Field code', { exact: true }).fill('CopiedRef');
   await editor.save(true);
   const types = await api.getCardTypes(board.id);
-  expect(types.find(type => type.name === 'Copy')?.fields).toEqual([{ ...source.fields[0], fieldCode: 'CopiedRef' }]);
+  expect(types.find(type => type.name === 'Copy')?.customFields).toEqual([{ ...source.customFields[0], code: 'CopiedRef' }]);
   expect(types.find(type => type.id === source.id)).toEqual(source);
 });
 
@@ -89,9 +89,9 @@ test('configure fields, reorder, reopen and cancel removal without changing save
   await editor.save(true);
 
   const saved = (await api.getCardTypes(board.id)).find(type => type.name === 'Delivery')!;
-  expect(saved.fields.map(field => field.fieldCode)).toEqual(['Reference', 'Due', 'Points']);
-  expect(saved.fields[0].emoji).toBeTruthy();
-  expect(saved.fields[2]).toMatchObject({ type: 'integer', nullable: false, defaultValue: 0, min: 0, max: 20 });
+  expect(saved.customFields.map(field => field.code)).toEqual(['Reference', 'Due', 'Points']);
+  expect(saved.customFields[0].emoji).toBeTruthy();
+  expect(saved.customFields[2]).toMatchObject({ dataType: 'integer', nullable: false, defaultValue: 0, min: 0, max: 20 });
   await editor.open(board.id, saved.id);
   await editor.expandField('Reference');
   await expect(page.getByLabel('Field code', { exact: true })).toHaveAttribute('readonly');
@@ -104,23 +104,23 @@ test('configure fields, reorder, reopen and cancel removal without changing save
   expect(await page.getByRole('dialog').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
   await editor.removeField('Reference');
   await editor.cancel();
-  expect((await api.getCardTypes(board.id)).find(type => type.id === saved.id)?.fields).toEqual(saved.fields);
+  expect((await api.getCardTypes(board.id)).find(type => type.id === saved.id)?.customFields).toEqual(saved.customFields);
 
   await editor.open(board.id, saved.id);
   await editor.expandField('Due date');
   await expect(page.getByLabel('Default value', { exact: true })).toHaveValue('2026-10-04');
   await editor.removeField('Due date');
   await editor.save();
-  expect((await api.getCardTypes(board.id)).find(type => type.id === saved.id)?.fields.map(field => field.fieldCode)).toEqual(['Reference', 'Points']);
+  expect((await api.getCardTypes(board.id)).find(type => type.id === saved.id)?.customFields.map(field => field.code)).toEqual(['Reference', 'Points']);
 });
 
 for (const openAnotherField of [false, true]) {
   test(`incomplete date defaults block saving after ${openAnotherField ? 'opening another field' : 'collapsing their field'}`, async ({ api, authenticatedPage: page }) => {
     const board = await api.createBoard('Incomplete date default');
     const type = await api.createCardType(board.id, 'Date defaults', [
-      { type: 'date', fieldCode: 'Due', displayName: 'Due', emoji: null, nullable: true,
+      { dataType: 'date', code: 'Due', name: 'Due', emoji: null, nullable: true,
         showOnCard: true, defaultValue: '2026-10-04' },
-      { type: 'text', fieldCode: 'Reference', displayName: 'Reference', emoji: null, nullable: true,
+      { dataType: 'text', code: 'Reference', name: 'Reference', emoji: null, nullable: true,
         showOnCard: false, defaultValue: null, minLength: null, maxLength: 250 }
     ]);
     const editor = new CardTypeEditorPage(page);
@@ -143,24 +143,24 @@ for (const openAnotherField of [false, true]) {
     await expect(date).toBeVisible();
     await expect(date).toBeFocused();
     expect(await date.evaluate((input: HTMLInputElement) => input.validity.badInput)).toBe(true);
-    expect((await api.getCardTypes(board.id)).find(item => item.id === type.id)!.fields[0].defaultValue).toBe('2026-10-04');
+    expect((await api.getCardTypes(board.id)).find(item => item.id === type.id)!.customFields[0].defaultValue).toBe('2026-10-04');
 
     const corrected = openAnotherField ? '' : '2026-12-25';
     await date.fill(corrected);
     await page.getByRole('button', { name: 'Due Date · Optional', exact: true }).click();
     await editor.save();
     const saved = (await api.getCardTypes(board.id)).find(item => item.id === type.id)!;
-    expect(saved.fields.find(field => field.fieldCode === 'Due')!.defaultValue).toBe(corrected || null);
+    expect(saved.customFields.find(field => field.code === 'Due')!.defaultValue).toBe(corrected || null);
   });
 }
 
 test('definition changes preview losses and preserve replaced values in comments', async ({ api, authenticatedPage: page }, testInfo) => {
   const board = await api.createBoard('Field impact');
   const type = await api.configureDefaultFields(board.id, [{
-    type: 'integer', fieldCode: 'Points', displayName: 'Estimate', emoji: null,
+    dataType: 'integer', code: 'Points', name: 'Estimate', emoji: null,
     nullable: false, showOnCard: true, defaultValue: 10, min: 0, max: 20
   }, {
-    type: 'date', fieldCode: 'Due', displayName: 'Due Date', emoji: null,
+    dataType: 'date', code: 'Due', name: 'Due Date', emoji: null,
     nullable: true, showOnCard: false, defaultValue: '2026-10-04'
   }]);
   const card = await api.createCard(board, 'Todo', 'Existing estimate');
@@ -172,7 +172,7 @@ test('definition changes preview losses and preserve replaced values in comments
   await page.getByLabel('Default value (required)', { exact: true }).fill('0');
   await page.getByLabel('Maximum value', { exact: true }).fill('5');
   await expect(warning).toContainText("Changes to 'Estimate' will replace values on 1 card.");
-  expect((await api.getCard(board.id, card.id)).fields.Points).toBe(10);
+  expect((await api.getCard(board.id, card.id)).customFieldValues.Points).toBe(10);
   await editor.removeField('Due Date');
   await expect(warning).toContainText("Deleted field 'Due Date' will be removed from 1 card.");
   await expect(warning).toContainText('Removed values will be saved to comments.');
@@ -183,7 +183,7 @@ test('definition changes preview losses and preserve replaced values in comments
   expect(await page.getByRole('dialog').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('field-change-warnings-mobile.png') });
   await editor.save();
-  expect((await api.getCard(board.id, card.id)).fields).toEqual({ Points: 0 });
+  expect((await api.getCard(board.id, card.id)).customFieldValues).toEqual({ Points: 0 });
   await page.goto(`/boards/${board.id}/card/${card.id}`);
   const comment = page.getByRole('article').filter({ hasText: 'Estimate: 10' });
   await expect(comment).toContainText('Due Date: 2026-10-04');
@@ -220,7 +220,7 @@ test('invalid numbers retain backend errors on untouched fields without a page b
   const response = await responsePromise;
   expect(response.status()).toBe(400);
   const payload = await response.json();
-  expect(payload.validationErrors['fields[0].defaultValue']).toEqual(['Whole number required']);
+  expect(payload.validationErrors['customFields[0].defaultValue']).toEqual(['Whole number required']);
   const points = page.getByRole('region', { name: 'Points Number · Optional', exact: true });
   await expect(points.getByLabel('Default value', { exact: true })).toHaveAccessibleDescription('Whole number required');
   await expect(points.getByLabel('Default value', { exact: true })).toHaveValue('1e-400');

@@ -1,7 +1,7 @@
 using BoardOil.Contracts.Card;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Slick;
-using BoardOil.Services.CardField;
+using BoardOil.Services.CustomField;
 using System.Text.Json;
 
 namespace BoardOil.Services.Card;
@@ -40,7 +40,7 @@ public static class CardMappingExtensions
             card.CompletedChecklistItemCount,
             card.TotalChecklistItemCount)
         {
-            Fields = CardFieldJsonCodec.DeserialiseValues(card.FieldValuesJson)
+            CustomFieldValues = CustomFieldJsonCodec.DeserialiseValues(card.CustomFieldValuesJson)
         };
 
     public static CardDto WithAssignedUserImageRelativePath(this CardDto card, string? assignedUserImageRelativePath) =>

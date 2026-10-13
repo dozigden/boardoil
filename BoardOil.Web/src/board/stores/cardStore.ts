@@ -12,7 +12,7 @@ import type {
   CardEditModel,
   CardTransferPolicy
 } from '../../shared/types/boardTypes';
-import type { CardFieldValues } from '../../shared/types/cardFieldTypes';
+import type { CustomFieldValues } from '../../shared/types/customFieldTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -224,8 +224,8 @@ export const useCardStore = defineStore('card', () => {
     return upsertCard(boardId, result.data) ? result : null;
   }
 
-  function previewTypeChange(boardId: number, cardId: number, cardTypeId: number, fields?: CardFieldValues) {
-    return api.previewCardTypeChange(boardId, cardId, cardTypeId, fields);
+  function previewTypeChange(boardId: number, cardId: number, cardTypeId: number, customFieldValues?: CustomFieldValues) {
+    return api.previewCardTypeChange(boardId, cardId, cardTypeId, customFieldValues);
   }
 
   async function saveCard(cardId: number, model: CardEditModel, options?: { inlineErrors?: boolean }) {
@@ -564,7 +564,7 @@ function hasValidationErrors(error: AppError) {
 function cloneCard(card: Card): Card {
   return {
     ...card,
-    fields: { ...card.fields },
+    customFieldValues: { ...card.customFieldValues },
     tags: card.tags.map(tag => ({ ...tag })),
     tagNames: [...card.tagNames]
   };

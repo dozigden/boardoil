@@ -88,7 +88,7 @@ describe('cardTypeStore', () => {
   it('retains save validation details across catalogue refreshes and clears them on retry', async () => {
     const store = useCardTypeStore();
     await store.loadCardTypes(1);
-    const error: AppError = { kind: 'api', message: 'Invalid fields', validationErrors: { 'fields[0].defaultValue': ['A default is required.'] } };
+    const error: AppError = { kind: 'api', message: 'Invalid fields', validationErrors: { 'customFields[0].defaultValue': ['A default is required.'] } };
     api.updateCardType.mockResolvedValueOnce(err(error));
     const model = { name: 'Story', emoji: null, styleName: 'auto' as const, stylePropertiesJson: '{}' };
     expect(await store.updateCardType(10, model, 1)).toBeNull();
@@ -194,7 +194,7 @@ function makeCardType(id: number, name: string) {
     styleName: 'auto' as const,
     stylePropertiesJson: '{}',
     emoji: null,
-    fields: [],
+    customFields: [],
     isSystem: false,
     createdAtUtc: '2026-05-16T00:00:00Z',
     updatedAtUtc: '2026-05-16T00:00:00Z'

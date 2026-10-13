@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.CardType;
@@ -11,7 +12,7 @@ using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
 using BoardOil.Services.Style;
 using BoardOil.Services.Tag;
-using BoardOil.Services.CardField;
+using BoardOil.Services.CustomField;
 
 namespace BoardOil.Services.CardType;
 
@@ -48,7 +49,7 @@ public sealed class CardTypeService(
 
     public async Task<ApiResult<CardTypeDto>> CreateCardTypeAsync(int boardId, CreateCardTypeRequest request, int actorUserId)
     {
-        using var scope = _scopeFactory.Create();
+        using var scope = _scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         if (boardRepository.Get(boardId) is null)
         {
@@ -99,12 +100,7 @@ public sealed class CardTypeService(
             return ApiErrors.ValidationFailed(validationErrors);
         }
 
-        var fields = CardFieldRules.NormaliseDefinitions(request.Fields ?? []);
-        if (!fields.IsValid)
-        {
-            return ApiErrors.ValidationFailed(fields.Errors);
-        }
-
+        var board = boardRepository.Get(boardId)!;
         var entity = new EntityCardType
         {
             BoardId = boardId,
@@ -112,11 +108,26 @@ public sealed class CardTypeService(
             Emoji = emojiValidation.CanonicalEmoji,
             StyleName = styleResolution.StyleName,
             StylePropertiesJson = styleResolution.StylePropertiesJson,
-            FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(fields.Value!),
+            Board = board,
             IsSystem = false,
         };
         cardTypeRepository.Add(entity);
 
+        if (request.CopyFieldAssignmentsFromCardTypeId is int copyFromId)
+        {
+            if (!await cardTypeRepository.Query().AnyAsync(type => type.BoardId == boardId && type.Id == copyFromId))
+            {
+                return ApiErrors.ValidationFailed([new("copyFieldAssignmentsFromCardTypeId", "Card type does not exist in board")]);
+            }
+            foreach (var field in board.CustomFields.Where(field => !field.AppliesToAllCardTypes
+                && field.CardTypeAssignments.Any(assignment => assignment.CardTypeId == copyFromId)))
+            {
+                field.CardTypeAssignments.Add(new EntityCustomFieldCardType
+                {
+                    BoardId = boardId, CustomField = field, CardType = entity
+                });
+            }
+        }
         await scope.SaveChangesAsync();
         await _boardEvents.ResyncRequestedAsync(boardId);
 
@@ -183,24 +194,6 @@ public sealed class CardTypeService(
             return ApiErrors.ValidationFailed(validationErrors);
         }
 
-        if (request.Fields is not null)
-        {
-            var fields = CardFieldRules.NormaliseDefinitions(request.Fields);
-            if (!fields.IsValid)
-            {
-                return ApiErrors.ValidationFailed(fields.Errors);
-            }
-            var source = CardFieldJsonCodec.DeserialiseDefinitions(existing.FieldDefinitionsJson);
-            var cards = await cardRepository.GetByBoardAndCardTypeAsync(boardId, existing.Id);
-            var changes = CardTypeFieldChanges.Plan(cards, source, fields.Value!);
-            if (!changes.IsValid)
-            {
-                return ApiErrors.ValidationFailed(changes.Errors);
-            }
-            CardTypeFieldChanges.Apply(changes.Value!, existing.Name, nameValidation.CanonicalName);
-            existing.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(fields.Value!);
-        }
-
         existing.Name = nameValidation.CanonicalName;
         existing.Emoji = emojiValidation.CanonicalEmoji;
         existing.StyleName = styleResolution.StyleName;
@@ -210,41 +203,6 @@ public sealed class CardTypeService(
         await _boardEvents.ResyncRequestedAsync(boardId);
 
         return existing.ToCardTypeDto();
-    }
-
-    public async Task<ApiResult<CardTypeFieldsPreviewDto>> PreviewFieldsAsync(
-        int boardId, int cardTypeId, PreviewCardTypeFieldsRequest request, int actorUserId)
-    {
-        using var scope = _scopeFactory.CreateReadOnly();
-        var permitted = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageSettings);
-        if (!permitted)
-        {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
-        }
-        var existing = await cardTypeRepository.GetByIdInBoardAsync(boardId, cardTypeId);
-        if (existing is null) { return ApiErrors.NotFound("Card type not found."); }
-        if (request.Fields is null)
-        {
-            return ApiErrors.ValidationFailed([new ValidationError("fields", "Required")]);
-        }
-        var fields = CardFieldRules.NormaliseDefinitions(request.Fields);
-        if (!fields.IsValid) { return ApiErrors.ValidationFailed(fields.Errors); }
-
-        var source = CardFieldJsonCodec.DeserialiseDefinitions(existing.FieldDefinitionsJson);
-        var cards = await cardRepository.GetByBoardAndCardTypeAsync(boardId, cardTypeId);
-        var plan = CardTypeFieldChanges.Plan(cards, source, fields.Value!);
-        if (!plan.IsValid) { return ApiErrors.ValidationFailed(plan.Errors); }
-
-        // Display names are unique in the source definitions; losses retain those original names.
-        var counts = plan.Value!.SelectMany(change => change.LostValues)
-            .GroupBy(loss => loss.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
-        var destinationCodes = fields.Value!.Select(field => field.FieldCode).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var impacts = source.Where(field => counts.ContainsKey(field.DisplayName))
-            .Select(field => new CardTypeFieldImpactDto(field.FieldCode, field.DisplayName,
-                destinationCodes.Contains(field.FieldCode) ? "replaced" : "deleted", counts[field.DisplayName]))
-            .ToArray();
-        return new CardTypeFieldsPreviewDto(impacts);
     }
 
     public async Task<ApiResult> SetDefaultCardTypeAsync(int boardId, int cardTypeId, int actorUserId)
@@ -321,20 +279,28 @@ public sealed class CardTypeService(
         }
 
         var cardsToReassign = await cardRepository.GetByBoardAndCardTypeAsync(boardId, existing.Id);
-        var changes = CardTypeFieldChanges.Plan(cardsToReassign,
-            CardFieldJsonCodec.DeserialiseDefinitions(existing.FieldDefinitionsJson),
-            CardFieldJsonCodec.DeserialiseDefinitions(systemCardType.FieldDefinitionsJson), changingType: true);
+        var changes = CustomFieldChanges.Plan(cardsToReassign,
+            CustomFieldCatalogue.Resolve(existing),
+            CustomFieldCatalogue.Resolve(systemCardType), changingType: true);
         if (!changes.IsValid)
         {
             return ApiErrors.ValidationFailed(changes.Errors);
         }
-        CardTypeFieldChanges.Apply(changes.Value!, existing.Name, systemCardType.Name, "card type change");
+        CustomFieldChanges.Apply(changes.Value!, existing.Name, systemCardType.Name, "card type change");
         foreach (var card in cardsToReassign)
         {
             card.CardTypeId = systemCardType.Id;
             card.CardType = systemCardType;
         }
 
+        var board = boardRepository.Get(boardId)!;
+        foreach (var field in board.CustomFields)
+        {
+            foreach (var assignment in field.CardTypeAssignments.Where(assignment => assignment.CardTypeId == cardTypeId).ToArray())
+            {
+                field.CardTypeAssignments.Remove(assignment);
+            }
+        }
         cardTypeRepository.Remove(existing);
         await scope.SaveChangesAsync();
         await _boardEvents.ResyncRequestedAsync(boardId);

@@ -1,4 +1,4 @@
-import type { CardFieldDefinitionInput, CardTypeFieldsPreview, CardFieldValues, CardTypeChangePreview } from '../types/cardFieldTypes';
+import type { CustomFieldDefinitionInput, CardTypeFieldsPreview, CustomFieldValues, CardTypeChangePreview } from '../types/customFieldTypes';
 import { uploadFormData } from './http';
 import type { BoardAttachmentInventory, BoardAttachmentInventoryQuery, CardAttachment, CardAttachmentImageCandidate, CardAttachmentList } from '../types/attachmentTypes';
 import type {
@@ -249,8 +249,8 @@ function createHttpBoardApi() {
     return deleteJson(`/api/boards/${boardId}/attachments/${attachmentId}`);
   }
 
-  async function previewCardTypeChange(boardId: number, cardId: number, cardTypeId: number, fields?: CardFieldValues) {
-    return postData<CardTypeChangePreview>(`/api/boards/${boardId}/cards/${cardId}/type-change/preview`, { cardTypeId, fields });
+  async function previewCardTypeChange(boardId: number, cardId: number, cardTypeId: number, customFieldValues?: CustomFieldValues) {
+    return postData<CardTypeChangePreview>(`/api/boards/${boardId}/cards/${cardId}/type-change/preview`, { cardTypeId, customFieldValues });
   }
 
   async function saveCard(
@@ -454,8 +454,8 @@ function createHttpBoardApi() {
     return putData<CardType>(`/api/boards/${boardId}/card-types/${cardTypeId}`, model);
   }
 
-  async function previewCardTypeFields(boardId: number, cardTypeId: number, fields: CardFieldDefinitionInput[]) {
-    return postData<CardTypeFieldsPreview>(`/api/boards/${boardId}/card-types/${cardTypeId}/fields/preview`, { fields });
+  async function previewCardTypeFields(boardId: number, cardTypeId: number, customFields: CustomFieldDefinitionInput[]) {
+    return postData<CardTypeFieldsPreview>(`/api/boards/${boardId}/card-types/${cardTypeId}/fields/preview`, { customFields });
   }
 
   async function setDefaultCardType(boardId: number, cardTypeId: number): Promise<Result<void, AppError>> {

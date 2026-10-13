@@ -1,5 +1,5 @@
 using System.Text.Json;
-using BoardOil.Contracts.CardField;
+using BoardOil.Contracts.CustomField;
 
 namespace BoardOil.Contracts.Board;
 
@@ -21,7 +21,13 @@ public sealed record BoardPackageBoardDto(
     IReadOnlyList<BoardPackageColumnDto> Columns,
     IReadOnlyList<BoardPackageSlickDto>? Slicks = null,
     bool SlickCohesionModeEnabled = true,
-    bool CardAttachmentThumbnailsEnabled = true);
+    bool CardAttachmentThumbnailsEnabled = true)
+{
+    public IReadOnlyList<BoardPackageCustomField> CustomFields { get; init; } = [];
+}
+
+public sealed record BoardPackageCustomFieldApplicability(string Mode, IReadOnlyList<string>? CardTypeNames = null);
+public sealed record BoardPackageCustomField(CustomFieldDefinition Definition, BoardPackageCustomFieldApplicability AppliesTo);
 
 public sealed record BoardPackageCardTypeDto(
     string Name,
@@ -29,10 +35,7 @@ public sealed record BoardPackageCardTypeDto(
     bool IsSystem,
     string? StyleName = null,
     string? StylePropertiesJson = null,
-    int? Id = null)
-{
-    public IReadOnlyList<CardFieldDefinition> Fields { get; init; } = [];
-}
+    int? Id = null);
 
 public sealed record BoardPackageTagDto(
     string Name,
@@ -57,7 +60,7 @@ public sealed record BoardPackageCardDto(
     DateTime? CardCreatedUtc = null,
     DateTime? CardUpdatedUtc = null)
 {
-    public IReadOnlyDictionary<string, JsonElement> Fields { get; init; } = new Dictionary<string, JsonElement>();
+    public IReadOnlyDictionary<string, JsonElement> CustomFieldValues { get; init; } = new Dictionary<string, JsonElement>();
 }
 
 public sealed record BoardPackageSlickDto(

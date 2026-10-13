@@ -1,6 +1,6 @@
 using BoardOil.Contracts.Card;
-using BoardOil.Contracts.CardField;
-using BoardOil.Services.CardField;
+using BoardOil.Contracts.CustomField;
+using BoardOil.Services.CustomField;
 using BoardOil.Data.Abstractions.Entities;
 using System.Text.Json;
 
@@ -54,8 +54,8 @@ public static class ArchivedCardSnapshotSerialiser
             card.AssignedUser?.Email,
             card.CompletedChecklistItemCount,
             card.TotalChecklistItemCount,
-            CardFieldJsonCodec.DeserialiseDefinitions(card.CardType.FieldDefinitionsJson),
-            CardFieldJsonCodec.DeserialiseValues(card.FieldValuesJson));
+            CustomFieldCatalogue.Resolve(card.CardType),
+            CustomFieldJsonCodec.DeserialiseValues(card.CustomFieldValuesJson));
 
         var envelope = new ArchivedCardSnapshotEnvelopeV1(
             SchemaName,
@@ -196,7 +196,7 @@ public static class ArchivedCardSnapshotSerialiser
             CompletedChecklistItemCount: payload.CompletedChecklistItemCount,
             TotalChecklistItemCount: payload.TotalChecklistItemCount)
         {
-            Fields = payload.Fields ?? new Dictionary<string, JsonElement>()
+            CustomFieldValues = payload.CustomFieldValues ?? new Dictionary<string, JsonElement>()
         };
 
         snapshot = new ArchivedCardSnapshotCurrentDto(
@@ -204,7 +204,7 @@ public static class ArchivedCardSnapshotSerialiser
             payload.Comments?.ToList() ?? [],
             payload.OriginalColumnName,
             payload.AssignedUserEmail,
-            payload.FieldDefinitions ?? []);
+            payload.CustomFieldDefinitions ?? []);
         return true;
     }
 
@@ -239,8 +239,8 @@ public sealed record ArchivedCardSnapshotV1Payload(
     string? AssignedUserEmail = null,
     int CompletedChecklistItemCount = 0,
     int TotalChecklistItemCount = 0,
-    IReadOnlyList<CardFieldDefinition>? FieldDefinitions = null,
-    IReadOnlyDictionary<string, JsonElement>? Fields = null);
+    IReadOnlyList<CustomFieldDefinition>? CustomFieldDefinitions = null,
+    IReadOnlyDictionary<string, JsonElement>? CustomFieldValues = null);
 
 public sealed record ArchivedCardSnapshotCommentV1Payload(
     string Text,
@@ -261,4 +261,4 @@ public sealed record ArchivedCardSnapshotCurrentDto(
     IReadOnlyList<ArchivedCardSnapshotCommentV1Payload> Comments,
     string? OriginalColumnName,
     string? AssignedUserEmail,
-    IReadOnlyList<CardFieldDefinition> FieldDefinitions);
+    IReadOnlyList<CustomFieldDefinition> CustomFieldDefinitions);

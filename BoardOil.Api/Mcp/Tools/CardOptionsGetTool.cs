@@ -100,7 +100,7 @@ public sealed class CardOptionsGetTool(
                 cardType.Id,
                 cardType.Name,
                 cardType.Emoji,
-                cardType.Fields)).ToArray(),
+                cardType.CustomFields)).ToArray(),
             result.Data.DefaultCardTypeId,
             tags,
             slicks));

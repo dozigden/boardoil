@@ -3,7 +3,7 @@ using BoardOil.Api.Extensions;
 using BoardOil.Abstractions.CardType;
 using BoardOil.Contracts.CardType;
 using BoardOil.Services.Auth;
-using BoardOil.Services.CardField;
+using BoardOil.Services.CustomField;
 using BoardOil.Contracts.Common;
 
 namespace BoardOil.Api.Endpoints;
@@ -21,28 +21,11 @@ public static class CardTypeEndpoints
         cardTypeEndpoints.MapGet(string.Empty, async (int boardId, ICardTypeService cardTypeService, HttpContext httpContext) =>
             (await cardTypeService.GetCardTypesAsync(boardId, httpContext.GetActorUserId())).ToHttpResult());
 
-        cardTypeEndpoints.MapPost(string.Empty, async (int boardId, CardTypeInput input, ICardTypeService service, HttpContext context) =>
-        {
-            var fields = CardFieldDefinitionInputs.Parse(input.Fields);
-            if (!fields.IsValid) { return ApiErrors.ValidationFailed(fields.Errors).ToHttpResult(); }
-            var request = new CreateCardTypeRequest(input.Name, input.Emoji, input.StyleName, input.StylePropertiesJson, fields.Value);
-            return (await service.CreateCardTypeAsync(boardId, request, context.GetActorUserId())).ToHttpResult();
-        }).Accepts<CreateCardTypeRequest>("application/json");
+        cardTypeEndpoints.MapPost(string.Empty, async (int boardId, CreateCardTypeRequest request, ICardTypeService service, HttpContext context) =>
+            (await service.CreateCardTypeAsync(boardId, request, context.GetActorUserId())).ToHttpResult());
 
-        cardTypeEndpoints.MapPut("/{cardTypeId:int}", async (int boardId, int cardTypeId, CardTypeInput input, ICardTypeService service, HttpContext context) =>
-        {
-            var fields = CardFieldDefinitionInputs.Parse(input.Fields);
-            if (!fields.IsValid) { return ApiErrors.ValidationFailed(fields.Errors).ToHttpResult(); }
-            var request = new UpdateCardTypeRequest(input.Name, input.Emoji, input.StyleName, input.StylePropertiesJson, fields.Value);
-            return (await service.UpdateCardTypeAsync(boardId, cardTypeId, request, context.GetActorUserId())).ToHttpResult();
-        }).Accepts<UpdateCardTypeRequest>("application/json");
-
-        cardTypeEndpoints.MapPost("/{cardTypeId:int}/fields/preview", async (int boardId, int cardTypeId, PreviewCardTypeFieldsInput input, ICardTypeService service, HttpContext context) =>
-        {
-            var fields = CardFieldDefinitionInputs.Parse(input.Fields);
-            if (!fields.IsValid) { return ApiErrors.ValidationFailed(fields.Errors).ToHttpResult(); }
-            return (await service.PreviewFieldsAsync(boardId, cardTypeId, new(fields.Value), context.GetActorUserId())).ToHttpResult();
-        }).Accepts<PreviewCardTypeFieldsRequest>("application/json");
+        cardTypeEndpoints.MapPut("/{cardTypeId:int}", async (int boardId, int cardTypeId, UpdateCardTypeRequest request, ICardTypeService service, HttpContext context) =>
+            (await service.UpdateCardTypeAsync(boardId, cardTypeId, request, context.GetActorUserId())).ToHttpResult());
 
         cardTypeEndpoints.MapPatch("/{cardTypeId:int}/default", async (int boardId, int cardTypeId, ICardTypeService cardTypeService, HttpContext httpContext) =>
             (await cardTypeService.SetDefaultCardTypeAsync(boardId, cardTypeId, httpContext.GetActorUserId())).ToHttpResult());

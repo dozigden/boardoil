@@ -28,46 +28,46 @@
             >
               <ChevronDown :size="16" class="field-chevron" :class="{ 'field-chevron--open': expandedKey === field.key }" aria-hidden="true" />
               <span class="field-heading-copy">
-                <span class="entity-row-title">{{ field.emoji }} {{ field.displayName.trim() || 'New field' }}</span>
-                <span class="field-note">{{ typeLabels[field.type] }} · {{ field.required ? 'Required' : 'Optional' }}</span>
+                <span class="entity-row-title">{{ field.emoji }} {{ field.name.trim() || 'New field' }}</span>
+                <span class="field-note">{{ typeLabels[field.dataType] }} · {{ field.required ? 'Required' : 'Optional' }}</span>
                 <span v-if="expandedKey !== field.key && fieldHasErrors(index)" class="error field-inline-error field-error-indicator"><CircleAlert :size="12" aria-hidden="true" /> Validation errors</span>
               </span>
             </button>
             <div class="entity-row-actions">
-              <button type="button" class="btn btn--secondary entity-row-action-icon" :disabled="busy || index === 0" :aria-label="`Move ${field.displayName || 'field'} up`" title="Move up" @click="moveField(index, -1)"><ArrowUp :size="16" aria-hidden="true" /></button>
-              <button type="button" class="btn btn--secondary entity-row-action-icon" :disabled="busy || index === model.length - 1" :aria-label="`Move ${field.displayName || 'field'} down`" title="Move down" @click="moveField(index, 1)"><ArrowDown :size="16" aria-hidden="true" /></button>
-              <button type="button" class="btn btn--danger entity-row-action-icon" :disabled="busy" :aria-label="`Remove ${field.displayName || 'field'}`" title="Remove field" @click="removeField(index)"><Trash2 :size="16" aria-hidden="true" /></button>
+              <button type="button" class="btn btn--secondary entity-row-action-icon" :disabled="busy || index === 0" :aria-label="`Move ${field.name || 'field'} up`" title="Move up" @click="moveField(index, -1)"><ArrowUp :size="16" aria-hidden="true" /></button>
+              <button type="button" class="btn btn--secondary entity-row-action-icon" :disabled="busy || index === model.length - 1" :aria-label="`Move ${field.name || 'field'} down`" title="Move down" @click="moveField(index, 1)"><ArrowDown :size="16" aria-hidden="true" /></button>
+              <button type="button" class="btn btn--danger entity-row-action-icon" :disabled="busy" :aria-label="`Remove ${field.name || 'field'}`" title="Remove field" @click="removeField(index)"><Trash2 :size="16" aria-hidden="true" /></button>
             </div>
           </div>
           <Transition name="field-expand" @before-enter="onFieldPanelOpening" @after-enter="focusRevealedField(field.key)" @before-leave="onFieldPanelClosing">
-            <div v-if="expandedKey === field.key || (field.type === 'date' && incompleteDateKeys.has(field.key))" v-show="expandedKey === field.key" :id="`field-panel-${field.key}`" role="region" :aria-labelledby="`field-heading-${field.key}`" class="field-panel-expansion">
+            <div v-if="expandedKey === field.key || (field.dataType === 'date' && incompleteDateKeys.has(field.key))" v-show="expandedKey === field.key" :id="`field-panel-${field.key}`" role="region" :aria-labelledby="`field-heading-${field.key}`" class="field-panel-expansion">
               <div class="field-panel-clip">
                 <div class="field-panel">
                   <div class="field-pair">
                     <div class="field-control">
                       <label>
                         Display name
-                        <input :value="field.displayName" @input="(event: Event) => onDisplayNameInput(field, event)" maxlength="40" :disabled="busy" autocomplete="off" :aria-invalid="hasError(index, 'displayName')" :aria-describedby="hasError(index, 'displayName') ? fieldErrorId(field, 'displayName') : undefined" />
+                        <input :value="field.name" @input="(event: Event) => onNameInput(field, event)" maxlength="40" :disabled="busy" autocomplete="off" :aria-invalid="hasError(index, 'name')" :aria-describedby="hasError(index, 'name') ? fieldErrorId(field, 'name') : undefined" />
                       </label>
-                      <small v-if="hasError(index, 'displayName')" :id="fieldErrorId(field, 'displayName')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, 'displayName') }}</span></small>
+                      <small v-if="hasError(index, 'name')" :id="fieldErrorId(field, 'name')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, 'name') }}</span></small>
                     </div>
                     <div class="field-control">
                       <label>
                         Field code
-                        <input v-model="field.fieldCode" @input="markFieldCodeEdited(field)" maxlength="40" :readonly="field.persisted" :disabled="busy" autocomplete="off" spellcheck="false" :aria-invalid="hasError(index, 'fieldCode')" :aria-describedby="hasError(index, 'fieldCode') ? fieldErrorId(field, 'fieldCode') : undefined" />
+                        <input v-model="field.code" @input="markFieldCodeEdited(field)" maxlength="40" :readonly="field.persisted" :disabled="busy" autocomplete="off" spellcheck="false" :aria-invalid="hasError(index, 'code')" :aria-describedby="hasError(index, 'code') ? fieldErrorId(field, 'code') : undefined" />
                       </label>
-                      <small v-if="hasError(index, 'fieldCode')" :id="fieldErrorId(field, 'fieldCode')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, 'fieldCode') }}</span></small>
+                      <small v-if="hasError(index, 'code')" :id="fieldErrorId(field, 'code')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, 'code') }}</span></small>
                     </div>
                   </div>
                   <div class="field-pair">
                     <div class="field-control">
                       <label>
                         Type
-                        <select v-model="field.type" :disabled="busy" :aria-invalid="hasError(index, 'type')" @change="onFieldTypeChange(field)" :aria-describedby="hasError(index, 'type') ? fieldErrorId(field, 'type') : undefined">
+                        <select v-model="field.dataType" :disabled="busy" :aria-invalid="hasError(index, 'dataType')" @change="onFieldTypeChange(field)" :aria-describedby="hasError(index, 'dataType') ? fieldErrorId(field, 'dataType') : undefined">
                           <option value="text">Text</option><option value="integer">Number</option><option value="date">Date</option>
                         </select>
                       </label>
-                      <small v-if="hasError(index, 'type')" :id="fieldErrorId(field, 'type')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, 'type') }}</span></small>
+                      <small v-if="hasError(index, 'dataType')" :id="fieldErrorId(field, 'dataType')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, 'dataType') }}</span></small>
                     </div>
                     <div class="field-control">
                       <label class="field-emoji">
@@ -84,28 +84,28 @@
                   <div class="field-control">
                     <label>
                       Default value{{ field.required ? ' (required)' : '' }}
-                      <input v-if="field.type === 'date'" :value="field.defaultValue" type="date" :disabled="busy" :aria-invalid="hasError(index, 'defaultValue') || incompleteDateKeys.has(field.key)" :aria-describedby="hasError(index, 'defaultValue') ? fieldErrorId(field, 'defaultValue') : undefined" @input="(event: Event) => onDateDefaultInput(field, event)" @invalid="(event: Event) => onDateDefaultInvalid(field.key, event)" />
-                      <input v-else v-model="field.defaultValue" type="text" :inputmode="field.type === 'integer' ? 'numeric' : 'text'" :maxlength="field.type === 'text' ? 250 : undefined" :disabled="busy" autocomplete="off" :aria-invalid="hasError(index, 'defaultValue')" :aria-describedby="hasError(index, 'defaultValue') ? fieldErrorId(field, 'defaultValue') : undefined" />
+                      <input v-if="field.dataType === 'date'" :value="field.defaultValue" type="date" :disabled="busy" :aria-invalid="hasError(index, 'defaultValue') || incompleteDateKeys.has(field.key)" :aria-describedby="hasError(index, 'defaultValue') ? fieldErrorId(field, 'defaultValue') : undefined" @input="(event: Event) => onDateDefaultInput(field, event)" @invalid="(event: Event) => onDateDefaultInvalid(field.key, event)" />
+                      <input v-else v-model="field.defaultValue" type="text" :inputmode="field.dataType === 'integer' ? 'numeric' : 'text'" :maxlength="field.dataType === 'text' ? 250 : undefined" :disabled="busy" autocomplete="off" :aria-invalid="hasError(index, 'defaultValue')" :aria-describedby="hasError(index, 'defaultValue') ? fieldErrorId(field, 'defaultValue') : undefined" />
                     </label>
                     <small v-if="hasError(index, 'defaultValue')" :id="fieldErrorId(field, 'defaultValue')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, 'defaultValue') }}</span></small>
                   </div>
-                  <div v-if="field.type !== 'date'" class="field-pair">
+                  <div v-if="field.dataType !== 'date'" class="field-pair">
                     <div class="field-control">
                       <label>
-                        {{ field.type === 'text' ? 'Minimum length' : 'Minimum value' }}
-                        <input v-model="field.minimum" type="text" inputmode="numeric" :disabled="busy" placeholder="No minimum" :aria-invalid="hasError(index, field.type === 'text' ? 'minLength' : 'min')" :aria-describedby="hasError(index, field.type === 'text' ? 'minLength' : 'min') ? fieldErrorId(field, field.type === 'text' ? 'minLength' : 'min') : undefined" />
+                        {{ field.dataType === 'text' ? 'Minimum length' : 'Minimum value' }}
+                        <input v-model="field.minimum" type="text" inputmode="numeric" :disabled="busy" placeholder="No minimum" :aria-invalid="hasError(index, field.dataType === 'text' ? 'minLength' : 'min')" :aria-describedby="hasError(index, field.dataType === 'text' ? 'minLength' : 'min') ? fieldErrorId(field, field.dataType === 'text' ? 'minLength' : 'min') : undefined" />
                       </label>
-                      <small v-if="hasError(index, field.type === 'text' ? 'minLength' : 'min')" :id="fieldErrorId(field, field.type === 'text' ? 'minLength' : 'min')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, field.type === 'text' ? 'minLength' : 'min') }}</span></small>
+                      <small v-if="hasError(index, field.dataType === 'text' ? 'minLength' : 'min')" :id="fieldErrorId(field, field.dataType === 'text' ? 'minLength' : 'min')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, field.dataType === 'text' ? 'minLength' : 'min') }}</span></small>
                     </div>
                     <div class="field-control">
                       <label>
-                        {{ field.type === 'text' ? 'Maximum length' : 'Maximum value' }}
-                        <input v-model="field.maximum" type="text" inputmode="numeric" :disabled="busy" :placeholder="field.type === 'text' ? '250' : 'No maximum'" :aria-invalid="hasError(index, field.type === 'text' ? 'maxLength' : 'max')" :aria-describedby="hasError(index, field.type === 'text' ? 'maxLength' : 'max') ? fieldErrorId(field, field.type === 'text' ? 'maxLength' : 'max') : undefined" />
+                        {{ field.dataType === 'text' ? 'Maximum length' : 'Maximum value' }}
+                        <input v-model="field.maximum" type="text" inputmode="numeric" :disabled="busy" :placeholder="field.dataType === 'text' ? '250' : 'No maximum'" :aria-invalid="hasError(index, field.dataType === 'text' ? 'maxLength' : 'max')" :aria-describedby="hasError(index, field.dataType === 'text' ? 'maxLength' : 'max') ? fieldErrorId(field, field.dataType === 'text' ? 'maxLength' : 'max') : undefined" />
                       </label>
-                      <small v-if="hasError(index, field.type === 'text' ? 'maxLength' : 'max')" :id="fieldErrorId(field, field.type === 'text' ? 'maxLength' : 'max')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, field.type === 'text' ? 'maxLength' : 'max') }}</span></small>
+                      <small v-if="hasError(index, field.dataType === 'text' ? 'maxLength' : 'max')" :id="fieldErrorId(field, field.dataType === 'text' ? 'maxLength' : 'max')" class="error field-inline-error"><CircleAlert :size="12" aria-hidden="true" /><span>{{ fieldError(index, field.dataType === 'text' ? 'maxLength' : 'max') }}</span></small>
                     </div>
                   </div>
-                  <p v-if="field.type === 'text'" class="field-note">Single line, up to 250 characters. Blank text counts as empty.</p>
+                  <p v-if="field.dataType === 'text'" class="field-note">Single line, up to 250 characters. Blank text counts as empty.</p>
                 </div>
               </div>
             </div>
@@ -120,9 +120,9 @@
 import { ArrowDown, ArrowUp, ChevronDown, CircleAlert, Plus, Trash2 } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
-import { createCardFieldDraft, describeFieldError, fieldErrorIndex, isInlineFieldError, resetFieldTypeOptions, updateFieldDisplayName, type CardFieldDraft } from '../utils/cardFieldDraft';
+import { createCustomFieldDraft, describeFieldError, fieldErrorIndex, isInlineFieldError, resetFieldTypeOptions, updateFieldName, type CustomFieldDraft } from '../utils/customFieldDraft';
 
-const model = defineModel<CardFieldDraft[]>({ required: true });
+const model = defineModel<CustomFieldDraft[]>({ required: true });
 const props = defineProps<{
   busy: boolean;
   errors: Record<string, string[]>;
@@ -135,19 +135,19 @@ const pendingDateValidityKey = ref<string | null>(null);
 const addButton = ref<HTMLButtonElement | null>(null);
 const errorSummary = ref<HTMLElement | null>(null);
 const summaryErrors = computed(() => Object.fromEntries(Object.entries(props.errors)
-  .filter(([path]) => (path.startsWith('fields') || path.startsWith('cards[')) && !isInlineFieldError(path))));
+  .filter(([path]) => (path.startsWith('customFieldValues') || path.startsWith('cards[')) && !isInlineFieldError(path))));
 const typeLabels = { text: 'Text', integer: 'Number', date: 'Date' };
 
 
-function onDisplayNameInput(field: CardFieldDraft, event: Event) {
-  updateFieldDisplayName(field, (event.target as HTMLInputElement).value);
+function onNameInput(field: CustomFieldDraft, event: Event) {
+  updateFieldName(field, (event.target as HTMLInputElement).value);
 }
 
-function markFieldCodeEdited(field: CardFieldDraft) {
-  field.fieldCodeEdited = true;
+function markFieldCodeEdited(field: CustomFieldDraft) {
+  field.codeEdited = true;
 }
 
-function onDateDefaultInput(field: CardFieldDraft, event: Event) {
+function onDateDefaultInput(field: CustomFieldDraft, event: Event) {
   const input = event.target as HTMLInputElement;
   field.defaultValue = input.value;
   if (input.validity.badInput) incompleteDateKeys.value.add(field.key);
@@ -162,16 +162,16 @@ function onDateDefaultInvalid(key: string, event: Event) {
   expandedKey.value = key;
 }
 
-function onFieldTypeChange(field: CardFieldDraft) {
+function onFieldTypeChange(field: CustomFieldDraft) {
   incompleteDateKeys.value.delete(field.key);
   resetFieldTypeOptions(field);
 }
 
 function fieldError(index: number, property: string) {
-  return props.errors[`fields[${index}].${property}`]?.join(' ') ?? '';
+  return props.errors[`customFields[${index}].${property}`]?.join(' ') ?? '';
 }
 
-function fieldErrorId(field: CardFieldDraft, property: string) {
+function fieldErrorId(field: CustomFieldDraft, property: string) {
   return `field-error-${field.key}-${property}`;
 }
 
@@ -190,7 +190,7 @@ async function showSummaryError(path: string) {
 }
 
 function hasError(index: number, property: string) {
-  return Boolean(props.errors[`fields[${index}].${property}`]);
+  return Boolean(props.errors[`customFields[${index}].${property}`]);
 }
 
 function toggleField(key: string) {
@@ -233,7 +233,7 @@ function focusRevealedField(key: string) {
 
 async function addField() {
   if (model.value.length >= 10) return;
-  model.value = [...model.value, createCardFieldDraft()];
+  model.value = [...model.value, createCustomFieldDraft()];
   await nextTick();
   await revealField(model.value.length - 1);
 }

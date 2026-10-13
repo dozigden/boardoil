@@ -131,7 +131,7 @@ function makeCard(id: number, boardColumnId: number, title: string): Card {
     boardColumnId,
     cardTypeId: 1,
     cardTypeName: 'Story',
-    fields: {},
+    customFieldValues: {},
     cardTypeEmoji: null,
     title,
     description: '',

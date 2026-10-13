@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using BoardOil.Contracts.CardField;
+using BoardOil.Contracts.CustomField;
 using BoardOil.Contracts.Card;
 
 namespace BoardOil.Mcp.Contracts;
@@ -77,7 +77,7 @@ public sealed record McpBoardCardSnapshot(
     int? SlickId,
     McpCardSlickSnapshot? Slick,
     string? ExternalUrl,
-    IReadOnlyDictionary<string, JsonElement> Fields);
+    IReadOnlyDictionary<string, JsonElement> CustomFieldValues);
 
 public sealed record McpCardSnapshot(
     int Id,
@@ -98,7 +98,7 @@ public sealed record McpCardSnapshot(
     McpCardSlickSnapshot? Slick,
     IReadOnlyList<McpCardCommentSnapshot> Comments,
     string? ExternalUrl,
-    IReadOnlyDictionary<string, JsonElement> Fields)
+    IReadOnlyDictionary<string, JsonElement> CustomFieldValues)
 {
     // Loaded by card_get only. Omit on mutation responses rather than imply an empty attachment list.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -138,8 +138,8 @@ public sealed record McpArchivedCardSnapshot(
     DateTime ArchivedAtUtc,
     IReadOnlyList<CardAttachmentDto> Attachments)
 {
-    public IReadOnlyDictionary<string, JsonElement> Fields { get; init; } = new Dictionary<string, JsonElement>();
-    public IReadOnlyList<CardFieldDefinition> FieldDefinitions { get; init; } = [];
+    public IReadOnlyDictionary<string, JsonElement> CustomFieldValues { get; init; } = new Dictionary<string, JsonElement>();
+    public IReadOnlyList<CustomFieldDefinition> CustomFieldDefinitions { get; init; } = [];
 }
 
 public sealed record McpArchivedCardCommentSnapshot(
@@ -266,7 +266,7 @@ public sealed record McpCardOptionCardType(
     int Id,
     string Name,
     string? Emoji,
-    IReadOnlyList<CardFieldDefinition> Fields);
+    IReadOnlyList<CustomFieldDefinition> CustomFields);
 
 public sealed record McpCardOptionTag(
     int Id,
@@ -282,7 +282,7 @@ public sealed record McpCardOptionSlick(
 public sealed record CardCreateInput
 {
     public int? BoardId { get; init; }
-    public JsonElement Fields { get; init; }
+    public JsonElement CustomFieldValues { get; init; }
     public int? ColumnId { get; init; }
     public int? CardTypeId { get; init; }
     public int? AssignedUserId { get; init; }
@@ -303,7 +303,7 @@ public sealed record CardUpdateInput
     private bool _externalUrlSpecified;
 
     public int? BoardId { get; init; }
-    public JsonElement Fields { get; init; }
+    public JsonElement CustomFieldValues { get; init; }
     public int? Id { get; init; }
     public int? ColumnId { get; init; }
     public int? CardTypeId { get; init; }

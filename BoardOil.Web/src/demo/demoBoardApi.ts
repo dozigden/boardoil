@@ -1,4 +1,4 @@
-import { demoFieldDefaults, demoFieldDefinitions, planDemoFields, previewDemoTypeChange, type DemoFieldLoss } from './demoCardFields';
+import { demoFieldDefaults, demoFieldDefinitions, planDemoFields, previewDemoTypeChange, type DemoFieldLoss } from './demoCustomFields';
 import type { BoardApi } from '../shared/api/boardApi';
 import { defaultBoardAttachmentInventoryQuery, type CardAttachment } from '../shared/types/attachmentTypes';
 import { getMarkdownChecklistCounts } from './markdownChecklistCounts';
@@ -222,13 +222,13 @@ const demoBoardApi: BoardApi = {
     const targetType = getCardType(model.cardTypeId);
     if (!source) return notFound('Card not found.');
     if (!targetType) return validationError('Card type is required.');
-    const fieldPlan = planDemoFields(getCardType(source.cardTypeId)!.fields, source.fields, model.fields,
-      targetType.fields, source.cardTypeId !== targetType.id, model.description);
+    const fieldPlan = planDemoFields(getCardType(source.cardTypeId)!.customFields, source.customFieldValues, model.customFieldValues,
+      targetType.customFields, source.cardTypeId !== targetType.id, model.description);
     if (!fieldPlan.ok) return fieldPlan;
     const created = await demoBoardApi.createCard(boardId, { ...model, description: fieldPlan.data.description });
     if (!created.ok) return created;
     const duplicate = findCard(created.data.id)!.card;
-    duplicate.fields = fieldPlan.data.fields;
+    duplicate.customFieldValues = fieldPlan.data.customFieldValues;
     addFieldLossComment(duplicate, fieldPlan.data.losses, source.cardTypeName, targetType.name);
     return ok(clone(duplicate));
   },
@@ -326,7 +326,7 @@ const demoBoardApi: BoardApi = {
 
     const timestamp = now();
     const card: Card = {
-      fields: demoFieldDefaults(cardType.fields),
+      customFieldValues: demoFieldDefaults(cardType.customFields),
       id: state.nextCardId++,
       slick: null,
       boardColumnId: column.id,
@@ -363,7 +363,7 @@ const demoBoardApi: BoardApi = {
     const target = getCardType(cardTypeId);
     if (!target) return validationError('Card type does not exist in board.');
     const card = located.card;
-    return previewDemoTypeChange(getCardType(card.cardTypeId)!, card.fields, fields, target, card.cardTypeId !== target.id);
+    return previewDemoTypeChange(getCardType(card.cardTypeId)!, card.customFieldValues, fields, target, card.cardTypeId !== target.id);
   },
 
   async saveCard(boardId, cardId, model) {
@@ -380,8 +380,8 @@ const demoBoardApi: BoardApi = {
     }
 
     const card = located.card;
-    const fieldPlan = planDemoFields(getCardType(card.cardTypeId)!.fields, card.fields, model.fields,
-      cardType.fields, card.cardTypeId !== cardType.id, model.description);
+    const fieldPlan = planDemoFields(getCardType(card.cardTypeId)!.customFields, card.customFieldValues, model.customFieldValues,
+      cardType.customFields, card.cardTypeId !== cardType.id, model.description);
     if (!fieldPlan.ok) return fieldPlan;
     if (located.column.id !== targetColumn.id) {
       located.column.cards.splice(located.index, 1);
@@ -390,7 +390,7 @@ const demoBoardApi: BoardApi = {
       card.boardColumnId = targetColumn.id;
     }
 
-    card.fields = fieldPlan.data.fields;
+    card.customFieldValues = fieldPlan.data.customFieldValues;
     const originalTypeName = card.cardTypeName;
     applyCardEdit(card, { ...model, description: fieldPlan.data.description }, cardType);
     addFieldLossComment(card, fieldPlan.data.losses, originalTypeName, cardType.name);
@@ -584,10 +584,10 @@ const demoBoardApi: BoardApi = {
     const type = state.cardTypes.find(candidate => candidate.name.toLowerCase() === restoredCard.cardTypeName.toLowerCase())
       ?? getCardType(null)!;
     const sameType = type.id === restoredCard.cardTypeId;
-    const fieldPlan = planDemoFields(archivedCard.fieldDefinitions, restoredCard.fields, undefined,
-      type.fields, true, restoredCard.description, sameType);
+    const fieldPlan = planDemoFields(archivedCard.customFieldDefinitions, restoredCard.customFieldValues, undefined,
+      type.customFields, true, restoredCard.description, sameType);
     if (!fieldPlan.ok) return fieldPlan;
-    restoredCard.fields = fieldPlan.data.fields;
+    restoredCard.customFieldValues = fieldPlan.data.customFieldValues;
     restoredCard.description = fieldPlan.data.description;
     restoredCard.cardTypeId = type.id;
     restoredCard.cardTypeName = type.name;
@@ -808,7 +808,7 @@ function addFieldLossComment(card: Card, losses: DemoFieldLoss[], sourceTypeName
     id: state.nextCommentId++, cardId: card.id, isSystem: true,
     authorUserId: null, authorDisplayName: null, authorImageRelativePath: null,
     text: `Fields removed during ${reason}:\n\n    ${typeChange}\n\n`
-      + losses.map(loss => `    ${loss.displayName}: ${loss.value}`).join('\n'),
+      + losses.map(loss => `    ${loss.name}: ${loss.value}`).join('\n'),
     postedAtUtc, editedAtUtc: null
   };
   state.comments[card.id] = [comment, ...(state.comments[card.id] ?? [])];
@@ -829,7 +829,7 @@ function archiveCardInternal(cardId: number) {
     title: card.title,
     tagNames: [...card.tagNames],
     archivedAtUtc: now(),
-    fieldDefinitions: clone(getCardType(card.cardTypeId)!.fields),
+    customFieldDefinitions: clone(getCardType(card.cardTypeId)!.customFields),
     card,
     comments: clone(state.comments[card.id] ?? []).map(comment => ({
       text: comment.text,
@@ -981,7 +981,7 @@ function createSeedState(): DemoState {
     ...cardType,
     id: index + 1,
     styleName: cardType.styleName as CardType['styleName'],
-    fields: cardType.name === 'Story' ? demoFieldDefinitions.map(field => ({ ...field })) : [],
+    customFields: cardType.name === 'Story' ? demoFieldDefinitions.map(field => ({ ...field })) : [],
     createdAtUtc: timestamp,
     updatedAtUtc: timestamp
   }));
@@ -1039,7 +1039,7 @@ function createSeedState(): DemoState {
           cardTypeId: cardType.id,
           cardTypeName: cardType.name,
           cardTypeEmoji: cardType.emoji,
-          fields: demoFieldDefaults(cardType.fields),
+          customFieldValues: demoFieldDefaults(cardType.customFields),
           slickId: slick?.id ?? null,
           slickName: slick?.name ?? null,
           slick: slick ? { ...slick } : null,

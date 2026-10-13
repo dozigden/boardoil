@@ -14,7 +14,7 @@ using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Services.Style;
-using BoardOil.Services.CardField;
+using BoardOil.Services.CustomField;
 using BoardOil.Services.Slick;
 using BoardOil.Services.Users;
 using System.Text;
@@ -105,7 +105,7 @@ public sealed class CardArchiveService(
         var comments = await ResolveArchivedCommentsAsync(snapshot.Comments);
         return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard, comments) with
         {
-            FieldDefinitions = snapshot.FieldDefinitions
+            CustomFieldDefinitions = snapshot.CustomFieldDefinitions
         });
     }
 
@@ -181,9 +181,8 @@ public sealed class CardArchiveService(
             return ApiErrors.BadRequest("Archived card snapshot cannot be restored.", validationErrors);
         }
 
-        var fieldPlan = CardFieldConverter.Restore(snapshot.FieldDefinitions, snapshotCard.Fields,
-            CardFieldJsonCodec.DeserialiseDefinitions(selectedCardType.FieldDefinitionsJson),
-            snapshotCard.CardTypeId == selectedCardType.Id);
+        var fieldPlan = CustomFieldConverter.ChangeType(snapshot.CustomFieldDefinitions, snapshotCard.CustomFieldValues,
+            CustomFieldCatalogue.Resolve(selectedCardType));
         if (!fieldPlan.IsValid)
         {
             return ApiErrors.BadRequest("Archived card snapshot cannot be restored.", fieldPlan.Errors);
@@ -207,7 +206,7 @@ public sealed class CardArchiveService(
             Slick = resolvedSlick,
             Title = title,
             Description = snapshotCard.Description,
-            FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fieldPlan.Value!.Values),
+            CustomFieldValuesJson = CustomFieldJsonCodec.SerialiseValues(fieldPlan.Value!.Values),
             ExternalUrl = CardExternalUrl.Normalise(snapshotCard.ExternalUrl),
             SortKey = string.Empty,
             CardCreatedUtc = snapshotCard.CardCreatedUtc,
@@ -245,7 +244,7 @@ public sealed class CardArchiveService(
             cardCommentRepository.Add(restoredComment);
         }
 
-        var lossComment = CardFieldLossComment.Add(restoredCard, fieldPlan.Value!.LostValues,
+        var lossComment = CustomFieldLossComment.Add(restoredCard, fieldPlan.Value!.LostValues,
             snapshotCard.CardTypeName, selectedCardType.Name, "archive restore");
         cardRepository.Add(restoredCard);
         await attachments.RestoreAsync(archivedCard, restoredCard);

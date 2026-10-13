@@ -1,4 +1,4 @@
-import type { CardFieldDefinition, CardFieldDefinitionInput, CardFieldValues } from './cardFieldTypes';
+import type { CustomFieldDefinition, CustomFieldDefinitionInput, CustomFieldValues } from './customFieldTypes';
 
 export type TagStyleName = 'solid' | 'gradient' | 'auto' | 'presets';
 export type SlickStyleName = 'solid' | 'presets';
@@ -33,7 +33,7 @@ export type CardComment = {
 };
 
 export type Card = {
-  fields: CardFieldValues;
+  customFieldValues: CustomFieldValues;
   id: number;
   boardColumnId: number;
   cardTypeId: number;
@@ -58,7 +58,7 @@ export type Card = {
 };
 
 export type CardEditModel = {
-  fields?: CardFieldValues;
+  customFieldValues?: CustomFieldValues;
   title: string;
   description: string;
   externalUrl: string | null;
@@ -97,7 +97,7 @@ export type CardTransferResult = {
 };
 
 export type CardTypeEditModel = {
-  fields?: CardFieldDefinitionInput[];
+  customFields?: CustomFieldDefinitionInput[];
   name: string;
   emoji: string | null;
   styleName: TagStyleName;
@@ -136,7 +136,7 @@ export type ArchivedCardComment = {
 };
 
 export type ArchivedCard = ArchivedCardListItem & {
-  fieldDefinitions: CardFieldDefinition[];
+  customFieldDefinitions: CustomFieldDefinition[];
   card: Card;
   comments: ArchivedCardComment[];
 };
@@ -177,7 +177,7 @@ export type Slick = {
 };
 
 export type CardType = {
-  fields: CardFieldDefinition[];
+  customFields: CustomFieldDefinition[];
   id: number;
   name: string;
   styleName: TagStyleName;

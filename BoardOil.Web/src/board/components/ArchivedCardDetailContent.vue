@@ -107,11 +107,11 @@
         <span v-else>-</span>
       </div>
 
-      <section v-if="archivedCard.fieldDefinitions.length" class="archived-card-fields" aria-label="Custom Fields">
+      <section v-if="archivedCard.customFieldDefinitions.length" class="archived-card-fields" aria-label="Custom Fields">
         <h3>Custom Fields</h3>
-        <div v-for="field in archivedCard.fieldDefinitions" :key="field.fieldCode" class="card-editor-option-section">
-          <span class="card-editor-field-label"><span v-if="field.emoji" class="bo-emoji" aria-hidden="true">{{ field.emoji }} </span>{{ field.displayName }}</span>
-          <span class="archived-card-field-value">{{ card.fields[field.fieldCode] ?? '—' }}</span>
+        <div v-for="field in archivedCard.customFieldDefinitions" :key="field.code" class="card-editor-option-section">
+          <span class="card-editor-field-label"><span v-if="field.emoji" class="bo-emoji" aria-hidden="true">{{ field.emoji }} </span>{{ field.name }}</span>
+          <span class="archived-card-field-value">{{ card.customFieldValues[field.code] ?? '—' }}</span>
         </div>
       </section>
 

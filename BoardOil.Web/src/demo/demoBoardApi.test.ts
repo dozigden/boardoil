@@ -10,42 +10,42 @@ describe('demoBoardApi', () => {
     const api = createDemoBoardApi();
     const types = await api.getCardTypes(1);
     if (!types.ok) throw new Error('Expected demo card types');
-    const type = types.data.find(item => item.fields.length > 0)!;
+    const type = types.data.find(item => item.customFields.length > 0)!;
     const model = { title: 'Source', description: '', boardColumnId: 1, cardTypeId: type.id,
       assignedUserId: null, slickName: null, externalUrl: null, tagNames: [] };
     const created = await api.createCard(1, model);
     if (!created.ok) throw new Error('Expected demo source card');
     const fields = { Reference: 'Saved', Points: 7, Due: '2026-10-04' };
-    await api.saveCard(1, created.data.id, { ...model, fields });
+    await api.saveCard(1, created.data.id, { ...model, customFieldValues: fields });
 
     const duplicate = await api.duplicateCard(1, created.data.id, { ...model, title: 'Copy' });
-    expect(duplicate).toMatchObject({ ok: true, data: { fields } });
-    expect(await api.duplicateCard(1, created.data.id, { ...model, fields: { ...fields, Points: 101 } }))
-      .toMatchObject({ ok: false, error: { validationErrors: { 'fields.Points': ['100 maximum'] } } });
+    expect(duplicate).toMatchObject({ ok: true, data: { customFieldValues: fields } });
+    expect(await api.duplicateCard(1, created.data.id, { ...model, customFieldValues: { ...fields, Points: 101 } }))
+      .toMatchObject({ ok: false, error: { validationErrors: { 'customFieldValues.Points': ['100 maximum'] } } });
     if (!duplicate.ok) throw new Error('Expected demo duplicate');
-    await api.saveCard(1, duplicate.data.id, { ...model, fields: { ...fields, Reference: null } });
+    await api.saveCard(1, duplicate.data.id, { ...model, customFieldValues: { ...fields, Reference: null } });
     const board = await api.getBoard(1);
     if (!board.ok) throw new Error('Expected demo board');
-    expect(board.data.columns.flatMap(column => column.cards).find(card => card.id === created.data.id)?.fields).toEqual(fields);
+    expect(board.data.columns.flatMap(column => column.cards).find(card => card.id === created.data.id)?.customFieldValues).toEqual(fields);
   });
 
   it.each(['save', 'duplicate'] as const)('records conversion losses as system comments on %s', async operation => {
     const api = createDemoBoardApi();
     const types = await api.getCardTypes(1);
     if (!types.ok) throw new Error('Expected demo card types');
-    const sourceType = types.data.find(type => type.fields.length > 0)!;
-    const targetType = types.data.find(type => type.fields.length === 0)!;
+    const sourceType = types.data.find(type => type.customFields.length > 0)!;
+    const targetType = types.data.find(type => type.customFields.length === 0)!;
     const model = { title: 'Convert fields', description: 'Keep description', boardColumnId: 1,
       cardTypeId: sourceType.id, assignedUserId: null, slickName: null, externalUrl: null, tagNames: [] };
     const source = await api.createCard(1, model);
     if (!source.ok) throw new Error('Expected demo source');
-    const changed = { ...model, cardTypeId: targetType.id, fields: { Reference: 'Edited', Points: 0, Due: null } };
+    const changed = { ...model, cardTypeId: targetType.id, customFieldValues: { Reference: 'Edited', Points: 0, Due: null } };
 
     const converted = operation === 'save'
       ? await api.saveCard(1, source.data.id, changed)
       : await api.duplicateCard(1, source.data.id, changed);
 
-    expect(converted).toMatchObject({ ok: true, data: { description: model.description, fields: {} } });
+    expect(converted).toMatchObject({ ok: true, data: { description: model.description, customFieldValues: {} } });
     if (!converted.ok) throw new Error('Expected conversion');
     const comments = await api.getCardComments(1, converted.data.id);
     expect(comments).toMatchObject({ ok: true, data: [{ isSystem: true, authorUserId: null,
@@ -64,19 +64,19 @@ describe('demoBoardApi', () => {
     const api = createDemoBoardApi();
     const types = await api.getCardTypes(1);
     if (!types.ok) throw new Error('Expected demo card types');
-    const type = types.data.find(item => item.fields.length > 0)!;
+    const type = types.data.find(item => item.customFields.length > 0)!;
     const model = { title: 'Archive fields', description: 'Keep', boardColumnId: 1, cardTypeId: type.id,
       assignedUserId: null, slickName: null, externalUrl: null, tagNames: [] };
     const created = await api.createCard(1, model);
     if (!created.ok) throw new Error('Expected demo source card');
     const fields = { Reference: null, Points: 0, Due: '2024-02-29' };
-    await api.saveCard(1, created.data.id, { ...model, fields });
+    await api.saveCard(1, created.data.id, { ...model, customFieldValues: fields });
     await api.archiveCards(1, [created.data.id]);
 
     const archived = await api.getArchivedCard(1, created.data.id);
-    expect(archived).toMatchObject({ ok: true, data: { fieldDefinitions: type.fields, card: { fields } } });
+    expect(archived).toMatchObject({ ok: true, data: { customFieldDefinitions: type.customFields, card: { customFieldValues: fields } } });
     const restored = await api.unarchiveCard(1, created.data.id);
-    expect(restored).toMatchObject({ ok: true, data: { fields, description: 'Keep' } });
+    expect(restored).toMatchObject({ ok: true, data: { customFieldValues: fields, description: 'Keep' } });
   });
 
   it('deletes comments without allowing a later edit to recreate them', async () => {

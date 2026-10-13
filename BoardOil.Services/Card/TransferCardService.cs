@@ -1,5 +1,5 @@
 using System.Data;
-using BoardOil.Services.CardField;
+using BoardOil.Services.CustomField;
 using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
@@ -126,10 +126,10 @@ public sealed class TransferCardService(
         }
 
         var contentPlan = contentPlanResult.Plan!;
-        var fieldPlan = CardFieldConverter.ConvertBetweenTypes(
-            CardFieldJsonCodec.DeserialiseDefinitions(sourceCard.CardType.FieldDefinitionsJson),
-            CardFieldJsonCodec.DeserialiseValues(sourceCard.FieldValuesJson),
-            CardFieldJsonCodec.DeserialiseDefinitions(contentPlan.CardType.FieldDefinitionsJson));
+        var fieldPlan = CustomFieldConverter.ConvertBetweenTypes(
+            CustomFieldCatalogue.Resolve(sourceCard.CardType),
+            CustomFieldJsonCodec.DeserialiseValues(sourceCard.CustomFieldValuesJson),
+            CustomFieldCatalogue.Resolve(contentPlan.CardType));
         if (!fieldPlan.IsValid)
         {
             return ApiErrors.ValidationFailed(fieldPlan.Errors);
@@ -179,8 +179,8 @@ public sealed class TransferCardService(
             sourceCard.AssignedUser = null;
         }
         sourceCard.CardUpdatedUtc = DateTime.UtcNow;
-        sourceCard.FieldValuesJson = CardFieldJsonCodec.SerialiseValues(fieldPlan.Value!.Values);
-        var lossComment = CardFieldLossComment.Add(sourceCard, fieldPlan.Value.LostValues,
+        sourceCard.CustomFieldValuesJson = CustomFieldJsonCodec.SerialiseValues(fieldPlan.Value!.Values);
+        var lossComment = CustomFieldLossComment.Add(sourceCard, fieldPlan.Value.LostValues,
             originalTypeName, contentPlan.CardType.Name, "board transfer");
         CardTagMutation.ReplaceTags(sourceCard, contentPlan.Tags);
         foreach (var assignment in orderPlan.Assignments)

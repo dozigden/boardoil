@@ -60,7 +60,7 @@ function makeCard(id: number, title: string, cardTypeId: number): Card {
     boardColumnId: 10,
     cardTypeId,
     cardTypeName: 'Story',
-    fields: {},
+    customFieldValues: {},
     cardTypeEmoji: null,
     title,
     description: '',
@@ -82,7 +82,7 @@ function makeCardType(id: number, name: string): CardType {
     styleName: 'auto',
     stylePropertiesJson: '{}',
     emoji: null,
-    fields: [],
+    customFields: [],
     isSystem: false,
     createdAtUtc: '2026-07-13T00:00:00Z',
     updatedAtUtc: '2026-07-13T00:00:00Z'

@@ -4,10 +4,10 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.Column;
 using BoardOil.Contracts.Card;
-using BoardOil.Contracts.CardField;
+using BoardOil.Contracts.CustomField;
 using BoardOil.Services.Attachment;
 using BoardOil.Services.Card;
-using BoardOil.Services.CardField;
+using BoardOil.Services.CustomField;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -362,21 +362,21 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
     {
         var (boardId, cardId, _) = await ArrangeAttachment();
         var source = await DbContextForArrange.Cards.Include(card => card.CardType).SingleAsync();
-        source.CardType.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
-            [new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Points", DefaultValue = 0, Max = 10 }]);
-        source.FieldValuesJson = """{"Points":5}""";
+        SetFields(source.CardType,
+            [new IntegerCustomFieldDefinition { Code = "Points", Name = "Points", DefaultValue = 0, Max = 10 }]);
+        source.CustomFieldValuesJson = """{"Points":5}""";
         await DbContextForArrange.SaveChangesAsync();
 
         var result = await ResolveService<ICardService>().DuplicateCardAsync(boardId, cardId,
             new CreateCardRequest(null, "Duplicate", "", [], source.CardTypeId), ActorUserId,
-            fields: CardFieldJsonCodec.DeserialiseValues("""{"Points":11}"""));
+            fields: CustomFieldJsonCodec.DeserialiseValues("""{"Points":11}"""));
 
         Assert.Equal(400, result.StatusCode);
-        Assert.Contains("fields.Points", result.ValidationErrors!.Keys);
+        Assert.Contains("customFieldValues.Points", result.ValidationErrors!.Keys);
         Assert.Single(await DbContextForAssert.CardAttachments.ToListAsync());
         Assert.Single(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
         var unchanged = Assert.Single(await DbContextForAssert.Cards.ToListAsync());
-        Assert.Equal(source.FieldValuesJson, unchanged.FieldValuesJson);
+        Assert.Equal(source.CustomFieldValuesJson, unchanged.CustomFieldValuesJson);
     }
 
     [Fact]
@@ -384,9 +384,9 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
     {
         var (boardId, cardId, _) = await ArrangeAttachment();
         var source = await DbContextForArrange.Cards.Include(card => card.CardType).SingleAsync();
-        source.CardType.FieldDefinitionsJson = CardFieldJsonCodec.SerialiseDefinitions(
-            [new IntegerFieldDefinition { FieldCode = "Points", DisplayName = "Points", DefaultValue = 0 }]);
-        source.FieldValuesJson = """{"Points":5}""";
+        SetFields(source.CardType,
+            [new IntegerCustomFieldDefinition { Code = "Points", Name = "Points", DefaultValue = 0 }]);
+        source.CustomFieldValuesJson = """{"Points":5}""";
         var target = new EntityCardType { BoardId = boardId, Name = "Empty", StyleName = "auto", StylePropertiesJson = "{}" };
         DbContextForArrange.CardTypes.Add(target);
         await DbContextForArrange.SaveChangesAsync();
@@ -399,7 +399,7 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Single(await DbContextForAssert.CardAttachments.ToListAsync());
         Assert.Single(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
         var unchanged = Assert.Single(await DbContextForAssert.Cards.ToListAsync());
-        Assert.Equal(source.FieldValuesJson, unchanged.FieldValuesJson);
+        Assert.Equal(source.CustomFieldValuesJson, unchanged.CustomFieldValuesJson);
         Assert.Equal(source.Description, unchanged.Description);
     }
 
