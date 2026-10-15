@@ -1,5 +1,6 @@
 <template>
   <FixedChromeDialog
+    class="card-editor-dialog"
     :open="editingCard !== null"
     :title="isDuplicatingCard ? 'Duplicate Card' : 'Edit Card'"
     size="fill"
@@ -1901,13 +1902,34 @@ onBeforeRouteUpdate(async (to, from) => {
   flex-shrink: 0;
 }
 
+@media (min-width: 901px) {
+  /* Share the existing 1rem body inset between the outer edge and scrollbar clearance. */
+  .card-editor-dialog :deep(.fixed-chrome-dialog__body) {
+    padding-right: 0.25rem;
+  }
+
+  .card-editor-layout {
+    grid-template-columns: minmax(0, 3fr) minmax(14rem, 1fr) 0.75rem;
+  }
+
+  .card-editor-options {
+    grid-column: 2 / -1;
+    padding-right: 0.75rem;
+  }
+}
+
 @media (max-width: 900px) {
+  /* Put the existing right inset inside the scrolling area to keep controls clear of its scrollbar. */
+  .card-editor-dialog :deep(.fixed-chrome-dialog__body) {
+    padding-right: 0.1rem;
+  }
+
   .card-editor-layout {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-right: 0.1rem;
+    padding-right: 1rem;
     gap: 0.6rem;
   }
 
@@ -1919,6 +1941,8 @@ onBeforeRouteUpdate(async (to, from) => {
   }
 
   .card-editor-options {
+    flex: 0 0 auto;
+    overflow: visible;
     border-left: none;
     border-top: 1px solid var(--bo-border-soft);
     padding-left: 0;
@@ -1934,6 +1958,7 @@ onBeforeRouteUpdate(async (to, from) => {
   }
 
   .card-editor-layout {
+    padding-right: 0.75rem;
     gap: 0.6rem;
   }
 
@@ -1968,7 +1993,6 @@ onBeforeRouteUpdate(async (to, from) => {
   }
 
   :deep(.fixed-chrome-dialog__body) {
-    padding-right: 0.75rem;
     padding-left: 0.75rem;
   }
 }
