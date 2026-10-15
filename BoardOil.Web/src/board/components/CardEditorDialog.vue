@@ -1,5 +1,6 @@
 <template>
   <FixedChromeDialog
+    ref="editorDialogRef"
     class="card-editor-dialog"
     :open="editingCard !== null"
     :title="isDuplicatingCard ? 'Duplicate Card' : 'Edit Card'"
@@ -384,7 +385,7 @@
             :title="primaryActionLabel"
           >
             <Check :size="16" aria-hidden="true" />
-            <span>{{ isDuplicatingCard ? 'Create' : 'Save' }}</span>
+            <span>{{ isDuplicatingCard ? 'Create duplicate' : 'Save' }}</span>
           </button>
           <button type="button" class="btn btn--secondary" aria-label="Cancel editing" title="Cancel" @click="closeCardEditor">
             <X :size="16" aria-hidden="true" />
@@ -399,7 +400,7 @@
 <script setup lang="ts">
 import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, ref, watch, type ComponentPublicInstance } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import MdEditor from '../../shared/components/MdEditor.vue';
 import CardAttachments from './CardAttachments.vue';
@@ -427,6 +428,7 @@ import { resolveSelectedCardTypeEmoji } from './cardTypeSelection';
 import { mdEditorToolbarActions, type MdEditorToolbarActionEvent, type MdEditorToolbarActionId, type MdEditorToolbarActionState } from '../../shared/components/mdEditorToolbarActions';
 import { createDisabledToolbarState, resolveActiveIsPlainTextMode, resolveActiveToolbarState } from './cardEditorSharedToolbar';
 import { areCardEditModelsEqual, cloneCardEditModel, createCardEditModel } from './cardEditModel';
+import { animateCardDuplicate } from './cardDuplicateAnimation';
 import type { Card, CardComment, CardEditModel } from '../../shared/types/boardTypes';
 import { apiBase } from '../../shared/api/config';
 import type {
@@ -469,6 +471,8 @@ const cardDraftId = ref<number | null>(null);
 const cardDraftSource = ref<CardEditModel | null>(null);
 const isCardDraftDirty = ref(false);
 const isDuplicatingCard = ref(false);
+const editorDialogRef = ref<InstanceType<typeof FixedChromeDialog> | null>(null);
+let stopDuplicateAnimation: (() => void) | undefined;
 const newCommentText = ref('');
 const isCommentDraftDirty = ref(false);
 const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
@@ -1148,11 +1152,16 @@ function initializeDraftFromCard(sourceBoardId: number, card: Card) {
   return true;
 }
 
-function beginDuplicate() {
+async function beginDuplicate() {
   if (!cardDraft.value || isDuplicateDisabled.value) {
     return;
   }
 
+  // Let the actions menu close before capturing the original dialog.
+  await nextTick();
+  stopDuplicateAnimation?.();
+  const dialog = editorDialogRef.value?.$el as HTMLDialogElement;
+  stopDuplicateAnimation = animateCardDuplicate(dialog);
   const duplicateDraft = cloneCardEditModel(cardDraft.value);
   cardDraft.value = duplicateDraft;
   cardDraftSource.value = cloneCardEditModel(duplicateDraft);
@@ -1160,6 +1169,21 @@ function beginDuplicate() {
   isDuplicatingCard.value = true;
   resetCommentDraft();
   activeEditor.value = 'description';
+}
+
+onBeforeUnmount(() => stopDuplicateAnimation?.());
+
+function revealCreatedDuplicate(cardId: number) {
+  const card = document.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`);
+  if (!card) {
+    return;
+  }
+
+  card.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+  card.animate([
+    { outline: '3px solid var(--bo-link)', outlineOffset: '-3px' },
+    { outline: '3px solid transparent', outlineOffset: '-3px' }
+  ], { duration: 1400, easing: 'ease-in' });
 }
 
 function patchFromSystem(update: Partial<CardEditModel>) {
@@ -1250,8 +1274,10 @@ async function saveCardDraft(closeAfterSave: boolean) {
     if (cardId === null) { return; }
     const created = await createCardAction(draft, { duplicateFromCardId: cardId });
     if (created?.ok) {
-      feedback.showToast('Created successfully.');
+      feedback.showToast(`Created duplicate #${created.data.id}.`);
       await closeCardEditorWithoutPrompt();
+      await nextTick();
+      revealCreatedDuplicate(created.data.id);
     }
     return;
   }
@@ -1467,6 +1493,37 @@ onBeforeRouteUpdate(async (to, from) => {
 </script>
 
 <style scoped>
+.card-editor-dialog :deep(.fixed-chrome-dialog__header) {
+  /* Keep header menus above the sticky editor toolbar in the mobile layout. */
+  z-index: 3;
+}
+
+.card-editor-dialog :deep(.card-duplicate-stage) {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 14px;
+  background: var(--bo-surface-base);
+  pointer-events: none;
+}
+
+.card-editor-dialog--splitting :deep(.fixed-chrome-dialog__surface) {
+  z-index: 2;
+  transform-origin: left center;
+  will-change: transform, opacity;
+}
+
+.card-editor-dialog--splitting :deep(.card-duplicate-original) {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  pointer-events: none;
+}
+
 .dialog-title-with-pill {
   display: flex;
   align-items: center;
