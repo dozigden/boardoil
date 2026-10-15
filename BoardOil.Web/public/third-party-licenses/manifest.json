@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-09-27T12:46:05.585Z",
+  "generatedAtUtc": "2026-10-15T19:08:44.954Z",
   "packageSource": "resolved npm production dependency graph + bundled assets + NuGet packages from BoardOil.Api/packages.lock.json",
   "copiedLicences": [
     {
@@ -1076,7 +1076,7 @@
     {
       "ecosystem": "npm",
       "packageName": "source-map-js",
-      "version": "1.2.1",
+      "version": "1.2.2",
       "declaredLicence": "BSD-3-Clause",
       "sourceType": "package",
       "sourceFile": "node_modules/source-map-js/LICENSE",
