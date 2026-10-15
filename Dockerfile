@@ -34,7 +34,7 @@ COPY BoardOil.Mcp.Contracts/ BoardOil.Mcp.Contracts/
 RUN dotnet restore BoardOil.Api/BoardOil.Api.csproj --locked-mode
 RUN dotnet publish BoardOil.Api/BoardOil.Api.csproj -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.13 AS runtime
 ARG BO_VERSION
 ARG BO_CHANNEL
 ARG BO_BUILD
