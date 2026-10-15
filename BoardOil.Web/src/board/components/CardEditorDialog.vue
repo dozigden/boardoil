@@ -447,6 +447,7 @@ import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useBoardStore } from '../stores/boardStore';
 import { useBoardMembersStore } from '../stores/boardMembersStore';
 import { useCardStore } from '../stores/cardStore';
+import { useCustomFieldStore } from '../stores/customFieldStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useCommentStore } from '../stores/commentStore';
 import { useSlickStore } from '../stores/slickStore';
@@ -471,6 +472,7 @@ const boardStore = useBoardStore();
 const boardMembersStore = useBoardMembersStore();
 const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
+const customFieldStore = useCustomFieldStore();
 const commentStore = useCommentStore();
 const slickStore = useSlickStore();
 const tagStore = useTagStore();
@@ -1201,7 +1203,7 @@ function initializeDraftFromCard(sourceBoardId: number, card: Card) {
 
   pendingTypeChange.value = null;
   const initialModel = createCardEditModel(card);
-  customFieldDefinitions.value = (cardTypeStore.getCardTypeById(card.cardTypeId)?.customFields ?? []).map(field => ({ ...field }));
+  customFieldDefinitions.value = customFieldStore.resolve(card.cardTypeId).map(field => ({ ...field }));
   cardSaveError.value = null;
   cardDraft.value = initialModel;
   cardDraftSource.value = cloneCardEditModel(initialModel);
@@ -1398,7 +1400,7 @@ function syncDraftAfterSave(cardId: number) {
   }
 
   const savedModel = createCardEditModel(savedCard);
-  customFieldDefinitions.value = (cardTypeStore.getCardTypeById(savedCard.cardTypeId)?.customFields ?? []).map(field => ({ ...field }));
+  customFieldDefinitions.value = customFieldStore.resolve(savedCard.cardTypeId).map(field => ({ ...field }));
   cardDraftSource.value = cloneCardEditModel(savedModel);
   cardDraft.value = cloneCardEditModel(savedModel);
   isCardDraftDirty.value = false;

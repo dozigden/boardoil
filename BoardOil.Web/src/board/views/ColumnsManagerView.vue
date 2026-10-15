@@ -46,6 +46,19 @@
         <button
           v-if="isOwner"
           type="button"
+          class="bo-drag-handle"
+          aria-label="Drag to reorder column"
+          title="Drag to reorder"
+          :draggable="!busy"
+          :disabled="busy"
+          @dragstart="(event: DragEvent) => onColumnDragStart(column.id, event)"
+          @dragend="onColumnDragEnd"
+        >
+          <GripVertical :size="16" aria-hidden="true" />
+        </button>
+        <button
+          v-if="isOwner"
+          type="button"
           class="entity-row-main entity-row-main-button"
           :aria-label="`Edit column ${column.title}`"
           @click="openColumnEditor(column.id)"
@@ -66,17 +79,6 @@
             >
               <Pencil :size="16" aria-hidden="true" />
             </button>
-            <div
-              class="column-drag-handle"
-              role="img"
-              aria-label="Drag to reorder column"
-              title="Drag to reorder"
-              draggable="true"
-              @dragstart="onColumnDragStart(column.id, $event)"
-              @dragend="onColumnDragEnd"
-            >
-              <GripVertical :size="16" aria-hidden="true" />
-            </div>
           </template>
         </div>
       </article>
@@ -246,30 +248,6 @@ function onColumnDragEnd() {
   gap: 0.35rem;
   font-size: 0.85rem;
   color: var(--bo-ink-default);
-}
-
-.column-drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: auto;
-  padding: 0.35rem 0.45rem;
-  border: 1px solid var(--bo-border-default);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--bo-link);
-  cursor: grab;
-  user-select: none;
-}
-
-.column-drag-handle:hover {
-  background: var(--bo-surface-energy);
-  border-color: var(--bo-colour-energy);
-  color: var(--bo-colour-energy);
-}
-
-.column-drag-handle:active {
-  cursor: grabbing;
 }
 
 .draggable-column.drag-over {

@@ -1,0 +1,28 @@
+.bo-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: var(--bo-ink-subtle);
+  user-select: none;
+}
+
+.bo-drag-handle:not(:disabled) {
+  cursor: grab;
+}
+
+.bo-drag-handle:not(:disabled):hover {
+  color: var(--bo-ink-strong);
+}
+
+.bo-drag-handle:not(:disabled):active {
+  cursor: grabbing;
+}
+
+.bo-drag-handle:focus-visible {
+  outline: 2px solid var(--bo-focus-ring);
+  outline-offset: 2px;
+}

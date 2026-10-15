@@ -1,4 +1,4 @@
-import type { CustomFieldDefinition, CustomFieldDefinitionInput, CustomFieldValues } from './customFieldTypes';
+import type { CustomFieldDefinition, CustomFieldValues } from './customFieldTypes';
 
 export type TagStyleName = 'solid' | 'gradient' | 'auto' | 'presets';
 export type SlickStyleName = 'solid' | 'presets';
@@ -97,7 +97,7 @@ export type CardTransferResult = {
 };
 
 export type CardTypeEditModel = {
-  customFields?: CustomFieldDefinitionInput[];
+  copyFieldAssignmentsFromCardTypeId?: number;
   name: string;
   emoji: string | null;
   styleName: TagStyleName;
@@ -177,7 +177,6 @@ export type Slick = {
 };
 
 export type CardType = {
-  customFields: CustomFieldDefinition[];
   id: number;
   name: string;
   styleName: TagStyleName;
@@ -186,6 +185,10 @@ export type CardType = {
   isSystem: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
+};
+
+export type CardTypeResponse = CardType & {
+  customFields: CustomFieldDefinition[];
 };
 
 export type Column = {

@@ -6,6 +6,7 @@ import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useCardStore } from './cardStore';
 import { useBoardMembersStore } from './boardMembersStore';
+import { useCustomFieldStore } from './customFieldStore';
 import { useCardTypeStore } from './cardTypeStore';
 import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
@@ -40,6 +41,7 @@ export const useBoardStore = defineStore('board', () => {
   const cardStore = useCardStore();
   const boardMembersStore = useBoardMembersStore();
   const cardTypeStore = useCardTypeStore();
+  const customFieldStore = useCustomFieldStore();
   const commentStore = useCommentStore();
   const tagStore = useTagStore();
   const slickStore = useSlickStore();
@@ -211,6 +213,7 @@ export const useBoardStore = defineStore('board', () => {
   async function loadBoardCatalogues(boardId: number) {
     await Promise.all([
       cardTypeStore.loadCardTypes(boardId),
+      customFieldStore.loadCustomFields(boardId),
       tagStore.loadTags(boardId),
       slickStore.loadSlicks(boardId)
     ]);
@@ -423,6 +426,7 @@ export const useBoardStore = defineStore('board', () => {
     boardMembersStore.dispose();
     commentStore.dispose();
     cardTypeStore.dispose();
+    customFieldStore.dispose();
     tagStore.dispose();
     slickStore.dispose();
     feedback.clearWarning();

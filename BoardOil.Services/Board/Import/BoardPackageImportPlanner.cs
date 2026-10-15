@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text;
 using System.Text.Json;
 using BoardOil.Contracts.Board;
@@ -151,10 +152,12 @@ public sealed class BoardPackageImportPlanner
 
         var fieldTypeNames = plannedCardTypes.ToDictionary(type => type.Name, type => type.Name, StringComparer.OrdinalIgnoreCase);
         fieldTypeNames[systemCardTypeName] = systemCardTypeName;
-        var catalogue = BoardPackageCustomFields.Normalise(boardPayload.CustomFields, fieldTypeNames);
+        var catalogue = ValidateAndNormaliseCustomFields(boardPayload.CustomFields, fieldTypeNames);
         validationErrors.AddRange(catalogue.Errors);
         var fieldsByTypeName = fieldTypeNames.Keys.ToDictionary(name => name.ToUpperInvariant(),
-            name => BoardPackageCustomFields.Resolve(catalogue.Value ?? [], name), StringComparer.Ordinal);
+            name => (catalogue.Value ?? []).Where(field => field.AppliesTo.Mode == "all"
+                || field.AppliesTo.CardTypeNames!.Contains(name, StringComparer.OrdinalIgnoreCase))
+                .Select(field => field.Definition).ToArray(), StringComparer.Ordinal);
 
         var plannedTagDefinitionsByNormalisedName = new Dictionary<string, TagImportDefinition>(StringComparer.Ordinal);
 
@@ -382,7 +385,7 @@ public sealed class BoardPackageImportPlanner
                     }
                     else if (fieldsByTypeName.TryGetValue(cardTypeValidation.NormalisedName, out var definitions))
                     {
-                        var values = CustomFieldRules.NormaliseValues(definitions, importedCard.CustomFieldValues);
+                        var values = CustomFieldValidator.ValidateAndNormaliseValues(definitions, importedCard.CustomFieldValues);
                         validationErrors.AddRange(values.Errors.Select(error =>
                             new ValidationError($"{cardPropertyPrefix}.{error.Property}", error.Message)));
                         if (values.IsValid) { customFieldValuesJson = CustomFieldJsonCodec.SerialiseValues(values.Value!); }
@@ -482,7 +485,7 @@ public sealed class BoardPackageImportPlanner
                     }
 
                     var snapshotJson = archivedCard.SnapshotJson?.Trim() ?? string.Empty;
-                    var snapshotFields = BoardPackageArchiveCustomFields.Normalise(snapshotJson,
+                    var snapshotFields = ValidateAndNormaliseArchivedCustomFields(snapshotJson,
                         $"{archivedCardPropertyPrefix}.snapshotJson");
                     validationErrors.AddRange(snapshotFields.Errors);
                     if (snapshotFields.IsValid) { snapshotJson = snapshotFields.Value!; }
@@ -922,5 +925,92 @@ public sealed class BoardPackageImportPlanner
         }
 
         return normalisedSlickName;
+    }
+
+    private static CustomFieldValidationResult<IReadOnlyList<BoardPackageCustomField>> ValidateAndNormaliseCustomFields(
+        IReadOnlyList<BoardPackageCustomField>? fields, IReadOnlyDictionary<string, string> typeNames)
+    {
+        if (fields is null || fields.Any(field => field is null))
+        {
+            return new(null, [new("board.customFields", "Field definitions must be an array of objects")]);
+        }
+        var definitions = CustomFieldValidator.ValidateAndNormaliseDefinitions(fields.Select(field => field.Definition).ToArray());
+        var errors = new List<ValidationError>(definitions.Errors.Select(error =>
+            new ValidationError(CustomFieldDefinitionPath(error.Property), error.Message)));
+        var result = new List<BoardPackageCustomField>();
+        for (var index = 0; index < fields.Count; index++)
+        {
+            var field = fields[index];
+            var applies = field.AppliesTo;
+            var path = $"board.customFields[{index}].appliesTo";
+            if (applies is null || (applies.Mode != "all" && applies.Mode != "selected"))
+            {
+                errors.Add(new(path, "Supported applicability required"));
+                continue;
+            }
+            if (applies.Mode == "all" && applies.CardTypeNames is not null)
+            {
+                errors.Add(new(path, "All types must not specify selected names"));
+            }
+            if (applies.Mode == "selected")
+            {
+                var names = applies.CardTypeNames;
+                if (names is null || names.Any(name => name is null || !typeNames.ContainsKey(name.Trim())))
+                {
+                    errors.Add(new(path, "Card type does not exist in board"));
+                    continue;
+                }
+                var canonical = names.Select(name => typeNames[name.Trim()]).ToArray();
+                if (canonical.Distinct(StringComparer.OrdinalIgnoreCase).Count() != canonical.Length)
+                {
+                    errors.Add(new(path, "Repeated card type"));
+                }
+                applies = new("selected", canonical);
+            }
+            if (definitions.IsValid) { result.Add(new(definitions.Value![index], applies)); }
+        }
+        return errors.Count == 0 ? new(result, []) : new(null, errors);
+    }
+
+    private static string CustomFieldDefinitionPath(string path)
+    {
+        var end = path.IndexOf(']');
+        if (end >= 0) { path = path.Insert(end + 1, ".definition"); }
+        return $"board.{path}";
+    }
+
+    private static CustomFieldValidationResult<string> ValidateAndNormaliseArchivedCustomFields(string snapshotJson, string path)
+    {
+        using var document = ArchivedCardSnapshotSerialiser.ReadSnapshotWithCustomFields(snapshotJson);
+        if (document is null) { return new(snapshotJson, []); }
+        var payload = document.RootElement.GetProperty("payload");
+        try
+        {
+            var definitions = CustomFieldJsonCodec.DeserialiseDefinitions(
+                payload.TryGetProperty("customFieldDefinitions", out var fields) ? fields.GetRawText() : "[]");
+            var values = CustomFieldJsonCodec.DeserialiseValues(
+                payload.TryGetProperty("customFieldValues", out var data) ? data.GetRawText() : "{}");
+            var normalisedDefinitions = CustomFieldValidator.ValidateAndNormaliseDefinitions(definitions);
+            if (!normalisedDefinitions.IsValid)
+            {
+                return new(null, normalisedDefinitions.Errors.Select(error =>
+                    new ValidationError($"{path}.{error.Property}", error.Message)).ToArray());
+            }
+            var result = CustomFieldValidator.ValidateAndNormaliseValues(normalisedDefinitions.Value!, values);
+            if (!result.IsValid)
+            {
+                return new(null, result.Errors.Select(error =>
+                    new ValidationError($"{path}.{error.Property}", error.Message)).ToArray());
+            }
+            if (normalisedDefinitions.Value!.Count == 0) { return new(snapshotJson, []); }
+            var root = JsonNode.Parse(snapshotJson)!;
+            root["payload"]!["customFieldDefinitions"] = JsonNode.Parse(CustomFieldJsonCodec.SerialiseDefinitions(normalisedDefinitions.Value));
+            root["payload"]!["customFieldValues"] = JsonNode.Parse(CustomFieldJsonCodec.SerialiseValues(result.Value!));
+            return new(root.ToJsonString(), []);
+        }
+        catch (JsonException)
+        {
+            return new(null, [new ValidationError(path, "Archived custom fields are invalid.")]);
+        }
     }
 }

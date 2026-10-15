@@ -1,4 +1,4 @@
-import type { CustomFieldDefinitionInput, CardTypeFieldsPreview, CustomFieldValues, CardTypeChangePreview } from '../types/customFieldTypes';
+import type { CustomField, CustomFieldInput, CustomFieldPreview, CustomFieldValues, CardTypeChangePreview } from '../types/customFieldTypes';
 import { uploadFormData } from './http';
 import type { BoardAttachmentInventory, BoardAttachmentInventoryQuery, CardAttachment, CardAttachmentImageCandidate, CardAttachmentList } from '../types/attachmentTypes';
 import type {
@@ -17,6 +17,7 @@ import type {
   CardComment,
   CardTypeEditModel,
   CardType,
+  CardTypeResponse,
   Column,
   ColumnCreateModel,
   ColumnEditModel,
@@ -30,7 +31,7 @@ import type {
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import { err, ok } from '../types/result';
-import { deleteJson, getBinary, getBlob, getEnvelope, patchData, postData, postFormData, putBinary, putData } from './http';
+import { deleteData, deleteJson, getBinary, getBlob, getEnvelope, patchData, postData, postFormData, putBinary, putData } from './http';
 
 export type BoardApi = ReturnType<typeof createHttpBoardApi>;
 export type BoardExportPackage = {
@@ -431,19 +432,20 @@ function createHttpBoardApi() {
   }
 
   async function getCardTypes(boardId: number): Promise<Result<CardType[], AppError>> {
-    const envelopeResult = await getEnvelope<CardType[]>(`/api/boards/${boardId}/card-types`);
+    const envelopeResult = await getEnvelope<CardTypeResponse[]>(`/api/boards/${boardId}/card-types`);
     if (!envelopeResult.ok) {
       return envelopeResult;
     }
 
-    return ok(envelopeResult.data.data ?? []);
+    return ok((envelopeResult.data.data ?? []).map(toCardType));
   }
 
   async function createCardType(
     boardId: number,
     model: CardTypeEditModel
   ): Promise<Result<CardType, AppError>> {
-    return postData<CardType>(`/api/boards/${boardId}/card-types`, model);
+    const result = await postData<CardTypeResponse>(`/api/boards/${boardId}/card-types`, model);
+    return result.ok ? ok(toCardType(result.data)) : result;
   }
 
   async function updateCardType(
@@ -451,11 +453,33 @@ function createHttpBoardApi() {
     cardTypeId: number,
     model: CardTypeEditModel
   ): Promise<Result<CardType, AppError>> {
-    return putData<CardType>(`/api/boards/${boardId}/card-types/${cardTypeId}`, model);
+    const result = await putData<CardTypeResponse>(`/api/boards/${boardId}/card-types/${cardTypeId}`, model);
+    return result.ok ? ok(toCardType(result.data)) : result;
   }
 
-  async function previewCardTypeFields(boardId: number, cardTypeId: number, customFields: CustomFieldDefinitionInput[]) {
-    return postData<CardTypeFieldsPreview>(`/api/boards/${boardId}/card-types/${cardTypeId}/fields/preview`, { customFields });
+  async function getCustomFields(boardId: number) {
+    const result = await getEnvelope<CustomField[]>(`/api/boards/${boardId}/custom-fields`);
+    return result.ok ? ok(result.data.data ?? []) : result;
+  }
+
+  function createCustomField(boardId: number, field: CustomFieldInput) {
+    return postData<CustomField[]>(`/api/boards/${boardId}/custom-fields`, field);
+  }
+
+  function updateCustomField(boardId: number, customFieldId: number, field: CustomFieldInput) {
+    return putData<CustomField[]>(`/api/boards/${boardId}/custom-fields/${customFieldId}`, field);
+  }
+
+  function deleteCustomField(boardId: number, customFieldId: number) {
+    return deleteData<CustomField[]>(`/api/boards/${boardId}/custom-fields/${customFieldId}`);
+  }
+
+  function reorderCustomFields(boardId: number, ids: number[]) {
+    return putData<CustomField[]>(`/api/boards/${boardId}/custom-field-order`, { ids });
+  }
+
+  function previewCustomField(boardId: number, customFieldId: number, field: CustomFieldInput | null) {
+    return postData<CustomFieldPreview>(`/api/boards/${boardId}/custom-fields/${customFieldId}/preview`, { field });
   }
 
   async function setDefaultCardType(boardId: number, cardTypeId: number): Promise<Result<void, AppError>> {
@@ -564,7 +588,7 @@ function createHttpBoardApi() {
     getCardTypes,
     createCardType,
     updateCardType,
-    previewCardTypeFields,
+    getCustomFields, createCustomField, updateCustomField, deleteCustomField, reorderCustomFields, previewCustomField,
     setDefaultCardType,
     deleteCardType,
     getSlicks,
@@ -576,3 +600,8 @@ function createHttpBoardApi() {
 }
 
 export const boardApi = createBoardApi();
+
+// The UI resolves applicable fields through customFieldStore.
+function toCardType({ customFields: _customFields, ...cardType }: CardTypeResponse): CardType {
+  return cardType;
+}

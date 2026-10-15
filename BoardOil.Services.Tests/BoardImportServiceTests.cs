@@ -1185,8 +1185,8 @@ public sealed class BoardImportServiceTests : TestBaseDb
 
         Assert.True(imported.Success, imported.Message);
         var importedTypes = await DbContextForAssert.CardTypes.Include(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).Where(type => type.BoardId == imported.Data!.Id).ToListAsync();
-        var systemFields = CustomFieldCatalogue.Resolve(importedTypes.Single(type => type.IsSystem));
-        var customFields = CustomFieldCatalogue.Resolve(importedTypes.Single(type => !type.IsSystem));
+        var systemFields = importedTypes.Single(type => type.IsSystem).Board.CustomFields.GetApplicableCustomFieldDefinitions(importedTypes.Single(type => type.IsSystem).Id);
+        var customFields = importedTypes.Single(type => !type.IsSystem).Board.CustomFields.GetApplicableCustomFieldDefinitions(importedTypes.Single(type => !type.IsSystem).Id);
         Assert.Equal(new[] { "Ref", "Points", "Due" }, systemFields.Select(field => field.Code));
         Assert.Equal(new[] { "Ref", "Points", "Due" }, customFields.Select(field => field.Code));
         var reference = Assert.IsType<TextCustomFieldDefinition>(systemFields[0]);
@@ -1297,8 +1297,8 @@ public sealed class BoardImportServiceTests : TestBaseDb
         DbContextForArrange.CardTypes.Add(original);
         card.CardType = original;
         card.CustomFieldValuesJson = "{\"Points\":7}";
-        CustomFieldCatalogue.Apply(card.Board, [new(
-            new IntegerCustomFieldDefinition { Code = "Points", Name = "Estimate", DefaultValue = 0 }, new AllCardTypes())]);
+        var field = AddCustomField(card.Board, new(
+            new IntegerCustomFieldDefinition { Code = "Points", Name = "Estimate", DefaultValue = 0 }, new AllCardTypes()));
         await DbContextForArrange.SaveChangesAsync();
         var archiveService = ResolveService<ICardArchiveService>();
         Assert.True((await archiveService.ArchiveCardAsync(board.BoardId, card.BoardCardId, ActorUserId)).Success);
@@ -1309,8 +1309,8 @@ public sealed class BoardImportServiceTests : TestBaseDb
             await DbContextForArrange.SaveChangesAsync();
             DbContextForArrange.CardTypes.Add(new EntityCardType { BoardId = board.BoardId, Name = "Custom", StyleName = "auto", StylePropertiesJson = "{}" });
         }
-        CustomFieldCatalogue.Apply(card.Board, [new(
-            new IntegerCustomFieldDefinition { Code = "Points", Name = "Renamed", DefaultValue = 0 }, new AllCardTypes())]);
+        field.ApplyCustomFieldDraft(new(
+            new IntegerCustomFieldDefinition { Code = "Points", Name = "Renamed", DefaultValue = 0 }, new AllCardTypes()));
         await DbContextForArrange.SaveChangesAsync();
         var export = await ResolveService<IBoardExportService>().ExportBoardAsync(board.BoardId, ActorUserId, "test");
         Assert.True(export.Success, export.Message);
@@ -1318,6 +1318,10 @@ public sealed class BoardImportServiceTests : TestBaseDb
         var imported = await ResolveService<IBoardPackageImportService>().ImportBoardPackageAsync(
             new ImportBoardPackageRequest("Imported archive", content), ActorUserId);
         Assert.True(imported.Success, imported.Message);
+        var importedField = await DbContextForAssert.CustomFields.SingleAsync(item => item.BoardId == imported.Data!.Id);
+        Assert.NotEqual(field.Id, importedField.Id);
+        Assert.Equal(field.Code, importedField.Code);
+        Assert.Equal(field.Name, importedField.Name);
 
         var restored = await archiveService.UnarchiveCardAsync(imported.Data!.Id, card.BoardCardId, ActorUserId);
 

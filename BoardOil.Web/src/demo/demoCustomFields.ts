@@ -41,7 +41,7 @@ export type DemoFieldLoss = { name: string; value: string };
 
 export function planDemoFields(
   source: CustomFieldDefinition[], original: CustomFieldValues, supplied: CustomFieldValues | undefined,
-  destination: CustomFieldDefinition[], changingType: boolean, description: string, matchByCode = false
+  destination: CustomFieldDefinition[], changingType: boolean, description: string
 ): Result<{ customFieldValues: CustomFieldValues; description: string; losses: DemoFieldLoss[] }, AppError> {
   const errors: Record<string, string[]> = {};
   const values: CustomFieldValues = {};
@@ -63,9 +63,7 @@ export function planDemoFields(
   const fields = demoFieldDefaults(destination);
   const preserved = new Set<string>();
   for (const target of destination) {
-    const from = source.find(field => matchByCode
-      ? field.code.toLowerCase() === target.code.toLowerCase()
-      : field.name.toLowerCase() === target.name.toLowerCase());
+    const from = source.find(field => field.code.toLowerCase() === target.code.toLowerCase());
     if (!from) continue;
     let candidate = values[from.code];
     if (candidate !== null && from.dataType !== target.dataType) {
@@ -84,26 +82,26 @@ export function planDemoFields(
 }
 
 export function previewDemoTypeChange(
-  source: { name: string; customFields: CustomFieldDefinition[] }, original: CustomFieldValues,
-  supplied: CustomFieldValues | undefined, destination: { name: string; customFields: CustomFieldDefinition[] }, changingType: boolean
+  source: { name: string; definitions: CustomFieldDefinition[] }, original: CustomFieldValues,
+  supplied: CustomFieldValues | undefined, destination: { name: string; definitions: CustomFieldDefinition[] }, changingType: boolean
 ): Result<CardTypeChangePreview, AppError> {
-  const before = planDemoFields(source.customFields, original, supplied, source.customFields, false, '');
+  const before = planDemoFields(source.definitions, original, supplied, source.definitions, false, '');
   if (!before.ok) return before;
-  const after = planDemoFields(source.customFields, original, supplied, destination.customFields, changingType, '');
+  const after = planDemoFields(source.definitions, original, supplied, destination.definitions, changingType, '');
   if (!after.ok) return after;
   const value = (field: CustomFieldDefinition, values: CustomFieldValues): CardTypeChangeValue => ({
     name: field.name, emoji: field.emoji, dataType: field.dataType, value: values[field.code]!
   });
-  const rows: CardTypeChangeRow[] = source.customFields.map(field => {
-    const match = destination.customFields.find(target => target.name.toLowerCase() === field.name.toLowerCase());
+  const rows: CardTypeChangeRow[] = source.definitions.map(field => {
+    const match = destination.definitions.find(target => target.code.toLowerCase() === field.code.toLowerCase());
     return {
       original: value(field, before.data.customFieldValues),
       destination: match ? value(match, after.data.customFieldValues) : null,
       losesValue: after.data.losses.some(loss => loss.name === field.name)
     };
   });
-  for (const field of destination.customFields) {
-    if (!source.customFields.some(from => from.name.toLowerCase() === field.name.toLowerCase())) {
+  for (const field of destination.definitions) {
+    if (!source.definitions.some(from => from.code.toLowerCase() === field.code.toLowerCase())) {
       rows.push({ original: null, destination: value(field, after.data.customFieldValues), losesValue: false });
     }
   }

@@ -33,6 +33,11 @@ export function buildBoardAdminNavItems(boardId: number, currentUserRole: string
       to: { name: 'card-types', params: { boardId } },
       activeRouteNames: ['card-types', 'card-types-new', 'card-types-card-type']
     });
+    items.splice(3, 0, {
+      label: 'Custom fields',
+      to: { name: 'custom-fields', params: { boardId } },
+      activeRouteNames: ['custom-fields', 'custom-fields-new', 'custom-fields-field']
+    });
     items.push({
       label: 'Members',
       to: { name: 'board-members', params: { boardId } }

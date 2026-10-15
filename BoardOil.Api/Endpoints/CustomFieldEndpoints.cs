@@ -14,19 +14,19 @@ public static class CustomFieldEndpoints
         var group = app.MapGroup("/api/boards/{boardId:int}")
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
             .AddEndpointFilter<RequireActorUserIdFilter>()
-            .WithTags("Custom CustomFieldValues");
+            .WithTags("Custom fields");
         group.MapGet("/custom-fields", async (int boardId, ICustomFieldService service, HttpContext context) =>
             (await service.GetAsync(boardId, context.GetActorUserId())).ToHttpResult());
-        group.MapPost("/custom-fields", async (int boardId, CustomFieldInput input, ICustomFieldService service, HttpContext context) =>
-            (await service.CreateAsync(boardId, input, context.GetActorUserId())).ToHttpResult()).Accepts<CustomFieldDto>("application/json");
-        group.MapPut("/custom-fields/{code}", async (int boardId, string code, CustomFieldInput input, ICustomFieldService service, HttpContext context) =>
-            (await service.UpdateAsync(boardId, code, input, context.GetActorUserId())).ToHttpResult()).Accepts<CustomFieldDto>("application/json");
-        group.MapDelete("/custom-fields/{code}", async (int boardId, string code, ICustomFieldService service, HttpContext context) =>
-            (await service.DeleteAsync(boardId, code, context.GetActorUserId())).ToHttpResult());
+        group.MapPost("/custom-fields", async (int boardId, CustomFieldRequest input, ICustomFieldService service, HttpContext context) =>
+            (await service.CreateAsync(boardId, input, context.GetActorUserId())).ToHttpResult());
+        group.MapPut("/custom-fields/{customFieldId:int}", async (int boardId, int customFieldId, CustomFieldRequest input, ICustomFieldService service, HttpContext context) =>
+            (await service.UpdateAsync(boardId, customFieldId, input, context.GetActorUserId())).ToHttpResult());
+        group.MapDelete("/custom-fields/{customFieldId:int}", async (int boardId, int customFieldId, ICustomFieldService service, HttpContext context) =>
+            (await service.DeleteAsync(boardId, customFieldId, context.GetActorUserId())).ToHttpResult());
         group.MapPut("/custom-field-order", async (int boardId, CustomFieldOrderRequest request, ICustomFieldService service, HttpContext context) =>
             (await service.ReorderAsync(boardId, request, context.GetActorUserId())).ToHttpResult());
-        group.MapPost("/custom-fields/{code}/preview", async (int boardId, string code, CustomFieldPreviewRequest request, ICustomFieldService service, HttpContext context) =>
-            (await service.PreviewAsync(boardId, code, request, context.GetActorUserId())).ToHttpResult()).Accepts<CustomFieldPreviewContract>("application/json");
+        group.MapPost("/custom-fields/{customFieldId:int}/preview", async (int boardId, int customFieldId, CustomFieldPreviewRequest request, ICustomFieldService service, HttpContext context) =>
+            (await service.PreviewAsync(boardId, customFieldId, request, context.GetActorUserId())).ToHttpResult());
         return app;
     }
 }

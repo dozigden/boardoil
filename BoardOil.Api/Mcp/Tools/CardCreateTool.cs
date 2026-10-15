@@ -1,3 +1,4 @@
+using BoardOil.Services.CustomField;
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Auth;
 using BoardOil.Contracts.Card;
@@ -43,7 +44,7 @@ public sealed class CardCreateTool(
             return Failure(accessError);
         }
 
-        var fields = McpCustomFieldInputs.ParseValues(input.CustomFieldValues);
+        var fields = CustomFieldRequestParser.ParseValues(input.CustomFieldValues);
         if (!fields.IsValid)
         {
             return Failure(fields.Errors);

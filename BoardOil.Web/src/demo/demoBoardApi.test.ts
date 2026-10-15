@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDemoBoardApi, resetDemoData } from './demoBoardApi';
+import type { CustomField } from '../shared/types/customFieldTypes';
 
 describe('demoBoardApi', () => {
   beforeEach(() => {
@@ -10,7 +11,9 @@ describe('demoBoardApi', () => {
     const api = createDemoBoardApi();
     const types = await api.getCardTypes(1);
     if (!types.ok) throw new Error('Expected demo card types');
-    const type = types.data.find(item => item.customFields.length > 0)!;
+    const catalogue = await api.getCustomFields(1);
+    if (!catalogue.ok) throw new Error('Expected demo field catalogue');
+    const type = types.data.find(item => applicableFields(catalogue.data, item.id).length > 0)!;
     const model = { title: 'Source', description: '', boardColumnId: 1, cardTypeId: type.id,
       assignedUserId: null, slickName: null, externalUrl: null, tagNames: [] };
     const created = await api.createCard(1, model);
@@ -33,8 +36,10 @@ describe('demoBoardApi', () => {
     const api = createDemoBoardApi();
     const types = await api.getCardTypes(1);
     if (!types.ok) throw new Error('Expected demo card types');
-    const sourceType = types.data.find(type => type.customFields.length > 0)!;
-    const targetType = types.data.find(type => type.customFields.length === 0)!;
+    const catalogue = await api.getCustomFields(1);
+    if (!catalogue.ok) throw new Error('Expected demo field catalogue');
+    const sourceType = types.data.find(type => applicableFields(catalogue.data, type.id).length > 0)!;
+    const targetType = types.data.find(type => applicableFields(catalogue.data, type.id).length === 0)!;
     const model = { title: 'Convert fields', description: 'Keep description', boardColumnId: 1,
       cardTypeId: sourceType.id, assignedUserId: null, slickName: null, externalUrl: null, tagNames: [] };
     const source = await api.createCard(1, model);
@@ -64,7 +69,9 @@ describe('demoBoardApi', () => {
     const api = createDemoBoardApi();
     const types = await api.getCardTypes(1);
     if (!types.ok) throw new Error('Expected demo card types');
-    const type = types.data.find(item => item.customFields.length > 0)!;
+    const catalogue = await api.getCustomFields(1);
+    if (!catalogue.ok) throw new Error('Expected demo field catalogue');
+    const type = types.data.find(item => applicableFields(catalogue.data, item.id).length > 0)!;
     const model = { title: 'Archive fields', description: 'Keep', boardColumnId: 1, cardTypeId: type.id,
       assignedUserId: null, slickName: null, externalUrl: null, tagNames: [] };
     const created = await api.createCard(1, model);
@@ -74,7 +81,7 @@ describe('demoBoardApi', () => {
     await api.archiveCards(1, [created.data.id]);
 
     const archived = await api.getArchivedCard(1, created.data.id);
-    expect(archived).toMatchObject({ ok: true, data: { customFieldDefinitions: type.customFields, card: { customFieldValues: fields } } });
+    expect(archived).toMatchObject({ ok: true, data: { customFieldDefinitions: applicableFields(catalogue.data, type.id), card: { customFieldValues: fields } } });
     const restored = await api.unarchiveCard(1, created.data.id);
     expect(restored).toMatchObject({ ok: true, data: { customFieldValues: fields, description: 'Keep' } });
   });
@@ -382,3 +389,8 @@ describe('demoBoardApi', () => {
     expect(boardResult.data.columns.flatMap(column => column.cards).map(card => card.id)).toContain(869);
   });
 });
+
+function applicableFields(catalogue: CustomField[], cardTypeId: number) {
+  return catalogue.filter(field => field.appliesTo.mode === 'all'
+    || field.appliesTo.cardTypeIds.includes(cardTypeId)).map(field => field.definition);
+}

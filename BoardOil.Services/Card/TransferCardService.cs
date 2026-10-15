@@ -126,10 +126,10 @@ public sealed class TransferCardService(
         }
 
         var contentPlan = contentPlanResult.Plan!;
-        var fieldPlan = CustomFieldConverter.ConvertBetweenTypes(
-            CustomFieldCatalogue.Resolve(sourceCard.CardType),
+        var fieldPlan = CustomFieldConverter.ConvertAcrossBoards(
+            sourceCard.CardType.Board.CustomFields.GetApplicableCustomFieldDefinitions(sourceCard.CardType.Id),
             CustomFieldJsonCodec.DeserialiseValues(sourceCard.CustomFieldValuesJson),
-            CustomFieldCatalogue.Resolve(contentPlan.CardType));
+            contentPlan.CardType.Board.CustomFields.GetApplicableCustomFieldDefinitions(contentPlan.CardType.Id));
         if (!fieldPlan.IsValid)
         {
             return ApiErrors.ValidationFailed(fieldPlan.Errors);
@@ -180,7 +180,7 @@ public sealed class TransferCardService(
         }
         sourceCard.CardUpdatedUtc = DateTime.UtcNow;
         sourceCard.CustomFieldValuesJson = CustomFieldJsonCodec.SerialiseValues(fieldPlan.Value!.Values);
-        var lossComment = CustomFieldLossComment.Add(sourceCard, fieldPlan.Value.LostValues,
+        var lossComment = CardCommentService.AddCustomFieldLossComment(sourceCard, fieldPlan.Value.LostValues,
             originalTypeName, contentPlan.CardType.Name, "board transfer");
         CardTagMutation.ReplaceTags(sourceCard, contentPlan.Tags);
         foreach (var assignment in orderPlan.Assignments)

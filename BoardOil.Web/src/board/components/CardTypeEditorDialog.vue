@@ -1,8 +1,7 @@
 <template>
   <FixedChromeDialog
     class="card-type-dialog"
-    :class="{ 'card-type-dialog--fields': showCustomFields }"
-    :body-mode="showCustomFields ? 'managed' : 'scroll'"
+    :busy="busy"
     :open="isCreateMode || editingCardType !== null"
     :title="dialogTitle"
     :close-label="isCreateMode ? 'Cancel creating' : 'Cancel editing'"
@@ -14,26 +13,11 @@
         <p v-if="Object.keys(summaryErrors).length === 0"><CircleAlert :size="14" aria-hidden="true" /><span>{{ editorError?.message }}</span></p>
         <p v-for="(messages, path) in summaryErrors" :key="path"><CircleAlert :size="14" aria-hidden="true" /><span>{{ messages.join(' ') }}</span></p>
       </div>
-      <div v-if="fieldImpacts.length" class="card-type-preview" role="status" aria-label="Field change warnings">
-        <TriangleAlert :size="16" aria-hidden="true" />
-        <div>
-          <p v-for="impact in fieldImpacts" :key="impact.code">
-            <template v-if="impact.change === 'deleted'">Deleted field '{{ impact.name }}' will be removed from {{ impact.cardCount }} {{ impact.cardCount === 1 ? 'card' : 'cards' }}.</template>
-            <template v-else>Changes to '{{ impact.name }}' will replace values on {{ impact.cardCount }} {{ impact.cardCount === 1 ? 'card' : 'cards' }}.</template>
-          </p>
-          <p>Removed values will be saved to comments.</p>
-        </div>
-      </div>
-      <p v-else-if="previewError && !previewError.validationErrors" class="error card-type-preview-error" role="alert">
-        <CircleAlert :size="14" aria-hidden="true" /> Unable to preview field changes.
-      </p>
       <div class="card-type-columns">
         <section class="card-type-appearance" aria-labelledby="card-type-appearance-heading">
           <div class="card-type-appearance-header">
             <h4 id="card-type-appearance-heading" class="card-type-section-heading">Appearance</h4>
-            <button v-if="!showCustomFields" type="button" class="btn btn--secondary card-type-fields-toggle" :disabled="busy" @click="openCustomFields">
-              Custom Fields &gt;
-            </button>
+
           </div>
           <div class="card-type-name-control">
             <label>
@@ -179,11 +163,12 @@
             />
           </label>
         </section>
-        <Transition name="custom-fields-pane" @after-enter="focusCustomFields">
-          <div v-if="showCustomFields" class="card-type-fields">
-            <CardTypeFieldsEditor ref="fieldsEditor" v-model="draftFields" :busy="busy" :errors="validationErrors" />
-          </div>
-        </Transition>
+        <section class="card-type-field-summary" aria-label="Custom fields">
+          <h4>Custom fields</h4>
+          <p v-if="!applicableFields.length">No custom fields apply to this card type.</p>
+          <ul v-else><li v-for="field in applicableFields" :key="field.code">{{ field.emoji }} {{ field.name }} <code>{{ field.code }}</code></li></ul>
+          <RouterLink :to="{ name: 'custom-fields', params: { boardId } }">Manage custom fields</RouterLink>
+        </section>
       </div>
     </template>
 
@@ -224,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, CircleAlert, TriangleAlert, Trash2, X } from '@lucide/vue';
+import { Check, CircleAlert, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -232,12 +217,10 @@ import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardTypeEditModel } from '../../shared/types/boardTypes';
-import CardTypeFieldsEditor from './CardTypeFieldsEditor.vue';
+import { useCustomFieldStore } from '../stores/customFieldStore';
 import CustomFieldsDisplay from './CustomFieldsDisplay.vue';
 import { previewCustomFields } from '../utils/customFieldPreview';
-import { useCardTypeFieldsPreview } from '../composables/useCardTypeFieldsPreview';
 import type { AppError } from '../../shared/types/appError';
-import { buildCustomFieldDefinitions, createCustomFieldDraft, fieldErrorIndex, isInlineFieldError, retainCustomFieldErrors, type CustomFieldDraft } from '../utils/customFieldDraft';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import {
@@ -262,15 +245,13 @@ const { createCardType, updateCardType, deleteCardType, getCardTypeById } = card
 
 const draftName = ref<string | null>(null);
 const draftEmoji = ref<string | null>(null);
-const draftFields = ref<CustomFieldDraft[]>([]);
-const customFieldsOpened = ref(false);
-const fieldsEditor = ref<InstanceType<typeof CardTypeFieldsEditor> | null>(null);
+const customFieldStore = useCustomFieldStore();
 const editorError = ref<AppError | null>(null);
 const errorSummary = ref<HTMLElement | null>(null);
 const nameInput = ref<HTMLInputElement | null>(null);
-const validationErrors = computed(() => ({ ...previewError.value?.validationErrors, ...editorError.value?.validationErrors }));
+const validationErrors = computed(() => (editorError.value?.validationErrors ?? {}));
 const summaryErrors = computed(() => Object.fromEntries(Object.entries(validationErrors.value)
-  .filter(([path]) => path !== 'name' && !path.startsWith('customFieldValues') && !path.startsWith('cards['))));
+  .filter(([path]) => path !== 'name')));
 const hasSummaryError = computed(() => editorError.value !== null
   && (Object.keys(validationErrors.value).length === 0 || Object.keys(summaryErrors.value).length > 0));
 const {
@@ -299,16 +280,7 @@ const routeCardTypeId = computed<number | null>(() => {
   return Number.isFinite(parsed) ? parsed : null;
 });
 const editingCardType = computed(() => getCardTypeById(routeCardTypeId.value));
-const previewRequest = computed(() => {
-  const type = editingCardType.value;
-  if (isCreateMode.value || !type || draftSourceKey.value !== `edit:${boardId.value}:${type.id}`) return null;
-  const fields = buildCustomFieldDefinitions(draftFields.value);
-  const original = buildCustomFieldDefinitions(type.customFields.map(createCustomFieldDraft));
-  if (JSON.stringify(fields) === JSON.stringify(original)) return null;
-  return { boardId: boardId.value, cardTypeId: type.id, customFields: fields };
-});
-const { impacts: fieldImpacts, error: previewError } = useCardTypeFieldsPreview(() => previewRequest.value);
-const showCustomFields = computed(() => customFieldsOpened.value || draftFields.value.length > 0 || (editingCardType.value?.customFields.length ?? 0) > 0);
+const applicableFields = computed(() => customFieldStore.resolve(editingCardType.value?.id ?? duplicateSource.value?.id ?? null));
 const dialogTitle = computed(() => {
   if (isDuplicateMode.value) {
     return `Duplicate Card Type: ${duplicateSource.value?.name ?? ''}`;
@@ -334,7 +306,7 @@ const previewName = computed(() => {
   return isCreateMode.value ? 'New card type' : (editingCardType.value?.name ?? 'Card type');
 });
 const previewEmoji = computed(() => normaliseCardTypeEmojiForRender(draftEmoji.value));
-const previewFields = computed(() => previewCustomFields(draftFields.value));
+const previewFields = computed(() => previewCustomFields(applicableFields.value));
 const previewCardStyle = computed(() => {
   if (!draftStyle.value) {
     return getCardSurfaceStyle(editingCardType.value);
@@ -373,9 +345,6 @@ watch(
       clearDraft();
       draftName.value = '';
       draftEmoji.value = nextDuplicateSource?.emoji ?? null;
-      draftFields.value = (nextDuplicateSource?.customFields ?? []).map(field => ({
-        ...createCustomFieldDraft(field), persisted: false, codeEdited: true
-      }));
       setDraftStyle(createCardTypeStyleDraft(nextDuplicateSource ?? {
         styleName: DEFAULT_CARD_TYPE_STYLE_NAME,
         stylePropertiesJson: DEFAULT_CARD_TYPE_STYLE_PROPERTIES_JSON
@@ -400,7 +369,6 @@ watch(
     }
 
     clearDraft();
-    draftFields.value = nextCardType.customFields.map(createCustomFieldDraft);
     draftName.value = nextCardType.name;
     draftEmoji.value = nextCardType.emoji;
     setDraftStyle(createCardTypeStyleDraft(nextCardType));
@@ -425,10 +393,8 @@ async function saveCardType() {
     return;
   }
 
-  const fields = buildCustomFieldDefinitions(draftFields.value);
-
   const saveModel: CardTypeEditModel = {
-    customFields: fields,
+    ...(isDuplicateMode.value ? { copyFieldAssignmentsFromCardTypeId: duplicateSource.value!.id } : {}),
     name: canonicalName,
     emoji: draftEmoji.value,
     styleName: draftStyle.value.styleName,
@@ -489,12 +455,11 @@ watch(() => ({
   name: draftName.value,
   emoji: draftEmoji.value,
   styleName: draftStyle.value?.styleName,
-  stylePropertiesJson: stylePropertiesJson.value,
-  customFieldValues: draftFields.value.map(field => ({ ...field }))
+  stylePropertiesJson: stylePropertiesJson.value
 }), (current, previous) => {
   const error = editorError.value;
   if (!error) return;
-  const errors = retainCustomFieldErrors(error.validationErrors ?? {}, previous.customFieldValues, current.customFieldValues);
+  const errors = { ...error.validationErrors };
   for (const property of ['name', 'emoji', 'styleName', 'stylePropertiesJson'] as const) {
     if (current[property] !== previous[property]) delete errors[property];
   }
@@ -508,14 +473,7 @@ async function showSaveError(error: AppError | null) {
     nameInput.value?.focus();
     return;
   }
-  const fieldPath = Object.keys(validationErrors.value).find(isInlineFieldError);
-  if (fieldPath) {
-    const index = fieldErrorIndex(fieldPath, draftFields.value);
-    if (index !== null) await fieldsEditor.value?.revealField(index);
-    return;
-  }
   if (hasSummaryError.value) errorSummary.value?.focus();
-  else fieldsEditor.value?.focusSummary();
 }
 
 function onStyleNameChange(event: Event) { setStyleName(parseStyleNameInput((event.target as HTMLSelectElement).value)); }
@@ -527,17 +485,7 @@ function onRightColorInput(event: Event) { setDraftStyleField('rightColor', (eve
 function onTextColorInput(event: Event) { setDraftStyleField('textColor', (event.target as HTMLInputElement).value); }
 function onBorderColorInput(event: Event) { setDraftStyleField('borderColor', (event.target as HTMLInputElement).value); }
 
-function openCustomFields() {
-  customFieldsOpened.value = true;
-}
-
-function focusCustomFields() {
-  fieldsEditor.value?.focusAddButton();
-}
-
 function clearDraft() {
-  customFieldsOpened.value = false;
-  draftFields.value = [];
   editorError.value = null;
   cardTypeStore.clearSaveError();
   draftName.value = null;
@@ -553,142 +501,13 @@ function clearDraft() {
   transition: width 220ms ease;
 }
 
-.card-type-dialog--fields {
-  width: min(64rem, calc(100vw - 2rem));
-}
-
-.card-type-dialog--fields :deep(.fixed-chrome-dialog__surface) {
-  height: min(48rem, calc(100dvh - 2rem));
-}
-
-.card-type-dialog--fields :deep(.fixed-chrome-dialog__body) {
-  display: flex;
-  flex-direction: column;
-}
-
-.card-type-preview {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  flex-shrink: 0;
-  max-height: 9rem;
-  overflow-y: auto;
-  margin-bottom: 0.75rem;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--bo-toast-warning-border);
-  border-radius: 0.5rem;
-  background: var(--bo-toast-warning-bg);
-  color: var(--bo-toast-warning-text);
-  font-size: 0.875rem;
-}
-
-.card-type-preview > svg { flex-shrink: 0; margin-top: 0.15rem; }
-.card-type-preview > div { min-width: 0; overflow-wrap: anywhere; }
-.card-type-preview p { margin: 0; }
-.card-type-preview p + p { margin-top: 0.25rem; }
-.card-type-preview-error { font-size: 0.875rem; }
-
-.card-type-columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
-  min-height: 0;
-  gap: 0;
-  transition: grid-template-columns 220ms ease, gap 220ms ease;
-}
-
-.card-type-dialog--fields .card-type-columns {
-  flex: 1;
-  gap: 1.5rem;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-}
-
-.card-type-section-heading {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
-}
-
-.card-type-appearance {
-  display: grid;
-  align-content: start;
-  gap: 0.5rem;
-  min-width: 0;
-  min-height: 0;
-  padding: 2px;
-}
-
-.card-type-dialog--fields .card-type-appearance {
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.card-type-appearance-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.card-type-appearance-header .card-type-section-heading {
-  margin: 0;
-}
-
-.card-type-fields-toggle {
-  margin-left: auto;
-}
-
-.card-type-fields {
-  min-width: 0;
-  min-height: 0;
-  padding-left: 1.5rem;
-  border-left: 1px solid var(--bo-border-soft);
-}
-
-.custom-fields-pane-enter-active,
-.custom-fields-pane-leave-active {
-  overflow: hidden;
-  transition: opacity 220ms ease, transform 220ms ease;
-}
-
-.custom-fields-pane-enter-from,
-.custom-fields-pane-leave-to {
-  opacity: 0;
-  transform: translateX(0.75rem);
-}
-
-@media (max-width: 800px) {
-  .card-type-columns {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(0, 0fr);
-    transition: grid-template-rows 220ms ease, gap 220ms ease;
-  }
-
-  .custom-fields-pane-enter-from,
-  .custom-fields-pane-leave-to {
-    transform: translateY(0.75rem);
-  }
-
-  .card-type-dialog--fields .card-type-columns {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 0.8fr) minmax(0, 1.2fr);
-    gap: 1rem;
-  }
-
-  .card-type-fields {
-    padding: 1rem 0 0;
-    border-left: 0;
-    border-top: 1px solid var(--bo-border-soft);
-  }
-}
-
-@media (max-width: 720px) {
-  .card-type-dialog {
-    width: 100vw;
-  }
-
-  .card-type-dialog--fields :deep(.fixed-chrome-dialog__surface) {
-    height: 100%;
-  }
-}
+.card-type-columns { display: grid; gap: 1rem; }
+.card-type-appearance { display: grid; gap: 0.5rem; min-width: 0; }
+.card-type-section-heading, .card-type-field-summary h4 { margin: 0 0 0.25rem; font-size: 1rem; }
+.card-type-field-summary { border-top: 1px solid var(--bo-border-soft); padding-top: 0.75rem; font-size: 0.875rem; }
+.card-type-field-summary ul { padding-left: 1.25rem; }
+.card-type-field-summary code { margin-left: 0.5rem; color: var(--bo-ink-subtle); }
+@media (max-width: 720px) { .card-type-dialog { width: 100vw; } }
 
 .card-type-name-control {
   display: grid;
@@ -815,12 +634,5 @@ input[aria-invalid="true"] {
   outline: 2px solid var(--bo-focus-ring);
   outline-offset: 1px;
 }
-@media (prefers-reduced-motion: reduce) {
-  .card-type-dialog,
-  .card-type-columns,
-  .custom-fields-pane-enter-active,
-  .custom-fields-pane-leave-active {
-    transition: none;
-  }
-}
+@media (prefers-reduced-motion: reduce) { .card-type-dialog { transition: none; } }
 </style>

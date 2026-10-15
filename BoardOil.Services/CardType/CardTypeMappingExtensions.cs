@@ -17,6 +17,6 @@ public static class CardTypeMappingExtensions
             cardType.CreatedAtUtc,
             cardType.UpdatedAtUtc)
         {
-            CustomFields = CustomFieldCatalogue.Resolve(cardType)
+            CustomFields = cardType.Board.CustomFields.GetApplicableCustomFieldDefinitions(cardType.Id)
         };
 }

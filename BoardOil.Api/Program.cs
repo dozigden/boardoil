@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Text.Json.Serialization;
 using BoardOil.Api.Auth;
 using BoardOil.Api.Configuration;
 using BoardOil.Api.Endpoints;
@@ -39,7 +41,7 @@ builder.Services.AddBoardOilServices();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new CustomFieldValuesJsonConverter());
-    options.SerializerOptions.Converters.Add(new CustomFieldInputJsonConverter());
+    options.SerializerOptions.Converters.Add(new CustomFieldRequestJsonConverter());
 });
 builder.Services.AddSingleton(attachmentStorageOptions);
 builder.Services.AddBoardOilEfInfrastructure(connectionString);
@@ -112,8 +114,14 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SupportNonNullableReferenceTypes();
+    options.UseOneOfForPolymorphism();
+    options.SelectSubTypesUsing(type => type.GetCustomAttributes<JsonDerivedTypeAttribute>(inherit: false).Select(attribute => attribute.DerivedType));
+    options.SelectDiscriminatorNameUsing(type => type.GetCustomAttribute<JsonPolymorphicAttribute>(inherit: false)?.TypeDiscriminatorPropertyName);
+    options.SelectDiscriminatorValueUsing(type => type.BaseType?.GetCustomAttributes<JsonDerivedTypeAttribute>(inherit: false)
+        .SingleOrDefault(attribute => attribute.DerivedType == type)?.TypeDiscriminator?.ToString());
     options.SchemaFilter<NonNullableRequestSchemaFilter>();
     options.SchemaFilter<CardSearchSchemaFilter>();
+    options.SchemaFilter<CustomFieldRequestSchemaFilter>();
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "BoardOil API",
@@ -140,7 +148,6 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Access token. Paste the raw `bo_pat_...` value; Swagger UI will add `Bearer`."
     });
     options.OperationFilter<PatSecurityOperationFilter>();
-    options.OperationFilter<CustomFieldRequestOperationFilter>();
 });
 var app = builder.Build();
 app.InitialiseMcpServiceProvider();

@@ -3,7 +3,7 @@ using BoardOil.Contracts.Common;
 
 namespace BoardOil.Services.CustomField;
 
-public sealed record CustomFieldRuleResult<T>(T? Value, IReadOnlyList<ValidationError> Errors) where T : class
+public sealed record CustomFieldValidationResult<T>(T? Value, IReadOnlyList<ValidationError> Errors) where T : class
 {
     public bool IsValid => Errors.Count == 0;
 }

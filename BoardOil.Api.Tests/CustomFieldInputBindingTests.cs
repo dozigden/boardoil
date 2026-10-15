@@ -23,7 +23,7 @@ public sealed class CustomFieldInputBindingTests
         var json = $$$"""{"title":"Card","description":"","tagNames":[],"cardTypeId":1,"customFieldValues":{"Points":{{{value}}}}}""";
 
         var request = JsonSerializer.Deserialize<UpdateCardRequest>(json, options)!;
-        var result = CustomFieldRules.NormaliseValues(
+        var result = CustomFieldValidator.ValidateAndNormaliseValues(
             [new BoardOil.Contracts.CustomField.IntegerCustomFieldDefinition { Code = "Points", Name = "Estimate", Nullable = true }],
             request.CustomFieldValues!);
 

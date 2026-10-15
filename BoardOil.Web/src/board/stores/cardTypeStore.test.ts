@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useCardTypeStore } from './cardTypeStore';
+import { useCustomFieldStore } from './customFieldStore';
+import type { CustomField } from '../../shared/types/customFieldTypes';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { err, ok } from '../../shared/types/result';
 import type { AppError } from '../../shared/types/appError';
@@ -8,6 +10,7 @@ import type { Result } from '../../shared/types/result';
 
 const api = {
   getCardTypes: vi.fn(),
+  getCustomFields: vi.fn(),
   createCardType: vi.fn(),
   updateCardType: vi.fn(),
   deleteCardType: vi.fn(),
@@ -23,6 +26,7 @@ describe('cardTypeStore', () => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     api.getCardTypes.mockResolvedValue(ok([]));
+    api.getCustomFields.mockResolvedValue(ok([]));
     api.createCardType.mockResolvedValue(ok(makeCardType(10, 'Story')));
     api.updateCardType.mockResolvedValue(ok(makeCardType(10, 'Story Updated')));
     api.deleteCardType.mockResolvedValue(ok(undefined));
@@ -38,6 +42,51 @@ describe('cardTypeStore', () => {
     expect(loaded).toBe(true);
     expect(api.getCardTypes).toHaveBeenCalledWith(3);
     expect(store.cardTypes.map(x => x.name)).toEqual(['Story']);
+  });
+
+  it.each(['duplicate', 'delete'] as const)('awaits canonical assignments after %s', async operation => {
+    const store = useCardTypeStore();
+    const fields = useCustomFieldStore();
+    await store.loadCardTypes(1);
+    await fields.loadCustomFields(1);
+    const refreshed = createDeferred<Result<CustomField[], AppError>>();
+    const requested = createDeferred<void>();
+    api.getCustomFields.mockImplementationOnce(() => {
+      requested.resolve();
+      return refreshed.promise;
+    });
+    const request = operation === 'duplicate'
+      ? store.createCardType({ name: 'Copy', emoji: null, styleName: 'auto', stylePropertiesJson: '{}', copyFieldAssignmentsFromCardTypeId: 2 }, 1)
+      : store.deleteCardType(2, 1);
+    await requested.promise;
+    expect(store.busy).toBe(true);
+    const catalogue: CustomField[] = [{ id: 41, definition: {
+      code: 'points', name: 'Estimate', dataType: 'integer', emoji: null, nullable: false,
+      defaultValue: 0, showOnCard: true, min: null, max: null
+    }, appliesTo: { mode: 'selected', cardTypeIds: operation === 'duplicate' ? [2, 10] : [] } }];
+    refreshed.resolve(ok(catalogue));
+    await request;
+    expect(fields.fields).toEqual(catalogue);
+    expect(store.busy).toBe(false);
+    if (operation === 'duplicate') expect(store.getCardTypeById(10)).not.toHaveProperty('customFields');
+  });
+
+  it('reports a catalogue refresh failure without treating a saved type as a failed write', async () => {
+    const store = useCardTypeStore();
+    await store.loadCardTypes(1);
+    api.getCustomFields.mockResolvedValueOnce(err({ kind: 'api', message: 'Could not refresh fields.' }));
+    const result = await store.createCardType({ name: 'Copy', emoji: null, styleName: 'auto', stylePropertiesJson: '{}', copyFieldAssignmentsFromCardTypeId: 2 }, 1);
+    expect(result?.id).toBe(10);
+    expect(store.getCardTypeById(10)?.id).toBe(10);
+    expect(useUiFeedbackStore().errorMessage).toBe('Could not refresh fields.');
+    expect(store.busy).toBe(false);
+  });
+
+  it('does not reload fields when creating a type without copied assignments', async () => {
+    const store = useCardTypeStore();
+    await store.loadCardTypes(1);
+    await store.createCardType({ name: 'Story', emoji: null, styleName: 'auto', stylePropertiesJson: '{}' }, 1);
+    expect(api.getCustomFields).not.toHaveBeenCalled();
   });
 
   describe.each(['board change', 'disposal'] as const)('pending loads after %s', change => {
@@ -88,7 +137,7 @@ describe('cardTypeStore', () => {
   it('retains save validation details across catalogue refreshes and clears them on retry', async () => {
     const store = useCardTypeStore();
     await store.loadCardTypes(1);
-    const error: AppError = { kind: 'api', message: 'Invalid fields', validationErrors: { 'customFields[0].defaultValue': ['A default is required.'] } };
+    const error: AppError = { kind: 'api', message: 'Invalid name', validationErrors: { name: ['A name is required.'] } };
     api.updateCardType.mockResolvedValueOnce(err(error));
     const model = { name: 'Story', emoji: null, styleName: 'auto' as const, stylePropertiesJson: '{}' };
     expect(await store.updateCardType(10, model, 1)).toBeNull();
@@ -133,7 +182,7 @@ describe('cardTypeStore', () => {
       await store.loadCardTypes(1);
       const success = createDeferred<Result<ReturnType<typeof makeCardType> | undefined, AppError>>();
       const failure = createDeferred<Result<never, AppError>>();
-      const model = { name: 'Story', emoji: null, styleName: 'auto' as const, stylePropertiesJson: '{}' };
+      const model = { name: 'Story', emoji: null, styleName: 'auto' as const, stylePropertiesJson: '{}', copyFieldAssignmentsFromCardTypeId: 2 };
       let requests: Promise<unknown>[];
       switch (operation) {
         case 'create':
@@ -165,6 +214,7 @@ describe('cardTypeStore', () => {
       }
       feedback.setError('Current feedback', 'cardType');
       const loadCount = api.getCardTypes.mock.calls.length;
+      const fieldLoadCount = api.getCustomFields.mock.calls.length;
       if (operation === 'create' || operation === 'update') {
         success.resolve(ok(makeCardType(10, 'Old board type')));
       } else {
@@ -180,6 +230,7 @@ describe('cardTypeStore', () => {
       expect(store.cardTypes).toEqual([]);
       expect(store.saveError).toBeNull();
       expect(api.getCardTypes).toHaveBeenCalledTimes(loadCount);
+      expect(api.getCustomFields).toHaveBeenCalledTimes(fieldLoadCount);
 
       current.resolve(ok(makeCardType(20, 'Current type')));
       await currentRequest;
@@ -194,7 +245,6 @@ function makeCardType(id: number, name: string) {
     styleName: 'auto' as const,
     stylePropertiesJson: '{}',
     emoji: null,
-    customFields: [],
     isSystem: false,
     createdAtUtc: '2026-05-16T00:00:00Z',
     updatedAtUtc: '2026-05-16T00:00:00Z'

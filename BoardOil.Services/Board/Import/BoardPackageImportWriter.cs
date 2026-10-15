@@ -1,7 +1,9 @@
+using System.Text.Json.Nodes;
 using System.Text.Json;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Common;
+using BoardOil.Contracts.CustomField;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.CardType;
@@ -10,6 +12,7 @@ using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Services.Card;
+using BoardOil.Services.CustomField;
 using BoardOil.Services.Ordering;
 using BoardOil.Services.Style;
 
@@ -242,12 +245,12 @@ public sealed class BoardPackageImportWriter(
         await scope.Transaction(async (transactionScope, transaction) =>
         {
             await transactionScope.SaveChangesAsync(cancellationToken);
-            BoardPackageCustomFields.Persist(board, importPlan.CustomFields, cardTypesByNormalisedName);
+            AddCustomFields(board, importPlan.CustomFields, cardTypesByNormalisedName);
             var typeIds = importPlan.SourceCardTypeNames.ToDictionary(
                 pair => pair.Key, pair => cardTypesByNormalisedName[pair.Value].Id);
             foreach (var archivedCard in createdArchives)
             {
-                archivedCard.SnapshotJson = BoardPackageArchiveCustomFields.RemapTypeId(archivedCard.SnapshotJson, typeIds);
+                archivedCard.SnapshotJson = RemapArchivedCardTypeId(archivedCard.SnapshotJson, typeIds);
             }
             await transactionScope.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync();
@@ -314,4 +317,39 @@ public sealed class BoardPackageImportWriter(
     private sealed record BoardPackageImportSortKeyPlanResult(
         BoardPackageImportSortKeyPlan? Plan,
         ApiError? Error);
+
+    private static void AddCustomFields(EntityBoard board, IReadOnlyList<BoardPackageCustomField> fields, IReadOnlyDictionary<string, EntityCardType> types)
+    {
+        foreach (var field in fields)
+        {
+            CustomFieldApplicability appliesTo = field.AppliesTo.Mode == "all" ? new AllCardTypes()
+                : new SelectedCardTypes(field.AppliesTo.CardTypeNames!.Select(name => types[name.ToUpperInvariant()].Id).ToArray());
+            var entity = new EntityCustomField { Board = board, BoardId = board.Id, SortOrder = board.CustomFields.Count };
+            entity.ApplyCustomFieldDraft(new(field.Definition, appliesTo));
+            board.CustomFields.Add(entity);
+        }
+    }
+
+    private static string RemapArchivedCardTypeId(string snapshotJson, IReadOnlyDictionary<int, int> typeIds)
+    {
+        using var document = ArchivedCardSnapshotSerialiser.ReadSnapshotWithCustomFields(snapshotJson);
+        if (document is null) { return snapshotJson; }
+        var payload = document.RootElement.GetProperty("payload");
+        if ((!payload.TryGetProperty("customFieldDefinitions", out var definitions) || definitions.GetArrayLength() == 0)
+            && (!payload.TryGetProperty("customFieldValues", out var values) || !values.EnumerateObject().Any()))
+        {
+            return snapshotJson;
+        }
+        var sourceId = 0;
+        if (payload.TryGetProperty("cardTypeId", out var id) && id.ValueKind == JsonValueKind.Number)
+        {
+            id.TryGetInt32(out sourceId);
+        }
+        // Unmapped IDs must not accidentally identify unrelated types in the receiving database.
+        var root = JsonNode.Parse(snapshotJson)!;
+        root["payload"]!["cardTypeId"] = typeIds.GetValueOrDefault(sourceId);
+        return root.ToJsonString();
+    }
+
+
 }

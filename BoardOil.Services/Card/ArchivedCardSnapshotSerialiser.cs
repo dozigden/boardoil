@@ -54,7 +54,7 @@ public static class ArchivedCardSnapshotSerialiser
             card.AssignedUser?.Email,
             card.CompletedChecklistItemCount,
             card.TotalChecklistItemCount,
-            CustomFieldCatalogue.Resolve(card.CardType),
+            card.CardType.Board.CustomFields.GetApplicableCustomFieldDefinitions(card.CardType.Id),
             CustomFieldJsonCodec.DeserialiseValues(card.CustomFieldValuesJson));
 
         var envelope = new ArchivedCardSnapshotEnvelopeV1(
@@ -206,6 +206,27 @@ public static class ArchivedCardSnapshotSerialiser
             payload.AssignedUserEmail,
             payload.CustomFieldDefinitions ?? []);
         return true;
+    }
+
+    internal static JsonDocument? ReadSnapshotWithCustomFields(string snapshotJson)
+    {
+        JsonDocument document;
+        try { document = JsonDocument.Parse(snapshotJson); }
+        catch (JsonException) { return null; }
+        var root = document.RootElement;
+        if (root.ValueKind == JsonValueKind.Object
+            && root.TryGetProperty("schema", out var schema) && schema.ValueKind == JsonValueKind.String
+            && schema.GetString() == SchemaName
+            && root.TryGetProperty("version", out var version) && version.ValueKind == JsonValueKind.Number
+            && version.TryGetInt32(out var number) && number == 1
+            && root.TryGetProperty("payload", out var payload) && payload.ValueKind == JsonValueKind.Object
+            && (payload.TryGetProperty("customFieldDefinitions", out _) || payload.TryGetProperty("customFieldValues", out _)))
+        {
+            return document;
+        }
+        // Existing opaque/unknown snapshots keep their established import behaviour.
+        document.Dispose();
+        return null;
     }
 
 }

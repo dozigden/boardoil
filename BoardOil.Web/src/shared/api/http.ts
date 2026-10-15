@@ -97,6 +97,10 @@ export async function putJson(path: string, payload: unknown): Promise<Result<vo
   return sendJson('PUT', path, payload);
 }
 
+export async function deleteData<T>(path: string): Promise<Result<T, AppError>> {
+  return sendJsonForData<T>('DELETE', path, undefined);
+}
+
 export async function postData<T>(path: string, payload: unknown): Promise<Result<T, AppError>> {
   return sendJsonForData<T>('POST', path, payload);
 }
@@ -265,7 +269,7 @@ async function sendJson(
 }
 
 async function sendJsonForData<T>(
-  method: 'POST' | 'PUT' | 'PATCH',
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   payload: unknown
 ): Promise<Result<T, AppError>> {

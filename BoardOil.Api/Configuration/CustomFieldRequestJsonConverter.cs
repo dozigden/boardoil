@@ -4,7 +4,7 @@ using BoardOil.Contracts.CustomField;
 
 namespace BoardOil.Api.Configuration;
 
-public sealed class CustomFieldInputJsonConverter : JsonConverter<CustomFieldInput>
+public sealed class CustomFieldRequestJsonConverter : JsonConverter<CustomFieldRequest>
 {
     private static readonly JsonSerializerOptions InputOptions = new(JsonSerializerDefaults.Web)
     {
@@ -14,11 +14,11 @@ public sealed class CustomFieldInputJsonConverter : JsonConverter<CustomFieldInp
         RespectRequiredConstructorParameters = true
     };
 
-    public override CustomFieldInput Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override CustomFieldRequest Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         try
         {
-            return JsonSerializer.Deserialize<CustomFieldInput>(ref reader, InputOptions)
+            return JsonSerializer.Deserialize<CustomFieldRequest>(ref reader, InputOptions)
                 ?? throw new JsonException("Field must be an object.");
         }
         catch (NotSupportedException exception)
@@ -27,6 +27,6 @@ public sealed class CustomFieldInputJsonConverter : JsonConverter<CustomFieldInp
         }
     }
 
-    public override void Write(Utf8JsonWriter writer, CustomFieldInput value, JsonSerializerOptions options) =>
+    public override void Write(Utf8JsonWriter writer, CustomFieldRequest value, JsonSerializerOptions options) =>
         JsonSerializer.Serialize(writer, value, InputOptions);
 }

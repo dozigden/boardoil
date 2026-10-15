@@ -6,6 +6,7 @@ using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.CustomField;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.CustomField;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -139,10 +140,11 @@ public sealed class CustomFieldValuesIntegrationTests : BoardApiIntegrationTestB
         await ArrangeAsync(async db =>
         {
             var target = await db.CardTypes.Include(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync(type => type.Id == targetId);
-            CustomFieldCatalogue.Apply(target.Board, CustomFieldCatalogue.Read(target.Board.CustomFields)
-                .Select(field => field.Definition.Code == "Points"
-                    ? field with { AppliesTo = new SelectedCardTypes([card.CardTypeId, targetId]) }
-                    : field).ToArray());
+            var field = target.Board.CustomFields.Single(field => field.Code == "Points");
+            field.ApplyCustomFieldDraft(field.ToCustomFieldDraft() with
+            {
+                AppliesTo = new SelectedCardTypes([card.CardTypeId, targetId])
+            });
         });
         var body = $$$"""{"cardTypeId":{{{targetId}}},"customFieldValues":{"Points":7,"Note":"Draft","Due":null}}""";
 
@@ -198,12 +200,18 @@ public sealed class CustomFieldValuesIntegrationTests : BoardApiIntegrationTestB
         await ArrangeAsync(async db =>
         {
             var type = await db.CardTypes.Include(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync(item => item.Id == typeId);
-            CustomFieldCatalogue.Apply(type.Board, (new CustomFieldDefinition[]
+            var definitions = new CustomFieldDefinition[]
             {
                 new IntegerCustomFieldDefinition { Code = "Points", Name = "Points", DefaultValue = 0, Min = 0 },
                 new TextCustomFieldDefinition { Code = "Note", Name = "Note", Nullable = true },
                 new DateCustomFieldDefinition { Code = "Due", Name = "Due date", Nullable = true, DefaultValue = new DateOnly(2024, 2, 29) }
-            }).Select(field => new CustomFieldDto(field, new SelectedCardTypes([typeId]))).ToArray());
+            };
+            foreach (var definition in definitions)
+            {
+                var field = new EntityCustomField { Board = type.Board, BoardId = type.BoardId, SortOrder = type.Board.CustomFields.Count };
+                field.ApplyCustomFieldDraft(new(definition, new SelectedCardTypes([typeId])));
+                type.Board.CustomFields.Add(field);
+            }
         });
         return typeId;
     }

@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useBoardStore } from './boardStore';
 import { useCardStore } from './cardStore';
 import { useBoardMembersStore } from './boardMembersStore';
+import { useCustomFieldStore } from './customFieldStore';
 import { useCardTypeStore } from './cardTypeStore';
 import { useCommentStore } from './commentStore';
 import { useTagStore } from './tagStore';
@@ -20,6 +21,7 @@ const api = {
   supportsAttachments: true,
   getCardThumbnails: vi.fn(),
   getCardTypes: vi.fn(),
+  getCustomFields: vi.fn(),
   getTags: vi.fn(),
   getSlicks: vi.fn(),
   getBoard: vi.fn(),
@@ -89,12 +91,28 @@ describe('boardStore', () => {
     api.getBoardMembers.mockResolvedValue(ok([{ userId: 7, displayName: 'Member', userName: 'member', role: 'Owner', profileImageRelativePath: null }]));
     api.getCardThumbnails.mockResolvedValue(ok([]));
     api.getCardTypes.mockResolvedValue(ok([]));
+    api.getCustomFields.mockResolvedValue(ok([]));
     api.getTags.mockResolvedValue(ok([]));
     api.getSlicks.mockResolvedValue(ok([]));
     api.deleteSlick.mockResolvedValue(ok(undefined));
     api.deleteTag.mockResolvedValue(ok(undefined));
     realtime.connect.mockResolvedValue(undefined);
     realtime.disconnect.mockResolvedValue(undefined);
+  });
+
+  it('loads the field catalogue on entry and realtime resync and clears it on disposal', async () => {
+    const board = useBoardStore();
+    const fields = useCustomFieldStore();
+    const field = { definition: { code: 'Ref', name: 'Reference', dataType: 'text', nullable: true, defaultValue: null }, appliesTo: { mode: 'all' } };
+    api.getCustomFields.mockResolvedValueOnce(ok([field]));
+    await board.initialize(1);
+    expect(fields.fields).toEqual([field]);
+    api.getCustomFields.mockResolvedValueOnce(ok([{ ...field, definition: { ...field.definition, name: 'Updated' } }]));
+    await realtimeHandlers!.onResync(1);
+    expect(fields.fields[0].definition.name).toBe('Updated');
+    await board.dispose();
+    expect(fields.fields).toEqual([]);
+    expect(fields.activeBoardId).toBeNull();
   });
 
   it.each(['success', 'failure', 'board change', 'disposal'])('coordinates board save after %s', async outcome => {
@@ -1085,7 +1103,7 @@ function makeCatalogues() {
     updatedAtUtc: '2026-03-15T00:00:00Z'
   };
   return {
-    cardTypes: [{ ...definition, emoji: null, isSystem: false, customFields: [] }],
+    cardTypes: [{ ...definition, emoji: null, isSystem: false }],
     tags: [{ ...definition, emoji: null }],
     slicks: [definition]
   };

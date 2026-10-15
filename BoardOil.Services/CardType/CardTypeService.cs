@@ -20,6 +20,7 @@ public sealed class CardTypeService(
     IBoardRepository boardRepository,
     ICardTypeRepository cardTypeRepository,
     ICardRepository cardRepository,
+    UpdateCardPlanner updateCardPlanner,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
     IDbContextScopeFactory scopeFactory) : ICardTypeService
@@ -279,16 +280,24 @@ public sealed class CardTypeService(
         }
 
         var cardsToReassign = await cardRepository.GetByBoardAndCardTypeAsync(boardId, existing.Id);
-        var changes = CustomFieldChanges.Plan(cardsToReassign,
-            CustomFieldCatalogue.Resolve(existing),
-            CustomFieldCatalogue.Resolve(systemCardType), changingType: true);
-        if (!changes.IsValid)
-        {
-            return ApiErrors.ValidationFailed(changes.Errors);
-        }
-        CustomFieldChanges.Apply(changes.Value!, existing.Name, systemCardType.Name, "card type change");
+        var plannedFields = new List<(EntityBoardCard Card, CustomFieldUpdatePlan Fields)>();
         foreach (var card in cardsToReassign)
         {
+            var plan = updateCardPlanner.PlanFields(card, systemCardType, null);
+            if (!plan.IsValid)
+            {
+                return ApiErrors.ValidationFailed(plan.Errors.Select(error =>
+                    new ValidationError($"cards[{card.BoardCardId}].{error.Property}", error.Message)).ToArray());
+            }
+            plannedFields.Add((card, plan.Value!));
+        }
+        var now = DateTime.UtcNow;
+        foreach (var (card, fields) in plannedFields)
+        {
+            card.CustomFieldValuesJson = fields.ValuesJson;
+            card.CardUpdatedUtc = now;
+            CardChecklistCounter.Refresh(card);
+            CardCommentService.AddCustomFieldLossComment(card, fields.LostValues, existing.Name, systemCardType.Name);
             card.CardTypeId = systemCardType.Id;
             card.CardType = systemCardType;
         }

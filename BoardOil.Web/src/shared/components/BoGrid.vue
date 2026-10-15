@@ -30,6 +30,7 @@
             <div
               v-for="item in itemsForDisplay"
               :key="String(item.key)"
+              v-bind="rowAttributes?.(item.data)"
               class="bo-grid-row bo-grid-grid-row"
               :class="{ 'bo-grid-row--clickable': rowClickable }"
               :tabindex="rowClickable ? 0 : undefined"
@@ -74,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type HTMLAttributes } from 'vue';
 
 type GridColumn = {
   key: string;
@@ -99,6 +100,7 @@ const props = withDefaults(defineProps<{
   stickyHeader?: string | null;
   emptyText?: string;
   rowClickable?: boolean;
+  rowAttributes?: (row: RowRecord) => HTMLAttributes;
   totalCount: number;
   offset: number;
   limit: number;

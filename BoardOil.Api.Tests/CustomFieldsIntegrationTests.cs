@@ -21,11 +21,14 @@ public sealed class CustomFieldsIntegrationTests : BoardApiIntegrationTestBase, 
     {
         var created = await Client.PostAsync("/api/boards/1/custom-fields", Json(Field));
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var createdField = Assert.Single((await created.Content.ReadFromJsonAsync<ApiEnvelope<CustomFieldDto[]>>(JsonOptions))!.Data!);
+        Assert.True(createdField.Id > 0);
+        Assert.Equal(await FieldIdAsync("Points"), createdField.Id);
         var second = await Client.PostAsync("/api/boards/1/custom-fields", Json("""
             {"definition":{"code":"Due","name":"Due date","nullable":true,"dataType":"date"},"appliesTo":{"mode":"all"}}
             """));
         second.EnsureSuccessStatusCode();
-        var reordered = await Client.PutAsJsonAsync("/api/boards/1/custom-field-order", new CustomFieldOrderRequest(["Due", "Points"]));
+        var reordered = await Client.PutAsJsonAsync("/api/boards/1/custom-field-order", new CustomFieldOrderRequest([await FieldIdAsync("Due"), await FieldIdAsync("Points")]));
         reordered.EnsureSuccessStatusCode();
         var catalogue = (await reordered.Content.ReadFromJsonAsync<ApiEnvelope<CustomFieldDto[]>>(JsonOptions))!.Data!;
         Assert.Equal(new[] { "Due", "Points" }, catalogue.Select(field => field.Definition.Code));
@@ -34,9 +37,11 @@ public sealed class CustomFieldsIntegrationTests : BoardApiIntegrationTestBase, 
         var types = await Client.GetFromJsonAsync<ApiEnvelope<CardTypeDto[]>>("/api/boards/1/card-types", JsonOptions);
         Assert.All(types!.Data!, type => Assert.Equal(new[] { "Due", "Points" }, type.CustomFields.Select(field => field.Code)));
 
-        var updated = await Client.PutAsync("/api/boards/1/custom-fields/Points", Json(Field.Replace("\"defaultValue\":3", "\"defaultValue\":4")));
+        var updated = await Client.PutAsync($"/api/boards/1/custom-fields/{await FieldIdAsync("Points")}", Json(Field.Replace("\"defaultValue\":3", "\"defaultValue\":4")));
         updated.EnsureSuccessStatusCode();
-        var deleted = await Client.DeleteAsync("/api/boards/1/custom-fields/Due");
+        var saved = (await updated.Content.ReadFromJsonAsync<ApiEnvelope<CustomFieldDto[]>>(JsonOptions))!.Data!;
+        Assert.Equal(createdField.Id, saved.Single(field => field.Definition.Code == "Points").Id);
+        var deleted = await Client.DeleteAsync($"/api/boards/1/custom-fields/{await FieldIdAsync("Due")}");
         deleted.EnsureSuccessStatusCode();
         Assert.Single((await deleted.Content.ReadFromJsonAsync<ApiEnvelope<CustomFieldDto[]>>(JsonOptions))!.Data!);
     }
@@ -66,8 +71,8 @@ public sealed class CustomFieldsIntegrationTests : BoardApiIntegrationTestBase, 
         (await Client.PostAsJsonAsync("/api/boards/1/cards", new CreateCardRequest(null, "Card", "", []))).EnsureSuccessStatusCode();
         var proposed = Field.Replace("\"defaultValue\":3", "\"defaultValue\":0,\"max\":1");
 
-        var response = await Client.PostAsync("/api/boards/1/custom-fields/Points/preview", Json("{\"field\":" + proposed + "}"));
-        var removal = await Client.PostAsync("/api/boards/1/custom-fields/Points/preview", Json("{\"field\":null}"));
+        var response = await Client.PostAsync($"/api/boards/1/custom-fields/{await FieldIdAsync("Points")}/preview", Json("{\"field\":" + proposed + "}"));
+        var removal = await Client.PostAsync($"/api/boards/1/custom-fields/{await FieldIdAsync("Points")}/preview", Json("{\"field\":null}"));
 
         Assert.Equal(new CustomFieldPreviewDto(1, 0, 1), (await response.Content.ReadFromJsonAsync<ApiEnvelope<CustomFieldPreviewDto>>(JsonOptions))!.Data);
         Assert.Equal(new CustomFieldPreviewDto(1, 1, 0), (await removal.Content.ReadFromJsonAsync<ApiEnvelope<CustomFieldPreviewDto>>(JsonOptions))!.Data);
@@ -120,8 +125,8 @@ public sealed class CustomFieldsIntegrationTests : BoardApiIntegrationTestBase, 
         (await Client.PostAsync("/api/boards/1/custom-fields", Json(Field))).EnsureSuccessStatusCode();
         var body = Field.Replace("\"defaultValue\":3", "\"defaultValue\":\"bad\"");
         var response = preview
-            ? await Client.PostAsync("/api/boards/1/custom-fields/Points/preview", Json("{\"field\":" + body + "}"))
-            : await Client.PutAsync("/api/boards/1/custom-fields/Points", Json(body));
+            ? await Client.PostAsync($"/api/boards/1/custom-fields/{await FieldIdAsync("Points")}/preview", Json("{\"field\":" + body + "}"))
+            : await Client.PutAsync($"/api/boards/1/custom-fields/{await FieldIdAsync("Points")}", Json(body));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -135,6 +140,9 @@ public sealed class CustomFieldsIntegrationTests : BoardApiIntegrationTestBase, 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(await response.Content.ReadAsStringAsync());
     }
+
+    private Task<int> FieldIdAsync(string code) => UseDbContextAsync(db =>
+        db.CustomFields.Where(field => field.BoardId == 1 && field.Code == code).Select(field => field.Id).SingleAsync());
 
     private static StringContent Json(string json) => new(json, Encoding.UTF8, "application/json");
 }

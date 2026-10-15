@@ -1,3 +1,5 @@
+using System.Text.Json;
+using BoardOil.Services.Card;
 using BoardOil.Abstractions.CustomField;
 using BoardOil.Abstractions;
 using System.Data;
@@ -25,61 +27,91 @@ public sealed class CustomFieldService(
         using var scope = scopes.CreateReadOnly();
         var error = await CheckAccessAsync(boardId, actorUserId, BoardPermission.BoardAccess);
         if (error is not null) { return error; }
-        return ApiResults.Ok(CustomFieldCatalogue.Read(boards.Get(boardId)!.CustomFields));
+        return ApiResults.Ok(boards.Get(boardId)!.CustomFields.ToCustomFieldDtos());
     }
 
-    public async Task<ApiResult<IReadOnlyList<CustomFieldDto>>> CreateAsync(int boardId, CustomFieldInput input, int actorUserId)
+    public async Task<ApiResult<IReadOnlyList<CustomFieldDto>>> CreateAsync(int boardId, CustomFieldRequest input, int actorUserId)
     {
         var result = await SaveAsync(boardId, null, input, actorUserId);
         return result.Success ? ApiResults.Created(result.Data!) : result;
     }
 
-    public Task<ApiResult<IReadOnlyList<CustomFieldDto>>> UpdateAsync(int boardId, string code, CustomFieldInput input, int actorUserId) =>
-        SaveAsync(boardId, code, input, actorUserId);
+    public Task<ApiResult<IReadOnlyList<CustomFieldDto>>> UpdateAsync(int boardId, int customFieldId, CustomFieldRequest input, int actorUserId) =>
+        SaveAsync(boardId, customFieldId, input, actorUserId);
 
-    public Task<ApiResult<IReadOnlyList<CustomFieldDto>>> DeleteAsync(int boardId, string code, int actorUserId) =>
-        SaveAsync(boardId, code, null, actorUserId);
+    public Task<ApiResult<IReadOnlyList<CustomFieldDto>>> DeleteAsync(int boardId, int customFieldId, int actorUserId) =>
+        SaveAsync(boardId, customFieldId, null, actorUserId);
 
     private async Task<ApiResult<IReadOnlyList<CustomFieldDto>>> SaveAsync(
-        int boardId, string? code, CustomFieldInput? input, int actorUserId)
+        int boardId, int? customFieldId, CustomFieldRequest? input, int actorUserId)
     {
         using var scope = scopes.CreateWithTransaction(IsolationLevel.Serializable);
         var error = await CheckAccessAsync(boardId, actorUserId, BoardPermission.BoardManageSettings);
         if (error is not null) { return error; }
         var board = boards.Get(boardId)!;
-        var original = CustomFieldCatalogue.Read(board.CustomFields);
-        var next = await PrepareAsync(boardId, original, code, input);
-        if (!next.Success) { return next; }
-        var changes = await PlanAsync(boardId, original, next.Data!);
+        var existing = board.CustomFields.SingleOrDefault(field => field.Id == customFieldId);
+        if (customFieldId is not null && existing is null) { return ApiErrors.NotFound("Field not found."); }
+        var original = board.CustomFields.ToCustomFieldDrafts();
+        var next = await PrepareAsync(board, existing, input);
+        if (!next.Success) { return new(false, null, next.StatusCode, next.Message, next.ValidationErrors); }
+        var changes = await PlanAsync(boardId, original, next.Data!.Catalogue);
         if (!changes.IsValid) { return ApiErrors.ValidationFailed(changes.Errors); }
-        foreach (var group in changes.Value!.GroupBy(change => change.Card.CardType))
+        var now = DateTime.UtcNow;
+        foreach (var change in changes.Value!)
         {
-            CustomFieldChanges.Apply(group.ToArray(), group.Key.Name, group.Key.Name);
+            if (change.Changed)
+            {
+                change.Card.CustomFieldValuesJson = change.ValuesJson;
+                change.Card.CardUpdatedUtc = now;
+                CardChecklistCounter.Refresh(change.Card);
+            }
+            CardCommentService.AddCustomFieldLossComment(change.Card, change.LostValues,
+                change.Card.CardType.Name, change.Card.CardType.Name, "field definition change");
         }
-        CustomFieldCatalogue.Apply(board, next.Data!);
+        if (existing is null)
+        {
+            var field = new EntityCustomField
+            {
+                Board = board,
+                BoardId = board.Id,
+                SortOrder = board.CustomFields.Select(item => item.SortOrder).DefaultIfEmpty(-1).Max() + 1
+            };
+            field.ApplyCustomFieldDraft(next.Data.Field!);
+            board.CustomFields.Add(field);
+        }
+        else if (next.Data.Field is null)
+        {
+            board.CustomFields.Remove(existing);
+        }
+        else
+        {
+            existing.ApplyCustomFieldDraft(next.Data.Field);
+        }
         await scope.SaveChangesAsync();
         await events.ResyncRequestedAsync(boardId);
-        return next;
+        return ApiResults.Ok(board.CustomFields.ToCustomFieldDtos());
     }
 
     public async Task<ApiResult<CustomFieldPreviewDto>> PreviewAsync(
-        int boardId, string code, CustomFieldPreviewRequest request, int actorUserId)
+        int boardId, int customFieldId, CustomFieldPreviewRequest request, int actorUserId)
     {
         using var scope = scopes.CreateReadOnly();
         var error = await CheckAccessAsync(boardId, actorUserId, BoardPermission.BoardManageSettings);
         if (error is not null) { return error; }
-        var original = CustomFieldCatalogue.Read(boards.Get(boardId)!.CustomFields);
-        var next = await PrepareAsync(boardId, original, code, request.Field);
+        var board = boards.Get(boardId)!;
+        var existing = board.CustomFields.SingleOrDefault(field => field.Id == customFieldId);
+        if (existing is null) { return ApiErrors.NotFound("Field not found."); }
+        var original = board.CustomFields.ToCustomFieldDrafts();
+        var next = await PrepareAsync(board, existing, request.Field);
         if (!next.Success) { return new(false, null, next.StatusCode, next.Message, next.ValidationErrors); }
-        var changes = await PlanAsync(boardId, original, next.Data!);
+        var changes = await PlanAsync(boardId, original, next.Data!.Catalogue);
         if (!changes.IsValid) { return ApiErrors.ValidationFailed(changes.Errors); }
         var affected = changes.Value!.Where(change => change.LostValues.Count > 0).ToArray();
         var removed = 0;
         var replaced = 0;
         foreach (var change in affected)
         {
-            var applies = CustomFieldCatalogue.Resolve(next.Data!, change.Card.CardTypeId)
-                .Any(field => string.Equals(field.Code, code, StringComparison.OrdinalIgnoreCase));
+            var applies = next.Data.Field is not null && next.Data.Field.AppliesTo.AppliesToCardType(change.Card.CardTypeId);
             if (applies) { replaced += change.LostValues.Count; }
             else { removed += change.LostValues.Count; }
         }
@@ -93,39 +125,43 @@ public sealed class CustomFieldService(
         var error = await CheckAccessAsync(boardId, actorUserId, BoardPermission.BoardManageSettings);
         if (error is not null) { return error; }
         var board = boards.Get(boardId)!;
-        var fields = CustomFieldCatalogue.Read(board.CustomFields);
-        var byCode = fields.ToDictionary(field => field.Definition.Code, StringComparer.OrdinalIgnoreCase);
-        if (request.Codes is null || request.Codes.Count != fields.Count
-            || request.Codes.Any(code => code is null || !byCode.ContainsKey(code))
-            || request.Codes.Distinct(StringComparer.OrdinalIgnoreCase).Count() != fields.Count)
+        var byId = board.CustomFields.ToDictionary(field => field.Id);
+        if (request.Ids is null || request.Ids.Count != byId.Count
+            || request.Ids.Any(id => !byId.ContainsKey(id))
+            || request.Ids.Distinct().Count() != byId.Count)
         {
-            return ApiErrors.ValidationFailed([new("codes", "Supply every field code exactly once")]);
+            return ApiErrors.ValidationFailed([new("ids", "Supply every field ID exactly once")]);
         }
-        var ordered = request.Codes.Select(code => byCode[code]).ToArray();
-        CustomFieldCatalogue.Apply(board, ordered);
+        for (var index = 0; index < request.Ids.Count; index++)
+        {
+            byId[request.Ids[index]].SortOrder = index;
+        }
         await scope.SaveChangesAsync();
         await events.ResyncRequestedAsync(boardId);
-        return ApiResults.Ok<IReadOnlyList<CustomFieldDto>>(ordered);
+        return ApiResults.Ok(board.CustomFields.ToCustomFieldDtos());
     }
 
-    private async Task<ApiResult<IReadOnlyList<CustomFieldDto>>> PrepareAsync(
-        int boardId, IReadOnlyList<CustomFieldDto> original, string? code, CustomFieldInput? input)
+    private sealed record PreparedCustomFieldEdit(
+        CustomFieldDraft? Field, IReadOnlyList<CustomFieldDraft> Catalogue);
+
+    private async Task<ApiResult<PreparedCustomFieldEdit>> PrepareAsync(
+        EntityBoard board, EntityCustomField? existing, CustomFieldRequest? input)
     {
-        var next = original.ToList();
-        var index = next.FindIndex(field => string.Equals(field.Definition.Code, code, StringComparison.OrdinalIgnoreCase));
-        if (code is not null && index < 0) { return ApiErrors.NotFound("Field not found."); }
+        var entities = board.CustomFields.OrderBy(field => field.SortOrder).ThenBy(field => field.Id).ToList();
+        var next = entities.Select(field => field.ToCustomFieldDraft()).ToList();
+        var index = existing is null ? next.Count : entities.IndexOf(existing);
         if (input is null)
         {
             next.RemoveAt(index);
         }
         else
         {
-            var parsed = CustomFieldCatalogue.Parse(input);
+            var parsed = CustomFieldRequestParser.Parse(input);
             if (!parsed.IsValid) { return ApiErrors.ValidationFailed(parsed.Errors); }
             var field = parsed.Value!;
-            if (code is not null)
+            if (existing is not null)
             {
-                if (!string.Equals(field.Definition.Code?.Trim(), next[index].Definition.Code, StringComparison.Ordinal))
+                if (!string.Equals(field.Definition.Code?.Trim(), existing.Code, StringComparison.Ordinal))
                 {
                     return ApiErrors.ValidationFailed([new("definition.code", "Code cannot be changed")]);
                 }
@@ -136,14 +172,15 @@ public sealed class CustomFieldService(
                 next.Add(field);
             }
         }
-        var cardTypes = await types.GetAllForBoardAsync(boardId);
-        var validation = CustomFieldCatalogue.Normalise(next, cardTypes.Select(type => type.Id).ToHashSet());
+        var cardTypes = await types.GetAllForBoardAsync(board.Id);
+        var validation = CustomFieldValidator.ValidateAndNormaliseDrafts(next, cardTypes.Select(type => type.Id).ToHashSet());
         if (!validation.IsValid)
         {
             return ApiErrors.ValidationFailed(validation.Errors.Select(error =>
                 new ValidationError(InputValidationPath(error.Property), error.Message)).ToArray());
         }
-        return ApiResults.Ok(validation.Value!);
+        var catalogue = validation.Value!;
+        return new PreparedCustomFieldEdit(input is null ? null : catalogue[index], catalogue);
     }
 
     private static string InputValidationPath(string path)
@@ -157,22 +194,37 @@ public sealed class CustomFieldService(
         return path;
     }
 
-    private async Task<CustomFieldRuleResult<IReadOnlyList<CustomFieldChange>>> PlanAsync(
-        int boardId, IReadOnlyList<CustomFieldDto> source, IReadOnlyList<CustomFieldDto> destination)
+    private async Task<CustomFieldValidationResult<IReadOnlyList<CustomFieldChange>>> PlanAsync(
+        int boardId, IReadOnlyList<CustomFieldDraft> source, IReadOnlyList<CustomFieldDraft> destination)
     {
         var changes = new List<CustomFieldChange>();
         foreach (var type in await types.GetAllForBoardAsync(boardId))
         {
-            var before = CustomFieldCatalogue.Resolve(source, type.Id);
-            var after = CustomFieldCatalogue.Resolve(destination, type.Id);
+            var before = source.GetApplicableCustomFieldDefinitions(type.Id);
+            var after = destination.GetApplicableCustomFieldDefinitions(type.Id);
             if (before.SequenceEqual(after)) { continue; }
             var affectedCards = await cards.GetByBoardAndCardTypeAsync(boardId, type.Id);
-            var plan = CustomFieldChanges.Plan(affectedCards, before, after);
-            if (!plan.IsValid) { return plan; }
-            changes.AddRange(plan.Value!);
+            foreach (var card in affectedCards)
+            {
+                var originalValues = CustomFieldJsonCodec.DeserialiseValues(card.CustomFieldValuesJson);
+                var conversion = CustomFieldConverter.ApplyDefinitionChanges(before, originalValues, after);
+                if (!conversion.IsValid)
+                {
+                    return new(null, conversion.Errors.Select(error =>
+                        new ValidationError($"cards[{card.BoardCardId}].{error.Property}", error.Message)).ToArray());
+                }
+                var converted = conversion.Value!;
+                var valuesChanged = originalValues.Count != converted.Values.Count
+                    || originalValues.Any(pair => !converted.Values.TryGetValue(pair.Key, out var value)
+                        || !JsonElement.DeepEquals(pair.Value, value));
+                changes.Add(new(card, CustomFieldJsonCodec.SerialiseValues(converted.Values), converted.LostValues, valuesChanged));
+            }
         }
         return new(changes, []);
     }
+
+    private sealed record CustomFieldChange(
+        EntityBoardCard Card, string ValuesJson, IReadOnlyList<LostCustomFieldValue> LostValues, bool Changed);
 
     private async Task<ApiError?> CheckAccessAsync(int boardId, int actorUserId, BoardPermission permission)
     {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCustomFieldDefinitions, createCustomFieldDraft, describeFieldError, fieldErrorIndex, resetFieldTypeOptions, retainCustomFieldErrors, updateFieldName } from './customFieldDraft';
+import { buildCustomFieldDefinition, createCustomFieldDraft, resetFieldTypeOptions, retainCustomFieldInputErrors, updateFieldName } from './customFieldDraft';
 import type { CustomFieldDefinition } from '../../shared/types/customFieldTypes';
 
 const integer: CustomFieldDefinition = {
@@ -8,12 +8,12 @@ const integer: CustomFieldDefinition = {
 };
 
 describe('card field editor drafts', () => {
-  it('keeps a new field code in sync with the name using only letters and numbers', () => {
+  it('keeps a new field code in sync with the name using only lowercase letters and numbers', () => {
     const draft = createCustomFieldDraft();
     updateFieldName(draft, 'Due date!');
-    expect(draft.code).toBe('Duedate');
+    expect(draft.code).toBe('duedate');
     updateFieldName(draft, 'Estimate (v2)_');
-    expect(draft.code).toBe('Estimatev2');
+    expect(draft.code).toBe('estimatev2');
   });
 
   it.each(['CustomCode', ''])('preserves a manually edited code, including a deliberate clear', code => {
@@ -37,7 +37,7 @@ describe('card field editor drafts', () => {
       { dataType: 'date', code: 'Due', name: 'Due date', emoji: null, nullable: true, showOnCard: true, defaultValue: '2026-10-04' }
     ];
     const drafts = fields.map(createCustomFieldDraft);
-    expect(buildCustomFieldDefinitions(drafts)).toEqual(fields);
+    expect(drafts.map(buildCustomFieldDefinition)).toEqual(fields);
     drafts[0].name = 'Effort';
     expect(fields[0].name).toBe('Estimate');
     expect(drafts[0].code).toBe('Points');
@@ -51,13 +51,13 @@ describe('card field editor drafts', () => {
   ])('passes %s to the backend without silently sending null', (value, expected) => {
     const draft = createCustomFieldDraft(integer);
     draft.defaultValue = String(value);
-    expect(buildCustomFieldDefinitions([draft])[0].defaultValue).toBe(expected);
+    expect(buildCustomFieldDefinition(draft).defaultValue).toBe(expected);
   });
 
   it.each(['0', '+0012', '-2147483648', '2147483647'])('encodes exact integer input %s as a JSON number', value => {
     const draft = createCustomFieldDraft(integer);
     draft.defaultValue = value;
-    expect(buildCustomFieldDefinitions([draft])[0].defaultValue).toBe(Number(value));
+    expect(buildCustomFieldDefinition(draft).defaultValue).toBe(Number(value));
   });
 
   it('preserves lossy input in number bounds and text length constraints too', () => {
@@ -67,54 +67,32 @@ describe('card field editor drafts', () => {
       draft.minimum = '1e-400';
       draft.maximum = '1.0000000000000001';
     }
-    expect(buildCustomFieldDefinitions([number, text])).toMatchObject([
+    expect([number, text].map(buildCustomFieldDefinition)).toMatchObject([
       { min: '1e-400', max: '1.0000000000000001' },
       { minLength: '1e-400', maxLength: '1.0000000000000001' }
     ]);
   });
 
-  it('clears only the edited input error, keeping errors on other inputs and fields', () => {
-    const previous = [createCustomFieldDraft(), createCustomFieldDraft()];
-    const errors = { 'customFields[0].code': ['Required'], 'customFields[0].name': ['Required'], 'customFields[1].name': ['Required'] };
-    const current = previous.map(field => ({ ...field }));
-    current[0].code = 'Owner';
-    expect(retainCustomFieldErrors(errors, previous, current)).toEqual({
-      'customFields[0].name': ['Required'], 'customFields[1].name': ['Required']
+  it('clears only edited definition errors while retaining applicability and existing-card errors', () => {
+    const previous = { definition: integer, appliesTo: { mode: 'all' as const } };
+    const errors = { 'definition.code': ['Required'], 'definition.name': ['Required'], 'appliesTo': ['Required'], 'cards[42].customFieldValues.Points': ['Invalid'] };
+    expect(retainCustomFieldInputErrors(errors, previous, { ...previous, definition: { ...integer, name: 'New' } })).toEqual({
+      'definition.code': ['Required'], 'appliesTo': ['Required'], 'cards[42].customFieldValues.Points': ['Invalid']
     });
   });
 
-  it('moves errors with their fields and drops errors for removed fields', () => {
-    const previous = [createCustomFieldDraft(), createCustomFieldDraft(), createCustomFieldDraft()];
-    const errors = { 'customFields[0].defaultValue': ['Required'], 'customFields[1].code': ['Required'], 'customFields[2].max': ['0 minimum'] };
-    expect(retainCustomFieldErrors(errors, previous, [previous[2], previous[0]])).toEqual({
-      'customFields[1].defaultValue': ['Required'], 'customFields[0].max': ['0 minimum']
-    });
-  });
-
-  it('keeps existing-card errors until the backend checks again', () => {
-    const previous = [createCustomFieldDraft(integer)];
-    const errors = { 'cards[42].customFieldValues.Points': ['5 maximum'] };
-    expect(retainCustomFieldErrors(errors, previous, [{ ...previous[0], maximum: '20' }])).toEqual(errors);
-  });
-
-  it('clears errors belonging to a previous field type', () => {
-    const previous = [createCustomFieldDraft(integer)];
-    expect(retainCustomFieldErrors({ 'customFields[0].max': ['0 minimum'] }, previous, [{ ...previous[0], dataType: 'date' }])).toEqual({});
+  it('clears incompatible validation when type and applicability change', () => {
+    const previous = { definition: integer, appliesTo: { mode: 'all' as const } };
+    const next = { definition: { ...integer, dataType: 'date' as const, defaultValue: null }, appliesTo: { mode: 'selected' as const, cardTypeIds: [] } };
+    expect(retainCustomFieldInputErrors({ 'definition.max': ['Invalid'], 'appliesTo.cardTypeIds': ['Invalid'] }, previous, next)).toEqual({});
   });
 
   it('clears incompatible options after a type change and emits only that variant', () => {
     const draft = createCustomFieldDraft(integer);
     draft.dataType = 'date';
     resetFieldTypeOptions(draft);
-    const result = buildCustomFieldDefinitions([draft]);
-    expect(result[0]).toEqual({ dataType: 'date', code: 'Points', name: 'Estimate', emoji: null, nullable: false, showOnCard: true, defaultValue: null });
+    const result = buildCustomFieldDefinition(draft);
+    expect(result).toEqual({ dataType: 'date', code: 'Points', name: 'Estimate', emoji: null, nullable: false, showOnCard: true, defaultValue: null });
   });
 
-  it('maps existing-card validation paths to a display name and editable row', () => {
-    const drafts = [createCustomFieldDraft(integer)];
-    expect(fieldErrorIndex('cards[42].customFieldValues.points', drafts)).toBe(0);
-    expect(describeFieldError('cards[42].customFieldValues.Points', drafts)).toBe('Card #42 · Estimate');
-    expect(describeFieldError('customFields[0].defaultValue', drafts)).toBe('Estimate · Default value');
-    expect(fieldErrorIndex('cards[42].description', drafts)).toBeNull();
-  });
 });

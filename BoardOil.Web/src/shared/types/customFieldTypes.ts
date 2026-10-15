@@ -22,13 +22,10 @@ export type CustomFieldDefinitionInput = CustomFieldDefinitionBase & (
 
 export type CustomFieldValues = Record<string, string | number | null>;
 
-export type CardTypeFieldsPreview = { customFields: CardTypeFieldImpact[] };
-export type CardTypeFieldImpact = {
-  code: string;
-  name: string;
-  change: 'deleted' | 'replaced';
-  cardCount: number;
-};
+export type CustomFieldApplicability = { mode: 'all' } | { mode: 'selected'; cardTypeIds: number[] };
+export type CustomField = { id: number; definition: CustomFieldDefinition; appliesTo: CustomFieldApplicability };
+export type CustomFieldInput = { definition: CustomFieldDefinitionInput; appliesTo: CustomFieldApplicability };
+export type CustomFieldPreview = { affectedCardCount: number; removedValueCount: number; replacedValueCount: number };
 
 export type CardTypeChangeValue = {
   name: string;

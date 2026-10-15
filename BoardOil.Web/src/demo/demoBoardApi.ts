@@ -1,3 +1,4 @@
+import type { CustomField } from '../shared/types/customFieldTypes';
 import { demoFieldDefaults, demoFieldDefinitions, planDemoFields, previewDemoTypeChange, type DemoFieldLoss } from './demoCustomFields';
 import type { BoardApi } from '../shared/api/boardApi';
 import { defaultBoardAttachmentInventoryQuery, type CardAttachment } from '../shared/types/attachmentTypes';
@@ -100,6 +101,7 @@ type DemoState = {
   tags: Tag[];
   slicks: Slick[];
   cardTypes: CardType[];
+  customFields: CustomField[];
   members: BoardMember[];
   comments: Record<number, CardComment[]>;
   archivedCards: ArchivedCard[];
@@ -222,8 +224,8 @@ const demoBoardApi: BoardApi = {
     const targetType = getCardType(model.cardTypeId);
     if (!source) return notFound('Card not found.');
     if (!targetType) return validationError('Card type is required.');
-    const fieldPlan = planDemoFields(getCardType(source.cardTypeId)!.customFields, source.customFieldValues, model.customFieldValues,
-      targetType.customFields, source.cardTypeId !== targetType.id, model.description);
+    const fieldPlan = planDemoFields(resolveDemoFields(source.cardTypeId), source.customFieldValues, model.customFieldValues,
+      resolveDemoFields(targetType.id), source.cardTypeId !== targetType.id, model.description);
     if (!fieldPlan.ok) return fieldPlan;
     const created = await demoBoardApi.createCard(boardId, { ...model, description: fieldPlan.data.description });
     if (!created.ok) return created;
@@ -326,7 +328,7 @@ const demoBoardApi: BoardApi = {
 
     const timestamp = now();
     const card: Card = {
-      customFieldValues: demoFieldDefaults(cardType.customFields),
+      customFieldValues: demoFieldDefaults(resolveDemoFields(cardType.id)),
       id: state.nextCardId++,
       slick: null,
       boardColumnId: column.id,
@@ -363,7 +365,10 @@ const demoBoardApi: BoardApi = {
     const target = getCardType(cardTypeId);
     if (!target) return validationError('Card type does not exist in board.');
     const card = located.card;
-    return previewDemoTypeChange(getCardType(card.cardTypeId)!, card.customFieldValues, fields, target, card.cardTypeId !== target.id);
+    return previewDemoTypeChange(
+      { name: getCardType(card.cardTypeId)!.name, definitions: resolveDemoFields(card.cardTypeId) },
+      card.customFieldValues, fields,
+      { name: target.name, definitions: resolveDemoFields(target.id) }, card.cardTypeId !== target.id);
   },
 
   async saveCard(boardId, cardId, model) {
@@ -380,8 +385,8 @@ const demoBoardApi: BoardApi = {
     }
 
     const card = located.card;
-    const fieldPlan = planDemoFields(getCardType(card.cardTypeId)!.customFields, card.customFieldValues, model.customFieldValues,
-      cardType.customFields, card.cardTypeId !== cardType.id, model.description);
+    const fieldPlan = planDemoFields(resolveDemoFields(card.cardTypeId), card.customFieldValues, model.customFieldValues,
+      resolveDemoFields(cardType.id), card.cardTypeId !== cardType.id, model.description);
     if (!fieldPlan.ok) return fieldPlan;
     if (located.column.id !== targetColumn.id) {
       located.column.cards.splice(located.index, 1);
@@ -583,9 +588,8 @@ const demoBoardApi: BoardApi = {
     const restoredCard = clone(archivedCard.card);
     const type = state.cardTypes.find(candidate => candidate.name.toLowerCase() === restoredCard.cardTypeName.toLowerCase())
       ?? getCardType(null)!;
-    const sameType = type.id === restoredCard.cardTypeId;
     const fieldPlan = planDemoFields(archivedCard.customFieldDefinitions, restoredCard.customFieldValues, undefined,
-      type.customFields, true, restoredCard.description, sameType);
+      resolveDemoFields(type.id), true, restoredCard.description);
     if (!fieldPlan.ok) return fieldPlan;
     restoredCard.customFieldValues = fieldPlan.data.customFieldValues;
     restoredCard.description = fieldPlan.data.description;
@@ -682,9 +686,14 @@ const demoBoardApi: BoardApi = {
     return unavailable();
   },
 
-  async previewCardTypeFields() {
-    return unavailable();
+  async getCustomFields(boardId) {
+    return boardId === DemoBoardId ? ok(clone(state.customFields)) : notFound('Board not found.');
   },
+  async createCustomField() { return unavailable(); },
+  async updateCustomField() { return unavailable(); },
+  async deleteCustomField() { return unavailable(); },
+  async reorderCustomFields() { return unavailable(); },
+  async previewCustomField() { return unavailable(); },
   async updateCardType() {
     return unavailable();
   },
@@ -829,7 +838,7 @@ function archiveCardInternal(cardId: number) {
     title: card.title,
     tagNames: [...card.tagNames],
     archivedAtUtc: now(),
-    customFieldDefinitions: clone(getCardType(card.cardTypeId)!.customFields),
+    customFieldDefinitions: clone(resolveDemoFields(card.cardTypeId)),
     card,
     comments: clone(state.comments[card.id] ?? []).map(comment => ({
       text: comment.text,
@@ -859,6 +868,10 @@ function getColumn(columnId: number) {
   return state.board.columns.find(column => column.id === columnId) ?? null;
 }
 
+function resolveDemoFields(cardTypeId: number) {
+  return state.customFields.filter(field => field.appliesTo.mode === 'all' || field.appliesTo.cardTypeIds.includes(cardTypeId)).map(field => field.definition);
+}
+
 function getCardType(cardTypeId: number | null) {
   if (cardTypeId !== null) {
     const selected = state.cardTypes.find(cardType => cardType.id === cardTypeId);
@@ -867,7 +880,8 @@ function getCardType(cardTypeId: number | null) {
     }
   }
 
-  return state.cardTypes.find(cardType => cardType.isSystem) ?? null;
+  const fallback = state.cardTypes.find(cardType => cardType.isSystem);
+  return fallback ?? null;
 }
 
 function ensureTag(name: string, emoji: string | null = null) {
@@ -981,9 +995,12 @@ function createSeedState(): DemoState {
     ...cardType,
     id: index + 1,
     styleName: cardType.styleName as CardType['styleName'],
-    customFields: cardType.name === 'Story' ? demoFieldDefinitions.map(field => ({ ...field })) : [],
     createdAtUtc: timestamp,
     updatedAtUtc: timestamp
+  }));
+  const customFields: CustomField[] = demoFieldDefinitions.map((definition, index) => ({
+    id: index + 1,
+    definition: { ...definition }, appliesTo: { mode: 'selected', cardTypeIds: cardTypes.filter(type => type.name === 'Story').map(type => type.id) }
   }));
   const slicks: Slick[] = publicDemoBoard.slicks.map((slick, index) => ({
     ...slick,
@@ -1039,7 +1056,7 @@ function createSeedState(): DemoState {
           cardTypeId: cardType.id,
           cardTypeName: cardType.name,
           cardTypeEmoji: cardType.emoji,
-          customFieldValues: demoFieldDefaults(cardType.customFields),
+          customFieldValues: demoFieldDefaults(customFields.filter(field => field.appliesTo.mode === 'all' || field.appliesTo.cardTypeIds.includes(cardType.id)).map(field => field.definition)),
           slickId: slick?.id ?? null,
           slickName: slick?.name ?? null,
           slick: slick ? { ...slick } : null,
@@ -1076,6 +1093,7 @@ function createSeedState(): DemoState {
     tags,
     slicks,
     cardTypes,
+    customFields,
     members,
     comments: {},
     archivedCards: [],

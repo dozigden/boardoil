@@ -19,10 +19,10 @@ public sealed class SwaggerIntegrationTests
     [Theory]
     [InlineData("/api/boards/{boardId}/card-types", "post", "CreateCardTypeRequest")]
     [InlineData("/api/boards/{boardId}/card-types/{cardTypeId}", "put", "UpdateCardTypeRequest")]
-    [InlineData("/api/boards/{boardId}/custom-fields", "post", "CustomFieldDto")]
-    [InlineData("/api/boards/{boardId}/custom-fields/{code}", "put", "CustomFieldDto")]
-    [InlineData("/api/boards/{boardId}/custom-fields/{code}/preview", "post", "CustomFieldPreviewContract")]
-    public async Task CardTypeWrites_ShouldKeepTheirExistingDocumentedContracts(string path, string method, string schema)
+    [InlineData("/api/boards/{boardId}/custom-fields", "post", "CustomFieldRequest")]
+    [InlineData("/api/boards/{boardId}/custom-fields/{customFieldId}", "put", "CustomFieldRequest")]
+    [InlineData("/api/boards/{boardId}/custom-fields/{customFieldId}/preview", "post", "CustomFieldPreviewRequest")]
+    public async Task FieldAndCardTypeWrites_ShouldDocumentTheirRequestTypes(string path, string method, string schema)
     {
         var client = CreateClient();
 
@@ -31,6 +31,50 @@ public sealed class SwaggerIntegrationTests
         var body = document.RootElement.GetProperty("paths").GetProperty(path).GetProperty(method)
             .GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema");
         Assert.Equal($"#/components/schemas/{schema}", body.GetProperty("$ref").GetString());
+    }
+
+    [Theory]
+    [InlineData("TextCustomFieldDefinitionInput", "minLength", "integer", "int32")]
+    [InlineData("TextCustomFieldDefinitionInput", "maxLength", "integer", "int32")]
+    [InlineData("IntegerCustomFieldDefinitionInput", "defaultValue", "integer", "int32")]
+    [InlineData("IntegerCustomFieldDefinitionInput", "min", "integer", "int32")]
+    [InlineData("IntegerCustomFieldDefinitionInput", "max", "integer", "int32")]
+    [InlineData("DateCustomFieldDefinitionInput", "defaultValue", "string", "date")]
+    public async Task CustomFieldRequests_ShouldDocumentTypedNullableScalars(string type, string property, string wireType, string format)
+    {
+        var client = CreateClient();
+
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/swagger/v1/swagger.json"));
+
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+        var scalar = schemas.GetProperty(type).GetProperty("properties").GetProperty(property);
+        Assert.Equal(wireType, scalar.GetProperty("type").GetString());
+        Assert.Equal(format, scalar.GetProperty("format").GetString());
+        Assert.True(scalar.GetProperty("nullable").GetBoolean());
+        var request = schemas.GetProperty("CustomFieldRequest");
+        Assert.Contains(request.GetProperty("required").EnumerateArray(), item => item.GetString() == "definition");
+        Assert.Contains(request.GetProperty("required").EnumerateArray(), item => item.GetString() == "appliesTo");
+    }
+
+    [Fact]
+    public async Task CustomFieldRequests_ShouldDocumentDefinitionAndApplicabilityVariants()
+    {
+        var client = CreateClient();
+
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/swagger/v1/swagger.json"));
+
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+        var properties = schemas.GetProperty("CustomFieldRequest").GetProperty("properties");
+        var definition = properties.GetProperty("definition");
+        Assert.Equal("dataType", schemas.GetProperty("CustomFieldDefinitionInput").GetProperty("discriminator").GetProperty("propertyName").GetString());
+        Assert.Equal(new[] { "DateCustomFieldDefinitionInput", "IntegerCustomFieldDefinitionInput", "TextCustomFieldDefinitionInput" },
+            definition.GetProperty("oneOf").EnumerateArray().Select(item => item.GetProperty("$ref").GetString()!.Split('/')[^1]).Order());
+        var applicability = properties.GetProperty("appliesTo");
+        Assert.Equal("mode", schemas.GetProperty("CustomFieldApplicability").GetProperty("discriminator").GetProperty("propertyName").GetString());
+        Assert.Equal(new[] { "AllCardTypes", "SelectedCardTypes" },
+            applicability.GetProperty("oneOf").EnumerateArray().Select(item => item.GetProperty("$ref").GetString()!.Split('/')[^1]).Order());
+        Assert.Equal("#/components/schemas/CustomFieldRequest",
+            schemas.GetProperty("CustomFieldPreviewRequest").GetProperty("properties").GetProperty("field").GetProperty("$ref").GetString());
     }
 
     [Fact]

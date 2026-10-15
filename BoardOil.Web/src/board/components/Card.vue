@@ -117,6 +117,7 @@ import { computed, ref, toRef, useId } from 'vue';
 import { SquareCheck } from '@lucide/vue';
 import type { Card as BoardCard } from '../../shared/types/boardTypes';
 import type { CardAttachmentImageCandidate } from '../../shared/types/attachmentTypes';
+import { useCustomFieldStore } from '../stores/customFieldStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useCardAttachmentThumbnailStore } from '../stores/cardAttachmentThumbnailStore';
 import { getCardSurfaceClassList, getCardSurfaceStyle } from '../../shared/utils/cardTypeStyles';
@@ -155,6 +156,7 @@ const emit = defineEmits<{
 }>();
 
 const cardTypeStore = useCardTypeStore();
+const customFieldStore = useCustomFieldStore();
 const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
 const isDragging = ref(false);
 const checklistHaloId = `card-checklist-halo-${useId()}`;
@@ -167,7 +169,7 @@ const checklistCountsStyle = computed(() => ({
   '--card-checklist-halo-filter': `url(#${checklistHaloId})`
 }));
 const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card.cardTypeId));
-const displayFields = computed(() => visibleCustomFields(resolvedCardType.value?.customFields ?? [], props.card.customFieldValues));
+const displayFields = computed(() => visibleCustomFields(customFieldStore.resolve(props.card.cardTypeId), props.card.customFieldValues));
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
 const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
 const cardStyleClasses = computed(() => getCardSurfaceClassList(resolvedCardType.value));

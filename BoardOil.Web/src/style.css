@@ -1,4 +1,5 @@
 @import "./shared/styles/buttons.css";
+@import "./shared/styles/drag-handles.css";
 @import "./shared/styles/badges.css";
 @import "./shared/styles/panels.css";
 @import "./shared/styles/entity-rows.css";

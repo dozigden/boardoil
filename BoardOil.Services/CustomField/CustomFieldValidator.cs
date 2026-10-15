@@ -6,15 +6,51 @@ using BoardOil.Services.Tag;
 
 namespace BoardOil.Services.CustomField;
 
-public static class CustomFieldRules
+public static class CustomFieldValidator
 {
     public const int MaximumFieldCount = 10;
     public const int MaximumNameLength = 40;
     public const int MaximumTextLength = 250;
 
-    internal static JsonElement NullValue => JsonSerializer.SerializeToElement<string?>(null);
+    public static CustomFieldValidationResult<IReadOnlyList<CustomFieldDraft>> ValidateAndNormaliseDrafts(
+        IReadOnlyList<CustomFieldDraft> fields, IReadOnlySet<int> cardTypeIds)
+    {
+        var definitions = ValidateAndNormaliseDefinitions(fields.Select(field => field.Definition).ToArray());
+        var errors = new List<ValidationError>(definitions.Errors.Select(error =>
+            new ValidationError(DefinitionPath(error.Property), error.Message)));
+        for (var index = 0; index < fields.Count; index++)
+        {
+            var path = $"customFields[{index}].appliesTo";
+            switch (fields[index].AppliesTo)
+            {
+                case AllCardTypes:
+                    break;
+                case SelectedCardTypes selected when selected.CardTypeIds is not null:
+                    if (selected.CardTypeIds.Count != selected.CardTypeIds.Distinct().Count())
+                    {
+                        errors.Add(new($"{path}.cardTypeIds", "Repeated card type"));
+                    }
+                    if (selected.CardTypeIds.Any(id => !cardTypeIds.Contains(id)))
+                    {
+                        errors.Add(new($"{path}.cardTypeIds", "Card type does not exist in board"));
+                    }
+                    break;
+                default:
+                    errors.Add(new(path, "Required"));
+                    break;
+            }
+        }
+        if (errors.Count > 0) { return new(null, errors); }
+        return new(fields.Select((field, index) => field with { Definition = definitions.Value![index] }).ToArray(), []);
+    }
 
-    public static CustomFieldRuleResult<IReadOnlyList<CustomFieldDefinition>> NormaliseDefinitions(
+    private static string DefinitionPath(string path)
+    {
+        var end = path.IndexOf(']');
+        return end < 0 ? path : path.Insert(end + 1, ".definition");
+    }
+
+    public static CustomFieldValidationResult<IReadOnlyList<CustomFieldDefinition>> ValidateAndNormaliseDefinitions(
         IReadOnlyList<CustomFieldDefinition> definitions)
     {
         var errors = new List<ValidationError>();
@@ -108,7 +144,7 @@ public static class CustomFieldRules
                     continue;
             }
 
-            var defaultValidation = NormaliseValue(field, DefaultValue(field), $"{path}.defaultValue");
+            var defaultValidation = ValidateAndNormaliseValue(field, CustomFieldJsonCodec.SerialiseDefaultValue(field), $"{path}.defaultValue");
             if (defaultValidation.Error is not null)
             {
                 errors.Add(defaultValidation.Error);
@@ -123,22 +159,11 @@ public static class CustomFieldRules
         return new(normalised, []);
     }
 
-    public static CustomFieldRuleResult<IReadOnlyDictionary<string, JsonElement>> CreateValues(
+    public static CustomFieldValidationResult<IReadOnlyDictionary<string, JsonElement>> ValidateAndNormaliseValues(
         IReadOnlyList<CustomFieldDefinition> definitions,
-        IReadOnlyDictionary<string, JsonElement>? suppliedValues = null) =>
-        BuildValues(definitions, suppliedValues ?? new Dictionary<string, JsonElement>(), useDefaultsForMissing: true);
-
-    public static CustomFieldRuleResult<IReadOnlyDictionary<string, JsonElement>> NormaliseValues(
-        IReadOnlyList<CustomFieldDefinition> definitions,
-        IReadOnlyDictionary<string, JsonElement> values) =>
-        BuildValues(definitions, values, useDefaultsForMissing: false);
-
-    private static CustomFieldRuleResult<IReadOnlyDictionary<string, JsonElement>> BuildValues(
-        IReadOnlyList<CustomFieldDefinition> definitions,
-        IReadOnlyDictionary<string, JsonElement> suppliedValues,
-        bool useDefaultsForMissing)
+        IReadOnlyDictionary<string, JsonElement> suppliedValues)
     {
-        var definitionResult = NormaliseDefinitions(definitions);
+        var definitionResult = ValidateAndNormaliseDefinitions(definitions);
         if (!definitionResult.IsValid)
         {
             return new(null, definitionResult.Errors);
@@ -165,15 +190,11 @@ public static class CustomFieldRules
         {
             if (!supplied.TryGetValue(field.Code, out var value))
             {
-                if (!useDefaultsForMissing)
-                {
-                    errors.Add(new($"customFieldValues.{field.Code}", "Field must be supplied, including an explicit null when unset."));
-                    continue;
-                }
-                value = DefaultValue(field);
+                errors.Add(new($"customFieldValues.{field.Code}", "Field must be supplied, including an explicit null when unset."));
+                continue;
             }
 
-            var result = NormaliseValue(field, value, $"customFieldValues.{field.Code}");
+            var result = ValidateAndNormaliseValue(field, value, $"customFieldValues.{field.Code}");
             if (result.Error is not null)
             {
                 errors.Add(result.Error);
@@ -189,7 +210,7 @@ public static class CustomFieldRules
         return new(values, []);
     }
 
-    internal static (JsonElement Value, ValidationError? Error) NormaliseValue(
+    internal static (JsonElement Value, ValidationError? Error) ValidateAndNormaliseValue(
         CustomFieldDefinition definition, JsonElement value, string path)
     {
         if (definition is TextCustomFieldDefinition && value.ValueKind == JsonValueKind.String)
@@ -201,7 +222,7 @@ public static class CustomFieldRules
         {
             if (definition.Nullable)
             {
-                return (NullValue, null);
+                return (value, null);
             }
             return (default, new(path, "Required"));
         }
@@ -251,23 +272,6 @@ public static class CustomFieldRules
             default:
                 return (default, new(path, "Unsupported type"));
         }
-    }
-
-    internal static JsonElement DefaultValue(CustomFieldDefinition definition) => definition switch
-    {
-        TextCustomFieldDefinition text => JsonSerializer.SerializeToElement(text.DefaultValue),
-        IntegerCustomFieldDefinition integer => JsonSerializer.SerializeToElement(integer.DefaultValue),
-        DateCustomFieldDefinition date => JsonSerializer.SerializeToElement(date.DefaultValue),
-        _ => throw new ArgumentOutOfRangeException(nameof(definition))
-    };
-
-    internal static string FormatValue(JsonElement value)
-    {
-        if (value.ValueKind == JsonValueKind.String)
-        {
-            return value.GetString()!;
-        }
-        return value.GetRawText();
     }
 
     private static string? NormaliseText(string? value)

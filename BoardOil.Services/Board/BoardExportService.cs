@@ -1,3 +1,4 @@
+using BoardOil.Contracts.CustomField;
 using BoardOil.Services.Board.Import;
 using System.Data;
 using BoardOil.Abstractions.Attachment;
@@ -133,6 +134,7 @@ public sealed class BoardExportService(
                     })
                     .ToList());
 
+        var cardTypeNamesById = cardTypes.ToDictionary(type => type.Id, type => type.Name);
         var boardPayload = new BoardPackageBoardDto(
             board.Name,
             board.Description,
@@ -156,7 +158,10 @@ public sealed class BoardExportService(
             board.SlickCohesionModeEnabled,
             board.CardAttachmentThumbnailsEnabled)
         {
-            CustomFields = BoardPackageCustomFields.Export(board.CustomFields, cardTypes)
+            CustomFields = board.CustomFields.ToCustomFieldDrafts().Select(field => new BoardPackageCustomField(field.Definition,
+                field.AppliesTo is SelectedCardTypes selected
+                    ? new("selected", selected.CardTypeIds.Select(id => cardTypeNamesById[id]).ToArray())
+                    : new("all"))).ToArray()
         };
         var archivePayload = new BoardPackageArchiveDto(
             archivedCards

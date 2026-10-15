@@ -32,10 +32,10 @@ public sealed class CustomFieldEntityTests : TestBaseDb
         var stored = await DbContextForAssert.CustomFields.SingleAsync();
 
         Assert.Equal(kind, stored.DataType.ToString().ToLowerInvariant());
-        Assert.Equal(definition, CustomFieldConfigurationCodec.Read(stored));
+        Assert.Equal(definition, stored.ToCustomFieldDefinition());
         using var json = JsonDocument.Parse(stored.ConfigurationJson);
         Assert.False(json.RootElement.TryGetProperty("type", out _));
-        var cardValue = CustomFieldRules.CreateValues([definition], null).Value!["Value"];
+        var cardValue = CustomFieldConverter.CreateValues([definition], null).Value!["Value"];
         Assert.Equal(cardValue.GetRawText(), json.RootElement.GetProperty("defaultValue").GetRawText());
     }
 
@@ -49,12 +49,12 @@ public sealed class CustomFieldEntityTests : TestBaseDb
         SetFields(type, [new TextCustomFieldDefinition { Code = "Ref", Name = "Référence", Nullable = true }]);
         await DbContextForArrange.SaveChangesAsync();
         var duplicate = new EntityCustomField { BoardId = type.BoardId };
-        CustomFieldConfigurationCodec.Write(duplicate, new TextCustomFieldDefinition
+        duplicate.ApplyCustomFieldDraft(new(new TextCustomFieldDefinition
         {
             Code = duplicateCode ? "REF" : "Other",
             Name = duplicateCode ? "Other" : "RÉFÉRENCE",
             Nullable = true
-        });
+        }, new AllCardTypes()));
         DbContextForArrange.CustomFields.Add(duplicate);
 
         await Assert.ThrowsAsync<DbUpdateException>(() => DbContextForArrange.SaveChangesAsync());
@@ -115,9 +115,9 @@ public sealed class CustomFieldEntityTests : TestBaseDb
         await DbContextForArrange.SaveChangesAsync();
         var originalField = await DbContextForArrange.CustomFields.SingleAsync();
         var originalAssignment = await DbContextForArrange.CustomFieldCardTypes.SingleAsync();
-        var input = CustomFieldJsonCodec.DeserialiseDefinitionInputs(CustomFieldJsonCodec.SerialiseDefinitions([definition with { Name = "Renamed" }]))[0];
+        var input = ToCustomFieldInput(definition with { Name = "Renamed" });
 
-        var result = await ResolveService<ICustomFieldService>().UpdateAsync(type.BoardId, "Ref",
+        var result = await ResolveService<ICustomFieldService>().UpdateAsync(type.BoardId, originalField.Id,
             new(input, new SelectedCardTypes([type.Id])), ActorUserId);
 
         Assert.True(result.Success, result.Message);

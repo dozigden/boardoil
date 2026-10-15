@@ -16,6 +16,58 @@ namespace BoardOil.Services.Tests;
 public sealed class CustomFieldConversionIntegrationTests : TestBaseDb
 {
     [Fact]
+    public async Task DeleteType_WhenCommentWriteFails_ShouldRollbackReassignmentValuesAndAssignments()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("One").AddCard("Two").Build();
+        var type = board.GetCard("One").CardType;
+        type.IsSystem = false;
+        DbContextForArrange.CardTypes.Add(new EntityCardType { BoardId = board.BoardId, Name = "Replacement", IsSystem = true });
+        SetFields(type, [new TextCustomFieldDefinition { Code = "Ref", Name = "Reference", Nullable = true }]);
+        board.GetCard("One").CustomFieldValuesJson = """{"Ref":"First value"}""";
+        board.GetCard("Two").CustomFieldValuesJson = """{"Ref":"Second value"}""";
+        await DbContextForArrange.SaveChangesAsync();
+        await DbContextForArrange.Database.ExecuteSqlRawAsync("""
+            CREATE TRIGGER RejectLoss BEFORE INSERT ON "CardComments"
+            BEGIN SELECT RAISE(ABORT, 'Injected comment failure'); END;
+            """);
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => ResolveService<CardTypeService>()
+            .DeleteCardTypeAsync(board.BoardId, type.Id, ActorUserId));
+
+        Assert.True(await DbContextForAssert.CardTypes.AnyAsync(item => item.Id == type.Id));
+        Assert.Equal(type.Id, (await DbContextForAssert.CustomFieldCardTypes.SingleAsync()).CardTypeId);
+        var cards = await DbContextForAssert.Cards.OrderBy(card => card.Title).ToListAsync();
+        Assert.All(cards, card => Assert.Equal(type.Id, card.CardTypeId));
+        Assert.Equal(board.GetCard("One").CustomFieldValuesJson, cards[0].CustomFieldValuesJson);
+        Assert.Equal(board.GetCard("Two").CustomFieldValuesJson, cards[1].CustomFieldValuesJson);
+        Assert.Empty(await DbContextForAssert.CardComments.ToListAsync());
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).ResyncRequestedBoardIds);
+    }
+
+    [Fact]
+    public async Task DeleteType_WithInvalidCardValues_ShouldReturnCardScopedErrorsWithoutReassigningCards()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Valid").AddCard("Invalid").Build();
+        var type = board.GetCard("Valid").CardType;
+        type.IsSystem = false;
+        DbContextForArrange.CardTypes.Add(new EntityCardType { BoardId = board.BoardId, Name = "Replacement", IsSystem = true });
+        SetFields(type, [new TextCustomFieldDefinition { Code = "Ref", Name = "Reference", Nullable = true }]);
+        board.GetCard("Valid").CustomFieldValuesJson = """{"Ref":"Saved"}""";
+        board.GetCard("Invalid").CustomFieldValuesJson = "{}";
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await ResolveService<CardTypeService>().DeleteCardTypeAsync(board.BoardId, type.Id, ActorUserId);
+
+        Assert.False(result.Success);
+        Assert.Contains($"cards[{board.GetCard("Invalid").BoardCardId}].customFieldValues.Ref", result.ValidationErrors!.Keys);
+        Assert.True(await DbContextForAssert.CardTypes.AnyAsync(item => item.Id == type.Id));
+        Assert.All(await DbContextForAssert.Cards.ToListAsync(), card => Assert.Equal(type.Id, card.CardTypeId));
+        Assert.Equal("""{"Ref":"Saved"}""", (await DbContextForAssert.Cards.SingleAsync(card => card.Title == "Valid")).CustomFieldValuesJson);
+        Assert.Empty(await DbContextForAssert.CardComments.ToListAsync());
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).ResyncRequestedBoardIds);
+    }
+
+    [Fact]
     public async Task RemoveFields_ShouldRecordMaximumSizedLiteralValuesOncePerPopulatedCard()
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("One").AddCard("Two").AddCard("Empty").Build();
@@ -91,8 +143,8 @@ public sealed class CustomFieldConversionIntegrationTests : TestBaseDb
         Assert.Equal("0", Assert.Single(result.Data!.Card.CustomFieldValues).Value.GetString());
         Assert.True(result.Data.Card.CustomFieldValues.ContainsKey("Effort"));
         Assert.Equal("Keep description", result.Data.Card.Description);
-        Assert.Equal(CustomFieldCatalogue.Read(target.Board.CustomFields).Select(field => field.Definition),
-            CustomFieldCatalogue.Read((await DbContextForAssert.Boards.Include(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync(board => board.Id == target.BoardId)).CustomFields).Select(field => field.Definition));
+        Assert.Equal(target.Board.CustomFields.ToCustomFieldDtos().Select(field => field.Definition),
+            (await DbContextForAssert.Boards.Include(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync(board => board.Id == target.BoardId)).CustomFields.ToCustomFieldDtos().Select(field => field.Definition));
         var comment = await DbContextForAssert.CardComments.SingleAsync();
         Assert.Equal(card.Id, comment.CardId);
         Assert.Equal($"Fields removed during board transfer:\n\n    Card type: {card.CardType.Name} → {target.Name}\n\n    Reference: Lost value", comment.Text);

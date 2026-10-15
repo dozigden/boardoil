@@ -237,7 +237,7 @@ public sealed class UpdateCardService(
         var derivedValuesChanged = previousCompleted != existingCard.CompletedChecklistItemCount
             || previousTotal != existingCard.TotalChecklistItemCount;
 
-        var lossComment = CustomFieldLossComment.Add(existingCard, fieldPlan.Value!.LostValues,
+        var lossComment = CardCommentService.AddCustomFieldLossComment(existingCard, fieldPlan.Value!.LostValues,
             originalTypeName, selectedCardType.Name);
         await scope.SaveChangesAsync(cancellationToken);
         return new CardSaveResult(

@@ -188,7 +188,7 @@ public sealed class BoardResaveTests : TestBaseDb
 
         Assert.Equal(new BoardResaveResult(board.BoardId, false, 1, 1), result);
         var stored = await DbContextForAssert.Cards.Include(x => x.CardType).ThenInclude(type => type.Board).ThenInclude(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync();
-        Assert.Equal(CustomFieldJsonCodec.DeserialiseDefinitions(CustomFieldDefinitions), CustomFieldCatalogue.Resolve(stored.CardType));
+        Assert.Equal(CustomFieldJsonCodec.DeserialiseDefinitions(CustomFieldDefinitions), stored.CardType.Board.CustomFields.GetApplicableCustomFieldDefinitions(stored.CardType.Id));
         Assert.Equal(FieldValues, stored.CustomFieldValuesJson);
         Assert.Equal(card.CardTypeId, stored.CardTypeId);
         Assert.Equal(card.CardType.UpdatedAtUtc, stored.CardType.UpdatedAtUtc);

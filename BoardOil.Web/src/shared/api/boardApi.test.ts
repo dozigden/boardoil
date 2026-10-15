@@ -431,6 +431,29 @@ describe('boardApi card types', () => {
     vi.clearAllMocks();
   });
 
+  it.each(['load', 'create', 'update'] as const)('omits embedded field projections from %s results', async operation => {
+    const response = {
+      id: 7, name: 'Bug', emoji: null, styleName: 'auto', stylePropertiesJson: '{}',
+      isSystem: false, createdAtUtc: '2026-05-16T00:00:00Z', updatedAtUtc: '2026-05-16T00:00:00Z',
+      customFields: [{ code: 'points', name: 'Estimate', dataType: 'integer', defaultValue: 0 }]
+    };
+    vi.mocked(getEnvelope).mockResolvedValue(ok({ success: true, statusCode: 200, data: [response] }));
+    vi.mocked(postData).mockResolvedValue(ok(response));
+    vi.mocked(putData).mockResolvedValue(ok(response));
+    const api = createBoardApi();
+    const model = { name: 'Bug', emoji: null, styleName: 'auto' as const, stylePropertiesJson: '{}' };
+    let result;
+    if (operation === 'load') result = await api.getCardTypes(3);
+    else if (operation === 'create') result = await api.createCardType(3, model);
+    else result = await api.updateCardType(3, 7, model);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected card type response');
+    const cardType = Array.isArray(result.data) ? result.data[0] : result.data;
+    expect(cardType).toEqual({ id: 7, name: 'Bug', emoji: null, styleName: 'auto', stylePropertiesJson: '{}',
+      isSystem: false, createdAtUtc: response.createdAtUtc, updatedAtUtc: response.updatedAtUtc });
+    expect(response.customFields).toHaveLength(1);
+  });
+
   it('creates a card type with typed edit payload', async () => {
     vi.mocked(postData).mockResolvedValue(ok({
       id: 7,

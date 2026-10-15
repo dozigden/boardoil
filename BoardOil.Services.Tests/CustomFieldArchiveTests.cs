@@ -104,7 +104,7 @@ public sealed class CustomFieldArchiveTests : TestBaseDb
         source.CardType = originalType;
         DbContextForArrange.CardTypes.Add(originalType);
         await DbContextForArrange.SaveChangesAsync();
-        SetFields(originalType, CustomFieldCatalogue.Resolve(systemType));
+        SetFields(originalType, systemType.Board.CustomFields.GetApplicableCustomFieldDefinitions(systemType.Id));
         await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<ICardArchiveService>();
         Assert.True((await service.ArchiveCardAsync(source.BoardId, source.BoardCardId, ActorUserId)).Success);

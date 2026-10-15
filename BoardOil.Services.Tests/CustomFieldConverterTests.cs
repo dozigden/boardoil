@@ -12,13 +12,66 @@ public sealed class CustomFieldConverterTests
     private static DateCustomFieldDefinition Date => new() { Code = "F", Name = "Field", Nullable = true };
 
     [Fact]
-    public void BetweenTypes_ShouldMatchDisplayNamesIgnoringCaseAndEmoji()
+    public void CreateValues_ShouldUseDefaultsForAllKindsAndNullForUnsetNullableFields()
+    {
+        CustomFieldDefinition[] fields =
+        [
+            Text with { Code = "Ref", Name = "Reference", DefaultValue = " Unknown " },
+            Integer with { Code = "Points", Name = "Points", Nullable = false, DefaultValue = 0 },
+            Date with { Code = "Due", Name = "Due", DefaultValue = new DateOnly(2024, 2, 29) },
+            Text with { Code = "Note", Name = "Note" }
+        ];
+
+        var result = CustomFieldConverter.CreateValues(fields);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(4, result.Value!.Count);
+        Assert.Equal("Unknown", result.Value["Ref"].GetString());
+        Assert.Equal(0, result.Value["Points"].GetInt32());
+        Assert.Equal("2024-02-29", result.Value["Due"].GetString());
+        Assert.Equal(JsonValueKind.Null, result.Value["Note"].ValueKind);
+    }
+
+    [Fact]
+    public void CreateValues_ShouldAcceptPartialOverridesIncludingExplicitNull()
+    {
+        CustomFieldDefinition[] fields =
+        [
+            Text with { DefaultValue = "Default" },
+            Integer with { Code = "I", Name = "Integer", DefaultValue = 7 }
+        ];
+        var supplied = Values(null, "f");
+
+        var result = CustomFieldConverter.CreateValues(fields, supplied);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(JsonValueKind.Null, result.Value!["F"].ValueKind);
+        Assert.Equal(7, result.Value["I"].GetInt32());
+        Assert.Single(supplied);
+    }
+
+    [Theory]
+    [InlineData("{\"Unknown\":null}")]
+    [InlineData("{\"F\":null,\"f\":null}")]
+    public void CreateValues_ShouldRejectUnknownOrRepeatedCodesBeforeApplyingDefaults(string json)
+    {
+        var supplied = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        var result = CustomFieldConverter.CreateValues([Text with { DefaultValue = "Default" }], supplied);
+
+        Assert.False(result.IsValid);
+        Assert.Null(result.Value);
+        Assert.StartsWith("customFieldValues.", Assert.Single(result.Errors).Property);
+    }
+
+    [Fact]
+    public void AcrossBoards_ShouldMatchDisplayNamesIgnoringCaseAndEmoji()
     {
         var source = Integer with { Code = "Old", Name = "Effort", Emoji = "📎" };
         var target = Integer with { Code = "New", Name = "EFFORT", Emoji = "📅" };
         var values = Values(5, "Old");
 
-        var result = CustomFieldConverter.ConvertBetweenTypes([source], values, [target]);
+        var result = CustomFieldConverter.ConvertAcrossBoards([source], values, [target]);
 
         Assert.True(result.IsValid);
         Assert.Equal(5, Assert.Single(result.Value!.Values).Value.GetInt32());
@@ -28,12 +81,12 @@ public sealed class CustomFieldConverterTests
     }
 
     [Fact]
-    public void BetweenTypes_ShouldNotMatchCodeWhenDisplayNameDiffers()
+    public void AcrossBoards_ShouldNotMatchCodeWhenDisplayNameDiffers()
     {
         var source = Text with { Name = "Original" };
         var target = Text with { Name = "Different", DefaultValue = "Fallback" };
 
-        var result = CustomFieldConverter.ConvertBetweenTypes([source], Values("Original value"), [target]);
+        var result = CustomFieldConverter.ConvertAcrossBoards([source], Values("Original value"), [target]);
 
         Assert.True(result.IsValid);
         Assert.Equal("Fallback", result.Value!.Values["F"].GetString());
@@ -60,12 +113,12 @@ public sealed class CustomFieldConverterTests
 
     [Theory]
     [MemberData(nameof(SuccessfulConversions))]
-    public void BetweenTypes_ShouldPreserveConvertibleValues(
+    public void AcrossBoards_ShouldPreserveConvertibleValues(
         CustomFieldDefinition source, CustomFieldDefinition target, object? value, object? expected)
     {
         var values = Values(value);
 
-        var result = CustomFieldConverter.ConvertBetweenTypes([source], values, [target]);
+        var result = CustomFieldConverter.ConvertAcrossBoards([source], values, [target]);
 
         Assert.True(result.IsValid);
         Assert.Equal(JsonSerializer.Serialize(expected), result.Value!.Values["F"].GetRawText());
@@ -94,13 +147,13 @@ public sealed class CustomFieldConverterTests
 
     [Theory]
     [MemberData(nameof(FailedConversions))]
-    public void BetweenTypes_ShouldUseFallbackAndRecordLossWhenConversionOrValidationFails(
+    public void AcrossBoards_ShouldUseFallbackAndRecordLossWhenConversionOrValidationFails(
         CustomFieldDefinition source, CustomFieldDefinition target, object value, object? fallback)
     {
         var values = Values(value);
         var expectedLoss = value.ToString();
 
-        var result = CustomFieldConverter.ConvertBetweenTypes([source], values, [target]);
+        var result = CustomFieldConverter.ConvertAcrossBoards([source], values, [target]);
 
         Assert.True(result.IsValid);
         Assert.Equal(JsonSerializer.Serialize(fallback), result.Value!.Values["F"].GetRawText());
@@ -108,7 +161,7 @@ public sealed class CustomFieldConverterTests
     }
 
     [Fact]
-    public void BetweenTypes_ShouldInitialiseUnmatchedTargetsWithDefaults()
+    public void AcrossBoards_ShouldInitialiseUnmatchedTargetsWithDefaults()
     {
         CustomFieldDefinition[] targets =
         [
@@ -117,7 +170,7 @@ public sealed class CustomFieldConverterTests
             Date with { Code = "D", Name = "Date" }
         ];
 
-        var result = CustomFieldConverter.ConvertBetweenTypes([], new Dictionary<string, JsonElement>(), targets);
+        var result = CustomFieldConverter.ConvertAcrossBoards([], new Dictionary<string, JsonElement>(), targets);
 
         Assert.True(result.IsValid);
         Assert.Equal("Default", result.Value!.Values["F"].GetString());
@@ -144,7 +197,7 @@ public sealed class CustomFieldConverterTests
             ["F"] = JsonSerializer.SerializeToElement("  ")
         };
 
-        var result = CustomFieldConverter.ConvertBetweenTypes(fields, values, []);
+        var result = CustomFieldConverter.ConvertAcrossBoards(fields, values, []);
 
         Assert.True(result.IsValid);
         Assert.Empty(result.Value!.Values);
@@ -284,7 +337,7 @@ public sealed class CustomFieldConverterTests
     {
         var values = Values("Orphan", "Removed");
 
-        var result = CustomFieldConverter.ConvertBetweenTypes([], values, [Text]);
+        var result = CustomFieldConverter.ConvertAcrossBoards([], values, [Text]);
 
         Assert.False(result.IsValid);
         Assert.Null(result.Value);

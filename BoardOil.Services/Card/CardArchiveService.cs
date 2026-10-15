@@ -181,8 +181,8 @@ public sealed class CardArchiveService(
             return ApiErrors.BadRequest("Archived card snapshot cannot be restored.", validationErrors);
         }
 
-        var fieldPlan = CustomFieldConverter.ChangeType(snapshot.CustomFieldDefinitions, snapshotCard.CustomFieldValues,
-            CustomFieldCatalogue.Resolve(selectedCardType));
+        var fieldPlan = CustomFieldConverter.ConvertWithinBoard(snapshot.CustomFieldDefinitions, snapshotCard.CustomFieldValues,
+            selectedCardType.Board.CustomFields.GetApplicableCustomFieldDefinitions(selectedCardType.Id));
         if (!fieldPlan.IsValid)
         {
             return ApiErrors.BadRequest("Archived card snapshot cannot be restored.", fieldPlan.Errors);
@@ -244,7 +244,7 @@ public sealed class CardArchiveService(
             cardCommentRepository.Add(restoredComment);
         }
 
-        var lossComment = CustomFieldLossComment.Add(restoredCard, fieldPlan.Value!.LostValues,
+        var lossComment = CardCommentService.AddCustomFieldLossComment(restoredCard, fieldPlan.Value!.LostValues,
             snapshotCard.CardTypeName, selectedCardType.Name, "archive restore");
         cardRepository.Add(restoredCard);
         await attachments.RestoreAsync(archivedCard, restoredCard);

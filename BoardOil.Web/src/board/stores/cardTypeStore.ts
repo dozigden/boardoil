@@ -1,4 +1,4 @@
-import type { CustomFieldDefinitionInput } from '../../shared/types/customFieldTypes';
+import { useCustomFieldStore } from './customFieldStore';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
@@ -9,6 +9,7 @@ import type { Result } from '../../shared/types/result';
 
 export const useCardTypeStore = defineStore('cardType', () => {
   const cardTypes = ref<CardType[]>([]);
+  const fields = useCustomFieldStore();
   const busy = ref(false);
   const saveError = ref<AppError | null>(null);
   const activeBoardId = ref<number | null>(null);
@@ -90,13 +91,17 @@ export const useCardTypeStore = defineStore('cardType', () => {
     model: CardTypeEditModel,
     boardId: number
   ) {
-    const result = await runBusy(boardId, () => api.createCardType(boardId, model));
-    if (!result.ok) {
-      return null;
-    }
-
-    UPSERT_CARD_TYPE(boardId, result.data);
-    return result.data;
+    const result = await runBusy(boardId, async () => {
+      const result = await api.createCardType(boardId, model);
+      if (result.ok && activeBoardId.value === boardId) {
+        UPSERT_CARD_TYPE(boardId, result.data);
+        if (model.copyFieldAssignmentsFromCardTypeId !== undefined) {
+          await fields.loadCustomFields(boardId);
+        }
+      }
+      return result;
+    });
+    return result.ok ? result.data : null;
   }
 
   async function updateCardType(
@@ -113,18 +118,16 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return result.data;
   }
 
-  function previewFields(boardId: number, cardTypeId: number, customFields: CustomFieldDefinitionInput[]) {
-    return api.previewCardTypeFields(boardId, cardTypeId, customFields);
-  }
-
   async function deleteCardType(cardTypeId: number, boardId: number) {
-    const result = await runBusy(boardId, () => api.deleteCardType(boardId, cardTypeId));
-    if (!result.ok) {
-      return false;
-    }
-
-    REMOVE_CARD_TYPE(boardId, cardTypeId);
-    return true;
+    const result = await runBusy(boardId, async () => {
+      const result = await api.deleteCardType(boardId, cardTypeId);
+      if (result.ok && activeBoardId.value === boardId) {
+        REMOVE_CARD_TYPE(boardId, cardTypeId);
+        await fields.loadCustomFields(boardId);
+      }
+      return result;
+    });
+    return result.ok;
   }
 
   async function setDefaultCardType(cardTypeId: number, boardId: number) {
@@ -194,7 +197,6 @@ export const useCardTypeStore = defineStore('cardType', () => {
     loadCardTypes,
     createCardType,
     updateCardType,
-    previewFields,
     setDefaultCardType,
     deleteCardType,
     getCardTypeById

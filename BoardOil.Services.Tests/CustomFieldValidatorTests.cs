@@ -5,7 +5,7 @@ using Xunit;
 
 namespace BoardOil.Services.Tests;
 
-public sealed class CustomFieldRulesTests
+public sealed class CustomFieldValidatorTests
 {
     private static TextCustomFieldDefinition Text => new() { Code = "F", Name = "Field", Nullable = true };
     private static IntegerCustomFieldDefinition Integer => new() { Code = "F", Name = "Field", Nullable = true };
@@ -30,7 +30,7 @@ public sealed class CustomFieldRulesTests
     [MemberData(nameof(DefinitionMessages))]
     public void Definitions_ShouldReturnConcisePropertyMessages(CustomFieldDefinition field, string property, string message)
     {
-        var result = CustomFieldRules.NormaliseDefinitions([field]);
+        var result = CustomFieldValidator.ValidateAndNormaliseDefinitions([field]);
 
         var error = Assert.Single(result.Errors, item => item.Property == $"customFields[0].{property}");
         Assert.Equal(message, error.Message);
@@ -45,7 +45,7 @@ public sealed class CustomFieldRulesTests
             DefaultValue = " Unknown ", MinLength = 1, ShowOnCard = true
         };
 
-        var result = CustomFieldRules.NormaliseDefinitions([original]);
+        var result = CustomFieldValidator.ValidateAndNormaliseDefinitions([original]);
 
         Assert.True(result.IsValid);
         var field = Assert.IsType<TextCustomFieldDefinition>(Assert.Single(result.Value!));
@@ -68,7 +68,7 @@ public sealed class CustomFieldRulesTests
             .Select(index => (CustomFieldDefinition)(Text with { Code = $"F{index}", Name = $"Field {index}" }))
             .ToArray();
 
-        var result = CustomFieldRules.NormaliseDefinitions(fields);
+        var result = CustomFieldValidator.ValidateAndNormaliseDefinitions(fields);
 
         Assert.Equal(valid, result.IsValid);
         if (valid)
@@ -114,7 +114,7 @@ public sealed class CustomFieldRulesTests
     [MemberData(nameof(InvalidDefinitions))]
     public void Definitions_ShouldRejectInvalidConfiguration(CustomFieldDefinition field, string property)
     {
-        var result = CustomFieldRules.NormaliseDefinitions([field]);
+        var result = CustomFieldValidator.ValidateAndNormaliseDefinitions([field]);
 
         Assert.False(result.IsValid);
         Assert.Null(result.Value);
@@ -128,7 +128,7 @@ public sealed class CustomFieldRulesTests
     {
         var fields = new[] { Text, Text with { Code = code, Name = name } };
 
-        var result = CustomFieldRules.NormaliseDefinitions(fields);
+        var result = CustomFieldValidator.ValidateAndNormaliseDefinitions(fields);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.Property == $"customFields[1].{property}");
@@ -143,49 +143,10 @@ public sealed class CustomFieldRulesTests
             MinLength = 250, MaxLength = 250, DefaultValue = " "
         };
 
-        var result = CustomFieldRules.NormaliseDefinitions([field]);
+        var result = CustomFieldValidator.ValidateAndNormaliseDefinitions([field]);
 
         Assert.True(result.IsValid);
         Assert.Null(Assert.IsType<TextCustomFieldDefinition>(Assert.Single(result.Value!)).DefaultValue);
-    }
-
-    [Fact]
-    public void CreateValues_ShouldUseDefaultsForAllKindsAndNullForUnsetNullableFields()
-    {
-        CustomFieldDefinition[] fields =
-        [
-            Text with { Code = "Ref", Name = "Reference", DefaultValue = " Unknown " },
-            Integer with { Code = "Points", Name = "Points", Nullable = false, DefaultValue = 0 },
-            Date with { Code = "Due", Name = "Due", DefaultValue = new DateOnly(2024, 2, 29) },
-            Text with { Code = "Note", Name = "Note" }
-        ];
-
-        var result = CustomFieldRules.CreateValues(fields);
-
-        Assert.True(result.IsValid);
-        Assert.Equal(4, result.Value!.Count);
-        Assert.Equal("Unknown", result.Value["Ref"].GetString());
-        Assert.Equal(0, result.Value["Points"].GetInt32());
-        Assert.Equal("2024-02-29", result.Value["Due"].GetString());
-        Assert.Equal(JsonValueKind.Null, result.Value["Note"].ValueKind);
-    }
-
-    [Fact]
-    public void CreateValues_ShouldAcceptPartialOverridesIncludingExplicitNull()
-    {
-        CustomFieldDefinition[] fields =
-        [
-            Text with { DefaultValue = "Default" },
-            Integer with { Code = "I", Name = "Integer", DefaultValue = 7 }
-        ];
-        var supplied = Values(null);
-
-        var result = CustomFieldRules.CreateValues(fields, supplied);
-
-        Assert.True(result.IsValid);
-        Assert.Equal(JsonValueKind.Null, result.Value!["F"].ValueKind);
-        Assert.Equal(7, result.Value["I"].GetInt32());
-        Assert.Single(supplied);
     }
 
     [Theory]
@@ -198,7 +159,7 @@ public sealed class CustomFieldRulesTests
         var field = Text with { MinLength = 5, DefaultValue = "Default" };
         var supplied = Values(value);
 
-        var result = CustomFieldRules.NormaliseValues([field], supplied);
+        var result = CustomFieldValidator.ValidateAndNormaliseValues([field], supplied);
 
         Assert.True(result.IsValid);
         Assert.Equal(expected, result.Value!["F"].GetString());
@@ -238,7 +199,7 @@ public sealed class CustomFieldRulesTests
     {
         var supplied = Values(value);
 
-        var result = CustomFieldRules.NormaliseValues([field], supplied);
+        var result = CustomFieldValidator.ValidateAndNormaliseValues([field], supplied);
 
         Assert.False(result.IsValid);
         Assert.Null(result.Value);
@@ -264,7 +225,7 @@ public sealed class CustomFieldRulesTests
     {
         var supplied = Values(value);
 
-        var result = CustomFieldRules.NormaliseValues([field], supplied);
+        var result = CustomFieldValidator.ValidateAndNormaliseValues([field], supplied);
 
         Assert.True(result.IsValid);
         Assert.Equal(supplied["F"].GetRawText(), result.Value!["F"].GetRawText());
@@ -278,7 +239,7 @@ public sealed class CustomFieldRulesTests
     {
         var values = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        var result = CustomFieldRules.NormaliseValues([Text], values);
+        var result = CustomFieldValidator.ValidateAndNormaliseValues([Text], values);
 
         Assert.False(result.IsValid);
         Assert.Null(result.Value);
@@ -289,7 +250,7 @@ public sealed class CustomFieldRulesTests
     {
         var supplied = new Dictionary<string, JsonElement> { ["f"] = JsonSerializer.SerializeToElement("value") };
 
-        var result = CustomFieldRules.NormaliseValues([Text], supplied);
+        var result = CustomFieldValidator.ValidateAndNormaliseValues([Text], supplied);
 
         Assert.True(result.IsValid);
         Assert.Equal("F", Assert.Single(result.Value!).Key);

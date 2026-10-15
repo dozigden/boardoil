@@ -34,6 +34,11 @@ export default defineConfig({
     'import.meta.env.VITE_BO_BROWSER_STORAGE_MODE': JSON.stringify('disabled')
   },
   publicDir: fileURLToPath(new URL('./public', import.meta.url)),
+  resolve: {
+    alias: {
+      'virtual:boardoil-mcp-help': `${fileURLToPath(new URL('../MCP.md', import.meta.url))}?raw`
+    }
+  },
   plugins: [
     {
       name: 'demo-distribution-files',

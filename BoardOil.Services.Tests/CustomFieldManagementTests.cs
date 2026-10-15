@@ -19,8 +19,8 @@ public sealed class CustomFieldManagementTests : TestBaseDb
 {
     private ICustomFieldService Service => ResolveService<ICustomFieldService>();
     private static IntegerCustomFieldDefinition Points => new() { Code = "Points", Name = "Points", DefaultValue = 0 };
-    private static CustomFieldInput Input(CustomFieldDefinition definition, CustomFieldApplicability? applies = null) =>
-        new(CustomFieldJsonCodec.DeserialiseDefinitionInputs(CustomFieldJsonCodec.SerialiseDefinitions([definition]))[0], applies ?? new AllCardTypes());
+    private static CustomFieldRequest Input(CustomFieldDefinition definition, CustomFieldApplicability? applies = null) =>
+        new(ToCustomFieldInput(definition), applies ?? new AllCardTypes());
 
     [Fact]
     public async Task Create_AllTypes_ShouldFillRequiredDefaultsAndApplyToFutureTypes()
@@ -56,7 +56,7 @@ public sealed class CustomFieldManagementTests : TestBaseDb
     {
         var card = await ArrangeAsync(Points, "{\"Points\":7}");
         var updated = Points with { Name = "Estimate", DefaultValue = 2, Emoji = "🎯", ShowOnCard = true };
-        var result = await Service.UpdateAsync(card.BoardId, "Points", Input(updated), ActorUserId);
+        var result = await Service.UpdateAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Points"), Input(updated), ActorUserId);
 
         Assert.True(result.Success);
         var stored = await DbContextForAssert.Cards.SingleAsync();
@@ -76,12 +76,12 @@ public sealed class CustomFieldManagementTests : TestBaseDb
             ? new IntegerCustomFieldDefinition { Code = "Ref", Name = "Reference", DefaultValue = 2 }
             : new TextCustomFieldDefinition { Code = "Ref", Name = "Reference", Nullable = true, MaxLength = 2 };
         var input = Input(changed);
-        var preview = await Service.PreviewAsync(card.BoardId, "Ref", new(input), ActorUserId);
+        var preview = await Service.PreviewAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Ref"), new(input), ActorUserId);
         Assert.Equal(new CustomFieldPreviewDto(1, 0, 1), preview.Data);
         Assert.Equal(card.CustomFieldValuesJson, (await DbContextForAssert.Cards.AsNoTracking().SingleAsync()).CustomFieldValuesJson);
         Assert.Empty(await DbContextForAssert.CardComments.AsNoTracking().ToListAsync());
 
-        var result = await Service.UpdateAsync(card.BoardId, "Ref", input, ActorUserId);
+        var result = await Service.UpdateAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Ref"), input, ActorUserId);
 
         Assert.True(result.Success, result.Message);
         var stored = await DbContextForAssert.Cards.SingleAsync();
@@ -96,8 +96,8 @@ public sealed class CustomFieldManagementTests : TestBaseDb
     {
         var card = await ArrangeAsync(Points with { Nullable = true }, "{\"Points\":" + value + "}");
         var input = Input(Points with { Nullable = true }, new SelectedCardTypes([]));
-        var preview = await Service.PreviewAsync(card.BoardId, "Points", new(input), ActorUserId);
-        var result = await Service.UpdateAsync(card.BoardId, "Points", input, ActorUserId);
+        var preview = await Service.PreviewAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Points"), new(input), ActorUserId);
+        var result = await Service.UpdateAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Points"), input, ActorUserId);
 
         Assert.True(result.Success);
         Assert.Equal(new CustomFieldPreviewDto(lossCount, lossCount, 0), preview.Data);
@@ -110,7 +110,7 @@ public sealed class CustomFieldManagementTests : TestBaseDb
     public async Task MakeRequired_ShouldFillExistingNullWithoutLoss()
     {
         var card = await ArrangeAsync(Points with { Nullable = true }, "{\"Points\":null}");
-        var saved = await Service.UpdateAsync(card.BoardId, "Points", Input(Points with { DefaultValue = 9 }), ActorUserId);
+        var saved = await Service.UpdateAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Points"), Input(Points with { DefaultValue = 9 }), ActorUserId);
 
         Assert.True(saved.Success);
         Assert.Equal("{\"Points\":9}", (await DbContextForAssert.Cards.SingleAsync()).CustomFieldValuesJson);
@@ -136,12 +136,12 @@ public sealed class CustomFieldManagementTests : TestBaseDb
         if (invalid == "duplicate-type") applies = new SelectedCardTypes([card.CardTypeId, card.CardTypeId]);
 
         var result = invalid == "immutable"
-            ? await Service.UpdateAsync(card.BoardId, "Points", Input(definition), ActorUserId)
+            ? await Service.UpdateAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Points"), Input(definition), ActorUserId)
             : await Service.CreateAsync(card.BoardId, Input(definition, applies), ActorUserId);
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
-        Assert.Single(CustomFieldCatalogue.Read((await DbContextForAssert.Boards.Include(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync(board => board.Id == card.BoardId)).CustomFields));
+        Assert.Single((await DbContextForAssert.Boards.Include(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync(board => board.Id == card.BoardId)).CustomFields.ToCustomFieldDtos());
         Assert.Equal(card.CustomFieldValuesJson, (await DbContextForAssert.Cards.SingleAsync()).CustomFieldValuesJson);
     }
 
@@ -159,8 +159,8 @@ public sealed class CustomFieldManagementTests : TestBaseDb
         var input = Input(definition);
 
         var result = preview
-            ? (await Service.PreviewAsync(card.BoardId, definition.Code, new(input), ActorUserId)).ValidationErrors
-            : (await Service.UpdateAsync(card.BoardId, definition.Code, input, ActorUserId)).ValidationErrors;
+            ? (await Service.PreviewAsync(card.BoardId, await FieldIdAsync(card.BoardId, definition.Code), new(input), ActorUserId)).ValidationErrors
+            : (await Service.UpdateAsync(card.BoardId, await FieldIdAsync(card.BoardId, definition.Code), input, ActorUserId)).ValidationErrors;
 
         Assert.NotNull(result);
         Assert.Equal("definition.name", Assert.Single(result).Key);
@@ -191,10 +191,18 @@ public sealed class CustomFieldManagementTests : TestBaseDb
         var card = await ArrangeAsync(Points, "{\"Points\":7}");
         Assert.True((await Service.CreateAsync(card.BoardId, Input(Points with { Code = "Other", Name = "Other" }), ActorUserId)).Success);
         var before = await DbContextForAssert.Cards.AsNoTracking().SingleAsync();
-        var ordered = await Service.ReorderAsync(card.BoardId, new(["Other", "Points"]), ActorUserId);
-        var invalid = await Service.ReorderAsync(card.BoardId, new(["Points", "Points"]), ActorUserId);
+        var beforeFields = (await Service.GetAsync(card.BoardId, ActorUserId)).Data!;
+        var assignmentIds = await DbContextForAssert.CustomFieldCardTypes.Select(assignment => assignment.Id).OrderBy(id => id).ToArrayAsync();
+        var requestedIds = beforeFields.Reverse().Select(field => field.Id).ToArray();
+        var ordered = await Service.ReorderAsync(card.BoardId, new(requestedIds), ActorUserId);
+        var invalid = await Service.ReorderAsync(card.BoardId, new([beforeFields[0].Id, beforeFields[0].Id]), ActorUserId);
 
-        Assert.Equal(new[] { "Other", "Points" }, ordered.Data!.Select(field => field.Definition.Code));
+        Assert.True(ordered.Success);
+        Assert.NotNull(ordered.Data);
+        Assert.Equal(new[] { "Other", "Points" }, ordered.Data.Select(field => field.Definition.Code));
+        Assert.Equal(requestedIds, ordered.Data.Select(field => field.Id));
+        Assert.Equal(beforeFields.Reverse().Select(field => field.Definition), ordered.Data.Select(field => field.Definition));
+        Assert.Equal(assignmentIds, await DbContextForAssert.CustomFieldCardTypes.Select(assignment => assignment.Id).OrderBy(id => id).ToArrayAsync());
         Assert.False(invalid.Success);
         var after = await DbContextForAssert.Cards.SingleAsync();
         Assert.Equal(before.CustomFieldValuesJson, after.CustomFieldValuesJson);
@@ -210,9 +218,9 @@ public sealed class CustomFieldManagementTests : TestBaseDb
             BEGIN SELECT RAISE(ABORT, 'Injected comment failure'); END;
             """);
 
-        await Assert.ThrowsAsync<DbUpdateException>(() => Service.DeleteAsync(card.BoardId, "Points", ActorUserId));
+        await Assert.ThrowsAsync<DbUpdateException>(async () => await Service.DeleteAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Points"), ActorUserId));
 
-        Assert.Single(CustomFieldCatalogue.Read((await DbContextForAssert.Boards.Include(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync()).CustomFields));
+        Assert.Single((await DbContextForAssert.Boards.Include(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync()).CustomFields.ToCustomFieldDtos());
         Assert.Equal(card.CustomFieldValuesJson, (await DbContextForAssert.Cards.SingleAsync()).CustomFieldValuesJson);
         Assert.Empty(await DbContextForAssert.CardComments.ToListAsync());
         Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).ResyncRequestedBoardIds);
@@ -227,7 +235,7 @@ public sealed class CustomFieldManagementTests : TestBaseDb
         Assert.Equal("Points", Assert.Single(duplicate.Data!.CustomFields).Code);
         var catalogue = (await Service.GetAsync(card.BoardId, ActorUserId)).Data!;
         Assert.Equal(new[] { card.CardTypeId, duplicate.Data.Id }, Assert.IsType<SelectedCardTypes>(catalogue[0].AppliesTo).CardTypeIds);
-        Assert.True((await Service.UpdateAsync(card.BoardId, "Points", Input(Points, new SelectedCardTypes([duplicate.Data.Id])), ActorUserId)).Success);
+        Assert.True((await Service.UpdateAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Points"), Input(Points, new SelectedCardTypes([duplicate.Data.Id])), ActorUserId)).Success);
 
         var deleted = await service.DeleteCardTypeAsync(card.BoardId, duplicate.Data.Id, ActorUserId);
 
@@ -248,7 +256,7 @@ public sealed class CustomFieldManagementTests : TestBaseDb
             card.BoardId, new("Copy", CopyFieldAssignmentsFromCardTypeId: card.CardTypeId), ActorUserId));
 
         Assert.Single(await DbContextForAssert.CardTypes.ToListAsync());
-        var catalogue = CustomFieldCatalogue.Read((await DbContextForAssert.Boards.Include(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync()).CustomFields);
+        var catalogue = (await DbContextForAssert.Boards.Include(board => board.CustomFields).ThenInclude(field => field.CardTypeAssignments).SingleAsync()).CustomFields.ToCustomFieldDtos();
         Assert.Equal(new[] { card.CardTypeId }, Assert.IsType<SelectedCardTypes>(catalogue[0].AppliesTo).CardTypeIds);
     }
 
@@ -262,7 +270,7 @@ public sealed class CustomFieldManagementTests : TestBaseDb
         var other = await ResolveService<CardTypeService>().CreateCardTypeAsync(card.BoardId, new("Other"), ActorUserId);
         var created = await ResolveService<CardService>().CreateCardAsync(card.BoardId, new(null, "Other card", "", [], other.Data!.Id), ActorUserId);
 
-        var updated = await Service.UpdateAsync(card.BoardId, "Points", Input(field), ActorUserId);
+        var updated = await Service.UpdateAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Points"), Input(field), ActorUserId);
 
         Assert.True(updated.Success);
         var values = (await DbContextForAssert.Cards.OrderBy(item => item.BoardCardId).ToListAsync())
@@ -285,9 +293,38 @@ public sealed class CustomFieldManagementTests : TestBaseDb
         await DbContextForArrange.SaveChangesAsync();
 
         Assert.True((await Service.GetAsync(card.BoardId, user.Id)).Success);
-        Assert.Equal(403, (await Service.DeleteAsync(card.BoardId, "Points", user.Id)).StatusCode);
-        Assert.Equal(403, (await Service.PreviewAsync(card.BoardId, "Points", new(null), user.Id)).StatusCode);
+        Assert.Equal(403, (await Service.DeleteAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Points"), user.Id)).StatusCode);
+        Assert.Equal(403, (await Service.PreviewAsync(card.BoardId, await FieldIdAsync(card.BoardId, "Points"), new(null), user.Id)).StatusCode);
     }
+
+    [Theory]
+    [InlineData("update")]
+    [InlineData("delete")]
+    [InlineData("preview")]
+    [InlineData("reorder")]
+    public async Task FieldIds_FromAnotherBoard_ShouldNotTargetTheLocalFieldWithTheSameCode(string operation)
+    {
+        var card = await ArrangeAsync(Points, "{\"Points\":7}");
+        var other = CreateBoard("Other").AddColumn("Todo").Build();
+        var created = await Service.CreateAsync(other.BoardId, Input(Points), ActorUserId);
+        var foreignId = Assert.Single(created.Data!).Id;
+
+        var status = operation switch
+        {
+            "update" => (await Service.UpdateAsync(card.BoardId, foreignId, Input(Points with { Name = "Changed" }), ActorUserId)).StatusCode,
+            "delete" => (await Service.DeleteAsync(card.BoardId, foreignId, ActorUserId)).StatusCode,
+            "preview" => (await Service.PreviewAsync(card.BoardId, foreignId, new(null), ActorUserId)).StatusCode,
+            _ => (await Service.ReorderAsync(card.BoardId, new([foreignId]), ActorUserId)).StatusCode
+        };
+
+        Assert.Equal(operation == "reorder" ? 400 : 404, status);
+        var catalogue = (await Service.GetAsync(card.BoardId, ActorUserId)).Data!;
+        Assert.Equal("Points", Assert.Single(catalogue).Definition.Name);
+        Assert.Equal(card.CustomFieldValuesJson, (await DbContextForAssert.Cards.SingleAsync()).CustomFieldValuesJson);
+    }
+
+    private Task<int> FieldIdAsync(int boardId, string code) =>
+        DbContextForAssert.CustomFields.Where(field => field.BoardId == boardId && field.Code == code).Select(field => field.Id).SingleAsync();
 
     private async Task<EntityBoardCard> ArrangeAsync(CustomFieldDefinition definition, string values)
     {

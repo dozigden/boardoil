@@ -4,7 +4,7 @@ using BoardOil.Contracts.CustomField;
 
 namespace BoardOil.Services.CustomField;
 
-// Checks JSON structure only. Definition constraints and value conversion belong to field rules.
+// Checks JSON structure only. Definition constraints and value conversion are handled separately.
 public static class CustomFieldJsonCodec
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -14,6 +14,40 @@ public static class CustomFieldJsonCodec
         AllowDuplicateProperties = false,
         RespectNullableAnnotations = true
     };
+
+    private static readonly JsonSerializerOptions ConfigurationOptions = new(JsonSerializerDefaults.Web)
+    {
+        AllowDuplicateProperties = false,
+        RespectNullableAnnotations = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
+    };
+
+    internal sealed record TextConfiguration(string? DefaultValue, int? MinLength, int? MaxLength);
+    internal sealed record IntegerConfiguration(int? DefaultValue, int? Min, int? Max);
+    internal sealed record DateConfiguration(DateOnly? DefaultValue);
+
+    internal static TextConfiguration DeserialiseTextConfiguration(string json) => DeserialiseConfiguration<TextConfiguration>(json);
+    internal static IntegerConfiguration DeserialiseIntegerConfiguration(string json) => DeserialiseConfiguration<IntegerConfiguration>(json);
+    internal static DateConfiguration DeserialiseDateConfiguration(string json) => DeserialiseConfiguration<DateConfiguration>(json);
+
+    internal static string SerialiseConfiguration(CustomFieldDefinition definition) => definition switch
+    {
+        TextCustomFieldDefinition text => JsonSerializer.Serialize(new TextConfiguration(text.DefaultValue, text.MinLength, text.MaxLength), ConfigurationOptions),
+        IntegerCustomFieldDefinition integer => JsonSerializer.Serialize(new IntegerConfiguration(integer.DefaultValue, integer.Min, integer.Max), ConfigurationOptions),
+        DateCustomFieldDefinition date => JsonSerializer.Serialize(new DateConfiguration(date.DefaultValue), ConfigurationOptions),
+        _ => throw new ArgumentOutOfRangeException(nameof(definition))
+    };
+
+    internal static JsonElement SerialiseDefaultValue(CustomFieldDefinition definition) => definition switch
+    {
+        TextCustomFieldDefinition text => JsonSerializer.SerializeToElement(text.DefaultValue),
+        IntegerCustomFieldDefinition integer => JsonSerializer.SerializeToElement(integer.DefaultValue),
+        DateCustomFieldDefinition date => JsonSerializer.SerializeToElement(date.DefaultValue),
+        _ => throw new ArgumentOutOfRangeException(nameof(definition))
+    };
+
+    private static T DeserialiseConfiguration<T>(string json) => JsonSerializer.Deserialize<T>(json, ConfigurationOptions)
+        ?? throw new JsonException("Field configuration must be an object.");
 
     public static IReadOnlyList<CustomFieldDefinition> DeserialiseDefinitions(string json)
     {
@@ -31,25 +65,6 @@ public static class CustomFieldJsonCodec
 
         ValidateDefinitionShapes(definitions);
         return definitions;
-    }
-
-    public static IReadOnlyList<CustomFieldDefinitionInput> DeserialiseDefinitionInputs(string json)
-    {
-        List<CustomFieldDefinitionInput> inputs;
-        try
-        {
-            inputs = JsonSerializer.Deserialize<List<CustomFieldDefinitionInput>>(json, JsonOptions)
-                ?? throw new JsonException("Field definitions must be an array.");
-        }
-        catch (NotSupportedException exception)
-        {
-            throw new JsonException("Each field definition must specify a supported type.", exception);
-        }
-        if (inputs.Any(input => input is null))
-        {
-            throw new JsonException("Each field definition must be an object.");
-        }
-        return inputs;
     }
 
     public static string SerialiseDefinitions(IReadOnlyList<CustomFieldDefinition> definitions)

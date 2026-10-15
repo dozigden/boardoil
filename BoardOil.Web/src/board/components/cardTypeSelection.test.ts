@@ -8,7 +8,6 @@ const cardTypes = [
     styleName: 'solid' as const,
     stylePropertiesJson: '{"backgroundColor":"#FFFFFF","textColorMode":"auto"}',
     emoji: null,
-    customFields: [],
     isSystem: true,
     createdAtUtc: '2026-01-01T00:00:00Z',
     updatedAtUtc: '2026-01-01T00:00:00Z'
@@ -19,7 +18,6 @@ const cardTypes = [
     styleName: 'gradient' as const,
     stylePropertiesJson: '{"leftColor":"#F6D32D","rightColor":"#C64600","textColorMode":"auto"}',
     emoji: '🐞',
-    customFields: [],
     isSystem: false,
     createdAtUtc: '2026-01-01T00:00:00Z',
     updatedAtUtc: '2026-01-01T00:00:00Z'

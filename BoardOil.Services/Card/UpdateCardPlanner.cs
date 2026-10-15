@@ -9,7 +9,7 @@ namespace BoardOil.Services.Card;
 
 public sealed class UpdateCardPlanner
 {
-    public CustomFieldRuleResult<CustomFieldUpdatePlan> PlanFields(
+    public CustomFieldValidationResult<CustomFieldUpdatePlan> PlanFields(
         EntityBoardCard card, EntityCardType target, IReadOnlyDictionary<string, JsonElement>? fields)
     {
         if (card.CardTypeId == target.Id && fields is null)
@@ -17,12 +17,12 @@ public sealed class UpdateCardPlanner
             return new(new(card.CustomFieldValuesJson, [], CustomFieldJsonCodec.DeserialiseValues(card.CustomFieldValuesJson)), []);
         }
 
-        var source = CustomFieldCatalogue.Resolve(card.CardType);
+        var source = card.CardType.Board.CustomFields.GetApplicableCustomFieldDefinitions(card.CardType.Id);
         var values = CustomFieldJsonCodec.DeserialiseValues(card.CustomFieldValuesJson);
         if (fields is not null)
         {
             // Submitted values describe the original type, even when this save changes the type.
-            var validation = CustomFieldRules.NormaliseValues(source, fields);
+            var validation = CustomFieldValidator.ValidateAndNormaliseValues(source, fields);
             if (!validation.IsValid)
             {
                 return new(null, validation.Errors);
@@ -34,8 +34,8 @@ public sealed class UpdateCardPlanner
         IReadOnlyList<LostCustomFieldValue> losses = [];
         if (card.CardTypeId != target.Id)
         {
-            var destination = CustomFieldCatalogue.Resolve(target);
-            var conversion = CustomFieldConverter.ChangeType(source, values, destination);
+            var destination = target.Board.CustomFields.GetApplicableCustomFieldDefinitions(target.Id);
+            var conversion = CustomFieldConverter.ConvertWithinBoard(source, values, destination);
             if (!conversion.IsValid)
             {
                 return new(null, conversion.Errors);
@@ -47,14 +47,14 @@ public sealed class UpdateCardPlanner
         return new(new(CustomFieldJsonCodec.SerialiseValues(values), losses, originalValues), []);
     }
 
-    public CustomFieldRuleResult<CardTypeChangePreviewDto> PreviewFields(
+    public CustomFieldValidationResult<CardTypeChangePreviewDto> PreviewFields(
         EntityBoardCard card, EntityCardType target, IReadOnlyDictionary<string, JsonElement>? fields)
     {
         var plan = PlanFields(card, target, fields);
         if (!plan.IsValid) { return new(null, plan.Errors); }
 
-        var source = CustomFieldCatalogue.Resolve(card.CardType);
-        var destination = CustomFieldCatalogue.Resolve(target);
+        var source = card.CardType.Board.CustomFields.GetApplicableCustomFieldDefinitions(card.CardType.Id);
+        var destination = target.Board.CustomFields.GetApplicableCustomFieldDefinitions(target.Id);
         var values = CustomFieldJsonCodec.DeserialiseValues(plan.Value!.ValuesJson);
         var destinationsByCode = destination.ToDictionary(field => field.Code, StringComparer.OrdinalIgnoreCase);
         var sourceCodes = source.Select(field => field.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);

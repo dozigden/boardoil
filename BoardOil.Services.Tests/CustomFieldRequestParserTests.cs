@@ -5,8 +5,13 @@ using Xunit;
 
 namespace BoardOil.Services.Tests;
 
-public sealed class CustomFieldDefinitionInputsTests
+public sealed class CustomFieldRequestParserTests
 {
+    private static readonly JsonSerializerOptions InputOptions = new(JsonSerializerDefaults.Web)
+    {
+        AllowOutOfOrderMetadataProperties = true
+    };
+
     [Theory]
     [InlineData("integer", "defaultValue", "\"abc\"", "Whole number required")]
     [InlineData("integer", "defaultValue", "\"5\"", "Whole number required")]
@@ -28,18 +33,18 @@ public sealed class CustomFieldDefinitionInputsTests
             [{"code":"F","name":"Field","nullable":true,"{{property}}":{{value}},"dataType":"{{type}}"}]
             """;
 
-        var inputs = CustomFieldJsonCodec.DeserialiseDefinitionInputs(json);
-        var result = CustomFieldDefinitionInputs.Parse(inputs);
+        var inputs = JsonSerializer.Deserialize<CustomFieldDefinitionInput[]>(json, InputOptions)!;
+        var result = CustomFieldRequestParser.Parse(new(Assert.Single(inputs), new AllCardTypes()));
 
         Assert.False(result.IsValid);
         Assert.Null(result.Value);
         var error = Assert.Single(result.Errors);
-        Assert.Equal($"customFields[0].{property}", error.Property);
+        Assert.Equal($"definition.{property}", error.Property);
         Assert.Equal(message, error.Message);
     }
 
     [Fact]
-    public void ValidInputs_ShouldProduceTheExistingDefinitionsAndPreserveOrder()
+    public void ValidInputs_ShouldProduceTheExistingTypedDefinitions()
     {
         const string json = """
             [
@@ -49,24 +54,10 @@ public sealed class CustomFieldDefinitionInputsTests
             ]
             """;
 
-        var result = CustomFieldDefinitionInputs.Parse(CustomFieldJsonCodec.DeserialiseDefinitionInputs(json));
+        var results = JsonSerializer.Deserialize<CustomFieldDefinitionInput[]>(json, InputOptions)!.Select(input => CustomFieldRequestParser.Parse(new(input, new AllCardTypes()))).ToArray();
 
-        Assert.True(result.IsValid);
-        Assert.Equal(CustomFieldJsonCodec.DeserialiseDefinitions(json), result.Value);
-    }
-
-    [Fact]
-    public void Parsing_ShouldRetainInvalidInputForLaterValidation()
-    {
-        const string json = """
-            [{"code":"F","name":"Field","dataType":"integer","defaultValue":"1e-400","min":1.5}]
-            """;
-
-        var inputs = CustomFieldJsonCodec.DeserialiseDefinitionInputs(json);
-
-        var field = Assert.IsType<IntegerCustomFieldDefinitionInput>(Assert.Single(inputs));
-        Assert.Equal("1e-400", field.DefaultValue!.Value.GetString());
-        Assert.Equal("1.5", field.Min!.Value.GetRawText());
+        Assert.All(results, result => Assert.True(result.IsValid));
+        Assert.Equal(CustomFieldJsonCodec.DeserialiseDefinitions(json), results.Select(result => result.Value!.Definition));
     }
 
     [Fact]
@@ -74,25 +65,15 @@ public sealed class CustomFieldDefinitionInputsTests
     {
         const string json = """
             [
-              {"dataType":"integer","code":"F","name":"Field","defaultValue":"bad","min":1.5,"max":2147483648},
-              {"dataType":"date","code":"D","name":"Date","defaultValue":"bad"}
+              {"dataType":"integer","code":"F","name":"Field","defaultValue":"bad","min":1.5,"max":2147483648}
             ]
             """;
 
-        var result = CustomFieldDefinitionInputs.Parse(CustomFieldJsonCodec.DeserialiseDefinitionInputs(json));
+        var result = CustomFieldRequestParser.Parse(new(Assert.Single(JsonSerializer.Deserialize<CustomFieldDefinitionInput[]>(json, InputOptions)!), new AllCardTypes()));
 
         Assert.Null(result.Value);
-        Assert.Equal(["customFields[0].defaultValue", "customFields[0].min", "customFields[0].max", "customFields[1].defaultValue"],
+        Assert.Equal(["definition.defaultValue", "definition.min", "definition.max"],
             result.Errors.Select(error => error.Property));
-    }
-
-    [Fact]
-    public void OmittedFields_ShouldRemainOmitted()
-    {
-        var result = CustomFieldDefinitionInputs.Parse(null);
-
-        Assert.True(result.IsValid);
-        Assert.Null(result.Value);
     }
 
     [Fact]
@@ -105,22 +86,10 @@ public sealed class CustomFieldDefinitionInputsTests
             ]
             """;
 
-        var result = CustomFieldDefinitionInputs.Parse(CustomFieldJsonCodec.DeserialiseDefinitionInputs(json));
+        var results = JsonSerializer.Deserialize<CustomFieldDefinitionInput[]>(json, InputOptions)!.Select(input => CustomFieldRequestParser.Parse(new(input, new AllCardTypes()))).ToArray();
 
-        Assert.True(result.IsValid);
-        Assert.Equal(CustomFieldJsonCodec.DeserialiseDefinitions(json), result.Value);
+        Assert.All(results, result => Assert.True(result.IsValid));
+        Assert.Equal(CustomFieldJsonCodec.DeserialiseDefinitions(json), results.Select(result => result.Value!.Definition));
     }
 
-    [Theory]
-    [InlineData("[")]
-    [InlineData("null")]
-    [InlineData("[null]")]
-    [InlineData("""[{"code":"F","name":"Field"}]""")]
-    [InlineData("""[{"code":"F","name":"Field","dataType":"unknown"}]""")]
-    [InlineData("""[{"code":"F","name":"Field","dataType":"date","maxLength":2}]""")]
-    [InlineData("""[{"code":"F","name":"Field","dataType":"integer","min":1,"min":2}]""")]
-    public void MalformedDefinitionShapes_ShouldRemainParsingFailures(string json)
-    {
-        Assert.Throws<JsonException>(() => CustomFieldJsonCodec.DeserialiseDefinitionInputs(json));
-    }
 }

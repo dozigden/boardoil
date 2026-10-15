@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BoardOil.Contracts.CustomField;
 using BoardOil.Services.CustomField;
 using BoardOil.Abstractions;
@@ -47,21 +48,51 @@ public abstract class TestBaseDb : IAsyncLifetime
 
     protected static void SetFields(EntityCardType type, IReadOnlyList<CustomFieldDefinition> definitions)
     {
-        var fields = CustomFieldCatalogue.Read(type.Board.CustomFields).ToList();
-        fields = CustomFieldCatalogue.RemoveType(fields, type.Id).ToList();
+        foreach (var field in type.Board.CustomFields)
+        {
+            foreach (var assignment in field.CardTypeAssignments.Where(assignment => assignment.CardTypeId == type.Id).ToArray())
+            {
+                field.CardTypeAssignments.Remove(assignment);
+            }
+        }
         foreach (var definition in definitions)
         {
-            var index = fields.FindIndex(field => field.Definition.Code == definition.Code);
-            if (index >= 0)
+            var field = type.Board.CustomFields.SingleOrDefault(field => field.Code == definition.Code);
+            if (field is null)
             {
-                var selected = (SelectedCardTypes)fields[index].AppliesTo;
-                fields[index] = new(definition, new SelectedCardTypes([..selected.CardTypeIds, type.Id]));
+                AddCustomField(type.Board, new(definition, new SelectedCardTypes([type.Id])));
             }
-            else { fields.Add(new(definition, new SelectedCardTypes([type.Id]))); }
+            else
+            {
+                var typeIds = field.CardTypeAssignments.Select(assignment => assignment.CardTypeId).Append(type.Id).ToArray();
+                field.ApplyCustomFieldDraft(new(definition, new SelectedCardTypes(typeIds)));
+            }
         }
         // Seed only the definitions used by this fixture. Unused-definition behaviour is tested through services.
-        fields.RemoveAll(field => field.AppliesTo is SelectedCardTypes selected && selected.CardTypeIds.Count == 0);
-        CustomFieldCatalogue.Apply(type.Board, fields);
+        foreach (var unused in type.Board.CustomFields.Where(field => !field.AppliesToAllCardTypes && field.CardTypeAssignments.Count == 0).ToArray())
+        {
+            type.Board.CustomFields.Remove(unused);
+        }
+    }
+
+    protected static EntityCustomField AddCustomField(EntityBoard board, CustomFieldDraft draft)
+    {
+        var field = new EntityCustomField
+        {
+            Board = board,
+            BoardId = board.Id,
+            SortOrder = board.CustomFields.Select(existing => existing.SortOrder).DefaultIfEmpty(-1).Max() + 1
+        };
+        field.ApplyCustomFieldDraft(draft);
+        board.CustomFields.Add(field);
+        return field;
+    }
+
+    protected static CustomFieldDefinitionInput ToCustomFieldInput(CustomFieldDefinition definition)
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var json = JsonSerializer.Serialize<CustomFieldDefinition>(definition, options);
+        return JsonSerializer.Deserialize<CustomFieldDefinitionInput>(json, options)!;
     }
 
     protected T ResolveService<T>() where T : notnull

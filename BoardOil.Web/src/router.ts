@@ -218,6 +218,24 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'custom-fields', name: 'custom-fields',
+        component: () => import('./board/views/CustomFieldsManagerView.vue')
+      },
+      {
+        path: 'custom-fields/new', name: 'custom-fields-new',
+        components: {
+          default: () => import('./board/views/CustomFieldsManagerView.vue'),
+          dialog: () => import('./board/components/CustomFieldEditorDialog.vue')
+        }
+      },
+      {
+        path: 'custom-fields/:customFieldId', name: 'custom-fields-field',
+        components: {
+          default: () => import('./board/views/CustomFieldsManagerView.vue'),
+          dialog: () => import('./board/components/CustomFieldEditorDialog.vue')
+        }
+      },
+      {
         path: 'members',
         name: 'board-members',
         component: () => import('./board/views/BoardMembersView.vue')

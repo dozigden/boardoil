@@ -221,7 +221,7 @@ public sealed class CustomFieldPersistenceTests : TestBaseDb
         };
         DbContextForArrange.CardTypes.Add(target);
         await DbContextForArrange.SaveChangesAsync();
-        SetFields(target, CustomFieldCatalogue.Resolve(card.CardType));
+        SetFields(target, card.CardType.Board.CustomFields.GetApplicableCustomFieldDefinitions(card.CardType.Id));
         await DbContextForArrange.SaveChangesAsync();
 
         var result = await ResolveService<CardService>().UpdateCardAsync(card.BoardId, card.BoardCardId,

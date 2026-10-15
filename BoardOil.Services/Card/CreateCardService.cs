@@ -154,7 +154,7 @@ public sealed class CreateCardService(
                 return;
             }
             card.CustomFieldValuesJson = fieldPlan.Data!.ValuesJson;
-            lossComment = CustomFieldLossComment.Add(card, fieldPlan.Data.LostValues,
+            lossComment = CardCommentService.AddCustomFieldLossComment(card, fieldPlan.Data.LostValues,
                 fieldPlan.Data.SourceTypeName, fieldPlan.Data.DestinationTypeName);
             CardChecklistCounter.Refresh(card);
             card.BoardCardId = await boardCardIdAllocator.AllocateNextAsync(boardId);
@@ -195,10 +195,10 @@ public sealed class CreateCardService(
         {
             return ApiErrors.ValidationFailed([new ValidationError("cardTypeId", "Card type does not exist in board.")]);
         }
-        var definitions = CustomFieldCatalogue.Resolve(target);
+        var definitions = target.Board.CustomFields.GetApplicableCustomFieldDefinitions(target.Id);
         var sourceTypeName = target.Name;
         IReadOnlyList<LostCustomFieldValue> losses = [];
-        CustomFieldRuleResult<IReadOnlyDictionary<string, JsonElement>> initialValues;
+        CustomFieldValidationResult<IReadOnlyDictionary<string, JsonElement>> initialValues;
         if (sourceCardId is int id)
         {
             var source = await cardRepository.Query().AsNoTracking()
@@ -207,19 +207,19 @@ public sealed class CreateCardService(
                 .SingleOrDefaultAsync(cancellationToken);
             if (source is null) { throw new AttachmentOwnerChangedException(); }
             sourceTypeName = source.CardType.Name;
-            var sourceDefinitions = CustomFieldCatalogue.Resolve(source.CardType);
-            initialValues = CustomFieldRules.NormaliseValues(sourceDefinitions,
+            var sourceDefinitions = source.CardType.Board.CustomFields.GetApplicableCustomFieldDefinitions(source.CardType.Id);
+            initialValues = CustomFieldValidator.ValidateAndNormaliseValues(sourceDefinitions,
                 fields ?? CustomFieldJsonCodec.DeserialiseValues(source.CustomFieldValuesJson));
             if (initialValues.IsValid && source.CardTypeId != targetTypeId)
             {
-                var conversion = CustomFieldConverter.ChangeType(sourceDefinitions, initialValues.Value!, definitions);
+                var conversion = CustomFieldConverter.ConvertWithinBoard(sourceDefinitions, initialValues.Value!, definitions);
                 initialValues = new(conversion.Value?.Values, conversion.Errors);
                 losses = conversion.Value?.LostValues ?? [];
             }
         }
         else
         {
-            initialValues = CustomFieldRules.CreateValues(definitions, fields);
+            initialValues = CustomFieldConverter.CreateValues(definitions, fields);
         }
         if (!initialValues.IsValid)
         {

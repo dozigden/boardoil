@@ -94,7 +94,9 @@ public sealed class McpCustomFieldsIntegrationTests : McpIntegrationTestBase, IC
             """));
         targetResponse.EnsureSuccessStatusCode();
         var targetId = (await targetResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("data").GetProperty("id").GetInt32();
-        (await client.PutAsJsonAsync("/api/boards/1/custom-fields/Points", new {
+        var catalogue = (await client.GetFromJsonAsync<JsonElement>("/api/boards/1/custom-fields")).GetProperty("data");
+        var fieldId = catalogue.EnumerateArray().Single(field => field.GetProperty("definition").GetProperty("code").GetString() == "Points").GetProperty("id").GetInt32();
+        (await client.PutAsJsonAsync($"/api/boards/1/custom-fields/{fieldId}", new {
             definition = new { dataType = "integer", code = "Points", name = "Points", defaultValue = 0 },
             appliesTo = new { mode = "selected", cardTypeIds = new[] { typeId, targetId } }
         })).EnsureSuccessStatusCode();

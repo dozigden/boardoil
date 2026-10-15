@@ -1,5 +1,5 @@
-import type { CardType } from '../../src/shared/types/boardTypes';
-import type { CustomFieldDefinition } from '../../src/shared/types/customFieldTypes';
+import type { CardType, CardTypeResponse } from '../../src/shared/types/boardTypes';
+import type { CustomField, CustomFieldDefinition } from '../../src/shared/types/customFieldTypes';
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 
 type ApiEnvelope<T> = {
@@ -239,17 +239,40 @@ export class BoardOilApi {
   }
 
   public async createCardType(boardId: number, name: string, customFields: CustomFieldDefinition[] = []) {
-    return await this.post<CardType>(`/api/boards/${boardId}/card-types`, {
-      customFields,
-      name,
-      emoji: null,
-      styleName: 'auto',
-      stylePropertiesJson: '{}'
+    const type = await this.post<CardTypeResponse>(`/api/boards/${boardId}/card-types`, {
+      name, emoji: null, styleName: 'auto', stylePropertiesJson: '{}'
     });
+    await this.configureTypeFields(boardId, type.id, customFields);
+    return (await this.getCardTypes(boardId)).find(candidate => candidate.id === type.id)!;
+  }
+
+  public async getCustomFields(boardId: number) {
+    return this.read<CustomField[]>(`/api/boards/${boardId}/custom-fields`);
+  }
+
+  public async configureTypeFields(boardId: number, cardTypeId: number, definitions: CustomFieldDefinition[]) {
+    const catalogue = await this.getCustomFields(boardId);
+    for (const field of catalogue) {
+      if (definitions.some(definition => definition.code === field.definition.code) || field.appliesTo.mode === 'all') continue;
+      if (field.appliesTo.cardTypeIds.includes(cardTypeId)) {
+        await this.put(`/api/boards/${boardId}/custom-fields/${field.id}`, {
+          definition: field.definition, appliesTo: { mode: 'selected', cardTypeIds: field.appliesTo.cardTypeIds.filter(id => id !== cardTypeId) }
+        });
+      }
+    }
+    for (const definition of definitions) {
+      const existing = catalogue.find(field => field.definition.code === definition.code);
+      const appliesTo = existing?.appliesTo.mode === 'all' ? existing.appliesTo : {
+        mode: 'selected', cardTypeIds: [...new Set([...(existing?.appliesTo.cardTypeIds ?? []), cardTypeId])]
+      };
+      const input = { definition, appliesTo };
+      if (existing) await this.put(`/api/boards/${boardId}/custom-fields/${existing.id}`, input);
+      else await this.post(`/api/boards/${boardId}/custom-fields`, input);
+    }
   }
 
   public async getCardTypes(boardId: number) {
-    return await this.read<CardType[]>(`/api/boards/${boardId}/card-types`);
+    return await this.read<CardTypeResponse[]>(`/api/boards/${boardId}/card-types`);
   }
 
   public async getCard(boardId: number, cardId: number) {
@@ -263,10 +286,12 @@ export class BoardOilApi {
     appearance: Partial<Pick<CardType, 'emoji' | 'styleName' | 'stylePropertiesJson'>> = {}) {
     const types = await this.getCardTypes(boardId);
     const cardType = types.find(type => type.isSystem)!;
-    return await this.put<CardType>(`/api/boards/${boardId}/card-types/${cardType.id}`, {
+    await this.put<CardTypeResponse>(`/api/boards/${boardId}/card-types/${cardType.id}`, {
       name: cardType.name, emoji: cardType.emoji, styleName: cardType.styleName,
-      stylePropertiesJson: cardType.stylePropertiesJson, customFields, ...appearance
+      stylePropertiesJson: cardType.stylePropertiesJson, ...appearance
     });
+    await this.configureTypeFields(boardId, cardType.id, customFields);
+    return (await this.getCardTypes(boardId)).find(type => type.id === cardType.id)!;
   }
 
   private async read<T>(path: string) {

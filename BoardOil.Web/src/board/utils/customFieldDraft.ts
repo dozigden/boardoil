@@ -1,7 +1,6 @@
-import type { CustomFieldDefinition, CustomFieldDefinitionInput } from '../../shared/types/customFieldTypes';
+import type { CustomFieldDefinition, CustomFieldDefinitionInput, CustomFieldInput } from '../../shared/types/customFieldTypes';
 
 export type CustomFieldDraft = {
-  key: string;
   persisted: boolean;
   code: string;
   codeEdited: boolean;
@@ -15,11 +14,8 @@ export type CustomFieldDraft = {
   maximum: string;
 };
 
-let nextDraftKey = 0;
-
 export function createCustomFieldDraft(field?: CustomFieldDefinition): CustomFieldDraft {
   return {
-    key: `draft-${++nextDraftKey}`,
     persisted: field !== undefined,
     code: field?.code ?? '',
     codeEdited: false,
@@ -37,7 +33,7 @@ export function createCustomFieldDraft(field?: CustomFieldDefinition): CustomFie
 export function updateFieldName(field: CustomFieldDraft, name: string) {
   field.name = name;
   if (!field.persisted && !field.codeEdited) {
-    field.code = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 40);
+    field.code = name.replace(/[^A-Za-z0-9]/g, '').toLowerCase().slice(0, 40);
   }
 }
 
@@ -60,87 +56,38 @@ export function resetFieldTypeOptions(field: CustomFieldDraft) {
 }
 
 // Only encode exact decimal integers as numbers; preserve other input for API validation.
-export function buildCustomFieldDefinitions(drafts: CustomFieldDraft[]) {
-  const fields: CustomFieldDefinitionInput[] = drafts.map(draft => {
-    const common = {
-      code: draft.code.trim(),
-      name: draft.name.trim(),
-      emoji: draft.emoji,
-      nullable: !draft.required,
-      showOnCard: draft.showOnCard
-    };
-    switch (draft.dataType) {
-      case 'integer':
-        return { ...common, dataType: 'integer', defaultValue: customFieldNumberInput(draft.defaultValue),
-          min: customFieldNumberInput(draft.minimum), max: customFieldNumberInput(draft.maximum) };
-      case 'text':
-        return { ...common, dataType: 'text', defaultValue: draft.defaultValue.trim() || null,
-          minLength: customFieldNumberInput(draft.minimum), maxLength: customFieldNumberInput(draft.maximum) };
-      case 'date':
-        return { ...common, dataType: 'date', defaultValue: draft.defaultValue || null };
-    }
-  });
-  return fields;
+export function buildCustomFieldDefinition(draft: CustomFieldDraft): CustomFieldDefinitionInput {
+  const common = {
+    code: draft.code.trim(),
+    name: draft.name.trim(),
+    emoji: draft.emoji,
+    nullable: !draft.required,
+    showOnCard: draft.showOnCard
+  };
+  switch (draft.dataType) {
+    case 'integer':
+      return { ...common, dataType: 'integer', defaultValue: customFieldNumberInput(draft.defaultValue),
+        min: customFieldNumberInput(draft.minimum), max: customFieldNumberInput(draft.maximum) };
+    case 'text':
+      return { ...common, dataType: 'text', defaultValue: draft.defaultValue.trim() || null,
+        minLength: customFieldNumberInput(draft.minimum), maxLength: customFieldNumberInput(draft.maximum) };
+    case 'date':
+      return { ...common, dataType: 'date', defaultValue: draft.defaultValue || null };
+  }
 }
 
-export function retainCustomFieldErrors(
-  errors: Record<string, string[]>, previous: CustomFieldDraft[], current: CustomFieldDraft[]
+export function retainCustomFieldInputErrors(
+  errors: Record<string, string[]>, previous: CustomFieldInput, current: CustomFieldInput
 ) {
-  const properties: Record<string, keyof CustomFieldDraft> = {
-    code: 'code', name: 'name', emoji: 'emoji', dataType: 'dataType',
-    defaultValue: 'defaultValue', minLength: 'minimum', maxLength: 'maximum', min: 'minimum', max: 'maximum'
-  };
-  const retained: Record<string, string[]> = {};
-  for (const [path, messages] of Object.entries(errors)) {
-    if (path === 'customFields' && previous.length !== current.length) continue;
-    const match = /^customFields\[(\d+)\](.*)$/.exec(path);
-    if (!match) {
-      // Existing-card errors need another backend check; editing appearance cannot resolve them.
-      retained[path] = messages;
-      continue;
-    }
-    const before = previous[Number(match[1])];
-    const index = current.findIndex(field => field.key === before?.key);
-    if (index < 0) continue;
-    const after = current[index];
-    if (before.dataType !== after.dataType) continue;
-    const property = properties[match[2].slice(1)];
-    if (property && before[property] !== after[property]) continue;
-    retained[`customFields[${index}]${match[2]}`] = messages;
+  const retained = { ...errors };
+  const before = previous.definition as Record<string, unknown>;
+  const after = current.definition as Record<string, unknown>;
+  for (const path of Object.keys(retained)) {
+    if (path.startsWith('definition.') && (before[path.slice(11)] !== after[path.slice(11)]
+      || before.dataType !== after.dataType || before.nullable !== after.nullable)) delete retained[path];
+    if (path.startsWith('appliesTo') && JSON.stringify(current.appliesTo) !== JSON.stringify(previous.appliesTo)) delete retained[path];
   }
   return retained;
-}
-
-export function fieldErrorIndex(path: string, drafts: CustomFieldDraft[]): number | null {
-  const definition = /^customFields\[(\d+)\]/.exec(path);
-  if (definition) return Number(definition[1]);
-  const card = /^cards\[\d+\]\.customFieldValues\.(.+)$/.exec(path);
-  if (!card) return null;
-  const index = drafts.findIndex(field => field.code.toLowerCase() === card[1].toLowerCase());
-  return index < 0 ? null : index;
-}
-
-export function describeFieldError(path: string, drafts: CustomFieldDraft[]) {
-  const index = fieldErrorIndex(path, drafts);
-  const name = index === null ? '' : (drafts[index]?.name.trim() || `Field ${index + 1}`);
-  const card = /^cards\[(\d+)\]/.exec(path);
-  if (card) return name ? `Card #${card[1]} · ${name}` : `Card #${card[1]}`;
-  if (name) {
-    const labels: Record<string, string> = {
-      code: 'Field code', name: 'Display name', emoji: 'Emoji', dataType: 'Type',
-      defaultValue: 'Default value', minLength: 'Minimum length', maxLength: 'Maximum length',
-      min: 'Minimum value', max: 'Maximum value'
-    };
-    const property = path.split('.').pop() ?? '';
-    return labels[property] ? `${name} · ${labels[property]}` : name;
-  }
-  if (path === 'customFields') return 'Custom Fields';
-  if (path.toLowerCase() === 'name') return 'Name';
-  return '';
-}
-
-export function isInlineFieldError(path: string) {
-  return /^customFields\[\d+\]\.(code|name|type|emoji|defaultValue|minLength|maxLength|min|max)$/.test(path);
 }
 
 // Preserve input that cannot be represented as an exact integer for backend validation.
