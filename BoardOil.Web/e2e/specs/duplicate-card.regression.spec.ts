@@ -21,6 +21,8 @@ test('duplicate a card as an editable draft before creating it', async ({ api, a
 
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { level: 3 })).toContainText('Duplicate');
+    // The animation briefly retains an inert snapshot with the same field labels.
+    await expect(dialog.getByLabel('Card description', { exact: true })).toHaveCount(1);
     await expect(dialog.getByLabel('Card description', { exact: true })).toHaveText(description);
     await expect(dialog.getByLabel(tagName, { exact: true })).toBeVisible();
     await expect(boardPage.card('Todo', sourceTitle)).toHaveCount(1);
