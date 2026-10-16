@@ -16,16 +16,25 @@ Read this before changing slick grouping visuals in `BoardOil.Web`.
 ## Source of Truth and Flow
 
 1. Board cards + slick catalogue are loaded into stores.
-2. `BoardView.vue` builds goo descriptors from filtered columns:
+2. `useBoardMotion(...)` builds goo descriptors from filtered columns supplied by `BoardSurface.vue`:
    - `buildSlickGooDescriptors(...)`
    - `buildSlickGooMembershipSignature(...)`
    - `buildSlickGooStyleSignature(...)`
 3. `useGooLayer(...)` tracks card DOM geometry and emits `gooGroups`.
-4. Template renders goo groups/blobs in `.goo-layer` behind cards.
+4. `BoardSurface.vue` renders goo groups/blobs in `.goo-layer` behind cards.
+
+`BoardView.vue` owns screen-level filters, selection actions and dialogs. `BoardSurface.vue` owns board rendering and drag interaction. `useBoardInlineCreation(...)` owns draft/focus/validation/save state and uses semantic creation lifecycle operations on `useBoardMotion(...)`; DOM lookup, handoff sequencing and animation-to-goo updates stay inside the motion layer. Low-level creation effects remain in `useInlineCardAnimation(...)`.
+
+During a local create, the motion layer holds new card arrivals in that column out of `renderedColumns` until the request settles, so an early realtime event cannot display a second card below the editor. Store data stays live; existing cards and other columns continue updating. Rendering, drag targets, goo and visible-card selection use this same presentation projection.
+
+The known-card snapshot comes from the unfiltered card store, so changing filters during a save can reveal existing cards immediately.
 
 Key files:
 
-- `BoardOil.Web/src/board/views/BoardView.vue`
+- `BoardOil.Web/src/board/components/BoardSurface.vue`
+- `BoardOil.Web/src/board/composables/useBoardMotion.ts`
+- `BoardOil.Web/src/board/composables/useBoardInlineCreation.ts`
+- `BoardOil.Web/src/board/composables/useInlineCardAnimation.ts`
 - `BoardOil.Web/src/board/composables/useGooLayer.ts`
 - `BoardOil.Web/src/board/utils/slickGooAdapter.ts`
 - `BoardOil.Web/src/board/utils/gooLayout.ts`
@@ -60,8 +69,10 @@ Key files:
   - Triggered by descriptor structure changes, resize observer, board changes.
 - `styles`
   - Refresh colours only without full structure rebuild.
-- `geometry`
+- `scroll`
   - Scroll path; prefers fast projection from cached geometry.
+- `layout`
+  - Remeasure the tracked elements' bounds during animation, retaining their membership and element tracking.
 
 Main mechanisms:
 
@@ -69,7 +80,7 @@ Main mechanisms:
 - Nested scroll capture on board root:
   - listener is attached with `capture: true` to catch column scroller events.
 - Fast-path projection:
-  - On non-structure frames, rects are projected from cached geometry + scroll offsets.
+  - Scroll and style refreshes project rects from cached geometry + scroll offsets; layout refreshes measure current bounds.
   - Avoids repeated `getBoundingClientRect()` for every card on every scroll tick.
 - Culling:
   - Cards are skipped when outside expanded clip rect.
@@ -118,7 +129,7 @@ Prefer config tuning over ad-hoc component CSS for goo behavior changes.
     - `gooGeometry.test.ts`
     - `slickGooAdapter.test.ts`
     - `slickCardBoundary.test.ts`
-- If you change class names or layer structure in `BoardView.vue`, verify:
+- If you change class names or layer structure in `BoardSurface.vue`, verify:
   - per-column scroll alignment
   - board horizontal scroll alignment
   - no header bleed

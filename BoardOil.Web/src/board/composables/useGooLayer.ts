@@ -17,7 +17,7 @@ export type GooLayerDescriptor = {
   colour: string;
 };
 
-type GooRefreshReason = 'geometry' | 'structure' | 'styles';
+type GooRefreshReason = 'scroll' | 'structure' | 'styles' | 'layout';
 
 type TrackedGooCard = {
   cardId: number;
@@ -105,15 +105,21 @@ export function useGooLayer(
     scheduleGooRefresh('structure');
   }
 
+  // During a height animation cached offsets are stale on every frame. Reuse
+  // tracked elements, but measure their current positions for both renderers.
+  function refreshGooLayout() {
+    refreshGooLayer('layout');
+  }
+
   function onBoardScroll() {
-    scheduleGooRefresh('geometry');
+    scheduleGooRefresh('scroll');
   }
 
   function onWindowResize() {
     scheduleGooRefresh('structure');
   }
 
-  function scheduleGooRefresh(reason: GooRefreshReason = 'geometry') {
+  function scheduleGooRefresh(reason: GooRefreshReason = 'scroll') {
     queuedRefreshReason = mergeRefreshReason(queuedRefreshReason, reason);
 
     if (reason === 'structure') {
@@ -130,7 +136,7 @@ export function useGooLayer(
 
     gooRafId = requestAnimationFrame(() => {
       gooRafId = null;
-      const refreshReason = queuedRefreshReason ?? 'geometry';
+      const refreshReason = queuedRefreshReason ?? 'scroll';
       queuedRefreshReason = null;
       refreshGooLayer(refreshReason);
     });
@@ -166,7 +172,7 @@ export function useGooLayer(
     const items: GooItem[] = [];
     const localItemsByColumnId = new Map<number, GooItem[]>();
     const clipRectByElement = new Map<HTMLElement, RectLike>();
-    const preferFastPath = reason !== 'structure' && !gooStructureDirty;
+    const preferFastPath = reason !== 'structure' && reason !== 'layout' && !gooStructureDirty;
     let sawDetachedCard = false;
     for (const trackedCard of trackedGooCards) {
       if (!trackedCard.cardElement.isConnected) {
@@ -188,7 +194,7 @@ export function useGooLayer(
       const columnContentRect = trackedCard.clipElement
         ? resolveClipContentRect(trackedCard.clipElement, clipRectByElement)
         : null;
-      if (reason !== 'geometry' && trackedCard.clipElement) {
+      if (reason !== 'scroll' && trackedCard.clipElement) {
         const localRect = resolveLocalCardRect(rect, trackedCard.clipElement);
         const localItems = getOrCreateLocalItems(localItemsByColumnId, trackedCard.columnId);
         localItems.push({
@@ -218,7 +224,7 @@ export function useGooLayer(
 
     if (items.length === 0) {
       gooGroups.value = [];
-      if (reason !== 'geometry') {
+      if (reason !== 'scroll') {
         gooGroupsByColumnId.value = buildColumnGooGroups(localItemsByColumnId);
       }
       if (gooPerfDebugEnabled) {
@@ -232,7 +238,7 @@ export function useGooLayer(
       left: boardSurface.scrollLeft,
       top: boardSurface.scrollTop
     });
-    if (reason !== 'geometry') {
+    if (reason !== 'scroll') {
       gooGroupsByColumnId.value = buildColumnGooGroups(localItemsByColumnId);
     }
     if (gooPerfDebugEnabled) {
@@ -500,7 +506,7 @@ export function useGooLayer(
       return 'styles';
     }
 
-    return 'geometry';
+    return 'scroll';
   }
 
   watch(structureSignature, async () => {
@@ -541,6 +547,7 @@ export function useGooLayer(
     gooBlobBorderRadiusPx,
     gooColorMatrixValues,
     setBoardRef,
+    refreshGooLayout,
     scheduleGooStructureRefresh
   };
 }

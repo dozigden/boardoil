@@ -15,11 +15,6 @@
         @keydown.esc.prevent="emit('cancel')"
       />
     </div>
-
-    <p v-if="hasError" class="create-card-inline-error" role="alert">
-      {{ errorMessage }}
-    </p>
-
     <div class="editor-actions create-card-inline-actions">
       <button type="button" class="btn create-card-save" aria-label="Save new card" title="Save new card" @click="emit('save')">
         <Check :size="16" aria-hidden="true" />
@@ -28,6 +23,10 @@
         <X :size="16" aria-hidden="true" />
       </button>
     </div>
+
+    <p v-if="hasError" class="create-card-inline-error" role="alert">
+      {{ errorMessage }}
+    </p>
   </article>
 </template>
 
@@ -109,8 +108,8 @@ watch(
   padding: 0.6rem;
   background: var(--bo-card-surface-background, var(--bo-surface-base));
   color: var(--bo-card-surface-color, inherit);
-  margin-bottom: 0.5rem;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.45rem;
 }
 
@@ -118,10 +117,14 @@ watch(
   display: flex;
   align-items: flex-start;
   gap: 0.45rem;
+  min-width: 0;
 }
 
 .create-card-inline-emoji {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  min-height: calc(1.35em + 0.7rem);
   font-size: 1rem;
   line-height: 1;
 }
@@ -129,6 +132,7 @@ watch(
 .create-card-inline-input {
   width: 100%;
   min-width: 0;
+  min-height: 0;
   border: 1px solid var(--bo-border-soft);
   border-radius: 8px;
   background: var(--bo-surface-base);
@@ -156,10 +160,14 @@ watch(
 }
 
 .create-card-inline-actions {
-  justify-content: flex-end;
+  align-self: start;
+  align-items: center;
+  /* Centre on the first title line, keeping the same position when it wraps. */
+  min-height: calc(1.35em + 0.7rem);
 }
 
 .create-card-inline-error {
+  grid-column: 1 / -1;
   margin: 0;
   color: var(--bo-status-danger);
   font-size: 0.85rem;
@@ -167,6 +175,6 @@ watch(
 
 .create-card-save,
 .create-card-cancel {
-  padding: 0.4rem;
+  padding: 0.25rem;
 }
 </style>
