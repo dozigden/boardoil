@@ -1,7 +1,7 @@
-import { computed, nextTick, shallowReactive, type ComputedRef, type Ref } from 'vue';
+import { computed, nextTick, shallowReactive, watch, type ComputedRef, type Ref } from 'vue';
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
 import { useGooLayer } from './useGooLayer';
-import { useInlineCardAnimation } from './useInlineCardAnimation';
+import { useCardCreationAnimation } from './useCardCreationAnimation';
 import { buildSlickGooDescriptors, buildSlickGooMembershipSignature, buildSlickGooStyleSignature } from '../utils/slickGooAdapter';
 import { buildSelectionGooDescriptors, buildSelectionGooMembershipSignature, createSelectionGooStyle } from '../utils/selectionGooAdapter';
 
@@ -47,9 +47,34 @@ export function useBoardMotion(
     computed(() => buildSelectionGooMembershipSignature(renderedColumns.value, selectedCardIdSet.value, selectionMode.value)),
     computed(() => selectionStyle.styleSignature)
   );
-  const inlineAnimation = useInlineCardAnimation(() => {
+  const creationAnimation = useCardCreationAnimation(() => {
     goo.refreshGooLayout();
     selectionGoo.refreshGooLayout();
+  });
+
+  watch(allCardIds, async (cardIds, previousCardIds) => {
+    if (!boardElement) {
+      return;
+    }
+    const previousIds = new Set(previousCardIds);
+    const newIds = new Set(cardIds.filter(cardId => !previousIds.has(cardId)));
+    const arrivingIds = renderedColumns.value.flatMap(column => column.cards
+      .filter(card => newIds.has(card.id)).map(card => card.id));
+    if (arrivingIds.length === 0) {
+      return;
+    }
+    const previousMargins = new Map<number, number>();
+    for (const card of boardElement.querySelectorAll<HTMLElement>('.card[data-card-id]')) {
+      previousMargins.set(Number(card.dataset.cardId), Number.parseFloat(getComputedStyle(card).marginTop));
+    }
+    await nextTick();
+    for (const cardId of arrivingIds) {
+      const card = boardElement?.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`);
+      if (card) {
+        const followingId = Number((card.nextElementSibling as HTMLElement | null)?.dataset.cardId);
+        creationAnimation.insert(card, previousMargins.get(followingId) ?? 0);
+      }
+    }
   });
 
   function setBoardRef(element: unknown) {
@@ -71,7 +96,7 @@ export function useBoardMotion(
   function draftEdited(columnId: number) {
     const slot = getDraftSlot(columnId);
     if (slot) {
-      inlineAnimation.finish(slot);
+      creationAnimation.finish(slot);
     }
   }
 
@@ -92,7 +117,7 @@ export function useBoardMotion(
       const cardIsVisible = columns.value.some(column => column.id === columnId
         && column.cards.some(card => card.id === cardId));
       const replacementHeight = currentSlot && cardIsVisible
-        ? inlineAnimation.prepareReplacement(currentSlot)
+        ? creationAnimation.prepareReplacement(currentSlot)
         : null;
       release();
       closeDraft();
@@ -100,7 +125,7 @@ export function useBoardMotion(
         await nextTick();
         const card = boardElement?.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`);
         if (card) {
-          inlineAnimation.replace(card, replacementHeight);
+          creationAnimation.replace(card, replacementHeight);
         }
       }
     }
@@ -121,7 +146,7 @@ export function useBoardMotion(
     draftEdited,
     beginCreation,
     revealCard,
-    creationTransition: { enter: inlineAnimation.enter, leave: inlineAnimation.leave, cancel: inlineAnimation.cancel },
+    creationTransition: { enter: creationAnimation.enter, leave: creationAnimation.leave, cancel: creationAnimation.cancel },
     gooGroups: goo.gooGroups,
     gooGroupsByColumnId: goo.gooGroupsByColumnId,
     gooBlurStdDeviation: goo.gooBlurStdDeviation,

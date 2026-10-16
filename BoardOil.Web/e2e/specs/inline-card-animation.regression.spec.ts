@@ -135,6 +135,8 @@ for (const renderer of ['full', 'lite']) {
       // This later event on the same connection proves realtime has delivered
       // the local create. Other columns must keep updating during the save.
       await api.createCard(board, 'In Progress', 'Realtime delivery confirmed');
+      await expect(boardPage.card('In Progress', 'Realtime delivery confirmed')).toHaveCount(1);
+      await seekLayoutAnimations(page, 1);
       await expect(boardPage.card('In Progress', 'Realtime delivery confirmed')).toBeVisible();
       await expect(savedCard).toHaveCount(0);
       await expect(title).toHaveValue('Early realtime card');

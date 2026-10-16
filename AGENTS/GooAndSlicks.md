@@ -23,18 +23,20 @@ Read this before changing slick grouping visuals in `BoardOil.Web`.
 3. `useGooLayer(...)` tracks card DOM geometry and emits `gooGroups`.
 4. `BoardSurface.vue` renders goo groups/blobs in `.goo-layer` behind cards.
 
-`BoardView.vue` owns screen-level filters, selection actions and dialogs. `BoardSurface.vue` owns board rendering and drag interaction. `useBoardInlineCreation(...)` owns draft/focus/validation/save state and uses semantic creation lifecycle operations on `useBoardMotion(...)`; DOM lookup, handoff sequencing and animation-to-goo updates stay inside the motion layer. Low-level creation effects remain in `useInlineCardAnimation(...)`.
+`BoardView.vue` owns screen-level filters, selection actions and dialogs. `BoardSurface.vue` owns board rendering and drag interaction. `useBoardInlineCreation(...)` owns draft/focus/validation/save state and uses semantic creation lifecycle operations on `useBoardMotion(...)`; DOM lookup, handoff sequencing and animation-to-goo updates stay inside the motion layer. Low-level creation effects remain in `useCardCreationAnimation(...)`.
 
 During a local create, the motion layer holds new card arrivals in that column out of `renderedColumns` until the request settles, so an early realtime event cannot display a second card below the editor. Store data stays live; existing cards and other columns continue updating. Rendering, drag targets, goo and visible-card selection use this same presentation projection.
 
 The known-card snapshot comes from the unfiltered card store, so changing filters during a save can reveal existing cards immediately.
+
+The motion layer watches additions to the unfiltered card IDs and animates visible arrivals after rendering. Initial mounting, filter reveals and moves of known cards stay immediate. Cards held for a local save use the editor handoff instead. Arrival effects collapse vertical padding/borders along with height and compensate for changed slick-boundary margins, keeping neighbouring cards and goo aligned.
 
 Key files:
 
 - `BoardOil.Web/src/board/components/BoardSurface.vue`
 - `BoardOil.Web/src/board/composables/useBoardMotion.ts`
 - `BoardOil.Web/src/board/composables/useBoardInlineCreation.ts`
-- `BoardOil.Web/src/board/composables/useInlineCardAnimation.ts`
+- `BoardOil.Web/src/board/composables/useCardCreationAnimation.ts`
 - `BoardOil.Web/src/board/composables/useGooLayer.ts`
 - `BoardOil.Web/src/board/utils/slickGooAdapter.ts`
 - `BoardOil.Web/src/board/utils/gooLayout.ts`

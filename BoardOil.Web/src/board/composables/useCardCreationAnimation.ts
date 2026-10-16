@@ -4,8 +4,7 @@ const duration = 200;
 const easing = 'cubic-bezier(0.2, 0, 0, 1)';
 
 // Animate real layout height so cards and their scroll container move together.
-// Only inline creation calls this; ordinary store/realtime changes stay immediate.
-export function useInlineCardAnimation(refreshGooLayout: () => void) {
+export function useCardCreationAnimation(refreshGooLayout: () => void) {
   const animations = new Map<HTMLElement, Animation>();
   const replacements = new Set<HTMLElement>();
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -21,14 +20,7 @@ export function useInlineCardAnimation(refreshGooLayout: () => void) {
     }
   }
 
-  function animateHeight(
-    element: HTMLElement,
-    fromHeight: number,
-    toHeight: number,
-    fromMargin: number,
-    toMargin: number,
-    done: () => void
-  ) {
+  function animate(element: HTMLElement, from: Keyframe, to: Keyframe, done: () => void) {
     if (reducedMotion.matches) {
       done();
       refreshFrame();
@@ -36,8 +28,8 @@ export function useInlineCardAnimation(refreshGooLayout: () => void) {
     }
 
     const animation = element.animate([
-      { height: `${fromHeight}px`, marginBottom: `${fromMargin}px`, overflow: 'clip', minHeight: '0' },
-      { height: `${toHeight}px`, marginBottom: `${toMargin}px`, overflow: 'clip', minHeight: '0' }
+      { ...from, overflow: 'clip', minHeight: '0' },
+      { ...to, overflow: 'clip', minHeight: '0' }
     ], { duration, easing });
     animations.set(element, animation);
     animation.onfinish = () => {
@@ -48,6 +40,47 @@ export function useInlineCardAnimation(refreshGooLayout: () => void) {
       refreshFrame();
     };
     refreshFrame();
+  }
+
+  function animateHeight(
+    element: HTMLElement,
+    fromHeight: number,
+    toHeight: number,
+    fromMargin: number,
+    toMargin: number,
+    done: () => void
+  ) {
+    animate(element,
+      { height: `${fromHeight}px`, marginBottom: `${fromMargin}px` },
+      { height: `${toHeight}px`, marginBottom: `${toMargin}px` },
+      done);
+  }
+
+  function insert(card: HTMLElement, followingCardMarginBefore: number) {
+    const style = getComputedStyle(card);
+    const followingCard = card.nextElementSibling;
+    let followingCardMargin = 0;
+    if (followingCard?.matches('.card')) {
+      followingCardMargin = Number.parseFloat(getComputedStyle(followingCard).marginTop);
+    }
+    // A new slick card can also change the following card's boundary spacing.
+    const fromMargin = followingCardMarginBefore - followingCardMargin
+      - Number.parseFloat(style.marginTop) - gap(card);
+    animate(card, {
+      height: '0px',
+      paddingTop: '0px',
+      paddingBottom: '0px',
+      borderTopWidth: '0px',
+      borderBottomWidth: '0px',
+      marginBottom: `${fromMargin}px`
+    }, {
+      height: `${card.getBoundingClientRect().height}px`,
+      paddingTop: style.paddingTop,
+      paddingBottom: style.paddingBottom,
+      borderTopWidth: style.borderTopWidth,
+      borderBottomWidth: style.borderBottomWidth,
+      marginBottom: style.marginBottom
+    }, () => {});
   }
 
   function gap(element: HTMLElement) {
@@ -124,5 +157,5 @@ export function useInlineCardAnimation(refreshGooLayout: () => void) {
     }
   });
 
-  return { enter, leave, cancel, prepareReplacement, replace, finish };
+  return { enter, leave, cancel, prepareReplacement, replace, finish, insert };
 }
