@@ -1,4 +1,5 @@
 import { onBeforeUnmount, onMounted, shallowReactive } from 'vue';
+import type { BoardAnimationHandle, BoardAnimationRunner } from '../utils/boardAnimationRunner';
 
 type CardPosition = {
   rect: DOMRect;
@@ -13,68 +14,35 @@ type MovementSnapshot = {
   columns: Map<number, { element: HTMLElement; height: number }>;
 };
 type MovingCard = {
-  animation: Animation;
+  animation: BoardAnimationHandle;
   element: HTMLElement;
   floating: HTMLElement | null;
-  visibility: string;
   columnId: number;
   foreground: boolean;
 };
 
-export function useCardMovementAnimation(refreshGoo: () => void) {
+export function useCardMovementAnimation(runner: BoardAnimationRunner) {
   const floatingCards = shallowReactive(new Map<number, HTMLElement>());
   const active = new Map<number, MovingCard>();
-  const columnAnimations = new Map<number, Animation>();
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const columnAnimations = new Map<number, BoardAnimationHandle>();
   let board: HTMLElement | null = null;
   let layer: HTMLElement | null = null;
-  let frame: number | null = null;
-
-  function refreshFrame() {
-    // Neighbours finish together. Coalesce their final goo updates rather
-    // than repeatedly measuring and rebuilding it during the same frame.
-    if (frame !== null) {
-      return;
-    }
-    frame = requestAnimationFrame(() => {
-      frame = null;
-      refreshGoo();
-      if (active.size > 0 || columnAnimations.size > 0) {
-        refreshFrame();
-      }
-    });
-  }
 
   function settle(cardId: number) {
-    const moving = active.get(cardId);
-    if (!moving) {
-      return;
-    }
-    moving.animation.onfinish = null;
-    moving.animation.cancel();
-    moving.element.style.visibility = moving.visibility;
-    moving.floating?.remove();
-    active.delete(cardId);
-    floatingCards.delete(cardId);
+    active.get(cardId)?.animation.cancel();
   }
 
   function finishAll() {
-    if (active.size === 0 && columnAnimations.size === 0 && frame === null) {
+    if (active.size === 0 && columnAnimations.size === 0) {
       return;
     }
     for (const cardId of active.keys()) {
       settle(cardId);
     }
     for (const animation of columnAnimations.values()) {
-      animation.onfinish = null;
-      animation.cancel();
+      animation.finish();
     }
     columnAnimations.clear();
-    if (frame !== null) {
-      cancelAnimationFrame(frame);
-      frame = null;
-    }
-    refreshGoo();
   }
 
   function setBoardRef(element: unknown) {
@@ -89,7 +57,7 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
 
   function capture(columnIds: Set<number>) {
     const snapshot: MovementSnapshot = { cards: new Map(), columns: new Map() };
-    if (!board || reducedMotion.matches) {
+    if (!board || runner.reducedMotion) {
       return snapshot;
     }
     for (const column of board.querySelectorAll<HTMLElement>('[data-column-id]')) {
@@ -119,16 +87,14 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
     for (const columnId of columnIds) {
       const animation = columnAnimations.get(columnId);
       if (animation) {
-        animation.onfinish = null;
         animation.cancel();
-        columnAnimations.delete(columnId);
       }
     }
     return snapshot;
   }
 
   function play(snapshot: MovementSnapshot) {
-    if (!board || !layer || reducedMotion.matches) {
+    if (!board || !layer || runner.reducedMotion) {
       return;
     }
     const boardRect = board.getBoundingClientRect();
@@ -146,7 +112,7 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
       }
       const columnId = Number(card.parentElement!.dataset.columnId);
       let floating: HTMLElement | null = null;
-      let animation: Animation;
+      let keyframes: Keyframe[];
       const visibility = card.style.visibility;
       // A changed sort key identifies the moved card, rather than neighbours
       // whose positions shifted to make room. Preserve this when interrupted.
@@ -175,23 +141,28 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
         });
         layer.append(floating);
         card.style.visibility = 'hidden';
-        animation = floating.animate([
+        keyframes = [
           { transform: `translate(${dx}px, ${dy}px)`, width: `${previous.rect.width}px`, height: `${previous.rect.height}px` },
           { transform: 'translate(0, 0)', width: `${target.width}px`, height: `${target.height}px` }
-        ], { duration: 200, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+        ];
         floatingCards.set(id, floating);
       } else {
         const zIndex = foreground ? '2' : getComputedStyle(card).zIndex;
-        animation = card.animate([
+        keyframes = [
           { transform: `translate(${dx}px, ${dy}px)`, zIndex },
           { transform: 'translate(0, 0)', zIndex }
-        ], { duration: 200, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+        ];
       }
-      active.set(id, { animation, element: card, floating, visibility, columnId, foreground });
-      animation.onfinish = () => {
-        settle(id);
-        refreshFrame();
+      const cleanup = () => {
+        card.style.visibility = visibility;
+        floating?.remove();
+        active.delete(id);
+        floatingCards.delete(id);
       };
+      const animation = runner.animate(floating ?? card, keyframes, { onFinish: cleanup, onCancel: cleanup });
+      if (animation.active) {
+        active.set(id, { animation, element: card, floating, columnId, foreground });
+      }
     }
     // Columns size to their content. Preserve their old clipping area while
     // neighbours close/open gaps, rather than clipping them at the final size.
@@ -203,22 +174,13 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
       if (Math.abs(height - previous.height) < 0.5) {
         continue;
       }
-      const animation = previous.element.animate([
+      const cleanup = () => { columnAnimations.delete(columnId); };
+      const animation = runner.animate(previous.element, [
         { height: `${previous.height}px` }, { height: `${height}px` }
-      ], { duration: 200, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
-      columnAnimations.set(columnId, animation);
-      animation.onfinish = () => {
-        columnAnimations.delete(columnId);
-        animation.cancel();
-        refreshFrame();
-      };
-    }
-    refreshFrame();
-  }
-
-  function onMotionPreferenceChange() {
-    if (reducedMotion.matches) {
-      finishAll();
+      ], { onFinish: cleanup, onCancel: cleanup });
+      if (animation.active) {
+        columnAnimations.set(columnId, animation);
+      }
     }
   }
 
@@ -232,11 +194,9 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
   }
 
   onMounted(() => {
-    reducedMotion.addEventListener('change', onMotionPreferenceChange);
     window.addEventListener('resize', finishAll);
   });
   onBeforeUnmount(() => {
-    reducedMotion.removeEventListener('change', onMotionPreferenceChange);
     window.removeEventListener('resize', finishAll);
     board?.removeEventListener('scroll', finishAll, true);
     finishAll();

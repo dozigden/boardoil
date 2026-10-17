@@ -107,6 +107,13 @@ export function useGooLayer(
   // During a height animation cached offsets are stale on every frame. Reuse
   // tracked elements, but measure their current positions for both renderers.
   function refreshGooLayout() {
+    // This measurement also consumes pending structure/style/scroll changes.
+    // Keep their dirty flags, but don't repeat the work in a queued callback.
+    if (gooRafId !== null) {
+      cancelAnimationFrame(gooRafId);
+      gooRafId = null;
+    }
+    queuedRefreshReason = null;
     refreshGooLayer('layout');
   }
 

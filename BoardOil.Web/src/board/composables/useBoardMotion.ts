@@ -1,9 +1,10 @@
-import { computed, nextTick, shallowReactive, watch, type ComputedRef, type Ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, shallowReactive, watch, type ComputedRef, type Ref } from 'vue';
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
 import { useGooLayer } from './useGooLayer';
 import { useCardCreationAnimation } from './useCardCreationAnimation';
 import { useCardMovementAnimation } from './useCardMovementAnimation';
 import { findMovedColumns, type CardIdsByColumn } from '../utils/cardMovement';
+import { createBoardAnimationRunner } from '../utils/boardAnimationRunner';
 import type { GooRendererMode } from '../utils/gooRendererMode';
 import { buildSlickGooDescriptors, buildSlickGooMembershipSignature, buildSlickGooStyleSignature } from '../utils/slickGooAdapter';
 import { buildSelectionGooDescriptors, buildSelectionGooMembershipSignature, createSelectionGooStyle } from '../utils/selectionGooAdapter';
@@ -37,7 +38,9 @@ export function useBoardMotion(
   const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
   const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
   const selectionStyle = createSelectionGooStyle();
-  const movement = useCardMovementAnimation(refreshGooLayout);
+  const animationRunner = createBoardAnimationRunner(refreshGooLayout);
+  onBeforeUnmount(animationRunner.dispose);
+  const movement = useCardMovementAnimation(animationRunner);
   const gooColumns = computed(() => {
     if (gooRendererMode === 'full') {
       return renderedColumns.value;
@@ -67,7 +70,7 @@ export function useBoardMotion(
     goo.refreshGooLayout();
     selectionGoo.refreshGooLayout();
   }
-  const creationAnimation = useCardCreationAnimation(refreshGooLayout);
+  const creationAnimation = useCardCreationAnimation(animationRunner);
 
   watch(cardIdsByColumnId, async (current, previous) => {
     const movedColumns = findMovedColumns(previous, current);

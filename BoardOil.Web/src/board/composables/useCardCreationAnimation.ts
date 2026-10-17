@@ -1,45 +1,28 @@
-import { onBeforeUnmount, onMounted } from 'vue';
-
-const duration = 200;
-const easing = 'cubic-bezier(0.2, 0, 0, 1)';
+import { onBeforeUnmount } from 'vue';
+import type { BoardAnimationHandle, BoardAnimationRunner } from '../utils/boardAnimationRunner';
 
 // Animate real layout height so cards and their scroll container move together.
-export function useCardCreationAnimation(refreshGooLayout: () => void) {
-  const animations = new Map<HTMLElement, Animation>();
+export function useCardCreationAnimation(runner: BoardAnimationRunner) {
+  const animations = new Map<HTMLElement, BoardAnimationHandle>();
   const replacements = new Set<HTMLElement>();
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  let frame: number | null = null;
-
-  function refreshFrame() {
-    refreshGooLayout();
-    if (animations.size > 0 && frame === null) {
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        refreshFrame();
-      });
-    }
-  }
 
   function animate(element: HTMLElement, from: Keyframe, to: Keyframe, done: () => void) {
-    if (reducedMotion.matches) {
-      done();
-      refreshFrame();
-      return;
-    }
-
-    const animation = element.animate([
+    animations.get(element)?.cancel();
+    const animation = runner.animate(element, [
       { ...from, overflow: 'clip', minHeight: '0' },
       { ...to, overflow: 'clip', minHeight: '0' }
-    ], { duration, easing });
-    animations.set(element, animation);
-    animation.onfinish = () => {
-      animations.delete(element);
-      element.style.removeProperty('height');
-      element.style.removeProperty('margin-bottom');
-      done();
-      refreshFrame();
-    };
-    refreshFrame();
+    ], {
+      onFinish() {
+        animations.delete(element);
+        element.style.removeProperty('height');
+        element.style.removeProperty('margin-bottom');
+        done();
+      },
+      onCancel: () => { animations.delete(element); }
+    });
+    if (animation.active) {
+      animations.set(element, animation);
+    }
   }
 
   function animateHeight(
@@ -117,7 +100,6 @@ export function useCardCreationAnimation(refreshGooLayout: () => void) {
     slot.style.height = `${slot.getBoundingClientRect().height}px`;
     slot.style.marginBottom = getComputedStyle(slot).marginBottom;
     animation.cancel();
-    animations.delete(slot);
   }
 
   function prepareReplacement(slot: HTMLElement) {
@@ -135,26 +117,12 @@ export function useCardCreationAnimation(refreshGooLayout: () => void) {
     animations.get(element)?.finish();
   }
 
-  function finishForReducedMotion() {
-    if (reducedMotion.matches) {
-      for (const animation of animations.values()) {
-        animation.finish();
-      }
-    }
-  }
-
-  onMounted(() => reducedMotion.addEventListener('change', finishForReducedMotion));
   onBeforeUnmount(() => {
-    reducedMotion.removeEventListener('change', finishForReducedMotion);
     for (const animation of animations.values()) {
-      animation.onfinish = null;
       animation.cancel();
     }
     animations.clear();
     replacements.clear();
-    if (frame !== null) {
-      cancelAnimationFrame(frame);
-    }
   });
 
   return { enter, leave, cancel, prepareReplacement, replace, finish, insert };

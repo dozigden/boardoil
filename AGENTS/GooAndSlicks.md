@@ -25,6 +25,8 @@ Read this before changing slick grouping visuals in `BoardOil.Web`.
 
 `BoardView.vue` owns screen-level filters, selection actions and dialogs. `BoardSurface.vue` owns board rendering and drag interaction. `useBoardInlineCreation(...)` owns draft/focus/validation/save state and uses semantic creation lifecycle operations on `useBoardMotion(...)`; DOM lookup, handoff sequencing and animation-to-goo updates stay inside the motion layer. Low-level creation effects remain in `useCardCreationAnimation(...)`.
 
+`useBoardMotion` owns one `createBoardAnimationRunner(...)` instance shared by creation and movement. The runner owns the 200 ms easing, reduced-motion preference listener, native animation registration and a single animation frame loop refreshing slick/selection goo. Effects retain geometry, Vue transition callbacks and DOM cleanup. Finish/cancel handlers run once; reduced motion finishes effects and skips new native animations; disposing the runner cancels active effects and its pending frame. Scrolling/resizing settles movement effects without finishing unrelated creation effects. Animation-driven goo measurements consume pending goo refresh requests while retaining their dirty flags; idle scrolling still uses cached geometry.
+
 During a local create, the motion layer holds new card arrivals in that column out of `renderedColumns` until the request settles, so an early realtime event cannot display a second card below the editor. Store data stays live; existing cards and other columns continue updating. Rendering, drag targets, goo and visible-card selection use this same presentation projection.
 
 The known-card snapshot comes from the unfiltered card store, so changing filters during a save can reveal existing cards immediately.
@@ -42,6 +44,7 @@ Key files:
 - `BoardOil.Web/src/board/composables/useBoardInlineCreation.ts`
 - `BoardOil.Web/src/board/composables/useCardCreationAnimation.ts`
 - `BoardOil.Web/src/board/composables/useCardMovementAnimation.ts`
+- `BoardOil.Web/src/board/utils/boardAnimationRunner.ts`
 - `BoardOil.Web/src/board/utils/cardMovement.ts`
 - `BoardOil.Web/src/board/composables/useGooLayer.ts`
 - `BoardOil.Web/src/board/utils/slickGooAdapter.ts`
