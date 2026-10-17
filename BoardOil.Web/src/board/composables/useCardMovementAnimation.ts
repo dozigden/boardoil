@@ -22,7 +22,7 @@ type MovingCard = {
 };
 
 export function useCardMovementAnimation(refreshGoo: () => void) {
-  const floatingCardIds = shallowReactive(new Set<number>());
+  const floatingCards = shallowReactive(new Map<number, HTMLElement>());
   const active = new Map<number, MovingCard>();
   const columnAnimations = new Map<number, Animation>();
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -31,13 +31,18 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
   let frame: number | null = null;
 
   function refreshFrame() {
-    refreshGoo();
-    if ((active.size > 0 || columnAnimations.size > 0) && frame === null) {
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        refreshFrame();
-      });
+    // Neighbours finish together. Coalesce their final goo updates rather
+    // than repeatedly measuring and rebuilding it during the same frame.
+    if (frame !== null) {
+      return;
     }
+    frame = requestAnimationFrame(() => {
+      frame = null;
+      refreshGoo();
+      if (active.size > 0 || columnAnimations.size > 0) {
+        refreshFrame();
+      }
+    });
   }
 
   function settle(cardId: number) {
@@ -50,7 +55,7 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
     moving.element.style.visibility = moving.visibility;
     moving.floating?.remove();
     active.delete(cardId);
-    floatingCardIds.delete(cardId);
+    floatingCards.delete(cardId);
   }
 
   function finishAll() {
@@ -160,6 +165,7 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
         }
         floating = card.cloneNode(true) as HTMLElement;
         floating.dataset.movingCardId = String(id);
+        floating.removeAttribute('data-card-id');
         floating.classList.remove('card--dragging', 'card--multi-dragging');
         Object.assign(floating.style, {
           position: 'absolute', margin: '0', visibility: 'visible',
@@ -173,7 +179,7 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
           { transform: `translate(${dx}px, ${dy}px)`, width: `${previous.rect.width}px`, height: `${previous.rect.height}px` },
           { transform: 'translate(0, 0)', width: `${target.width}px`, height: `${target.height}px` }
         ], { duration: 200, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
-        floatingCardIds.add(id);
+        floatingCards.set(id, floating);
       } else {
         const zIndex = foreground ? '2' : getComputedStyle(card).zIndex;
         animation = card.animate([
@@ -236,5 +242,5 @@ export function useCardMovementAnimation(refreshGoo: () => void) {
     finishAll();
   });
 
-  return { floatingCardIds, setBoardRef, setLayerRef, capture, play, finishAll, prune };
+  return { floatingCards, setBoardRef, setLayerRef, capture, play, finishAll, prune };
 }

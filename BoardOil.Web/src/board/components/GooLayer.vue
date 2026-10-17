@@ -18,13 +18,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import type { GooRenderGroup } from '../utils/gooLayout';
-import { resolveGooRendererMode, type GooRendererMode } from '../utils/gooRendererMode';
+import type { GooRendererMode } from '../utils/gooRendererMode';
 import FullGooLayer from './FullGooLayer.vue';
 import LiteGooLayer from './LiteGooLayer.vue';
 
 withDefaults(defineProps<{
+  gooRendererMode: GooRendererMode;
   groups: GooRenderGroup[];
   blobBorderRadiusPx: number;
   layerClass?: string;
@@ -35,6 +35,4 @@ withDefaults(defineProps<{
   groupClass: '',
   blobClass: ''
 });
-
-const gooRendererMode = computed<GooRendererMode>(() => resolveGooRendererMode());
 </script>

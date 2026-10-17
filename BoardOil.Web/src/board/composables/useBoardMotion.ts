@@ -4,7 +4,7 @@ import { useGooLayer } from './useGooLayer';
 import { useCardCreationAnimation } from './useCardCreationAnimation';
 import { useCardMovementAnimation } from './useCardMovementAnimation';
 import { findMovedColumns, type CardIdsByColumn } from '../utils/cardMovement';
-import { resolveGooRendererMode } from '../utils/gooRendererMode';
+import type { GooRendererMode } from '../utils/gooRendererMode';
 import { buildSlickGooDescriptors, buildSlickGooMembershipSignature, buildSlickGooStyleSignature } from '../utils/slickGooAdapter';
 import { buildSelectionGooDescriptors, buildSelectionGooMembershipSignature, createSelectionGooStyle } from '../utils/selectionGooAdapter';
 
@@ -13,7 +13,8 @@ export function useBoardMotion(
   cardIdsByColumnId: ComputedRef<CardIdsByColumn>,
   slicks: Ref<Slick[]>,
   selectedCardIds: Ref<number[]>,
-  selectionMode: Ref<boolean>
+  selectionMode: Ref<boolean>,
+  gooRendererMode: GooRendererMode
 ) {
   let boardElement: HTMLElement | null = null;
   const allCardIds = computed(() => Object.values(cardIdsByColumnId.value).flat());
@@ -36,23 +37,20 @@ export function useBoardMotion(
   const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
   const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
   const selectionStyle = createSelectionGooStyle();
-  const useFullGoo = resolveGooRendererMode() === 'full';
   const movement = useCardMovementAnimation(refreshGooLayout);
-  const floatingSignature = computed(() => [...movement.floatingCardIds].join(','));
   const gooColumns = computed(() => {
-    if (useFullGoo) {
+    if (gooRendererMode === 'full') {
       return renderedColumns.value;
     }
     return renderedColumns.value.map(column => ({
-      ...column, cards: column.cards.filter(card => !movement.floatingCardIds.has(card.id))
+      ...column, cards: column.cards.filter(card => !movement.floatingCards.has(card.id))
     }));
   });
   const goo = useGooLayer(
     computed(() => buildSlickGooDescriptors(gooColumns.value, slicksById.value)),
-    // Rebind HTML geometry when a floating copy takes over or lands; rebuild
-    // Lite's column goo when the travelling card rejoins on landing.
-    computed(() => `${buildSlickGooMembershipSignature(gooColumns.value)}|floating:${floatingSignature.value}`),
-    computed(() => buildSlickGooStyleSignature(slicks.value))
+    computed(() => buildSlickGooMembershipSignature(gooColumns.value)),
+    computed(() => buildSlickGooStyleSignature(slicks.value)),
+    movement.floatingCards
   );
   const selectionGoo = useGooLayer(
     computed(() => {
@@ -61,8 +59,9 @@ export function useBoardMotion(
       }
       return buildSelectionGooDescriptors(gooColumns.value, selectedCardIdSet.value, selectionStyle.colour);
     }),
-    computed(() => `${buildSelectionGooMembershipSignature(gooColumns.value, selectedCardIdSet.value, selectionMode.value)}|floating:${floatingSignature.value}`),
-    computed(() => selectionStyle.styleSignature)
+    computed(() => buildSelectionGooMembershipSignature(gooColumns.value, selectedCardIdSet.value, selectionMode.value)),
+    computed(() => selectionStyle.styleSignature),
+    movement.floatingCards
   );
   function refreshGooLayout() {
     goo.refreshGooLayout();

@@ -16,11 +16,13 @@
   <section class="board" :ref="motion.setBoardRef">
     <GooLayer
       v-if="gooRendererMode === 'full'"
+      :goo-renderer-mode="gooRendererMode"
       :groups="gooGroups"
       :blob-border-radius-px="gooBlobBorderRadiusPx"
     />
     <GooLayer
       v-if="gooRendererMode === 'full' && selectionGooGroup"
+      :goo-renderer-mode="gooRendererMode"
       :groups="[selectionGooGroup]"
       :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
       layer-class="goo-layer--selection"
@@ -182,8 +184,8 @@ const selectedCardIds = computed(() => props.selectedCardIds);
 const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
 const selectedCardCount = computed(() => selectedCardIds.value.length);
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
-const gooRendererMode = computed(() => resolveGooRendererMode());
-const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, slicks, selectedCardIds, isCardSelectionMode);
+const gooRendererMode = resolveGooRendererMode();
+const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, slicks, selectedCardIds, isCardSelectionMode, gooRendererMode);
 const {
   renderedColumns,
   gooGroups,

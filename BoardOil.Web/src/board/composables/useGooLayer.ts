@@ -47,7 +47,8 @@ type GooPerfSample = {
 export function useGooLayer(
   descriptors: ComputedRef<GooLayerDescriptor[]>,
   structureSignature: ComputedRef<string>,
-  styleSignature: ComputedRef<string>
+  styleSignature: ComputedRef<string>,
+  cardElementOverrides: ReadonlyMap<number, HTMLElement>
 ) {
   const gooGroups = ref<GooRenderGroup[]>([]);
   const gooGroupsByColumnId = ref(new Map<number, GooRenderGroup[]>());
@@ -66,7 +67,6 @@ export function useGooLayer(
   let queuedRefreshReason: GooRefreshReason | null = null;
   let gooStructureDirty = true;
   let gooStylesDirty = true;
-  const gooCardElementCache = new Map<number, HTMLElement>();
   const clipPaddingCache = new Map<HTMLElement, ClipPadding>();
   const observedBoardCardElements = new Set<HTMLElement>();
   let cardResizeObserver: ResizeObserver | null = null;
@@ -89,7 +89,6 @@ export function useGooLayer(
       gooGroups.value = [];
       gooGroupsByColumnId.value = new Map();
       trackedGooCards = [];
-      gooCardElementCache.clear();
       clipPaddingCache.clear();
       clearObservedBoardCardElements();
       return;
@@ -149,7 +148,6 @@ export function useGooLayer(
       gooGroups.value = [];
       gooGroupsByColumnId.value = new Map();
       trackedGooCards = [];
-      gooCardElementCache.clear();
       queuedRefreshReason = null;
       gooStructureDirty = true;
       gooStylesDirty = true;
@@ -176,7 +174,6 @@ export function useGooLayer(
     let sawDetachedCard = false;
     for (const trackedCard of trackedGooCards) {
       if (!trackedCard.cardElement.isConnected) {
-        gooCardElementCache.delete(trackedCard.cardId);
         sawDetachedCard = true;
         continue;
       }
@@ -251,7 +248,7 @@ export function useGooLayer(
   function rebuildTrackedGooCards(boardSurface: HTMLElement) {
     const cardElementsById = new Map<number, HTMLElement>();
     const clipRectByElement = new Map<HTMLElement, RectLike>();
-    const cardElements = boardSurface.querySelectorAll<HTMLElement>('.card[data-card-id]');
+    const cardElements = boardSurface.querySelectorAll<HTMLElement>('.column-content > .card[data-card-id]');
     for (const cardElement of cardElements) {
       const rawCardId = cardElement.dataset.cardId;
       if (!rawCardId) {
@@ -264,15 +261,15 @@ export function useGooLayer(
       }
 
       cardElementsById.set(cardId, cardElement);
-      gooCardElementCache.set(cardId, cardElement);
+    }
+    for (const [cardId, cardElement] of cardElementOverrides) {
+      cardElementsById.set(cardId, cardElement);
     }
 
     const nextTrackedCards: TrackedGooCard[] = [];
     for (const descriptor of descriptors.value) {
-      const cachedCardElement = gooCardElementCache.get(descriptor.cardId);
-      const cardElement = cardElementsById.get(descriptor.cardId) ?? cachedCardElement ?? null;
+      const cardElement = cardElementsById.get(descriptor.cardId);
       if (!cardElement || !cardElement.isConnected) {
-        gooCardElementCache.delete(descriptor.cardId);
         continue;
       }
 
@@ -508,6 +505,10 @@ export function useGooLayer(
 
     return 'scroll';
   }
+
+  // Copies are installed/removed outside Vue rendering. Invalidate tracking
+  // synchronously so the next animation refresh uses the displayed element.
+  watch(() => [...cardElementOverrides], scheduleGooStructureRefresh, { flush: 'sync' });
 
   watch(structureSignature, async () => {
     await nextTick();

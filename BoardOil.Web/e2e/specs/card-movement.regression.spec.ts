@@ -52,6 +52,8 @@ for (const renderer of ['full', 'lite']) {
     await api.moveCard(board.id, moving.id, targetColumnId);
     const floating = page.locator(`[data-moving-card-id="${moving.id}"]`);
     await expect(floating).toHaveCount(1);
+    // Goo resolves the registered presentation, not a duplicate card identity.
+    await expect(floating).not.toHaveAttribute('data-card-id');
     expect(await seekLayoutAnimations(page, 0)).toBeGreaterThanOrEqual(3);
     expect((await box(floating)).x).toBeCloseTo(before.x, 0);
     expect((await box(floating)).y).toBeCloseTo(before.y, 0);
@@ -155,8 +157,9 @@ for (const renderer of ['full', 'lite']) {
 
 test('another arrival retargets a card already travelling into that column without clipping it', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Overlapping movement');
-  const first = await api.createCard(board, 'Todo', 'First traveller');
-  const second = await api.createCard(board, 'Todo', 'Second traveller');
+  const slick = await api.createSlick(board, 'Retargeted slick');
+  const first = await api.createCard(board, 'Todo', 'First traveller', '', [], slick.name);
+  const second = await api.createCard(board, 'Todo', 'Second traveller', '', [], slick.name);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await controlLayoutAnimations(page);
   const bp = new BoardPage(page);
@@ -167,16 +170,22 @@ test('another arrival retargets a card already travelling into that column witho
   const firstCopy = page.locator(`[data-moving-card-id="${first.id}"]`);
   await expect(firstCopy).toHaveCount(1);
   await seekLayoutAnimations(page, 0.3);
+  const firstBlob = page.locator(`[data-goo-blob-id="card-${first.id}"]`);
+  await aligned(firstCopy, firstBlob);
   const before = await box(firstCopy);
   await api.moveCard(board.id, second.id, destinationId);
   await expect(page.locator('[data-moving-card-id]')).toHaveCount(2);
   await seekLayoutAnimations(page, 0);
   expect((await box(firstCopy)).x).toBeCloseTo(before.x, 0);
   expect((await box(firstCopy)).y).toBeCloseTo(before.y, 0);
+  await aligned(firstCopy, firstBlob);
+  await seekLayoutAnimations(page, 0.5);
+  await aligned(firstCopy, firstBlob);
   await seekLayoutAnimations(page, 1);
   await expect(page.locator('[data-moving-card-id]')).toHaveCount(0);
   await expect(bp.card('In Progress', 'First traveller')).toBeVisible();
   await expect(bp.card('In Progress', 'Second traveller')).toBeVisible();
+  await aligned(bp.card('In Progress', 'First traveller'), firstBlob);
 });
 
 test('a bulk drop moves all selected cards and leaves no floating copies', async ({ api, authenticatedPage: page }) => {
