@@ -49,6 +49,7 @@
 
         <div
           class="column-content"
+          :data-column-id="column.id"
           :class="{
             'column-content--drop-tail': isDropPoint(column.id, null),
             'column-content--drop-head': isDropAtColumnStart(column.id),
@@ -102,6 +103,7 @@
             :thumbnail-attachment="cardAttachmentThumbnailStore.getForCard(card.id)"
             :column-id="column.id"
             :data-card-id="card.id"
+            :data-card-sort-key="card.sortKey"
             :drop-indicator="resolveCardDropIndicator(column.id, card.id)"
             :selection-mode="isCardSelectionMode"
             :selected="isCardSelected(card.id)"
@@ -128,6 +130,7 @@
         @drop.prevent.stop="onColumnTailDrop(column.id)"
       />
     </div>
+    <div :ref="motion.setMovementLayerRef" class="card-motion-layer" aria-hidden="true" inert />
   </section>
 </template>
 
@@ -173,14 +176,14 @@ const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
 const { cardTypes, systemCardType } = storeToRefs(cardTypeStore);
 const { slicks } = storeToRefs(useSlickStore());
 const filteredColumns = computed(() => props.columns);
-const allCardIds = computed(() => Object.values(cardStore.cardIdsByColumnId).flat());
+const cardIdsByColumnId = computed(() => cardStore.cardIdsByColumnId);
 const isCardSelectionMode = computed(() => props.selectionMode);
 const selectedCardIds = computed(() => props.selectedCardIds);
 const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
 const selectedCardCount = computed(() => selectedCardIds.value.length);
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 const gooRendererMode = computed(() => resolveGooRendererMode());
-const motion = useBoardMotion(filteredColumns, allCardIds, slicks, selectedCardIds, isCardSelectionMode);
+const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, slicks, selectedCardIds, isCardSelectionMode);
 const {
   renderedColumns,
   gooGroups,
@@ -407,6 +410,13 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
 .inline-card-slot {
   display: flow-root;
   flex-shrink: 0;
+}
+
+.card-motion-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
 }
 
 .column-content > .card--slick-gap-bottom {

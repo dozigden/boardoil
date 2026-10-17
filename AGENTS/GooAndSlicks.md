@@ -29,7 +29,11 @@ During a local create, the motion layer holds new card arrivals in that column o
 
 The known-card snapshot comes from the unfiltered card store, so changing filters during a save can reveal existing cards immediately.
 
-The motion layer watches additions to the unfiltered card IDs and animates visible arrivals after rendering. Initial mounting, filter reveals and moves of known cards stay immediate. Cards held for a local save use the editor handoff instead. Arrival effects collapse vertical padding/borders along with height and compensate for changed slick-boundary margins, keeping neighbouring cards and goo aligned.
+The motion layer watches additions to the unfiltered card IDs and animates visible arrivals after rendering. Initial mounting and filter reveals stay immediate. Cards held for a local save use the editor handoff instead. Arrival effects collapse vertical padding/borders along with height and compensate for changed slick-boundary margins, keeping neighbouring cards and goo aligned.
+
+Movement watches canonical column membership/order from the card store, independently of filtering. `findMovedColumns` compares cards present in both snapshots so creation/removal alone and duplicate HTTP/realtime delivery do not trigger movement. `useCardMovementAnimation` captures visible positions before rendering and animates cards and displaced neighbours to the new layout. Interrupted movement starts from the currently displayed position.
+
+Within-column effects transform the real card. Cross-column effects use an inert floating copy in the board's motion layer while the real destination card reserves its layout space. Column heights animate with their cards so shrinking columns do not prematurely clip displaced neighbours. The HTML renderer includes travelling cards in its existing board-level slick/selection goo groups, preserving connections to stationary cards. Lite keeps its existing column SVG layers: cross-column travelling cards have no slick/selection goo until they land. The floating-card signature triggers a structure refresh at handoff/landing so tracking returns to the real destination card and Lite rebuilds its column goo. Slick membership in the store stays intact throughout. The floating copy retains card data attributes for HTML goo lookup; ordinary interactions and creation lookups target actual column children explicitly. Scrolling/resizing settles movement; offscreen cross-column endpoints remain clipped rather than floating over headers. Reduced motion skips/finishes effects, and filtering/removal/teardown cleans up copies and restores destination visibility. Both renderer modes can be exercised in Chromium, but Safari behaviour still needs real-world browser testing.
 
 Key files:
 
@@ -37,6 +41,8 @@ Key files:
 - `BoardOil.Web/src/board/composables/useBoardMotion.ts`
 - `BoardOil.Web/src/board/composables/useBoardInlineCreation.ts`
 - `BoardOil.Web/src/board/composables/useCardCreationAnimation.ts`
+- `BoardOil.Web/src/board/composables/useCardMovementAnimation.ts`
+- `BoardOil.Web/src/board/utils/cardMovement.ts`
 - `BoardOil.Web/src/board/composables/useGooLayer.ts`
 - `BoardOil.Web/src/board/utils/slickGooAdapter.ts`
 - `BoardOil.Web/src/board/utils/gooLayout.ts`

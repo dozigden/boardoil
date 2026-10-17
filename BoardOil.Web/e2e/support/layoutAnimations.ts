@@ -8,7 +8,7 @@ export async function controlLayoutAnimations(page: Page) {
     Element.prototype.animate = function (keyframes, options) {
       const animation = animate.call(this, keyframes, options);
       if (animation.effect instanceof KeyframeEffect
-        && animation.effect.getKeyframes().some(frame => frame.height !== undefined)) {
+        && animation.effect.getKeyframes().some(frame => frame.height !== undefined || frame.transform !== undefined)) {
         animation.pause();
       }
       return animation;
@@ -20,8 +20,9 @@ export async function seekLayoutAnimations(page: Page, progress: number) {
   return page.evaluate(fraction => {
     let count = 0;
     for (const animation of document.getAnimations()) {
-      if (!(animation.effect instanceof KeyframeEffect)
-        || !animation.effect.getKeyframes().some(frame => frame.height !== undefined)) {
+      if (animation instanceof CSSAnimation || animation instanceof CSSTransition
+        || !(animation.effect instanceof KeyframeEffect)
+        || !animation.effect.getKeyframes().some(frame => frame.height !== undefined || frame.transform !== undefined)) {
         continue;
       }
       count++;

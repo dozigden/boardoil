@@ -2,17 +2,21 @@ import { computed, nextTick, shallowReactive, watch, type ComputedRef, type Ref 
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
 import { useGooLayer } from './useGooLayer';
 import { useCardCreationAnimation } from './useCardCreationAnimation';
+import { useCardMovementAnimation } from './useCardMovementAnimation';
+import { findMovedColumns, type CardIdsByColumn } from '../utils/cardMovement';
+import { resolveGooRendererMode } from '../utils/gooRendererMode';
 import { buildSlickGooDescriptors, buildSlickGooMembershipSignature, buildSlickGooStyleSignature } from '../utils/slickGooAdapter';
 import { buildSelectionGooDescriptors, buildSelectionGooMembershipSignature, createSelectionGooStyle } from '../utils/selectionGooAdapter';
 
 export function useBoardMotion(
   columns: ComputedRef<BoardColumn[]>,
-  allCardIds: ComputedRef<number[]>,
+  cardIdsByColumnId: ComputedRef<CardIdsByColumn>,
   slicks: Ref<Slick[]>,
   selectedCardIds: Ref<number[]>,
   selectionMode: Ref<boolean>
 ) {
   let boardElement: HTMLElement | null = null;
+  const allCardIds = computed(() => Object.values(cardIdsByColumnId.value).flat());
   const pendingCreations = shallowReactive(new Map<number, Set<number>>());
   // A local create can reach the store through realtime before its HTTP reply.
   // Hold new arrivals in that column until the editor and saved card can be
@@ -32,9 +36,22 @@ export function useBoardMotion(
   const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
   const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
   const selectionStyle = createSelectionGooStyle();
+  const useFullGoo = resolveGooRendererMode() === 'full';
+  const movement = useCardMovementAnimation(refreshGooLayout);
+  const floatingSignature = computed(() => [...movement.floatingCardIds].join(','));
+  const gooColumns = computed(() => {
+    if (useFullGoo) {
+      return renderedColumns.value;
+    }
+    return renderedColumns.value.map(column => ({
+      ...column, cards: column.cards.filter(card => !movement.floatingCardIds.has(card.id))
+    }));
+  });
   const goo = useGooLayer(
-    computed(() => buildSlickGooDescriptors(renderedColumns.value, slicksById.value)),
-    computed(() => buildSlickGooMembershipSignature(renderedColumns.value)),
+    computed(() => buildSlickGooDescriptors(gooColumns.value, slicksById.value)),
+    // Rebind HTML geometry when a floating copy takes over or lands; rebuild
+    // Lite's column goo when the travelling card rejoins on landing.
+    computed(() => `${buildSlickGooMembershipSignature(gooColumns.value)}|floating:${floatingSignature.value}`),
     computed(() => buildSlickGooStyleSignature(slicks.value))
   );
   const selectionGoo = useGooLayer(
@@ -42,14 +59,30 @@ export function useBoardMotion(
       if (!selectionMode.value) {
         return [];
       }
-      return buildSelectionGooDescriptors(renderedColumns.value, selectedCardIdSet.value, selectionStyle.colour);
+      return buildSelectionGooDescriptors(gooColumns.value, selectedCardIdSet.value, selectionStyle.colour);
     }),
-    computed(() => buildSelectionGooMembershipSignature(renderedColumns.value, selectedCardIdSet.value, selectionMode.value)),
+    computed(() => `${buildSelectionGooMembershipSignature(gooColumns.value, selectedCardIdSet.value, selectionMode.value)}|floating:${floatingSignature.value}`),
     computed(() => selectionStyle.styleSignature)
   );
-  const creationAnimation = useCardCreationAnimation(() => {
+  function refreshGooLayout() {
     goo.refreshGooLayout();
     selectionGoo.refreshGooLayout();
+  }
+  const creationAnimation = useCardCreationAnimation(refreshGooLayout);
+
+  watch(cardIdsByColumnId, async (current, previous) => {
+    const movedColumns = findMovedColumns(previous, current);
+    if (movedColumns.size === 0) {
+      return;
+    }
+    const positions = movement.capture(movedColumns);
+    await nextTick();
+    movement.play(positions);
+  });
+
+  watch(renderedColumns, async () => {
+    await nextTick();
+    movement.prune();
   });
 
   watch(allCardIds, async (cardIds, previousCardIds) => {
@@ -64,12 +97,12 @@ export function useBoardMotion(
       return;
     }
     const previousMargins = new Map<number, number>();
-    for (const card of boardElement.querySelectorAll<HTMLElement>('.card[data-card-id]')) {
+    for (const card of boardElement.querySelectorAll<HTMLElement>('.column-content > .card[data-card-id]')) {
       previousMargins.set(Number(card.dataset.cardId), Number.parseFloat(getComputedStyle(card).marginTop));
     }
     await nextTick();
     for (const cardId of arrivingIds) {
-      const card = boardElement?.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`);
+      const card = getCardElement(cardId);
       if (card) {
         const followingId = Number((card.nextElementSibling as HTMLElement | null)?.dataset.cardId);
         creationAnimation.insert(card, previousMargins.get(followingId) ?? 0);
@@ -81,6 +114,11 @@ export function useBoardMotion(
     boardElement = element instanceof HTMLElement ? element : null;
     goo.setBoardRef(element);
     selectionGoo.setBoardRef(element);
+    movement.setBoardRef(element);
+  }
+
+  function getCardElement(cardId: number) {
+    return boardElement?.querySelector<HTMLElement>(`.column-content > .card[data-card-id="${cardId}"]`);
   }
 
   function getDraftSlot(columnId: number) {
@@ -123,7 +161,7 @@ export function useBoardMotion(
       closeDraft();
       if (replacementHeight !== null) {
         await nextTick();
-        const card = boardElement?.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`);
+        const card = cardId === null ? null : getCardElement(cardId);
         if (card) {
           creationAnimation.replace(card, replacementHeight);
         }
@@ -135,13 +173,21 @@ export function useBoardMotion(
 
   async function revealCard(cardId: number) {
     await nextTick();
-    boardElement?.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`)
-      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const card = getCardElement(cardId);
+    const clip = card?.parentElement?.getBoundingClientRect();
+    const rect = card?.getBoundingClientRect();
+    const boardRect = boardElement?.getBoundingClientRect();
+    if (card && clip && rect && boardRect && (rect.top < clip.top || rect.bottom > clip.bottom
+      || rect.left < boardRect.left || rect.right > boardRect.right)) {
+      movement.finishAll();
+      card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
   }
 
   return {
     renderedColumns,
     setBoardRef,
+    setMovementLayerRef: movement.setLayerRef,
     draftLayoutChanged,
     draftEdited,
     beginCreation,
