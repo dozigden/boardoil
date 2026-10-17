@@ -22,8 +22,10 @@ export function useBoardInlineCreation(defaultCardTypeId: ComputedRef<number | n
       return;
     }
 
-    newCardDrafts.value[columnId] = { boardColumnId: columnId, title: '', cardTypeId };
-    delete newCardDraftErrors.value[columnId];
+    motion.changeDraftLayout(columnId, () => {
+      newCardDrafts.value[columnId] = { boardColumnId: columnId, title: '', cardTypeId };
+      delete newCardDraftErrors.value[columnId];
+    });
     await nextTick();
     newCardDraftInputs.value[columnId]?.focus();
     void motion.draftLayoutChanged();
@@ -43,9 +45,11 @@ export function useBoardInlineCreation(defaultCardTypeId: ComputedRef<number | n
   }
 
   function closeNewCardDraft(columnId: number) {
-    delete newCardDrafts.value[columnId];
-    delete newCardDraftInputs.value[columnId];
-    delete newCardDraftErrors.value[columnId];
+    motion.changeDraftLayout(columnId, () => {
+      delete newCardDrafts.value[columnId];
+      delete newCardDraftInputs.value[columnId];
+      delete newCardDraftErrors.value[columnId];
+    });
     void motion.draftLayoutChanged();
   }
 

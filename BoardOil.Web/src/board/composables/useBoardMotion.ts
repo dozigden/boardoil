@@ -1,13 +1,22 @@
 import { computed, nextTick, onBeforeUnmount, shallowReactive, watch, type ComputedRef, type Ref } from 'vue';
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
 import { useGooLayer } from './useGooLayer';
-import { useCardCreationAnimation } from './useCardCreationAnimation';
-import { useCardMovementAnimation } from './useCardMovementAnimation';
+import { useCardCreationAnimation, type CardCreationEffect } from './useCardCreationAnimation';
+import { useCardMovementAnimation, type CardMovementSnapshot } from './useCardMovementAnimation';
 import { findMovedColumns, type CardIdsByColumn } from '../utils/cardMovement';
 import { createBoardAnimationRunner } from '../utils/boardAnimationRunner';
 import type { GooRendererMode } from '../utils/gooRendererMode';
 import { buildSlickGooDescriptors, buildSlickGooMembershipSignature, buildSlickGooStyleSignature } from '../utils/slickGooAdapter';
 import { buildSelectionGooDescriptors, buildSelectionGooMembershipSignature, createSelectionGooStyle } from '../utils/selectionGooAdapter';
+
+type LayoutChange = {
+  columnIds: Set<number>;
+  positions: CardMovementSnapshot;
+  effects: Map<HTMLElement, CardCreationEffect>;
+  arrivingIds: Set<number>;
+  previousMargins: Map<number, number>;
+  replacements: Map<number, number>;
+};
 
 export function useBoardMotion(
   columns: ComputedRef<BoardColumn[]>,
@@ -18,6 +27,9 @@ export function useBoardMotion(
   gooRendererMode: GooRendererMode
 ) {
   let boardElement: HTMLElement | null = null;
+  let pendingChange: LayoutChange | null = null;
+  let disposed = false;
+  onBeforeUnmount(() => { disposed = true; pendingChange = null; });
   const allCardIds = computed(() => Object.values(cardIdsByColumnId.value).flat());
   const pendingCreations = shallowReactive(new Map<number, Set<number>>());
   // A local create can reach the store through realtime before its HTTP reply.
@@ -72,45 +84,135 @@ export function useBoardMotion(
   }
   const creationAnimation = useCardCreationAnimation(animationRunner);
 
-  watch(cardIdsByColumnId, async (current, previous) => {
-    const movedColumns = findMovedColumns(previous, current);
-    if (movedColumns.size === 0) {
+  watch([cardIdsByColumnId, renderedColumns], ([current], [previous]) => {
+    if (!boardElement || disposed) {
       return;
     }
-    const positions = movement.capture(movedColumns);
-    await nextTick();
-    movement.play(positions);
+    const affectedColumns = findMovedColumns(previous, current);
+    const previousIds = new Set(Object.values(previous).flat());
+    const newIds = new Set(Object.values(current).flat().filter(id => !previousIds.has(id)));
+    const arrivingIds: number[] = [];
+    for (const column of renderedColumns.value) {
+      for (const card of column.cards) {
+        if (newIds.has(card.id)) {
+          arrivingIds.push(card.id);
+          affectedColumns.add(column.id);
+        }
+      }
+    }
+    const change = beginLayoutChange(affectedColumns);
+    for (const id of arrivingIds) {
+      change.arrivingIds.add(id);
+    }
   });
 
-  watch(renderedColumns, async () => {
+  function beginLayoutChange(columnIds: Set<number>): LayoutChange {
+    if (!pendingChange) {
+      pendingChange = {
+        columnIds: new Set(), positions: { cards: new Map(), columns: new Map() },
+        effects: new Map(), arrivingIds: new Set(), previousMargins: new Map(), replacements: new Map()
+      };
+      // Semantic draft changes call this before changing Vue state. Defer the
+      // nextTick lookup so it waits for that render as well as watcher renders.
+      const change = pendingChange;
+      void Promise.resolve().then(() => finishLayoutChange(change));
+    }
+    const change = pendingChange;
+    const uncaptured = new Set([...columnIds].filter(id => !change.columnIds.has(id)));
+    if (uncaptured.size > 0) {
+      // Capture both effects before cancelling either changes the layout.
+      const effects = creationAnimation.capture(uncaptured);
+      const positions = movement.capture(uncaptured);
+      creationAnimation.suspend(effects);
+      for (const id of uncaptured) { change.columnIds.add(id); }
+      for (const [id, position] of positions.cards) { change.positions.cards.set(id, position); }
+      for (const [id, column] of positions.columns) { change.positions.columns.set(id, column); }
+      for (const effect of effects) { change.effects.set(effect.element, effect); }
+      for (const card of boardElement?.querySelectorAll<HTMLElement>('.column-content > .card[data-card-id]') ?? []) {
+        if (uncaptured.has(Number(card.parentElement!.dataset.columnId))) {
+          change.previousMargins.set(Number(card.dataset.cardId), Number.parseFloat(getComputedStyle(card).marginTop));
+        }
+      }
+    }
+    return change;
+  }
+
+  async function finishLayoutChange(change: LayoutChange) {
     await nextTick();
+    if (disposed || pendingChange !== change) {
+      return;
+    }
+    pendingChange = null;
     movement.prune();
-  });
-
-  watch(allCardIds, async (cardIds, previousCardIds) => {
-    if (!boardElement) {
-      return;
+    const effects = new Map<HTMLElement, CardCreationEffect>();
+    for (const effect of change.effects.values()) {
+      let element: HTMLElement | null | undefined = effect.element;
+      if (!element.isConnected) {
+        const cardId = Number(element.dataset.cardId);
+        element = getCardElement(cardId);
+      }
+      if (element?.isConnected) {
+        effects.set(element, creationAnimation.retarget(effect, element));
+      }
     }
-    const previousIds = new Set(previousCardIds);
-    const newIds = new Set(cardIds.filter(cardId => !previousIds.has(cardId)));
-    const arrivingIds = renderedColumns.value.flatMap(column => column.cards
-      .filter(card => newIds.has(card.id)).map(card => card.id));
-    if (arrivingIds.length === 0) {
-      return;
-    }
-    const previousMargins = new Map<number, number>();
-    for (const card of boardElement.querySelectorAll<HTMLElement>('.column-content > .card[data-card-id]')) {
-      previousMargins.set(Number(card.dataset.cardId), Number.parseFloat(getComputedStyle(card).marginTop));
-    }
-    await nextTick();
-    for (const cardId of arrivingIds) {
+    // Measure every endpoint before any creation effect collapses its element.
+    for (const cardId of change.arrivingIds) {
       const card = getCardElement(cardId);
       if (card) {
         const followingId = Number((card.nextElementSibling as HTMLElement | null)?.dataset.cardId);
-        creationAnimation.insert(card, previousMargins.get(followingId) ?? 0);
+        effects.set(card, creationAnimation.prepareInsert(card, change.previousMargins.get(followingId) ?? 0));
       }
     }
-  });
+    for (const [cardId, height] of change.replacements) {
+      const card = getCardElement(cardId);
+      if (card) {
+        effects.set(card, creationAnimation.prepareReplace(card, height));
+      }
+    }
+    const plans = [...effects.values()];
+    const targets = creationAnimation.withFinalLayout(plans, () => movement.measureTargets(change.positions));
+    for (const effect of plans) {
+      creationAnimation.play(effect);
+    }
+    movement.play(change.positions, targets);
+  }
+
+  function changeDraftLayout(columnId: number, change: () => void) {
+    if (disposed) {
+      return;
+    }
+    beginLayoutChange(new Set([columnId]));
+    change();
+  }
+
+  function queueCreationEffect(effect: CardCreationEffect) {
+    if (disposed) {
+      return;
+    }
+    const columnId = Number(effect.element.parentElement!.dataset.columnId);
+    beginLayoutChange(new Set([columnId])).effects.set(effect.element, effect);
+  }
+
+  function enterDraft(element: Element, done: () => void) {
+    queueCreationEffect(creationAnimation.prepareEnter(element, done));
+  }
+
+  function leaveDraft(element: Element, done: () => void) {
+    const effect = creationAnimation.prepareLeave(element, done);
+    if (effect) {
+      queueCreationEffect(effect);
+    }
+  }
+
+  function cancelDraftTransition(element: Element) {
+    const slot = element as HTMLElement;
+    const pending = pendingChange?.effects.get(slot);
+    if (pending) {
+      creationAnimation.preserve(pending);
+      pendingChange!.effects.delete(slot);
+    }
+    creationAnimation.cancel(slot);
+  }
 
   function setBoardRef(element: unknown) {
     boardElement = element instanceof HTMLElement ? element : null;
@@ -129,6 +231,9 @@ export function useBoardMotion(
 
   async function draftLayoutChanged() {
     await nextTick();
+    if (disposed) {
+      return;
+    }
     goo.scheduleGooStructureRefresh();
     selectionGoo.scheduleGooStructureRefresh();
   }
@@ -136,6 +241,9 @@ export function useBoardMotion(
   function draftEdited(columnId: number) {
     const slot = getDraftSlot(columnId);
     if (slot) {
+      const pending = pendingChange?.effects.get(slot);
+      pendingChange?.effects.delete(slot);
+      pending?.done();
       creationAnimation.finish(slot);
     }
   }
@@ -153,21 +261,22 @@ export function useBoardMotion(
 
     async function complete(cardId: number | null, closeDraft: () => void) {
       await nextTick();
+      if (disposed) {
+        return;
+      }
       const currentSlot = getDraftSlot(columnId);
       const cardIsVisible = columns.value.some(column => column.id === columnId
         && column.cards.some(card => card.id === cardId));
       const replacementHeight = currentSlot && cardIsVisible
         ? creationAnimation.prepareReplacement(currentSlot)
         : null;
+      const change = beginLayoutChange(new Set([columnId]));
+      if (replacementHeight !== null && cardId !== null) {
+        change.replacements.set(cardId, replacementHeight);
+      }
       release();
       closeDraft();
-      if (replacementHeight !== null) {
-        await nextTick();
-        const card = cardId === null ? null : getCardElement(cardId);
-        if (card) {
-          creationAnimation.replace(card, replacementHeight);
-        }
-      }
+      await nextTick();
     }
 
     return { complete, dispose: release };
@@ -192,9 +301,10 @@ export function useBoardMotion(
     setMovementLayerRef: movement.setLayerRef,
     draftLayoutChanged,
     draftEdited,
+    changeDraftLayout,
     beginCreation,
     revealCard,
-    creationTransition: { enter: creationAnimation.enter, leave: creationAnimation.leave, cancel: creationAnimation.cancel },
+    creationTransition: { enter: enterDraft, leave: leaveDraft, cancel: cancelDraftTransition },
     gooGroups: goo.gooGroups,
     gooGroupsByColumnId: goo.gooGroupsByColumnId,
     gooBlurStdDeviation: goo.gooBlurStdDeviation,
@@ -206,4 +316,4 @@ export function useBoardMotion(
   };
 }
 
-export type BoardCreationMotion = Pick<ReturnType<typeof useBoardMotion>, 'draftLayoutChanged' | 'draftEdited' | 'beginCreation'>;
+export type BoardCreationMotion = Pick<ReturnType<typeof useBoardMotion>, 'draftLayoutChanged' | 'draftEdited' | 'changeDraftLayout' | 'beginCreation'>;

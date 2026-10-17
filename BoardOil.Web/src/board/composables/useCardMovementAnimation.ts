@@ -9,9 +9,13 @@ type CardPosition = {
   sortKey: string;
   foreground: boolean;
 };
-type MovementSnapshot = {
+export type CardMovementSnapshot = {
   cards: Map<number, CardPosition>;
   columns: Map<number, { element: HTMLElement; height: number }>;
+};
+type MovementTargets = {
+  cards: Map<number, { rect: DOMRect; clip: DOMRect; columnId: number }>;
+  columns: Map<number, number>;
 };
 type MovingCard = {
   animation: BoardAnimationHandle;
@@ -56,7 +60,7 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
   }
 
   function capture(columnIds: Set<number>) {
-    const snapshot: MovementSnapshot = { cards: new Map(), columns: new Map() };
+    const snapshot: CardMovementSnapshot = { cards: new Map(), columns: new Map() };
     if (!board || runner.reducedMotion) {
       return snapshot;
     }
@@ -93,24 +97,53 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
     return snapshot;
   }
 
-  function play(snapshot: MovementSnapshot) {
+  function measureTargets(snapshot: CardMovementSnapshot): MovementTargets {
+    const targets: MovementTargets = { cards: new Map(), columns: new Map() };
+    if (!board) {
+      return targets;
+    }
+    for (const card of board.querySelectorAll<HTMLElement>('.column-content > .card[data-card-id]')) {
+      const id = Number(card.dataset.cardId);
+      if (snapshot.cards.has(id)) {
+        const column = card.parentElement!;
+        targets.cards.set(id, { rect: card.getBoundingClientRect(), clip: column.getBoundingClientRect(), columnId: Number(column.dataset.columnId) });
+      }
+    }
+    for (const [id, { element }] of snapshot.columns) {
+      if (element.isConnected) {
+        targets.columns.set(id, element.getBoundingClientRect().height);
+      }
+    }
+    return targets;
+  }
+
+  function play(snapshot: CardMovementSnapshot, targets: MovementTargets) {
     if (!board || !layer || runner.reducedMotion) {
       return;
     }
     const boardRect = board.getBoundingClientRect();
+    const movingColumns = new Set<number>();
     for (const card of board.querySelectorAll<HTMLElement>('.column-content > .card[data-card-id]')) {
       const id = Number(card.dataset.cardId);
       const previous = snapshot.cards.get(id);
       if (!previous) {
         continue;
       }
-      const target = card.getBoundingClientRect();
+      const destination = targets.cards.get(id);
+      if (!destination) {
+        continue;
+      }
+      const columnId = destination.columnId;
+      const useFloatingCard = columnId !== previous.columnId || previous.floating;
+      // Real cards also move with growing/collapsing creation effects. Their
+      // offsets start against that initial flow; floating copies land at the
+      // measured final layout, independently of the changing flow below them.
+      const target = useFloatingCard ? destination.rect : card.getBoundingClientRect();
       const dx = previous.rect.left - target.left;
       const dy = previous.rect.top - target.top;
       if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
         continue;
       }
-      const columnId = Number(card.parentElement!.dataset.columnId);
       let floating: HTMLElement | null = null;
       let keyframes: Keyframe[];
       const visibility = card.style.visibility;
@@ -119,8 +152,8 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
       const foreground = previous.foreground || previous.sortKey !== card.dataset.cardSortKey;
       // A second move in this column may displace a card still travelling in
       // from another column. Keep that card floating until it reaches home.
-      if (columnId !== previous.columnId || previous.floating) {
-        const targetClip = card.parentElement!.getBoundingClientRect();
+      if (useFloatingCard) {
+        const targetClip = destination.clip;
         // An offscreen endpoint has no visible travel path. Keep it clipped in
         // its column rather than letting a floating copy cross the headers.
         const sourceClipped = previous.clip
@@ -134,7 +167,7 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
         floating.removeAttribute('data-card-id');
         floating.classList.remove('card--dragging', 'card--multi-dragging');
         Object.assign(floating.style, {
-          position: 'absolute', margin: '0', visibility: 'visible',
+          position: 'absolute', margin: '0', visibility: 'visible', overflow: 'clip',
           left: `${target.left - boardRect.left + board.scrollLeft}px`,
           top: `${target.top - boardRect.top + board.scrollTop}px`,
           width: `${target.width}px`, height: `${target.height}px`
@@ -162,15 +195,17 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
       const animation = runner.animate(floating ?? card, keyframes, { onFinish: cleanup, onCancel: cleanup });
       if (animation.active) {
         active.set(id, { animation, element: card, floating, columnId, foreground });
+        movingColumns.add(previous.columnId);
+        movingColumns.add(columnId);
       }
     }
     // Columns size to their content. Preserve their old clipping area while
     // neighbours close/open gaps, rather than clipping them at the final size.
     for (const [columnId, previous] of snapshot.columns) {
-      if (!previous.element.isConnected) {
+      const height = targets.columns.get(columnId);
+      if (!previous.element.isConnected || height === undefined || !movingColumns.has(columnId)) {
         continue;
       }
-      const height = previous.element.getBoundingClientRect().height;
       if (Math.abs(height - previous.height) < 0.5) {
         continue;
       }
@@ -202,5 +237,5 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
     finishAll();
   });
 
-  return { floatingCards, setBoardRef, setLayerRef, capture, play, finishAll, prune };
+  return { floatingCards, setBoardRef, setLayerRef, capture, measureTargets, play, finishAll, prune };
 }
