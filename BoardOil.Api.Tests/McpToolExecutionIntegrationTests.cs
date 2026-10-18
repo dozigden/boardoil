@@ -451,7 +451,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
                 Name = "Unused Bug",
                 Emoji = "🕷️",
                 StyleName = "solid",
-                StylePropertiesJson = "{}",
+                StylePropertiesJson = """{"backgroundColor":"#224466","textColorMode":"auto","borderMode":"auto"}""",
             });
             var unusedTagEntity = new EntityTag
             {
@@ -495,7 +495,8 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
         Assert.DoesNotContain(members, member => member.GetProperty("userName").GetString() == "inactive-option-member");
         Assert.All(members, member => Assert.False(member.TryGetProperty("isActive", out _)));
         var unusedCardType = options.GetProperty("cardTypes").EnumerateArray().Single(cardType => cardType.GetProperty("name").GetString() == "Unused Bug");
-        Assert.Equal(["id", "name", "emoji"], unusedCardType.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(["id", "name", "emoji", "style", "createdAtUtc", "updatedAtUtc"], unusedCardType.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal("#224466", unusedCardType.GetProperty("style").GetProperty("backgroundColor").GetString());
         var unusedTag = options.GetProperty("tags").EnumerateArray().Single(tag => tag.GetProperty("name").GetString() == "Unused Feature");
         Assert.Equal(["id", "name", "emoji", "style"], unusedTag.EnumerateObject().Select(property => property.Name).ToArray());
         Assert.Equal(unusedTagId, unusedTag.GetProperty("id").GetInt32());

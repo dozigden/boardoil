@@ -237,7 +237,7 @@ public sealed record CardOptionsGetOutput(
     int Id,
     IReadOnlyList<McpCardOptionColumn> Columns,
     IReadOnlyList<McpCardOptionMember> Members,
-    IReadOnlyList<McpCardOptionCardType> CardTypes,
+    IReadOnlyList<McpCardTypeSnapshot> CardTypes,
     int DefaultCardTypeId,
     IReadOnlyList<McpCardOptionTag> Tags,
     IReadOnlyList<McpCardOptionSlick> Slicks);
@@ -252,10 +252,13 @@ public sealed record McpCardOptionMember(
     string DisplayName,
     string Role);
 
-public sealed record McpCardOptionCardType(
+public sealed record McpCardTypeSnapshot(
     int Id,
     string Name,
-    string? Emoji);
+    string? Emoji,
+    McpStyle Style,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc);
 
 public sealed record McpCardOptionTag(
     int Id,

@@ -16,7 +16,7 @@ public sealed class CardOptionsGetTool(
     public override McpToolDefinition Definition { get; } =
         new(
             ToolNames.CardOptionsGet,
-            "List board-scoped values used by card fields: columns, active assignees, card types, complete tag definitions, and slicks.",
+            "List board columns, active assignees, card types, tags and slicks, including styles and the default card type ID.",
             ToolSchemas.CardOptionsGetInput,
             ToolSchemas.CardOptionsGetOutput,
             MachinePatScopes.McpRead,
@@ -50,6 +50,18 @@ public sealed class CardOptionsGetTool(
         if (!result.Success || result.Data is null)
         {
             return Failure(result.ToMcpError());
+        }
+
+        var cardTypes = new List<McpCardTypeSnapshot>(result.Data.CardTypes.Count);
+        foreach (var cardType in result.Data.CardTypes)
+        {
+            var snapshot = McpCardTypeMapper.ToMcpSnapshot(cardType);
+            if (snapshot is null)
+            {
+                return Failure(McpCardTypeMapper.InvalidStyle(cardType));
+            }
+
+            cardTypes.Add(snapshot);
         }
 
         var tags = new List<McpCardOptionTag>(result.Data.Tags.Count);
@@ -96,10 +108,7 @@ public sealed class CardOptionsGetTool(
                 member.UserName,
                 member.DisplayName,
                 member.Role)).ToArray(),
-            result.Data.CardTypes.Select(cardType => new McpCardOptionCardType(
-                cardType.Id,
-                cardType.Name,
-                cardType.Emoji)).ToArray(),
+            cardTypes,
             result.Data.DefaultCardTypeId,
             tags,
             slicks));

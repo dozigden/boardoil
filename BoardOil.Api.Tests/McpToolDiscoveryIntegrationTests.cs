@@ -411,6 +411,14 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal(["presets", "solid"], cardOptionSlickStyleNames);
         Assert.DoesNotContain("stylePropertiesJson", slicksSchema.GetRawText(), StringComparison.Ordinal);
 
+        var cardTypeSchema = cardOptionsProperties.GetProperty("cardTypes").GetProperty("items");
+        Assert.Equal(["id", "name", "emoji", "style", "createdAtUtc", "updatedAtUtc"],
+            cardTypeSchema.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(["auto", "presets", "solid", "gradient"], cardTypeSchema.GetProperty("properties").GetProperty("style")
+            .GetProperty("oneOf").EnumerateArray().Select(style => style.GetProperty("properties").GetProperty("styleName").GetProperty("const").GetString()));
+        Assert.False(cardTypeSchema.GetProperty("additionalProperties").GetBoolean());
+        Assert.DoesNotContain("stylePropertiesJson", cardTypeSchema.GetRawText(), StringComparison.Ordinal);
+
         var searchTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardSearch);
         var searchInput = searchTool.GetProperty("inputSchema");
         Assert.Equal(["boardId", "query"], searchInput.GetProperty("required").EnumerateArray().Select(p => Assert.IsType<string>(p.GetString())).ToArray());

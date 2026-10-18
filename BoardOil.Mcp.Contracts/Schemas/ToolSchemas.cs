@@ -237,7 +237,7 @@ public static class ToolSchemas
     }
     """;
 
-    private static readonly string TagStyleOutput = $$"""
+    private static readonly string StyleOutput = $$"""
     {
       "oneOf": [
         {{AutoStyleSchema}},
@@ -266,6 +266,22 @@ public static class ToolSchemas
     }
     """;
 
+    private static readonly string CardTypeSnapshotOutput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string" },
+        "emoji": { "type": ["string", "null"] },
+        "style": {{StyleOutput}},
+        "createdAtUtc": { "type": "string", "format": "date-time" },
+        "updatedAtUtc": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "emoji", "style", "createdAtUtc", "updatedAtUtc"],
+      "additionalProperties": false
+    }
+    """;
+
     private static readonly string TagSnapshotOutput = $$"""
     {
       "type": "object",
@@ -273,7 +289,7 @@ public static class ToolSchemas
         "id": { "type": "integer" },
         "name": { "type": "string" },
         "emoji": { "type": ["string", "null"] },
-        "style": {{TagStyleOutput}},
+        "style": {{StyleOutput}},
         "createdAtUtc": { "type": "string", "format": "date-time" },
         "updatedAtUtc": { "type": "string", "format": "date-time" }
       },
@@ -936,16 +952,7 @@ public static class ToolSchemas
         },
         "cardTypes": {
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "integer" },
-              "name": { "type": "string" },
-              "emoji": { "type": ["string", "null"] }
-            },
-            "required": ["id", "name", "emoji"],
-            "additionalProperties": false
-          }
+          "items": {{CardTypeSnapshotOutput}}
         },
         "defaultCardTypeId": { "type": "integer" },
         "tags": {
@@ -956,7 +963,7 @@ public static class ToolSchemas
               "id": { "type": "integer" },
               "name": { "type": "string" },
               "emoji": { "type": ["string", "null"] },
-              "style": {{TagStyleOutput}}
+              "style": {{StyleOutput}}
             },
             "required": ["id", "name", "emoji", "style"],
             "additionalProperties": false
