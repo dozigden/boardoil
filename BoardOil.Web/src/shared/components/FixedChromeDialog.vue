@@ -56,6 +56,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   close: [];
   submit: [];
+  opened: [];
 }>();
 
 const dialogRef = ref<HTMLDialogElement | null>(null);
@@ -81,6 +82,7 @@ async function syncDialogState() {
       } catch {
         dialog.show();
       }
+      emit('opened');
     }
     return;
   }

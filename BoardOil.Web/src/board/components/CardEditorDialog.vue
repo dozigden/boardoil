@@ -10,6 +10,7 @@
     @close="closeCardEditor"
     @submit="saveCard"
     @keydown="handleCardEditorKeydown"
+    @opened="focusEmptyDescription"
   >
     <template #headerActions>
       <BoDropdown
@@ -1150,6 +1151,12 @@ function initializeDraftFromCard(sourceBoardId: number, card: Card) {
   isCardDraftDirty.value = false;
   isDuplicatingCard.value = false;
   return true;
+}
+
+function focusEmptyDescription() {
+  if (cardDraft.value && cardDraft.value.description.trim().length === 0) {
+    descriptionEditorRef.value?.focus();
+  }
 }
 
 async function beginDuplicate() {

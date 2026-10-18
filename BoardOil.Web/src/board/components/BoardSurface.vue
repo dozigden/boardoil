@@ -13,7 +13,7 @@
     </defs>
   </svg>
 
-  <section class="board" :ref="motion.setBoardRef">
+  <section class="board" :ref="setBoardRef">
     <GooLayer
       v-if="gooRendererMode === 'full'"
       :goo-renderer-mode="gooRendererMode"
@@ -187,6 +187,7 @@ const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
 const selectedCardCount = computed(() => selectedCardIds.value.length);
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 const gooRendererMode = resolveGooRendererMode();
+let boardElement: HTMLElement | null = null;
 const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, slicks, selectedCardIds, isCardSelectionMode, gooRendererMode,
   computed(() => props.cardFilters));
 const {
@@ -209,7 +210,7 @@ const {
   closeNewCardDraft,
   setNewCardDraftInput,
   saveNewCardDraft
-} = useBoardInlineCreation(defaultCreateCardTypeId, motion);
+} = useBoardInlineCreation(defaultCreateCardTypeId, motion, focusCreatedCard);
 const interactiveColumns = computed(() => renderedColumns.value.map(column => ({
   ...column, cards: column.cards.filter(card => !motion.isRemovingCard(card.id))
 })));
@@ -234,6 +235,15 @@ const {
   props.dropSelectedCards,
   handleCrossColumnDrop
 );
+
+function setBoardRef(element: unknown) {
+  boardElement = element instanceof HTMLElement ? element : null;
+  motion.setBoardRef(element);
+}
+
+function focusCreatedCard(cardId: number) {
+  boardElement?.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`)?.focus({ preventScroll: true });
+}
 
 function handleCrossColumnDrop(cardId: number) {
   if (props.slickCohesionModeEnabled) {

@@ -6,7 +6,11 @@ import type { BoardCreationMotion } from './useBoardMotion';
 
 type InlineCardCreateDraft = Pick<CardEditModel, 'boardColumnId' | 'title' | 'cardTypeId'>;
 
-export function useBoardInlineCreation(defaultCardTypeId: ComputedRef<number | null>, motion: BoardCreationMotion) {
+export function useBoardInlineCreation(
+  defaultCardTypeId: ComputedRef<number | null>,
+  motion: BoardCreationMotion,
+  focusCreatedCard: (cardId: number) => void
+) {
   const cardStore = useCardStore();
   const newCardDrafts = ref<Record<number, InlineCardCreateDraft>>({});
   const newCardDraftInputs = ref<Record<number, HTMLInputElement | HTMLTextAreaElement | null>>({});
@@ -83,7 +87,13 @@ export function useBoardInlineCreation(defaultCardTypeId: ComputedRef<number | n
         return;
       }
       if (!result || result.ok) {
+        const draftElement = newCardDraftInputs.value[columnId]?.closest('[data-inline-column-id]');
+        const draftHadFocus = draftElement?.contains(document.activeElement);
         await creation.complete(result?.ok ? result.data.id : null, () => closeNewCardDraft(columnId));
+        if (result?.ok && draftHadFocus
+          && (document.activeElement === document.body || draftElement?.contains(document.activeElement))) {
+          focusCreatedCard(result.data.id);
+        }
         return;
       }
       newCardDraftErrors.value[columnId] = resolveCreateCardErrorMessage(result.error);
