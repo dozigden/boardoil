@@ -226,7 +226,7 @@ public static class ToolSchemas
     }
     """;
 
-    private static readonly string TagStyleInput = $$"""
+    private static readonly string StyleInput = $$"""
     {
       "oneOf": [
         {{AutoStyleSchema}},
@@ -739,6 +739,47 @@ public static class ToolSchemas
     }
     """;
 
+    public static readonly string CardTypeCreateInput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "emoji": { "type": ["string", "null"], "description": "Use null for no emoji." },
+        "style": {{StyleInput}}
+      },
+      "required": ["boardId", "name", "emoji", "style"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string CardTypeUpdateInput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "id": { "type": "integer", "minimum": 1, "description": "Resolve from card_options_get.cardTypes[].id." },
+        "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "emoji": { "type": ["string", "null"], "description": "Use null for no emoji." },
+        "style": {{StyleInput}}
+      },
+      "required": ["boardId", "id", "name", "emoji", "style"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardTypeIdInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "id": { "type": "integer", "minimum": 1, "description": "Resolve from card_options_get.cardTypes[].id." }
+      },
+      "required": ["boardId", "id"],
+      "additionalProperties": false
+    }
+    """;
+
     public static readonly string TagCreateInput = $$"""
     {
       "type": "object",
@@ -749,7 +790,7 @@ public static class ToolSchemas
           "type": ["string", "null"],
           "description": "Tag emoji, or null for no emoji."
         },
-        "style": {{TagStyleInput}}
+        "style": {{StyleInput}}
       },
       "required": ["boardId", "name", "emoji", "style"],
       "additionalProperties": false
@@ -777,7 +818,7 @@ public static class ToolSchemas
           "type": ["string", "null"],
           "description": "New tag emoji. Omit to preserve it or use null to clear it."
         },
-        "style": {{TagStyleInput}}
+        "style": {{StyleInput}}
       },
       "required": ["boardId", "currentTagName"],
       "anyOf": [
@@ -987,6 +1028,33 @@ public static class ToolSchemas
       "additionalProperties": false
     }
     """;
+
+    public static readonly string CardTypeCreateOutput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "cardType": {{CardTypeSnapshotOutput}},
+        "outcome": { "type": "string", "enum": ["created"] }
+      },
+      "required": ["cardType", "outcome"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string CardTypeUpdateOutput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "cardType": {{CardTypeSnapshotOutput}},
+        "outcome": { "type": "string", "enum": ["updated"] }
+      },
+      "required": ["cardType", "outcome"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string CardTypeSetDefaultOutput = CreateMutationReceiptSchema("default_set", "Card type ID selected as the default.");
+    public static readonly string CardTypeDeleteOutput = CreateMutationReceiptSchema("deleted", "Deleted card type ID.");
 
     public static readonly string TagCreateOutput = $$"""
     {

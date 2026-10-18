@@ -27,4 +27,8 @@ public static class ToolNames
     public const string SlickCreate = "slick_create";
     public const string SlickUpdate = "slick_update";
     public const string SlickDelete = "slick_delete";
+    public const string CardTypeCreate = "card_type_create";
+    public const string CardTypeUpdate = "card_type_update";
+    public const string CardTypeSetDefault = "card_type_set_default";
+    public const string CardTypeDelete = "card_type_delete";
 }

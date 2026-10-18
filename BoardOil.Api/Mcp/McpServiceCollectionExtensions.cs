@@ -55,6 +55,10 @@ public static class McpServiceCollectionExtensions
         RegisterTool<SlickCreateTool>(services);
         RegisterTool<SlickUpdateTool>(services);
         RegisterTool<SlickDeleteTool>(services);
+        RegisterTool<CardTypeCreateTool>(services);
+        RegisterTool<CardTypeUpdateTool>(services);
+        RegisterTool<CardTypeSetDefaultTool>(services);
+        RegisterTool<CardTypeDeleteTool>(services);
 
         services.AddSingleton<McpToolRegistry>();
         services.AddSingleton<McpToolDispatcher>();

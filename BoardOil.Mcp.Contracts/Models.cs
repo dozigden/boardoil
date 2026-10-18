@@ -260,6 +260,59 @@ public sealed record McpCardTypeSnapshot(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
+public sealed record CardTypeCreateInput
+{
+    private string? _emoji;
+
+    public int? BoardId { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string? Emoji
+    {
+        get => _emoji;
+        init
+        {
+            _emoji = value;
+            EmojiSpecified = true;
+        }
+    }
+    public McpStyle? Style { get; init; }
+
+    [JsonIgnore]
+    public bool EmojiSpecified { get; private init; }
+}
+
+public sealed record CardTypeUpdateInput
+{
+    private string? _emoji;
+
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string? Emoji
+    {
+        get => _emoji;
+        init
+        {
+            _emoji = value;
+            EmojiSpecified = true;
+        }
+    }
+    public McpStyle? Style { get; init; }
+
+    [JsonIgnore]
+    public bool EmojiSpecified { get; private init; }
+}
+
+public sealed record CardTypeIdInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+}
+
+public sealed record CardTypeMutationOutput(McpCardTypeSnapshot CardType, string Outcome);
+
+public sealed record CardTypeMutationReceipt(int Id, string Outcome);
+
 public sealed record McpCardOptionTag(
     int Id,
     string Name,

@@ -30,4 +30,9 @@ public static class ToolDiscoveryOrder
     public const int SlickCreate = 1800;
     public const int SlickUpdate = 1900;
     public const int SlickDelete = 2000;
+
+    public const int CardTypeCreate = 2100;
+    public const int CardTypeUpdate = 2200;
+    public const int CardTypeSetDefault = 2300;
+    public const int CardTypeDelete = 2400;
 }
