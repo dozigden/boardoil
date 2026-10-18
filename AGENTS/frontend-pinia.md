@@ -120,6 +120,7 @@ The action that applies a domain change owns its related state updates. Views an
 - Keep registrations small. A callback should not become a second home for card, attachment or thumbnail orchestration.
 - Keep genuine multi-step recovery explicit. Resync reloads the board snapshot and board catalogues, checks context, and reloads related open state as needed; reconnect uses the resync path.
 - Apply ordinary entity events incrementally. Reserve snapshot replacement for initialization and recovery rather than every mutation or navigation.
+- `TagsChanged` reloads only the authoritative tag catalogue through the guarded `tagStore.loadTags` action. Implicit tag creation and explicit creation/style/emoji edits use it. Ordering renormalisation, tag renames and tag deletion still request a full resync: ordering affects other cards, and card read models carry tag names for filters and editor saves. A full resync covers a simultaneous catalogue change without a second notification.
 
 ## Busy State and Feedback
 

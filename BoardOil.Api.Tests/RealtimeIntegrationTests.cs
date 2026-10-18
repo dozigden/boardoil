@@ -62,6 +62,29 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
     }
 
     [Fact]
+    public async Task CardCreatingTags_ShouldBroadcastCatalogueInvalidationToSubscribedClients()
+    {
+        // Arrange
+        var columnId = await SeedBoardColumnAsync("Todo");
+        await using var connectionA = CreateHubConnection();
+        await using var connectionB = CreateHubConnection();
+        var eventA = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var eventB = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        connectionA.On<int>("TagsChanged", boardId => eventA.TrySetResult(boardId));
+        connectionB.On<int>("TagsChanged", boardId => eventB.TrySetResult(boardId));
+        await StartConnectionsAsync(1, connectionA, connectionB);
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/boards/1/cards",
+            new CreateCardRequest(columnId, "Tagged card", "Desc", ["Remote tag"]));
+        response.EnsureSuccessStatusCode();
+
+        // Assert
+        Assert.Equal(1, await WaitAsync(eventA.Task));
+        Assert.Equal(1, await WaitAsync(eventB.Task));
+    }
+
+    [Fact]
     public async Task CardUpdated_ShouldBroadcastCardTypeFields()
     {
         // Arrange

@@ -15,18 +15,19 @@ internal static class CardTagMutation
         }
     }
 
-    public static async Task<IReadOnlyList<EntityTag>> ResolveTagsAsync(
+    public static async Task<CardTagResolution> ResolveTagsAsync(
         int boardId,
         IReadOnlyList<string> tagNames,
         ITagRepository tagRepository,
         IBoardStyleDefaultService styleDefaultService)
     {
         var resolvedTags = new List<EntityTag>();
+        var createdTags = false;
         var processedNormalisedNames = new HashSet<string>(StringComparer.Ordinal);
         var normalisedTagNames = NormalizeTags(tagNames);
         if (normalisedTagNames.Count == 0)
         {
-            return resolvedTags;
+            return new CardTagResolution(resolvedTags, createdTags);
         }
 
         var existingTags = await tagRepository.GetAllForBoardAsync(boardId);
@@ -58,14 +59,16 @@ internal static class CardTagMutation
                 StylePropertiesJson = defaultStyle.StylePropertiesJson,
             };
             tagRepository.Add(createdTag);
+            createdTags = true;
             resolvedTags.Add(createdTag);
             existingTagsByNormalisedName[normalisedName] = createdTag;
             styleCandidates.Add(new BoardStyleDefaultCandidate(createdTag.StyleName, createdTag.StylePropertiesJson));
         }
 
-        return resolvedTags
+        var orderedTags = resolvedTags
             .OrderBy(x => x.Name, StringComparer.Ordinal)
             .ToList();
+        return new CardTagResolution(orderedTags, createdTags);
     }
 
     private static string NormaliseTagName(string tagName) =>
@@ -80,3 +83,5 @@ internal static class CardTagMutation
             .ToList();
     }
 }
+
+internal sealed record CardTagResolution(IReadOnlyList<EntityTag> Tags, bool CreatedTags);

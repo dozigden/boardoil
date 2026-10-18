@@ -150,7 +150,7 @@ public sealed class TagService(
         });
 
         await scope.SaveChangesAsync();
-        await _boardEvents.ResyncRequestedAsync(boardId);
+        await _boardEvents.TagsChangedAsync(boardId);
 
         var created = await tagRepository.GetByNormalisedNameAsync(boardId, tagValidation.NormalisedName);
         if (created is null)
@@ -211,7 +211,7 @@ public sealed class TagService(
             return ApiErrors.ValidationFailed(validationErrors);
         }
 
-        var updatedAtUtc = DateTime.UtcNow;
+        var nameChanged = existing.Name != tagNameValidation.CanonicalName;
         existing.Name = tagNameValidation.CanonicalName;
         existing.NormalisedName = tagNameValidation.NormalisedName;
         existing.StyleName = styleValidation.StyleName;
@@ -219,7 +219,14 @@ public sealed class TagService(
         existing.Emoji = emojiValidation.CanonicalEmoji;
 
         await scope.SaveChangesAsync();
-        await _boardEvents.ResyncRequestedAsync(boardId);
+        if (nameChanged)
+        {
+            await _boardEvents.ResyncRequestedAsync(boardId);
+        }
+        else
+        {
+            await _boardEvents.TagsChangedAsync(boardId);
+        }
 
         return existing.ToTagDto();
     }
@@ -320,6 +327,7 @@ public sealed class TagService(
             return ApiErrors.ValidationFailed(validationErrors);
         }
 
+        var nameChanged = newNameValidation is not null && existing.Name != newNameValidation.CanonicalName;
         if (newNameValidation is not null)
         {
             existing.Name = newNameValidation.CanonicalName;
@@ -338,7 +346,14 @@ public sealed class TagService(
         }
 
         await scope.SaveChangesAsync();
-        await _boardEvents.ResyncRequestedAsync(boardId);
+        if (nameChanged)
+        {
+            await _boardEvents.ResyncRequestedAsync(boardId);
+        }
+        else
+        {
+            await _boardEvents.TagsChangedAsync(boardId);
+        }
 
         return existing.ToTagDto();
     }

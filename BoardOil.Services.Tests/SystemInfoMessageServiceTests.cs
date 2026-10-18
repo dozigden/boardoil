@@ -233,6 +233,7 @@ public sealed class SystemInfoMessageServiceTests
         public Task AttachmentAddedAsync(int boardId, int cardId, BoardOil.Contracts.Card.CardAttachmentDto attachment) => Task.CompletedTask;
         public Task AttachmentDeletedAsync(int boardId, int cardId, int attachmentId) => Task.CompletedTask;
         public Task ResyncRequestedAsync(int boardId) => Task.CompletedTask;
+        public Task TagsChangedAsync(int boardId) => Task.CompletedTask;
 
         public Task SystemInfoMessageUpdatedAsync(SystemInfoMessageDto? systemInfoMessage)
         {

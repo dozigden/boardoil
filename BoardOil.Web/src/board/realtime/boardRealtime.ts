@@ -29,6 +29,7 @@ export type BoardRealtimeHandlers = {
   onAttachmentAdded?: (boardId: number, cardId: number, attachment: CardAttachment) => Promise<unknown> | unknown;
   onAttachmentDeleted?: (boardId: number, cardId: number, attachmentId: number) => Promise<unknown> | unknown;
   onSystemInfoMessageUpdated: (systemInfoMessage: SystemInfoMessageDto | null) => Promise<unknown> | unknown;
+  onTagsChanged: (boardId: number) => Promise<unknown> | unknown;
   onResync: (boardId: number) => Promise<unknown> | unknown;
   onConnectionWarning?: (message: string) => Promise<unknown> | unknown;
   onConnectionRecovered?: () => Promise<unknown> | unknown;
@@ -298,6 +299,10 @@ function registerBoardEventHandlers(
   connection.on('CommentDeleted', async (commentId: number, cardId: number, boardId: number) => {
     logRealtime('Event: CommentDeleted', { boardId, commentId, cardId });
     await handlers.onCommentDeleted?.(boardId, cardId, commentId);
+  });
+  connection.on('TagsChanged', async (boardId: number) => {
+    logRealtime('Event: TagsChanged', { boardId });
+    await handlers.onTagsChanged(boardId);
   });
   connection.on('ResyncRequested', async (boardId: number) => {
     logRealtime('Event: ResyncRequested', { boardId });

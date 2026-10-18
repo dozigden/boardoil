@@ -107,9 +107,9 @@ public sealed class BulkEditCardsService(
             .ThenBy(x => x.SortKey, StringComparer.Ordinal)
             .ToList();
 
-        var addTagEntities = hasTagEditOperation
+        var tagResolution = hasTagEditOperation
             ? await CardTagMutation.ResolveTagsAsync(boardId, addTagNames, _tagRepository, styleDefaultService)
-            : [];
+            : new CardTagResolution([], false);
         var removeTagNameSet = hasTagEditOperation
             ? removeTagNames.Select(NormaliseTagName).ToHashSet(StringComparer.Ordinal)
             : [];
@@ -183,7 +183,7 @@ public sealed class BulkEditCardsService(
                     existingTagMap.Remove(removeTagName);
                 }
 
-                foreach (var addTag in addTagEntities)
+                foreach (var addTag in tagResolution.Tags)
                 {
                     var normalisedName = NormaliseTagName(addTag.Name);
                     existingTagMap[normalisedName] = addTag;
@@ -262,6 +262,10 @@ public sealed class BulkEditCardsService(
         if (orderPlan?.Renormalised == true)
         {
             await boardEvents.ResyncRequestedAsync(boardId);
+        }
+        else if (tagResolution.CreatedTags)
+        {
+            await boardEvents.TagsChangedAsync(boardId);
         }
 
         return resultDtos;

@@ -2084,6 +2084,106 @@ public sealed class CardServiceTests : TestBaseDb
         Assert.Equal(["Bug,Urgent"], result.Data!.TagNames);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task CreateOrDuplicateCardAsync_ShouldNotifyCatalogueOnlyForNewTags(bool duplicate, bool newTag)
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil").AddColumn("Todo").AddCard("Source", "Desc").Build();
+        if (!newTag) { await SeedTagsForArrangeAsync(board.BoardId, "Tag"); }
+        var source = board.GetCard("Todo", "Source");
+        var request = new CreateCardRequest(source.BoardColumnId, "Created", "Desc", ["Tag"]);
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        var service = CreateService();
+
+        // Act
+        var result = duplicate
+            ? await service.DuplicateCardAsync(board.BoardId, source.BoardCardId, request, ActorUserId)
+            : await service.CreateCardAsync(board.BoardId, request, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal("Tag", (await DbContextForAssert.Tags.SingleAsync()).Name);
+        Assert.Single(events.CardCreatedEvents);
+        Assert.Equal(newTag ? [board.BoardId] : Array.Empty<int>(), events.TagsChangedBoardIds);
+        Assert.Empty(events.ResyncRequestedBoardIds);
+        Assert.Equal(newTag ? ["card-created", "tags-changed"] : new[] { "card-created" }, events.PublishedEventNames);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task UpdateCardAsync_ShouldNotifyCatalogueOnlyForNewTags(bool move, bool newTag)
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil").AddColumn("Todo").AddCard("Card", "Desc").AddColumn("Doing").Build();
+        if (!newTag) { await SeedTagsForArrangeAsync(board.BoardId, "Tag"); }
+        var card = board.GetCard("Todo", "Card");
+        var cardTypeId = await GetSystemCardTypeIdForBoardAsync(board.BoardId);
+        var columnId = move ? board.GetColumn("Doing").Id : card.BoardColumnId;
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+
+        // Act
+        var result = await CreateService().UpdateCardAsync(board.BoardId, card.BoardCardId,
+            new UpdateCardRequest("Card", "Desc", ["Tag"], cardTypeId, BoardColumnId: columnId), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal("Tag", (await DbContextForAssert.Tags.SingleAsync()).Name);
+        Assert.Equal(newTag ? [board.BoardId] : Array.Empty<int>(), events.TagsChangedBoardIds);
+        Assert.Empty(events.ResyncRequestedBoardIds);
+        Assert.Equal(move ? 1 : 0, events.CardMovedEvents.Count);
+        Assert.Equal(move ? 0 : 1, events.CardUpdatedEvents.Count);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BulkEditCardsAsync_ShouldNotifyCatalogueOnceOnlyForNewTags(bool newTags)
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil").AddColumn("Todo").AddCard("A", "Desc").AddCard("B", "Desc").Build();
+        if (!newTags) { await SeedTagsForArrangeAsync(board.BoardId, "One", "Two"); }
+        var cardIds = new[] { board.GetCard("Todo", "A").BoardCardId, board.GetCard("Todo", "B").BoardCardId };
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+
+        // Act
+        var result = await CreateService().BulkEditCardsAsync(board.BoardId,
+            new BulkEditCardsRequest(cardIds, Move: null, AddTagNames: ["One", "Two", "One"]), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(["One", "Two"], await DbContextForAssert.Tags.OrderBy(tag => tag.Name).Select(tag => tag.Name).ToListAsync());
+        Assert.Equal(newTags ? [board.BoardId] : Array.Empty<int>(), events.TagsChangedBoardIds);
+        Assert.Empty(events.ResyncRequestedBoardIds);
+        Assert.Equal(2, events.CardUpdatedEvents.Count);
+        Assert.All(result.Data!, card => Assert.Equal(["One", "Two"], card.TagNames));
+    }
+
+    [Fact]
+    public async Task CreateCardAsync_WhenNewTagsAndOrderRenormalisationCoincide_ShouldRequestOneResync()
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil").AddColumn("Todo").AddCard("A", "Desc").Build();
+        await SetCardSortKeysAsync((board.GetCard("Todo", "A").Id, "00000000000000000000"));
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+
+        // Act
+        var result = await CreateService().CreateCardAsync(board.BoardId,
+            new CreateCardRequest(board.GetColumn("Todo").Id, "Created", "Desc", ["One", "Two"]), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal([board.BoardId], events.ResyncRequestedBoardIds);
+        Assert.Empty(events.TagsChangedBoardIds);
+        Assert.Equal(["card-created", "resync-requested"], events.PublishedEventNames);
+    }
+
     private CardService CreateService()
     {
         return ResolveService<CardService>();

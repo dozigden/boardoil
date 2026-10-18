@@ -88,7 +88,7 @@ public sealed class CreateCardService(
 
         var cards = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
         var draft = planner.BuildDraft(request, targetColumn, selectedCardType);
-        var tags = await CardTagMutation.ResolveTagsAsync(
+        var tagResolution = await CardTagMutation.ResolveTagsAsync(
             boardId,
             request.TagNames ?? Array.Empty<string>(),
             _tagRepository,
@@ -112,7 +112,7 @@ public sealed class CreateCardService(
             CardUpdatedUtc = createdAtUtc,
         };
         CardChecklistCounter.Refresh(card);
-        CardTagMutation.ReplaceTags(card, tags);
+        CardTagMutation.ReplaceTags(card, tagResolution.Tags);
 
         var orderPlan = insertionOrderPlanner.CreateLeadingPlan(card, cards);
         if (orderPlan.Error is not null)
@@ -147,6 +147,10 @@ public sealed class CreateCardService(
         if (orderPlan.Renormalised)
         {
             await boardEvents.ResyncRequestedAsync(boardId);
+        }
+        else if (tagResolution.CreatedTags)
+        {
+            await boardEvents.TagsChangedAsync(boardId);
         }
 
         return ApiResults.Created(created);

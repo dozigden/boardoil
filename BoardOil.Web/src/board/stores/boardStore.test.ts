@@ -48,6 +48,7 @@ type RealtimeHandlers = {
   onAttachmentAdded: (boardId: number, cardId: number, attachment: CardAttachment) => Promise<unknown> | unknown;
   onAttachmentDeleted: (boardId: number, cardId: number, attachmentId: number) => Promise<unknown> | unknown;
   onResync: (boardId: number) => Promise<unknown> | unknown;
+  onTagsChanged: (boardId: number) => Promise<unknown> | unknown;
   onConnectionWarning?: (message: string) => Promise<unknown> | unknown;
   onConnectionRecovered?: () => Promise<unknown> | unknown;
 };
@@ -800,6 +801,58 @@ describe('boardStore', () => {
     await store.createColumn({ title: 'Bad' });
 
     expect(feedback.errorMessage).toBe('Column create failed.');
+  });
+
+  it('refreshes only the tag catalogue when tags change', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    const card = useCardStore().getCardById(101);
+    expect(card).toBeDefined();
+    const board = store.board;
+    vi.clearAllMocks();
+    const tags = makeCatalogues().tags;
+    api.getTags.mockResolvedValue(ok(tags));
+
+    await realtimeHandlers!.onTagsChanged(1);
+
+    expect(useTagStore().tags).toEqual(tags);
+    expect(api.getTags).toHaveBeenCalledExactlyOnceWith(1);
+    expect(store.board).toBe(board);
+    expect(useCardStore().getCardById(101)).toBe(card);
+    expect(api.getBoard).not.toHaveBeenCalled();
+    expect(api.getCardTypes).not.toHaveBeenCalled();
+    expect(api.getSlicks).not.toHaveBeenCalled();
+    expect(api.getCardThumbnails).not.toHaveBeenCalled();
+    expect(systemInfoMessageStore.load).not.toHaveBeenCalled();
+  });
+
+  it('ignores tag changes for another board or after disposal', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    api.getTags.mockClear();
+
+    await realtimeHandlers!.onTagsChanged(2);
+    await store.dispose();
+    await realtimeHandlers!.onTagsChanged(1);
+
+    expect(api.getTags).not.toHaveBeenCalled();
+    expect(useTagStore().activeBoardId).toBeNull();
+  });
+
+  it('discards a pending tag refresh after switching boards', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    const pendingTags = deferred<Result<Tag[], AppError>>();
+    api.getTags.mockReturnValueOnce(pendingTags.promise);
+    const refresh = realtimeHandlers!.onTagsChanged(1);
+    api.getBoard.mockResolvedValue(ok(makeBoard(2)));
+    await store.initialize(2);
+
+    pendingTags.resolve(ok(makeCatalogues().tags));
+    await refresh;
+
+    expect(useTagStore().activeBoardId).toBe(2);
+    expect(useTagStore().tags).toEqual([]);
   });
 
   it('reloads tags and slicks when realtime resync is requested', async () => {

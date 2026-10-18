@@ -196,6 +196,14 @@ export class BoardOilApi {
     });
   }
 
+  public async addTagsToCards(boardId: number, cardIds: number[], tagNames: string[]) {
+    const response = await this.request.patch(`/api/boards/${boardId}/cards/edit`, {
+      data: { cardIds, move: null, addTagNames: tagNames },
+      headers: { 'X-BoardOil-CSRF': this.csrfToken }
+    });
+    return await readEnvelope<SmokeCard[]>(response);
+  }
+
   public async addCardComment(boardId: number, cardId: number, text: string) {
     return await this.post<{ id: number; text: string; postedAtUtc: string; editedAtUtc: string | null }>(`/api/boards/${boardId}/cards/${cardId}/comments`, { text });
   }

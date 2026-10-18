@@ -147,6 +147,7 @@ export const useBoardStore = defineStore('board', () => {
     onCommentDeleted: forCurrentBoard(commentStore.removeCardComment),
     onAttachmentAdded: forCurrentBoard(attachmentStore.added),
     onAttachmentDeleted: forCurrentBoard(attachmentStore.removed),
+    onTagsChanged: forCurrentBoard(tagStore.loadTags),
     onSystemInfoMessageUpdated: systemInfoMessageStore.setMessage,
     onConnectionWarning: message => {
       feedback.clearToast();

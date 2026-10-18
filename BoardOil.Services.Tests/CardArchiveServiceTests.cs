@@ -18,6 +18,40 @@ namespace BoardOil.Services.Tests;
 
 public sealed class CardArchiveServiceTests : TestBaseDb
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnarchiveCardAsync_ShouldNotifyCatalogueOnlyWhenRecreatingTags(bool removeTags)
+    {
+        // Arrange
+        var board = CreateBoard("BoardOil").AddColumn("Todo").Build();
+        var created = await ResolveService<CardService>().CreateCardAsync(board.BoardId,
+            new CreateCardRequest(board.GetColumn("Todo").Id, "Archived", "Desc", ["One", "Two"]), ActorUserId);
+        Assert.True(created.Success);
+        var service = ResolveService<ICardArchiveService>();
+        Assert.True((await service.ArchiveCardAsync(board.BoardId, created.Data!.Id, ActorUserId)).Success);
+        if (removeTags)
+        {
+            DbContextForArrange.Tags.RemoveRange(await DbContextForArrange.Tags.ToListAsync());
+            await DbContextForArrange.SaveChangesAsync();
+        }
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<BoardOil.Abstractions.IBoardEvents>());
+        events.ResyncRequestedBoardIds.Clear();
+        events.TagsChangedBoardIds.Clear();
+        events.PublishedEventNames.Clear();
+
+        // Act
+        var result = await service.UnarchiveCardAsync(board.BoardId, created.Data.Id, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(["One", "Two"], result.Data!.TagNames);
+        Assert.Equal(["One", "Two"], await DbContextForAssert.Tags.OrderBy(tag => tag.Name).Select(tag => tag.Name).ToListAsync());
+        Assert.Equal(removeTags ? [board.BoardId] : Array.Empty<int>(), events.TagsChangedBoardIds);
+        Assert.Empty(events.ResyncRequestedBoardIds);
+        Assert.Equal(removeTags ? ["card-created", "tags-changed"] : new[] { "card-created" }, events.PublishedEventNames);
+    }
+
     [Fact]
     public async Task ArchiveCardAsync_WhenCardExists_ShouldSnapshotAndRemoveLiveCard()
     {

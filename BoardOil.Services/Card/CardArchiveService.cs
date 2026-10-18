@@ -181,7 +181,7 @@ public sealed class CardArchiveService(
         var cardsInColumn = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
         var resolvedAssignedUser = await ResolveAssignedUserAsync(boardId, snapshot.AssignedUserEmail);
         var resolvedSlick = await ResolveSlickByNameAsync(boardId, snapshotCard.SlickName);
-        var resolvedTags = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames);
+        var tagResolution = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames);
         var restoredCard = new EntityBoardCard
         {
             BoardId = boardId,
@@ -202,7 +202,7 @@ public sealed class CardArchiveService(
             CardUpdatedUtc = snapshotCard.CardUpdatedUtc,
         };
         CardChecklistCounter.Refresh(restoredCard);
-        ReplaceTags(restoredCard, resolvedTags);
+        ReplaceTags(restoredCard, tagResolution.Tags);
 
         var orderPlan = insertionOrderPlanner.CreateLeadingPlan(restoredCard, cardsInColumn);
         if (orderPlan.Error is not null)
@@ -242,6 +242,10 @@ public sealed class CardArchiveService(
         if (orderPlan.Renormalised)
         {
             await boardEvents.ResyncRequestedAsync(boardId);
+        }
+        else if (tagResolution.CreatedTags)
+        {
+            await boardEvents.TagsChangedAsync(boardId);
         }
 
         return ApiResults.Ok(dto);
@@ -512,9 +516,10 @@ public sealed class CardArchiveService(
             .ToList();
     }
 
-    private async Task<IReadOnlyList<EntityTag>> ResolveTagsForRestoreAsync(int boardId, IReadOnlyList<string> tagNames)
+    private async Task<CardTagResolution> ResolveTagsForRestoreAsync(int boardId, IReadOnlyList<string> tagNames)
     {
         var resolvedTags = new List<EntityTag>();
+        var createdTags = false;
         var processedNormalisedNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var tagName in NormaliseTagNames(tagNames))
         {
@@ -541,12 +546,14 @@ public sealed class CardArchiveService(
                     StyleDefinitionCodec.CreateDefault(StyleKind.Presets)),
             };
             tagRepository.Add(createdTag);
+            createdTags = true;
             resolvedTags.Add(createdTag);
         }
 
-        return resolvedTags
+        var orderedTags = resolvedTags
             .OrderBy(x => x.Name, StringComparer.Ordinal)
             .ToList();
+        return new CardTagResolution(orderedTags, createdTags);
     }
 
     private static void ReplaceTags(EntityBoardCard card, IReadOnlyList<EntityTag> tags)

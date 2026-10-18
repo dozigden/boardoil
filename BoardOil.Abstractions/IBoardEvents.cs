@@ -20,6 +20,7 @@ public interface IBoardEvents
     Task AttachmentAddedAsync(int boardId, int cardId, CardAttachmentDto attachment);
     Task AttachmentDeletedAsync(int boardId, int cardId, int attachmentId);
 
+    Task TagsChangedAsync(int boardId);
     Task ResyncRequestedAsync(int boardId);
     Task SystemInfoMessageUpdatedAsync(SystemInfoMessageDto? systemInfoMessage);
 }

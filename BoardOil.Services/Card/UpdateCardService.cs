@@ -71,14 +71,18 @@ public sealed class UpdateCardService(
         if (saved.Data!.Moved)
         {
             await boardEvents.CardMovedAsync(boardId, dto);
-            if (saved.Data.ResyncRequired)
-            {
-                await boardEvents.ResyncRequestedAsync(boardId);
-            }
         }
         else
         {
             await boardEvents.CardUpdatedAsync(boardId, dto);
+        }
+        if (saved.Data.ResyncRequired)
+        {
+            await boardEvents.ResyncRequestedAsync(boardId);
+        }
+        else if (saved.Data.CreatedTags)
+        {
+            await boardEvents.TagsChangedAsync(boardId);
         }
 
         return dto;
@@ -113,7 +117,7 @@ public sealed class UpdateCardService(
         var updatedDescription = request.Description;
         var descriptionChanged = updatedDescription != existingCard.Description;
         var updatedExternalUrl = CardExternalUrl.Normalise(request.ExternalUrl);
-        var updatedTags = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames, _tagRepository, styleDefaultService);
+        var tagResolution = await CardTagMutation.ResolveTagsAsync(boardId, request.TagNames, _tagRepository, styleDefaultService);
 
         var selectedCardType = await cardTypeRepository.GetByIdInBoardAsync(boardId, request.CardTypeId);
         var cardTypeSelection = planner.SelectCardType(selectedCardType);
@@ -148,7 +152,7 @@ public sealed class UpdateCardService(
 
         var assignmentChanged = request.AssignedUserId != existingCard.AssignedUserId;
         var slickChanged = selectedSlickId != existingCard.SlickId;
-        var tagsChanged = planner.TagsChanged(existingCard, updatedTags);
+        var tagsChanged = planner.TagsChanged(existingCard, tagResolution.Tags);
         var cardTypeChanged = selectedCardType!.Id != existingCard.CardTypeId;
         var metadataChanged = updatedTitle != existingCard.Title
             || descriptionChanged
@@ -167,7 +171,7 @@ public sealed class UpdateCardService(
         existingCard.ExternalUrl = updatedExternalUrl;
         if (tagsChanged)
         {
-            CardTagMutation.ReplaceTags(existingCard, updatedTags);
+            CardTagMutation.ReplaceTags(existingCard, tagResolution.Tags);
         }
 
         if (cardTypeChanged)
@@ -207,8 +211,8 @@ public sealed class UpdateCardService(
         await scope.SaveChangesAsync(cancellationToken);
         return new CardSaveResult(
             metadataChanged || movementChanged || derivedValuesChanged,
-            movementChanged, movementPlan?.Renormalised == true);
+            movementChanged, movementPlan?.Renormalised == true, tagResolution.CreatedTags);
     }
 }
 
-internal sealed record CardSaveResult(bool Changed, bool Moved, bool ResyncRequired);
+internal sealed record CardSaveResult(bool Changed, bool Moved, bool ResyncRequired, bool CreatedTags);

@@ -44,7 +44,8 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.True(styleProperties.RootElement.TryGetProperty("presetIndex", out var presetIndex));
         Assert.InRange(presetIndex.GetInt32(), 0, 11);
         Assert.False(styleProperties.RootElement.TryGetProperty("textColorMode", out _));
-        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
+        Assert.Equal([boardId], ResolveBoardEvents().TagsChangedBoardIds);
+        Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -123,7 +124,8 @@ public sealed class TagServiceTests : TestBaseDb
 
         var stored = await DbContextForAssert.Tags.SingleAsync();
         Assert.Equal(result.Data.StylePropertiesJson, stored.StylePropertiesJson);
-        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
+        Assert.Equal([boardId], ResolveBoardEvents().TagsChangedBoardIds);
+        Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -156,6 +158,7 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal("Bug", result.Data!.Name);
         Assert.Equal(1, await DbContextForAssert.Tags.CountAsync());
         Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
+        Assert.Empty(ResolveBoardEvents().TagsChangedBoardIds);
     }
 
     [Fact]
@@ -371,7 +374,8 @@ public sealed class TagServiceTests : TestBaseDb
         var stored = await DbContextForAssert.Tags.SingleAsync();
         Assert.Equal("gradient", stored.StyleName);
         Assert.Equal(updatedStylePropertiesJson, stored.StylePropertiesJson);
-        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
+        Assert.Equal([boardId], ResolveBoardEvents().TagsChangedBoardIds);
+        Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -409,6 +413,8 @@ public sealed class TagServiceTests : TestBaseDb
         var stored = await DbContextForAssert.Tags.SingleAsync();
         Assert.Equal("Platform", stored.Name);
         Assert.Equal("PLATFORM", stored.NormalisedName);
+        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
+        Assert.Empty(ResolveBoardEvents().TagsChangedBoardIds);
     }
 
     [Fact]
@@ -709,6 +715,8 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal("Platform", stored.Name);
         Assert.Equal("🐞", stored.Emoji);
         Assert.Equal(originalStyle, stored.StylePropertiesJson);
+        Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
+        Assert.Empty(ResolveBoardEvents().TagsChangedBoardIds);
     }
 
     [Fact]
@@ -747,6 +755,8 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal("Bug", result.Data!.Name);
         Assert.Equal("🐞", result.Data.Emoji);
         Assert.Equal("gradient", result.Data.StyleName);
+        Assert.Equal([boardId], ResolveBoardEvents().TagsChangedBoardIds);
+        Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
     }
 
     [Fact]
@@ -827,6 +837,7 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Empty(await DbContextForAssert.CardTags.ToListAsync());
         Assert.Single(await DbContextForAssert.Cards.ToListAsync());
         Assert.Equal([boardId], ResolveBoardEvents().ResyncRequestedBoardIds);
+        Assert.Empty(ResolveBoardEvents().TagsChangedBoardIds);
     }
 
     [Fact]

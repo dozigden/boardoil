@@ -176,6 +176,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync
     });
 
@@ -200,6 +201,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync
     });
 
@@ -208,6 +210,18 @@ describe('boardRealtime', () => {
 
     expect(onResync).toHaveBeenCalledTimes(1);
     expect(onResync).toHaveBeenCalledWith(42);
+  });
+
+  it('forwards tag catalogue changes without requesting a resync', async () => {
+    const handlers = createHandlers();
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime(handlers);
+    await realtime.connect(42);
+
+    await connection.eventHandlers.TagsChanged?.(42);
+
+    expect(handlers.onTagsChanged).toHaveBeenCalledExactlyOnceWith(42);
+    expect(handlers.onResync).not.toHaveBeenCalled();
   });
 
   it('forwards comment created events to handler', async () => {
@@ -223,6 +237,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated,
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync: vi.fn()
     });
 
@@ -258,7 +273,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(), onColumnUpdated: vi.fn(), onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(), onCardUpdated: vi.fn(), onCardDeleted: vi.fn(), onCardMoved: vi.fn(),
-      onCommentCreated: vi.fn(), onCommentUpdated, onSystemInfoMessageUpdated: vi.fn(), onResync: vi.fn()
+      onCommentCreated: vi.fn(), onCommentUpdated, onSystemInfoMessageUpdated: vi.fn(), onTagsChanged: vi.fn(), onResync: vi.fn()
     });
     const comment = { id: 123, cardId: 55, authorUserId: 4, text: 'Edited', postedAtUtc: '2026-05-02T07:00:00Z', editedAtUtc: '2026-05-03T07:00:00Z' };
 
@@ -281,6 +296,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync: vi.fn()
     });
     const card = {
@@ -321,6 +337,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated,
+      onTagsChanged: vi.fn(),
       onResync: vi.fn()
     });
 
@@ -352,6 +369,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync: vi.fn()
     });
     connection.invoke.mockImplementation(async (method: string) => {
@@ -394,6 +412,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync: vi.fn()
     });
 
@@ -430,6 +449,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync: vi.fn()
     });
 
@@ -504,6 +524,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync: vi.fn()
     });
 
@@ -534,6 +555,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync: vi.fn()
     });
 
@@ -561,6 +583,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync: vi.fn(),
       onConnectionWarning,
       onConnectionRecovered
@@ -589,6 +612,7 @@ describe('boardRealtime', () => {
     const { createBoardRealtime } = await import('./boardRealtime');
     const realtime = createBoardRealtime({
       ...createHandlers(),
+      onTagsChanged: vi.fn(),
       onResync
     });
 
@@ -615,6 +639,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       ...createHandlers(),
       onConnectionWarning,
+      onTagsChanged: vi.fn(),
       onResync
     });
 
@@ -672,6 +697,7 @@ describe('boardRealtime', () => {
       onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(),
       onSystemInfoMessageUpdated: vi.fn(),
+      onTagsChanged: vi.fn(),
       onResync: vi.fn(),
       onConnectionWarning
     });
@@ -722,6 +748,7 @@ function createHandlers() {
     onCardMoved: vi.fn(),
     onCommentCreated: vi.fn(),
     onSystemInfoMessageUpdated: vi.fn(),
+    onTagsChanged: vi.fn(),
     onResync: vi.fn(),
     onConnectionWarning: vi.fn(),
     onConnectionRecovered: vi.fn()
