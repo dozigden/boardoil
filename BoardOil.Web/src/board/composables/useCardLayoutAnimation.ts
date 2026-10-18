@@ -11,7 +11,7 @@ export type CardLayoutEffect = {
   done: () => void;
 };
 
-// Creation, editor handoff and removal share box effects; the board coordinates their layout.
+// Creation, resizing and removal share box effects; the board coordinates their layout.
 export function useCardLayoutAnimation(runner: BoardAnimationRunner) {
   const animations = new Map<HTMLElement, { effect: CardLayoutEffect; animation: BoardAnimationHandle }>();
   const replacements = new Set<HTMLElement>();
@@ -193,16 +193,31 @@ export function useCardLayoutAnimation(runner: BoardAnimationRunner) {
     return slot.getBoundingClientRect().height;
   }
 
-  function prepareReplace(card: HTMLElement, height: number): CardLayoutEffect {
+  function prepareResize(card: HTMLElement, height: number): CardLayoutEffect {
     return {
       element: card, removing: false, done() {},
-      from: { height: `${height}px`, marginBottom: '0px' },
-      to: { height: `${card.getBoundingClientRect().height}px`, marginBottom: '0px' }
+      from: { height: `${height}px` },
+      to: { height: `${card.getBoundingClientRect().height}px` }
     };
+  }
+
+  function prepareReplace(card: HTMLElement, height: number): CardLayoutEffect {
+    const effect = prepareResize(card, height);
+    // The editor slot has no bottom margin. Saved cards keep their own spacing
+    // during ordinary resizing; only a handoff needs to interpolate from zero.
+    effect.from.marginBottom = '0px';
+    effect.to.marginBottom = getComputedStyle(card).marginBottom;
+    return effect;
   }
 
   function finish(element: HTMLElement) {
     animations.get(element)?.animation.finish();
+  }
+
+  function finishCards() {
+    for (const [element, { animation }] of animations) {
+      if (element.matches('.card[data-card-id]')) { animation.finish(); }
+    }
   }
 
   onBeforeUnmount(() => {
@@ -215,8 +230,8 @@ export function useCardLayoutAnimation(runner: BoardAnimationRunner) {
 
   return {
     capture, suspend, retarget, withFinalLayout, play,
-    prepareInsert, prepareRemoval, prepareEnter, prepareLeave, prepareReplacement, prepareReplace,
-    cancel, preserve, finish
+    prepareInsert, prepareRemoval, prepareEnter, prepareLeave, prepareReplacement, prepareReplace, prepareResize,
+    cancel, preserve, finish, finishCards
   };
 }
 

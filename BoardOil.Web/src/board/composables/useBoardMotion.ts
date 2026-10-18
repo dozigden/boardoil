@@ -1,5 +1,5 @@
 import { computed, nextTick, onBeforeUnmount, shallowReactive, watch, type ComputedRef, type Ref } from 'vue';
-import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
+import type { BoardColumn, Card, Slick } from '../../shared/types/boardTypes';
 import { useGooLayer } from './useGooLayer';
 import { useBoardCardRemovals } from './useBoardCardRemovals';
 import { useCardLayoutAnimation, type CardLayoutEffect } from './useCardLayoutAnimation';
@@ -17,6 +17,7 @@ type LayoutChange = {
   effects: Map<HTMLElement, CardLayoutEffect>;
   arrivingIds: Set<number>;
   removingIds: Set<number>;
+  resizingIds: Set<number>;
   previousMargins: Map<number, number>;
   replacements: Map<number, number>;
 };
@@ -103,10 +104,7 @@ export function useBoardMotion(
     // Only canonical removal animates. Filter hides/reveals remain immediate.
     if (currentFilters !== previousFilters) {
       movement.finishAll();
-      for (const id of removals.cardIds()) {
-        const element = getCardElement(id);
-        if (element) { layoutAnimation.finish(element); }
-      }
+      layoutAnimation.finishCards();
       removals.clear();
     }
     // A realtime arrival held behind a local editor has never been displayed.
@@ -116,11 +114,19 @@ export function useBoardMotion(
     }
     const newIds = new Set(Object.values(current).flat().filter(id => !previousIds.has(id)));
     const arrivingIds: number[] = [];
+    const resizingIds: number[] = [];
+    const previousCards = new Map(previousVisible.flatMap(column => column.cards.map(card => [card.id, card] as const)));
     for (const column of renderedColumns.value) {
       for (const card of column.cards) {
+        const previousCard = previousCards.get(card.id);
         if (newIds.has(card.id)) {
           arrivingIds.push(card.id);
           affectedColumns.add(column.id);
+        } else if (currentFilters === previousFilters && previousCard && cardContentChanged(previousCard, card)
+          && getCardElement(card.id)) {
+          resizingIds.push(card.id);
+          affectedColumns.add(column.id);
+          affectedColumns.add(previousCard.boardColumnId);
         }
       }
     }
@@ -134,13 +140,17 @@ export function useBoardMotion(
     for (const id of arrivingIds) {
       change.arrivingIds.add(id);
     }
+    for (const id of resizingIds) {
+      change.resizingIds.add(id);
+    }
   });
 
   function beginLayoutChange(columnIds: Set<number>): LayoutChange {
     if (!pendingChange) {
       pendingChange = {
         columnIds: new Set(), positions: { cards: new Map(), columns: new Map() },
-        effects: new Map(), arrivingIds: new Set(), removingIds: new Set(), previousMargins: new Map(), replacements: new Map()
+        effects: new Map(), arrivingIds: new Set(), removingIds: new Set(), resizingIds: new Set(),
+        previousMargins: new Map(), replacements: new Map()
       };
       // Semantic draft changes call this before changing Vue state. Defer the
       // nextTick lookup so it waits for that render as well as watcher renders.
@@ -200,6 +210,16 @@ export function useBoardMotion(
         effects.set(card, layoutAnimation.prepareReplace(card, height));
       }
     }
+    for (const cardId of change.resizingIds) {
+      const card = getCardElement(cardId);
+      const previous = change.positions.cards.get(cardId);
+      // Existing creation/removal/resize effects already retain the displayed
+      // box and retarget to the updated content. Do not replace their callbacks.
+      if (card && previous && !effects.has(card)
+        && Math.abs(card.getBoundingClientRect().height - previous.rect.height) >= 0.5) {
+        effects.set(card, layoutAnimation.prepareResize(card, previous.rect.height));
+      }
+    }
     const removingIds = new Set([
       ...change.removingIds,
       ...[...effects.keys()].map(element => Number(element.dataset.cardId)).filter(removals.has)
@@ -219,12 +239,15 @@ export function useBoardMotion(
     }
     const plans = [...effects.values()];
     const targets = layoutAnimation.withFinalLayout(plans, () => movement.measureTargets(change.positions));
+    const resizingColumns = new Set(plans.filter(effect => change.positions.cards.has(Number(effect.element.dataset.cardId)))
+      .map(effect => Number(effect.element.parentElement!.dataset.columnId)));
     for (const effect of plans) {
       layoutAnimation.play(effect);
     }
-    const removingColumns = new Set(plans.filter(effect => removals.has(Number(effect.element.dataset.cardId)))
-      .map(effect => Number(effect.element.parentElement!.dataset.columnId)));
-    movement.play(change.positions, targets, { resizingColumns: removingColumns, effects: plans });
+    // A natural shrinking box may clamp scroll before its starting height is
+    // reinstated. Restore again now that all starting boxes exist.
+    movement.restoreScroll(change.positions);
+    movement.play(change.positions, targets, { resizingColumns, effects: plans });
   }
 
   function changeDraftLayout(columnId: number, change: () => void) {
@@ -369,3 +392,15 @@ export function useBoardMotion(
 }
 
 export type BoardCreationMotion = Pick<ReturnType<typeof useBoardMotion>, 'draftLayoutChanged' | 'draftEdited' | 'changeDraftLayout' | 'beginCreation'>;
+
+function cardContentChanged(previous: Card, current: Card) {
+  if (previous === current) { return false; }
+  // Ignore ordering, timestamps and styles: duplicate delivery and moves must
+  // not restart a box effect. Measure only saved content that can change height.
+  return previous.title !== current.title || previous.cardTypeId !== current.cardTypeId
+    || previous.assignedUserDisplayName !== current.assignedUserDisplayName
+    || previous.completedChecklistItemCount !== current.completedChecklistItemCount
+    || previous.totalChecklistItemCount !== current.totalChecklistItemCount
+    || previous.tags.length !== current.tags.length
+    || previous.tags.some((tag, index) => tag.id !== current.tags[index]?.id);
+}

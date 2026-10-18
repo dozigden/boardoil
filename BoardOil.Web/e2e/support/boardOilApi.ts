@@ -1,4 +1,5 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
+import type { Card, CardEditModel } from '../../src/shared/types/boardTypes';
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -25,14 +26,8 @@ type SmokeCardType = {
   isSystem: boolean;
 };
 
-export type SmokeCard = {
-  id: number;
-  boardColumnId: number;
-  cardTypeId: number;
-  title: string;
-  description: string;
-  tagNames: string[];
-};
+export type SmokeCard = Pick<Card, 'id' | 'boardColumnId' | 'cardTypeId' | 'title' | 'description'
+  | 'tagNames' | 'assignedUserId' | 'slickName' | 'externalUrl'>;
 
 export type SmokeAttachment = {
   id: number;
@@ -190,6 +185,15 @@ export class BoardOilApi {
       headers: { 'X-BoardOil-CSRF': this.csrfToken }
     });
     return await readEnvelope<SmokeCard>(response);
+  }
+
+  public async updateCard(boardId: number, card: SmokeCard, changes: Partial<CardEditModel>) {
+    return await this.put<SmokeCard>(`/api/boards/${boardId}/cards/${card.id}`, {
+      title: card.title, description: card.description, boardColumnId: card.boardColumnId,
+      cardTypeId: card.cardTypeId, tagNames: card.tagNames, slickName: card.slickName ?? null,
+      assignedUserId: card.assignedUserId ?? null, externalUrl: card.externalUrl,
+      ...changes
+    });
   }
 
   public async addCardComment(boardId: number, cardId: number, text: string) {

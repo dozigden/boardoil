@@ -69,7 +69,6 @@ export function useBoardCardRemovals() {
   return {
     retain, project, boundaryClass, prune,
     has: (id: number) => departing.has(id),
-    cardIds: () => [...departing.keys()],
     remove: (id: number) => { departing.delete(id); },
     clear: () => departing.clear()
   };

@@ -189,7 +189,9 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
       const target = useFloatingCard ? destination.rect : card.getBoundingClientRect();
       const dx = previous.rect.left - target.left;
       const dy = previous.rect.top - target.top;
-      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
+      const floatingSizeChanged = useFloatingCard
+        && (Math.abs(previous.rect.height - target.height) >= 0.5 || Math.abs(previous.rect.width - target.width) >= 0.5);
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && !floatingSizeChanged) {
         continue;
       }
       let floating: HTMLElement | null = null;
