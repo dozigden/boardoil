@@ -38,7 +38,7 @@
         <BoardColumnHeader
           :column-id="column.id"
           :title="column.title"
-          :count-label="formatColumnCardCount(column.cards.length)"
+          :count-label="formatColumnCardCount(getVisibleCardIds(column.id).length)"
           :card-types="cardTypes"
           :selection-mode="isCardSelectionMode"
           :disable-select-all="!canSelectAllVisibleInColumn(column.id)"
@@ -99,7 +99,8 @@
           <Card
             v-for="(card, cardIndex) in column.cards"
             :key="card.id"
-            :class="resolveCardBoundaryClass(column.cards, cardIndex)"
+            :class="motion.resolveCardBoundaryClass(column.cards, cardIndex)"
+            :removing="motion.isRemovingCard(card.id)"
             :board-id="boardId"
             :card="card"
             :thumbnail-attachment="cardAttachmentThumbnailStore.getForCard(card.id)"
@@ -118,7 +119,7 @@
             @toggle-select="toggleCardSelection"
           />
 
-          <p v-if="hasActiveCardFilters && column.cards.length === 0 && newCardDrafts[column.id] === undefined" class="column-filter-empty">
+          <p v-if="hasActiveCardFilters && getVisibleCardIds(column.id).length === 0 && newCardDrafts[column.id] === undefined" class="column-filter-empty">
             No matching cards.
           </p>
         </div>
@@ -152,13 +153,14 @@ import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useCardAttachmentThumbnailStore } from '../stores/cardAttachmentThumbnailStore';
 import { useSlickStore } from '../stores/slickStore';
 import type { BoardColumn } from '../../shared/types/boardTypes';
+import type { CardSearchAndTagFilter } from '../utils/cardFilters';
 import { formatColumnCardCount } from '../utils/columnCardCount';
-import { resolveCardBoundaryClass } from '../utils/slickCardBoundary';
 import { resolveGooRendererMode } from '../utils/gooRendererMode';
 
 const props = defineProps<{
   boardId: number;
   columns: BoardColumn[];
+  cardFilters: CardSearchAndTagFilter;
   hasActiveCardFilters: boolean;
   selectionMode: boolean;
   selectedCardIds: number[];
@@ -185,7 +187,8 @@ const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
 const selectedCardCount = computed(() => selectedCardIds.value.length);
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 const gooRendererMode = resolveGooRendererMode();
-const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, slicks, selectedCardIds, isCardSelectionMode, gooRendererMode);
+const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, slicks, selectedCardIds, isCardSelectionMode, gooRendererMode,
+  computed(() => props.cardFilters));
 const {
   renderedColumns,
   gooGroups,
@@ -207,6 +210,9 @@ const {
   setNewCardDraftInput,
   saveNewCardDraft
 } = useBoardInlineCreation(defaultCreateCardTypeId, motion);
+const interactiveColumns = computed(() => renderedColumns.value.map(column => ({
+  ...column, cards: column.cards.filter(card => !motion.isRemovingCard(card.id))
+})));
 const {
   onCardDragStart,
   onCardDragEnd,
@@ -221,7 +227,7 @@ const {
   resolveCardDropIndicator,
   clearDragInteraction
 } = useBoardCardDragDrop(
-  renderedColumns,
+  interactiveColumns,
   isCardSelectionMode,
   selectedCardIds,
   cardStore.moveCard,
@@ -240,12 +246,12 @@ function isCardSelected(cardId: number) {
 }
 
 function canSelectAllVisibleInColumn(columnId: number) {
-  const column = renderedColumns.value.find(column => column.id === columnId);
+  const column = interactiveColumns.value.find(column => column.id === columnId);
   return column?.cards.some(card => !isCardSelected(card.id)) ?? false;
 }
 
 function canClearVisibleInColumn(columnId: number) {
-  const column = renderedColumns.value.find(column => column.id === columnId);
+  const column = interactiveColumns.value.find(column => column.id === columnId);
   return column?.cards.some(card => isCardSelected(card.id)) ?? false;
 }
 
@@ -266,7 +272,7 @@ function toggleCardSelection(cardId: number) {
 }
 
 function getVisibleCardIds(columnId?: number) {
-  return renderedColumns.value
+  return interactiveColumns.value
     .filter(column => columnId === undefined || column.id === columnId)
     .flatMap(column => column.cards.map(card => card.id));
 }

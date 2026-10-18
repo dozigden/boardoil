@@ -1,9 +1,9 @@
 import { onBeforeUnmount } from 'vue';
 import type { BoardAnimationHandle, BoardAnimationRunner } from '../utils/boardAnimationRunner';
 
-type BoxProperty = 'height' | 'marginBottom' | 'paddingTop' | 'paddingBottom' | 'borderTopWidth' | 'borderBottomWidth';
+type BoxProperty = 'height' | 'marginTop' | 'marginBottom' | 'opacity' | 'boxShadow' | 'paddingTop' | 'paddingBottom' | 'borderTopWidth' | 'borderBottomWidth';
 type BoxStyles = Partial<Record<BoxProperty, string>>;
-export type CardCreationEffect = {
+export type CardLayoutEffect = {
   element: HTMLElement;
   from: BoxStyles;
   to: BoxStyles;
@@ -11,12 +11,12 @@ export type CardCreationEffect = {
   done: () => void;
 };
 
-// Prepare geometry without starting effects; the board coordinates their layout.
-export function useCardCreationAnimation(runner: BoardAnimationRunner) {
-  const animations = new Map<HTMLElement, { effect: CardCreationEffect; animation: BoardAnimationHandle }>();
+// Creation, editor handoff and removal share box effects; the board coordinates their layout.
+export function useCardLayoutAnimation(runner: BoardAnimationRunner) {
+  const animations = new Map<HTMLElement, { effect: CardLayoutEffect; animation: BoardAnimationHandle }>();
   const replacements = new Set<HTMLElement>();
 
-  function play(effect: CardCreationEffect) {
+  function play(effect: CardLayoutEffect) {
     const { element, from, to, done } = effect;
     animations.get(element)?.animation.cancel();
     const animation = runner.animate(element, [
@@ -37,7 +37,7 @@ export function useCardCreationAnimation(runner: BoardAnimationRunner) {
   }
 
   function capture(columnIds: Set<number>) {
-    const effects: CardCreationEffect[] = [];
+    const effects: CardLayoutEffect[] = [];
     for (const { effect } of animations.values()) {
       const column = effect.element.closest<HTMLElement>('[data-column-id]');
       if (column && columnIds.has(Number(column.dataset.columnId))) {
@@ -47,13 +47,13 @@ export function useCardCreationAnimation(runner: BoardAnimationRunner) {
     return effects;
   }
 
-  function suspend(effects: CardCreationEffect[]) {
+  function suspend(effects: CardLayoutEffect[]) {
     for (const effect of effects) {
       animations.get(effect.element)?.animation.cancel();
     }
   }
 
-  function retarget(effect: CardCreationEffect, element: HTMLElement) {
+  function retarget(effect: CardLayoutEffect, element: HTMLElement) {
     let to = effect.to;
     if (!effect.removing) {
       to = readStyles(element, effect.to);
@@ -61,8 +61,18 @@ export function useCardCreationAnimation(runner: BoardAnimationRunner) {
     return { ...effect, element, to };
   }
 
-  function withFinalLayout<T>(effects: CardCreationEffect[], measure: () => T): T {
+  function withFinalLayout<T>(effects: CardLayoutEffect[], measure: () => T): T {
     const original = effects.map(effect => ({ element: effect.element, styles: readInlineStyles(effect.element, effect.to) }));
+    const ancestors = new Set<HTMLElement>();
+    const scrollPositions = new Map<HTMLElement, { top: number; left: number }>();
+    for (const { element } of effects) {
+      for (let ancestor = element.parentElement; ancestor && !ancestors.has(ancestor); ancestor = ancestor.parentElement) {
+        ancestors.add(ancestor);
+        if (ancestor.scrollTop !== 0 || ancestor.scrollLeft !== 0) {
+          scrollPositions.set(ancestor, { top: ancestor.scrollTop, left: ancestor.scrollLeft });
+        }
+      }
+    }
     try {
       for (const effect of effects) {
         Object.assign(effect.element.style, effect.to);
@@ -72,10 +82,16 @@ export function useCardCreationAnimation(runner: BoardAnimationRunner) {
       for (const { element, styles } of original) {
         Object.assign(element.style, styles);
       }
+      // Measuring collapsed endpoints can clamp a scrolled column. Restore its
+      // offset after restoring its content, before any starting boxes are read.
+      for (const [element, { top, left }] of scrollPositions) {
+        element.scrollTop = top;
+        element.scrollLeft = left;
+      }
     }
   }
 
-  function prepareInsert(card: HTMLElement, followingCardMarginBefore: number): CardCreationEffect {
+  function prepareInsert(card: HTMLElement, followingCardMarginBefore: number): CardLayoutEffect {
     const style = getComputedStyle(card);
     const followingCard = card.nextElementSibling;
     let followingCardMargin = 0;
@@ -100,11 +116,40 @@ export function useCardCreationAnimation(runner: BoardAnimationRunner) {
     };
   }
 
+  function prepareRemoval(card: HTMLElement, cancelGap: boolean, done: () => void, captured?: CardLayoutEffect): CardLayoutEffect {
+    const style = getComputedStyle(card);
+    const from = {
+      height: `${card.getBoundingClientRect().height}px`,
+      marginTop: style.marginTop, marginBottom: style.marginBottom, opacity: style.opacity,
+      paddingTop: style.paddingTop, paddingBottom: style.paddingBottom,
+      borderTopWidth: style.borderTopWidth, borderBottomWidth: style.borderBottomWidth,
+      ...captured?.from
+    };
+    // Browsers round positive border widths up to a pixel, which otherwise
+    // leaves a 2px snap at zero height. Paint the horizontal borders as inset
+    // shadows during removal and fold their space into the shrinking padding.
+    const shadows = [`inset 0 1px 0 ${style.borderTopColor}`, `inset 0 -1px 0 ${style.borderBottomColor}`];
+    if (style.boxShadow !== 'none') { shadows.push(style.boxShadow); }
+    const boxShadow = shadows.join(', ');
+    from.paddingTop = `${Number.parseFloat(from.paddingTop) + Number.parseFloat(from.borderTopWidth)}px`;
+    from.paddingBottom = `${Number.parseFloat(from.paddingBottom) + Number.parseFloat(from.borderBottomWidth)}px`;
+    from.borderTopWidth = '0px';
+    from.borderBottomWidth = '0px';
+    return {
+      element: card, removing: true, done,
+      from: { ...from, boxShadow },
+      to: {
+        height: '0px', marginTop: '0px', marginBottom: `${cancelGap ? -gap(card) : 0}px`, opacity: '0',
+        paddingTop: '0px', paddingBottom: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', boxShadow
+      }
+    };
+  }
+
   function gap(element: HTMLElement) {
     return Number.parseFloat(getComputedStyle(element.parentElement!).rowGap) || 0;
   }
 
-  function prepareEnter(element: Element, done: () => void): CardCreationEffect {
+  function prepareEnter(element: Element, done: () => void): CardLayoutEffect {
     const slot = element as HTMLElement;
     const fromHeight = slot.style.height ? slot.getBoundingClientRect().height : 0;
     const fromMargin = slot.style.marginBottom ? Number.parseFloat(slot.style.marginBottom) : -gap(slot);
@@ -117,7 +162,7 @@ export function useCardCreationAnimation(runner: BoardAnimationRunner) {
     };
   }
 
-  function prepareLeave(element: Element, done: () => void): CardCreationEffect | null {
+  function prepareLeave(element: Element, done: () => void): CardLayoutEffect | null {
     const slot = element as HTMLElement;
     if (replacements.delete(slot)) {
       done();
@@ -130,7 +175,7 @@ export function useCardCreationAnimation(runner: BoardAnimationRunner) {
     };
   }
 
-  function preserve(effect: CardCreationEffect) {
+  function preserve(effect: CardLayoutEffect) {
     Object.assign(effect.element.style, { height: effect.from.height, marginBottom: effect.from.marginBottom });
   }
 
@@ -148,7 +193,7 @@ export function useCardCreationAnimation(runner: BoardAnimationRunner) {
     return slot.getBoundingClientRect().height;
   }
 
-  function prepareReplace(card: HTMLElement, height: number): CardCreationEffect {
+  function prepareReplace(card: HTMLElement, height: number): CardLayoutEffect {
     return {
       element: card, removing: false, done() {},
       from: { height: `${height}px`, marginBottom: '0px' },
@@ -170,7 +215,7 @@ export function useCardCreationAnimation(runner: BoardAnimationRunner) {
 
   return {
     capture, suspend, retarget, withFinalLayout, play,
-    prepareInsert, prepareEnter, prepareLeave, prepareReplacement, prepareReplace,
+    prepareInsert, prepareRemoval, prepareEnter, prepareLeave, prepareReplacement, prepareReplace,
     cancel, preserve, finish
   };
 }

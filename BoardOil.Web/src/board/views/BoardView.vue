@@ -34,6 +34,7 @@
         ref="boardSurface"
         :board-id="board.id"
         :columns="filteredColumns"
+        :card-filters="cardFilters"
         :has-active-card-filters="hasActiveCardFilters"
         :selection-mode="isCardSelectionMode"
         :selected-card-ids="selectedCardIds"
@@ -127,6 +128,7 @@ const {
   isTagFilterMenuOpen,
   availableTagNames,
   availableCardTypes,
+  cardFilters,
   filteredColumns,
   hasActiveCardFilters,
   clearCardFilters

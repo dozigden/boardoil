@@ -1,5 +1,6 @@
 import { onBeforeUnmount, onMounted, shallowReactive } from 'vue';
 import type { BoardAnimationHandle, BoardAnimationRunner } from '../utils/boardAnimationRunner';
+import type { CardLayoutEffect } from './useCardLayoutAnimation';
 
 type CardPosition = {
   rect: DOMRect;
@@ -11,7 +12,14 @@ type CardPosition = {
 };
 export type CardMovementSnapshot = {
   cards: Map<number, CardPosition>;
-  columns: Map<number, { element: HTMLElement; height: number }>;
+  columns: Map<number, {
+    element: HTMLElement;
+    height: number;
+    content: HTMLElement;
+    scrollTop: number;
+    scrollLeft: number;
+    focusedElement: Element | null;
+  }>;
 };
 type MovementTargets = {
   cards: Map<number, { rect: DOMRect; clip: DOMRect; columnId: number }>;
@@ -29,6 +37,7 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
   const floatingCards = shallowReactive(new Map<number, HTMLElement>());
   const active = new Map<number, MovingCard>();
   const columnAnimations = new Map<number, BoardAnimationHandle>();
+  const scrollPositions = new WeakMap<HTMLElement, { top: number; left: number }>();
   let board: HTMLElement | null = null;
   let layer: HTMLElement | null = null;
 
@@ -50,9 +59,25 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
   }
 
   function setBoardRef(element: unknown) {
-    board?.removeEventListener('scroll', finishAll, true);
+    board?.removeEventListener('scroll', handleScroll, true);
     board = element instanceof HTMLElement ? element : null;
-    board?.addEventListener('scroll', finishAll, { passive: true, capture: true });
+    board?.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+  }
+
+  function rememberScrollPosition(element: HTMLElement) {
+    const position = { top: element.scrollTop, left: element.scrollLeft };
+    scrollPositions.set(element, position);
+    return position;
+  }
+
+  function handleScroll(event: Event) {
+    if (!(event.target instanceof HTMLElement)) { return; }
+    const previous = scrollPositions.get(event.target);
+    const current = rememberScrollPosition(event.target);
+    // Endpoint measurement may queue a scroll event even though its offset has
+    // already been restored. Only a changed offset should settle movement.
+    if (previous && previous.top === current.top && previous.left === current.left) { return; }
+    finishAll();
   }
 
   function setLayerRef(element: unknown) {
@@ -64,13 +89,19 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
     if (!board || runner.reducedMotion) {
       return snapshot;
     }
+    rememberScrollPosition(board);
     for (const column of board.querySelectorAll<HTMLElement>('[data-column-id]')) {
       const columnId = Number(column.dataset.columnId);
       if (!columnIds.has(columnId)) {
         continue;
       }
+      rememberScrollPosition(column);
       const columnElement = column.parentElement!;
-      snapshot.columns.set(columnId, { element: columnElement, height: columnElement.getBoundingClientRect().height });
+      snapshot.columns.set(columnId, {
+        element: columnElement, height: columnElement.getBoundingClientRect().height,
+        content: column, scrollTop: column.scrollTop, scrollLeft: column.scrollLeft,
+        focusedElement: document.activeElement
+      });
       for (const card of column.querySelectorAll<HTMLElement>(':scope > .card[data-card-id]')) {
         const id = Number(card.dataset.cardId);
         const moving = active.get(id);
@@ -117,12 +148,29 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
     return targets;
   }
 
-  function play(snapshot: CardMovementSnapshot, targets: MovementTargets) {
+  function restoreScroll(snapshot: CardMovementSnapshot) {
+    // Vue's boundary-class update can itself invoke scroll anchoring before
+    // endpoint measurement. Use the offset captured before that render.
+    for (const { content, scrollTop, scrollLeft, focusedElement } of snapshot.columns.values()) {
+      // Opening an editor intentionally focuses and reveals a new input after
+      // render. Preserve that reveal rather than restoring the old viewport.
+      const currentFocus = document.activeElement;
+      if (currentFocus !== focusedElement && content.contains(currentFocus)) { continue; }
+      content.scrollTop = scrollTop;
+      content.scrollLeft = scrollLeft;
+    }
+  }
+
+  function play(snapshot: CardMovementSnapshot, targets: MovementTargets, layout: {
+    resizingColumns: Set<number>;
+    effects: CardLayoutEffect[];
+  }) {
     if (!board || !layer || runner.reducedMotion) {
       return;
     }
     const boardRect = board.getBoundingClientRect();
-    const movingColumns = new Set<number>();
+    const movingColumns = new Set(layout.resizingColumns);
+    const boxEffects = new Map(layout.effects.map(effect => [effect.element, effect]));
     for (const card of board.querySelectorAll<HTMLElement>('.column-content > .card[data-card-id]')) {
       const id = Number(card.dataset.cardId);
       const previous = snapshot.cards.get(id);
@@ -167,16 +215,19 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
         floating.removeAttribute('data-card-id');
         floating.classList.remove('card--dragging', 'card--multi-dragging');
         Object.assign(floating.style, {
-          position: 'absolute', margin: '0', visibility: 'visible', overflow: 'clip',
+          position: 'absolute', margin: '0', visibility: 'visible', overflow: 'clip', minHeight: '0',
           left: `${target.left - boardRect.left + board.scrollLeft}px`,
           top: `${target.top - boardRect.top + board.scrollTop}px`,
           width: `${target.width}px`, height: `${target.height}px`
         });
         layer.append(floating);
         card.style.visibility = 'hidden';
+        // Copies need the same padding, border and opacity endpoints as the
+        // real card; height alone would stop shrinking at its padding/borders.
+        const boxEffect = boxEffects.get(card);
         keyframes = [
-          { transform: `translate(${dx}px, ${dy}px)`, width: `${previous.rect.width}px`, height: `${previous.rect.height}px` },
-          { transform: 'translate(0, 0)', width: `${target.width}px`, height: `${target.height}px` }
+          { ...floatingBoxStyles(boxEffect?.from), transform: `translate(${dx}px, ${dy}px)`, width: `${previous.rect.width}px`, height: `${previous.rect.height}px` },
+          { ...floatingBoxStyles(boxEffect?.to), transform: 'translate(0, 0)', width: `${target.width}px`, height: `${target.height}px` }
         ];
         floatingCards.set(id, floating);
       } else {
@@ -233,9 +284,18 @@ export function useCardMovementAnimation(runner: BoardAnimationRunner) {
   });
   onBeforeUnmount(() => {
     window.removeEventListener('resize', finishAll);
-    board?.removeEventListener('scroll', finishAll, true);
+    board?.removeEventListener('scroll', handleScroll, true);
     finishAll();
   });
 
-  return { floatingCards, setBoardRef, setLayerRef, capture, measureTargets, play, finishAll, prune };
+  return { floatingCards, setBoardRef, setLayerRef, capture, restoreScroll, measureTargets, play, finishAll, prune };
+}
+
+function floatingBoxStyles(styles: CardLayoutEffect['from'] | undefined) {
+  const result = { ...styles };
+  // Margins belong to column flow. A copy's absolute coordinates already
+  // include that spacing, so applying those margins again would offset it.
+  delete result.marginTop;
+  delete result.marginBottom;
+  return result;
 }

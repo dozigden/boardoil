@@ -1,19 +1,22 @@
 import { computed, nextTick, onBeforeUnmount, shallowReactive, watch, type ComputedRef, type Ref } from 'vue';
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
 import { useGooLayer } from './useGooLayer';
-import { useCardCreationAnimation, type CardCreationEffect } from './useCardCreationAnimation';
+import { useBoardCardRemovals } from './useBoardCardRemovals';
+import { useCardLayoutAnimation, type CardLayoutEffect } from './useCardLayoutAnimation';
 import { useCardMovementAnimation, type CardMovementSnapshot } from './useCardMovementAnimation';
 import { findMovedColumns, type CardIdsByColumn } from '../utils/cardMovement';
 import { createBoardAnimationRunner } from '../utils/boardAnimationRunner';
 import type { GooRendererMode } from '../utils/gooRendererMode';
+import type { CardSearchAndTagFilter } from '../utils/cardFilters';
 import { buildSlickGooDescriptors, buildSlickGooMembershipSignature, buildSlickGooStyleSignature } from '../utils/slickGooAdapter';
 import { buildSelectionGooDescriptors, buildSelectionGooMembershipSignature, createSelectionGooStyle } from '../utils/selectionGooAdapter';
 
 type LayoutChange = {
   columnIds: Set<number>;
   positions: CardMovementSnapshot;
-  effects: Map<HTMLElement, CardCreationEffect>;
+  effects: Map<HTMLElement, CardLayoutEffect>;
   arrivingIds: Set<number>;
+  removingIds: Set<number>;
   previousMargins: Map<number, number>;
   replacements: Map<number, number>;
 };
@@ -24,28 +27,30 @@ export function useBoardMotion(
   slicks: Ref<Slick[]>,
   selectedCardIds: Ref<number[]>,
   selectionMode: Ref<boolean>,
-  gooRendererMode: GooRendererMode
+  gooRendererMode: GooRendererMode,
+  filters: ComputedRef<CardSearchAndTagFilter>
 ) {
   let boardElement: HTMLElement | null = null;
   let pendingChange: LayoutChange | null = null;
   let disposed = false;
   onBeforeUnmount(() => { disposed = true; pendingChange = null; });
   const allCardIds = computed(() => Object.values(cardIdsByColumnId.value).flat());
+  const removals = useBoardCardRemovals();
   const pendingCreations = shallowReactive(new Map<number, Set<number>>());
   // A local create can reach the store through realtime before its HTTP reply.
   // Hold new arrivals in that column until the editor and saved card can be
   // swapped in one render. Existing cards continue receiving updates normally.
   const renderedColumns = computed(() => {
     if (pendingCreations.size === 0) {
-      return columns.value;
+      return removals.project(columns.value);
     }
-    return columns.value.map(column => {
+    return removals.project(columns.value.map(column => {
       const knownCardIds = pendingCreations.get(column.id);
       if (!knownCardIds) {
         return column;
       }
       return { ...column, cards: column.cards.filter(card => knownCardIds.has(card.id)) };
-    });
+    }));
   });
   const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
   const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
@@ -82,14 +87,33 @@ export function useBoardMotion(
     goo.refreshGooLayout();
     selectionGoo.refreshGooLayout();
   }
-  const creationAnimation = useCardCreationAnimation(animationRunner);
+  const layoutAnimation = useCardLayoutAnimation(animationRunner);
+  // Catalogue refreshes can recreate the filter object without changing the
+  // effective filters. They must not settle an unrelated travelling card.
+  const filterSignature = computed(() => JSON.stringify(filters.value));
 
-  watch([cardIdsByColumnId, renderedColumns], ([current], [previous]) => {
+  watch([cardIdsByColumnId, columns, filterSignature], ([current, visible, currentFilters], [previous, previousVisible, previousFilters]) => {
     if (!boardElement || disposed) {
       return;
     }
     const affectedColumns = findMovedColumns(previous, current);
+    const currentIds = new Set(Object.values(current).flat());
     const previousIds = new Set(Object.values(previous).flat());
+    const previousVisibleIds = new Set(previousVisible.flatMap(column => column.cards.map(card => card.id)));
+    // Only canonical removal animates. Filter hides/reveals remain immediate.
+    if (currentFilters !== previousFilters) {
+      movement.finishAll();
+      for (const id of removals.cardIds()) {
+        const element = getCardElement(id);
+        if (element) { layoutAnimation.finish(element); }
+      }
+      removals.clear();
+    }
+    // A realtime arrival held behind a local editor has never been displayed.
+    const removedIds = new Set([...previousVisibleIds].filter(id => !currentIds.has(id) && getCardElement(id)));
+    for (const column of previousVisible) {
+      if (column.cards.some(card => removedIds.has(card.id))) { affectedColumns.add(column.id); }
+    }
     const newIds = new Set(Object.values(current).flat().filter(id => !previousIds.has(id)));
     const arrivingIds: number[] = [];
     for (const column of renderedColumns.value) {
@@ -101,6 +125,12 @@ export function useBoardMotion(
       }
     }
     const change = beginLayoutChange(affectedColumns);
+    if (!animationRunner.reducedMotion) {
+      for (const id of removals.retain(previousVisible, removedIds)) {
+        change.removingIds.add(id);
+      }
+    }
+    removals.prune(visible, currentIds);
     for (const id of arrivingIds) {
       change.arrivingIds.add(id);
     }
@@ -110,7 +140,7 @@ export function useBoardMotion(
     if (!pendingChange) {
       pendingChange = {
         columnIds: new Set(), positions: { cards: new Map(), columns: new Map() },
-        effects: new Map(), arrivingIds: new Set(), previousMargins: new Map(), replacements: new Map()
+        effects: new Map(), arrivingIds: new Set(), removingIds: new Set(), previousMargins: new Map(), replacements: new Map()
       };
       // Semantic draft changes call this before changing Vue state. Defer the
       // nextTick lookup so it waits for that render as well as watcher renders.
@@ -121,9 +151,9 @@ export function useBoardMotion(
     const uncaptured = new Set([...columnIds].filter(id => !change.columnIds.has(id)));
     if (uncaptured.size > 0) {
       // Capture both effects before cancelling either changes the layout.
-      const effects = creationAnimation.capture(uncaptured);
+      const effects = layoutAnimation.capture(uncaptured);
       const positions = movement.capture(uncaptured);
-      creationAnimation.suspend(effects);
+      layoutAnimation.suspend(effects);
       for (const id of uncaptured) { change.columnIds.add(id); }
       for (const [id, position] of positions.cards) { change.positions.cards.set(id, position); }
       for (const [id, column] of positions.columns) { change.positions.columns.set(id, column); }
@@ -144,7 +174,8 @@ export function useBoardMotion(
     }
     pendingChange = null;
     movement.prune();
-    const effects = new Map<HTMLElement, CardCreationEffect>();
+    movement.restoreScroll(change.positions);
+    const effects = new Map<HTMLElement, CardLayoutEffect>();
     for (const effect of change.effects.values()) {
       let element: HTMLElement | null | undefined = effect.element;
       if (!element.isConnected) {
@@ -152,7 +183,7 @@ export function useBoardMotion(
         element = getCardElement(cardId);
       }
       if (element?.isConnected) {
-        effects.set(element, creationAnimation.retarget(effect, element));
+        effects.set(element, layoutAnimation.retarget(effect, element));
       }
     }
     // Measure every endpoint before any creation effect collapses its element.
@@ -160,21 +191,40 @@ export function useBoardMotion(
       const card = getCardElement(cardId);
       if (card) {
         const followingId = Number((card.nextElementSibling as HTMLElement | null)?.dataset.cardId);
-        effects.set(card, creationAnimation.prepareInsert(card, change.previousMargins.get(followingId) ?? 0));
+        effects.set(card, layoutAnimation.prepareInsert(card, change.previousMargins.get(followingId) ?? 0));
       }
     }
     for (const [cardId, height] of change.replacements) {
       const card = getCardElement(cardId);
       if (card) {
-        effects.set(card, creationAnimation.prepareReplace(card, height));
+        effects.set(card, layoutAnimation.prepareReplace(card, height));
+      }
+    }
+    const removingIds = new Set([
+      ...change.removingIds,
+      ...[...effects.keys()].map(element => Number(element.dataset.cardId)).filter(removals.has)
+    ]);
+    for (const id of removingIds) {
+      const card = getCardElement(id);
+      if (card && removals.has(id)) {
+        const siblings = [...card.parentElement!.children].filter(element => element.matches('.card, .inline-card-slot, .column-filter-empty'));
+        // Each disappearing item cancels one flex gap, except the final item
+        // when the whole column is becoming empty.
+        const cancelGap = siblings.some(element => !removals.has(Number((element as HTMLElement).dataset.cardId)))
+          || siblings[0] !== card;
+        const captured = effects.get(card);
+        const effect = layoutAnimation.prepareRemoval(card, cancelGap, () => removals.remove(id), captured);
+        effects.set(card, effect);
       }
     }
     const plans = [...effects.values()];
-    const targets = creationAnimation.withFinalLayout(plans, () => movement.measureTargets(change.positions));
+    const targets = layoutAnimation.withFinalLayout(plans, () => movement.measureTargets(change.positions));
     for (const effect of plans) {
-      creationAnimation.play(effect);
+      layoutAnimation.play(effect);
     }
-    movement.play(change.positions, targets);
+    const removingColumns = new Set(plans.filter(effect => removals.has(Number(effect.element.dataset.cardId)))
+      .map(effect => Number(effect.element.parentElement!.dataset.columnId)));
+    movement.play(change.positions, targets, { resizingColumns: removingColumns, effects: plans });
   }
 
   function changeDraftLayout(columnId: number, change: () => void) {
@@ -185,7 +235,7 @@ export function useBoardMotion(
     change();
   }
 
-  function queueCreationEffect(effect: CardCreationEffect) {
+  function queueCreationEffect(effect: CardLayoutEffect) {
     if (disposed) {
       return;
     }
@@ -194,11 +244,11 @@ export function useBoardMotion(
   }
 
   function enterDraft(element: Element, done: () => void) {
-    queueCreationEffect(creationAnimation.prepareEnter(element, done));
+    queueCreationEffect(layoutAnimation.prepareEnter(element, done));
   }
 
   function leaveDraft(element: Element, done: () => void) {
-    const effect = creationAnimation.prepareLeave(element, done);
+    const effect = layoutAnimation.prepareLeave(element, done);
     if (effect) {
       queueCreationEffect(effect);
     }
@@ -208,10 +258,10 @@ export function useBoardMotion(
     const slot = element as HTMLElement;
     const pending = pendingChange?.effects.get(slot);
     if (pending) {
-      creationAnimation.preserve(pending);
+      layoutAnimation.preserve(pending);
       pendingChange!.effects.delete(slot);
     }
-    creationAnimation.cancel(slot);
+    layoutAnimation.cancel(slot);
   }
 
   function setBoardRef(element: unknown) {
@@ -244,7 +294,7 @@ export function useBoardMotion(
       const pending = pendingChange?.effects.get(slot);
       pendingChange?.effects.delete(slot);
       pending?.done();
-      creationAnimation.finish(slot);
+      layoutAnimation.finish(slot);
     }
   }
 
@@ -268,7 +318,7 @@ export function useBoardMotion(
       const cardIsVisible = columns.value.some(column => column.id === columnId
         && column.cards.some(card => card.id === cardId));
       const replacementHeight = currentSlot && cardIsVisible
-        ? creationAnimation.prepareReplacement(currentSlot)
+        ? layoutAnimation.prepareReplacement(currentSlot)
         : null;
       const change = beginLayoutChange(new Set([columnId]));
       if (replacementHeight !== null && cardId !== null) {
@@ -297,6 +347,8 @@ export function useBoardMotion(
 
   return {
     renderedColumns,
+    isRemovingCard: removals.has,
+    resolveCardBoundaryClass: removals.boundaryClass,
     setBoardRef,
     setMovementLayerRef: movement.setLayerRef,
     draftLayoutChanged,

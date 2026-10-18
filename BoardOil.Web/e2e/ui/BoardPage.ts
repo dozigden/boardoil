@@ -113,6 +113,13 @@ export class BoardPage {
     await expect(this.dialog()).toBeHidden();
   }
 
+  public async deleteOpenCard() {
+    await this.page.getByRole('button', { name: 'Card actions' }).click();
+    await this.page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await this.page.getByRole('dialog').filter({ has: this.page.getByRole('heading', { name: 'Delete card', exact: true }) })
+      .getByRole('button', { name: 'Delete', exact: true }).click();
+  }
+
   private dialog(): Locator {
     return this.page.getByRole('dialog');
   }

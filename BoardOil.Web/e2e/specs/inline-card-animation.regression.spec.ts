@@ -6,6 +6,30 @@ import { interceptBoardConnection } from '../support/boardRealtimeConnection';
 import { BoardPage } from '../ui/BoardPage';
 
 for (const renderer of ['full', 'lite']) {
+  test(`opening an editor in a scrolled column reveals its focused title with ${renderer} goo`, async ({ api, authenticatedPage: page }) => {
+    const board = await api.createBoard(`Scrolled editor focus ${renderer}`);
+    for (let index = 0; index < 18; index++) {
+      await api.createCard(board, 'Todo', `Card ${index}`);
+    }
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await controlLayoutAnimations(page);
+    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    const column = new BoardPage(page).column('Todo');
+    const scroller = column.locator('.column-content');
+    await expect(column).toBeVisible();
+    await scroller.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    expect(await scroller.evaluate(element => element.scrollTop)).toBeGreaterThan(100);
+    await column.getByRole('button', { name: 'Add default card' }).click();
+    const title = column.getByPlaceholder('Title');
+    await expect(title).toBeFocused();
+    await seekLayoutAnimations(page, 0.5);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(title).toBeInViewport();
+    await seekLayoutAnimations(page, 1);
+    await expect(title).toBeFocused();
+  });
+
   test(`inline creation moves cards and ${renderer} goo together`, async ({ api, authenticatedPage: page }) => {
     const board = await api.createBoard(`Inline animation ${renderer}`);
     const slick = await api.createSlick(board, 'Animated slick');

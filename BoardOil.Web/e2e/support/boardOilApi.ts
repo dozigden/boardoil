@@ -87,6 +87,14 @@ export class BoardOilApi {
     return await this.read<{ systemTimeZoneId: string }>('/api/system/timezone');
   }
 
+  public async deleteCards(boardId: number, cardIds: number[]) {
+    return await this.post<{ deletedCount: number }>(`/api/boards/${boardId}/cards/delete`, { cardIds });
+  }
+
+  public async archiveCards(boardId: number, cardIds: number[]) {
+    return await this.post<{ archivedCount: number }>(`/api/boards/${boardId}/cards/archive`, { cardIds });
+  }
+
   public async setSystemTimeZone(systemTimeZoneId: string) {
     return await this.put<{ systemTimeZoneId: string }>('/api/system/timezone', { systemTimeZoneId });
   }

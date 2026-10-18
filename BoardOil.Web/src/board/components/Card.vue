@@ -1,6 +1,9 @@
 <template>
   <div
     class="card"
+    :inert="removing"
+    :aria-hidden="removing || undefined"
+    :data-removing-card="removing || undefined"
     :class="[
       cardStyleClasses,
       {
@@ -131,6 +134,7 @@ const props = withDefaults(defineProps<{
   selected?: boolean;
   selectedCount?: number;
   interactive?: boolean;
+  removing?: boolean;
   thumbnailAttachment?: CardAttachmentImageCandidate | null;
 }>(), {
   boardId: 0,
@@ -139,6 +143,7 @@ const props = withDefaults(defineProps<{
   selected: false,
   selectedCount: 0,
   interactive: true,
+  removing: false,
   thumbnailAttachment: null
 });
 
@@ -152,6 +157,13 @@ const emit = defineEmits<{
 const cardTypeStore = useCardTypeStore();
 const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
 const isDragging = ref(false);
+const interactive = computed(() => props.interactive && !props.removing);
+// Store thumbnail cleanup happens immediately on removal. Keep the already
+// displayed image until the presentation snapshot has finished departing.
+const thumbnailAttachment = computed<CardAttachmentImageCandidate | null>(previous => {
+  if (props.removing) { return previous ?? null; }
+  return props.thumbnailAttachment;
+});
 const checklistHaloId = `card-checklist-halo-${useId()}`;
 // Match the counter text shadow: eight 1px-blur offsets, then 8px and 14px glows.
 // SVG standard deviation is half the equivalent CSS shadow blur radius.
@@ -165,27 +177,27 @@ const resolvedCardType = computed(() => cardTypeStore.getCardTypeById(props.card
 const resolvedCardTypeEmoji = computed(() => resolvedCardType.value?.emoji ?? null);
 const cardStyle = computed(() => getCardSurfaceStyle(resolvedCardType.value));
 const cardStyleClasses = computed(() => getCardSurfaceClassList(resolvedCardType.value));
-const cardDraggable = computed(() => props.interactive && (!props.selectionMode || props.selected));
+const cardDraggable = computed(() => interactive.value && (!props.selectionMode || props.selected));
 const cardRole = computed(() => {
-  if (!props.interactive) {
+  if (!interactive.value) {
     return undefined;
   }
 
   return props.selectionMode ? 'checkbox' : 'button';
 });
 const cardAriaChecked = computed(() => {
-  if (!props.interactive || !props.selectionMode) {
+  if (!interactive.value || !props.selectionMode) {
     return undefined;
   }
 
   return props.selected;
 });
-const cardTabIndex = computed(() => props.interactive ? 0 : undefined);
+const cardTabIndex = computed(() => interactive.value ? 0 : undefined);
 const assignedUserImageUrl = computed(() =>
   props.card.assignedUserImageRelativePath ? buildApiUrl(`/images/${props.card.assignedUserImageRelativePath}`) : null
 );
 const thumbnailSource = computed(() => {
-  const candidate = props.thumbnailAttachment;
+  const candidate = thumbnailAttachment.value;
   if (!candidate) { return null; }
   return {
     id: candidate.attachmentId,
@@ -198,14 +210,14 @@ const { imageUrl: cardThumbnailUrl } = useAttachmentThumbnail({
   cardId: () => props.card.id,
   archived: () => false,
   attachment: thumbnailSource,
-  enabled: () => props.thumbnailAttachment !== null,
+  enabled: () => thumbnailAttachment.value !== null,
   onThumbnailStored: attachmentId => {
     cardAttachmentThumbnailStore.markHasThumbnail(props.card.id, attachmentId);
   }
 });
 
 function onDragStart(event: DragEvent) {
-  if (!props.interactive) {
+  if (!interactive.value) {
     event.preventDefault();
     return;
   }
@@ -234,7 +246,7 @@ function onDragEnd() {
 }
 
 function handlePrimaryAction() {
-  if (!props.interactive || isDragging.value) {
+  if (!interactive.value || isDragging.value) {
     return;
   }
 
