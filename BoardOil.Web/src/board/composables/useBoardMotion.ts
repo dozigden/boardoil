@@ -361,8 +361,12 @@ export function useBoardMotion(
     const clip = card?.parentElement?.getBoundingClientRect();
     const rect = card?.getBoundingClientRect();
     const boardRect = boardElement?.getBoundingClientRect();
-    if (card && clip && rect && boardRect && (rect.top < clip.top || rect.bottom > clip.bottom
-      || rect.left < boardRect.left || rect.right > boardRect.right)) {
+    if (!card || !clip || !rect || !boardRect) { return; }
+    // Travellers already passed the final vertical clipping check. A growing
+    // column's current height must not cancel their otherwise visible travel.
+    const verticallyClipped = !movement.floatingCards.has(cardId)
+      && (rect.top < clip.top || rect.bottom > clip.bottom);
+    if (verticallyClipped || rect.left < boardRect.left || rect.right > boardRect.right) {
       movement.finishAll();
       card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }

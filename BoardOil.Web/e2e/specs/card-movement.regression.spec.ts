@@ -128,6 +128,57 @@ for (const renderer of ['full', 'lite']) {
     });
   }
 
+  for (const delivery of ['realtime-first', 'http-only']) {
+    test(`local tail drop keeps travelling for ${delivery} delivery with ${renderer} goo`, async ({ api, authenticatedPage: page }) => {
+      const board = await api.createBoard(`Tail drop ${renderer} ${delivery}`);
+      await api.createCard(board, 'Todo', 'Source neighbour above');
+      const moving = await api.createCard(board, 'Todo', 'Tail traveller');
+      await api.createCard(board, 'Todo', 'Source neighbour below');
+      await api.createCard(board, 'In Progress', 'Only destination card');
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await controlLayoutAnimations(page);
+      const connection = await interceptBoardConnection(page);
+      await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+      const bp = new BoardPage(page);
+      const source = bp.card('Todo', 'Tail traveller');
+      const destination = bp.card('In Progress', 'Only destination card');
+      const before = await box(source);
+      const destinationBefore = await box(destination);
+      const targetColumnId = board.columns.find(column => column.title === 'In Progress')!.id;
+      if (delivery === 'http-only') { connection.pauseEvents(); }
+      const response = await holdCardMoveResponse(page, board.id, moving.id);
+      const floating = page.locator(`[data-moving-card-id="${moving.id}"]`);
+      try {
+        await source.dragTo(destination, { targetPosition: { x: 20, y: destinationBefore.height - 5 } });
+        await response.ready;
+        if (delivery === 'realtime-first') {
+          await expect(floating).toHaveCount(1);
+        }
+        const httpResponse = page.waitForResponse(result => result.url().endsWith(`/cards/${moving.id}/move`));
+        response.release();
+        await (await httpResponse).finished();
+        // The real destination reserves space but is hidden during travel.
+        await expect(page.locator(`[data-column-id="${targetColumnId}"] > [data-card-id="${moving.id}"]`)).toHaveCount(1);
+        // Let the local drop's reveal callback and queued scroll events run.
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+        await expect(floating).toHaveCount(1);
+        await seekLayoutAnimations(page, 0);
+        expect((await box(floating)).x).toBeCloseTo(before.x, 0);
+        expect((await box(floating)).y).toBeCloseTo(before.y, 0);
+        await seekLayoutAnimations(page, 0.5);
+        const halfway = await box(floating);
+        expect(halfway.x).toBeGreaterThan(before.x);
+        expect(halfway.x).toBeLessThan(destinationBefore.x);
+        await seekLayoutAnimations(page, 1);
+        await expect(floating).toHaveCount(0);
+        const landed = await box(bp.card('In Progress', 'Tail traveller'));
+        expect(landed.y).toBeGreaterThan((await box(destination)).y);
+      } finally {
+        response.release();
+      }
+    });
+  }
+
   test(`selection goo restores on landing with ${renderer} rendering`, async ({ api, authenticatedPage: page }) => {
     const board = await api.createBoard(`Selected movement ${renderer}`);
     const moving = await api.createCard(board, 'Todo', 'Selected traveller');
