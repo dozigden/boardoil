@@ -32,4 +32,5 @@ public static class ToolNames
     public const string CardTypeSetDefault = "card_type_set_default";
     public const string CardTypeDelete = "card_type_delete";
     public const string ColumnCreate = "column_create";
+    public const string ColumnUpdate = "column_update";
 }

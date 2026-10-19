@@ -210,6 +210,13 @@ public sealed record ColumnCreateInput
     public string? Title { get; init; }
 }
 
+public sealed record ColumnUpdateInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+    public string? Title { get; init; }
+}
+
 public sealed record ColumnMutationOutput(int Id, string Outcome);
 
 public sealed record CardAttachmentDeleteInput
