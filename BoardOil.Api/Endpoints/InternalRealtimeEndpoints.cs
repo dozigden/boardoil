@@ -123,6 +123,9 @@ public static class InternalRealtimeEndpoints
             BoardRealtimeEventTypes.ColumnUpdated => request.Column is null
                 ? ApiErrors.BadRequest("Column payload is required for column_updated.")
                 : null,
+            BoardRealtimeEventTypes.ColumnsReordered => request.Columns is null
+                ? ApiErrors.BadRequest("Columns payload is required for columns_reordered.")
+                : null,
             BoardRealtimeEventTypes.ColumnDeleted => request.ColumnId is null
                 ? ApiErrors.BadRequest("ColumnId is required for column_deleted.")
                 : null,
@@ -156,6 +159,7 @@ public static class InternalRealtimeEndpoints
         {
             BoardRealtimeEventTypes.ColumnCreated => boardEvents.ColumnCreatedAsync(request.BoardId, request.Column!),
             BoardRealtimeEventTypes.ColumnUpdated => boardEvents.ColumnUpdatedAsync(request.BoardId, request.Column!),
+            BoardRealtimeEventTypes.ColumnsReordered => boardEvents.ColumnsReorderedAsync(request.BoardId, request.Columns!),
             BoardRealtimeEventTypes.ColumnDeleted => boardEvents.ColumnDeletedAsync(request.BoardId, request.ColumnId!.Value),
             BoardRealtimeEventTypes.CardCreated => boardEvents.CardCreatedAsync(request.BoardId, request.Card!),
             BoardRealtimeEventTypes.CardUpdated => boardEvents.CardUpdatedAsync(request.BoardId, request.Card!),

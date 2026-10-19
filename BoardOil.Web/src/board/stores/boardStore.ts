@@ -76,13 +76,16 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   function UPSERT_COLUMN(boardId: number, column: Column) {
-    UPDATE_BOARD(boardId, draft => {
-      const existingIndex = draft.columns.findIndex(x => x.id === column.id);
-      if (existingIndex >= 0) {
-        draft.columns.splice(existingIndex, 1);
-      }
+    UPSERT_COLUMNS(boardId, [column]);
+  }
 
-      draft.columns.push(column);
+  function UPSERT_COLUMNS(boardId: number, columns: Column[]) {
+    UPDATE_BOARD(boardId, draft => {
+      const columnsById = new Map(draft.columns.map(column => [column.id, column]));
+      for (const column of columns) {
+        columnsById.set(column.id, column);
+      }
+      draft.columns = [...columnsById.values()];
       sortColumns(draft.columns);
     });
   }
@@ -137,6 +140,7 @@ export const useBoardStore = defineStore('board', () => {
   const realtime = createBoardRealtime({
     onColumnCreated: upsertRealtimeColumn,
     onColumnUpdated: upsertRealtimeColumn,
+    onColumnsReordered: forCurrentBoard(UPSERT_COLUMNS),
     onColumnDeleted: forCurrentBoard(REMOVE_COLUMN),
     onCardCreated: forCurrentBoard(cardStore.applyCreatedCard),
     onCardUpdated: upsertRealtimeCard,
@@ -326,18 +330,18 @@ export const useBoardStore = defineStore('board', () => {
     UPSERT_COLUMN(boardId, result.data);
   }
 
-  async function moveColumn(columnId: number, positionAfterColumnId: number | null) {
+  async function reorderColumns(columnIds: number[]) {
     const boardId = getCurrentBoardIdOrReport();
     if (boardId === null) {
       return;
     }
 
-    const result = await runBusy(boardId, () => api.moveColumn(boardId, columnId, positionAfterColumnId));
+    const result = await runBusy(boardId, () => api.reorderColumns(boardId, columnIds));
     if (!result.ok) {
       return;
     }
 
-    UPSERT_COLUMN(boardId, result.data);
+    UPSERT_COLUMNS(boardId, result.data);
   }
 
   async function deleteColumn(columnId: number) {
@@ -487,7 +491,7 @@ export const useBoardStore = defineStore('board', () => {
     dispose,
     createColumn,
     saveColumn,
-    moveColumn,
+    reorderColumns,
     deleteColumn,
     saveBoard,
     deleteBoard,

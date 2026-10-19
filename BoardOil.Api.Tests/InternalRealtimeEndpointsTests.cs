@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Realtime;
+using BoardOil.Contracts.Column;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -64,6 +65,25 @@ public sealed class InternalRealtimeEndpointsTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ForwardReorderedColumns_ShouldRequireCollectionPayload(bool supplied)
+    {
+        var columns = new[] { new ColumnDto(1, "Todo", "00000000000000000010", DateTime.UtcNow, DateTime.UtcNow) };
+        var payload = new BoardRealtimeRelayEvent(BoardRealtimeEventTypes.ColumnsReordered, 1,
+            Columns: supplied ? columns : null);
+        using var request = new HttpRequestMessage(HttpMethod.Post, BoardRealtimeRelay.EndpointPath)
+        {
+            Content = JsonContent.Create(payload)
+        };
+        request.Headers.Add(BoardRealtimeRelay.ApiKeyHeaderName, RelayApiKey);
+
+        using var response = await _client.SendAsync(request);
+
+        Assert.Equal(supplied ? HttpStatusCode.OK : HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     private static string BuildDbPath(string dbNamePrefix)

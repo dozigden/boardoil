@@ -222,6 +222,7 @@ public sealed class SystemInfoMessageServiceTests
 
         public Task ColumnCreatedAsync(int boardId, BoardOil.Contracts.Column.ColumnDto column) => Task.CompletedTask;
         public Task ColumnUpdatedAsync(int boardId, BoardOil.Contracts.Column.ColumnDto column) => Task.CompletedTask;
+        public Task ColumnsReorderedAsync(int boardId, IReadOnlyList<BoardOil.Contracts.Column.ColumnDto> columns) => Task.CompletedTask;
         public Task ColumnDeletedAsync(int boardId, int columnId) => Task.CompletedTask;
         public Task CardCreatedAsync(int boardId, BoardOil.Contracts.Card.CardDto card) => Task.CompletedTask;
         public Task CardUpdatedAsync(int boardId, BoardOil.Contracts.Card.CardDto card) => Task.CompletedTask;

@@ -25,8 +25,8 @@ public static class ColumnEndpoints
         columnEndpoints.MapPut("/{id:int}", async (int boardId, int id, UpdateColumnRequest request, IColumnService columnService, HttpContext httpContext) =>
             (await columnService.UpdateColumnAsync(boardId, id, request, httpContext.GetActorUserId())).ToHttpResult());
 
-        columnEndpoints.MapPatch("/{id:int}/move", async (int boardId, int id, MoveColumnRequest request, IColumnService columnService, HttpContext httpContext) =>
-            (await columnService.MoveColumnAsync(boardId, id, request, httpContext.GetActorUserId())).ToHttpResult());
+        columnEndpoints.MapPut("/order", async (int boardId, ReorderColumnsRequest request, IColumnService columnService, HttpContext httpContext) =>
+            (await columnService.ReorderColumnsAsync(boardId, request, httpContext.GetActorUserId())).ToHttpResult());
 
         columnEndpoints.MapDelete("/{id:int}", async (int boardId, int id, IColumnService columnService, HttpContext httpContext) =>
             (await columnService.DeleteColumnAsync(boardId, id, httpContext.GetActorUserId())).ToHttpResult());

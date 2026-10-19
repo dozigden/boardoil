@@ -203,26 +203,40 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
     }
 
     [Fact]
-    public async Task ColumnEndpoints_Move_ShouldReturnSuccessContract()
+    public async Task ColumnEndpoints_Reorder_ShouldReturnOrderedColumnsContract()
     {
         // Arrange
-        var createdSecondColumnResponse = await Client.PostAsJsonAsync("/api/boards/1/columns", new CreateColumnRequest("B"));
-        var createdSecondColumn = await createdSecondColumnResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
-        Assert.NotNull(createdSecondColumn);
-        Assert.NotNull(createdSecondColumn!.Data);
+        await SeedBoardColumnAsync("B");
+        var current = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ColumnDto>>>("/api/boards/1/columns", JsonOptions);
+        var ids = current!.Data!.Reverse().Select(column => column.Id).ToArray();
 
         // Act
-        var moveResponse = await Client.PatchAsJsonAsync(
-            $"/api/boards/1/columns/{createdSecondColumn.Data!.Id}/move",
-            new MoveColumnRequest(null));
-        var moved = await moveResponse.Content.ReadFromJsonAsync<ApiEnvelope<ColumnDto>>(JsonOptions);
+        var response = await Client.PutAsJsonAsync("/api/boards/1/columns/order", new ReorderColumnsRequest(ids));
+        var result = await response.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<ColumnDto>>>(JsonOptions);
 
         // Assert
-        Assert.Equal(200, (int)moveResponse.StatusCode);
-        Assert.NotNull(moved);
-        Assert.True(moved!.Success);
-        Assert.NotNull(moved.Data);
-        Assert.Equal(createdSecondColumn.Data.Id, moved.Data!.Id);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(result!.Success);
+        Assert.Equal(ids, result.Data!.Select(column => column.Id));
+        var stored = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ColumnDto>>>("/api/boards/1/columns", JsonOptions);
+        Assert.Equal(result.Data, stored!.Data);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"columnIds\":null}")]
+    [InlineData("{\"columnIds\":[999999]}")]
+    public async Task ColumnEndpoints_ReorderInvalidRequest_ShouldReturnFieldValidation(string body)
+    {
+        // Act
+        using var response = await Client.PutAsync("/api/boards/1/columns/order",
+            new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+        using var result = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(result.RootElement.GetProperty("validationErrors").TryGetProperty("columnIds", out _));
     }
 
     [Fact]

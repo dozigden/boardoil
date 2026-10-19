@@ -288,7 +288,7 @@ const demoBoardApi: BoardApi = {
     return unavailable();
   },
 
-  async moveColumn() {
+  async reorderColumns() {
     return unavailable();
   },
 

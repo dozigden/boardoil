@@ -134,9 +134,10 @@ public sealed class ColumnService(
         return dto;
     }
 
-    public async Task<ApiResult<ColumnDto>> MoveColumnAsync(int boardId, int id, MoveColumnRequest request, int actorUserId)
+    public async Task<ApiResult<IReadOnlyList<ColumnDto>>> ReorderColumnsAsync(
+        int boardId, ReorderColumnsRequest request, int actorUserId)
     {
-        using var scope = _scopeFactory.Create();
+        using var scope = _scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
 
         if (boardRepository.Get(boardId) is null)
         {
@@ -149,56 +150,40 @@ public sealed class ColumnService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var columns = (await columnRepository.GetColumnsInBoardOrderedAsync(boardId)).ToList();
-        var target = columns.FirstOrDefault(x => x.Id == id);
-        if (target is null)
+        if (request.ColumnIds is null)
         {
-            return ApiErrors.NotFound("Column not found.");
+            return ApiErrors.ValidationFailed([new ValidationError("columnIds", "Column IDs are required.")]);
         }
 
-        if (request.PositionAfterColumnId == id)
+        var columns = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
+        var columnsById = columns.ToDictionary(column => column.Id);
+        var requestedIds = request.ColumnIds;
+        if (requestedIds.Count != columns.Count
+            || requestedIds.Distinct().Count() != requestedIds.Count
+            || requestedIds.Any(id => !columnsById.ContainsKey(id)))
         {
-            return ApiErrors.ValidationFailed([new ValidationError("positionAfterColumnId", "Column cannot be positioned after itself.")]);
+            const string message = "Include every current column exactly once. Refresh the board and try again.";
+            return ApiErrors.BadRequest(message, [new ValidationError("columnIds", message)]);
         }
 
-        var currentIndex = FindColumnIndex(columns, id);
-        var currentPositionAfterColumnId = currentIndex > 0 ? columns[currentIndex - 1].Id : (int?)null;
-        if (request.PositionAfterColumnId == currentPositionAfterColumnId)
+        if (columns.Select(column => column.Id).SequenceEqual(requestedIds))
         {
-            var unchangedDto = target.ToColumnDto();
-            await _boardEvents.ColumnUpdatedAsync(boardId, unchangedDto);
-            return unchangedDto;
+            return ApiResults.Ok<IReadOnlyList<ColumnDto>>(columns.Select(column => column.ToColumnDto()).ToArray());
         }
 
-        var targetColumns = columns
-            .Where(x => x.Id != id)
-            .ToList();
-
-        var anchorResolution = ResolveAnchor(request.PositionAfterColumnId, targetColumns);
-        if (anchorResolution.Error is not null)
+        // Excluding the old keys avoids transient collisions with the unique board/order index.
+        var keys = SortKeyGenerator.CreateEvenlySpaced(columns.Count, columns.Select(column => column.SortKey).ToArray());
+        var orderedColumns = requestedIds.Select(id => columnsById[id]).ToArray();
+        for (var index = 0; index < orderedColumns.Length; index++)
         {
-            return anchorResolution.Error;
+            orderedColumns[index].SortKey = keys[index];
         }
 
-        if (!TryGenerateSortKey(
-                anchorResolution.PreviousKey,
-                anchorResolution.NextKey,
-                out var targetSortKeyValue,
-                out var allocationError))
-        {
-            return allocationError!;
-        }
+        await scope.SaveChangesAsync();
 
-        var targetSortKey = targetSortKeyValue!;
-        if (target.SortKey != targetSortKey)
-        {
-            target.SortKey = targetSortKey;
-            await scope.SaveChangesAsync();
-        }
-
-        var dto = target.ToColumnDto();
-        await _boardEvents.ColumnUpdatedAsync(boardId, dto);
-        return dto;
+        var result = orderedColumns.Select(column => column.ToColumnDto()).ToArray();
+        await _boardEvents.ColumnsReorderedAsync(boardId, result);
+        return ApiResults.Ok<IReadOnlyList<ColumnDto>>(result);
     }
 
     public async Task<ApiResult> DeleteColumnAsync(int boardId, int id, int actorUserId)
@@ -238,41 +223,6 @@ public sealed class ColumnService(
 
         await _boardEvents.ColumnDeletedAsync(boardId, id);
         return ApiResults.Ok();
-    }
-    private static (ApiError? Error, string? PreviousKey, string? NextKey) ResolveAnchor(
-        int? positionAfterColumnId,
-        IReadOnlyList<EntityBoardColumn> targetColumns)
-    {
-        if (positionAfterColumnId is null)
-        {
-            var firstSortKey = targetColumns.Count > 0 ? targetColumns[0].SortKey : null;
-            return (null, null, firstSortKey);
-        }
-
-        var anchorIndex = FindColumnIndex(targetColumns, positionAfterColumnId.Value);
-        if (anchorIndex < 0)
-        {
-            return (ApiErrors.ValidationFailed([new ValidationError("positionAfterColumnId", "Column does not exist in board.")]), null, null);
-        }
-
-        var previousKey = targetColumns[anchorIndex].SortKey;
-        var nextKey = anchorIndex < targetColumns.Count - 1
-            ? targetColumns[anchorIndex + 1].SortKey
-            : null;
-        return (null, previousKey, nextKey);
-    }
-
-    private static int FindColumnIndex(IReadOnlyList<EntityBoardColumn> columns, int targetColumnId)
-    {
-        for (var i = 0; i < columns.Count; i++)
-        {
-            if (columns[i].Id == targetColumnId)
-            {
-                return i;
-            }
-        }
-
-        return -1;
     }
 
     private static bool TryGenerateSortKey(string? previous, string? next, out string? sortKey, out ApiError? error)

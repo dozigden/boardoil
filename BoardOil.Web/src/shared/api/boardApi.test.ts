@@ -738,3 +738,15 @@ describe('boardApi archived cards', () => {
     expect(postData).toHaveBeenCalledWith('/api/boards/7/cards/archived/3/unarchive', {});
   });
 });
+
+
+describe('boardApi reorderColumns', () => {
+  it('sends the complete order and returns the authoritative collection', async () => {
+    vi.mocked(putData).mockResolvedValueOnce(ok([]));
+
+    const result = await createBoardApi().reorderColumns(12, [3, 1, 2]);
+
+    expect(putData).toHaveBeenLastCalledWith('/api/boards/12/columns/order', { columnIds: [3, 1, 2] });
+    expect(result).toEqual(ok([]));
+  });
+});

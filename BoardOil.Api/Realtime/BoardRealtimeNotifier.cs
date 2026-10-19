@@ -19,6 +19,9 @@ public sealed class BoardRealtimeNotifier(
     public Task ColumnDeletedAsync(int boardId, int columnId) =>
         TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ColumnDeleted", columnId, boardId), nameof(ColumnDeletedAsync));
 
+    public Task ColumnsReorderedAsync(int boardId, IReadOnlyList<ColumnDto> columns) =>
+        TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("ColumnsReordered", columns, boardId), nameof(ColumnsReorderedAsync));
+
     public Task CardCreatedAsync(int boardId, CardDto card) =>
         TryPublishAsync(() => hubContext.Clients.Group(BoardHubGroupName.For(boardId)).SendAsync("CardCreated", card, boardId), nameof(CardCreatedAsync));
 

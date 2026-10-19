@@ -169,84 +169,151 @@ public sealed class ColumnServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task MoveColumnAsync_WhenPositionAfterColumnIdIsNull_ShouldMoveToStart()
+    public async Task ReorderColumnsAsync_ShouldPersistCompleteOrderAndPreserveCards()
     {
-        var board = CreateBoard("BoardOil")
-            .AddColumn("A")
-            .AddColumn("B")
-            .AddColumn("C")
-            .Build();
-        var movingColumnId = board.GetColumn("C").Id;
+        // Arrange
+        var board = CreateBoard().AddColumn("A").AddCard("First").AddCard("Second")
+            .AddColumn("B").AddColumn("C").Build();
+        var otherBoard = CreateBoard("Other").AddColumn("Other column").Build();
+        var beforeCards = await DbContextForAssert.Cards.AsNoTracking()
+            .OrderBy(card => card.Id).Select(card => new { card.Id, card.BoardColumnId, card.SortKey }).ToListAsync();
+        var otherColumn = await DbContextForAssert.Columns.AsNoTracking().SingleAsync(column => column.BoardId == otherBoard.BoardId);
+        int[] requested = [board.GetColumn("C").Id, board.GetColumn("A").Id, board.GetColumn("B").Id];
 
-        var service = CreateService();
-        var result = await service.MoveColumnAsync(1, movingColumnId, new MoveColumnRequest(null), ActorUserId);
+        // Act
+        var result = await CreateService().ReorderColumnsAsync(board.BoardId, new(requested), ActorUserId);
 
-        Assert.True(result.Success);
-        Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
-        var titles = await GetOrderedColumnTitlesAsync();
-
-        Assert.Equal(["C", "A", "B"], titles);
+        // Assert
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(requested, result.Data!.Select(column => column.Id));
+        var stored = await DbContextForAssert.Columns.AsNoTracking().Where(column => column.BoardId == board.BoardId)
+            .OrderBy(column => column.SortKey).ToListAsync();
+        Assert.Equal(requested, stored.Select(column => column.Id));
+        Assert.Equal(result.Data!.Select(column => column.SortKey), stored.Select(column => column.SortKey));
+        Assert.Equal(beforeCards, await DbContextForAssert.Cards.AsNoTracking()
+            .OrderBy(card => card.Id).Select(card => new { card.Id, card.BoardColumnId, card.SortKey }).ToListAsync());
+        Assert.Equal(otherColumn.SortKey, (await DbContextForAssert.Columns.AsNoTracking()
+            .SingleAsync(column => column.BoardId == otherBoard.BoardId)).SortKey);
+        var notification = Assert.Single(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).ColumnsReorderedEvents);
+        Assert.Equal(board.BoardId, notification.BoardId);
+        Assert.Equal(result.Data, notification.Columns);
     }
 
-    [Fact]
-    public async Task MoveColumnAsync_WhenMovingAfterAnchor_ShouldPersistOrder()
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("duplicate")]
+    [InlineData("unknown")]
+    [InlineData("foreign")]
+    [InlineData("nonpositive")]
+    [InlineData("null")]
+    public async Task ReorderColumnsAsync_WhenIdSetIsInvalid_ShouldPreserveOrderAndReturnValidation(string invalid)
     {
-        var board = CreateBoard("BoardOil")
-            .AddColumn("A")
-            .AddColumn("B")
-            .AddColumn("C")
-            .Build();
-        var movingColumnId = board.GetColumn("A").Id;
-        var anchorColumnId = board.GetColumn("C").Id;
+        // Arrange
+        var board = CreateBoard().AddColumn("A").AddColumn("B").Build();
+        var other = CreateBoard("Other").AddColumn("Foreign").Build();
+        var first = board.GetColumn("A").Id;
+        IReadOnlyList<int>? ids = invalid switch
+        {
+            "missing" => [first],
+            "duplicate" => [first, first],
+            "unknown" => [first, int.MaxValue],
+            "foreign" => [first, other.GetColumn("Foreign").Id],
+            "nonpositive" => [first, 0],
+            _ => null
+        };
+        var original = await DbContextForAssert.Columns.AsNoTracking().OrderBy(column => column.Id)
+            .Select(column => new { column.Id, column.SortKey, column.UpdatedAtUtc }).ToListAsync();
 
-        var service = CreateService();
-        var result = await service.MoveColumnAsync(1, 
-            movingColumnId,
-            new MoveColumnRequest(anchorColumnId), ActorUserId);
+        // Act
+        var result = await CreateService().ReorderColumnsAsync(board.BoardId, new(ids), ActorUserId);
 
-        Assert.True(result.Success);
-        Assert.False(string.IsNullOrWhiteSpace(result.Data!.SortKey));
-        var titles = await GetOrderedColumnTitlesAsync();
-        Assert.Equal(["B", "C", "A"], titles);
-    }
-
-    [Fact]
-    public async Task MoveColumnAsync_WhenPositionAfterColumnIdMatchesMovingColumn_ShouldReturnValidationError()
-    {
-        var board = CreateBoard("BoardOil")
-            .AddColumn("A")
-            .Build();
-        var movingColumnId = board.GetColumn("A").Id;
-
-        var service = CreateService();
-        var result = await service.MoveColumnAsync(1, 
-            movingColumnId,
-            new MoveColumnRequest(movingColumnId), ActorUserId);
-
+        // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
-        Assert.NotNull(result.ValidationErrors);
-        Assert.True(result.ValidationErrors!.ContainsKey("positionAfterColumnId"));
+        Assert.Contains("columnIds", result.ValidationErrors!.Keys);
+        Assert.Equal(original, await DbContextForAssert.Columns.AsNoTracking().OrderBy(column => column.Id)
+            .Select(column => new { column.Id, column.SortKey, column.UpdatedAtUtc }).ToListAsync());
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).ColumnsReorderedEvents);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReorderColumnsAsync_WhenMembershipChanged_ShouldRejectStaleOrder(bool added)
+    {
+        // Arrange
+        var board = CreateBoard().AddColumn("A").AddColumn("B").Build();
+        int[] staleIds = [board.GetColumn("B").Id, board.GetColumn("A").Id];
+        var service = CreateService();
+        if (added)
+        {
+            Assert.True((await service.CreateColumnAsync(board.BoardId, new("C"), ActorUserId)).Success);
+        }
+        else
+        {
+            Assert.True((await service.DeleteColumnAsync(board.BoardId, board.GetColumn("A").Id, ActorUserId)).Success);
+        }
+        var current = (await service.GetColumnsAsync(board.BoardId, ActorUserId)).Data!;
+
+        // Act
+        var result = await service.ReorderColumnsAsync(board.BoardId, new(staleIds), ActorUserId);
+
+        // Assert
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(current, (await service.GetColumnsAsync(board.BoardId, ActorUserId)).Data);
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).ColumnsReorderedEvents);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReorderColumnsAsync_WhenOrderAlreadyMatches_ShouldLeaveKeysAndTimestampsUnchanged(bool empty)
+    {
+        // Arrange
+        var builder = CreateBoard();
+        if (!empty)
+        {
+            builder.AddColumn("A").AddColumn("B").AddColumn("C");
+        }
+        var board = builder.Build();
+        var service = CreateService();
+        var before = (await service.GetColumnsAsync(board.BoardId, ActorUserId)).Data!;
+
+        // Act
+        var result = await service.ReorderColumnsAsync(board.BoardId, new(before.Select(column => column.Id).ToArray()), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(before, result.Data);
+        Assert.Equal(before, (await service.GetColumnsAsync(board.BoardId, ActorUserId)).Data);
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).ColumnsReorderedEvents);
     }
 
     [Fact]
-    public async Task MoveColumnAsync_WhenPositionAfterColumnIdDoesNotExist_ShouldReturnValidationError()
+    public async Task ReorderColumnsAsync_WhenNotOwner_ShouldReturnForbidden()
     {
-        var board = CreateBoard("BoardOil")
-            .AddColumn("A")
-            .AddColumn("B")
-            .Build();
-        var movingColumnId = board.GetColumn("A").Id;
+        // Arrange
+        var board = CreateBoard().AddColumn("A").AddColumn("B").Build();
+        var membership = await DbContextForArrange.BoardMembers.SingleAsync();
+        membership.Role = BoardMemberRole.Contributor;
+        await DbContextForArrange.SaveChangesAsync();
 
-        var service = CreateService();
-        var result = await service.MoveColumnAsync(1, 
-            movingColumnId,
-            new MoveColumnRequest(999_999), ActorUserId);
+        // Act
+        var result = await CreateService().ReorderColumnsAsync(board.BoardId,
+            new([board.GetColumn("B").Id, board.GetColumn("A").Id]), ActorUserId);
 
-        Assert.False(result.Success);
-        Assert.Equal(400, result.StatusCode);
-        Assert.NotNull(result.ValidationErrors);
-        Assert.True(result.ValidationErrors!.ContainsKey("positionAfterColumnId"));
+        // Assert
+        Assert.Equal(403, result.StatusCode);
+        Assert.Equal(["A", "B"], await GetOrderedColumnTitlesAsync());
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).ColumnsReorderedEvents);
+    }
+
+    [Fact]
+    public async Task ReorderColumnsAsync_WhenBoardMissing_ShouldReturnNotFound()
+    {
+        var result = await CreateService().ReorderColumnsAsync(int.MaxValue, new([]), ActorUserId);
+
+        Assert.Equal(404, result.StatusCode);
     }
 
     [Fact]

@@ -11,6 +11,7 @@ public sealed class TestBoardEvents : IBoardEvents
     public readonly List<(int BoardId, CardCommentDto Comment)> CommentUpdatedEvents = [];
     public readonly List<(int BoardId, int CardId, int CommentId)> CommentDeletedEvents = [];
     public readonly List<(int BoardId, int ColumnId)> ColumnDeletedEvents = [];
+    public readonly List<(int BoardId, IReadOnlyList<ColumnDto> Columns)> ColumnsReorderedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardCreatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardUpdatedEvents = [];
     public readonly List<(int BoardId, CardDto Card)> CardMovedEvents = [];
@@ -23,6 +24,11 @@ public sealed class TestBoardEvents : IBoardEvents
 
     public Task ColumnCreatedAsync(int boardId, ColumnDto column) => Task.CompletedTask;
     public Task ColumnUpdatedAsync(int boardId, ColumnDto column) => Task.CompletedTask;
+    public Task ColumnsReorderedAsync(int boardId, IReadOnlyList<ColumnDto> columns)
+    {
+        ColumnsReorderedEvents.Add((boardId, columns));
+        return Task.CompletedTask;
+    }
     public Task ColumnDeletedAsync(int boardId, int columnId)
     {
         ColumnDeletedEvents.Add((boardId, columnId));

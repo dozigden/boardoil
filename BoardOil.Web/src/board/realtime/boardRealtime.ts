@@ -18,6 +18,7 @@ import { ReconnectHttpClient, signalRReconnectPolicy } from './signalRReconnect'
 export type BoardRealtimeHandlers = {
   onColumnCreated: (boardId: number, column: Column) => Promise<unknown> | unknown;
   onColumnUpdated: (boardId: number, column: Column) => Promise<unknown> | unknown;
+  onColumnsReordered: (boardId: number, columns: Column[]) => Promise<unknown> | unknown;
   onColumnDeleted: (boardId: number, columnId: number) => Promise<unknown> | unknown;
   onCardCreated: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCardUpdated: (boardId: number, card: Card) => Promise<unknown> | unknown;
@@ -261,6 +262,10 @@ function registerBoardEventHandlers(
   connection.on('ColumnUpdated', async (column: Column, boardId: number) => {
     logRealtime('Event: ColumnUpdated', { boardId, columnId: column.id });
     await handlers.onColumnUpdated(boardId, column);
+  });
+  connection.on('ColumnsReordered', async (columns: Column[], boardId: number) => {
+    logRealtime('Event: ColumnsReordered', { boardId, columnIds: columns.map(column => column.id) });
+    await handlers.onColumnsReordered(boardId, columns);
   });
   connection.on('ColumnDeleted', async (columnId: number, boardId: number) => {
     logRealtime('Event: ColumnDeleted', { boardId, columnId });

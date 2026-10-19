@@ -37,6 +37,7 @@
       <article
         v-for="column in board.columns"
         :key="column.id"
+        :aria-label="`${column.title} column`"
         class="entity-row columns-manager-item draggable-column"
         :class="{ 'drag-over': dragOverColumnId === column.id }"
         @dragover="onColumnDragOver(column.id, $event)"
@@ -100,7 +101,7 @@ const dragOverColumnId = ref<number | null>(null);
 const router = useRouter();
 const boardStore = useBoardStore();
 const { board, busy, currentBoardId } = storeToRefs(boardStore);
-const { createColumn: createColumnAction, moveColumn: moveColumnAction } = boardStore;
+const { createColumn: createColumnAction, reorderColumns: reorderColumnsAction } = boardStore;
 const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
 
 async function openNewColumnDraft() {
@@ -194,13 +195,10 @@ async function onColumnDrop(targetColumnId: number, event: DragEvent) {
     return;
   }
 
-  const columnsWithoutDragging = columns.filter(x => x.id !== draggingId);
-  const insertIndex = targetIndex;
-  const positionAfterColumnId = insertIndex === 0
-    ? null
-    : columnsWithoutDragging[insertIndex - 1]?.id ?? null;
-
-  await moveColumnAction(draggingId, positionAfterColumnId);
+  const columnIds = columns.map(column => column.id);
+  columnIds.splice(draggingIndex, 1);
+  columnIds.splice(targetIndex, 0, draggingId);
+  await reorderColumnsAction(columnIds);
 }
 
 function onColumnDragEnd() {

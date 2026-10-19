@@ -8,6 +8,7 @@ public interface IBoardEvents
 {
     Task ColumnCreatedAsync(int boardId, ColumnDto column);
     Task ColumnUpdatedAsync(int boardId, ColumnDto column);
+    Task ColumnsReorderedAsync(int boardId, IReadOnlyList<ColumnDto> columns);
     Task ColumnDeletedAsync(int boardId, int columnId);
 
     Task CardCreatedAsync(int boardId, CardDto card);

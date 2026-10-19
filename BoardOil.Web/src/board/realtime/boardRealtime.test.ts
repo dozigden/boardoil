@@ -169,6 +169,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -194,6 +195,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -230,6 +232,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -272,6 +275,7 @@ describe('boardRealtime', () => {
     const { createBoardRealtime } = await import('./boardRealtime');
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(), onColumnUpdated: vi.fn(), onColumnDeleted: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onCardCreated: vi.fn(), onCardUpdated: vi.fn(), onCardDeleted: vi.fn(), onCardMoved: vi.fn(),
       onCommentCreated: vi.fn(), onCommentUpdated, onSystemInfoMessageUpdated: vi.fn(), onTagsChanged: vi.fn(), onResync: vi.fn()
     });
@@ -289,6 +293,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated,
@@ -330,6 +335,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -362,6 +368,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -405,6 +412,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -442,6 +450,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -517,6 +526,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -548,6 +558,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -576,6 +587,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -690,6 +702,7 @@ describe('boardRealtime', () => {
     const realtime = createBoardRealtime({
       onColumnCreated: vi.fn(),
       onColumnUpdated: vi.fn(),
+      onColumnsReordered: vi.fn(),
       onColumnDeleted: vi.fn(),
       onCardCreated: vi.fn(),
       onCardUpdated: vi.fn(),
@@ -730,6 +743,19 @@ describe('boardRealtime', () => {
     );
   });
 
+  it('routes the complete reordered column collection with its board identity', async () => {
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const handlers = createHandlers();
+    const realtime = createBoardRealtime(handlers);
+    await realtime.connect(1);
+    const columns = [{ id: 2, title: 'Doing', sortKey: '00000000000000000001' }];
+
+    await connection.eventHandlers.ColumnsReordered!(columns, 1);
+
+    expect(handlers.onColumnsReordered).toHaveBeenCalledWith(1, columns);
+    expect(handlers.onColumnUpdated).not.toHaveBeenCalled();
+  });
+
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -741,6 +767,7 @@ function createHandlers() {
   return {
     onColumnCreated: vi.fn(),
     onColumnUpdated: vi.fn(),
+    onColumnsReordered: vi.fn(),
     onColumnDeleted: vi.fn(),
     onCardCreated: vi.fn(),
     onCardUpdated: vi.fn(),

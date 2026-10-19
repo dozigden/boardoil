@@ -160,8 +160,8 @@ function createHttpBoardApi() {
     return putData<Column>(`/api/boards/${boardId}/columns/${columnId}`, model);
   }
 
-  async function moveColumn(boardId: number, columnId: number, positionAfterColumnId: number | null): Promise<Result<Column, AppError>> {
-    return patchData<Column>(`/api/boards/${boardId}/columns/${columnId}/move`, { positionAfterColumnId });
+  async function reorderColumns(boardId: number, columnIds: number[]): Promise<Result<Column[], AppError>> {
+    return putData<Column[]>(`/api/boards/${boardId}/columns/order`, { columnIds });
   }
 
   async function deleteColumn(boardId: number, columnId: number): Promise<Result<void, AppError>> {
@@ -530,7 +530,7 @@ function createHttpBoardApi() {
     getColumns,
     createColumn,
     saveColumn,
-    moveColumn,
+    reorderColumns,
     deleteColumn,
     createCard,
     saveCard,

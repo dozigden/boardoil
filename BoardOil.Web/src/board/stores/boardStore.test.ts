@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { watch } from 'vue';
 import { useBoardStore } from './boardStore';
 import { useCardStore } from './cardStore';
 import { useBoardMembersStore } from './boardMembersStore';
@@ -29,7 +30,7 @@ const api = {
   getBoardMembers: vi.fn(),
   createColumn: vi.fn(),
   saveColumn: vi.fn(),
-  moveColumn: vi.fn(),
+  reorderColumns: vi.fn(),
   deleteColumn: vi.fn(),
   deleteSlick: vi.fn(),
   deleteTag: vi.fn()
@@ -40,6 +41,7 @@ const realtime = {
   disconnect: vi.fn()
 };
 type RealtimeHandlers = {
+  onColumnsReordered: (boardId: number, columns: Column[]) => Promise<unknown> | unknown;
   onCardCreated: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCardMoved: (boardId: number, card: Card) => Promise<unknown> | unknown;
   onCardUpdated: (boardId: number, card: Card) => Promise<unknown> | unknown;
@@ -266,11 +268,11 @@ describe('boardStore', () => {
   });
 
   describe.each(['board change', 'disposal'] as const)('column responses after %s', change => {
-    it.each(['create', 'save', 'move', 'delete'] as const)('ignores late %s state changes', async operation => {
+    it.each(['create', 'save', 'reorder', 'delete'] as const)('ignores late %s state changes', async operation => {
       const store = useBoardStore();
       await store.initialize(1);
       const column = { ...makeBoard().columns[0], title: 'Old board response' };
-      const pending = deferred<Result<Column | void, AppError>>();
+      const pending = deferred<Result<Column | Column[] | void, AppError>>();
       let request: Promise<void>;
       switch (operation) {
         case 'create':
@@ -281,9 +283,9 @@ describe('boardStore', () => {
           api.saveColumn.mockReturnValueOnce(pending.promise);
           request = store.saveColumn(column.id, { title: column.title });
           break;
-        case 'move':
-          api.moveColumn.mockReturnValueOnce(pending.promise);
-          request = store.moveColumn(column.id, null);
+        case 'reorder':
+          api.reorderColumns.mockReturnValueOnce(pending.promise);
+          request = store.reorderColumns([2, 1]);
           break;
         case 'delete':
           api.deleteColumn.mockReturnValueOnce(pending.promise);
@@ -299,7 +301,13 @@ describe('boardStore', () => {
       }
       expect(store.busy).toBe(false);
       const expectedBoard = store.board;
-      pending.resolve(ok(operation === 'delete' ? undefined : column));
+      let response: Column | Column[] | undefined = column;
+      if (operation === 'delete') {
+        response = undefined;
+      } else if (operation === 'reorder') {
+        response = [column];
+      }
+      pending.resolve(ok(response));
       await request;
       expect(store.board).toEqual(expectedBoard);
       expect(store.busy).toBe(false);
@@ -768,23 +776,55 @@ describe('boardStore', () => {
     expect(store.board?.columns.map(x => x.title)).toEqual(['Backlog', 'In Progress']);
   });
 
-  it('reorders a column incrementally when updated sort key is returned', async () => {
+  it.each(['HTTP', 'realtime'] as const)('applies a complete column order in one update through %s and retains cards', async source => {
     const store = useBoardStore();
     await store.initialize(1);
+    const initial = JSON.parse(JSON.stringify(store.board!)) as Board;
+    const ordered = initial.columns.slice().reverse().map((column, index) => ({
+      id: column.id, title: column.title, createdAtUtc: column.createdAtUtc,
+      updatedAtUtc: column.updatedAtUtc, sortKey: String(index + 1).padStart(20, '0')
+    }));
+    const input = structuredClone(ordered);
+    const observed: number[][] = [];
+    const stop = watch(() => store.board, value => observed.push(value!.columns.map(column => column.id)), { flush: 'sync' });
 
-    const moved: Column = {
-      id: 2,
-      title: 'Doing',
-      sortKey: '00000000000000000005',
-      createdAtUtc: '2026-03-15T00:00:00Z',
-      updatedAtUtc: '2026-03-15T00:03:00Z'
-    };
-    api.moveColumn.mockResolvedValue(ok(moved));
+    if (source === 'HTTP') {
+      api.reorderColumns.mockResolvedValueOnce(ok(ordered));
+      await store.reorderColumns([2, 1]);
+      expect(api.reorderColumns).toHaveBeenCalledWith(1, [2, 1]);
+    } else {
+      await realtimeHandlers!.onColumnsReordered(1, ordered);
+    }
+    stop();
 
-    await store.moveColumn(2, null);
+    expect(observed).toEqual([[2, 1]]);
+    expect(store.board?.columns.find(column => column.id === 1)?.cards).toEqual(initial.columns[0]!.cards);
+    expect(ordered).toEqual(input);
+    expect(initial.columns.map(column => column.id)).toEqual([1, 2]);
+    expect(api.getBoard).toHaveBeenCalledTimes(1);
+  });
 
-    expect(store.board?.columns.map(x => x.title)).toEqual(['Doing', 'Backlog']);
-    expect(api.moveColumn).toHaveBeenCalledWith(1, 2, null);
+  it('ignores column reorder events from another board', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    const before = store.board;
+
+    await realtimeHandlers!.onColumnsReordered(2, [{ ...makeBoard().columns[0]!, sortKey: '00000000000000000001' }]);
+
+    expect(store.board).toBe(before);
+  });
+
+  it('preserves the current order and reports a rejected reorder', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    const before = store.board;
+    api.reorderColumns.mockResolvedValueOnce(err({ kind: 'api', message: 'Refresh the board and try again.' }));
+
+    await store.reorderColumns([2]);
+
+    expect(store.board).toBe(before);
+    expect(useUiFeedbackStore().errorMessage).toBe('Refresh the board and try again.');
+    expect(store.busy).toBe(false);
   });
 
   it('sets feedback error when API returns failure', async () => {

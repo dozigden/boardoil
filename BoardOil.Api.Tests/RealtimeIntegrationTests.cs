@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.CardType;
+using BoardOil.Contracts.Column;
 using Microsoft.AspNetCore.SignalR.Client;
 using Xunit;
 
@@ -21,6 +22,36 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
         Assert.True(
             statusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden || messageHasAuthCode,
             $"Expected unauthorized/forbidden negotiate failure but got: {ex.GetType().Name} - {ex.Message}");
+    }
+
+    [Fact]
+    public async Task ColumnsReordered_ShouldBroadcastOneCompleteOrderToBothClients()
+    {
+        // Arrange
+        await SeedBoardColumnAsync("Another column");
+        var before = await Client.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<ColumnDto>>>("/api/boards/1/columns", JsonOptions);
+        var ids = before!.Data!.Reverse().Select(column => column.Id).ToArray();
+        await using var connectionA = CreateHubConnection();
+        await using var connectionB = CreateHubConnection();
+        var receivedA = new TaskCompletionSource<(ColumnDto[] Columns, int BoardId)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var receivedB = new TaskCompletionSource<(ColumnDto[] Columns, int BoardId)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        connectionA.On<ColumnDto[], int>("ColumnsReordered", (columns, boardId) => receivedA.TrySetResult((columns, boardId)));
+        connectionB.On<ColumnDto[], int>("ColumnsReordered", (columns, boardId) => receivedB.TrySetResult((columns, boardId)));
+        await StartConnectionsAsync(1, connectionA, connectionB);
+
+        // Act
+        var response = await Client.PutAsJsonAsync("/api/boards/1/columns/order", new ReorderColumnsRequest(ids));
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<ColumnDto>>>(JsonOptions);
+
+        // Assert
+        var first = await WaitAsync(receivedA.Task);
+        var second = await WaitAsync(receivedB.Task);
+        Assert.Equal(1, first.BoardId);
+        Assert.Equal(1, second.BoardId);
+        Assert.Equal(result!.Data, first.Columns);
+        Assert.Equal(first.Columns, second.Columns);
+        Assert.Equal(ids, first.Columns.Select(column => column.Id));
     }
 
     [Fact]

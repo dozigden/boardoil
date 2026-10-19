@@ -13,6 +13,7 @@ public static class BoardRealtimeEventTypes
 {
     public const string ColumnCreated = "column_created";
     public const string ColumnUpdated = "column_updated";
+    public const string ColumnsReordered = "columns_reordered";
     public const string ColumnDeleted = "column_deleted";
     public const string CardCreated = "card_created";
     public const string CardUpdated = "card_updated";
@@ -31,4 +32,5 @@ public sealed record BoardRealtimeRelayEvent(
     CardDto? Card = null,
     int? CardId = null,
     CardCommentDto? Comment = null,
-    int? CommentId = null);
+    int? CommentId = null,
+    IReadOnlyList<ColumnDto>? Columns = null);

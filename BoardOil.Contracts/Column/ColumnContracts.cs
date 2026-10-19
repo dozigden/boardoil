@@ -13,5 +13,5 @@ public sealed record CreateColumnRequest(
 public sealed record UpdateColumnRequest(
     string Title);
 
-public sealed record MoveColumnRequest(
-    int? PositionAfterColumnId);
+public sealed record ReorderColumnsRequest(
+    IReadOnlyList<int>? ColumnIds);
