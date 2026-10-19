@@ -181,6 +181,28 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
     }
 
     [Fact]
+    public async Task ColumnEndpoints_DeleteNonemptyColumn_ShouldReturnValidationError()
+    {
+        // Arrange
+        var columnId = await SeedBoardColumnAsync("Nonempty column");
+        var cardId = await SeedBoardCardAsync(columnId, "Keep card", "Keep content");
+
+        // Act
+        using var response = await Client.DeleteAsync($"/api/boards/1/columns/{columnId}");
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(payload.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(400, payload.RootElement.GetProperty("statusCode").GetInt32());
+        Assert.Equal("Column must be empty before it can be deleted.", payload.RootElement.GetProperty("message").GetString());
+        Assert.Equal(["Column must be empty before it can be deleted."], payload.RootElement.GetProperty("validationErrors")
+            .GetProperty("id").EnumerateArray().Select(error => error.GetString()));
+        var board = await Client.GetFromJsonAsync<ApiEnvelope<BoardDto>>("/api/boards/1", JsonOptions);
+        Assert.Contains(board!.Data!.Columns.Single(column => column.Id == columnId).Cards, card => card.Id == cardId);
+    }
+
+    [Fact]
     public async Task ColumnEndpoints_Move_ShouldReturnSuccessContract()
     {
         // Arrange

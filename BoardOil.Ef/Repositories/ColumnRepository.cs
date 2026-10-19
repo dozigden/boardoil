@@ -13,4 +13,7 @@ public sealed class ColumnRepository(IAmbientDbContextLocator ambientDbContextLo
             .Where(x => x.BoardId == boardId)
             .OrderBy(x => x.SortKey)
             .ToListAsync();
+
+    public Task<bool> HasCardsAsync(int columnId) =>
+        DbSet.AnyAsync(column => column.Id == columnId && column.Cards.Any());
 }

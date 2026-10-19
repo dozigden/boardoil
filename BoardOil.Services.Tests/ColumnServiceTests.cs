@@ -2,6 +2,7 @@ using BoardOil.Abstractions;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Column;
 using BoardOil.Contracts.Column;
+using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Ef.Repositories;
 using BoardOil.Services.Board;
 using BoardOil.Services.Column;
@@ -289,6 +290,43 @@ public sealed class ColumnServiceTests : TestBaseDb
             .ToListAsync();
         Assert.Equal(2, sortKeys.Count);
         Assert.All(sortKeys, key => Assert.False(string.IsNullOrWhiteSpace(key)));
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        Assert.Equal((board.BoardId, deletingId), Assert.Single(events.ColumnDeletedEvents));
+    }
+
+    [Fact]
+    public async Task DeleteColumnAsync_WhenColumnHasCards_ShouldReturnValidationAndPreserveCardsAndComments()
+    {
+        // Arrange
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card", "Keep this content").Build();
+        var columnId = board.GetColumn("Todo").Id;
+        var card = board.GetCard("Card");
+        DbContextForArrange.CardComments.Add(new EntityCardComment
+        {
+            CardId = card.Id,
+            AuthorUserId = ActorUserId,
+            Text = "Keep this comment"
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.DeleteColumnAsync(board.BoardId, columnId, ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Column must be empty before it can be deleted.", result.Message);
+        Assert.Equal([result.Message], result.ValidationErrors!["id"]);
+        Assert.Equal(columnId, (await DbContextForAssert.Columns.SingleAsync()).Id);
+        var storedCard = await DbContextForAssert.Cards.SingleAsync();
+        Assert.Equal(card.Id, storedCard.Id);
+        Assert.Equal(columnId, storedCard.BoardColumnId);
+        Assert.Equal("Keep this content", storedCard.Description);
+        Assert.Equal("Keep this comment", (await DbContextForAssert.CardComments.SingleAsync()).Text);
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        Assert.Empty(events.ColumnDeletedEvents);
+        Assert.Empty(events.CardDeletedEvents);
     }
 
     [Fact]

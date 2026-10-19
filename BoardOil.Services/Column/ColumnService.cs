@@ -17,8 +17,7 @@ public sealed class ColumnService(
     IBoardAuthorisationService boardAuthorisationService,
     IColumnValidator validator,
     IBoardEvents boardEvents,
-    IDbContextScopeFactory scopeFactory,
-    BoardOil.Services.Attachment.CardAttachmentService attachments) : IColumnService
+    IDbContextScopeFactory scopeFactory) : IColumnService
 {
     private readonly IBoardEvents _boardEvents = boardEvents;
     private readonly IDbContextScopeFactory _scopeFactory = scopeFactory;
@@ -228,10 +227,14 @@ public sealed class ColumnService(
             return ApiErrors.NotFound("Column not found.");
         }
 
-        var deletedAttachmentKeys = await attachments.DeleteForColumnAsync(target.Id);
+        if (await columnRepository.HasCardsAsync(target.Id))
+        {
+            const string message = "Column must be empty before it can be deleted.";
+            return ApiErrors.BadRequest(message, [new ValidationError("id", message)]);
+        }
+
         columnRepository.Remove(target);
         await scope.SaveChangesAsync();
-        await attachments.DeleteFilesAsync(deletedAttachmentKeys);
 
         await _boardEvents.ColumnDeletedAsync(boardId, id);
         return ApiResults.Ok();

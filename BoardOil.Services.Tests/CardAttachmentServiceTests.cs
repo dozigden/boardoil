@@ -394,7 +394,6 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
     [InlineData("card")]
     [InlineData("bulk")]
     [InlineData("bulk-mixed")]
-    [InlineData("column")]
     [InlineData("board")]
     [InlineData("archived-board")]
     public async Task ParentDeletion_ShouldQueueAndRemoveOwnedFiles(string operation)
@@ -406,7 +405,6 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
             boardId, cardId, ActorUserId, "image.png", "image/png",
             new MemoryStream(Png(3, 2)), new MemoryStream(Png(3, 2)), "image/png");
         Assert.True(uploaded.Success, uploaded.Message);
-        var columnId = await DbContextForArrange.Cards.Select(x => x.BoardColumnId).SingleAsync();
         if (operation == "archived-board")
         {
             Assert.True((await ResolveService<ICardArchiveService>().ArchiveCardAsync(boardId, cardId, ActorUserId)).Success);
@@ -417,7 +415,6 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
             "card" => await ResolveService<ICardService>().DeleteCardAsync(boardId, cardId, ActorUserId),
             "bulk" => await ResolveService<BulkDeleteCardsService>().ExecuteAsync(boardId, new([cardId]), ActorUserId),
             "bulk-mixed" => await ResolveService<BulkDeleteCardsService>().ExecuteAsync(boardId, new([cardId, 999_999]), ActorUserId),
-            "column" => await ResolveService<IColumnService>().DeleteColumnAsync(boardId, columnId, ActorUserId),
             _ => await ResolveService<IBoardService>().DeleteBoardAsync(boardId, ActorUserId)
         };
 
@@ -425,6 +422,57 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Empty(await DbContextForAssert.CardAttachments.ToListAsync());
         Assert.Empty(await DbContextForAssert.TemporaryBoardPackages.ToListAsync());
         Assert.Empty(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DeleteColumn_ShouldPreserveAttachmentsAndFiles(bool archived)
+    {
+        // Arrange
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var columnId = board.GetColumn("Todo").Id;
+        var card = board.GetCard("Card");
+        var uploaded = await ResolveService<ICardAttachmentService>().UploadAsync(
+            board.BoardId, card.BoardCardId, ActorUserId, "image.png", "image/png",
+            new MemoryStream(Png(3, 2)), new MemoryStream(Png(3, 2)), "image/png");
+        Assert.True(uploaded.Success, uploaded.Message);
+        if (archived)
+        {
+            Assert.True((await ResolveService<ICardArchiveService>().ArchiveCardAsync(board.BoardId, card.BoardCardId, ActorUserId)).Success);
+        }
+        var originalFiles = Directory.GetFiles(_root, "*", SearchOption.AllDirectories)
+            .ToDictionary(path => path, File.ReadAllBytes);
+        Assert.Equal(2, originalFiles.Count);
+
+        // Act
+        var result = await ResolveService<IColumnService>().DeleteColumnAsync(board.BoardId, columnId, ActorUserId);
+
+        // Assert
+        Assert.Equal(archived, result.Success);
+        if (archived)
+        {
+            Assert.Empty(await DbContextForAssert.Columns.ToListAsync());
+            Assert.Single(await DbContextForAssert.ArchivedCards.ToListAsync());
+        }
+        else
+        {
+            Assert.Equal(400, result.StatusCode);
+            Assert.Equal(["Column must be empty before it can be deleted."], result.ValidationErrors!["id"]);
+            Assert.Single(await DbContextForAssert.Columns.ToListAsync());
+            Assert.Single(await DbContextForAssert.Cards.ToListAsync());
+            var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+            Assert.Empty(events.ColumnDeletedEvents);
+            Assert.Empty(events.AttachmentDeletedEvents);
+        }
+        var attachment = await DbContextForAssert.CardAttachments.SingleAsync();
+        Assert.Equal(uploaded.Data!.Id, attachment.Id);
+        Assert.Equal(AttachmentState.Ready, attachment.State);
+        Assert.Equal(originalFiles.Count, Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories).Count());
+        foreach (var (path, bytes) in originalFiles)
+        {
+            Assert.Equal(bytes, await File.ReadAllBytesAsync(path));
+        }
     }
 
     [Fact]

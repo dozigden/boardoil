@@ -367,9 +367,6 @@ public sealed class CardAttachmentService(
     public Task<IReadOnlyList<string>> DeleteForCardsAsync(IReadOnlyList<int> databaseCardIds) =>
         MarkForDeletionAsync(attachments.Query().Where(x => x.CardId.HasValue && databaseCardIds.Contains(x.CardId.Value)));
 
-    public Task<IReadOnlyList<string>> DeleteForColumnAsync(int columnId) =>
-        MarkForDeletionAsync(attachments.Query().Where(x => x.Card != null && x.Card.BoardColumnId == columnId));
-
     public Task<IReadOnlyList<string>> DeleteForBoardAsync(int boardId) =>
         MarkForDeletionAsync(attachments.Query().Where(x => (x.Card != null && x.Card.BoardId == boardId)
             || (x.ArchivedCard != null && x.ArchivedCard.BoardId == boardId)));

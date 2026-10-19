@@ -6,4 +6,5 @@ namespace BoardOil.Data.Abstractions.Column;
 public interface IColumnRepository : IRepositoryBase<EntityBoardColumn>
 {
     Task<IReadOnlyList<EntityBoardColumn>> GetColumnsInBoardOrderedAsync(int boardId);
+    Task<bool> HasCardsAsync(int columnId);
 }

@@ -23,13 +23,14 @@ public sealed class AttachmentDeletionConcurrencyTests
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]
-    public async Task Deletion_ShouldLockBeforeSelectingAttachments(bool deleteBoard, bool deleteAttachment)
+    public async Task Deletion_ShouldLockBeforeCheckingDependentData(bool deleteBoard, bool deleteAttachment)
     {
         var directory = Directory.CreateTempSubdirectory("boardoil-attachment-delete-");
         try
         {
             var connectionString = $"Data Source={Path.Combine(directory.FullName, "test.db")};Pooling=False;Default Timeout=1";
-            var gate = new AttachmentSelectionGate();
+            var deleteColumn = !deleteBoard && !deleteAttachment;
+            var gate = new DeletionSelectionGate(deleteColumn);
             var options = new DbContextOptionsBuilder<BoardOilDbContext>().UseSqlite(connectionString).AddInterceptors(gate).Options;
             await using var database = new BoardOilDbContext(options);
             await database.Database.EnsureCreatedAsync();
@@ -71,7 +72,7 @@ public sealed class AttachmentDeletionConcurrencyTests
                     return await deletionScope.ServiceProvider.GetRequiredService<IBoardService>().DeleteBoardAsync(board.BoardId, actor.Id);
                 }
                 return await deletionScope.ServiceProvider.GetRequiredService<IColumnService>()
-                    .DeleteColumnAsync(board.BoardId, board.GetColumn("Source").Id, actor.Id);
+                    .DeleteColumnAsync(board.BoardId, board.GetColumn("Destination").Id, actor.Id);
             });
 
             try
@@ -98,8 +99,17 @@ public sealed class AttachmentDeletionConcurrencyTests
                 var result = await deletion.WaitAsync(TimeSpan.FromSeconds(10));
                 Assert.True(result.Success, result.Message);
             }
-            Assert.Equal(deleteAttachment, await database.Cards.AsNoTracking().AnyAsync(x => x.Id == card.Id));
-            Assert.Empty(await database.CardAttachments.AsNoTracking().ToListAsync());
+            Assert.Equal(!deleteBoard, await database.Cards.AsNoTracking().AnyAsync(x => x.Id == card.Id));
+            var attachments = await database.CardAttachments.AsNoTracking().ToListAsync();
+            if (deleteColumn)
+            {
+                Assert.Single(attachments);
+                Assert.False(await database.Columns.AsNoTracking().AnyAsync(x => x.Id == board.GetColumn("Destination").Id));
+            }
+            else
+            {
+                Assert.Empty(attachments);
+            }
         }
         finally
         {
@@ -107,7 +117,7 @@ public sealed class AttachmentDeletionConcurrencyTests
         }
     }
 
-    private sealed class AttachmentSelectionGate : DbCommandInterceptor
+    private sealed class DeletionSelectionGate(bool deleteColumn) : DbCommandInterceptor
     {
         public bool Enabled { get; set; }
         public bool HadTransaction { get; private set; }
@@ -117,7 +127,10 @@ public sealed class AttachmentDeletionConcurrencyTests
         public override async ValueTask<DbDataReader> ReaderExecutedAsync(DbCommand command, CommandExecutedEventData eventData,
             DbDataReader result, CancellationToken cancellationToken = default)
         {
-            if (Enabled && command.CommandText.Contains("FROM \"CardAttachments\"", StringComparison.Ordinal))
+            var isDependentDataQuery = deleteColumn
+                ? command.CommandText.Contains("EXISTS", StringComparison.Ordinal) && command.CommandText.Contains("\"Cards\"", StringComparison.Ordinal)
+                : command.CommandText.Contains("FROM \"CardAttachments\"", StringComparison.Ordinal);
+            if (Enabled && isDependentDataQuery)
             {
                 Enabled = false;
                 HadTransaction = command.Transaction is not null;
