@@ -219,6 +219,20 @@ public sealed record ColumnUpdateInput
 
 public sealed record ColumnMutationOutput(int Id, string Outcome);
 
+public sealed record ColumnReorderInput
+{
+    public int? BoardId { get; init; }
+    public IReadOnlyList<int>? ColumnIds { get; init; }
+}
+
+public sealed record ColumnReorderOutput(int BoardId, IReadOnlyList<int> ColumnIds, string Outcome);
+
+public sealed record ColumnDeleteInput
+{
+    public int? BoardId { get; init; }
+    public int? Id { get; init; }
+}
+
 public sealed record CardAttachmentDeleteInput
 {
     public int? BoardId { get; init; }

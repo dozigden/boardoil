@@ -37,4 +37,6 @@ public static class ToolDiscoveryOrder
     public const int CardTypeDelete = 2400;
     public const int ColumnCreate = 2500;
     public const int ColumnUpdate = 2600;
+    public const int ColumnReorder = 2700;
+    public const int ColumnDelete = 2800;
 }

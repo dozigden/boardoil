@@ -929,6 +929,54 @@ public static class ToolSchemas
 
     public static readonly string ColumnCreateOutput = CreateMutationReceiptSchema("created", "ID of the added column.");
     public static readonly string ColumnUpdateOutput = CreateMutationReceiptSchema("updated", "ID of the updated column.");
+    public static readonly string ColumnDeleteOutput = CreateMutationReceiptSchema("deleted", "ID of the deleted column.");
+
+    public const string ColumnReorderInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "columnIds": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "uniqueItems": true,
+          "description": "All board column IDs, in the desired order."
+        }
+      },
+      "required": ["boardId", "columnIds"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string ColumnReorderOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "columnIds": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "uniqueItems": true
+        },
+        "outcome": { "type": "string", "enum": ["reordered"] }
+      },
+      "required": ["boardId", "columnIds", "outcome"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string ColumnDeleteInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "id": { "type": "integer", "minimum": 1, "description": "Resolve from card_options_get.columns[].id." }
+      },
+      "required": ["boardId", "id"],
+      "additionalProperties": false
+    }
+    """;
+
     public static readonly string CardCreateOutput = CreateMutationReceiptSchema("created", "Board-scoped number of the created card.");
     public static readonly string CardUpdateOutput = CreateMutationReceiptSchema("updated", "Board-scoped number of the updated card.");
     public static readonly string CardMoveOutput = CreateMutationReceiptSchema("moved", "Board-scoped number of the moved card.");

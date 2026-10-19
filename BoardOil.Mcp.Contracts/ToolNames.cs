@@ -33,4 +33,6 @@ public static class ToolNames
     public const string CardTypeDelete = "card_type_delete";
     public const string ColumnCreate = "column_create";
     public const string ColumnUpdate = "column_update";
+    public const string ColumnReorder = "column_reorder";
+    public const string ColumnDelete = "column_delete";
 }
