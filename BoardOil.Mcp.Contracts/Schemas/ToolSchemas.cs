@@ -902,6 +902,19 @@ public static class ToolSchemas
     }
     """;
 
+    public const string ColumnCreateInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 }
+      },
+      "required": ["boardId", "title"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string ColumnCreateOutput = CreateMutationReceiptSchema("created", "ID of the added column.");
     public static readonly string CardCreateOutput = CreateMutationReceiptSchema("created", "Board-scoped number of the created card.");
     public static readonly string CardUpdateOutput = CreateMutationReceiptSchema("updated", "Board-scoped number of the updated card.");
     public static readonly string CardMoveOutput = CreateMutationReceiptSchema("moved", "Board-scoped number of the moved card.");

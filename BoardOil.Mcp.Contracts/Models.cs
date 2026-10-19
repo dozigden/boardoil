@@ -204,6 +204,14 @@ public sealed record CardOptionsGetInput
     public int? Id { get; init; }
 }
 
+public sealed record ColumnCreateInput
+{
+    public int? BoardId { get; init; }
+    public string? Title { get; init; }
+}
+
+public sealed record ColumnMutationOutput(int Id, string Outcome);
+
 public sealed record CardAttachmentDeleteInput
 {
     public int? BoardId { get; init; }
