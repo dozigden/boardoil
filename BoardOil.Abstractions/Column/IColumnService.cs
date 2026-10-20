@@ -10,4 +10,5 @@ public interface IColumnService
     Task<ApiResult<ColumnDto>> UpdateColumnAsync(int boardId, int id, UpdateColumnRequest request, int actorUserId);
     Task<ApiResult<IReadOnlyList<ColumnDto>>> ReorderColumnsAsync(int boardId, ReorderColumnsRequest request, int actorUserId);
     Task<ApiResult> DeleteColumnAsync(int boardId, int id, int actorUserId);
+    Task<ApiResult<IReadOnlyList<ColumnDto>>> EditColumnsAsync(int boardId, EditColumnsRequest request, int actorUserId);
 }

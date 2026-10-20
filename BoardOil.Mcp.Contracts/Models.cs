@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Column;
 
 namespace BoardOil.Mcp.Contracts;
 
@@ -204,34 +205,13 @@ public sealed record CardOptionsGetInput
     public int? Id { get; init; }
 }
 
-public sealed record ColumnCreateInput
+public sealed record ColumnEditInput
 {
     public int? BoardId { get; init; }
-    public string? Title { get; init; }
+    public IReadOnlyList<ColumnEditEntry?>? Columns { get; init; }
 }
 
-public sealed record ColumnUpdateInput
-{
-    public int? BoardId { get; init; }
-    public int? Id { get; init; }
-    public string? Title { get; init; }
-}
-
-public sealed record ColumnMutationOutput(int Id, string Outcome);
-
-public sealed record ColumnReorderInput
-{
-    public int? BoardId { get; init; }
-    public IReadOnlyList<int>? ColumnIds { get; init; }
-}
-
-public sealed record ColumnReorderOutput(int BoardId, IReadOnlyList<int> ColumnIds, string Outcome);
-
-public sealed record ColumnDeleteInput
-{
-    public int? BoardId { get; init; }
-    public int? Id { get; init; }
-}
+public sealed record ColumnEditOutput(int BoardId, IReadOnlyList<McpCardOptionColumn> Columns, string Outcome);
 
 public sealed record CardAttachmentDeleteInput
 {

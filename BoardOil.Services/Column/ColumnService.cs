@@ -225,6 +225,154 @@ public sealed class ColumnService(
         return ApiResults.Ok();
     }
 
+    public async Task<ApiResult<IReadOnlyList<ColumnDto>>> EditColumnsAsync(
+        int boardId, EditColumnsRequest request, int actorUserId)
+    {
+        using var scope = _scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
+
+        if (boardRepository.Get(boardId) is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
+
+        if (!await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.ColumnManage))
+        {
+            return ApiErrors.Forbidden("You do not have permission for this action.");
+        }
+
+        var validationErrors = ValidateEditColumns(request);
+        if (validationErrors.Count > 0)
+        {
+            return ApiErrors.ValidationFailed(validationErrors);
+        }
+
+        var desired = request.Columns!.Select(column => column!).ToArray();
+        var current = await columnRepository.GetColumnsInBoardOrderedAsync(boardId);
+        var columnsById = current.ToDictionary(column => column.Id);
+        var unknownIds = new List<ValidationError>();
+        for (var index = 0; index < desired.Length; index++)
+        {
+            if (desired[index].Id is int id && !columnsById.ContainsKey(id))
+            {
+                unknownIds.Add(new ValidationError($"columns[{index}].id",
+                    $"Column {id} does not exist on this board. To create a column, omit its ID."));
+            }
+        }
+        if (unknownIds.Count > 0)
+        {
+            return ApiErrors.BadRequest(unknownIds[0].Message, unknownIds);
+        }
+
+        var retainedIds = desired.Where(column => column.Id.HasValue).Select(column => column.Id!.Value).ToHashSet();
+        var deleted = current.Where(column => !retainedIds.Contains(column.Id)).ToArray();
+        var deletionErrors = new List<ValidationError>();
+        foreach (var column in deleted)
+        {
+            if (await columnRepository.HasCardsAsync(column.Id))
+            {
+                deletionErrors.Add(new ValidationError("columns",
+                    $"Column {column.Id} ('{column.Title}') must be empty before it can be deleted."));
+            }
+        }
+        if (deletionErrors.Count > 0)
+        {
+            return ApiErrors.BadRequest(deletionErrors[0].Message, deletionErrors);
+        }
+
+        var orderChanged = !current.Select(column => (int?)column.Id).SequenceEqual(desired.Select(column => column.Id));
+        var created = new List<EntityBoardColumn>();
+        var updated = new List<EntityBoardColumn>();
+        var ordered = new List<EntityBoardColumn>(desired.Length);
+        foreach (var entry in desired)
+        {
+            EntityBoardColumn column;
+            var title = entry.Title!.Trim();
+            if (entry.Id is int id)
+            {
+                column = columnsById[id];
+                if (column.Title != title)
+                {
+                    column.Title = title;
+                    updated.Add(column);
+                }
+            }
+            else
+            {
+                column = new EntityBoardColumn { BoardId = boardId, Title = title };
+                created.Add(column);
+                columnRepository.Add(column);
+            }
+            ordered.Add(column);
+        }
+
+        if (!orderChanged && updated.Count == 0)
+        {
+            return ApiResults.Ok<IReadOnlyList<ColumnDto>>(ordered.Select(column => column.ToColumnDto()).ToArray());
+        }
+
+        if (orderChanged)
+        {
+            // New keys must also avoid columns pending deletion: EF may insert before deleting them.
+            var keys = SortKeyGenerator.CreateEvenlySpaced(ordered.Count, current.Select(column => column.SortKey).ToArray());
+            for (var index = 0; index < ordered.Count; index++)
+            {
+                ordered[index].SortKey = keys[index];
+            }
+        }
+        foreach (var column in deleted)
+        {
+            columnRepository.Remove(column);
+        }
+
+        await scope.SaveChangesAsync();
+
+        foreach (var column in deleted)
+        {
+            await _boardEvents.ColumnDeletedAsync(boardId, column.Id);
+        }
+        foreach (var column in created)
+        {
+            await _boardEvents.ColumnCreatedAsync(boardId, column.ToColumnDto());
+        }
+        foreach (var column in updated)
+        {
+            await _boardEvents.ColumnUpdatedAsync(boardId, column.ToColumnDto());
+        }
+        var result = ordered.Select(column => column.ToColumnDto()).ToArray();
+        if (orderChanged)
+        {
+            await _boardEvents.ColumnsReorderedAsync(boardId, result);
+        }
+        return ApiResults.Ok<IReadOnlyList<ColumnDto>>(result);
+    }
+
+    private IReadOnlyList<ValidationError> ValidateEditColumns(EditColumnsRequest request)
+    {
+        if (request.Columns is null)
+        {
+            return [new ValidationError("columns", "Columns are required.")];
+        }
+
+        var errors = new List<ValidationError>();
+        var ids = new HashSet<int>();
+        for (var index = 0; index < request.Columns.Count; index++)
+        {
+            var column = request.Columns[index];
+            if (column is null)
+            {
+                errors.Add(new ValidationError($"columns[{index}]", "Column definition is required."));
+                continue;
+            }
+            if (column.Id is int id && (id <= 0 || !ids.Add(id)))
+            {
+                errors.Add(new ValidationError($"columns[{index}].id", "Column IDs must be positive and appear only once."));
+            }
+            errors.AddRange(validator.ValidateUpdate(new UpdateColumnRequest(column.Title!))
+                .Select(error => new ValidationError($"columns[{index}].{error.Property}", error.Message)));
+        }
+        return errors;
+    }
+
     private static bool TryGenerateSortKey(string? previous, string? next, out string? sortKey, out ApiError? error)
     {
         try

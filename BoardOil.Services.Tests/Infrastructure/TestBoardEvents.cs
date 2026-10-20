@@ -7,6 +7,10 @@ namespace BoardOil.Services.Tests.Infrastructure;
 
 public sealed class TestBoardEvents : IBoardEvents
 {
+    public readonly List<(int BoardId, ColumnDto Column)> ColumnCreatedEvents = [];
+    public readonly List<(int BoardId, ColumnDto Column)> ColumnUpdatedEvents = [];
+    public readonly List<string> ColumnEventNames = [];
+    public Func<Task>? ColumnEventObserver { get; set; }
     public readonly List<(int BoardId, CardCommentDto Comment)> CommentCreatedEvents = [];
     public readonly List<(int BoardId, CardCommentDto Comment)> CommentUpdatedEvents = [];
     public readonly List<(int BoardId, int CardId, int CommentId)> CommentDeletedEvents = [];
@@ -22,17 +26,31 @@ public sealed class TestBoardEvents : IBoardEvents
     public readonly List<int> TagsChangedBoardIds = [];
     public readonly List<string> PublishedEventNames = [];
 
-    public Task ColumnCreatedAsync(int boardId, ColumnDto column) => Task.CompletedTask;
-    public Task ColumnUpdatedAsync(int boardId, ColumnDto column) => Task.CompletedTask;
+    public Task ColumnCreatedAsync(int boardId, ColumnDto column)
+    {
+        ColumnCreatedEvents.Add((boardId, column));
+        return RecordColumnEvent("created");
+    }
+    public Task ColumnUpdatedAsync(int boardId, ColumnDto column)
+    {
+        ColumnUpdatedEvents.Add((boardId, column));
+        return RecordColumnEvent("updated");
+    }
     public Task ColumnsReorderedAsync(int boardId, IReadOnlyList<ColumnDto> columns)
     {
         ColumnsReorderedEvents.Add((boardId, columns));
-        return Task.CompletedTask;
+        return RecordColumnEvent("reordered");
     }
     public Task ColumnDeletedAsync(int boardId, int columnId)
     {
         ColumnDeletedEvents.Add((boardId, columnId));
-        return Task.CompletedTask;
+        return RecordColumnEvent("deleted");
+    }
+
+    private Task RecordColumnEvent(string name)
+    {
+        ColumnEventNames.Add(name);
+        return ColumnEventObserver?.Invoke() ?? Task.CompletedTask;
     }
 
     public Task CardCreatedAsync(int boardId, CardDto card)

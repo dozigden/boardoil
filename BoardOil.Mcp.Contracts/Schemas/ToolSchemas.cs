@@ -902,77 +902,51 @@ public static class ToolSchemas
     }
     """;
 
-    public const string ColumnCreateInput = """
+    public const string ColumnEditInput = """
     {
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "title": { "type": "string", "minLength": 1, "maxLength": 200 }
-      },
-      "required": ["boardId", "title"],
-      "additionalProperties": false
-    }
-    """;
-
-    public const string ColumnUpdateInput = """
-    {
-      "type": "object",
-      "properties": {
-        "boardId": { "type": "integer", "minimum": 1 },
-        "id": { "type": "integer", "minimum": 1, "description": "Resolve from card_options_get.columns[].id." },
-        "title": { "type": "string", "minLength": 1, "maxLength": 200 }
-      },
-      "required": ["boardId", "id", "title"],
-      "additionalProperties": false
-    }
-    """;
-
-    public static readonly string ColumnCreateOutput = CreateMutationReceiptSchema("created", "ID of the added column.");
-    public static readonly string ColumnUpdateOutput = CreateMutationReceiptSchema("updated", "ID of the updated column.");
-    public static readonly string ColumnDeleteOutput = CreateMutationReceiptSchema("deleted", "ID of the deleted column.");
-
-    public const string ColumnReorderInput = """
-    {
-      "type": "object",
-      "properties": {
-        "boardId": { "type": "integer", "minimum": 1 },
-        "columnIds": {
+        "columns": {
           "type": "array",
-          "items": { "type": "integer", "minimum": 1 },
-          "uniqueItems": true,
-          "description": "All board column IDs, in the desired order."
+          "description": "Complete desired column list in order. Omitted current columns are deleted only when empty of live cards; any failure rejects the whole edit. Applies to current state, including columns added since your last read. An empty array removes all empty columns.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": ["integer", "null"], "minimum": 1, "description": "Existing column ID from card_options_get.columns[].id. Omit or use null to create. Unknown IDs are rejected." },
+              "title": { "type": "string", "minLength": 1, "maxLength": 200 }
+            },
+            "required": ["title"],
+            "additionalProperties": false
+          }
         }
       },
-      "required": ["boardId", "columnIds"],
+      "required": ["boardId", "columns"],
       "additionalProperties": false
     }
     """;
 
-    public const string ColumnReorderOutput = """
+    public const string ColumnEditOutput = """
     {
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "columnIds": {
+        "columns": {
           "type": "array",
-          "items": { "type": "integer", "minimum": 1 },
-          "uniqueItems": true
+          "description": "Resulting columns in order, including IDs allocated to new columns. Use these IDs in subsequent edits.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer", "minimum": 1 },
+              "title": { "type": "string" }
+            },
+            "required": ["id", "title"],
+            "additionalProperties": false
+          }
         },
-        "outcome": { "type": "string", "enum": ["reordered"] }
+        "outcome": { "type": "string", "enum": ["edited"] }
       },
-      "required": ["boardId", "columnIds", "outcome"],
-      "additionalProperties": false
-    }
-    """;
-
-    public const string ColumnDeleteInput = """
-    {
-      "type": "object",
-      "properties": {
-        "boardId": { "type": "integer", "minimum": 1 },
-        "id": { "type": "integer", "minimum": 1, "description": "Resolve from card_options_get.columns[].id." }
-      },
-      "required": ["boardId", "id"],
+      "required": ["boardId", "columns", "outcome"],
       "additionalProperties": false
     }
     """;
