@@ -307,7 +307,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
                 ToolNames.CardTypeUpdate,
                 ToolNames.CardTypeSetDefault,
                 ToolNames.CardTypeDelete,
-                ToolNames.ColumnEdit
+                ToolNames.ColumnsSet
             ],
             toolNames);
         Assert.DoesNotContain("card_attachment_list", toolNames);
@@ -347,7 +347,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         AssertToolAnnotations(toolsListPayload, ToolNames.CardSearch, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardGet, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardOptionsGet, readOnly: true, destructive: false, idempotent: true);
-        AssertToolAnnotations(toolsListPayload, ToolNames.ColumnEdit, readOnly: false, destructive: true, idempotent: false);
+        AssertToolAnnotations(toolsListPayload, ToolNames.ColumnsSet, readOnly: false, destructive: true, idempotent: false);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardCreate, readOnly: false, destructive: false, idempotent: false);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardUpdate, readOnly: false, destructive: true, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardMove, readOnly: false, destructive: false, idempotent: false);

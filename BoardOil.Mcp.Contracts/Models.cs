@@ -205,13 +205,13 @@ public sealed record CardOptionsGetInput
     public int? Id { get; init; }
 }
 
-public sealed record ColumnEditInput
+public sealed record ColumnsSetInput
 {
     public int? BoardId { get; init; }
     public IReadOnlyList<ColumnEditEntry?>? Columns { get; init; }
 }
 
-public sealed record ColumnEditOutput(int BoardId, IReadOnlyList<McpCardOptionColumn> Columns, string Outcome);
+public sealed record ColumnsSetOutput(int BoardId, IReadOnlyList<McpCardOptionColumn> Columns, string Outcome);
 
 public sealed record CardAttachmentDeleteInput
 {

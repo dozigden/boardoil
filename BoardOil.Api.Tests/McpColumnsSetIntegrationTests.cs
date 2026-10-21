@@ -12,12 +12,12 @@ using Xunit;
 
 namespace BoardOil.Api.Tests;
 
-public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, IClassFixture<DefaultApiFactoryFixture>
+public sealed class McpColumnsSetIntegrationTests : McpIntegrationTestBase, IClassFixture<DefaultApiFactoryFixture>
 {
-    public McpColumnEditIntegrationTests(DefaultApiFactoryFixture fixture) => UseSharedFactory(fixture);
+    public McpColumnsSetIntegrationTests(DefaultApiFactoryFixture fixture) => UseSharedFactory(fixture);
 
     [Fact]
-    public async Task Edit_ShouldReturnCompleteOrderedConfigurationAndExposeItThroughExistingReads()
+    public async Task Set_ShouldReturnCompleteOrderedConfigurationAndExposeItThroughExistingReads()
     {
         var client = CreateClient();
         await RegisterInitialAdminAsync(client);
@@ -25,7 +25,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
         var before = await StoredColumns();
         var retained = before[0];
 
-        using var payload = await CallAsync(client, token, ToolNames.ColumnEdit, new
+        using var payload = await CallAsync(client, token, ToolNames.ColumnsSet, new
         {
             boardId = 1,
             columns = new object[] { new { title = " New first " }, new { id = retained.Id, title = " Retained renamed " } }
@@ -49,7 +49,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
     }
 
     [Fact]
-    public async Task Edit_WithReturnedColumns_ShouldRoundTripWithoutChanges()
+    public async Task Set_WithReturnedColumns_ShouldRoundTripWithoutChanges()
     {
         var client = CreateClient();
         await RegisterInitialAdminAsync(client);
@@ -58,7 +58,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
         var columns = AssertSuccess(catalogue).GetProperty("columns");
         var before = await StoredColumns();
 
-        using var payload = await CallAsync(client, token, ToolNames.ColumnEdit, new { boardId = 1, columns });
+        using var payload = await CallAsync(client, token, ToolNames.ColumnsSet, new { boardId = 1, columns });
 
         Assert.True(JsonElement.DeepEquals(columns, AssertSuccess(payload).GetProperty("columns")));
         Assert.Equal(before, await StoredColumns());
@@ -68,7 +68,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
     [InlineData("readScope")]
     [InlineData("contributor")]
     [InlineData("nonMember")]
-    public async Task Edit_WithoutWriteScopeOrOwnership_ShouldNotChangeColumns(string restriction)
+    public async Task Set_WithoutWriteScopeOrOwnership_ShouldNotChangeColumns(string restriction)
     {
         var client = CreateClient();
         await RegisterInitialAdminAsync(client);
@@ -83,7 +83,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
         }
         var before = await StoredColumns();
 
-        using var payload = await CallAsync(client, token, ToolNames.ColumnEdit, new { boardId = 1, columns = Array.Empty<object>() });
+        using var payload = await CallAsync(client, token, ToolNames.ColumnsSet, new { boardId = 1, columns = Array.Empty<object>() });
 
         AssertError(payload, "forbidden", 403);
         Assert.Equal(before, await StoredColumns());
@@ -96,7 +96,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
     [InlineData("{\"boardId\":1,\"columns\":null}", "columns")]
     [InlineData("{\"boardId\":1,\"columns\":[{}]}", "columns[0].title")]
     [InlineData("{\"boardId\":1,\"columns\":[{\"id\":2147483647,\"title\":\"New\"}]}", "columns[0].id")]
-    public async Task Edit_WithInvalidArguments_ShouldMapValidationWithoutChanges(string argumentsJson, string field)
+    public async Task Set_WithInvalidArguments_ShouldMapValidationWithoutChanges(string argumentsJson, string field)
     {
         var client = CreateClient();
         await RegisterInitialAdminAsync(client);
@@ -104,7 +104,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
         var before = await StoredColumns();
         using var arguments = JsonDocument.Parse(argumentsJson);
 
-        using var payload = await CallAsync(client, token, ToolNames.ColumnEdit, arguments.RootElement);
+        using var payload = await CallAsync(client, token, ToolNames.ColumnsSet, arguments.RootElement);
 
         Assert.True(AssertError(payload, "validation_failed", 400).GetProperty("validationErrors").TryGetProperty(field, out _));
         Assert.Equal(before, await StoredColumns());
@@ -113,7 +113,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Edit_WithUnknownColumnProperty_ShouldRejectWholeRequestWithoutChanges(bool includeValidId)
+    public async Task Set_WithUnknownColumnProperty_ShouldRejectWholeRequestWithoutChanges(bool includeValidId)
     {
         var client = CreateClient();
         await RegisterInitialAdminAsync(client);
@@ -129,7 +129,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
             entry["id"] = before[0].Id;
         }
 
-        using var payload = await CallAsync(client, token, ToolNames.ColumnEdit, new
+        using var payload = await CallAsync(client, token, ToolNames.ColumnsSet, new
         {
             boardId = 1,
             columns = new object[] { new { title = "Should not be added" }, entry }
@@ -141,14 +141,14 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
     }
 
     [Fact]
-    public async Task Edit_WithMalformedArray_ShouldReturnStructuredValidation()
+    public async Task Set_WithMalformedArray_ShouldReturnStructuredValidation()
     {
         var client = CreateClient();
         await RegisterInitialAdminAsync(client);
         var token = await CreateMachinePatAsync(client);
         var before = await StoredColumns();
 
-        using var payload = await CallAsync(client, token, ToolNames.ColumnEdit, new { boardId = 1, columns = new[] { "invalid" } });
+        using var payload = await CallAsync(client, token, ToolNames.ColumnsSet, new { boardId = 1, columns = new[] { "invalid" } });
 
         AssertError(payload, "validation_failed", 400);
         Assert.Equal(before, await StoredColumns());
@@ -159,6 +159,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
     [InlineData("column_update")]
     [InlineData("column_reorder")]
     [InlineData("column_delete")]
+    [InlineData("column_edit")]
     public async Task RetiredTool_ShouldReturnToolNotFound(string name)
     {
         var client = CreateClient();
@@ -177,11 +178,11 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
         await RegisterInitialAdminAsync(client);
         var token = await CreateMachinePatAsync(client);
 
-        using var response = await McpJsonRpcClient.SendRequestAsync(client, "tools/list", new { }, "column-edit-discovery", token);
+        using var response = await McpJsonRpcClient.SendRequestAsync(client, "tools/list", new { }, "columns-set-discovery", token);
         using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var tool = McpJsonRpcClient.GetToolByName(payload, ToolNames.ColumnEdit);
+        var tool = McpJsonRpcClient.GetToolByName(payload, "columns_set");
         var input = tool.GetProperty("inputSchema");
         Assert.Equal(["boardId", "columns"], input.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
         Assert.False(input.GetProperty("additionalProperties").GetBoolean());
@@ -222,7 +223,7 @@ public sealed class McpColumnEditIntegrationTests : McpIntegrationTestBase, ICla
 
     private static async Task<JsonDocument> CallAsync(HttpClient client, string token, string name, object arguments)
     {
-        using var response = await McpJsonRpcClient.SendRequestAsync(client, "tools/call", new { name, arguments }, "column-edit", token);
+        using var response = await McpJsonRpcClient.SendRequestAsync(client, "tools/call", new { name, arguments }, "columns-set", token);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await McpJsonRpcClient.ParseJsonAsync(response);
     }

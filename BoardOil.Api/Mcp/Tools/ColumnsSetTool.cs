@@ -6,22 +6,22 @@ using BoardOil.Mcp.Contracts.Schemas;
 
 namespace BoardOil.Api.Mcp;
 
-public sealed class ColumnEditTool(
+public sealed class ColumnsSetTool(
     IColumnService columnService,
-    IMcpAuthorisationService authorisationService) : McpToolBase<ColumnEditInput, ColumnEditOutput>(authorisationService)
+    IMcpAuthorisationService authorisationService) : McpToolBase<ColumnsSetInput, ColumnsSetOutput>(authorisationService)
 {
     public override McpToolDefinition Definition { get; } = new(
-        ToolNames.ColumnEdit,
+        ToolNames.ColumnsSet,
         "Set the board's complete column configuration.",
-        ToolSchemas.ColumnEditInput,
-        ToolSchemas.ColumnEditOutput,
+        ToolSchemas.ColumnsSetInput,
+        ToolSchemas.ColumnsSetOutput,
         MachinePatScopes.McpWrite,
-        ToolDiscoveryOrder.ColumnEdit,
+        ToolDiscoveryOrder.ColumnsSet,
         McpToolBehaviours.Destructive);
 
-    protected override async Task<McpToolResult<ColumnEditOutput>> ExecuteCoreAsync(
+    protected override async Task<McpToolResult<ColumnsSetOutput>> ExecuteCoreAsync(
         McpInvocationContext context,
-        ColumnEditInput input,
+        ColumnsSetInput input,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -44,7 +44,7 @@ public sealed class ColumnEditTool(
             return Failure(result.ToMcpError());
         }
 
-        return Success(new ColumnEditOutput(boardId,
+        return Success(new ColumnsSetOutput(boardId,
             result.Data.Select(column => new McpCardOptionColumn(column.Id, column.Title)).ToArray(), "edited"));
     }
 }

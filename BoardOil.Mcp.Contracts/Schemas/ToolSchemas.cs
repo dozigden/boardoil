@@ -902,7 +902,7 @@ public static class ToolSchemas
     }
     """;
 
-    public const string ColumnEditInput = """
+    public const string ColumnsSetInput = """
     {
       "type": "object",
       "properties": {
@@ -926,7 +926,7 @@ public static class ToolSchemas
     }
     """;
 
-    public const string ColumnEditOutput = """
+    public const string ColumnsSetOutput = """
     {
       "type": "object",
       "properties": {

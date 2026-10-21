@@ -59,7 +59,7 @@ public static class McpServiceCollectionExtensions
         RegisterTool<CardTypeUpdateTool>(services);
         RegisterTool<CardTypeSetDefaultTool>(services);
         RegisterTool<CardTypeDeleteTool>(services);
-        RegisterTool<ColumnEditTool>(services);
+        RegisterTool<ColumnsSetTool>(services);
 
         services.AddSingleton<McpToolRegistry>();
         services.AddSingleton<McpToolDispatcher>();
