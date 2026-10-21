@@ -42,8 +42,13 @@ public sealed record McpBoardSnapshot(
     int Id,
     string Name,
     string Description,
+    McpBoardSettings Settings,
     DateTime UpdatedAtUtc,
     IReadOnlyList<McpColumnSnapshot> Columns);
+
+public sealed record McpBoardSettings(
+    bool SlickCohesionModeEnabled,
+    bool CardAttachmentThumbnailsEnabled);
 
 public sealed record McpBoardSummary(
     int Id,
@@ -171,6 +176,23 @@ public sealed record BoardGetInput
 {
     public int? Id { get; init; }
 }
+
+public sealed record BoardUpdateInput
+{
+    public int? BoardId { get; init; }
+    public string? Name { get; init; }
+    public string? Description { get; init; }
+    public BoardUpdateSettingsInput? Settings { get; init; }
+}
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record BoardUpdateSettingsInput
+{
+    public bool? SlickCohesionModeEnabled { get; init; }
+    public bool? CardAttachmentThumbnailsEnabled { get; init; }
+}
+
+public sealed record BoardUpdateOutput(int Id, string Outcome);
 
 public sealed record BoardListInput;
 

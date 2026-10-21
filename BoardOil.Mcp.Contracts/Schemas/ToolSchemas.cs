@@ -334,6 +334,63 @@ public static class ToolSchemas
     }
     """;
 
+    private const string BoardSettingsSchema = """
+    {
+      "type": "object",
+      "properties": {
+        "slickCohesionModeEnabled": { "type": "boolean" },
+        "cardAttachmentThumbnailsEnabled": { "type": "boolean" }
+      },
+      "required": ["slickCohesionModeEnabled", "cardAttachmentThumbnailsEnabled"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string BoardGetOutput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "settings": {{BoardSettingsSchema}},
+        "updatedAtUtc": { "type": "string", "format": "date-time" },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer", "minimum": 1 },
+              "title": { "type": "string" },
+              "sortKey": { "type": "string" },
+              "cards": { "type": "array", "items": {{ObjectOutput}} }
+            },
+            "required": ["id", "title", "sortKey", "cards"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["id", "name", "description", "settings", "updatedAtUtc", "columns"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string BoardUpdateInput = $$"""
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 5000, "description": "Required. Use an empty string to clear the description." },
+        "settings": {{BoardSettingsSchema}}
+      },
+      "required": ["boardId", "name", "description", "settings"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string BoardUpdateOutput = CreateMutationReceiptSchema("updated", "ID of the updated board.");
+
     public const string CardOptionsGetInput = """
     {
       "type": "object",

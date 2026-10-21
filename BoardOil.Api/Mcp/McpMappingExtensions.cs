@@ -22,6 +22,7 @@ public static class McpMappingExtensions
             board.Id,
             board.Name,
             board.Description,
+            new McpBoardSettings(board.SlickCohesionModeEnabled, board.CardAttachmentThumbnailsEnabled),
             board.UpdatedAtUtc,
             board.Columns
                 .Select(column => new McpColumnSnapshot(

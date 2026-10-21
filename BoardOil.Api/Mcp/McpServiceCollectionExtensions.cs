@@ -33,6 +33,7 @@ public static class McpServiceCollectionExtensions
 
         RegisterTool<BoardListTool>(services);
         RegisterTool<BoardGetTool>(services);
+        RegisterTool<BoardUpdateTool>(services);
         RegisterTool<IdentityGetTool>(services);
         RegisterTool<CardOptionsGetTool>(services);
         RegisterTool<CardGetTool>(services);
