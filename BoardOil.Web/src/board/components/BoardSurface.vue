@@ -54,8 +54,7 @@
           :data-column-id="column.id"
           :class="{
             'column-content--drop-tail': isDropPoint(column.id, null),
-            'column-content--drop-head': isDropAtColumnStart(column.id),
-            'column-content--lite-goo': gooRendererMode === 'lite'
+            'column-content--drop-head': isDropAtColumnStart(column.id)
           }"
         >
           <LiteGooLayer
@@ -320,7 +319,7 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
   border: 1px solid var(--bo-border-soft);
   border-radius: 14px;
   position: relative;
-  padding: 0.75rem 0.25rem 0.75rem 0.75rem;
+  padding: 0.75rem 0.25rem;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -359,7 +358,6 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
 
 .column-content {
   --column-card-gap: 0.5rem;
-  --column-lite-goo-bleed: 0.5rem;
   --column-scrollbar-width: 0.375rem;
   display: flex;
   flex-direction: column;
@@ -367,19 +365,12 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
   gap: var(--column-card-gap);
   min-height: 0;
   overflow-y: auto;
-  padding-right: calc(0.5rem - var(--column-scrollbar-width));
-  padding-bottom: 5px;
+  padding: 0 0.5rem 5px;
   overscroll-behavior-y: none;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
   position: relative;
-}
-
-.column-content--lite-goo {
-  margin-left: calc(-1 * var(--column-lite-goo-bleed));
-  padding-left: var(--column-lite-goo-bleed);
-  padding-right: 0.5rem;
 }
 
 .column-content > :not(.goo-layer) {

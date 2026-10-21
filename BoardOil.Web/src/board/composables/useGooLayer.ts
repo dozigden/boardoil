@@ -347,7 +347,8 @@ export function useGooLayer(
   function resolveLocalCardRect(cardRect: RectLike, clipElement: HTMLElement): RectLike {
     const clipRect = clipElement.getBoundingClientRect();
     return {
-      left: cardRect.left - clipRect.left + clipElement.scrollLeft,
+      // The local SVG starts after the scroller's reserved left scrollbar gutter.
+      left: cardRect.left - clipRect.left - clipElement.clientLeft + clipElement.scrollLeft,
       top: cardRect.top - clipRect.top + clipElement.scrollTop,
       width: cardRect.width,
       height: cardRect.height

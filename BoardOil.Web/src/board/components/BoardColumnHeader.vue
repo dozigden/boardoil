@@ -92,7 +92,7 @@ const emit = defineEmits<{
   justify-content: space-between;
   gap: 0.5rem;
   align-items: center;
-  margin: -0.75rem -0.25rem 0 -0.75rem;
+  margin: -0.75rem -0.25rem 0;
   padding: 0.75rem 0.75rem 0.5rem 0.75rem;
   border-top-left-radius: 14px;
   border-top-right-radius: 14px;
