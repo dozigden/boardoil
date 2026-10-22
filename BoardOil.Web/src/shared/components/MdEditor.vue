@@ -123,6 +123,7 @@ const props = withDefaults(defineProps<{
   maxLength?: number;
   minHeight?: string;
   showToolbar?: boolean;
+  scrollTopInset?: () => number;
   imageContext?: MarkdownImageContext | null;
   imageRemove?: MarkdownImageRemove | null;
   imageUpload?: MarkdownImageUpload | null;
@@ -222,6 +223,28 @@ const tiptapEditor = useEditor({
     Markdown
   ],
   editorProps: {
+    // Read the inset on each scroll so a wrapping sticky toolbar is accounted for.
+    scrollThreshold: {
+      get top() { return props.scrollTopInset?.() ?? 0; },
+      right: 0,
+      bottom: 0,
+      left: 0
+    },
+    scrollMargin: {
+      get top() {
+        if (!props.scrollTopInset) {
+          return 5;
+        }
+
+        const view = tiptapEditor.value?.view;
+        // Include the editor's first-line inset so its border is revealed at the start.
+        const firstLineInset = view ? view.coordsAtPos(1).top - view.dom.getBoundingClientRect().top : 0;
+        return props.scrollTopInset() + firstLineInset + 5;
+      },
+      right: 5,
+      bottom: 5,
+      left: 5
+    },
     attributes: {
       'aria-label': props.ariaLabel
     },

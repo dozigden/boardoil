@@ -11,6 +11,39 @@ export class CardEditorPage {
     return this.dialog().getByLabel('Comment', { exact: true });
   }
 
+  public async moveDescriptionCursorToEnd() {
+    const editor = this.descriptionEditor();
+    await editor.focus();
+    await editor.press('ControlOrMeta+End');
+  }
+
+  public async descriptionTopClearance() {
+    const editorBounds = await this.descriptionEditor().boundingBox();
+    const toolbarBounds = await this.toolbar().boundingBox();
+    if (!editorBounds || !toolbarBounds) {
+      throw new Error('The description editor and formatting toolbar must be visible.');
+    }
+
+    return editorBounds.y - toolbarBounds.y - toolbarBounds.height;
+  }
+
+  public async descriptionCursorClearance() {
+    const cursorTop = await this.descriptionEditor().evaluate(element => {
+      const selection = element.ownerDocument.getSelection();
+      if (!selection?.rangeCount || !element.contains(selection.focusNode)) {
+        throw new Error('The description must contain the cursor.');
+      }
+
+      return selection.getRangeAt(0).getBoundingClientRect().top;
+    });
+    const toolbarBounds = await this.toolbar().boundingBox();
+    if (!toolbarBounds) {
+      throw new Error('The formatting toolbar must be visible.');
+    }
+
+    return cursorTop - toolbarBounds.y - toolbarBounds.height;
+  }
+
   public commentContent() {
     return this.dialog().getByLabel('Comment content', { exact: true });
   }

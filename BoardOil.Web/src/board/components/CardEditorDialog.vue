@@ -81,6 +81,7 @@
       <div class="card-editor-layout">
         <div class="card-editor-main">
           <MdEditorToolbar
+            ref="sharedToolbarRef"
             class="card-editor-shared-toolbar"
             :state="activeToolbarState"
             :is-plain-text-mode="activeIsPlainTextMode"
@@ -98,6 +99,7 @@
               :max-length="maxDescriptionLength"
               min-height="12rem"
               :show-toolbar="false"
+              :scroll-top-inset="getEditorScrollTopInset"
               :image-context="cardImageContext"
               :image-remove="removeDescriptionImage"
               :image-upload="cardImageUpload"
@@ -123,6 +125,7 @@
                   :max-length="maxCommentLength"
                   min-height="3rem"
                   :show-toolbar="false"
+                  :scroll-top-inset="getEditorScrollTopInset"
                   :image-context="cardImageContext"
                   :image-remove="removeCommentImage"
                   :image-upload="cardImageUpload"
@@ -196,6 +199,7 @@
                       :max-length="maxCommentLength"
                       min-height="3rem"
                       :show-toolbar="false"
+                      :scroll-top-inset="getEditorScrollTopInset"
                       :image-context="cardImageContext"
                       :image-remove="removeEditedCommentImage"
                       :image-upload="editedCommentDeleted ? null : cardImageUpload"
@@ -477,6 +481,12 @@ let stopDuplicateAnimation: (() => void) | undefined;
 const newCommentText = ref('');
 const isCommentDraftDirty = ref(false);
 const descriptionEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
+const sharedToolbarRef = ref<InstanceType<typeof MdEditorToolbar> | null>(null);
+
+function getEditorScrollTopInset() {
+  return sharedToolbarRef.value?.$el.getBoundingClientRect().height ?? 0;
+}
+
 const commentEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const editedCommentEditorRef = ref<InstanceType<typeof MdEditor> | null>(null);
 const editingCommentId = ref<number | null>(null);
