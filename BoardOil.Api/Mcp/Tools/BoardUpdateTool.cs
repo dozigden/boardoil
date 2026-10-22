@@ -9,7 +9,7 @@ namespace BoardOil.Api.Mcp;
 
 public sealed class BoardUpdateTool(
     IBoardService boardService,
-    IMcpAuthorisationService authorisationService) : McpToolBase<BoardUpdateInput, BoardUpdateOutput>(authorisationService)
+    IMcpAuthorisationService authorisationService) : McpToolBase<BoardUpdateInput, BoardMutationReceipt>(authorisationService)
 {
     public override McpToolDefinition Definition { get; } = new(
         ToolNames.BoardUpdate,
@@ -20,7 +20,7 @@ public sealed class BoardUpdateTool(
         ToolDiscoveryOrder.BoardUpdate,
         McpToolBehaviours.IdempotentDestructive);
 
-    protected override async Task<McpToolResult<BoardUpdateOutput>> ExecuteCoreAsync(
+    protected override async Task<McpToolResult<BoardMutationReceipt>> ExecuteCoreAsync(
         McpInvocationContext context,
         BoardUpdateInput input,
         CancellationToken cancellationToken)
@@ -73,6 +73,6 @@ public sealed class BoardUpdateTool(
             return Failure(result.ToMcpError());
         }
 
-        return Success(new BoardUpdateOutput(result.Data.Id, "updated"));
+        return Success(new BoardMutationReceipt(result.Data.Id, "updated"));
     }
 }

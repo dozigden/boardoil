@@ -192,7 +192,42 @@ public sealed record BoardUpdateSettingsInput
     public bool? CardAttachmentThumbnailsEnabled { get; init; }
 }
 
-public sealed record BoardUpdateOutput(int Id, string Outcome);
+public sealed record BoardCreateInput
+{
+    private string? _description;
+    private bool _descriptionSpecified;
+    private int? _sourceBoardId;
+    private bool _sourceBoardIdSpecified;
+
+    public string? Mode { get; init; } = "normal";
+    public string? Name { get; init; }
+    public string? Description
+    {
+        get => _description;
+        init
+        {
+            _description = value;
+            _descriptionSpecified = true;
+        }
+    }
+    public int? SourceBoardId
+    {
+        get => _sourceBoardId;
+        init
+        {
+            _sourceBoardId = value;
+            _sourceBoardIdSpecified = true;
+        }
+    }
+
+    [JsonIgnore]
+    public bool DescriptionSpecified => _descriptionSpecified;
+
+    [JsonIgnore]
+    public bool SourceBoardIdSpecified => _sourceBoardIdSpecified;
+}
+
+public sealed record BoardMutationReceipt(int Id, string Outcome);
 
 public sealed record BoardListInput;
 

@@ -109,7 +109,7 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         // Act
         var cloneResponse = await Client.PostAsJsonAsync(
             "/api/boards/1/clone",
-            new CloneBoardRequest("Cloned BoardOil"));
+            new CloneBoardRequest("Cloned BoardOil", "  Clone guidance  "));
         var cloned = await cloneResponse.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>(JsonOptions);
 
         // Assert
@@ -118,6 +118,7 @@ public sealed class BoardApiBoardAndColumnIntegrationTests
         Assert.True(cloned!.Success);
         Assert.NotNull(cloned.Data);
         Assert.Equal("Cloned BoardOil", cloned.Data!.Name);
+        Assert.Equal("Clone guidance", cloned.Data.Description);
         Assert.Equal("Owner", cloned.Data.CurrentUserRole);
         Assert.Equal(["Todo", "In Progress", "Done"], cloned.Data.Columns.Select(x => x.Title));
         Assert.All(cloned.Data.Columns, column => Assert.Empty(column.Cards));

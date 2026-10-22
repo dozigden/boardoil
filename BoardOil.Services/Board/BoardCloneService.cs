@@ -83,7 +83,7 @@ public sealed class BoardCloneService(
         }
 
         var targetName = request.Name?.Trim() ?? string.Empty;
-        var targetDescription = sourceConfiguration.Description?.Trim() ?? string.Empty;
+        var targetDescription = (request.Description ?? sourceConfiguration.Description)?.Trim() ?? string.Empty;
         var planResult = importPlanner.BuildBoardPackageImportPlan(
             targetName,
             targetDescription,

@@ -130,6 +130,42 @@ public sealed class BoardCloneServiceTests : TestBaseDb
         Assert.Equal(1, clonedSequence.NextCardId);
     }
 
+    [Theory]
+    [InlineData("  New guidance  ", "New guidance")]
+    [InlineData("", "")]
+    public async Task CloneBoardAsync_WithDescriptionOverride_ShouldPersistItWithoutChangingSource(
+        string description, string expectedDescription)
+    {
+        var source = CreateBoard("Source board").AddColumn("Todo").Build();
+        DbContextForArrange.Boards.Single(board => board.Id == source.BoardId).Description = "Source guidance";
+        await DbContextForArrange.SaveChangesAsync();
+        var service = ResolveService<IBoardCloneService>();
+
+        var result = await service.CloneBoardAsync(source.BoardId,
+            new CloneBoardRequest("Cloned board", description), ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.Equal(expectedDescription, result.Data!.Description);
+        Assert.Equal(expectedDescription, DbContextForAssert.Boards.Single(board => board.Id == result.Data.Id).Description);
+        Assert.Equal("Source guidance", DbContextForAssert.Boards.Single(board => board.Id == source.BoardId).Description);
+    }
+
+    [Fact]
+    public async Task CloneBoardAsync_WithInvalidDescription_ShouldNotCreateBoard()
+    {
+        var source = CreateBoard("Source board").Build();
+        var countBefore = DbContextForArrange.Boards.Count();
+        var service = ResolveService<IBoardCloneService>();
+
+        var result = await service.CloneBoardAsync(source.BoardId,
+            new CloneBoardRequest("Cloned board", new string('x', 5001)), ActorUserId);
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("description", result.ValidationErrors!.Keys);
+        Assert.Equal(countBefore, DbContextForAssert.Boards.Count());
+    }
+
     [Fact]
     public async Task CloneBoardAsync_WhenActorIsContributor_ShouldCreateOwnedClone()
     {

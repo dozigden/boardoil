@@ -391,6 +391,32 @@ public static class ToolSchemas
 
     public static readonly string BoardUpdateOutput = CreateMutationReceiptSchema("updated", "ID of the updated board.");
 
+    public const string BoardCreateInput = """
+    {
+      "type": "object",
+      "properties": {
+        "mode": { "type": "string", "enum": ["normal", "clone"], "default": "normal", "description": "Omit or use normal to create a new board. Use clone to copy an accessible board's configuration without cards, archives or members." },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 5000, "description": "Optional. Normal creation defaults to empty; cloning inherits the source description when omitted. Supply an empty string to clear it." },
+        "sourceBoardId": { "type": "integer", "minimum": 1, "description": "Required only in clone mode. Resolve from board_list. Must be omitted in normal mode." }
+      },
+      "required": ["name"],
+      "oneOf": [
+        {
+          "properties": { "mode": { "const": "normal" } },
+          "not": { "required": ["sourceBoardId"] }
+        },
+        {
+          "properties": { "mode": { "const": "clone" } },
+          "required": ["mode", "sourceBoardId"]
+        }
+      ],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string BoardCreateOutput = CreateMutationReceiptSchema("created", "ID of the newly created board.");
+
     public const string CardOptionsGetInput = """
     {
       "type": "object",
