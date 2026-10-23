@@ -301,6 +301,16 @@ const tiptapEditor = useEditor({
   onBlur: () => {
     emit('blur');
   },
+  onSelectionUpdate: ({ editor, transaction }) => {
+    if (!props.scrollTopInset || !editor.isFocused || !editor.state.selection.empty
+      || transaction.scrolledIntoView || transaction.getMeta('pointer')) {
+      return;
+    }
+
+    // Native keyboard selections processed after ProseMirror's 50ms origin
+    // window do not request scrolling. Still apply the sticky toolbar inset.
+    editor.commands.scrollIntoView();
+  },
   onUpdate: ({ editor }) => {
     reconcileResolvedUploadTasks(editor);
     const currentValue = editor.getMarkdown();
