@@ -153,6 +153,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          pull: true
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ steps.image.outputs.ghcr_name }},${{ steps.image.outputs.dockerhub_name }}",push-by-digest=true,name-canonical=true,push=true

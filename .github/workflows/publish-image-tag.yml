@@ -135,6 +135,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          pull: true
           load: true
           platforms: ${{ matrix.platform }}
           push: false
@@ -215,6 +216,8 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          # Reuse the base images resolved for the smoke-tested candidate.
+          pull: false
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ steps.image.outputs.ghcr_name }},${{ steps.image.outputs.dockerhub_name }}",push-by-digest=true,name-canonical=true,push=true

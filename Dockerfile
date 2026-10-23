@@ -3,7 +3,9 @@ ARG BO_CHANNEL=dev
 ARG BO_BUILD=local
 ARG BO_COMMIT=unknown
 
-FROM node:24-bookworm-slim AS frontend-build
+FROM node:24.22.1-bookworm-slim AS frontend-build
+COPY scripts/refresh-container-trust.sh /usr/local/bin/refresh-container-trust
+RUN sh /usr/local/bin/refresh-container-trust
 ARG BO_VERSION
 ARG BO_CHANNEL
 ARG BO_BUILD
@@ -20,7 +22,9 @@ ENV VITE_BO_BUILD=$BO_BUILD
 ENV VITE_BO_COMMIT=$BO_COMMIT
 RUN npm run build
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS backend-build
+COPY scripts/refresh-container-trust.sh /usr/local/bin/refresh-container-trust
+RUN sh /usr/local/bin/refresh-container-trust
 WORKDIR /src
 COPY Directory.Build.props ./
 COPY BoardOil.Api/ BoardOil.Api/
@@ -34,7 +38,9 @@ COPY BoardOil.Mcp.Contracts/ BoardOil.Mcp.Contracts/
 RUN dotnet restore BoardOil.Api/BoardOil.Api.csproj --locked-mode
 RUN dotnet publish BoardOil.Api/BoardOil.Api.csproj -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.13 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-noble AS runtime
+COPY scripts/refresh-container-trust.sh /usr/local/bin/refresh-container-trust
+RUN sh /usr/local/bin/refresh-container-trust
 ARG BO_VERSION
 ARG BO_CHANNEL
 ARG BO_BUILD
