@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import { mcpHelpPlugin } from './scripts/mcp-help-plugin.ts';
 
 const demoHeaders = readFileSync(new URL('./demo/_headers', import.meta.url), 'utf8');
 const demoSourceRepository = 'https://github.com/dozigden/boardoil';
@@ -35,6 +36,7 @@ export default defineConfig({
   },
   publicDir: fileURLToPath(new URL('./public', import.meta.url)),
   plugins: [
+    mcpHelpPlugin(),
     {
       name: 'demo-distribution-files',
       generateBundle() {
