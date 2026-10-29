@@ -185,6 +185,8 @@ public sealed class McpToolBaseTests
     {
         public List<(Exception Exception, ErrorLogContext Context)> LoggedExceptions { get; } = [];
 
+        public Task<ApiResult<ErrorLogListDto>> SearchAsync(ErrorLogSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public Task<ApiResult<ErrorLogListDto>> ListAsync(int? offset, int? limit) =>
             throw new NotSupportedException();
 

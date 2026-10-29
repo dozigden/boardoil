@@ -35,7 +35,8 @@ public sealed class OAuthAuthorizationService(
     private static readonly string[] SupportedScopes =
     [
         MachinePatScopes.McpRead,
-        MachinePatScopes.McpWrite
+        MachinePatScopes.McpWrite,
+        MachinePatScopes.McpDiagnosticsRead
     ];
 
     public async Task<OAuthAuthorizationResolution> ResolveAsync(
@@ -67,7 +68,7 @@ public sealed class OAuthAuthorizationService(
         {
             return OAuthAuthorizationResolution.Rejected(
                 Errors.InvalidScope,
-                "Only mcp:read and mcp:write may be requested.");
+                "Supported scopes are mcp:read, mcp:write and mcp:diagnostics:read.");
         }
 
         if (string.IsNullOrWhiteSpace(request.ClientId))

@@ -9,6 +9,7 @@ internal static class MachinePatRules
     [
         MachinePatScopes.McpRead,
         MachinePatScopes.McpWrite,
+        MachinePatScopes.McpDiagnosticsRead,
         MachinePatScopes.ApiRead,
         MachinePatScopes.ApiWrite,
         MachinePatScopes.ApiAdmin,
@@ -18,7 +19,8 @@ internal static class MachinePatRules
     internal static readonly string[] SupportedUserScopes =
     [
         MachinePatScopes.McpRead,
-        MachinePatScopes.McpWrite
+        MachinePatScopes.McpWrite,
+        MachinePatScopes.McpDiagnosticsRead
     ];
 
     internal static readonly string[] SupportedClientScopes = SupportedScopes;

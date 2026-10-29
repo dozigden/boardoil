@@ -264,6 +264,8 @@ public sealed class JobSchedulerServiceTests
         public Exception? Exception { get; private set; }
         public ErrorLogContext? Context { get; private set; }
 
+        public Task<ApiResult<ErrorLogListDto>> SearchAsync(ErrorLogSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public Task<ApiResult<ErrorLogListDto>> ListAsync(int? offset, int? limit) =>
             throw new NotSupportedException();
         public Task<ApiResult<ErrorLogDetailsDto>> GetAsync(int id) =>

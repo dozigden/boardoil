@@ -29,6 +29,16 @@ public abstract class McpToolBase<TInput, TOutput>(IMcpAuthorisationService auth
         McpToolResult<TOutput> result;
         try
         {
+            if (Definition.RequiresDiagnostics)
+            {
+                var accessError = await context.Services.GetRequiredService<McpDiagnosticsAccess>()
+                    .EnsureAccessAsync(context.AccessContext);
+                if (accessError is not null)
+                {
+                    return McpToolCallHelpers.CreateErrorCallToolResult(accessError);
+                }
+            }
+
             result = await ExecuteCoreAsync(context, parseResult.Input, cancellationToken);
         }
         catch (OperationCanceledException)

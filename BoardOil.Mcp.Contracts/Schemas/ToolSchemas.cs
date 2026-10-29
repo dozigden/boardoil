@@ -1,6 +1,6 @@
 namespace BoardOil.Mcp.Contracts.Schemas;
 
-public static class ToolSchemas
+public static partial class ToolSchemas
 {
     public const string CardSearchInput = """
     {

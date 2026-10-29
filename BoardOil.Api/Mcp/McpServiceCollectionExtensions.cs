@@ -14,6 +14,7 @@ public static class McpServiceCollectionExtensions
         services.AddSingleton(mcpServiceProviderAccessor);
 
         services.AddSingleton<IMcpAuthorisationService, McpAuthorisationService>();
+        services.AddScoped<McpDiagnosticsAccess>();
         services.AddScoped<IAttachmentTransferCredentialValidator, AttachmentTransferCredentialValidator>();
         // The MCP SDK logs complete JSON-RPC messages at Trace, including ticket secrets.
         // Apply to every configured rule so category/provider overrides cannot re-enable that output.
@@ -62,6 +63,8 @@ public static class McpServiceCollectionExtensions
         RegisterTool<CardTypeSetDefaultTool>(services);
         RegisterTool<CardTypeDeleteTool>(services);
         RegisterTool<ColumnsSetTool>(services);
+        RegisterTool<ErrorLogListTool>(services);
+        RegisterTool<ErrorLogGetTool>(services);
 
         services.AddSingleton<McpToolRegistry>();
         services.AddSingleton<McpToolDispatcher>();

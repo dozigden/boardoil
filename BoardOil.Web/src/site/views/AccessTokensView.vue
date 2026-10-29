@@ -147,7 +147,7 @@ const isBusy = computed(() => loading.value || createBusy.value || revokeBusyTok
 const isSecretModalOpen = computed(() => plainTextPat.value !== null);
 const mcpEndpoint = computed(() => `${window.location.origin}/mcp`);
 const userDefaultScopes = ['mcp:read', 'mcp:write'];
-const userAllowedScopes = ['mcp:read', 'mcp:write'];
+const userAllowedScopes = ['mcp:read', 'mcp:write', 'mcp:diagnostics:read'];
 const claudeCodeConfigSnippet = computed(() =>
   buildClaudeCodeAccessTokenCommand(mcpEndpoint.value)
 );

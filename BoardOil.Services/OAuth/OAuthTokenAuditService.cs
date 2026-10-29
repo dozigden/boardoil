@@ -190,7 +190,7 @@ public sealed class OAuthTokenAuditService(
             return null;
         }
 
-        var recognisedScopes = new List<string>(2);
+        var recognisedScopes = new List<string>(3);
         if (requestedScopes.Contains(MachinePatScopes.McpRead, StringComparer.Ordinal))
         {
             recognisedScopes.Add(MachinePatScopes.McpRead);
@@ -199,6 +199,11 @@ public sealed class OAuthTokenAuditService(
         if (requestedScopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal))
         {
             recognisedScopes.Add(MachinePatScopes.McpWrite);
+        }
+
+        if (requestedScopes.Contains(MachinePatScopes.McpDiagnosticsRead, StringComparer.Ordinal))
+        {
+            recognisedScopes.Add(MachinePatScopes.McpDiagnosticsRead);
         }
 
         return recognisedScopes.Count == 0

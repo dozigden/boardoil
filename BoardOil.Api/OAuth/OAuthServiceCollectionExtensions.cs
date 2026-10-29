@@ -72,7 +72,7 @@ public static class OAuthServiceCollectionExtensions
                         options.CodeChallengeMethods.Clear();
                         options.CodeChallengeMethods.Add(OpenIddictConstants.CodeChallengeMethods.Sha256);
                     })
-                    .RegisterScopes(MachinePatScopes.McpRead, MachinePatScopes.McpWrite)
+                    .RegisterScopes(MachinePatScopes.McpRead, MachinePatScopes.McpWrite, MachinePatScopes.McpDiagnosticsRead)
                     .AddEncryptionKey(CreateKey(jwtOptions.SigningKey, "boardoil-oauth-encryption"))
                     .AddSigningKey(CreateKey(jwtOptions.SigningKey, "boardoil-oauth-signing"))
                     .AddEphemeralSigningKey();

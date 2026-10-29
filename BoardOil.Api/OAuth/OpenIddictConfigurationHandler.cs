@@ -30,6 +30,7 @@ public sealed class OpenIddictConfigurationHandler(
         context.Scopes.Clear();
         context.Scopes.Add(BoardOil.Contracts.Auth.MachinePatScopes.McpRead);
         context.Scopes.Add(BoardOil.Contracts.Auth.MachinePatScopes.McpWrite);
+        context.Scopes.Add(BoardOil.Contracts.Auth.MachinePatScopes.McpDiagnosticsRead);
         context.TokenEndpointAuthenticationMethods.Clear();
         context.TokenEndpointAuthenticationMethods.Add(OpenIddictConstants.ClientAuthenticationMethods.None);
         context.CodeChallengeMethods.Clear();

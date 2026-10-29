@@ -2,6 +2,16 @@ using System.Text.Json;
 
 namespace BoardOil.Contracts.ErrorLogs;
 
+public sealed record ErrorLogSearchRequest(
+    int Offset = 0,
+    int Limit = 100,
+    DateTimeOffset? FromUtc = null,
+    DateTimeOffset? ToUtc = null,
+    string? Source = null,
+    string? Area = null,
+    string? Message = null,
+    string? TraceIdentifier = null);
+
 public sealed record ClientErrorReportRequest(
     string Message,
     string? ExceptionType,

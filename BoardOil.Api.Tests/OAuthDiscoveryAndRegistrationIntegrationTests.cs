@@ -24,6 +24,19 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
     }
 
     [Fact]
+    public async Task DynamicRegistration_WithoutScopes_ShouldKeepDiagnosticsOutOfDefaults()
+    {
+        var client = CreateClient();
+        var request = CreateCodexRegistrationRequest() with { Scope = null };
+
+        using var response = await client.PostAsJsonAsync("/connect/register", request);
+        var registration = await response.Content.ReadFromJsonAsync<OAuthDynamicClientRegistrationResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("mcp:read mcp:write", registration!.Scope);
+    }
+
+    [Fact]
     public async Task SharedMcpResource_ShouldAdvertiseProtectedResourceAndAuthorizationMetadata()
     {
         // Arrange
@@ -51,7 +64,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
         Assert.NotNull(metadata);
         Assert.Equal("https://boardoil.example.com/mcp", metadata!.Resource);
         Assert.Equal(["https://boardoil.example.com/"], metadata.AuthorizationServers);
-        Assert.Equal([MachinePatScopes.McpRead, MachinePatScopes.McpWrite], metadata.ScopesSupported);
+        Assert.Equal([MachinePatScopes.McpRead, MachinePatScopes.McpWrite, MachinePatScopes.McpDiagnosticsRead], metadata.ScopesSupported);
         Assert.Equal(["header"], metadata.BearerMethodsSupported);
         Assert.Equal(HttpStatusCode.OK, legacyMetadataResponse.StatusCode);
         Assert.Equal("https://boardoil.example.com/mcp/oauth", legacyMetadata!.Resource);
@@ -70,7 +83,7 @@ public sealed class OAuthDiscoveryAndRegistrationIntegrationTests
             "https://boardoil.example.com/.well-known/jwks",
             discovery.GetProperty("jwks_uri").GetString());
         Assert.Equal(
-            ["mcp:read", "mcp:write"],
+            ["mcp:read", "mcp:write", "mcp:diagnostics:read"],
             discovery.GetProperty("scopes_supported").EnumerateArray().Select(x => x.GetString()));
         Assert.Equal(
             ["S256"],

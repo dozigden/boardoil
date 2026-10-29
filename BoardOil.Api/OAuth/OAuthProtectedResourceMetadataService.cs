@@ -15,7 +15,7 @@ public sealed class OAuthProtectedResourceMetadataService(
         return new OAuthProtectedResourceMetadata(
             resource,
             [issuer],
-            [MachinePatScopes.McpRead, MachinePatScopes.McpWrite],
+            [MachinePatScopes.McpRead, MachinePatScopes.McpWrite, MachinePatScopes.McpDiagnosticsRead],
             ["header"]);
     }
 }

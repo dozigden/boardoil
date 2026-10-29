@@ -28,6 +28,7 @@ public sealed class McpPatAuthenticationHandler(
     [
         MachinePatScopes.McpRead,
         MachinePatScopes.McpWrite,
+        MachinePatScopes.McpDiagnosticsRead,
         MachinePatScopes.ApiRead,
         MachinePatScopes.ApiWrite,
         MachinePatScopes.ApiAdmin,
@@ -157,7 +158,8 @@ public sealed class McpPatAuthenticationHandler(
 
     private static bool HasAnyMcpScope(IEnumerable<string> scopes) =>
         scopes.Contains(MachinePatScopes.McpRead, StringComparer.Ordinal)
-        || scopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal);
+        || scopes.Contains(MachinePatScopes.McpWrite, StringComparer.Ordinal)
+        || scopes.Contains(MachinePatScopes.McpDiagnosticsRead, StringComparer.Ordinal);
 
     private static bool IsMcpRequest(PathString path) =>
         path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase);

@@ -12,6 +12,30 @@ namespace BoardOil.Services.Tests;
 
 public sealed class ClientAccountServiceTests : TestBaseDb
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateClientAccountAsync_ShouldGrantDiagnosticsOnlyWhenExplicitlyRequested(bool diagnostics)
+    {
+        var service = ResolveService<IClientAccountService>();
+
+        var result = await service.CreateClientAccountAsync(new CreateClientAccountRequest(
+            "diagnostic-bot", "Diagnostic Bot", "diagnostic-bot@example.test", "Admin", "Initial token", 30,
+            diagnostics ? [MachinePatScopes.McpDiagnosticsRead] : null));
+
+        Assert.True(result.Success);
+        if (diagnostics)
+        {
+            Assert.Equal([MachinePatScopes.McpDiagnosticsRead], result.Data!.Token.Token.Scopes);
+        }
+        else
+        {
+            Assert.DoesNotContain(MachinePatScopes.McpDiagnosticsRead, result.Data!.Token.Token.Scopes);
+            Assert.Equal([MachinePatScopes.ApiRead, MachinePatScopes.ApiWrite, MachinePatScopes.ApiAdmin, MachinePatScopes.ApiSystem],
+                result.Data.Token.Token.Scopes);
+        }
+    }
+
     protected override void ConfigureTestServices(IServiceCollection services)
     {
         services.AddSingleton<TimeProvider>(TimeProvider.System);

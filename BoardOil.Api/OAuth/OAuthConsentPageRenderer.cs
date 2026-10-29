@@ -74,7 +74,8 @@ internal static class OAuthConsentPageRenderer
             .Append("\"></label>");
 
         builder.Append("<fieldset><legend>Approved scopes</legend>");
-        var approvedScopes = approval?.ApprovedScopes ?? authorization.RequestedScopes;
+        var approvedScopes = approval?.ApprovedScopes ?? authorization.RequestedScopes
+            .Where(scope => scope != MachinePatScopes.McpDiagnosticsRead).ToArray();
         foreach (var scope in authorization.RequestedScopes)
         {
             builder.Append("<label class=\"check-label\"><input type=\"checkbox\" name=\"approved_scope\" value=\"")
@@ -92,12 +93,20 @@ internal static class OAuthConsentPageRenderer
             {
                 builder.Append(" (includes MCP read access)");
             }
+            else if (scope == MachinePatScopes.McpDiagnosticsRead)
+            {
+                builder.Append(" (read system-wide application diagnostics; requires an administrator)");
+            }
 
             builder.Append("</label>");
         }
 
         builder.Append("</fieldset>");
-        builder.Append("<p class=\"warning\">This connection will act as your signed-in BoardOil user and can only access your current board memberships.</p>");
+        builder.Append("<p class=\"warning\">This connection will act as your signed-in BoardOil user. Board tools are limited to your current board memberships.</p>");
+        if (authorization.RequestedScopes.Contains(MachinePatScopes.McpDiagnosticsRead, StringComparer.Ordinal))
+        {
+            builder.Append("<p class=\"warning\">Diagnostic access can read system-wide application errors, including request information and user identifiers. It requires administrator status and is not included in MCP read or write access.</p>");
+        }
         builder.Append("<label id=\"replacement-warning\" class=\"replacement-warning\" hidden>")
             .Append("<input id=\"replace-existing\" type=\"checkbox\" name=\"replace_existing\" value=\"true\"");
         if (approval?.ReplaceExisting == true)

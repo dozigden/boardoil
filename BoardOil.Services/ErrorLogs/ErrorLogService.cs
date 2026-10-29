@@ -38,29 +38,49 @@ public sealed class ErrorLogService(
     private const int ClientContextMaxDepth = 2;
     private const int ClientViewportMaxDimension = 100000;
     private const string DefaultClientExceptionType = "FrontendError";
+    private static readonly Regex CookieHeaderPattern = new(
+        """(?i)(\b(?:set-cookie|cookie)["']?[ \t]*:[ \t]*)[^\r\n]*""",
+        RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
     private static readonly Regex BearerTokenPattern = new(
-        @"(?i)(bearer\s+)[^\s,;]+",
-        RegexOptions.CultureInvariant);
+        @"(?i)((?:bearer|basic|BoardOilAttachment)\s+)[^\s,;]+",
+        RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
     private static readonly Regex SensitiveValuePattern = new(
-        @"(?i)(\b(?:token|credential|secret|password|authorization|cookie)\s*[=:]\s*)[^\s,;&]+",
-        RegexOptions.CultureInvariant);
+        """(?i)(\b[\w.-]*(?:token|credential|secret|password|authorization|cookie|api[_-]?key|access[_-]?key)[\w.-]*["']?\s*[=:]\s*)(?:\[redacted\]|"[^"]*"|'[^']*'|[^\s,;&}\]]+)""",
+        RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
     private static readonly Regex SensitiveQueryValuePattern = new(
         @"(?i)([?&][^=\s&#]*(?:token|credential|secret|password|authorization|cookie)[^=\s&#]*=)[^&#\s]+",
-        RegexOptions.CultureInvariant);
+        RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
+    private static readonly Regex RawCredentialPattern = new(
+        @"(?i)\b(?:bo_pat_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b",
+        RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
-    public async Task<ApiResult<ErrorLogListDto>> ListAsync(int? offset, int? limit)
+    public Task<ApiResult<ErrorLogListDto>> ListAsync(int? offset, int? limit) =>
+        SearchAsync(new ErrorLogSearchRequest(offset ?? 0, limit ?? DefaultPageSize));
+
+    public async Task<ApiResult<ErrorLogListDto>> SearchAsync(ErrorLogSearchRequest request, CancellationToken cancellationToken = default)
     {
-        var listOffset = offset ?? 0;
-        var listLimit = limit ?? DefaultPageSize;
+        var listOffset = request.Offset;
+        var listLimit = request.Limit;
         var validationErrors = ValidatePagination(listOffset, listLimit);
+        if (request.FromUtc is not null && request.ToUtc is not null && request.FromUtc >= request.ToUtc)
+        {
+            validationErrors.Add(new ValidationError("toUtc", "To must be later than from."));
+        }
+        ValidateFilterLength(request.Source, "source", SourceMaxLength, validationErrors);
+        ValidateFilterLength(request.Area, "area", AreaMaxLength, validationErrors);
+        ValidateFilterLength(request.Message, "message", MessageMaxLength, validationErrors);
+        ValidateFilterLength(request.TraceIdentifier, "traceIdentifier", TraceIdentifierMaxLength, validationErrors);
         if (validationErrors.Count > 0)
         {
-            return ApiErrors.BadRequest("Invalid pagination parameters.", validationErrors);
+            return ApiErrors.BadRequest("Invalid error log search parameters.", validationErrors);
         }
 
         using var scope = scopeFactory.CreateReadOnly();
-        var totalCount = await repository.CountAsync();
-        var errorLogs = await repository.ListAsync(listOffset, listLimit);
+        var filter = new ErrorLogFilter(request.FromUtc?.UtcDateTime, request.ToUtc?.UtcDateTime,
+            NormaliseOptional(request.Source), NormaliseOptional(request.Area), NormaliseOptional(request.Message),
+            NormaliseOptional(request.TraceIdentifier));
+        var totalCount = await repository.CountAsync(filter, cancellationToken);
+        var errorLogs = await repository.ListAsync(listOffset, listLimit, filter, cancellationToken);
         return ApiResults.Ok(new ErrorLogListDto(
             errorLogs.Select(ToDto).ToArray(),
             listOffset,
@@ -203,6 +223,14 @@ public sealed class ErrorLogService(
         return errors;
     }
 
+    private static void ValidateFilterLength(string? value, string property, int maximum, List<ValidationError> errors)
+    {
+        if (value?.Length > maximum)
+        {
+            errors.Add(new ValidationError(property, $"Must be at most {maximum} characters."));
+        }
+    }
+
     private static List<ValidationError> ValidateClientError(ClientErrorReportRequest request)
     {
         var errors = new List<ValidationError>();
@@ -308,7 +336,7 @@ public sealed class ErrorLogService(
         });
     }
 
-    private static string? BuildBackendContextJson(string? contextJson)
+    private static string? BuildBackendContextJson(string? contextJson, int maxDepth = ClientContextMaxDepth)
     {
         if (string.IsNullOrWhiteSpace(contextJson))
         {
@@ -318,7 +346,7 @@ public sealed class ErrorLogService(
         try
         {
             using var document = JsonDocument.Parse(contextJson);
-            var sanitised = SanitiseJsonValue(document.RootElement, 0);
+            var sanitised = SanitiseJsonValue(document.RootElement, 0, maxDepth);
             var serialised = JsonSerializer.Serialize(sanitised);
             if (serialised.Length <= ContextJsonMaxLength)
             {
@@ -343,10 +371,10 @@ public sealed class ErrorLogService(
         return SanitiseJsonObject(value, 0);
     }
 
-    private static Dictionary<string, object?> SanitiseJsonObject(JsonElement value, int depth)
+    private static Dictionary<string, object?> SanitiseJsonObject(JsonElement value, int depth, int maxDepth = ClientContextMaxDepth)
     {
         var sanitised = new Dictionary<string, object?>(StringComparer.Ordinal);
-        if (depth >= ClientContextMaxDepth)
+        if (depth >= maxDepth)
         {
             return sanitised;
         }
@@ -366,21 +394,21 @@ public sealed class ErrorLogService(
             var safeKey = TruncateRequired(
                 RedactRequired(property.Name),
                 ClientContextKeyMaxLength);
-            sanitised[safeKey] = SanitiseJsonValue(property.Value, depth + 1);
+            sanitised[safeKey] = SanitiseJsonValue(property.Value, depth + 1, maxDepth);
         }
 
         return sanitised;
     }
 
-    private static object? SanitiseJsonValue(JsonElement value, int depth)
+    private static object? SanitiseJsonValue(JsonElement value, int depth, int maxDepth = ClientContextMaxDepth)
     {
         return value.ValueKind switch
         {
-            JsonValueKind.Object when depth < ClientContextMaxDepth => SanitiseJsonObject(value, depth),
-            JsonValueKind.Array when depth < ClientContextMaxDepth => value
+            JsonValueKind.Object when depth < maxDepth => SanitiseJsonObject(value, depth, maxDepth),
+            JsonValueKind.Array when depth < maxDepth => value
                 .EnumerateArray()
                 .Take(ClientContextMaxKeys)
-                .Select(item => SanitiseJsonValue(item, depth + 1))
+                .Select(item => SanitiseJsonValue(item, depth + 1, maxDepth))
                 .ToArray(),
             JsonValueKind.String => Truncate(Redact(value.GetString()), ClientContextValueMaxLength),
             JsonValueKind.Number when value.TryGetInt64(out var integer) => integer,
@@ -398,6 +426,8 @@ public sealed class ErrorLogService(
         || key.Contains("password", StringComparison.OrdinalIgnoreCase)
         || key.Contains("authorization", StringComparison.OrdinalIgnoreCase)
         || key.Contains("cookie", StringComparison.OrdinalIgnoreCase)
+        || key.Replace("_", string.Empty).Replace("-", string.Empty).Contains("apikey", StringComparison.OrdinalIgnoreCase)
+        || key.Replace("_", string.Empty).Replace("-", string.Empty).Contains("accesskey", StringComparison.OrdinalIgnoreCase)
         || key.Contains("content", StringComparison.OrdinalIgnoreCase);
 
     private static string? Redact(string? value)
@@ -407,22 +437,26 @@ public sealed class ErrorLogService(
             return value;
         }
 
-        var redacted = BearerTokenPattern.Replace(value, "$1[redacted]");
+        // Cookie headers can contain several credentials separated by semicolons.
+        // Redact the whole header line before the generic key/value rules split it.
+        var redacted = CookieHeaderPattern.Replace(value, "$1[redacted]");
+        redacted = BearerTokenPattern.Replace(redacted, "$1[redacted]");
         redacted = SensitiveQueryValuePattern.Replace(redacted, "$1[redacted]");
-        return SensitiveValuePattern.Replace(redacted, "$1[redacted]");
+        redacted = SensitiveValuePattern.Replace(redacted, "$1[redacted]");
+        return RawCredentialPattern.Replace(redacted, "[redacted]");
     }
 
     private static ErrorLogDto ToDto(EntityErrorLog errorLog) =>
         new(
             errorLog.Id,
             errorLog.OccurredAtUtc,
-            errorLog.Source,
-            errorLog.Area,
-            errorLog.ExceptionType,
-            errorLog.Message,
-            errorLog.TraceIdentifier,
-            errorLog.RequestMethod,
-            errorLog.RequestPath,
+            RedactRequired(errorLog.Source),
+            RedactRequired(errorLog.Area),
+            RedactRequired(errorLog.ExceptionType),
+            RedactRequired(errorLog.Message),
+            Redact(errorLog.TraceIdentifier),
+            Redact(errorLog.RequestMethod),
+            Redact(errorLog.RequestPath),
             errorLog.ActorUserId,
             errorLog.CreatedAtUtc,
             errorLog.UpdatedAtUtc,
@@ -432,16 +466,18 @@ public sealed class ErrorLogService(
         new(
             errorLog.Id,
             errorLog.OccurredAtUtc,
-            errorLog.Source,
-            errorLog.Area,
-            errorLog.ExceptionType,
-            errorLog.Message,
-            errorLog.StackTrace,
-            errorLog.TraceIdentifier,
-            errorLog.RequestMethod,
-            errorLog.RequestPath,
+            RedactRequired(errorLog.Source),
+            RedactRequired(errorLog.Area),
+            RedactRequired(errorLog.ExceptionType),
+            RedactRequired(errorLog.Message),
+            Redact(errorLog.StackTrace),
+            Redact(errorLog.TraceIdentifier),
+            Redact(errorLog.RequestMethod),
+            Redact(errorLog.RequestPath),
             errorLog.ActorUserId,
-            errorLog.ContextJson,
+            // Stored frontend context has an additional envelope around the captured context.
+            // Preserve its nesting while redacting, within JsonDocument's default depth limit.
+            BuildBackendContextJson(errorLog.ContextJson, maxDepth: 64),
             errorLog.CreatedAtUtc,
             errorLog.UpdatedAtUtc,
             errorLog.JobId);

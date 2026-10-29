@@ -129,12 +129,22 @@ Issuance reserves the case-insensitive filename with a pending attachment record
 
 Each upload ticket permits one claimed attempt. Concurrent requests fail once one request has claimed it. A retry after successful completion returns the existing attachment metadata without reading or replacing the file. Failed or interrupted attempts require a new ticket. The originating credential, user, current card-update permission and exact live-card owner are checked before admission and again before publication. Archive, transfer, deletion or credential revocation prevents publication. Incomplete rows and staged files are recovered during application startup; no timer, lease, resumable upload or chunked upload protocol is used.
 
+## Administrator diagnostics
+
+Diagnostic tools require an active administrator account and the separate `mcp:diagnostics:read` permission. Ordinary `mcp:read` and `mcp:write` do not include diagnostics; existing connections and tokens do not gain this permission automatically. No system setting is required.
+
+For OAuth, the client must explicitly register and request `mcp:diagnostics:read`, then the administrator must select it on the consent page. It is unchecked initially. Existing connections need a new explicit authorisation to add diagnostic access; token refresh cannot expand approved permissions. For access tokens, select the diagnostic scope when creating a new token. It is excluded from default scopes for user tokens, client-account tokens and OAuth registrations. Diagnostic permission alone does not grant access to board tools; request ordinary MCP scopes separately if those are also needed.
+
+`error_log_list` returns summaries newest first, with `offset` (default 0) and `limit` (default 100, maximum 200). Optional filters are `fromUtc` (inclusive), `toUtc` (exclusive), exact `source`, `area` and `traceIdentifier`, and a case-insensitive literal `message` substring. Include a UTC offset in timestamps. `error_log_get` takes an `id` from that list and returns the stack trace, sanitised context, request, actor and linked job ID where present. Diagnostic access covers system-wide errors, including request information and user identifiers. These tools cannot purge logs or change system state.
+
+Each discovery request and invocation checks the diagnostic permission and current administrator identity. Modern tool-list responses use private caching with a zero TTL. Clients that retain a tool catalogue may need a tool refresh or reconnect after permissions change; legacy clients receive the updated list on their next discovery request. Revoking a connection/token or removing administrator access blocks subsequent diagnostic calls even if tools remain cached.
+
 ## Access token fallback
 
 Use an access token only when the client cannot complete OAuth or when you deliberately need a manually managed credential. An access token acts with its owner's BoardOil permissions.
 
 1. In BoardOil, open **User settings → Authentication → Access tokens**.
-2. Create an access token and grant only the scopes the client needs: `mcp:read`, `mcp:write`, or both.
+2. Create an access token and grant only the scopes the client needs: `mcp:read`, `mcp:write`, or both for board work. Administrators can separately select `mcp:diagnostics:read` for system-wide diagnostic reads.
 3. Copy the token when it is shown and store it securely. BoardOil does not show the complete token again.
 4. Configure the client to use `https://your-boardoil-address/mcp` and send the token as an `Authorization: Bearer` credential.
 

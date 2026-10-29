@@ -14,6 +14,173 @@ public sealed class ErrorLogServiceTests : TestBaseDb
 {
     private static readonly DateTime FixedNowUtc = new(2026, 8, 9, 12, 0, 0, DateTimeKind.Utc);
 
+    [Theory]
+    [InlineData("Échec du rendu", "échec", true)]
+    [InlineData("échec du rendu", "ÉCHEC", true)]
+    [InlineData("CAFÉ unavailable", "café", true)]
+    [InlineData("Queue [Échec].* 50%_complete", "[échec].* 50%_", true)]
+    [InlineData("Queue [error]", "[", true)]
+    [InlineData("café unavailable", "cafe", false)]
+    public async Task SearchAsync_ShouldMatchUnicodeCasePairsAndTreatSearchAsLiteral(string message, string search, bool expectedMatch)
+    {
+        DbContextForArrange.ErrorLogs.AddRange(
+            NewErrorLog(message, FixedNowUtc),
+            NewErrorLog("unrelated error", FixedNowUtc),
+            NewErrorLog("Queue éZ 50%_complete", FixedNowUtc));
+        await DbContextForArrange.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var service = ResolveService<IErrorLogService>();
+
+        var result = await service.SearchAsync(new ErrorLogSearchRequest(Message: search, Limit: 1));
+
+        Assert.True(result.Success);
+        Assert.Equal(expectedMatch ? 1 : 0, result.Data!.TotalCount);
+        if (expectedMatch)
+        {
+            Assert.Equal(message, Assert.Single(result.Data.Items).Message);
+        }
+        else
+        {
+            Assert.Empty(result.Data.Items);
+        }
+    }
+
+    [Theory]
+    [InlineData("Cookie: theme=dark; boardoil_refresh=private-cookie; session=private-cookie")]
+    [InlineData("cOoKiE\t:\ttheme=dark; custom_session=private-cookie")]
+    [InlineData("Set-Cookie: session=private-cookie; Path=/; HttpOnly")]
+    [InlineData("\"Cookie\": \"theme=dark; custom_session=private-cookie\"")]
+    public async Task Reads_ShouldRedactCompleteCookieHeadersFromOlderRecords(string header)
+    {
+        var entity = NewErrorLog($"Request failed: {header}", FixedNowUtc);
+        entity.StackTrace = $"{header}\r\nat SafeComponent";
+        entity.ContextJson = JsonSerializer.Serialize(new { nested = new { headers = $"{header}\nresponse failed" }, safe = "diagnostic" });
+        DbContextForArrange.ErrorLogs.Add(entity);
+        await DbContextForArrange.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var service = ResolveService<IErrorLogService>();
+
+        var list = await service.SearchAsync(new ErrorLogSearchRequest());
+        var detail = await service.GetAsync(entity.Id);
+
+        Assert.True(list.Success);
+        Assert.True(detail.Success);
+        Assert.DoesNotContain("private-cookie", JsonSerializer.Serialize(list.Data));
+        Assert.DoesNotContain("private-cookie", JsonSerializer.Serialize(detail.Data));
+        Assert.Contains("[redacted]\r\nat SafeComponent", detail.Data!.StackTrace!);
+        using var context = JsonDocument.Parse(detail.Data.ContextJson!);
+        Assert.Contains("[redacted]\nresponse failed", context.RootElement.GetProperty("nested").GetProperty("headers").GetString()!);
+        Assert.Equal("diagnostic", context.RootElement.GetProperty("safe").GetString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Reports_ShouldRedactCompleteCookieHeadersBeforePersistence(bool frontend)
+    {
+        const string header = "Cookie: theme=dark; boardoil_refresh=private-cookie; custom_session=private-cookie";
+        var service = ResolveService<IErrorLogService>();
+
+        if (frontend)
+        {
+            var result = await service.ReportClientErrorAsync(NewClientErrorRequest() with
+            {
+                Message = header,
+                StackTrace = $"{header}\nat SafeComponent",
+                Context = JsonSerializer.SerializeToElement(new { headers = header })
+            }, ActorUserId, TestContext.Current.CancellationToken);
+            Assert.True(result.Success);
+        }
+        else
+        {
+            var id = await service.LogExceptionAsync(new InvalidOperationException($"{header}\nat SafeComponent"),
+                new ErrorLogContext(ErrorLogSources.Backend, ErrorLogAreas.ApiRequest,
+                    ContextJson: JsonSerializer.Serialize(new { headers = header })), TestContext.Current.CancellationToken);
+            Assert.NotNull(id);
+        }
+
+        var stored = await DbContextForAssert.ErrorLogs.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.DoesNotContain("private-cookie", stored.Message);
+        Assert.DoesNotContain("private-cookie", stored.StackTrace!);
+        Assert.DoesNotContain("private-cookie", stored.ContextJson!);
+        Assert.Contains("[redacted]\nat SafeComponent", stored.StackTrace!);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldCombineFiltersAndUseStablePagination()
+    {
+        var older = NewErrorLog("Failure 50%_complete", FixedNowUtc.AddMinutes(-1));
+        var first = NewErrorLog("FAILURE 50%_complete", FixedNowUtc);
+        var second = NewErrorLog("Failure 50%_complete", FixedNowUtc);
+        var excluded = NewErrorLog("Failure 50%_complete", FixedNowUtc);
+        excluded.Area = "other";
+        var wrongSource = NewErrorLog("Failure 50%_complete", FixedNowUtc);
+        wrongSource.Source = "Frontend";
+        var errors = new[] { older, first, second, excluded, wrongSource,
+            NewErrorLog("Failure 50x_complete", FixedNowUtc),
+            NewErrorLog("Failure 50%_complete", FixedNowUtc.AddMinutes(1)) };
+        foreach (var error in errors) error.TraceIdentifier = "shared-trace";
+        var wrongTrace = NewErrorLog("Failure 50%_complete", FixedNowUtc);
+        DbContextForArrange.ErrorLogs.AddRange(errors.Append(wrongTrace));
+        await DbContextForArrange.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var service = ResolveService<IErrorLogService>();
+
+        var result = await service.SearchAsync(new ErrorLogSearchRequest(
+            Offset: 1, Limit: 1, FromUtc: new DateTimeOffset(FixedNowUtc),
+            ToUtc: new DateTimeOffset(FixedNowUtc.AddMinutes(1)),
+            Source: first.Source, Area: first.Area, Message: "failure 50%_", TraceIdentifier: first.TraceIdentifier));
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Data!.TotalCount);
+        Assert.Equal(first.Id, Assert.Single(result.Data.Items).Id);
+    }
+
+    [Theory]
+    [InlineData("source")]
+    [InlineData("area")]
+    [InlineData("message")]
+    [InlineData("traceIdentifier")]
+    [InlineData("toUtc")]
+    public async Task SearchAsync_ShouldRejectInvalidFilters(string field)
+    {
+        var request = field switch
+        {
+            "source" => new ErrorLogSearchRequest(Source: new string('x', 33)),
+            "area" => new ErrorLogSearchRequest(Area: new string('x', 65)),
+            "message" => new ErrorLogSearchRequest(Message: new string('x', 2049)),
+            "traceIdentifier" => new ErrorLogSearchRequest(TraceIdentifier: new string('x', 129)),
+            _ => new ErrorLogSearchRequest(FromUtc: new DateTimeOffset(FixedNowUtc), ToUtc: new DateTimeOffset(FixedNowUtc))
+        };
+
+        var result = await ResolveService<IErrorLogService>().SearchAsync(request);
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains(field, result.ValidationErrors!.Keys);
+    }
+
+    [Fact]
+    public async Task Reads_ShouldSanitisePreviouslyStoredCredentialsAndNestedContext()
+    {
+        var entity = NewErrorLog("failed refresh_token=private-refresh api_key=private-key bo_pat_private", FixedNowUtc);
+        entity.StackTrace = "Bearer private-bearer password=\"private password\" eyJheader.payload.signature";
+        entity.ContextJson = """{"nested":{"client_secret":"private-secret","apiKey":"private-key","reason":"Bearer private-context"},"safe":"diagnostic","clientContext":{"render":{"component":"Board","password":"private-nested"}}}""";
+        DbContextForArrange.ErrorLogs.Add(entity);
+        await DbContextForArrange.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var service = ResolveService<IErrorLogService>();
+
+        var list = await service.SearchAsync(new ErrorLogSearchRequest());
+        var detail = await service.GetAsync(entity.Id);
+
+        Assert.DoesNotContain("private", JsonSerializer.Serialize(list.Data));
+        Assert.DoesNotContain("private", JsonSerializer.Serialize(detail.Data));
+        Assert.DoesNotContain("eyJheader", detail.Data!.StackTrace!);
+        Assert.Contains("diagnostic", detail.Data.ContextJson!);
+        Assert.Contains("[redacted]", detail.Data.StackTrace!);
+        Assert.DoesNotContain("client_secret", detail.Data.ContextJson!);
+        Assert.DoesNotContain("apiKey", detail.Data.ContextJson!);
+        using var context = JsonDocument.Parse(detail.Data.ContextJson!);
+        Assert.Equal("Board", context.RootElement.GetProperty("clientContext").GetProperty("render").GetProperty("component").GetString());
+    }
+
     [Fact]
     public async Task ListAsync_ShouldReturnPagedErrorLogsNewestFirst()
     {

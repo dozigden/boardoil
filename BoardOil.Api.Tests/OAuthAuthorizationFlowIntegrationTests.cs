@@ -40,6 +40,108 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
     }
 
     [Fact]
+    public async Task DiagnosticConsent_ShouldStartUncheckedAndDescribeSystemWideAccess()
+    {
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpDiagnosticsRead],
+            registeredScopes: "mcp:read mcp:diagnostics:read");
+        var request = CreateAuthorizationRequest(scenario, "mcp:read mcp:diagnostics:read");
+
+        using var response = await client.GetAsync(request.Url);
+        var page = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var checkbox = Regex.Match(page, "<input[^>]*name=\"approved_scope\"[^>]*value=\"mcp:diagnostics:read\"[^>]*>");
+        Assert.True(checkbox.Success);
+        Assert.DoesNotContain("checked", checkbox.Value);
+        Assert.Contains("read system-wide application diagnostics", page);
+        Assert.Contains("request information and user identifiers", page);
+        Assert.Contains("not included in MCP read or write access", page);
+        Assert.DoesNotContain("can only access your current board memberships", page);
+    }
+
+    [Fact]
+    public async Task Diagnostics_WithExplicitOAuthConsent_ShouldAllowDiagnosticOnlyAccessAndRefresh()
+    {
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpDiagnosticsRead],
+            registeredScopes: MachinePatScopes.McpDiagnosticsRead);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpDiagnosticsRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+
+        var refreshed = await RefreshAsync(client, scenario, exchange.RefreshToken!);
+        using var discoveryResponse = await McpJsonRpcClient.SendRequestAsync(client, "tools/list", new { },
+            "oauth-diagnostics-discovery", refreshed.AccessToken, "/mcp/oauth");
+        using var discovery = await McpJsonRpcClient.ParseJsonAsync(discoveryResponse);
+        using var callResponse = await McpJsonRpcClient.SendRequestAsync(client, "tools/call",
+            new { name = ToolNames.ErrorLogList, arguments = new { } }, "oauth-diagnostics-call", refreshed.AccessToken, "/mcp/oauth");
+        using var call = await McpJsonRpcClient.ParseJsonAsync(callResponse);
+
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
+        Assert.Equal(MachinePatScopes.McpDiagnosticsRead, refreshed.Scope);
+        Assert.Equal(HttpStatusCode.OK, discoveryResponse.StatusCode);
+        var names = discovery.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray()
+            .Select(tool => tool.GetProperty("name").GetString()).ToArray();
+        Assert.Contains(ToolNames.ErrorLogList, names);
+        Assert.Contains(ToolNames.ErrorLogGet, names);
+        Assert.DoesNotContain(ToolNames.BoardList, names);
+        Assert.Equal(HttpStatusCode.OK, callResponse.StatusCode);
+        Assert.False(call.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Diagnostics_AfterOAuthAdminDemotion_ShouldRejectExistingToken()
+    {
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpDiagnosticsRead],
+            registeredScopes: MachinePatScopes.McpDiagnosticsRead);
+        var request = CreateAuthorizationRequest(scenario, MachinePatScopes.McpDiagnosticsRead);
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+        using (var scope = Factory.Services.CreateScope())
+        {
+            await using var db = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>()
+                .CreateDbContext<BoardOilDbContext>();
+            var user = await db.Users.SingleAsync(x => x.Id == scenario.UserId);
+            user.Role = UserRole.Standard;
+            await db.SaveChangesAsync();
+        }
+
+        using var response = await McpJsonRpcClient.SendRequestAsync(client, "tools/call",
+            new { name = ToolNames.ErrorLogList, arguments = new { } }, "oauth-demoted-diagnostics", exchange.AccessToken, "/mcp/oauth");
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        Assert.Equal("forbidden", McpJsonRpcClient.GetStructuredContent(payload).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task OrdinaryOAuthGrant_ShouldNotGainUnapprovedDiagnosticsThroughRefresh()
+    {
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead],
+            registeredScopes: "mcp:read mcp:diagnostics:read");
+        var request = CreateAuthorizationRequest(scenario, "mcp:read mcp:diagnostics:read");
+        var code = await ApproveAsync(client, scenario, request);
+        var exchange = await ExchangeCodeAsync(client, scenario, request, code);
+
+        using var callResponse = await McpJsonRpcClient.SendRequestAsync(client, "tools/call",
+            new { name = ToolNames.ErrorLogList, arguments = new { } }, "oauth-unapproved-diagnostics", exchange.AccessToken, "/mcp/oauth");
+        var refresh = await RefreshAsync(client, scenario, exchange.RefreshToken!, MachinePatScopes.McpDiagnosticsRead);
+
+        Assert.Equal(HttpStatusCode.OK, exchange.StatusCode);
+        Assert.Equal(MachinePatScopes.McpRead, exchange.Scope);
+        Assert.Equal(HttpStatusCode.Forbidden, callResponse.StatusCode);
+        Assert.Contains("insufficient_scope", callResponse.Headers.WwwAuthenticate.ToString());
+        Assert.Contains("scope=\"mcp:diagnostics:read\"", callResponse.Headers.WwwAuthenticate.ToString());
+        Assert.Equal(HttpStatusCode.BadRequest, refresh.StatusCode);
+        Assert.Contains(refresh.Error, new[] { Errors.InvalidScope, Errors.InvalidGrant });
+    }
+
+    [Fact]
     public async Task AuthorizationRequest_ShouldUseHumanLoginAndShowExactConsentContext()
     {
         // Arrange

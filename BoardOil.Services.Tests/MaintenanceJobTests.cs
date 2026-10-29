@@ -279,6 +279,8 @@ public sealed class MaintenanceJobTests : TestBaseDb
     {
         public Task<ApiResult<ErrorLogPurgeResultDto>> PurgeExpiredAsync(CancellationToken cancellationToken = default) =>
             purge(cancellationToken);
+        public Task<ApiResult<ErrorLogListDto>> SearchAsync(ErrorLogSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public Task<ApiResult<ErrorLogListDto>> ListAsync(int? offset, int? limit) => throw new NotSupportedException();
         public Task<ApiResult<ErrorLogDetailsDto>> GetAsync(int id) => throw new NotSupportedException();
         public Task<ApiResult<ErrorLogDto>> ReportClientErrorAsync(

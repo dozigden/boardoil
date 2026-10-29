@@ -38,4 +38,6 @@ public static class ToolDiscoveryOrder
     public const int CardTypeSetDefault = 2300;
     public const int CardTypeDelete = 2400;
     public const int ColumnsSet = 2500;
+    public const int ErrorLogList = 2600;
+    public const int ErrorLogGet = 2700;
 }

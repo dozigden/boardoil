@@ -76,7 +76,7 @@ export type UserProfileImage = {
   updatedAtUtc: string;
 };
 
-export type AccessTokenScope = 'mcp:read' | 'mcp:write' | 'api:read' | 'api:write' | 'api:admin' | 'api:system' | string;
+export type AccessTokenScope = 'mcp:read' | 'mcp:write' | 'mcp:diagnostics:read' | 'api:read' | 'api:write' | 'api:admin' | 'api:system' | string;
 
 export type AccessToken = {
   id: number;

@@ -41,7 +41,11 @@
       </label>
       <label class="client-account-dialog-check">
         <input v-model="draft.scopes" :disabled="busy" type="checkbox" value="mcp:write" />
-        <span><code>mcp:write</code> (includes MCP reads and all MCP mutations)</span>
+        <span><code>mcp:write</code> (includes MCP board reads and mutations; excludes diagnostics)</span>
+      </label>
+      <label class="client-account-dialog-check">
+        <input v-model="draft.scopes" :disabled="busy" type="checkbox" value="mcp:diagnostics:read" />
+        <span><code>mcp:diagnostics:read</code> (read system-wide diagnostics; requires an administrator)</span>
       </label>
       <label class="client-account-dialog-check">
         <input v-model="draft.scopes" :disabled="busy" type="checkbox" value="api:read" />

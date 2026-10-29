@@ -88,7 +88,7 @@ public sealed class OAuthTokenAuditServiceTests : TestBaseDb
         var input = new OAuthTokenAuditInput(
             OAuthTokenAuditOutcomes.Rejected,
             "refresh_token",
-            ["unknown", "mcp:write", "mcp:read", "mcp:write"],
+            ["unknown", "mcp:write", "mcp:read", "mcp:write", "mcp:diagnostics:read"],
             "invalid_grant",
             longValue,
             longValue,
@@ -105,7 +105,7 @@ public sealed class OAuthTokenAuditServiceTests : TestBaseDb
         // Assert
         var audit = await DbContextForAssert.OAuthTokenAudits.SingleAsync(
             TestContext.Current.CancellationToken);
-        Assert.Equal("mcp:read mcp:write", audit.RequestedScopes);
+        Assert.Equal("mcp:read mcp:write mcp:diagnostics:read", audit.RequestedScopes);
         Assert.Equal(512, audit.ErrorDescription!.Length);
         Assert.Equal(512, audit.ErrorUri!.Length);
         Assert.Equal(512, audit.UserAgent!.Length);

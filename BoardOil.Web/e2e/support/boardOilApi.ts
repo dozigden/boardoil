@@ -110,7 +110,8 @@ export class BoardOilApi {
 
   public async registerOAuthClient(
     clientName: string,
-    redirectUri: string
+    redirectUri: string,
+    scopes = 'mcp:read'
   ): Promise<SmokeOAuthClient> {
     const metadataResponse = await this.request.get(
       '/.well-known/oauth-protected-resource/mcp'
@@ -134,7 +135,7 @@ export class BoardOilApi {
           grant_types: ['authorization_code', 'refresh_token'],
           response_types: ['code'],
           token_endpoint_auth_method: 'none',
-          scope: 'mcp:read',
+          scope: scopes,
           application_type: 'native'
         }
       }

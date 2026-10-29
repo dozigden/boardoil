@@ -502,6 +502,28 @@ public sealed class AuthServiceTests : TestBaseDb
         Assert.Equal("Unsupported scope provided.", result.Message);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateMachinePatAsync_ShouldGrantDiagnosticsOnlyWhenExplicitlyRequested(bool diagnostics)
+    {
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var service = ResolveService<IAuthService>();
+
+        var result = await service.CreateMachinePatAsync(user.Id,
+            new CreateMachinePatRequest("permission-token", 30, diagnostics ? [MachinePatScopes.McpDiagnosticsRead] : null));
+
+        Assert.True(result.Success);
+        if (diagnostics)
+        {
+            Assert.Equal([MachinePatScopes.McpDiagnosticsRead], result.Data!.Token.Scopes);
+        }
+        else
+        {
+            Assert.Equal([MachinePatScopes.McpRead, MachinePatScopes.McpWrite], result.Data!.Token.Scopes);
+        }
+    }
+
     [Fact]
     public async Task CreateMachinePatAsync_WhenValid_ShouldPersistTokenAndReturnPlainTextToken()
     {

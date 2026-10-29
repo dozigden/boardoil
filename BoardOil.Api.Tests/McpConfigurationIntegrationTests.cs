@@ -9,6 +9,24 @@ namespace BoardOil.Api.Tests;
 public sealed class McpNoAuthConfigurationIntegrationTests : McpIntegrationTestBase
 {
     [Fact]
+    public async Task Diagnostics_WhenAuthModeNone_ShouldRemainHiddenAndRefuseCalls()
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        using var discoveryResponse = await McpJsonRpcClient.SendRequestAsync(client, "tools/list", new { }, "anonymous-diagnostic-list");
+        using var discovery = await McpJsonRpcClient.ParseJsonAsync(discoveryResponse);
+        using var callResponse = await McpJsonRpcClient.SendRequestAsync(client, "tools/call",
+            new { name = "error_log_list", arguments = new { } }, "anonymous-diagnostic-call");
+        using var call = await McpJsonRpcClient.ParseJsonAsync(callResponse);
+
+        Assert.DoesNotContain(discovery.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray(),
+            tool => tool.GetProperty("name").GetString() == "error_log_list");
+        var error = McpJsonRpcClient.GetStructuredContent(call);
+        Assert.True(call.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        Assert.Equal("forbidden", error.GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task DownloadTicket_WhenAuthModeNone_ShouldRefuseIssuance()
     {
         var client = CreateClient();

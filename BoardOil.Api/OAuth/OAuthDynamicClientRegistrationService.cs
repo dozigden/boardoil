@@ -24,7 +24,7 @@ public sealed class OAuthDynamicClientRegistrationService(
     ];
 
     private static readonly string[] SupportedResponseTypes = [ResponseTypes.Code];
-    private static readonly string[] SupportedScopes = [MachinePatScopes.McpRead, MachinePatScopes.McpWrite];
+    private static readonly string[] SupportedScopes = [MachinePatScopes.McpRead, MachinePatScopes.McpWrite, MachinePatScopes.McpDiagnosticsRead];
 
     public async Task<OAuthDynamicClientRegistrationResult> RegisterAsync(
         OAuthDynamicClientRegistrationRequest request,
@@ -191,7 +191,7 @@ public sealed class OAuthDynamicClientRegistrationService(
         var scopes = ResolveScopes(request.Scope);
         if (scopes.Length == 0 || scopes.Except(SupportedScopes, StringComparer.Ordinal).Any())
         {
-            return InvalidClientMetadata("Only mcp:read and mcp:write scopes are supported.");
+            return InvalidClientMetadata("Supported scopes are mcp:read, mcp:write and mcp:diagnostics:read.");
         }
 
         return null;
@@ -287,7 +287,7 @@ public sealed class OAuthDynamicClientRegistrationService(
     {
         if (scope is null)
         {
-            return [.. SupportedScopes];
+            return [MachinePatScopes.McpRead, MachinePatScopes.McpWrite];
         }
 
         return ParseScopes(scope);

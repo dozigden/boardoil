@@ -20,12 +20,16 @@ public sealed class McpToolDispatcher(
     private readonly IMcpAuthorisationService _authorisationService = authorisationService;
     private readonly BoardOilMcpOptions _mcpOptions = mcpOptions;
 
-    public ValueTask<ListToolsResult> ListToolsAsync(RequestContext<ListToolsRequestParams> _, CancellationToken cancellationToken)
+    public async ValueTask<ListToolsResult> ListToolsAsync(RequestContext<ListToolsRequestParams> _, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         var accessContext = _authorisationService.GetAccessContext(_httpContextAccessor.HttpContext?.User);
+        using var scope = _serviceProviderAccessor.ServiceProvider.CreateScope();
+        var diagnosticsError = await scope.ServiceProvider.GetRequiredService<McpDiagnosticsAccess>()
+            .EnsureAccessAsync(accessContext);
         var tools = _toolRegistry.Definitions
+            .Where(definition => !definition.RequiresDiagnostics || diagnosticsError is null)
             .Where(definition =>
                 _mcpOptions.AuthMode is McpAuthMode.None
                 || McpScopeRules.Allows(accessContext?.Scopes, definition.RequiredScope))
@@ -44,10 +48,10 @@ public sealed class McpToolDispatcher(
             })
             .ToList();
 
-        return ValueTask.FromResult(new ListToolsResult
+        return new ListToolsResult
         {
             Tools = tools
-        });
+        };
     }
 
     public async ValueTask<CallToolResult> CallToolAsync(RequestContext<CallToolRequestParams> requestContext, CancellationToken cancellationToken)

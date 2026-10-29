@@ -11,7 +11,8 @@ public sealed record McpToolDefinition(
     string OutputSchemaJson,
     string? RequiredScope,
     int DiscoveryOrder,
-    McpToolBehaviour Behaviour);
+    McpToolBehaviour Behaviour,
+    bool RequiresDiagnostics = false);
 
 public sealed record McpToolBehaviour(
     bool ReadOnly,
@@ -235,6 +236,11 @@ public sealed record BoardListOutput(
     IReadOnlyList<McpBoardSummary> Boards);
 
 public sealed record IdentityGetInput;
+
+public sealed record ErrorLogGetInput
+{
+    public int? Id { get; init; }
+}
 
 public sealed record IdentityGetOutput(
     McpIdentityUser User,
