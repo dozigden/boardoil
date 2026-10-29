@@ -58,6 +58,7 @@ public sealed class ScheduledJobService : IScheduledJobService
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
+                using var operation = DatabaseDiagnosticOperation.Begin($"schedule:{schedule.Name}");
                 await EvaluateAsync(schedule, nowUtc, timeZone, results, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

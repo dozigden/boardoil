@@ -1,9 +1,10 @@
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Ef.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Context;
 
-public sealed class BoardOilDbContextFactory(string connectionString) : IDbContextFactory
+public sealed class BoardOilDbContextFactory(string connectionString, SqliteLockDiagnostics? diagnostics = null) : IDbContextFactory
 {
     private readonly string _connectionString = connectionString;
 
@@ -19,6 +20,6 @@ public sealed class BoardOilDbContextFactory(string connectionString) : IDbConte
             .UseOpenIddict()
             .Options;
 
-        return (TDbContext)(DbContext)new BoardOilDbContext(options);
+        return (TDbContext)(DbContext)new BoardOilDbContext(options, diagnostics);
     }
 }

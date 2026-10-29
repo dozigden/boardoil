@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using BoardOil.Abstractions.ErrorLogs;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Api.Auth;
 using BoardOil.Contracts.Common;
 
@@ -12,6 +13,8 @@ public sealed class ApiExceptionLoggingMiddleware(
 {
     public async Task InvokeAsync(HttpContext context, IErrorLogService errorLogService)
     {
+        using var operation = DatabaseDiagnosticOperation.Begin(
+            context.GetEndpoint()?.DisplayName ?? context.Request.Method);
         try
         {
             await next(context);

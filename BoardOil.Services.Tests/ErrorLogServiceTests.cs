@@ -1,5 +1,6 @@
 using System.Text.Json;
 using BoardOil.Abstractions.ErrorLogs;
+using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.ErrorLogs;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Tests.Infrastructure;
@@ -13,6 +14,27 @@ namespace BoardOil.Services.Tests;
 public sealed class ErrorLogServiceTests : TestBaseDb
 {
     private static readonly DateTime FixedNowUtc = new(2026, 8, 9, 12, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public async Task LogExceptionAsync_WithFullContext_ShouldRetainCapturedDatabaseDiagnosticsOnRead()
+    {
+        // Arrange
+        var exception = new InvalidOperationException("evaluation failed");
+        new DatabaseLockFailure(FixedNowUtc, 5, 517, "SaveChanges", 12, "wal", Guid.NewGuid(),
+            null, null, 0, [], 0, []).AttachTo(exception);
+        var properties = Enumerable.Range(0, 20).ToDictionary(index => $"field{index}", _ => "safe");
+        var service = ResolveService<IErrorLogService>();
+
+        // Act
+        var id = await service.LogExceptionAsync(exception,
+            new ErrorLogContext("Backend", "JobScheduler", ContextJson: JsonSerializer.Serialize(properties)));
+        var result = await service.GetAsync(id!.Value);
+
+        // Assert
+        Assert.True(result.Success);
+        using var context = JsonDocument.Parse(result.Data!.ContextJson!);
+        Assert.Equal(517, context.RootElement.GetProperty("databaseLocks")[0].GetProperty("SqliteExtendedErrorCode").GetInt32());
+    }
 
     [Theory]
     [InlineData("Échec du rendu", "échec", true)]

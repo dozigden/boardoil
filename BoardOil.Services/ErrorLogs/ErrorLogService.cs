@@ -14,7 +14,8 @@ public sealed class ErrorLogService(
     IDbContextScopeFactory scopeFactory,
     IErrorLogRepository repository,
     TimeProvider timeProvider,
-    ILogger<ErrorLogService> logger) : IErrorLogService
+    ILogger<ErrorLogService> logger,
+    IDatabaseFailureDiagnostics? databaseDiagnostics = null) : IErrorLogService
 {
     private const int DefaultPageSize = 100;
     private const int MaxPageSize = 200;
@@ -174,6 +175,7 @@ public sealed class ErrorLogService(
 
         try
         {
+            databaseDiagnostics?.Enrich(exception);
             using var _ = scopeFactory.SuppressAmbientContext();
             using var scope = scopeFactory.Create(DbContextScopeOption.ForceCreateNew);
             var entity = new EntityErrorLog
@@ -188,7 +190,7 @@ public sealed class ErrorLogService(
                 RequestMethod = Truncate(Redact(context.RequestMethod), RequestMethodMaxLength),
                 RequestPath = Truncate(Redact(context.RequestPath), RequestPathMaxLength),
                 ActorUserId = context.ActorUserId,
-                ContextJson = BuildBackendContextJson(context.ContextJson),
+                ContextJson = BuildBackendContextJson(context.ContextJson, exception),
                 JobId = context.JobId
             };
 
@@ -334,6 +336,30 @@ public sealed class ErrorLogService(
             context.userAgent,
             clientContext = (object?)null
         });
+    }
+
+    private static string? BuildBackendContextJson(string? contextJson, Exception exception)
+    {
+        var sanitisedContext = BuildBackendContextJson(contextJson);
+        var failures = DatabaseLockFailure.FromException(exception);
+        if (failures.Count == 0) { return sanitisedContext; }
+
+        // Keep diagnostics first so bounded context reads retain the evidence.
+        var context = new Dictionary<string, object?> { ["databaseLocks"] = failures };
+        if (sanitisedContext is not null)
+        {
+            using var document = JsonDocument.Parse(sanitisedContext);
+            if (document.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in document.RootElement.EnumerateObject())
+                {
+                    context.TryAdd(property.Name, property.Value.Clone());
+                }
+            }
+        }
+        var serialised = JsonSerializer.Serialize(context);
+        if (serialised.Length <= ContextJsonMaxLength) { return serialised; }
+        return JsonSerializer.Serialize(new { contextTruncated = true, databaseLocks = failures });
     }
 
     private static string? BuildBackendContextJson(string? contextJson, int maxDepth = ClientContextMaxDepth)

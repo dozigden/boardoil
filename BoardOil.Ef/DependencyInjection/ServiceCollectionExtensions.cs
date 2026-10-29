@@ -15,6 +15,7 @@ using BoardOil.Data.Abstractions.Slick;
 using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Ef.Context;
+using BoardOil.Ef.Diagnostics;
 using BoardOil.Ef.Card;
 using BoardOil.Ef.Repositories;
 using BoardOil.Ef.Scope;
@@ -29,11 +30,16 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddBoardOilEfInfrastructure(this IServiceCollection services, string connectionString)
     {
+        services.AddLogging();
+        services.AddSingleton(provider => new SqliteLockDiagnostics(
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SqliteLockDiagnostics>>(), connectionString));
+        services.AddSingleton<IDatabaseFailureDiagnostics>(provider => provider.GetRequiredService<SqliteLockDiagnostics>());
         services.AddDbContext<BoardOilDbContext>(options =>
             options
                 .UseSqlite(connectionString)
                 .UseOpenIddict());
-        services.AddSingleton<IDbContextFactory>(_ => new BoardOilDbContextFactory(connectionString));
+        services.AddSingleton<IDbContextFactory>(provider => new BoardOilDbContextFactory(
+            connectionString, provider.GetRequiredService<SqliteLockDiagnostics>()));
         services.AddTransient<IDbContextScopeFactory, DbContextScopeFactory>();
         services.AddTransient<IAmbientDbContextLocator, AmbientDbContextLocator>();
         services.AddScoped<IBoardRepository, BoardRepository>();
@@ -91,6 +97,7 @@ public static class ServiceCollectionExtensions
 
         var bootstrapper = scope.ServiceProvider.GetRequiredService<IBoardBootstrapService>();
         await bootstrapper.EnsureDefaultBoardAsync();
+        await scope.ServiceProvider.GetRequiredService<SqliteLockDiagnostics>().ReportJournalModeAsync(dbContext);
     }
 
     private static async Task BackupDatabaseBeforeMigrationAsync(BoardOilDbContext dbContext)

@@ -1,11 +1,24 @@
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Ef.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace BoardOil.Ef;
 
-public sealed class BoardOilDbContext(DbContextOptions<BoardOilDbContext> options) : DbContext(options)
+public sealed class BoardOilDbContext : DbContext
 {
+    private readonly SqliteLockDiagnostics? diagnostics;
+
+    public BoardOilDbContext(DbContextOptions<BoardOilDbContext> options, SqliteLockDiagnostics? diagnostics = null)
+        : base(options)
+    {
+        this.diagnostics = diagnostics;
+        diagnostics?.TrackContext(this);
+    }
+
+    internal void CaptureTransactionStartFailure(Exception exception, long started) =>
+        diagnostics?.CaptureTransactionStartFailure(this, exception, started);
+
     private static readonly ValueConverter<DateTime, DateTime> UtcDateTimeConverter = new(
         value => value.Kind == DateTimeKind.Local
             ? value.ToUniversalTime()

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using BoardOil.Abstractions.DataAccess;
 using Microsoft.EntityFrameworkCore;
@@ -82,13 +83,24 @@ public class DbContextScope : IDbContextScope
 
         await dbContext.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
-            await using var transaction = await dbContext.Database.BeginTransactionAsync().ConfigureAwait(false);
+            await using var transaction = await BeginTransactionAsync(dbContext).ConfigureAwait(false);
             var transactionScope = new DbContextTransactionScope(dbContext);
             var transactionWrapper = new DbContextTransaction(transaction);
             await executor(transactionScope, transactionWrapper).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
         _completed = true;
+    }
+
+    private static async Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(BoardOilDbContext context)
+    {
+        var started = Stopwatch.GetTimestamp();
+        try { return await context.Database.BeginTransactionAsync().ConfigureAwait(false); }
+        catch (Exception exception)
+        {
+            context.CaptureTransactionStartFailure(exception, started);
+            throw;
+        }
     }
 
     public void Dispose()

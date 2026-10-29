@@ -24,6 +24,7 @@ public sealed class JobRunner(
 
     public async Task<bool> RunNextDueAsync(CancellationToken cancellationToken = default)
     {
+        using var claimOperation = DatabaseDiagnosticOperation.Begin("job:claim");
         // Handler services must commit their own work before the job becomes Completed.
         using var ambientContext = scopes.SuppressAmbientContext();
         var started = await lifecycleGate.ExecuteAsync(
@@ -34,6 +35,7 @@ public sealed class JobRunner(
         }
 
         var context = started.Context;
+        using var jobOperation = DatabaseDiagnosticOperation.Begin($"job:{context.Type}:{context.JobId}");
         JobHandlerResult result;
         try
         {

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using BoardOil.Abstractions.DataAccess;
 using Microsoft.EntityFrameworkCore;
@@ -47,8 +48,17 @@ public sealed class DbContextCollection : IDbContextCollection
 
         if (_isolationLevel.HasValue)
         {
-            var transaction = newContext.Database.BeginTransaction(_isolationLevel.Value);
-            _transactions.Add(newContext, transaction);
+            var started = Stopwatch.GetTimestamp();
+            try
+            {
+                var transaction = newContext.Database.BeginTransaction(_isolationLevel.Value);
+                _transactions.Add(newContext, transaction);
+            }
+            catch (Exception exception)
+            {
+                if (newContext is BoardOilDbContext context) { context.CaptureTransactionStartFailure(exception, started); }
+                throw;
+            }
         }
 
         return newContext;
