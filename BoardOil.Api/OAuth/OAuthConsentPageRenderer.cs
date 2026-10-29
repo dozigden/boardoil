@@ -73,39 +73,50 @@ internal static class OAuthConsentPageRenderer
             .Append(HtmlEncoder.Default.Encode(approval?.ConnectionName ?? string.Empty))
             .Append("\"></label>");
 
-        builder.Append("<fieldset><legend>Approved scopes</legend>");
+        var visibleScopes = authorization.RequestedScopes
+            .Where(scope => scope != MachinePatScopes.McpDiagnosticsRead || authorization.IsAdministrator)
+            .ToArray();
         var approvedScopes = approval?.ApprovedScopes ?? authorization.RequestedScopes
             .Where(scope => scope != MachinePatScopes.McpDiagnosticsRead).ToArray();
-        foreach (var scope in authorization.RequestedScopes)
+        if (visibleScopes.Length == 0)
         {
-            builder.Append("<label class=\"check-label\"><input type=\"checkbox\" name=\"approved_scope\" value=\"")
-                .Append(HtmlEncoder.Default.Encode(scope))
-                .Append('"');
-            if (approvedScopes.Contains(scope, StringComparer.Ordinal))
+            builder.Append("<p class=\"warning\">This account cannot approve the requested access. Sign in as another user to continue, or deny this request.</p>");
+        }
+        else
+        {
+            builder.Append("<fieldset><legend>Approved scopes</legend>");
+            foreach (var scope in visibleScopes)
             {
-                builder.Append(" checked");
+                builder.Append("<label class=\"check-label\"><input type=\"checkbox\" name=\"approved_scope\" value=\"")
+                    .Append(HtmlEncoder.Default.Encode(scope))
+                    .Append('"');
+                if (approvedScopes.Contains(scope, StringComparer.Ordinal))
+                {
+                    builder.Append(" checked");
+                }
+
+                builder.Append("><code>")
+                    .Append(HtmlEncoder.Default.Encode(scope))
+                    .Append("</code>");
+                if (string.Equals(scope, MachinePatScopes.McpWrite, StringComparison.Ordinal))
+                {
+                    builder.Append(" (includes MCP read access)");
+                }
+                else if (scope == MachinePatScopes.McpDiagnosticsRead)
+                {
+                    builder.Append(" (read system-wide diagnostics)");
+                }
+
+                builder.Append("</label>");
             }
 
-            builder.Append("><code>")
-                .Append(HtmlEncoder.Default.Encode(scope))
-                .Append("</code>");
-            if (string.Equals(scope, MachinePatScopes.McpWrite, StringComparison.Ordinal))
-            {
-                builder.Append(" (includes MCP read access)");
-            }
-            else if (scope == MachinePatScopes.McpDiagnosticsRead)
-            {
-                builder.Append(" (read system-wide application diagnostics; requires an administrator)");
-            }
-
-            builder.Append("</label>");
+            builder.Append("</fieldset>");
         }
 
-        builder.Append("</fieldset>");
         builder.Append("<p class=\"warning\">This connection will act as your signed-in BoardOil user. Board tools are limited to your current board memberships.</p>");
-        if (authorization.RequestedScopes.Contains(MachinePatScopes.McpDiagnosticsRead, StringComparer.Ordinal))
+        if (visibleScopes.Contains(MachinePatScopes.McpDiagnosticsRead, StringComparer.Ordinal))
         {
-            builder.Append("<p class=\"warning\">Diagnostic access can read system-wide application errors, including request information and user identifiers. It requires administrator status and is not included in MCP read or write access.</p>");
+            builder.Append("<p class=\"warning\">Read application errors across the system, including request details and user identifiers.</p>");
         }
         builder.Append("<label id=\"replacement-warning\" class=\"replacement-warning\" hidden>")
             .Append("<input id=\"replace-existing\" type=\"checkbox\" name=\"replace_existing\" value=\"true\"");
@@ -119,8 +130,13 @@ internal static class OAuthConsentPageRenderer
             .Append(HtmlEncoder.Default.Encode(error ?? string.Empty))
             .Append("</p>");
         builder.Append("<div class=\"actions\">");
-        builder.Append("<button class=\"secondary\" type=\"submit\" name=\"decision\" value=\"deny\">Deny</button>");
-        builder.Append("<button type=\"submit\" name=\"decision\" value=\"approve\">Authorise</button>");
+        builder.Append("<button class=\"secondary\" type=\"submit\" name=\"decision\" value=\"deny\" formnovalidate>Deny</button>");
+        builder.Append("<button type=\"submit\" name=\"decision\" value=\"approve\"");
+        if (visibleScopes.Length == 0)
+        {
+            builder.Append(" disabled");
+        }
+        builder.Append(">Authorise</button>");
         builder.Append("</div></form>");
         AppendReplacementScript(builder, authorization.ExistingConnections);
         return RenderDocument(
@@ -316,6 +332,7 @@ internal static class OAuthConsentPageRenderer
             dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
             code { font-size: .9em; }
             button { padding: .65rem 1rem; border: 0; border-radius: .4rem; background: #3584e4; color: white; cursor: pointer; font: inherit; font-weight: 700; }
+            button:disabled { opacity: .5; cursor: not-allowed; }
             button.secondary { background: #514b57; }
             .actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.5rem; }
             .account-switch { margin: 1rem 0; padding: .8rem; border: 1px solid #514b57; border-radius: .4rem; }

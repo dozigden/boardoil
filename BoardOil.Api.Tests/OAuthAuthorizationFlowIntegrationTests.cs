@@ -54,10 +54,55 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         var checkbox = Regex.Match(page, "<input[^>]*name=\"approved_scope\"[^>]*value=\"mcp:diagnostics:read\"[^>]*>");
         Assert.True(checkbox.Success);
         Assert.DoesNotContain("checked", checkbox.Value);
-        Assert.Contains("read system-wide application diagnostics", page);
-        Assert.Contains("request information and user identifiers", page);
-        Assert.Contains("not included in MCP read or write access", page);
+        Assert.Contains("read system-wide diagnostics", page);
+        Assert.Contains("Read application errors across the system, including request details and user identifiers.", page);
         Assert.DoesNotContain("can only access your current board memberships", page);
+    }
+
+    [Theory]
+    [InlineData("mcp:read mcp:diagnostics:read", true)]
+    [InlineData("mcp:diagnostics:read", false)]
+    public async Task DiagnosticConsent_AfterAdminDemotion_ShouldOnlyAllowAvailableRequestedScopes(
+        string requestedScopes,
+        bool hasBoardRead)
+    {
+        // Arrange
+        var client = CreateOAuthClient();
+        var scenario = await CreateScenarioAsync(client, [MachinePatScopes.McpRead],
+            registeredScopes: "mcp:read mcp:diagnostics:read");
+        var request = CreateAuthorizationRequest(scenario, requestedScopes);
+        using (var scope = Factory.Services.CreateScope())
+        {
+            await using var db = scope.ServiceProvider.GetRequiredService<BoardOil.Abstractions.DataAccess.IDbContextFactory>()
+                .CreateDbContext<BoardOilDbContext>();
+            var user = await db.Users.SingleAsync(x => x.Id == scenario.UserId);
+            user.Role = UserRole.Standard;
+            await db.SaveChangesAsync();
+        }
+
+        // Act
+        using var response = await client.GetAsync(request.Url);
+        var page = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain("name=\"approved_scope\" value=\"mcp:diagnostics:read\"", page);
+        Assert.DoesNotContain("read system-wide diagnostics", page);
+        Assert.DoesNotContain("Read application errors across the system", page);
+        Assert.Contains("<summary>Sign in as another user</summary>", page);
+        Assert.Contains("value=\"deny\" formnovalidate>Deny</button>", page);
+        if (hasBoardRead)
+        {
+            Assert.Contains("name=\"approved_scope\" value=\"mcp:read\" checked", page);
+            Assert.Contains("value=\"approve\">Authorise</button>", page);
+            Assert.DoesNotContain("This account cannot approve the requested access.", page);
+        }
+        else
+        {
+            Assert.DoesNotContain("<fieldset>", page);
+            Assert.Contains("This account cannot approve the requested access. Sign in as another user to continue, or deny this request.", page);
+            Assert.Contains("value=\"approve\" disabled>Authorise</button>", page);
+        }
     }
 
     [Fact]

@@ -119,6 +119,7 @@ public sealed class OAuthAuthorizationService(
             user.Id,
             user.UserName,
             user.DisplayName,
+            user.Role == UserRole.Admin,
             expectedResource,
             requestedScopes.ToArray(),
             existingConnections);
@@ -637,6 +638,7 @@ public sealed record OAuthAuthorizationContext(
     int UserId,
     string UserName,
     string UserDisplayName,
+    bool IsAdministrator,
     string Resource,
     string[] RequestedScopes,
     IReadOnlyList<string> ExistingConnections);
