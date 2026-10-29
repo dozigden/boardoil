@@ -1,6 +1,7 @@
 import { HubConnectionState, type HubConnection } from '@microsoft/signalr';
 
 const unauthorizedStartRetryDelaysMs = [0, 1_000, 3_000, 7_000];
+const visibleOutageDelayMs = 60_000;
 
 type SignalRConnectionLifecycleOptions = {
   connection: HubConnection;
@@ -29,6 +30,9 @@ export function createSignalRConnectionLifecycle(
   let finishReconnectTransition: (() => void) | null = null;
   let reconnectTransitionError: unknown = null;
   let stopping = false;
+  const documentRef = globalThis.document;
+  let outage: { error: Error; reported: boolean } | null = null;
+  let outageTimer: ReturnType<typeof setTimeout> | null = null;
 
   connection.onreconnecting(error => {
     beginReconnectTransition();
@@ -36,13 +40,12 @@ export function createSignalRConnectionLifecycle(
       error: error instanceof Error ? error.message : String(error)
     });
 
-    if (error) {
-      reportDiagnostic('realtime-reconnecting', error);
-    }
+    delayOutageReport(error ?? new Error('Realtime connection interrupted.'));
     void notifyUnavailable();
   });
 
   connection.onreconnected(async () => {
+    cancelOutageReport();
     let reconnectError: unknown = null;
     try {
       if (stopping) {
@@ -59,7 +62,8 @@ export function createSignalRConnectionLifecycle(
       options.log('State restored after reconnect.');
     } catch (error) {
       reconnectError = error;
-      throw error;
+      // SignalR does not await async callbacks; report restoration errors here.
+      reportDiagnostic('realtime-restore-failed', error);
     } finally {
       completeReconnectTransition(reconnectError);
     }
@@ -70,9 +74,7 @@ export function createSignalRConnectionLifecycle(
       error: error instanceof Error ? error.message : String(error)
     });
 
-    if (error) {
-      reportDiagnostic('realtime-closed', error);
-    }
+    delayOutageReport(error ?? new Error('Realtime connection closed.'));
 
     try {
       if (stopping || options.isSuppressed()) {
@@ -122,6 +124,7 @@ export function createSignalRConnectionLifecycle(
     });
 
     await startPromise;
+    cancelOutageReport();
     options.log('Realtime connection started.');
   }
 
@@ -183,6 +186,7 @@ export function createSignalRConnectionLifecycle(
 
   async function stop(beforeStop?: () => Promise<void>) {
     stopping = true;
+    cancelOutageReport();
     const pendingStart = startPromise;
     if (pendingStart) {
       try {
@@ -204,6 +208,43 @@ export function createSignalRConnectionLifecycle(
     }
 
     options.reportDiagnostic(phase, error, connection);
+  }
+
+  function delayOutageReport(error: Error) {
+    if (outage || stopping || options.isSuppressed() || isUnauthorizedNegotiationError(error)) {
+      return;
+    }
+    outage = { error, reported: false };
+    documentRef?.addEventListener('visibilitychange', scheduleOutageReport);
+    scheduleOutageReport();
+  }
+
+  function scheduleOutageReport() {
+    if (outageTimer !== null) {
+      clearTimeout(outageTimer);
+      outageTimer = null;
+    }
+    if (!outage || outage.reported || documentRef?.visibilityState === 'hidden') {
+      return;
+    }
+    // A hidden tab gets a fresh grace period when it becomes visible again.
+    outageTimer = setTimeout(() => {
+      outageTimer = null;
+      if (!outage || documentRef?.visibilityState === 'hidden' || stopping || options.isSuppressed()) {
+        return;
+      }
+      outage.reported = true;
+      reportDiagnostic('realtime-outage', outage.error);
+    }, visibleOutageDelayMs);
+  }
+
+  function cancelOutageReport() {
+    if (outageTimer !== null) {
+      clearTimeout(outageTimer);
+      outageTimer = null;
+    }
+    outage = null;
+    documentRef?.removeEventListener('visibilitychange', scheduleOutageReport);
   }
 
   function notifyUnavailable() {

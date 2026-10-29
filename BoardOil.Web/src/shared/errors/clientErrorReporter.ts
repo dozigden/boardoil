@@ -97,7 +97,11 @@ export function createClientErrorReporter(options: ClientErrorReporterOptions = 
     context: Record<string, unknown> | null = null
   ): Promise<boolean> {
     try {
-      return await sendReport(normaliseError(error, phase), phase, context, 'realtime');
+      return await sendReport(normaliseError(error, phase), phase, {
+        ...context,
+        visibilityState: globalThis.document?.visibilityState ?? null,
+        online: globalThis.navigator?.onLine ?? null
+      }, 'realtime');
     } catch {
       return false;
     }

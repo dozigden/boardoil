@@ -15,8 +15,12 @@ type FakeConnection = {
 };
 
 describe('signalRConnectionLifecycle', () => {
+  let documentRef: EventTarget & { visibilityState: string };
+
   beforeEach(() => {
-    vi.useRealTimers();
+    vi.useFakeTimers();
+    documentRef = Object.assign(new EventTarget(), { visibilityState: 'visible' });
+    vi.stubGlobal('document', documentRef);
   });
 
   it('shares an in-flight connection start', async () => {
@@ -136,6 +140,107 @@ describe('signalRConnectionLifecycle', () => {
     expect(harness.onRecovered).not.toHaveBeenCalled();
   });
 
+  it('reports a prolonged outage once and cancels brief outages on reconnection', async () => {
+    const harness = createHarness();
+    await harness.lifecycle.start();
+    const error = new Error('network');
+    harness.connection.reconnectingHandler?.(error);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(harness.reportDiagnostic).not.toHaveBeenCalled();
+    await harness.connection.reconnectedHandler?.();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(harness.reportDiagnostic).not.toHaveBeenCalled();
+
+    harness.connection.reconnectingHandler?.(error);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(harness.reportDiagnostic).toHaveBeenCalledWith('realtime-outage', error, harness.connection);
+    await harness.connection.closeHandler?.(error);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(harness.reportDiagnostic).toHaveBeenCalledTimes(1);
+    await harness.connection.reconnectedHandler?.();
+    expect(harness.reportDiagnostic).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([
+    { waitBeforeRestart: 0, refreshAuthentication: false },
+    { waitBeforeRestart: 60_000, refreshAuthentication: false },
+    { waitBeforeRestart: 0, refreshAuthentication: true }
+  ])('resets outage tracking after explicit restart: $waitBeforeRestart ms, auth refresh $refreshAuthentication', async ({ waitBeforeRestart, refreshAuthentication }) => {
+    const harness = createHarness();
+    await harness.lifecycle.start();
+    harness.connection.state = HubConnectionState.Disconnected;
+    await harness.connection.closeHandler?.(new Error('old outage'));
+    await vi.advanceTimersByTimeAsync(waitBeforeRestart);
+    harness.reportDiagnostic.mockClear();
+    if (refreshAuthentication) {
+      harness.connection.start.mockRejectedValueOnce(new Error("Failed negotiation: Status code '401'"));
+      harness.attemptAuthenticationRefresh.mockResolvedValueOnce(true);
+    }
+
+    await harness.lifecycle.start();
+    expect(harness.connection.state).toBe(HubConnectionState.Connected);
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(harness.reportDiagnostic).not.toHaveBeenCalled();
+
+    harness.connection.state = HubConnectionState.Disconnected;
+    const nextError = new Error('new outage');
+    await harness.connection.closeHandler?.(nextError);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(harness.reportDiagnostic).toHaveBeenCalledExactlyOnceWith('realtime-outage', nextError, harness.connection);
+  });
+
+  it('gives hidden tabs a fresh visible grace period', async () => {
+    const harness = createHarness();
+    await harness.lifecycle.start();
+    harness.connection.reconnectingHandler?.(new Error('network'));
+    await vi.advanceTimersByTimeAsync(50_000);
+    documentRef.visibilityState = 'hidden';
+    documentRef.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(3_600_000);
+    expect(harness.reportDiagnostic).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    documentRef.visibilityState = 'visible';
+    documentRef.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(harness.reportDiagnostic).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(harness.reportDiagnostic).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels the delayed report and removes its visibility listener on stop', async () => {
+    const harness = createHarness();
+    const removeListener = vi.spyOn(documentRef, 'removeEventListener');
+    await harness.lifecycle.start();
+    harness.connection.reconnectingHandler?.(new Error('network'));
+    await vi.advanceTimersByTimeAsync(59_000);
+    await harness.lifecycle.stop();
+    documentRef.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(harness.reportDiagnostic).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(removeListener).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+  });
+
+  it('reports restoration failure without leaking a rejected SignalR callback and rejects waiting starts', async () => {
+    const harness = createHarness();
+    await harness.lifecycle.start();
+    harness.connection.state = HubConnectionState.Reconnecting;
+    harness.connection.reconnectingHandler?.(new Error('network'));
+    const waitingStart = harness.lifecycle.start();
+    const rejectedStart = expect(waitingStart).rejects.toThrow('Subscription denied');
+    harness.restoreAfterReconnect.mockRejectedValueOnce(new Error('Subscription denied'));
+    harness.connection.state = HubConnectionState.Connected;
+
+    await expect(harness.connection.reconnectedHandler?.()).resolves.toBeUndefined();
+    await rejectedStart;
+    expect(harness.onRecovered).not.toHaveBeenCalled();
+    expect(harness.reportDiagnostic).toHaveBeenCalledWith(
+      'realtime-restore-failed', expect.objectContaining({ message: 'Subscription denied' }), harness.connection);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('reports a terminal close without restarting the connection', async () => {
     const harness = createHarness();
     await harness.lifecycle.start();
@@ -179,6 +284,8 @@ describe('signalRConnectionLifecycle', () => {
   });
 
   afterEach(() => {
+    vi.clearAllTimers();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 });

@@ -86,6 +86,15 @@ describe('clientErrorReporter', () => {
     expect(sent).toHaveLength(10);
   });
 
+  it('adds current visibility and online hints to realtime diagnostics', async () => {
+    vi.stubGlobal('document', { visibilityState: 'hidden' });
+    vi.stubGlobal('navigator', { onLine: false });
+    const sent: ClientErrorReportRequest[] = [];
+    const reporter = createReporter(sent);
+    await reporter.reportRealtimeDiagnostic('realtime-start-failed', new Error('network'), { boardId: 7 });
+    expect(sent[0].context).toEqual({ boardId: 7, visibilityState: 'hidden', online: false });
+  });
+
   it('uses stricter throttling for realtime diagnostics', async () => {
     const sent: ClientErrorReportRequest[] = [];
     const reporter = createReporter(sent);

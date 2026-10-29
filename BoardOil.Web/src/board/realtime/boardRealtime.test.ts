@@ -609,14 +609,7 @@ describe('boardRealtime', () => {
 
     expect(onConnectionWarning).toHaveBeenCalledWith('Realtime connection lost. Attempting to reconnect…');
     expect(onConnectionRecovered).toHaveBeenCalledTimes(2);
-    expect(reportRealtimeDiagnostic).toHaveBeenCalledWith(
-      'realtime-reconnecting',
-      expect.any(Error),
-      {
-        boardId: 42,
-        connectionState: 'Reconnecting'
-      }
-    );
+    expect(reportRealtimeDiagnostic).not.toHaveBeenCalled();
   });
 
   it('waits for automatic reconnect instead of starting from Reconnecting', async () => {
@@ -663,17 +656,21 @@ describe('boardRealtime', () => {
     expect(onResync).not.toHaveBeenCalled();
     expect(onConnectionWarning).toHaveBeenLastCalledWith(
       'Realtime updates are unavailable. Data may be stale until reconnect.');
+    await realtime.disconnect();
   });
 
-  it('reports unexpected realtime close errors', async () => {
+  it('reports unexpected realtime close errors after the grace period', async () => {
+    vi.useFakeTimers();
     const { createBoardRealtime } = await import('./boardRealtime');
     const realtime = createBoardRealtime(createHandlers());
     await realtime.connect(42);
 
     connection.onclose.mock.calls[0]?.[0]?.(new Error('socket closed'));
+    expect(reportRealtimeDiagnostic).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(60_000);
 
     expect(reportRealtimeDiagnostic).toHaveBeenCalledWith(
-      'realtime-closed',
+      'realtime-outage',
       expect.any(Error),
       {
         boardId: 42,
@@ -725,6 +722,7 @@ describe('boardRealtime', () => {
   });
 
   it('resumes realtime diagnostics when a cached page is restored', async () => {
+    vi.useFakeTimers();
     const { createBoardRealtime } = await import('./boardRealtime');
     const realtime = createBoardRealtime(createHandlers());
     await realtime.connect(42);
@@ -732,9 +730,10 @@ describe('boardRealtime', () => {
     windowEventHandlers.pagehide?.[0]?.();
     windowEventHandlers.pageshow?.[0]?.();
     connection.onreconnecting.mock.calls[0]?.[0]?.(new Error('network after restore'));
+    await vi.advanceTimersByTimeAsync(60_000);
 
     expect(reportRealtimeDiagnostic).toHaveBeenCalledWith(
-      'realtime-reconnecting',
+      'realtime-outage',
       expect.objectContaining({ message: 'network after restore' }),
       {
         boardId: 42,

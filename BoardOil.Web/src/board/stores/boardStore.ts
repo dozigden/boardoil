@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { createBoardRealtime } from '../realtime/boardRealtime';
+import { clientErrorReporter } from '../../shared/errors/clientErrorReporter';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useCardStore } from './cardStore';
@@ -276,6 +277,9 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     if (!result.ok) {
+      if (options.backgroundRefresh) {
+        void clientErrorReporter.reportRealtimeDiagnostic('realtime-board-refresh-failed', result.error, { boardId });
+      }
       if (options.backgroundRefresh && isTemporaryBoardLoadError(result.error)) {
         resyncPending = true;
         feedback.clearToast();

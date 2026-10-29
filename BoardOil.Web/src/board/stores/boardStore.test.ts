@@ -60,6 +60,11 @@ const systemInfoMessageStore = {
   load: vi.fn(async () => true)
 };
 
+const { reportRealtimeDiagnostic } = vi.hoisted(() => ({ reportRealtimeDiagnostic: vi.fn() }));
+vi.mock('../../shared/errors/clientErrorReporter', () => ({
+  clientErrorReporter: { reportRealtimeDiagnostic }
+}));
+
 vi.mock('../../shared/api/boardApi', () => ({
   createBoardApi: () => api
 }));
@@ -1070,6 +1075,19 @@ describe('boardStore', () => {
     expect(store.board?.columns[0]?.cards[0]?.title).toBe('Updated during recovery');
     expect(feedback.warningMessage).toBe('');
     expect(feedback.toastMessage).toBe('Realtime updates restored.');
+  });
+
+  it('reports a handled refresh failure without logging its successful retry', async () => {
+    vi.useFakeTimers();
+    const store = useBoardStore();
+    await store.initialize(1);
+    const error: AppError = { kind: 'network', message: 'Connection lost.' };
+    api.getBoard.mockResolvedValueOnce(err(error));
+    await realtimeHandlers!.onResync(1);
+    expect(reportRealtimeDiagnostic).toHaveBeenCalledWith('realtime-board-refresh-failed', error, { boardId: 1 });
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(reportRealtimeDiagnostic).toHaveBeenCalledTimes(1);
+    expect(useUiFeedbackStore().warningMessage).toBe('');
   });
 
   it('backs off background retries to ten seconds and resets after recovery', async () => {
