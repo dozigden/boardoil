@@ -285,6 +285,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('./system/views/ConfigurationView.vue')
       },
       {
+        path: 'support',
+        name: 'system-support',
+        component: () => import('./system/views/SupportView.vue')
+      },
+      {
         path: 'system-info-message',
         name: 'system-info-message',
         component: () => import('./system/views/SystemInfoMessageView.vue')

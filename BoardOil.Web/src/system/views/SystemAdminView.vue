@@ -44,6 +44,10 @@ const navItems = [
     label: 'Logs',
     to: { name: 'system-error-logs' },
     activeRouteNames: ['system-error-logs', 'system-error-log-details', 'system-oauth-logs']
+  },
+  {
+    label: 'Support',
+    to: { name: 'system-support' }
   }
 ];
 </script>

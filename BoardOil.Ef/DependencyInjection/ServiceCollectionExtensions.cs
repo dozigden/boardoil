@@ -34,6 +34,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(provider => new SqliteLockDiagnostics(
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SqliteLockDiagnostics>>(), connectionString));
         services.AddSingleton<IDatabaseFailureDiagnostics>(provider => provider.GetRequiredService<SqliteLockDiagnostics>());
+        services.AddTransient<IDatabaseInfoProvider, SqliteDatabaseInfoProvider>();
         services.AddDbContext<BoardOilDbContext>(options =>
             options
                 .UseSqlite(connectionString)

@@ -173,6 +173,7 @@ app.MapTagEndpoints();
 app.MapSlickEndpoints();
 app.MapInternalRealtimeEndpoints();
 app.MapConfigurationEndpoints();
+app.MapSupportEndpoints();
 app.MapSystemInfoMessageEndpoints();
 app.MapErrorLogEndpoints();
 app.MapSystemJobEndpoints();
