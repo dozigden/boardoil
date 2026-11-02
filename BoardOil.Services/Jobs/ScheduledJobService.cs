@@ -1,3 +1,4 @@
+using System.Data;
 using System.Globalization;
 using BoardOil.Abstractions.Configuration;
 using BoardOil.Abstractions.DataAccess;
@@ -320,7 +321,9 @@ public sealed class ScheduledJobService : IScheduledJobService
         IScheduledJobDefinition schedule, DateTime nowUtc, CancellationToken cancellationToken,
         bool completeRequest = false)
     {
-        using var scope = _scopes.Create(DbContextScopeOption.ForceCreateNew);
+        // An explicit commit lets SQLite wait for readers instead of failing while
+        // finalising an implicitly committed UPDATE/INSERT in rollback journal mode.
+        using var scope = _scopes.CreateWithTransaction(IsolationLevel.Serializable);
         var state = await _states.GetByNameAsync(schedule.SchedulerStateName, cancellationToken);
         if (state is null)
         {
@@ -346,7 +349,7 @@ public sealed class ScheduledJobService : IScheduledJobService
     private async Task RecordPendingAsync(
         IScheduledJobDefinition schedule, DateTime dueAtUtc, CancellationToken cancellationToken)
     {
-        using var scope = _scopes.Create(DbContextScopeOption.ForceCreateNew);
+        using var scope = _scopes.CreateWithTransaction(IsolationLevel.Serializable);
         var state = await _states.GetByNameAsync(schedule.SchedulerStateName, cancellationToken);
         if (state is null)
         {
