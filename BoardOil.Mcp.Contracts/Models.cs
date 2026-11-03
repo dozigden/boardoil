@@ -237,6 +237,8 @@ public sealed record BoardListOutput(
 
 public sealed record IdentityGetInput;
 
+public sealed record SystemInfoGetInput;
+
 public sealed record ErrorLogGetInput
 {
     public int? Id { get; init; }

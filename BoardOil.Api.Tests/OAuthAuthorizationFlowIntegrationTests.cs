@@ -1057,6 +1057,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
         Assert.Equal(
             [
                 ToolNames.IdentityGet,
+                ToolNames.SystemInfoGet,
                 ToolNames.BoardList,
                 ToolNames.BoardGet,
                 ToolNames.CardSearch,
@@ -1114,7 +1115,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, toolsResponse.StatusCode);
-        Assert.Equal(31, toolsPayload.RootElement
+        Assert.Equal(32, toolsPayload.RootElement
             .GetProperty("result")
             .GetProperty("tools")
             .GetArrayLength());

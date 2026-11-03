@@ -8,6 +8,7 @@ public static class ToolNames
     public const string BoardCreate = "board_create";
     public const string BoardUpdate = "board_update";
     public const string IdentityGet = "identity_get";
+    public const string SystemInfoGet = "system_info_get";
     public const string CardOptionsGet = "card_options_get";
     public const string CardGet = "card_get";
     public const string CardSearch = "card_search";

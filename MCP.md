@@ -129,6 +129,12 @@ Issuance reserves the case-insensitive filename with a pending attachment record
 
 Each upload ticket permits one claimed attempt. Concurrent requests fail once one request has claimed it. A retry after successful completion returns the existing attachment metadata without reading or replacing the file. Failed or interrupted attempts require a new ticket. The originating credential, user, current card-update permission and exact live-card owner are checked before admission and again before publication. Archive, transfer, deletion or credential revocation prevents publication. Incomplete rows and staged files are recovered during application startup; no timer, lease, resumable upload or chunked upload protocol is used.
 
+## System information
+
+`system_info_get` takes no arguments and returns `application` (`version`, `channel`, `build`, `commit`) and `database` (`provider`, `version`, `journalMode`, `sizeBytes`). Application metadata comes from the same source as `/api/version`; database information comes from the same provider as System Support. Allocated size is reported in bytes. No connection strings, filesystem paths or other configuration values are included.
+
+This read-only tool follows `identity_get` access: any active MCP identity can call it, without administrator status or an additional scope, including diagnostic-only connections. Normal MCP transport authentication still applies; explicitly configured development no-auth mode uses its configured actor. The REST Support endpoint retains its administrator requirement. MCP server discovery also reports an assembly version; use this tool for the richer deployed build and commit information.
+
 ## Administrator diagnostics
 
 Diagnostic tools require an active administrator account and the separate `mcp:diagnostics:read` permission. Ordinary `mcp:read` and `mcp:write` do not include diagnostics; existing connections and tokens do not gain this permission automatically. No system setting is required.

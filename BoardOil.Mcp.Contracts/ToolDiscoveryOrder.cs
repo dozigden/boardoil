@@ -3,6 +3,7 @@ namespace BoardOil.Mcp.Contracts;
 public static class ToolDiscoveryOrder
 {
     public const int IdentityGet = 100;
+    public const int SystemInfoGet = 150;
     public const int BoardList = 200;
     public const int BoardGet = 300;
     public const int BoardCreate = 310;

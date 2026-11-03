@@ -203,6 +203,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal(
             [
                 ToolNames.IdentityGet,
+                ToolNames.SystemInfoGet,
                 ToolNames.BoardList,
                 ToolNames.BoardGet,
                 ToolNames.CardSearch,
@@ -232,7 +233,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(31, GetToolNames(payload).Length);
+        Assert.Equal(32, GetToolNames(payload).Length);
     }
 
     [Fact]
@@ -280,6 +281,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.Equal(
             [
                 ToolNames.IdentityGet,
+                ToolNames.SystemInfoGet,
                 ToolNames.BoardList,
                 ToolNames.BoardGet,
                 ToolNames.BoardCreate,

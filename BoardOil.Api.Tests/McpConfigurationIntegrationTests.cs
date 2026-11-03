@@ -70,7 +70,7 @@ public sealed class McpNoAuthConfigurationIntegrationTests : McpIntegrationTestB
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(payload.RootElement.TryGetProperty("result", out var result));
         Assert.True(result.TryGetProperty("tools", out var tools));
-        Assert.Equal(31, tools.GetArrayLength());
+        Assert.Equal(32, tools.GetArrayLength());
     }
 
     [Fact]
@@ -94,6 +94,23 @@ public sealed class McpNoAuthConfigurationIntegrationTests : McpIntegrationTestB
         Assert.Equal("admin", identity.GetProperty("user").GetProperty("userName").GetString());
         Assert.Equal("None", identity.GetProperty("authentication").GetProperty("type").GetString());
         Assert.Empty(identity.GetProperty("authentication").GetProperty("scopes").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task SystemInfo_WithoutBearerToken_WhenAuthModeNone_ShouldUseConfiguredActor()
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+
+        using var response = await McpJsonRpcClient.SendRequestAsync(client, "tools/call",
+            new { name = "system_info_get", arguments = new { } }, "system-info-no-auth");
+        using var payload = await McpJsonRpcClient.ParseJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        var info = McpJsonRpcClient.GetStructuredContent(payload);
+        Assert.NotEmpty(info.GetProperty("application").GetProperty("version").GetString()!);
+        Assert.Equal("SQLite", info.GetProperty("database").GetProperty("provider").GetString());
     }
 
     [Fact]
