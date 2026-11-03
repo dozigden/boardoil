@@ -39,11 +39,11 @@ public sealed class McpErrorLogIntegrationTests : McpIntegrationTestBase, IClass
 
         Assert.DoesNotContain(ToolNames.ErrorLogList, ToolNamesFrom(list));
         Assert.DoesNotContain(ToolNames.ErrorLogGet, ToolNamesFrom(list));
-        foreach (var name in new[] { ToolNames.JobList, ToolNames.JobGet })
+        foreach (var name in new[] { ToolNames.JobList, ToolNames.JobGet, ToolNames.OAuthTokenAuditList })
         {
-            using var jobCall = await CallAsync(client, token, name, name == ToolNames.JobGet ? new { id = 1 } : (object)new { });
+            using var diagnosticCall = await CallAsync(client, token, name, name == ToolNames.JobGet ? new { id = 1 } : (object)new { });
             Assert.DoesNotContain(name, ToolNamesFrom(list));
-            AssertError(jobCall, "forbidden", 403);
+            AssertError(diagnosticCall, "forbidden", 403);
         }
         Assert.Equal(permission != "mcp:diagnostics:read", ToolNamesFrom(list).Contains(ToolNames.BoardList));
         AssertError(search, "forbidden", 403);
@@ -116,6 +116,7 @@ public sealed class McpErrorLogIntegrationTests : McpIntegrationTestBase, IClass
         Assert.Contains(ToolNames.ErrorLogList, ToolNamesFrom(before));
         Assert.Contains(ToolNames.JobList, ToolNamesFrom(before));
         Assert.Contains(ToolNames.JobGet, ToolNamesFrom(before));
+        Assert.Contains(ToolNames.OAuthTokenAuditList, ToolNamesFrom(before));
         if (demote)
         {
             await using var db = CreateDbContext();
@@ -136,11 +137,11 @@ public sealed class McpErrorLogIntegrationTests : McpIntegrationTestBase, IClass
 
         Assert.DoesNotContain(ToolNames.ErrorLogList, ToolNamesFrom(after));
         AssertError(call, "forbidden", 403);
-        foreach (var name in new[] { ToolNames.JobList, ToolNames.JobGet })
+        foreach (var name in new[] { ToolNames.JobList, ToolNames.JobGet, ToolNames.OAuthTokenAuditList })
         {
-            using var jobCall = await CallAsync(client, token, name, name == ToolNames.JobGet ? new { id = 1 } : (object)new { });
+            using var diagnosticCall = await CallAsync(client, token, name, name == ToolNames.JobGet ? new { id = 1 } : (object)new { });
             Assert.DoesNotContain(name, ToolNamesFrom(after));
-            AssertError(jobCall, "forbidden", 403);
+            AssertError(diagnosticCall, "forbidden", 403);
         }
         Assert.Equal("private", after.RootElement.GetProperty("result").GetProperty("cacheScope").GetString());
         Assert.Equal(0, after.RootElement.GetProperty("result").GetProperty("ttlMs").GetInt32());

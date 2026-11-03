@@ -38,4 +38,5 @@ public static class ToolNames
     public const string ErrorLogGet = "error_log_get";
     public const string JobList = "job_list";
     public const string JobGet = "job_get";
+    public const string OAuthTokenAuditList = "oauth_token_audit_list";
 }

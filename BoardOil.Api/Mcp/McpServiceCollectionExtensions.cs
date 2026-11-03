@@ -67,6 +67,7 @@ public static class McpServiceCollectionExtensions
         RegisterTool<ErrorLogGetTool>(services);
         RegisterTool<JobListTool>(services);
         RegisterTool<JobGetTool>(services);
+        RegisterTool<OAuthTokenAuditListTool>(services);
 
         services.AddSingleton<McpToolRegistry>();
         services.AddSingleton<McpToolDispatcher>();

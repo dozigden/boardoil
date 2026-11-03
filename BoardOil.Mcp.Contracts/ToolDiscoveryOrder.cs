@@ -42,4 +42,5 @@ public static class ToolDiscoveryOrder
     public const int ErrorLogGet = 2700;
     public const int JobList = 2800;
     public const int JobGet = 2900;
+    public const int OAuthTokenAuditList = 3000;
 }
