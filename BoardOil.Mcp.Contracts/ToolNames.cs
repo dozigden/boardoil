@@ -36,4 +36,6 @@ public static class ToolNames
     public const string ColumnsSet = "columns_set";
     public const string ErrorLogList = "error_log_list";
     public const string ErrorLogGet = "error_log_get";
+    public const string JobList = "job_list";
+    public const string JobGet = "job_get";
 }

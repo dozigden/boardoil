@@ -65,6 +65,8 @@ public static class McpServiceCollectionExtensions
         RegisterTool<ColumnsSetTool>(services);
         RegisterTool<ErrorLogListTool>(services);
         RegisterTool<ErrorLogGetTool>(services);
+        RegisterTool<JobListTool>(services);
+        RegisterTool<JobGetTool>(services);
 
         services.AddSingleton<McpToolRegistry>();
         services.AddSingleton<McpToolDispatcher>();

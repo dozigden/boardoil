@@ -40,4 +40,6 @@ public static class ToolDiscoveryOrder
     public const int ColumnsSet = 2500;
     public const int ErrorLogList = 2600;
     public const int ErrorLogGet = 2700;
+    public const int JobList = 2800;
+    public const int JobGet = 2900;
 }

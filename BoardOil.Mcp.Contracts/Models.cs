@@ -242,6 +242,11 @@ public sealed record ErrorLogGetInput
     public int? Id { get; init; }
 }
 
+public sealed record JobGetInput
+{
+    public int? Id { get; init; }
+}
+
 public sealed record IdentityGetOutput(
     McpIdentityUser User,
     McpAuthenticationContext Authentication);
