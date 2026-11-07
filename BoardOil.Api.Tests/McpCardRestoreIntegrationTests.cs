@@ -34,7 +34,7 @@ public sealed class McpCardRestoreIntegrationTests : McpIntegrationTestBase, ICl
             client,
             token,
             ToolNames.CardArchive,
-            new { boardId = 1, id = card.Id });
+            new { boardId = 1, cardIds = new[] { card.Id } });
         Assert.False(archivePayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
 
         // Act

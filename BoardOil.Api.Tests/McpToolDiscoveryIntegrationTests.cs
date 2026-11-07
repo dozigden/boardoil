@@ -314,6 +314,8 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
                 ToolNames.ColumnsSet
             ],
             toolNames);
+        Assert.DoesNotContain("card_bulk_archive", toolNames);
+        Assert.DoesNotContain("card_bulk_delete", toolNames);
         Assert.DoesNotContain("card_attachment_list", toolNames);
         Assert.DoesNotContain("columns_list", toolNames);
         Assert.DoesNotContain("card.move_by_column_name", toolNames);
@@ -325,9 +327,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             (ToolNames.CardCreate, "created"),
             (ToolNames.CardUpdate, "updated"),
             (ToolNames.CardMove, "moved"),
-            (ToolNames.CardArchive, "archived"),
             (ToolNames.CardRestore, "restored"),
-            (ToolNames.CardDelete, "deleted"),
             (ToolNames.CardCommentCreate, "created"),
             (ToolNames.CardCommentUpdate, "updated"),
             (ToolNames.CardCommentDelete, "deleted")
@@ -574,8 +574,22 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         Assert.True(cardCommentCreateProperties.TryGetProperty("id", out _));
         Assert.True(cardCommentCreateProperties.TryGetProperty("text", out _));
 
+        foreach (var (toolName, countProperty) in new[]
+        {
+            (ToolNames.CardArchive, "archivedCount"),
+            (ToolNames.CardDelete, "deletedCount")
+        })
+        {
+            var tool = McpJsonRpcClient.GetToolByName(toolsListPayload, toolName);
+            var input = tool.GetProperty("inputSchema");
+            Assert.Equal(["boardId", "cardIds"], input.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+            Assert.Equal("array", input.GetProperty("properties").GetProperty("cardIds").GetProperty("type").GetString());
+            Assert.Equal(["boardId", "requestedCount", countProperty],
+                tool.GetProperty("outputSchema").GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        }
+
         var cardArchiveTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardArchive);
-        Assert.Equal(["boardId", "id"], cardArchiveTool.GetProperty("inputSchema").GetProperty("required")
+        Assert.Equal(["boardId", "cardIds"], cardArchiveTool.GetProperty("inputSchema").GetProperty("required")
             .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         Assert.Contains("from the active board", cardArchiveTool.GetProperty("description").GetString(), StringComparison.Ordinal);
         Assert.Contains("restored if needed", cardArchiveTool.GetProperty("description").GetString(), StringComparison.Ordinal);

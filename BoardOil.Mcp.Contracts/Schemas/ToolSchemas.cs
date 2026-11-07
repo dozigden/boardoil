@@ -738,30 +738,52 @@ public static partial class ToolSchemas
     }
     """;
 
-    public const string CardDeleteInput = """
-    {
-      "type": "object",
-      "properties": {
-        "boardId": { "type": "integer", "minimum": 1 },
-        "id": { "type": "integer", "minimum": 1 }
-      },
-      "required": ["boardId", "id"],
-      "additionalProperties": false
-    }
-    """;
-
     public const string CardArchiveInput = """
     {
       "type": "object",
       "properties": {
         "boardId": { "type": "integer", "minimum": 1 },
-        "id": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Board-scoped number of the live card to archive."
-        }
+        "cardIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "integer", "minimum": 1 }, "description": "Board-scoped numbers of the live cards." }
       },
-      "required": ["boardId", "id"],
+      "required": ["boardId", "cardIds"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardArchiveOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer" },
+        "requestedCount": { "type": "integer", "minimum": 0 },
+        "archivedCount": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["boardId", "requestedCount", "archivedCount"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardDeleteInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1 },
+        "cardIds": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "description": "Board-scoped numbers of the live cards." }
+      },
+      "required": ["boardId", "cardIds"],
+      "additionalProperties": false
+    }
+    """;
+
+    public const string CardDeleteOutput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer" },
+        "requestedCount": { "type": "integer", "minimum": 0 },
+        "deletedCount": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["boardId", "requestedCount", "deletedCount"],
       "additionalProperties": false
     }
     """;
@@ -1037,9 +1059,7 @@ public static partial class ToolSchemas
     public static readonly string CardCreateOutput = CreateMutationReceiptSchema("created", "Board-scoped number of the created card.");
     public static readonly string CardUpdateOutput = CreateMutationReceiptSchema("updated", "Board-scoped number of the updated card.");
     public static readonly string CardMoveOutput = CreateMutationReceiptSchema("moved", "Board-scoped number of the moved card.");
-    public static readonly string CardArchiveOutput = CreateMutationReceiptSchema("archived", "Board-scoped number retained by the archived card.");
     public static readonly string CardRestoreOutput = CreateMutationReceiptSchema("restored", "Original board-scoped number retained by the restored card.");
-    public static readonly string CardDeleteOutput = CreateMutationReceiptSchema("deleted", "Board-scoped number of the deleted card.");
     public static readonly string CardCommentCreateOutput = CreateMutationReceiptSchema("created", "Generated comment ID, not the card number.");
     public static readonly string CardCommentUpdateOutput = CreateMutationReceiptSchema("updated", "Updated comment ID, not the card number.");
     public static readonly string CardCommentDeleteOutput = CreateMutationReceiptSchema("deleted", "Deleted comment ID, not the card number.");

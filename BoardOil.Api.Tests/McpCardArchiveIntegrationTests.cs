@@ -14,7 +14,7 @@ public sealed class McpCardArchiveIntegrationTests : McpIntegrationTestBase, ICl
     public McpCardArchiveIntegrationTests(DefaultApiFactoryFixture fixture) => UseSharedFactory(fixture);
 
     [Fact]
-    public async Task CardArchive_WithWriteScope_ShouldArchiveCardAndReturnBoardScopedReceipt()
+    public async Task CardArchive_WithWriteScope_ShouldArchiveCardAndReturnSummary()
     {
         // Arrange
         var client = CreateClient();
@@ -32,14 +32,15 @@ public sealed class McpCardArchiveIntegrationTests : McpIntegrationTestBase, ICl
             client,
             token,
             ToolNames.CardArchive,
-            new { boardId = 1, id = card.Id });
+            new { boardId = 1, cardIds = new[] { card.Id } });
 
         // Assert
         Assert.False(archivePayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
         var receipt = McpJsonRpcClient.GetStructuredContent(archivePayload);
-        Assert.Equal(["id", "outcome"], receipt.EnumerateObject().Select(property => property.Name).ToArray());
-        Assert.Equal(card.Id, receipt.GetProperty("id").GetInt32());
-        Assert.Equal("archived", receipt.GetProperty("outcome").GetString());
+        Assert.Equal(["boardId", "requestedCount", "archivedCount"], receipt.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(1, receipt.GetProperty("boardId").GetInt32());
+        Assert.Equal(1, receipt.GetProperty("requestedCount").GetInt32());
+        Assert.Equal(1, receipt.GetProperty("archivedCount").GetInt32());
 
         using var livePayload = await CallAsync(
             client,
@@ -80,7 +81,7 @@ public sealed class McpCardArchiveIntegrationTests : McpIntegrationTestBase, ICl
             client,
             token,
             ToolNames.CardArchive,
-            new { boardId = 1, id = card.Id });
+            new { boardId = 1, cardIds = new[] { card.Id } });
 
         // Assert
         Assert.True(payload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());

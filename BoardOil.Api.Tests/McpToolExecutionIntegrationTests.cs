@@ -134,7 +134,7 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             new
             {
                 name = "card_delete",
-                arguments = new { boardId = 1, id = sharedCardId }
+                arguments = new { boardId = 1, cardIds = new[] { sharedCardId } }
             },
             "board-scoped-card-delete-first",
             patToken);
@@ -910,14 +910,18 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
                 arguments = new
                 {
                     boardId = 1,
-                    id = createdCardId
+                    cardIds = new[] { createdCardId }
                 }
             },
             "card-delete-canonical-contract",
             patToken);
         Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
         using var deletePayload = await McpJsonRpcClient.ParseJsonAsync(deleteResponse);
-        Assert.Equal(createdCardId, AssertReceipt(deletePayload, "deleted").GetProperty("id").GetInt32());
+        Assert.False(deletePayload.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+        var deleteSummary = McpJsonRpcClient.GetStructuredContent(deletePayload);
+        Assert.Equal(1, deleteSummary.GetProperty("boardId").GetInt32());
+        Assert.Equal(1, deleteSummary.GetProperty("requestedCount").GetInt32());
+        Assert.Equal(1, deleteSummary.GetProperty("deletedCount").GetInt32());
     }
 
     [Fact]
@@ -1697,9 +1701,9 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             ("card_create", new { boardId = 0, columnId = 0, title = "Invalid create", description = "validation test", tagNames = Array.Empty<string>() }, "card-create-multi-validation", ["boardId", "columnId"]),
             ("card_update", new { boardId = 0, id = 0, cardTypeId = 0, slickName = (string?)null, externalUrl = (string?)null, title = "Invalid update", description = "validation test", tagNames = Array.Empty<string>() }, "card-update-multi-validation", ["boardId", "id", "cardTypeId"]),
             ("card_move", new { boardId = 0, id = 0, columnId = 0, afterId = 0 }, "card-move-multi-validation", ["boardId", "id", "columnId", "afterId"]),
-            ("card_archive", new { boardId = 0, id = 0 }, "card-archive-multi-validation", ["boardId", "id"]),
+            ("card_archive", new { boardId = 0, cardIds = new[] { 1 } }, "card-archive-invalid-board", ["boardId"]),
             ("card_restore", new { boardId = 0, id = 0 }, "card-restore-multi-validation", ["boardId", "id"]),
-            ("card_delete", new { boardId = 0, id = 0 }, "card-delete-multi-validation", ["boardId", "id"])
+            ("card_delete", new { boardId = 0, cardIds = new[] { 1 } }, "card-delete-invalid-board", ["boardId"])
         };
 
         foreach (var scenario in cases)

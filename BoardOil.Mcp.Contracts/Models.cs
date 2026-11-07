@@ -487,16 +487,10 @@ public sealed record CardMoveInput
     public int? AfterId { get; init; }
 }
 
-public sealed record CardDeleteInput
+public sealed record CardSelectionInput
 {
     public int? BoardId { get; init; }
-    public int? Id { get; init; }
-}
-
-public sealed record CardArchiveInput
-{
-    public int? BoardId { get; init; }
-    public int? Id { get; init; }
+    public IReadOnlyList<int>? CardIds { get; init; }
 }
 
 public sealed record CardRestoreInput
