@@ -32,6 +32,8 @@ describe('versionApi', () => {
 
     const result = await getBackendBuildInfo();
 
+    expect(getEnvelope).toHaveBeenCalledWith('/api/version', { cache: 'no-store', signal: undefined });
+
     expect(result.ok).toBe(false);
     if (result.ok) {
       throw new Error('Expected error result.');

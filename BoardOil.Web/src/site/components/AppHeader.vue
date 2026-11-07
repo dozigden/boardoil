@@ -1,5 +1,5 @@
 <template>
-  <header class="app-header" :class="{ 'app-header--compact-mobile': compactMobile }">
+  <header class="app-header" :class="{ 'app-header--compact-mobile': compactMobile, 'app-header--update': updateAvailable }">
     <div class="header-top">
       <div class="header-primary">
         <h1 class="brand-title">
@@ -18,8 +18,9 @@
           :boards="boards"
           :current-board-id="currentBoardId"
         />
+        <AppUpdateBanner v-if="updateAvailable" class="header-update-notice" />
         <button
-          v-if="activeSystemInfoMessage"
+          v-else-if="activeSystemInfoMessage"
           type="button"
           class="system-info-chip system-info-trigger"
           :class="systemInfoStyleClasses"
@@ -116,6 +117,7 @@ import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import AboutDialog from './AboutDialog.vue';
+import AppUpdateBanner from './AppUpdateBanner.vue';
 import BoardOilDrop from './BoardOilDrop.vue';
 import BoardOilLogo from './BoardOilLogo.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
@@ -129,6 +131,7 @@ import { useUserProfileImageStore } from '../../shared/stores/userProfileImageSt
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 import { useBoardStore } from '../../board/stores/boardStore';
 import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
+import { useAppUpdateStore } from '../../shared/stores/appUpdateStore';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { StylePresentation } from '../../shared/utils/styleTypes';
 
@@ -146,6 +149,7 @@ const userProfileImageStore = useUserProfileImageStore();
 const boardCatalogueStore = useBoardCatalogueStore();
 const boardStore = useBoardStore();
 const systemInfoMessageStore = useSystemInfoMessageStore();
+const { updateAvailable } = storeToRefs(useAppUpdateStore());
 const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
 const { userProfileImageUrl } = storeToRefs(userProfileImageStore);
 const { boards } = storeToRefs(boardCatalogueStore);
@@ -403,6 +407,25 @@ watch(isAuthenticated, async authenticated => {
 }
 
 @media (max-width: 767px) {
+  .app-header--update .header-top {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .app-header--update .header-primary {
+    display: contents;
+  }
+
+  .app-header--update .header-meta {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .header-update-notice {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
   .app-header--compact-mobile {
     border-bottom: none;
     padding-bottom: 0.35rem;

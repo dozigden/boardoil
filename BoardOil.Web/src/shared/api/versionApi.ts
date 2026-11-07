@@ -19,8 +19,8 @@ export function getFrontendBuildInfo(): BuildInfo {
   };
 }
 
-export async function getBackendBuildInfo(): Promise<Result<BuildInfo, AppError>> {
-  const envelopeResult = await getEnvelope<BuildInfo>('/api/version');
+export async function getBackendBuildInfo(signal?: AbortSignal): Promise<Result<BuildInfo, AppError>> {
+  const envelopeResult = await getEnvelope<BuildInfo>('/api/version', { cache: 'no-store', signal });
   if (!envelopeResult.ok) {
     return envelopeResult;
   }

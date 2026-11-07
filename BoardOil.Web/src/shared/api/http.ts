@@ -8,6 +8,20 @@ let csrfToken: string | null = null;
 let unauthorizedHandler: (() => void | Promise<void>) | null = null;
 let handlingUnauthorized = false;
 let refreshInFlight: Promise<boolean> | null = null;
+let pendingWrites = 0;
+
+export function hasPendingWrites() {
+  return pendingWrites > 0;
+}
+
+async function trackWrite<T>(operation: () => Promise<T>): Promise<T> {
+  pendingWrites += 1;
+  try {
+    return await operation();
+  } finally {
+    pendingWrites -= 1;
+  }
+}
 
 const csrfValidationFailureMessage = 'CSRF validation failed.';
 const sessionRefreshTimeoutMs = 30_000;
@@ -34,8 +48,8 @@ export async function attemptSessionRefresh() {
   return tryRefreshSession();
 }
 
-export async function getEnvelope<T>(path: string): Promise<Result<ApiEnvelope<T>, AppError>> {
-  const responseResult = await request(path, { method: 'GET' });
+export async function getEnvelope<T>(path: string, options: Pick<RequestInit, 'cache' | 'signal'> = {}): Promise<Result<ApiEnvelope<T>, AppError>> {
+  const responseResult = await request(path, { ...options, method: 'GET' });
   if (!responseResult.ok) {
     return responseResult;
   }
@@ -74,7 +88,7 @@ export async function getJson<T>(path: string): Promise<Result<T, AppError>> {
 }
 
 export async function postJson(path: string, payload: unknown): Promise<Result<void, AppError>> {
-  return sendJson('POST', path, payload);
+  return trackWrite(() => sendJson('POST', path, payload));
 }
 
 export async function postJsonQuiet(path: string, payload: unknown): Promise<void> {
@@ -90,22 +104,27 @@ export async function postJsonQuiet(path: string, payload: unknown): Promise<voi
 }
 
 export async function patchJson(path: string, payload: unknown): Promise<Result<void, AppError>> {
-  return sendJson('PATCH', path, payload);
+  return trackWrite(() => sendJson('PATCH', path, payload));
 }
 
 export async function putJson(path: string, payload: unknown): Promise<Result<void, AppError>> {
-  return sendJson('PUT', path, payload);
+  return trackWrite(() => sendJson('PUT', path, payload));
 }
 
 export async function postData<T>(path: string, payload: unknown): Promise<Result<T, AppError>> {
-  return sendJsonForData<T>('POST', path, payload);
+  return trackWrite(() => sendJsonForData<T>('POST', path, payload));
 }
 
 export async function postFormData<T>(path: string, payload: FormData): Promise<Result<T, AppError>> {
-  return sendFormForData<T>('POST', path, payload);
+  return trackWrite(() => sendFormForData<T>('POST', path, payload));
 }
 
 export async function uploadFormData<T>(path: string, payload: FormData, onProgress: (percent: number) => void,
+  signal: AbortSignal): Promise<Result<T, AppError>> {
+  return trackWrite(() => uploadFormDataRequest<T>(path, payload, onProgress, signal));
+}
+
+async function uploadFormDataRequest<T>(path: string, payload: FormData, onProgress: (percent: number) => void,
   signal: AbortSignal): Promise<Result<T, AppError>> {
   async function upload(): Promise<Result<Response, AppError>> {
     return new Promise(resolve => {
@@ -159,14 +178,18 @@ export async function uploadFormData<T>(path: string, payload: FormData, onProgr
 }
 
 export async function patchData<T>(path: string, payload: unknown): Promise<Result<T, AppError>> {
-  return sendJsonForData<T>('PATCH', path, payload);
+  return trackWrite(() => sendJsonForData<T>('PATCH', path, payload));
 }
 
 export async function putData<T>(path: string, payload: unknown): Promise<Result<T, AppError>> {
-  return sendJsonForData<T>('PUT', path, payload);
+  return trackWrite(() => sendJsonForData<T>('PUT', path, payload));
 }
 
 export async function deleteJson(path: string): Promise<Result<void, AppError>> {
+  return trackWrite(() => deleteRequest(path));
+}
+
+async function deleteRequest(path: string): Promise<Result<void, AppError>> {
   const responseResult = await request(path, { method: 'DELETE' });
   if (!responseResult.ok) {
     return responseResult;
@@ -220,6 +243,10 @@ export async function getBlob(path: string): Promise<Result<Blob, AppError>> {
 }
 
 export async function putBinary(path: string, payload: Blob): Promise<Result<void, AppError>> {
+  return trackWrite(() => putBinaryRequest(path, payload));
+}
+
+async function putBinaryRequest(path: string, payload: Blob): Promise<Result<void, AppError>> {
   const responseResult = await request(path, {
     method: 'PUT',
     headers: { 'Content-Type': payload.type || 'application/octet-stream' },

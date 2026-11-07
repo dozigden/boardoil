@@ -17,6 +17,7 @@ public sealed class VersionEndpointsIntegrationTests
         var response = await client.GetAsync("/api/version");
 
         response.EnsureSuccessStatusCode();
+        Assert.True(response.Headers.CacheControl?.NoStore);
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<BuildMetadataDto>>();
         Assert.NotNull(envelope);

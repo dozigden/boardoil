@@ -29,30 +29,34 @@ describe('multipart upload transport', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('sends credentials and CSRF without overriding multipart boundaries, with progress', async () => {
-    const { uploadFormData, setCsrfToken } = await import('./http');
+    const { uploadFormData, setCsrfToken, hasPendingWrites } = await import('./http');
     setCsrfToken('csrf');
     const progress = vi.fn();
     const result = uploadFormData('/api/boards/1/cards/1/attachments', new FormData(), progress, new AbortController().signal);
     const request = UploadRequest.instances[0]!;
+    expect(hasPendingWrites()).toBe(true);
     expect(request.withCredentials).toBe(true);
     expect(request.headers).toEqual({ 'X-BoardOil-CSRF': 'csrf' });
     request.upload.onprogress?.({ lengthComputable: true, loaded: 1, total: 2 });
     request.onload?.();
     expect(progress).toHaveBeenCalledWith(50);
     expect(await result).toEqual({ ok: true, data: { id: 7 } });
+    expect(hasPendingWrites()).toBe(false);
   });
 
   it.each([{}, { csrfToken: 'another-token' }])('retains the tab token after refresh with response data %j', async (data) => {
-    const { uploadFormData, setCsrfToken } = await import('./http');
+    const { uploadFormData, setCsrfToken, hasPendingWrites } = await import('./http');
     setCsrfToken('old');
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ success: true, data })));
     const result = uploadFormData('/api/boards/1/cards/1/attachments', new FormData(), vi.fn(), new AbortController().signal);
     UploadRequest.instances[0]!.status = 401;
     UploadRequest.instances[0]!.onload?.();
     await vi.waitFor(() => expect(UploadRequest.instances).toHaveLength(2));
+    expect(hasPendingWrites()).toBe(true);
     expect(UploadRequest.instances[1]!.headers).toEqual({ 'X-BoardOil-CSRF': 'old' });
     UploadRequest.instances[1]!.onload?.();
     expect((await result).ok).toBe(true);
+    expect(hasPendingWrites()).toBe(false);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -84,15 +88,17 @@ describe('multipart upload transport', () => {
   });
 
   it('returns structured size errors and handles cancellation', async () => {
-    const { uploadFormData } = await import('./http');
+    const { uploadFormData, hasPendingWrites } = await import('./http');
     const tooLarge = uploadFormData('/api/attachments', new FormData(), vi.fn(), new AbortController().signal);
     UploadRequest.instances[0]!.status = 413;
     UploadRequest.instances[0]!.responseText = JSON.stringify({ success: false, message: 'Too large' });
     UploadRequest.instances[0]!.onload?.();
     expect(await tooLarge).toMatchObject({ ok: false, error: { statusCode: 413, message: 'Too large' } });
+    expect(hasPendingWrites()).toBe(false);
     const controller = new AbortController();
     const cancelled = uploadFormData('/api/attachments', new FormData(), vi.fn(), controller.signal);
     controller.abort();
     expect(await cancelled).toMatchObject({ ok: false, error: { message: 'Upload cancelled.' } });
+    expect(hasPendingWrites()).toBe(false);
   });
 });

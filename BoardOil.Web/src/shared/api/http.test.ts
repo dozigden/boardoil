@@ -17,6 +17,36 @@ describe('http api client', () => {
     vi.unstubAllEnvs();
   });
 
+  it('keeps concurrent writes pending until their bodies are read, and clears failed writes', async () => {
+    const { postData, putData, hasPendingWrites } = await import('./http');
+    let finishBody!: (value: unknown) => void;
+    let rejectWrite!: (reason: Error) => void;
+    const body = new Promise(resolve => { finishBody = resolve; });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: () => body } as unknown as Response)
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectWrite = reject; }));
+    const first = postData('/api/example', {});
+    const second = putData('/api/example', {});
+    expect(hasPendingWrites()).toBe(true);
+    finishBody({ success: true, data: { id: 1 } });
+    await first;
+    expect(hasPendingWrites()).toBe(true);
+    rejectWrite(new Error('Offline'));
+    expect((await second).ok).toBe(false);
+    expect(hasPendingWrites()).toBe(false);
+  });
+
+  it('does not count reads or best-effort diagnostics as pending user writes', async () => {
+    const { getEnvelope, postJsonQuiet, hasPendingWrites } = await import('./http');
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ success: true, data: {} })));
+    const read = getEnvelope('/api/version', { cache: 'no-store' });
+    const diagnostics = postJsonQuiet('/api/client-errors', {});
+    expect(hasPendingWrites()).toBe(false);
+    await Promise.all([read, diagnostics]);
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/version'),
+      expect.objectContaining({ cache: 'no-store' }));
+  });
+
   it('returns JSON responses that are not wrapped in an API envelope', async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue({

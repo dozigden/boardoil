@@ -21,6 +21,7 @@ import { useBoardStore } from './board/stores/boardStore';
 import { useAuthStore } from './shared/stores/authStore';
 import { useUserProfileImageStore } from './shared/stores/userProfileImageStore';
 import { useThemeStore } from './shared/stores/themeStore';
+import { useAppUpdateStore } from './shared/stores/appUpdateStore';
 import StandardLayout from './site/layouts/StandardLayout.vue';
 import BoardWithConveyorLayout from './site/layouts/BoardWithConveyorLayout.vue';
 import SystemAdminLayout from './site/layouts/SystemAdminLayout.vue';
@@ -39,6 +40,7 @@ const boardCatalogueStore = useBoardCatalogueStore();
 const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
 const themeStore = useThemeStore();
+const appUpdateStore = useAppUpdateStore();
 const route = useRoute();
 const { boards } = storeToRefs(boardCatalogueStore);
 const { board, currentBoardId } = storeToRefs(boardStore);
@@ -66,10 +68,12 @@ const routeBoardId = computed(() => {
 });
 const pageTitle = computed(() => getPageTitle(board.value, boards.value, currentBoardId.value, routeBoardId.value));
 onMounted(async () => {
+  appUpdateStore.initialize();
   await authStore.initialize();
 });
 
 onUnmounted(async () => {
+  appUpdateStore.dispose();
   themeStore.dispose();
   await boardStore.dispose();
   boardCatalogueStore.dispose();

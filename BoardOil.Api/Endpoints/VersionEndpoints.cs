@@ -8,8 +8,11 @@ public static class VersionEndpoints
 {
     public static IEndpointRouteBuilder MapVersionEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/version", (BoardOilBuildInfo buildInfo) =>
-            ApiResults.Ok(buildInfo).ToHttpResult())
+        app.MapGet("/api/version", (BoardOilBuildInfo buildInfo, HttpContext context) =>
+            {
+                context.Response.Headers.CacheControl = "no-store";
+                return ApiResults.Ok(buildInfo).ToHttpResult();
+            })
             .WithTags("Other");
         return app;
     }
