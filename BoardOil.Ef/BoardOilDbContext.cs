@@ -1,5 +1,7 @@
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Ef.Diagnostics;
+using BoardOil.Ef.Functions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -14,6 +16,7 @@ public sealed class BoardOilDbContext : DbContext
     {
         this.diagnostics = diagnostics;
         diagnostics?.TrackContext(this);
+        SqliteStringFunctions.Register((SqliteConnection)Database.GetDbConnection());
     }
 
     internal void CaptureTransactionStartFailure(Exception exception, long started) =>
@@ -59,6 +62,7 @@ public sealed class BoardOilDbContext : DbContext
     {
         modelBuilder.UseOpenIddict();
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BoardOilDbContext).Assembly);
+        SqliteStringFunctions.ConfigureModel(modelBuilder);
         ConfigureUtcDateTimeProperties(modelBuilder);
     }
 

@@ -12,6 +12,57 @@ namespace BoardOil.Services.Tests;
 
 public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
 {
+    [Theory]
+    [InlineData("café")]
+    [InlineData("CAFÉ")]
+    public async Task UnarchiveCardAsync_WhenV1CardTypeNameHasAccents_ShouldResolveExistingType(string snapshotName)
+    {
+        // Arrange
+        var board = CreateBoard().AddColumn("Todo").Build();
+        var cardType = new EntityCardType
+        {
+            BoardId = board.BoardId, Name = "café", StyleName = "auto", StylePropertiesJson = "{}"
+        };
+        DbContextForArrange.CardTypes.Add(cardType);
+        await DbContextForArrange.SaveChangesAsync();
+        var snapshotJson = $$"""
+            {
+              "schema": "archived-card",
+              "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{board.BoardId}},
+                "originalCardId": 12345,
+                "boardColumnId": {{board.GetColumn("Todo").Id}},
+                "originalColumnName": "Todo",
+                "cardTypeId": 999999,
+                "cardTypeName": "{{snapshotName}}",
+                "title": "Unicode type",
+                "description": "",
+                "sortKey": "A",
+                "tags": [],
+                "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z",
+                "updatedAtUtc": "2026-04-26T12:00:00Z"
+              }
+            }
+            """;
+        var archivedCard = await SeedArchivedCardV1Async(
+            board.BoardId, 12345, "Unicode type", snapshotJson);
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.UnarchiveCardAsync(board.BoardId, archivedCard.OriginalCardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(cardType.Id, result.Data!.CardTypeId);
+        var restored = await DbContextForAssert.Cards.SingleAsync(
+            x => x.BoardId == board.BoardId && x.BoardCardId == archivedCard.OriginalCardId);
+        Assert.Equal(cardType.Id, restored.CardTypeId);
+        Assert.Equal(2, await DbContextForAssert.CardTypes.CountAsync(x => x.BoardId == board.BoardId));
+    }
+
     [Fact]
     public async Task UnarchiveCardAsync_WhenArchivedCardV1Exists_ShouldRestoreLiveCardAndRemoveArchive()
     {

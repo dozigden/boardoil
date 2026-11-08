@@ -59,8 +59,15 @@ public sealed class CardTypeServiceTests : TestBaseDb
         Assert.Equal("You do not have permission for this action.", result.Message);
     }
 
-    [Fact]
-    public async Task CreateCardTypeAsync_WhenNameConflictsCaseInsensitive_ShouldReturnValidationError()
+    [Theory]
+    [InlineData("Feature", "  feature  ")]
+    [InlineData("café", "café")]
+    [InlineData("café", "CAFÉ")]
+    [InlineData("CAFÉ", "café")]
+    [InlineData("échec", "ÉCHEC")]
+    [InlineData("ς", "Σ")]
+    public async Task CreateCardTypeAsync_WhenNameConflictsCaseInsensitive_ShouldReturnValidationError(
+        string existingName, string requestedName)
     {
         // Arrange
         var boardId = CreateBoard("BoardOil")
@@ -71,7 +78,7 @@ public sealed class CardTypeServiceTests : TestBaseDb
         DbContextForArrange.CardTypes.Add(new EntityCardType
         {
             BoardId = boardId,
-            Name = "Feature",
+            Name = existingName,
             Emoji = null,
             IsSystem = false,
         });
@@ -79,13 +86,96 @@ public sealed class CardTypeServiceTests : TestBaseDb
         var service = CreateService();
 
         // Act
-        var result = await service.CreateCardTypeAsync(boardId, new CreateCardTypeRequest("  feature  "), ActorUserId);
+        var result = await service.CreateCardTypeAsync(boardId, new CreateCardTypeRequest(requestedName), ActorUserId);
 
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
         Assert.NotNull(result.ValidationErrors);
         Assert.True(result.ValidationErrors!.ContainsKey("name"));
+    }
+
+    [Theory]
+    [InlineData("café", "cafe")]
+    [InlineData("café", "cafe\u0301")]
+    [InlineData("straße", "STRASSE")]
+    [InlineData("[café].*", "café")]
+    public async Task CreateCardTypeAsync_WhenNamesAreDistinct_ShouldPreserveComparisonSemantics(
+        string existingName, string requestedName)
+    {
+        // Arrange
+        var boardId = CreateBoard().AddColumn("Todo").Build().BoardId;
+        DbContextForArrange.CardTypes.Add(new EntityCardType { BoardId = boardId, Name = existingName });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.CreateCardTypeAsync(boardId, new CreateCardTypeRequest(requestedName), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(requestedName, result.Data!.Name);
+        Assert.Equal(3, await DbContextForAssert.CardTypes.CountAsync(x => x.BoardId == boardId));
+    }
+
+    [Fact]
+    public async Task CreateCardTypeAsync_WhenUnicodeNameExistsOnlyOnAnotherBoard_ShouldAllowCreate()
+    {
+        // Arrange
+        var otherBoardId = CreateBoard("Other").AddColumn("Todo").Build().BoardId;
+        var boardId = CreateBoard().AddColumn("Todo").Build().BoardId;
+        DbContextForArrange.CardTypes.Add(new EntityCardType { BoardId = otherBoardId, Name = "café" });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.CreateCardTypeAsync(boardId, new CreateCardTypeRequest("CAFÉ"), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(boardId, (await DbContextForAssert.CardTypes.SingleAsync(x => x.Id == result.Data!.Id)).BoardId);
+    }
+
+    [Fact]
+    public async Task UpdateCardTypeAsync_WhenUnicodeNameConflicts_ShouldRejectRename()
+    {
+        // Arrange
+        var boardId = CreateBoard().AddColumn("Todo").Build().BoardId;
+        var renamedType = new EntityCardType { BoardId = boardId, Name = "Feature" };
+        DbContextForArrange.CardTypes.AddRange(
+            new EntityCardType { BoardId = boardId, Name = "café" }, renamedType);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateCardTypeAsync(
+            boardId, renamedType.Id, new UpdateCardTypeRequest("CAFÉ"), ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("name", result.ValidationErrors!.Keys);
+        Assert.Equal("Feature", (await DbContextForAssert.CardTypes.SingleAsync(x => x.Id == renamedType.Id)).Name);
+    }
+
+    [Fact]
+    public async Task UpdateCardTypeAsync_WhenUnicodeNameMatchesOwnType_ShouldAllowUpdate()
+    {
+        // Arrange
+        var boardId = CreateBoard().AddColumn("Todo").Build().BoardId;
+        var cardType = new EntityCardType { BoardId = boardId, Name = "café", StyleName = "auto", StylePropertiesJson = "{}" };
+        DbContextForArrange.CardTypes.Add(cardType);
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateCardTypeAsync(
+            boardId, cardType.Id, new UpdateCardTypeRequest("CAFÉ"), ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(cardType.Id, result.Data!.Id);
+        Assert.Equal("CAFÉ", (await DbContextForAssert.CardTypes.SingleAsync(x => x.Id == cardType.Id)).Name);
     }
 
     [Fact]

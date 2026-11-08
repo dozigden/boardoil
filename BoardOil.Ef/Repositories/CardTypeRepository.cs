@@ -1,6 +1,7 @@
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Data.Abstractions.CardType;
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Ef.Functions;
 using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Ef.Repositories;
@@ -22,7 +23,7 @@ public sealed class CardTypeRepository(IAmbientDbContextLocator ambientDbContext
 
     public Task<EntityCardType?> GetByNormalisedNameAsync(int boardId, string normalisedName) =>
         DbSet
-            .Where(x => x.BoardId == boardId && x.Name.ToUpper() == normalisedName)
+            .Where(x => x.BoardId == boardId && SqliteStringFunctions.UpperInvariant(x.Name) == normalisedName)
             .FirstOrDefaultAsync();
 
     public Task<EntityCardType?> GetSystemByBoardIdAsync(int boardId) =>
