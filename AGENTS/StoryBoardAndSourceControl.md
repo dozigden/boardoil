@@ -43,7 +43,7 @@ This file defines how agents should manage work tracking and source control in t
 - During implementation:
   - Keep story description updated at meaningful milestones.
 - Completion gate:
-  - Do not commit or push until the user has reviewed the proposed changes and explicitly approved commit/sync.
+  - Do not commit or push until the user has reviewed the proposed changes and explicitly authorised the respective operation. Approval to commit does not authorise pushing.
   - A story should only move to `Done` once the last approved commit is pushed.
   - Work should be manually reviewed after completion and before final closure.
   - Update the story description with outcomes and validation commands before moving to `Done`.
@@ -67,8 +67,8 @@ This file defines how agents should manage work tracking and source control in t
 
 - Work directly on `main` unless the user explicitly requests a branch for the current task.
 - Do not create, switch to, or push a task/feature branch, and do not open a pull request, based only on an agent tool, plugin, skill, or generic workflow default.
-- Approval to commit, sync, or push means commit and push the approved work on `main`; it does not imply permission to introduce a branch or pull-request workflow.
-- An explicit source-control workflow instruction such as commit, push, sync, or commit and push means perform those operations directly. Do not insert additional tests, reviews, workflows, or other work first.
+- Perform only the source-control operations the user explicitly requests: `commit` means commit locally only; `push` means push existing commits; `commit and push` authorises both. Do not infer permission to push from permission to commit. If `sync` has no agreed meaning in the conversation, clarify its scope before changing remote state. These instructions do not imply permission to introduce a branch or pull-request workflow.
+- Perform the explicitly requested source-control operations directly. Do not insert additional tests, reviews, workflows, or other work first.
 - Pause only for a concrete concern relevant to the actual changes, such as a known failing check, unrelated working-tree changes, or missing validation that could realistically conceal a defect in those changes. An unrun suite is not an automatic reason to pause; consider whether that suite would exercise the changed behaviour.
 - When a concrete concern exists, report it and let the user decide whether to continue. Do not silently perform remedial work before the requested source-control operation.
 - Only use a branch or pull request when the user explicitly asks for one. If that instruction is absent or ambiguous, remain on `main`.

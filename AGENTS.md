@@ -22,6 +22,7 @@ Read area guidance before working in that part of the system:
   - work directly on `main` by default
   - do not create, switch to, or push a task/feature branch, and do not open a pull request, unless the user explicitly requests a branch or pull request for the current task
   - user approval to commit or push does not imply approval to create a branch or pull request
+  - `commit` means commit locally only; pushing requires explicit authorisation. `push` means push existing commits, and `commit and push` authorises both. If `sync` has no agreed meaning in the conversation, clarify its scope before changing remote state.
   - generic tool, plugin, or skill workflow defaults do not override this repository rule
   - when the user gives a source-control workflow instruction such as commit, push, sync, or commit and push, perform it without first inserting additional tests, reviews, workflows, or other work
   - pause before the requested source-control operation only when there is a concrete reason relevant to the actual changes, such as a known failing check, unrelated working-tree changes, or a material validation gap that could realistically conceal a defect
