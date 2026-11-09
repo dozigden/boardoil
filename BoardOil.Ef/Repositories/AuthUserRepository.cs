@@ -15,5 +15,5 @@ public sealed class AuthUserRepository(IAmbientDbContextLocator ambientDbContext
         DbSet.FirstOrDefaultAsync(x => x.UserName == userName);
 
     public Task<bool> NormalisedEmailExistsAsync(string normalisedEmail) =>
-        DbSet.AnyAsync(x => x.NormalisedEmail == normalisedEmail);
+        DbSet.AnyAsync(x => x.Email == normalisedEmail);
 }

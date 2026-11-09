@@ -1028,7 +1028,6 @@ public sealed class CardArchiveServiceTests : TestBaseDb
             UserName = userName,
             DisplayName = "Assigned User",
             Email = email,
-            NormalisedEmail = email.ToLowerInvariant(),
             PasswordHash = "hash",
             IsActive = true,
         };

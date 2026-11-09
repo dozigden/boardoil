@@ -62,7 +62,6 @@ public sealed class SqliteTestHarnessGuardTests : IAsyncLifetime
         {
             UserName = "first-user",
             Email = "first-user@example.com",
-            NormalisedEmail = "FIRST-USER@EXAMPLE.COM",
             PasswordHash = "test-hash",
             Role = UserRole.Admin,
             IsActive = true,

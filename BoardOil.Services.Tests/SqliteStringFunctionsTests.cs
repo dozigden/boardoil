@@ -78,7 +78,7 @@ public sealed class SqliteStringFunctionsTests
         }
         await db.Database.OpenConnectionAsync();
         await using var command = db.Database.GetDbConnection().CreateCommand();
-        command.CommandText = "SELECT bo_upper_invariant('café'), upper('café')";
+        command.CommandText = "SELECT bo_upper_invariant('café'), upper('café'), ' É@X ' = 'é@x' COLLATE BO_EMAIL";
 
         // Act
         await using var reader = await command.ExecuteReaderAsync();
@@ -87,6 +87,7 @@ public sealed class SqliteStringFunctionsTests
         // Assert
         Assert.Equal("CAFÉ", reader.GetString(0));
         Assert.Equal("CAFé", reader.GetString(1));
+        Assert.Equal(1, reader.GetInt32(2));
     }
 
     [Fact]

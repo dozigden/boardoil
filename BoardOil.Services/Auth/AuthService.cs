@@ -66,7 +66,6 @@ public sealed class AuthService(
             UserName = request.UserName.Trim(),
             DisplayName = request.UserName.Trim(),
             Email = request.Email.Trim(),
-            NormalisedEmail = normalisedEmail,
             PasswordHash = passwordHashService.HashPassword(request.Password),
             Role = UserRole.Admin,
             IdentityType = UserIdentityType.User,

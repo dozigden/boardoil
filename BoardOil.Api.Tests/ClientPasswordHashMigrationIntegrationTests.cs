@@ -32,7 +32,6 @@ public sealed class ClientPasswordHashMigrationIntegrationTests
                     UserName = "existing-client",
                     DisplayName = "Existing Client",
                     Email = "existing-client@localhost",
-                    NormalisedEmail = "existing-client@localhost",
                     PasswordHash = "legacy-synthetic-password-hash",
                     Role = UserRole.Standard,
                     IdentityType = UserIdentityType.Client,
@@ -43,14 +42,20 @@ public sealed class ClientPasswordHashMigrationIntegrationTests
                     UserName = "existing-human",
                     DisplayName = "Existing Human",
                     Email = "existing-human@localhost",
-                    NormalisedEmail = "existing-human@localhost",
                     PasswordHash = "real-human-password-hash",
                     Role = UserRole.Admin,
                     IdentityType = UserIdentityType.User,
                     IsActive = true,
                 };
-                dbContext.Users.AddRange(client, human);
-                await dbContext.SaveChangesAsync();
+                foreach (var user in new[] { client, human })
+                {
+                    await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                        $"""
+                        INSERT INTO Users (UserName,DisplayName,Email,NormalisedEmail,PasswordHash,Role,IdentityType,IsActive,CreatedAtUtc,UpdatedAtUtc)
+                        VALUES ({user.UserName},{user.DisplayName},{user.Email},{user.Email},{user.PasswordHash},{(int)user.Role},{(int)user.IdentityType},1,{DateTime.UtcNow},{DateTime.UtcNow});
+                        """);
+                    user.Id = await dbContext.Users.Where(x => x.UserName == user.UserName).Select(x => x.Id).SingleAsync();
+                }
                 var timestamp = DateTime.UtcNow;
                 await dbContext.Database.ExecuteSqlInterpolatedAsync(
                     $"""

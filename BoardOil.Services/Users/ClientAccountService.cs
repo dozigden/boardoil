@@ -81,7 +81,6 @@ public sealed class ClientAccountService(
             UserName = userName,
             DisplayName = displayName,
             Email = email,
-            NormalisedEmail = normalisedEmail,
             Role = role,
             IdentityType = UserIdentityType.Client,
             IsActive = true,
@@ -142,7 +141,6 @@ public sealed class ClientAccountService(
 
         user.DisplayName = request.DisplayName.Trim();
         user.Email = request.Email.Trim();
-        user.NormalisedEmail = normalisedEmail;
         user.Role = role;
         user.IsActive = request.IsActive;
         await scope.SaveChangesAsync();

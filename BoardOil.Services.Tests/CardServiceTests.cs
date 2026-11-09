@@ -121,7 +121,6 @@ public sealed class CardServiceTests : TestBaseDb
             UserName = assignedUserName,
             DisplayName = assignedUserDisplayName,
             Email = assignedEmail,
-            NormalisedEmail = assignedEmail.ToUpperInvariant(),
             PasswordHash = "hash",
             IsActive = true,
         };
@@ -387,7 +386,6 @@ public sealed class CardServiceTests : TestBaseDb
             UserName = assignedUserName,
             DisplayName = assignedUserName,
             Email = assignedEmail,
-            NormalisedEmail = assignedEmail.ToUpperInvariant(),
             PasswordHash = "hash",
             IsActive = true,
         };
@@ -438,7 +436,6 @@ public sealed class CardServiceTests : TestBaseDb
             UserName = "assignee",
             DisplayName = "Assignee",
             Email = "assignee@localhost",
-            NormalisedEmail = "ASSIGNEE@LOCALHOST",
             PasswordHash = "hash",
             IsActive = isActive,
         };
@@ -485,7 +482,6 @@ public sealed class CardServiceTests : TestBaseDb
             UserName = outsiderUserName,
             DisplayName = outsiderUserName,
             Email = outsiderEmail,
-            NormalisedEmail = outsiderEmail,
             PasswordHash = "hash",
             IsActive = isActive,
         };

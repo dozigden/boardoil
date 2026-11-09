@@ -57,7 +57,6 @@ public sealed class BoardCloneServiceTests : TestBaseDb
         {
             UserName = "additional-member",
             Email = "additional-member@example.com",
-            NormalisedEmail = "additional-member@example.com",
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,
@@ -177,7 +176,6 @@ public sealed class BoardCloneServiceTests : TestBaseDb
         {
             UserName = "contributor",
             Email = "contributor@example.com",
-            NormalisedEmail = "contributor@example.com",
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,
@@ -216,7 +214,6 @@ public sealed class BoardCloneServiceTests : TestBaseDb
         {
             UserName = "non-member",
             Email = "non-member@example.com",
-            NormalisedEmail = "non-member@example.com",
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,

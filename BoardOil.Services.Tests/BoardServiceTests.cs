@@ -368,7 +368,6 @@ public sealed class BoardServiceTests : TestBaseDb
         {
             UserName = ownerUserName,
             Email = ownerEmail,
-            NormalisedEmail = ownerEmail.ToLowerInvariant(),
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,

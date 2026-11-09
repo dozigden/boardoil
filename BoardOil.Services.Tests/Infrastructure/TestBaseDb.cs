@@ -66,7 +66,6 @@ public abstract class TestBaseDb : IAsyncLifetime
             {
                 UserName = "actor",
                 Email = "actor@localhost",
-                NormalisedEmail = "actor@localhost",
                 PasswordHash = "test-hash",
                 Role = UserRole.Admin,
                 IsActive = true,

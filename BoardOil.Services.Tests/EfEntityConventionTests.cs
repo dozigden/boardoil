@@ -73,7 +73,6 @@ public sealed class EfEntityConventionTests
             UserName = "utc-test",
             DisplayName = "UTC test",
             Email = "utc-test@example.com",
-            NormalisedEmail = "UTC-TEST@EXAMPLE.COM"
         };
         var token = new EntityPersonalAccessToken
         {

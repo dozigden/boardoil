@@ -46,7 +46,6 @@ internal static class AdminAuthenticationHelper
                 UserName = AdminUserName,
                 DisplayName = AdminUserName,
                 Email = AdminEmail,
-                NormalisedEmail = AdminEmail,
                 PasswordHash = passwordHashService.HashPassword(AdminPassword),
                 Role = UserRole.Admin,
                 IdentityType = UserIdentityType.User,
@@ -59,7 +58,6 @@ internal static class AdminAuthenticationHelper
         {
             adminUser.DisplayName = string.IsNullOrWhiteSpace(adminUser.DisplayName) ? AdminUserName : adminUser.DisplayName;
             adminUser.Email = AdminEmail;
-            adminUser.NormalisedEmail = AdminEmail;
             adminUser.PasswordHash = passwordHashService.HashPassword(AdminPassword);
             adminUser.Role = UserRole.Admin;
             adminUser.IdentityType = UserIdentityType.User;

@@ -17,7 +17,6 @@ public sealed class UserServiceTests : TestBaseDb
             UserName = "agent-client",
             DisplayName = "Agent Client",
             Email = "agent-client@localhost",
-            NormalisedEmail = "AGENT-CLIENT@LOCALHOST",
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.Client,
             IsActive = true,
@@ -47,7 +46,6 @@ public sealed class UserServiceTests : TestBaseDb
             UserName = "inactive-agent",
             DisplayName = "Inactive Agent",
             Email = "inactive-agent@localhost",
-            NormalisedEmail = "INACTIVE-AGENT@LOCALHOST",
             Role = UserRole.Standard,
             IsActive = false,
         };
@@ -74,7 +72,6 @@ public sealed class UserServiceTests : TestBaseDb
                 UserName = "zz-member",
                 DisplayName = "zz-member",
                 Email = "zz-member@localhost",
-                NormalisedEmail = "zz-member@localhost",
                 PasswordHash = "hash",
                 Role = UserRole.Standard,
                 IdentityType = UserIdentityType.User,
@@ -85,7 +82,6 @@ public sealed class UserServiceTests : TestBaseDb
                 UserName = "aa-client",
                 DisplayName = "aa-client",
                 Email = "aa-client@localhost",
-                NormalisedEmail = "aa-client@localhost",
                 PasswordHash = "hash",
                 Role = UserRole.Standard,
                 IdentityType = UserIdentityType.Client,
@@ -122,6 +118,5 @@ public sealed class UserServiceTests : TestBaseDb
         var storedUser = DbContextForAssert.Users.Single(x => x.Id == ActorUserId);
         Assert.Equal("Actor Updated", storedUser.DisplayName);
         Assert.Equal("actor-updated@localhost", storedUser.Email);
-        Assert.Equal("actor-updated@localhost", storedUser.NormalisedEmail);
     }
 }

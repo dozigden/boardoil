@@ -163,7 +163,6 @@ public sealed class CardTransferServiceTests : TestBaseDb
         {
             UserName = "source-only",
             Email = "source-only@localhost",
-            NormalisedEmail = "source-only@localhost",
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,

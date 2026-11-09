@@ -13,6 +13,56 @@ namespace BoardOil.Services.Tests;
 public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
 {
     [Theory]
+    [InlineData("CAFÉ@example.com")]
+    [InlineData("café@EXAMPLE.COM")]
+    public async Task UnarchiveCardAsync_WhenEmailWasRepaired_ShouldMatchCurrentEmailOwnerIgnoringArchivedIds(string archivedEmail)
+    {
+        // Arrange
+        var board = CreateBoard().AddColumn("Todo").Build();
+        var currentOwner = await DbContextForArrange.Users.SingleAsync(x => x.Id == ActorUserId);
+        currentOwner.Email = "café@example.com";
+        var renamedUser = new EntityUser
+        {
+            UserName = "renamed-user", DisplayName = "Renamed user",
+            Email = "CAFÉ+1@example.com", IsActive = true
+        };
+        DbContextForArrange.Users.Add(renamedUser);
+        await DbContextForArrange.SaveChangesAsync();
+        var snapshotJson = $$"""
+            {
+              "schema": "archived-card", "version": 1,
+              "capturedAtUtc": "2026-04-26T12:00:00Z",
+              "payload": {
+                "boardId": {{board.BoardId}}, "originalCardId": 779,
+                "boardColumnId": {{board.GetColumn("Todo").Id}}, "originalColumnName": "Todo",
+                "cardTypeId": {{await GetSystemCardTypeIdForBoardAsync(board.BoardId)}}, "cardTypeName": "Story",
+                "title": "Archived before email repair", "description": "", "sortKey": "A",
+                "tags": [], "tagNames": [],
+                "createdAtUtc": "2026-04-26T12:00:00Z", "updatedAtUtc": "2026-04-26T12:00:00Z",
+                "assignedUserId": {{renamedUser.Id}}, "assignedUserEmail": "{{archivedEmail}}",
+                "comments": [{
+                  "text": "Original comment", "createdAtUtc": "2026-04-26T12:00:00Z",
+                  "authorUserId": {{renamedUser.Id}}, "authorEmail": "{{archivedEmail}}"
+                }]
+              }
+            }
+            """;
+        var archive = await SeedArchivedCardV1Async(board.BoardId, 779, "Archived before email repair", snapshotJson);
+        var service = ResolveService<ICardArchiveService>();
+
+        // Act
+        var result = await service.UnarchiveCardAsync(board.BoardId, archive.OriginalCardId, ActorUserId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(currentOwner.Id, result.Data!.AssignedUserId);
+        var restored = await DbContextForAssert.Cards.Include(x => x.Comments)
+            .SingleAsync(x => x.BoardId == board.BoardId && x.BoardCardId == archive.OriginalCardId);
+        Assert.Equal(currentOwner.Id, Assert.Single(restored.Comments).AuthorUserId);
+        Assert.Equal("Original comment", Assert.Single(restored.Comments).Text);
+    }
+
+    [Theory]
     [InlineData("café")]
     [InlineData("CAFÉ")]
     public async Task UnarchiveCardAsync_WhenV1CardTypeNameHasAccents_ShouldResolveExistingType(string snapshotName)

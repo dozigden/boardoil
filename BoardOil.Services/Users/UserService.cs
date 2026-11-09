@@ -93,7 +93,6 @@ public sealed class UserService(
 
         user.DisplayName = request.DisplayName.Trim();
         user.Email = request.Email.Trim();
-        user.NormalisedEmail = normalisedEmail;
         await scope.SaveChangesAsync();
 
         return new OwnUserProfileDto(

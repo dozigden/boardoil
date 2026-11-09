@@ -98,7 +98,7 @@ public sealed class AuthServiceTests : TestBaseDb
         var persistedUser = await DbContextForAssert.Users.SingleAsync();
         Assert.Equal("admin", persistedUser.UserName);
         Assert.Equal("ADMIN@LOCALHOST", persistedUser.Email);
-        Assert.Equal("admin@localhost", persistedUser.NormalisedEmail);
+        Assert.Equal(persistedUser.Id, (await DbContextForAssert.Users.SingleAsync(x => x.Email == "admin@localhost")).Id);
         Assert.Equal(UserRole.Admin, persistedUser.Role);
         Assert.Equal(UserIdentityType.User, persistedUser.IdentityType);
         Assert.True(persistedUser.IsActive);
@@ -255,7 +255,6 @@ public sealed class AuthServiceTests : TestBaseDb
             UserName = "client-bot",
             DisplayName = "Client Bot",
             Email = "client-bot@localhost",
-            NormalisedEmail = "client-bot@localhost",
             PasswordHash = passwordHashService.HashPassword("Password1234!"),
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.Client,
@@ -284,7 +283,6 @@ public sealed class AuthServiceTests : TestBaseDb
             UserName = "passwordless-user",
             DisplayName = "Passwordless User",
             Email = "passwordless-user@localhost",
-            NormalisedEmail = "passwordless-user@localhost",
             PasswordHash = null,
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.User,
@@ -633,7 +631,6 @@ public sealed class AuthServiceTests : TestBaseDb
         {
             UserName = "owner",
             Email = "owner@localhost",
-            NormalisedEmail = "owner@localhost",
             PasswordHash = passwordHashService.HashPassword("Password1234!"),
             Role = UserRole.Admin,
             IdentityType = UserIdentityType.User,
@@ -643,7 +640,6 @@ public sealed class AuthServiceTests : TestBaseDb
         {
             UserName = "other",
             Email = "other@localhost",
-            NormalisedEmail = "other@localhost",
             PasswordHash = passwordHashService.HashPassword("Password1234!"),
             Role = UserRole.Admin,
             IdentityType = UserIdentityType.User,
@@ -692,7 +688,6 @@ public sealed class AuthServiceTests : TestBaseDb
         {
             UserName = userName,
             Email = $"{userName}@localhost",
-            NormalisedEmail = $"{userName}@localhost",
             PasswordHash = passwordHashService.HashPassword(password),
             Role = role,
             IdentityType = identityType,

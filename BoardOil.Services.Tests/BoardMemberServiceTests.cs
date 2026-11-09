@@ -140,7 +140,6 @@ public sealed class BoardMemberServiceTests : TestBaseDb
             UserName = userName,
             DisplayName = userName,
             Email = $"{userName}@localhost",
-            NormalisedEmail = $"{userName}@localhost",
             PasswordHash = "hash",
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.User,

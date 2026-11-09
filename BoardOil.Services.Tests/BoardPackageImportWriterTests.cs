@@ -116,7 +116,6 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
         {
             UserName = $"inactive-{Guid.NewGuid():N}",
             Email = inactiveUserEmail,
-            NormalisedEmail = inactiveUserEmail.ToLowerInvariant(),
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.User,
@@ -140,10 +139,10 @@ public sealed class BoardPackageImportWriterTests : TestBaseDb
                                 BoardPackageImportNormalisation.NormaliseName(CardTypeDefaults.SystemTypeName),
                                 [],
                                 null,
-                                activeUser.NormalisedEmail,
+                                activeUser.Email.Trim().ToLowerInvariant(),
                                 [
-                                    new CommentImportDefinition("Active author", new DateTime(2026, 05, 02, 8, 0, 0, DateTimeKind.Utc), activeUser.NormalisedEmail),
-                                    new CommentImportDefinition("Inactive author", new DateTime(2026, 05, 02, 8, 1, 0, DateTimeKind.Utc), inactiveUser.NormalisedEmail)
+                                    new CommentImportDefinition("Active author", new DateTime(2026, 05, 02, 8, 0, 0, DateTimeKind.Utc), activeUser.Email.Trim().ToLowerInvariant()),
+                                    new CommentImportDefinition("Inactive author", new DateTime(2026, 05, 02, 8, 1, 0, DateTimeKind.Utc), inactiveUser.Email.Trim().ToLowerInvariant())
                                 ],
                                 BoardCardId: 1)
                         ])

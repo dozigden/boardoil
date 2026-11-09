@@ -17,6 +17,8 @@ public sealed class BoardOilDbContext : DbContext
         this.diagnostics = diagnostics;
         diagnostics?.TrackContext(this);
         SqliteStringFunctions.Register((SqliteConnection)Database.GetDbConnection());
+        SqliteEmailCollation.Register((SqliteConnection)Database.GetDbConnection());
+        Migrations.SingleColumnEmailRepair.Register((SqliteConnection)Database.GetDbConnection());
     }
 
     internal void CaptureTransactionStartFailure(Exception exception, long started) =>

@@ -498,7 +498,6 @@ public sealed class CardTypeServiceTests : TestBaseDb
         {
             UserName = userName,
             Email = email,
-            NormalisedEmail = email.ToLowerInvariant(),
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IsActive = true,

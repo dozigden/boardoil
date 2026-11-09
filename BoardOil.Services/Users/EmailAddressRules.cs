@@ -1,4 +1,5 @@
 using BoardOil.Contracts.Common;
+using BoardOil.Data.Abstractions.Users;
 
 namespace BoardOil.Services.Users;
 
@@ -7,7 +8,7 @@ internal static class EmailAddressRules
     private const int MaxEmailLength = 320;
 
     public static string? TryNormalise(string? emailValue) =>
-        string.IsNullOrWhiteSpace(emailValue) ? null : emailValue.Trim().ToLowerInvariant();
+        EmailComparison.Normalise(emailValue);
 
     public static IReadOnlyList<ValidationError> Validate(string? emailValue, string fieldName)
     {

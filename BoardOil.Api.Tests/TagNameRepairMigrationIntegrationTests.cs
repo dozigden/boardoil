@@ -29,7 +29,7 @@ public sealed class TagNameRepairMigrationIntegrationTests
         var unaffectedBefore = await SnapshotAsync(connection, "Cards", "ArchivedCards", "Users");
 
         // Act
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateAsync(RepairMigration);
 
         // Assert
         var survivorAfter = await ReadTagAsync(db, survivorId);
@@ -59,7 +59,7 @@ public sealed class TagNameRepairMigrationIntegrationTests
         await using var connection = await OpenConnectionAsync();
         await SeedAsync(connection, true);
         await using var db = CreateContext(connection);
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateAsync(RepairMigration);
         var before = await SnapshotAsync(connection, "Tags", "CardTags", "Cards", "ArchivedCards", "Users");
 
         // Act
@@ -71,7 +71,7 @@ public sealed class TagNameRepairMigrationIntegrationTests
             }
             await transaction.CommitAsync();
         }
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateAsync(RepairMigration);
 
         // Assert
         Assert.Equal(before, await SnapshotAsync(connection, "Tags", "CardTags", "Cards", "ArchivedCards", "Users"));
@@ -93,7 +93,7 @@ public sealed class TagNameRepairMigrationIntegrationTests
         var before = await SnapshotAsync(connection, "Tags", "CardTags", "Cards", "ArchivedCards", "Users");
 
         // Act
-        var error = await Assert.ThrowsAsync<SqliteException>(() => db.Database.MigrateAsync());
+        var error = await Assert.ThrowsAsync<SqliteException>(() => db.Database.MigrateAsync(RepairMigration));
 
         // Assert
         Assert.Contains("Injected tag repair failure", error.Message);
@@ -103,7 +103,7 @@ public sealed class TagNameRepairMigrationIntegrationTests
 
         // The migration transaction must also roll back its temporary mapping table.
         await db.Database.ExecuteSqlRawAsync("DROP TRIGGER FailTagRepair;");
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateAsync(RepairMigration);
         Assert.Contains(RepairMigration, await db.Database.GetAppliedMigrationsAsync());
         Assert.False(await db.Tags.AnyAsync(x => x.Id == 20));
     }
@@ -129,7 +129,7 @@ public sealed class TagNameRepairMigrationIntegrationTests
         Assert.Equal(2, await db.Tags.CountAsync());
 
         // Act
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateAsync(RepairMigration);
 
         // Assert
         var tag = await db.Tags.SingleAsync();
@@ -176,10 +176,11 @@ public sealed class TagNameRepairMigrationIntegrationTests
             SnapshotJson = """{"schema":"archived-card","version":1,"payload":{"tagNames":["ς","σ"]}}""",
             SearchTitle = "Archived", SearchTagsJson = """["ς","σ"]""", SearchTextNormalised = "ARCHIVED Σ Σ"
         });
-        db.Users.Add(new EntityUser
-        {
-            UserName = "Élodie", DisplayName = "Élodie", Email = "Élodie@localhost", NormalisedEmail = "Élodie@localhost"
-        });
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO Users (UserName,DisplayName,Email,NormalisedEmail,Role,IdentityType,IsActive,CreatedAtUtc,UpdatedAtUtc)
+            VALUES ('Élodie','Élodie','Élodie@localhost','Élodie@localhost',0,0,1,'2026-01-01','2026-01-01');
+            """);
         await db.SaveChangesAsync();
     }
 

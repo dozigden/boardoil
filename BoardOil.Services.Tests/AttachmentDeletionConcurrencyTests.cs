@@ -37,7 +37,7 @@ public sealed class AttachmentDeletionConcurrencyTests
             await database.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
             var actor = new EntityUser
             {
-                UserName = "actor", Email = "actor@test", NormalisedEmail = "actor@test",
+                UserName = "actor", Email = "actor@test",
                 PasswordHash = "unused", Role = UserRole.Admin, IsActive = true
             };
             database.Users.Add(actor);

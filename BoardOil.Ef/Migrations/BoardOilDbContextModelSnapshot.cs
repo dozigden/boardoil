@@ -1431,19 +1431,17 @@ namespace BoardOil.Ef.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(320)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("")
+                        .UseCollation("BO_EMAIL");
 
                     b.Property<int>("IdentityType")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("NormalisedEmail")
-                        .IsRequired()
-                        .HasMaxLength(320)
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")
                         .HasMaxLength(512)
@@ -1462,7 +1460,7 @@ namespace BoardOil.Ef.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("NormalisedEmail")
+                    b.HasIndex("Email")
                         .IsUnique();
 
                     b.HasIndex("UserName")

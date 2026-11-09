@@ -82,7 +82,7 @@ public sealed class CardCommentEditingServiceTests : TestBaseDb
         int? authorUserId = null;
         if (!missingAuthor)
         {
-            var author = new EntityUser { UserName = "author", Email = "author@example.com", NormalisedEmail = "author@example.com", PasswordHash = "test", IsActive = true };
+            var author = new EntityUser { UserName = "author", Email = "author@example.com", PasswordHash = "test", IsActive = true };
             DbContextForArrange.Users.Add(author);
             await DbContextForArrange.SaveChangesAsync();
             authorUserId = author.Id;

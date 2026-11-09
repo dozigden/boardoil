@@ -78,7 +78,6 @@ public sealed class UserAdminService(
             UserName = userName,
             DisplayName = displayName,
             Email = email,
-            NormalisedEmail = normalisedEmail,
             PasswordHash = passwordHashService.HashPassword(request.Password),
             Role = role,
             IdentityType = UserIdentityType.User,
@@ -127,7 +126,6 @@ public sealed class UserAdminService(
 
         user.DisplayName = request.DisplayName.Trim();
         user.Email = request.Email.Trim();
-        user.NormalisedEmail = normalisedEmail;
         user.Role = role;
         user.IsActive = request.IsActive;
         await scope.SaveChangesAsync();

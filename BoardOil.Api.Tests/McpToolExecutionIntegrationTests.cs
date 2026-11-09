@@ -1738,7 +1738,6 @@ public sealed class McpToolExecutionIntegrationTests : McpIntegrationTestBase, I
             UserName = userName,
             DisplayName = userName,
             Email = $"{userName}@localhost",
-            NormalisedEmail = $"{userName.ToUpperInvariant()}@LOCALHOST",
             PasswordHash = "hash",
             Role = UserRole.Standard,
             IsActive = isActive,

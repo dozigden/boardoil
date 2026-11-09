@@ -210,7 +210,6 @@ public sealed class OAuthConnectionManagementServiceTests : TestBaseDb
             UserName = userName,
             DisplayName = $"{userName} display",
             Email = $"{userName}@localhost",
-            NormalisedEmail = $"{userName}@localhost",
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.User,

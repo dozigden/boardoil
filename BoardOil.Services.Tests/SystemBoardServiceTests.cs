@@ -95,7 +95,6 @@ public sealed class SystemBoardServiceTests : TestBaseDb
         {
             UserName = userName,
             Email = email,
-            NormalisedEmail = email.ToLowerInvariant(),
             PasswordHash = "test-hash",
             Role = role,
             IsActive = isActive,

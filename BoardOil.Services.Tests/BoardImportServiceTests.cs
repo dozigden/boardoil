@@ -326,7 +326,6 @@ public sealed class BoardImportServiceTests : TestBaseDb
         {
             UserName = $"client-{Guid.NewGuid():N}",
             Email = clientEmail,
-            NormalisedEmail = clientEmail.ToLowerInvariant(),
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.Client,
@@ -370,7 +369,6 @@ public sealed class BoardImportServiceTests : TestBaseDb
         {
             UserName = $"inactive-{Guid.NewGuid():N}",
             Email = inactiveUserEmail,
-            NormalisedEmail = inactiveUserEmail.ToLowerInvariant(),
             PasswordHash = "test-hash",
             Role = UserRole.Standard,
             IdentityType = UserIdentityType.User,

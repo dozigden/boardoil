@@ -201,7 +201,7 @@ public sealed class CardCommentDeletionServiceTests : TestBaseDb
         }
         if (author == "other")
         {
-            var user = new EntityUser { UserName = "author", Email = "author@test", NormalisedEmail = "author@test", PasswordHash = "test", IsActive = true };
+            var user = new EntityUser { UserName = "author", Email = "author@test", PasswordHash = "test", IsActive = true };
             DbContextForArrange.Users.Add(user);
             await DbContextForArrange.SaveChangesAsync();
             authorUserId = user.Id;
