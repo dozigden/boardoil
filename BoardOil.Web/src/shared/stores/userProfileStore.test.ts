@@ -49,7 +49,7 @@ describe('userProfileStore', () => {
   it('loads the authoritative profile for the editor', async () => {
     const store = useUserProfileStore();
 
-    expect(await store.loadOwnProfile()).toEqual(originalProfile);
+    expect(await store.loadOwnProfile()).toEqual(ok(originalProfile));
     expect(store.ownProfile).toEqual(originalProfile);
   });
 
@@ -69,17 +69,17 @@ describe('userProfileStore', () => {
     expect(auth.user).toBe(originalUser);
     expect(usersApi.updateMyProfile).toHaveBeenCalledWith(draft);
 
-    complete(outcome === 'success' ? ok(saved) : err({ kind: 'api', message: 'Save failed.' }));
-    expect(await pending).toEqual(outcome === 'success' ? saved : null);
+    const result = outcome === 'success' ? ok(saved) : err<AppError>({ kind: 'api', message: 'Validation failed.', validationErrors: { email: ['Email already exists.'] } });
+    complete(result);
+    expect(await pending).toBe(result);
     expect(store.ownProfile).toEqual(outcome === 'success' ? saved : originalProfile);
     expect(auth.user).toEqual(outcome === 'success' ? { ...originalUser, displayName: saved.displayName } : originalUser);
-    expect(store.errorMessage).toBe(outcome === 'success' ? null : 'Save failed.');
     expect(store.busy).toBe(false);
     expect(usersApi.getMyProfile).toHaveBeenCalledTimes(1);
     expect(draft.displayName).toBe(' Updated ');
   });
 
-  it('resets the profile and save error without clearing authentication', async () => {
+  it('resets the profile without clearing authentication', async () => {
     const store = useUserProfileStore();
     const auth = useAuthStore();
     await store.loadOwnProfile();
@@ -89,7 +89,6 @@ describe('userProfileStore', () => {
     store.reset();
 
     expect(store.ownProfile).toBeNull();
-    expect(store.errorMessage).toBeNull();
     expect(store.busy).toBe(false);
     expect(auth.isAuthenticated).toBe(true);
     expect(auth.user?.displayName).toBe(originalProfile.displayName);

@@ -13,6 +13,10 @@ const sourceImagePath = path.resolve(
 
 test('crop and upload a profile image that remains after reload', async ({ authenticatedPage: page }) => {
   await page.goto('/user-admin/profile');
+  const name = page.getByLabel('Display name', { exact: true });
+  await expect(name).toBeVisible();
+  const savedName = await name.inputValue();
+  await name.fill('Unsaved profile draft');
 
   await page.getByRole('button', { name: 'Profile image options' }).click();
   const fileChooserPromise = page.waitForEvent('filechooser');
@@ -32,6 +36,13 @@ test('crop and upload a profile image that remains after reload', async ({ authe
   const uploadResponse = await uploadResponsePromise;
   expect(uploadResponse.ok(), await uploadResponse.text()).toBe(true);
   await expect(cropDialog).toBeHidden();
+  await expect(name).toHaveValue('Unsaved profile draft');
+
+  await page.getByRole('link', { name: 'Theme', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Discard unsaved changes', exact: true })
+    .getByRole('button', { name: 'Discard', exact: true }).click();
+  await page.getByRole('link', { name: 'Profile', exact: true }).click();
+  await expect(name).toHaveValue(savedName);
 
   await page.reload();
   await page.getByRole('button', { name: 'Profile image options' }).click();

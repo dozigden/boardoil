@@ -1,65 +1,59 @@
 <template>
   <section class="account-profile">
-    <header class="account-profile-header">
+    <template v-if="!form">
       <h2>Profile</h2>
-    </header>
-
-    <section class="account-profile-card">
-      <div class="account-profile-avatar-wrap">
-        <div class="account-profile-avatar-shell">
-          <UserAvatar
-            :image-url="userProfileImageUrl"
-            :display-name="displayName"
-            size="xl"
-            class="account-profile-avatar"
-          />
-          <BoDropdown
-            class="account-profile-avatar-menu"
-            align="left"
-            icon-only
-            label="Profile image options"
-            :icon="EllipsisVertical"
-            :icon-size="14"
-          >
-            <template #default="{ close }">
-              <button type="button" class="bo-dropdown-item" :disabled="imageBusy" @click="openImagePicker(close)">
-                Upload image
-              </button>
-              <button
-                type="button"
-                class="bo-dropdown-item"
-                :disabled="!userProfileImageUrl || imageBusy"
-                @click="removeImage(close)"
+      <LoadingIndicator v-if="loading" label="Loading profile..." />
+      <template v-else-if="loadError">
+        <p class="account-profile-error" role="alert">{{ loadError }}</p>
+        <button type="button" class="btn" @click="loadProfile">Retry</button>
+      </template>
+    </template>
+    <FormPage v-else :definition="form" class="account-profile-form"
+      discard-message="You have unsaved profile changes. Discard them and leave?" @saved="profileSaved">
+      <template #before-fields>
+        <section class="account-profile-card">
+          <div class="account-profile-avatar-wrap">
+            <div class="account-profile-avatar-shell">
+              <UserAvatar
+                :image-url="userProfileImageUrl"
+                :display-name="displayName"
+                size="xl"
+                class="account-profile-avatar"
+              />
+              <BoDropdown
+                class="account-profile-avatar-menu"
+                align="left"
+                icon-only
+                label="Profile image options"
+                :icon="EllipsisVertical"
+                :icon-size="14"
               >
-                Remove image
-              </button>
-            </template>
-          </BoDropdown>
-        </div>
-      </div>
+                <template #default="{ close }">
+                  <button type="button" class="bo-dropdown-item" :disabled="imageBusy" @click="openImagePicker(close)">
+                    Upload image
+                  </button>
+                  <button
+                    type="button"
+                    class="bo-dropdown-item"
+                    :disabled="!userProfileImageUrl || imageBusy"
+                    @click="removeImage(close)"
+                  >
+                    Remove image
+                  </button>
+                </template>
+              </BoDropdown>
+            </div>
+          </div>
 
-      <div class="account-profile-details">
-        <p><strong>Name:</strong> {{ displayName }}</p>
-        <p><strong>User:</strong> @{{ userName }}</p>
-        <p><strong>Role:</strong> {{ userRole }}</p>
-        <p v-if="imageErrorMessage" class="account-profile-error" role="alert">{{ imageErrorMessage }}</p>
-      </div>
-    </section>
-
-    <form class="account-profile-form" @submit.prevent="saveProfile">
-      <label class="account-profile-field">
-        <span>Display name</span>
-        <input v-model="editDisplayName" type="text" maxlength="64" autocomplete="name" />
-      </label>
-      <label class="account-profile-field">
-        <span>Email</span>
-        <input v-model="editEmail" type="email" maxlength="320" autocomplete="email" />
-      </label>
-      <div class="account-profile-actions">
-        <button type="submit" class="btn" :disabled="saveBusy">Save profile</button>
-      </div>
-      <p v-if="saveErrorMessage" class="account-profile-error" role="alert">{{ saveErrorMessage }}</p>
-    </form>
+          <div class="account-profile-details">
+            <p><strong>Name:</strong> {{ displayName }}</p>
+            <p><strong>User:</strong> @{{ userName }}</p>
+            <p><strong>Role:</strong> {{ userRole }}</p>
+            <p v-if="imageErrorMessage" class="account-profile-error" role="alert">{{ imageErrorMessage }}</p>
+          </div>
+        </section>
+      </template>
+    </FormPage>
 
     <input
       ref="userImageInput"
@@ -83,7 +77,10 @@
 <script setup lang="ts">
 import { EllipsisVertical } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
+import LoadingIndicator from '../../shared/components/LoadingIndicator.vue';
+import FormPage from '../../shared/forms/FormPage.vue';
+import { createUserProfileForm } from '../forms/userProfileForm';
 import ProfileImageCropDialog from '../components/ProfileImageCropDialog.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
@@ -91,7 +88,6 @@ import { useAuthStore } from '../../shared/stores/authStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useUserProfileImageStore } from '../../shared/stores/userProfileImageStore';
 import { useUserProfileStore } from '../../shared/stores/userProfileStore';
-import type { UserProfileEditModel } from '../../shared/types/authTypes';
 
 const authStore = useAuthStore();
 const feedback = useUiFeedbackStore();
@@ -99,35 +95,34 @@ const userProfileImageStore = useUserProfileImageStore();
 const userProfileStore = useUserProfileStore();
 const { user } = storeToRefs(authStore);
 const { userProfileImageUrl, busy: imageBusy, errorMessage: imageErrorMessage } = storeToRefs(userProfileImageStore);
-const { busy: saveBusy, errorMessage: saveErrorMessage } = storeToRefs(userProfileStore);
+const form = shallowRef<ReturnType<typeof createUserProfileForm> | null>(null);
+const loading = ref(false);
+const loadError = ref<string | null>(null);
 const userImageInput = ref<HTMLInputElement | null>(null);
 const cropDialogOpen = ref(false);
 const pendingProfileImageFile = ref<File | null>(null);
-const editDisplayName = ref('');
-const editEmail = ref('');
 
 const userName = computed(() => user.value?.userName ?? 'Unknown user');
 const displayName = computed(() => user.value?.displayName ?? userName.value);
 const userRole = computed(() => user.value?.role ?? 'Unknown');
 
-watch(
-  () => user.value?.id,
-  async () => {
-    const nextUser = user.value;
-    if (!nextUser) {
-      editDisplayName.value = '';
-      editEmail.value = '';
-      return;
-    }
+watch(() => user.value?.id, loadProfile, { immediate: true });
 
-    editDisplayName.value = nextUser.displayName;
-    const profile = await userProfileStore.loadOwnProfile();
-    if (profile) {
-      editEmail.value = profile.email;
-    }
-  },
-  { immediate: true }
-);
+async function loadProfile() {
+  const userId = user.value?.id;
+  form.value = null;
+  loadError.value = null;
+  if (!userId) return;
+  loading.value = true;
+  const result = await userProfileStore.loadOwnProfile();
+  if (user.value?.id !== userId) return;
+  loading.value = false;
+  if (!result.ok) {
+    loadError.value = result.error.message;
+    return;
+  }
+  form.value = createUserProfileForm(result.data, userProfileStore.saveOwnProfile);
+}
 
 function openImagePicker(close?: () => void) {
   if (imageBusy.value) {
@@ -181,18 +176,7 @@ async function uploadCroppedImage(file: File) {
   closeCropDialog();
 }
 
-async function saveProfile() {
-  const saveModel: UserProfileEditModel = {
-    displayName: editDisplayName.value,
-    email: editEmail.value
-  };
-  const result = await userProfileStore.saveOwnProfile(saveModel);
-  if (!result) {
-    return;
-  }
-
-  editDisplayName.value = result.displayName;
-  editEmail.value = result.email;
+function profileSaved() {
   feedback.showToast('Saved successfully.');
 }
 
@@ -202,15 +186,6 @@ async function saveProfile() {
 .account-profile {
   display: grid;
   gap: 1rem;
-}
-
-.account-profile-header h2 {
-  margin: 0;
-}
-
-.account-profile-header p {
-  margin: 0.4rem 0 0;
-  color: var(--bo-ink-muted);
 }
 
 .account-profile-card {
@@ -280,33 +255,7 @@ async function saveProfile() {
   display: none;
 }
 
-.account-profile-form {
-  display: grid;
-  gap: 0.75rem;
-  max-width: 32rem;
-}
-
-.account-profile-field {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.account-profile-field span {
-  font-size: 0.9rem;
-  color: var(--bo-ink-muted);
-}
-
-.account-profile-field input {
-  border: 1px solid var(--bo-border-default);
-  border-radius: 8px;
-  padding: 0.5rem 0.65rem;
-  font: inherit;
-}
-
-.account-profile-actions {
-  display: flex;
-  justify-content: flex-start;
-}
+.account-profile-form :deep(.panel) { max-width: 32rem; }
 
 .account-profile-error {
   margin: 0;

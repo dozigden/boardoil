@@ -88,7 +88,7 @@ public sealed class UserService(
         var emailExists = await userRepository.NormalisedEmailExistsForOtherUserAsync(user.Id, normalisedEmail);
         if (emailExists)
         {
-            return ApiErrors.BadRequest("Email already exists.");
+            return ApiErrors.ValidationFailed([new ValidationError("email", "Email already exists.")]);
         }
 
         user.DisplayName = request.DisplayName.Trim();

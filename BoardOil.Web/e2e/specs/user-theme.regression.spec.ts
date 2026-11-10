@@ -1,0 +1,31 @@
+import { expect, test } from '../fixtures/boardOilTest';
+
+test('theme changes apply on Save, persist locally, and unsaved changes can be discarded', async ({ authenticatedPage: page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/user-admin/theme');
+  const save = page.getByRole('button', { name: 'Save', exact: true });
+  await expect(save).toBeDisabled();
+  await expect(page.getByRole('radio', { name: 'System', exact: true })).toBeChecked();
+  await page.getByRole('radio', { name: 'Dark', exact: true }).check();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await save.click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(save).toBeDisabled();
+  await expect(page.getByText('Active theme: Dark', { exact: true })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('theme-dark.png') });
+  await page.reload();
+  await expect(page.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
+  await page.getByRole('radio', { name: 'Light', exact: true }).check();
+  await page.getByRole('link', { name: 'Profile', exact: true }).click();
+  const discard = page.getByRole('dialog', { name: 'Discard unsaved changes', exact: true });
+  await discard.getByRole('button', { name: 'Discard', exact: true }).click();
+  await expect(page).toHaveURL('/user-admin/profile');
+  await page.getByRole('link', { name: 'Theme', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
+  await page.getByRole('radio', { name: 'System', exact: true }).check();
+  await save.click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(save).toBeDisabled();
+});

@@ -101,6 +101,37 @@ public sealed class UserServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task UpdateOwnProfileAsync_WithDuplicateEmail_ShouldReturnEmailFieldErrorWithoutSaving()
+    {
+        // Arrange
+        DbContextForArrange.Users.Add(new EntityUser
+        {
+            UserName = "other-user",
+            DisplayName = "Other User",
+            Email = "other@localhost",
+            PasswordHash = "hash",
+            Role = UserRole.Standard,
+            IdentityType = UserIdentityType.User,
+            IsActive = true,
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var original = DbContextForAssert.Users.Where(x => x.Id == ActorUserId)
+            .Select(x => new { x.DisplayName, x.Email }).Single();
+        var service = ResolveService<IUserService>();
+
+        // Act
+        var result = await service.UpdateOwnProfileAsync(ActorUserId, new UpdateOwnUserProfileRequest("Changed Name", " OTHER@localhost "));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["Email already exists."], result.ValidationErrors!["email"]);
+        var stored = DbContextForAssert.Users.Single(x => x.Id == ActorUserId);
+        Assert.Equal(original.DisplayName, stored.DisplayName);
+        Assert.Equal(original.Email, stored.Email);
+    }
+
+    [Fact]
     public async Task UpdateOwnProfileAsync_WithValidValues_ShouldPersistDisplayNameAndEmail()
     {
         // Arrange
