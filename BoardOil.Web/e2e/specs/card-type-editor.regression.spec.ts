@@ -1,4 +1,84 @@
 import { expect, test } from '../fixtures/boardOilTest';
+import { rejectNextCardTypeDefault, rejectNextCardTypeSave } from '../support/cardTypeSubmission';
+
+for (const operation of ['create', 'update'] as const) {
+  test(`card-type ${operation} keeps validation beside the name and permits correction and retry`, async ({ api, authenticatedPage: page }) => {
+    const board = await api.createBoard(`Card type ${operation} validation`);
+    await api.createCardType(board.id, 'café');
+    const editable = await api.createCardType(board.id, 'Editable type');
+    const route = `/boards/${board.id}/admin/card-types/`;
+    await page.goto(route + (operation === 'create' ? 'new' : editable.id));
+    const dialog = page.getByRole('dialog');
+    const name = dialog.getByRole('textbox', { name: 'Name', exact: true });
+    const save = dialog.getByRole('button', { name: operation === 'create' ? 'Create card type' : 'Save card type', exact: true });
+    const style = dialog.getByRole('combobox', { name: 'Style', exact: true });
+    await style.selectOption('solid');
+    await dialog.getByLabel('Background Color', { exact: true }).fill('#123456');
+    await name.fill('CAFÉ');
+    await save.click();
+
+    await expect(dialog.getByRole('alert')).toContainText("Card type 'CAFÉ' already exists.");
+    await expect(name).toHaveValue('CAFÉ');
+    await expect(name).toHaveAttribute('aria-invalid', 'true');
+    await expect(name).toHaveAccessibleDescription("Card type 'CAFÉ' already exists.");
+    await expect(name).toBeFocused();
+    await expect(style).toHaveValue('solid');
+    await expect(dialog.getByLabel('Background Color', { exact: true })).toHaveValue('#123456');
+    await expect(page.getByText("Card type 'CAFÉ' already exists.", { exact: true })).toHaveCount(1);
+    await page.screenshot({ path: test.info().outputPath('card-type-validation.png') });
+
+    await name.fill('café');
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(name).not.toHaveAttribute('aria-invalid', 'true');
+    await save.click();
+    await expect(dialog.getByRole('alert')).toContainText("Card type 'café' already exists.");
+
+    await name.fill('Corrected type');
+    await save.click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Edit card type Corrected type', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Edit card type Corrected type', exact: true }).click();
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(name).toHaveValue('Corrected type');
+    await expect(style).toHaveValue('solid');
+    await expect(dialog.getByLabel('Background Color', { exact: true })).toHaveValue('#123456');
+  });
+}
+
+test('card-type summary retains unmapped and general errors, replaces them on retry and resets on reopening', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Card type summary validation');
+  await page.goto(`/boards/${board.id}/admin/card-types/new`);
+  const dialog = page.getByRole('dialog', { name: 'Add Card Type', exact: true });
+  const name = dialog.getByRole('textbox', { name: 'Name', exact: true });
+  const save = dialog.getByRole('button', { name: 'Create card type', exact: true });
+  await name.fill('Retained draft');
+  await rejectNextCardTypeSave(page, board.id, {
+    message: 'Validation failed.',
+    validationErrors: { futureField: ['Additional field needs attention.'], '': ['This combination cannot be saved.'] }
+  });
+  await save.click();
+  await expect(dialog.getByRole('alert')).toContainText('Additional field needs attention.');
+  await expect(dialog.getByRole('alert')).toContainText('This combination cannot be saved.');
+  await expect(dialog.getByRole('alert')).toBeFocused();
+  await expect(name).toHaveValue('Retained draft');
+
+  await rejectNextCardTypeSave(page, board.id, { message: 'Saving is temporarily unavailable.' });
+  await save.click();
+  await expect(dialog.getByRole('alert')).toHaveText('Saving is temporarily unavailable.');
+  await expect(dialog.getByRole('alert')).toBeFocused();
+  await expect(name).toHaveValue('Retained draft');
+  await expect(page.getByText('Saving is temporarily unavailable.', { exact: true })).toHaveCount(1);
+
+  await dialog.getByRole('button', { name: 'Cancel editing', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Add card type', exact: true }).click();
+  await expect(name).toHaveValue('');
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  await name.fill('Fresh type');
+  await save.click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Edit card type Fresh type', exact: true })).toBeVisible();
+});
 
 for (const operation of ['create', 'update', 'delete'] as const) {
   test(`card-type ${operation} updates the catalogue and closes the editor`, async ({ api, authenticatedPage: page }) => {
@@ -63,4 +143,58 @@ test('the card-type list reuses its catalogue after a missing type redirect and 
   await expect(page).toHaveURL(`/boards/${board.id}/admin/card-types`);
   await expect(page.getByRole('button', { name: 'Edit card type Retained type', exact: true })).toBeVisible();
   expect(catalogueLoads).toBe(1);
+});
+
+test('default selection confirms before saving and keeps failures in its dialog for retry', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Card type default dialog');
+  const feature = await api.createCardType(board.id, 'Feature');
+  await api.createCardType(board.id, 'Bug');
+  await page.goto(`/boards/${board.id}/admin/card-types`);
+  const row = page.getByRole('article', { name: 'Feature', exact: true });
+  const originalDefault = page.getByRole('article').filter({ has: page.getByText('Default', { exact: true }) });
+  const originalDefaultName = await originalDefault.getAttribute('aria-label');
+  const dialog = page.getByRole('dialog', { name: 'Set default card type', exact: true });
+  const message = 'The default card type could not be changed. Please try again.';
+  let submissions = 0;
+  page.on('request', request => {
+    if (request.method() === 'PATCH' && request.url().endsWith(`/card-types/${feature.id}/default`)) {
+      submissions++;
+    }
+  });
+  const open = async () => {
+    await row.getByRole('button', { name: 'Card type actions', exact: true }).click();
+    await page.getByRole('button', { name: 'Set as default', exact: true }).click();
+    await expect(dialog).toBeVisible();
+  };
+
+  await open();
+  await expect(dialog).toContainText('Set Feature as the default card type?');
+  await page.screenshot({ path: test.info().outputPath('default-card-type-dialog.png'), fullPage: true });
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(submissions).toBe(0);
+  await expect(originalDefault).toHaveAttribute('aria-label', originalDefaultName!);
+
+  await open();
+  await rejectNextCardTypeDefault(page, board.id, feature.id);
+  await dialog.getByRole('button', { name: 'OK', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveText(message);
+  await expect(dialog.getByRole('alert')).toBeFocused();
+  await expect(page.getByText(message, { exact: true })).toHaveCount(1);
+  await expect(row.getByText('Default', { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath('default-card-type-dialog-failure.png'), fullPage: true });
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText(message, { exact: true })).toHaveCount(0);
+  await expect(originalDefault).toHaveAttribute('aria-label', originalDefaultName!);
+
+  await open();
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  await rejectNextCardTypeDefault(page, board.id, feature.id);
+  await dialog.getByRole('button', { name: 'OK', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveText(message);
+  await dialog.getByRole('button', { name: 'OK', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(row.getByText('Default', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });

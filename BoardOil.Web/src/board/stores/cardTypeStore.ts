@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import type { CardType, CardTypeEditModel } from '../../shared/types/boardTypes';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useValidationStore } from '../../shared/stores/validationStore';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -11,6 +12,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
   const busy = ref(false);
   const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
+  const validation = useValidationStore();
   const api = createBoardApi();
 
   const systemCardType = computed(() => cardTypes.value.find(x => x.isSystem) ?? null);
@@ -76,9 +78,10 @@ export const useCardTypeStore = defineStore('cardType', () => {
 
   async function createCardType(
     model: CardTypeEditModel,
-    boardId: number
+    boardId: number,
+    category = ''
   ) {
-    const result = await runBusy(boardId, () => api.createCardType(boardId, model));
+    const result = await runApiOperation(boardId, () => api.createCardType(boardId, model), category);
     if (!result.ok) {
       return null;
     }
@@ -90,9 +93,10 @@ export const useCardTypeStore = defineStore('cardType', () => {
   async function updateCardType(
     cardTypeId: number,
     model: CardTypeEditModel,
-    boardId: number
+    boardId: number,
+    category = ''
   ) {
-    const result = await runBusy(boardId, () => api.updateCardType(boardId, cardTypeId, model));
+    const result = await runApiOperation(boardId, () => api.updateCardType(boardId, cardTypeId, model), category);
     if (!result.ok) {
       return null;
     }
@@ -101,8 +105,8 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return result.data;
   }
 
-  async function deleteCardType(cardTypeId: number, boardId: number) {
-    const result = await runBusy(boardId, () => api.deleteCardType(boardId, cardTypeId));
+  async function deleteCardType(cardTypeId: number, boardId: number, category = '') {
+    const result = await runApiOperation(boardId, () => api.deleteCardType(boardId, cardTypeId), category);
     if (!result.ok) {
       return false;
     }
@@ -111,18 +115,17 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return true;
   }
 
-  async function setDefaultCardType(cardTypeId: number, boardId: number) {
-    const result = await runBusy(boardId, () => api.setDefaultCardType(boardId, cardTypeId));
-    if (!result.ok) {
-      return false;
-    }
+  async function setDefaultCardType(cardTypeId: number, boardId: number, category = '') {
+    const result = await runApiOperation(boardId, async () => {
+      const result = await api.setDefaultCardType(boardId, cardTypeId);
+      if (result.ok && activeBoardId.value === boardId) {
+        await loadCardTypes(boardId);
+      }
 
-    if (activeBoardId.value !== boardId) {
-      return true;
-    }
+      return result;
+    }, category);
 
-    await loadCardTypes(boardId);
-    return true;
+    return result.ok;
   }
 
   function getCardTypeById(cardTypeId: number | null) {
@@ -133,9 +136,10 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return cardTypes.value.find(x => x.id === cardTypeId) ?? null;
   }
 
-  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+  async function runApiOperation<T>(boardId: number, operation: () => Promise<Result<T, AppError>>, category = '') {
     if (activeBoardId.value === boardId) {
       busy.value = true;
+      validation.clearValidation();
     }
     try {
       const result = await operation();
@@ -143,11 +147,7 @@ export const useCardTypeStore = defineStore('cardType', () => {
         return result;
       }
 
-      if (!result.ok) {
-        reportError(result.error);
-      } else {
-        feedback.clearError('cardType');
-      }
+      validation.setValidationResult(result, category);
 
       return result;
     } finally {

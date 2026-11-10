@@ -6,6 +6,7 @@
     @close="closeDialog"
     @submit="saveCardType"
   >
+    <FormErrorSummary ref="errorSummary" :rendered-fields="['name']" />
     <template v-if="draftName !== null && draftStyle !== null">
       <div class="card-types-dialog-preview">
         <span class="badge">Preview</span>
@@ -20,15 +21,18 @@
       <label>
         Name
         <input
-          :value="draftName"
+          ref="nameInput"
+          v-model="draftName"
+          :aria-invalid="hasNameErrors || undefined"
+          :aria-describedby="hasNameErrors ? nameErrorsId : undefined"
           maxlength="40"
           :placeholder="isCreateMode ? 'New card type name' : 'Card type name'"
           :disabled="busy"
           autocomplete="off"
           data-lpignore="true"
-          @input="draftName = ($event.target as HTMLInputElement).value"
         />
       </label>
+      <FormFieldErrors :id="nameErrorsId" field="name" />
 
       <label>
         Emoji
@@ -39,7 +43,7 @@
 
       <label>
         Style
-        <select :value="draftStyle.styleName" :disabled="busy" @change="setStyleName(parseStyleNameInput(($event.target as HTMLSelectElement).value))">
+        <select :value="draftStyle.styleName" :disabled="busy" @change="onStyleNameChange">
           <option value="auto">Auto</option>
           <option value="presets">Presets</option>
           <option value="solid">Solid</option>
@@ -73,9 +77,8 @@
           <input
             type="color"
             class="card-types-colour-input"
-            :value="draftStyle.backgroundColor"
+            v-model="draftStyle.backgroundColor"
             :disabled="busy"
-            @input="setDraftStyleField('backgroundColor', ($event.target as HTMLInputElement).value)"
           />
         </label>
       </template>
@@ -86,9 +89,8 @@
           <input
             type="color"
             class="card-types-colour-input"
-            :value="draftStyle.leftColor"
+            v-model="draftStyle.leftColor"
             :disabled="busy"
-            @input="setDraftStyleField('leftColor', ($event.target as HTMLInputElement).value)"
           />
         </label>
         <label>
@@ -96,16 +98,15 @@
           <input
             type="color"
             class="card-types-colour-input"
-            :value="draftStyle.rightColor"
+            v-model="draftStyle.rightColor"
             :disabled="busy"
-            @input="setDraftStyleField('rightColor', ($event.target as HTMLInputElement).value)"
           />
         </label>
       </template>
 
       <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
         Text Color Mode
-        <select :value="draftStyle.textColorMode" :disabled="busy" @change="setTextMode(($event.target as HTMLSelectElement).value)">
+        <select :value="draftStyle.textColorMode" :disabled="busy" @change="onTextModeChange">
           <option value="auto">Auto Contrast</option>
           <option value="custom">Custom</option>
         </select>
@@ -116,15 +117,14 @@
         <input
           type="color"
           class="card-types-colour-input"
-          :value="draftStyle.textColor"
+          v-model="draftStyle.textColor"
           :disabled="busy"
-          @input="setDraftStyleField('textColor', ($event.target as HTMLInputElement).value)"
         />
       </label>
 
       <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
         Border
-        <select :value="draftStyle.borderMode" :disabled="busy" @change="setBorderMode(($event.target as HTMLSelectElement).value)">
+        <select :value="draftStyle.borderMode" :disabled="busy" @change="onBorderModeChange">
           <option value="auto">Auto</option>
           <option value="custom">Custom</option>
           <option value="none">None</option>
@@ -136,9 +136,8 @@
         <input
           type="color"
           class="card-types-colour-input"
-          :value="draftStyle.borderColor"
+          v-model="draftStyle.borderColor"
           :disabled="busy"
-          @input="setDraftStyleField('borderColor', ($event.target as HTMLInputElement).value)"
         />
       </label>
     </template>
@@ -182,10 +181,13 @@
 <script setup lang="ts">
 import { Check, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
+import FormErrorSummary from '../../shared/components/FormErrorSummary.vue';
+import FormFieldErrors from '../../shared/components/FormFieldErrors.vue';
+import { useValidationStore } from '../../shared/stores/validationStore';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardTypeEditModel } from '../../shared/types/boardTypes';
 import { useBoardStore } from '../stores/boardStore';
@@ -205,6 +207,13 @@ const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const cardTypeStore = useCardTypeStore();
+const validation = useValidationStore();
+const nameInput = ref<HTMLInputElement | null>(null);
+const errorSummary = ref<InstanceType<typeof FormErrorSummary> | null>(null);
+const nameErrorsId = `card-type-name-errors-${useId()}`;
+const hasNameErrors = computed(() => validation.getFieldErrors('name').length > 0);
+validation.clearValidation();
+onBeforeUnmount(() => validation.clearValidation());
 const { confirm } = useConfirm();
 const { currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(cardTypeStore);
@@ -224,6 +233,35 @@ const {
 } = useStyleDraft();
 const draftSourceKey = ref<string | null>(null);
 const presetColours = PRESET_TOKENS;
+
+watch(draftName, () => validation.clearFieldErrors('name'));
+watch(draftEmoji, () => validation.clearFieldErrors('emoji'));
+watch(draftStyle, () => {
+  validation.clearFieldErrors('styleName');
+  validation.clearFieldErrors('stylePropertiesJson');
+}, { deep: true });
+
+function onStyleNameChange(event: Event) {
+  setStyleName(parseStyleNameInput((event.target as HTMLSelectElement).value));
+}
+
+function onTextModeChange(event: Event) {
+  setTextMode((event.target as HTMLSelectElement).value);
+}
+
+function onBorderModeChange(event: Event) {
+  setBorderMode((event.target as HTMLSelectElement).value);
+}
+
+async function focusSubmissionError() {
+  await nextTick();
+  if (hasNameErrors.value) {
+    nameInput.value?.focus();
+    return;
+  }
+
+  errorSummary.value?.focus();
+}
 
 const isCreateMode = computed(() => route.name === 'card-types-new');
 const boardId = computed(() => currentBoardId.value!);
@@ -318,6 +356,9 @@ async function closeDialog() {
 }
 
 async function saveCardType() {
+  if (busy.value) {
+    return;
+  }
   const targetBoardId = boardId.value;
   const canonicalName = (draftName.value ?? '').trim();
   if (!canonicalName || !draftStyle.value) {
@@ -339,6 +380,7 @@ async function saveCardType() {
   if (isCreateMode.value) {
     const created = await createCardType(saveModel, targetBoardId);
     if (!created) {
+      await focusSubmissionError();
       return;
     }
 
@@ -352,6 +394,7 @@ async function saveCardType() {
 
   const updated = await updateCardType(editingCardType.value.id, saveModel, targetBoardId);
   if (!updated) {
+    await focusSubmissionError();
     return;
   }
 
@@ -377,6 +420,7 @@ async function deleteEditingCardType() {
 
   const deleted = await deleteCardType(cardType.id, targetBoardId);
   if (!deleted) {
+    await focusSubmissionError();
     return;
   }
 

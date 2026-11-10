@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useCardTypeStore } from './cardTypeStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useValidationStore } from '../../shared/stores/validationStore';
 import { err, ok } from '../../shared/types/result';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
@@ -21,7 +22,7 @@ vi.mock('../../shared/api/boardApi', () => ({
 describe('cardTypeStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     api.getCardTypes.mockResolvedValue(ok([]));
     api.createCardType.mockResolvedValue(ok(makeCardType(10, 'Story')));
     api.updateCardType.mockResolvedValue(ok(makeCardType(10, 'Story Updated')));
@@ -85,10 +86,96 @@ describe('cardTypeStore', () => {
     expect(feedback.errorMessage).toBe('Could not load card types.');
   });
 
+  it.each(['create', 'update'] as const)('publishes %s validation with its category and keeps it through catalogue refresh', async operation => {
+    const store = useCardTypeStore();
+    const feedback = useUiFeedbackStore();
+    const validation = useValidationStore();
+    await store.loadCardTypes(1);
+    feedback.setError('Unrelated page feedback', 'board');
+    const error: AppError = { kind: 'api', message: 'Validation failed.', validationErrors: { name: ['Already exists'] } };
+    const model = { name: 'Story', emoji: null, styleName: 'auto' as const, stylePropertiesJson: '{}' };
+    const saveApi = operation === 'create' ? api.createCardType : api.updateCardType;
+    saveApi.mockResolvedValueOnce(err(error));
+    const submit = () => {
+      if (operation === 'create') {
+        return store.createCardType(model, 1, 'editor');
+      }
+      return store.updateCardType(10, model, 1, 'editor');
+    };
+
+    expect(await submit()).toBeNull();
+    expect(validation.getFieldErrors('name', 'editor')).toEqual(['Already exists']);
+    expect(feedback.errorMessage).toBe('Unrelated page feedback');
+    expect(store.cardTypes).toEqual([]);
+    expect(store.busy).toBe(false);
+
+    await store.loadCardTypes(1);
+    expect(validation.getFieldErrors('name', 'editor')).toEqual(['Already exists']);
+
+    const pending = createDeferred<Result<ReturnType<typeof makeCardType>, AppError>>();
+    saveApi.mockReturnValueOnce(pending.promise);
+    const retry = submit();
+    expect(validation.getValidationMessages([], 'editor')).toEqual([]);
+    expect(store.busy).toBe(true);
+    pending.resolve(ok(makeCardType(10, 'Saved')));
+    expect(await retry).toMatchObject({ id: 10, name: 'Saved' });
+    expect(store.cardTypes.map(x => x.name)).toEqual(['Saved']);
+    expect(validation.getValidationMessages([], 'editor')).toEqual([]);
+  });
+
+  it('publishes deletion failures as uncategorised validation', async () => {
+    const store = useCardTypeStore();
+    const feedback = useUiFeedbackStore();
+    const validation = useValidationStore();
+    api.getCardTypes.mockResolvedValueOnce(ok([makeCardType(10, 'Retained')]));
+    await store.loadCardTypes(1);
+    api.deleteCardType.mockResolvedValueOnce(err({ kind: 'network', message: 'Offline' }));
+
+    expect(await store.deleteCardType(10, 1)).toBe(false);
+    expect(store.cardTypes.map(x => x.name)).toEqual(['Retained']);
+    expect(validation.getValidationMessages()).toEqual(['Offline']);
+    expect(feedback.errorMessage).toBe('');
+  });
+
+  it.each(['success', 'failure'] as const)('keeps default selection busy through catalogue refresh %s', async outcome => {
+    const store = useCardTypeStore();
+    const feedback = useUiFeedbackStore();
+    const validation = useValidationStore();
+    await store.loadCardTypes(1);
+    const refresh = createDeferred<Result<ReturnType<typeof makeCardType>[], AppError>>();
+    const refreshStarted = createDeferred<void>();
+    api.getCardTypes.mockImplementationOnce(() => {
+      refreshStarted.resolve();
+      return refresh.promise;
+    });
+
+    const save = store.setDefaultCardType(10, 1);
+    expect(store.busy).toBe(true);
+    await refreshStarted.promise;
+    expect(store.busy).toBe(true);
+
+    if (outcome === 'success') {
+      refresh.resolve(ok([{ ...makeCardType(10, 'Story'), isSystem: true }]));
+    } else {
+      refresh.resolve(err({ kind: 'network', message: 'Could not refresh card types.' }));
+    }
+
+    expect(await save).toBe(true);
+    expect(store.busy).toBe(false);
+    expect(validation.getValidationMessages()).toEqual([]);
+    if (outcome === 'success') {
+      expect(store.systemCardType?.id).toBe(10);
+      expect(feedback.errorMessage).toBe('');
+    } else {
+      expect(feedback.errorMessage).toBe('Could not refresh card types.');
+    }
+  });
+
   describe.each(['create', 'update', 'delete', 'default'] as const)('%s completion', operation => {
     it.each(['board change', 'disposal'] as const)('preserves current feedback and busy state after %s', async transition => {
       const store = useCardTypeStore();
       const feedback = useUiFeedbackStore();
+      const validation = useValidationStore();
       await store.loadCardTypes(1);
       const success = createDeferred<Result<ReturnType<typeof makeCardType> | undefined, AppError>>();
       const failure = createDeferred<Result<never, AppError>>();
@@ -123,6 +210,7 @@ describe('cardTypeStore', () => {
         store.dispose();
       }
       feedback.setError('Current feedback', 'cardType');
+      validation.setValidationResult(err({ kind: 'api', message: 'Current form feedback' }));
       const loadCount = api.getCardTypes.mock.calls.length;
       if (operation === 'create' || operation === 'update') {
         success.resolve(ok(makeCardType(10, 'Old board type')));
@@ -131,10 +219,12 @@ describe('cardTypeStore', () => {
       }
       await requests[0];
       expect(feedback.errorMessage).toBe('Current feedback');
+      expect(validation.getValidationMessages()).toEqual(['Current form feedback']);
       expect(store.busy).toBe(transition === 'board change');
       failure.resolve(err({ kind: 'api', message: 'Old failure' }));
       await requests[1];
       expect(feedback.errorMessage).toBe('Current feedback');
+      expect(validation.getValidationMessages()).toEqual(['Current form feedback']);
       expect(store.busy).toBe(transition === 'board change');
       expect(store.cardTypes).toEqual([]);
       expect(api.getCardTypes).toHaveBeenCalledTimes(loadCount);

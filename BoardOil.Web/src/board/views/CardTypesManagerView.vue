@@ -11,7 +11,7 @@
     <p v-if="cardTypes.length === 0" class="entity-rows-empty">No card types yet.</p>
 
     <section v-else class="entity-rows-list">
-      <article v-for="cardType in cardTypes" :key="cardType.id" class="entity-row">
+      <article v-for="cardType in cardTypes" :key="cardType.id" class="entity-row" :aria-label="cardType.name">
         <button
           type="button"
           class="entity-row-main entity-row-main-button"
@@ -44,7 +44,7 @@
                 v-if="!cardType.isSystem"
                 type="button"
                 class="bo-dropdown-item"
-                @click="setAsDefaultFromMenu(cardType.id, close)"
+                @click="openDefaultDialog(cardType, close)"
               >
                 Set as default
               </button>
@@ -53,15 +53,23 @@
         </div>
       </article>
     </section>
+    <SetDefaultCardTypeDialog
+      v-if="defaultCardType"
+      :card-type="defaultCardType"
+      :board-id="boardId"
+      @close="closeDefaultDialog"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { MoreVertical, Plus } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import SetDefaultCardTypeDialog from '../components/SetDefaultCardTypeDialog.vue';
+import type { CardType } from '../../shared/types/boardTypes';
 import { useBoardStore } from '../stores/boardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { countCardsByCardTypeId, formatCardCount } from '../utils/cardUsageCounts';
@@ -69,9 +77,9 @@ import { countCardsByCardTypeId, formatCardCount } from '../utils/cardUsageCount
 const router = useRouter();
 const boardStore = useBoardStore();
 const cardTypeStore = useCardTypeStore();
+const defaultCardType = ref<CardType | null>(null);
 const { board, currentUserRole, currentBoardId } = storeToRefs(boardStore);
 const { cardTypes, busy } = storeToRefs(cardTypeStore);
-const { setDefaultCardType } = cardTypeStore;
 
 const isOwner = computed(() => currentUserRole.value === 'Owner');
 const boardId = computed(() => currentBoardId.value!);
@@ -91,18 +99,18 @@ async function openCreateEditor() {
   await router.push({ name: 'card-types-new', params: { boardId: boardId.value } });
 }
 
-async function setAsDefault(cardTypeId: number) {
-  await setDefaultCardType(cardTypeId, boardId.value);
-}
-
 async function openEditorFromMenu(cardTypeId: number, close: () => void) {
   close();
   await openEditor(cardTypeId);
 }
 
-async function setAsDefaultFromMenu(cardTypeId: number, close: () => void) {
+function openDefaultDialog(cardType: CardType, close: () => void) {
   close();
-  await setAsDefault(cardTypeId);
+  defaultCardType.value = cardType;
+}
+
+function closeDefaultDialog() {
+  defaultCardType.value = null;
 }
 </script>
 

@@ -20,7 +20,8 @@ Current examples:
 | `attachmentStore` | Open attachment context, uploads/deletions and coordinating attachment changes with thumbnails. |
 | `cardAttachmentThumbnailStore` | Board thumbnail state and refreshes. |
 | `commentStore` | Card comment state and operations. |
-| `uiFeedbackStore` | Shared user-facing errors, warnings and toasts. |
+| `uiFeedbackStore` | Shared error banners, warnings and toasts. |
+| `validationStore` | Current submission feedback, including field and general errors. |
 
 - Keep transient interaction state in the component or composable that owns the interaction. For example, `useBoardCardDragDrop` owns dragging state and passes an explicit card ID to `cardStore.moveCard`.
 - Derive values from their authoritative state where possible. `boardStore.currentBoardId` owns board selection: initialization sets it before loading, and disposal clears it immediately. `boardShell` is the loaded snapshot for that selection; responses must not select a board.
@@ -124,6 +125,9 @@ The action that applies a domain change owns its related state updates. Views an
 
 ## Busy State and Feedback
 
+- Card-type editors prototype structured validation in the dedicated `validationStore`. Submission actions publish the full `Result` with `setValidationResult(result, category?)`. There is one current result: the latest submission replaces it globally and success clears it. An optional category filters display; it does not create separate stored results. Consumers without a category show the current validation regardless of category. Keep other forms on their existing paths until explicitly migrated.
+- `uiFeedbackStore` retains the existing error banners, warnings and toasts; submission validation belongs in `validationStore`. Background loads must not replace or clear it. Preserve existing board-context guards before publishing a result; do not publish the same submission failure as a page error or toast too. In `cardTypeStore`, loads report banner errors and `runApiOperation` consistently publishes submission validation, including default selection.
+- The editing component calls `clearValidation()` on opening/teardown and clears the corrected field's errors on input changes. Submission actions clear validation when a retry starts. Use `FormFieldErrors` with input `aria-invalid`/`aria-describedby`, and `FormErrorSummary` for general errors and validation fields not rendered beside an input; both accept an optional `category`. Failed submissions keep the draft open and focus the invalid field or summary.
 - Expose operation progress through store busy/loading state and restore it in `finally`. Keep initial context loading distinct where it controls the workspace loading UI.
 - Reuse the store's established request/feedback helper. Shared failures normally go through `uiFeedbackStore`; preserve deliberate inline-validation or operation-specific feedback paths.
 - Shared errors carry a source: use `setError(message, source)` and `clearError(source)` with the same stable store or operation name. A successful request may clear only its source's error. When composing loaders, let the loaders report their own failures rather than adding duplicate error toasts in the orchestration layer.
