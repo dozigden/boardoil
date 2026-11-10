@@ -145,13 +145,10 @@ export const useAuthStore = defineStore('auth', () => {
     errorMessage.value = null;
     try {
       const result = await api.changeOwnPassword(currentPassword, newPassword);
-      if (!result.ok) {
-        errorMessage.value = result.error.message;
-        return false;
+      if (result.ok) {
+        CLEAR_SESSION();
       }
-
-      CLEAR_SESSION();
-      return true;
+      return result;
     } finally {
       busy.value = false;
     }

@@ -81,6 +81,38 @@ describe('systemUsersManagerStore feedback', () => {
     expect(feedback.toastMessage).toBe('Created successfully.');
   });
 
+  it('returns edit and reset errors unchanged, preserving users and leaving feedback to the form', async () => {
+    const api = createApi();
+    const failure = err({ kind: 'api' as const, message: 'Validation failed.', validationErrors: { email: ['Email already exists.'] } });
+    vi.mocked(api.updateUser).mockResolvedValueOnce(failure);
+    vi.mocked(api.resetUserPassword).mockResolvedValueOnce(failure);
+    vi.mocked(createSystemApi).mockReturnValue(api);
+    const store = useSystemUsersManagerStore();
+    const user = newUser('Original');
+    store.users = [user];
+    store.errorMessage = 'Existing load error';
+    const request = { displayName: 'Edited', email: 'changed@example.test', role: 'Standard' as const, isActive: false };
+    const feedback = useUiFeedbackStore();
+    const validation = useValidationStore();
+    validation.setValidationResult(err({ message: 'Another form' }));
+
+    expect(await store.updateUser(user.id, request)).toEqual(failure);
+    expect(await store.resetUserPassword(user.id, 'short')).toEqual(failure);
+    expect(store.users).toEqual([user]);
+    expect(store.busy).toBe(false);
+    expect(store.errorMessage).toBe('Existing load error');
+    expect(feedback.toastMessage).toBe('');
+    expect(validation.getValidationMessages()).toEqual(['Another form']);
+
+    const updated = { ...user, ...request };
+    vi.mocked(api.updateUser).mockResolvedValueOnce(ok(updated));
+    expect(await store.updateUser(user.id, request)).toEqual(ok(updated));
+    expect(store.users).toEqual([updated]);
+    vi.mocked(api.resetUserPassword).mockResolvedValueOnce(ok(undefined));
+    expect(await store.resetUserPassword(user.id, 'Password1234!')).toEqual(ok(undefined));
+    expect(store.busy).toBe(false);
+  });
+
   it('shows mutation failures as error toasts without replacing load errors', async () => {
     const api = createApi();
     api.deleteUser.mockResolvedValue(err({ kind: 'api', message: 'Could not delete user.' }));

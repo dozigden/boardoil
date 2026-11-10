@@ -122,11 +122,10 @@
       @saved="clientAccountCreated"
     />
     <ClientAccountEditDialog
-      :open="isEditDialogOpen"
-      :busy="busy"
+      v-if="isEditDialogOpen && clientForEdit"
+      :key="clientForEdit.id"
       :client="clientForEdit"
       @close="closeEditDialog"
-      @submit="submitClientEdit"
     />
 
     <AccessTokenSecretModal
@@ -171,8 +170,7 @@ import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.v
 import ClientAccountEditDialog from '../components/ClientAccountEditDialog.vue';
 import type {
   ClientAccount,
-  CreatedClientAccount,
-  UpdateClientAccountRequest
+  CreatedClientAccount
 } from '../../shared/types/authTypes';
 import { useSystemClientAccountsStore } from '../stores/systemClientAccountsStore';
 
@@ -234,20 +232,6 @@ function clientAccountCreated(createdClient: CreatedClientAccount) {
   plainTextPat.value = createdClient.token.plainTextToken;
   plainTextPatName.value = createdClient.token.token.name;
   isCreateDialogOpen.value = false;
-}
-
-async function submitClientEdit(payload: UpdateClientAccountRequest) {
-  const selectedClient = clientForEdit.value;
-  if (!selectedClient) {
-    return;
-  }
-
-  const updated = await clientAccountsStore.updateClientAccount(selectedClient.id, payload);
-  if (!updated) {
-    return;
-  }
-
-  closeEditDialog();
 }
 
 function dismissPlainTextPat() {

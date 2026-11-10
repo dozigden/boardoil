@@ -188,6 +188,29 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         Assert.Equal("Initial token", persistedToken.Name);
     }
 
+    [Theory]
+    [InlineData("", "updated@localhost", "Standard", "displayName")]
+    [InlineData("Updated", "", "Standard", "email")]
+    [InlineData("Updated", "existing@localhost", "Standard", "email")]
+    [InlineData("Updated", "updated@localhost", "Unknown", "role")]
+    public async Task UpdateClientAccountAsync_WhenInvalid_ShouldReturnFieldErrorWithoutChangingAccount(
+        string displayName, string email, string role, string field)
+    {
+        await RemoveAllUsersAsync();
+        var user = await AddUserAsync("member", "member@localhost", UserIdentityType.Client);
+        await AddUserAsync("existing", "existing@localhost", UserIdentityType.Client);
+        var service = ResolveService<IClientAccountService>();
+
+        var result = await service.UpdateClientAccountAsync(user.Id, new UpdateClientAccountRequest(displayName, email, role, false));
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains(field, result.ValidationErrors!.Keys);
+        var persisted = await DbContextForAssert.Users.SingleAsync(x => x.Id == user.Id);
+        Assert.Equal("member@localhost", persisted.Email);
+        Assert.True(persisted.IsActive);
+    }
+
     [Fact]
     public async Task UpdateClientAccountAsync_WhenValid_ShouldUpdateEmailRoleAndStatus()
     {

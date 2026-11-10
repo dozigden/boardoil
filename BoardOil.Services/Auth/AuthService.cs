@@ -152,7 +152,7 @@ public sealed class AuthService(
         if (string.IsNullOrWhiteSpace(user.PasswordHash)
             || !passwordHashService.VerifyPassword(request.CurrentPassword, user.PasswordHash))
         {
-            return ApiErrors.Unauthorized("Current password is incorrect.");
+            return ApiErrors.ValidationFailed([new ValidationError("currentPassword", "Current password is incorrect.")]);
         }
 
         var passwordValidation = ValidatePassword(request.NewPassword, "newPassword");

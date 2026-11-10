@@ -24,6 +24,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import FormFeedback from '../components/FormFeedback.vue';
 import { useConfirm } from '../composables/useConfirm';
+import { useAuthStore } from '../stores/authStore';
 import { useValidationStore } from '../stores/validationStore';
 import type { FormDefinition } from './formDefinition';
 import FormFields from './FormFields.vue';
@@ -42,6 +43,7 @@ const submitLabel = computed(() => typeof props.definition.submitLabel === 'func
   ? props.definition.submitLabel(draft.value) : props.definition.submitLabel);
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);
 const validation = useValidationStore();
+const auth = useAuthStore();
 const { confirm } = useConfirm();
 validation.clearValidation();
 
@@ -59,7 +61,8 @@ function onBeforeUnload(event: BeforeUnloadEvent) {
   event.returnValue = '';
 }
 
-onBeforeRouteLeave(async () => {
+onBeforeRouteLeave(async to => {
+  if (!auth.isAuthenticated && (to.name === 'unauthorized' || to.name === 'login')) return true;
   if (busy.value) return false;
   if (!dirty.value) return true;
   return await confirm({

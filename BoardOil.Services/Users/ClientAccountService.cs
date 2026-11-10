@@ -122,7 +122,7 @@ public sealed class ClientAccountService(
 
         if (!TryParseRole(request.Role, out var role))
         {
-            return ApiErrors.BadRequest("Role must be 'Admin' or 'Standard'.");
+            return ApiErrors.ValidationFailed([new ValidationError("role", "Role must be 'Admin' or 'Standard'.")]);
         }
 
         var validation = ValidateDisplayNameAndEmail(request.DisplayName, request.Email);
@@ -141,7 +141,7 @@ public sealed class ClientAccountService(
         var emailExists = await userRepository.NormalisedEmailExistsForOtherUserAsync(user.Id, normalisedEmail);
         if (emailExists)
         {
-            return ApiErrors.BadRequest("Email already exists.");
+            return ApiErrors.ValidationFailed([new ValidationError("email", "Email already exists.")]);
         }
 
         user.DisplayName = request.DisplayName.Trim();

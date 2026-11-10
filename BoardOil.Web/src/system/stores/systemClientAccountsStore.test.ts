@@ -43,3 +43,31 @@ it('returns complete creation results while keeping submission errors and secret
   expect(validation.getValidationMessages()).toEqual(['Another form']);
   expect(store.busy).toBe(false);
 });
+
+it('returns edit failures without toast duplication and applies successful response values', async () => {
+  setActivePinia(createPinia());
+  const failure = err({ kind: 'api' as const, message: 'Validation failed.', validationErrors: { email: ['Email already exists.'] } });
+  const updateClientAccount = vi.fn().mockResolvedValueOnce(failure);
+  vi.mocked(createSystemApi).mockReturnValue({ updateClientAccount } as unknown as SystemApi);
+  const store = useSystemClientAccountsStore();
+  const client = { id: 3, userName: 'bot', displayName: 'Bot', email: 'bot@example.test', role: 'Standard', isActive: true, createdAtUtc: '', updatedAtUtc: '' };
+  store.clients = [client];
+  const request = { displayName: 'Changed', email: 'changed@example.test', role: 'Admin', isActive: false };
+  const feedback = useUiFeedbackStore();
+  const validation = useValidationStore();
+  validation.setValidationResult(err({ message: 'Another form' }));
+  store.errorMessage = 'Existing load error';
+
+  expect(await store.updateClientAccount(3, request)).toEqual(failure);
+  expect(store.clients).toEqual([client]);
+  expect(store.busy).toBe(false);
+  expect(feedback.toastMessage).toBe('');
+  expect(store.errorMessage).toBe('Existing load error');
+  expect(validation.getValidationMessages()).toEqual(['Another form']);
+
+  const updated = { ...client, ...request };
+  updateClientAccount.mockResolvedValueOnce(ok(updated));
+  expect(await store.updateClientAccount(3, request)).toEqual(ok(updated));
+  expect(store.clients).toEqual([updated]);
+  expect(store.busy).toBe(false);
+});

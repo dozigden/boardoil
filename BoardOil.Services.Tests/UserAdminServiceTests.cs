@@ -160,6 +160,29 @@ public sealed class UserAdminServiceTests : TestBaseDb
         Assert.Equal(UserRole.Admin, user.Role);
     }
 
+    [Theory]
+    [InlineData("", "updated@localhost", "Standard", "displayName")]
+    [InlineData("Updated", "", "Standard", "email")]
+    [InlineData("Updated", "existing@localhost", "Standard", "email")]
+    [InlineData("Updated", "updated@localhost", "Unknown", "role")]
+    public async Task UpdateUserAsync_WhenInvalid_ShouldReturnFieldErrorWithoutChangingAccount(
+        string displayName, string email, string role, string field)
+    {
+        await RemoveAllUsersAsync();
+        var user = await AddUserAsync("member", "member@localhost", "Password1234!");
+        await AddUserAsync("existing", "existing@localhost", "Password1234!");
+        var service = ResolveService<IUserAdminService>();
+
+        var result = await service.UpdateUserAsync(user.Id, new UpdateUserRequest(displayName, email, role, false));
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains(field, result.ValidationErrors!.Keys);
+        var persisted = await DbContextForAssert.Users.SingleAsync(x => x.Id == user.Id);
+        Assert.Equal("member@localhost", persisted.Email);
+        Assert.True(persisted.IsActive);
+    }
+
     [Fact]
     public async Task UpdateUserAsync_WhenValid_ShouldUpdateEmailRoleAndStatus()
     {

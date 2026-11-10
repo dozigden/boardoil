@@ -308,20 +308,23 @@ describe('authStore', () => {
 
     const success = await store.changeOwnPassword('Password1234!', 'BetterPassword1234!');
 
-    expect(success).toBe(true);
+    expect(success).toEqual(ok(undefined));
     expect(store.user).toBeNull();
     expect(setCsrfToken).toHaveBeenLastCalledWith(null);
   });
 
-  it('changeOwnPassword exposes API error message on failure', async () => {
+  it('changeOwnPassword returns a failure for the form without clearing the session', async () => {
     const store = useAuthStore();
-    const apiError: AppError = { kind: 'api', message: 'Current password is incorrect.' };
+    store.user = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' };
+    const apiError: AppError = { kind: 'api', message: 'Validation failed.', validationErrors: { currentPassword: ['Current password is incorrect.'] } };
     authApi.changeOwnPassword.mockResolvedValue(err(apiError));
 
     const success = await store.changeOwnPassword('bad', 'BetterPassword1234!');
 
-    expect(success).toBe(false);
-    expect(store.errorMessage).toBe('Current password is incorrect.');
+    expect(success).toEqual(err(apiError));
+    expect(store.errorMessage).toBeNull();
+    expect(store.user?.id).toBe(1);
+    expect(store.busy).toBe(false);
   });
 
   it('handleUnauthorized clears local session immediately', async () => {

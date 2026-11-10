@@ -101,7 +101,7 @@ public sealed class UserAdminService(
 
         if (!TryParseRole(request.Role, out var role))
         {
-            return ApiErrors.BadRequest("Role must be 'Admin' or 'Standard'.");
+            return ApiErrors.ValidationFailed([new ValidationError("role", "Role must be 'Admin' or 'Standard'.")]);
         }
 
         var validation = ValidateDisplayNameAndEmail(request.DisplayName, request.Email);
@@ -120,7 +120,7 @@ public sealed class UserAdminService(
         var emailExists = await userRepository.NormalisedEmailExistsForOtherUserAsync(user.Id, normalisedEmail);
         if (emailExists)
         {
-            return ApiErrors.BadRequest("Email already exists.");
+            return ApiErrors.ValidationFailed([new ValidationError("email", "Email already exists.")]);
         }
 
         var adminGuardError = await ValidateAdminUpdateAsync(user, role, request.IsActive);

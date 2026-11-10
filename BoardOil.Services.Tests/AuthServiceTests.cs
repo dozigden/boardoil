@@ -302,7 +302,7 @@ public sealed class AuthServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task ChangeOwnPasswordAsync_WhenCurrentPasswordInvalid_ShouldReturnUnauthorized()
+    public async Task ChangeOwnPasswordAsync_WhenCurrentPasswordInvalid_ShouldReturnFieldError()
     {
         // Arrange
         var user = await SeedActiveUserAsync("admin", "Password1234!");
@@ -315,7 +315,8 @@ public sealed class AuthServiceTests : TestBaseDb
 
         // Assert
         Assert.False(result.Success);
-        Assert.Equal(401, result.StatusCode);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("currentPassword", result.ValidationErrors!.Keys);
     }
 
     [Fact]

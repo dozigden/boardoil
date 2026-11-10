@@ -75,17 +75,13 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
 
   async function updateUser(userId: number, payload: UpdateManagedUserRequest) {
     busy.value = true;
-    clearMessages();
     try {
       const result = await api.updateUser(userId, payload);
-      if (!result.ok) {
-        feedback.showToast(result.error.message, 'error');
-        return false;
+      if (result.ok) {
+        UPDATE_USER(userId, result.data);
+        feedback.showToast('Saved successfully.');
       }
-
-      UPDATE_USER(userId, result.data);
-      feedback.showToast('Saved successfully.');
-      return true;
+      return result;
     } finally {
       busy.value = false;
     }
@@ -93,16 +89,12 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
 
   async function resetUserPassword(userId: number, newPassword: string) {
     busy.value = true;
-    clearMessages();
     try {
       const result = await api.resetUserPassword(userId, newPassword);
-      if (!result.ok) {
-        feedback.showToast(result.error.message, 'error');
-        return false;
+      if (result.ok) {
+        feedback.showToast('Password reset successfully.');
       }
-
-      feedback.showToast('Password reset successfully.');
-      return true;
+      return result;
     } finally {
       busy.value = false;
     }

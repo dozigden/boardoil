@@ -82,19 +82,15 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
     }
   }
 
-  async function updateClientAccount(clientId: number, payload: UpdateClientAccountRequest): Promise<ClientAccount | null> {
+  async function updateClientAccount(clientId: number, payload: UpdateClientAccountRequest) {
     busy.value = true;
-    clearMessages();
     try {
       const result = await api.updateClientAccount(clientId, payload);
-      if (!result.ok) {
-        feedback.showToast(result.error.message, 'error');
-        return null;
+      if (result.ok) {
+        UPDATE_CLIENT(clientId, result.data);
+        feedback.showToast('Saved successfully.');
       }
-
-      UPDATE_CLIENT(clientId, result.data);
-      feedback.showToast('Saved successfully.');
-      return result.data;
+      return result;
     } finally {
       busy.value = false;
     }

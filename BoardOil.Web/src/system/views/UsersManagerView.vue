@@ -98,19 +98,17 @@
 
     <UserCreateDialog :open="isCreateDialogOpen" @close="closeCreateDialog" />
     <UserEditDialog
-      :open="isEditDialogOpen"
-      :busy="busy"
+      v-if="isEditDialogOpen && userForEdit"
+      :key="userForEdit.id"
       :user="userForEdit"
       @close="closeEditDialog"
-      @submit="submitUserEdit"
     />
     <PasswordResetDialog
-      :open="isResetPasswordDialogOpen"
-      :busy="busy"
-      mode="admin"
-      :target-user-name="userForPasswordReset?.userName"
+      v-if="isResetPasswordDialogOpen && userForPasswordReset"
+      :key="userForPasswordReset.id"
+      :target-user-name="userForPasswordReset.userName"
+      :save="resetPassword"
       @close="closeResetPasswordDialog"
-      @submit="submitResetPassword"
     />
   </section>
 </template>
@@ -128,10 +126,7 @@ import UserCreateDialog from '../components/UserCreateDialog.vue';
 import UserEditDialog from '../components/UserEditDialog.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type {
-  ManagedUser,
-  UpdateManagedUserRequest
-} from '../../shared/types/authTypes';
+import type { ManagedUser } from '../../shared/types/authTypes';
 import { useSystemUsersManagerStore } from '../stores/systemUsersManagerStore';
 
 const authStore = useAuthStore();
@@ -189,33 +184,8 @@ function closeEditDialog() {
   userForEdit.value = null;
 }
 
-async function submitUserEdit(payload: UpdateManagedUserRequest) {
-  const selectedUser = userForEdit.value;
-  if (!selectedUser) {
-    return;
-  }
-
-  const updated = await usersManagerStore.updateUser(selectedUser.id, payload);
-  if (!updated) {
-    return;
-  }
-
-  closeEditDialog();
-}
-
-async function submitResetPassword(payload: { currentPassword?: string; newPassword: string }) {
-  const selectedUser = userForPasswordReset.value;
-  if (!selectedUser) {
-    return;
-  }
-
-  const reset = await usersManagerStore.resetUserPassword(selectedUser.id, payload.newPassword);
-  if (!reset) {
-    return;
-  }
-
-  isResetPasswordDialogOpen.value = false;
-  userForPasswordReset.value = null;
+function resetPassword(payload: { newPassword: string }) {
+  return usersManagerStore.resetUserPassword(userForPasswordReset.value!.id, payload.newPassword);
 }
 
 async function deleteUser(user: ManagedUser) {
