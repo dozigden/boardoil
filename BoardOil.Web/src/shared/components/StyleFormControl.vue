@@ -1,10 +1,7 @@
 <template>
   <div v-if="draftStyle" class="style-control">
     <select aria-label="Style" :value="draftStyle.styleName" :disabled="disabled" @change="onStyleNameChange">
-      <option value="auto">Auto</option>
-      <option value="presets">Presets</option>
-      <option value="solid">Solid</option>
-      <option value="gradient">Gradient</option>
+      <option v-for="name in allowedStyleNames" :key="name" :value="name">{{ styleLabels[name] }}</option>
     </select>
 
     <template v-if="draftStyle.styleName === 'presets'">
@@ -102,17 +99,25 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { parseStyleNameInput, useStyleDraft } from '../composables/useStyleDraft';
-import { PRESET_TOKENS } from '../utils/presetTheme';
+import { PRESET_TOKENS, type PresetToken } from '../utils/presetTheme';
 import type { StyleDraft } from '../utils/styleTypes';
 
-const props = defineProps<{ modelValue: StyleDraft; disabled: boolean }>();
+const props = withDefaults(defineProps<{
+  modelValue: StyleDraft;
+  disabled: boolean;
+  allowedStyleNames?: readonly StyleDraft['styleName'][];
+  presetColours?: readonly PresetToken[];
+}>(), {
+  allowedStyleNames: () => ['auto', 'presets', 'solid', 'gradient'],
+  presetColours: () => PRESET_TOKENS
+});
 const emit = defineEmits<{ 'update:modelValue': [value: StyleDraft] }>();
 const model = computed<StyleDraft | null>({
   get: () => props.modelValue,
   set: value => { if (value) emit('update:modelValue', value); }
 });
 const { draft: draftStyle, setStyleName, setTextMode, setBorderMode, setField: setDraftStyleField } = useStyleDraft(model);
-const presetColours = PRESET_TOKENS;
+const styleLabels = { auto: 'Auto', presets: 'Presets', solid: 'Solid', gradient: 'Gradient' };
 
 function onStyleNameChange(event: Event) {
   setStyleName(parseStyleNameInput((event.target as HTMLSelectElement).value));

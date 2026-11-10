@@ -1,4 +1,6 @@
 import type { Component } from 'vue';
+import type { StyleDraft } from '../utils/styleTypes';
+import type { PresetToken } from '../utils/presetTheme';
 
 type FieldName<T> = Extract<keyof T, string>;
 
@@ -36,7 +38,11 @@ type TextareaField = { type: 'textarea'; rows?: number };
 type FileField = { type: 'file'; accept?: string };
 type CheckboxField = { type: 'checkbox' };
 type EmojiField = { type: 'emoji' };
-type StyleField = { type: 'style' };
+type StyleField = {
+  type: 'style';
+  allowedStyleNames?: readonly StyleDraft['styleName'][];
+  presetColours?: readonly PresetToken[];
+};
 type TokenScopesField = { type: 'tokenScopes'; allowedScopes: readonly string[] };
 type TokenExpiryField = { type: 'tokenExpiry' };
 type CustomField = { type: 'custom'; component: Component };

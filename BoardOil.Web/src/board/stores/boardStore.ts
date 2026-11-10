@@ -312,7 +312,7 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(boardId, () => api.createColumn(boardId, model));
+    const result = await runApiOperation(boardId, () => api.createColumn(boardId, model));
     if (!result.ok) {
       return;
     }
@@ -326,7 +326,7 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(boardId, () => api.saveColumn(boardId, columnId, model));
+    const result = await runApiOperation(boardId, () => api.saveColumn(boardId, columnId, model));
     if (!result.ok) {
       return;
     }
@@ -340,7 +340,7 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(boardId, () => api.reorderColumns(boardId, columnIds));
+    const result = await runApiOperation(boardId, () => api.reorderColumns(boardId, columnIds));
     if (!result.ok) {
       return;
     }
@@ -354,7 +354,7 @@ export const useBoardStore = defineStore('board', () => {
       return;
     }
 
-    const result = await runBusy(boardId, () => api.deleteColumn(boardId, columnId));
+    const result = await runApiOperation(boardId, () => api.deleteColumn(boardId, columnId));
     if (!result.ok) {
       return;
     }
@@ -380,7 +380,7 @@ export const useBoardStore = defineStore('board', () => {
     return boardShell.value.columns.find(x => x.id === columnId) ?? null;
   }
 
-  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+  async function runApiOperation<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
     if (currentBoardId.value === boardId) {
       busy.value = true;
     }
@@ -475,13 +475,9 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   async function deleteSlick(slickId: number, boardId: number) {
-    const deleted = await slickStore.deleteSlick(slickId, boardId);
-    if (!deleted) {
-      return false;
-    }
-
-    cardStore.removeSlickFromCards(boardId, slickId);
-    return true;
+    const result = await slickStore.deleteSlick(slickId, boardId);
+    if (result.ok) cardStore.removeSlickFromCards(boardId, slickId);
+    return result;
   }
 
   return {

@@ -76,17 +76,13 @@ export const useSlickStore = defineStore('slick', () => {
     model: SlickEditModel,
     boardId: number
   ) {
-    const result = await runBusy(boardId, () => api.createSlick(boardId, model));
-    if (!result.ok) {
-      return null;
-    }
-
-    UPSERT_SLICK(boardId, result.data);
-    return result.data;
+    const result = await runApiOperation(boardId, () => api.createSlick(boardId, model), { suppressError: true });
+    if (result.ok) UPSERT_SLICK(boardId, result.data);
+    return result;
   }
 
   async function getCreateDefaultStyle(boardId: number): Promise<StyleDefault | null> {
-    const result = await runBusy(boardId, () => api.getSlickCreateDefaultStyle(boardId));
+    const result = await runApiOperation(boardId, () => api.getSlickCreateDefaultStyle(boardId));
     if (!result.ok) {
       return null;
     }
@@ -99,23 +95,15 @@ export const useSlickStore = defineStore('slick', () => {
     model: SlickEditModel,
     boardId: number
   ) {
-    const result = await runBusy(boardId, () => api.updateSlick(boardId, slickId, model));
-    if (!result.ok) {
-      return null;
-    }
-
-    UPSERT_SLICK(boardId, result.data);
-    return result.data;
+    const result = await runApiOperation(boardId, () => api.updateSlick(boardId, slickId, model), { suppressError: true });
+    if (result.ok) UPSERT_SLICK(boardId, result.data);
+    return result;
   }
 
   async function deleteSlick(slickId: number, boardId: number) {
-    const result = await runBusy(boardId, () => api.deleteSlick(boardId, slickId));
-    if (!result.ok) {
-      return false;
-    }
-
-    REMOVE_SLICK(boardId, slickId);
-    return true;
+    const result = await runApiOperation(boardId, () => api.deleteSlick(boardId, slickId), { suppressError: true });
+    if (result.ok) REMOVE_SLICK(boardId, slickId);
+    return result;
   }
 
   function getSlickById(slickId: number | null) {
@@ -126,7 +114,7 @@ export const useSlickStore = defineStore('slick', () => {
     return slicks.value.find(x => x.id === slickId) ?? null;
   }
 
-  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+  async function runApiOperation<T>(boardId: number, operation: () => Promise<Result<T, AppError>>, options: { suppressError?: boolean } = {}) {
     if (activeBoardId.value === boardId) {
       busy.value = true;
     }
@@ -137,7 +125,7 @@ export const useSlickStore = defineStore('slick', () => {
       }
 
       if (!result.ok) {
-        reportError(result.error);
+        if (!options.suppressError) reportError(result.error);
       } else {
         feedback.clearError('slick');
       }

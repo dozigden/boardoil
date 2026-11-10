@@ -419,7 +419,7 @@ describe('boardStore', () => {
       pending.resolve(ok(undefined));
     }
 
-    expect(await deleting).toBe(outcome !== 'failure');
+    expect((await deleting).ok).toBe(outcome !== 'failure');
     expect(api.deleteSlick).toHaveBeenCalledWith(1, slick.id);
     if (outcome === 'disposal') {
       expect(cards.getCardById(card.id)).toBeNull();

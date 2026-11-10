@@ -84,7 +84,7 @@ describe('slickStore', () => {
       await store.loadSlicks(1);
       const saved = makeSlick(7, 'Old board slick', 'presets', '{"presetIndex":2}');
       const pending = createDeferred<Result<Slick | void, AppError>>();
-      let write: Promise<Slick | boolean | null>;
+      let write: Promise<Result<Slick | void, AppError>>;
       switch (operation) {
         case 'create':
           api.createSlick.mockReturnValueOnce(pending.promise);
@@ -110,10 +110,10 @@ describe('slickStore', () => {
 
       if (operation === 'delete') {
         pending.resolve(ok(undefined));
-        expect(await write).toBe(true);
+        expect(await write).toEqual(ok(undefined));
       } else {
         pending.resolve(ok(saved));
-        expect(await write).toEqual(saved);
+        expect(await write).toEqual(ok(saved));
       }
       expect(store.slicks).toEqual(change === 'board change' ? [current] : []);
       expect(api.getSlicks).toHaveBeenCalledTimes(change === 'board change' ? 2 : 1);
@@ -180,7 +180,7 @@ describe('slickStore', () => {
       stylePropertiesJson: '{"presetIndex":2}'
     }, 3);
 
-    expect(created?.id).toBe(7);
+    expect(created).toMatchObject({ ok: true, data: { id: 7 } });
     expect(api.createSlick).toHaveBeenCalledWith(3, {
       name: 'Release Train',
       styleName: 'presets',
@@ -248,7 +248,7 @@ describe('slickStore', () => {
       stylePropertiesJson: '{"backgroundColor":"#336699","textColorMode":"auto","borderMode":"auto"}'
     }, 3);
 
-    expect(updated?.styleName).toBe('solid');
+    expect(updated).toMatchObject({ ok: true, data: { styleName: 'solid' } });
     expect(store.slicks[0]?.styleName).toBe('solid');
   });
 
@@ -258,9 +258,29 @@ describe('slickStore', () => {
     store.activeBoardId = 3;
     const deleted = await store.deleteSlick(7, 3);
 
-    expect(deleted).toBe(true);
+    expect(deleted).toEqual(ok(undefined));
     expect(api.deleteSlick).toHaveBeenCalledWith(3, 7);
     expect(store.slicks).toHaveLength(0);
+  });
+
+  it.each(['create', 'update', 'delete'] as const)('returns %s validation without publishing a page error', async operation => {
+    const store = useSlickStore();
+    const feedback = useUiFeedbackStore();
+    store.activeBoardId = 3;
+    const slick = makeSlick(7, 'Retained slick', 'presets', '{"presetIndex":2}');
+    store.slicks = [slick];
+    const failure = err({ kind: 'api' as const, message: 'Validation failed.', validationErrors: { name: ['Name rejected.'] } });
+    api.createSlick.mockResolvedValueOnce(failure);
+    api.updateSlick.mockResolvedValueOnce(failure);
+    api.deleteSlick.mockResolvedValueOnce(failure);
+    let result;
+    if (operation === 'create') result = await store.createSlick(slick, 3);
+    else if (operation === 'update') result = await store.updateSlick(7, slick, 3);
+    else result = await store.deleteSlick(7, 3);
+    expect(result).toEqual(failure);
+    expect(store.slicks).toEqual([slick]);
+    expect(store.busy).toBe(false);
+    expect(feedback.errorMessage).toBe('');
   });
 
   it('reports errors from API operations', async () => {

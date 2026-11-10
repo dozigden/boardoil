@@ -117,6 +117,7 @@ function isControl(field: FormFieldDefinition<T>) {
 }
 
 function controlProps(field: FormFieldDefinition<T>) {
+  if (field.type === 'style') return { allowedStyleNames: field.allowedStyleNames, presetColours: field.presetColours };
   if (field.type === 'tokenScopes') return { allowedScopes: field.allowedScopes };
   return {};
 }
