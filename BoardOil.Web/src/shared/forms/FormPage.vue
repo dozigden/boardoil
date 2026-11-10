@@ -7,12 +7,13 @@
         <span>{{ busy ? 'Saving...' : submitLabel }}</span>
       </button>
     </header>
-    <slot name="before-fields" />
+    <slot name="before-fields" :values="draft" :busy="locked" />
     <section class="panel panel-stack panel-stack--cozy">
-      <slot name="fields-header" />
+      <slot name="fields-header" :values="draft" :busy="locked" />
       <FormFeedback ref="feedback" :category="definition.category" general-errors="toast">
         <FormReassessment v-if="definition.reassess" :error="reassessmentError" @retry="reassess" />
         <FormFields :fields="fields" :values="draft" :busy="locked" @change="setValue" />
+        <slot name="after-fields" :values="draft" :busy="locked" />
       </FormFeedback>
     </section>
   </form>

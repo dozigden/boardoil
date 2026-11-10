@@ -83,8 +83,44 @@ public sealed class SystemInfoMessageServiceTests
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["Style must be auto, presets, or solid."], result.ValidationErrors!["systemInfoMessage.styleName"]);
         Assert.Equal(0, scopes.SaveChangesCallCount);
         Assert.Empty(boardEvents.SystemInfoMessageUpdatedEvents);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task UpdateAsync_WithEnabledEmptyTitle_ShouldReturnFieldErrorAndNotSave(string title)
+    {
+        var repository = new InMemorySystemInfoMessageRepository();
+        var scopes = new FakeDbContextScopeFactory();
+        var boardEvents = new FakeBoardEvents();
+        var service = new SystemInfoMessageService(scopes, repository, boardEvents);
+        var request = new SystemInfoMessageDto(true, null, title, "Details", "auto", "{}");
+
+        var result = await service.UpdateAsync(request);
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["Title is required when the message is enabled."], result.ValidationErrors!["systemInfoMessage.title"]);
+        Assert.Equal(0, scopes.SaveChangesCallCount);
+        Assert.Empty(boardEvents.SystemInfoMessageUpdatedEvents);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithDisabledEmptyTitle_ShouldSave()
+    {
+        var repository = new InMemorySystemInfoMessageRepository();
+        var scopes = new FakeDbContextScopeFactory();
+        var service = new SystemInfoMessageService(scopes, repository, new FakeBoardEvents());
+        var request = new SystemInfoMessageDto(false, null, "", "Details", "auto", "{}");
+
+        var result = await service.UpdateAsync(request);
+
+        Assert.True(result.Success);
+        Assert.Equal(request, result.Data);
+        Assert.Equal(1, scopes.SaveChangesCallCount);
     }
 
     private sealed class InMemorySystemInfoMessageRepository : ISystemInfoMessageRepository

@@ -160,6 +160,16 @@ async function runManagedTests(options) {
   await waitForUrl(`${apiUrl}/api/health`, api, 'API', startupTimeoutMilliseconds);
   ensureNotInterrupted();
 
+  const versionResponse = await fetch(`${apiUrl}/api/version`, {
+    signal: AbortSignal.timeout(startupTimeoutMilliseconds)
+  });
+  const versionEnvelope = await versionResponse.json();
+  if (!versionResponse.ok || !versionEnvelope.success || !versionEnvelope.data) {
+    throw new Error('Could not load API build metadata for the test frontend.');
+  }
+  const buildInfo = versionEnvelope.data;
+  ensureNotInterrupted();
+
   const web = startProcess(process.execPath, [
     path.join(webRoot, 'scripts', 'run-vite-with-version.mjs'),
     '--host',
@@ -168,7 +178,11 @@ async function runManagedTests(options) {
     String(webPort),
     '--strictPort'
   ], webRoot, {
-    VITE_BO_API_PROXY_TARGET: apiUrl
+    VITE_BO_API_PROXY_TARGET: apiUrl,
+    VITE_BO_VERSION: buildInfo.version,
+    VITE_BO_CHANNEL: buildInfo.channel,
+    VITE_BO_BUILD: buildInfo.build,
+    VITE_BO_COMMIT: buildInfo.commit
   });
   await waitForUrl(webUrl, web, 'frontend', startupTimeoutMilliseconds);
   ensureNotInterrupted();

@@ -1,6 +1,6 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 import type { Card, CardEditModel } from '../../src/shared/types/boardTypes';
-import type { ConfigurationDto, UpdateConfigurationRequest } from '../../src/shared/types/configurationTypes';
+import type { ConfigurationDto, UpdateConfigurationRequest, SystemInfoMessageDto } from '../../src/shared/types/configurationTypes';
 import type { CreatedClientAccount } from '../../src/shared/types/authTypes';
 
 type ApiEnvelope<T> = {
@@ -286,6 +286,19 @@ export class BoardOilApi {
     });
     board.cardAttachmentThumbnailsEnabled = updated.cardAttachmentThumbnailsEnabled;
     return updated;
+  }
+
+  public async getSystemInfoMessage() {
+    const response = await this.request.get('/api/system/system-info-message');
+    return (await readJson<ApiEnvelope<SystemInfoMessageDto>>(response)).data;
+  }
+
+  public async updateSystemInfoMessage(message: SystemInfoMessageDto | null) {
+    const response = await this.request.put('/api/system/system-info-message', {
+      data: JSON.stringify(message),
+      headers: { 'Content-Type': 'application/json', 'X-BoardOil-CSRF': this.csrfToken }
+    });
+    return (await readJson<ApiEnvelope<SystemInfoMessageDto>>(response)).data;
   }
 
   public async createSlick(board: SmokeBoard, name: string) {

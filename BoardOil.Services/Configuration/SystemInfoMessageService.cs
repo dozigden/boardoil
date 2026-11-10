@@ -106,7 +106,7 @@ public sealed class SystemInfoMessageService(
         {
             return new SystemInfoMessageValidationResult(
                 null,
-                ApiErrors.BadRequest("systemInfoMessage.styleName must be auto, presets, or solid."));
+                ApiErrors.ValidationFailed([new ValidationError("systemInfoMessage.styleName", "Style must be auto, presets, or solid.")]));
         }
 
         var styleValidation = StyleDefinitionCodec.ParseForWrite(
@@ -125,7 +125,7 @@ public sealed class SystemInfoMessageService(
         {
             return new SystemInfoMessageValidationResult(
                 null,
-                ApiErrors.BadRequest("systemInfoMessage.title is required when enabled is true."));
+                ApiErrors.ValidationFailed([new ValidationError("systemInfoMessage.title", "Title is required when the message is enabled.")]));
         }
 
         return new SystemInfoMessageValidationResult(

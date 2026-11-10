@@ -79,7 +79,7 @@ Keep browser-test code organised by those responsibilities. Do not mix environme
 - Run the profile from `BoardOil.Web` with `npm run test:e2e:smoke`.
 - Name smoke specs `*.smoke.spec.ts`; the smoke command selects only that suffix.
 - Pass Playwright CLI options after `--` when narrowing or repeating a run.
-- The runner creates its own temporary SQLite database, image directory, API port, and frontend port, then removes the temporary environment.
+- The runner creates its own temporary SQLite database, image directory, API port, and frontend port, then removes the temporary environment. After API startup it reads `/api/version` and supplies that build metadata to Vite, so managed tests run matching frontend/backend versions with normal update checks enabled.
 - Browser tests remain separate from `test-fast.mjs`, `test-full.mjs`, and the normal Vitest run.
 
 ### Running the Browser Regression Profile
