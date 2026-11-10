@@ -21,7 +21,6 @@ export function accessTokenForm(options: AccessTokenFormOptions) {
       { name: 'scopes', label: 'Scopes', type: 'tokenScopes', allowedScopes: options.allowedScopes },
       { name: 'expiry', label: 'Expiry', type: 'tokenExpiry', errorFields: ['expiresInDays'] }
     ],
-    // Acknowledgement belongs to the UI; persisted-value rules come from the API.
     validate: ({ expiry }) => expiry.nonExpiring && !expiry.confirmed
       ? { expiry: ['Confirm non-expiring token risk before creating.'] }
       : {},

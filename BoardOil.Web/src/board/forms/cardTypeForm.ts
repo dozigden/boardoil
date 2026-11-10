@@ -29,12 +29,10 @@ export function createCardTypeForm(cardType: CardType | null, operations: CardTy
       style: createCardTypeStyleDraft(cardType ?? { styleName: 'auto', stylePropertiesJson: '{}' })
     }),
     fields: [
-      { name: 'name', label: 'Name', type: 'text', maxLength: 40, autocomplete: 'off', placeholder: cardType ? 'Card type name' : 'New card type name' },
+      { name: 'name', label: 'Name', type: 'text', autocomplete: 'off', placeholder: cardType ? 'Card type name' : 'New card type name' },
       { name: 'emoji', label: 'Emoji', type: 'emoji' },
       { name: 'style', label: 'Style', type: 'style', errorFields: ['styleName', 'stylePropertiesJson'] }
     ],
-    normalize: values => ({ ...values, name: values.name.trim() }),
-    canSubmit: values => values.name.trim().length > 0,
     isCurrent: operations.isCurrent,
     submit: values => operations.save({
       name: values.name, emoji: values.emoji,

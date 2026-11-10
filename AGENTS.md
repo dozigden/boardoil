@@ -17,6 +17,8 @@ Read area guidance before working in that part of the system:
 
 ## Always-On Rules
 
+- Prefer backend validation by default. Use frontend validation only where there is a good, explicitly agreed reason; record the exception. When migrating forms, improve missing backend field-error contracts rather than duplicating domain rules in the UI.
+
 - Sliced work requires explicit manual user review after every slice. Implement and validate only the current slice, then stop and wait for the user's approval before starting the next. Approval of the overall plan or an instruction to implement it does not waive these review pauses; see [planning guidance](AGENTS/StoryBoardAndSourceControl.md#plans).
 - Source control:
   - work directly on `main` by default

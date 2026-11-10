@@ -41,12 +41,13 @@ test('keyboard submission blocks cancellation and repeat requests until the resp
   await expect(form.dialog.getByRole('alert')).toHaveCount(0);
 });
 
-test('user creation combines local field errors with server password validation and permits correction', async ({ authenticatedPage: page }) => {
+test('user creation keeps confirmation local and displays backend field validation with correction', async ({ authenticatedPage: page }) => {
   await page.goto('/admin/system/users');
   const form = new UserCreationDialog(page);
   await form.open();
   await form.fill('validation-fields', 'short');
   await form.displayName.fill('   ');
+  await form.email.fill('invalid-email');
   await form.confirmation.fill('different');
   let submissions = 0;
   page.on('request', request => {
@@ -55,15 +56,11 @@ test('user creation combines local field errors with server password validation 
     }
   });
   await form.save.click();
-  await expect(form.displayName).toHaveAccessibleDescription('Display name is required.');
-  await expect(form.displayName).toBeFocused();
+  await expect(form.displayName).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(form.confirmation).toBeFocused();
   await expect(form.confirmation).toHaveAccessibleDescription('Passwords do not match.');
   expect(submissions).toBe(0);
 
-  await form.displayName.fill('Validation Example');
-  await expect(form.displayName).not.toHaveAttribute('aria-invalid', 'true');
-  await expect(form.confirmation).toHaveAttribute('aria-invalid', 'true');
-  await expect(form.displayName).toBeFocused();
   await form.password.fill('shorter');
   await expect(form.confirmation).not.toHaveAttribute('aria-invalid', 'true');
   await form.password.fill('short');
@@ -73,7 +70,10 @@ test('user creation combines local field errors with server password validation 
   const message = 'Password must be at least 10 characters.';
   await expect(form.password).toHaveAccessibleDescription(message);
   await expect(form.password).toHaveAttribute('aria-invalid', 'true');
-  await expect(form.password).toBeFocused();
+  await expect(form.displayName).toHaveAccessibleDescription('Display name is required.');
+  await expect(form.displayName).toBeFocused();
+  await expect(form.email).toHaveAccessibleDescription("Email must contain '@' with characters before and after it.");
+  expect(submissions).toBe(1);
   await expect(form.username).toHaveValue('validation-fields');
   await expect(form.password).toHaveValue('short');
   await expect(form.confirmation).toHaveValue('short');
@@ -82,6 +82,10 @@ test('user creation combines local field errors with server password validation 
   await form.save.click();
   await expect(form.password).toHaveAccessibleDescription(message);
 
+  await form.displayName.fill('Validation Example');
+  await expect(form.displayName).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(form.email).toHaveAttribute('aria-invalid', 'true');
+  await form.email.fill('validation-fields@example.test');
   await form.password.fill('Password1234!');
   await form.confirmation.fill('Password1234!');
   await expect(form.dialog.getByRole('alert')).toHaveCount(0);
@@ -95,18 +99,23 @@ test('user creation combines local field errors with server password validation 
   await expect(form.dialog.getByRole('alert')).toHaveCount(0);
 });
 
-test('duplicate usernames appear in the dialog summary and a corrected retry succeeds', async ({ api, authenticatedPage: page }) => {
+test('duplicate usernames and emails appear beside their fields and a corrected retry succeeds', async ({ api, authenticatedPage: page }) => {
   await api.createUser('validation-existing', 'Password1234!');
   await page.goto('/admin/system/users');
   const form = new UserCreationDialog(page);
   await form.open();
   await form.fill('validation-existing');
+  await form.email.fill('validation-existing@boardoil.test');
   await form.save.click();
-  await expect(form.dialog.getByRole('alert')).toHaveText('Username already exists.');
-  await expect(form.dialog.getByRole('alert')).toBeFocused();
+  await expect(form.username).toHaveAccessibleDescription('Username already exists.');
+  await expect(form.username).toBeFocused();
+  await expect(form.email).toHaveAccessibleDescription('Email already exists.');
   await expect(page.getByText('Username already exists.', { exact: true })).toHaveCount(1);
-  await expect(form.email).toHaveValue('validation-existing@example.test');
+  await expect(form.email).toHaveValue('validation-existing@boardoil.test');
   await form.username.fill('validation-renamed');
+  await expect(form.username).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(form.email).toHaveAttribute('aria-invalid', 'true');
+  await form.email.fill('validation-renamed@example.test');
   await form.save.click();
   await expect(form.dialog).toBeHidden();
   await expect(page.getByText('validation-renamed', { exact: true })).toBeVisible();

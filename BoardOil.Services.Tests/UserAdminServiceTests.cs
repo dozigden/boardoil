@@ -95,7 +95,69 @@ public sealed class UserAdminServiceTests : TestBaseDb
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
-        Assert.Equal("Email already exists.", result.Message);
+        Assert.Equal("Validation failed.", result.Message);
+        Assert.Equal(["Email already exists."], result.ValidationErrors!["email"]);
+    }
+
+    [Fact]
+    public async Task CreateUserAsync_WhenUsernameAndEmailExist_ShouldReturnBothFieldErrorsWithoutCreatingUser()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        await AddUserAsync("member", "member@localhost", "Password1234!");
+        var service = ResolveService<IUserAdminService>();
+
+        // Act
+        var result = await service.CreateUserAsync(
+            new CreateUserRequest(" member ", "Member", " MEMBER@LOCALHOST ", "Password1234!", "Standard"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["Username already exists."], result.ValidationErrors!["userName"]);
+        Assert.Equal(["Email already exists."], result.ValidationErrors["email"]);
+        Assert.Equal(1, await DbContextForArrange.Users.CountAsync());
+    }
+
+    [Fact]
+    public async Task CreateUserAsync_WhenRoleAndCredentialsInvalid_ShouldReturnFieldErrorsWithoutCreatingUser()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var service = ResolveService<IUserAdminService>();
+
+        // Act
+        var result = await service.CreateUserAsync(new CreateUserRequest("", "", "invalid", "short", "Unknown"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["Role must be 'Admin' or 'Standard'."], result.ValidationErrors!["role"]);
+        Assert.Contains("userName", result.ValidationErrors.Keys);
+        Assert.Contains("displayName", result.ValidationErrors.Keys);
+        Assert.Contains("email", result.ValidationErrors.Keys);
+        Assert.Contains("password", result.ValidationErrors.Keys);
+        Assert.Empty(await DbContextForArrange.Users.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateUserAsync_WhenValid_ShouldTrimPersistedNamesAndEmail()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var service = ResolveService<IUserAdminService>();
+
+        // Act
+        var result = await service.CreateUserAsync(
+            new CreateUserRequest(" member ", " Member Name ", " member@localhost ", "Password1234!", "Admin"));
+
+        // Assert
+        Assert.True(result.Success);
+        var user = await DbContextForArrange.Users.SingleAsync();
+        Assert.Equal("member", user.UserName);
+        Assert.Equal("Member Name", user.DisplayName);
+        Assert.Equal("member@localhost", user.Email);
+        Assert.Equal(UserRole.Admin, user.Role);
     }
 
     [Fact]

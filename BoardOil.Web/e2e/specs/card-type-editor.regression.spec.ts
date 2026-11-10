@@ -14,6 +14,17 @@ for (const operation of ['create', 'update'] as const) {
     const style = dialog.getByRole('combobox', { name: 'Style', exact: true });
     await style.selectOption('solid');
     await dialog.getByLabel('Background Color', { exact: true }).fill('#123456');
+    await name.fill('');
+    await save.click();
+    await expect(name).toHaveAccessibleDescription('Card type name is required.');
+    await expect(name).toBeFocused();
+
+    const longName = 'x'.repeat(41);
+    await name.fill(longName);
+    await save.click();
+    await expect(name).toHaveAccessibleDescription(`Card type '${longName}' must be 40 characters or fewer.`);
+    await expect(name).toHaveValue(longName);
+
     await name.fill('CAFÉ');
     await save.click();
 

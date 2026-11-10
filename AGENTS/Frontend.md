@@ -76,6 +76,9 @@ Read [Pinia Store Guidance](frontend-pinia.md) before adding or changing stores,
 
 ## API Trust and Defensive Coding
 
+- Prefer backend-owned validation for new or migrated forms. The UI should display structured field/general errors and preserve rejected drafts. Include missing backend validation/error contracts in the form's work.
+- Frontend validation requires a good, explicitly agreed case; do not duplicate backend rules for convenience. Agreed UI-only examples are password confirmation and non-expiring-token acknowledgement. Browser constraints (`required`, length/range limits, native email validation) also count when they prevent requests reaching backend validation; keyboard/autocomplete hints and value-editing controls are separate concerns.
+
 - Treat backend API contracts as authoritative for frontend read/write flows.
 - Do not add client-side fallback/normalization code that re-derives API fields “just in case” without a concrete, current failure mode.
 - If a guard is required, document the exact reason in code (what can fail, where it was observed) and keep the guard narrowly scoped.

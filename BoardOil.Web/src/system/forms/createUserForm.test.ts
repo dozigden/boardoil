@@ -4,7 +4,7 @@ import { useForm } from '../../shared/forms/useForm';
 import { err } from '../../shared/types/result';
 import { createUserForm } from './createUserForm';
 
-it('submits normalized user data, including the selected role, without the local confirmation field', async () => {
+it('submits user data for backend normalisation, including the selected role, without the local confirmation field', async () => {
   setActivePinia(createPinia());
   const save = vi.fn().mockResolvedValue(err({ message: 'Retain the draft' }));
   const form = useForm(createUserForm(save));
@@ -16,8 +16,18 @@ it('submits normalized user data, including the selected role, without the local
   form.setValue('role', 'Admin');
   await form.submit();
   expect(save).toHaveBeenCalledExactlyOnceWith({
-    userName: 'user', displayName: 'Example User', email: 'user@example.test',
+    userName: ' user ', displayName: ' Example User ', email: ' user@example.test ',
     password: ' Password1234! ', role: 'Admin'
   });
   expect(form.draft.value.confirmPassword).toBe(' Password1234! ');
+});
+
+it('submits empty persisted values for backend validation when confirmation matches', async () => {
+  setActivePinia(createPinia());
+  const save = vi.fn().mockResolvedValue(err({ message: 'Validation failed.' }));
+  const form = useForm(createUserForm(save));
+  await form.submit();
+  expect(save).toHaveBeenCalledExactlyOnceWith({
+    userName: '', displayName: '', email: '', password: '', role: 'Standard'
+  });
 });
