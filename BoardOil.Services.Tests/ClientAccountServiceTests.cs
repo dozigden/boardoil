@@ -107,7 +107,47 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
-        Assert.Equal("Email already exists.", result.Message);
+        Assert.Equal(["Email already exists."], result.ValidationErrors!["email"]);
+    }
+
+    [Fact]
+    public async Task CreateClientAccountAsync_WhenUsernameAndEmailExist_ShouldReturnBothFieldErrors()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        await AddUserAsync("client-one", "client-one@localhost", UserIdentityType.Client);
+        var service = ResolveService<IClientAccountService>();
+
+        // Act
+        var result = await service.CreateClientAccountAsync(
+            new CreateClientAccountRequest(" client-one ", "Client One", " CLIENT-ONE@LOCALHOST ", "Standard"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["Username already exists."], result.ValidationErrors!["userName"]);
+        Assert.Equal(["Email already exists."], result.ValidationErrors["email"]);
+        Assert.Equal(1, await DbContextForAssert.Users.CountAsync());
+        Assert.Empty(await DbContextForAssert.PersonalAccessTokens.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateClientAccountAsync_WhenAccountFieldsInvalid_ShouldReturnRoleWithOtherFieldErrors()
+    {
+        // Arrange
+        await RemoveAllUsersAsync();
+        var service = ResolveService<IClientAccountService>();
+
+        // Act
+        var result = await service.CreateClientAccountAsync(new CreateClientAccountRequest("", "", "invalid", "Unknown"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["displayName", "email", "role", "userName"], result.ValidationErrors!.Keys.Order().ToArray());
+        Assert.Equal(["Role must be 'Admin' or 'Standard'."], result.ValidationErrors["role"]);
+        Assert.Empty(await DbContextForAssert.Users.ToListAsync());
+        Assert.Empty(await DbContextForAssert.PersonalAccessTokens.ToListAsync());
     }
 
     [Fact]

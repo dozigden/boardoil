@@ -48,15 +48,15 @@ public sealed class ClientAccountService(
     {
         using var scope = scopeFactory.Create();
 
-        var validation = ValidateUserNameDisplayNameAndEmail(request.UserName, request.DisplayName, request.Email);
+        var validation = ValidateUserNameDisplayNameAndEmail(request.UserName, request.DisplayName, request.Email).ToList();
+        if (!TryParseRole(request.Role, out var role))
+        {
+            validation.Add(new ValidationError("role", "Role must be 'Admin' or 'Standard'."));
+        }
+
         if (validation.Count > 0)
         {
             return ApiErrors.ValidationFailed(validation);
-        }
-
-        if (!TryParseRole(request.Role, out var role))
-        {
-            return ApiErrors.BadRequest("Role must be 'Admin' or 'Standard'.");
         }
 
         var userName = request.UserName.Trim();
@@ -66,13 +66,18 @@ public sealed class ClientAccountService(
         var exists = await userRepository.UserNameExistsAsync(userName);
         if (exists)
         {
-            return ApiErrors.BadRequest("Username already exists.");
+            validation.Add(new ValidationError("userName", "Username already exists."));
         }
 
         var emailExists = await userRepository.NormalisedEmailExistsAsync(normalisedEmail);
         if (emailExists)
         {
-            return ApiErrors.BadRequest("Email already exists.");
+            validation.Add(new ValidationError("email", "Email already exists."));
+        }
+
+        if (validation.Count > 0)
+        {
+            return ApiErrors.ValidationFailed(validation);
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;

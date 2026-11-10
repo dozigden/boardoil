@@ -5,7 +5,6 @@ import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type {
   ClientAccount,
   CreateClientAccountRequest,
-  CreatedClientAccount,
   UpdateClientAccountRequest,
   UserProfileImage
 } from '../../shared/types/authTypes';
@@ -69,19 +68,15 @@ export const useSystemClientAccountsStore = defineStore('systemClientAccounts', 
     }
   }
 
-  async function createClientAccount(payload: CreateClientAccountRequest): Promise<CreatedClientAccount | null> {
+  async function createClientAccount(payload: CreateClientAccountRequest) {
     busy.value = true;
-    clearMessages();
     try {
       const result = await api.createClientAccount(payload);
-      if (!result.ok) {
-        feedback.showToast(result.error.message, 'error');
-        return null;
+      if (result.ok) {
+        ADD_CLIENT(result.data.account);
+        feedback.showToast('Created successfully.');
       }
-
-      ADD_CLIENT(result.data.account);
-      feedback.showToast('Created successfully.');
-      return result.data;
+      return result;
     } finally {
       busy.value = false;
     }

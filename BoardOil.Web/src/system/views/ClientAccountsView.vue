@@ -118,9 +118,8 @@
 
     <ClientAccountCreateDialog
       :open="isCreateDialogOpen"
-      :busy="busy"
       @close="closeCreateDialog"
-      @submit="createClientAccount"
+      @saved="clientAccountCreated"
     />
     <ClientAccountEditDialog
       :open="isEditDialogOpen"
@@ -172,7 +171,7 @@ import ClientAccountCreateDialog from '../components/ClientAccountCreateDialog.v
 import ClientAccountEditDialog from '../components/ClientAccountEditDialog.vue';
 import type {
   ClientAccount,
-  CreateClientAccountRequest,
+  CreatedClientAccount,
   UpdateClientAccountRequest
 } from '../../shared/types/authTypes';
 import { useSystemClientAccountsStore } from '../stores/systemClientAccountsStore';
@@ -231,12 +230,7 @@ async function loadClients() {
   await clientAccountsStore.loadClients();
 }
 
-async function createClientAccount(payload: CreateClientAccountRequest) {
-  const createdClient = await clientAccountsStore.createClientAccount(payload);
-  if (!createdClient) {
-    return;
-  }
-
+function clientAccountCreated(createdClient: CreatedClientAccount) {
   plainTextPat.value = createdClient.token.plainTextToken;
   plainTextPatName.value = createdClient.token.token.name;
   isCreateDialogOpen.value = false;
