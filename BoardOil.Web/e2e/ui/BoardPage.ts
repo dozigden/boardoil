@@ -71,6 +71,13 @@ export class BoardPage {
     return this.column(columnTitle).getByRole('checkbox').filter({ hasText: cardTitle });
   }
 
+  public async openBulkEdit() {
+    await this.page.getByRole('button', { name: 'Edit', exact: true }).click();
+    const dialog = this.page.getByRole('dialog', { name: 'Bulk Edit Selected Cards', exact: true });
+    await expect(dialog).toBeVisible();
+    return dialog;
+  }
+
   public async archiveSelectedCards(selectedCount: number) {
     await this.page.getByRole('button', { name: `Archive ${selectedCount} selected cards` }).click();
     const dialog = this.page.getByRole('dialog').filter({

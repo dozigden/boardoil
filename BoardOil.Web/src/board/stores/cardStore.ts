@@ -13,6 +13,8 @@ import type {
 } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
+import { err, ok } from '../../shared/types/result';
+import type { BulkEditCardsOptions } from '../../shared/types/bulkEditTypes';
 
 type CardMap = Record<number, Card>;
 type CardIdsByColumnMap = Record<number, number[]>;
@@ -267,33 +269,31 @@ export const useCardStore = defineStore('card', () => {
     return removeCards(boardId, uniqueCardIds);
   }
 
-  function bulkMoveCards(
+  async function bulkMoveCards(
     cardIds: number[],
     targetColumnId: number,
     targetCardId: number | null
   ) {
-    return bulkEditCards(
+    const boardId = activeBoardId.value;
+    const result = await bulkEditCards(
       cardIds,
       {
         moveTargetColumnId: targetColumnId,
         moveTargetCardId: targetCardId
       }
     );
+    if (activeBoardId.value !== boardId) return false;
+    if (!result.ok) reportError(result.error);
+    return result.ok;
   }
 
   async function bulkEditCards(
     cardIds: number[],
-    options: {
-      moveTargetColumnId?: number | null;
-      moveTargetCardId?: number | null;
-      addTagNames?: string[];
-      removeTagNames?: string[];
-      slickName?: string | null;
-    }
-  ) {
+    options: BulkEditCardsOptions
+  ): Promise<Result<Card[], AppError>> {
     const uniqueCardIds = [...new Set(cardIds)];
     if (uniqueCardIds.length === 0) {
-      return true;
+      return ok([]);
     }
 
     const normalisedAddTagNames = normaliseTagNames(options.addTagNames ?? []);
@@ -313,7 +313,7 @@ export const useCardStore = defineStore('card', () => {
         options.moveTargetCardId ?? null
       );
       if (positionAfterCardId === undefined) {
-        return false;
+        return err({ kind: 'api', message: 'The target card is no longer available. Please try again.' });
       }
 
       movePayload = {
@@ -331,13 +331,10 @@ export const useCardStore = defineStore('card', () => {
         removeTagNames: normalisedRemoveTagNames,
         slick: slickPayload
       }),
-      { boardId }
+      { boardId, suppressError: () => true }
     );
-    if (!result.ok) {
-      return false;
-    }
-
-    return upsertCards(boardId, result.data);
+    if (result.ok) upsertCards(boardId, result.data);
+    return result;
   }
 
   function normaliseTagNames(tagNames: string[]) {

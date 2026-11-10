@@ -466,7 +466,7 @@ describe('cardStore', () => {
       removeTagNames: ['Old']
     });
 
-    expect(edited).toBe(true);
+    expect(edited.ok).toBe(true);
     expect(api.editCards).toHaveBeenCalledWith(1, {
       cardIds: [101],
       move: null,
@@ -492,7 +492,7 @@ describe('cardStore', () => {
       slickName: null
     });
 
-    expect(edited).toBe(true);
+    expect(edited.ok).toBe(true);
     expect(api.editCards).toHaveBeenCalledWith(1, {
       cardIds: [101],
       move: null,
@@ -522,7 +522,7 @@ describe('cardStore', () => {
       slickName: '  Release train  '
     });
 
-    expect(edited).toBe(true);
+    expect(edited.ok).toBe(true);
     expect(api.editCards).toHaveBeenCalledWith(1, {
       cardIds: [101],
       move: null,
@@ -533,6 +533,56 @@ describe('cardStore', () => {
     expect(store.getCardById(101)?.slickName).toBe('Release train');
     expect(slickStore.slicks).toEqual([slick]);
     expect(api.getSlicks).not.toHaveBeenCalled();
+  });
+
+  it.each(['edit', 'move'] as const)('preserves %s failure feedback and leaves cards unchanged', async operation => {
+    const store = useCardStore();
+    const feedback = useUiFeedbackStore();
+    store.replaceBoardCards(1, makeBoard().columns);
+    const before = store.getCardById(101);
+    const failure = err<AppError>({ kind: 'api', message: 'Column no longer exists.', validationErrors: { 'move.targetColumnId': ['Choose another column.'] } });
+    api.editCards.mockResolvedValueOnce(failure);
+
+    const result = operation === 'edit'
+      ? await store.bulkEditCards([101], { moveTargetColumnId: 2 })
+      : await store.bulkMoveCards([101], 2, null);
+
+    if (operation === 'edit') {
+      expect(result).toBe(failure);
+      expect(feedback.errorMessage).toBe('');
+    } else {
+      expect(result).toBe(false);
+      expect(feedback.errorMessage).toBe('Column no longer exists.');
+    }
+    expect(store.getCardById(101)).toBe(before);
+    expect(store.busy).toBe(false);
+  });
+
+  describe.each(['edit', 'move'] as const)('late bulk %s responses', operation => {
+    it.each(['success', 'failure'] as const)('ignores old-board %s without disturbing the current board', async outcome => {
+      const store = useCardStore();
+      const feedback = useUiFeedbackStore();
+      store.replaceBoardCards(1, makeBoard().columns);
+      const oldCard = store.getCardById(101)!;
+      const pending = deferred<Result<Card[], AppError>>();
+      api.editCards.mockReturnValueOnce(pending.promise);
+      const request = operation === 'edit'
+        ? store.bulkEditCards([101], { moveTargetColumnId: 2 })
+        : store.bulkMoveCards([101], 2, null);
+      store.replaceBoardCards(2, makeBoard().columns);
+      const currentCard = store.getCardById(101);
+      feedback.setError('Current error', 'card');
+      pending.resolve(outcome === 'success'
+        ? ok([{ ...oldCard, boardColumnId: 2 }])
+        : err({ kind: 'api', message: 'Old error' }));
+
+      const result = await request;
+
+      if (operation === 'move') expect(result).toBe(false);
+      expect(store.getCardById(101)).toBe(currentCard);
+      expect(feedback.errorMessage).toBe('Current error');
+      expect(store.busy).toBe(false);
+    });
   });
 
   it('translates drop-before-card into predecessor anchor', async () => {

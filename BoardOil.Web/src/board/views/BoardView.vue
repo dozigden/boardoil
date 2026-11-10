@@ -56,23 +56,15 @@
       />
 
       <BoardBulkEditSelectedCardsDialog
-        :open="isBulkEditDialogOpen"
-        :selected-count="selectedCardCount"
-        :is-saving="isApplyingBulkEdit"
-        :available-tag-names="availableTagNames"
+        v-if="isBulkEditDialogOpen"
+        :key="board.id"
+        :board-id="board.id"
+        :selected-card-ids="selectedCards.map(card => card.id)"
         :columns="filteredColumns.map(column => ({ id: column.id, title: column.title }))"
-        :slicks="slicks.map(slick => ({ id: slick.id, name: slick.name }))"
-        :filter-states="bulkEditTagStates"
-        :target-column-id="bulkEditTargetColumnId"
-        :slick-operation="bulkEditSlickOperation"
-        :target-slick-name="bulkEditTargetSlickName"
-        :has-changes="hasBulkEditChanges"
-        @update:filter-states="bulkEditTagStates = $event"
-        @update:target-column-id="bulkEditTargetColumnId = $event"
-        @update:slick-operation="bulkEditSlickOperation = $event"
-        @update:target-slick-name="bulkEditTargetSlickName = $event"
+        :slicks="slicks"
+        @update:busy="onBulkEditBusyChange"
         @close="closeBulkEditDialog"
-        @confirm="confirmBulkEdit"
+        @saved="onBulkEditSaved"
       />
     </section>
   </section>
@@ -80,7 +72,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import BoardArchiveSelectedCardsDialog from '../components/BoardArchiveSelectedCardsDialog.vue';
 import BoardBulkEditSelectedCardsDialog from '../components/BoardBulkEditSelectedCardsDialog.vue';
@@ -93,17 +85,11 @@ import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useSlickStore } from '../stores/slickStore';
 import { useTagStore } from '../stores/tagStore';
-import type { BulkEditSlickOperation } from '../../shared/types/bulkEditTypes';
-import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 
 const isBulkEditDialogOpen = ref(false);
 const isApplyingBulkEdit = ref(false);
-const bulkEditTagStates = ref<TagFilterStateMap>({});
-const bulkEditTargetColumnId = ref<number | null>(null);
-const bulkEditSlickOperation = ref<BulkEditSlickOperation>('none');
-const bulkEditTargetSlickName = ref<string | null>(null);
 
 const router = useRouter();
 const boardStore = useBoardStore();
@@ -118,7 +104,7 @@ const { board, currentBoardId } = storeToRefs(boardStore);
 const { cardTypes } = storeToRefs(cardTypeStore);
 const { slicks } = storeToRefs(slickStore);
 const { tags } = storeToRefs(tagStore);
-const { archiveCards, bulkMoveCards, bulkEditCards, deleteCards } = cardStore;
+const { archiveCards, bulkMoveCards, deleteCards } = cardStore;
 const { confirm } = useConfirm();
 const {
   cardSearchText,
@@ -202,13 +188,6 @@ function toggleCardSelectionMode() {
   }
 }
 
-const hasBulkEditChanges = computed(() =>
-  bulkEditTargetColumnId.value !== null
-  || bulkEditSlickOperation.value === 'clear'
-  || (bulkEditSlickOperation.value === 'set' && bulkEditTargetSlickName.value !== null)
-  || Object.keys(bulkEditTagStates.value).length > 0
-);
-
 function selectAllVisibleInColumn(columnId: number) {
   selectCardIds(boardSurface.value?.getVisibleCardIds(columnId) ?? []);
 }
@@ -238,60 +217,18 @@ function openBulkEditDialog() {
   isBulkEditDialogOpen.value = true;
 }
 
-function closeBulkEditDialog(force = false) {
-  if (isApplyingBulkEdit.value && !force) {
-    return;
-  }
-
-  isBulkEditDialogOpen.value = false;
-  bulkEditTagStates.value = {};
-  bulkEditTargetColumnId.value = null;
-  bulkEditSlickOperation.value = 'none';
-  bulkEditTargetSlickName.value = null;
+function closeBulkEditDialog() {
+  if (!isApplyingBulkEdit.value) isBulkEditDialogOpen.value = false;
 }
 
-async function confirmBulkEdit() {
-  const cardIds = selectedCards.value.map(card => card.id);
-  if (cardIds.length === 0) {
-    closeBulkEditDialog();
-    return;
-  }
+function onBulkEditBusyChange(value: boolean) {
+  isApplyingBulkEdit.value = value;
+}
 
-  const addTagNames = resolveTagNamesForState('include');
-  const removeTagNames = resolveTagNamesForState('exclude');
-  const bulkEditOptions: {
-    moveTargetColumnId: number | null;
-    moveTargetCardId: number | null;
-    addTagNames: string[];
-    removeTagNames: string[];
-    slickName?: string | null;
-  } = {
-    moveTargetColumnId: bulkEditTargetColumnId.value,
-    moveTargetCardId: null,
-    addTagNames,
-    removeTagNames
-  };
-  if (bulkEditSlickOperation.value === 'clear') {
-    bulkEditOptions.slickName = null;
-  }
-
-  if (bulkEditSlickOperation.value === 'set' && bulkEditTargetSlickName.value !== null) {
-    bulkEditOptions.slickName = bulkEditTargetSlickName.value;
-  }
-
-  isApplyingBulkEdit.value = true;
-  try {
-    const edited = await bulkEditCards(cardIds, bulkEditOptions);
-    if (!edited) {
-      return;
-    }
-
-    closeBulkEditDialog(true);
-    boardSurface.value?.resetInteraction();
-    toggleCardSelectionModeInternal();
-  } finally {
-    isApplyingBulkEdit.value = false;
-  }
+function onBulkEditSaved() {
+  closeBulkEditDialog();
+  boardSurface.value?.resetInteraction();
+  resetSelectionState();
 }
 
 async function confirmDeleteSelectedCards() {
@@ -327,25 +264,6 @@ async function confirmDeleteSelectedCards() {
   } finally {
     isApplyingBulkEdit.value = false;
   }
-}
-
-function resolveTagNamesForState(state: 'exclude' | 'include') {
-  const namesByNormalised = new Map(
-    availableTagNames.value.map(tagName => [tagName.trim().toLocaleLowerCase(), tagName] as const)
-  );
-  const tagNames: string[] = [];
-  for (const [normalisedName, tagState] of Object.entries(bulkEditTagStates.value)) {
-    if (tagState !== state) {
-      continue;
-    }
-
-    const tagName = namesByNormalised.get(normalisedName);
-    if (tagName) {
-      tagNames.push(tagName);
-    }
-  }
-
-  return tagNames;
 }
 
 async function openCardEditor(cardId: number) {
