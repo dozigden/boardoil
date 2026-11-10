@@ -76,6 +76,24 @@ describe('form submission lifecycle', () => {
     expect(useValidationStore().validation).toBeNull();
   });
 
+  it('adopts the saved response as the draft and reset baseline, retaining it after rejected edits', async () => {
+    const config = definition();
+    config.savedValues = value => ({ name: `Saved ${value}` });
+    const form = useForm(config);
+    form.setValue('name', 'Submitted');
+    await form.submit();
+    expect(form.draft.value).toEqual({ name: 'Saved 42' });
+    expect(form.dirty.value).toBe(false);
+    form.setValue('name', 'Rejected edit');
+    config.submit = vi.fn().mockResolvedValue(err({ message: 'Cannot save' }));
+    await form.submit();
+    expect(form.draft.value.name).toBe('Rejected edit');
+    expect(form.dirty.value).toBe(true);
+    form.reset();
+    expect(form.draft.value.name).toBe('Saved 42');
+    expect(form.dirty.value).toBe(false);
+  });
+
   it('releases busy state if an unexpected submit exception escapes', async () => {
     const config = definition();
     config.submit = vi.fn().mockRejectedValue(new Error('Unexpected'));
@@ -119,6 +137,7 @@ describe('form submission lifecycle', () => {
     const config = definition();
     let current = true;
     config.isCurrent = () => current;
+    config.savedValues = vi.fn(() => ({ name: 'Old response' }));
     let finish!: (result: Result<number, FormError>) => void;
     config.submit = () => new Promise(resolve => { finish = resolve; });
     const form = useForm(config);
@@ -129,6 +148,8 @@ describe('form submission lifecycle', () => {
     finish(success ? ok(42) : err({ message: 'Old board failure' }));
     expect(await pending).toBeUndefined();
     expect(validation.getValidationMessages()).toEqual(['New board feedback']);
+    expect(config.savedValues).not.toHaveBeenCalled();
+    expect(form.draft.value.name).toBe('Initial');
     expect(form.busy.value).toBe(false);
   });
 

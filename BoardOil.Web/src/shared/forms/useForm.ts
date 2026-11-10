@@ -28,7 +28,6 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
 
   function reset() {
     if (busy.value) return;
-    initial.value = clone(definition.initialValues());
     draft.value = clone(initial.value);
     validation.clearValidation();
   }
@@ -63,7 +62,10 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
         return err({ message: 'Validation failed.', validationErrors: errors });
       }
       const result = await definition.submit(clone(draft.value));
-      if (result.ok) initial.value = clone(draft.value);
+      if (result.ok && isCurrent()) {
+        if (definition.savedValues) draft.value = clone(definition.savedValues(result.data));
+        initial.value = clone(draft.value);
+      }
       return result;
     });
   }

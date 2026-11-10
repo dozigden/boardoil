@@ -57,14 +57,14 @@ async function submit() {
   const result = await submitForm();
   if (!result) return;
   if (result.ok) emit('saved', result.data);
-  else await feedback.value?.focusFeedback();
+  else await feedback.value?.showFeedback();
 }
 
 async function runAction(action: FormAction<T>) {
   const result = await runFormAction(action);
   if (!result) return;
   if (result.ok) emit('close');
-  else await feedback.value?.focusFeedback();
+  else await feedback.value?.showFeedback();
 }
 
 function cancel() {

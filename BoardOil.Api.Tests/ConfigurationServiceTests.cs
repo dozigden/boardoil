@@ -85,8 +85,11 @@ public sealed class ConfigurationServiceTests
         Assert.Null(await repository.GetByKeyAsync("mcp_public_base_url"));
     }
 
-    [Fact]
-    public async Task UpdateConfigurationAsync_WithInvalidUrl_ShouldReturnBadRequestAndLeaveStateUnchanged()
+    [Theory]
+    [InlineData("relative/path", "mcpPublicBaseUrl must be an absolute URL.")]
+    [InlineData("ftp://boardoil.example.com", "mcpPublicBaseUrl must use http or https.")]
+    [InlineData("https://boardoil.example.com/?query=value", "mcpPublicBaseUrl cannot include query string or fragment.")]
+    public async Task UpdateConfigurationAsync_WithInvalidUrl_ShouldReturnBadRequestAndLeaveStateUnchanged(string url, string message)
     {
         // Arrange
         var repository = new InMemoryAppSettingRepository();
@@ -100,11 +103,12 @@ public sealed class ConfigurationServiceTests
 
         // Act
         var result = await service.UpdateConfigurationAsync(
-            new UpdateConfigurationRequest("relative/path", true, "UTC"));
+            new UpdateConfigurationRequest(url, true, "UTC"));
 
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
+        Assert.Equal([message], result.ValidationErrors!["mcpPublicBaseUrl"]);
         Assert.Equal(0, scopes.SaveChangesCallCount);
 
         var persisted = await repository.GetByKeyAsync("mcp_public_base_url");

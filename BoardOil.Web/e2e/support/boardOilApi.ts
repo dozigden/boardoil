@@ -1,5 +1,6 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 import type { Card, CardEditModel } from '../../src/shared/types/boardTypes';
+import type { ConfigurationDto, UpdateConfigurationRequest } from '../../src/shared/types/configurationTypes';
 import type { CreatedClientAccount } from '../../src/shared/types/authTypes';
 
 type ApiEnvelope<T> = {
@@ -77,6 +78,14 @@ export class BoardOilApi {
       name,
       description: 'Playwright smoke test board'
     });
+  }
+
+  public async getConfiguration() {
+    return await this.read<ConfigurationDto>('/api/system/configuration');
+  }
+
+  public async updateConfiguration(value: UpdateConfigurationRequest) {
+    return await this.put<ConfigurationDto>('/api/system/configuration', value);
   }
 
   public async getSystemTimeZone() {

@@ -33,7 +33,8 @@ public sealed class ConfigurationService(
         var normalisedBaseUrlResult = NormaliseMcpPublicBaseUrl(request.McpPublicBaseUrl);
         if (!normalisedBaseUrlResult.Success)
         {
-            return normalisedBaseUrlResult.Error!;
+            var error = normalisedBaseUrlResult.Error!;
+            return error with { ValidationErrors = new() { ["mcpPublicBaseUrl"] = [error.Message] } };
         }
 
         var timeZoneError = timeZones.Validate(request.SystemTimeZoneId);

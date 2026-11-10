@@ -1,7 +1,7 @@
 <template>
   <div ref="root" class="searchable-select">
     <div class="searchable-select-field">
-      <input :id="id" ref="input" :value="displayText" role="combobox" type="text" autocomplete="off"
+      <input v-bind="$attrs" :id="id" ref="input" :value="displayText" role="combobox" type="text" autocomplete="off"
         :disabled="disabled" :aria-label="label" aria-autocomplete="list" :aria-expanded="expanded"
         :aria-controls="listId" :aria-activedescendant="activeOptionId" :placeholder="placeholder"
         @focus="onFocus" @click="open" @input="onInput" @keydown="onKeydown" @blur="close" />
@@ -26,10 +26,12 @@ import { Check, ChevronDown } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { useClickOutside } from '../composables/useClickOutside';
 
+defineOptions({ inheritAttrs: false });
+
 const props = withDefaults(defineProps<{
   id: string;
   label: string;
-  options: { value: string; label: string }[];
+  options: readonly { value: string; label: string }[];
   disabled?: boolean;
   placeholder?: string;
 }>(), { disabled: false, placeholder: 'Select an option' });

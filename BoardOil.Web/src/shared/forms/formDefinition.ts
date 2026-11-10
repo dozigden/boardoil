@@ -14,17 +14,20 @@ export type FormFieldDefinition<T> = {
   [K in Extract<keyof T, string>]: {
     name: K;
     label: string;
+    help?: string;
     // A compound control can represent several API validation keys.
     errorFields?: readonly string[];
     clearFields?: readonly Extract<keyof T, string>[];
   } & (
     | { type: 'custom'; component: Component }
+    | FieldForValue<T[K], boolean, { type: 'checkbox' }>
+    | FieldForValue<T[K], string, { type: 'searchableSelect'; options: readonly { value: string; label: string }[] }>
     | FieldForValue<T[K], string | null, { type: 'emoji' }>
     | FieldForValue<T[K], StyleDraft, { type: 'style' }>
     | FieldForValue<T[K], string[], { type: 'tokenScopes'; allowedScopes: readonly string[] }>
     | FieldForValue<T[K], TokenExpiryDraft, { type: 'tokenExpiry' }>
     | (T[K] extends string ? (
-      | { type: 'text' | 'email' | 'password'; maxLength?: number; autocomplete?: string; placeholder?: string; required?: boolean }
+      | { type: 'text' | 'email' | 'password'; maxLength?: number; autocomplete?: string; placeholder?: string; required?: boolean; clearable?: boolean; spellcheck?: boolean }
       | { type: 'select'; options: readonly { value: T[K]; label: string }[]; required?: boolean }
     ) : never)
   )
@@ -49,6 +52,7 @@ export type FormDefinition<T extends object, R> = {
   category?: string;
   initialValues: () => T;
   fields: readonly FormFieldDefinition<T>[];
+  savedValues?: (result: R) => T;
   normalize?: (values: T) => T;
   validate?: (values: T) => FormErrors<T>;
   canSubmit?: (values: T) => boolean;

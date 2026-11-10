@@ -7,6 +7,8 @@ type Draft = {
   emoji: string | null;
   style: StyleDraft;
   name: string;
+  enabled: boolean;
+  fixed: true;
   restrictedEmoji: '😀' | null;
   optionalStyle?: StyleDraft;
   extendedStyle: StyleDraft & { extra: string };
@@ -17,6 +19,10 @@ type Draft = {
 
 it('binds domain controls only to draft values that accept their full output', () => {
   type Field = FormFieldDefinition<Draft>;
+  expectTypeOf<{ name: 'enabled'; label: string; type: 'checkbox' }>().toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'fixed'; label: string; type: 'checkbox' }>().not.toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'name'; label: string; type: 'searchableSelect'; options: { value: string; label: string }[] }>().toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'enabled'; label: string; type: 'searchableSelect'; options: { value: string; label: string }[] }>().not.toMatchTypeOf<Field>();
   expectTypeOf<{ name: 'emoji'; label: string; type: 'emoji' }>().toMatchTypeOf<Field>();
   expectTypeOf<{ name: 'style'; label: string; type: 'style' }>().toMatchTypeOf<Field>();
 
