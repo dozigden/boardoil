@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createSystemApi } from '../../shared/api/systemApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useValidationStore } from '../../shared/stores/validationStore';
 import type {
   CreateManagedUserRequest,
   ManagedUser,
@@ -14,6 +15,7 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
   const errorMessage = ref<string | null>(null);
   const api = createSystemApi();
   const feedback = useUiFeedbackStore();
+  const validation = useValidationStore();
 
   function SET_USERS(nextUsers: ManagedUser[]) {
     users.value = nextUsers;
@@ -61,11 +63,11 @@ export const useSystemUsersManagerStore = defineStore('systemUsersManager', () =
 
   async function createUser(payload: CreateManagedUserRequest) {
     busy.value = true;
-    clearMessages();
+    validation.clearValidation();
     try {
       const result = await api.createUser(payload);
+      validation.setValidationResult(result);
       if (!result.ok) {
-        feedback.showToast(result.error.message, 'error');
         return false;
       }
 

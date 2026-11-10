@@ -3,17 +3,18 @@ import { ref } from 'vue';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 
-type ValidationFeedback = { category: string; error: AppError };
+type ValidationError = Pick<AppError, 'message' | 'validationErrors'>;
+type ValidationFeedback = { category: string; error: ValidationError };
 
 export const useValidationStore = defineStore('validation', () => {
   const validation = ref<ValidationFeedback | null>(null);
 
-  function SET_VALIDATION(error: AppError | null, category = '') {
+  function SET_VALIDATION(error: ValidationError | null, category = '') {
     validation.value = error ? { category, error } : null;
   }
 
   // One current submission result. Categories filter its display, not its storage.
-  function setValidationResult<T>(result: Result<T, AppError>, category = '') {
+  function setValidationResult<T>(result: Result<T, ValidationError>, category = '') {
     if (result.ok) {
       SET_VALIDATION(null);
       return;
@@ -26,7 +27,7 @@ export const useValidationStore = defineStore('validation', () => {
     SET_VALIDATION(null);
   }
 
-  function getValidationError(category: string): AppError | undefined {
+  function getValidationError(category: string): ValidationError | undefined {
     if (category && validation.value?.category !== category) {
       return undefined;
     }

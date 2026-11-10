@@ -2,6 +2,9 @@ import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSystemApi, type SystemApi } from '../../shared/api/systemApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
+import { useValidationStore } from '../../shared/stores/validationStore';
+import type { AppError } from '../../shared/types/appError';
+import type { Result } from '../../shared/types/result';
 import type { ManagedUser } from '../../shared/types/authTypes';
 import { err, ok } from '../../shared/types/result';
 
@@ -36,6 +39,42 @@ describe('systemUsersManagerStore feedback', () => {
     expect(feedback.toastMessage).toBe('Created successfully.');
     expect(feedback.toastTone).toBe('success');
     expect(store.errorMessage).toBeNull();
+  });
+
+  it('publishes creation validation without a failure toast and clears it on retry', async () => {
+    const api = createApi();
+    api.createUser.mockResolvedValueOnce(err({
+      kind: 'api', message: 'Validation failed.', validationErrors: { password: ['Too short'] }
+    }));
+    vi.mocked(createSystemApi).mockReturnValue(api);
+    const store = useSystemUsersManagerStore();
+    const validation = useValidationStore();
+    const feedback = useUiFeedbackStore();
+    const payload = { userName: 'new-user', displayName: 'New User', email: 'new-user@example.test', password: 'short', role: 'Standard' as const };
+    store.errorMessage = 'Existing load error';
+
+    expect(await store.createUser(payload)).toBe(false);
+    expect(validation.getFieldErrors('password')).toEqual(['Too short']);
+    expect(feedback.toastMessage).toBe('');
+    expect(store.errorMessage).toBe('Existing load error');
+    expect(store.users).toEqual([]);
+    expect(store.busy).toBe(false);
+
+    vi.mocked(api.getUsers).mockResolvedValueOnce(ok([]));
+    await store.loadUsers();
+    expect(validation.getFieldErrors('password')).toEqual(['Too short']);
+
+    let finish!: (result: Result<ManagedUser, AppError>) => void;
+    api.createUser.mockReturnValueOnce(new Promise<Result<ManagedUser, AppError>>(resolve => { finish = resolve; }));
+    const retry = store.createUser({ ...payload, password: 'Password1234!' });
+    expect(validation.getValidationMessages()).toEqual([]);
+    expect(store.busy).toBe(true);
+    finish(ok(newUser('New User')));
+    expect(await retry).toBe(true);
+    expect(store.busy).toBe(false);
+    expect(store.users).toEqual([newUser('New User')]);
+    expect(validation.getValidationMessages()).toEqual([]);
+    expect(feedback.toastMessage).toBe('Created successfully.');
   });
 
   it('shows mutation failures as error toasts without replacing load errors', async () => {

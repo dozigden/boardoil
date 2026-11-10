@@ -6,142 +6,139 @@
     @close="closeDialog"
     @submit="saveCardType"
   >
-    <FormErrorSummary ref="errorSummary" :rendered-fields="['name']" />
-    <template v-if="draftName !== null && draftStyle !== null">
-      <div class="card-types-dialog-preview">
-        <span class="badge">Preview</span>
-        <article class="card-type-preview-card" :class="previewCardStyleClasses" :style="previewCardStyle">
-          <div class="card-header">
-            <strong class="card-title">{{ previewTitle }}</strong>
-            <span class="card-id">#123</span>
-          </div>
-        </article>
-      </div>
-
-      <label>
-        Name
-        <input
-          ref="nameInput"
-          v-model="draftName"
-          :aria-invalid="hasNameErrors || undefined"
-          :aria-describedby="hasNameErrors ? nameErrorsId : undefined"
-          maxlength="40"
-          :placeholder="isCreateMode ? 'New card type name' : 'Card type name'"
-          :disabled="busy"
-          autocomplete="off"
-          data-lpignore="true"
-        />
-      </label>
-      <FormFieldErrors :id="nameErrorsId" field="name" />
-
-      <label>
-        Emoji
-        <div class="card-types-emoji-picker-wrap">
-          <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" :teleport="false" placeholder="Select emoji" />
+    <FormValidation>
+      <template v-if="draftName !== null && draftStyle !== null">
+        <div class="card-types-dialog-preview">
+          <span class="badge">Preview</span>
+          <article class="card-type-preview-card" :class="previewCardStyleClasses" :style="previewCardStyle">
+            <div class="card-header">
+              <strong class="card-title">{{ previewTitle }}</strong>
+              <span class="card-id">#123</span>
+            </div>
+          </article>
         </div>
-      </label>
 
-      <label>
-        Style
-        <select :value="draftStyle.styleName" :disabled="busy" @change="onStyleNameChange">
-          <option value="auto">Auto</option>
-          <option value="presets">Presets</option>
-          <option value="solid">Solid</option>
-          <option value="gradient">Gradient</option>
-        </select>
-      </label>
+        <FormField v-slot="{ inputAttrs }" field="name" label="Name">
+          <input
+            v-model="draftName"
+            v-bind="inputAttrs"
+            maxlength="40"
+            :placeholder="isCreateMode ? 'New card type name' : 'Card type name'"
+            :disabled="busy"
+            autocomplete="off"
+            data-lpignore="true"
+          />
+        </FormField>
 
-      <template v-if="draftStyle.styleName === 'presets'">
         <label>
-          Preset
-          <div class="card-types-preset-picker" role="radiogroup" aria-label="Card type preset colour">
-            <button
-              v-for="preset in presetColours"
-              :key="preset.cssVar"
-              type="button"
-              class="card-types-preset-swatch"
-              :class="{ 'card-types-preset-swatch--selected': draftStyle.presetIndex === preset.index }"
-              :style="{ backgroundColor: preset.cssValue }"
-              :disabled="busy"
-              :aria-pressed="draftStyle.presetIndex === preset.index"
-              :aria-label="`Preset ${preset.index + 1}`"
-              @click="setDraftStyleField('presetIndex', preset.index)"
-            />
+          Emoji
+          <div class="card-types-emoji-picker-wrap">
+            <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" :teleport="false" placeholder="Select emoji" />
           </div>
         </label>
-      </template>
 
-      <template v-else-if="draftStyle.styleName === 'solid'">
         <label>
-          Background Color
+          Style
+          <select :value="draftStyle.styleName" :disabled="busy" @change="onStyleNameChange">
+            <option value="auto">Auto</option>
+            <option value="presets">Presets</option>
+            <option value="solid">Solid</option>
+            <option value="gradient">Gradient</option>
+          </select>
+        </label>
+
+        <template v-if="draftStyle.styleName === 'presets'">
+          <label>
+            Preset
+            <div class="card-types-preset-picker" role="radiogroup" aria-label="Card type preset colour">
+              <button
+                v-for="preset in presetColours"
+                :key="preset.cssVar"
+                type="button"
+                class="card-types-preset-swatch"
+                :class="{ 'card-types-preset-swatch--selected': draftStyle.presetIndex === preset.index }"
+                :style="{ backgroundColor: preset.cssValue }"
+                :disabled="busy"
+                :aria-pressed="draftStyle.presetIndex === preset.index"
+                :aria-label="`Preset ${preset.index + 1}`"
+                @click="setDraftStyleField('presetIndex', preset.index)"
+              />
+            </div>
+          </label>
+        </template>
+
+        <template v-else-if="draftStyle.styleName === 'solid'">
+          <label>
+            Background Color
+            <input
+              type="color"
+              class="card-types-colour-input"
+              v-model="draftStyle.backgroundColor"
+              :disabled="busy"
+            />
+          </label>
+        </template>
+
+        <template v-else-if="draftStyle.styleName === 'gradient'">
+          <label>
+            Left Color
+            <input
+              type="color"
+              class="card-types-colour-input"
+              v-model="draftStyle.leftColor"
+              :disabled="busy"
+            />
+          </label>
+          <label>
+            Right Color
+            <input
+              type="color"
+              class="card-types-colour-input"
+              v-model="draftStyle.rightColor"
+              :disabled="busy"
+            />
+          </label>
+        </template>
+
+        <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
+          Text Color Mode
+          <select :value="draftStyle.textColorMode" :disabled="busy" @change="onTextModeChange">
+            <option value="auto">Auto Contrast</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+
+        <label v-if="(draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient') && draftStyle.textColorMode === 'custom'">
+          Text Color
           <input
             type="color"
             class="card-types-colour-input"
-            v-model="draftStyle.backgroundColor"
+            v-model="draftStyle.textColor"
+            :disabled="busy"
+          />
+        </label>
+
+        <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
+          Border
+          <select :value="draftStyle.borderMode" :disabled="busy" @change="onBorderModeChange">
+            <option value="auto">Auto</option>
+            <option value="custom">Custom</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+
+        <label v-if="(draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient') && draftStyle.borderMode === 'custom'">
+          Border Color
+          <input
+            type="color"
+            class="card-types-colour-input"
+            v-model="draftStyle.borderColor"
             :disabled="busy"
           />
         </label>
       </template>
 
-      <template v-else-if="draftStyle.styleName === 'gradient'">
-        <label>
-          Left Color
-          <input
-            type="color"
-            class="card-types-colour-input"
-            v-model="draftStyle.leftColor"
-            :disabled="busy"
-          />
-        </label>
-        <label>
-          Right Color
-          <input
-            type="color"
-            class="card-types-colour-input"
-            v-model="draftStyle.rightColor"
-            :disabled="busy"
-          />
-        </label>
-      </template>
-
-      <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
-        Text Color Mode
-        <select :value="draftStyle.textColorMode" :disabled="busy" @change="onTextModeChange">
-          <option value="auto">Auto Contrast</option>
-          <option value="custom">Custom</option>
-        </select>
-      </label>
-
-      <label v-if="(draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient') && draftStyle.textColorMode === 'custom'">
-        Text Color
-        <input
-          type="color"
-          class="card-types-colour-input"
-          v-model="draftStyle.textColor"
-          :disabled="busy"
-        />
-      </label>
-
-      <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
-        Border
-        <select :value="draftStyle.borderMode" :disabled="busy" @change="onBorderModeChange">
-          <option value="auto">Auto</option>
-          <option value="custom">Custom</option>
-          <option value="none">None</option>
-        </select>
-      </label>
-
-      <label v-if="(draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient') && draftStyle.borderMode === 'custom'">
-        Border Color
-        <input
-          type="color"
-          class="card-types-colour-input"
-          v-model="draftStyle.borderColor"
-          :disabled="busy"
-        />
-      </label>
-    </template>
-
+    </FormValidation>
     <template #actions>
       <div v-if="draftName !== null" class="fixed-chrome-dialog-actions">
         <div class="card-type-dialog-leading-actions">
@@ -181,12 +178,12 @@
 <script setup lang="ts">
 import { Check, Trash2, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
-import FormErrorSummary from '../../shared/components/FormErrorSummary.vue';
-import FormFieldErrors from '../../shared/components/FormFieldErrors.vue';
+import FormValidation from '../../shared/components/FormValidation.vue';
+import FormField from '../../shared/components/FormField.vue';
 import { useValidationStore } from '../../shared/stores/validationStore';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import type { CardTypeEditModel } from '../../shared/types/boardTypes';
@@ -208,12 +205,6 @@ const router = useRouter();
 const boardStore = useBoardStore();
 const cardTypeStore = useCardTypeStore();
 const validation = useValidationStore();
-const nameInput = ref<HTMLInputElement | null>(null);
-const errorSummary = ref<InstanceType<typeof FormErrorSummary> | null>(null);
-const nameErrorsId = `card-type-name-errors-${useId()}`;
-const hasNameErrors = computed(() => validation.getFieldErrors('name').length > 0);
-validation.clearValidation();
-onBeforeUnmount(() => validation.clearValidation());
 const { confirm } = useConfirm();
 const { currentBoardId } = storeToRefs(boardStore);
 const { busy } = storeToRefs(cardTypeStore);
@@ -234,7 +225,6 @@ const {
 const draftSourceKey = ref<string | null>(null);
 const presetColours = PRESET_TOKENS;
 
-watch(draftName, () => validation.clearFieldErrors('name'));
 watch(draftEmoji, () => validation.clearFieldErrors('emoji'));
 watch(draftStyle, () => {
   validation.clearFieldErrors('styleName');
@@ -251,16 +241,6 @@ function onTextModeChange(event: Event) {
 
 function onBorderModeChange(event: Event) {
   setBorderMode((event.target as HTMLSelectElement).value);
-}
-
-async function focusSubmissionError() {
-  await nextTick();
-  if (hasNameErrors.value) {
-    nameInput.value?.focus();
-    return;
-  }
-
-  errorSummary.value?.focus();
 }
 
 const isCreateMode = computed(() => route.name === 'card-types-new');
@@ -380,7 +360,6 @@ async function saveCardType() {
   if (isCreateMode.value) {
     const created = await createCardType(saveModel, targetBoardId);
     if (!created) {
-      await focusSubmissionError();
       return;
     }
 
@@ -394,7 +373,6 @@ async function saveCardType() {
 
   const updated = await updateCardType(editingCardType.value.id, saveModel, targetBoardId);
   if (!updated) {
-    await focusSubmissionError();
     return;
   }
 
@@ -420,7 +398,6 @@ async function deleteEditingCardType() {
 
   const deleted = await deleteCardType(cardType.id, targetBoardId);
   if (!deleted) {
-    await focusSubmissionError();
     return;
   }
 

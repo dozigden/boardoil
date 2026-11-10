@@ -43,6 +43,17 @@ describe('validationStore', () => {
     expect(store.getValidationMessages([], 'editor')).toEqual([]);
   });
 
+  it('uses the same replacement and correction behaviour for local and API validation', () => {
+    const store = useValidationStore();
+    store.setValidationResult(err({ kind: 'network', message: 'Offline' }));
+    store.setValidationResult(err({ message: 'Validation failed.', validationErrors: { confirmPassword: ['Passwords do not match.'] } }));
+    expect(store.getValidationMessages()).toEqual(['Passwords do not match.']);
+    store.clearFieldErrors('confirmPassword');
+    expect(store.getValidationMessages()).toEqual([]);
+    store.setValidationResult(err({ kind: 'api', message: 'Username already exists.' }));
+    expect(store.getValidationMessages()).toEqual(['Username already exists.']);
+  });
+
   it('keeps validation separate from page feedback and clears it explicitly', () => {
     const store = useValidationStore();
     const feedback = useUiFeedbackStore();
