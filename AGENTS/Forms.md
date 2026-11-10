@@ -4,7 +4,8 @@ Read this before changing the shared forms engine or migrating a form to it. See
 
 ## Scope
 
-- Card-type dialogs, Create User, Create Client Account, shared personal/client token creation, the Configuration page, card transfer and board creation use the forms-engine experiment (`shared/forms`, stories #980/#982/#983/#984/#987). Their stores or existing page callbacks return the full API `Result` and own API requests/entity updates; `useForm` owns submission validation publication. Other forms keep their existing feedback paths until explicitly migrated.
+- The forms engine is the established approach for suitable BoardOil forms. Prefer it for new ordinary CRUD forms. Existing forms migrate in explicitly agreed, reviewable slices; specialist editors can retain bespoke UI and reuse shared controls or feedback where useful.
+- Card-type dialogs, Create User, Create Client Account, shared personal/client token creation, the Configuration page, card transfer and board creation use the shared forms engine (`shared/forms`). Their stores or existing page callbacks return the full API `Result` and own API requests/entity updates; `useForm` owns submission validation publication. Other forms keep their existing feedback paths until explicitly migrated.
 
 ## Definitions and Drafts
 
@@ -20,7 +21,7 @@ Read this before changing the shared forms engine or migrating a form to it. See
 ## Reassessment and Context
 
 - Select fields preserve their declared string/number/null values; select and radio options can derive from the current draft. Fields may opt into `reassessOnChange`. The form's single `reassess` callback receives a draft snapshot and returns values, optional field definitions and an optional lookup error. `useForm` runs it initially, after reset and after flagged edits. It locks edits and submissions while awaiting the result, applies values/fields together without triggering another reassessment, and keeps initial/reset results as the clean baseline. Lookup errors have a separate Retry action and never replace submission validation. Cancel remains available during lookup; disposed forms ignore late assessment results. Controls only render choices and emit user edits. Card transfer keeps board/column loading and permission-dependent policy adjustment in this callback; the board catalogue loader suppresses its banner when the form owns lookup feedback.
-- Board-scoped definitions use `isCurrent` to preserve the existing board-ID feedback boundary before submission, after confirmation and on response. Store mutations and busy cleanup retain their own board guards. Do not add route generations or same-board unmount tracking to this experiment. Realtime catalogue updates do not reset an open draft; a different board/entity session creates a new form instance.
+- Board-scoped definitions use `isCurrent` to preserve the existing board-ID feedback boundary before submission, after confirmation and on response. Store mutations and busy cleanup retain their own board guards. The existing decision to omit route generations and same-board unmount tracking remains in place. Realtime catalogue updates do not reset an open draft; a different board/entity session creates a new form instance.
 
 ## Domain Controls and Existing Forms
 
