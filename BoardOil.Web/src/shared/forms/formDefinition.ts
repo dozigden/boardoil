@@ -5,6 +5,9 @@ import type { StyleDraft } from '../utils/styleTypes';
 import type { TokenExpiryDraft } from '../utils/accessTokenDraft';
 
 export type FormError = Pick<AppError, 'message' | 'validationErrors'>;
+export type FormOption<V> = { value: V; label: string; description?: string; disabled?: boolean };
+type Options<T, V> = readonly FormOption<V>[] | ((values: T) => readonly FormOption<V>[]);
+
 export type FormErrors<T> = Partial<Record<Extract<keyof T, string>, string[]>>;
 
 // A control must be able to read the draft value and write its full output type back.
@@ -15,6 +18,8 @@ export type FormFieldDefinition<T> = {
     name: K;
     label: string;
     help?: string;
+    disabled?: (values: T) => boolean;
+    reassessOnChange?: boolean;
     // A compound control can represent several API validation keys.
     errorFields?: readonly string[];
     clearFields?: readonly Extract<keyof T, string>[];
@@ -26,12 +31,22 @@ export type FormFieldDefinition<T> = {
     | FieldForValue<T[K], StyleDraft, { type: 'style' }>
     | FieldForValue<T[K], string[], { type: 'tokenScopes'; allowedScopes: readonly string[] }>
     | FieldForValue<T[K], TokenExpiryDraft, { type: 'tokenExpiry' }>
+    | (T[K] extends string | number | null ? {
+      type: 'select'; options: Options<T, T[K]>; required?: boolean;
+    } | {
+      type: 'radio'; options: Options<T, T[K]>;
+    } : never)
     | (T[K] extends string ? (
       | { type: 'text' | 'email' | 'password'; maxLength?: number; autocomplete?: string; placeholder?: string; required?: boolean; clearable?: boolean; spellcheck?: boolean }
-      | { type: 'select'; options: readonly { value: T[K]; label: string }[]; required?: boolean }
     ) : never)
   )
 }[Extract<keyof T, string>];
+
+export type FormAssessment<T> = {
+  values: T;
+  fields?: readonly FormFieldDefinition<T>[];
+  error?: string;
+};
 
 export type FormAction<T> = {
   name: string;
@@ -52,6 +67,7 @@ export type FormDefinition<T extends object, R> = {
   category?: string;
   initialValues: () => T;
   fields: readonly FormFieldDefinition<T>[];
+  reassess?: (values: T) => FormAssessment<T> | Promise<FormAssessment<T>>;
   savedValues?: (result: R) => T;
   normalize?: (values: T) => T;
   validate?: (values: T) => FormErrors<T>;

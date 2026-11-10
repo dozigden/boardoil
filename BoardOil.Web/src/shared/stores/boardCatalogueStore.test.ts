@@ -39,6 +39,17 @@ describe('boardCatalogueStore', () => {
     expect(response.map(board => board.id)).toEqual([20, 2]);
   });
 
+  it('lets a dialog handle board lookup failure without also publishing a page error', async () => {
+    const store = useBoardCatalogueStore();
+    const feedback = useUiFeedbackStore();
+    const publish = vi.spyOn(feedback, 'setError');
+    api.getBoards.mockResolvedValue(err({ kind: 'api', message: 'Boards unavailable' }));
+    expect(await store.loadBoards({ suppressError: true })).toBe(false);
+    expect(publish).not.toHaveBeenCalled();
+    expect(await store.loadBoards()).toBe(false);
+    expect(publish).toHaveBeenCalledWith('Boards unavailable', 'boardCatalogue');
+  });
+
   it.each(['create', 'clone', 'import', 'save'] as const)('%s upserts a board already present in the catalogue', async operation => {
     const store = useBoardCatalogueStore();
     const original = makeSummary(10, 'Original');

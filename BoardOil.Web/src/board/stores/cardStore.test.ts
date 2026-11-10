@@ -367,6 +367,20 @@ describe('cardStore', () => {
     expect(store.getCardById(101)).toBeNull();
   });
 
+  it('returns transfer validation intact without publishing a page error or removing the source card', async () => {
+    const store = useCardStore();
+    const feedback = useUiFeedbackStore();
+    const publish = vi.spyOn(feedback, 'setError');
+    store.replaceBoardCards(1, makeBoard().columns);
+    const rejection = err({ kind: 'api' as const, message: 'Validation failed.', validationErrors: { destinationColumnId: ['Column no longer exists.'] } });
+    api.transferCard.mockResolvedValueOnce(rejection);
+
+    expect(await store.transferCard(101, 2, 9, 'keepMatching')).toBe(rejection);
+    expect(store.getCardById(101)).not.toBeNull();
+    expect(publish).not.toHaveBeenCalled();
+    expect(store.busy).toBe(false);
+  });
+
   it('moves multiple cards with a single bulk edit call', async () => {
     const store = useCardStore();
     const board = makeBoard();

@@ -184,7 +184,7 @@ export const useCardStore = defineStore('card', () => {
     }
 
     const boardId = activeBoardId.value;
-    const result = await runBusy(
+    const result = await runApiOperation(
       () => {
         if (options?.duplicateFromCardId !== undefined) {
           return api.duplicateCard(boardId, options.duplicateFromCardId, model);
@@ -211,7 +211,7 @@ export const useCardStore = defineStore('card', () => {
 
   async function saveCard(cardId: number, model: CardEditModel) {
     const boardId = activeBoardId.value;
-    const result = await runBusy(() => api.saveCard(boardId, cardId, model), { boardId });
+    const result = await runApiOperation(() => api.saveCard(boardId, cardId, model), { boardId });
     if (!result.ok) {
       return false;
     }
@@ -226,7 +226,7 @@ export const useCardStore = defineStore('card', () => {
     transferPolicy: CardTransferPolicy
   ) {
     const sourceBoardId = activeBoardId.value;
-    const result = await runBusy(
+    const result = await runApiOperation(
       () => api.transferCard(
         sourceBoardId,
         cardId,
@@ -234,7 +234,7 @@ export const useCardStore = defineStore('card', () => {
         destinationColumnId,
         transferPolicy
       ),
-      { boardId: sourceBoardId }
+      { boardId: sourceBoardId, suppressError: () => true }
     );
     if (!result.ok) {
       return result;
@@ -248,7 +248,7 @@ export const useCardStore = defineStore('card', () => {
   async function deleteCards(cardIds: number[]) {
     const uniqueCardIds = [...new Set(cardIds)];
     const boardId = activeBoardId.value;
-    const result = await runBusy(() => api.deleteCards(boardId, uniqueCardIds), { boardId });
+    const result = await runApiOperation(() => api.deleteCards(boardId, uniqueCardIds), { boardId });
     if (!result.ok) {
       return false;
     }
@@ -259,7 +259,7 @@ export const useCardStore = defineStore('card', () => {
   async function archiveCards(cardIds: number[]) {
     const uniqueCardIds = [...new Set(cardIds)];
     const boardId = activeBoardId.value;
-    const result = await runBusy(() => api.archiveCards(boardId, uniqueCardIds), { boardId });
+    const result = await runApiOperation(() => api.archiveCards(boardId, uniqueCardIds), { boardId });
     if (!result.ok) {
       return false;
     }
@@ -323,7 +323,7 @@ export const useCardStore = defineStore('card', () => {
     }
 
     const boardId = activeBoardId.value;
-    const result = await runBusy(
+    const result = await runApiOperation(
       () => api.editCards(boardId, {
         cardIds: uniqueCardIds,
         move: movePayload,
@@ -378,7 +378,7 @@ export const useCardStore = defineStore('card', () => {
     }
 
     const boardId = activeBoardId.value;
-    const result = await runBusy(
+    const result = await runApiOperation(
       () => api.moveCard(boardId, cardId, targetColumnId, positionAfterCardId),
       { boardId }
     );
@@ -461,7 +461,7 @@ export const useCardStore = defineStore('card', () => {
     return cards;
   }
 
-  async function runBusy<T>(
+  async function runApiOperation<T>(
     operation: () => Promise<Result<T, AppError>>,
     options: {
       boardId: number;

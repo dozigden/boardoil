@@ -2,13 +2,17 @@
   <form class="form-page" @submit.prevent="submit">
     <header class="form-page-header">
       <h2>{{ definition.title }}</h2>
-      <button type="submit" class="btn" :disabled="!canSubmit || !dirty">{{ busy ? 'Saving...' : definition.submitLabel }}</button>
+      <button type="submit" class="btn" :class="{ 'btn--reassessing': reassessing }" :disabled="!canSubmit || !dirty">
+        <FormSubmitIcon v-if="definition.reassess" :loading="reassessing" />
+        <span>{{ busy ? 'Saving...' : definition.submitLabel }}</span>
+      </button>
     </header>
     <slot name="before-fields" />
     <section class="panel panel-stack panel-stack--cozy">
       <slot name="fields-header" />
       <FormFeedback ref="feedback" :category="definition.category" general-errors="toast">
-        <FormFields :definition="definition" :values="draft" :busy="busy" @change="setValue" />
+        <FormReassessment v-if="definition.reassess" :error="reassessmentError" @retry="reassess" />
+        <FormFields :fields="fields" :values="draft" :busy="locked" @change="setValue" />
       </FormFeedback>
     </section>
   </form>
@@ -22,12 +26,14 @@ import { useConfirm } from '../composables/useConfirm';
 import { useValidationStore } from '../stores/validationStore';
 import type { FormDefinition } from './formDefinition';
 import FormFields from './FormFields.vue';
+import FormReassessment from './FormReassessment.vue';
+import FormSubmitIcon from './FormSubmitIcon.vue';
 import { useForm } from './useForm';
 
 const props = defineProps<{ definition: FormDefinition<T, R>; discardMessage: string }>();
 const emit = defineEmits<{ saved: [value: R] }>();
 let active = true;
-const { draft, busy, dirty, canSubmit, setValue, submit: submitForm } = useForm({
+const { draft, fields, busy, locked, reassessing, reassessmentError, reassess, dirty, canSubmit, setValue, submit: submitForm } = useForm({
   ...props.definition,
   isCurrent: () => active && (props.definition.isCurrent?.() ?? true)
 });

@@ -55,6 +55,10 @@ button:disabled {
   box-shadow: none;
 }
 
+.btn--reassessing:disabled {
+  transition: background-color 0s 300ms, border-color 0s 300ms, color 0s 300ms;
+}
+
 .btn--secondary {
   --bo-btn-bg: var(--bo-surface-panel);
   --bo-btn-border: var(--bo-border-brand);

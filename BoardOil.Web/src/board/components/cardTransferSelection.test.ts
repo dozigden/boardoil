@@ -3,8 +3,7 @@ import type { BoardSummary } from '../../shared/types/boardTypes';
 import {
   canCopyMissingDefinitions,
   defaultCardTransferPolicy,
-  getDestinationBoards,
-  resolvePolicyForDestination
+  getDestinationBoards
 } from './cardTransferSelection';
 
 describe('card transfer selection', () => {
@@ -25,8 +24,6 @@ describe('card transfer selection', () => {
   it('allows copy missing only for destination owners', () => {
     expect(canCopyMissingDefinitions(boards[2]!)).toBe(true);
     expect(canCopyMissingDefinitions(boards[1]!)).toBe(false);
-    expect(resolvePolicyForDestination('copyMissing', boards[1]!)).toBe('keepMatching');
-    expect(resolvePolicyForDestination('copyMissing', boards[2]!)).toBe('copyMissing');
   });
 });
 

@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef, toRaw } from 'vue';
+import { computed, getCurrentScope, onScopeDispose, ref, shallowRef, toRaw } from 'vue';
 import { useValidationStore } from '../stores/validationStore';
 import { err, type Result } from '../types/result';
 import type { FormAction, FormDefinition, FormError } from './formDefinition';
@@ -9,31 +9,60 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
   const initial = shallowRef(clone(definition.initialValues()));
   const draft = shallowRef<T>(clone(initial.value));
   const busy = ref(false);
+  const fields = shallowRef(definition.fields);
+  const reassessing = ref(false);
+  const reassessmentError = ref('');
+  const locked = computed(() => busy.value || reassessing.value);
+  let disposed = false;
+  if (getCurrentScope()) onScopeDispose(() => { disposed = true; });
   const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(initial.value));
-  const canSubmit = computed(() => !busy.value && (definition.canSubmit?.(draft.value) ?? true));
+  const canSubmit = computed(() => !locked.value && !reassessmentError.value && (definition.canSubmit?.(draft.value) ?? true));
   const isCurrent = () => definition.isCurrent?.() ?? true;
 
   function setValue<K extends Extract<keyof T, string>>(field: K, value: T[K]) {
-    if (busy.value) return;
+    if (locked.value) return;
+    if (Object.is(draft.value[field], value)) return;
     draft.value = { ...draft.value, [field]: value };
-    const config = definition.fields.find(candidate => candidate.name === field);
+    const config = fields.value.find(candidate => candidate.name === field);
     const corrected = [field, ...(config?.clearFields ?? [])];
     for (const name of corrected) {
-      const correctedField = definition.fields.find(candidate => candidate.name === name);
+      const correctedField = fields.value.find(candidate => candidate.name === name);
       for (const errorField of [name, ...(correctedField?.errorFields ?? [])]) {
         validation.clearFieldErrors(errorField, definition.category);
       }
     }
+    if (config?.reassessOnChange) void reassess();
   }
 
   function reset() {
-    if (busy.value) return;
+    if (locked.value) return;
     draft.value = clone(initial.value);
     validation.clearValidation();
+    void runReassessment(true);
+  }
+
+  async function runReassessment(updateBaseline = false) {
+    if (!definition.reassess || locked.value || disposed || !isCurrent()) return;
+    reassessing.value = true;
+    reassessmentError.value = '';
+    try {
+      const assessment = await definition.reassess(clone(draft.value));
+      if (disposed || !isCurrent()) return;
+      draft.value = clone(assessment.values);
+      if (assessment.fields) fields.value = assessment.fields;
+      reassessmentError.value = assessment.error ?? '';
+      if (updateBaseline) initial.value = clone(draft.value);
+    } finally {
+      reassessing.value = false;
+    }
+  }
+
+  function reassess() {
+    return runReassessment();
   }
 
   async function runOperation<V>(operation: () => Promise<Result<V, FormError>>, confirm?: () => Promise<boolean>) {
-    if (busy.value || !isCurrent()) return;
+    if (locked.value || !isCurrent()) return;
     busy.value = true;
     try {
       if (confirm && !await confirm()) return;
@@ -74,5 +103,7 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
     return runOperation(() => action.run(clone(draft.value)), action.confirm);
   }
 
-  return { draft, busy, dirty, canSubmit, setValue, reset, submit, runAction };
+  void runReassessment(true);
+
+  return { draft, fields, busy, locked, reassessing, reassessmentError, dirty, canSubmit, setValue, reset, reassess, submit, runAction };
 }

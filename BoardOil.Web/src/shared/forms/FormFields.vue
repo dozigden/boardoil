@@ -1,6 +1,6 @@
 <template>
   <FormField
-    v-for="field in definition.fields"
+    v-for="field in fields"
     :key="field.name"
     v-slot="{ inputAttrs }"
     :field="field.name"
@@ -8,7 +8,7 @@
     :help="field.help"
     :checkbox="field.type === 'checkbox'"
     :error-fields="field.errorFields"
-    :group="isControl(field)"
+    :group="isControl(field) || field.type === 'radio'"
     :boxed="field.type === 'tokenScopes' || field.type === 'tokenExpiry'"
   >
     <component
@@ -16,7 +16,7 @@
       :is="controlFor(field)"
       v-bind="controlProps(field)"
       :model-value="values[field.name]"
-      :disabled="busy"
+      :disabled="isDisabled(field)"
       @update:model-value="(value: unknown) => updateValue(field.name, value)"
     />
     <input
@@ -24,7 +24,7 @@
       v-bind="inputAttrs"
       type="checkbox"
       :checked="Boolean(values[field.name])"
-      :disabled="busy"
+      :disabled="isDisabled(field)"
       @change="event => updateCheckbox(field.name, event)"
     />
     <SearchableSelect
@@ -33,18 +33,25 @@
       :label="field.label"
       :model-value="String(values[field.name])"
       :options="field.options"
-      :disabled="busy"
+      :disabled="isDisabled(field)"
+      @update:model-value="value => updateValue(field.name, value)"
+    />
+    <RadioFormControl
+      v-else-if="field.type === 'radio'"
+      :model-value="selectionValue(field)"
+      :options="optionsFor(field)"
+      :disabled="isDisabled(field)"
       @update:model-value="value => updateValue(field.name, value)"
     />
     <select
       v-else-if="field.type === 'select'"
       v-bind="inputAttrs"
-      :value="values[field.name]"
-      :disabled="busy"
+      :value="values[field.name] ?? ''"
+      :disabled="isDisabled(field)"
       :required="field.required"
-      @change="event => updateInput(field.name, event)"
+      @change="event => updateSelection(field, event)"
     >
-      <option v-for="option in field.options" :key="String(option.value)" :value="option.value">{{ option.label }}</option>
+      <option v-for="option in optionsFor(field)" :key="String(option.value)" :value="option.value ?? ''" :disabled="option.disabled">{{ option.label }}</option>
     </select>
     <span
       v-else-if="field.type === 'text' || field.type === 'email' || field.type === 'password'"
@@ -55,7 +62,7 @@
         :value="values[field.name]"
         :type="field.type === 'email' ? 'text' : field.type"
         :inputmode="field.type === 'email' ? 'email' : undefined"
-        :disabled="busy"
+        :disabled="isDisabled(field)"
         :required="field.required"
         :maxlength="field.maxLength"
         :autocomplete="field.autocomplete"
@@ -64,23 +71,28 @@
         @input="event => updateInput(field.name, event)"
         @compositionend="event => updateInput(field.name, event)"
       />
-      <button v-if="field.clearable" type="button" class="btn btn--secondary" :disabled="busy || !values[field.name]"
+      <button v-if="field.clearable" type="button" class="btn btn--secondary" :disabled="isDisabled(field) || !values[field.name]"
         @click="updateValue(field.name, '')">Clear</button>
     </span>
   </FormField>
 </template>
 
-<script setup lang="ts" generic="T extends object, R">
+<script setup lang="ts" generic="T extends object">
 import FormField from '../components/FormField.vue';
 import SearchableSelect from '../components/SearchableSelect.vue';
 import EmojiFormControl from '../components/EmojiFormControl.vue';
 import StyleFormControl from '../components/StyleFormControl.vue';
 import TokenScopesFormControl from '../components/TokenScopesFormControl.vue';
 import TokenExpiryFormControl from '../components/TokenExpiryFormControl.vue';
-import type { FormDefinition, FormFieldDefinition } from './formDefinition';
+import RadioFormControl from '../components/RadioFormControl.vue';
+import type { FormFieldDefinition, FormOption } from './formDefinition';
 
-defineProps<{ definition: FormDefinition<T, R>; values: T; busy: boolean }>();
+const props = defineProps<{ fields: readonly FormFieldDefinition<T>[]; values: T; busy: boolean }>();
 const emit = defineEmits<{ change: [field: Extract<keyof T, string>, value: T[Extract<keyof T, string>]] }>();
+
+function isDisabled(field: FormFieldDefinition<T>) {
+  return props.busy || (field.disabled?.(props.values) ?? false);
+}
 
 function isControl(field: FormFieldDefinition<T>) {
   return ['custom', 'emoji', 'style', 'tokenScopes', 'tokenExpiry'].includes(field.type);
@@ -110,6 +122,22 @@ function updateInput(field: Extract<keyof T, string>, event: Event) {
   if (event instanceof InputEvent && event.isComposing) return;
   const input = event.target;
   if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement) updateValue(field, input.value);
+}
+
+function selectionValue(field: FormFieldDefinition<T>) {
+  return props.values[field.name] as string | number | null;
+}
+
+function optionsFor(field: FormFieldDefinition<T>): readonly FormOption<string | number | null>[] {
+  if (field.type !== 'select' && field.type !== 'radio') return [];
+  return typeof field.options === 'function' ? field.options(props.values) : field.options;
+}
+
+function updateSelection(field: FormFieldDefinition<T>, event: Event) {
+  const select = event.target;
+  if (!(select instanceof HTMLSelectElement)) return;
+  const option = optionsFor(field)[select.selectedIndex];
+  if (option && !option.disabled) updateValue(field.name, option.value);
 }
 
 function updateCheckbox(field: Extract<keyof T, string>, event: Event) {

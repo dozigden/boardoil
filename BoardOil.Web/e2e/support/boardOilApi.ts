@@ -92,6 +92,14 @@ export class BoardOilApi {
     return await this.read<{ systemTimeZoneId: string }>('/api/system/timezone');
   }
 
+  public async deleteColumn(boardId: number, columnId: number) {
+    const response = await this.request.delete(`/api/boards/${boardId}/columns/${columnId}`, {
+      headers: { 'X-BoardOil-CSRF': this.csrfToken }
+    });
+    const result = await readJson<{ success: boolean }>(response);
+    if (!response.ok() || !result.success) throw new Error('Column deletion failed.');
+  }
+
   public async deleteCards(boardId: number, cardIds: number[]) {
     return await this.post<{ deletedCount: number }>(`/api/boards/${boardId}/cards/delete`, { cardIds });
   }

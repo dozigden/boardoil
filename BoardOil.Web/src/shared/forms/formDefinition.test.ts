@@ -5,6 +5,8 @@ import type { TokenExpiryDraft } from '../utils/accessTokenDraft';
 
 type Draft = {
   emoji: string | null;
+  boardId: number | null;
+  columnId: number;
   style: StyleDraft;
   name: string;
   enabled: boolean;
@@ -38,4 +40,11 @@ it('binds domain controls only to draft values that accept their full output', (
   expectTypeOf<{ name: 'restrictedScopes'; label: string; type: 'tokenScopes'; allowedScopes: string[] }>().not.toMatchTypeOf<Field>();
   expectTypeOf<{ name: 'name'; label: string; type: 'tokenExpiry' }>().not.toMatchTypeOf<Field>();
   expectTypeOf<{ name: 'scopes'; label: string; type: 'tokenScopes' }>().not.toMatchTypeOf<Field>();
+});
+
+it('retains typed numeric select values', () => {
+  type Field = FormFieldDefinition<Draft>;
+  expectTypeOf<{ name: 'boardId'; label: string; type: 'select'; options: { value: number | null; label: string }[] }>().toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'boardId'; label: string; type: 'select'; options: { value: string; label: string }[] }>().not.toMatchTypeOf<Field>();
+
 });

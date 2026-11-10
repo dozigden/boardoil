@@ -9,14 +9,3 @@ export function getDestinationBoards(sourceBoardId: number | null, boards: Board
 export function canCopyMissingDefinitions(board: BoardSummary | null) {
   return board?.currentUserRole === 'Owner';
 }
-
-export function resolvePolicyForDestination(
-  policy: CardTransferPolicy,
-  board: BoardSummary | null
-): CardTransferPolicy {
-  if (policy === 'copyMissing' && !canCopyMissingDefinitions(board)) {
-    return defaultCardTransferPolicy;
-  }
-
-  return policy;
-}

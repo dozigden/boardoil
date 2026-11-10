@@ -24,10 +24,10 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     boards.value = boards.value.filter(board => board.id !== boardId);
   }
 
-  async function loadBoards() {
+  async function loadBoards(options?: { suppressError?: boolean }) {
     const result = await api.getBoards();
     if (!result.ok) {
-      reportError(result.error);
+      if (!options?.suppressError) reportError(result.error);
       return false;
     }
 
@@ -37,7 +37,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
   }
 
   async function createBoard(name: string, description?: string) {
-    const result = await runBusy(() => api.createBoard(name, description));
+    const result = await runApiOperation(() => api.createBoard(name, description));
     if (!result.ok) {
       return null;
     }
@@ -48,7 +48,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
   }
 
   async function cloneBoard(sourceBoardId: number, name: string) {
-    const result = await runBusy(() => api.cloneBoard(sourceBoardId, name));
+    const result = await runApiOperation(() => api.cloneBoard(sourceBoardId, name));
     if (!result.ok) {
       return null;
     }
@@ -59,7 +59,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
   }
 
   async function importBoardPackage(file: File, name?: string) {
-    const result = await runBusy(() => api.importBoardPackage(file, name));
+    const result = await runApiOperation(() => api.importBoardPackage(file, name));
     if (!result.ok) {
       return null;
     }
@@ -70,7 +70,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
   }
 
   async function saveBoard(boardId: number, model: BoardEditModel) {
-    const result = await runBusy(() => api.saveBoard(boardId, model));
+    const result = await runApiOperation(() => api.saveBoard(boardId, model));
     if (!result.ok) {
       return null;
     }
@@ -80,7 +80,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
   }
 
   async function deleteBoard(boardId: number) {
-    const result = await runBusy(() => api.deleteBoard(boardId));
+    const result = await runApiOperation(() => api.deleteBoard(boardId));
     if (!result.ok) {
       return false;
     }
@@ -94,7 +94,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     busy.value = false;
   }
 
-  async function runBusy<T>(operation: () => Promise<Result<T, AppError>>) {
+  async function runApiOperation<T>(operation: () => Promise<Result<T, AppError>>) {
     busy.value = true;
     try {
       const result = await operation();
